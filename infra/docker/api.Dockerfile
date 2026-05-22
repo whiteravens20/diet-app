@@ -33,6 +33,8 @@ COPY --from=build /app/packages/shared/package.json ./packages/shared/
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/api/package.json ./apps/api/
 COPY --from=build /app/apps/api/prisma ./apps/api/prisma
+# prisma.config.ts is required by the Prisma CLI for `migrate deploy` at runtime.
+COPY --from=build /app/apps/api/prisma.config.ts ./apps/api/
 COPY --from=build /app/data ./data
 USER node
 EXPOSE 4000

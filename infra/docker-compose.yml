@@ -36,6 +36,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── One-shot: apply database migrations, then exit ──────────────────────────
+  # `api` and `worker` wait for this to complete so they never start against an
+  # un-migrated schema. Safe to re-run — `migrate deploy` only applies pending
+  # migrations.
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/docker/api.Dockerfile
+    env_file: ../.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
+    # node_modules is hoisted to /app by npm workspaces; the schema + config
+    # are resolved relative to /app/apps/api.
+    working_dir: /app/apps/api
+    command: ['/app/node_modules/.bin/prisma', 'migrate', 'deploy']
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: 'no'
+
   api:
     build:
       context: ..
@@ -50,6 +70,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
     ports:
       - '${API_PORT:-4000}:4000'
     healthcheck:
@@ -73,14 +94,17 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
 
   web:
     build:
       context: ..
       dockerfile: infra/docker/web.Dockerfile
+      # NEXT_PUBLIC_* values are inlined into the client bundle at BUILD time —
+      # they must be passed as a build arg, not a runtime environment variable.
+      args:
+        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:4000}
     restart: unless-stopped
-    environment:
-      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:4000}
     depends_on:
       - api
     ports:
