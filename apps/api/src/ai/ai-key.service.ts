@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { AiProviderConfig, AiProviderConfigInput } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { decryptSecret, encryptSecret } from './crypto.js';
+import { decrypt, encrypt } from '../common/crypto.js';
 
 /** A resolved provider config with the decrypted key, for internal use only. */
 export interface ResolvedProviderConfig {
@@ -41,7 +41,7 @@ export class AiKeyService {
     const existing = await this.prisma.aiProviderConfig.findFirst({
       where: { userId, provider: input.provider },
     });
-    const encryptedKey = input.apiKey ? encryptSecret(input.apiKey, this.encKey) : undefined;
+    const encryptedKey = input.apiKey ? encrypt(input.apiKey, this.encKey) : undefined;
 
     const row = existing
       ? await this.prisma.aiProviderConfig.update({
@@ -87,7 +87,7 @@ export class AiKeyService {
       provider: r.provider,
       model: r.model,
       priority: r.priority,
-      apiKey: r.encryptedKey ? decryptSecret(r.encryptedKey, this.encKey) : null,
+      apiKey: r.encryptedKey ? decrypt(r.encryptedKey, this.encKey) : null,
     }));
   }
 

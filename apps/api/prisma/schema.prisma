@@ -22,14 +22,18 @@ enum Role {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  displayName   String
-  role          Role     @default(user)
-  emailVerified Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id String @id @default(uuid())
+  // Email is never stored in plaintext. `emailIndex` is a keyed HMAC (blind
+  // index) for unique lookups; `emailEncrypted` is the AES-256-GCM ciphertext
+  // of the address. See apps/api/src/common/crypto.ts.
+  emailIndex     String   @unique
+  emailEncrypted String
+  passwordHash   String
+  displayName    String
+  role           Role     @default(user)
+  emailVerified  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   profiles      Profile[]
   refreshTokens RefreshToken[]

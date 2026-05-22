@@ -25,6 +25,9 @@ export const envSchema = z.object({
 
   // 64 hex chars = 32 bytes for AES-256-GCM.
   AI_KEY_ENCRYPTION_SECRET: z.string().regex(/^[0-9a-fA-F]{64}$/, '64 hex chars required'),
+  // Master secret for encrypting user PII at rest (email) and peppering
+  // password hashes. Purpose-specific keys are HKDF-derived from it.
+  DATA_ENCRYPTION_SECRET: z.string().regex(/^[0-9a-fA-F]{64}$/, '64 hex chars required'),
 
   AI_DEFAULT_PROVIDER: z.enum(['openai', 'anthropic', 'openrouter', 'ollama']).optional(),
   AI_DEFAULT_MODEL: z.string().optional(),
