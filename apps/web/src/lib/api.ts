@@ -5,7 +5,10 @@
  */
 import type { AuthResponse } from '@diet-app/shared';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// Empty by default: requests go to a relative `/api/*` path on the web app's
+// own origin, which Next.js proxies to the backend (see next.config.ts). Set
+// NEXT_PUBLIC_API_URL only to bypass the proxy and call the API cross-origin.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const ACCESS_KEY = 'diet-app.access';
 const REFRESH_KEY = 'diet-app.refresh';
 

@@ -74,7 +74,9 @@ services:
     ports:
       - '${API_PORT:-4000}:4000'
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/api/health || exit 1']
+      # 127.0.0.1, not localhost: the API binds IPv4 and busybox wget would
+      # otherwise try localhost's IPv6 address first and fail.
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/api/health || exit 1']
       interval: 20s
       timeout: 5s
       retries: 5
@@ -100,10 +102,10 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/web.Dockerfile
-      # NEXT_PUBLIC_* values are inlined into the client bundle at BUILD time —
-      # they must be passed as a build arg, not a runtime environment variable.
+      # The web app proxies `/api/*` to the `api` service, so the browser only
+      # ever talks to the web origin — no CORS, host-agnostic.
       args:
-        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:4000}
+        API_PROXY_URL: http://api:4000
     restart: unless-stopped
     depends_on:
       - api
