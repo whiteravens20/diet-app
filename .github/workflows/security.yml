@@ -21,10 +21,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      # Production deps get a tighter bar (moderate); dev deps stay at high.
-      - name: Audit (production, moderate)
-        run: npm audit --omit=dev --audit-level=moderate
-      - name: Audit (dev, high)
+      # Fail CI on HIGH/CRITICAL advisories. Moderate transitive advisories
+      # (e.g. the postcss bundled by Next.js) are tracked by Dependabot instead
+      # of blocking the build — see docs/ops/testing.md.
+      - name: Audit (production)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit (all dependencies)
         run: npm audit --audit-level=high
       - name: Install for signature audit
         run: npm ci
@@ -40,7 +42,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/dependency-review-action@v4.9.0
+      - uses: actions/dependency-review-action@v5.0.0
         with:
           fail-on-severity: high
 

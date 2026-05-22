@@ -34,7 +34,7 @@ jobs:
       DATABASE_URL: postgresql://diet:diet@localhost:5432/diet_app_test?schema=public
       REDIS_URL: redis://localhost:6379
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with: { node-version: 24, cache: npm }
       - run: npm ci
@@ -48,7 +48,7 @@ jobs:
     name: web
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with: { node-version: 24, cache: npm }
       - run: npm ci
@@ -60,7 +60,7 @@ jobs:
     name: docker
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Validate Docker images build
         run: |
           docker build -f infra/docker/api.Dockerfile -t diet-app-api:ci .
