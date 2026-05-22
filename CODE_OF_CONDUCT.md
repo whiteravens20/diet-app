@@ -47,7 +47,7 @@ We agree to restrict the following behaviors in our community. Instances, threat
 
 ## Security and Privacy
 
-Because Archivum Null is a privacy-focused project, the following additional expectations apply to all community members:
+Because Diet App is a privacy-focused project, the following additional expectations apply to all community members:
 
 - Do **not** attempt to access, intercept, or exfiltrate data belonging to other users of any running instance.
 - Do **not** probe, scan, or stress-test a running deployment you do not own or have explicit written permission to test.
@@ -62,7 +62,7 @@ Violating these rules is grounds for immediate and permanent removal from the co
 
 Tensions can occur between community members even when they are trying their best to collaborate. Not every conflict represents a code of conduct violation, and this Code of Conduct reinforces encouraged behaviors and norms that can help avoid conflicts and minimize harm.
 
-When an incident does occur, it is important to report it promptly. To report a possible violation, open a [private security report on GitHub](https://github.com/whiteravens20/archivum-null/security/advisories/new) or contact the maintainers through the details in [SECURITY.md](SECURITY.md).
+When an incident does occur, it is important to report it promptly. To report a possible violation, open a [private security report on GitHub](https://github.com/whiteravens20/diet-app/security/advisories/new) or contact the maintainers through the details in [SECURITY.md](SECURITY.md).
 
 Community Moderators take reports of violations seriously and will make every effort to respond in a timely manner. They will investigate all reports of code of conduct violations, reviewing messages, logs, and recordings, or interviewing witnesses and other participants. Community Moderators will keep investigation and enforcement actions as transparent as possible while prioritizing safety and confidentiality. In order to honor these values, enforcement actions are carried out in private with the involved parties, but communicating to the whole community may be part of a mutually agreed upon resolution.
 
