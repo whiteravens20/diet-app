@@ -182,35 +182,42 @@ async function main(): Promise<void> {
     }
 
     const s = recipe.servings;
-    // Replace any existing seed copy so re-seeding stays idempotent.
-    await prisma.recipe.deleteMany({ where: { title: recipe.title, origin: 'seed' } });
-    await prisma.recipe.create({
-      data: {
-        title: recipe.title,
-        description: recipe.description,
-        servings: s,
-        mealTypes: recipe.mealTypes,
-        dietTags: recipe.dietTags,
-        steps: recipe.steps,
-        prepMinutes: recipe.prepMinutes,
-        cookMinutes: recipe.cookMinutes,
-        difficulty: recipe.difficulty,
-        allergens: [...allergens],
-        origin: 'seed',
-        caloriesPerServing: Math.round(calories / s),
-        proteinPerServing: Math.round(protein / s),
-        fatPerServing: Math.round(fat / s),
-        carbsPerServing: Math.round(carbs / s),
-        ingredients: {
-          create: recipe.ingredients.map((line) => ({
-            ingredientId: byName.get(line.name)!.id,
-            quantity: line.quantity,
-            unit: line.unit,
-            note: line.note ?? null,
-          })),
-        },
-      },
+    const ingredientLines = recipe.ingredients.map((line) => ({
+      ingredientId: byName.get(line.name)!.id,
+      quantity: line.quantity,
+      unit: line.unit,
+      note: line.note ?? null,
+    }));
+    const fields = {
+      description: recipe.description,
+      servings: s,
+      mealTypes: recipe.mealTypes,
+      dietTags: recipe.dietTags,
+      steps: recipe.steps,
+      prepMinutes: recipe.prepMinutes,
+      cookMinutes: recipe.cookMinutes,
+      difficulty: recipe.difficulty,
+      allergens: [...allergens],
+      caloriesPerServing: Math.round(calories / s),
+      proteinPerServing: Math.round(protein / s),
+      fatPerServing: Math.round(fat / s),
+      carbsPerServing: Math.round(carbs / s),
+    };
+    // Idempotent and FK-safe: refresh an existing seed recipe in place — its id
+    // may be referenced by planned meals — otherwise create it.
+    const existing = await prisma.recipe.findFirst({
+      where: { title: recipe.title, origin: 'seed' },
     });
+    if (existing) {
+      await prisma.recipe.update({
+        where: { id: existing.id },
+        data: { ...fields, ingredients: { deleteMany: {}, create: ingredientLines } },
+      });
+    } else {
+      await prisma.recipe.create({
+        data: { title: recipe.title, origin: 'seed', ...fields, ingredients: { create: ingredientLines } },
+      });
+    }
   }
 
   console.log('Seeding substitution rules…');
