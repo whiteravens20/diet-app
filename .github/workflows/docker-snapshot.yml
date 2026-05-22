@@ -1,0 +1,135 @@
+# ── Diet App — Snapshot Builds ────────────────────────────────────────────────
+#
+# Manually-triggered build of the `api` and `web` Docker images from `dev`.
+# Publishes to GHCR with the `:dev` tag so a snapshot can be pulled and tested
+# without building locally. These are NOT production releases — use a semver
+# tag and the release workflow for that.
+#
+# Run it:  Actions → "Snapshot build" → Run workflow (pick the `dev` branch).
+#
+# Tags produced per image:
+#   ghcr.io/whiteravens20/diet-app/api:dev
+#   ghcr.io/whiteravens20/diet-app/api:dev-<7-char-sha>
+#   ghcr.io/whiteravens20/diet-app/web:dev
+#   ghcr.io/whiteravens20/diet-app/web:dev-<7-char-sha>
+#
+# Pull to test:  docker pull ghcr.io/whiteravens20/diet-app/api:dev
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Snapshot build
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-push:
+    name: Build ${{ matrix.image }} snapshot
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: infra/docker/api.Dockerfile
+          - image: web
+            dockerfile: infra/docker/web.Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Compute snapshot tags
+        id: tag
+        run: |
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          IMG="${{ env.REGISTRY }}/${REPO_LC}/${{ matrix.image }}"
+          {
+            echo "value<<EOF"
+            echo "${IMG}:dev"
+            echo "${IMG}:dev-${SHA}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.tag.outputs.value }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # ── Trivy scan ────────────────────────────────────────────────────────────────
+  # Snapshot scans REPORT ONLY — findings land in the Security tab but never
+  # block the dev snapshot. A production release tag is the blocking gate.
+  scan:
+    name: Trivy scan ${{ matrix.image }}
+    needs: build-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, web]
+
+    steps:
+      - name: Checkout (for .trivyignore)
+        uses: actions/checkout@v6
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve lowercase image ref
+        id: img
+        run: |
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "ref=${{ env.REGISTRY }}/${REPO_LC}/${{ matrix.image }}:dev" >> "$GITHUB_OUTPUT"
+
+      - name: Scan for CVEs
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.img.outputs.ref }}
+          severity: HIGH,CRITICAL
+          trivyignores: .trivyignore
+          limit-severities-for-sarif: true
+          # Snapshot builds report only — do not block dev iteration.
+          exit-code: '0'
+          format: sarif
+          output: trivy-${{ matrix.image }}.sarif
+
+      - name: Upload SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.image }}.sarif
+          category: trivy-snapshot-${{ matrix.image }}

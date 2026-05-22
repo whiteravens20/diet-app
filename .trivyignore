@@ -1,0 +1,9 @@
+# Trivy ignore file — acknowledged CVEs for the snapshot Docker scans.
+#
+# Add a CVE ID on its own line, each with a justification comment above it.
+# Entries here suppress findings in the "Snapshot build" Trivy scan.
+# Keep this list short and review it regularly.
+#
+# Example:
+#   # CVE-0000-00000 — false positive: package not reachable at runtime.
+#   CVE-0000-00000
