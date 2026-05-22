@@ -14,6 +14,7 @@ import {
   calculateCalories,
   optimisePlan,
   substituteIngredient,
+  type CalorieEngineInput,
   type EngineIngredient,
   type OptimizerRecipe,
 } from '../engine/index.js';
@@ -34,35 +35,16 @@ export class MealPlansService {
   /** Deterministically generate and persist a meal plan. */
   async generate(userId: string, req: GeneratePlanRequest): Promise<MealPlan> {
     const profile = await this.loadProfile(userId, req.profileId);
-
-    const calorieTarget =
-      req.calorieTargetOverride ??
-      calculateCalories({
-        age: profile.age,
-        sex: profile.sex,
-        heightCm: profile.heightCm,
-        weightKg: profile.weightKg,
-        activityLevel: profile.activityLevel,
-        dietType: profile.dietType,
-        weeklyLossTarget: profile.weeklyLossTarget as WeeklyTarget,
-        manualCalorieTarget: profile.manualCalorieTarget,
-      }).dailyTarget;
-
+    const calorieTarget = req.calorieTargetOverride ?? this.calorieTargetFor(profile);
     const dietType = req.dietType ?? profile.dietType;
     const mealCount = req.mealCount ?? profile.mealCount;
-    const mealSlots = MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
-
-    const { optimizerRecipes } = await this.loadEligibleRecipes(profile);
 
     // Deterministic seed: count of existing plans → "regenerate" yields variety.
     const seed = await this.prisma.mealPlan.count({ where: { profileId: profile.id } });
-
-    const result = optimisePlan({
-      recipes: optimizerRecipes,
+    const result = await this.optimiseFor(profile, {
       days: req.durationDays,
-      mealSlots,
-      dailyCalorieTarget: calorieTarget,
-      targetMacros: { protein: 0, fat: 0, carbs: 0 },
+      mealCount,
+      calorieTarget,
       dietType,
       mealPrepFriendly: req.mealPrepFriendly,
       seed,
@@ -78,21 +60,140 @@ export class MealPlansService {
         calorieTarget,
         generationMode: 'deterministic',
         reuseScore: result.ingredientReuseScore,
-        days: {
-          create: Array.from({ length: req.durationDays }, (_, dayIndex) => ({
-            date: addDays(start, dayIndex),
-            calorieTarget,
-            meals: {
-              create: result.assignments
-                .filter((a) => a.dayIndex === dayIndex)
-                .map((a) => ({ recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
-            },
-          })),
-        },
+        days: { create: buildDays(start, req.durationDays, calorieTarget, result.assignments) },
       },
     });
-
     return this.get(userId, plan.id);
+  }
+
+  /**
+   * Re-run the optimiser for an existing plan, in place. Picks up any profile
+   * changes (calorie target, diet type) and yields a fresh set of meals.
+   */
+  async regenerate(userId: string, planId: string): Promise<MealPlan> {
+    const existing = await this.prisma.mealPlan.findUnique({
+      where: { id: planId },
+      include: { profile: true, days: { include: { meals: true }, orderBy: { date: 'asc' } } },
+    });
+    if (!existing) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (existing.profile.userId !== userId) {
+      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
+    }
+
+    const profile = await this.loadProfile(userId, existing.profileId);
+    const calorieTarget = this.calorieTargetFor(profile);
+    const mealCount = existing.days[0]?.meals.length ?? profile.mealCount;
+    const result = await this.optimiseFor(profile, {
+      days: existing.durationDays,
+      mealCount,
+      calorieTarget,
+      dietType: profile.dietType,
+      mealPrepFriendly: false,
+      seed: Date.now(),
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.mealPlanDay.deleteMany({ where: { planId } }),
+      this.prisma.mealPlan.update({
+        where: { id: planId },
+        data: {
+          calorieTarget,
+          dietType: profile.dietType,
+          reuseScore: result.ingredientReuseScore,
+          days: { create: buildDays(existing.startDate, existing.durationDays, calorieTarget, result.assignments) },
+        },
+      }),
+    ]);
+    return this.get(userId, planId);
+  }
+
+  /** Re-roll the meals of a single day, leaving the rest of the plan untouched. */
+  async regenerateDay(userId: string, planId: string, dayId: string): Promise<MealPlan> {
+    const day = await this.prisma.mealPlanDay.findUnique({
+      where: { id: dayId },
+      include: { plan: { include: { profile: true } }, meals: true },
+    });
+    if (!day || day.planId !== planId) {
+      throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
+    }
+    if (day.plan.profile.userId !== userId) {
+      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
+    }
+
+    const profile = await this.loadProfile(userId, day.plan.profileId);
+    const result = await this.optimiseFor(profile, {
+      days: 1,
+      mealCount: day.meals.length || profile.mealCount,
+      calorieTarget: day.calorieTarget,
+      dietType: day.plan.dietType,
+      mealPrepFriendly: false,
+      seed: Date.now(),
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.plannedMeal.deleteMany({ where: { dayId } }),
+      this.prisma.plannedMeal.createMany({
+        data: result.assignments
+          .filter((a) => a.dayIndex === 0)
+          .map((a) => ({ dayId, recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
+      }),
+    ]);
+    return this.get(userId, planId);
+  }
+
+  /** Delete a plan and everything under it (days, meals, shopping lists cascade). */
+  async remove(userId: string, planId: string): Promise<void> {
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { id: planId },
+      include: { profile: true },
+    });
+    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (plan.profile.userId !== userId) {
+      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
+    }
+    await this.prisma.mealPlan.delete({ where: { id: planId } });
+  }
+
+  /** Daily calorie target for a profile (a manual override wins, see the engine). */
+  private calorieTargetFor(
+    profile: Omit<CalorieEngineInput, 'weeklyLossTarget'> & { weeklyLossTarget: string | null },
+  ): number {
+    return calculateCalories({
+      age: profile.age,
+      sex: profile.sex,
+      heightCm: profile.heightCm,
+      weightKg: profile.weightKg,
+      activityLevel: profile.activityLevel,
+      dietType: profile.dietType,
+      weeklyLossTarget: profile.weeklyLossTarget as WeeklyTarget,
+      manualCalorieTarget: profile.manualCalorieTarget,
+    }).dailyTarget;
+  }
+
+  /** Run the deterministic optimiser for a profile against the eligible recipes. */
+  private async optimiseFor(
+    profile: { id: string; preferences: { allergens: string[]; excludedIngredientIds: string[] } | null },
+    opts: {
+      days: number;
+      mealCount: number;
+      calorieTarget: number;
+      dietType: MealPlan['dietType'];
+      mealPrepFriendly: boolean;
+      seed: number;
+    },
+  ) {
+    const mealSlots = MEAL_SLOTS_BY_COUNT[opts.mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
+    const { optimizerRecipes } = await this.loadEligibleRecipes(profile);
+    return optimisePlan({
+      recipes: optimizerRecipes,
+      days: opts.days,
+      mealSlots,
+      dailyCalorieTarget: opts.calorieTarget,
+      targetMacros: { protein: 0, fat: 0, carbs: 0 },
+      dietType: opts.dietType,
+      mealPrepFriendly: opts.mealPrepFriendly,
+      seed: opts.seed,
+    });
   }
 
   async list(userId: string, profileId: string): Promise<MealPlan[]> {
@@ -110,7 +211,13 @@ export class MealPlansService {
       include: {
         days: {
           orderBy: { date: 'asc' },
-          include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
+          include: {
+            meals: {
+              include: {
+                recipe: { include: { ingredients: { include: { ingredient: true } } } },
+              },
+            },
+          },
         },
         profile: true,
       },
@@ -346,6 +453,24 @@ function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + days);
   return d;
+}
+
+/** Nested `days.create` payload from a run of optimiser assignments. */
+function buildDays(
+  start: Date,
+  durationDays: number,
+  calorieTarget: number,
+  assignments: { dayIndex: number; slot: string; recipeId: string; servings: number }[],
+) {
+  return Array.from({ length: durationDays }, (_, dayIndex) => ({
+    date: addDays(start, dayIndex),
+    calorieTarget,
+    meals: {
+      create: assignments
+        .filter((a) => a.dayIndex === dayIndex)
+        .map((a) => ({ recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
+    },
+  }));
 }
 
 function isoDate(date: Date): string {

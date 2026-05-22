@@ -11,7 +11,7 @@ export class FavoritesService {
     await this.assertProfile(userId, profileId);
     const rows = await this.prisma.favorite.findMany({
       where: { profileId },
-      include: { recipe: { include: { ingredients: true } } },
+      include: { recipe: { include: { ingredients: { include: { ingredient: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((f) => ({

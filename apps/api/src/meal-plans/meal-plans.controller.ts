@@ -1,10 +1,16 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import {
-  GeneratePlanRequest,
-  SwapIngredientRequest,
-  SwapMealRequest,
-} from '@diet-app/shared';
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { GeneratePlanRequest, SwapIngredientRequest, SwapMealRequest } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -33,6 +39,30 @@ export class MealPlansController {
     @Body(new ZodValidationPipe(GeneratePlanRequest)) dto: GeneratePlanRequest,
   ) {
     return this.plans.generate(user.id, dto);
+  }
+
+  /** Re-run the optimiser for a whole plan, in place. */
+  @Post(':id/regenerate')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  regenerate(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.plans.regenerate(user.id, id);
+  }
+
+  /** Re-roll the meals of a single day. */
+  @Post(':id/days/:dayId/regenerate')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  regenerateDay(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Param('dayId') dayId: string,
+  ) {
+    return this.plans.regenerateDay(user.id, id, dayId);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    await this.plans.remove(user.id, id);
   }
 
   @Post('swap-meal')

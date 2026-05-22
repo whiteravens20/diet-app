@@ -26,7 +26,7 @@ export class RecipesService {
         ...(filters.maxPrepMinutes ? { prepMinutes: { lte: filters.maxPrepMinutes } } : {}),
         ...(filters.difficulty ? { difficulty: filters.difficulty as 'easy' | 'medium' | 'hard' } : {}),
       },
-      include: { ingredients: true },
+      include: { ingredients: { include: { ingredient: true } } },
       orderBy: { title: 'asc' },
       take: 200,
     });
@@ -34,7 +34,10 @@ export class RecipesService {
   }
 
   async get(id: string): Promise<Recipe> {
-    const row = await this.prisma.recipe.findUnique({ where: { id }, include: { ingredients: true } });
+    const row = await this.prisma.recipe.findUnique({
+      where: { id },
+      include: { ingredients: { include: { ingredient: true } } },
+    });
     if (!row) throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
     return toRecipeDto(row);
   }
@@ -64,6 +67,7 @@ export function toRecipeDto(row: {
     quantity: number;
     unit: 'g' | 'ml' | 'piece';
     note: string | null;
+    ingredient: { name: string };
   }[];
 }): Recipe {
   return {
@@ -75,6 +79,7 @@ export function toRecipeDto(row: {
     dietTags: row.dietTags as Recipe['dietTags'],
     ingredients: row.ingredients.map((i) => ({
       ingredientId: i.ingredientId,
+      name: i.ingredient.name,
       quantity: i.quantity,
       unit: i.unit,
       note: i.note,

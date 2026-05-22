@@ -5,6 +5,8 @@ import { Nutrition } from './nutrition.js';
 /** One ingredient line in a recipe, with an exact quantity. */
 export const RecipeIngredient = z.object({
   ingredientId: z.string().uuid(),
+  /** Display name of the ingredient, from the curated database. */
+  name: z.string(),
   /** Quantity in the given unit; the engine converts to the canonical unit. */
   quantity: z.number().min(0),
   unit: Unit,
