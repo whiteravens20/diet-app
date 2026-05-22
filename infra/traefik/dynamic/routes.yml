@@ -1,0 +1,27 @@
+# ── Traefik dynamic routing ───────────────────────────────────────────────────
+# Routes the web app at / and the API at /api on a single entrypoint, so the
+# whole stack sits behind one reverse proxy. For TLS, add a certresolver and an
+# `websecure` entrypoint in docker-compose.yml.
+
+http:
+  routers:
+    web:
+      rule: PathPrefix(`/`)
+      service: web
+      entrypoints: [web]
+      priority: 1
+    api:
+      rule: PathPrefix(`/api`)
+      service: api
+      entrypoints: [web]
+      priority: 10
+
+  services:
+    web:
+      loadBalancer:
+        servers:
+          - url: http://web:3000
+    api:
+      loadBalancer:
+        servers:
+          - url: http://api:4000

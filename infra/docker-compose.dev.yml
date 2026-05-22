@@ -1,0 +1,48 @@
+# ── Diet App — development stack ──────────────────────────────────────────────
+# Postgres + Redis in containers; run the apps on the host with `npm run dev`
+# for fast HMR. Or `docker compose -f infra/docker-compose.dev.yml --profile full
+# up` to also containerise the API + web.
+#
+#   docker compose -f infra/docker-compose.dev.yml up -d   # just the datastores
+
+name: diet-app-dev
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-diet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-diet}
+      POSTGRES_DB: ${POSTGRES_DB:-diet_app}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-dev:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-diet}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-dev:/data
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ['ollama']
+    restart: unless-stopped
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama-dev:/root/.ollama
+
+volumes:
+  postgres-dev:
+  redis-dev:
+  ollama-dev:

@@ -1,0 +1,53 @@
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import {
+  GeneratePlanRequest,
+  SwapIngredientRequest,
+  SwapMealRequest,
+} from '@diet-app/shared';
+import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { MealPlansService } from './meal-plans.service.js';
+
+@Controller('meal-plans')
+@UseGuards(JwtAuthGuard)
+export class MealPlansController {
+  constructor(private readonly plans: MealPlansService) {}
+
+  @Get()
+  list(@CurrentUser() user: RequestUser, @Query('profileId') profileId: string) {
+    return this.plans.list(user.id, profileId);
+  }
+
+  @Get(':id')
+  get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.plans.get(user.id, id);
+  }
+
+  /** Plan generation is rate-limited tighter — it is compute-heavy. */
+  @Post('generate')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  generate(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(GeneratePlanRequest)) dto: GeneratePlanRequest,
+  ) {
+    return this.plans.generate(user.id, dto);
+  }
+
+  @Post('swap-meal')
+  swapMeal(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(SwapMealRequest)) dto: SwapMealRequest,
+  ) {
+    return this.plans.swapMeal(user.id, dto);
+  }
+
+  @Post('swap-ingredient/preview')
+  previewIngredientSwap(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
+  ) {
+    return this.plans.previewIngredientSwap(user.id, dto);
+  }
+}

@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+.git
+.github
+docs
+*.md
+.env
+.env.*
+apps/api/prisma/*.db
+infra/.data

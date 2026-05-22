@@ -1,0 +1,362 @@
+[
+  {
+    "title": "Overnight oats with blueberries",
+    "description": "Creamy no-cook oats soaked overnight, topped with fresh blueberries.",
+    "servings": 1,
+    "mealTypes": ["breakfast", "second_breakfast"],
+    "dietTags": ["balanced", "vegetarian", "high_protein"],
+    "prepMinutes": 5,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Rolled oats", "quantity": 60, "unit": "g" },
+      { "name": "Whole milk", "quantity": 180, "unit": "ml" },
+      { "name": "Greek yogurt", "quantity": 80, "unit": "g" },
+      { "name": "Blueberries", "quantity": 60, "unit": "g" },
+      { "name": "Honey", "quantity": 10, "unit": "g" }
+    ],
+    "steps": [
+      "Combine oats, milk and yogurt in a jar.",
+      "Stir in honey and refrigerate overnight.",
+      "Top with blueberries before serving."
+    ]
+  },
+  {
+    "title": "Scrambled eggs on whole-grain toast",
+    "description": "Soft scrambled eggs served on toasted whole-grain bread.",
+    "servings": 1,
+    "mealTypes": ["breakfast"],
+    "dietTags": ["balanced", "vegetarian", "high_protein"],
+    "prepMinutes": 3,
+    "cookMinutes": 7,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Large egg", "quantity": 3, "unit": "piece" },
+      { "name": "Whole-grain bread", "quantity": 2, "unit": "piece" },
+      { "name": "Olive oil", "quantity": 5, "unit": "ml" },
+      { "name": "Spinach", "quantity": 40, "unit": "g" }
+    ],
+    "steps": [
+      "Whisk the eggs with a pinch of salt.",
+      "Soften spinach in olive oil, then add eggs and scramble gently.",
+      "Serve on toasted bread."
+    ]
+  },
+  {
+    "title": "Banana peanut-butter oatmeal",
+    "description": "Warm oats cooked with milk, finished with banana and peanut butter.",
+    "servings": 1,
+    "mealTypes": ["breakfast"],
+    "dietTags": ["balanced", "vegetarian", "vegan", "high_protein"],
+    "prepMinutes": 3,
+    "cookMinutes": 6,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Rolled oats", "quantity": 60, "unit": "g" },
+      { "name": "Whole milk", "quantity": 200, "unit": "ml" },
+      { "name": "Banana", "quantity": 1, "unit": "piece" },
+      { "name": "Peanut butter", "quantity": 20, "unit": "g" }
+    ],
+    "steps": [
+      "Simmer oats with milk until creamy.",
+      "Stir through sliced banana.",
+      "Top with peanut butter."
+    ]
+  },
+  {
+    "title": "Avocado & egg keto plate",
+    "description": "A low-carb breakfast of boiled eggs and ripe avocado.",
+    "servings": 1,
+    "mealTypes": ["breakfast"],
+    "dietTags": ["low_carb", "keto", "vegetarian", "balanced"],
+    "prepMinutes": 2,
+    "cookMinutes": 9,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Large egg", "quantity": 3, "unit": "piece" },
+      { "name": "Avocado", "quantity": 1, "unit": "piece" },
+      { "name": "Olive oil", "quantity": 5, "unit": "ml" }
+    ],
+    "steps": [
+      "Boil the eggs for 9 minutes, then cool and peel.",
+      "Slice the avocado and drizzle with olive oil.",
+      "Season and serve."
+    ]
+  },
+  {
+    "title": "Grilled chicken & rice bowl",
+    "description": "Lean grilled chicken with white rice and steamed broccoli.",
+    "servings": 2,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["balanced", "high_protein"],
+    "prepMinutes": 10,
+    "cookMinutes": 20,
+    "difficulty": "medium",
+    "ingredients": [
+      { "name": "Chicken breast", "quantity": 320, "unit": "g" },
+      { "name": "White rice", "quantity": 160, "unit": "g" },
+      { "name": "Broccoli", "quantity": 200, "unit": "g" },
+      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+    ],
+    "steps": [
+      "Cook the rice according to package directions.",
+      "Season and grill the chicken until cooked through.",
+      "Steam the broccoli and assemble the bowls."
+    ]
+  },
+  {
+    "title": "Salmon with quinoa & spinach",
+    "description": "Pan-seared salmon over fluffy quinoa with wilted spinach.",
+    "servings": 2,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["balanced", "high_protein", "mediterranean"],
+    "prepMinutes": 10,
+    "cookMinutes": 18,
+    "difficulty": "medium",
+    "ingredients": [
+      { "name": "Salmon fillet", "quantity": 260, "unit": "g" },
+      { "name": "Quinoa", "quantity": 140, "unit": "g" },
+      { "name": "Spinach", "quantity": 120, "unit": "g" },
+      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+    ],
+    "steps": [
+      "Cook the quinoa until tender.",
+      "Sear the salmon skin-side down in olive oil.",
+      "Wilt the spinach and plate everything together."
+    ]
+  },
+  {
+    "title": "Chickpea & tomato stew",
+    "description": "A hearty plant-based stew of chickpeas simmered with tomato and onion.",
+    "servings": 3,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
+    "prepMinutes": 10,
+    "cookMinutes": 25,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Chickpeas", "quantity": 480, "unit": "g" },
+      { "name": "Tomato", "quantity": 3, "unit": "piece" },
+      { "name": "Onion", "quantity": 1, "unit": "piece" },
+      { "name": "Olive oil", "quantity": 20, "unit": "ml" },
+      { "name": "Spinach", "quantity": 100, "unit": "g" }
+    ],
+    "steps": [
+      "Soften the onion in olive oil.",
+      "Add chopped tomato and chickpeas; simmer 20 minutes.",
+      "Stir in spinach until wilted."
+    ]
+  },
+  {
+    "title": "Tofu & vegetable stir-fry",
+    "description": "Quick stir-fried tofu with peppers, carrot and rice.",
+    "servings": 2,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["balanced", "vegetarian", "vegan", "high_protein"],
+    "prepMinutes": 12,
+    "cookMinutes": 15,
+    "difficulty": "medium",
+    "ingredients": [
+      { "name": "Tofu", "quantity": 300, "unit": "g" },
+      { "name": "Bell pepper", "quantity": 1, "unit": "piece" },
+      { "name": "Carrot", "quantity": 2, "unit": "piece" },
+      { "name": "White rice", "quantity": 150, "unit": "g" },
+      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+    ],
+    "steps": [
+      "Cook the rice.",
+      "Fry cubed tofu until golden, set aside.",
+      "Stir-fry the vegetables, return tofu and combine."
+    ]
+  },
+  {
+    "title": "Beef & vegetable pasta",
+    "description": "Ground beef ragu tossed through pasta with tomato and onion.",
+    "servings": 3,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["balanced", "high_protein"],
+    "prepMinutes": 10,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      { "name": "Ground beef", "quantity": 360, "unit": "g" },
+      { "name": "Pasta", "quantity": 300, "unit": "g" },
+      { "name": "Tomato", "quantity": 3, "unit": "piece" },
+      { "name": "Onion", "quantity": 1, "unit": "piece" },
+      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+    ],
+    "steps": [
+      "Boil the pasta until al dente.",
+      "Brown the beef with onion, add tomato and simmer.",
+      "Toss the sauce through the pasta."
+    ]
+  },
+  {
+    "title": "Red lentil & carrot soup",
+    "description": "A comforting blended soup of red lentils and carrot.",
+    "servings": 3,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
+    "prepMinutes": 8,
+    "cookMinutes": 25,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Red lentils", "quantity": 240, "unit": "g" },
+      { "name": "Carrot", "quantity": 3, "unit": "piece" },
+      { "name": "Onion", "quantity": 1, "unit": "piece" },
+      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+    ],
+    "steps": [
+      "Soften the onion and carrot in olive oil.",
+      "Add lentils and water; simmer until soft.",
+      "Blend until smooth and season."
+    ]
+  },
+  {
+    "title": "Chicken & broccoli low-carb skillet",
+    "description": "A grain-free skillet of chicken and broccoli in olive oil.",
+    "servings": 2,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["low_carb", "keto", "high_protein", "balanced"],
+    "prepMinutes": 8,
+    "cookMinutes": 18,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Chicken breast", "quantity": 320, "unit": "g" },
+      { "name": "Broccoli", "quantity": 300, "unit": "g" },
+      { "name": "Olive oil", "quantity": 20, "unit": "ml" },
+      { "name": "Cheddar cheese", "quantity": 60, "unit": "g" }
+    ],
+    "steps": [
+      "Sear diced chicken in olive oil.",
+      "Add broccoli and cook until tender-crisp.",
+      "Scatter cheddar over the top to melt."
+    ]
+  },
+  {
+    "title": "Black bean & quinoa salad",
+    "description": "A protein-rich cold salad of black beans, quinoa and pepper.",
+    "servings": 2,
+    "mealTypes": ["lunch"],
+    "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean", "high_protein"],
+    "prepMinutes": 12,
+    "cookMinutes": 15,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Black beans", "quantity": 320, "unit": "g" },
+      { "name": "Quinoa", "quantity": 120, "unit": "g" },
+      { "name": "Bell pepper", "quantity": 1, "unit": "piece" },
+      { "name": "Tomato", "quantity": 1, "unit": "piece" },
+      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+    ],
+    "steps": [
+      "Cook and cool the quinoa.",
+      "Dice the pepper and tomato.",
+      "Toss everything with olive oil and season."
+    ]
+  },
+  {
+    "title": "Baked salmon with potato & broccoli",
+    "description": "Oven-baked salmon with roast potato and steamed broccoli.",
+    "servings": 2,
+    "mealTypes": ["dinner"],
+    "dietTags": ["balanced", "high_protein", "mediterranean"],
+    "prepMinutes": 10,
+    "cookMinutes": 30,
+    "difficulty": "medium",
+    "ingredients": [
+      { "name": "Salmon fillet", "quantity": 260, "unit": "g" },
+      { "name": "Potato", "quantity": 3, "unit": "piece" },
+      { "name": "Broccoli", "quantity": 200, "unit": "g" },
+      { "name": "Olive oil", "quantity": 20, "unit": "ml" }
+    ],
+    "steps": [
+      "Roast cubed potato in olive oil for 25 minutes.",
+      "Add the salmon and bake 12 minutes more.",
+      "Steam the broccoli and serve."
+    ]
+  },
+  {
+    "title": "Greek yogurt with almonds & honey",
+    "description": "A quick high-protein snack of yogurt, almonds and honey.",
+    "servings": 1,
+    "mealTypes": ["snack", "second_breakfast"],
+    "dietTags": ["balanced", "vegetarian", "high_protein", "low_carb"],
+    "prepMinutes": 3,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Greek yogurt", "quantity": 170, "unit": "g" },
+      { "name": "Almonds", "quantity": 20, "unit": "g" },
+      { "name": "Honey", "quantity": 10, "unit": "g" }
+    ],
+    "steps": ["Spoon yogurt into a bowl.", "Top with almonds and honey."]
+  },
+  {
+    "title": "Banana & almond snack",
+    "description": "A simple plant-based snack of banana and almonds.",
+    "servings": 1,
+    "mealTypes": ["snack"],
+    "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
+    "prepMinutes": 2,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Banana", "quantity": 1, "unit": "piece" },
+      { "name": "Almonds", "quantity": 25, "unit": "g" }
+    ],
+    "steps": ["Slice the banana.", "Serve with almonds."]
+  },
+  {
+    "title": "Avocado toast snack",
+    "description": "Mashed avocado on whole-grain toast.",
+    "servings": 1,
+    "mealTypes": ["snack", "second_breakfast"],
+    "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
+    "prepMinutes": 4,
+    "cookMinutes": 2,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Avocado", "quantity": 1, "unit": "piece" },
+      { "name": "Whole-grain bread", "quantity": 1, "unit": "piece" },
+      { "name": "Tomato", "quantity": 1, "unit": "piece" }
+    ],
+    "steps": ["Toast the bread.", "Mash avocado over it.", "Top with sliced tomato."]
+  },
+  {
+    "title": "Cheddar & egg keto muffins",
+    "description": "Baked egg muffins with cheddar and spinach — a keto snack.",
+    "servings": 2,
+    "mealTypes": ["snack", "breakfast"],
+    "dietTags": ["keto", "low_carb", "vegetarian", "balanced"],
+    "prepMinutes": 8,
+    "cookMinutes": 18,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Large egg", "quantity": 4, "unit": "piece" },
+      { "name": "Cheddar cheese", "quantity": 80, "unit": "g" },
+      { "name": "Spinach", "quantity": 60, "unit": "g" }
+    ],
+    "steps": [
+      "Whisk eggs with chopped spinach and cheddar.",
+      "Pour into a muffin tin.",
+      "Bake at 180°C for 18 minutes."
+    ]
+  },
+  {
+    "title": "Hummus-style chickpea snack bowl",
+    "description": "Smashed chickpeas with olive oil and tomato.",
+    "servings": 1,
+    "mealTypes": ["snack"],
+    "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
+    "prepMinutes": 6,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      { "name": "Chickpeas", "quantity": 150, "unit": "g" },
+      { "name": "Olive oil", "quantity": 10, "unit": "ml" },
+      { "name": "Tomato", "quantity": 1, "unit": "piece" }
+    ],
+    "steps": ["Lightly mash the chickpeas.", "Stir in olive oil.", "Top with diced tomato."]
+  }
+]

@@ -1,0 +1,67 @@
+# ── CI ────────────────────────────────────────────────────────────────────────
+# Lint, typecheck, build and test the monorepo. The job names `api`, `web` and
+# `docker` are the required status checks on the protected `main` branch.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: api
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: diet
+          POSTGRES_PASSWORD: diet
+          POSTGRES_DB: diet_app_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U diet" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+    env:
+      DATABASE_URL: postgresql://diet:diet@localhost:5432/diet_app_test?schema=public
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run lint -- --filter=@diet-app/api
+      - run: npm run typecheck -- --filter=@diet-app/api
+      - run: npm run test -- --filter=@diet-app/api
+      - run: npm run build -- --filter=@diet-app/api
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run lint -- --filter=@diet-app/web
+      - run: npm run typecheck -- --filter=@diet-app/web
+      - run: npm run build -- --filter=@diet-app/web
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate Docker images build
+        run: |
+          docker build -f infra/docker/api.Dockerfile -t diet-app-api:ci .
+          docker build -f infra/docker/web.Dockerfile -t diet-app-web:ci .

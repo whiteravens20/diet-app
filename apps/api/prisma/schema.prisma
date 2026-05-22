@@ -1,0 +1,427 @@
+// Diet App data model.
+// The product/ingredient + nutrition tables are CURATED SEED DATA and the single
+// source of truth for nutrition. AI never writes to them. See docs/architecture.
+
+generator client {
+  provider      = "prisma-client-js"
+  // `native` for local dev; the musl target is for the Alpine Docker image.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  // Prisma 7: the connection URL lives in prisma.config.ts (for Migrate) and is
+  // passed to PrismaClient via the pg driver adapter (see prisma/prisma.service.ts).
+  provider = "postgresql"
+}
+
+// ── Accounts & auth ───────────────────────────────────────────────────────────
+
+enum Role {
+  user
+  admin
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  displayName   String
+  role          Role     @default(user)
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  profiles      Profile[]
+  refreshTokens RefreshToken[]
+  resetTokens   PasswordResetToken[]
+  aiConfigs     AiProviderConfig[]
+  aiUsageLogs   AiUsageLog[]
+  auditLogs     AuditLog[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ── Profiles ──────────────────────────────────────────────────────────────────
+
+enum Sex {
+  male
+  female
+}
+
+enum ActivityLevel {
+  sedentary
+  light
+  moderate
+  active
+  very_active
+}
+
+enum DietType {
+  balanced
+  high_protein
+  low_carb
+  vegetarian
+  vegan
+  keto
+  mediterranean
+  custom
+}
+
+model Profile {
+  id                  String        @id @default(uuid())
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String
+  name                String
+  age                 Int
+  sex                 Sex?
+  heightCm            Float
+  weightKg            Float
+  activityLevel       ActivityLevel @default(moderate)
+  dietType            DietType      @default(balanced)
+  // "0.25" | "0.5" | "0.75" | "1.0" — null = maintenance.
+  weeklyLossTarget    String?
+  // When set, overrides the calculated daily calorie target.
+  manualCalorieTarget Int?
+  mealCount           Int           @default(3)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  preferences ProfilePreference?
+  mealPlans   MealPlan[]
+  favorites   Favorite[]
+
+  @@index([userId])
+}
+
+model ProfilePreference {
+  id                   String   @id @default(uuid())
+  profile              Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId            String   @unique
+  excludedIngredientIds String[] @default([])
+  allergens            String[] @default([])
+  dislikedFoods        String[] @default([])
+  preferredCuisines    String[] @default([])
+}
+
+// ── Curated product database (SEED DATA — source of truth) ────────────────────
+
+enum ProductCategory {
+  vegetables
+  fruits
+  dairy
+  meat
+  fish
+  grains
+  legumes
+  nuts_seeds
+  fats_oils
+  spices
+  pantry
+  beverages
+  other
+}
+
+enum Unit {
+  g
+  ml
+  piece
+}
+
+model Ingredient {
+  id               String          @id @default(uuid())
+  name             String          @unique
+  category         ProductCategory
+  canonicalUnit    Unit
+  // Nutrition per 100 canonical units. NutritionFact mirrors this 1:1 for
+  // explicit auditing / alternate serving sizes.
+  caloriesPer100   Float
+  proteinPer100    Float
+  fatPer100        Float
+  carbsPer100      Float
+  gramsPerPiece    Float?
+  density          Float?
+  allergens        String[]        @default([])
+  dietCompatibility String[]       @default([])
+  tags             String[]        @default([])
+  packSize         Float?
+  brand            String?
+  storageHint      String?
+
+  nutritionFacts     NutritionFact[]
+  recipeIngredients  RecipeIngredient[]
+  substitutionsFrom  SubstitutionRule[] @relation("SubFrom")
+  substitutionsTo    SubstitutionRule[] @relation("SubTo")
+
+  @@index([category])
+}
+
+// Explicit nutrition rows — supports alternate serving sizes and audit trail.
+model NutritionFact {
+  id           String     @id @default(uuid())
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  ingredientId String
+  servingLabel String // e.g. "per 100 g", "per slice (28 g)"
+  servingGrams Float
+  calories     Float
+  protein      Float
+  fat          Float
+  carbs        Float
+
+  @@index([ingredientId])
+}
+
+model Allergen {
+  id    String @id @default(uuid())
+  code  String @unique // gluten | dairy | eggs | ...
+  label String
+}
+
+model SubstitutionRule {
+  id             String     @id @default(uuid())
+  fromIngredient Ingredient @relation("SubFrom", fields: [fromIngredientId], references: [id], onDelete: Cascade)
+  fromIngredientId String
+  toIngredient   Ingredient @relation("SubTo", fields: [toIngredientId], references: [id], onDelete: Cascade)
+  toIngredientId String
+  note           String?
+
+  @@unique([fromIngredientId, toIngredientId])
+}
+
+// ── Recipes ───────────────────────────────────────────────────────────────────
+
+enum RecipeOrigin {
+  seed
+  ai
+  user
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+model Recipe {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  servings    Int
+  mealTypes   String[]     @default([])
+  dietTags    String[]     @default([])
+  steps       String[]     @default([])
+  prepMinutes Int
+  cookMinutes Int
+  difficulty  Difficulty   @default(easy)
+  allergens   String[]     @default([])
+  origin      RecipeOrigin @default(seed)
+  // Per-serving nutrition — DERIVED from ingredients, recomputed on write.
+  caloriesPerServing Float @default(0)
+  proteinPerServing  Float @default(0)
+  fatPerServing      Float @default(0)
+  carbsPerServing    Float @default(0)
+  reuseScore         Float @default(0)
+  // Owner is set for `user`-origin recipes; null for seed/ai library recipes.
+  createdByUserId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ingredients  RecipeIngredient[]
+  plannedMeals PlannedMeal[]
+  favorites    Favorite[]
+
+  @@index([origin])
+}
+
+model RecipeIngredient {
+  id           String     @id @default(uuid())
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId     String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  ingredientId String
+  quantity     Float
+  unit         Unit
+  note         String?
+
+  @@index([recipeId])
+  @@index([ingredientId])
+}
+
+// ── Meal plans ────────────────────────────────────────────────────────────────
+
+enum GenerationMode {
+  deterministic
+  ai_assisted
+}
+
+model MealPlan {
+  id             String         @id @default(uuid())
+  profile        Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId      String
+  startDate      DateTime       @db.Date
+  durationDays   Int
+  dietType       DietType
+  calorieTarget  Int
+  generationMode GenerationMode @default(deterministic)
+  reuseScore     Float          @default(0)
+  createdAt      DateTime       @default(now())
+
+  days          MealPlanDay[]
+  shoppingLists ShoppingList[]
+
+  @@index([profileId])
+}
+
+model MealPlanDay {
+  id            String   @id @default(uuid())
+  plan          MealPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId        String
+  date          DateTime @db.Date
+  calorieTarget Int
+
+  meals PlannedMeal[]
+
+  @@index([planId])
+}
+
+model PlannedMeal {
+  id        String      @id @default(uuid())
+  day       MealPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  dayId     String
+  recipe    Recipe      @relation(fields: [recipeId], references: [id])
+  recipeId  String
+  mealType  String
+  servings  Float       @default(1)
+
+  @@index([dayId])
+}
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+
+model Favorite {
+  id        String   @id @default(uuid())
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId  String
+  tags      String[] @default([])
+  // user preference signal: often used vs. avoid
+  sentiment String   @default("favorite") // favorite | often | avoid
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, recipeId])
+  @@index([profileId])
+}
+
+// ── Shopping lists ────────────────────────────────────────────────────────────
+
+model ShoppingList {
+  id        String   @id @default(uuid())
+  plan      MealPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId    String
+  fromDate  DateTime @db.Date
+  toDate    DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  items ShoppingListItem[]
+
+  @@index([planId])
+}
+
+model ShoppingListItem {
+  id                  String       @id @default(uuid())
+  list                ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId              String
+  ingredientId        String
+  name                String
+  category            ProductCategory
+  totalQuantity       Float
+  unit                Unit
+  alreadyHaveQuantity Float        @default(0)
+  estimatedCalories   Float        @default(0)
+  checked             Boolean      @default(false)
+
+  @@index([listId])
+}
+
+// ── AI configuration & observability ──────────────────────────────────────────
+
+enum AiProviderKind {
+  openai
+  anthropic
+  openrouter
+  ollama
+}
+
+model AiProviderConfig {
+  id             String         @id @default(uuid())
+  // Null userId = admin-level default available to everyone.
+  user           User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String?
+  provider       AiProviderKind
+  model          String
+  // AES-256-GCM ciphertext (iv:tag:data); never returned by the API.
+  encryptedKey   String?
+  priority       Int            @default(0)
+  enabled        Boolean        @default(true)
+  isAdminDefault Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([userId])
+}
+
+model AiUsageLog {
+  id           String   @id @default(uuid())
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId       String?
+  provider     String
+  model        String
+  operation    String // recipe_draft | substitution | plan_variation | ...
+  promptTokens Int      @default(0)
+  outputTokens Int      @default(0)
+  latencyMs    Int      @default(0)
+  success      Boolean
+  fellBackToDeterministic Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  action    String // auth.login | profile.update | plan.generate | ...
+  entity    String?
+  entityId  String?
+  // Non-sensitive context only — never store passwords/keys/raw health data.
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}

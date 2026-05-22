@@ -1,0 +1,19 @@
+# ── Ollama GPU override ───────────────────────────────────────────────────────
+# Layer on top of the base stack to give Ollama NVIDIA GPU access:
+#
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.gpu.yml \
+#     --profile ollama up -d
+#
+# Requires the NVIDIA Container Toolkit on the host.
+
+name: diet-app
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ['gpu']

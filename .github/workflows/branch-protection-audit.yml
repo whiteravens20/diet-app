@@ -1,0 +1,100 @@
+name: Branch Protection Audit
+
+# Asserts that branch protection on `main` still matches expectations.
+# Drift here (someone disabling required reviews, signed commits, or required
+# checks) silently weakens the supply chain — this catches it within a day.
+
+on:
+  schedule:
+    # Daily at 07:00 UTC
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  audit:
+    name: Verify main branch protection
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # Reading branch-protection settings requires admin scope on the repo;
+      # provide a fine-grained PAT as `BRANCH_PROTECTION_READ_TOKEN` repo secret
+      # with `Administration: read` on this repo only. If absent, the job
+      # falls back to GITHUB_TOKEN and may report partial data.
+    steps:
+      - name: Fetch protection rules for main
+        env:
+          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_READ_TOKEN || github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          PROT=$(gh api "repos/${REPO}/branches/main/protection" 2>/dev/null || echo '{}')
+
+          if [ "$PROT" = "{}" ]; then
+            echo "::error::Could not fetch branch protection. Ensure BRANCH_PROTECTION_READ_TOKEN is set with 'Administration: read'."
+            exit 1
+          fi
+
+          echo "$PROT" | jq .
+
+          fail=0
+          assert() {
+            local label="$1"
+            local expr="$2"
+            local actual
+            actual=$(echo "$PROT" | jq -r "$expr")
+            if [ "$actual" != "true" ]; then
+              echo "::error::Branch protection drift — ${label} is '${actual}', expected 'true'"
+              fail=1
+            else
+              echo "ok: ${label}"
+            fi
+          }
+
+          # Required: code-owner review on every PR
+          assert "require code-owner reviews"          '.required_pull_request_reviews.require_code_owner_reviews // false'
+          # Required: stale review dismissal on new push
+          assert "dismiss stale reviews"                '.required_pull_request_reviews.dismiss_stale_reviews // false'
+          # Required: at least one approving review
+          REVIEWERS=$(echo "$PROT" | jq -r '.required_pull_request_reviews.required_approving_review_count // 0')
+          if [ "$REVIEWERS" -lt 1 ]; then
+            echo "::error::required_approving_review_count is ${REVIEWERS}, expected >= 1"
+            fail=1
+          else
+            echo "ok: required_approving_review_count=${REVIEWERS}"
+          fi
+
+          # Required: signed commits
+          assert "required signatures"                  '.required_signatures.enabled // false'
+          # Required: linear history (no merge commits muddying audit trail)
+          assert "required linear history"              '.required_linear_history.enabled // false'
+          # Required: status checks must pass and branches up-to-date
+          assert "require strict status checks"         '.required_status_checks.strict // false'
+          # Required: rules apply to admins too
+          assert "enforce admins"                       '.enforce_admins.enabled // false'
+          # Required: block force pushes
+          assert "block force pushes"                   '(.allow_force_pushes.enabled // false) | not'
+          # Required: block deletions
+          assert "block branch deletions"               '(.allow_deletions.enabled // false) | not'
+
+          # Required CI contexts that must pass before merge
+          REQUIRED_CHECKS=$(echo "$PROT" | jq -r '.required_status_checks.contexts[]? // empty' | sort)
+          echo "Configured required checks:"
+          echo "$REQUIRED_CHECKS" | sed 's/^/  - /'
+
+          for must in "Backend tests" "Frontend tests" "Analyze (javascript-typescript)" "npm audit" "Trivy filesystem scan" "Trivy Docker image scan"; do
+            if ! echo "$REQUIRED_CHECKS" | grep -Fxq "$must"; then
+              echo "::error::Required status check missing: '${must}'"
+              fail=1
+            fi
+          done
+
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::Branch-protection audit FAILED — see annotations above."
+            exit 1
+          fi
+
+          echo "Branch-protection audit passed."

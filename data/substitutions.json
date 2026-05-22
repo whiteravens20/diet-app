@@ -1,0 +1,10 @@
+[
+  { "from": "White rice", "to": "Pasta", "note": "Swap within the grains category; preserves calories when scaled." },
+  { "from": "White rice", "to": "Potato", "note": "Lower energy density — quantity is scaled up to match calories." },
+  { "from": "White rice", "to": "Quinoa", "note": "Adds protein; quinoa is gluten-free." },
+  { "from": "Pasta", "to": "Quinoa", "note": "Gluten-free substitute for pasta." },
+  { "from": "Chicken breast", "to": "Tofu", "note": "Plant-based protein swap for vegetarian/vegan plans." },
+  { "from": "Ground beef", "to": "Red lentils", "note": "Plant-based protein swap; reduces saturated fat." },
+  { "from": "Whole milk", "to": "Greek yogurt", "note": "Higher protein dairy alternative." },
+  { "from": "Peanut butter", "to": "Almonds", "note": "Nut swap for peanut-allergy avoidance." }
+]

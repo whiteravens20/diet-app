@@ -1,0 +1,22 @@
+# ── Code Owners ───────────────────────────────────────────────────────────────
+# At least one owner must approve any PR touching these paths.
+# Paths are checked most-specific to least-specific; last matching rule wins.
+
+# Default owner for everything.
+* @pavlojs
+
+# CI/CD & supply chain — high-risk.
+/.github/ @pavlojs
+/infra/ @pavlojs
+
+# Security perimeter — auth, AI key handling, deterministic engines.
+/apps/api/src/auth/ @pavlojs
+/apps/api/src/ai/ @pavlojs
+/apps/api/src/engine/ @pavlojs
+
+# Data model — schema changes ripple across the whole system.
+/apps/api/prisma/ @pavlojs
+
+# Security & legal docs.
+/SECURITY.md @pavlojs
+/LICENSE @pavlojs

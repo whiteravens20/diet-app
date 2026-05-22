@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: "\U0001F6E1\uFE0F Security Vulnerability"
+    url: https://github.com/whiteravens20/archivum-null/security/advisories/new
+    about: >
+      Report a security vulnerability privately via GitHub's built-in
+      private reporting. Do NOT open a public issue for security bugs.
+
+  - name: "\U0001F4AC Question / Discussion"
+    url: https://github.com/whiteravens20/archivum-null/discussions
+    about: >
+      Ask a question, share feedback, or start a general discussion
+      about the project.

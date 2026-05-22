@@ -1,0 +1,32 @@
+# ── Dependabot ────────────────────────────────────────────────────────────────
+# Weekly dependency updates against `dev`. CI must pass before merge.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: UTC
+    labels: [dependencies, github-actions]
+    commit-message:
+      prefix: "ci"
+
+  # Single root manifest — npm workspaces resolve apps/* and packages/*.
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: UTC
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      non-breaking:
+        update-types: [minor, patch]
