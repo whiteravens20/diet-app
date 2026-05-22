@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import type { GeneratePlanRequest, MealPlan, Profile } from '@diet-app/shared';
@@ -32,15 +33,47 @@ function MealPlansContent() {
     enabled: Boolean(activeId),
   });
 
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['meal-plans', activeId] });
+  const fail = (verb: string) => (e: unknown) =>
+    setError(e instanceof ApiClientError ? e.message : `Could not ${verb}.`);
+
   const generate = useMutation({
     mutationFn: (body: GeneratePlanRequest) => api.post<MealPlan>('/meal-plans/generate', body),
     onSuccess: (plan) => {
-      qc.invalidateQueries({ queryKey: ['meal-plans', activeId] });
+      invalidate();
       setOpenPlan(plan.id);
     },
-    onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : 'Could not generate the plan.'),
+    onError: fail('generate the plan'),
   });
+
+  const regenerate = useMutation({
+    mutationFn: (planId: string) => api.post<MealPlan>(`/meal-plans/${planId}/regenerate`),
+    onSuccess: invalidate,
+    onError: fail('recalculate the plan'),
+  });
+
+  const regenerateDay = useMutation({
+    mutationFn: (v: { planId: string; dayId: string }) =>
+      api.post<MealPlan>(`/meal-plans/${v.planId}/days/${v.dayId}/regenerate`),
+    onSuccess: invalidate,
+    onError: fail('change the day'),
+  });
+
+  const swapMeal = useMutation({
+    mutationFn: (v: { planId: string; plannedMealId: string }) =>
+      api.post<MealPlan>('/meal-plans/swap-meal', { ...v, strategy: 'random' }),
+    onSuccess: invalidate,
+    onError: fail('swap the meal'),
+  });
+
+  const remove = useMutation({
+    mutationFn: (planId: string) => api.delete<void>(`/meal-plans/${planId}`),
+    onSuccess: invalidate,
+    onError: fail('delete the plan'),
+  });
+
+  const busy =
+    regenerate.isPending || regenerateDay.isPending || swapMeal.isPending || remove.isPending;
 
   function onGenerate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -81,7 +114,6 @@ function MealPlansContent() {
         </p>
       </header>
 
-      {/* Profile picker — only shown when the account has more than one. */}
       {list.length > 1 && (
         <div className="flex gap-2">
           {list.map((p) => (
@@ -93,6 +125,7 @@ function MealPlansContent() {
               onClick={() => {
                 setPicked(p.id);
                 setOpenPlan(null);
+                setError(null);
               }}
             >
               {p.name}
@@ -117,15 +150,16 @@ function MealPlansContent() {
               <input name="mealPrepFriendly" type="checkbox" className="h-4 w-4" />
               Meal-prep friendly
             </label>
-            <div className="flex items-center gap-3 sm:col-span-3">
+            <div className="sm:col-span-3">
               <Button type="submit" disabled={generate.isPending}>
                 {generate.isPending ? 'Generating…' : 'Generate plan'}
               </Button>
-              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
           </form>
         </CardContent>
       </Card>
+
+      {error && <p className="max-w-2xl text-sm text-destructive">{error}</p>}
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">
@@ -141,7 +175,26 @@ function MealPlansContent() {
               key={plan.id}
               plan={plan}
               open={openPlan === plan.id}
+              busy={busy}
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
+              onRegenerate={() => {
+                setError(null);
+                regenerate.mutate(plan.id);
+              }}
+              onDelete={() => {
+                setError(null);
+                if (window.confirm('Delete this plan? This cannot be undone.')) {
+                  remove.mutate(plan.id);
+                }
+              }}
+              onRegenerateDay={(dayId) => {
+                setError(null);
+                regenerateDay.mutate({ planId: plan.id, dayId });
+              }}
+              onSwapMeal={(plannedMealId) => {
+                setError(null);
+                swapMeal.mutate({ planId: plan.id, plannedMealId });
+              }}
             />
           ))
         )}
@@ -150,48 +203,109 @@ function MealPlansContent() {
   );
 }
 
-function PlanCard({ plan, open, onToggle }: { plan: MealPlan; open: boolean; onToggle: () => void }) {
+function PlanCard({
+  plan,
+  open,
+  busy,
+  onToggle,
+  onRegenerate,
+  onDelete,
+  onRegenerateDay,
+  onSwapMeal,
+}: {
+  plan: MealPlan;
+  open: boolean;
+  busy: boolean;
+  onToggle: () => void;
+  onRegenerate: () => void;
+  onDelete: () => void;
+  onRegenerateDay: (dayId: string) => void;
+  onSwapMeal: (plannedMealId: string) => void;
+}) {
   return (
     <Card className="max-w-2xl">
-      <button type="button" onClick={onToggle} className="w-full p-4 text-left">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="font-medium">
-              {plan.durationDays}-day plan · {plan.dietType.replace('_', ' ')}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              From {plan.startDate} · {plan.averageDailyNutrition.calories} kcal/day avg ·{' '}
-              {Math.round(plan.ingredientReuseScore * 100)}% ingredient reuse
-            </p>
-          </div>
-          <span className="text-sm text-muted-foreground">{open ? '▲' : '▼'}</span>
+      <div className="flex items-center justify-between gap-4 p-4">
+        <button type="button" onClick={onToggle} className="flex-1 text-left">
+          <p className="font-medium">
+            {plan.durationDays}-day plan · {plan.dietType.replace('_', ' ')}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            From {plan.startDate} · {plan.averageDailyNutrition.calories} kcal/day avg ·{' '}
+            {Math.round(plan.ingredientReuseScore * 100)}% ingredient reuse
+          </p>
+        </button>
+        <div className="flex shrink-0 gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onRegenerate} disabled={busy}>
+            Recalculate
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={onDelete}
+            disabled={busy}
+          >
+            Delete
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onToggle}>
+            {open ? '▲' : '▼'}
+          </Button>
         </div>
-      </button>
+      </div>
       {open && (
         <CardContent className="space-y-4 border-t border-border pt-4">
           {plan.days.map((day) => (
             <div key={day.id}>
-              <div className="flex items-center justify-between text-sm font-medium">
-                <span>{day.date}</span>
-                <span
-                  className={
-                    Math.abs(day.calorieDelta) <= 50 ? 'text-muted-foreground' : 'text-destructive'
-                  }
-                >
-                  {day.dayNutrition.calories} / {day.calorieTarget} kcal
-                  {day.calorieDelta >= 0 ? ' +' : ' '}
-                  {day.calorieDelta}
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{day.date}</span>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={
+                      Math.abs(day.calorieDelta) <= 50
+                        ? 'text-sm text-muted-foreground'
+                        : 'text-sm text-destructive'
+                    }
+                  >
+                    {day.dayNutrition.calories} / {day.calorieTarget} kcal
+                    {day.calorieDelta >= 0 ? ' +' : ' '}
+                    {day.calorieDelta}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onRegenerateDay(day.id)}
+                    disabled={busy}
+                  >
+                    Change day
+                  </Button>
+                </div>
               </div>
-              <ul className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+              <ul className="mt-1 space-y-1 text-sm">
                 {day.meals.map((m) => (
-                  <li key={m.id} className="flex justify-between gap-4">
-                    <span>
+                  <li key={m.id} className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">
                       <span className="capitalize">{m.mealType.replace('_', ' ')}</span> ·{' '}
-                      {m.recipe.title}
+                      <Link href={`/recipes/${m.recipe.id}`} className="text-primary hover:underline">
+                        {m.recipe.title}
+                      </Link>
                       {m.servings !== 1 ? ` (×${m.servings})` : ''}
                     </span>
-                    <span className="tabular-nums">{m.nutrition.calories} kcal</span>
+                    <span className="flex items-center gap-2">
+                      <span className="tabular-nums text-muted-foreground">
+                        {m.nutrition.calories} kcal
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onSwapMeal(m.id)}
+                        disabled={busy}
+                      >
+                        Swap
+                      </Button>
+                    </span>
                   </li>
                 ))}
               </ul>
