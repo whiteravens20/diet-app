@@ -1,5 +1,15 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import type { CalorieCalculation, Profile, ProfileInput } from '@diet-app/shared';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  type CalorieCalculation,
+  MAX_PROFILES_PER_ACCOUNT,
+  type Profile,
+  type ProfileInput,
+} from '@diet-app/shared';
 import { calculateCalories } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -23,6 +33,13 @@ export class ProfilesService {
   }
 
   async create(userId: string, input: ProfileInput): Promise<Profile> {
+    const count = await this.prisma.profile.count({ where: { userId } });
+    if (count >= MAX_PROFILES_PER_ACCOUNT) {
+      throw new ConflictException({
+        error: 'PROFILE_LIMIT_REACHED',
+        message: `An account can have at most ${MAX_PROFILES_PER_ACCOUNT} profiles. Delete one to add another.`,
+      });
+    }
     const row = await this.prisma.profile.create({
       data: {
         userId,

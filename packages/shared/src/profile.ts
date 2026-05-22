@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { ActivityLevel, Allergen, DietType, MealType, Sex, WeeklyLossTarget } from './enums.js';
 
+/** A single account may hold at most this many profiles. */
+export const MAX_PROFILES_PER_ACCOUNT = 2;
+
 /** Free-form preference bundle attached to a profile. */
 export const ProfilePreferences = z.object({
   excludedIngredientIds: z.array(z.string().uuid()).default([]),
