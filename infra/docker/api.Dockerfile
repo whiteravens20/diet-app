@@ -35,6 +35,9 @@ COPY --from=build /app/apps/api/package.json ./apps/api/
 COPY --from=build /app/apps/api/prisma ./apps/api/prisma
 # prisma.config.ts is required by the Prisma CLI for `migrate deploy` at runtime.
 COPY --from=build /app/apps/api/prisma.config.ts ./apps/api/
+# src is needed by prisma/seed.ts, which imports the engine for deterministic
+# recipe nutrition. It is also the input compiled into dist.
+COPY --from=build /app/apps/api/src ./apps/api/src
 COPY --from=build /app/data ./data
 USER node
 EXPOSE 4000

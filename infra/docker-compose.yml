@@ -36,11 +36,11 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── One-shot: apply database migrations, then exit ──────────────────────────
+  # ── One-shot: migrate the schema + seed the curated DB, then exit ───────────
   # `api` and `worker` wait for this to complete so they never start against an
-  # un-migrated schema. Safe to re-run — `migrate deploy` only applies pending
-  # migrations.
-  migrate:
+  # un-migrated or empty database. Safe to re-run: `migrate deploy` only applies
+  # pending migrations, and the seed upserts by natural key.
+  db-init:
     build:
       context: ..
       dockerfile: infra/docker/api.Dockerfile
@@ -48,10 +48,13 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-    # node_modules is hoisted to /app by npm workspaces; the schema + config
-    # are resolved relative to /app/apps/api.
+    # node_modules is hoisted to /app by npm workspaces; the schema, config and
+    # seed are resolved relative to /app/apps/api.
     working_dir: /app/apps/api
-    command: ['/app/node_modules/.bin/prisma', 'migrate', 'deploy']
+    command:
+      - sh
+      - -c
+      - /app/node_modules/.bin/prisma migrate deploy && /app/node_modules/.bin/tsx prisma/seed.ts
     depends_on:
       postgres: { condition: service_healthy }
     restart: 'no'
@@ -70,7 +73,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-      migrate: { condition: service_completed_successfully }
+      db-init: { condition: service_completed_successfully }
     ports:
       - '${API_PORT:-4000}:4000'
     healthcheck:
@@ -96,7 +99,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-      migrate: { condition: service_completed_successfully }
+      db-init: { condition: service_completed_successfully }
 
   web:
     build:
