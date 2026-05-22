@@ -1,10 +1,12 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { Flame, Target, UtensilsCrossed, Wheat } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { CalorieCalculation, Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/stat-card';
@@ -32,7 +34,15 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold tracking-tight">{profile.name}</h2>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-lg font-semibold tracking-tight">{profile.name}</h2>
+        <Link
+          href={`/meal-plans?profile=${profile.id}`}
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+        >
+          Generate meal plan
+        </Link>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

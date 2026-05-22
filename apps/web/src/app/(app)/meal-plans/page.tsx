@@ -1,18 +1,212 @@
-import { CalendarRange } from 'lucide-react';
-import { PagePlaceholder } from '@/components/page-placeholder';
+'use client';
+
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import type { GeneratePlanRequest, MealPlan, Profile } from '@diet-app/shared';
+import { api, ApiClientError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field, Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+function MealPlansContent() {
+  const qc = useQueryClient();
+  const params = useSearchParams();
+  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+  const list = profiles.data ?? [];
+
+  // Active profile: explicit pick → ?profile= deep link → first profile.
+  const [picked, setPicked] = useState<string | null>(null);
+  const activeId = picked ?? params.get('profile') ?? list[0]?.id ?? null;
+  const active = list.find((p) => p.id === activeId) ?? null;
+
+  const [error, setError] = useState<string | null>(null);
+  const [openPlan, setOpenPlan] = useState<string | null>(null);
+
+  const plans = useQuery({
+    queryKey: ['meal-plans', activeId],
+    queryFn: () => api.get<MealPlan[]>(`/meal-plans?profileId=${activeId}`),
+    enabled: Boolean(activeId),
+  });
+
+  const generate = useMutation({
+    mutationFn: (body: GeneratePlanRequest) => api.post<MealPlan>('/meal-plans/generate', body),
+    onSuccess: (plan) => {
+      qc.invalidateQueries({ queryKey: ['meal-plans', activeId] });
+      setOpenPlan(plan.id);
+    },
+    onError: (e) =>
+      setError(e instanceof ApiClientError ? e.message : 'Could not generate the plan.'),
+  });
+
+  function onGenerate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    if (!activeId) return;
+    const f = new FormData(event.currentTarget);
+    generate.mutate({
+      profileId: activeId,
+      startDate: String(f.get('startDate')),
+      durationDays: Number(f.get('durationDays')),
+      mealPrepFriendly: f.get('mealPrepFriendly') === 'on',
+    });
+  }
+
+  if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
+
+  if (list.length === 0) {
+    return (
+      <Card className="mx-auto mt-20 max-w-md text-center">
+        <CardHeader>
+          <CardTitle>No profile yet</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Create a profile first — a meal plan is generated against its calorie target.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">Meal plans</h1>
+        <p className="text-sm text-muted-foreground">
+          Deterministic, calorie-targeted plans — generated per profile.
+        </p>
+      </header>
+
+      {/* Profile picker — only shown when the account has more than one. */}
+      {list.length > 1 && (
+        <div className="flex gap-2">
+          {list.map((p) => (
+            <Button
+              key={p.id}
+              type="button"
+              variant={p.id === activeId ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setPicked(p.id);
+                setOpenPlan(null);
+              }}
+            >
+              {p.name}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Generate a plan{active ? ` for ${active.name}` : ''}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onGenerate} className="grid gap-4 sm:grid-cols-3">
+            <Field label="Start date">
+              <Input name="startDate" type="date" required defaultValue={today()} />
+            </Field>
+            <Field label="Duration (days)">
+              <Input name="durationDays" type="number" required min={1} max={28} defaultValue={7} />
+            </Field>
+            <label className="flex items-end gap-2 pb-2 text-sm">
+              <input name="mealPrepFriendly" type="checkbox" className="h-4 w-4" />
+              Meal-prep friendly
+            </label>
+            <div className="flex items-center gap-3 sm:col-span-3">
+              <Button type="submit" disabled={generate.isPending}>
+                {generate.isPending ? 'Generating…' : 'Generate plan'}
+              </Button>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">
+          {active ? `${active.name}'s plans` : 'Plans'}
+        </h2>
+        {plans.isLoading ? (
+          <Skeleton className="h-24 max-w-2xl" />
+        ) : (plans.data ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">No plans yet — generate one above.</p>
+        ) : (
+          (plans.data ?? []).map((plan) => (
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              open={openPlan === plan.id}
+              onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
+            />
+          ))
+        )}
+      </section>
+    </div>
+  );
+}
+
+function PlanCard({ plan, open, onToggle }: { plan: MealPlan; open: boolean; onToggle: () => void }) {
+  return (
+    <Card className="max-w-2xl">
+      <button type="button" onClick={onToggle} className="w-full p-4 text-left">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-medium">
+              {plan.durationDays}-day plan · {plan.dietType.replace('_', ' ')}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              From {plan.startDate} · {plan.averageDailyNutrition.calories} kcal/day avg ·{' '}
+              {Math.round(plan.ingredientReuseScore * 100)}% ingredient reuse
+            </p>
+          </div>
+          <span className="text-sm text-muted-foreground">{open ? '▲' : '▼'}</span>
+        </div>
+      </button>
+      {open && (
+        <CardContent className="space-y-4 border-t border-border pt-4">
+          {plan.days.map((day) => (
+            <div key={day.id}>
+              <div className="flex items-center justify-between text-sm font-medium">
+                <span>{day.date}</span>
+                <span
+                  className={
+                    Math.abs(day.calorieDelta) <= 50 ? 'text-muted-foreground' : 'text-destructive'
+                  }
+                >
+                  {day.dayNutrition.calories} / {day.calorieTarget} kcal
+                  {day.calorieDelta >= 0 ? ' +' : ' '}
+                  {day.calorieDelta}
+                </span>
+              </div>
+              <ul className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+                {day.meals.map((m) => (
+                  <li key={m.id} className="flex justify-between gap-4">
+                    <span>
+                      <span className="capitalize">{m.mealType.replace('_', ' ')}</span> ·{' '}
+                      {m.recipe.title}
+                      {m.servings !== 1 ? ` (×${m.servings})` : ''}
+                    </span>
+                    <span className="tabular-nums">{m.nutrition.calories} kcal</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
 
 export default function MealPlansPage() {
   return (
-    <PagePlaceholder
-      title="Meal plans"
-      icon={CalendarRange}
-      description="Generate, preview and regenerate calorie-targeted meal plans."
-      endpoints={[
-        'POST /api/meal-plans/generate',
-        'GET  /api/meal-plans?profileId=…',
-        'POST /api/meal-plans/swap-meal',
-        'POST /api/meal-plans/swap-ingredient/preview',
-      ]}
-    />
+    <Suspense fallback={<Skeleton className="h-40 max-w-2xl" />}>
+      <MealPlansContent />
+    </Suspense>
   );
 }
