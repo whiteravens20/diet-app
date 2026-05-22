@@ -5,7 +5,7 @@ describe('API contract schemas', () => {
   it('accepts a valid registration payload', () => {
     const result = RegisterRequest.safeParse({
       email: 'a@example.com',
-      password: 'a-strong-password',
+      password: 'Str0ngPassphrase',
       displayName: 'Alex',
     });
     expect(result.success).toBe(true);
@@ -14,7 +14,16 @@ describe('API contract schemas', () => {
   it('rejects a too-short password', () => {
     const result = RegisterRequest.safeParse({
       email: 'a@example.com',
-      password: 'short',
+      password: 'Short1',
+      displayName: 'Alex',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a password without an uppercase letter or digit', () => {
+    const result = RegisterRequest.safeParse({
+      email: 'a@example.com',
+      password: 'all-lowercase-no-digits',
       displayName: 'Alex',
     });
     expect(result.success).toBe(false);

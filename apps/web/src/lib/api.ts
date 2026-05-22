@@ -26,13 +26,22 @@ export const tokenStore = {
   },
 };
 
+export interface ApiErrorIssue {
+  path: string;
+  message: string;
+}
+
 export class ApiClientError extends Error {
   constructor(
+    /** HTTP status, or 0 when the request never reached the server. */
     public readonly status: number,
     public readonly code: string,
     message: string,
+    /** Field-level validation problems, when the API reported any. */
+    public readonly issues?: ApiErrorIssue[],
   ) {
     super(message);
+    this.name = 'ApiClientError';
   }
 }
 
@@ -42,7 +51,17 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   const access = tokenStore.access;
   if (access) headers.set('authorization', `Bearer ${access}`);
 
-  const res = await fetch(`${API_URL}/api${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api${path}`, { ...init, headers });
+  } catch {
+    // fetch only rejects on a network-level failure (server down, DNS, CORS).
+    throw new ApiClientError(
+      0,
+      'NETWORK',
+      'Cannot reach the server. Check your connection and that the API is running.',
+    );
+  }
 
   if (res.status === 401 && retry && tokenStore.refresh) {
     const refreshed = await tryRefresh();
@@ -50,8 +69,18 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-    throw new ApiClientError(res.status, body.error ?? 'ERROR', body.message ?? res.statusText);
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+      issues?: ApiErrorIssue[];
+    };
+    // A validation failure carries per-field issues — surface those instead of
+    // the generic envelope message.
+    const message =
+      body.issues && body.issues.length > 0
+        ? body.issues.map((i) => i.message).join(' ')
+        : (body.message ?? res.statusText);
+    throw new ApiClientError(res.status, body.error ?? 'ERROR', message, body.issues);
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }

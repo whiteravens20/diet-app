@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState } from 'react';
-import type { AuthResponse } from '@diet-app/shared';
+import { type AuthResponse, PASSWORD_RULES } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -30,7 +30,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       tokenStore.set(res.tokens);
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Something went wrong.');
+      setError(
+        err instanceof ApiClientError
+          ? err.message
+          : 'Something unexpected happened. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
@@ -58,10 +62,17 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               name="password"
               type="password"
               required
-              minLength={mode === 'register' ? 10 : 1}
+              minLength={mode === 'register' ? 12 : 1}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </Field>
+          {mode === 'register' && (
+            <ul className="-mt-2 space-y-0.5 text-xs text-muted-foreground">
+              {PASSWORD_RULES.map((rule) => (
+                <li key={rule}>• {rule}</li>
+              ))}
+            </ul>
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
