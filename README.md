@@ -14,6 +14,12 @@ assistant for recipe drafting and substitution ideas; it never invents nutrition
 The companion Android app lives in a separate repository:
 [`whiteravens20/diet-app-android`](https://github.com/whiteravens20/diet-app-android).
 
+> [!WARNING]
+> **Early development — not production ready.** Diet App is under active
+> development. The API, data model and deployment story may change without
+> notice, and the project has not had a security review. Self-host it to
+> experiment, not for anything you depend on yet.
+
 ## Features
 
 - **Profiles & calorie engine** — Mifflin-St Jeor BMR, activity multipliers, weekly
@@ -63,6 +69,28 @@ See [docs/ops/deployment.md](docs/ops/deployment.md) for production and GPU/Olla
 - [docs/product/](docs/product/) — spec, user stories, roadmap
 - [docs/llm/onboarding.md](docs/llm/onboarding.md) — onboarding for developers & LLM agents
 - [AGENTS.md](AGENTS.md) — quick reference for AI coding agents
+
+## Development with AI Assistance
+
+> [!NOTE]
+> **This project was developed with AI assistance.**
+>
+> AI-generated code can contain subtle bugs, insecure patterns, or
+> plausible-looking nonsense ("AI slop"). Here is what keeps the bar high — and
+> what to check when auditing:
+>
+> - **The deterministic core is human-specified.** Nutrition is computed by the
+>   engine (`apps/api/src/engine`) from a curated database — AI never invents
+>   calorie or macro values. That rule was a design decision, not an AI default.
+> - **Tests are mandatory.** `npm run lint && npm run typecheck && npm test`
+>   must pass before any commit lands; every engine function is unit-tested.
+> - **ESLint enforces standards.** All workspaces lint with zero warnings.
+> - **Security-critical code is read line by line.** `common/crypto.ts` and
+>   `auth/auth.service.ts` (email encryption, password peppering, blind-index
+>   lookups) were reviewed manually after generation.
+>
+> If you find a slop pattern, a logical bug, or a security issue, please open an
+> issue or see [SECURITY.md](SECURITY.md).
 
 ## Contributing
 
