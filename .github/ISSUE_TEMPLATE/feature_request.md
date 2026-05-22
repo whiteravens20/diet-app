@@ -1,13 +1,13 @@
 ---
 name: Feature Request
-about: Suggest a new feature or improvement for Archivum Null
+about: Suggest a new feature or improvement for the Diet App web platform
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''
 ---
 
-> Before submitting, please check [CONTRIBUTING.md](../../CONTRIBUTING.md#scope-of-contributions)
-> for features the project will **not** accept (e.g. user tracking, server-side key access).
+> Before submitting, please review [CONTRIBUTING.md](../../CONTRIBUTING.md) for
+> the project's scope and coding guidelines.
 
 ## Problem / Motivation
 What problem does this solve, or what use case does it enable?
@@ -18,21 +18,26 @@ A clear and concise description of what you want to happen.
 ## Alternatives Considered
 Other approaches you have thought about and why you ruled them out.
 
-## Zero-Knowledge Guarantee
-Does this feature preserve the server's zero-knowledge property?
-- [ ] Yes — the server still cannot access plaintext content or the encryption key
-- [ ] No — explain why and what mitigations are proposed:
+## Product Principles Check
+Diet App has non-negotiable principles. Confirm this feature respects them:
+- [ ] Nutrition stays deterministic — calorie/macro values are computed by the
+      engine from the curated ingredient database, never invented.
+- [ ] AI is an assistant only — any AI output is validated and recomputed
+      against the database before it reaches the user.
+- [ ] Works without an AI key — the feature degrades gracefully, or is
+      unaffected, when no AI provider is configured.
 - [ ] Not applicable
 
-## Security Implications
-Describe any security considerations, new attack surface, or potential abuse vectors this feature introduces.
+## API Contract Impact
+Does this require new or changed Zod schemas in `packages/shared`? Describe them.
 
 ## Potential Use Cases
 - 
 - 
 
 ## Impact on Existing Functionality
-Describe whether this change might affect existing features, the API contract, or storage format.
+Describe whether this change might affect existing features, the data model,
+or the API contract.
 
 ## Additional Context
 Screenshots, mockups, or links to prior art are welcome.
