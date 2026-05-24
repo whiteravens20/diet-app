@@ -85,7 +85,16 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
         : (body.message ?? res.statusText);
     throw new ApiClientError(res.status, body.error ?? 'ERROR', message, body.issues);
   }
-  return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+  // Treat any 2xx with no body (204 No Content, 202 Accepted with empty body,
+  // or anything that didn't actually write JSON) as undefined — calling
+  // res.json() on an empty body throws and would surface as a misleading
+  // "something went wrong" to the user.
+  if (res.status === 204 || res.headers.get('content-length') === '0') {
+    return undefined as T;
+  }
+  const text = await res.text();
+  if (text.length === 0) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 async function tryRefresh(): Promise<boolean> {
