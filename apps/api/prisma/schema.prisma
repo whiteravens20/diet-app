@@ -120,13 +120,14 @@ model Profile {
 }
 
 model ProfilePreference {
-  id                   String   @id @default(uuid())
-  profile              Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  profileId            String   @unique
+  id                    String   @id @default(uuid())
+  profile               Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId             String   @unique
+  favoriteIngredientIds String[] @default([])
   excludedIngredientIds String[] @default([])
-  allergens            String[] @default([])
-  dislikedFoods        String[] @default([])
-  preferredCuisines    String[] @default([])
+  allergens             String[] @default([])
+  dislikedFoods         String[] @default([])
+  preferredCuisines     String[] @default([])
 }
 
 // ── Curated product database (SEED DATA — source of truth) ────────────────────

@@ -128,6 +128,7 @@ export class ProfilesService {
     createdAt: Date;
     updatedAt: Date;
     preferences: {
+      favoriteIngredientIds: string[];
       excludedIngredientIds: string[];
       allergens: string[];
       dislikedFoods: string[];
@@ -148,6 +149,7 @@ export class ProfilesService {
       manualCalorieTarget: row.manualCalorieTarget,
       mealCount: row.mealCount,
       preferences: {
+        favoriteIngredientIds: row.preferences?.favoriteIngredientIds ?? [],
         excludedIngredientIds: row.preferences?.excludedIngredientIds ?? [],
         allergens: (row.preferences?.allergens ?? []) as Profile['preferences']['allergens'],
         dislikedFoods: row.preferences?.dislikedFoods ?? [],

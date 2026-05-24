@@ -6,6 +6,9 @@ export const MAX_PROFILES_PER_ACCOUNT = 2;
 
 /** Free-form preference bundle attached to a profile. */
 export const ProfilePreferences = z.object({
+  /** Ingredients the planner should prefer (a scoring bias, not a hard rule). */
+  favoriteIngredientIds: z.array(z.string().uuid()).default([]),
+  /** Ingredients the planner must skip. */
   excludedIngredientIds: z.array(z.string().uuid()).default([]),
   allergens: z.array(Allergen).default([]),
   dislikedFoods: z.array(z.string()).default([]),
@@ -28,6 +31,7 @@ export const ProfileInput = z.object({
   /** Default meal count (2-5) for new plans. */
   mealCount: z.number().int().min(2).max(5).default(3),
   preferences: ProfilePreferences.default({
+    favoriteIngredientIds: [],
     excludedIngredientIds: [],
     allergens: [],
     dislikedFoods: [],

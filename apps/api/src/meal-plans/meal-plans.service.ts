@@ -55,6 +55,8 @@ export class MealPlansService {
       calorieTarget,
       dietType,
       mealPrepFriendly: req.mealPrepFriendly,
+      respectExclusions: req.respectExclusions,
+      respectFavorites: req.respectFavorites,
       seed,
     });
 
@@ -180,18 +182,37 @@ export class MealPlansService {
 
   /** Run the deterministic optimiser for a profile against the eligible recipes. */
   private async optimiseFor(
-    profile: { id: string; preferences: { allergens: string[]; excludedIngredientIds: string[] } | null },
+    profile: {
+      id: string;
+      preferences:
+        | {
+            allergens: string[];
+            excludedIngredientIds: string[];
+            favoriteIngredientIds: string[];
+          }
+        | null;
+    },
     opts: {
       days: number;
       mealCount: number;
       calorieTarget: number;
       dietType: MealPlan['dietType'];
       mealPrepFriendly: boolean;
+      /** Honour the avoid-list (default true). Allergens are always respected. */
+      respectExclusions?: boolean;
+      /** Pass favourite-ingredient ids to the optimiser bias (default true). */
+      respectFavorites?: boolean;
       seed: number;
     },
   ) {
     const mealSlots = MEAL_SLOTS_BY_COUNT[opts.mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
-    const { optimizerRecipes } = await this.loadEligibleRecipes(profile);
+    const { optimizerRecipes } = await this.loadEligibleRecipes(profile, {
+      respectExclusions: opts.respectExclusions,
+    });
+    const favoriteIngredientIds =
+      opts.respectFavorites === false
+        ? undefined
+        : new Set(profile.preferences?.favoriteIngredientIds ?? []);
     try {
       return optimisePlan({
         recipes: optimizerRecipes,
@@ -201,6 +222,7 @@ export class MealPlansService {
         targetMacros: { protein: 0, fat: 0, carbs: 0 },
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
+        favoriteIngredientIds,
         seed: opts.seed,
       });
     } catch (err) {
@@ -384,12 +406,23 @@ export class MealPlansService {
   /**
    * Load recipes compatible with a profile's allergens / exclusions and map
    * them to optimiser input. Diet-type filtering happens inside the optimiser.
+   * Allergens are always honoured; the soft exclusion list can be skipped via
+   * `respectExclusions: false` for one-off plans.
    */
   private async loadEligibleRecipes(
-    profile: { id: string; preferences: { allergens: string[]; excludedIngredientIds: string[] } | null },
+    profile: {
+      id: string;
+      preferences:
+        | { allergens: string[]; excludedIngredientIds: string[]; favoriteIngredientIds: string[] }
+        | null;
+    },
+    options: { respectExclusions?: boolean } = {},
   ): Promise<{ optimizerRecipes: OptimizerRecipe[] }> {
     const allergens = profile.preferences?.allergens ?? [];
-    const excluded = new Set(profile.preferences?.excludedIngredientIds ?? []);
+    const excluded =
+      options.respectExclusions === false
+        ? new Set<string>()
+        : new Set(profile.preferences?.excludedIngredientIds ?? []);
 
     const recipes = await this.prisma.recipe.findMany({ include: { ingredients: true } });
     const favorites = await this.prisma.favorite.findMany({

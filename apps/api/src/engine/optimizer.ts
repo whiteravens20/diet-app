@@ -31,6 +31,11 @@ export interface OptimizerInput {
   targetMacros: Macros;
   dietType: DietType;
   mealPrepFriendly: boolean;
+  /**
+   * Ingredients the user has marked as favourites — recipes containing them
+   * receive a small scoring bonus. Empty / omitted disables the bias.
+   */
+  favoriteIngredientIds?: ReadonlySet<string>;
   /** Changes the deterministic tie-break order so "regenerate" yields a new plan. */
   seed: number;
 }
@@ -62,6 +67,7 @@ const SCORE_WEIGHTS = {
   reuse: 0.25,
   variety: 0.15,
   favorite: 0.1,
+  favoriteIngredient: 0.08,
   complexity: 0.05,
 } as const;
 
@@ -118,6 +124,7 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
         planIngredients,
         recentUse,
         mealPrepFriendly: input.mealPrepFriendly,
+        favoriteIngredientIds: input.favoriteIngredientIds,
         seed: input.seed,
       });
 
@@ -141,6 +148,7 @@ interface PickContext {
   planIngredients: Set<string>;
   recentUse: Map<string, number>;
   mealPrepFriendly: boolean;
+  favoriteIngredientIds?: ReadonlySet<string>;
   seed: number;
 }
 
@@ -186,6 +194,12 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
 
   const favorite = recipe.isFavorite ? 1 : 0;
 
+  const favIngs = ctx.favoriteIngredientIds;
+  const favoriteIngredient =
+    !favIngs || favIngs.size === 0 || recipe.ingredientIds.length === 0
+      ? 0
+      : recipe.ingredientIds.filter((id) => favIngs.has(id)).length / recipe.ingredientIds.length;
+
   const complexityPenalty =
     ctx.mealPrepFriendly && recipe.difficulty === 'hard' ? 1 : recipe.difficulty === 'hard' ? 0.4 : 0;
 
@@ -193,7 +207,8 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
     SCORE_WEIGHTS.calorieFit * calorieFit +
     SCORE_WEIGHTS.reuse * reuse +
     SCORE_WEIGHTS.variety * variety +
-    SCORE_WEIGHTS.favorite * favorite -
+    SCORE_WEIGHTS.favorite * favorite +
+    SCORE_WEIGHTS.favoriteIngredient * favoriteIngredient -
     SCORE_WEIGHTS.complexity * complexityPenalty
   );
 }

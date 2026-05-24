@@ -14,6 +14,10 @@ export const GeneratePlanRequest = z.object({
   calorieTargetOverride: z.number().int().min(800).max(6000).optional(),
   /** Bias the optimiser toward batch-cookable, ingredient-reusing plans. */
   mealPrepFriendly: z.boolean().default(false),
+  /** Honour the profile's avoid-list (excludedIngredientIds + allergens). */
+  respectExclusions: z.boolean().default(true),
+  /** Bias the optimiser toward recipes built from the profile's favourites. */
+  respectFavorites: z.boolean().default(true),
 });
 export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
 
