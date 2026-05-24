@@ -16,9 +16,12 @@ export interface RecipeFilters {
 export class RecipesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(filters: RecipeFilters): Promise<Recipe[]> {
+  async search(userId: string, filters: RecipeFilters): Promise<Recipe[]> {
     const rows = await this.prisma.recipe.findMany({
       where: {
+        // User-origin recipes (ingredient-substitution variants) are private to
+        // their creator — everyone else only sees seed + AI-validated recipes.
+        OR: [{ origin: { not: 'user' } }, { createdByUserId: userId }],
         ...(filters.search ? { title: { contains: filters.search, mode: 'insensitive' } } : {}),
         ...(filters.dietType ? { dietTags: { has: filters.dietType } } : {}),
         ...(filters.mealType ? { mealTypes: { has: filters.mealType } } : {}),
@@ -33,12 +36,17 @@ export class RecipesService {
     return rows.map((r) => toRecipeDto(r));
   }
 
-  async get(id: string): Promise<Recipe> {
+  async get(userId: string, id: string): Promise<Recipe> {
     const row = await this.prisma.recipe.findUnique({
       where: { id },
       include: { ingredients: { include: { ingredient: true } } },
     });
     if (!row) throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+    // Private variants are visible only to their owner; planned-meal recipes
+    // are still fetched via /meal-plans which has its own ownership check.
+    if (row.origin === 'user' && row.createdByUserId && row.createdByUserId !== userId) {
+      throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+    }
     return toRecipeDto(row);
   }
 }

@@ -18,10 +18,12 @@ import {
 import {
   calculateCalories,
   fitServings,
+  nutritionFor,
   optimisePlan,
   OptimizerError,
   slotBudgets,
   substituteIngredient,
+  toCanonical,
   type CalorieEngineInput,
   type EngineIngredient,
   type OptimizerRecipe,
@@ -384,6 +386,146 @@ export class MealPlansService {
       explanation: r.explanation,
       valid: r.valid,
     };
+  }
+
+  /**
+   * Persist an ingredient substitution. The original recipe stays canonical —
+   * we clone it as a private `user`-origin variant with the new line in place,
+   * recompute per-serving nutrition deterministically, and repoint the planned
+   * meal at the clone. Servings are kept; the substitute is calorie-scaled.
+   */
+  async applyIngredientSwap(userId: string, req: SwapIngredientRequest): Promise<MealPlan> {
+    const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
+    const recipe = await this.prisma.recipe.findUniqueOrThrow({
+      where: { id: meal.recipeId },
+      include: { ingredients: true },
+    });
+    const line = recipe.ingredients.find((i) => i.ingredientId === req.fromIngredientId);
+    if (!line) {
+      throw new NotFoundException({
+        error: 'INGREDIENT_NOT_IN_RECIPE',
+        message: 'Ingredient not in recipe.',
+      });
+    }
+
+    const [from, to] = await Promise.all([
+      this.loadEngineIngredient(req.fromIngredientId),
+      this.loadEngineIngredient(req.toIngredientId),
+    ]);
+    const prefs = meal.day.plan.profile.preferences;
+    const sub = substituteIngredient(from, to, line.quantity, line.unit, {
+      dietType: meal.day.plan.dietType,
+      allergens: (prefs?.allergens ?? []) as EngineIngredient['allergens'],
+      excludedIngredientIds: prefs?.excludedIngredientIds ?? [],
+    });
+    if (!sub.valid) {
+      throw new BadRequestException({
+        error: 'INVALID_SUBSTITUTION',
+        message: sub.explanation,
+      });
+    }
+
+    // Build the variant's ingredient lines. Allergens become whatever the new
+    // line carries — the swapped-out ingredient might have been the only source
+    // of a given allergen, so we recompute from scratch.
+    const allIds = new Set(recipe.ingredients.map((i) => i.ingredientId));
+    allIds.delete(req.fromIngredientId);
+    allIds.add(req.toIngredientId);
+    const ingredientRows = await this.prisma.ingredient.findMany({
+      where: { id: { in: [...allIds] } },
+    });
+    const ingredientById = new Map(ingredientRows.map((i) => [i.id, i]));
+
+    const variantIngredients = recipe.ingredients.map((i) => {
+      if (i.ingredientId !== req.fromIngredientId) {
+        return { ingredientId: i.ingredientId, quantity: i.quantity, unit: i.unit, note: i.note };
+      }
+      return {
+        ingredientId: req.toIngredientId,
+        quantity: sub.adjustedQuantity,
+        unit: sub.adjustedUnit,
+        note: i.note,
+      };
+    });
+
+    // Recompute per-serving nutrition from the canonical DB — the engine, not
+    // the user, owns nutrition numbers.
+    const totals = variantIngredients.reduce(
+      (acc, ri) => {
+        const ing = ingredientById.get(ri.ingredientId);
+        if (!ing) return acc;
+        const engineIng: EngineIngredient = {
+          id: ing.id,
+          name: ing.name,
+          category: ing.category,
+          canonicalUnit: ing.canonicalUnit,
+          gramsPerPiece: ing.gramsPerPiece,
+          density: ing.density,
+          caloriesPer100: ing.caloriesPer100,
+          proteinPer100: ing.proteinPer100,
+          fatPer100: ing.fatPer100,
+          carbsPer100: ing.carbsPer100,
+          allergens: ing.allergens as EngineIngredient['allergens'],
+          dietCompatibility: ing.dietCompatibility as EngineIngredient['dietCompatibility'],
+        };
+        const canonical = toCanonical(ri.quantity, ri.unit, engineIng);
+        const n = nutritionFor(canonical, {
+          calories: ing.caloriesPer100,
+          protein: ing.proteinPer100,
+          fat: ing.fatPer100,
+          carbs: ing.carbsPer100,
+        });
+        return {
+          calories: acc.calories + n.calories,
+          protein: acc.protein + n.protein,
+          fat: acc.fat + n.fat,
+          carbs: acc.carbs + n.carbs,
+        };
+      },
+      { calories: 0, protein: 0, fat: 0, carbs: 0 },
+    );
+    const perServing = {
+      calories: Math.round(totals.calories / recipe.servings),
+      protein: Math.round(totals.protein / recipe.servings),
+      fat: Math.round(totals.fat / recipe.servings),
+      carbs: Math.round(totals.carbs / recipe.servings),
+    };
+
+    const variantAllergens = Array.from(
+      new Set(
+        variantIngredients.flatMap((ri) => ingredientById.get(ri.ingredientId)?.allergens ?? []),
+      ),
+    );
+
+    const replacementName = ingredientById.get(req.toIngredientId)?.name ?? 'substitute';
+    const variant = await this.prisma.recipe.create({
+      data: {
+        title: `${recipe.title} (with ${replacementName})`,
+        description: recipe.description,
+        servings: recipe.servings,
+        mealTypes: recipe.mealTypes,
+        dietTags: recipe.dietTags,
+        steps: recipe.steps,
+        prepMinutes: recipe.prepMinutes,
+        cookMinutes: recipe.cookMinutes,
+        difficulty: recipe.difficulty,
+        allergens: variantAllergens,
+        origin: 'user',
+        createdByUserId: userId,
+        caloriesPerServing: perServing.calories,
+        proteinPerServing: perServing.protein,
+        fatPerServing: perServing.fat,
+        carbsPerServing: perServing.carbs,
+        reuseScore: recipe.reuseScore,
+        ingredients: { create: variantIngredients },
+      },
+    });
+
+    await this.prisma.plannedMeal.update({
+      where: { id: req.plannedMealId },
+      data: { recipeId: variant.id },
+    });
+    return this.get(userId, req.planId);
   }
 
   // ── internals ───────────────────────────────────────────────────────────────

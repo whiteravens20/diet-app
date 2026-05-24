@@ -80,4 +80,13 @@ export class MealPlansController {
   ) {
     return this.plans.previewIngredientSwap(user.id, dto);
   }
+
+  /** Apply a substitution: clone the recipe with the swap baked in, repoint the meal. */
+  @Post('swap-ingredient/apply')
+  applyIngredientSwap(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
+  ) {
+    return this.plans.applyIngredientSwap(user.id, dto);
+  }
 }
