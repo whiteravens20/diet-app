@@ -13,6 +13,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Round to a sensible granularity per unit: integer g/ml, quarter pieces. */
+function formatQty(qty: number, unit: string): string {
+  if (unit === 'piece') {
+    const rounded = Math.round(qty * 4) / 4;
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+  }
+  return String(Math.round(qty));
+}
+
 function MealPlansContent() {
   const qc = useQueryClient();
   const params = useSearchParams();
@@ -99,6 +108,8 @@ function MealPlansContent() {
       startDate: String(f.get('startDate')),
       durationDays: Number(f.get('durationDays')),
       mealPrepFriendly: f.get('mealPrepFriendly') === 'on',
+      respectExclusions: f.get('respectExclusions') === 'on',
+      respectFavorites: f.get('respectFavorites') === 'on',
     });
   }
 
@@ -153,22 +164,43 @@ function MealPlansContent() {
           <CardTitle>Generate a plan{active ? ` for ${active.name}` : ''}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onGenerate} className="grid gap-4 sm:grid-cols-3">
-            <Field label="Start date">
-              <Input name="startDate" type="date" required defaultValue={today()} />
-            </Field>
-            <Field label="Duration (days)">
-              <Input name="durationDays" type="number" required min={1} max={28} defaultValue={7} />
-            </Field>
-            <label className="flex items-end gap-2 pb-2 text-sm">
-              <input name="mealPrepFriendly" type="checkbox" className="h-4 w-4" />
-              Meal-prep friendly
-            </label>
-            <div className="sm:col-span-3">
-              <Button type="submit" disabled={generate.isPending}>
-                {generate.isPending ? 'Generating…' : 'Generate plan'}
-              </Button>
+          <form onSubmit={onGenerate} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Start date">
+                <Input name="startDate" type="date" required defaultValue={today()} />
+              </Field>
+              <Field label="Duration (days)">
+                <Input
+                  name="durationDays"
+                  type="number"
+                  required
+                  min={1}
+                  max={28}
+                  defaultValue={7}
+                />
+              </Field>
+              <label className="flex items-end gap-2 pb-2 text-sm">
+                <input name="mealPrepFriendly" type="checkbox" className="h-4 w-4" />
+                Meal-prep friendly
+              </label>
             </div>
+            <fieldset className="space-y-1">
+              <legend className="text-sm font-medium">Apply preferences</legend>
+              <p className="mb-1 text-xs text-muted-foreground">
+                Independent — tick neither, one, or both. Allergens are always honoured.
+              </p>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="respectExclusions" defaultChecked className="h-4 w-4" />
+                Honour my avoid list
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="respectFavorites" defaultChecked className="h-4 w-4" />
+                Prefer my favourite ingredients
+              </label>
+            </fieldset>
+            <Button type="submit" disabled={generate.isPending}>
+              {generate.isPending ? 'Generating…' : 'Generate plan'}
+            </Button>
           </form>
         </CardContent>
       </Card>
@@ -180,9 +212,9 @@ function MealPlansContent() {
           {active ? `${active.name}'s plans` : 'Plans'}
         </h2>
         {plans.isLoading ? (
-          <Skeleton className="h-24 max-w-2xl" />
+          <Skeleton className="h-24 max-w-3xl" />
         ) : (plans.data ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">No plans yet — generate one above.</p>
+          <p className="max-w-3xl text-sm text-muted-foreground">No plans yet — generate one above.</p>
         ) : (
           (plans.data ?? []).map((plan) => (
             <PlanCard
@@ -252,7 +284,7 @@ function PlanCard({
   // Which meal's "swap to favorite" picker is open, if any.
   const [openFav, setOpenFav] = useState<string | null>(null);
   return (
-    <Card className="max-w-2xl">
+    <Card className="max-w-3xl">
       <div className="flex items-center justify-between gap-4 p-4">
         <button type="button" onClick={onToggle} className="flex-1 text-left">
           <p className="font-medium">
@@ -320,15 +352,17 @@ function PlanCard({
                   return (
                     <li key={m.id} className="space-y-1">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">
-                          <span className="capitalize">{m.mealType.replace('_', ' ')}</span> ·{' '}
+                        <span>
+                          <span className="capitalize text-muted-foreground">
+                            {m.mealType.replace('_', ' ')}
+                          </span>{' '}
+                          ·{' '}
                           <Link
                             href={`/recipes/${m.recipe.id}`}
-                            className="text-primary hover:underline"
+                            className="font-medium text-primary hover:underline"
                           >
                             {m.recipe.title}
                           </Link>
-                          {m.servings !== 1 ? ` (×${m.servings})` : ''}
                         </span>
                         <span className="flex items-center gap-2">
                           <span className="tabular-nums text-muted-foreground">
@@ -354,6 +388,17 @@ function PlanCard({
                           </Button>
                         </span>
                       </div>
+                      {/* Concrete amounts for this meal — the recipe's ingredients
+                          scaled by the planned servings, so the user reads the
+                          finished list instead of doing math on a multiplier. */}
+                      <p className="ml-4 text-xs text-muted-foreground">
+                        {m.recipe.ingredients
+                          .map((i) => {
+                            const scale = m.servings / Math.max(m.recipe.servings, 1);
+                            return `${formatQty(i.quantity * scale, i.unit)} ${i.unit} ${i.name.toLowerCase()}`;
+                          })
+                          .join(' · ')}
+                      </p>
                       {favOpen && (
                         <div className="ml-4 rounded-md border border-border bg-muted/40 p-2">
                           {slotFavorites.length === 0 ? (

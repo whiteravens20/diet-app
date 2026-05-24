@@ -6,6 +6,7 @@ import { MAX_PROFILES_PER_ACCOUNT, type Profile, type ProfileInput } from '@diet
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { IngredientPicker } from '@/components/ingredient-picker';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -61,6 +62,28 @@ export default function ProfilePage() {
       setError(e instanceof ApiClientError ? e.message : 'Could not delete the profile.'),
   });
 
+  // Save updated preferences in place: the PUT endpoint is full-replace, so
+  // we send every existing field of the profile back, only swapping prefs.
+  const savePrefs = useMutation({
+    mutationFn: (v: { profile: Profile; preferences: Profile['preferences'] }) =>
+      api.put<Profile>(`/profiles/${v.profile.id}`, {
+        name: v.profile.name,
+        age: v.profile.age,
+        sex: v.profile.sex,
+        heightCm: v.profile.heightCm,
+        weightKg: v.profile.weightKg,
+        activityLevel: v.profile.activityLevel,
+        dietType: v.profile.dietType,
+        weeklyLossTarget: v.profile.weeklyLossTarget,
+        manualCalorieTarget: v.profile.manualCalorieTarget,
+        mealCount: v.profile.mealCount,
+        preferences: v.preferences,
+      }),
+    onSuccess: recalculate,
+    onError: (e) =>
+      setError(e instanceof ApiClientError ? e.message : 'Could not save preferences.'),
+  });
+
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -80,6 +103,7 @@ export default function ProfilePage() {
       mealCount: Number(f.get('mealCount')),
       // Preserve preferences on edit; new profiles start with an empty set.
       preferences: editing?.preferences ?? {
+        favoriteIngredientIds: [],
         excludedIngredientIds: [],
         allergens: [],
         dislikedFoods: [],
@@ -291,6 +315,50 @@ export default function ProfilePage() {
             </form>
           </CardContent>
         </Card>
+      )}
+
+      {list.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Ingredient preferences</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Per-profile lists that bias and constrain meal-plan generation.
+            Avoid entries are skipped entirely; favourites are softly preferred.
+            Allergens (configured separately) are always honoured.
+          </p>
+          {list.map((p) => (
+            <Card key={`prefs-${p.id}`} className="max-w-2xl">
+              <CardHeader>
+                <CardTitle className="text-base">{p.name}</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-6 sm:grid-cols-2">
+                <IngredientPicker
+                  label="Favourite ingredients"
+                  hint="The planner leans toward recipes using these."
+                  ids={p.preferences.favoriteIngredientIds}
+                  disabled={savePrefs.isPending}
+                  onChange={(ids) =>
+                    savePrefs.mutate({
+                      profile: p,
+                      preferences: { ...p.preferences, favoriteIngredientIds: ids },
+                    })
+                  }
+                />
+                <IngredientPicker
+                  label="Avoid ingredients"
+                  hint="The planner skips recipes that contain these."
+                  ids={p.preferences.excludedIngredientIds}
+                  disabled={savePrefs.isPending}
+                  onChange={(ids) =>
+                    savePrefs.mutate({
+                      profile: p,
+                      preferences: { ...p.preferences, excludedIngredientIds: ids },
+                    })
+                  }
+                />
+              </CardContent>
+            </Card>
+          ))}
+        </section>
       )}
     </div>
   );
