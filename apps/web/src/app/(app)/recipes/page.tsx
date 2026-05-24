@@ -2,22 +2,49 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useState } from 'react';
-import type { Recipe } from '@diet-app/shared';
+import { useMemo, useState } from 'react';
+import type { Profile, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
+
 /** Recipe library — search and browse; each card opens the full recipe. */
 export default function RecipesPage() {
   const [search, setSearch] = useState('');
+  const [usesFavorites, setUsesFavorites] = useState(false);
+  const [favoritesProfileId, setFavoritesProfileId] = useState<string>('');
+
   const recipes = useQuery({
     queryKey: ['recipes', search],
     queryFn: () =>
       api.get<Recipe[]>(`/recipes${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   });
-  const list = recipes.data ?? [];
+
+  // Profiles drive the favourites filter — each profile has its own list.
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
+  const profileList = profiles.data ?? [];
+  // Default the profile picker to the first profile so the checkbox does
+  // something on the very first click.
+  const activeProfileId = favoritesProfileId || profileList[0]?.id || '';
+  const activeProfile = profileList.find((p) => p.id === activeProfileId) ?? null;
+  const favoriteIds = useMemo(
+    () => new Set(activeProfile?.preferences.favoriteIngredientIds ?? []),
+    [activeProfile],
+  );
+
+  // Apply the favourites filter client-side: we already have each recipe's
+  // ingredient ids, no extra round-trip needed.
+  const filtered = useMemo(() => {
+    const list = recipes.data ?? [];
+    if (!usesFavorites || favoriteIds.size === 0) return list;
+    return list.filter((r) => r.ingredients.some((i) => favoriteIds.has(i.ingredientId)));
+  }, [recipes.data, usesFavorites, favoriteIds]);
 
   return (
     <div className="space-y-6">
@@ -28,7 +55,7 @@ export default function RecipesPage() {
         </p>
       </header>
 
-      <div className="max-w-sm">
+      <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
         <Field label="Search">
           <Input
             value={search}
@@ -36,7 +63,41 @@ export default function RecipesPage() {
             placeholder="Recipe title…"
           />
         </Field>
+        {profileList.length > 0 && (
+          <Field label="Filter by favourites of">
+            <select
+              className={selectClass}
+              value={activeProfileId}
+              onChange={(e) => setFavoritesProfileId(e.target.value)}
+              disabled={!usesFavorites}
+            >
+              {profileList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
       </div>
+
+      {profileList.length > 0 && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={usesFavorites}
+            onChange={(e) => setUsesFavorites(e.target.checked)}
+          />
+          Uses my favourite ingredients
+          {usesFavorites && favoriteIds.size === 0 && (
+            <span className="text-xs text-muted-foreground">
+              — {activeProfile?.name ?? 'this profile'} has no favourites yet, set them on
+              the profile page.
+            </span>
+          )}
+        </label>
+      )}
 
       {recipes.isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -44,11 +105,17 @@ export default function RecipesPage() {
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
-      ) : list.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No recipes match “{search}”.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {usesFavorites && favoriteIds.size > 0
+            ? 'No recipes use any of your favourite ingredients yet.'
+            : search
+              ? `No recipes match “${search}”.`
+              : 'No recipes.'}
+        </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((r) => (
+          {filtered.map((r) => (
             <Link key={r.id} href={`/recipes/${r.id}`}>
               <Card className="h-full p-4 transition-shadow hover:shadow-md">
                 <p className="font-medium">{r.title}</p>
