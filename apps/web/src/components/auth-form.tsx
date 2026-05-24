@@ -66,6 +66,13 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </Field>
+          {mode === 'login' && (
+            <p className="-mt-2 text-right text-xs">
+              <Link href="/forgot-password" className="text-muted-foreground hover:underline">
+                Forgot password?
+              </Link>
+            </p>
+          )}
           {mode === 'register' && (
             <ul className="-mt-2 space-y-0.5 text-xs text-muted-foreground">
               {PASSWORD_RULES.map((rule) => (
