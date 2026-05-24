@@ -66,8 +66,13 @@ export type MealPlan = z.infer<typeof MealPlan>;
 export const SwapMealRequest = z.object({
   planId: z.string().uuid(),
   plannedMealId: z.string().uuid(),
-  /** `random` from same diet category, or `favorite` from the user's favorites. */
-  strategy: z.enum(['random', 'favorite']),
+  /**
+   * `random` — any recipe from the same diet+slot.
+   * `favorite` — caller picks one of the profile's favourited recipes (id below).
+   * `favorite_ingredients` — random pick biased to recipes that use the profile's
+   *   favourite ingredients (highest overlap wins, ties broken deterministically).
+   */
+  strategy: z.enum(['random', 'favorite', 'favorite_ingredients']),
   favoriteRecipeId: z.string().uuid().optional(),
 });
 export type SwapMealRequest = z.infer<typeof SwapMealRequest>;

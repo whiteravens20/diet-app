@@ -283,6 +283,36 @@ export class MealPlansService {
         throw new NotFoundException({ error: 'NO_FAVORITE', message: 'favoriteRecipeId required.' });
       }
       replacementId = req.favoriteRecipeId;
+    } else if (req.strategy === 'favorite_ingredients') {
+      const favIngs = meal.day.plan.profile.preferences?.favoriteIngredientIds ?? [];
+      if (favIngs.length === 0) {
+        throw new BadRequestException({
+          error: 'NO_FAVORITE_INGREDIENTS',
+          message: 'Add favourite ingredients on the profile before swapping by them.',
+        });
+      }
+      // Rank candidates by how many of the profile's favourite ingredients they
+      // use; pick the highest-overlap one (deterministic tiebreaker on id).
+      const candidates = await this.prisma.recipe.findMany({
+        where: { dietTags: { has: dietType }, mealTypes: { has: meal.mealType }, id: { not: meal.recipeId } },
+        select: { id: true, ingredients: { select: { ingredientId: true } } },
+      });
+      const favSet = new Set(favIngs);
+      const scored = candidates
+        .map((c) => ({ id: c.id, hits: c.ingredients.filter((i) => favSet.has(i.ingredientId)).length }))
+        .filter((c) => c.hits > 0)
+        .sort((a, b) => b.hits - a.hits || a.id.localeCompare(b.id));
+      if (scored.length === 0) {
+        throw new NotFoundException({
+          error: 'NO_FAVORITE_INGREDIENT_MATCH',
+          message: 'No recipe in this slot uses any of your favourite ingredients.',
+        });
+      }
+      // Among the top-scoring ties, hash on the planned-meal id so repeated
+      // clicks rotate through the equally-good options.
+      const topHits = scored[0]!.hits;
+      const top = scored.filter((c) => c.hits === topHits);
+      replacementId = top[hashIndex(req.plannedMealId, top.length)]!.id;
     } else {
       const candidates = await this.prisma.recipe.findMany({
         where: { dietTags: { has: dietType }, mealTypes: { has: meal.mealType }, id: { not: meal.recipeId } },

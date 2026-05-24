@@ -70,11 +70,16 @@ function MealPlansContent() {
   });
 
   const swapMeal = useMutation({
-    mutationFn: (v: { planId: string; plannedMealId: string; favoriteRecipeId?: string }) =>
+    mutationFn: (v: {
+      planId: string;
+      plannedMealId: string;
+      strategy: 'random' | 'favorite' | 'favorite_ingredients';
+      favoriteRecipeId?: string;
+    }) =>
       api.post<MealPlan>('/meal-plans/swap-meal', {
         planId: v.planId,
         plannedMealId: v.plannedMealId,
-        strategy: v.favoriteRecipeId ? 'favorite' : 'random',
+        strategy: v.strategy,
         ...(v.favoriteRecipeId ? { favoriteRecipeId: v.favoriteRecipeId } : {}),
       }),
     onSuccess: invalidate,
@@ -231,11 +236,24 @@ function MealPlansContent() {
               }}
               onSwapMeal={(plannedMealId) => {
                 setError(null);
-                swapMeal.mutate({ planId: plan.id, plannedMealId });
+                swapMeal.mutate({ planId: plan.id, plannedMealId, strategy: 'random' });
+              }}
+              onSwapByFavorites={(plannedMealId) => {
+                setError(null);
+                swapMeal.mutate({
+                  planId: plan.id,
+                  plannedMealId,
+                  strategy: 'favorite_ingredients',
+                });
               }}
               onSwapToFavorite={(plannedMealId, favoriteRecipeId) => {
                 setError(null);
-                swapMeal.mutate({ planId: plan.id, plannedMealId, favoriteRecipeId });
+                swapMeal.mutate({
+                  planId: plan.id,
+                  plannedMealId,
+                  strategy: 'favorite',
+                  favoriteRecipeId,
+                });
               }}
               favorites={favorites.data ?? []}
             />
@@ -260,6 +278,7 @@ function PlanCard({
   onDelete,
   onRegenerateDay,
   onSwapMeal,
+  onSwapByFavorites,
   onSwapToFavorite,
 }: {
   plan: MealPlan;
@@ -271,6 +290,7 @@ function PlanCard({
   onDelete: () => void;
   onRegenerateDay: (dayId: string) => void;
   onSwapMeal: (plannedMealId: string) => void;
+  onSwapByFavorites: (plannedMealId: string) => void;
   onSwapToFavorite: (plannedMealId: string, recipeId: string) => void;
 }) {
   // Which meal's "swap to favorite" picker is open, if any.
@@ -373,6 +393,17 @@ function PlanCard({
                             type="button"
                             variant="ghost"
                             size="sm"
+                            title="Swap to a recipe that uses my favourite ingredients"
+                            onClick={() => onSwapByFavorites(m.id)}
+                            disabled={busy}
+                          >
+                            Swap ★ ingr.
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Swap to one of my favourited recipes"
                             onClick={() => setOpenFav(favOpen ? null : m.id)}
                             disabled={busy}
                           >
