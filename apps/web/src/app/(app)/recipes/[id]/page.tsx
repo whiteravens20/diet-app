@@ -8,6 +8,7 @@ import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatIngredientAmount } from '@/lib/ingredient-format';
 
 interface FavoriteRow {
   id: string;
@@ -156,7 +157,7 @@ export default function RecipeDetailPage() {
                   {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
                 </span>
                 <span className="tabular-nums text-muted-foreground">
-                  {i.quantity} {i.unit}
+                  {formatIngredientAmount(i)}
                 </span>
               </li>
             ))}

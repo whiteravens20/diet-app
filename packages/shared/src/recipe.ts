@@ -10,6 +10,8 @@ export const RecipeIngredient = z.object({
   /** Quantity in the given unit; the engine converts to the canonical unit. */
   quantity: z.number().min(0),
   unit: Unit,
+  /** g per piece — when present, UIs render the line in grams. */
+  gramsPerPiece: z.number().min(0).nullable().default(null),
   /** Optional free-text note, e.g. "diced", "to taste". */
   note: z.string().nullable().default(null),
 });

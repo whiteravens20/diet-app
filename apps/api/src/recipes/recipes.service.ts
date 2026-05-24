@@ -67,7 +67,7 @@ export function toRecipeDto(row: {
     quantity: number;
     unit: 'g' | 'ml' | 'piece';
     note: string | null;
-    ingredient: { name: string };
+    ingredient: { name: string; gramsPerPiece: number | null };
   }[];
 }): Recipe {
   return {
@@ -82,6 +82,7 @@ export function toRecipeDto(row: {
       name: i.ingredient.name,
       quantity: i.quantity,
       unit: i.unit,
+      gramsPerPiece: i.ingredient.gramsPerPiece,
       note: i.note,
     })),
     steps: row.steps,

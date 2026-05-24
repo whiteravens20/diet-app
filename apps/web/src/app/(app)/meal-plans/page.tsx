@@ -10,17 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatIngredientAmount } from '@/lib/ingredient-format';
 
 const today = () => new Date().toISOString().slice(0, 10);
-
-/** Round to a sensible granularity per unit: integer g/ml, quarter pieces. */
-function formatQty(qty: number, unit: string): string {
-  if (unit === 'piece') {
-    const rounded = Math.round(qty * 4) / 4;
-    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
-  }
-  return String(Math.round(qty));
-}
 
 function MealPlansContent() {
   const qc = useQueryClient();
@@ -395,7 +387,7 @@ function PlanCard({
                         {m.recipe.ingredients
                           .map((i) => {
                             const scale = m.servings / Math.max(m.recipe.servings, 1);
-                            return `${formatQty(i.quantity * scale, i.unit)} ${i.unit} ${i.name.toLowerCase()}`;
+                            return `${formatIngredientAmount(i, scale)} ${i.name.toLowerCase()}`;
                           })
                           .join(' · ')}
                       </p>
