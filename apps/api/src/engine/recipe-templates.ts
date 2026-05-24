@@ -193,6 +193,25 @@ const TEMPLATES: Template[] = [
       'Top with the protein and dress with oil.',
     ],
   },
+  // Savoury — no fruit, no grain — so it composes for restrictive diets too
+  // (keto, low_carb) where the fruit-based morning templates yield nothing.
+  {
+    name: 'savoury morning plate',
+    mealTypes: ['breakfast', 'second_breakfast'],
+    prepMinutes: 4,
+    cookMinutes: 8,
+    difficulty: 'easy',
+    slots: [
+      { role: 'protein', match: isAnimalProtein, grams: 120 },
+      { role: 'vegetable', match: isVegetable, grams: 90 },
+      { role: 'fat', match: isFat, grams: 10 },
+    ],
+    step: ([p, v, f]) => [
+      `Warm the ${f?.toLowerCase()} in a pan.`,
+      `Sauté the ${v?.toLowerCase()} until tender.`,
+      `Add the ${p?.toLowerCase()} and cook through; serve hot.`,
+    ],
+  },
 ];
 
 /** Diet tags shared by every picked ingredient — the recipe's compatibility. */

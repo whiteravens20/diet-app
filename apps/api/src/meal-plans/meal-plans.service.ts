@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   MEAL_SLOTS_BY_COUNT,
   type GeneratePlanRequest,
@@ -13,6 +18,7 @@ import {
 import {
   calculateCalories,
   optimisePlan,
+  OptimizerError,
   substituteIngredient,
   type CalorieEngineInput,
   type EngineIngredient,
@@ -184,16 +190,29 @@ export class MealPlansService {
   ) {
     const mealSlots = MEAL_SLOTS_BY_COUNT[opts.mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
     const { optimizerRecipes } = await this.loadEligibleRecipes(profile);
-    return optimisePlan({
-      recipes: optimizerRecipes,
-      days: opts.days,
-      mealSlots,
-      dailyCalorieTarget: opts.calorieTarget,
-      targetMacros: { protein: 0, fat: 0, carbs: 0 },
-      dietType: opts.dietType,
-      mealPrepFriendly: opts.mealPrepFriendly,
-      seed: opts.seed,
-    });
+    try {
+      return optimisePlan({
+        recipes: optimizerRecipes,
+        days: opts.days,
+        mealSlots,
+        dailyCalorieTarget: opts.calorieTarget,
+        targetMacros: { protein: 0, fat: 0, carbs: 0 },
+        dietType: opts.dietType,
+        mealPrepFriendly: opts.mealPrepFriendly,
+        seed: opts.seed,
+      });
+    } catch (err) {
+      // The optimiser throws when a (slot × diet) combination has no eligible
+      // recipe. Surface that as a 400 with the missing slot named, instead of
+      // a generic 500.
+      if (err instanceof OptimizerError) {
+        throw new BadRequestException({
+          error: 'NO_ELIGIBLE_RECIPE',
+          message: `${err.message}. Try a different diet, fewer meals per day, or relax the allergen/exclusion filters.`,
+        });
+      }
+      throw err;
+    }
   }
 
   async list(userId: string, profileId: string): Promise<MealPlan[]> {
@@ -380,7 +399,11 @@ export class MealPlansService {
 
   private toDto(plan: PlanWithRelations): MealPlan {
     const days: MealPlanDay[] = plan.days.map((day) => {
-      const meals: PlannedMeal[] = day.meals.map((m) => {
+      // Sort meals into canonical eating order — Prisma's row order is
+      // undefined and shifts after updates, which would look like other meals
+      // also changed.
+      const orderedMeals = [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType));
+      const meals: PlannedMeal[] = orderedMeals.map((m) => {
         const recipe = toRecipeDto(m.recipe);
         const n = recipe.nutritionPerServing;
         return {
@@ -453,6 +476,18 @@ function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + days);
   return d;
+}
+
+/** Canonical eating order for sorting planned meals within a day. */
+const MEAL_RANK: Record<string, number> = {
+  breakfast: 0,
+  second_breakfast: 1,
+  lunch: 2,
+  snack: 3,
+  dinner: 4,
+};
+function mealRank(slot: string): number {
+  return MEAL_RANK[slot] ?? 99;
 }
 
 /** Nested `days.create` payload from a run of optimiser assignments. */
