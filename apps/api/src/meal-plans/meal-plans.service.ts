@@ -17,8 +17,10 @@ import {
 } from '@diet-app/shared';
 import {
   calculateCalories,
+  fitServings,
   optimisePlan,
   OptimizerError,
+  slotBudgets,
   substituteIngredient,
   type CalorieEngineInput,
   type EngineIngredient,
@@ -271,9 +273,27 @@ export class MealPlansService {
       replacementId = candidates[hashIndex(req.plannedMealId, candidates.length)]!.id;
     }
 
+    // Rescale servings so the swap stays close to the slot's calorie budget.
+    // Without this, swapping a 100 kcal/serving recipe for a 200 kcal one
+    // would double the meal's calories at the same servings count.
+    const replacement = await this.prisma.recipe.findUniqueOrThrow({
+      where: { id: replacementId },
+      select: { caloriesPerServing: true },
+    });
+    const daySlots = await this.prisma.plannedMeal.findMany({
+      where: { dayId: meal.dayId },
+      select: { mealType: true },
+    });
+    const budgets = slotBudgets(
+      daySlots.map((d) => d.mealType as MealType),
+      meal.day.calorieTarget,
+    );
+    const budget = budgets.get(meal.mealType as MealType) ?? meal.day.calorieTarget;
+    const servings = fitServings(replacement.caloriesPerServing, budget);
+
     await this.prisma.plannedMeal.update({
       where: { id: req.plannedMealId },
-      data: { recipeId: replacementId },
+      data: { recipeId: replacementId, servings },
     });
     return this.get(userId, req.planId);
   }
