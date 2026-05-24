@@ -78,6 +78,7 @@ repo, Phase 3) consumes the same API for offline viewing and later sync.
 | F13 | **Favorite sets** — per-profile saved day-template: one favourited recipe per meal slot (e.g. *"Set 1"* = breakfast + lunch + dinner picked from favourites). Composable from the dashboard, applicable to one or more days of a plan in a single action so the user doesn't have to swap each meal individually. |
 | F14 | **Internationalisation (i18n)** — every user-facing string routed through a translation layer (locale files, no inline copy); per-user language preference persisted on the account; first locales English + Polish; ingredient/recipe names localised via per-locale columns in the curated DB; units and dates formatted via `Intl`; the locale catalogue is the contract Android mirrors so both clients ship the same wording. |
 | F15 | **Inventory (pantry-aware planning)** — per-profile stock of ingredients the user actually has: quantity + unit + optional best-before. Updated automatically when a shopping-list item is checked off ("bought 200 g rice → +200 g in inventory"), and editable by hand (add an impulse buy, decrement what someone ate, clear an item). Plan generation, recalculate, day-regenerate and swap then bias toward recipes the inventory can cover, scored by `coverage = covered_ingredient_mass / required_ingredient_mass`. After **N** consecutive inventory-biased generations on the same profile (default `N=5`, configurable per profile) the engine deliberately ignores the bias for one round so the menu doesn't collapse onto the same five recipes. Shopping lists subtract inventory before listing buy quantities (extends today's "already have" deduction); inventory decrements by the recipe's portion when a planned meal is marked eaten. |
+| F16 | **Admin panel at `/admin`** — mirrors [archivum-null](https://github.com/whiteravens20/archivum-null)'s pattern: a separate set of admin-only routes under `/api/admin/*`, gated by HTTP Basic Auth checked against `ADMIN_USER` + `ADMIN_PASSWORD` env vars (constant-time compare, `WWW-Authenticate` challenge on 401). The panel is **disabled by default**: when `ADMIN_PASSWORD` is empty or the placeholder default, every admin route returns `403` and the `/admin` page surfaces a "set ADMIN_PASSWORD to enable" message — same fail-closed posture as archivum-null. The web client sends `Authorization: Basic …` headers on every `/api/admin/*` request (no JWT — admin is a separate identity space, not a flag on a user). Scaffold the gate, env vars, an empty `/admin` page, and one trivial endpoint (`GET /api/admin/stats` returning user/profile/plan counts) so the wiring is provable end-to-end; the actual admin surfaces (user list, ingredient/recipe curation, AI usage logs, etc.) are left to a follow-up edit of this row. |
 
 ## 5. Non-functional requirements
 
@@ -103,8 +104,10 @@ translation layer, ship English + Polish, persist a per-user language, localise
 ingredient/recipe names in the curated DB), **inventory** (F15: per-profile pantry that
 auto-fills from checked-off shopping items, decrements from eaten meals, biases plan
 generation/recalculate/swap toward what's on hand, with an anti-monotony reset every N
-rounds), improved ingredient-reuse optimisation, richer recipe library, analytics,
-exports, in-browser offline (PWA), local Ollama deployment guidance.
+rounds), **admin panel** (F16: `/admin` page + `/api/admin/*` routes gated by Basic
+Auth against `ADMIN_PASSWORD`, mirroring archivum-null; scaffold gate + stats endpoint,
+fill surfaces in a follow-up), improved ingredient-reuse optimisation, richer recipe
+library, analytics, exports, in-browser offline (PWA), local Ollama deployment guidance.
 
 **Phase 3** — Android companion app, synchronisation, push notifications, offline-first
 mobile experience.
