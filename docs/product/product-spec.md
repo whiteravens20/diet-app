@@ -68,6 +68,7 @@ repo, Phase 3) consumes the same API for offline viewing and later sync.
 | F10 | AI provider abstraction (4 providers), per-user BYOK keys, failover. |
 | F11 | Deterministic fallback for all AI-assisted features. |
 | F12 | Dashboard with calorie target, macro split and plan summary. |
+| F13 | **Favorite sets** — per-profile saved day-template: one favourited recipe per meal slot (e.g. *"Set 1"* = breakfast + lunch + dinner picked from favourites). Composable from the dashboard, applicable to one or more days of a plan in a single action so the user doesn't have to swap each meal individually. |
 
 ## 5. Non-functional requirements
 
@@ -85,8 +86,10 @@ repo, Phase 3) consumes the same API for offline viewing and later sync.
 selection, date-range planning, plan generation, shopping list, favorites, meal/ingredient
 swapping, Docker deployment, BYOK AI, no-AI fallback.
 
-**Phase 2** — improved ingredient-reuse optimisation, richer recipe library, analytics,
-exports, in-browser offline (PWA), local Ollama deployment guidance.
+**Phase 2** — favorite sets (F13: compose a day from favourites on the dashboard,
+drop a whole set onto chosen days of a plan), improved ingredient-reuse optimisation,
+richer recipe library, analytics, exports, in-browser offline (PWA), local Ollama
+deployment guidance.
 
 **Phase 3** — Android companion app, synchronisation, push notifications, offline-first
 mobile experience.
