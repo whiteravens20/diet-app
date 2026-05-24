@@ -83,3 +83,13 @@ for **structure only** (titles, steps, ingredient names + quantities) as JSON. T
 is explicitly told not to emit nutrition values. The validation layer is the safety net —
 prompts reduce rejected ingredients but never replace validation. Keep prompt templates
 versioned alongside the code that builds them so changes are reviewable.
+
+### Preference bias (planned)
+
+When the AI path lands in meal-plan generation, the prompt builder passes the
+profile's `favoriteIngredientIds` and `excludedIngredientIds` alongside the constraints,
+instructing the model to **prefer** favourites (soft) and **avoid** excludes (hard).
+The deterministic optimiser already scores recipes by favourite-ingredient overlap (see
+[algorithms.md](algorithms.md)); the AI path mirrors that bias at prompt time so users
+get the same behaviour regardless of which engine served the request. Validation still
+hard-fails any ingredient the user has excluded — the prompt is a hint, not enforcement.
