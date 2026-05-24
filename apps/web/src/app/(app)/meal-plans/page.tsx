@@ -33,6 +33,15 @@ function MealPlansContent() {
     enabled: Boolean(activeId),
   });
 
+  const favorites = useQuery({
+    queryKey: ['favorites', activeId],
+    queryFn: () =>
+      api.get<{ recipe: { id: string; title: string; mealTypes: string[] } }[]>(
+        `/favorites?profileId=${activeId}`,
+      ),
+    enabled: Boolean(activeId),
+  });
+
   const invalidate = () => qc.invalidateQueries({ queryKey: ['meal-plans', activeId] });
   const fail = (verb: string) => (e: unknown) =>
     setError(e instanceof ApiClientError ? e.message : `Could not ${verb}.`);
@@ -60,8 +69,13 @@ function MealPlansContent() {
   });
 
   const swapMeal = useMutation({
-    mutationFn: (v: { planId: string; plannedMealId: string }) =>
-      api.post<MealPlan>('/meal-plans/swap-meal', { ...v, strategy: 'random' }),
+    mutationFn: (v: { planId: string; plannedMealId: string; favoriteRecipeId?: string }) =>
+      api.post<MealPlan>('/meal-plans/swap-meal', {
+        planId: v.planId,
+        plannedMealId: v.plannedMealId,
+        strategy: v.favoriteRecipeId ? 'favorite' : 'random',
+        ...(v.favoriteRecipeId ? { favoriteRecipeId: v.favoriteRecipeId } : {}),
+      }),
     onSuccess: invalidate,
     onError: fail('swap the meal'),
   });
@@ -195,6 +209,11 @@ function MealPlansContent() {
                 setError(null);
                 swapMeal.mutate({ planId: plan.id, plannedMealId });
               }}
+              onSwapToFavorite={(plannedMealId, favoriteRecipeId) => {
+                setError(null);
+                swapMeal.mutate({ planId: plan.id, plannedMealId, favoriteRecipeId });
+              }}
+              favorites={favorites.data ?? []}
             />
           ))
         )}
@@ -203,25 +222,35 @@ function MealPlansContent() {
   );
 }
 
+interface FavoriteOption {
+  recipe: { id: string; title: string; mealTypes: string[] };
+}
+
 function PlanCard({
   plan,
   open,
   busy,
+  favorites,
   onToggle,
   onRegenerate,
   onDelete,
   onRegenerateDay,
   onSwapMeal,
+  onSwapToFavorite,
 }: {
   plan: MealPlan;
   open: boolean;
   busy: boolean;
+  favorites: FavoriteOption[];
   onToggle: () => void;
   onRegenerate: () => void;
   onDelete: () => void;
   onRegenerateDay: (dayId: string) => void;
   onSwapMeal: (plannedMealId: string) => void;
+  onSwapToFavorite: (plannedMealId: string, recipeId: string) => void;
 }) {
+  // Which meal's "swap to favorite" picker is open, if any.
+  const [openFav, setOpenFav] = useState<string | null>(null);
   return (
     <Card className="max-w-2xl">
       <div className="flex items-center justify-between gap-4 p-4">
@@ -283,31 +312,79 @@ function PlanCard({
                 </div>
               </div>
               <ul className="mt-1 space-y-1 text-sm">
-                {day.meals.map((m) => (
-                  <li key={m.id} className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">
-                      <span className="capitalize">{m.mealType.replace('_', ' ')}</span> ·{' '}
-                      <Link href={`/recipes/${m.recipe.id}`} className="text-primary hover:underline">
-                        {m.recipe.title}
-                      </Link>
-                      {m.servings !== 1 ? ` (×${m.servings})` : ''}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className="tabular-nums text-muted-foreground">
-                        {m.nutrition.calories} kcal
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onSwapMeal(m.id)}
-                        disabled={busy}
-                      >
-                        Swap
-                      </Button>
-                    </span>
-                  </li>
-                ))}
+                {day.meals.map((m) => {
+                  const slotFavorites = favorites.filter((f) =>
+                    f.recipe.mealTypes.includes(m.mealType),
+                  );
+                  const favOpen = openFav === m.id;
+                  return (
+                    <li key={m.id} className="space-y-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          <span className="capitalize">{m.mealType.replace('_', ' ')}</span> ·{' '}
+                          <Link
+                            href={`/recipes/${m.recipe.id}`}
+                            className="text-primary hover:underline"
+                          >
+                            {m.recipe.title}
+                          </Link>
+                          {m.servings !== 1 ? ` (×${m.servings})` : ''}
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="tabular-nums text-muted-foreground">
+                            {m.nutrition.calories} kcal
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSwapMeal(m.id)}
+                            disabled={busy}
+                          >
+                            Swap
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setOpenFav(favOpen ? null : m.id)}
+                            disabled={busy}
+                          >
+                            ★ {favOpen ? '▲' : '▾'}
+                          </Button>
+                        </span>
+                      </div>
+                      {favOpen && (
+                        <div className="ml-4 rounded-md border border-border bg-muted/40 p-2">
+                          {slotFavorites.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              No favorited recipes for {m.mealType.replace('_', ' ')} yet —
+                              open a recipe to favorite it.
+                            </p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {slotFavorites.map((f) => (
+                                <li key={f.recipe.id}>
+                                  <button
+                                    type="button"
+                                    className="w-full rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-50"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setOpenFav(null);
+                                      onSwapToFavorite(m.id, f.recipe.id);
+                                    }}
+                                  >
+                                    {f.recipe.title}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}

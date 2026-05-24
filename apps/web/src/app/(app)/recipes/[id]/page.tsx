@@ -1,20 +1,56 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import type { Recipe } from '@diet-app/shared';
+import type { Profile, Recipe } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+
+interface FavoriteRow {
+  id: string;
+  recipe: { id: string };
+}
 
 /** Full recipe view — opened from the library or a planned meal. */
 export default function RecipeDetailPage() {
   const params = useParams<{ id: string }>();
+  const qc = useQueryClient();
   const recipe = useQuery({
     queryKey: ['recipe', params.id],
     queryFn: () => api.get<Recipe>(`/recipes/${params.id}`),
     retry: false,
+  });
+
+  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+
+  // Map of profileId → set of favorited recipe ids, so we can show a single
+  // toggle per profile without an extra round-trip per profile.
+  const favorites = useQuery({
+    queryKey: ['favorites-index'],
+    enabled: (profiles.data ?? []).length > 0,
+    queryFn: async () => {
+      const ps = profiles.data ?? [];
+      const entries = await Promise.all(
+        ps.map(async (p) => {
+          const rows = await api.get<FavoriteRow[]>(`/favorites?profileId=${p.id}`);
+          return [p.id, new Set(rows.map((f) => f.recipe.id))] as const;
+        }),
+      );
+      return new Map(entries);
+    },
+  });
+
+  const addFav = useMutation({
+    mutationFn: (profileId: string) =>
+      api.post('/favorites', { profileId, recipeId: params.id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['favorites-index'] }),
+  });
+  const removeFav = useMutation({
+    mutationFn: (profileId: string) => api.delete(`/favorites/${profileId}/${params.id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['favorites-index'] }),
   });
 
   if (recipe.isLoading) return <Skeleton className="h-64 max-w-2xl" />;
@@ -37,6 +73,8 @@ export default function RecipeDetailPage() {
 
   const r = recipe.data!;
   const n = r.nutritionPerServing;
+  const profileList = profiles.data ?? [];
+  const favIndex = favorites.data ?? new Map<string, Set<string>>();
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -57,6 +95,28 @@ export default function RecipeDetailPage() {
           ))}
         </div>
       </div>
+
+      {profileList.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Save to favorites for:</span>
+          {profileList.map((p) => {
+            const saved = favIndex.get(p.id)?.has(r.id) ?? false;
+            const busy = addFav.isPending || removeFav.isPending;
+            return (
+              <Button
+                key={p.id}
+                type="button"
+                variant={saved ? 'primary' : 'outline'}
+                size="sm"
+                disabled={busy}
+                onClick={() => (saved ? removeFav.mutate(p.id) : addFav.mutate(p.id))}
+              >
+                {saved ? '★' : '☆'} {p.name}
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       <Card>
         <CardHeader>
