@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatIngredientAmount } from '@/lib/ingredient-format';
+import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -295,6 +296,8 @@ function PlanCard({
 }) {
   // Which meal's "swap to favorite" picker is open, if any.
   const [openFav, setOpenFav] = useState<string | null>(null);
+  // Which meal's ingredient-substitution modal is open, if any.
+  const [openSub, setOpenSub] = useState<MealPlan['days'][number]['meals'][number] | null>(null);
   return (
     <Card className="max-w-3xl">
       <div className="flex items-center justify-between gap-4 p-4">
@@ -409,6 +412,16 @@ function PlanCard({
                           >
                             ★ {favOpen ? '▲' : '▾'}
                           </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Substitute one ingredient inside this recipe"
+                            onClick={() => setOpenSub(m)}
+                            disabled={busy}
+                          >
+                            ⇄
+                          </Button>
                         </span>
                       </div>
                       {/* Concrete amounts for this meal — the recipe's ingredients
@@ -457,6 +470,17 @@ function PlanCard({
             </div>
           ))}
         </CardContent>
+      )}
+      {openSub && (
+        <IngredientSubstituteModal
+          meal={openSub}
+          planId={plan.id}
+          onClose={() => setOpenSub(null)}
+          onApplied={() => {
+            /* Invalidation happens via the parent's react-query cache when the
+               plan refetches; the modal closes itself on success. */
+          }}
+        />
       )}
     </Card>
   );
