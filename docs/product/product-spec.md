@@ -69,6 +69,7 @@ repo, Phase 3) consumes the same API for offline viewing and later sync.
 | F11 | Deterministic fallback for all AI-assisted features. |
 | F12 | Dashboard with calorie target, macro split and plan summary. |
 | F13 | **Favorite sets** — per-profile saved day-template: one favourited recipe per meal slot (e.g. *"Set 1"* = breakfast + lunch + dinner picked from favourites). Composable from the dashboard, applicable to one or more days of a plan in a single action so the user doesn't have to swap each meal individually. |
+| F14 | **Internationalisation (i18n)** — every user-facing string routed through a translation layer (locale files, no inline copy); per-user language preference persisted on the account; first locales English + Polish; ingredient/recipe names localised via per-locale columns in the curated DB; units and dates formatted via `Intl`; the locale catalogue is the contract Android mirrors so both clients ship the same wording. |
 
 ## 5. Non-functional requirements
 
@@ -77,7 +78,9 @@ repo, Phase 3) consumes the same API for offline viewing and later sync.
 - **Scalability** — stateless API, horizontally scalable; Postgres + Redis.
 - **Testability** — pure deterministic engines, unit-tested; typed API contract.
 - **Accessibility** — semantic HTML, keyboard navigation, dark mode, sufficient contrast.
-- **Localization-ready** — English first; copy is centralisable.
+- **Localization-ready** — English first; copy is centralisable. Full i18n delivery is
+  tracked as F14 (Phase 2) — English + Polish locales, per-user language preference,
+  localised ingredient/recipe names in the curated DB.
 - **Resilience** — every external input validated with Zod; AI failure degrades gracefully.
 
 ## 6. MVP scope & phased roadmap
@@ -87,7 +90,9 @@ selection, date-range planning, plan generation, shopping list, favorites, meal/
 swapping, Docker deployment, BYOK AI, no-AI fallback.
 
 **Phase 2** — favorite sets (F13: compose a day from favourites on the dashboard,
-drop a whole set onto chosen days of a plan), improved ingredient-reuse optimisation,
+drop a whole set onto chosen days of a plan), i18n (F14: route every string through a
+translation layer, ship English + Polish, persist a per-user language, localise
+ingredient/recipe names in the curated DB), improved ingredient-reuse optimisation,
 richer recipe library, analytics, exports, in-browser offline (PWA), local Ollama
 deployment guidance.
 
