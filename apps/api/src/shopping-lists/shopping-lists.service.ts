@@ -83,6 +83,30 @@ export class ShoppingListsService {
     return this.toDto(list);
   }
 
+  /** Every list belonging to a plan the user owns, newest first. */
+  async listForPlan(userId: string, planId: string): Promise<ShoppingList[]> {
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { id: planId },
+      include: { profile: true },
+    });
+    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (plan.profile.userId !== userId) {
+      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
+    }
+    const rows = await this.prisma.shoppingList.findMany({
+      where: { planId },
+      include: { items: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => this.toDto(r));
+  }
+
+  /** Delete a list the user owns. */
+  async remove(userId: string, listId: string): Promise<void> {
+    await this.get(userId, listId); // ownership check
+    await this.prisma.shoppingList.delete({ where: { id: listId } });
+  }
+
   async get(userId: string, listId: string): Promise<ShoppingList> {
     const list = await this.prisma.shoppingList.findUnique({
       where: { id: listId },
