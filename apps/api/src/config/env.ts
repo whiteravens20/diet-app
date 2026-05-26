@@ -48,7 +48,21 @@ export const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().default('no-reply@diet-app.local'),
+
+  // Admin panel (F16). Fail-closed: when ADMIN_PASSWORD is empty or left at
+  // the placeholder, every /api/admin/* route returns 403 — no JWT, no user.
+  ADMIN_USER: z.string().default('admin'),
+  ADMIN_PASSWORD: z.string().default(''),
 });
+
+/** Sentinel password meaning "admin panel disabled". Mirrors archivum-null. */
+export const ADMIN_PASSWORD_PLACEHOLDER = 'CHANGE_ME_IMMEDIATELY';
+
+/** Whether ADMIN_PASSWORD has been set to a real value. */
+export function isAdminEnabled(env: Pick<Env, 'ADMIN_PASSWORD'>): boolean {
+  const p = env.ADMIN_PASSWORD;
+  return p.length > 0 && p !== ADMIN_PASSWORD_PLACEHOLDER;
+}
 
 export type Env = z.infer<typeof envSchema>;
 

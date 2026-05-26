@@ -36,10 +36,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── One-shot: migrate the schema + seed the curated DB, then exit ───────────
-  # `api` and `worker` wait for this to complete so they never start against an
-  # un-migrated or empty database. Safe to re-run: `migrate deploy` only applies
-  # pending migrations, and the seed upserts by natural key.
+  # ── One-shot: apply pending migrations and exit ─────────────────────────────
+  # `api` and `worker` wait for this so they never start against an un-migrated
+  # database. Safe to re-run: `migrate deploy` is a no-op when nothing is pending.
+  #
+  # Seeding the curated/USDA ingredient database is intentionally NOT done here
+  # — it's an admin action triggered from `/admin` once the stack is up (see
+  # `POST /api/admin/db/update`). Boot stays fast even with 7k+ ingredients and
+  # 30k+ composed recipes.
   db-init:
     build:
       context: ..
@@ -48,13 +52,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-    # node_modules is hoisted to /app by npm workspaces; the schema, config and
-    # seed are resolved relative to /app/apps/api.
     working_dir: /app/apps/api
-    command:
-      - sh
-      - -c
-      - /app/node_modules/.bin/prisma migrate deploy && /app/node_modules/.bin/tsx prisma/seed.ts
+    command: ['/app/node_modules/.bin/prisma', 'migrate', 'deploy']
     depends_on:
       postgres: { condition: service_healthy }
     restart: 'no'

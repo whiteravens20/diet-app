@@ -16,6 +16,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "data:lint": "tsx scripts/validate-data.ts",
     "import:usda": "tsx scripts/import-usda.ts"
   },
   "prisma": {

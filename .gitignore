@@ -37,3 +37,6 @@ npm-debug.log*
 
 # Docker volumes (local bind mounts, if any)
 infra/.data/
+
+# Ingredients data
+/data/ingredients.generated.json

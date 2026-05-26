@@ -41,6 +41,7 @@ jobs:
       - run: npm run db:generate
       - run: npm run lint -- --filter=@diet-app/api
       - run: npm run typecheck -- --filter=@diet-app/api
+      - run: npm run data:lint
       - run: npm run test -- --filter=@diet-app/api
       - run: npm run build -- --filter=@diet-app/api
 

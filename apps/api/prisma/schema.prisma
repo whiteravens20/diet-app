@@ -430,3 +430,20 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
 }
+
+// ── Seed bookkeeping ──────────────────────────────────────────────────────────
+
+// Tracks the curated DB version that last ran through the seeder. A single
+// row keyed by 'data'; `hash` is sha256 of the concatenated seed files. The
+// /admin DB-update flow uses it to surface "update available" when the current
+// hash of data/*.json differs from what's stored.
+model SeedMeta {
+  key       String   @id
+  hash      String
+  seededAt  DateTime
+  // Counters captured at the moment of the last successful seed — cheap to
+  // surface without re-counting tables on every stats request.
+  ingredients   Int @default(0)
+  recipes       Int @default(0)
+  substitutions Int @default(0)
+}

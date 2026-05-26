@@ -56,12 +56,32 @@ Local (Node 24 LTS):
 
 ```bash
 npm install
-npm run db:migrate && npm run db:seed
+npm run db:migrate
 npm run dev
 ```
 
 Web app → `http://localhost:3000`, API → `http://localhost:4000`.
-See [docs/ops/deployment.md](docs/ops/deployment.md) for production and GPU/Ollama setups.
+
+### First-run: populate the curated database
+
+The stack boots empty by design — only `prisma migrate deploy` runs at startup
+(seeding ~7 k ingredients × ~30 k composed recipes would block boot for
+minutes). Loading the curated database is a one-click admin action:
+
+1. Set `ADMIN_PASSWORD` in `.env` (and optionally `ADMIN_USER`, defaults to `admin`).
+2. (Optional) Run the USDA importer to add public-domain whole foods:
+   ```bash
+   FDC_API_KEY=<key> FDC_DATA_TYPES='Foundation,SR Legacy' npm run import:usda
+   ```
+   Without an importer run, only the hand-curated baseline (~55 ingredients) seeds.
+3. Open <http://localhost:3000/admin>, sign in, click **Update Database**.
+
+The admin panel surfaces ingredient/recipe/substitution counts and a
+data-hash check so subsequent edits or re-imports show "update available"
+without any guessing. User accounts and plans are preserved across updates.
+
+The CLI alternative is `npm run db:seed`. See
+[docs/ops/deployment.md](docs/ops/deployment.md) for production and GPU/Ollama setups.
 
 ## Documentation
 

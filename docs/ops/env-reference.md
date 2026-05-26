@@ -29,6 +29,11 @@ environment fails fast with a clear message.
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` | — | Optional admin keys. |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Ollama instance URL. |
 | `FDC_API_KEY` | `DEMO_KEY` | USDA importer key — see [ops/deployment.md](deployment.md). |
+| `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC dataTypes. `Foundation,SR Legacy` for the full ~8 k corpus (requires a real `FDC_API_KEY`). |
+
+## Admin (F16)
+| `ADMIN_USER` | `admin` | Basic-auth username for `/admin` + `/api/admin/*`. |
+| `ADMIN_PASSWORD` | `` *(empty)* | Required to enable the panel. Empty or `CHANGE_ME_IMMEDIATELY` → every admin route returns 403 (fail-closed). |
 
 ## Anti-abuse
 | `TURNSTILE_ENABLED` | `false` | Enable Cloudflare Turnstile. |

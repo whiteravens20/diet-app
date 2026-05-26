@@ -25,11 +25,25 @@ Profiles gate optional services: `--profile ollama` (local AI), `--profile proxy
 ## Quick start
 
 ```bash
-cp .env.example .env            # then edit secrets
+cp .env.example .env            # then edit secrets — incl. ADMIN_PASSWORD
 docker compose -f infra/docker-compose.yml up -d --build
-docker compose -f infra/docker-compose.yml exec api npm run db:migrate -w apps/api
-docker compose -f infra/docker-compose.yml exec api npm run db:seed     -w apps/api
 ```
+
+The `db-init` one-shot service applies pending Prisma migrations before `api`
+and `worker` start, then exits. **The curated ingredient/recipe database is
+not seeded automatically** — boot would otherwise stall for minutes loading
+~7 k ingredients × ~30 k composed recipes. Populate it on first run via the
+admin panel:
+
+1. Browse to `http://localhost:3000/admin`, sign in with `ADMIN_USER` / `ADMIN_PASSWORD`.
+2. (Optional) On the host, fetch USDA whole foods:
+   `FDC_API_KEY=<key> FDC_DATA_TYPES='Foundation,SR Legacy' npm run import:usda`.
+   This writes `data/ingredients.generated.json` — without it only the hand-
+   curated baseline (~55 ingredients) is available.
+3. Click **Update Database**. Subsequent edits or re-imports show
+   "update available" via a sha256 of `data/*.json` stored in `SeedMeta`.
+
+CLI alternative: `docker compose ... exec api npm run db:seed -w apps/api`.
 
 Web → `:3000`, API → `:4000/api`, health → `:4000/api/health`.
 
@@ -37,9 +51,11 @@ Web → `:3000`, API → `:4000/api`, health → `:4000/api/health`.
 
 ```bash
 docker compose -f infra/docker-compose.dev.yml up -d   # Postgres + Redis
-npm install && npm run db:migrate && npm run db:seed
+npm install && npm run db:migrate
 npm run dev                                            # web + api with HMR
 ```
+
+Same first-run rule: populate the DB from `/admin` (or run `npm run db:seed`).
 
 ## Reverse proxy
 

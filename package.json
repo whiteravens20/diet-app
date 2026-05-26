@@ -23,7 +23,8 @@
     "format": "prettier --write .",
     "db:migrate": "npm run db:migrate -w apps/api",
     "db:seed": "npm run db:seed -w apps/api",
-    "db:generate": "npm run db:generate -w apps/api"
+    "db:generate": "npm run db:generate -w apps/api",
+    "data:lint": "npm run data:lint -w apps/api"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
