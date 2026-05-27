@@ -67,7 +67,7 @@ repo, Phase 3) consumes the same API for offline viewing and later sync.
 | F2 | Multiple profiles per account; full preference/allergen/exclusion model. |
 | F3 | Deterministic calorie engine (Mifflin-St Jeor) with manual override. |
 | F4 | Meal-plan generation for 1–28 days, 2–5 meals/day, honouring constraints. |
-| F5 | Recipe library: curated anchors + template-composed fallback meals (100+). |
+| F5 | Recipe library: curated anchors + template-composed fallback meals. The hand-curated baseline (~18 anchors, ~55 ingredients) gives the planner enough variety to function; the **100+ recipe** target is reached once the operator runs the USDA Foundation importer from the admin panel, which expands the hero pool the template composer iterates over. |
 | F6 | Meal swap (random / favorite) and ingredient substitution with delta preview. |
 | F7 | Shopping-list aggregation: merge, unit-normalise, group, "already have" deductions. |
 | F8 | Ingredient-reuse optimisation across the planning window. |

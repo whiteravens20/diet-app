@@ -241,12 +241,46 @@ export class MealPlansService {
     }
   }
 
-  async list(userId: string, profileId: string): Promise<MealPlan[]> {
+  async list(
+    userId: string,
+    profileId: string,
+    filters: { from?: string; to?: string; status?: string } = {},
+  ): Promise<MealPlan[]> {
     await this.loadProfile(userId, profileId);
-    const plans = await this.prisma.mealPlan.findMany({
-      where: { profileId },
-      orderBy: { createdAt: 'desc' },
+
+    // `to` constrains startDate (`startDate <= to`). For `from` we need
+    // `startDate + durationDays - 1 >= from`, which Prisma can't express as a
+    // single column comparison — defer that check to a JS filter below.
+    const where: { profileId: string; startDate?: { lte?: Date } } = { profileId };
+    if (filters.to) where.startDate = { lte: new Date(filters.to) };
+
+    let plans = await this.prisma.mealPlan.findMany({
+      where,
+      orderBy: { startDate: 'desc' },
     });
+
+    const planEnd = (p: { startDate: Date; durationDays: number }): Date => {
+      const end = new Date(p.startDate);
+      end.setUTCDate(end.getUTCDate() + p.durationDays - 1);
+      return end;
+    };
+    if (filters.from) {
+      const fromDate = new Date(filters.from);
+      plans = plans.filter((p) => planEnd(p) >= fromDate);
+    }
+    if (filters.status) {
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      plans = plans.filter((p) => {
+        const start = new Date(p.startDate);
+        const end = planEnd(p);
+        if (filters.status === 'active') return start <= today && today <= end;
+        if (filters.status === 'past') return end < today;
+        if (filters.status === 'upcoming') return start > today;
+        return true;
+      });
+    }
+
     return Promise.all(plans.map((p) => this.get(userId, p.id)));
   }
 

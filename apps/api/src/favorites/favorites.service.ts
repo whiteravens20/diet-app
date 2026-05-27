@@ -7,10 +7,22 @@ import { toRecipeDto } from '../recipes/recipes.service.js';
 export class FavoritesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(userId: string, profileId: string) {
+  async list(
+    userId: string,
+    profileId: string,
+    filters: { search?: string; mealType?: string } = {},
+  ) {
     await this.assertProfile(userId, profileId);
     const rows = await this.prisma.favorite.findMany({
-      where: { profileId },
+      where: {
+        profileId,
+        recipe: {
+          ...(filters.search
+            ? { title: { contains: filters.search, mode: 'insensitive' } }
+            : {}),
+          ...(filters.mealType ? { mealTypes: { has: filters.mealType } } : {}),
+        },
+      },
       include: { recipe: { include: { ingredients: { include: { ingredient: true } } } } },
       orderBy: { createdAt: 'desc' },
     });

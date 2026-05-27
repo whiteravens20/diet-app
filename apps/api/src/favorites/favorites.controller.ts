@@ -19,8 +19,13 @@ export class FavoritesController {
   constructor(private readonly favorites: FavoritesService) {}
 
   @Get()
-  list(@CurrentUser() user: RequestUser, @Query('profileId') profileId: string) {
-    return this.favorites.list(user.id, profileId);
+  list(
+    @CurrentUser() user: RequestUser,
+    @Query('profileId') profileId: string,
+    @Query('search') search?: string,
+    @Query('mealType') mealType?: string,
+  ) {
+    return this.favorites.list(user.id, profileId, { search, mealType });
   }
 
   @Post()

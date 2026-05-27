@@ -28,10 +28,19 @@ function MealPlansContent() {
 
   const [error, setError] = useState<string | null>(null);
   const [openPlan, setOpenPlan] = useState<string | null>(null);
+  const [status, setStatus] = useState<'' | 'active' | 'past' | 'upcoming'>('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
 
   const plans = useQuery({
-    queryKey: ['meal-plans', activeId],
-    queryFn: () => api.get<MealPlan[]>(`/meal-plans?profileId=${activeId}`),
+    queryKey: ['meal-plans', activeId, status, from, to],
+    queryFn: () => {
+      const qp = new URLSearchParams({ profileId: activeId! });
+      if (status) qp.set('status', status);
+      if (from) qp.set('from', from);
+      if (to) qp.set('to', to);
+      return api.get<MealPlan[]>(`/meal-plans?${qp}`);
+    },
     enabled: Boolean(activeId),
   });
 
@@ -206,9 +215,44 @@ function MealPlansContent() {
       {error && <p className="max-w-2xl text-sm text-destructive">{error}</p>}
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">
-          {active ? `${active.name}'s plans` : 'Plans'}
-        </h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold tracking-tight">
+            {active ? `${active.name}'s plans` : 'Plans'}
+          </h2>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex gap-1">
+              {(['', 'active', 'upcoming', 'past'] as const).map((s) => (
+                <Button
+                  key={s || 'all'}
+                  size="sm"
+                  variant={status === s ? 'primary' : 'outline'}
+                  onClick={() => setStatus(s)}
+                >
+                  {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
+                </Button>
+              ))}
+            </div>
+            <Field label="From">
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            </Field>
+            <Field label="To">
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            </Field>
+            {(from || to || status) && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setStatus('');
+                  setFrom('');
+                  setTo('');
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
         {plans.isLoading ? (
           <Skeleton className="h-24 max-w-3xl" />
         ) : (plans.data ?? []).length === 0 ? (

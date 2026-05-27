@@ -22,8 +22,14 @@ export class MealPlansController {
   constructor(private readonly plans: MealPlansService) {}
 
   @Get()
-  list(@CurrentUser() user: RequestUser, @Query('profileId') profileId: string) {
-    return this.plans.list(user.id, profileId);
+  list(
+    @CurrentUser() user: RequestUser,
+    @Query('profileId') profileId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.plans.list(user.id, profileId, { from, to, status });
   }
 
   @Get(':id')
