@@ -1,4 +1,7 @@
+import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 // Where the browser-facing `/api/*` path is proxied to. Server-to-server, so
 // this is the API's internal address (the `api` service in Docker, or
@@ -19,4 +22,4 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withNextIntl(config);

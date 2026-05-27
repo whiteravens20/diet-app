@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { type AuthResponse, PASSWORD_RULES } from '@diet-app/shared';
+import type { AuthResponse } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -12,6 +13,9 @@ import { api, ApiClientError, tokenStore } from '@/lib/api';
 /** Shared login / registration form. */
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const router = useRouter();
+  const t = useTranslations('auth');
+  const tErrors = useTranslations('errors');
+  const tRules = useTranslations('auth.passwordRules');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -30,11 +34,13 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       tokenStore.set(res.tokens);
       router.push('/dashboard');
     } catch (err) {
-      setError(
-        err instanceof ApiClientError
-          ? err.message
-          : 'Something unexpected happened. Please try again.',
-      );
+      // Prefer a translated error-code message; fall back to the server's
+      // English text, then the generic catch-all.
+      if (err instanceof ApiClientError) {
+        setError(tErrors.has(err.code) ? tErrors(err.code) : err.message);
+      } else {
+        setError(tErrors('GENERIC'));
+      }
     } finally {
       setLoading(false);
     }
@@ -44,20 +50,20 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle className="text-xl">
-          {mode === 'login' ? 'Welcome back' : 'Create your account'}
+          {mode === 'login' ? t('welcomeBack') : t('createAccount')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4">
           {mode === 'register' && (
-            <Field label="Name">
+            <Field label={t('name')}>
               <Input name="displayName" required placeholder="Alex" autoComplete="name" />
             </Field>
           )}
-          <Field label="Email">
+          <Field label={t('email')}>
             <Input name="email" type="email" required autoComplete="email" />
           </Field>
-          <Field label="Password">
+          <Field label={t('password')}>
             <Input
               name="password"
               type="password"
@@ -69,35 +75,39 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           {mode === 'login' && (
             <p className="-mt-2 text-right text-xs">
               <Link href="/forgot-password" className="text-muted-foreground hover:underline">
-                Forgot password?
+                {t('forgotPassword')}
               </Link>
             </p>
           )}
           {mode === 'register' && (
             <ul className="-mt-2 space-y-0.5 text-xs text-muted-foreground">
-              {PASSWORD_RULES.map((rule) => (
-                <li key={rule}>• {rule}</li>
-              ))}
+              <li>• {tRules('minLength')}</li>
+              <li>• {tRules('case')}</li>
+              <li>• {tRules('digit')}</li>
             </ul>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+            {loading
+              ? t('submitting')
+              : mode === 'login'
+                ? t('signInButton')
+                : t('createAccountButton')}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           {mode === 'login' ? (
             <>
-              No account?{' '}
+              {t('noAccount')}{' '}
               <Link href="/register" className="text-primary hover:underline">
-                Register
+                {t('createAccountButton')}
               </Link>
             </>
           ) : (
             <>
-              Have an account?{' '}
+              {t('hasAccount')}{' '}
               <Link href="/login" className="text-primary hover:underline">
-                Sign in
+                {t('signInButton')}
               </Link>
             </>
           )}

@@ -1,0 +1,158 @@
+{
+  "common": {
+    "appName": "Diet App",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "retry": "Try again",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "reset": "Reset",
+    "yes": "Yes",
+    "no": "No",
+    "optional": "optional",
+    "comingSoon": "Coming soon"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "profiles": "Profiles",
+    "recipes": "Recipes",
+    "mealPlans": "Meal plans",
+    "shoppingLists": "Shopping lists",
+    "settings": "Settings",
+    "admin": "Admin",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signUp": "Create account"
+  },
+  "landing": {
+    "tagline": "Self-hostable · Docker-first",
+    "headline": "Meal planning that actually adds up.",
+    "subhead": "Calorie-targeted plans, deterministic nutrition and shopping lists that write themselves. AI optional — never required.",
+    "getStarted": "Get started",
+    "signIn": "Sign in",
+    "features": {
+      "nutritionTitle": "Deterministic nutrition",
+      "nutritionBody": "Every calorie and macro comes from a curated database — reproducible, never invented.",
+      "plansTitle": "Smart meal plans",
+      "plansBody": "Multi-day plans that hit your calorie target and reuse ingredients to cut waste.",
+      "listsTitle": "Consolidated lists",
+      "listsBody": "Shopping lists merged, unit-normalised and grouped by aisle.",
+      "aiTitle": "BYOK AI — optional",
+      "aiBody": "Bring your own OpenAI, Anthropic, OpenRouter or Ollama key. Works fully without one."
+    }
+  },
+  "auth": {
+    "welcomeBack": "Welcome back",
+    "createAccount": "Create your account",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "passwordRules": {
+      "minLength": "At least 12 characters",
+      "case": "An uppercase and a lowercase letter",
+      "digit": "At least one digit"
+    },
+    "signInButton": "Sign in",
+    "createAccountButton": "Create account",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "submitting": "Submitting…",
+    "resetTitle": "Reset your password",
+    "resetSubmit": "Send reset link",
+    "resetSent": "Check your email",
+    "resetSentBody": "If an account exists for that email, a reset link is on its way.",
+    "newPasswordTitle": "Create new password",
+    "newPasswordSubmit": "Update password",
+    "newPasswordDone": "Password reset successful",
+    "newPasswordDoneBody": "You can now sign in with your new password.",
+    "tokenInvalid": "This reset link is invalid or has expired."
+  },
+  "languageSwitcher": {
+    "label": "Language",
+    "ariaLabel": "Change language"
+  },
+  "locales": {
+    "en": "English",
+    "pl": "Polski"
+  },
+  "errors": {
+    "GENERIC": "Something unexpected happened. Please try again.",
+    "NETWORK": "Could not reach the server. Check your connection.",
+    "EMAIL_TAKEN": "That email is already registered.",
+    "INVALID_CREDENTIALS": "Email or password is incorrect.",
+    "INVALID_REFRESH": "Your session expired. Please sign in again.",
+    "INVALID_RESET_TOKEN": "This reset link is invalid or has expired.",
+    "TURNSTILE_FAILED": "Anti-abuse check failed. Please try again.",
+    "USER_NOT_FOUND": "Account not found.",
+    "INVALID_PASSWORD": "Current password is incorrect.",
+    "EMPTY_UPDATE": "Nothing to update.",
+    "FORBIDDEN": "You don't have access to that.",
+    "VALIDATION": "Some fields need attention."
+  },
+  "enums": {
+    "dietType": {
+      "balanced": "Balanced",
+      "high_protein": "High protein",
+      "low_carb": "Low carb",
+      "vegetarian": "Vegetarian",
+      "vegan": "Vegan",
+      "keto": "Keto",
+      "mediterranean": "Mediterranean",
+      "custom": "Custom"
+    },
+    "mealType": {
+      "breakfast": "Breakfast",
+      "second_breakfast": "Second breakfast",
+      "lunch": "Lunch",
+      "snack": "Snack",
+      "dinner": "Dinner",
+      "supper": "Supper"
+    },
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "category": {
+      "vegetables": "Vegetables",
+      "fruits": "Fruits",
+      "dairy": "Dairy",
+      "meat": "Meat",
+      "fish": "Fish",
+      "grains": "Grains",
+      "legumes": "Legumes",
+      "nuts_seeds": "Nuts & seeds",
+      "fats_oils": "Fats & oils",
+      "spices": "Spices",
+      "pantry": "Pantry",
+      "beverages": "Beverages",
+      "other": "Other"
+    },
+    "unit": {
+      "g": "g",
+      "ml": "ml",
+      "piece": "{count, plural, one {# piece} other {# pieces}}"
+    },
+    "sex": {
+      "male": "Male",
+      "female": "Female"
+    },
+    "activityLevel": {
+      "sedentary": "Sedentary",
+      "light": "Light",
+      "moderate": "Moderate",
+      "active": "Active",
+      "very_active": "Very active"
+    }
+  }
+}

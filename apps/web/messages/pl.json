@@ -1,0 +1,158 @@
+{
+  "common": {
+    "appName": "Diet App",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "delete": "Usuń",
+    "edit": "Edytuj",
+    "loading": "Wczytywanie…",
+    "error": "Coś poszło nie tak.",
+    "retry": "Spróbuj ponownie",
+    "close": "Zamknij",
+    "confirm": "Potwierdź",
+    "back": "Wstecz",
+    "next": "Dalej",
+    "search": "Szukaj",
+    "filter": "Filtruj",
+    "clear": "Wyczyść",
+    "reset": "Resetuj",
+    "yes": "Tak",
+    "no": "Nie",
+    "optional": "opcjonalne",
+    "comingSoon": "Wkrótce"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "profiles": "Profile",
+    "recipes": "Przepisy",
+    "mealPlans": "Plany posiłków",
+    "shoppingLists": "Listy zakupów",
+    "settings": "Ustawienia",
+    "admin": "Administracja",
+    "signIn": "Zaloguj się",
+    "signOut": "Wyloguj się",
+    "signUp": "Załóż konto"
+  },
+  "landing": {
+    "tagline": "Samodzielnie hostowane · Docker-first",
+    "headline": "Planowanie posiłków, które naprawdę się sumuje.",
+    "subhead": "Plany dopasowane do celu kalorycznego, deterministyczna wartość odżywcza i listy zakupów, które piszą się same. AI opcjonalne — nigdy wymagane.",
+    "getStarted": "Zacznij",
+    "signIn": "Zaloguj się",
+    "features": {
+      "nutritionTitle": "Deterministyczna wartość odżywcza",
+      "nutritionBody": "Każda kaloria i makroskładnik pochodzi z wyselekcjonowanej bazy danych — powtarzalnie, nigdy zmyślone.",
+      "plansTitle": "Inteligentne plany posiłków",
+      "plansBody": "Wielodniowe plany dopasowane do celu kalorycznego, które ponownie wykorzystują składniki, by ograniczyć marnowanie.",
+      "listsTitle": "Skonsolidowane listy",
+      "listsBody": "Listy zakupów scalone, ujednolicone jednostkowo i pogrupowane według działów.",
+      "aiTitle": "BYOK AI — opcjonalne",
+      "aiBody": "Użyj własnego klucza OpenAI, Anthropic, OpenRouter lub Ollama. Działa też w pełni bez klucza."
+    }
+  },
+  "auth": {
+    "welcomeBack": "Witaj ponownie",
+    "createAccount": "Załóż konto",
+    "name": "Imię",
+    "email": "E-mail",
+    "password": "Hasło",
+    "passwordRules": {
+      "minLength": "Co najmniej 12 znaków",
+      "case": "Wielka i mała litera",
+      "digit": "Co najmniej jedna cyfra"
+    },
+    "signInButton": "Zaloguj się",
+    "createAccountButton": "Załóż konto",
+    "forgotPassword": "Nie pamiętasz hasła?",
+    "noAccount": "Nie masz konta?",
+    "hasAccount": "Masz już konto?",
+    "submitting": "Wysyłanie…",
+    "resetTitle": "Zresetuj hasło",
+    "resetSubmit": "Wyślij link resetujący",
+    "resetSent": "Sprawdź pocztę",
+    "resetSentBody": "Jeśli konto istnieje dla tego adresu, link do resetu właśnie tam zmierza.",
+    "newPasswordTitle": "Ustaw nowe hasło",
+    "newPasswordSubmit": "Zaktualizuj hasło",
+    "newPasswordDone": "Hasło zresetowane",
+    "newPasswordDoneBody": "Możesz się teraz zalogować nowym hasłem.",
+    "tokenInvalid": "Ten link do resetu jest nieprawidłowy lub wygasł."
+  },
+  "languageSwitcher": {
+    "label": "Język",
+    "ariaLabel": "Zmień język"
+  },
+  "locales": {
+    "en": "English",
+    "pl": "Polski"
+  },
+  "errors": {
+    "GENERIC": "Coś poszło nie tak. Spróbuj ponownie.",
+    "NETWORK": "Nie można połączyć się z serwerem. Sprawdź połączenie.",
+    "EMAIL_TAKEN": "Ten adres e-mail jest już zarejestrowany.",
+    "INVALID_CREDENTIALS": "Nieprawidłowy e-mail lub hasło.",
+    "INVALID_REFRESH": "Sesja wygasła. Zaloguj się ponownie.",
+    "INVALID_RESET_TOKEN": "Ten link do resetu jest nieprawidłowy lub wygasł.",
+    "TURNSTILE_FAILED": "Weryfikacja antynadużyciowa nie powiodła się.",
+    "USER_NOT_FOUND": "Nie znaleziono konta.",
+    "INVALID_PASSWORD": "Aktualne hasło jest nieprawidłowe.",
+    "EMPTY_UPDATE": "Brak zmian do zapisania.",
+    "FORBIDDEN": "Brak dostępu.",
+    "VALIDATION": "Niektóre pola wymagają poprawy."
+  },
+  "enums": {
+    "dietType": {
+      "balanced": "Zbilansowana",
+      "high_protein": "Wysokobiałkowa",
+      "low_carb": "Niskowęglowodanowa",
+      "vegetarian": "Wegetariańska",
+      "vegan": "Wegańska",
+      "keto": "Keto",
+      "mediterranean": "Śródziemnomorska",
+      "custom": "Własna"
+    },
+    "mealType": {
+      "breakfast": "Śniadanie",
+      "second_breakfast": "Drugie śniadanie",
+      "lunch": "Obiad",
+      "snack": "Przekąska",
+      "dinner": "Kolacja",
+      "supper": "Podwieczorek"
+    },
+    "difficulty": {
+      "easy": "Łatwy",
+      "medium": "Średni",
+      "hard": "Trudny"
+    },
+    "category": {
+      "vegetables": "Warzywa",
+      "fruits": "Owoce",
+      "dairy": "Nabiał",
+      "meat": "Mięso",
+      "fish": "Ryby",
+      "grains": "Zboża",
+      "legumes": "Rośliny strączkowe",
+      "nuts_seeds": "Orzechy i nasiona",
+      "fats_oils": "Tłuszcze i oleje",
+      "spices": "Przyprawy",
+      "pantry": "Spiżarnia",
+      "beverages": "Napoje",
+      "other": "Inne"
+    },
+    "unit": {
+      "g": "g",
+      "ml": "ml",
+      "piece": "{count, plural, one {# sztuka} few {# sztuki} many {# sztuk} other {# sztuki}}"
+    },
+    "sex": {
+      "male": "Mężczyzna",
+      "female": "Kobieta"
+    },
+    "activityLevel": {
+      "sedentary": "Siedzący",
+      "light": "Lekki",
+      "moderate": "Umiarkowany",
+      "active": "Aktywny",
+      "very_active": "Bardzo aktywny"
+    }
+  }
+}
