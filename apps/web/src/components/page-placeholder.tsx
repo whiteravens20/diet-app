@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 
 /**
@@ -16,6 +17,7 @@ export function PagePlaceholder({
   description: string;
   endpoints: string[];
 }) {
+  const t = useTranslations('placeholder');
   return (
     <div className="space-y-6">
       <header>
@@ -27,9 +29,7 @@ export function PagePlaceholder({
           <span className="inline-flex rounded-md bg-muted p-2 text-primary">
             <Icon size={20} />
           </span>
-          <p className="mt-3 text-sm text-muted-foreground">
-            This screen is scaffolded. It will consume:
-          </p>
+          <p className="mt-3 text-sm text-muted-foreground">{t('scaffolded')}</p>
           <ul className="mt-2 space-y-1">
             {endpoints.map((e) => (
               <li key={e} className="font-mono text-xs text-muted-foreground">

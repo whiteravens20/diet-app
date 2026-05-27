@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { MAX_PROFILES_PER_ACCOUNT, type Profile, type ProfileInput } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
@@ -20,10 +21,23 @@ const DIET_TYPES = [
   'vegan',
   'keto',
   'mediterranean',
-];
+] as const;
+
+const ACTIVITY_LEVELS = [
+  'sedentary',
+  'light',
+  'moderate',
+  'active',
+  'very_active',
+] as const;
 
 /** Profile manager — create, edit and delete the account's profiles. */
 export default function ProfilePage() {
+  const t = useTranslations('profile');
+  const tCommon = useTranslations('common');
+  const tDiet = useTranslations('enums.dietType');
+  const tActivity = useTranslations('enums.activityLevel');
+  const tSex = useTranslations('enums.sex');
   const qc = useQueryClient();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +63,7 @@ export default function ProfilePage() {
       setEditing(null);
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : 'Could not save the profile.'),
+      setError(e instanceof ApiClientError ? e.message : t('saveFailed')),
   });
 
   const remove = useMutation({
@@ -59,7 +73,7 @@ export default function ProfilePage() {
       setEditing(null);
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : 'Could not delete the profile.'),
+      setError(e instanceof ApiClientError ? e.message : t('deleteFailed')),
   });
 
   // Save updated preferences in place: the PUT endpoint is full-replace, so
@@ -81,7 +95,7 @@ export default function ProfilePage() {
       }),
     onSuccess: recalculate,
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : 'Could not save preferences.'),
+      setError(e instanceof ApiClientError ? e.message : t('prefsSaveFailed')),
   });
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -114,7 +128,7 @@ export default function ProfilePage() {
 
   function onDelete(p: Profile) {
     setError(null);
-    if (window.confirm(`Delete "${p.name}"? Its meal plans and shopping lists are removed too.`)) {
+    if (window.confirm(t('deleteConfirm', { name: p.name }))) {
       remove.mutate(p.id);
     }
   }
@@ -125,12 +139,9 @@ export default function ProfilePage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Profiles</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">
-          A profile drives the deterministic calorie engine. An account can have up to{' '}
-          {MAX_PROFILES_PER_ACCOUNT} profiles — one per household member, or to compare diet
-          scenarios. Editing a profile recalculates its targets; deleting one also removes its
-          meal plans and shopping lists.
+          {t('subhead', { max: MAX_PROFILES_PER_ACCOUNT })}
         </p>
       </header>
 
@@ -144,7 +155,12 @@ export default function ProfilePage() {
                 <div>
                   <p className="font-medium">{p.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {p.age} y · {p.heightCm} cm · {p.weightKg} kg · {p.dietType.replace('_', ' ')}
+                    {t('summary', {
+                      age: p.age,
+                      height: p.heightCm,
+                      weight: p.weightKg,
+                      dietType: tDiet(p.dietType),
+                    })}
                   </p>
                 </div>
                 <div className="mt-auto flex gap-2">
@@ -157,7 +173,7 @@ export default function ProfilePage() {
                       setEditing(p);
                     }}
                   >
-                    Edit
+                    {tCommon('edit')}
                   </Button>
                   <Button
                     type="button"
@@ -167,7 +183,7 @@ export default function ProfilePage() {
                     onClick={() => onDelete(p)}
                     disabled={remove.isPending}
                   >
-                    Delete
+                    {tCommon('delete')}
                   </Button>
                 </div>
               </Card>
@@ -178,15 +194,14 @@ export default function ProfilePage() {
 
       {!showForm && (
         <p className="max-w-2xl text-sm text-muted-foreground">
-          You have reached the limit of {MAX_PROFILES_PER_ACCOUNT} profiles. Edit one above, or
-          delete a profile to create a new one.
+          {t('atLimit', { max: MAX_PROFILES_PER_ACCOUNT })}
         </p>
       )}
 
       {showForm && (
         <Card className="max-w-2xl">
           <CardHeader>
-            <CardTitle>{editing ? `Edit ${editing.name}` : 'New profile'}</CardTitle>
+            <CardTitle>{editing ? t('editing', { name: editing.name }) : t('newProfile')}</CardTitle>
           </CardHeader>
           <CardContent>
             {/* Re-mount on edit-target change so default values reset. */}
@@ -195,10 +210,10 @@ export default function ProfilePage() {
               onSubmit={onSubmit}
               className="grid gap-4 sm:grid-cols-2"
             >
-              <Field label="Name">
+              <Field label={t('name')}>
                 <Input name="name" required placeholder="Default" defaultValue={editing?.name} />
               </Field>
-              <Field label="Age">
+              <Field label={t('age')}>
                 <Input
                   name="age"
                   type="number"
@@ -208,14 +223,14 @@ export default function ProfilePage() {
                   defaultValue={editing?.age ?? 30}
                 />
               </Field>
-              <Field label="Sex">
+              <Field label={t('sex')}>
                 <select name="sex" className={selectClass} defaultValue={editing?.sex ?? ''}>
-                  <option value="">Prefer not to say</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
+                  <option value="">{t('preferNotToSay')}</option>
+                  <option value="male">{tSex('male')}</option>
+                  <option value="female">{tSex('female')}</option>
                 </select>
               </Field>
-              <Field label="Height (cm)">
+              <Field label={t('heightCm')}>
                 <Input
                   name="heightCm"
                   type="number"
@@ -225,7 +240,7 @@ export default function ProfilePage() {
                   defaultValue={editing?.heightCm ?? 175}
                 />
               </Field>
-              <Field label="Weight (kg)">
+              <Field label={t('weightKg')}>
                 <Input
                   name="weightKg"
                   type="number"
@@ -235,20 +250,20 @@ export default function ProfilePage() {
                   defaultValue={editing?.weightKg ?? 75}
                 />
               </Field>
-              <Field label="Activity level">
+              <Field label={t('activityLevel')}>
                 <select
                   name="activityLevel"
                   className={selectClass}
                   defaultValue={editing?.activityLevel ?? 'moderate'}
                 >
-                  <option value="sedentary">Sedentary</option>
-                  <option value="light">Light</option>
-                  <option value="moderate">Moderate</option>
-                  <option value="active">Active</option>
-                  <option value="very_active">Very active</option>
+                  {ACTIVITY_LEVELS.map((a) => (
+                    <option key={a} value={a}>
+                      {tActivity(a)}
+                    </option>
+                  ))}
                 </select>
               </Field>
-              <Field label="Diet type">
+              <Field label={t('dietType')}>
                 <select
                   name="dietType"
                   className={selectClass}
@@ -256,35 +271,35 @@ export default function ProfilePage() {
                 >
                   {DIET_TYPES.map((d) => (
                     <option key={d} value={d}>
-                      {d.replace('_', ' ')}
+                      {tDiet(d)}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Weekly loss target (kg)">
+              <Field label={t('weeklyLossTarget')}>
                 <select
                   name="weeklyLossTarget"
                   className={selectClass}
                   defaultValue={editing?.weeklyLossTarget ?? '0.5'}
                 >
-                  <option value="">Maintain</option>
+                  <option value="">{t('maintain')}</option>
                   <option value="0.25">0.25</option>
                   <option value="0.5">0.5</option>
                   <option value="0.75">0.75</option>
                   <option value="1.0">1.0</option>
                 </select>
               </Field>
-              <Field label="Manual kcal override (optional)">
+              <Field label={t('manualKcalOverride')}>
                 <Input
                   name="manualCalorieTarget"
                   type="number"
                   min={800}
                   max={6000}
-                  placeholder="auto"
+                  placeholder={t('auto')}
                   defaultValue={editing?.manualCalorieTarget ?? ''}
                 />
               </Field>
-              <Field label="Meals per day">
+              <Field label={t('mealsPerDay')}>
                 <Input
                   name="mealCount"
                   type="number"
@@ -296,7 +311,11 @@ export default function ProfilePage() {
               </Field>
               <div className="flex items-center gap-3 sm:col-span-2">
                 <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? 'Saving…' : editing ? 'Save changes' : 'Create profile'}
+                  {save.isPending
+                    ? t('saving')
+                    : editing
+                      ? t('saveChanges')
+                      : t('createProfile')}
                 </Button>
                 {editing && (
                   <Button
@@ -307,7 +326,7 @@ export default function ProfilePage() {
                       setEditing(null);
                     }}
                   >
-                    Cancel
+                    {tCommon('cancel')}
                   </Button>
                 )}
                 {error && <p className="text-sm text-destructive">{error}</p>}
@@ -319,12 +338,8 @@ export default function ProfilePage() {
 
       {list.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold tracking-tight">Ingredient preferences</h2>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Per-profile lists that bias and constrain meal-plan generation.
-            Avoid entries are skipped entirely; favourites are softly preferred.
-            Allergens (configured separately) are always honoured.
-          </p>
+          <h2 className="text-lg font-semibold tracking-tight">{t('preferencesTitle')}</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">{t('preferencesSubhead')}</p>
           {list.map((p) => (
             <Card key={`prefs-${p.id}`} className="max-w-2xl">
               <CardHeader>
@@ -332,8 +347,8 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent className="grid gap-6 sm:grid-cols-2">
                 <IngredientPicker
-                  label="Favourite ingredients"
-                  hint="The planner leans toward recipes using these."
+                  label={t('favouritesLabel')}
+                  hint={t('favouritesHint')}
                   ids={p.preferences.favoriteIngredientIds}
                   disabled={savePrefs.isPending}
                   onChange={(ids) =>
@@ -344,8 +359,8 @@ export default function ProfilePage() {
                   }
                 />
                 <IngredientPicker
-                  label="Avoid ingredients"
-                  hint="The planner skips recipes that contain these."
+                  label={t('avoidLabel')}
+                  hint={t('avoidHint')}
                   ids={p.preferences.excludedIngredientIds}
                   disabled={savePrefs.isPending}
                   onChange={(ids) =>

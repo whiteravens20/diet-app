@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import type { MealPlan, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
@@ -11,35 +12,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
-/** Pretty-print a unit value: "240 g" / "1.5 pieces". */
-function formatItemQty(qty: number, unit: string): string {
-  const rounded = unit === 'piece' ? Math.round(qty * 4) / 4 : Math.round(qty);
-  if (unit === 'piece') return `${rounded} ${rounded === 1 ? 'piece' : 'pieces'}`;
-  return `${rounded} ${unit}`;
-}
-
-const CATEGORY_LABEL: Record<string, string> = {
-  vegetables: 'Vegetables',
-  fruits: 'Fruits',
-  dairy: 'Dairy',
-  meat: 'Meat',
-  fish: 'Fish',
-  grains: 'Grains',
-  legumes: 'Legumes',
-  nuts_seeds: 'Nuts & seeds',
-  fats_oils: 'Fats & oils',
-  spices: 'Spices',
-  pantry: 'Pantry',
-  beverages: 'Beverages',
-  other: 'Other',
-};
-
 /**
  * Shopping-list page — pick a profile + a plan, generate a list for any range
  * within that plan, then tick items off as you shop. Lists persist so coming
  * back later restores the same checkboxes.
  */
 export default function ShoppingListsPage() {
+  const t = useTranslations('shoppingLists');
+  const tCommon = useTranslations('common');
+  const tDiet = useTranslations('enums.dietType');
+  const tCategory = useTranslations('enums.category');
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
@@ -65,8 +47,6 @@ export default function ShoppingListsPage() {
     enabled: Boolean(activePlanId),
   });
   const listOptions = lists.data ?? [];
-  // Honour an explicit pick only when it still exists in the current plan's
-  // lists — otherwise (plan changed, list deleted) fall back to the newest.
   const activeListId =
     (pickedList && listOptions.some((l) => l.id === pickedList) ? pickedList : null) ??
     listOptions[0]?.id ??
@@ -81,7 +61,7 @@ export default function ShoppingListsPage() {
       setPickedList(list.id);
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : 'Could not generate the list.'),
+      setError(e instanceof ApiClientError ? e.message : t('errGenerate')),
   });
 
   const updateItem = useMutation({
@@ -99,7 +79,7 @@ export default function ShoppingListsPage() {
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] }),
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : 'Could not update the item.'),
+      setError(e instanceof ApiClientError ? e.message : t('errUpdate')),
   });
 
   const remove = useMutation({
@@ -109,7 +89,7 @@ export default function ShoppingListsPage() {
       qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] });
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : 'Could not delete the list.'),
+      setError(e instanceof ApiClientError ? e.message : t('errDelete')),
   });
 
   function onGenerate(event: React.FormEvent<HTMLFormElement>) {
@@ -126,18 +106,23 @@ export default function ShoppingListsPage() {
     });
   }
 
+  /** Pretty-print a unit value: "240 g" / "1.5 pieces" — locale-aware. */
+  function formatItemQty(qty: number, unit: string): string {
+    const rounded = unit === 'piece' ? Math.round(qty * 4) / 4 : Math.round(qty);
+    if (unit === 'piece') return t('piecePlural', { count: rounded });
+    return `${rounded} ${unit}`;
+  }
+
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
 
   if (profileList.length === 0) {
     return (
       <Card className="mx-auto mt-20 max-w-md text-center">
         <CardHeader>
-          <CardTitle>No profile yet</CardTitle>
+          <CardTitle>{t('noProfile')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Create a profile and generate a meal plan first — a shopping list is built from a plan.
-          </p>
+          <p className="text-sm text-muted-foreground">{t('noProfileBody')}</p>
         </CardContent>
       </Card>
     );
@@ -146,11 +131,8 @@ export default function ShoppingListsPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Shopping lists</h1>
-        <p className="text-sm text-muted-foreground">
-          Consolidated, aisle-grouped lists generated from a meal plan. Tick items off as
-          you shop; mark what you already have to deduct it from the buy amount.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subhead')}</p>
       </header>
 
       {profileList.length > 1 && (
@@ -176,16 +158,14 @@ export default function ShoppingListsPage() {
 
       <Card className="max-w-3xl">
         <CardHeader>
-          <CardTitle>Generate a list</CardTitle>
+          <CardTitle>{t('generate')}</CardTitle>
         </CardHeader>
         <CardContent>
           {planList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No plans for this profile yet — generate a meal plan first.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('noPlans')}</p>
           ) : (
             <form onSubmit={onGenerate} className="grid gap-4 sm:grid-cols-4">
-              <Field label="Plan">
+              <Field label={t('plan')}>
                 <select
                   className={selectClass}
                   value={activePlanId ?? ''}
@@ -196,15 +176,19 @@ export default function ShoppingListsPage() {
                 >
                   {planList.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.startDate} · {p.durationDays}-day · {p.dietType.replace('_', ' ')}
+                      {t('planOption', {
+                        date: p.startDate,
+                        days: p.durationDays,
+                        dietType: tDiet(p.dietType),
+                      })}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="From date (optional)">
+              <Field label={t('fromDate')}>
                 <Input name="fromDate" type="date" defaultValue={activePlan?.startDate ?? ''} />
               </Field>
-              <Field label="To date (optional)">
+              <Field label={t('toDate')}>
                 <Input
                   name="toDate"
                   type="date"
@@ -222,7 +206,7 @@ export default function ShoppingListsPage() {
               </Field>
               <div className="flex items-end">
                 <Button type="submit" disabled={generate.isPending || !activePlanId}>
-                  {generate.isPending ? 'Generating…' : 'Generate'}
+                  {generate.isPending ? t('generating') : t('generateButton')}
                 </Button>
               </div>
             </form>
@@ -236,9 +220,7 @@ export default function ShoppingListsPage() {
         <Skeleton className="h-24 max-w-3xl" />
       ) : listOptions.length === 0 ? (
         planList.length > 0 && (
-          <p className="max-w-3xl text-sm text-muted-foreground">
-            No lists for this plan yet — generate one above.
-          </p>
+          <p className="max-w-3xl text-sm text-muted-foreground">{t('noLists')}</p>
         )
       ) : (
         <section className="space-y-3">
@@ -261,12 +243,19 @@ export default function ShoppingListsPage() {
             <ListView
               list={activeList}
               busy={updateItem.isPending || remove.isPending}
+              formatQty={formatItemQty}
+              categoryLabel={(c) => (tCategory.has(c) ? tCategory(c) : c)}
+              summaryLabel={(checked, total, kcal) =>
+                t('summary', { checked, total, kcal: kcal.toLocaleString() })
+              }
+              haveLabel={t('have')}
+              ofLabel={(amount) => t('ofTotal', { amount })}
+              deleteLabel={tCommon('delete')}
+              deleteConfirm={t('deleteConfirm')}
               onPatch={(item, patch) =>
                 updateItem.mutate({ listId: activeList.id, itemId: item.id, ...patch })
               }
-              onDelete={() => {
-                if (window.confirm('Delete this shopping list?')) remove.mutate(activeList.id);
-              }}
+              onDelete={remove.mutate}
             />
           )}
         </section>
@@ -278,16 +267,30 @@ export default function ShoppingListsPage() {
 function ListView({
   list,
   busy,
+  formatQty,
+  categoryLabel,
+  summaryLabel,
+  haveLabel,
+  ofLabel,
+  deleteLabel,
+  deleteConfirm,
   onPatch,
   onDelete,
 }: {
   list: ShoppingList;
   busy: boolean;
+  formatQty: (qty: number, unit: string) => string;
+  categoryLabel: (key: string) => string;
+  summaryLabel: (checked: number, total: number, kcal: number) => string;
+  haveLabel: string;
+  ofLabel: (amount: string) => string;
+  deleteLabel: string;
+  deleteConfirm: string;
   onPatch: (
     item: ShoppingListItem,
     patch: { checked?: boolean; alreadyHaveQuantity?: number },
   ) => void;
-  onDelete: () => void;
+  onDelete: (listId: string) => void;
 }) {
   const totalItems = useMemo(
     () => list.groups.reduce((n, g) => n + g.items.length, 0),
@@ -306,8 +309,7 @@ function ListView({
             {list.fromDate} → {list.toDate}
           </p>
           <p className="text-sm text-muted-foreground">
-            {checkedItems}/{totalItems} items checked ·{' '}
-            {list.totalEstimatedCalories.toLocaleString()} kcal total
+            {summaryLabel(checkedItems, totalItems, list.totalEstimatedCalories)}
           </p>
         </div>
         <Button
@@ -315,27 +317,29 @@ function ListView({
           variant="ghost"
           size="sm"
           className="text-destructive"
-          onClick={onDelete}
+          onClick={() => {
+            if (window.confirm(deleteConfirm)) onDelete(list.id);
+          }}
           disabled={busy}
         >
-          Delete
+          {deleteLabel}
         </Button>
       </div>
       <CardContent className="space-y-5 pt-4">
         {list.groups.map((g) => (
           <div key={g.category}>
             <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {CATEGORY_LABEL[g.category] ?? g.category}
+              {categoryLabel(g.category)}
             </h3>
             <ul className="divide-y divide-border">
               {g.items.map((i) => (
-                // Keying on alreadyHaveQuantity remounts ItemRow when the
-                // server value changes, so its local input state re-initialises
-                // without an in-effect setState.
                 <ItemRow
                   key={`${i.id}-${i.alreadyHaveQuantity}`}
                   item={i}
                   busy={busy}
+                  formatQty={formatQty}
+                  haveLabel={haveLabel}
+                  ofLabel={ofLabel}
                   onPatch={(patch) => onPatch(i, patch)}
                 />
               ))}
@@ -350,10 +354,16 @@ function ListView({
 function ItemRow({
   item,
   busy,
+  formatQty,
+  haveLabel,
+  ofLabel,
   onPatch,
 }: {
   item: ShoppingListItem;
   busy: boolean;
+  formatQty: (qty: number, unit: string) => string;
+  haveLabel: string;
+  ofLabel: (amount: string) => string;
   onPatch: (patch: { checked?: boolean; alreadyHaveQuantity?: number }) => void;
 }) {
   // Local copy of the "already have" value so the input is editable without
@@ -374,15 +384,15 @@ function ItemRow({
         {item.name}
       </span>
       <span className="tabular-nums text-muted-foreground">
-        {formatItemQty(item.toBuyQuantity, item.unit)}
+        {formatQty(item.toBuyQuantity, item.unit)}
         {item.alreadyHaveQuantity > 0 && (
           <span className="ml-1 text-xs">
-            (of {formatItemQty(item.totalQuantity, item.unit)})
+            {ofLabel(formatQty(item.totalQuantity, item.unit))}
           </span>
         )}
       </span>
       <label className="flex items-center gap-1 text-xs text-muted-foreground">
-        have
+        {haveLabel}
         <input
           type="number"
           min={0}

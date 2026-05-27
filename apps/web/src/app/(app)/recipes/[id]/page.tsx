@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { Profile, Recipe } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,10 @@ interface FavoriteRow {
 
 /** Full recipe view — opened from the library or a planned meal. */
 export default function RecipeDetailPage() {
+  const t = useTranslations('recipeDetail');
+  const tDifficulty = useTranslations('enums.difficulty');
+  const tMeal = useTranslations('enums.mealType');
+  const tDiet = useTranslations('enums.dietType');
   const params = useParams<{ id: string }>();
   const qc = useQueryClient();
   const recipe = useQuery({
@@ -61,11 +66,11 @@ export default function RecipeDetailPage() {
     return (
       <Card className="mx-auto mt-20 max-w-md text-center">
         <CardHeader>
-          <CardTitle>{notFound ? 'Recipe not found' : 'Could not load recipe'}</CardTitle>
+          <CardTitle>{notFound ? t('notFound') : t('loadFailed')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Link href="/recipes" className="text-sm text-primary hover:underline">
-            ← Back to recipes
+            ← {t('back')}
           </Link>
         </CardContent>
       </Card>
@@ -77,11 +82,18 @@ export default function RecipeDetailPage() {
   const profileList = profiles.data ?? [];
   const favIndex = favorites.data ?? new Map<string, Set<string>>();
 
+  function tagLabel(tag: string): string {
+    if (tDifficulty.has(tag)) return tDifficulty(tag);
+    if (tMeal.has(tag)) return tMeal(tag);
+    if (tDiet.has(tag)) return tDiet(tag);
+    return tag.replace('_', ' ');
+  }
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
         <Link href="/recipes" className="text-sm text-primary hover:underline">
-          ← Recipes
+          ← {t('back')}
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">{r.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{r.description}</p>
@@ -89,9 +101,9 @@ export default function RecipeDetailPage() {
           {[r.difficulty, ...r.mealTypes, ...r.dietTags].map((tag) => (
             <span
               key={tag}
-              className="rounded bg-muted px-1.5 py-0.5 text-xs capitalize text-muted-foreground"
+              className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
             >
-              {tag.replace('_', ' ')}
+              {tagLabel(tag)}
             </span>
           ))}
         </div>
@@ -99,7 +111,7 @@ export default function RecipeDetailPage() {
 
       {profileList.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Save to favorites for:</span>
+          <span className="text-sm text-muted-foreground">{t('saveToFavorites')}</span>
           {profileList.map((p) => {
             const saved = favIndex.get(p.id)?.has(r.id) ?? false;
             const busy = addFav.isPending || removeFav.isPending;
@@ -121,15 +133,15 @@ export default function RecipeDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Per serving</CardTitle>
+          <CardTitle>{t('perServing')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-4 text-center">
             {[
-              ['Calories', `${n.calories}`],
-              ['Protein', `${n.protein} g`],
-              ['Fat', `${n.fat} g`],
-              ['Carbs', `${n.carbs} g`],
+              [t('calories'), `${n.calories}`],
+              [t('protein'), `${n.protein} g`],
+              [t('fat'), `${n.fat} g`],
+              [t('carbs'), `${n.carbs} g`],
             ].map(([label, value]) => (
               <div key={label}>
                 <p className="text-lg font-semibold">{value}</p>
@@ -138,15 +150,18 @@ export default function RecipeDetailPage() {
             ))}
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
-            Makes {r.servings} serving{r.servings === 1 ? '' : 's'} · {r.prepMinutes} min prep ·{' '}
-            {r.cookMinutes} min cook
+            {t('servingMeta', {
+              servings: r.servings,
+              prep: r.prepMinutes,
+              cook: r.cookMinutes,
+            })}
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Ingredients</CardTitle>
+          <CardTitle>{t('ingredients')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-1 text-sm">
@@ -167,7 +182,7 @@ export default function RecipeDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Method</CardTitle>
+          <CardTitle>{t('method')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ol className="space-y-2 text-sm">
@@ -183,7 +198,7 @@ export default function RecipeDetailPage() {
 
       {r.allergens.length > 0 && (
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium">Allergens:</span> {r.allergens.join(', ')}
+          <span className="font-medium">{t('allergens')}</span> {r.allergens.join(', ')}
         </p>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   CalendarRange,
   LayoutDashboard,
@@ -17,18 +18,20 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 const NAV = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/profile', label: 'Profile', icon: UserRound },
-  { href: '/meal-plans', label: 'Meal plans', icon: CalendarRange },
-  { href: '/recipes', label: 'Recipes', icon: Soup },
-  { href: '/shopping-lists', label: 'Shopping', icon: ListChecks },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
+  { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard },
+  { href: '/profile', labelKey: 'profiles', icon: UserRound },
+  { href: '/meal-plans', labelKey: 'mealPlans', icon: CalendarRange },
+  { href: '/recipes', labelKey: 'recipes', icon: Soup },
+  { href: '/shopping-lists', labelKey: 'shoppingLists', icon: ListChecks },
+  { href: '/settings', labelKey: 'settings', icon: Settings },
+] as const;
 
 /** Persistent app navigation. */
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const tNav = useTranslations('nav');
+  const tCommon = useTranslations('common');
 
   async function logout() {
     if (tokenStore.refresh) {
@@ -41,7 +44,7 @@ export function Sidebar() {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card p-4">
       <div className="flex items-center justify-between px-2">
-        <span className="text-lg font-semibold tracking-tight">Diet App</span>
+        <span className="text-lg font-semibold tracking-tight">{tCommon('appName')}</span>
         <ThemeToggle />
       </div>
       <nav className="mt-6 flex flex-1 flex-col gap-1">
@@ -59,13 +62,13 @@ export function Sidebar() {
               )}
             >
               <item.icon size={18} />
-              {item.label}
+              {tNav(item.labelKey)}
             </Link>
           );
         })}
       </nav>
       <Button variant="ghost" size="sm" className="justify-start" onClick={logout}>
-        <LogOut size={18} /> Sign out
+        <LogOut size={18} /> {tNav('signOut')}
       </Button>
     </aside>
   );

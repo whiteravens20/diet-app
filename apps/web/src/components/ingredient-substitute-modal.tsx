@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type {
   Ingredient,
@@ -45,6 +46,10 @@ export function IngredientSubstituteModal({
   onApplied: (plan: MealPlan) => void;
 }) {
   const qc = useQueryClient();
+  const t = useTranslations('swap');
+  const tCommon = useTranslations('common');
+  const tPickers = useTranslations('pickers');
+  const tProf = useTranslations('profileSummary');
   const [fromId, setFromId] = useState<string | null>(null);
   const [toId, setToId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -91,7 +96,7 @@ export function IngredientSubstituteModal({
       onClose();
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : 'Could not apply the substitution.'),
+      setError(e instanceof ApiClientError ? e.message : t('applyFailed')),
   });
 
   // The replacement ingredient name (for the preview header).
@@ -110,18 +115,18 @@ export function IngredientSubstituteModal({
       >
         <div className="flex items-center justify-between border-b border-border p-4">
           <div>
-            <h2 className="font-semibold">Substitute an ingredient</h2>
+            <h2 className="font-semibold">{t('title')}</h2>
             <p className="text-xs text-muted-foreground">{meal.recipe.title}</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            Close
+            {tCommon('close')}
           </Button>
         </div>
 
         <div className="space-y-4 p-4">
           {/* Step 1 — pick the source line. */}
           <section>
-            <p className="mb-1 text-sm font-medium">1. Which ingredient?</p>
+            <p className="mb-1 text-sm font-medium">{t('stepPick')}</p>
             <ul className="divide-y divide-border rounded-md border border-border">
               {meal.recipe.ingredients.map((i) => {
                 const scale = meal.servings / Math.max(meal.recipe.servings, 1);
@@ -155,7 +160,9 @@ export function IngredientSubstituteModal({
           {fromLine && (
             <section>
               <p className="mb-1 text-sm font-medium">
-                2. Replace <span className="text-primary">{fromLine.name}</span> with…
+                {t.rich('stepReplace', {
+                  name: () => <span className="text-primary">{fromLine.name}</span>,
+                })}
               </p>
               <Input
                 value={search}
@@ -163,12 +170,14 @@ export function IngredientSubstituteModal({
                   setSearch(e.target.value);
                   setToId(null);
                 }}
-                placeholder="Search ingredients…"
+                placeholder={tPickers('ingredientSearch')}
               />
               {search.trim().length >= 2 && (
                 <ul className="mt-1 max-h-48 overflow-y-auto rounded-md border border-border">
                   {candidates.length === 0 && !results.isLoading && (
-                    <li className="px-3 py-2 text-xs text-muted-foreground">No matches.</li>
+                    <li className="px-3 py-2 text-xs text-muted-foreground">
+                      {tPickers('noMatches')}
+                    </li>
                   )}
                   {candidates.map((c) => (
                     <li key={c.id}>
@@ -191,30 +200,28 @@ export function IngredientSubstituteModal({
           {/* Step 3 — delta preview + apply. */}
           {fromLine && toId && (
             <section className="rounded-md border border-border bg-muted/30 p-3 text-sm">
-              <p className="mb-1 text-sm font-medium">3. Delta vs. the original</p>
+              <p className="mb-1 text-sm font-medium">{t('stepDelta')}</p>
               {preview.isLoading && (
-                <p className="text-xs text-muted-foreground">Computing…</p>
+                <p className="text-xs text-muted-foreground">{t('computing')}</p>
               )}
               {preview.error && (
                 <p className="text-xs text-destructive">
                   {preview.error instanceof ApiClientError
                     ? preview.error.message
-                    : 'Could not preview.'}
+                    : t('previewFailed')}
                 </p>
               )}
               {preview.data && (
                 <>
                   <p className="text-xs text-muted-foreground">{preview.data.explanation}</p>
                   <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
-                    <Delta label="kcal" before={preview.data.before.calories} after={preview.data.after.calories} />
-                    <Delta label="protein" before={preview.data.before.protein} after={preview.data.after.protein} suffix=" g" />
-                    <Delta label="fat" before={preview.data.before.fat} after={preview.data.after.fat} suffix=" g" />
-                    <Delta label="carbs" before={preview.data.before.carbs} after={preview.data.after.carbs} suffix=" g" />
+                    <Delta label={tProf('kcal')} before={preview.data.before.calories} after={preview.data.after.calories} />
+                    <Delta label={tProf('protein').toLowerCase()} before={preview.data.before.protein} after={preview.data.after.protein} suffix=" g" />
+                    <Delta label={tProf('fat').toLowerCase()} before={preview.data.before.fat} after={preview.data.after.fat} suffix=" g" />
+                    <Delta label={tProf('carbs').toLowerCase()} before={preview.data.before.carbs} after={preview.data.after.carbs} suffix=" g" />
                   </dl>
                   {!preview.data.valid && (
-                    <p className="mt-2 text-xs text-destructive">
-                      This substitution violates the profile&apos;s constraints — cannot apply.
-                    </p>
+                    <p className="mt-2 text-xs text-destructive">{t('invalid')}</p>
                   )}
                 </>
               )}
@@ -232,7 +239,7 @@ export function IngredientSubstituteModal({
                     apply.mutate();
                   }}
                 >
-                  {apply.isPending ? 'Applying…' : 'Apply substitution'}
+                  {apply.isPending ? t('applying') : t('apply')}
                 </Button>
               </div>
             </section>

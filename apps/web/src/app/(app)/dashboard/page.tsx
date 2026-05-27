@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import type { Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { ProfileSummary } from '@/components/profile-summary';
 
 /** Dashboard — calorie target, macro split and adherence for every profile. */
 export default function DashboardPage() {
+  const t = useTranslations('dashboard');
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
 
   if (profiles.isLoading) {
@@ -30,12 +32,10 @@ export default function DashboardPage() {
     return (
       <Card className="mx-auto mt-20 max-w-md text-center">
         <CardHeader>
-          <CardTitle>Welcome to Diet App</CardTitle>
+          <CardTitle>{t('welcome')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Create your first profile to calculate your calorie target and generate a meal plan.
-          </p>
+          <p className="text-sm text-muted-foreground">{t('createFirstProfile')}</p>
         </CardContent>
       </Card>
     );
@@ -44,11 +44,11 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">
           {list.length === 1
-            ? 'Your calorie target and macro split.'
-            : `Calorie targets across your ${list.length} profiles.`}
+            ? t('subheadSingle')
+            : t('subheadMultiple', { count: list.length })}
         </p>
       </header>
 

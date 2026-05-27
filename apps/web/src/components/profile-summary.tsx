@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Flame, Target, UtensilsCrossed, Wheat } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { CalorieCalculation, Profile } from '@diet-app/shared';
@@ -18,6 +19,7 @@ const MACRO_COLORS = ['var(--color-primary)', 'var(--color-accent)', 'oklch(0.75
  * renders one of these per profile, so each owns its own calorie query.
  */
 export function ProfileSummary({ profile }: { profile: Profile }) {
+  const t = useTranslations('profileSummary');
   const calories = useQuery({
     queryKey: ['calories', profile.id],
     queryFn: () => api.get<CalorieCalculation>(`/profiles/${profile.id}/calories`),
@@ -26,11 +28,13 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
   const c = calories.data;
   const macroData = c
     ? [
-        { name: 'Protein', value: c.targetMacros.protein },
-        { name: 'Fat', value: c.targetMacros.fat },
-        { name: 'Carbs', value: c.targetMacros.carbs },
+        { name: t('protein'), value: c.targetMacros.protein },
+        { name: t('fat'), value: c.targetMacros.fat },
+        { name: t('carbs'), value: c.targetMacros.carbs },
       ]
     : [];
+
+  const kcal = t('kcal');
 
   return (
     <section className="space-y-4">
@@ -40,7 +44,7 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
           href={`/meal-plans?profile=${profile.id}`}
           className={buttonVariants({ variant: 'outline', size: 'sm' })}
         >
-          Generate meal plan
+          {t('generatePlan')}
         </Link>
       </div>
 
@@ -48,23 +52,33 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
         <StatCard
           index={0}
           icon={Target}
-          label="Daily target"
-          value={c ? `${c.dailyTarget} kcal` : '—'}
-          hint={c?.source === 'manual_override' ? 'Manually set' : 'Calculated'}
+          label={t('dailyTarget')}
+          value={c ? `${c.dailyTarget} ${kcal}` : '—'}
+          hint={c?.source === 'manual_override' ? t('manualHint') : t('calculatedHint')}
         />
-        <StatCard index={1} icon={Flame} label="Maintenance" value={c ? `${c.maintenance} kcal` : '—'} />
-        <StatCard index={2} icon={Wheat} label="Daily deficit" value={c ? `${c.dailyDeficit} kcal` : '—'} />
+        <StatCard
+          index={1}
+          icon={Flame}
+          label={t('maintenance')}
+          value={c ? `${c.maintenance} ${kcal}` : '—'}
+        />
+        <StatCard
+          index={2}
+          icon={Wheat}
+          label={t('dailyDeficit')}
+          value={c ? `${c.dailyDeficit} ${kcal}` : '—'}
+        />
         <StatCard
           index={3}
           icon={UtensilsCrossed}
-          label="Meals / day"
+          label={t('mealsPerDay')}
           value={String(profile.mealCount)}
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Target macro split</CardTitle>
+          <CardTitle>{t('macroSplit')}</CardTitle>
         </CardHeader>
         <CardContent>
           {macroData.length > 0 ? (

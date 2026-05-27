@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import type { Profile, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -20,12 +21,16 @@ const DIET_TYPES = [
   'vegan',
   'keto',
   'mediterranean',
-];
-const MEAL_TYPES = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'];
-const DIFFICULTIES = ['easy', 'medium', 'hard'];
+] as const;
+const MEAL_TYPES = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'] as const;
+const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 
 /** Recipe library — search + filter; each card opens the full recipe. */
 export default function RecipesPage() {
+  const t = useTranslations('recipes');
+  const tDiet = useTranslations('enums.dietType');
+  const tMeal = useTranslations('enums.mealType');
+  const tDifficulty = useTranslations('enums.difficulty');
   const [search, setSearch] = useState('');
   const [dietType, setDietType] = useState('');
   const [mealType, setMealType] = useState('');
@@ -87,66 +92,64 @@ export default function RecipesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Recipes</h1>
-        <p className="text-sm text-muted-foreground">
-          The curated recipe library — every calorie and macro is computed from the database.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subhead')}</p>
       </header>
 
       <div className="grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label="Search">
+        <Field label={t('search')}>
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Recipe title…"
+            placeholder={t('searchPlaceholder')}
           />
         </Field>
-        <Field label="Diet type">
+        <Field label={t('dietType')}>
           <select className={selectClass} value={dietType} onChange={(e) => setDietType(e.target.value)}>
-            <option value="">Any</option>
+            <option value="">{t('any')}</option>
             {DIET_TYPES.map((d) => (
               <option key={d} value={d}>
-                {d.replace('_', ' ')}
+                {tDiet(d)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Meal type">
+        <Field label={t('mealType')}>
           <select className={selectClass} value={mealType} onChange={(e) => setMealType(e.target.value)}>
-            <option value="">Any</option>
+            <option value="">{t('any')}</option>
             {MEAL_TYPES.map((m) => (
               <option key={m} value={m}>
-                {m.replace('_', ' ')}
+                {tMeal(m)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Difficulty">
+        <Field label={t('difficulty')}>
           <select className={selectClass} value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-            <option value="">Any</option>
+            <option value="">{t('any')}</option>
             {DIFFICULTIES.map((d) => (
               <option key={d} value={d}>
-                {d}
+                {tDifficulty(d)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Max kcal/serving">
+        <Field label={t('maxCalories')}>
           <Input
             type="number"
             min={0}
             value={maxCalories}
             onChange={(e) => setMaxCalories(e.target.value)}
-            placeholder="e.g. 600"
+            placeholder={t('maxCaloriesPlaceholder')}
           />
         </Field>
-        <Field label="Max prep minutes">
+        <Field label={t('maxPrepMinutes')}>
           <Input
             type="number"
             min={0}
             value={maxPrepMinutes}
             onChange={(e) => setMaxPrepMinutes(e.target.value)}
-            placeholder="e.g. 20"
+            placeholder={t('maxPrepMinutesPlaceholder')}
           />
         </Field>
       </div>
@@ -154,7 +157,7 @@ export default function RecipesPage() {
       <div className="flex flex-wrap items-center gap-4">
         {anyServerFilter && (
           <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
-            Clear filters
+            {t('clearFilters')}
           </Button>
         )}
         {profileList.length > 0 && (
@@ -166,7 +169,7 @@ export default function RecipesPage() {
                 checked={usesFavorites}
                 onChange={(e) => setUsesFavorites(e.target.checked)}
               />
-              Uses my favourite ingredients
+              {t('usesFavorites')}
             </label>
             <select
               className="h-9 rounded-md border border-border bg-background px-2 text-sm"
@@ -182,8 +185,9 @@ export default function RecipesPage() {
             </select>
             {usesFavorites && favoriteIds.size === 0 && (
               <span className="text-xs text-muted-foreground">
-                {activeProfile?.name ?? 'This profile'} has no favourites yet — set them on the
-                profile page.
+                {t('noFavorites', {
+                  name: activeProfile?.name ?? t('noFavoritesFallback'),
+                })}
               </span>
             )}
           </>
@@ -199,10 +203,10 @@ export default function RecipesPage() {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {usesFavorites && favoriteIds.size > 0
-            ? 'No recipes match the filters and your favourite ingredients.'
+            ? t('noneFavorites')
             : anyServerFilter || search
-              ? 'No recipes match the current filters.'
-              : 'No recipes.'}
+              ? t('noneFiltered')
+              : t('noneAtAll')}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -211,8 +215,11 @@ export default function RecipesPage() {
               <Card className="h-full p-4 transition-shadow hover:shadow-md">
                 <p className="font-medium">{r.title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {r.nutritionPerServing.calories} kcal · {r.difficulty} ·{' '}
-                  {r.prepMinutes + r.cookMinutes} min
+                  {t('cardMeta', {
+                    kcal: r.nutritionPerServing.calories,
+                    difficulty: tDifficulty(r.difficulty),
+                    minutes: r.prepMinutes + r.cookMinutes,
+                  })}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {r.dietTags.map((d) => (
@@ -220,7 +227,7 @@ export default function RecipesPage() {
                       key={d}
                       className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
                     >
-                      {d.replace('_', ' ')}
+                      {tDiet.has(d) ? tDiet(d) : d.replace('_', ' ')}
                     </span>
                   ))}
                 </div>

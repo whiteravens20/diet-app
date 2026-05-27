@@ -1,14 +1,14 @@
 import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 
 /** Plain shell for the F16 admin panel — no app sidebar, no user identity. */
 export default function AdminLayout({ children }: { children: ReactNode }) {
+  const t = useTranslations('admin');
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-6 py-10">
       <header className="mb-8 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Diet App · Admin</h1>
-        <p className="text-xs text-muted-foreground">
-          Instance-only stats — no user data is shown.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="text-xs text-muted-foreground">{t('subhead')}</p>
       </header>
       {children}
     </div>

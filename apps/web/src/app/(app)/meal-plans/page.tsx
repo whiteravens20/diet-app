@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Suspense, useState } from 'react';
 import type { GeneratePlanRequest, MealPlan, Profile } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
@@ -16,6 +17,10 @@ import { IngredientSubstituteModal } from '@/components/ingredient-substitute-mo
 const today = () => new Date().toISOString().slice(0, 10);
 
 function MealPlansContent() {
+  const t = useTranslations('mealPlans');
+  const tCommon = useTranslations('common');
+  const tDiet = useTranslations('enums.dietType');
+  const tMeal = useTranslations('enums.mealType');
   const qc = useQueryClient();
   const params = useSearchParams();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
@@ -54,8 +59,8 @@ function MealPlansContent() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['meal-plans', activeId] });
-  const fail = (verb: string) => (e: unknown) =>
-    setError(e instanceof ApiClientError ? e.message : `Could not ${verb}.`);
+  const fail = (fallback: string) => (e: unknown) =>
+    setError(e instanceof ApiClientError ? e.message : fallback);
 
   const generate = useMutation({
     mutationFn: (body: GeneratePlanRequest) => api.post<MealPlan>('/meal-plans/generate', body),
@@ -63,20 +68,20 @@ function MealPlansContent() {
       invalidate();
       setOpenPlan(plan.id);
     },
-    onError: fail('generate the plan'),
+    onError: fail(t('errGenerate')),
   });
 
   const regenerate = useMutation({
     mutationFn: (planId: string) => api.post<MealPlan>(`/meal-plans/${planId}/regenerate`),
     onSuccess: invalidate,
-    onError: fail('recalculate the plan'),
+    onError: fail(t('errRecalculate')),
   });
 
   const regenerateDay = useMutation({
     mutationFn: (v: { planId: string; dayId: string }) =>
       api.post<MealPlan>(`/meal-plans/${v.planId}/days/${v.dayId}/regenerate`),
     onSuccess: invalidate,
-    onError: fail('change the day'),
+    onError: fail(t('errChangeDay')),
   });
 
   const swapMeal = useMutation({
@@ -93,13 +98,13 @@ function MealPlansContent() {
         ...(v.favoriteRecipeId ? { favoriteRecipeId: v.favoriteRecipeId } : {}),
       }),
     onSuccess: invalidate,
-    onError: fail('swap the meal'),
+    onError: fail(t('errSwap')),
   });
 
   const remove = useMutation({
     mutationFn: (planId: string) => api.delete<void>(`/meal-plans/${planId}`),
     onSuccess: invalidate,
-    onError: fail('delete the plan'),
+    onError: fail(t('errDelete')),
   });
 
   const busy =
@@ -126,12 +131,10 @@ function MealPlansContent() {
     return (
       <Card className="mx-auto mt-20 max-w-md text-center">
         <CardHeader>
-          <CardTitle>No profile yet</CardTitle>
+          <CardTitle>{t('noProfile')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Create a profile first — a meal plan is generated against its calorie target.
-          </p>
+          <p className="text-sm text-muted-foreground">{t('noProfileBody')}</p>
         </CardContent>
       </Card>
     );
@@ -140,10 +143,8 @@ function MealPlansContent() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Meal plans</h1>
-        <p className="text-sm text-muted-foreground">
-          Deterministic, calorie-targeted plans — generated per profile.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subhead')}</p>
       </header>
 
       {list.length > 1 && (
@@ -168,15 +169,15 @@ function MealPlansContent() {
 
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Generate a plan{active ? ` for ${active.name}` : ''}</CardTitle>
+          <CardTitle>{active ? t('generateFor', { name: active.name }) : t('generate')}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onGenerate} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Start date">
+              <Field label={t('startDate')}>
                 <Input name="startDate" type="date" required defaultValue={today()} />
               </Field>
-              <Field label="Duration (days)">
+              <Field label={t('durationDays')}>
                 <Input
                   name="durationDays"
                   type="number"
@@ -188,25 +189,23 @@ function MealPlansContent() {
               </Field>
               <label className="flex items-end gap-2 pb-2 text-sm">
                 <input name="mealPrepFriendly" type="checkbox" className="h-4 w-4" />
-                Meal-prep friendly
+                {t('mealPrepFriendly')}
               </label>
             </div>
             <fieldset className="space-y-1">
-              <legend className="text-sm font-medium">Apply preferences</legend>
-              <p className="mb-1 text-xs text-muted-foreground">
-                Independent — tick neither, one, or both. Allergens are always honoured.
-              </p>
+              <legend className="text-sm font-medium">{t('applyPrefs')}</legend>
+              <p className="mb-1 text-xs text-muted-foreground">{t('applyPrefsHint')}</p>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="respectExclusions" defaultChecked className="h-4 w-4" />
-                Honour my avoid list
+                {t('honourAvoid')}
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="respectFavorites" defaultChecked className="h-4 w-4" />
-                Prefer my favourite ingredients
+                {t('preferFavorites')}
               </label>
             </fieldset>
             <Button type="submit" disabled={generate.isPending}>
-              {generate.isPending ? 'Generating…' : 'Generate plan'}
+              {generate.isPending ? t('generating') : t('generateButton')}
             </Button>
           </form>
         </CardContent>
@@ -217,25 +216,29 @@ function MealPlansContent() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-semibold tracking-tight">
-            {active ? `${active.name}'s plans` : 'Plans'}
+            {active ? t('plansFor', { name: active.name }) : t('plans')}
           </h2>
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex gap-1">
-              {(['', 'active', 'upcoming', 'past'] as const).map((s) => (
-                <Button
-                  key={s || 'all'}
-                  size="sm"
-                  variant={status === s ? 'primary' : 'outline'}
-                  onClick={() => setStatus(s)}
-                >
-                  {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
-                </Button>
-              ))}
+              {(['', 'active', 'upcoming', 'past'] as const).map((s) => {
+                const labelKey =
+                  s === '' ? 'statusAll' : s === 'active' ? 'statusActive' : s === 'upcoming' ? 'statusUpcoming' : 'statusPast';
+                return (
+                  <Button
+                    key={s || 'all'}
+                    size="sm"
+                    variant={status === s ? 'primary' : 'outline'}
+                    onClick={() => setStatus(s)}
+                  >
+                    {t(labelKey)}
+                  </Button>
+                );
+              })}
             </div>
-            <Field label="From">
+            <Field label={t('from')}>
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             </Field>
-            <Field label="To">
+            <Field label={t('to')}>
               <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </Field>
             {(from || to || status) && (
@@ -248,7 +251,7 @@ function MealPlansContent() {
                   setTo('');
                 }}
               >
-                Clear
+                {tCommon('clear')}
               </Button>
             )}
           </div>
@@ -256,7 +259,7 @@ function MealPlansContent() {
         {plans.isLoading ? (
           <Skeleton className="h-24 max-w-3xl" />
         ) : (plans.data ?? []).length === 0 ? (
-          <p className="max-w-3xl text-sm text-muted-foreground">No plans yet — generate one above.</p>
+          <p className="max-w-3xl text-sm text-muted-foreground">{t('noPlans')}</p>
         ) : (
           (plans.data ?? []).map((plan) => (
             <PlanCard
@@ -264,6 +267,7 @@ function MealPlansContent() {
               plan={plan}
               open={openPlan === plan.id}
               busy={busy}
+              dietLabel={tDiet(plan.dietType)}
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
               onRegenerate={() => {
                 setError(null);
@@ -271,7 +275,7 @@ function MealPlansContent() {
               }}
               onDelete={() => {
                 setError(null);
-                if (window.confirm('Delete this plan? This cannot be undone.')) {
+                if (window.confirm(t('deleteConfirm'))) {
                   remove.mutate(plan.id);
                 }
               }}
@@ -301,6 +305,7 @@ function MealPlansContent() {
                 });
               }}
               favorites={favorites.data ?? []}
+              tMeal={tMeal}
             />
           ))
         )}
@@ -317,7 +322,9 @@ function PlanCard({
   plan,
   open,
   busy,
+  dietLabel,
   favorites,
+  tMeal,
   onToggle,
   onRegenerate,
   onDelete,
@@ -329,7 +336,9 @@ function PlanCard({
   plan: MealPlan;
   open: boolean;
   busy: boolean;
+  dietLabel: string;
   favorites: FavoriteOption[];
+  tMeal: ReturnType<typeof useTranslations<'enums.mealType'>>;
   onToggle: () => void;
   onRegenerate: () => void;
   onDelete: () => void;
@@ -338,6 +347,8 @@ function PlanCard({
   onSwapByFavorites: (plannedMealId: string) => void;
   onSwapToFavorite: (plannedMealId: string, recipeId: string) => void;
 }) {
+  const t = useTranslations('mealPlans');
+  const tCommon = useTranslations('common');
   // Which meal's "swap to favorite" picker is open, if any.
   const [openFav, setOpenFav] = useState<string | null>(null);
   // Which meal's ingredient-substitution modal is open, if any.
@@ -347,16 +358,19 @@ function PlanCard({
       <div className="flex items-center justify-between gap-4 p-4">
         <button type="button" onClick={onToggle} className="flex-1 text-left">
           <p className="font-medium">
-            {plan.durationDays}-day plan · {plan.dietType.replace('_', ' ')}
+            {t('planSummary', { days: plan.durationDays, dietType: dietLabel })}
           </p>
           <p className="text-sm text-muted-foreground">
-            From {plan.startDate} · {plan.averageDailyNutrition.calories} kcal/day avg ·{' '}
-            {Math.round(plan.ingredientReuseScore * 100)}% ingredient reuse
+            {t('planMeta', {
+              date: plan.startDate,
+              kcal: plan.averageDailyNutrition.calories,
+              pct: Math.round(plan.ingredientReuseScore * 100),
+            })}
           </p>
         </button>
         <div className="flex shrink-0 gap-2">
           <Button type="button" variant="outline" size="sm" onClick={onRegenerate} disabled={busy}>
-            Recalculate
+            {t('recalculate')}
           </Button>
           <Button
             type="button"
@@ -366,7 +380,7 @@ function PlanCard({
             onClick={onDelete}
             disabled={busy}
           >
-            Delete
+            {tCommon('delete')}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={onToggle}>
             {open ? '▲' : '▼'}
@@ -387,9 +401,11 @@ function PlanCard({
                         : 'text-sm text-destructive'
                     }
                   >
-                    {day.dayNutrition.calories} / {day.calorieTarget} kcal
-                    {day.calorieDelta >= 0 ? ' +' : ' '}
-                    {day.calorieDelta}
+                    {t('calorieLine', {
+                      kcal: day.dayNutrition.calories,
+                      target: day.calorieTarget,
+                      delta: day.calorieDelta >= 0 ? `+${day.calorieDelta}` : String(day.calorieDelta),
+                    })}
                   </span>
                   <Button
                     type="button"
@@ -398,7 +414,7 @@ function PlanCard({
                     onClick={() => onRegenerateDay(day.id)}
                     disabled={busy}
                   >
-                    Change day
+                    {t('changeDay')}
                   </Button>
                 </div>
               </div>
@@ -408,13 +424,12 @@ function PlanCard({
                     f.recipe.mealTypes.includes(m.mealType),
                   );
                   const favOpen = openFav === m.id;
+                  const mealLabel = tMeal.has(m.mealType) ? tMeal(m.mealType) : m.mealType.replace('_', ' ');
                   return (
                     <li key={m.id} className="space-y-1">
                       <div className="flex items-center justify-between gap-3">
                         <span>
-                          <span className="capitalize text-muted-foreground">
-                            {m.mealType.replace('_', ' ')}
-                          </span>{' '}
+                          <span className="text-muted-foreground">{mealLabel}</span>{' '}
                           ·{' '}
                           <Link
                             href={`/recipes/${m.recipe.id}`}
@@ -434,23 +449,23 @@ function PlanCard({
                             onClick={() => onSwapMeal(m.id)}
                             disabled={busy}
                           >
-                            Swap
+                            {t('swap')}
                           </Button>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            title="Swap to a recipe that uses my favourite ingredients"
+                            title={t('tooltipSwapByFav')}
                             onClick={() => onSwapByFavorites(m.id)}
                             disabled={busy}
                           >
-                            Swap ★ ingr.
+                            {t('swapFavIngr')}
                           </Button>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            title="Swap to one of my favourited recipes"
+                            title={t('tooltipSwapToFav')}
                             onClick={() => setOpenFav(favOpen ? null : m.id)}
                             disabled={busy}
                           >
@@ -460,7 +475,7 @@ function PlanCard({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            title="Substitute one ingredient inside this recipe"
+                            title={t('tooltipSubstitute')}
                             onClick={() => setOpenSub(m)}
                             disabled={busy}
                           >
@@ -483,8 +498,7 @@ function PlanCard({
                         <div className="ml-4 rounded-md border border-border bg-muted/40 p-2">
                           {slotFavorites.length === 0 ? (
                             <p className="text-xs text-muted-foreground">
-                              No favorited recipes for {m.mealType.replace('_', ' ')} yet —
-                              open a recipe to favorite it.
+                              {t('noFavoritesForSlot', { mealType: mealLabel })}
                             </p>
                           ) : (
                             <ul className="space-y-1">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { Ingredient } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -25,6 +26,7 @@ export function IngredientPicker({
   onChange: (ids: string[]) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations('pickers');
   const [search, setSearch] = useState('');
 
   // Names of saved ids — one query that updates whenever ids change.
@@ -59,7 +61,7 @@ export function IngredientPicker({
               {i.name}
               <button
                 type="button"
-                aria-label={`Remove ${i.name}`}
+                aria-label={t('remove', { name: i.name })}
                 className="text-muted-foreground hover:text-destructive disabled:opacity-50"
                 disabled={disabled}
                 onClick={() => onChange(ids.filter((x) => x !== i.id))}
@@ -70,14 +72,14 @@ export function IngredientPicker({
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-muted-foreground italic">None yet.</p>
+        <p className="text-xs text-muted-foreground italic">{t('noneYet')}</p>
       )}
 
       <div className="relative">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search ingredients…"
+          placeholder={t('ingredientSearch')}
           disabled={disabled}
         />
         {search.trim().length >= 2 && available.length > 0 && (
@@ -102,7 +104,7 @@ export function IngredientPicker({
           </ul>
         )}
         {search.trim().length >= 2 && available.length === 0 && !results.isLoading && (
-          <p className="mt-1 text-xs text-muted-foreground">No matches.</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('noMatches')}</p>
         )}
       </div>
     </div>

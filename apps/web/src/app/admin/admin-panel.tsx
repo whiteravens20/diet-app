@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Database, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,23 +17,21 @@ import {
 
 type View = 'loading' | 'disabled' | 'login' | 'ready';
 
-const STAGE_LABELS: Record<string, string> = {
-  starting: 'Starting…',
-  'prune-recipes': 'Removing stale recipes…',
-  'prune-ingredients': 'Removing unused ingredients…',
-  allergens: 'Seeding allergens…',
-  ingredients: 'Seeding ingredients',
-  recipes: 'Seeding recipes',
-  substitutions: 'Seeding substitution rules…',
-  done: 'Done.',
+/** Maps a server stage string to its translation key under admin.stages. */
+const STAGE_KEY: Record<string, string> = {
+  starting: 'starting',
+  'prune-recipes': 'pruneRecipes',
+  'prune-ingredients': 'pruneIngredients',
+  allergens: 'allergens',
+  ingredients: 'ingredientsStage',
+  recipes: 'recipesStage',
+  substitutions: 'substitutionsStage',
+  done: 'done',
 };
 
-function stageLabel(stage: string | null): string {
-  if (!stage) return 'Working…';
-  return STAGE_LABELS[stage] ?? stage;
-}
-
 export function AdminPanel() {
+  const t = useTranslations('admin');
+  const tStages = useTranslations('admin.stages');
   const [view, setView] = useState<View>('loading');
   const [status, setStatus] = useState<AdminStatus | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -53,11 +52,11 @@ export function AdminPanel() {
         setView('login');
         return false;
       }
-      setUpdateError(err instanceof Error ? err.message : 'Failed to load stats.');
+      setUpdateError(err instanceof Error ? err.message : t('loadStatsFailed'));
       setView('login');
       return false;
     }
-  }, []);
+  }, [t]);
 
   const stopPolling = useCallback((): void => {
     if (pollRef.current) {
@@ -74,16 +73,20 @@ export function AdminPanel() {
       if (state.status === 'done' && state.result) {
         const r = state.result;
         setLastUpdate(
-          `Updated ${new Date(r.seededAt).toLocaleString()} · ` +
-            `removed ${r.deletedRecipes} stale recipes + ${r.deletedIngredients} unused ingredients · ` +
-            `now ${r.counts.ingredients} ingredients / ${r.counts.recipes} recipes.`,
+          t('updatedSummary', {
+            when: new Date(r.seededAt).toLocaleString(),
+            recipes: r.deletedRecipes,
+            ingredients: r.deletedIngredients,
+            newIngredients: r.counts.ingredients,
+            newRecipes: r.counts.recipes,
+          }),
         );
         await loadStats();
       } else if (state.status === 'error') {
-        setUpdateError(state.error ?? 'Update failed.');
+        setUpdateError(state.error ?? t('updateFailed'));
       }
     },
-    [loadStats, stopPolling],
+    [loadStats, stopPolling, t],
   );
 
   const startPolling = useCallback((): void => {
@@ -91,10 +94,10 @@ export function AdminPanel() {
     pollRef.current = setInterval(() => {
       void adminApi.dbUpdateStatus().then(handleProgress).catch((err: unknown) => {
         stopPolling();
-        setUpdateError(err instanceof Error ? err.message : 'Lost connection to API.');
+        setUpdateError(err instanceof Error ? err.message : t('lostConnection'));
       });
     }, 1000);
-  }, [handleProgress, stopPolling]);
+  }, [handleProgress, stopPolling, t]);
 
   useEffect(() => {
     void (async () => {
@@ -132,7 +135,7 @@ export function AdminPanel() {
     const form = new FormData(event.currentTarget);
     adminCreds.set(String(form.get('user')), String(form.get('password')));
     const ok = await loadStats();
-    if (!ok) setLoginError('Invalid credentials. Try again.');
+    if (!ok) setLoginError(t('invalidCreds'));
   }
 
   async function onUpdate(): Promise<void> {
@@ -143,14 +146,20 @@ export function AdminPanel() {
       setProgress(state);
       startPolling();
     } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : 'Update failed.');
+      setUpdateError(err instanceof Error ? err.message : t('updateFailed'));
     }
   }
 
   const updating = progress?.status === 'running';
 
+  function stageLabel(stage: string | null): string {
+    if (!stage) return tStages('working');
+    const key = STAGE_KEY[stage];
+    return key ? tStages(key) : stage;
+  }
+
   if (view === 'loading') {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <p className="text-sm text-muted-foreground">{t('loading')}</p>;
   }
 
   if (view === 'disabled') {
@@ -158,19 +167,15 @@ export function AdminPanel() {
       <Card className="border-amber-500/40 bg-amber-500/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" /> Admin panel disabled
+            <AlertTriangle className="h-5 w-5" /> {t('disabled')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm">
-            {status?.message ?? 'Set ADMIN_PASSWORD in .env to enable.'}
-          </p>
+          <p className="text-sm">{status?.message ?? t('disabledHint')}</p>
           <pre className="mt-3 overflow-x-auto rounded bg-muted p-3 text-xs">
             ADMIN_USER=admin{'\n'}ADMIN_PASSWORD=&lt;strong-password&gt;
           </pre>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Restart the API container after editing .env so the new value is picked up.
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">{t('restartHint')}</p>
         </CardContent>
       </Card>
     );
@@ -180,23 +185,21 @@ export function AdminPanel() {
     return (
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Sign in</CardTitle>
+          <CardTitle>{t('signIn')}</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onLogin}>
-            <Field label="Admin user">
+            <Field label={t('adminUser')}>
               <Input name="user" required autoComplete="username" defaultValue="admin" />
             </Field>
-            <Field label="Admin password">
+            <Field label={t('adminPassword')}>
               <Input name="password" type="password" required autoComplete="current-password" />
             </Field>
             {loginError && <p className="text-sm text-destructive">{loginError}</p>}
             <Button type="submit" className="w-full">
-              Sign in
+              {t('signIn')}
             </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              Credentials live in this tab&apos;s sessionStorage only.
-            </p>
+            <p className="text-center text-xs text-muted-foreground">{t('credsHint')}</p>
           </form>
         </CardContent>
       </Card>
@@ -211,42 +214,40 @@ export function AdminPanel() {
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Ingredients" value={counts.ingredients} />
-        <StatCard label="Recipes" value={counts.recipes} />
-        <StatCard label="Substitutions" value={counts.substitutions} />
+        <StatCard label={t('ingredients')} value={counts.ingredients} />
+        <StatCard label={t('recipes')} value={counts.recipes} />
+        <StatCard label={t('substitutions')} value={counts.substitutions} />
       </section>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" /> Curated database
+            <Database className="h-5 w-5" /> {t('curatedDb')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-            <Row label="Last seeded">
-              {seed.lastSeededAt
-                ? new Date(seed.lastSeededAt).toLocaleString()
-                : 'Never — click Update to seed.'}
+            <Row label={t('lastSeeded')}>
+              {seed.lastSeededAt ? new Date(seed.lastSeededAt).toLocaleString() : t('never')}
             </Row>
-            <Row label="On-disk hash">
+            <Row label={t('onDiskHash')}>
               <code className="text-xs">{seed.currentHash.slice(0, 16)}…</code>
             </Row>
-            <Row label="Stored hash">
+            <Row label={t('storedHash')}>
               {seed.storedHash ? (
                 <code className="text-xs">{seed.storedHash.slice(0, 16)}…</code>
               ) : (
                 '—'
               )}
             </Row>
-            <Row label="Status">
+            <Row label={t('status')}>
               {seed.updateAvailable ? (
                 <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="h-4 w-4" /> Update available
+                  <AlertTriangle className="h-4 w-4" /> {t('updateAvailable')}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-4 w-4" /> Up to date
+                  <CheckCircle2 className="h-4 w-4" /> {t('upToDate')}
                 </span>
               )}
             </Row>
@@ -254,7 +255,7 @@ export function AdminPanel() {
 
           <div>
             <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Seed files (data/)
+              {t('seedFiles')}
             </p>
             <ul className="text-sm">
               {seed.files.map((f) => (
@@ -264,32 +265,29 @@ export function AdminPanel() {
                 >
                   <code className="text-xs">{f.name}</code>
                   <span className="text-xs text-muted-foreground">
-                    {f.present ? `${(f.bytes / 1024).toFixed(1)} KB` : 'not present'}
+                    {f.present ? `${(f.bytes / 1024).toFixed(1)} KB` : t('notPresent')}
                   </span>
                 </li>
               ))}
             </ul>
             {generatedFile && !generatedFile.present && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                <code>ingredients.generated.json</code> is missing — only the hand-curated
-                baseline will be seeded. Run{' '}
-                <code className="rounded bg-muted px-1">npm run import:usda</code> with an
-                FDC_API_KEY first to add USDA whole foods.
-              </p>
+              <p
+                className="mt-2 text-xs text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: t('generatedMissing') }}
+              />
             )}
           </div>
 
           <div className="space-y-2 border-t border-border pt-4">
             <Button onClick={onUpdate} disabled={updating}>
               <RefreshCw className={`h-4 w-4 ${updating ? 'animate-spin' : ''}`} />
-              {updating ? 'Updating…' : 'Update database'}
+              {updating ? t('updating') : t('updateDb')}
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Wipes seed-origin recipes not referenced by any plan/favorite and any
-              ingredient no recipe uses, then re-seeds from <code>data/*.json</code>.
-              User profiles, plans, favorites and inventory are preserved.
-            </p>
-            {updating && progress && <ProgressBar state={progress} />}
+            <p
+              className="text-xs text-muted-foreground"
+              dangerouslySetInnerHTML={{ __html: t('updateExplain') }}
+            />
+            {updating && progress && <ProgressBar state={progress} stageLabel={stageLabel} />}
             {lastUpdate && <p className="text-xs text-emerald-600 dark:text-emerald-400">{lastUpdate}</p>}
             {updateError && <p className="text-xs text-destructive">{updateError}</p>}
           </div>
@@ -310,7 +308,13 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ProgressBar({ state }: { state: DbUpdateState }) {
+function ProgressBar({
+  state,
+  stageLabel,
+}: {
+  state: DbUpdateState;
+  stageLabel: (stage: string | null) => string;
+}) {
   const hasTotal = state.total != null && state.total > 0;
   const pct = hasTotal ? Math.min(100, Math.round(((state.current ?? 0) / state.total!) * 100)) : null;
   const label = stageLabel(state.stage);
