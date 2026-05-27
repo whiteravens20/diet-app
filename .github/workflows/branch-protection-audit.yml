@@ -58,14 +58,11 @@ jobs:
           assert "require code-owner reviews"          '.required_pull_request_reviews.require_code_owner_reviews // false'
           # Required: stale review dismissal on new push
           assert "dismiss stale reviews"                '.required_pull_request_reviews.dismiss_stale_reviews // false'
-          # Required: at least one approving review
-          REVIEWERS=$(echo "$PROT" | jq -r '.required_pull_request_reviews.required_approving_review_count // 0')
-          if [ "$REVIEWERS" -lt 1 ]; then
-            echo "::error::required_approving_review_count is ${REVIEWERS}, expected >= 1"
-            fail=1
-          else
-            echo "ok: required_approving_review_count=${REVIEWERS}"
-          fi
+          # `required_approving_review_count` and `enforce_admins` are intentionally
+          # NOT asserted: this is a solo-maintainer repo, so requiring an extra
+          # approver or enforcing rules against admins would lock the maintainer
+          # out of merging. Signed commits + linear history + signed-off CI are
+          # what actually gate supply-chain integrity here.
 
           # Required: signed commits
           assert "required signatures"                  '.required_signatures.enabled // false'
@@ -73,19 +70,21 @@ jobs:
           assert "required linear history"              '.required_linear_history.enabled // false'
           # Required: status checks must pass and branches up-to-date
           assert "require strict status checks"         '.required_status_checks.strict // false'
-          # Required: rules apply to admins too
-          assert "enforce admins"                       '.enforce_admins.enabled // false'
           # Required: block force pushes
           assert "block force pushes"                   '(.allow_force_pushes.enabled // false) | not'
           # Required: block deletions
           assert "block branch deletions"               '(.allow_deletions.enabled // false) | not'
 
-          # Required CI contexts that must pass before merge
+          # Required CI contexts that must pass before merge. Names must match
+          # the *job display names* GitHub registers as check contexts:
+          #   - test.yml  → `api`, `web`, `docker`        (lowercase = `jobs.<id>.name`)
+          #   - codeql.yml → `Analyze (javascript-typescript)` (matrix-expanded)
+          #   - security.yml → `npm audit`, `Trivy filesystem scan`
           REQUIRED_CHECKS=$(echo "$PROT" | jq -r '.required_status_checks.contexts[]? // empty' | sort)
           echo "Configured required checks:"
           echo "$REQUIRED_CHECKS" | sed 's/^/  - /'
 
-          for must in "Backend tests" "Frontend tests" "Analyze (javascript-typescript)" "npm audit" "Trivy filesystem scan" "Trivy Docker image scan"; do
+          for must in "api" "web" "docker" "Analyze (javascript-typescript)" "npm audit" "Trivy filesystem scan"; do
             if ! echo "$REQUIRED_CHECKS" | grep -Fxq "$must"; then
               echo "::error::Required status check missing: '${must}'"
               fail=1
