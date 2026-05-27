@@ -2,7 +2,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { LOCALE_COOKIE, pickFromBrowserLanguage } from '../lib/locale';
 
@@ -27,13 +26,13 @@ export function Providers({ children }: { children: ReactNode }) {
 
 /**
  * On the first visit (no NEXT_LOCALE cookie yet) read navigator.language,
- * pick the matching supported locale, write the cookie and trigger a server
- * refresh so the page re-renders in that locale. After the cookie is set
- * this component is a no-op. The signed-in case is handled separately by
- * the Settings page calling PATCH /users/me + setting the same cookie.
+ * pick the matching supported locale, write the cookie and reload so the
+ * server picks up the new locale on the next render. After the cookie is set
+ * this component is a no-op. Hard reload (rather than router.refresh) because
+ * next-intl's client provider context doesn't pick up new messages from an
+ * RSC re-fetch alone — same reason the language switcher reloads.
  */
 function FirstVisitLocaleDetector() {
-  const router = useRouter();
   useEffect(() => {
     const hasCookie = document.cookie
       .split(';')
@@ -42,7 +41,7 @@ function FirstVisitLocaleDetector() {
     const detected = pickFromBrowserLanguage(navigator.language);
     if (!detected) return;
     document.cookie = `${LOCALE_COOKIE}=${detected}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-    router.refresh();
-  }, [router]);
+    window.location.reload();
+  }, []);
   return null;
 }

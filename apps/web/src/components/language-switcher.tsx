@@ -2,7 +2,6 @@
 
 import { Globe } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Locale } from '@diet-app/shared';
 import { LOCALE_COOKIE, SUPPORTED_LOCALES, isSupportedLocale } from '@/lib/locale';
@@ -16,7 +15,6 @@ import { cn } from '@/lib/utils';
  * them to every device.
  */
 export function LanguageSwitcher({ className }: { className?: string }) {
-  const router = useRouter();
   const currentLocale = useLocale();
   const t = useTranslations('languageSwitcher');
   const tLocales = useTranslations('locales');
@@ -38,8 +36,12 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       // Best-effort sync; the cookie already won. Surface only real errors.
       if (!(err instanceof ApiClientError) || err.status !== 401) console.error(err);
     } finally {
-      setPending(false);
-      router.refresh();
+      // Hard reload rather than router.refresh(): next-intl's client provider
+      // caches the messages bundle in React context, so an RSC re-fetch alone
+      // doesn't reliably swap every consumer's translations. A full reload
+      // re-runs the server-side locale resolution and hydrates the provider
+      // fresh with the new bundle.
+      window.location.reload();
     }
   }
 
