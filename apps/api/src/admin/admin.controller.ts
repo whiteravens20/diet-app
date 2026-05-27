@@ -85,7 +85,10 @@ export class AdminController {
   startUpdate(): RunnerState {
     const started = this.runner.start();
     if (!started) {
-      throw new ConflictException('A database update is already in progress.');
+      throw new ConflictException({
+        error: 'UPDATE_IN_PROGRESS',
+        message: 'A database update is already in progress.',
+      });
     }
     return this.runner.getState();
   }

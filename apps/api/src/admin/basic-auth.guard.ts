@@ -38,11 +38,13 @@ export class BasicAuthGuard implements CanActivate {
     const adminPassword = this.config.get('ADMIN_PASSWORD', { infer: true });
     const adminUser = this.config.get('ADMIN_USER', { infer: true });
     if (!isAdminEnabled({ ADMIN_PASSWORD: adminPassword })) {
-      throw new ForbiddenException(
-        adminPassword.length === 0
-          ? 'Admin panel is disabled. Set ADMIN_PASSWORD to enable.'
-          : `Admin panel is disabled. ADMIN_PASSWORD is still "${ADMIN_PASSWORD_PLACEHOLDER}".`,
-      );
+      throw new ForbiddenException({
+        error: 'ADMIN_DISABLED',
+        message:
+          adminPassword.length === 0
+            ? 'Admin panel is disabled. Set ADMIN_PASSWORD to enable.'
+            : `Admin panel is disabled. ADMIN_PASSWORD is still "${ADMIN_PASSWORD_PLACEHOLDER}".`,
+      });
     }
 
     const req = ctx.switchToHttp().getRequest<{ headers: Record<string, string | undefined> }>();
@@ -53,7 +55,10 @@ export class BasicAuthGuard implements CanActivate {
 
     if (!header || !header.startsWith('Basic ')) {
       res.setHeader('WWW-Authenticate', `Basic realm="${REALM}"`);
-      throw new UnauthorizedException('Authentication required');
+      throw new UnauthorizedException({
+        error: 'AUTH_REQUIRED',
+        message: 'Authentication required.',
+      });
     }
 
     let user: string;
@@ -65,7 +70,10 @@ export class BasicAuthGuard implements CanActivate {
       pass = rest.join(':');
     } catch {
       res.setHeader('WWW-Authenticate', `Basic realm="${REALM}"`);
-      throw new UnauthorizedException('Invalid authorization header');
+      throw new UnauthorizedException({
+        error: 'INVALID_AUTH_HEADER',
+        message: 'Invalid authorization header.',
+      });
     }
 
     // Execute both comparisons unconditionally so a wrong username doesn't
@@ -74,7 +82,10 @@ export class BasicAuthGuard implements CanActivate {
     const passOk = safeCompare(pass, adminPassword);
     if (!userOk || !passOk) {
       res.setHeader('WWW-Authenticate', `Basic realm="${REALM}"`);
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid credentials.',
+      });
     }
     return true;
   }
