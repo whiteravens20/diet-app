@@ -1,7 +1,11 @@
 [
   {
-    "title": "Overnight oats with blueberries",
-    "description": "Creamy no-cook oats soaked overnight, topped with fresh blueberries.",
+    "slug": "overnight-oats-with-blueberries",
+    "title": { "en": "Overnight oats with blueberries", "pl": "Owsianka nocna z borówkami" },
+    "description": {
+      "en": "Creamy no-cook oats soaked overnight, topped with fresh blueberries.",
+      "pl": "Kremowe płatki owsiane bez gotowania, namoczone na noc, podane ze świeżymi borówkami."
+    },
     "servings": 1,
     "mealTypes": ["breakfast", "second_breakfast"],
     "dietTags": ["balanced", "vegetarian", "high_protein"],
@@ -9,21 +13,32 @@
     "cookMinutes": 0,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Rolled oats", "quantity": 60, "unit": "g" },
-      { "name": "Whole milk", "quantity": 180, "unit": "ml" },
-      { "name": "Greek yogurt", "quantity": 80, "unit": "g" },
-      { "name": "Blueberries", "quantity": 60, "unit": "g" },
-      { "name": "Honey", "quantity": 10, "unit": "g" }
+      { "slug": "rolled-oats", "quantity": 60, "unit": "g" },
+      { "slug": "whole-milk", "quantity": 180, "unit": "ml" },
+      { "slug": "greek-yogurt", "quantity": 80, "unit": "g" },
+      { "slug": "blueberries", "quantity": 60, "unit": "g" },
+      { "slug": "honey", "quantity": 10, "unit": "g" }
     ],
-    "steps": [
-      "Combine oats, milk and yogurt in a jar.",
-      "Stir in honey and refrigerate overnight.",
-      "Top with blueberries before serving."
-    ]
+    "steps": {
+      "en": [
+        "Combine oats, milk and yogurt in a jar.",
+        "Stir in honey and refrigerate overnight.",
+        "Top with blueberries before serving."
+      ],
+      "pl": [
+        "Wymieszaj płatki, mleko i jogurt w słoiku.",
+        "Wmieszaj miód i wstaw do lodówki na noc.",
+        "Przed podaniem posyp borówkami."
+      ]
+    }
   },
   {
-    "title": "Scrambled eggs on whole-grain toast",
-    "description": "Soft scrambled eggs served on toasted whole-grain bread.",
+    "slug": "scrambled-eggs-on-whole-grain-toast",
+    "title": { "en": "Scrambled eggs on whole-grain toast", "pl": "Jajecznica na pełnoziarnistym toście" },
+    "description": {
+      "en": "Soft scrambled eggs served on toasted whole-grain bread.",
+      "pl": "Delikatna jajecznica podana na opieczonym chlebie pełnoziarnistym."
+    },
     "servings": 1,
     "mealTypes": ["breakfast"],
     "dietTags": ["balanced", "vegetarian", "high_protein"],
@@ -31,20 +46,31 @@
     "cookMinutes": 7,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Large egg", "quantity": 3, "unit": "piece" },
-      { "name": "Whole-grain bread", "quantity": 2, "unit": "piece" },
-      { "name": "Olive oil", "quantity": 5, "unit": "ml" },
-      { "name": "Spinach", "quantity": 40, "unit": "g" }
+      { "slug": "large-egg", "quantity": 3, "unit": "piece" },
+      { "slug": "whole-grain-bread", "quantity": 2, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 5, "unit": "ml" },
+      { "slug": "spinach", "quantity": 40, "unit": "g" }
     ],
-    "steps": [
-      "Whisk the eggs with a pinch of salt.",
-      "Soften spinach in olive oil, then add eggs and scramble gently.",
-      "Serve on toasted bread."
-    ]
+    "steps": {
+      "en": [
+        "Whisk the eggs with a pinch of salt.",
+        "Soften spinach in olive oil, then add eggs and scramble gently.",
+        "Serve on toasted bread."
+      ],
+      "pl": [
+        "Roztrzep jajka ze szczyptą soli.",
+        "Podsmaż szpinak na oliwie, dodaj jajka i powoli mieszaj na małym ogniu.",
+        "Podawaj na opieczonym chlebie."
+      ]
+    }
   },
   {
-    "title": "Banana peanut-butter oatmeal",
-    "description": "Warm oats cooked with milk, finished with banana and peanut butter.",
+    "slug": "banana-peanut-butter-oatmeal",
+    "title": { "en": "Banana peanut-butter oatmeal", "pl": "Owsianka z bananem i masłem orzechowym" },
+    "description": {
+      "en": "Warm oats cooked with milk, finished with banana and peanut butter.",
+      "pl": "Ciepła owsianka gotowana na mleku, wykończona bananem i masłem orzechowym."
+    },
     "servings": 1,
     "mealTypes": ["breakfast"],
     "dietTags": ["balanced", "vegetarian", "vegan", "high_protein"],
@@ -52,20 +78,31 @@
     "cookMinutes": 6,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Rolled oats", "quantity": 60, "unit": "g" },
-      { "name": "Whole milk", "quantity": 200, "unit": "ml" },
-      { "name": "Banana", "quantity": 1, "unit": "piece" },
-      { "name": "Peanut butter", "quantity": 20, "unit": "g" }
+      { "slug": "rolled-oats", "quantity": 60, "unit": "g" },
+      { "slug": "whole-milk", "quantity": 200, "unit": "ml" },
+      { "slug": "banana", "quantity": 1, "unit": "piece" },
+      { "slug": "peanut-butter", "quantity": 20, "unit": "g" }
     ],
-    "steps": [
-      "Simmer oats with milk until creamy.",
-      "Stir through sliced banana.",
-      "Top with peanut butter."
-    ]
+    "steps": {
+      "en": [
+        "Simmer oats with milk until creamy.",
+        "Stir through sliced banana.",
+        "Top with peanut butter."
+      ],
+      "pl": [
+        "Gotuj płatki z mlekiem na małym ogniu, aż zgęstnieją.",
+        "Wmieszaj pokrojonego banana.",
+        "Polej masłem orzechowym."
+      ]
+    }
   },
   {
-    "title": "Avocado & egg keto plate",
-    "description": "A low-carb breakfast of boiled eggs and ripe avocado.",
+    "slug": "avocado-egg-keto-plate",
+    "title": { "en": "Avocado & egg keto plate", "pl": "Talerz keto z awokado i jajkiem" },
+    "description": {
+      "en": "A low-carb breakfast of boiled eggs and ripe avocado.",
+      "pl": "Niskowęglowodanowe śniadanie z gotowanymi jajkami i dojrzałym awokado."
+    },
     "servings": 1,
     "mealTypes": ["breakfast"],
     "dietTags": ["low_carb", "keto", "vegetarian", "balanced"],
@@ -73,19 +110,30 @@
     "cookMinutes": 9,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Large egg", "quantity": 3, "unit": "piece" },
-      { "name": "Avocado", "quantity": 1, "unit": "piece" },
-      { "name": "Olive oil", "quantity": 5, "unit": "ml" }
+      { "slug": "large-egg", "quantity": 3, "unit": "piece" },
+      { "slug": "avocado", "quantity": 1, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 5, "unit": "ml" }
     ],
-    "steps": [
-      "Boil the eggs for 9 minutes, then cool and peel.",
-      "Slice the avocado and drizzle with olive oil.",
-      "Season and serve."
-    ]
+    "steps": {
+      "en": [
+        "Boil the eggs for 9 minutes, then cool and peel.",
+        "Slice the avocado and drizzle with olive oil.",
+        "Season and serve."
+      ],
+      "pl": [
+        "Gotuj jajka 9 minut, ostudź i obierz.",
+        "Pokrój awokado i skrop oliwą.",
+        "Dopraw i podawaj."
+      ]
+    }
   },
   {
-    "title": "Grilled chicken & rice bowl",
-    "description": "Lean grilled chicken with white rice and steamed broccoli.",
+    "slug": "grilled-chicken-rice-bowl",
+    "title": { "en": "Grilled chicken & rice bowl", "pl": "Miska z grillowanym kurczakiem i ryżem" },
+    "description": {
+      "en": "Lean grilled chicken with white rice and steamed broccoli.",
+      "pl": "Chude grillowane mięso z piersi kurczaka z białym ryżem i brokułami na parze."
+    },
     "servings": 2,
     "mealTypes": ["lunch", "dinner"],
     "dietTags": ["balanced", "high_protein"],
@@ -93,20 +141,31 @@
     "cookMinutes": 20,
     "difficulty": "medium",
     "ingredients": [
-      { "name": "Chicken breast", "quantity": 320, "unit": "g" },
-      { "name": "White rice", "quantity": 160, "unit": "g" },
-      { "name": "Broccoli", "quantity": 200, "unit": "g" },
-      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+      { "slug": "chicken-breast", "quantity": 320, "unit": "g" },
+      { "slug": "white-rice", "quantity": 160, "unit": "g" },
+      { "slug": "broccoli", "quantity": 200, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 15, "unit": "ml" }
     ],
-    "steps": [
-      "Cook the rice according to package directions.",
-      "Season and grill the chicken until cooked through.",
-      "Steam the broccoli and assemble the bowls."
-    ]
+    "steps": {
+      "en": [
+        "Cook the rice according to package directions.",
+        "Season and grill the chicken until cooked through.",
+        "Steam the broccoli and assemble the bowls."
+      ],
+      "pl": [
+        "Ugotuj ryż zgodnie z instrukcją na opakowaniu.",
+        "Dopraw kurczaka i grilluj, aż będzie w pełni ugotowany.",
+        "Ugotuj brokuły na parze i złóż miski."
+      ]
+    }
   },
   {
-    "title": "Salmon with quinoa & spinach",
-    "description": "Pan-seared salmon over fluffy quinoa with wilted spinach.",
+    "slug": "salmon-with-quinoa-spinach",
+    "title": { "en": "Salmon with quinoa & spinach", "pl": "Łosoś z komosą ryżową i szpinakiem" },
+    "description": {
+      "en": "Pan-seared salmon over fluffy quinoa with wilted spinach.",
+      "pl": "Łosoś smażony na patelni na puszystej komosie ryżowej z duszonym szpinakiem."
+    },
     "servings": 2,
     "mealTypes": ["lunch", "dinner"],
     "dietTags": ["balanced", "high_protein", "mediterranean"],
@@ -114,20 +173,31 @@
     "cookMinutes": 18,
     "difficulty": "medium",
     "ingredients": [
-      { "name": "Salmon fillet", "quantity": 260, "unit": "g" },
-      { "name": "Quinoa", "quantity": 140, "unit": "g" },
-      { "name": "Spinach", "quantity": 120, "unit": "g" },
-      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+      { "slug": "salmon-fillet", "quantity": 260, "unit": "g" },
+      { "slug": "quinoa", "quantity": 140, "unit": "g" },
+      { "slug": "spinach", "quantity": 120, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 15, "unit": "ml" }
     ],
-    "steps": [
-      "Cook the quinoa until tender.",
-      "Sear the salmon skin-side down in olive oil.",
-      "Wilt the spinach and plate everything together."
-    ]
+    "steps": {
+      "en": [
+        "Cook the quinoa until tender.",
+        "Sear the salmon skin-side down in olive oil.",
+        "Wilt the spinach and plate everything together."
+      ],
+      "pl": [
+        "Ugotuj komosę ryżową do miękkości.",
+        "Smaż łososia skórą w dół na oliwie.",
+        "Podduś szpinak i ułóż wszystko na talerzu."
+      ]
+    }
   },
   {
-    "title": "Chickpea & tomato stew",
-    "description": "A hearty plant-based stew of chickpeas simmered with tomato and onion.",
+    "slug": "chickpea-tomato-stew",
+    "title": { "en": "Chickpea & tomato stew", "pl": "Gulasz z ciecierzycy i pomidorów" },
+    "description": {
+      "en": "A hearty plant-based stew of chickpeas simmered with tomato and onion.",
+      "pl": "Sycący roślinny gulasz z ciecierzycy duszonej z pomidorami i cebulą."
+    },
     "servings": 3,
     "mealTypes": ["lunch", "dinner"],
     "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
@@ -135,21 +205,32 @@
     "cookMinutes": 25,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Chickpeas", "quantity": 480, "unit": "g" },
-      { "name": "Tomato", "quantity": 3, "unit": "piece" },
-      { "name": "Onion", "quantity": 1, "unit": "piece" },
-      { "name": "Olive oil", "quantity": 20, "unit": "ml" },
-      { "name": "Spinach", "quantity": 100, "unit": "g" }
+      { "slug": "chickpeas", "quantity": 480, "unit": "g" },
+      { "slug": "tomato", "quantity": 3, "unit": "piece" },
+      { "slug": "onion", "quantity": 1, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 20, "unit": "ml" },
+      { "slug": "spinach", "quantity": 100, "unit": "g" }
     ],
-    "steps": [
-      "Soften the onion in olive oil.",
-      "Add chopped tomato and chickpeas; simmer 20 minutes.",
-      "Stir in spinach until wilted."
-    ]
+    "steps": {
+      "en": [
+        "Soften the onion in olive oil.",
+        "Add chopped tomato and chickpeas; simmer 20 minutes.",
+        "Stir in spinach until wilted."
+      ],
+      "pl": [
+        "Zeszklij cebulę na oliwie.",
+        "Dodaj pokrojone pomidory i ciecierzycę; duś 20 minut.",
+        "Wmieszaj szpinak i duś, aż zwiędnie."
+      ]
+    }
   },
   {
-    "title": "Tofu & vegetable stir-fry",
-    "description": "Quick stir-fried tofu with peppers, carrot and rice.",
+    "slug": "tofu-vegetable-stir-fry",
+    "title": { "en": "Tofu & vegetable stir-fry", "pl": "Stir-fry z tofu i warzywami" },
+    "description": {
+      "en": "Quick stir-fried tofu with peppers, carrot and rice.",
+      "pl": "Szybkie tofu z patelni z papryką, marchewką i ryżem."
+    },
     "servings": 2,
     "mealTypes": ["lunch", "dinner"],
     "dietTags": ["balanced", "vegetarian", "vegan", "high_protein"],
@@ -157,21 +238,32 @@
     "cookMinutes": 15,
     "difficulty": "medium",
     "ingredients": [
-      { "name": "Tofu", "quantity": 300, "unit": "g" },
-      { "name": "Bell pepper", "quantity": 1, "unit": "piece" },
-      { "name": "Carrot", "quantity": 2, "unit": "piece" },
-      { "name": "White rice", "quantity": 150, "unit": "g" },
-      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+      { "slug": "tofu", "quantity": 300, "unit": "g" },
+      { "slug": "bell-pepper", "quantity": 1, "unit": "piece" },
+      { "slug": "carrot", "quantity": 2, "unit": "piece" },
+      { "slug": "white-rice", "quantity": 150, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 15, "unit": "ml" }
     ],
-    "steps": [
-      "Cook the rice.",
-      "Fry cubed tofu until golden, set aside.",
-      "Stir-fry the vegetables, return tofu and combine."
-    ]
+    "steps": {
+      "en": [
+        "Cook the rice.",
+        "Fry cubed tofu until golden, set aside.",
+        "Stir-fry the vegetables, return tofu and combine."
+      ],
+      "pl": [
+        "Ugotuj ryż.",
+        "Smaż pokrojone tofu, aż będzie złociste, odłóż.",
+        "Podsmaż warzywa, dodaj tofu i wymieszaj."
+      ]
+    }
   },
   {
-    "title": "Beef & vegetable pasta",
-    "description": "Ground beef ragu tossed through pasta with tomato and onion.",
+    "slug": "beef-vegetable-pasta",
+    "title": { "en": "Beef & vegetable pasta", "pl": "Makaron z mieloną wołowiną i warzywami" },
+    "description": {
+      "en": "Ground beef ragu tossed through pasta with tomato and onion.",
+      "pl": "Sos z mielonej wołowiny wymieszany z makaronem, pomidorem i cebulą."
+    },
     "servings": 3,
     "mealTypes": ["lunch", "dinner"],
     "dietTags": ["balanced", "high_protein"],
@@ -179,21 +271,32 @@
     "cookMinutes": 25,
     "difficulty": "medium",
     "ingredients": [
-      { "name": "Ground beef", "quantity": 360, "unit": "g" },
-      { "name": "Pasta", "quantity": 300, "unit": "g" },
-      { "name": "Tomato", "quantity": 3, "unit": "piece" },
-      { "name": "Onion", "quantity": 1, "unit": "piece" },
-      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+      { "slug": "ground-beef", "quantity": 360, "unit": "g" },
+      { "slug": "pasta", "quantity": 300, "unit": "g" },
+      { "slug": "tomato", "quantity": 3, "unit": "piece" },
+      { "slug": "onion", "quantity": 1, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 15, "unit": "ml" }
     ],
-    "steps": [
-      "Boil the pasta until al dente.",
-      "Brown the beef with onion, add tomato and simmer.",
-      "Toss the sauce through the pasta."
-    ]
+    "steps": {
+      "en": [
+        "Boil the pasta until al dente.",
+        "Brown the beef with onion, add tomato and simmer.",
+        "Toss the sauce through the pasta."
+      ],
+      "pl": [
+        "Ugotuj makaron al dente.",
+        "Podsmaż wołowinę z cebulą, dodaj pomidory i duś.",
+        "Wymieszaj sos z makaronem."
+      ]
+    }
   },
   {
-    "title": "Red lentil & carrot soup",
-    "description": "A comforting blended soup of red lentils and carrot.",
+    "slug": "red-lentil-carrot-soup",
+    "title": { "en": "Red lentil & carrot soup", "pl": "Zupa z czerwonej soczewicy i marchewki" },
+    "description": {
+      "en": "A comforting blended soup of red lentils and carrot.",
+      "pl": "Rozgrzewająca zupa krem z czerwonej soczewicy i marchewki."
+    },
     "servings": 3,
     "mealTypes": ["lunch", "dinner"],
     "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
@@ -201,20 +304,31 @@
     "cookMinutes": 25,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Red lentils", "quantity": 240, "unit": "g" },
-      { "name": "Carrot", "quantity": 3, "unit": "piece" },
-      { "name": "Onion", "quantity": 1, "unit": "piece" },
-      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+      { "slug": "red-lentils", "quantity": 240, "unit": "g" },
+      { "slug": "carrot", "quantity": 3, "unit": "piece" },
+      { "slug": "onion", "quantity": 1, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 15, "unit": "ml" }
     ],
-    "steps": [
-      "Soften the onion and carrot in olive oil.",
-      "Add lentils and water; simmer until soft.",
-      "Blend until smooth and season."
-    ]
+    "steps": {
+      "en": [
+        "Soften the onion and carrot in olive oil.",
+        "Add lentils and water; simmer until soft.",
+        "Blend until smooth and season."
+      ],
+      "pl": [
+        "Zeszklij cebulę z marchewką na oliwie.",
+        "Dodaj soczewicę i wodę; gotuj do miękkości.",
+        "Zblenduj na gładki krem i dopraw."
+      ]
+    }
   },
   {
-    "title": "Chicken & broccoli low-carb skillet",
-    "description": "A grain-free skillet of chicken and broccoli in olive oil.",
+    "slug": "chicken-broccoli-low-carb-skillet",
+    "title": { "en": "Chicken & broccoli low-carb skillet", "pl": "Niskowęglowodanowy kurczak z brokułami z patelni" },
+    "description": {
+      "en": "A grain-free skillet of chicken and broccoli in olive oil.",
+      "pl": "Patelnia z kurczakiem i brokułami na oliwie, bez zbóż."
+    },
     "servings": 2,
     "mealTypes": ["lunch", "dinner"],
     "dietTags": ["low_carb", "keto", "high_protein", "balanced"],
@@ -222,20 +336,31 @@
     "cookMinutes": 18,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Chicken breast", "quantity": 320, "unit": "g" },
-      { "name": "Broccoli", "quantity": 300, "unit": "g" },
-      { "name": "Olive oil", "quantity": 20, "unit": "ml" },
-      { "name": "Cheddar cheese", "quantity": 60, "unit": "g" }
+      { "slug": "chicken-breast", "quantity": 320, "unit": "g" },
+      { "slug": "broccoli", "quantity": 300, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 20, "unit": "ml" },
+      { "slug": "cheddar-cheese", "quantity": 60, "unit": "g" }
     ],
-    "steps": [
-      "Sear diced chicken in olive oil.",
-      "Add broccoli and cook until tender-crisp.",
-      "Scatter cheddar over the top to melt."
-    ]
+    "steps": {
+      "en": [
+        "Sear diced chicken in olive oil.",
+        "Add broccoli and cook until tender-crisp.",
+        "Scatter cheddar over the top to melt."
+      ],
+      "pl": [
+        "Podsmaż pokrojonego kurczaka na oliwie.",
+        "Dodaj brokuły i smaż do uzyskania al dente.",
+        "Posyp cheddarem, aby się roztopił."
+      ]
+    }
   },
   {
-    "title": "Black bean & quinoa salad",
-    "description": "A protein-rich cold salad of black beans, quinoa and pepper.",
+    "slug": "black-bean-quinoa-salad",
+    "title": { "en": "Black bean & quinoa salad", "pl": "Sałatka z czarnej fasoli i komosy ryżowej" },
+    "description": {
+      "en": "A protein-rich cold salad of black beans, quinoa and pepper.",
+      "pl": "Bogata w białko zimna sałatka z czarnej fasoli, komosy ryżowej i papryki."
+    },
     "servings": 2,
     "mealTypes": ["lunch"],
     "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean", "high_protein"],
@@ -243,21 +368,32 @@
     "cookMinutes": 15,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Black beans", "quantity": 320, "unit": "g" },
-      { "name": "Quinoa", "quantity": 120, "unit": "g" },
-      { "name": "Bell pepper", "quantity": 1, "unit": "piece" },
-      { "name": "Tomato", "quantity": 1, "unit": "piece" },
-      { "name": "Olive oil", "quantity": 15, "unit": "ml" }
+      { "slug": "black-beans", "quantity": 320, "unit": "g" },
+      { "slug": "quinoa", "quantity": 120, "unit": "g" },
+      { "slug": "bell-pepper", "quantity": 1, "unit": "piece" },
+      { "slug": "tomato", "quantity": 1, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 15, "unit": "ml" }
     ],
-    "steps": [
-      "Cook and cool the quinoa.",
-      "Dice the pepper and tomato.",
-      "Toss everything with olive oil and season."
-    ]
+    "steps": {
+      "en": [
+        "Cook and cool the quinoa.",
+        "Dice the pepper and tomato.",
+        "Toss everything with olive oil and season."
+      ],
+      "pl": [
+        "Ugotuj komosę i ostudź.",
+        "Pokrój paprykę i pomidora w kostkę.",
+        "Wymieszaj wszystko z oliwą i dopraw."
+      ]
+    }
   },
   {
-    "title": "Baked salmon with potato & broccoli",
-    "description": "Oven-baked salmon with roast potato and steamed broccoli.",
+    "slug": "baked-salmon-with-potato-broccoli",
+    "title": { "en": "Baked salmon with potato & broccoli", "pl": "Pieczony łosoś z ziemniakami i brokułami" },
+    "description": {
+      "en": "Oven-baked salmon with roast potato and steamed broccoli.",
+      "pl": "Pieczony w piekarniku łosoś z pieczonymi ziemniakami i brokułami na parze."
+    },
     "servings": 2,
     "mealTypes": ["dinner"],
     "dietTags": ["balanced", "high_protein", "mediterranean"],
@@ -265,20 +401,31 @@
     "cookMinutes": 30,
     "difficulty": "medium",
     "ingredients": [
-      { "name": "Salmon fillet", "quantity": 260, "unit": "g" },
-      { "name": "Potato", "quantity": 3, "unit": "piece" },
-      { "name": "Broccoli", "quantity": 200, "unit": "g" },
-      { "name": "Olive oil", "quantity": 20, "unit": "ml" }
+      { "slug": "salmon-fillet", "quantity": 260, "unit": "g" },
+      { "slug": "potato", "quantity": 3, "unit": "piece" },
+      { "slug": "broccoli", "quantity": 200, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 20, "unit": "ml" }
     ],
-    "steps": [
-      "Roast cubed potato in olive oil for 25 minutes.",
-      "Add the salmon and bake 12 minutes more.",
-      "Steam the broccoli and serve."
-    ]
+    "steps": {
+      "en": [
+        "Roast cubed potato in olive oil for 25 minutes.",
+        "Add the salmon and bake 12 minutes more.",
+        "Steam the broccoli and serve."
+      ],
+      "pl": [
+        "Piecz pokrojone ziemniaki na oliwie przez 25 minut.",
+        "Dodaj łososia i piecz jeszcze 12 minut.",
+        "Ugotuj brokuły na parze i podawaj."
+      ]
+    }
   },
   {
-    "title": "Greek yogurt with almonds & honey",
-    "description": "A quick high-protein snack of yogurt, almonds and honey.",
+    "slug": "greek-yogurt-with-almonds-honey",
+    "title": { "en": "Greek yogurt with almonds & honey", "pl": "Jogurt grecki z migdałami i miodem" },
+    "description": {
+      "en": "A quick high-protein snack of yogurt, almonds and honey.",
+      "pl": "Szybka wysokobiałkowa przekąska z jogurtu, migdałów i miodu."
+    },
     "servings": 1,
     "mealTypes": ["snack", "second_breakfast"],
     "dietTags": ["balanced", "vegetarian", "high_protein", "low_carb"],
@@ -286,15 +433,22 @@
     "cookMinutes": 0,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Greek yogurt", "quantity": 170, "unit": "g" },
-      { "name": "Almonds", "quantity": 20, "unit": "g" },
-      { "name": "Honey", "quantity": 10, "unit": "g" }
+      { "slug": "greek-yogurt", "quantity": 170, "unit": "g" },
+      { "slug": "almonds", "quantity": 20, "unit": "g" },
+      { "slug": "honey", "quantity": 10, "unit": "g" }
     ],
-    "steps": ["Spoon yogurt into a bowl.", "Top with almonds and honey."]
+    "steps": {
+      "en": ["Spoon yogurt into a bowl.", "Top with almonds and honey."],
+      "pl": ["Nałóż jogurt do miski.", "Posyp migdałami i polej miodem."]
+    }
   },
   {
-    "title": "Banana & almond snack",
-    "description": "A simple plant-based snack of banana and almonds.",
+    "slug": "banana-almond-snack",
+    "title": { "en": "Banana & almond snack", "pl": "Przekąska z banana i migdałów" },
+    "description": {
+      "en": "A simple plant-based snack of banana and almonds.",
+      "pl": "Prosta roślinna przekąska z banana i migdałów."
+    },
     "servings": 1,
     "mealTypes": ["snack"],
     "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
@@ -302,14 +456,21 @@
     "cookMinutes": 0,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Banana", "quantity": 1, "unit": "piece" },
-      { "name": "Almonds", "quantity": 25, "unit": "g" }
+      { "slug": "banana", "quantity": 1, "unit": "piece" },
+      { "slug": "almonds", "quantity": 25, "unit": "g" }
     ],
-    "steps": ["Slice the banana.", "Serve with almonds."]
+    "steps": {
+      "en": ["Slice the banana.", "Serve with almonds."],
+      "pl": ["Pokrój banana.", "Podawaj z migdałami."]
+    }
   },
   {
-    "title": "Avocado toast snack",
-    "description": "Mashed avocado on whole-grain toast.",
+    "slug": "avocado-toast-snack",
+    "title": { "en": "Avocado toast snack", "pl": "Przekąska z tostem i awokado" },
+    "description": {
+      "en": "Mashed avocado on whole-grain toast.",
+      "pl": "Rozgniecione awokado na pełnoziarnistym toście."
+    },
     "servings": 1,
     "mealTypes": ["snack", "second_breakfast"],
     "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
@@ -317,15 +478,22 @@
     "cookMinutes": 2,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Avocado", "quantity": 1, "unit": "piece" },
-      { "name": "Whole-grain bread", "quantity": 1, "unit": "piece" },
-      { "name": "Tomato", "quantity": 1, "unit": "piece" }
+      { "slug": "avocado", "quantity": 1, "unit": "piece" },
+      { "slug": "whole-grain-bread", "quantity": 1, "unit": "piece" },
+      { "slug": "tomato", "quantity": 1, "unit": "piece" }
     ],
-    "steps": ["Toast the bread.", "Mash avocado over it.", "Top with sliced tomato."]
+    "steps": {
+      "en": ["Toast the bread.", "Mash avocado over it.", "Top with sliced tomato."],
+      "pl": ["Opiecz chleb.", "Rozgnieć na nim awokado.", "Połóż plasterki pomidora."]
+    }
   },
   {
-    "title": "Cheddar & egg keto muffins",
-    "description": "Baked egg muffins with cheddar and spinach — a keto snack.",
+    "slug": "cheddar-egg-keto-muffins",
+    "title": { "en": "Cheddar & egg keto muffins", "pl": "Muffinki keto z cheddarem i jajkiem" },
+    "description": {
+      "en": "Baked egg muffins with cheddar and spinach — a keto snack.",
+      "pl": "Pieczone muffinki jajeczne z cheddarem i szpinakiem — przekąska keto."
+    },
     "servings": 2,
     "mealTypes": ["snack", "breakfast"],
     "dietTags": ["keto", "low_carb", "vegetarian", "balanced"],
@@ -333,19 +501,30 @@
     "cookMinutes": 18,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Large egg", "quantity": 4, "unit": "piece" },
-      { "name": "Cheddar cheese", "quantity": 80, "unit": "g" },
-      { "name": "Spinach", "quantity": 60, "unit": "g" }
+      { "slug": "large-egg", "quantity": 4, "unit": "piece" },
+      { "slug": "cheddar-cheese", "quantity": 80, "unit": "g" },
+      { "slug": "spinach", "quantity": 60, "unit": "g" }
     ],
-    "steps": [
-      "Whisk eggs with chopped spinach and cheddar.",
-      "Pour into a muffin tin.",
-      "Bake at 180°C for 18 minutes."
-    ]
+    "steps": {
+      "en": [
+        "Whisk eggs with chopped spinach and cheddar.",
+        "Pour into a muffin tin.",
+        "Bake at 180°C for 18 minutes."
+      ],
+      "pl": [
+        "Roztrzep jajka z posiekanym szpinakiem i cheddarem.",
+        "Przelej do foremki na muffinki.",
+        "Piecz w 180°C przez 18 minut."
+      ]
+    }
   },
   {
-    "title": "Hummus-style chickpea snack bowl",
-    "description": "Smashed chickpeas with olive oil and tomato.",
+    "slug": "hummus-style-chickpea-snack-bowl",
+    "title": { "en": "Hummus-style chickpea snack bowl", "pl": "Miska przekąskowa z ciecierzycą w stylu hummusu" },
+    "description": {
+      "en": "Smashed chickpeas with olive oil and tomato.",
+      "pl": "Rozgnieciona ciecierzyca z oliwą i pomidorem."
+    },
     "servings": 1,
     "mealTypes": ["snack"],
     "dietTags": ["balanced", "vegetarian", "vegan", "mediterranean"],
@@ -353,10 +532,13 @@
     "cookMinutes": 0,
     "difficulty": "easy",
     "ingredients": [
-      { "name": "Chickpeas", "quantity": 150, "unit": "g" },
-      { "name": "Olive oil", "quantity": 10, "unit": "ml" },
-      { "name": "Tomato", "quantity": 1, "unit": "piece" }
+      { "slug": "chickpeas", "quantity": 150, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 10, "unit": "ml" },
+      { "slug": "tomato", "quantity": 1, "unit": "piece" }
     ],
-    "steps": ["Lightly mash the chickpeas.", "Stir in olive oil.", "Top with diced tomato."]
+    "steps": {
+      "en": ["Lightly mash the chickpeas.", "Stir in olive oil.", "Top with diced tomato."],
+      "pl": ["Lekko rozgnieć ciecierzycę.", "Wmieszaj oliwę.", "Posyp pokrojonym pomidorem."]
+    }
   }
 ]

@@ -105,6 +105,18 @@ const ALLERGEN_RULES: { allergen: string; re: RegExp }[] = [
   { allergen: 'sesame', re: /\b(sesame|tahini)\b/i },
 ];
 
+/** Kebab-case slug derived from the source English name. Used as the stable
+ *  identifier for the row across re-imports and as the join key for
+ *  translation rows. */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '') // strip diacritics
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function detectAllergens(name: string, category: Category): string[] {
   const a = new Set<string>();
   for (const { allergen, re } of ALLERGEN_RULES) if (re.test(name)) a.add(allergen);
@@ -255,7 +267,11 @@ async function main(): Promise<void> {
       });
 
       ingredients.push({
-        name,
+        slug: slugify(name),
+        // Embedded-translation shape per F14 — see data/README.md. The USDA
+        // importer only knows English; Polish (and other locales) are filled
+        // later by the admin auto-translate action, by hand, or via a PR.
+        name: { en: name },
         category,
         // FDC reports nutrition per 100 g of edible mass for every food (incl.
         // liquids), so the canonical unit is always grams here. Volumetric
@@ -279,9 +295,9 @@ async function main(): Promise<void> {
     if (page < totalPages) await new Promise((r) => setTimeout(r, 250));
   }
 
-  // Sort by name for byte-stable output across runs.
+  // Sort by slug for byte-stable output across runs.
   ingredients.sort((a, b) =>
-    (a as { name: string }).name.localeCompare((b as { name: string }).name),
+    (a as { slug: string }).slug.localeCompare((b as { slug: string }).slug),
   );
 
   const outFile = join(outDir, 'ingredients.generated.json');

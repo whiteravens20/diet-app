@@ -4,11 +4,19 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { composeRecipes, type ComposableIngredient } from './recipe-templates.js';
 
-// Compose from the real curated ingredient seed — this is what ships.
+// Compose from the real curated ingredient seed — this is what ships. The
+// seed shape ships per-locale names (F14); the composer takes plain English
+// names, so we flatten here at the boundary.
 const dataDir = join(dirname(fileURLToPath(import.meta.url)), '../../../../data');
-const ingredients = JSON.parse(
-  readFileSync(join(dataDir, 'ingredients.json'), 'utf8'),
-) as ComposableIngredient[];
+interface SeedRow extends Omit<ComposableIngredient, 'name'> {
+  name: string | { en: string };
+}
+const ingredients: ComposableIngredient[] = (
+  JSON.parse(readFileSync(join(dataDir, 'ingredients.json'), 'utf8')) as SeedRow[]
+).map((row) => ({
+  ...row,
+  name: typeof row.name === 'string' ? row.name : row.name.en,
+}));
 
 describe('composeRecipes', () => {
   const recipes = composeRecipes(ingredients);

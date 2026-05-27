@@ -9,6 +9,13 @@
  *
  * Nutrition is **always** recomputed from the ingredient table by the engine;
  * recipes never carry hand-authored kcal/macros. See ADR 0005.
+ *
+ * F14 translation handling: each ingredient/recipe row carries an embedded
+ * `{ en, pl?, ... }` for human-readable fields. The seeder writes the canonical
+ * row from the numeric/structural fields, then wipes and rewrites only the
+ * `source = CURATED_JSON` translation children for that parent. AI / MANUAL
+ * rows survive a re-seed so the admin auto-translate output isn't blown away
+ * every time the curated baseline is re-applied.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,8 +26,15 @@ import { computeDataState, resolveDataDir } from './data-hash.js';
 
 type Unit = 'g' | 'ml' | 'piece';
 
+/** A field that may be a plain string (legacy / composer output) OR a
+ *  per-locale object (new shape in data/*.json). The seeder normalises both
+ *  into a Record<locale, string> for the translation tables. */
+type Localised<T extends string | string[]> = T | (Record<string, T> & { en: T });
+
 interface IngredientSeed {
-  name: string;
+  /** Stable kebab-case identifier; required for new-shape rows. */
+  slug?: string;
+  name: Localised<string>;
   category: string;
   canonicalUnit: Unit;
   caloriesPer100: number;
@@ -33,20 +47,29 @@ interface IngredientSeed {
   dietCompatibility: string[];
   tags: string[];
   packSize?: number;
-  storageHint?: string;
+  storageHint?: Localised<string>;
+}
+
+interface RecipeIngredientLine {
+  slug?: string;
+  name?: string;
+  quantity: number;
+  unit: Unit;
+  note?: string;
 }
 
 interface RecipeSeed {
-  title: string;
-  description: string;
+  slug?: string;
+  title: Localised<string>;
+  description: Localised<string>;
   servings: number;
   mealTypes: string[];
   dietTags: string[];
   prepMinutes: number;
   cookMinutes: number;
   difficulty: 'easy' | 'medium' | 'hard';
-  ingredients: { name: string; quantity: number; unit: Unit; note?: string }[];
-  steps: string[];
+  ingredients: RecipeIngredientLine[];
+  steps: Localised<string[]>;
 }
 
 const ALLERGENS = [
@@ -76,18 +99,39 @@ export interface UpdateResult extends SeedCounts {
   seededAt: Date;
 }
 
-/**
- * Progress callback the seeder fires as it works through each stage.
- * `current` / `total` are omitted for instantaneous stages (allergens, prune,
- * etc.) and populated for the long ones the UI needs a determinate bar for
- * — primarily the recipe loop, which is the only stage that runs for minutes.
- */
 export interface SeedProgress {
   stage: string;
   current?: number;
   total?: number;
 }
 export type ProgressCallback = (p: SeedProgress) => void;
+
+/** Pick the English form out of either shape — used for join keys + DB
+ *  canonical fields that pre-date i18n. */
+function en<T extends string | string[]>(value: Localised<T>): T {
+  if (typeof value === 'string') return value as T;
+  if (Array.isArray(value)) return value as T;
+  return (value as { en: T }).en;
+}
+
+/** Normalise a Localised<T> into `{ locale → T }`. Plain strings collapse to
+ *  `{ en: value }`. */
+function asLocaleMap<T extends string | string[]>(value: Localised<T>): Record<string, T> {
+  if (typeof value === 'string' || Array.isArray(value)) return { en: value as T };
+  return value as Record<string, T>;
+}
+
+/** Cheap deterministic slugifier — kebab-case ASCII. Mirrors the USDA
+ *  importer's slugify so a composed recipe and a hand-curated row produce
+ *  the same identifier for the same English title. */
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 /**
  * Idempotent re-seed: upserts allergens / ingredients / substitutions and
@@ -113,45 +157,91 @@ export async function runSeed(
   log('Seeding ingredients…');
   const ingredients = loadIngredients(dir, log);
   onProgress({ stage: 'ingredients', current: 0, total: ingredients.length });
-  const byName = new Map<string, { id: string; row: IngredientSeed }>();
+
+  // Two lookup tables: bySlug for the new shape, byEnName for composed-recipe
+  // ingredient lines (the templates engine emits English names, not slugs).
+  const bySlug = new Map<string, { id: string; row: IngredientSeed }>();
+  const byEnName = new Map<string, { id: string; row: IngredientSeed }>();
+
   let ingredientIndex = 0;
   for (const ing of ingredients) {
-    const row = await prisma.ingredient.upsert({
-      where: { name: ing.name },
-      create: {
-        name: ing.name,
-        category: ing.category as never,
-        canonicalUnit: ing.canonicalUnit,
-        caloriesPer100: ing.caloriesPer100,
-        proteinPer100: ing.proteinPer100,
-        fatPer100: ing.fatPer100,
-        carbsPer100: ing.carbsPer100,
-        gramsPerPiece: ing.gramsPerPiece ?? null,
-        density: ing.density ?? null,
-        allergens: ing.allergens,
-        dietCompatibility: ing.dietCompatibility,
-        tags: ing.tags,
-        packSize: ing.packSize ?? null,
-        storageHint: ing.storageHint ?? null,
-        nutritionFacts: {
-          create: {
-            servingLabel: `per 100 ${ing.canonicalUnit}`,
-            servingGrams: 100,
-            calories: ing.caloriesPer100,
-            protein: ing.proteinPer100,
-            fat: ing.fatPer100,
-            carbs: ing.carbsPer100,
+    const enName = en(ing.name);
+    const slug = ing.slug ?? slugify(enName);
+    const nameMap = asLocaleMap(ing.name);
+    const storageMap = ing.storageHint ? asLocaleMap(ing.storageHint) : null;
+
+    // Find by slug first; fall back to the legacy English-name unique index
+    // so rows that pre-date the slug column (existing seeded instances) get
+    // upgraded in place instead of conflicting on a fresh insert.
+    const existing =
+      (await prisma.ingredient.findUnique({ where: { slug } })) ??
+      (await prisma.ingredient.findUnique({ where: { name: enName } }));
+    const row = existing
+      ? await prisma.ingredient.update({
+          where: { id: existing.id },
+          data: {
+            slug,
+            name: enName,
+            caloriesPer100: ing.caloriesPer100,
+            proteinPer100: ing.proteinPer100,
+            fatPer100: ing.fatPer100,
+            carbsPer100: ing.carbsPer100,
+            storageHint: storageMap?.en ?? null,
           },
-        },
-      },
-      update: {
-        caloriesPer100: ing.caloriesPer100,
-        proteinPer100: ing.proteinPer100,
-        fatPer100: ing.fatPer100,
-        carbsPer100: ing.carbsPer100,
-      },
+        })
+      : await prisma.ingredient.create({
+          data: {
+            slug,
+            // Canonical English copy is duplicated on the parent so legacy
+            // queries that select Ingredient without joining translations
+            // still get a label. New code should always go through the
+            // translations.
+            name: enName,
+            category: ing.category as never,
+            canonicalUnit: ing.canonicalUnit,
+            caloriesPer100: ing.caloriesPer100,
+            proteinPer100: ing.proteinPer100,
+            fatPer100: ing.fatPer100,
+            carbsPer100: ing.carbsPer100,
+            gramsPerPiece: ing.gramsPerPiece ?? null,
+            density: ing.density ?? null,
+            allergens: ing.allergens,
+            dietCompatibility: ing.dietCompatibility,
+            tags: ing.tags,
+            packSize: ing.packSize ?? null,
+            storageHint: storageMap?.en ?? null,
+            nutritionFacts: {
+              create: {
+                servingLabel: `per 100 ${ing.canonicalUnit}`,
+                servingGrams: 100,
+                calories: ing.caloriesPer100,
+                protein: ing.proteinPer100,
+                fat: ing.fatPer100,
+                carbs: ing.carbsPer100,
+              },
+            },
+          },
+        });
+
+    // Source-aware wipe: drop only CURATED_JSON rows for this parent so any
+    // operator-added AI / MANUAL translations survive a re-seed.
+    await prisma.ingredientTranslation.deleteMany({
+      where: { ingredientId: row.id, source: 'CURATED_JSON' },
     });
-    byName.set(ing.name, { id: row.id, row: ing });
+    for (const [locale, label] of Object.entries(nameMap)) {
+      await prisma.ingredientTranslation.create({
+        data: {
+          ingredientId: row.id,
+          locale,
+          name: label,
+          storageHint: storageMap?.[locale] ?? null,
+          source: 'CURATED_JSON',
+        },
+      });
+    }
+
+    bySlug.set(slug, { id: row.id, row: ing });
+    byEnName.set(enName, { id: row.id, row: ing });
     ingredientIndex += 1;
     if (ingredientIndex % 100 === 0 || ingredientIndex === ingredients.length) {
       onProgress({ stage: 'ingredients', current: ingredientIndex, total: ingredients.length });
@@ -160,13 +250,22 @@ export async function runSeed(
 
   const anchors = readJson<RecipeSeed[]>(dir, 'recipes.json');
   const composable: ComposableIngredient[] = ingredients.map((i) => ({
-    name: i.name,
+    name: en(i.name),
     category: i.category as ComposableIngredient['category'],
     tags: i.tags,
     dietCompatibility: i.dietCompatibility as ComposableIngredient['dietCompatibility'],
   }));
-  const composed = composeRecipes(composable) as RecipeSeed[];
-  const recipes = [...anchors, ...composed];
+  const composed = composeRecipes(composable);
+  // Composed recipes ship plain-string title/description/steps and reference
+  // ingredients by English name. Normalise to the curated shape so the loop
+  // below has one code path.
+  const composedAsSeed: RecipeSeed[] = composed.map((r) => ({
+    ...r,
+    title: r.title,
+    description: r.description,
+    steps: r.steps,
+  }));
+  const recipes = [...anchors, ...composedAsSeed];
   log(
     `Seeding recipes (nutrition computed deterministically): ` +
       `${anchors.length} anchor + ${composed.length} composed…`,
@@ -182,9 +281,10 @@ export async function runSeed(
     const allergens = new Set<string>();
 
     for (const line of recipe.ingredients) {
-      const ing = byName.get(line.name);
+      const ing = line.slug ? bySlug.get(line.slug) : line.name ? byEnName.get(line.name) : undefined;
       if (!ing) {
-        throw new Error(`recipe "${recipe.title}" references unknown ingredient "${line.name}"`);
+        const ref = line.slug ?? line.name ?? '<unknown>';
+        throw new Error(`recipe "${en(recipe.title)}" references unknown ingredient "${ref}"`);
       }
       const canonical = toCanonical(line.quantity, line.unit, {
         canonicalUnit: ing.row.canonicalUnit,
@@ -205,18 +305,30 @@ export async function runSeed(
     }
 
     const s = recipe.servings;
-    const ingredientLines = recipe.ingredients.map((line) => ({
-      ingredientId: byName.get(line.name)!.id,
-      quantity: line.quantity,
-      unit: line.unit,
-      note: line.note ?? null,
-    }));
+    const enTitle = en(recipe.title);
+    const enDesc = en(recipe.description);
+    const enSteps = en(recipe.steps);
+    const titleMap = asLocaleMap(recipe.title);
+    const descMap = asLocaleMap(recipe.description);
+    const stepsMap = asLocaleMap(recipe.steps);
+    const slug = recipe.slug ?? slugify(enTitle);
+
+    const ingredientLines = recipe.ingredients.map((line) => {
+      const ing = line.slug ? bySlug.get(line.slug)! : byEnName.get(line.name!)!;
+      return {
+        ingredientId: ing.id,
+        quantity: line.quantity,
+        unit: line.unit,
+        note: line.note ?? null,
+      };
+    });
     const fields = {
-      description: recipe.description,
+      title: enTitle,
+      description: enDesc,
+      steps: enSteps,
       servings: s,
       mealTypes: recipe.mealTypes,
       dietTags: recipe.dietTags,
-      steps: recipe.steps,
       prepMinutes: recipe.prepMinutes,
       cookMinutes: recipe.cookMinutes,
       difficulty: recipe.difficulty,
@@ -226,26 +338,42 @@ export async function runSeed(
       fatPerServing: Math.round(fat / s),
       carbsPerServing: Math.round(carbs / s),
     };
-    // Refresh an existing seed recipe in place — its id may be referenced by
-    // planned meals / favourites — otherwise create it.
+
+    // Find the existing recipe by slug; falls back to title (English) for
+    // any rows that pre-date slug introduction.
     const existing = await prisma.recipe.findFirst({
-      where: { title: recipe.title, origin: 'seed' },
+      where: { OR: [{ slug }, { title: enTitle, origin: 'seed' }] },
     });
-    if (existing) {
-      await prisma.recipe.update({
-        where: { id: existing.id },
-        data: { ...fields, ingredients: { deleteMany: {}, create: ingredientLines } },
-      });
-    } else {
-      await prisma.recipe.create({
+    const upserted = existing
+      ? await prisma.recipe.update({
+          where: { id: existing.id },
+          data: { ...fields, slug, ingredients: { deleteMany: {}, create: ingredientLines } },
+        })
+      : await prisma.recipe.create({
+          data: {
+            slug,
+            origin: 'seed',
+            ...fields,
+            ingredients: { create: ingredientLines },
+          },
+        });
+
+    await prisma.recipeTranslation.deleteMany({
+      where: { recipeId: upserted.id, source: 'CURATED_JSON' },
+    });
+    for (const locale of Object.keys(titleMap)) {
+      await prisma.recipeTranslation.create({
         data: {
-          title: recipe.title,
-          origin: 'seed',
-          ...fields,
-          ingredients: { create: ingredientLines },
+          recipeId: upserted.id,
+          locale,
+          title: titleMap[locale],
+          description: descMap[locale] ?? descMap.en,
+          steps: stepsMap[locale] ?? stepsMap.en,
+          source: 'CURATED_JSON',
         },
       });
     }
+
     recipeIndex += 1;
     if (recipeIndex % 50 === 0 || recipeIndex === recipes.length) {
       onProgress({ stage: 'recipes', current: recipeIndex, total: recipes.length });
@@ -254,16 +382,24 @@ export async function runSeed(
 
   log('Seeding substitution rules…');
   onProgress({ stage: 'substitutions' });
-  const subs = readJson<{ from: string; to: string; note?: string }[]>(dir, 'substitutions.json');
+  const subs = readJson<
+    { from: string; to: string; note?: Localised<string> }[]
+  >(dir, 'substitutions.json');
   let substitutions = 0;
   for (const sub of subs) {
-    const from = byName.get(sub.from);
-    const to = byName.get(sub.to);
+    // Substitutions reference ingredients by slug in the new shape; fall back
+    // to English name for legacy rows.
+    const from = bySlug.get(sub.from) ?? byEnName.get(sub.from);
+    const to = bySlug.get(sub.to) ?? byEnName.get(sub.to);
     if (!from || !to) continue;
     await prisma.substitutionRule.upsert({
       where: { fromIngredientId_toIngredientId: { fromIngredientId: from.id, toIngredientId: to.id } },
-      create: { fromIngredientId: from.id, toIngredientId: to.id, note: sub.note ?? null },
-      update: { note: sub.note ?? null },
+      create: {
+        fromIngredientId: from.id,
+        toIngredientId: to.id,
+        note: sub.note ? en(sub.note) : null,
+      },
+      update: { note: sub.note ? en(sub.note) : null },
     });
     substitutions += 1;
   }
@@ -352,8 +488,12 @@ function loadIngredients(dir: string, log: (msg: string) => void): IngredientSee
   if (!existsSync(generatedPath)) return curated;
 
   const generated = JSON.parse(readFileSync(generatedPath, 'utf8')) as IngredientSeed[];
-  const curatedNames = new Set(curated.map((i) => i.name));
-  const extra = generated.filter((i) => !curatedNames.has(i.name));
+  // Dedupe by slug (preferred) or English name (legacy). Curated always wins.
+  const curatedKeys = new Set<string>();
+  for (const i of curated) {
+    curatedKeys.add(i.slug ?? slugify(en(i.name)));
+  }
+  const extra = generated.filter((i) => !curatedKeys.has(i.slug ?? slugify(en(i.name))));
   log(`  + ${extra.length} USDA-imported ingredients`);
   return [...curated, ...extra];
 }

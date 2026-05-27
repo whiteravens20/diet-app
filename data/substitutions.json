@@ -1,10 +1,10 @@
 [
-  { "from": "White rice", "to": "Pasta", "note": "Swap within the grains category; preserves calories when scaled." },
-  { "from": "White rice", "to": "Potato", "note": "Lower energy density — quantity is scaled up to match calories." },
-  { "from": "White rice", "to": "Quinoa", "note": "Adds protein; quinoa is gluten-free." },
-  { "from": "Pasta", "to": "Quinoa", "note": "Gluten-free substitute for pasta." },
-  { "from": "Chicken breast", "to": "Tofu", "note": "Plant-based protein swap for vegetarian/vegan plans." },
-  { "from": "Ground beef", "to": "Red lentils", "note": "Plant-based protein swap; reduces saturated fat." },
-  { "from": "Whole milk", "to": "Greek yogurt", "note": "Higher protein dairy alternative." },
-  { "from": "Peanut butter", "to": "Almonds", "note": "Nut swap for peanut-allergy avoidance." }
+  { "from": "white-rice", "to": "pasta", "note": { "en": "Swap within the grains category; preserves calories when scaled.", "pl": "Zamiana w ramach zbóż; po przeskalowaniu zachowuje kalorie." } },
+  { "from": "white-rice", "to": "potato", "note": { "en": "Lower energy density — quantity is scaled up to match calories.", "pl": "Niższa gęstość energetyczna — ilość jest skalowana w górę, by dopasować kalorie." } },
+  { "from": "white-rice", "to": "quinoa", "note": { "en": "Adds protein; quinoa is gluten-free.", "pl": "Dodaje białko; komosa ryżowa jest bezglutenowa." } },
+  { "from": "pasta", "to": "quinoa", "note": { "en": "Gluten-free substitute for pasta.", "pl": "Bezglutenowy zamiennik makaronu." } },
+  { "from": "chicken-breast", "to": "tofu", "note": { "en": "Plant-based protein swap for vegetarian/vegan plans.", "pl": "Roślinna zamiana białka dla planów wegetariańskich/wegańskich." } },
+  { "from": "ground-beef", "to": "red-lentils", "note": { "en": "Plant-based protein swap; reduces saturated fat.", "pl": "Roślinna zamiana białka; obniża tłuszcze nasycone." } },
+  { "from": "whole-milk", "to": "greek-yogurt", "note": { "en": "Higher protein dairy alternative.", "pl": "Nabiałowa alternatywa z wyższą zawartością białka." } },
+  { "from": "peanut-butter", "to": "almonds", "note": { "en": "Nut swap for peanut-allergy avoidance.", "pl": "Zamiana orzechów dla uniknięcia alergii na orzeszki ziemne." } }
 ]
