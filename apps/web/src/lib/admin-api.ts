@@ -99,9 +99,31 @@ export interface DbUpdateState {
   error: string | null;
 }
 
+/** Per-source counts inside a single parent partition. */
+export interface SourceBreakdown {
+  curated_json: number;
+  ai: number;
+  manual: number;
+  missing: number;
+}
+
+/** One row per non-canonical locale from `GET /api/admin/translations/status`. */
+export interface TranslationStatusEntry {
+  locale: string;
+  curated: { ingredients: SourceBreakdown; recipes: SourceBreakdown };
+  imported: { ingredients: SourceBreakdown };
+  missingSamples: {
+    curatedIngredients: string[];
+    curatedRecipes: string[];
+    importedIngredients: string[];
+  };
+}
+
 export const adminApi = {
   status: () => adminFetch<AdminStatus>('/status', {}, false),
   stats: () => adminFetch<AdminStats>('/stats'),
   startDbUpdate: () => adminFetch<DbUpdateState>('/db/update', { method: 'POST' }),
   dbUpdateStatus: () => adminFetch<DbUpdateState>('/db/update/status'),
+  translationsStatus: () =>
+    adminFetch<TranslationStatusEntry[]>('/translations/status'),
 };

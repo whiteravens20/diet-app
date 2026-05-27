@@ -35,7 +35,7 @@
   },
   "landing": {
     "tagline": "Samodzielnie hostowane · Docker-first",
-    "headline": "Planowanie posiłków, które naprawdę się sumuje.",
+    "headline": "Planowanie posiłków, które naprawdę ma sens.",
     "subhead": "Plany dopasowane do celu kalorycznego, deterministyczna wartość odżywcza i listy zakupów, które piszą się same. AI opcjonalne — nigdy wymagane.",
     "getStarted": "Zacznij",
     "signIn": "Zaloguj się",
@@ -180,6 +180,22 @@
       "substitutionsStage": "Seedowanie reguł zamian…",
       "done": "Gotowe.",
       "working": "Pracuję…"
+    },
+    "translations": {
+      "title": "Tłumaczenia",
+      "curated": "Kurowane",
+      "imported": "USDA",
+      "sourceCuratedJson": "z JSON",
+      "sourceAi": "AI",
+      "sourceManual": "ręcznie",
+      "missing": "brakuje",
+      "ingredients": "Składniki",
+      "recipes": "Przepisy",
+      "noNonCanonical": "Skonfigurowano tylko język kanoniczny (angielski) — dodaj kolejny do enum Locale, aby zobaczyć tu pokrycie tłumaczeń.",
+      "copyMissing": "Skopiuj brakujące",
+      "copied": "Skopiowano",
+      "showMissing": "Pokaż {count} brakujących slugów",
+      "hideMissing": "Ukryj"
     }
   },
   "shoppingLists": {

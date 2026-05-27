@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Database, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Database, Languages, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -13,6 +13,8 @@ import {
   type AdminStats,
   type AdminStatus,
   type DbUpdateState,
+  type SourceBreakdown,
+  type TranslationStatusEntry,
 } from '@/lib/admin-api';
 
 type View = 'loading' | 'disabled' | 'login' | 'ready';
@@ -35,6 +37,7 @@ export function AdminPanel() {
   const [view, setView] = useState<View>('loading');
   const [status, setStatus] = useState<AdminStatus | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [translations, setTranslations] = useState<TranslationStatusEntry[] | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [progress, setProgress] = useState<DbUpdateState | null>(null);
@@ -43,8 +46,9 @@ export function AdminPanel() {
 
   const loadStats = useCallback(async (): Promise<boolean> => {
     try {
-      const s = await adminApi.stats();
+      const [s, tr] = await Promise.all([adminApi.stats(), adminApi.translationsStatus()]);
       setStats(s);
+      setTranslations(tr);
       setView('ready');
       return true;
     } catch (err) {
@@ -293,6 +297,145 @@ export function AdminPanel() {
           </div>
         </CardContent>
       </Card>
+
+      <TranslationsCard entries={translations} />
+    </div>
+  );
+}
+
+function TranslationsCard({ entries }: { entries: TranslationStatusEntry[] | null }) {
+  const t = useTranslations('admin.translations');
+  if (!entries) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Languages className="h-5 w-5" /> {t('title')}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('noNonCanonical')}</p>
+        ) : (
+          entries.map((entry) => <TranslationsRow key={entry.locale} entry={entry} />)
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TranslationsRow({ entry }: { entry: TranslationStatusEntry }) {
+  const t = useTranslations('admin.translations');
+  const tLocales = useTranslations('locales');
+  const localeLabel = (() => {
+    try {
+      return tLocales(entry.locale);
+    } catch {
+      return entry.locale;
+    }
+  })();
+  return (
+    <section className="space-y-2 border-t border-border pt-3 first:border-t-0 first:pt-0">
+      <h3 className="text-sm font-semibold">
+        {localeLabel}{' '}
+        <span className="text-xs font-normal uppercase text-muted-foreground">{entry.locale}</span>
+      </h3>
+      <SourceLine
+        partition={t('curated')}
+        kind={t('ingredients')}
+        breakdown={entry.curated.ingredients}
+        missing={entry.missingSamples.curatedIngredients}
+      />
+      <SourceLine
+        partition={t('curated')}
+        kind={t('recipes')}
+        breakdown={entry.curated.recipes}
+        missing={entry.missingSamples.curatedRecipes}
+      />
+      <SourceLine
+        partition={t('imported')}
+        kind={t('ingredients')}
+        breakdown={entry.imported.ingredients}
+        missing={entry.missingSamples.importedIngredients}
+      />
+    </section>
+  );
+}
+
+function SourceLine({
+  partition,
+  kind,
+  breakdown,
+  missing,
+}: {
+  partition: string;
+  kind: string;
+  breakdown: SourceBreakdown;
+  missing: string[];
+}) {
+  const t = useTranslations('admin.translations');
+  const [showMissing, setShowMissing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const total =
+    breakdown.curated_json + breakdown.ai + breakdown.manual + breakdown.missing;
+  if (total === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <span className="w-20 text-muted-foreground">{partition}</span>
+      <span className="w-24 font-medium">{kind}</span>
+      <span className="tabular-nums">
+        {breakdown.curated_json} {t('sourceCuratedJson')}
+      </span>
+      {breakdown.ai > 0 && (
+        <span className="tabular-nums">
+          · {breakdown.ai} {t('sourceAi')}
+        </span>
+      )}
+      {breakdown.manual > 0 && (
+        <span className="tabular-nums">
+          · {breakdown.manual} {t('sourceManual')}
+        </span>
+      )}
+      {breakdown.missing > 0 && (
+        <>
+          <span className="tabular-nums text-amber-600 dark:text-amber-400">
+            · {breakdown.missing} {t('missing')}
+          </span>
+          {missing.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:underline"
+                onClick={() => setShowMissing((v) => !v)}
+              >
+                {showMissing
+                  ? t('hideMissing')
+                  : t('showMissing', { count: breakdown.missing })}
+              </button>
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(missing.join('\n'));
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+              >
+                {copied ? t('copied') : t('copyMissing')}
+              </button>
+            </>
+          )}
+        </>
+      )}
+      {showMissing && missing.length > 0 && (
+        <ul className="mt-1 w-full pl-24">
+          {missing.map((slug) => (
+            <li key={slug} className="font-mono text-[11px] text-muted-foreground">
+              {slug}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

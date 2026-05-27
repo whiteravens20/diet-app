@@ -180,6 +180,22 @@
       "substitutionsStage": "Seeding substitution rules…",
       "done": "Done.",
       "working": "Working…"
+    },
+    "translations": {
+      "title": "Translations",
+      "curated": "Curated",
+      "imported": "USDA",
+      "sourceCuratedJson": "from JSON",
+      "sourceAi": "AI",
+      "sourceManual": "manual",
+      "missing": "missing",
+      "ingredients": "Ingredients",
+      "recipes": "Recipes",
+      "noNonCanonical": "Only the canonical locale (English) is configured — add another to the Locale enum to see translation coverage here.",
+      "copyMissing": "Copy missing",
+      "copied": "Copied",
+      "showMissing": "Show {count} missing slugs",
+      "hideMissing": "Hide"
     }
   },
   "shoppingLists": {
