@@ -21,3 +21,28 @@ generated deterministically at seed time by the template composition engine
 ([`apps/api/src/engine/recipe-templates.ts`](../apps/api/src/engine/recipe-templates.ts)).
 
 See [docs/adr/0006-fallback-recipe-strategy.md](../docs/adr/0006-fallback-recipe-strategy.md).
+
+## Choosing `FDC_DATA_TYPES`
+
+The importer defaults to `Foundation` because that's the only FDC dataset
+that's a good fit for a generic, worldwide meal planner. The other dataTypes
+are documented here mostly so the choice doesn't get re-litigated:
+
+| dataType | Size | What you get | Use it? |
+|---|---|---|---|
+| **`Foundation`** (default) | ~340 | Clean generic names — `Beef, ground, raw`, `Spinach, raw`. USDA's modern curated subset. | **Yes.** |
+| `SR Legacy` | ~7 000 | The retired (2019) Standard Reference release. Dominated by brand SKUs (`HERSHEY'S POT OF GOLD Almond Bar`, `Cereals ready-to-eat, POST, Shredded Wheat`) and hyper-specific cuts (`Beef, New Zealand, imported, brisket point end, separable lean and fat, trimmed to 0" fat, choice, cooked, grilled`). | **No, unless you have a reason.** |
+| `Branded` | ~1.5 M | Entirely brand-name packaged products. | No — not a whole-food source. |
+| `Survey (FNDDS)` | ~7 000 | Composed meals / mixed dishes for dietary recall surveys, not ingredients. | No. |
+
+The reason `SR Legacy` is the trap to avoid: the recipe library is generated
+by [`composeRecipes`](../apps/api/src/engine/recipe-templates.ts) as
+`templates × hero ingredients`, so every junk ingredient becomes the hero of
+several nonsense recipes ("Pan-seared HERSHEY'S bar with kale"). The number
+of ingredients also drives seed time — Foundation seeds in seconds, the full
+SR Legacy corpus takes ~11 minutes.
+
+If a specific worldwide staple is missing (miso, tahini, plantain, kefir,
+specific European fish), add it to `ingredients.json` rather than enabling
+`SR Legacy` — you keep control of the name, density, allergen flags, and
+diet-compatibility tags.

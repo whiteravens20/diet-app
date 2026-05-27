@@ -29,7 +29,7 @@ environment fails fast with a clear message.
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` | — | Optional admin keys. |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Ollama instance URL. |
 | `FDC_API_KEY` | `DEMO_KEY` | USDA importer key — see [ops/deployment.md](deployment.md). |
-| `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC dataTypes. `Foundation,SR Legacy` for the full ~8 k corpus (requires a real `FDC_API_KEY`). |
+| `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC dataTypes. Default ≈ 340 clean generic foods. Adding `SR Legacy` swells the corpus to ~7 k, but most additions are brand SKUs or hyper-specific cuts that pollute template-generated recipes — see [data/README.md](../../data/README.md#choosing-fdc_data_types). |
 
 ## Admin (F16)
 | `ADMIN_USER` | `admin` | Basic-auth username for `/admin` + `/api/admin/*`. |

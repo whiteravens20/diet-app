@@ -9,10 +9,14 @@
  * baseline always wins on a name clash — see `loadIngredients` in seed.ts.
  *
  * Usage:
- *   FDC_API_KEY=<key> FDC_DATA_TYPES='Foundation,SR Legacy' npm run import:usda
- *                                              # api.data.gov/signup; 1000 req/hr
+ *   FDC_API_KEY=<key> npm run import:usda      # api.data.gov/signup; 1000 req/hr
+ *                                              # Foundation only (~340 foods).
  *   npm run import:usda                        # DEMO_KEY + Foundation only
- *                                              # (~340 foods, fits in 30 req/hr)
+ *                                              # (fits in 30 req/hr quota).
+ *
+ * `FDC_DATA_TYPES` can include `SR Legacy` to pull the ~7 k legacy corpus, but
+ * the result is dominated by brand SKUs and cut-specific entries that pollute
+ * the template-generated recipe set — see `data/README.md` before enabling.
  *
  * Determinism: same `FDC_DATA_TYPES` + same upstream dataset → byte-identical
  * `ingredients.generated.json` (output is sorted by name).

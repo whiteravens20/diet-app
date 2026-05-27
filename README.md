@@ -71,9 +71,13 @@ minutes). Loading the curated database is a one-click admin action:
 1. Set `ADMIN_PASSWORD` in `.env` (and optionally `ADMIN_USER`, defaults to `admin`).
 2. (Optional) Run the USDA importer to add public-domain whole foods:
    ```bash
-   FDC_API_KEY=<key> FDC_DATA_TYPES='Foundation,SR Legacy' npm run import:usda
+   FDC_API_KEY=<key> npm run import:usda
    ```
-   Without an importer run, only the hand-curated baseline (~55 ingredients) seeds.
+   Defaults to USDA **Foundation** (~340 clean generic foods). Without an importer
+   run, only the hand-curated baseline (~55 ingredients) seeds. See
+   [data/README.md](data/README.md#choosing-fdc_data_types) before enabling
+   `SR Legacy` — it adds ~7 k entries but most are brand SKUs or hyper-specific
+   cuts that inflate template-generated recipes with nonsense.
 3. Open <http://localhost:3000/admin>, sign in, click **Update Database**.
 
 The admin panel surfaces ingredient/recipe/substitution counts and a
