@@ -36,5 +36,9 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "overrides": {
+    "postcss": "^8.5.10",
+    "@hono/node-server": "^1.19.13"
   }
 }
