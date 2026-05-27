@@ -85,8 +85,23 @@ export interface DbUpdateResult {
   seededAt: string;
 }
 
+export type DbUpdateStatus = 'idle' | 'running' | 'done' | 'error';
+
+/** Mirrors `RunnerState` on the API. */
+export interface DbUpdateState {
+  status: DbUpdateStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  stage: string | null;
+  current: number | null;
+  total: number | null;
+  result: DbUpdateResult | null;
+  error: string | null;
+}
+
 export const adminApi = {
   status: () => adminFetch<AdminStatus>('/status', {}, false),
   stats: () => adminFetch<AdminStats>('/stats'),
-  updateDb: () => adminFetch<DbUpdateResult>('/db/update', { method: 'POST' }),
+  startDbUpdate: () => adminFetch<DbUpdateState>('/db/update', { method: 'POST' }),
+  dbUpdateStatus: () => adminFetch<DbUpdateState>('/db/update/status'),
 };

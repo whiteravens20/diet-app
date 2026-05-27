@@ -77,6 +77,19 @@ export interface UpdateResult extends SeedCounts {
 }
 
 /**
+ * Progress callback the seeder fires as it works through each stage.
+ * `current` / `total` are omitted for instantaneous stages (allergens, prune,
+ * etc.) and populated for the long ones the UI needs a determinate bar for
+ * — primarily the recipe loop, which is the only stage that runs for minutes.
+ */
+export interface SeedProgress {
+  stage: string;
+  current?: number;
+  total?: number;
+}
+export type ProgressCallback = (p: SeedProgress) => void;
+
+/**
  * Idempotent re-seed: upserts allergens / ingredients / substitutions and
  * refreshes seed recipes in place. Does NOT delete anything — pair with
  * `pruneOrphans` from `updateDatabase` when shrinking the DB is acceptable.
@@ -85,8 +98,10 @@ export async function runSeed(
   prisma: PrismaClient,
   dir: string = resolveDataDir(),
   log: (msg: string) => void = console.log,
+  onProgress: ProgressCallback = () => {},
 ): Promise<SeedCounts> {
   log('Seeding allergens…');
+  onProgress({ stage: 'allergens' });
   for (const [code, label] of ALLERGENS) {
     await prisma.allergen.upsert({
       where: { code },
@@ -97,7 +112,9 @@ export async function runSeed(
 
   log('Seeding ingredients…');
   const ingredients = loadIngredients(dir, log);
+  onProgress({ stage: 'ingredients', current: 0, total: ingredients.length });
   const byName = new Map<string, { id: string; row: IngredientSeed }>();
+  let ingredientIndex = 0;
   for (const ing of ingredients) {
     const row = await prisma.ingredient.upsert({
       where: { name: ing.name },
@@ -135,6 +152,10 @@ export async function runSeed(
       },
     });
     byName.set(ing.name, { id: row.id, row: ing });
+    ingredientIndex += 1;
+    if (ingredientIndex % 100 === 0 || ingredientIndex === ingredients.length) {
+      onProgress({ stage: 'ingredients', current: ingredientIndex, total: ingredients.length });
+    }
   }
 
   const anchors = readJson<RecipeSeed[]>(dir, 'recipes.json');
@@ -150,7 +171,9 @@ export async function runSeed(
     `Seeding recipes (nutrition computed deterministically): ` +
       `${anchors.length} anchor + ${composed.length} composed…`,
   );
+  onProgress({ stage: 'recipes', current: 0, total: recipes.length });
 
+  let recipeIndex = 0;
   for (const recipe of recipes) {
     let calories = 0;
     let protein = 0;
@@ -223,9 +246,14 @@ export async function runSeed(
         },
       });
     }
+    recipeIndex += 1;
+    if (recipeIndex % 50 === 0 || recipeIndex === recipes.length) {
+      onProgress({ stage: 'recipes', current: recipeIndex, total: recipes.length });
+    }
   }
 
   log('Seeding substitution rules…');
+  onProgress({ stage: 'substitutions' });
   const subs = readJson<{ from: string; to: string; note?: string }[]>(dir, 'substitutions.json');
   let substitutions = 0;
   for (const sub of subs) {
@@ -262,8 +290,10 @@ export async function updateDatabase(
   prisma: PrismaClient,
   dir: string = resolveDataDir(),
   log: (msg: string) => void = console.log,
+  onProgress: ProgressCallback = () => {},
 ): Promise<UpdateResult> {
   log('Pruning orphan seed recipes…');
+  onProgress({ stage: 'prune-recipes' });
   const deletedRecipes = await prisma.recipe.deleteMany({
     where: {
       origin: 'seed',
@@ -274,12 +304,13 @@ export async function updateDatabase(
   log(`  removed ${deletedRecipes.count} seed-origin recipes`);
 
   log('Pruning unreferenced ingredients…');
+  onProgress({ stage: 'prune-ingredients' });
   const deletedIngredients = await prisma.ingredient.deleteMany({
     where: { recipeIngredients: { none: {} } },
   });
   log(`  removed ${deletedIngredients.count} unused ingredients`);
 
-  const counts = await runSeed(prisma, dir, log);
+  const counts = await runSeed(prisma, dir, log, onProgress);
   const state = computeDataState(dir);
   const seededAt = new Date();
 

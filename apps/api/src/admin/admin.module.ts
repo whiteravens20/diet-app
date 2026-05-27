@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AdminController } from './admin.controller.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
+import { SeedRunner } from './seed/runner.js';
 
 /**
  * F16 admin module — isolated namespace under `/api/admin/*`. No JWT, no
@@ -11,6 +12,6 @@ import { BasicAuthGuard } from './basic-auth.guard.js';
 @Module({
   imports: [PrismaModule],
   controllers: [AdminController],
-  providers: [BasicAuthGuard],
+  providers: [BasicAuthGuard, SeedRunner],
 })
 export class AdminModule {}

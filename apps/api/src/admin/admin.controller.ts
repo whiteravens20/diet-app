@@ -3,13 +3,13 @@
  * substitution counts and seed bookkeeping. **No per-user signals**, so this
  * panel can never become a user-activity dashboard.
  */
-import { Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { ConflictException, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
 import { computeDataState, resolveDataDir } from './seed/data-hash.js';
-import { updateDatabase } from './seed/seeder.js';
+import { SeedRunner, type RunnerState } from './seed/runner.js';
 
 interface AdminStatusDto {
   enabled: boolean;
@@ -29,19 +29,12 @@ interface AdminStatsDto {
   };
 }
 
-interface DbUpdateDto {
-  deletedRecipes: number;
-  deletedIngredients: number;
-  counts: { ingredients: number; recipes: number; substitutions: number };
-  hash: string;
-  seededAt: string;
-}
-
 @Controller('admin')
 export class AdminController {
   constructor(
     private readonly config: ConfigService<Env, true>,
     private readonly prisma: PrismaService,
+    private readonly runner: SeedRunner,
   ) {}
 
   // Public probe so the /admin UI can render a useful "set ADMIN_PASSWORD"
@@ -81,21 +74,25 @@ export class AdminController {
     };
   }
 
+  /**
+   * Kicks off the updater in the background and returns immediately. The
+   * actual work takes minutes — far longer than any sensible HTTP timeout —
+   * so the panel polls {@link updateStatus} for progress.
+   */
   @Post('db/update')
-  @HttpCode(200)
+  @HttpCode(202)
   @UseGuards(BasicAuthGuard)
-  async updateDb(): Promise<DbUpdateDto> {
-    const result = await updateDatabase(this.prisma, resolveDataDir());
-    return {
-      deletedRecipes: result.deletedRecipes,
-      deletedIngredients: result.deletedIngredients,
-      counts: {
-        ingredients: result.ingredients,
-        recipes: result.recipes,
-        substitutions: result.substitutions,
-      },
-      hash: result.hash,
-      seededAt: result.seededAt.toISOString(),
-    };
+  startUpdate(): RunnerState {
+    const started = this.runner.start();
+    if (!started) {
+      throw new ConflictException('A database update is already in progress.');
+    }
+    return this.runner.getState();
+  }
+
+  @Get('db/update/status')
+  @UseGuards(BasicAuthGuard)
+  updateStatus(): RunnerState {
+    return this.runner.getState();
   }
 }

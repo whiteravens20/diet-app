@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Database, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,9 +11,26 @@ import {
   adminCreds,
   type AdminStats,
   type AdminStatus,
+  type DbUpdateState,
 } from '@/lib/admin-api';
 
 type View = 'loading' | 'disabled' | 'login' | 'ready';
+
+const STAGE_LABELS: Record<string, string> = {
+  starting: 'Starting…',
+  'prune-recipes': 'Removing stale recipes…',
+  'prune-ingredients': 'Removing unused ingredients…',
+  allergens: 'Seeding allergens…',
+  ingredients: 'Seeding ingredients',
+  recipes: 'Seeding recipes',
+  substitutions: 'Seeding substitution rules…',
+  done: 'Done.',
+};
+
+function stageLabel(stage: string | null): string {
+  if (!stage) return 'Working…';
+  return STAGE_LABELS[stage] ?? stage;
+}
 
 export function AdminPanel() {
   const [view, setView] = useState<View>('loading');
@@ -21,8 +38,9 @@ export function AdminPanel() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
-  const [updating, setUpdating] = useState(false);
+  const [progress, setProgress] = useState<DbUpdateState | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadStats = useCallback(async (): Promise<boolean> => {
     try {
@@ -41,6 +59,43 @@ export function AdminPanel() {
     }
   }, []);
 
+  const stopPolling = useCallback((): void => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const handleProgress = useCallback(
+    async (state: DbUpdateState): Promise<void> => {
+      setProgress(state);
+      if (state.status === 'running') return;
+      stopPolling();
+      if (state.status === 'done' && state.result) {
+        const r = state.result;
+        setLastUpdate(
+          `Updated ${new Date(r.seededAt).toLocaleString()} · ` +
+            `removed ${r.deletedRecipes} stale recipes + ${r.deletedIngredients} unused ingredients · ` +
+            `now ${r.counts.ingredients} ingredients / ${r.counts.recipes} recipes.`,
+        );
+        await loadStats();
+      } else if (state.status === 'error') {
+        setUpdateError(state.error ?? 'Update failed.');
+      }
+    },
+    [loadStats, stopPolling],
+  );
+
+  const startPolling = useCallback((): void => {
+    stopPolling();
+    pollRef.current = setInterval(() => {
+      void adminApi.dbUpdateStatus().then(handleProgress).catch((err: unknown) => {
+        stopPolling();
+        setUpdateError(err instanceof Error ? err.message : 'Lost connection to API.');
+      });
+    }, 1000);
+  }, [handleProgress, stopPolling]);
+
   useEffect(() => {
     void (async () => {
       const s = await adminApi.status();
@@ -57,6 +112,20 @@ export function AdminPanel() {
     })();
   }, [loadStats]);
 
+  // Stale-job recovery: if the API was already running an update when this
+  // tab opened (e.g. another browser triggered it), resume the progress
+  // display instead of letting the user kick off a second one.
+  useEffect(() => {
+    if (view !== 'ready') return;
+    void adminApi.dbUpdateStatus().then((state) => {
+      if (state.status === 'running') {
+        setProgress(state);
+        startPolling();
+      }
+    });
+    return stopPolling;
+  }, [view, startPolling, stopPolling]);
+
   async function onLogin(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setLoginError(null);
@@ -67,22 +136,18 @@ export function AdminPanel() {
   }
 
   async function onUpdate(): Promise<void> {
-    setUpdating(true);
     setUpdateError(null);
+    setLastUpdate(null);
     try {
-      const result = await adminApi.updateDb();
-      setLastUpdate(
-        `Updated ${new Date(result.seededAt).toLocaleString()} · ` +
-          `removed ${result.deletedRecipes} stale recipes + ${result.deletedIngredients} unused ingredients · ` +
-          `now ${result.counts.ingredients} ingredients / ${result.counts.recipes} recipes.`,
-      );
-      await loadStats();
+      const state = await adminApi.startDbUpdate();
+      setProgress(state);
+      startPolling();
     } catch (err) {
       setUpdateError(err instanceof Error ? err.message : 'Update failed.');
-    } finally {
-      setUpdating(false);
     }
   }
+
+  const updating = progress?.status === 'running';
 
   if (view === 'loading') {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -224,6 +289,7 @@ export function AdminPanel() {
               ingredient no recipe uses, then re-seeds from <code>data/*.json</code>.
               User profiles, plans, favorites and inventory are preserved.
             </p>
+            {updating && progress && <ProgressBar state={progress} />}
             {lastUpdate && <p className="text-xs text-emerald-600 dark:text-emerald-400">{lastUpdate}</p>}
             {updateError && <p className="text-xs text-destructive">{updateError}</p>}
           </div>
@@ -241,6 +307,34 @@ function StatCard({ label, value }: { label: string; value: number }) {
         <p className="mt-1 text-3xl font-semibold tabular-nums">{value.toLocaleString()}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function ProgressBar({ state }: { state: DbUpdateState }) {
+  const hasTotal = state.total != null && state.total > 0;
+  const pct = hasTotal ? Math.min(100, Math.round(((state.current ?? 0) / state.total!) * 100)) : null;
+  const label = stageLabel(state.stage);
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span>{label}</span>
+        {hasTotal && (
+          <span className="tabular-nums text-muted-foreground">
+            {state.current?.toLocaleString()} / {state.total?.toLocaleString()} ({pct}%)
+          </span>
+        )}
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+        {hasTotal ? (
+          <div
+            className="h-full bg-primary transition-[width] duration-500"
+            style={{ width: `${pct ?? 0}%` }}
+          />
+        ) : (
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/60" />
+        )}
+      </div>
+    </div>
   );
 }
 
