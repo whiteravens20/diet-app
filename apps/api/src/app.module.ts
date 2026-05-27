@@ -14,6 +14,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { ProfilesModule } from './profiles/profiles.module.js';
 import { RecipesModule } from './recipes/recipes.module.js';
 import { ShoppingListsModule } from './shopping-lists/shopping-lists.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ShoppingListsModule } from './shopping-lists/shopping-lists.module.js';
     ShoppingListsModule,
     AiModule,
     AdminModule,
+    UsersModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

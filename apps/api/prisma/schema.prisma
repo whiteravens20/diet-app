@@ -32,6 +32,10 @@ model User {
   displayName    String
   role           Role     @default(user)
   emailVerified  Boolean  @default(false)
+  // ISO 639-1; constrained at the API layer to the Locale enum in packages/shared.
+  locale         String   @default("en")
+  // 'light' | 'dark' | 'system' — constrained at the API layer.
+  theme          String   @default("system")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -154,8 +158,21 @@ enum Unit {
   piece
 }
 
+// Provenance for translation rows. CURATED_JSON rows are derived from
+// data/*.json and re-written on every seed; AI / MANUAL rows survive re-seeds
+// so operator-generated translations are not lost when curated data is updated.
+enum TranslationSource {
+  CURATED_JSON
+  AI
+  MANUAL
+}
+
 model Ingredient {
   id               String          @id @default(uuid())
+  // Stable kebab-case identifier from data/*.json. Used by the seeder to upsert
+  // rows and by the translation tables to join on. Nullable during the
+  // migration window; backfilled then enforced by a follow-up migration.
+  slug             String?         @unique
   name             String          @unique
   category         ProductCategory
   canonicalUnit    Unit
@@ -178,8 +195,26 @@ model Ingredient {
   recipeIngredients  RecipeIngredient[]
   substitutionsFrom  SubstitutionRule[] @relation("SubFrom")
   substitutionsTo    SubstitutionRule[] @relation("SubTo")
+  translations       IngredientTranslation[]
 
   @@index([category])
+}
+
+// Per-locale display strings for an Ingredient. Numeric/structural fields stay
+// on Ingredient — only user-facing text is localised. See docs/adr/ for the
+// curated-vs-AI translation split.
+model IngredientTranslation {
+  ingredientId String
+  locale       String
+  name         String
+  storageHint  String?
+  source       TranslationSource @default(CURATED_JSON)
+  updatedAt    DateTime          @updatedAt
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@id([ingredientId, locale])
+  @@index([locale])
+  @@index([source])
 }
 
 // Explicit nutrition rows — supports alternate serving sizes and audit trail.
@@ -230,6 +265,9 @@ enum Difficulty {
 
 model Recipe {
   id          String       @id @default(uuid())
+  // Stable kebab-case identifier for seed-origin recipes; null for user/AI
+  // recipes. Used by the seeder + translation tables, same role as Ingredient.slug.
+  slug        String?      @unique
   title       String
   description String
   servings    Int
@@ -255,8 +293,27 @@ model Recipe {
   ingredients  RecipeIngredient[]
   plannedMeals PlannedMeal[]
   favorites    Favorite[]
+  translations RecipeTranslation[]
 
   @@index([origin])
+}
+
+// Per-locale display strings for a Recipe. `steps` is an array because recipe
+// steps are an ordered list and translating each step in place is more accurate
+// than translating one concatenated blob.
+model RecipeTranslation {
+  recipeId    String
+  locale      String
+  title       String
+  description String
+  steps       String[]          @default([])
+  source      TranslationSource @default(CURATED_JSON)
+  updatedAt   DateTime          @updatedAt
+  recipe      Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, locale])
+  @@index([locale])
+  @@index([source])
 }
 
 model RecipeIngredient {

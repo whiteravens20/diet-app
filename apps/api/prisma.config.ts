@@ -21,5 +21,9 @@ export default defineConfig({
   },
   datasource: {
     url: process.env.DATABASE_URL ?? '',
+    // Optional shadow DB for `prisma migrate diff` / `migrate dev` in non-
+    // interactive mode (e.g. CI). When unset, `migrate dev` still works
+    // interactively because it creates its own shadow DB transiently.
+    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
   },
 });

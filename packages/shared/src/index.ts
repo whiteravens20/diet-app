@@ -9,6 +9,7 @@
 export * from './enums.js';
 export * from './nutrition.js';
 export * from './auth.js';
+export * from './settings.js';
 export * from './profile.js';
 export * from './ingredient.js';
 export * from './recipe.js';
