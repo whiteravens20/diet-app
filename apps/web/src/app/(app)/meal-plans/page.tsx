@@ -354,7 +354,7 @@ function PlanCard({
   // Which meal's ingredient-substitution modal is open, if any.
   const [openSub, setOpenSub] = useState<MealPlan['days'][number]['meals'][number] | null>(null);
   return (
-    <Card className="max-w-3xl">
+    <Card className="max-w-4xl">
       <div className="flex items-center justify-between gap-4 p-4">
         <button type="button" onClick={onToggle} className="flex-1 text-left">
           <p className="font-medium">
@@ -427,8 +427,8 @@ function PlanCard({
                   const mealLabel = tMeal.has(m.mealType) ? tMeal(m.mealType) : m.mealType.replace('_', ' ');
                   return (
                     <li key={m.id} className="space-y-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <span>
+                      <div className="flex items-center justify-between gap-6">
+                        <span className="min-w-0 flex-1">
                           <span className="text-muted-foreground">{mealLabel}</span>{' '}
                           ·{' '}
                           <Link
@@ -438,7 +438,7 @@ function PlanCard({
                             {m.recipe.title}
                           </Link>
                         </span>
-                        <span className="flex items-center gap-2">
+                        <span className="flex shrink-0 items-center gap-4">
                           <span className="tabular-nums text-muted-foreground">
                             {m.nutrition.calories} kcal
                           </span>
