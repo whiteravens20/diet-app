@@ -83,6 +83,11 @@ Rules — follow strictly:
    ingredients that are not in the source text.
 7. If you cannot translate a fragment confidently, return the original
    English text for that key unchanged. Do NOT guess.
+8. Output literal characters in JSON values. Never HTML-escape
+   (no \`&amp;\`, \`&quot;\`, \`&lt;\`, etc.) — use the real \`&\`, \`"\`, \`<\`.
+9. Translate the ampersand \`&\` as the target-language equivalent of "and"
+   (e.g. Polish "i", German "und"). Do NOT carry the \`&\` symbol through to
+   the translation.
 
 ${fewShot}Translate this object:
 ${JSON.stringify(source)}`;

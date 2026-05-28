@@ -88,6 +88,27 @@ export function extractJson(raw: string): string {
   return trimmed;
 }
 
+/**
+ * Decode the handful of HTML entities LLMs trained on web data occasionally
+ * emit when they see special characters in JSON values — most commonly `&`
+ * (recipe titles like "Avocado & egg keto plate") which comes back as
+ * `&amp;`. Without this, the entity literal lands in the DB and renders to
+ * users as "Avocado &amp; egg". Operates on parsed string values, NOT on the
+ * raw JSON string, so it can't corrupt structural quotes.
+ */
+export function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#0*39;/g, "'")
+    .replace(/&#0*34;/g, '"')
+    .replace(/&#x27;/gi, "'")
+    .replace(/&#x22;/gi, '"');
+}
+
 export function validate(opts: ValidateOptions): ValidationResult {
   const { source, targetLocale, rawOutput } = opts;
   const sourceKeys = Object.keys(source);
@@ -118,7 +139,10 @@ export function validate(opts: ValidateOptions): ValidationResult {
     if (typeof value !== 'string') {
       return { ok: false, reason: 'missing-keys', key };
     }
-    const trimmed = value.trim();
+    // Decode HTML entities BEFORE the source-identical check so a model that
+    // returned the source verbatim *but HTML-escaped* (e.g. "Avocado &amp; egg"
+    // for source "Avocado & egg") is correctly flagged as identical-to-source.
+    const trimmed = decodeHtmlEntities(value.trim());
     const srcVal = source[key];
 
     // LLM yapping prefixes / chatty refusals.

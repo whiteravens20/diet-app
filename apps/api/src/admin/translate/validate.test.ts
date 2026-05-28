@@ -4,7 +4,7 @@
  * shows up in production logs.
  */
 import { describe, expect, it } from 'vitest';
-import { extractJson, validate, type ValidationReason } from './validate.js';
+import { decodeHtmlEntities, extractJson, validate, type ValidationReason } from './validate.js';
 
 const SOURCE_PL = {
   name: 'Chicken breast',
@@ -133,6 +133,46 @@ describe('validate — accepted', () => {
       });
     });
   }
+});
+
+describe('decodeHtmlEntities', () => {
+  it('decodes &amp; to &', () => {
+    expect(decodeHtmlEntities('Avocado &amp; egg')).toBe('Avocado & egg');
+  });
+  it('decodes numeric and named apostrophe entities', () => {
+    expect(decodeHtmlEntities('don&#39;t')).toBe("don't");
+    expect(decodeHtmlEntities('don&apos;t')).toBe("don't");
+    expect(decodeHtmlEntities('don&#x27;t')).toBe("don't");
+  });
+  it('decodes quote and angle-bracket entities', () => {
+    expect(decodeHtmlEntities('she said &quot;hi&quot;')).toBe('she said "hi"');
+    expect(decodeHtmlEntities('5 &lt; 10 &gt; 1')).toBe('5 < 10 > 1');
+  });
+  it('leaves plain text untouched', () => {
+    expect(decodeHtmlEntities('Pierś z kurczaka')).toBe('Pierś z kurczaka');
+  });
+});
+
+describe('validate — HTML-entity tolerance', () => {
+  it('decodes &amp; in the translation before storing', () => {
+    const result = validate({
+      source: { title: 'Avocado & egg keto plate' },
+      targetLocale: 'pl',
+      rawOutput: '{"title":"Talerz keto z awokado &amp; jajkiem"}',
+    });
+    expect(result.ok).toBe(true);
+    expect(result.translations?.title).toBe('Talerz keto z awokado & jajkiem');
+  });
+
+  it('still flags identical-to-source when the model HTML-escaped without translating', () => {
+    const result = validate({
+      source: { title: 'Avocado & egg keto plate' },
+      targetLocale: 'pl',
+      rawOutput: '{"title":"Avocado &amp; egg keto plate"}',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('identical-to-source');
+  });
 });
 
 describe('validate — passthrough tokens', () => {
