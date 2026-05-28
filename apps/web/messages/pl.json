@@ -367,7 +367,13 @@
     "noneFavorites": "Żaden przepis nie pasuje do filtrów i Twoich ulubionych składników.",
     "noneFiltered": "Żaden przepis nie pasuje do bieżących filtrów.",
     "noneAtAll": "Brak przepisów.",
-    "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min"
+    "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
+    "pagination": {
+      "label": "Strony przepisów",
+      "summary": "Wyświetlam {start}–{end} z {total}",
+      "prev": "Poprzednia",
+      "next": "Następna"
+    }
   },
   "recipeDetail": {
     "back": "Wróć do przepisów",

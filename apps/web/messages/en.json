@@ -367,7 +367,13 @@
     "noneFavorites": "No recipes match the filters and your favourite ingredients.",
     "noneFiltered": "No recipes match the current filters.",
     "noneAtAll": "No recipes.",
-    "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min"
+    "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
+    "pagination": {
+      "label": "Recipe pages",
+      "summary": "Showing {start}–{end} of {total}",
+      "prev": "Prev",
+      "next": "Next"
+    }
   },
   "recipeDetail": {
     "back": "Back to recipes",

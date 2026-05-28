@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Locale, Recipe } from '@diet-app/shared';
+import type { Prisma } from '@prisma/client';
+import type { Locale, Recipe, RecipeSearchPage } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export interface RecipeFilters {
@@ -10,6 +11,9 @@ export interface RecipeFilters {
   maxPrepMinutes?: number;
   difficulty?: string;
 }
+
+const DEFAULT_PAGE_SIZE = 36;
+const MAX_PAGE_SIZE = 100;
 
 /** Locale-aware include shape — fetches translation rows for the requested
  *  locale AND the canonical `en` fallback in one query. */
@@ -41,35 +45,55 @@ export function searchMatch(query: string, locale: Locale) {
 export class RecipesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(userId: string, locale: Locale, filters: RecipeFilters): Promise<Recipe[]> {
+  async search(
+    userId: string,
+    locale: Locale,
+    filters: RecipeFilters,
+    paging: { page?: number; pageSize?: number } = {},
+  ): Promise<RecipeSearchPage> {
+    const pageSize = Math.min(Math.max(paging.pageSize ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+    const page = Math.max(paging.page ?? 1, 1);
     // Two AND-ed groups: ownership AND the actual filters. We split them
     // because Prisma's top-level `OR` can't co-exist with a second `OR` for
     // the locale-aware search match.
-    const rows = await this.prisma.recipe.findMany({
-      where: {
-        AND: [
-          // User-origin recipes (ingredient-substitution variants) are
-          // private to their creator — everyone else only sees seed +
-          // AI-validated recipes.
-          { OR: [{ origin: { not: 'user' } }, { createdByUserId: userId }] },
-          ...(filters.search ? [searchMatch(filters.search, locale)] : []),
-          ...(filters.dietType ? [{ dietTags: { has: filters.dietType } }] : []),
-          ...(filters.mealType ? [{ mealTypes: { has: filters.mealType } }] : []),
-          ...(filters.maxCalories ? [{ caloriesPerServing: { lte: filters.maxCalories } }] : []),
-          ...(filters.maxPrepMinutes ? [{ prepMinutes: { lte: filters.maxPrepMinutes } }] : []),
-          ...(filters.difficulty
-            ? [{ difficulty: filters.difficulty as 'easy' | 'medium' | 'hard' }]
-            : []),
-        ],
-      },
-      include: {
-        ingredients: { include: { ingredient: { include: translationsFor(locale) } } },
-        ...translationsFor(locale),
-      },
-      orderBy: { title: 'asc' },
-      take: 200,
-    });
-    return rows.map((r) => toRecipeDto(r, locale));
+    const where: Prisma.RecipeWhereInput = {
+      AND: [
+        // User-origin recipes (ingredient-substitution variants) are
+        // private to their creator — everyone else only sees seed +
+        // AI-validated recipes.
+        { OR: [{ origin: { not: 'user' } }, { createdByUserId: userId }] },
+        ...(filters.search ? [searchMatch(filters.search, locale)] : []),
+        ...(filters.dietType ? [{ dietTags: { has: filters.dietType } }] : []),
+        ...(filters.mealType ? [{ mealTypes: { has: filters.mealType } }] : []),
+        ...(filters.maxCalories ? [{ caloriesPerServing: { lte: filters.maxCalories } }] : []),
+        ...(filters.maxPrepMinutes ? [{ prepMinutes: { lte: filters.maxPrepMinutes } }] : []),
+        ...(filters.difficulty
+          ? [{ difficulty: filters.difficulty as 'easy' | 'medium' | 'hard' }]
+          : []),
+      ],
+    };
+    // Total + page in parallel — both queries cost roughly the same; doing
+    // them sequentially would double the latency for no benefit.
+    const [total, rows] = await Promise.all([
+      this.prisma.recipe.count({ where }),
+      this.prisma.recipe.findMany({
+        where,
+        include: {
+          ingredients: { include: { ingredient: { include: translationsFor(locale) } } },
+          ...translationsFor(locale),
+        },
+        orderBy: { title: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    return {
+      items: rows.map((r) => toRecipeDto(r, locale)),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async get(userId: string, locale: Locale, id: string): Promise<Recipe> {

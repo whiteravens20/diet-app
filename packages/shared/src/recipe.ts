@@ -42,3 +42,13 @@ export const Recipe = z.object({
   origin: z.enum(['seed', 'ai', 'user']),
 });
 export type Recipe = z.infer<typeof Recipe>;
+
+/** Paginated recipe list — returned by `GET /recipes`. */
+export const RecipeSearchPage = z.object({
+  items: z.array(Recipe),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+  total: z.number().int().min(0),
+  totalPages: z.number().int().min(0),
+});
+export type RecipeSearchPage = z.infer<typeof RecipeSearchPage>;

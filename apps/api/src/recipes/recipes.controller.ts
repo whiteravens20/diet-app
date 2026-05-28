@@ -20,15 +20,25 @@ export class RecipesController {
     @Query('maxCalories') maxCalories?: string,
     @Query('maxPrepMinutes') maxPrepMinutes?: string,
     @Query('difficulty') difficulty?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ) {
-    return this.recipes.search(user.id, locale, {
-      search,
-      dietType,
-      mealType,
-      maxCalories: maxCalories ? Number(maxCalories) : undefined,
-      maxPrepMinutes: maxPrepMinutes ? Number(maxPrepMinutes) : undefined,
-      difficulty,
-    });
+    return this.recipes.search(
+      user.id,
+      locale,
+      {
+        search,
+        dietType,
+        mealType,
+        maxCalories: maxCalories ? Number(maxCalories) : undefined,
+        maxPrepMinutes: maxPrepMinutes ? Number(maxPrepMinutes) : undefined,
+        difficulty,
+      },
+      {
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+      },
+    );
   }
 
   @Get(':id')

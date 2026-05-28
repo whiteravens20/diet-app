@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import type { Profile, Recipe } from '@diet-app/shared';
+import type { Profile, RecipeSearchPage } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -39,6 +39,8 @@ export default function RecipesPage() {
   const [maxPrepMinutes, setMaxPrepMinutes] = useState('');
   const [usesFavorites, setUsesFavorites] = useState(false);
   const [favoritesProfileId, setFavoritesProfileId] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 36;
 
   // Server-side filters get encoded into the query string; client-side
   // favourites filter runs after the fetch.
@@ -50,13 +52,19 @@ export default function RecipesPage() {
     if (difficulty) p.set('difficulty', difficulty);
     if (maxCalories) p.set('maxCalories', maxCalories);
     if (maxPrepMinutes) p.set('maxPrepMinutes', maxPrepMinutes);
-    const s = p.toString();
-    return s ? `?${s}` : '';
-  }, [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes]);
+    p.set('page', String(page));
+    p.set('pageSize', String(PAGE_SIZE));
+    return `?${p.toString()}`;
+  }, [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes, page]);
+
+  // Any filter change resets to page 1 — keeps the user from landing on
+  // page 5 of a freshly-narrowed result set.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useMemo(() => setPage(1), [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes]);
 
   const recipes = useQuery({
     queryKey: ['recipes', queryString],
-    queryFn: () => api.get<Recipe[]>(`/recipes${queryString}`),
+    queryFn: () => api.get<RecipeSearchPage>(`/recipes${queryString}`),
   });
 
   const profiles = useQuery({
@@ -72,10 +80,13 @@ export default function RecipesPage() {
   );
 
   const filtered = useMemo(() => {
-    const list = recipes.data ?? [];
+    const list = recipes.data?.items ?? [];
     if (!usesFavorites || favoriteIds.size === 0) return list;
     return list.filter((r) => r.ingredients.some((i) => favoriteIds.has(i.ingredientId)));
   }, [recipes.data, usesFavorites, favoriteIds]);
+
+  const totalPages = recipes.data?.totalPages ?? 0;
+  const totalItems = recipes.data?.total ?? 0;
 
   const anyServerFilter = Boolean(
     dietType || mealType || difficulty || maxCalories || maxPrepMinutes,
@@ -209,33 +220,115 @@ export default function RecipesPage() {
               : t('noneAtAll')}
         </p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((r) => (
-            <Link key={r.id} href={`/recipes/${r.id}`}>
-              <Card className="h-full p-4 transition-shadow hover:shadow-md">
-                <p className="font-medium">{r.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t('cardMeta', {
-                    kcal: r.nutritionPerServing.calories,
-                    difficulty: tDifficulty(r.difficulty),
-                    minutes: r.prepMinutes + r.cookMinutes,
-                  })}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {r.dietTags.map((d) => (
-                    <span
-                      key={d}
-                      className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
-                    >
-                      {tDiet.has(d) ? tDiet(d) : d.replace('_', ' ')}
-                    </span>
-                  ))}
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((r) => (
+              <Link key={r.id} href={`/recipes/${r.id}`}>
+                <Card className="h-full p-4 transition-shadow hover:shadow-md">
+                  <p className="font-medium">{r.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t('cardMeta', {
+                      kcal: r.nutritionPerServing.calories,
+                      difficulty: tDifficulty(r.difficulty),
+                      minutes: r.prepMinutes + r.cookMinutes,
+                    })}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {r.dietTags.map((d) => (
+                      <span
+                        key={d}
+                        className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+                      >
+                        {tDiet.has(d) ? tDiet(d) : d.replace('_', ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={PAGE_SIZE}
+              onChange={setPage}
+            />
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  totalItems,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onChange: (p: number) => void;
+}) {
+  const t = useTranslations('recipes');
+  // Sliding window: show current ± 2, plus first / last with ellipses where
+  // there's a gap. Keeps the bar short on a 37-page library.
+  const pages: (number | 'gap')[] = [];
+  const lo = Math.max(2, page - 2);
+  const hi = Math.min(totalPages - 1, page + 2);
+  pages.push(1);
+  if (lo > 2) pages.push('gap');
+  for (let p = lo; p <= hi; p++) pages.push(p);
+  if (hi < totalPages - 1) pages.push('gap');
+  if (totalPages > 1) pages.push(totalPages);
+
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalItems);
+
+  return (
+    <nav
+      aria-label={t('pagination.label')}
+      className="mt-4 flex flex-wrap items-center justify-between gap-3"
+    >
+      <p className="text-xs text-muted-foreground">
+        {t('pagination.summary', { start, end, total: totalItems })}
+      </p>
+      <div className="flex items-center gap-1">
+        <Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => onChange(page - 1)}>
+          {t('pagination.prev')}
+        </Button>
+        {pages.map((p, idx) =>
+          p === 'gap' ? (
+            <span key={`gap-${idx}`} className="px-2 text-xs text-muted-foreground">
+              …
+            </span>
+          ) : (
+            <Button
+              key={p}
+              type="button"
+              size="sm"
+              variant={p === page ? 'primary' : 'outline'}
+              onClick={() => onChange(p)}
+            >
+              {p}
+            </Button>
+          ),
+        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+        >
+          {t('pagination.next')}
+        </Button>
+      </div>
+    </nav>
   );
 }
