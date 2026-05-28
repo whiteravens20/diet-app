@@ -69,6 +69,37 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── One-shot: seed the `app-data` volume from the image ────────────────────
+  # The api image bakes `data/*.json` (curated ingredients, recipes,
+  # substitutions) into `/app/data`. Docker auto-populates a fresh named
+  # volume from the image's contents on first attach, but does NOT re-seed it
+  # on subsequent boots — so without this init, upgrading IMAGE_TAG would
+  # leave the running stack on the old curated data.
+  #
+  # We mount the volume at `/target` (a non-/app/data path) so the image's
+  # baked-in files are visible, then copy curated JSON in — always
+  # overwriting, because curated data is image-owned (see docs/adr/0007).
+  # The user-owned `ingredients.generated.json` (USDA importer output) is
+  # left alone. Final chown gives the `node` user (uid 1000) in api / worker
+  # write access for the USDA importer.
+  data-init:
+    image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    container_name: diet-app-data-init
+    pull_policy: always
+    networks: [diet-app]
+    user: root
+    command:
+      - sh
+      - -c
+      - |
+        cp -f /app/data/ingredients.json   /target/ingredients.json
+        cp -f /app/data/recipes.json       /target/recipes.json
+        cp -f /app/data/substitutions.json /target/substitutions.json
+        chown -R 1000:1000 /target
+    volumes:
+      - app-data:/target
+    restart: 'no'
+
   # ── One-shot: apply pending migrations and exit ─────────────────────────────
   # Same image as `api`, different entrypoint. `api` and `worker` depend on
   # this so they never start against an un-migrated database. Safe to re-run:
@@ -113,11 +144,13 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
+      data-init: { condition: service_completed_successfully }
     volumes:
-      # Bind-mount a host `data/` directory so the admin USDA importer's
-      # output (`ingredients.generated.json`) survives container recreates
-      # and is shared with the worker. Created automatically on first boot.
-      - ./data:/app/data
+      # Named volume shared with `worker`. Curated `*.json` are seeded into
+      # this volume by `data-init` on every boot (so image upgrades
+      # propagate); the USDA importer writes `ingredients.generated.json`
+      # here at runtime and that file survives container recreates.
+      - app-data:/app/data
       # No `ports:` block — the API is reached by `web` over the internal Docker
       # network at `http://api:4000`, never from the public internet. If you
       # later want to serve a second subdomain (e.g. api.example.com for a
@@ -158,8 +191,9 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
+      data-init: { condition: service_completed_successfully }
     volumes:
-      - ./data:/app/data
+      - app-data:/app/data
 
   web:
     image: ghcr.io/whiteravens20/diet-app/web:${IMAGE_TAG:-latest}
@@ -204,3 +238,8 @@ volumes:
   postgres-data:
   redis-data:
   ollama-models:
+  # Curated `data/*.json` (from the image, refreshed by `data-init` on every
+  # boot) + the user-owned `ingredients.generated.json` from the USDA
+  # importer. Internal to the Docker engine — no host directory needed.
+  # Inspect via `docker run --rm -v diet-app_app-data:/data alpine ls /data`.
+  app-data:
