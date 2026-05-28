@@ -1,0 +1,13 @@
+# ── Pre-commit gate ───────────────────────────────────────────────────────────
+# Mirrors the CI checks that don't need Postgres/Redis so a failing commit can
+# never reach origin. Vitest is intentionally NOT here — it needs the DB
+# services and is slow; run `npm test` manually before a PR.
+#
+# Bypass (only for true emergencies, and fix in the next commit):
+#   git commit --no-verify
+# ──────────────────────────────────────────────────────────────────────────────
+
+set -e
+npm run lint
+npm run typecheck
+npm run data:lint
