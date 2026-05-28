@@ -19,7 +19,7 @@ import {
   type UsdaImportRunnerState,
 } from '@/lib/admin-api';
 
-type View = 'loading' | 'disabled' | 'login' | 'ready';
+type View = 'loading' | 'disabled' | 'unreachable' | 'login' | 'ready';
 
 /** Maps a server stage string to its translation key under admin.stages. */
 const STAGE_KEY: Record<string, string> = {
@@ -42,6 +42,7 @@ export function AdminPanel() {
   const [translations, setTranslations] = useState<TranslationStatusEntry[] | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [unreachableDetail, setUnreachableDetail] = useState<string | null>(null);
   const [progress, setProgress] = useState<DbUpdateState | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -105,8 +106,11 @@ export function AdminPanel() {
     }, 1000);
   }, [handleProgress, stopPolling, t]);
 
-  useEffect(() => {
-    void (async () => {
+  // Probe `/admin/status`, then either show the disabled banner, the login
+  // form, or fetch stats. Wrapped in try/catch so a proxy / network error
+  // surfaces an actionable card instead of leaving the user on "Loading…".
+  const probe = useCallback(async (): Promise<void> => {
+    try {
       const s = await adminApi.status();
       setStatus(s);
       if (!s.enabled) {
@@ -118,8 +122,23 @@ export function AdminPanel() {
       } else {
         setView('login');
       }
-    })();
+    } catch (err) {
+      setUnreachableDetail(err instanceof Error ? err.message : String(err));
+      setView('unreachable');
+    }
   }, [loadStats]);
+
+  useEffect(() => {
+    void (async () => {
+      await probe();
+    })();
+  }, [probe]);
+
+  const onRetry = (): void => {
+    setView('loading');
+    setUnreachableDetail(null);
+    void probe();
+  };
 
   // Stale-job recovery: if the API was already running an update when this
   // tab opened (e.g. another browser triggered it), resume the progress
@@ -166,6 +185,27 @@ export function AdminPanel() {
 
   if (view === 'loading') {
     return <p className="text-sm text-muted-foreground">{t('loading')}</p>;
+  }
+
+  if (view === 'unreachable') {
+    return (
+      <Card className="border-destructive/40 bg-destructive/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" /> {t('unreachable')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm">{t('unreachableHint')}</p>
+          {unreachableDetail ? (
+            <pre className="overflow-x-auto rounded bg-muted p-3 text-xs">{unreachableDetail}</pre>
+          ) : null}
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            <RefreshCw className="mr-2 h-4 w-4" /> {t('retry')}
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (view === 'disabled') {
