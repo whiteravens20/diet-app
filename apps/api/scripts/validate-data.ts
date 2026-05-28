@@ -21,11 +21,24 @@ import { Allergen, DietType, MealType, ProductCategory, Unit } from '@diet-app/s
 
 const dataDir = join(dirname(fileURLToPath(import.meta.url)), '../../../data');
 
-// Seed-input shapes (no `id` — the DB assigns those). Mirror the runtime Zod
-// schemas in `@diet-app/shared` so a contract change forces a corresponding
-// data-format change here.
+// Seed-input shapes. Mirror the runtime `Localised<T>` contract in
+// `apps/api/src/admin/seed/seeder.ts`: every human-readable field is either a
+// bare string (legacy / composer output) OR a per-locale object that MUST
+// carry an `en` key. The seeder normalises both into translation-table rows.
+const localisedString = z.union([
+  z.string().min(1),
+  z.object({ en: z.string().min(1) }).catchall(z.string().min(1)),
+]);
+const localisedStringArray = z.union([
+  z.array(z.string().min(1)).min(1),
+  z
+    .object({ en: z.array(z.string().min(1)).min(1) })
+    .catchall(z.array(z.string().min(1)).min(1)),
+]);
+
 const IngredientSeed = z.object({
-  name: z.string().min(1),
+  slug: z.string().min(1).optional(),
+  name: localisedString,
   category: ProductCategory,
   canonicalUnit: Unit,
   caloriesPer100: z.number().min(0),
@@ -38,13 +51,15 @@ const IngredientSeed = z.object({
   dietCompatibility: z.array(DietType),
   tags: z.array(z.string()),
   packSize: z.number().min(0).optional(),
-  storageHint: z.string().optional(),
+  storageHint: localisedString.optional(),
   source: z.string().optional(),
 });
+type IngredientSeed = z.infer<typeof IngredientSeed>;
 
 const RecipeSeed = z.object({
-  title: z.string().min(1),
-  description: z.string().min(1),
+  slug: z.string().min(1).optional(),
+  title: localisedString,
+  description: localisedString,
   servings: z.number().int().min(1),
   mealTypes: z.array(MealType).min(1),
   dietTags: z.array(DietType),
@@ -53,22 +68,34 @@ const RecipeSeed = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard']),
   ingredients: z
     .array(
-      z.object({
-        name: z.string().min(1),
-        quantity: z.number().min(0),
-        unit: Unit,
-        note: z.string().optional(),
-      }),
+      z
+        .object({
+          slug: z.string().min(1).optional(),
+          name: z.string().min(1).optional(),
+          quantity: z.number().min(0),
+          unit: Unit,
+          note: z.string().optional(),
+        })
+        .refine((l) => l.slug || l.name, {
+          message: 'ingredient line needs either `slug` or `name`',
+        }),
     )
     .min(1),
-  steps: z.array(z.string().min(1)).min(1),
+  steps: localisedStringArray,
 });
+type RecipeSeed = z.infer<typeof RecipeSeed>;
 
 const SubstitutionSeed = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
-  note: z.string().optional(),
+  note: localisedString.optional(),
 });
+
+/** Pull the canonical English string out of a Localised<string> for indexing
+ *  + diagnostics. Mirrors the seeder's `pickEnglish()`. */
+function en(value: string | { en: string }): string {
+  return typeof value === 'string' ? value : value.en;
+}
 
 interface Failure {
   file: string;
@@ -122,13 +149,14 @@ function main(): void {
 
   // Cross-file dupes within the *same* file are a bug. Cross-file dupes
   // between curated and generated are expected (the seed layer dedupes —
-  // curated wins) so don't flag those.
-  const dupCheck = (rows: { name: string }[], file: string): void => {
+  // curated wins) so don't flag those. Dedup key: slug if present, else
+  // lowercased EN name — matches the seeder's identity rule.
+  const dupCheck = (rows: IngredientSeed[], file: string): void => {
     const seen = new Set<string>();
     rows.forEach((row, i) => {
-      const key = row.name.toLowerCase();
+      const key = row.slug ?? en(row.name).toLowerCase();
       if (seen.has(key)) {
-        failures.push({ file, path: `[${i}].name`, message: `duplicate name "${row.name}"` });
+        failures.push({ file, path: `[${i}]`, message: `duplicate identity "${key}"` });
       }
       seen.add(key);
     });
@@ -139,29 +167,35 @@ function main(): void {
   const recipes = readJsonArray('recipes.json', RecipeSeed);
   const subs = readJsonArray('substitutions.json', SubstitutionSeed);
 
-  // Referential integrity: recipes + substitutions can only reference
-  // ingredients we actually have.
-  const ingredientNames = new Set(merged.map((i) => i.name));
+  // Referential integrity: recipe ingredient lines and substitutions can
+  // only reference ingredients we actually have. Match by slug first,
+  // fall back to lowercased EN name — same lookup rule as the seeder.
+  const ingredientSlugs = new Set(merged.map((i) => i.slug).filter((s): s is string => !!s));
+  const ingredientNamesLc = new Set(merged.map((i) => en(i.name).toLowerCase()));
+  const ingredientExists = (ref: string): boolean =>
+    ingredientSlugs.has(ref) || ingredientNamesLc.has(ref.toLowerCase());
+
   recipes.forEach((recipe, i) => {
     recipe.ingredients.forEach((line, j) => {
-      if (!ingredientNames.has(line.name)) {
+      const ref = line.slug ?? line.name!;
+      if (!ingredientExists(ref)) {
         failures.push({
           file: 'recipes.json',
-          path: `[${i}].ingredients[${j}].name`,
-          message: `unknown ingredient "${line.name}" (not in ingredients.json or .generated.json)`,
+          path: `[${i}].ingredients[${j}]`,
+          message: `unknown ingredient "${ref}" (not in ingredients.json or .generated.json)`,
         });
       }
     });
   });
   subs.forEach((sub, i) => {
-    if (!ingredientNames.has(sub.from)) {
+    if (!ingredientExists(sub.from)) {
       failures.push({
         file: 'substitutions.json',
         path: `[${i}].from`,
         message: `unknown ingredient "${sub.from}"`,
       });
     }
-    if (!ingredientNames.has(sub.to)) {
+    if (!ingredientExists(sub.to)) {
       failures.push({
         file: 'substitutions.json',
         path: `[${i}].to`,

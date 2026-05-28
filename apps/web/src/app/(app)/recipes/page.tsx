@@ -42,6 +42,16 @@ export default function RecipesPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 36;
 
+  // Reset to page 1 whenever the filter set changes — React's "adjusting
+  // state on prop change during render" pattern (preferred over useEffect
+  // for derived resets; doesn't schedule an extra render).
+  const filterKey = [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes].join('|');
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (lastFilterKey !== filterKey) {
+    setLastFilterKey(filterKey);
+    setPage(1);
+  }
+
   // Server-side filters get encoded into the query string; client-side
   // favourites filter runs after the fetch.
   const queryString = useMemo(() => {
@@ -56,11 +66,6 @@ export default function RecipesPage() {
     p.set('pageSize', String(PAGE_SIZE));
     return `?${p.toString()}`;
   }, [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes, page]);
-
-  // Any filter change resets to page 1 — keeps the user from landing on
-  // page 5 of a freshly-narrowed result set.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useMemo(() => setPage(1), [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes]);
 
   const recipes = useQuery({
     queryKey: ['recipes', queryString],
