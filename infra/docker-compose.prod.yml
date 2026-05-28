@@ -40,13 +40,15 @@ name: diet-app
 services:
   postgres:
     image: postgres:18-alpine
+    container_name: diet-app-db
     restart: unless-stopped
+    networks: [diet-app]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-diet}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-diet}
       POSTGRES_DB: ${POSTGRES_DB:-diet_app}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-diet}']
       interval: 10s
@@ -55,7 +57,9 @@ services:
 
   redis:
     image: redis:8-alpine
+    container_name: diet-app-redis
     restart: unless-stopped
+    networks: [diet-app]
     command: ['redis-server', '--appendonly', 'yes']
     volumes:
       - redis-data:/data
@@ -75,7 +79,9 @@ services:
   # README → "First-run").
   db-init:
     image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    container_name: diet-app-db-init
     pull_policy: always
+    networks: [diet-app]
     env_file: .env
     environment:
       NODE_ENV: production
@@ -88,14 +94,21 @@ services:
 
   api:
     image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    container_name: diet-app-api
     pull_policy: always
     restart: unless-stopped
+    networks: [diet-app]
     env_file: .env
     environment:
       NODE_ENV: production
       # Override host-oriented .env values with Compose service hostnames.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
       REDIS_URL: redis://redis:6379
+      # Pin the internal listen port to 4000. The `web` image was built with
+      # `API_PROXY_URL=http://api:4000` baked into its Next.js rewrites — it
+      # cannot be changed at runtime. The `.env` API_PORT (intended for host
+      # port mapping) must NOT leak in or NestJS will listen on the wrong port.
+      API_PORT: 4000
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -105,11 +118,21 @@ services:
       # output (`ingredients.generated.json`) survives container recreates
       # and is shared with the worker. Created automatically on first boot.
       - ./data:/app/data
-    ports:
-      - '${API_PORT:-4000}:4000'
+      # No `ports:` block — the API is reached by `web` over the internal Docker
+      # network at `http://api:4000`, never from the public internet. If you
+      # later want to serve a second subdomain (e.g. api.example.com for a
+      # mobile companion app), add:
+      #
+      #   ports:
+      #     - '127.0.0.1:${API_PORT:-4000}:4000'
+      #
+      # Left of the colon = host-side port (from .env, change if 4000 collides
+      # with another service on the box). Right = container-internal port
+      # (always 4000 — see the API_PORT override above).
     healthcheck:
       # 127.0.0.1, not localhost: the API binds IPv4 and busybox wget would
-      # otherwise try localhost's IPv6 address first and fail.
+      # otherwise try localhost's IPv6 address first and fail. Port is pinned
+      # to 4000 to match the API_PORT override above.
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/api/health || exit 1']
       interval: 20s
       timeout: 5s
@@ -117,11 +140,16 @@ services:
 
   worker:
     image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    container_name: diet-app-worker
     pull_policy: always
     restart: unless-stopped
+    networks: [diet-app]
     env_file: .env
     environment:
       NODE_ENV: production
+      # Same hardcoded override as `api` / `db-init` — `.env`'s DATABASE_URL
+      # uses `localhost` (correct for `npm run dev`), which would point the
+      # worker at itself inside the network.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
       REDIS_URL: redis://redis:6379
     # Same image as `api`, different entrypoint.
@@ -135,12 +163,17 @@ services:
 
   web:
     image: ghcr.io/whiteravens20/diet-app/web:${IMAGE_TAG:-latest}
+    container_name: diet-app-web
     pull_policy: always
     restart: unless-stopped
+    networks: [diet-app]
     depends_on:
       - api
+    # Bind to loopback so only a reverse proxy on the same host can reach it.
+    # Drop the `127.0.0.1:` prefix to expose on all interfaces (e.g. if the
+    # reverse proxy runs on a different host on the same private network).
     ports:
-      - '${WEB_PORT:-3000}:3000'
+      - '127.0.0.1:${WEB_PORT:-3000}:3000'
 
   # ── Optional: local self-hosted AI ──────────────────────────────────────────
   # Enable with `--profile ollama`. Models are pulled on demand inside the
@@ -149,12 +182,23 @@ services:
   # in .env.
   ollama:
     image: ollama/ollama:latest
+    container_name: diet-app-ollama
     profiles: ['ollama']
     restart: unless-stopped
+    networks: [diet-app]
     volumes:
       - ollama-models:/root/.ollama
-    ports:
-      - '11434:11434'
+    # No `ports:` block — the API reaches Ollama at `http://ollama:11434` on
+    # the internal network. Add `ports: ['127.0.0.1:11434:11434']` if you want
+    # to hit the Ollama API from the host (e.g. for `ollama pull` from CLI).
+
+# Explicit named network so the stack is easy to reason about and external
+# services (e.g. a reverse-proxy compose stack) can attach via
+# `networks: { diet-app: { external: true, name: diet-app } }`.
+networks:
+  diet-app:
+    name: diet-app
+    driver: bridge
 
 volumes:
   postgres-data:
