@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   GenerateShoppingListRequest,
+  Locale,
   ShoppingList,
   UpdateShoppingItemRequest,
 } from '@diet-app/shared';
@@ -11,6 +12,7 @@ import {
   type PlanIngredientLine,
 } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { pickIngredient } from '../recipes/recipes.service.js';
 
 /** Builds and maintains consolidated shopping lists from meal plans. */
 @Injectable()
@@ -18,7 +20,7 @@ export class ShoppingListsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Aggregate every ingredient across the selected plan range into a list. */
-  async generate(userId: string, req: GenerateShoppingListRequest): Promise<ShoppingList> {
+  async generate(userId: string, locale: Locale, req: GenerateShoppingListRequest): Promise<ShoppingList> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: req.planId },
       include: {
@@ -80,11 +82,11 @@ export class ShoppingListsService {
       include: { items: true },
     });
 
-    return this.toDto(list);
+    return this.toDto(list, await this.translationsFor(list.items.map((i) => i.ingredientId), locale));
   }
 
   /** Every list belonging to a plan the user owns, newest first. */
-  async listForPlan(userId: string, planId: string): Promise<ShoppingList[]> {
+  async listForPlan(userId: string, locale: Locale, planId: string): Promise<ShoppingList[]> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: { profile: true },
@@ -98,35 +100,31 @@ export class ShoppingListsService {
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map((r) => this.toDto(r));
+    const allIds = rows.flatMap((r) => r.items.map((i) => i.ingredientId));
+    const trans = await this.translationsFor(allIds, locale);
+    return rows.map((r) => this.toDto(r, trans));
   }
 
   /** Delete a list the user owns. */
   async remove(userId: string, listId: string): Promise<void> {
-    await this.get(userId, listId); // ownership check
+    await this.loadOwned(userId, listId);
     await this.prisma.shoppingList.delete({ where: { id: listId } });
   }
 
-  async get(userId: string, listId: string): Promise<ShoppingList> {
-    const list = await this.prisma.shoppingList.findUnique({
-      where: { id: listId },
-      include: { items: true, plan: { include: { profile: true } } },
-    });
-    if (!list) throw new NotFoundException({ error: 'LIST_NOT_FOUND', message: 'Shopping list not found.' });
-    if (list.plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'List belongs to another user.' });
-    }
-    return this.toDto(list);
+  async get(userId: string, locale: Locale, listId: string): Promise<ShoppingList> {
+    const list = await this.loadOwned(userId, listId);
+    return this.toDto(list, await this.translationsFor(list.items.map((i) => i.ingredientId), locale));
   }
 
   /** Update an item's "already have" amount or its checked state. */
   async updateItem(
     userId: string,
+    locale: Locale,
     listId: string,
     itemId: string,
     patch: UpdateShoppingItemRequest,
   ): Promise<ShoppingList> {
-    await this.get(userId, listId); // ownership check
+    await this.loadOwned(userId, listId);
     await this.prisma.shoppingListItem.update({
       where: { id: itemId },
       data: {
@@ -136,7 +134,37 @@ export class ShoppingListsService {
         ...(patch.checked !== undefined ? { checked: patch.checked } : {}),
       },
     });
-    return this.get(userId, listId);
+    return this.get(userId, locale, listId);
+  }
+
+  private async loadOwned(userId: string, listId: string) {
+    const list = await this.prisma.shoppingList.findUnique({
+      where: { id: listId },
+      include: { items: true, plan: { include: { profile: true } } },
+    });
+    if (!list) throw new NotFoundException({ error: 'LIST_NOT_FOUND', message: 'Shopping list not found.' });
+    if (list.plan.profile.userId !== userId) {
+      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'List belongs to another user.' });
+    }
+    return list;
+  }
+
+  /**
+   * Load locale-resolved display names for the given ingredient ids. The
+   * shopping-list row snapshots the English name at generation time; resolving
+   * fresh on every read means switching the user's locale localises old lists
+   * too, with no schema migration of historical rows.
+   */
+  private async translationsFor(
+    ingredientIds: string[],
+    locale: Locale,
+  ): Promise<Map<string, string>> {
+    if (ingredientIds.length === 0) return new Map();
+    const rows = await this.prisma.ingredient.findMany({
+      where: { id: { in: [...new Set(ingredientIds)] } },
+      select: { id: true, name: true, translations: { select: { locale: true, name: true } } },
+    });
+    return new Map(rows.map((r) => [r.id, pickIngredient(locale, r.translations, r.name)]));
   }
 
   private async loadIngredients(ids: string[]): Promise<Map<string, EngineIngredient>> {
@@ -162,24 +190,27 @@ export class ShoppingListsService {
     );
   }
 
-  private toDto(list: {
-    id: string;
-    planId: string;
-    fromDate: Date;
-    toDate: Date;
-    createdAt: Date;
-    items: {
+  private toDto(
+    list: {
       id: string;
-      ingredientId: string;
-      name: string;
-      category: string;
-      totalQuantity: number;
-      unit: 'g' | 'ml' | 'piece';
-      alreadyHaveQuantity: number;
-      estimatedCalories: number;
-      checked: boolean;
-    }[];
-  }): ShoppingList {
+      planId: string;
+      fromDate: Date;
+      toDate: Date;
+      createdAt: Date;
+      items: {
+        id: string;
+        ingredientId: string;
+        name: string;
+        category: string;
+        totalQuantity: number;
+        unit: 'g' | 'ml' | 'piece';
+        alreadyHaveQuantity: number;
+        estimatedCalories: number;
+        checked: boolean;
+      }[];
+    },
+    names: Map<string, string>,
+  ): ShoppingList {
     const byCategory = new Map<string, ShoppingList['groups'][number]['items']>();
     let totalCalories = 0;
 
@@ -188,7 +219,10 @@ export class ShoppingListsService {
       const entry = {
         id: item.id,
         ingredientId: item.ingredientId,
-        name: item.name,
+        // Use the locale-resolved name; fall back to the snapshot stored on
+        // the row if the underlying ingredient was deleted (the row keeps the
+        // English name as a tombstone so the user still sees something).
+        name: names.get(item.ingredientId) ?? item.name,
         category: item.category as ShoppingList['groups'][number]['category'],
         totalQuantity: item.totalQuantity,
         unit: item.unit,
@@ -209,7 +243,7 @@ export class ShoppingListsService {
       toDate: list.toDate.toISOString().slice(0, 10),
       groups: [...byCategory.entries()].map(([category, items]) => ({
         category: category as ShoppingList['groups'][number]['category'],
-        items,
+        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
       })),
       totalEstimatedCalories: Math.round(totalCalories),
       createdAt: list.createdAt.toISOString(),

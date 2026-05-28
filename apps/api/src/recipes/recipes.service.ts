@@ -128,7 +128,7 @@ function pickRecipe(
   return match ?? fallback;
 }
 
-function pickIngredient(
+export function pickIngredient(
   locale: Locale,
   translations: { locale: string; name: string }[] | undefined,
   fallback: string,
