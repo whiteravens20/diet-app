@@ -62,7 +62,58 @@ npm run dev
 
 Web app → `http://localhost:3000`, API → `http://localhost:4000`.
 
-### First-run: populate the curated database
+## Production deploy (pre-built images)
+
+For deploying to a server you do **not** need the repo or a build toolchain.
+Official multi-arch images are published to GHCR and consumed by a
+self-contained compose file at
+[`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml):
+
+- `ghcr.io/whiteravens20/diet-app/api:latest` — HTTP API + BullMQ worker
+- `ghcr.io/whiteravens20/diet-app/web:latest` — Next.js frontend
+
+On the target server:
+
+```bash
+mkdir diet-app && cd diet-app
+
+# 1. Grab the compose file and an env template.
+curl -O https://raw.githubusercontent.com/whiteravens20/diet-app/main/infra/docker-compose.prod.yml
+curl -o .env https://raw.githubusercontent.com/whiteravens20/diet-app/main/.env.example
+
+# 2. Fill in secrets (POSTGRES_PASSWORD, JWT_*, *_ENCRYPTION_SECRET,
+#    ADMIN_PASSWORD, APP_URL/API_URL pointing at your public origin).
+#    Generate each secret with: openssl rand -hex 32
+nano .env
+
+# 3. Pull and start.
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Web app → `http://<host>:3000`, API → `http://<host>:4000`. Front them with
+your own reverse proxy (Traefik / Caddy / nginx) and terminate TLS there.
+
+**Updating** — re-pull and restart; migrations apply automatically on boot:
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+**Pinning a version** — `latest` follows the production release channel; set
+`IMAGE_TAG=<release-tag>` in `.env` to pin both images to a known-good
+version and bump manually after testing.
+
+**Local self-hosted AI** — start with `--profile ollama` to add an Ollama
+service on the same host; set `AI_DEFAULT_PROVIDER=ollama` and
+`OLLAMA_BASE_URL=http://ollama:11434` in `.env`. Pull a model after boot:
+`docker compose exec ollama ollama pull llama3.1:8b`.
+
+After first boot, follow [First-run](#first-run-populate-the-curated-database)
+below to populate the curated ingredient database from the admin panel.
+
+## First-run: populate the curated database
 
 The stack boots empty by design — only `prisma migrate deploy` runs at startup
 (seeding ~7 k ingredients × ~30 k composed recipes would block boot for

@@ -1,0 +1,162 @@
+# ── Diet App — production stack (pre-built images from GHCR) ──────────────────
+# Self-contained compose file for running Diet App on a server WITHOUT cloning
+# the repo. Pulls the official multi-arch images from the GitHub Container
+# Registry instead of building locally.
+#
+# Quick start (on the target server):
+#
+#   mkdir diet-app && cd diet-app
+#   curl -O https://raw.githubusercontent.com/whiteravens20/diet-app/main/infra/docker-compose.prod.yml
+#   curl -o .env https://raw.githubusercontent.com/whiteravens20/diet-app/main/.env.example
+#   nano .env                                  # set secrets — see notes below
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Updating:
+#
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Optional services are profile-gated:
+#   --profile ollama   → local self-hosted AI on the same host
+#
+# Pin to a specific image version by setting IMAGE_TAG=<tag> in .env
+# (defaults to `latest`). Recommended for production: pin to a published
+# release tag and only bump it after testing.
+#
+# ──────────────────────────────────────────────────────────────────────────────
+# `.env` essentials — these MUST be set before first boot:
+#   POSTGRES_PASSWORD          strong random value
+#   JWT_ACCESS_SECRET          openssl rand -hex 32
+#   JWT_REFRESH_SECRET         openssl rand -hex 32
+#   AI_KEY_ENCRYPTION_SECRET   openssl rand -hex 32
+#   DATA_ENCRYPTION_SECRET     openssl rand -hex 32  (NEVER change after first boot — existing accounts become unreadable)
+#   ADMIN_PASSWORD             strong random value (admin panel auth)
+#   APP_URL / API_URL          public origins your reverse proxy serves
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: diet-app
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-diet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-diet}
+      POSTGRES_DB: ${POSTGRES_DB:-diet_app}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-diet}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── One-shot: apply pending migrations and exit ─────────────────────────────
+  # Same image as `api`, different entrypoint. `api` and `worker` depend on
+  # this so they never start against an un-migrated database. Safe to re-run:
+  # `migrate deploy` is a no-op when nothing is pending.
+  #
+  # Seeding the curated ingredient database is intentionally NOT done here —
+  # it's a one-click admin action from `/admin` once the stack is up (see
+  # README → "First-run").
+  db-init:
+    image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
+    working_dir: /app/apps/api
+    command: ['/app/node_modules/.bin/prisma', 'migrate', 'deploy']
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: 'no'
+
+  api:
+    image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      # Override host-oriented .env values with Compose service hostnames.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      db-init: { condition: service_completed_successfully }
+    volumes:
+      # Bind-mount a host `data/` directory so the admin USDA importer's
+      # output (`ingredients.generated.json`) survives container recreates
+      # and is shared with the worker. Created automatically on first boot.
+      - ./data:/app/data
+    ports:
+      - '${API_PORT:-4000}:4000'
+    healthcheck:
+      # 127.0.0.1, not localhost: the API binds IPv4 and busybox wget would
+      # otherwise try localhost's IPv6 address first and fail.
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/api/health || exit 1']
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
+      REDIS_URL: redis://redis:6379
+    # Same image as `api`, different entrypoint.
+    command: ['node', 'apps/api/dist/worker.js']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      db-init: { condition: service_completed_successfully }
+    volumes:
+      - ./data:/app/data
+
+  web:
+    image: ghcr.io/whiteravens20/diet-app/web:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+
+  # ── Optional: local self-hosted AI ──────────────────────────────────────────
+  # Enable with `--profile ollama`. Models are pulled on demand inside the
+  # container (e.g. `docker compose exec ollama ollama pull llama3.1:8b`).
+  # Set `AI_DEFAULT_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://ollama:11434`
+  # in .env.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ['ollama']
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - '11434:11434'
+
+volumes:
+  postgres-data:
+  redis-data:
+  ollama-models:
