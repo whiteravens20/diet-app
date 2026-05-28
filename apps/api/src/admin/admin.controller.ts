@@ -3,14 +3,32 @@
  * substitution counts and seed bookkeeping. **No per-user signals**, so this
  * panel can never become a user-activity dashboard.
  */
-import { ConflictException, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { NON_CANONICAL_LOCALES, type Locale } from '@diet-app/shared';
+import {
+  Locale as LocaleSchema,
+  NON_CANONICAL_LOCALES,
+  type Locale,
+} from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
 import { computeDataState, resolveDataDir } from './seed/data-hash.js';
 import { SeedRunner, type RunnerState } from './seed/runner.js';
+import {
+  TranslateRunner,
+  type TranslateRunnerState,
+  type TranslateScope,
+} from './translate/runner.js';
 
 interface AdminStatusDto {
   enabled: boolean;
@@ -63,6 +81,7 @@ export class AdminController {
     private readonly config: ConfigService<Env, true>,
     private readonly prisma: PrismaService,
     private readonly runner: SeedRunner,
+    private readonly translator: TranslateRunner,
   ) {}
 
   // Public probe so the /admin UI can render a useful "set ADMIN_PASSWORD"
@@ -183,6 +202,58 @@ export class AdminController {
       });
     }
     return entries;
+  }
+
+  /**
+   * Auto-translate missing rows using the admin-default AI provider
+   * (AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL env vars). `locale=all` fans
+   * out to every non-canonical locale; otherwise a single locale code.
+   * Scope defaults to `missing`.
+   */
+  @Post('translations/fill')
+  @HttpCode(202)
+  @UseGuards(BasicAuthGuard)
+  startTranslate(
+    @Query('locale') locale: string | undefined,
+    @Query('scope') scopeRaw: string | undefined,
+  ): TranslateRunnerState {
+    const scope = (scopeRaw ?? 'missing') as TranslateScope;
+    if (!['missing', 'ai', 'all'].includes(scope)) {
+      throw new BadRequestException({
+        error: 'INVALID_SCOPE',
+        message: `scope must be one of: missing, ai, all`,
+      });
+    }
+    let target: 'all' | Locale;
+    if (!locale || locale === 'all') {
+      target = 'all';
+    } else {
+      const parsed = LocaleSchema.safeParse(locale);
+      if (!parsed.success || locale === 'en') {
+        throw new BadRequestException({
+          error: 'INVALID_LOCALE',
+          message: `locale must be a supported non-canonical Locale, got "${locale}"`,
+        });
+      }
+      target = parsed.data;
+    }
+    const started = this.translator.start(target, scope);
+    if (!started) {
+      throw new ConflictException({
+        error: 'TRANSLATE_IN_PROGRESS',
+        message: 'A translation job is already in progress.',
+      });
+    }
+    return this.translator.getState();
+  }
+
+  @Get('translations/fill/status')
+  @UseGuards(BasicAuthGuard)
+  translateStatus(): TranslateRunnerState & { configured: boolean } {
+    return {
+      ...this.translator.getState(),
+      configured: this.translator.isConfigured(),
+    };
   }
 }
 

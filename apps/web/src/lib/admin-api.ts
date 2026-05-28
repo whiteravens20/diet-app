@@ -119,6 +119,26 @@ export interface TranslationStatusEntry {
   };
 }
 
+export type TranslateScope = 'missing' | 'ai' | 'all';
+export type TranslateStatus = 'idle' | 'running' | 'done' | 'error';
+
+export interface TranslateRunnerState {
+  status: TranslateStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  localesQueued: string[];
+  localesDone: string[];
+  currentLocale: string | null;
+  processed: number;
+  total: number;
+  failed: number;
+  totals: { processed: number; failed: number; written: number };
+  provider: string | null;
+  model: string | null;
+  error: string | null;
+  configured?: boolean;
+}
+
 export const adminApi = {
   status: () => adminFetch<AdminStatus>('/status', {}, false),
   stats: () => adminFetch<AdminStats>('/stats'),
@@ -126,4 +146,11 @@ export const adminApi = {
   dbUpdateStatus: () => adminFetch<DbUpdateState>('/db/update/status'),
   translationsStatus: () =>
     adminFetch<TranslationStatusEntry[]>('/translations/status'),
+  startTranslate: (locale: 'all' | string, scope: TranslateScope = 'missing') =>
+    adminFetch<TranslateRunnerState>(
+      `/translations/fill?locale=${encodeURIComponent(locale)}&scope=${scope}`,
+      { method: 'POST' },
+    ),
+  translateStatus: () =>
+    adminFetch<TranslateRunnerState>('/translations/fill/status'),
 };

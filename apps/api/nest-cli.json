@@ -4,6 +4,13 @@
   "sourceRoot": "src",
   "entryFile": "main",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "assets": [
+      {
+        "include": "admin/translate/few-shot/**/*.json",
+        "outDir": "dist",
+        "watchAssets": true
+      }
+    ]
   }
 }

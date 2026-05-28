@@ -128,7 +128,10 @@
     "LIST_NOT_FOUND": "Nie znaleziono listy zakupów.",
     "AI_CONFIG_NOT_FOUND": "Nie znaleziono konfiguracji dostawcy AI.",
     "ADMIN_DISABLED": "Panel administracyjny jest wyłączony na tej instancji.",
-    "UPDATE_IN_PROGRESS": "Aktualizacja bazy już trwa."
+    "UPDATE_IN_PROGRESS": "Aktualizacja bazy już trwa.",
+    "TRANSLATE_IN_PROGRESS": "Zadanie tłumaczenia już trwa.",
+    "INVALID_LOCALE": "Nieobsługiwany język.",
+    "INVALID_SCOPE": "Nieprawidłowy zakres tłumaczenia."
   },
   "dashboard": {
     "title": "Panel",
@@ -195,7 +198,15 @@
       "copyMissing": "Skopiuj brakujące",
       "copied": "Skopiowano",
       "showMissing": "Pokaż {count} brakujących slugów",
-      "hideMissing": "Ukryj"
+      "hideMissing": "Ukryj",
+      "providerChip": "dostawca: {provider} · {model}",
+      "notConfigured": "Ustaw AI_DEFAULT_PROVIDER i AI_DEFAULT_MODEL w .env, aby włączyć automatyczne tłumaczenie.",
+      "translateAll": "Przetłumacz wszystko",
+      "translateLocale": "Przetłumacz {count} brakujących",
+      "translating": "Tłumaczę {locale}… ({done}/{queued})",
+      "progress": "{processed} / {total} pozycji · {failed} pominiętych",
+      "lastRun": "Ostatnie uruchomienie: zapisano {written}, pominięto {failed}",
+      "failed": "Tłumaczenie nie powiodło się: {error}"
     }
   },
   "shoppingLists": {

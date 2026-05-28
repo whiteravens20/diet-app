@@ -24,6 +24,17 @@ import { OpenRouterProvider } from './providers/openrouter.provider.js';
     OpenRouterProvider,
     OllamaProvider,
   ],
-  exports: [AiKeyService, AiRouterService, AiValidationService],
+  exports: [
+    AiKeyService,
+    AiRouterService,
+    AiValidationService,
+    // Exported so the admin auto-translate runner can call a provider
+    // directly with the AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL env config —
+    // env-driven, not DB-driven, see F14 / B.6.1.
+    OpenAiProvider,
+    AnthropicProvider,
+    OpenRouterProvider,
+    OllamaProvider,
+  ],
 })
 export class AiModule {}

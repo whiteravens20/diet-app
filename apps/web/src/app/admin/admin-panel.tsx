@@ -14,6 +14,7 @@ import {
   type AdminStatus,
   type DbUpdateState,
   type SourceBreakdown,
+  type TranslateRunnerState,
   type TranslationStatusEntry,
 } from '@/lib/admin-api';
 
@@ -298,33 +299,200 @@ export function AdminPanel() {
         </CardContent>
       </Card>
 
-      <TranslationsCard entries={translations} />
+      <TranslationsCard
+        entries={translations}
+        onChanged={() => {
+          void adminApi.translationsStatus().then(setTranslations).catch(() => undefined);
+        }}
+      />
     </div>
   );
 }
 
-function TranslationsCard({ entries }: { entries: TranslationStatusEntry[] | null }) {
+function TranslationsCard({
+  entries,
+  onChanged,
+}: {
+  entries: TranslationStatusEntry[] | null;
+  onChanged: () => void;
+}) {
   const t = useTranslations('admin.translations');
+  const [run, setRun] = useState<TranslateRunnerState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Pull the runner state on mount + after each run so we can show the
+  // "configured" hint and any in-flight progress (e.g. another tab started
+  // the job).
+  useEffect(() => {
+    void adminApi.translateStatus().then((s) => {
+      setRun(s);
+      if (s.status === 'running') startPolling();
+    });
+    return () => stopPolling();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+  function startPolling() {
+    stopPolling();
+    pollRef.current = setInterval(() => {
+      void adminApi
+        .translateStatus()
+        .then((s) => {
+          setRun(s);
+          if (s.status !== 'running') {
+            stopPolling();
+            onChanged();
+          }
+        })
+        .catch(() => stopPolling());
+    }, 1500);
+  }
+
+  async function start(locale: 'all' | string) {
+    setError(null);
+    try {
+      const s = await adminApi.startTranslate(locale);
+      setRun(s);
+      startPolling();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   if (!entries) return null;
+  const running = run?.status === 'running';
+  const configured = run?.configured ?? false;
+  const anyMissingTotal = entries.reduce((sum, e) => sum + totalMissing(e), 0);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Languages className="h-5 w-5" /> {t('title')}
-        </CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-2">
+            <Languages className="h-5 w-5" /> {t('title')}
+          </CardTitle>
+          <div className="flex items-center gap-3">
+            {configured && run?.provider && run?.model && (
+              <span className="text-xs text-muted-foreground">
+                {t('providerChip', { provider: run.provider, model: run.model })}
+              </span>
+            )}
+            {anyMissingTotal > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                disabled={running || !configured}
+                onClick={() => start('all')}
+              >
+                {t('translateAll')}
+              </Button>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-5">
+        {!configured && (
+          <p className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-xs">
+            {t('notConfigured')}
+          </p>
+        )}
         {entries.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('noNonCanonical')}</p>
         ) : (
-          entries.map((entry) => <TranslationsRow key={entry.locale} entry={entry} />)
+          entries.map((entry) => (
+            <TranslationsRow
+              key={entry.locale}
+              entry={entry}
+              configured={configured}
+              running={running}
+              onStart={(loc) => void start(loc)}
+            />
+          ))
         )}
+        {run && (run.status === 'running' || run.status === 'done' || run.status === 'error') && (
+          <TranslateProgress state={run} />
+        )}
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </CardContent>
     </Card>
   );
 }
 
-function TranslationsRow({ entry }: { entry: TranslationStatusEntry }) {
+function totalMissing(entry: TranslationStatusEntry): number {
+  return (
+    entry.curated.ingredients.missing +
+    entry.curated.recipes.missing +
+    entry.imported.ingredients.missing
+  );
+}
+
+function TranslateProgress({ state }: { state: TranslateRunnerState }) {
+  const t = useTranslations('admin.translations');
+  if (state.status === 'error') {
+    return (
+      <p className="text-xs text-destructive">
+        {t('failed', { error: state.error ?? 'unknown error' })}
+      </p>
+    );
+  }
+  if (state.status === 'done') {
+    return (
+      <p className="text-xs text-emerald-600 dark:text-emerald-400">
+        {t('lastRun', { written: state.totals.written, failed: state.totals.failed })}
+      </p>
+    );
+  }
+  const pct = state.total > 0 ? Math.min(100, Math.round((state.processed / state.total) * 100)) : null;
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span>
+          {t('translating', {
+            locale: state.currentLocale ?? '…',
+            done: state.localesDone.length + 1,
+            queued: state.localesQueued.length,
+          })}
+        </span>
+        <span className="tabular-nums text-muted-foreground">
+          {t('progress', {
+            processed: state.processed,
+            total: state.total,
+            failed: state.failed,
+          })}
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+        {pct != null ? (
+          <div
+            className="h-full bg-primary transition-[width] duration-500"
+            style={{ width: `${pct}%` }}
+          />
+        ) : (
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/60" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TranslationsRow({
+  entry,
+  configured,
+  running,
+  onStart,
+}: {
+  entry: TranslationStatusEntry;
+  configured: boolean;
+  running: boolean;
+  onStart: (locale: string) => void;
+}) {
   const t = useTranslations('admin.translations');
   const tLocales = useTranslations('locales');
   const localeLabel = (() => {
@@ -334,12 +502,28 @@ function TranslationsRow({ entry }: { entry: TranslationStatusEntry }) {
       return entry.locale;
     }
   })();
+  const missing = totalMissing(entry);
   return (
     <section className="space-y-2 border-t border-border pt-3 first:border-t-0 first:pt-0">
-      <h3 className="text-sm font-semibold">
-        {localeLabel}{' '}
-        <span className="text-xs font-normal uppercase text-muted-foreground">{entry.locale}</span>
-      </h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold">
+          {localeLabel}{' '}
+          <span className="text-xs font-normal uppercase text-muted-foreground">
+            {entry.locale}
+          </span>
+        </h3>
+        {missing > 0 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={running || !configured}
+            onClick={() => onStart(entry.locale)}
+          >
+            {t('translateLocale', { count: missing })}
+          </Button>
+        )}
+      </div>
       <SourceLine
         partition={t('curated')}
         kind={t('ingredients')}

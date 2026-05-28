@@ -128,7 +128,10 @@
     "LIST_NOT_FOUND": "Shopping list not found.",
     "AI_CONFIG_NOT_FOUND": "AI provider configuration not found.",
     "ADMIN_DISABLED": "The admin panel is disabled on this instance.",
-    "UPDATE_IN_PROGRESS": "A database update is already in progress."
+    "UPDATE_IN_PROGRESS": "A database update is already in progress.",
+    "TRANSLATE_IN_PROGRESS": "A translation job is already in progress.",
+    "INVALID_LOCALE": "Unsupported locale.",
+    "INVALID_SCOPE": "Invalid translation scope."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -195,7 +198,15 @@
       "copyMissing": "Copy missing",
       "copied": "Copied",
       "showMissing": "Show {count} missing slugs",
-      "hideMissing": "Hide"
+      "hideMissing": "Hide",
+      "providerChip": "provider: {provider} · {model}",
+      "notConfigured": "Set AI_DEFAULT_PROVIDER and AI_DEFAULT_MODEL in .env to enable auto-translation.",
+      "translateAll": "Translate all",
+      "translateLocale": "Translate {count} missing",
+      "translating": "Translating {locale}… ({done}/{queued})",
+      "progress": "{processed} / {total} rows · {failed} failed",
+      "lastRun": "Last run: wrote {written}, skipped {failed}",
+      "failed": "Translation failed: {error}"
     }
   },
   "shoppingLists": {
