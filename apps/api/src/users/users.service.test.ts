@@ -31,6 +31,7 @@ function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
     emailVerified: false,
     locale: 'en',
     theme: 'system',
+    palette: 'default',
     passwordHash: bcrypt.hashSync(pepperPassword('CorrectHorse1', PEPPER_KEY), 4),
     ...overrides,
   };

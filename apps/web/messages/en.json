@@ -310,6 +310,16 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "themeSystem": "System",
+    "palette": "Colour scheme",
+    "paletteSyncHint": "Pairs with light/dark mode. Syncs to every device when you're signed in.",
+    "paletteOption": {
+      "default": "Default",
+      "ocean": "Ocean",
+      "forest": "Forest",
+      "sunset": "Sunset",
+      "mono": "Mono",
+      "rose": "Rose"
+    },
     "aiProviders": "AI providers",
     "aiSubhead": "Bring-your-own keys for OpenAI, Anthropic, OpenRouter or Ollama. Keys are encrypted at rest and never returned to the client.",
     "aiNoProviders": "No providers configured. The deterministic engine handles every feature without one.",

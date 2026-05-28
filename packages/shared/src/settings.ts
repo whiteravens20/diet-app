@@ -20,12 +20,33 @@ export const Theme = z.enum(['light', 'dark', 'system']);
 export type Theme = z.infer<typeof Theme>;
 
 /**
+ * Colour palette family — orthogonal to `Theme` (which only controls
+ * light/dark mode). Each palette ships both a light and a dark variant in
+ * `apps/web/src/app/globals.css`; the active variant is picked by the
+ * `.dark` class plus the `data-palette` attribute on `<html>`.
+ *
+ * Adding a new palette is a 2-step recipe: extend this enum, then drop the
+ * `:root[data-palette="<name>"]` + `.dark[data-palette="<name>"]` blocks in
+ * `globals.css`. The settings picker iterates this enum automatically.
+ */
+export const Palette = z.enum([
+  'default',
+  'ocean',
+  'forest',
+  'sunset',
+  'mono',
+  'rose',
+]);
+export type Palette = z.infer<typeof Palette>;
+
+/**
  * `AuthUser` extended with the user-controlled preference fields. Returned by
  * `GET /users/me` and by every settings-mutation endpoint.
  */
 export const SessionUser = AuthUser.extend({
   locale: Locale,
   theme: Theme,
+  palette: Palette,
 });
 export type SessionUser = z.infer<typeof SessionUser>;
 
@@ -33,6 +54,7 @@ export const UpdateUserSettings = z.object({
   displayName: z.string().min(1).max(80).optional(),
   locale: Locale.optional(),
   theme: Theme.optional(),
+  palette: Palette.optional(),
 });
 export type UpdateUserSettings = z.infer<typeof UpdateUserSettings>;
 

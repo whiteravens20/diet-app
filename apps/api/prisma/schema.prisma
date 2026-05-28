@@ -36,6 +36,10 @@ model User {
   locale         String   @default("en")
   // 'light' | 'dark' | 'system' — constrained at the API layer.
   theme          String   @default("system")
+  // Colour palette family (default | ocean | forest | sunset | mono | rose) —
+  // orthogonal to `theme`. Constrained at the API layer via the Palette enum
+  // in packages/shared/src/settings.ts.
+  palette        String   @default("default")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

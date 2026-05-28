@@ -9,6 +9,7 @@ import {
   type AiProvider,
   type AiProviderConfig,
   type AiProviderConfigInput,
+  type Palette,
   type SessionUser,
   type Theme,
 } from '@diet-app/shared';
@@ -17,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { DEFAULT_PALETTE, SUPPORTED_PALETTES } from '@/lib/palette';
+import { usePalette } from '@/app/providers';
 import { cn } from '@/lib/utils';
 
 const PROVIDERS: AiProvider[] = ['openai', 'anthropic', 'openrouter', 'ollama'];
@@ -47,6 +50,7 @@ export default function SettingsPage() {
       <ProfileCard me={me} onSaved={() => qc.invalidateQueries({ queryKey: ['session'] })} />
       <LanguageCard />
       <ThemeCard initial={me.theme} />
+      <PaletteCard initial={me.palette} />
       <AiProvidersCard tErrors={tErrors} />
       <PasswordCard onChanged={() => router.push('/login')} />
       <EmailCard me={me} />
@@ -177,6 +181,68 @@ function ThemeCard({ initial }: { initial: Theme }) {
           ))}
         </div>
         <p className="text-xs text-muted-foreground">{t('themeSyncHint')}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Swatch colours rendered next to each palette name in the picker. Tied to
+// the primary token of each palette so the chip preview matches the actual
+// scheme without needing to render a hidden DOM. Order matches `Palette` enum.
+const PALETTE_SWATCHES: Record<Palette, string> = {
+  default: 'oklch(0.62 0.15 155)',
+  ocean: 'oklch(0.6 0.15 240)',
+  forest: 'oklch(0.52 0.13 145)',
+  sunset: 'oklch(0.65 0.16 50)',
+  mono: 'oklch(0.3 0 0)',
+  rose: 'oklch(0.6 0.17 5)',
+};
+
+function PaletteCard({ initial }: { initial: Palette }) {
+  const t = useTranslations('settings');
+  const tPalette = useTranslations('settings.paletteOption');
+  const { palette: live, setPalette } = usePalette();
+  // The provider's `live` value is initialised from the SSR cookie, which may
+  // disagree with the server-stored `initial` on a freshly signed-in device.
+  // Prefer `live` once it diverges from `initial` (the user picked something
+  // here) — otherwise show the server's preference.
+  const value: Palette = live === DEFAULT_PALETTE && initial !== DEFAULT_PALETTE ? initial : live;
+
+  async function pick(next: Palette) {
+    setPalette(next); // applies <html data-palette> + cookie immediately
+    try {
+      await api.patch('/users/me', { palette: next });
+    } catch {
+      // Best-effort cross-device sync — visual is already applied via cookie.
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('palette')}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {SUPPORTED_PALETTES.map((p) => (
+            <Button
+              key={p}
+              type="button"
+              size="sm"
+              variant={value === p ? 'primary' : 'outline'}
+              onClick={() => void pick(p)}
+              className="gap-2"
+            >
+              <span
+                aria-hidden
+                className="inline-block h-3 w-3 rounded-full border border-border"
+                style={{ backgroundColor: PALETTE_SWATCHES[p] }}
+              />
+              {tPalette(p)}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">{t('paletteSyncHint')}</p>
       </CardContent>
     </Card>
   );

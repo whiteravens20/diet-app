@@ -2,11 +2,40 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
-import { useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import type { Palette } from '@diet-app/shared';
+import { DEFAULT_PALETTE, PALETTE_COOKIE } from '../lib/palette';
 import { LOCALE_COOKIE, pickFromBrowserLanguage } from '../lib/locale';
 
-/** App-wide client providers: data fetching cache + dark-mode theme. */
-export function Providers({ children }: { children: ReactNode }) {
+interface PaletteContextValue {
+  palette: Palette;
+  setPalette: (next: Palette) => void;
+}
+
+const PaletteContext = createContext<PaletteContextValue>({
+  palette: DEFAULT_PALETTE,
+  setPalette: () => undefined,
+});
+
+export function usePalette(): PaletteContextValue {
+  return useContext(PaletteContext);
+}
+
+/** App-wide client providers: data fetching cache, dark-mode theme, palette. */
+export function Providers({
+  children,
+  initialPalette,
+}: {
+  children: ReactNode;
+  initialPalette: Palette;
+}) {
   const [client] = useState(
     () =>
       new QueryClient({
@@ -14,12 +43,27 @@ export function Providers({ children }: { children: ReactNode }) {
       }),
   );
 
+  const [palette, setPaletteState] = useState<Palette>(initialPalette);
+
+  // Mirror palette changes onto `<html data-palette>` + the cookie so SSR and
+  // CSR agree. `PATCH /users/me` (cross-device sync) is owned by the settings
+  // UI, not here — keeps this provider session-agnostic.
+  const setPalette = useCallback((next: Palette) => {
+    setPaletteState(next);
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.palette = next;
+      document.cookie = `${PALETTE_COOKIE}=${next}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    }
+  }, []);
+
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <QueryClientProvider client={client}>
-        <FirstVisitLocaleDetector />
-        {children}
-      </QueryClientProvider>
+      <PaletteContext.Provider value={{ palette, setPalette }}>
+        <QueryClientProvider client={client}>
+          <FirstVisitLocaleDetector />
+          {children}
+        </QueryClientProvider>
+      </PaletteContext.Provider>
     </ThemeProvider>
   );
 }

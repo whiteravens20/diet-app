@@ -39,6 +39,132 @@
   --ring: oklch(0.7 0.15 155);
 }
 
+/*
+ * Colour palettes. The default emerald scheme above is "default" and applies
+ * when no `data-palette` attribute is set (so first paint never flashes). Each
+ * named palette overrides only the chroma/hue-bearing tokens — background and
+ * neutrals shift slightly to keep the family coherent. Adding a new palette:
+ *   1. extend `Palette` in packages/shared/src/settings.ts
+ *   2. drop a matching `:root[data-palette="<name>"]` + `.dark[...]` block here
+ *   3. add label translations under settings.paletteOption.<name>
+ */
+
+/* Ocean — cool blue, calm */
+:root[data-palette='ocean'] {
+  --background: oklch(0.99 0.01 240);
+  --muted: oklch(0.96 0.015 240);
+  --border: oklch(0.91 0.015 240);
+  --primary: oklch(0.6 0.15 240);
+  --primary-foreground: oklch(0.99 0.01 240);
+  --accent: oklch(0.72 0.12 200);
+  --ring: oklch(0.6 0.15 240);
+}
+.dark[data-palette='ocean'] {
+  --background: oklch(0.19 0.02 240);
+  --card: oklch(0.23 0.02 240);
+  --muted: oklch(0.28 0.02 240);
+  --muted-foreground: oklch(0.7 0.02 240);
+  --border: oklch(0.32 0.02 240);
+  --primary: oklch(0.7 0.15 240);
+  --primary-foreground: oklch(0.18 0.02 240);
+  --accent: oklch(0.74 0.12 200);
+  --ring: oklch(0.7 0.15 240);
+}
+
+/* Forest — deeper green, earthy */
+:root[data-palette='forest'] {
+  --background: oklch(0.98 0.01 140);
+  --muted: oklch(0.95 0.02 140);
+  --border: oklch(0.89 0.02 140);
+  --primary: oklch(0.52 0.13 145);
+  --primary-foreground: oklch(0.99 0.01 140);
+  --accent: oklch(0.65 0.13 95);
+  --ring: oklch(0.52 0.13 145);
+}
+.dark[data-palette='forest'] {
+  --background: oklch(0.17 0.02 145);
+  --card: oklch(0.21 0.02 145);
+  --muted: oklch(0.26 0.02 145);
+  --muted-foreground: oklch(0.67 0.02 145);
+  --border: oklch(0.3 0.02 145);
+  --primary: oklch(0.66 0.14 145);
+  --primary-foreground: oklch(0.17 0.02 145);
+  --accent: oklch(0.7 0.13 95);
+  --ring: oklch(0.66 0.14 145);
+}
+
+/* Sunset — warm amber/orange */
+:root[data-palette='sunset'] {
+  --background: oklch(0.99 0.01 65);
+  --muted: oklch(0.96 0.02 60);
+  --border: oklch(0.91 0.02 60);
+  --primary: oklch(0.65 0.16 50);
+  --primary-foreground: oklch(0.99 0.01 60);
+  --accent: oklch(0.7 0.15 25);
+  --ring: oklch(0.65 0.16 50);
+}
+.dark[data-palette='sunset'] {
+  --background: oklch(0.19 0.02 50);
+  --card: oklch(0.23 0.02 50);
+  --muted: oklch(0.28 0.02 50);
+  --muted-foreground: oklch(0.7 0.02 50);
+  --border: oklch(0.33 0.02 50);
+  --primary: oklch(0.74 0.15 55);
+  --primary-foreground: oklch(0.19 0.02 50);
+  --accent: oklch(0.76 0.14 25);
+  --ring: oklch(0.74 0.15 55);
+}
+
+/* Mono — neutral grayscale */
+:root[data-palette='mono'] {
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.2 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --border: oklch(0.9 0 0);
+  --primary: oklch(0.3 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.55 0 0);
+  --ring: oklch(0.3 0 0);
+}
+.dark[data-palette='mono'] {
+  --background: oklch(0.17 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.21 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.27 0 0);
+  --muted-foreground: oklch(0.68 0 0);
+  --border: oklch(0.31 0 0);
+  --primary: oklch(0.85 0 0);
+  --primary-foreground: oklch(0.17 0 0);
+  --accent: oklch(0.65 0 0);
+  --ring: oklch(0.85 0 0);
+}
+
+/* Rose — pink/rose, slightly warm */
+:root[data-palette='rose'] {
+  --background: oklch(0.99 0.005 10);
+  --muted: oklch(0.96 0.015 10);
+  --border: oklch(0.91 0.015 10);
+  --primary: oklch(0.6 0.17 5);
+  --primary-foreground: oklch(0.99 0.01 10);
+  --accent: oklch(0.72 0.13 330);
+  --ring: oklch(0.6 0.17 5);
+}
+.dark[data-palette='rose'] {
+  --background: oklch(0.19 0.015 10);
+  --card: oklch(0.23 0.02 10);
+  --muted: oklch(0.28 0.02 10);
+  --muted-foreground: oklch(0.7 0.02 10);
+  --border: oklch(0.32 0.02 10);
+  --primary: oklch(0.72 0.16 5);
+  --primary-foreground: oklch(0.19 0.015 10);
+  --accent: oklch(0.76 0.13 330);
+  --ring: oklch(0.72 0.16 5);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

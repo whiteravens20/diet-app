@@ -310,6 +310,16 @@
     "themeLight": "Jasny",
     "themeDark": "Ciemny",
     "themeSystem": "Systemowy",
+    "palette": "Schemat kolorów",
+    "paletteSyncHint": "Łączy się z trybem jasnym/ciemnym. Synchronizuje się na wszystkich urządzeniach po zalogowaniu.",
+    "paletteOption": {
+      "default": "Domyślny",
+      "ocean": "Ocean",
+      "forest": "Las",
+      "sunset": "Zachód słońca",
+      "mono": "Mono",
+      "rose": "Róż"
+    },
     "aiProviders": "Dostawcy AI",
     "aiSubhead": "Własne klucze do OpenAI, Anthropic, OpenRouter lub Ollama. Klucze są szyfrowane na dysku i nigdy nie są zwracane do klienta.",
     "aiNoProviders": "Brak skonfigurowanych dostawców. Silnik deterministyczny obsługuje każdą funkcję bez nich.",
