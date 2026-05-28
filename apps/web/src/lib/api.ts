@@ -110,23 +110,42 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   return JSON.parse(text) as T;
 }
 
+// Singleton in-flight refresh. Without this, a page that mounts and fires N
+// parallel queries against an expired access token would call /auth/refresh N
+// times; the first call rotates the refresh token (server-side revoke), and
+// the rest race against a now-revoked token and fail → tokens cleared → the
+// user gets booted mid-session even though their refresh was still valid.
+let inFlightRefresh: Promise<boolean> | null = null;
+
 async function tryRefresh(): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_URL}/api/auth/refresh`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ refreshToken: tokenStore.refresh }),
-    });
-    if (!res.ok) {
-      tokenStore.clear();
+  if (inFlightRefresh) return inFlightRefresh;
+  inFlightRefresh = (async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken: tokenStore.refresh }),
+      });
+      if (!res.ok) {
+        tokenStore.clear();
+        // Hard-nav to /login so every in-memory query state is dropped — half-
+        // refreshed React Query caches would otherwise show "Unauthorized"
+        // toasts on screens the user can no longer access.
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.replace('/login');
+        }
+        return false;
+      }
+      const data = (await res.json()) as AuthResponse;
+      tokenStore.set(data.tokens);
+      return true;
+    } catch {
       return false;
+    } finally {
+      inFlightRefresh = null;
     }
-    const data = (await res.json()) as AuthResponse;
-    tokenStore.set(data.tokens);
-    return true;
-  } catch {
-    return false;
-  }
+  })();
+  return inFlightRefresh;
 }
 
 export const api = {
