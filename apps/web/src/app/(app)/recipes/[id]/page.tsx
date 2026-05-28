@@ -1,9 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ban, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 import type { Profile, Recipe } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -60,6 +62,70 @@ export default function RecipeDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['favorites-index'] }),
   });
 
+  // Which profile's ingredient prefs we're editing from this recipe view.
+  // Defaults to the first profile; user can switch via the dropdown if they
+  // have more than one. Kept null until profiles load to avoid flashing the
+  // wrong selection.
+  const [prefsProfileId, setPrefsProfileId] = useState<string | null>(null);
+  const [prefsError, setPrefsError] = useState<string | null>(null);
+
+  // PUT /profiles/:id is full-replace, so the mutation sends every field of
+  // the target profile back, only swapping `preferences`. Mirrors the pattern
+  // in profile/page.tsx so the contract stays in one mental model.
+  const savePrefs = useMutation({
+    mutationFn: (v: { profile: Profile; preferences: Profile['preferences'] }) =>
+      api.put<Profile>(`/profiles/${v.profile.id}`, {
+        name: v.profile.name,
+        age: v.profile.age,
+        sex: v.profile.sex,
+        heightCm: v.profile.heightCm,
+        weightKg: v.profile.weightKg,
+        activityLevel: v.profile.activityLevel,
+        dietType: v.profile.dietType,
+        weeklyLossTarget: v.profile.weeklyLossTarget,
+        manualCalorieTarget: v.profile.manualCalorieTarget,
+        mealCount: v.profile.mealCount,
+        preferences: v.preferences,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profiles'] }),
+    onError: (e) =>
+      setPrefsError(e instanceof ApiClientError ? e.message : t('prefsSaveFailed')),
+  });
+
+  function toggleIngredientPref(
+    ingredientId: string,
+    target: 'favorite' | 'avoid',
+  ): void {
+    const profile = profileList.find((p) => p.id === prefsProfileId) ?? profileList[0];
+    if (!profile) return;
+    setPrefsError(null);
+    const favs = new Set(profile.preferences.favoriteIngredientIds);
+    const excl = new Set(profile.preferences.excludedIngredientIds);
+    if (target === 'favorite') {
+      if (favs.has(ingredientId)) {
+        favs.delete(ingredientId);
+      } else {
+        favs.add(ingredientId);
+        excl.delete(ingredientId);
+      }
+    } else {
+      if (excl.has(ingredientId)) {
+        excl.delete(ingredientId);
+      } else {
+        excl.add(ingredientId);
+        favs.delete(ingredientId);
+      }
+    }
+    savePrefs.mutate({
+      profile,
+      preferences: {
+        ...profile.preferences,
+        favoriteIngredientIds: Array.from(favs),
+        excludedIngredientIds: Array.from(excl),
+      },
+    });
+  }
+
   if (recipe.isLoading) return <Skeleton className="h-64 max-w-2xl" />;
 
   if (recipe.error) {
@@ -82,6 +148,12 @@ export default function RecipeDetailPage() {
   const n = r.nutritionPerServing;
   const profileList = profiles.data ?? [];
   const favIndex = favorites.data ?? new Map<string, Set<string>>();
+  const activePrefsProfile =
+    profileList.find((p) => p.id === prefsProfileId) ?? profileList[0] ?? null;
+  const favIngredientSet = new Set(activePrefsProfile?.preferences.favoriteIngredientIds ?? []);
+  const excludedIngredientSet = new Set(
+    activePrefsProfile?.preferences.excludedIngredientIds ?? [],
+  );
 
   function tagLabel(tag: string): string {
     if (tDifficulty.has(tag)) return tDifficulty(tag);
@@ -165,18 +237,77 @@ export default function RecipeDetailPage() {
           <CardTitle>{t('ingredients')}</CardTitle>
         </CardHeader>
         <CardContent>
+          {activePrefsProfile && profileList.length > 1 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">{t('prefsFor')}</span>
+              <select
+                value={activePrefsProfile.id}
+                onChange={(e) => setPrefsProfileId(e.target.value)}
+                className="rounded border border-input bg-background px-2 py-1 text-sm"
+              >
+                {profileList.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {prefsError && (
+            <p className="mb-2 text-xs text-destructive">{prefsError}</p>
+          )}
           <ul className="space-y-1 text-sm">
-            {r.ingredients.map((i) => (
-              <li key={i.ingredientId} className="flex justify-between gap-4">
-                <span>
-                  {i.name}
-                  {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
-                </span>
-                <span className="tabular-nums text-muted-foreground">
-                  {formatIngredientAmount(i)}
-                </span>
-              </li>
-            ))}
+            {r.ingredients.map((i) => {
+              const isFav = favIngredientSet.has(i.ingredientId);
+              const isExcl = excludedIngredientSet.has(i.ingredientId);
+              return (
+                <li key={i.ingredientId} className="flex items-center justify-between gap-4">
+                  <span className="flex-1">
+                    {i.name}
+                    {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {formatIngredientAmount(i)}
+                  </span>
+                  {activePrefsProfile && (
+                    <span className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        title={isFav ? t('clearMark') : t('markFavorite')}
+                        aria-pressed={isFav}
+                        aria-label={t('markFavorite')}
+                        disabled={savePrefs.isPending}
+                        onClick={() => toggleIngredientPref(i.ingredientId, 'favorite')}
+                        className={
+                          'rounded p-1 transition-colors hover:bg-muted disabled:opacity-50 ' +
+                          (isFav ? 'text-amber-500' : 'text-muted-foreground')
+                        }
+                      >
+                        <Star
+                          className="h-4 w-4"
+                          fill={isFav ? 'currentColor' : 'none'}
+                          strokeWidth={1.75}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        title={isExcl ? t('clearMark') : t('markAvoid')}
+                        aria-pressed={isExcl}
+                        aria-label={t('markAvoid')}
+                        disabled={savePrefs.isPending}
+                        onClick={() => toggleIngredientPref(i.ingredientId, 'avoid')}
+                        className={
+                          'rounded p-1 transition-colors hover:bg-muted disabled:opacity-50 ' +
+                          (isExcl ? 'text-destructive' : 'text-muted-foreground')
+                        }
+                      >
+                        <Ban className="h-4 w-4" strokeWidth={1.75} />
+                      </button>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </CardContent>
       </Card>

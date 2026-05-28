@@ -397,7 +397,12 @@
     "saveToFavorites": "Zapisz w ulubionych dla:",
     "method": "Sposób przygotowania",
     "allergens": "Alergeny:",
-    "servingMeta": "Wychodzi {servings, plural, one {# porcja} few {# porcje} many {# porcji} other {# porcji}} · {prep} min przygotowania · {cook} min gotowania"
+    "servingMeta": "Wychodzi {servings, plural, one {# porcja} few {# porcje} many {# porcji} other {# porcji}} · {prep} min przygotowania · {cook} min gotowania",
+    "prefsFor": "Preferencje dla:",
+    "markFavorite": "Oznacz jako ulubiony",
+    "markAvoid": "Oznacz do unikania",
+    "clearMark": "Usuń oznaczenie",
+    "prefsSaveFailed": "Nie udało się zapisać preferencji składnika."
   },
   "profile": {
     "title": "Profile",

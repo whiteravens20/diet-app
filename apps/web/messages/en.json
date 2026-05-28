@@ -397,7 +397,12 @@
     "saveToFavorites": "Save to favorites for:",
     "method": "Method",
     "allergens": "Allergens:",
-    "servingMeta": "Makes {servings, plural, one {# serving} other {# servings}} · {prep} min prep · {cook} min cook"
+    "servingMeta": "Makes {servings, plural, one {# serving} other {# servings}} · {prep} min prep · {cook} min cook",
+    "prefsFor": "Preferences for:",
+    "markFavorite": "Mark as favorite",
+    "markAvoid": "Mark to avoid",
+    "clearMark": "Clear mark",
+    "prefsSaveFailed": "Could not save ingredient preference."
   },
   "profile": {
     "title": "Profiles",
