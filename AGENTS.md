@@ -20,6 +20,13 @@ engine (`apps/api/src/engine`) from the ingredient table.
 - TypeScript `strict` everywhere; no unexplained `any`.
 - Every request/response shape is a Zod schema in `packages/shared` — add it there first.
 - Deterministic math lives only in `apps/api/src/engine`, as unit-tested pure functions.
+- **All user-facing text is i18n.** No English literals in `.tsx`/`.ts` for buttons,
+  labels, toasts, exception messages, or rendered enum labels. New strings land in
+  `apps/web/messages/{en,pl}.json` in the same PR. New thrown exceptions get a stable
+  `error:` code and an entry in `messages.errors` — enforced by the
+  catalogue-completeness Vitest. New ingredients / recipes in `data/*.json` ship with
+  `en` and `pl` keys. Adding a new locale: see
+  [docs/adr/0007-curated-vs-ai-translations.md](docs/adr/0007-curated-vs-ai-translations.md).
 - Files `kebab-case`; NestJS files suffixed by role; relative imports use `.js`.
 - Conventional Commits, signed, **no `Co-Authored-By` trailers**.
 - Branch off `dev`; PR into `dev`.
