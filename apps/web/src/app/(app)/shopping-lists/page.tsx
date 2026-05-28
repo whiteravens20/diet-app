@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import type { MealPlan, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
+import { roundKitchenAmount } from '@/lib/ingredient-format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -108,7 +109,7 @@ export default function ShoppingListsPage() {
 
   /** Pretty-print a unit value: "240 g" / "1.5 pieces" — locale-aware. */
   function formatItemQty(qty: number, unit: string): string {
-    const rounded = unit === 'piece' ? Math.round(qty * 4) / 4 : Math.round(qty);
+    const rounded = unit === 'piece' ? Math.round(qty * 4) / 4 : roundKitchenAmount(qty);
     if (unit === 'piece') return t('piecePlural', { count: rounded });
     return `${rounded} ${unit}`;
   }
