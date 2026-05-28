@@ -22,6 +22,7 @@ export default function RecipeDetailPage() {
   const tDifficulty = useTranslations('enums.difficulty');
   const tMeal = useTranslations('enums.mealType');
   const tDiet = useTranslations('enums.dietType');
+  const tAllergen = useTranslations('enums.allergen');
   const params = useParams<{ id: string }>();
   const qc = useQueryClient();
   const recipe = useQuery({
@@ -198,7 +199,8 @@ export default function RecipeDetailPage() {
 
       {r.allergens.length > 0 && (
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium">{t('allergens')}</span> {r.allergens.join(', ')}
+          <span className="font-medium">{t('allergens')}</span>{' '}
+          {r.allergens.map((a) => tAllergen(a)).join(', ')}
         </p>
       )}
     </div>

@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { Locale } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { toRecipeDto } from '../recipes/recipes.service.js';
+import { searchMatch, toRecipeDto } from '../recipes/recipes.service.js';
 
 /** Per-profile favorite recipes, with tags and a sentiment signal. */
 @Injectable()
@@ -20,10 +20,10 @@ export class FavoritesService {
       where: {
         profileId,
         recipe: {
-          ...(filters.search
-            ? { title: { contains: filters.search, mode: 'insensitive' } }
-            : {}),
-          ...(filters.mealType ? { mealTypes: { has: filters.mealType } } : {}),
+          AND: [
+            ...(filters.search ? [searchMatch(filters.search, locale)] : []),
+            ...(filters.mealType ? [{ mealTypes: { has: filters.mealType } }] : []),
+          ],
         },
       },
       include: {

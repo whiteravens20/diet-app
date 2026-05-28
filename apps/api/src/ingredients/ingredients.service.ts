@@ -8,8 +8,14 @@ export class IngredientsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async search(locale: Locale, query: string | undefined): Promise<Ingredient[]> {
+    const contains = query ? { contains: query, mode: 'insensitive' as const } : undefined;
     const rows = await this.prisma.ingredient.findMany({
-      where: query ? { name: { contains: query, mode: 'insensitive' } } : undefined,
+      // Match against the canonical English `name` OR the translated name
+      // for the request locale, so users searching in PL can find rows
+      // whose English title is the only canonical source.
+      where: contains
+        ? { OR: [{ name: contains }, { translations: { some: { locale, name: contains } } }] }
+        : undefined,
       include: translationsInclude(locale),
       orderBy: { name: 'asc' },
       take: 100,

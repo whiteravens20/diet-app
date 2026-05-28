@@ -479,6 +479,17 @@
       "medium": "Średni",
       "hard": "Trudny"
     },
+    "allergen": {
+      "gluten": "Gluten",
+      "dairy": "Nabiał",
+      "eggs": "Jaja",
+      "nuts": "Orzechy",
+      "peanuts": "Orzeszki ziemne",
+      "soy": "Soja",
+      "fish": "Ryby",
+      "shellfish": "Skorupiaki",
+      "sesame": "Sezam"
+    },
     "category": {
       "vegetables": "Warzywa",
       "fruits": "Owoce",

@@ -20,23 +20,47 @@ function translationsFor(locale: Locale) {
   } as const;
 }
 
+/** Locale-aware search predicate for recipe rows: matches the canonical
+ *  English title/description OR the translated title/description for the
+ *  request locale. Insensitive on both sides. Exported so other modules
+ *  (favorites, future surfaces) can reuse the same rule. */
+export function searchMatch(query: string, locale: Locale) {
+  const contains = { contains: query, mode: 'insensitive' as const };
+  return {
+    OR: [
+      { title: contains },
+      { description: contains },
+      { translations: { some: { locale, title: contains } } },
+      { translations: { some: { locale, description: contains } } },
+    ],
+  };
+}
+
 /** Read access to the recipe library (seed + AI-validated + user recipes). */
 @Injectable()
 export class RecipesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async search(userId: string, locale: Locale, filters: RecipeFilters): Promise<Recipe[]> {
+    // Two AND-ed groups: ownership AND the actual filters. We split them
+    // because Prisma's top-level `OR` can't co-exist with a second `OR` for
+    // the locale-aware search match.
     const rows = await this.prisma.recipe.findMany({
       where: {
-        // User-origin recipes (ingredient-substitution variants) are private to
-        // their creator — everyone else only sees seed + AI-validated recipes.
-        OR: [{ origin: { not: 'user' } }, { createdByUserId: userId }],
-        ...(filters.search ? { title: { contains: filters.search, mode: 'insensitive' } } : {}),
-        ...(filters.dietType ? { dietTags: { has: filters.dietType } } : {}),
-        ...(filters.mealType ? { mealTypes: { has: filters.mealType } } : {}),
-        ...(filters.maxCalories ? { caloriesPerServing: { lte: filters.maxCalories } } : {}),
-        ...(filters.maxPrepMinutes ? { prepMinutes: { lte: filters.maxPrepMinutes } } : {}),
-        ...(filters.difficulty ? { difficulty: filters.difficulty as 'easy' | 'medium' | 'hard' } : {}),
+        AND: [
+          // User-origin recipes (ingredient-substitution variants) are
+          // private to their creator — everyone else only sees seed +
+          // AI-validated recipes.
+          { OR: [{ origin: { not: 'user' } }, { createdByUserId: userId }] },
+          ...(filters.search ? [searchMatch(filters.search, locale)] : []),
+          ...(filters.dietType ? [{ dietTags: { has: filters.dietType } }] : []),
+          ...(filters.mealType ? [{ mealTypes: { has: filters.mealType } }] : []),
+          ...(filters.maxCalories ? [{ caloriesPerServing: { lte: filters.maxCalories } }] : []),
+          ...(filters.maxPrepMinutes ? [{ prepMinutes: { lte: filters.maxPrepMinutes } }] : []),
+          ...(filters.difficulty
+            ? [{ difficulty: filters.difficulty as 'easy' | 'medium' | 'hard' }]
+            : []),
+        ],
       },
       include: {
         ingredients: { include: { ingredient: { include: translationsFor(locale) } } },

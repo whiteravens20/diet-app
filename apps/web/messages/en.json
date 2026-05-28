@@ -479,6 +479,17 @@
       "medium": "Medium",
       "hard": "Hard"
     },
+    "allergen": {
+      "gluten": "Gluten",
+      "dairy": "Dairy",
+      "eggs": "Eggs",
+      "nuts": "Nuts",
+      "peanuts": "Peanuts",
+      "soy": "Soy",
+      "fish": "Fish",
+      "shellfish": "Shellfish",
+      "sesame": "Sesame"
+    },
     "category": {
       "vegetables": "Vegetables",
       "fruits": "Fruits",
