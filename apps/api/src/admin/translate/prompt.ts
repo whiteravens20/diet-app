@@ -88,14 +88,21 @@ ${fewShot}Translate this object:
 ${JSON.stringify(source)}`;
 }
 
-/** Per-provider tuning knobs (temperature, batch size). Low temperature
- *  reduces creative reinterpretation and JSON-format drift. */
+/** Per-provider tuning knobs. Low temperature reduces creative reinterpretation
+ *  and JSON-format drift. `interBatchDelayMs` is a baseline sleep between
+ *  successful batches — non-zero for free-tier providers that throttle per
+ *  minute (OpenRouter free = ~20 req/min, so 3500 ms keeps us safely under). */
 export const PROVIDER_TUNING: Record<
   'openai' | 'anthropic' | 'openrouter' | 'ollama',
-  { temperature: number; batchSize: number }
+  { temperature: number; batchSize: number; interBatchDelayMs: number }
 > = {
-  openai: { temperature: 0.2, batchSize: 50 },
-  anthropic: { temperature: 0.2, batchSize: 50 },
-  openrouter: { temperature: 0.2, batchSize: 50 },
-  ollama: { temperature: 0.2, batchSize: 20 },
+  openai: { temperature: 0.2, batchSize: 50, interBatchDelayMs: 0 },
+  anthropic: { temperature: 0.2, batchSize: 50, interBatchDelayMs: 0 },
+  // batchSize=20: gemini-2.5-flash-lite (and similar) reliably truncate
+  // JSON output around 10-12k chars regardless of max_tokens. 50 keys ×
+  // 2 fields blew past that on PL recipes; 20 keys × 2 fields stays
+  // comfortably below. Smaller batches = more calls but ~zero waste on
+  // re-rejected batches, net throughput is similar.
+  openrouter: { temperature: 0.2, batchSize: 20, interBatchDelayMs: 3500 },
+  ollama: { temperature: 0.2, batchSize: 20, interBatchDelayMs: 0 },
 };

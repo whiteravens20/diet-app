@@ -34,7 +34,12 @@ export const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
-  OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
+  // Treat an empty string the same as "not set" so operators who don't run
+  // Ollama can blank the var without tripping the URL validator.
+  OLLAMA_BASE_URL: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().default('http://localhost:11434'),
+  ),
 
   TURNSTILE_ENABLED: boolFromString,
   TURNSTILE_SECRET_KEY: z.string().optional(),

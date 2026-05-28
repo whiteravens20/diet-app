@@ -5,6 +5,7 @@ import { AdminController } from './admin.controller.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
 import { SeedRunner } from './seed/runner.js';
 import { TranslateRunner } from './translate/runner.js';
+import { UsdaImportRunner } from './usda/runner.js';
 
 /**
  * F16 admin module — isolated namespace under `/api/admin/*`. No JWT, no
@@ -14,6 +15,6 @@ import { TranslateRunner } from './translate/runner.js';
 @Module({
   imports: [PrismaModule, AiModule],
   controllers: [AdminController],
-  providers: [BasicAuthGuard, SeedRunner, TranslateRunner],
+  providers: [BasicAuthGuard, SeedRunner, TranslateRunner, UsdaImportRunner],
 })
 export class AdminModule {}

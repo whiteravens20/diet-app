@@ -139,6 +139,31 @@ export interface TranslateRunnerState {
   configured?: boolean;
 }
 
+export type UsdaImportStatus = 'idle' | 'running' | 'done' | 'error';
+
+export interface UsdaImportRunnerState {
+  status: UsdaImportStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  page: number | null;
+  totalPages: number | null;
+  kept: number;
+  skipped: number;
+  excluded: number;
+  dataTypes: string | null;
+  demoKey: boolean;
+  result: {
+    kept: number;
+    skipped: number;
+    excluded: number;
+    totalPages: number;
+    outFile: string;
+    dataTypes: string;
+    demoKey: boolean;
+  } | null;
+  error: string | null;
+}
+
 export const adminApi = {
   status: () => adminFetch<AdminStatus>('/status', {}, false),
   stats: () => adminFetch<AdminStats>('/stats'),
@@ -153,4 +178,17 @@ export const adminApi = {
     ),
   translateStatus: () =>
     adminFetch<TranslateRunnerState>('/translations/fill/status'),
+  stopTranslate: () =>
+    adminFetch<TranslateRunnerState>('/translations/fill/stop', { method: 'POST' }),
+  wipeAiTranslations: () =>
+    adminFetch<{ ingredients: number; recipes: number }>('/translations/wipe-ai', {
+      method: 'POST',
+    }),
+  startUsdaImport: (dataTypes?: string) =>
+    adminFetch<UsdaImportRunnerState>(
+      `/db/import-usda${dataTypes ? `?dataTypes=${encodeURIComponent(dataTypes)}` : ''}`,
+      { method: 'POST' },
+    ),
+  usdaImportStatus: () =>
+    adminFetch<UsdaImportRunnerState>('/db/import-usda/status'),
 };

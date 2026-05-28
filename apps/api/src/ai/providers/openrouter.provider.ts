@@ -26,7 +26,13 @@ export class OpenRouterProvider implements AiProviderAdapter {
         model: opts.model,
         messages,
         temperature: opts.temperature ?? 0.7,
-        max_tokens: opts.maxTokens ?? 2048,
+        // Batched JSON translations can run 8-12k output tokens for a
+        // 50-key recipe batch in verbose target locales like Polish
+        // (each row = title + description, both translated). 16k gives
+        // comfortable headroom; we still bill on actual completion
+        // tokens so the higher cap is free for batches that don't need it.
+        max_tokens: opts.maxTokens ?? 16384,
+        ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
       });
       return {
         text: res.choices[0]?.message?.content ?? '',

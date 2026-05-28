@@ -206,7 +206,23 @@
       "translating": "Tłumaczę {locale}… ({done}/{queued})",
       "progress": "{processed} / {total} pozycji · {failed} pominiętych",
       "lastRun": "Ostatnie uruchomienie: zapisano {written}, pominięto {failed}",
-      "failed": "Tłumaczenie nie powiodło się: {error}"
+      "failed": "Tłumaczenie nie powiodło się: {error}",
+      "stop": "Zatrzymaj",
+      "wipeAi": "Wyczyść wiersze AI",
+      "wipeConfirm": "Usunąć wszystkie tłumaczenia wygenerowane przez AI we wszystkich językach? Wiersze kuratorowane i ręczne zostaną zachowane.",
+      "wipeDone": "Usunięto {ingredients} tłumaczeń składników i {recipes} tłumaczeń przepisów."
+    },
+    "usda": {
+      "title": "Importer USDA",
+      "explain": "Pobiera publiczne dane o żywności z API USDA FoodData Central do data/ingredients.generated.json. Następnie kliknij „Zaktualizuj bazę”, aby załadować nowe wiersze.",
+      "foundationOnly": "Foundation (~340)",
+      "foundationPlusSr": "Foundation + SR Legacy (~8 tys.)",
+      "runImport": "Uruchom import",
+      "running": "Importuję…",
+      "demoKeyHint": "Używam DEMO_KEY (30 zapytań/godz). Ustaw FDC_API_KEY w .env, aby zaimportować większy zestaw SR Legacy.",
+      "progress": "Strona {page}/{total} · {kept} zachowanych",
+      "doneSummary": "Gotowe. Zapisano {kept} składników · pominięto {skipped} (duplikaty / zero kcal) · wykluczono {excluded} wg kategorii.",
+      "failed": "Import nie powiódł się: {error}"
     }
   },
   "shoppingLists": {

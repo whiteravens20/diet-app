@@ -73,6 +73,12 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
+    volumes:
+      # Bind-mount the host `data/` directory so the admin-panel USDA
+      # importer writes `ingredients.generated.json` to a path that
+      # survives container recreates and is visible to the host (and to
+      # the worker, which shares the same mount).
+      - ../data:/app/data
     ports:
       - '${API_PORT:-4000}:4000'
     healthcheck:
@@ -99,6 +105,8 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
+    volumes:
+      - ../data:/app/data
 
   web:
     build:

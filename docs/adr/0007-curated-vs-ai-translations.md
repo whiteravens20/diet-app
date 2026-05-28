@@ -97,8 +97,14 @@ Per `apps/api/src/admin/translate/prompt.ts` and `validate.ts`:
   and JSON-format drift.
 - **`response_format: 'json_object'`** on providers that support it; explicit "respond
   with valid JSON only" reminder otherwise.
-- **Few-shot examples** per target locale anchor terminology — currently 5 PL pairs in
-  `few-shot/pl.json`; adding a new locale ships a `few-shot/<code>.json` for quality.
+- **Few-shot examples** per target locale anchor terminology that the base model
+  gets wrong on niche vocabulary (food / cooking). PL ships with ~30 pairs in
+  `few-shot/pl.json` covering wrong-species swaps (pollock ≠ cod), wrong-anatomy
+  swaps (flank ≠ tenderloin), and phrase-pattern flips ("96% fat free"
+  → "96% fat"). Each new locale earns its file via the
+  [iteration recipe](../../apps/api/src/admin/translate/few-shot/README.md):
+  run → scan errors → anchor → re-run. Anchors do not transfer across locales —
+  PL anchors don't help DE.
 - **Post-validator** rejects: malformed JSON, missing/extra keys, LLM yapping
   (`Note:` / `I cannot` / `As an AI`), added quotes, identical-to-source (unless
   source is a passthrough unit/number), **invented digits** (critical to the

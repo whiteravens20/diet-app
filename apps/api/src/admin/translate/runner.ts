@@ -64,6 +64,8 @@ interface FailureSample {
 export class TranslateRunner {
   private readonly logger = new Logger(TranslateRunner.name);
   private state: TranslateRunnerState = TranslateRunner.idle();
+  /** Flipped by {@link cancel}; the run loop checks it after each batch. */
+  private cancelRequested = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -73,6 +75,35 @@ export class TranslateRunner {
     private readonly openrouter: OpenRouterProvider,
     private readonly ollama: OllamaProvider,
   ) {}
+
+  /**
+   * Co-operative cancel: the run loop checks the flag after each batch and
+   * finalises the state as `done` with `error: 'cancelled'`. No-op when no
+   * job is running. Returns true if a job was actually cancelled.
+   */
+  cancel(): boolean {
+    if (this.state.status !== 'running') return false;
+    this.cancelRequested = true;
+    return true;
+  }
+
+  /**
+   * Delete every AI-sourced translation row across all locales. Used as a
+   * "the model produced garbage, start over" button. Refuses to run while a
+   * translation job is in flight so we never delete rows the runner is
+   * concurrently writing.
+   */
+  async wipeAi(): Promise<{ ingredients: number; recipes: number }> {
+    if (this.state.status === 'running') {
+      throw new Error('cannot wipe AI rows while a translation job is running');
+    }
+    const [ing, rec] = await this.prisma.$transaction([
+      this.prisma.ingredientTranslation.deleteMany({ where: { source: 'AI' } }),
+      this.prisma.recipeTranslation.deleteMany({ where: { source: 'AI' } }),
+    ]);
+    this.logger.log(`Wiped AI translations: ${ing.count} ingredients, ${rec.count} recipes`);
+    return { ingredients: ing.count, recipes: rec.count };
+  }
 
   getState(): TranslateRunnerState {
     return this.state;
@@ -106,6 +137,7 @@ export class TranslateRunner {
     const queued: Locale[] = locale === 'all' ? [...NON_CANONICAL_LOCALES] : [locale];
     const provider = this.config.get('AI_DEFAULT_PROVIDER', { infer: true }) ?? null;
     const model = this.config.get('AI_DEFAULT_MODEL', { infer: true }) ?? null;
+    this.cancelRequested = false;
 
     this.state = {
       status: 'running',
@@ -130,6 +162,7 @@ export class TranslateRunner {
   private async run(scope: TranslateScope): Promise<void> {
     try {
       for (const locale of this.state.localesQueued) {
+        if (this.cancelRequested) break;
         this.state = {
           ...this.state,
           currentLocale: locale,
@@ -138,6 +171,7 @@ export class TranslateRunner {
           failed: 0,
         };
         await this.fillLocale(locale, scope);
+        if (this.cancelRequested) break;
         this.state = {
           ...this.state,
           localesDone: [...this.state.localesDone, locale],
@@ -148,6 +182,7 @@ export class TranslateRunner {
         status: 'done',
         currentLocale: null,
         finishedAt: new Date().toISOString(),
+        error: this.cancelRequested ? 'cancelled' : null,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -202,6 +237,7 @@ export class TranslateRunner {
     // Ingredient batch: 2 keys per row (name + storageHint). We pack
     // multiple rows per LLM call to keep terminology stable across siblings.
     for (let i = 0; i < ingredientTargets.length; i += tuning.batchSize) {
+      if (this.cancelRequested) return;
       const batch = ingredientTargets.slice(i, i + tuning.batchSize);
       const source: Record<string, string> = {};
       for (const ing of batch) {
@@ -223,12 +259,16 @@ export class TranslateRunner {
         });
         this.markWritten();
       }
+      if (tuning.interBatchDelayMs > 0 && i + tuning.batchSize < ingredientTargets.length) {
+        await this.cancellableSleep(tuning.interBatchDelayMs);
+      }
     }
 
     // Recipe batch: title + description go in one call; steps go in a
     // second pass because each step is its own JSON value (avoids array
     // serialisation tripping up smaller models).
     for (let i = 0; i < recipeTargets.length; i += tuning.batchSize) {
+      if (this.cancelRequested) return;
       const batch = recipeTargets.slice(i, i + tuning.batchSize);
       const titleSource: Record<string, string> = {};
       for (const r of batch) {
@@ -265,6 +305,9 @@ export class TranslateRunner {
         });
         this.markWritten();
       }
+      if (tuning.interBatchDelayMs > 0 && i + tuning.batchSize < recipeTargets.length) {
+        await this.cancellableSleep(tuning.interBatchDelayMs);
+      }
     }
   }
 
@@ -278,25 +321,39 @@ export class TranslateRunner {
   ): Promise<Record<string, string>> {
     if (Object.keys(source).length === 0) return {};
     const failures: FailureSample[] = [];
-    for (const attempt of [0, 1]) {
+    // 3 attempts (was 2): gemini-2.5-flash-lite intermittently returns
+    // empty `{"` responses; the extra retry recovers ~half of those that
+    // the 2-attempt loop would have given up on.
+    for (const attempt of [0, 1, 2]) {
       try {
         const reminder = attempt === 0
           ? ''
-          : '\nReminder: respond with ONLY the JSON object. No prose, no fences, no notes.';
+          : '\nReminder: respond with ONLY the COMPLETE JSON object. No prose, no fences, no notes. Do not truncate.';
         const prompt = buildPrompt({ targetLocale: locale, source }) + reminder;
-        const result = await adapter.chat(
-          [{ role: 'user', content: prompt }],
-          {
-            model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
-            apiKey: this.adapterKey(adapter),
-            baseUrl: this.adapterBaseUrl(adapter),
-            temperature,
-            json: true,
-          },
+        const result = await this.callWithBackoff(() =>
+          adapter.chat(
+            [{ role: 'user', content: prompt }],
+            {
+              model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
+              apiKey: this.adapterKey(adapter),
+              baseUrl: this.adapterBaseUrl(adapter),
+              temperature,
+              json: true,
+            },
+          ),
         );
         const v = validate({ source, targetLocale: locale, rawOutput: result.text });
         if (v.ok && v.translations) return v.translations;
-        if (!v.ok && v.reason) failures.push({ key: v.key ?? '?', reason: v.reason });
+        if (!v.ok && v.reason) {
+          failures.push({ key: v.key ?? '?', reason: v.reason });
+          // Capture the head + tail of the raw output so we can tell apart
+          // truncation (no closing brace), refusal text, prose wrapping, etc.
+          const head = result.text.slice(0, 200).replace(/\s+/g, ' ');
+          const tail = result.text.slice(-200).replace(/\s+/g, ' ');
+          this.logger.warn(
+            `validate fail (${v.reason}): len=${result.text.length} head="${head}" tail="${tail}"`,
+          );
+        }
       } catch (err) {
         this.logger.warn(`translate batch error: ${describe(err)}`);
       }
@@ -310,6 +367,43 @@ export class TranslateRunner {
     }
     // Skip this batch — markFailed is the caller's responsibility per-row.
     return {};
+  }
+
+  /** Wraps the LLM call with 429-aware exponential backoff. Free-tier
+   *  providers (OpenRouter especially) throttle aggressively per minute, so
+   *  we sleep and retry rather than counting the 429 as a real failure. Up
+   *  to 4 backoff attempts with 30→60→120→240s sleeps. After that gives up
+   *  and lets the caller's existing 2-attempt retry kick in. */
+  private async callWithBackoff<T>(fn: () => Promise<T>): Promise<T> {
+    const sleeps = [30_000, 60_000, 120_000, 240_000];
+    let lastErr: unknown;
+    for (let i = 0; i <= sleeps.length; i++) {
+      if (this.cancelRequested) throw new Error('cancelled');
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!/429|rate.?limit|too many/i.test(msg) || i === sleeps.length) throw err;
+        const wait = sleeps[i];
+        this.logger.warn(`429 rate-limited, sleeping ${wait / 1000}s before retry…`);
+        await this.cancellableSleep(wait);
+        if (this.cancelRequested) throw new Error('cancelled');
+      }
+    }
+    throw lastErr;
+  }
+
+  /** Sleep up to `ms` milliseconds, but wake early (and return) the moment
+   *  `cancelRequested` flips. Polls the flag every 500 ms — quick enough
+   *  that a Stop click is felt within half a second even mid-backoff. */
+  private async cancellableSleep(ms: number): Promise<void> {
+    const slice = 500;
+    let elapsed = 0;
+    while (elapsed < ms && !this.cancelRequested) {
+      await new Promise((r) => setTimeout(r, Math.min(slice, ms - elapsed)));
+      elapsed += slice;
+    }
   }
 
   private markWritten(): void {

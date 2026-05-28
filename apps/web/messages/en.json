@@ -206,7 +206,23 @@
       "translating": "Translating {locale}… ({done}/{queued})",
       "progress": "{processed} / {total} rows · {failed} failed",
       "lastRun": "Last run: wrote {written}, skipped {failed}",
-      "failed": "Translation failed: {error}"
+      "failed": "Translation failed: {error}",
+      "stop": "Stop",
+      "wipeAi": "Wipe AI rows",
+      "wipeConfirm": "Delete every AI-generated translation row across all locales? Curated/manual rows are kept.",
+      "wipeDone": "Wiped {ingredients} ingredient and {recipes} recipe translations."
+    },
+    "usda": {
+      "title": "USDA importer",
+      "explain": "Pulls public-domain food data from the USDA FoodData Central API into data/ingredients.generated.json. Click \"Update DB\" afterwards to load the new rows.",
+      "foundationOnly": "Foundation (~340)",
+      "foundationPlusSr": "Foundation + SR Legacy (~8k)",
+      "runImport": "Run import",
+      "running": "Importing…",
+      "demoKeyHint": "Using DEMO_KEY (30 req/hr). Set FDC_API_KEY in .env for the larger SR Legacy import.",
+      "progress": "Page {page}/{total} · {kept} kept",
+      "doneSummary": "Done. Wrote {kept} ingredients · skipped {skipped} (dup / zero-kcal) · excluded {excluded} by category.",
+      "failed": "Import failed: {error}"
     }
   },
   "shoppingLists": {

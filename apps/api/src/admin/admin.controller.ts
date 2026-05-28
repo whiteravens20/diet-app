@@ -29,6 +29,7 @@ import {
   type TranslateRunnerState,
   type TranslateScope,
 } from './translate/runner.js';
+import { UsdaImportRunner, type ImportRunnerState } from './usda/runner.js';
 
 interface AdminStatusDto {
   enabled: boolean;
@@ -82,6 +83,7 @@ export class AdminController {
     private readonly prisma: PrismaService,
     private readonly runner: SeedRunner,
     private readonly translator: TranslateRunner,
+    private readonly importer: UsdaImportRunner,
   ) {}
 
   // Public probe so the /admin UI can render a useful "set ADMIN_PASSWORD"
@@ -216,7 +218,7 @@ export class AdminController {
   startTranslate(
     @Query('locale') locale: string | undefined,
     @Query('scope') scopeRaw: string | undefined,
-  ): TranslateRunnerState {
+  ): TranslateRunnerState & { configured: boolean } {
     const scope = (scopeRaw ?? 'missing') as TranslateScope;
     if (!['missing', 'ai', 'all'].includes(scope)) {
       throw new BadRequestException({
@@ -244,7 +246,10 @@ export class AdminController {
         message: 'A translation job is already in progress.',
       });
     }
-    return this.translator.getState();
+    return {
+      ...this.translator.getState(),
+      configured: this.translator.isConfigured(),
+    };
   }
 
   @Get('translations/fill/status')
@@ -254,6 +259,66 @@ export class AdminController {
       ...this.translator.getState(),
       configured: this.translator.isConfigured(),
     };
+  }
+
+  /**
+   * Cooperative cancel: the runner notices the flag between batches and
+   * finalises the in-flight job as `done` with `error: 'cancelled'`. Returns
+   * the post-cancel state so the panel can refresh immediately.
+   */
+  @Post('translations/fill/stop')
+  @HttpCode(202)
+  @UseGuards(BasicAuthGuard)
+  stopTranslate(): TranslateRunnerState & { configured: boolean } {
+    this.translator.cancel();
+    return {
+      ...this.translator.getState(),
+      configured: this.translator.isConfigured(),
+    };
+  }
+
+  /**
+   * Hard-delete every `source = AI` translation row across all locales.
+   * Refuses (409) while a translation job is running. Use when the operator
+   * decides the model's output isn't acceptable and wants to start over.
+   */
+  @Post('translations/wipe-ai')
+  @HttpCode(200)
+  @UseGuards(BasicAuthGuard)
+  async wipeAiTranslations(): Promise<{ ingredients: number; recipes: number }> {
+    try {
+      return await this.translator.wipeAi();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new ConflictException({ error: 'TRANSLATE_IN_PROGRESS', message });
+    }
+  }
+
+  /**
+   * Kick off a USDA FoodData Central bulk import. Writes
+   * `data/ingredients.generated.json` to the bind-mounted data dir; the
+   * operator then runs `db/update` to materialize the new rows. Optional
+   * `?dataTypes=` overrides FDC_DATA_TYPES (e.g. `Foundation,SR Legacy`)
+   * without an .env edit.
+   */
+  @Post('db/import-usda')
+  @HttpCode(202)
+  @UseGuards(BasicAuthGuard)
+  startUsdaImport(@Query('dataTypes') dataTypes: string | undefined): ImportRunnerState {
+    const started = this.importer.start(dataTypes);
+    if (!started) {
+      throw new ConflictException({
+        error: 'IMPORT_IN_PROGRESS',
+        message: 'A USDA import is already in progress.',
+      });
+    }
+    return this.importer.getState();
+  }
+
+  @Get('db/import-usda/status')
+  @UseGuards(BasicAuthGuard)
+  usdaImportStatus(): ImportRunnerState {
+    return this.importer.getState();
   }
 }
 

@@ -3,5 +3,37 @@
   { "source": "Overnight oats with blueberries", "translation": "Owsianka nocna z borówkami" },
   { "source": "Refrigerate, use within 2 days", "translation": "Przechowuj w lodówce, użyj w ciągu 2 dni" },
   { "source": "Combine oats, milk and yogurt in a jar.", "translation": "Wymieszaj płatki, mleko i jogurt w słoiku." },
-  { "source": "Brown the beef with onion, add tomato and simmer.", "translation": "Podsmaż wołowinę z cebulą, dodaj pomidory i duś." }
+  { "source": "Brown the beef with onion, add tomato and simmer.", "translation": "Podsmaż wołowinę z cebulą, dodaj pomidory i duś." },
+
+  { "source": "Alaska Pollock, raw", "translation": "Mintaj, surowy" },
+  { "source": "Sea bass, Chilean, frozen, wild caught", "translation": "Labraks chilijski, mrożony, złowiony na dziko" },
+  { "source": "Snapper, frozen, wild caught", "translation": "Lucjan, mrożony, złowiony na dziko" },
+  { "source": "Mushroom, oyster", "translation": "Boczniak" },
+  { "source": "Mushroom, king oyster", "translation": "Boczniak królewski" },
+  { "source": "Mushroom, lion's mane", "translation": "Soplówka jeżowata" },
+  { "source": "Mushrooms, shiitake", "translation": "Grzyby shiitake" },
+  { "source": "Mushrooms, white button", "translation": "Pieczarki białe" },
+  { "source": "Millet, whole grain", "translation": "Proso, pełnoziarniste" },
+  { "source": "Collards, raw", "translation": "Kapusta liściasta (collards), surowa" },
+  { "source": "Beet greens, raw", "translation": "Botwina, surowa" },
+  { "source": "Squash, spaghetti, peeled, seeded, raw", "translation": "Dynia spaghetti, obrana, bez pestek, surowa" },
+  { "source": "Tomatoes, grape, raw", "translation": "Pomidorki winogronowe, surowe" },
+  { "source": "Rutabaga, peeled, raw", "translation": "Brukiew, obrana, surowa" },
+  { "source": "Pawpaw, peeled, seeded, raw", "translation": "Azymina, obrana, bez pestek, surowa" },
+  { "source": "Sorghum bran, white, unenriched, dry, raw", "translation": "Otręby sorgo, białe, niewzbogacone, suche, surowe" },
+  { "source": "Einkorn, grain, dry, raw", "translation": "Samopsza, ziarno, suche, surowe" },
+  { "source": "Chicken breast & brown rice power bowl", "translation": "Power bowl z piersią z kurczaka i brązowym ryżem" },
+  { "source": "Fennel, bulb, raw", "translation": "Koper włoski, bulwa, surowy" },
+  { "source": "Chicken thigh & fennel low-carb skillet", "translation": "Niskowęglowodane danie z patelni z udem kurczaka i koprem włoskim" },
+
+  { "source": "Beef, flank, steak, boneless, choice, raw", "translation": "Wołowina, łata, stek, bez kości, wybór, surowa" },
+  { "source": "Beef, ribeye, steak, boneless, choice, raw", "translation": "Wołowina, antrykot, stek, bez kości, wybór, surowa" },
+  { "source": "Beef, loin, tenderloin roast, separable lean only, boneless, trimmed to 0\" fat, select, cooked, roasted", "translation": "Wołowina, polędwica wołowa, pieczeń, tylko chude, bez kości, przycięta do 0\" tłuszczu, wybór, gotowana, pieczona" },
+  { "source": "Beef, short loin (NY strip steak), raw", "translation": "Wołowina, krótka polędwica (stek NY strip), surowa" },
+  { "source": "Beef, ground, 80% lean meat / 20% fat, raw", "translation": "Wołowina, mielona, 80% chudego mięsa / 20% tłuszczu, surowa" },
+
+  { "source": "Ham, sliced, pre-packaged, deli meat (96%fat free, water added)", "translation": "Szynka, pokrojona, pakowana, mięso deli (96% bez tłuszczu, z dodatkiem wody)" },
+  { "source": "Oats, whole grain, steel cut", "translation": "Owies, pełnoziarnisty, steel-cut (krojony stalowymi nożami)" },
+  { "source": "Chicken, broilers or fryers, drumstick, meat only, cooked, braised", "translation": "Kurczak, brojler, udko, tylko mięso, gotowany, duszony" },
+  { "source": "Apple juice, with added vitamin C, from concentrate, shelf stable", "translation": "Sok jabłkowy, z dodatkiem witaminy C, z koncentratu, trwały w temperaturze pokojowej" }
 ]
