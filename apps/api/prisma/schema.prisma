@@ -379,6 +379,12 @@ model PlannedMeal {
   recipeId  String
   mealType  String
   servings  Float       @default(1)
+  // Recipe ids previously shown in this slot via the "swap meal" action.
+  // The swap picker excludes the union of this array + the current recipeId
+  // so repeated clicks advance through fresh candidates instead of cycling
+  // between two. Cleared (reset to just the current recipeId) when the pool
+  // is exhausted.
+  swapHistory String[]   @default([])
 
   @@index([dayId])
 }

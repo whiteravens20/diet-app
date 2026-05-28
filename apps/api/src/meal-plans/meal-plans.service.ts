@@ -325,12 +325,24 @@ export class MealPlansService {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
     const dietType = meal.day.plan.dietType;
 
+    // History of recipes already shown for THIS slot (across previous swaps),
+    // plus the currently displayed recipe. The picker excludes the union so
+    // repeated clicks advance through fresh candidates instead of cycling
+    // between two. `applyHistory` is the array we persist back to the row.
+    const prevHistory = meal.swapHistory ?? [];
+    const excludeBeforeReset = new Set<string>([meal.recipeId, ...prevHistory]);
+
     let replacementId: string;
+    let nextHistory: string[];
+
     if (req.strategy === 'favorite') {
       if (!req.favoriteRecipeId) {
         throw new NotFoundException({ error: 'NO_FAVORITE', message: 'favoriteRecipeId required.' });
       }
+      // Explicit user pick — bypass exclusion logic but still record it so a
+      // subsequent random swap doesn't immediately resurface it.
       replacementId = req.favoriteRecipeId;
+      nextHistory = appendUnique(prevHistory, meal.recipeId);
     } else if (req.strategy === 'favorite_ingredients') {
       const favIngs = meal.day.plan.profile.preferences?.favoriteIngredientIds ?? [];
       if (favIngs.length === 0) {
@@ -339,8 +351,10 @@ export class MealPlansService {
           message: 'Add favourite ingredients on the profile before swapping by them.',
         });
       }
-      // Rank candidates by how many of the profile's favourite ingredients they
-      // use; pick the highest-overlap one (deterministic tiebreaker on id).
+      // Score all candidates that match the slot + diet (excluding current
+      // recipe only); we apply the swap-history filter after scoring so the
+      // user always gets a relevant fav-ingredient match even when history
+      // would have wiped the pool.
       const candidates = await this.prisma.recipe.findMany({
         where: { dietTags: { has: dietType }, mealTypes: { has: meal.mealType }, id: { not: meal.recipeId } },
         select: { id: true, ingredients: { select: { ingredientId: true } } },
@@ -356,11 +370,21 @@ export class MealPlansService {
           message: 'No recipe in this slot uses any of your favourite ingredients.',
         });
       }
-      // Among the top-scoring ties, hash on the planned-meal id so repeated
-      // clicks rotate through the equally-good options.
+      // First-choice pool: top-scoring AND not yet shown in this slot.
       const topHits = scored[0]!.hits;
       const top = scored.filter((c) => c.hits === topHits);
-      replacementId = top[hashIndex(req.plannedMealId, top.length)]!.id;
+      const fresh = top.filter((c) => !excludeBeforeReset.has(c.id));
+      const pool = fresh.length > 0 ? fresh : top;
+      // history advances the seed so consecutive picks vary even when pool
+      // composition stays the same.
+      const idx = hashIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length);
+      replacementId = pool[idx]!.id;
+      nextHistory =
+        fresh.length > 0
+          ? appendUnique(prevHistory, meal.recipeId)
+          : // Pool wrapped — reset history to just the recipe leaving the slot
+            // so the next swap sees the previously-shown options as fresh again.
+            [meal.recipeId];
     } else {
       const candidates = await this.prisma.recipe.findMany({
         where: { dietTags: { has: dietType }, mealTypes: { has: meal.mealType }, id: { not: meal.recipeId } },
@@ -369,8 +393,13 @@ export class MealPlansService {
       if (candidates.length === 0) {
         throw new NotFoundException({ error: 'NO_ALTERNATIVE', message: 'No alternative recipe found.' });
       }
-      // Deterministic pick keyed on the planned-meal id.
-      replacementId = candidates[hashIndex(req.plannedMealId, candidates.length)]!.id;
+      const fresh = candidates.filter((c) => !excludeBeforeReset.has(c.id));
+      const pool = fresh.length > 0 ? fresh : candidates;
+      // Same seed-advance trick as above.
+      const idx = hashIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length);
+      replacementId = pool[idx]!.id;
+      nextHistory =
+        fresh.length > 0 ? appendUnique(prevHistory, meal.recipeId) : [meal.recipeId];
     }
 
     // Rescale servings so the swap stays close to the slot's calorie budget.
@@ -393,7 +422,7 @@ export class MealPlansService {
 
     await this.prisma.plannedMeal.update({
       where: { id: req.plannedMealId },
-      data: { recipeId: replacementId, servings },
+      data: { recipeId: replacementId, servings, swapHistory: nextHistory },
     });
     return this.get(userId, locale, req.planId);
   }
@@ -781,6 +810,10 @@ function buildDays(
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function appendUnique(arr: readonly string[], value: string): string[] {
+  return arr.includes(value) ? [...arr] : [...arr, value];
 }
 
 function hashIndex(key: string, modulo: number): number {
