@@ -130,6 +130,7 @@
     "ADMIN_DISABLED": "Panel administracyjny jest wyłączony na tej instancji.",
     "UPDATE_IN_PROGRESS": "Aktualizacja bazy już trwa.",
     "TRANSLATE_IN_PROGRESS": "Zadanie tłumaczenia już trwa.",
+    "IMPORT_IN_PROGRESS": "Import USDA już trwa.",
     "INVALID_LOCALE": "Nieobsługiwany język.",
     "INVALID_SCOPE": "Nieprawidłowy zakres tłumaczenia."
   },

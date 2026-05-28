@@ -25,6 +25,7 @@
     "db:seed": "npm run db:seed -w apps/api",
     "db:generate": "npm run db:generate -w apps/api",
     "data:lint": "npm run data:lint -w apps/api",
+    "test:catalogue": "npm run test:catalogue -w apps/api",
     "prepare": "husky"
   },
   "devDependencies": {

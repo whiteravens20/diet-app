@@ -130,6 +130,7 @@
     "ADMIN_DISABLED": "The admin panel is disabled on this instance.",
     "UPDATE_IN_PROGRESS": "A database update is already in progress.",
     "TRANSLATE_IN_PROGRESS": "A translation job is already in progress.",
+    "IMPORT_IN_PROGRESS": "A USDA import is already in progress.",
     "INVALID_LOCALE": "Unsupported locale.",
     "INVALID_SCOPE": "Invalid translation scope."
   },
