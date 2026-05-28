@@ -10,8 +10,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { GeneratePlanRequest, SwapIngredientRequest, SwapMealRequest } from '@diet-app/shared';
+import {
+  GeneratePlanRequest,
+  type Locale,
+  SwapIngredientRequest,
+  SwapMealRequest,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { RequestLocale } from '../common/request-locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -24,17 +30,18 @@ export class MealPlansController {
   @Get()
   list(
     @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
     @Query('profileId') profileId: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('status') status?: string,
   ) {
-    return this.plans.list(user.id, profileId, { from, to, status });
+    return this.plans.list(user.id, locale, profileId, { from, to, status });
   }
 
   @Get(':id')
-  get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    return this.plans.get(user.id, id);
+  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id') id: string) {
+    return this.plans.get(user.id, locale, id);
   }
 
   /** Plan generation is rate-limited tighter — it is compute-heavy. */
@@ -42,16 +49,21 @@ export class MealPlansController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   generate(
     @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(GeneratePlanRequest)) dto: GeneratePlanRequest,
   ) {
-    return this.plans.generate(user.id, dto);
+    return this.plans.generate(user.id, locale, dto);
   }
 
   /** Re-run the optimiser for a whole plan, in place. */
   @Post(':id/regenerate')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  regenerate(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    return this.plans.regenerate(user.id, id);
+  regenerate(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id') id: string,
+  ) {
+    return this.plans.regenerate(user.id, locale, id);
   }
 
   /** Re-roll the meals of a single day. */
@@ -59,10 +71,11 @@ export class MealPlansController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   regenerateDay(
     @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
     @Param('id') id: string,
     @Param('dayId') dayId: string,
   ) {
-    return this.plans.regenerateDay(user.id, id, dayId);
+    return this.plans.regenerateDay(user.id, locale, id, dayId);
   }
 
   @Delete(':id')
@@ -74,9 +87,10 @@ export class MealPlansController {
   @Post('swap-meal')
   swapMeal(
     @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapMealRequest)) dto: SwapMealRequest,
   ) {
-    return this.plans.swapMeal(user.id, dto);
+    return this.plans.swapMeal(user.id, locale, dto);
   }
 
   @Post('swap-ingredient/preview')
@@ -91,8 +105,9 @@ export class MealPlansController {
   @Post('swap-ingredient/apply')
   applyIngredientSwap(
     @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
   ) {
-    return this.plans.applyIngredientSwap(user.id, dto);
+    return this.plans.applyIngredientSwap(user.id, locale, dto);
   }
 }

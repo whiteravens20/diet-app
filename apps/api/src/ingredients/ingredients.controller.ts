@@ -1,5 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import type { Locale } from '@diet-app/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { RequestLocale } from '../common/request-locale.decorator.js';
 import { IngredientsService } from './ingredients.service.js';
 
 @Controller('ingredients')
@@ -13,8 +15,8 @@ export class IngredientsController {
    * by name); `?search=` does a case-insensitive name match.
    */
   @Get()
-  list(@Query('search') search?: string, @Query('ids') ids?: string) {
-    if (ids) return this.ingredients.getMany(ids.split(',').filter(Boolean));
-    return this.ingredients.search(search);
+  list(@RequestLocale() locale: Locale, @Query('search') search?: string, @Query('ids') ids?: string) {
+    if (ids) return this.ingredients.getMany(locale, ids.split(',').filter(Boolean));
+    return this.ingredients.search(locale, search);
   }
 }

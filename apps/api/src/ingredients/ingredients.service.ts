@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Ingredient } from '@diet-app/shared';
+import type { Ingredient, Locale } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Read access to the curated ingredient database. Static seed data. */
@@ -7,48 +7,70 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class IngredientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(query: string | undefined): Promise<Ingredient[]> {
+  async search(locale: Locale, query: string | undefined): Promise<Ingredient[]> {
     const rows = await this.prisma.ingredient.findMany({
       where: query ? { name: { contains: query, mode: 'insensitive' } } : undefined,
+      include: translationsInclude(locale),
       orderBy: { name: 'asc' },
       take: 100,
     });
-    return rows.map(toIngredientDto);
+    return rows.map((r) => toIngredientDto(r, locale));
   }
 
   /** Resolve a list of ids back to ingredient records — for displaying the
    *  favourite/avoid lists on the profile page without an N+1 round-trip. */
-  async getMany(ids: string[]): Promise<Ingredient[]> {
+  async getMany(locale: Locale, ids: string[]): Promise<Ingredient[]> {
     if (ids.length === 0) return [];
     const rows = await this.prisma.ingredient.findMany({
       where: { id: { in: ids } },
+      include: translationsInclude(locale),
       orderBy: { name: 'asc' },
     });
-    return rows.map(toIngredientDto);
+    return rows.map((r) => toIngredientDto(r, locale));
   }
 }
 
-function toIngredientDto(row: {
-  id: string;
-  name: string;
-  category: Ingredient['category'];
-  canonicalUnit: Ingredient['canonicalUnit'];
-  caloriesPer100: number;
-  proteinPer100: number;
-  fatPer100: number;
-  carbsPer100: number;
-  gramsPerPiece: number | null;
-  density: number | null;
-  allergens: string[];
-  dietCompatibility: string[];
-  tags: string[];
-  packSize: number | null;
-  brand: string | null;
-  storageHint: string | null;
-}): Ingredient {
+function translationsInclude(locale: Locale) {
+  const locales = locale === 'en' ? ['en'] : [locale, 'en'];
+  return { translations: { where: { locale: { in: locales } } } } as const;
+}
+
+function pickTranslated(
+  locale: Locale,
+  translations: { locale: string; name: string; storageHint: string | null }[] | undefined,
+  fallback: { name: string; storageHint: string | null },
+): { name: string; storageHint: string | null } {
+  if (!translations || translations.length === 0) return fallback;
+  const match = translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en');
+  return match ?? fallback;
+}
+
+function toIngredientDto(
+  row: {
+    id: string;
+    name: string;
+    category: Ingredient['category'];
+    canonicalUnit: Ingredient['canonicalUnit'];
+    caloriesPer100: number;
+    proteinPer100: number;
+    fatPer100: number;
+    carbsPer100: number;
+    gramsPerPiece: number | null;
+    density: number | null;
+    allergens: string[];
+    dietCompatibility: string[];
+    tags: string[];
+    packSize: number | null;
+    brand: string | null;
+    storageHint: string | null;
+    translations?: { locale: string; name: string; storageHint: string | null }[];
+  },
+  locale: Locale,
+): Ingredient {
+  const text = pickTranslated(locale, row.translations, { name: row.name, storageHint: row.storageHint });
   return {
     id: row.id,
-    name: row.name,
+    name: text.name,
     category: row.category,
     canonicalUnit: row.canonicalUnit,
     caloriesPer100: row.caloriesPer100,
@@ -62,6 +84,6 @@ function toIngredientDto(row: {
     tags: row.tags,
     packSize: row.packSize,
     brand: row.brand,
-    storageHint: row.storageHint,
+    storageHint: text.storageHint,
   };
 }

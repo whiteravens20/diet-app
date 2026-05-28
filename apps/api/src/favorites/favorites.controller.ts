@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
+import type { Locale } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { RequestLocale } from '../common/request-locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { FavoritesService } from './favorites.service.js';
@@ -21,11 +23,12 @@ export class FavoritesController {
   @Get()
   list(
     @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
     @Query('profileId') profileId: string,
     @Query('search') search?: string,
     @Query('mealType') mealType?: string,
   ) {
-    return this.favorites.list(user.id, profileId, { search, mealType });
+    return this.favorites.list(user.id, locale, profileId, { search, mealType });
   }
 
   @Post()

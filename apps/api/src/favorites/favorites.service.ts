@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import type { Locale } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
 
@@ -9,10 +10,12 @@ export class FavoritesService {
 
   async list(
     userId: string,
+    locale: Locale,
     profileId: string,
     filters: { search?: string; mealType?: string } = {},
   ) {
     await this.assertProfile(userId, profileId);
+    const trWhere = locale === 'en' ? ['en'] : [locale, 'en'];
     const rows = await this.prisma.favorite.findMany({
       where: {
         profileId,
@@ -23,14 +26,25 @@ export class FavoritesService {
           ...(filters.mealType ? { mealTypes: { has: filters.mealType } } : {}),
         },
       },
-      include: { recipe: { include: { ingredients: { include: { ingredient: true } } } } },
+      include: {
+        recipe: {
+          include: {
+            ingredients: {
+              include: {
+                ingredient: { include: { translations: { where: { locale: { in: trWhere } } } } },
+              },
+            },
+            translations: { where: { locale: { in: trWhere } } },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((f) => ({
       id: f.id,
       tags: f.tags,
       sentiment: f.sentiment,
-      recipe: toRecipeDto(f.recipe),
+      recipe: toRecipeDto(f.recipe, locale),
     }));
   }
 

@@ -48,9 +48,22 @@ export class ApiClientError extends Error {
   }
 }
 
+/** Locale module-state so every fetch carries the right Accept-Language. The
+ *  cookie is the source of truth (set by the language switcher + middleware
+ *  fallback); we read it once per request so tab-level locale changes are
+ *  picked up without re-importing the API client. */
+function currentLocale(): string {
+  if (typeof document === 'undefined') return 'en';
+  const match = document.cookie.match(/(?:^|;\s*)NEXT_LOCALE=([^;]+)/);
+  return match ? decodeURIComponent(match[1]!) : 'en';
+}
+
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('content-type', 'application/json');
+  // Tell the API which locale to serve translated text in. The API resolves
+  // this header in `RequestLocale` decorator; absent/unsupported → 'en'.
+  if (!headers.has('accept-language')) headers.set('accept-language', currentLocale());
   const access = tokenStore.access;
   if (access) headers.set('authorization', `Bearer ${access}`);
 

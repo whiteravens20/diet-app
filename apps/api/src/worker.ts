@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { Worker } from 'bullmq';
-import type { GeneratePlanRequest } from '@diet-app/shared';
+import type { GeneratePlanRequest, Locale } from '@diet-app/shared';
 import { AppModule } from './app.module.js';
 import type { Env } from './config/env.js';
 import { MealPlansService } from './meal-plans/meal-plans.service.js';
@@ -13,6 +13,9 @@ export const PLAN_QUEUE = 'plan-generation';
 
 export interface PlanGenerationJob {
   userId: string;
+  /** Locale to render the resulting plan in. The user's locale at queue time
+   *  is captured here so the response strings match the UI they came from. */
+  locale: Locale;
   request: GeneratePlanRequest;
 }
 
@@ -33,7 +36,7 @@ async function bootstrap(): Promise<void> {
     PLAN_QUEUE,
     async (job) => {
       logger.log(`Generating plan for profile ${job.data.request.profileId}`);
-      const plan = await mealPlans.generate(job.data.userId, job.data.request);
+      const plan = await mealPlans.generate(job.data.userId, job.data.locale ?? 'en', job.data.request);
       return { planId: plan.id };
     },
     { connection, concurrency: 4 },

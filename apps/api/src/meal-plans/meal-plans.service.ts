@@ -7,6 +7,7 @@ import {
 import {
   MEAL_SLOTS_BY_COUNT,
   type GeneratePlanRequest,
+  type Locale,
   type MealPlan,
   type MealPlanDay,
   type MealType,
@@ -43,7 +44,7 @@ export class MealPlansService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Deterministically generate and persist a meal plan. */
-  async generate(userId: string, req: GeneratePlanRequest): Promise<MealPlan> {
+  async generate(userId: string, locale: Locale, req: GeneratePlanRequest): Promise<MealPlan> {
     const profile = await this.loadProfile(userId, req.profileId);
     const calorieTarget = req.calorieTargetOverride ?? this.calorieTargetFor(profile);
     const dietType = req.dietType ?? profile.dietType;
@@ -75,14 +76,14 @@ export class MealPlansService {
         days: { create: buildDays(start, req.durationDays, calorieTarget, result.assignments) },
       },
     });
-    return this.get(userId, plan.id);
+    return this.get(userId, locale, plan.id);
   }
 
   /**
    * Re-run the optimiser for an existing plan, in place. Picks up any profile
    * changes (calorie target, diet type) and yields a fresh set of meals.
    */
-  async regenerate(userId: string, planId: string): Promise<MealPlan> {
+  async regenerate(userId: string, locale: Locale, planId: string): Promise<MealPlan> {
     const existing = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: { profile: true, days: { include: { meals: true }, orderBy: { date: 'asc' } } },
@@ -116,11 +117,11 @@ export class MealPlansService {
         },
       }),
     ]);
-    return this.get(userId, planId);
+    return this.get(userId, locale, planId);
   }
 
   /** Re-roll the meals of a single day, leaving the rest of the plan untouched. */
-  async regenerateDay(userId: string, planId: string, dayId: string): Promise<MealPlan> {
+  async regenerateDay(userId: string, locale: Locale, planId: string, dayId: string): Promise<MealPlan> {
     const day = await this.prisma.mealPlanDay.findUnique({
       where: { id: dayId },
       include: { plan: { include: { profile: true } }, meals: true },
@@ -150,7 +151,7 @@ export class MealPlansService {
           .map((a) => ({ dayId, recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
       }),
     ]);
-    return this.get(userId, planId);
+    return this.get(userId, locale, planId);
   }
 
   /** Delete a plan and everything under it (days, meals, shopping lists cascade). */
@@ -243,6 +244,7 @@ export class MealPlansService {
 
   async list(
     userId: string,
+    locale: Locale,
     profileId: string,
     filters: { from?: string; to?: string; status?: string } = {},
   ): Promise<MealPlan[]> {
@@ -281,10 +283,11 @@ export class MealPlansService {
       });
     }
 
-    return Promise.all(plans.map((p) => this.get(userId, p.id)));
+    return Promise.all(plans.map((p) => this.get(userId, locale, p.id)));
   }
 
-  async get(userId: string, planId: string): Promise<MealPlan> {
+  async get(userId: string, locale: Locale, planId: string): Promise<MealPlan> {
+    const trWhere = locale === 'en' ? ['en'] : [locale, 'en'];
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: {
@@ -293,7 +296,16 @@ export class MealPlansService {
           include: {
             meals: {
               include: {
-                recipe: { include: { ingredients: { include: { ingredient: true } } } },
+                recipe: {
+                  include: {
+                    ingredients: {
+                      include: {
+                        ingredient: { include: { translations: { where: { locale: { in: trWhere } } } } },
+                      },
+                    },
+                    translations: { where: { locale: { in: trWhere } } },
+                  },
+                },
               },
             },
           },
@@ -305,11 +317,11 @@ export class MealPlansService {
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
-    return this.toDto(plan);
+    return this.toDto(plan, locale);
   }
 
   /** Swap a planned meal for a random / favorite alternative; applies immediately. */
-  async swapMeal(userId: string, req: SwapMealRequest): Promise<MealPlan> {
+  async swapMeal(userId: string, locale: Locale, req: SwapMealRequest): Promise<MealPlan> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
     const dietType = meal.day.plan.dietType;
 
@@ -383,7 +395,7 @@ export class MealPlansService {
       where: { id: req.plannedMealId },
       data: { recipeId: replacementId, servings },
     });
-    return this.get(userId, req.planId);
+    return this.get(userId, locale, req.planId);
   }
 
   /**
@@ -428,7 +440,7 @@ export class MealPlansService {
    * recompute per-serving nutrition deterministically, and repoint the planned
    * meal at the clone. Servings are kept; the substitute is calorie-scaled.
    */
-  async applyIngredientSwap(userId: string, req: SwapIngredientRequest): Promise<MealPlan> {
+  async applyIngredientSwap(userId: string, locale: Locale, req: SwapIngredientRequest): Promise<MealPlan> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: meal.recipeId },
@@ -559,7 +571,7 @@ export class MealPlansService {
       where: { id: req.plannedMealId },
       data: { recipeId: variant.id },
     });
-    return this.get(userId, req.planId);
+    return this.get(userId, locale, req.planId);
   }
 
   // ── internals ───────────────────────────────────────────────────────────────
@@ -656,14 +668,14 @@ export class MealPlansService {
     return { optimizerRecipes };
   }
 
-  private toDto(plan: PlanWithRelations): MealPlan {
+  private toDto(plan: PlanWithRelations, locale: Locale): MealPlan {
     const days: MealPlanDay[] = plan.days.map((day) => {
       // Sort meals into canonical eating order — Prisma's row order is
       // undefined and shifts after updates, which would look like other meals
       // also changed.
       const orderedMeals = [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType));
       const meals: PlannedMeal[] = orderedMeals.map((m) => {
-        const recipe = toRecipeDto(m.recipe);
+        const recipe = toRecipeDto(m.recipe, locale);
         const n = recipe.nutritionPerServing;
         return {
           id: m.id,
