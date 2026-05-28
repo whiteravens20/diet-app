@@ -55,10 +55,26 @@ export function LanguageSwitcher({ className }: { className?: string }) {
         onChange={onChange}
         disabled={pending}
         className={cn(
-          'h-9 rounded-md border border-border bg-transparent px-2 pr-8 text-sm',
+          // `appearance-none` strips the native chrome that ignores our colour
+          // tokens (the white pill some browsers ship by default). The chevron
+          // is re-drawn via inline background-image below so the control stays
+          // recognisable as a select.
+          'h-9 appearance-none rounded-md border border-border bg-background text-foreground',
+          'px-2 pr-8 text-sm',
+          // Options popup: most browsers respect bg/text on <option> only when
+          // they're explicit. Without these the dropdown reverts to OS colours
+          // and looks "white" in any dark or tinted palette.
+          '[&>option]:bg-background [&>option]:text-foreground',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           'disabled:opacity-50',
         )}
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='currentColor'><path d='M4 6l4 4 4-4'/></svg>\")",
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 0.5rem center',
+          backgroundSize: '12px',
+        }}
       >
         {SUPPORTED_LOCALES.map((locale) => (
           <option key={locale} value={locale}>
