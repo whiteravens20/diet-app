@@ -16,12 +16,21 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   );
 }
 
-/** A labelled field wrapper. */
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** A labelled field wrapper. Optional `hint` renders as muted helper text below the input. */
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block space-y-1.5">
       <span className="text-sm font-medium">{label}</span>
       {children}
+      {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
     </label>
   );
 }

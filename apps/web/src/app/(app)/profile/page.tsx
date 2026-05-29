@@ -117,14 +117,18 @@ export default function ProfilePage() {
       mealCount: Number(f.get('mealCount')),
       // Preserve preferences on edit; new profiles start with an empty set
       // (the cap defaults mirror packages/shared/src/profile.ts).
-      preferences: editing?.preferences ?? {
-        favoriteIngredientIds: [],
-        excludedIngredientIds: [],
-        allergens: [],
-        dislikedFoods: [],
-        preferredCuisines: [],
-        maxConsecutiveDaysSameMeal: 2,
-        maxTimesPerWeekSameMeal: 3,
+      preferences: {
+        ...(editing?.preferences ?? {
+          favoriteIngredientIds: [],
+          excludedIngredientIds: [],
+          allergens: [],
+          dislikedFoods: [],
+          preferredCuisines: [],
+          maxConsecutiveDaysSameMeal: 2,
+          maxTimesPerWeekSameMeal: 3,
+        }),
+        maxConsecutiveDaysSameMeal: Number(f.get('maxConsecutiveDaysSameMeal')) || 2,
+        maxTimesPerWeekSameMeal: Number(f.get('maxTimesPerWeekSameMeal')) || 3,
       },
     });
   }
@@ -310,6 +314,26 @@ export default function ProfilePage() {
                   min={2}
                   max={5}
                   defaultValue={editing?.mealCount ?? 3}
+                />
+              </Field>
+              <Field label={t('maxConsecutiveDaysSameMeal')} hint={t('maxConsecutiveDaysSameMealHint')}>
+                <Input
+                  name="maxConsecutiveDaysSameMeal"
+                  type="number"
+                  required
+                  min={1}
+                  max={7}
+                  defaultValue={editing?.preferences.maxConsecutiveDaysSameMeal ?? 2}
+                />
+              </Field>
+              <Field label={t('maxTimesPerWeekSameMeal')} hint={t('maxTimesPerWeekSameMealHint')}>
+                <Input
+                  name="maxTimesPerWeekSameMeal"
+                  type="number"
+                  required
+                  min={1}
+                  max={7}
+                  defaultValue={editing?.preferences.maxTimesPerWeekSameMeal ?? 3}
                 />
               </Field>
               <div className="flex items-center gap-3 sm:col-span-2">
