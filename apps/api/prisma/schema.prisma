@@ -128,14 +128,18 @@ model Profile {
 }
 
 model ProfilePreference {
-  id                    String   @id @default(uuid())
-  profile               Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  profileId             String   @unique
-  favoriteIngredientIds String[] @default([])
-  excludedIngredientIds String[] @default([])
-  allergens             String[] @default([])
-  dislikedFoods         String[] @default([])
-  preferredCuisines     String[] @default([])
+  id                         String   @id @default(uuid())
+  profile                    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId                  String   @unique
+  favoriteIngredientIds      String[] @default([])
+  excludedIngredientIds      String[] @default([])
+  allergens                  String[] @default([])
+  dislikedFoods              String[] @default([])
+  preferredCuisines          String[] @default([])
+  // Hard caps for the meal-plan generator's variety enforcement.
+  // See ProfilePreferences zod schema in packages/shared for semantics.
+  maxConsecutiveDaysSameMeal Int      @default(2)
+  maxTimesPerWeekSameMeal    Int      @default(3)
 }
 
 // ── Curated product database (SEED DATA — source of truth) ────────────────────

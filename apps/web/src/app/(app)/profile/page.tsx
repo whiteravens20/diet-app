@@ -115,13 +115,16 @@ export default function ProfilePage() {
         ? Number(f.get('manualCalorieTarget'))
         : null,
       mealCount: Number(f.get('mealCount')),
-      // Preserve preferences on edit; new profiles start with an empty set.
+      // Preserve preferences on edit; new profiles start with an empty set
+      // (the cap defaults mirror packages/shared/src/profile.ts).
       preferences: editing?.preferences ?? {
         favoriteIngredientIds: [],
         excludedIngredientIds: [],
         allergens: [],
         dislikedFoods: [],
         preferredCuisines: [],
+        maxConsecutiveDaysSameMeal: 2,
+        maxTimesPerWeekSameMeal: 3,
       },
     });
   }

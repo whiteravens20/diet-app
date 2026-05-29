@@ -13,6 +13,21 @@ export const ProfilePreferences = z.object({
   allergens: z.array(Allergen).default([]),
   dislikedFoods: z.array(z.string()).default([]),
   preferredCuisines: z.array(z.string()).default([]),
+  /**
+   * Hard cap on how many days in a row the same recipe may occupy a slot.
+   * The scorer treats this as an exclusion (not a soft penalty) so even a
+   * runaway "best-scoring" recipe is forced to step aside. 1 = no repeats
+   * on adjacent days; higher = more meal-prep friendly. The plan generator
+   * uses a permissive default when `mealPrepFriendly` is set on the
+   * generation request.
+   */
+  maxConsecutiveDaysSameMeal: z.number().int().min(1).max(7).default(2),
+  /**
+   * Hard cap on how many times the same recipe may appear within any rolling
+   * 7-day window. Stops a single high-scoring recipe from dominating a long
+   * plan (28 days = the same meal every day was the reported failure mode).
+   */
+  maxTimesPerWeekSameMeal: z.number().int().min(1).max(7).default(3),
 });
 export type ProfilePreferences = z.infer<typeof ProfilePreferences>;
 
@@ -36,6 +51,8 @@ export const ProfileInput = z.object({
     allergens: [],
     dislikedFoods: [],
     preferredCuisines: [],
+    maxConsecutiveDaysSameMeal: 2,
+    maxTimesPerWeekSameMeal: 3,
   }),
 });
 export type ProfileInput = z.infer<typeof ProfileInput>;

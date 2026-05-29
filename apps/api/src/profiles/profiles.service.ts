@@ -133,6 +133,8 @@ export class ProfilesService {
       allergens: string[];
       dislikedFoods: string[];
       preferredCuisines: string[];
+      maxConsecutiveDaysSameMeal: number;
+      maxTimesPerWeekSameMeal: number;
     } | null;
   }): Profile {
     return {
@@ -154,6 +156,8 @@ export class ProfilesService {
         allergens: (row.preferences?.allergens ?? []) as Profile['preferences']['allergens'],
         dislikedFoods: row.preferences?.dislikedFoods ?? [],
         preferredCuisines: row.preferences?.preferredCuisines ?? [],
+        maxConsecutiveDaysSameMeal: row.preferences?.maxConsecutiveDaysSameMeal ?? 2,
+        maxTimesPerWeekSameMeal: row.preferences?.maxTimesPerWeekSameMeal ?? 3,
       },
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
