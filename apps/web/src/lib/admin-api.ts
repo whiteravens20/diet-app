@@ -164,6 +164,68 @@ export interface UsdaImportRunnerState {
   error: string | null;
 }
 
+// ── Curation queue (drafts) ───────────────────────────────────────────────────
+
+export interface DraftLocaleReview {
+  locale: string;
+  action: 'APPROVE' | 'REJECT';
+  reviewedByLabel: string;
+  reason: string | null;
+  reviewedAt: string;
+}
+
+export interface IngredientNameSuggestionMap {
+  name: Record<string, string>;
+  storageHint?: Record<string, string>;
+}
+
+export interface IngredientNameDraft {
+  id: string;
+  ingredientId: string | null;
+  ingredientSlug: string;
+  rawDescription: string;
+  suggestions: IngredientNameSuggestionMap;
+  locales: string[];
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
+  source: 'AI' | 'EXTERNAL' | 'MANUAL';
+  batchId: string;
+  modelUsed: string | null;
+  generatorPrompt: string | null;
+  shippedPRUrl: string | null;
+  shippedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  localeReviews: DraftLocaleReview[];
+}
+
+export interface DraftRunnerState {
+  status: 'idle' | 'running' | 'done' | 'error';
+  startedAt: string | null;
+  finishedAt: string | null;
+  processed: number;
+  total: number;
+  failed: number;
+  written: number;
+  provider: string | null;
+  model: string | null;
+  batchId: string | null;
+  error: string | null;
+  configured: boolean;
+}
+
+export interface IngredientNameGenerateSpec {
+  scope: 'all-usda-missing' | 'specific-slugs';
+  slugs?: string[];
+  targetLocales?: string[];
+}
+
+export interface PagedDrafts<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export const adminApi = {
   status: () => adminFetch<AdminStatus>('/status', {}, false),
   stats: () => adminFetch<AdminStats>('/stats'),
@@ -191,4 +253,59 @@ export const adminApi = {
     ),
   usdaImportStatus: () =>
     adminFetch<UsdaImportRunnerState>('/db/import-usda/status'),
+
+  // Drafts: ingredient-name
+  startIngredientNamer: (spec: IngredientNameGenerateSpec) =>
+    adminFetch<DraftRunnerState>('/drafts/ingredient-names/generate', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    }),
+  ingredientNamerStatus: () =>
+    adminFetch<DraftRunnerState>('/drafts/ingredient-names/generate/status'),
+  stopIngredientNamer: () =>
+    adminFetch<DraftRunnerState>('/drafts/ingredient-names/generate/stop', {
+      method: 'POST',
+    }),
+  listIngredientNameDrafts: (params: {
+    status?: string;
+    batchId?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.batchId) q.set('batchId', params.batchId);
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    const qs = q.toString();
+    return adminFetch<PagedDrafts<IngredientNameDraft>>(
+      `/drafts/ingredient-names${qs ? `?${qs}` : ''}`,
+    );
+  },
+  patchIngredientNameDraft: (id: string, suggestions: IngredientNameSuggestionMap) =>
+    adminFetch<IngredientNameDraft>(`/drafts/ingredient-names/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ suggestions }),
+    }),
+  approveIngredientNameDraft: (
+    id: string,
+    locale: string,
+    reviewedByLabel: string,
+  ) =>
+    adminFetch<IngredientNameDraft>(
+      `/drafts/ingredient-names/${id}/approve?locale=${encodeURIComponent(locale)}`,
+      { method: 'POST', body: JSON.stringify({ reviewedByLabel }) },
+    ),
+  rejectIngredientNameDraft: (
+    id: string,
+    locale: string,
+    reviewedByLabel: string,
+    reason?: string,
+  ) =>
+    adminFetch<IngredientNameDraft>(
+      `/drafts/ingredient-names/${id}/reject?locale=${encodeURIComponent(locale)}`,
+      { method: 'POST', body: JSON.stringify({ reviewedByLabel, reason }) },
+    ),
+  deleteIngredientNameDraft: (id: string) =>
+    adminFetch<void>(`/drafts/ingredient-names/${id}`, { method: 'DELETE' }),
 };

@@ -14,6 +14,7 @@ import { join, resolve } from 'node:path';
 export const SEED_FILES = [
   'ingredients.json',
   'ingredients.generated.json',
+  'ingredient-overrides.json',
   'recipes.json',
   'substitutions.json',
 ] as const;

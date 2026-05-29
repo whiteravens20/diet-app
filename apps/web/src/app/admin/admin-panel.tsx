@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle2, Database, Download, Languages, RefreshCw }
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { CurationCard } from './curation-card';
 import {
   AdminApiError,
   adminApi,
@@ -348,6 +349,8 @@ export function AdminPanel() {
           void adminApi.translationsStatus().then(setTranslations).catch(() => undefined);
         }}
       />
+
+      <CurationCard />
     </div>
   );
 }

@@ -23,6 +23,10 @@ import type { PrismaClient } from '@prisma/client';
 import { nutritionFor, toCanonical } from '../../engine/units.js';
 import { composeRecipes, type ComposableIngredient } from '../../engine/recipe-templates.js';
 import { computeDataState, resolveDataDir } from './data-hash.js';
+import {
+  ingredientOverridesPath,
+  readIngredientOverrides,
+} from '../drafts/ship/ingredient-overrides.writer.js';
 
 type Unit = 'g' | 'ml' | 'piece';
 
@@ -246,6 +250,38 @@ export async function runSeed(
     if (ingredientIndex % 100 === 0 || ingredientIndex === ingredients.length) {
       onProgress({ stage: 'ingredients', current: ingredientIndex, total: ingredients.length });
     }
+  }
+
+  // Apply curation-queue ingredient-name overrides as MANUAL translations.
+  // These are slug-keyed friendly names produced by the AI namer + human
+  // review pipeline (ADR-0008); they live in data/ingredient-overrides.json
+  // and are layered on top of the CURATED_JSON rows the seeder just wrote.
+  // The wipe at line ~228 only touches CURATED_JSON, so MANUAL writes here
+  // survive re-seeds — same provenance contract as the AI translator.
+  const overrides = readIngredientOverrides(ingredientOverridesPath(dir));
+  const overrideSlugs = Object.keys(overrides);
+  if (overrideSlugs.length > 0) {
+    log(`Applying ${overrideSlugs.length} ingredient-name override(s) as MANUAL…`);
+    let applied = 0;
+    let skipped = 0;
+    for (const [slug, entry] of Object.entries(overrides)) {
+      const target = bySlug.get(slug);
+      if (!target) {
+        skipped += 1;
+        continue;
+      }
+      for (const [locale, name] of Object.entries(entry.name)) {
+        const storageHint =
+          (entry.storageHint as Record<string, string> | undefined)?.[locale] ?? null;
+        await prisma.ingredientTranslation.upsert({
+          where: { ingredientId_locale: { ingredientId: target.id, locale } },
+          create: { ingredientId: target.id, locale, name, storageHint, source: 'MANUAL' },
+          update: { name, storageHint, source: 'MANUAL' },
+        });
+      }
+      applied += 1;
+    }
+    log(`Ingredient overrides applied: ${applied} matched, ${skipped} skipped (unknown slug).`);
   }
 
   const anchors = readJson<RecipeSeed[]>(dir, 'recipes.json');

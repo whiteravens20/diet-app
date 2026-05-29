@@ -16,6 +16,7 @@ export * from './recipe.js';
 export * from './meal-plan.js';
 export * from './shopping-list.js';
 export * from './ai.js';
+export * from './drafts.js';
 
 /** Standard API error envelope returned for any non-2xx response. */
 export { ApiError } from './error.js';
