@@ -22,7 +22,7 @@ enum Role {
 }
 
 model User {
-  id String @id @default(uuid())
+  id             String   @id @default(uuid())
   // Email is never stored in plaintext. `emailIndex` is a keyed HMAC (blind
   // index) for unique lookups; `emailEncrypted` is the AES-256-GCM ciphertext
   // of the address. See apps/api/src/common/crypto.ts.
@@ -52,25 +52,25 @@ model User {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
@@ -176,34 +176,35 @@ enum TranslationSource {
 }
 
 model Ingredient {
-  id               String          @id @default(uuid())
+  id                String          @id @default(uuid())
   // Stable kebab-case identifier from data/*.json. Used by the seeder to upsert
   // rows and by the translation tables to join on. Nullable during the
   // migration window; backfilled then enforced by a follow-up migration.
-  slug             String?         @unique
-  name             String          @unique
-  category         ProductCategory
-  canonicalUnit    Unit
+  slug              String?         @unique
+  name              String          @unique
+  category          ProductCategory
+  canonicalUnit     Unit
   // Nutrition per 100 canonical units. NutritionFact mirrors this 1:1 for
   // explicit auditing / alternate serving sizes.
-  caloriesPer100   Float
-  proteinPer100    Float
-  fatPer100        Float
-  carbsPer100      Float
-  gramsPerPiece    Float?
-  density          Float?
-  allergens        String[]        @default([])
-  dietCompatibility String[]       @default([])
-  tags             String[]        @default([])
-  packSize         Float?
-  brand            String?
-  storageHint      String?
+  caloriesPer100    Float
+  proteinPer100     Float
+  fatPer100         Float
+  carbsPer100       Float
+  gramsPerPiece     Float?
+  density           Float?
+  allergens         String[]        @default([])
+  dietCompatibility String[]        @default([])
+  tags              String[]        @default([])
+  packSize          Float?
+  brand             String?
+  storageHint       String?
 
-  nutritionFacts     NutritionFact[]
-  recipeIngredients  RecipeIngredient[]
-  substitutionsFrom  SubstitutionRule[] @relation("SubFrom")
-  substitutionsTo    SubstitutionRule[] @relation("SubTo")
-  translations       IngredientTranslation[]
+  nutritionFacts       NutritionFact[]
+  recipeIngredients    RecipeIngredient[]
+  substitutionsFrom    SubstitutionRule[]      @relation("SubFrom")
+  substitutionsTo      SubstitutionRule[]      @relation("SubTo")
+  translations         IngredientTranslation[]
+  ingredientNameDrafts IngredientNameDraft[]
 
   @@index([category])
 }
@@ -218,7 +219,7 @@ model IngredientTranslation {
   storageHint  String?
   source       TranslationSource @default(CURATED_JSON)
   updatedAt    DateTime          @updatedAt
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient        @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 
   @@id([ingredientId, locale])
   @@index([locale])
@@ -247,12 +248,12 @@ model Allergen {
 }
 
 model SubstitutionRule {
-  id             String     @id @default(uuid())
-  fromIngredient Ingredient @relation("SubFrom", fields: [fromIngredientId], references: [id], onDelete: Cascade)
+  id               String     @id @default(uuid())
+  fromIngredient   Ingredient @relation("SubFrom", fields: [fromIngredientId], references: [id], onDelete: Cascade)
   fromIngredientId String
-  toIngredient   Ingredient @relation("SubTo", fields: [toIngredientId], references: [id], onDelete: Cascade)
-  toIngredientId String
-  note           String?
+  toIngredient     Ingredient @relation("SubTo", fields: [toIngredientId], references: [id], onDelete: Cascade)
+  toIngredientId   String
+  note             String?
 
   @@unique([fromIngredientId, toIngredientId])
 }
@@ -272,31 +273,31 @@ enum Difficulty {
 }
 
 model Recipe {
-  id          String       @id @default(uuid())
+  id                 String       @id @default(uuid())
   // Stable kebab-case identifier for seed-origin recipes; null for user/AI
   // recipes. Used by the seeder + translation tables, same role as Ingredient.slug.
-  slug        String?      @unique
-  title       String
-  description String
-  servings    Int
-  mealTypes   String[]     @default([])
-  dietTags    String[]     @default([])
-  steps       String[]     @default([])
-  prepMinutes Int
-  cookMinutes Int
-  difficulty  Difficulty   @default(easy)
-  allergens   String[]     @default([])
-  origin      RecipeOrigin @default(seed)
+  slug               String?      @unique
+  title              String
+  description        String
+  servings           Int
+  mealTypes          String[]     @default([])
+  dietTags           String[]     @default([])
+  steps              String[]     @default([])
+  prepMinutes        Int
+  cookMinutes        Int
+  difficulty         Difficulty   @default(easy)
+  allergens          String[]     @default([])
+  origin             RecipeOrigin @default(seed)
   // Per-serving nutrition — DERIVED from ingredients, recomputed on write.
-  caloriesPerServing Float @default(0)
-  proteinPerServing  Float @default(0)
-  fatPerServing      Float @default(0)
-  carbsPerServing    Float @default(0)
-  reuseScore         Float @default(0)
+  caloriesPerServing Float        @default(0)
+  proteinPerServing  Float        @default(0)
+  fatPerServing      Float        @default(0)
+  carbsPerServing    Float        @default(0)
+  reuseScore         Float        @default(0)
   // Owner is set for `user`-origin recipes; null for seed/ai library recipes.
   createdByUserId    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   ingredients  RecipeIngredient[]
   plannedMeals PlannedMeal[]
@@ -317,7 +318,7 @@ model RecipeTranslation {
   steps       String[]          @default([])
   source      TranslationSource @default(CURATED_JSON)
   updatedAt   DateTime          @updatedAt
-  recipe      Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipe      Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@id([recipeId, locale])
   @@index([locale])
@@ -376,19 +377,19 @@ model MealPlanDay {
 }
 
 model PlannedMeal {
-  id        String      @id @default(uuid())
-  day       MealPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
-  dayId     String
-  recipe    Recipe      @relation(fields: [recipeId], references: [id])
-  recipeId  String
-  mealType  String
-  servings  Float       @default(1)
+  id          String      @id @default(uuid())
+  day         MealPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  dayId       String
+  recipe      Recipe      @relation(fields: [recipeId], references: [id])
+  recipeId    String
+  mealType    String
+  servings    Float       @default(1)
   // Recipe ids previously shown in this slot via the "swap meal" action.
   // The swap picker excludes the union of this array + the current recipeId
   // so repeated clicks advance through fresh candidates instead of cycling
   // between two. Cleared (reset to just the current recipeId) when the pool
   // is exhausted.
-  swapHistory String[]   @default([])
+  swapHistory String[]    @default([])
 
   @@index([dayId])
 }
@@ -426,17 +427,17 @@ model ShoppingList {
 }
 
 model ShoppingListItem {
-  id                  String       @id @default(uuid())
-  list                ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  id                  String          @id @default(uuid())
+  list                ShoppingList    @relation(fields: [listId], references: [id], onDelete: Cascade)
   listId              String
   ingredientId        String
   name                String
   category            ProductCategory
   totalQuantity       Float
   unit                Unit
-  alreadyHaveQuantity Float        @default(0)
-  estimatedCalories   Float        @default(0)
-  checked             Boolean      @default(false)
+  alreadyHaveQuantity Float           @default(0)
+  estimatedCalories   Float           @default(0)
+  checked             Boolean         @default(false)
 
   @@index([listId])
 }
@@ -469,18 +470,18 @@ model AiProviderConfig {
 }
 
 model AiUsageLog {
-  id           String   @id @default(uuid())
-  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userId       String?
-  provider     String
-  model        String
-  operation    String // recipe_draft | substitution | plan_variation | ...
-  promptTokens Int      @default(0)
-  outputTokens Int      @default(0)
-  latencyMs    Int      @default(0)
-  success      Boolean
-  fellBackToDeterministic Boolean @default(false)
-  createdAt    DateTime @default(now())
+  id                      String   @id @default(uuid())
+  user                    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId                  String?
+  provider                String
+  model                   String
+  operation               String // recipe_draft | substitution | plan_variation | ...
+  promptTokens            Int      @default(0)
+  outputTokens            Int      @default(0)
+  latencyMs               Int      @default(0)
+  success                 Boolean
+  fellBackToDeterministic Boolean  @default(false)
+  createdAt               DateTime @default(now())
 
   @@index([userId])
   @@index([createdAt])
@@ -502,6 +503,155 @@ model AuditLog {
   @@index([createdAt])
 }
 
+// ── Curation queue (drafts) ───────────────────────────────────────────────────
+
+// AI proposes, human approves, PR ships. Drafts never reach the live Recipe /
+// Ingredient tables — see docs/adr/0008-curation-queue.md.
+
+enum DraftStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SHIPPED
+}
+
+enum DraftSource {
+  AI
+  EXTERNAL
+  MANUAL
+}
+
+model RecipeDraft {
+  id                 String      @id @default(uuid())
+  slug               String
+  // Locale-keyed JSON: { "en": "Chicken curry", "pl": "Curry z kurczaka" }.
+  // Matches data/recipes.json shape; on ship the seeder splits per-locale
+  // into RecipeTranslation rows.
+  titles             Json
+  descriptions       Json
+  // Same locale keys; values are string[]: { "en": ["Step 1"], "pl": ["Krok 1"] }.
+  steps              Json
+  // Locales this draft was generated in / is expected to ship with. Derived
+  // from the generation spec's targetLocales; the reviewer-locale gate
+  // enforces this.
+  locales            String[]
+  servings           Int
+  mealTypes          String[]    @default([])
+  dietTags           String[]    @default([])
+  prepMinutes        Int
+  cookMinutes        Int
+  difficulty         Difficulty  @default(easy)
+  // 'simple' | 'medium' | 'complex' — auto-tagged from ingredient/step/time
+  // bands by the validator. See plan §D8.
+  complexity         String      @default("medium")
+  // Engine-recomputed values — never the AI's. See engine/units.ts +
+  // engine/nutrition.ts.
+  caloriesPerServing Float       @default(0)
+  proteinPerServing  Float       @default(0)
+  fatPerServing      Float       @default(0)
+  carbsPerServing    Float       @default(0)
+  allergens          String[]    @default([])
+  // [{ slug, quantity, unit, note? }]
+  ingredientsJson    Json
+  // Derived from localeReviews: APPROVED iff every locale in `locales[]`
+  // has an APPROVE row; REJECTED if any has a REJECT; PENDING otherwise;
+  // SHIPPED set only by the ship runner.
+  status             DraftStatus @default(PENDING)
+  source             DraftSource @default(AI)
+  batchId            String
+  modelUsed          String?
+  generatorPrompt    String?
+  generationSpec     Json?
+  // EXTERNAL only — source URL + license for the imported row.
+  provenanceUrl      String?
+  provenanceLicense  String?
+  shippedPRUrl       String?
+  shippedAt          DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  localeReviews RecipeDraftLocaleReview[]
+
+  @@index([status])
+  @@index([batchId])
+  @@index([source])
+}
+
+model RecipeDraftLocaleReview {
+  id              String      @id @default(uuid())
+  draft           RecipeDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draftId         String
+  // ISO 639-1; constrained to the Locale enum at the API layer.
+  locale          String
+  // 'APPROVE' | 'REJECT' — constrained at the API layer.
+  action          String
+  // Free-text label captured from the reviewer's session cookie at review
+  // time (e.g. "Anna", "PL-reviewer-1"). Audit only.
+  reviewedByLabel String
+  reason          String?
+  reviewedAt      DateTime    @default(now())
+
+  // One current review per (draft, locale); upsert on re-review.
+  @@unique([draftId, locale])
+  @@index([draftId])
+}
+
+model IngredientNameDraft {
+  id              String      @id @default(uuid())
+  // Nullable so a draft survives ingredient deletion for audit. The seeder
+  // resolves overrides by `ingredientSlug` on ship.
+  ingredient      Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+  ingredientId    String?
+  ingredientSlug  String
+  // FDC description at draft time — read-only source reference.
+  rawDescription  String
+  // Locale-keyed JSON: { "name": { "en": "Beef tenderloin", "pl": "Polędwica wołowa" },
+  //                      "storageHint"?: { "en": "...", "pl": "..." } }.
+  suggestions     Json
+  locales         String[]
+  status          DraftStatus @default(PENDING)
+  source          DraftSource @default(AI)
+  batchId         String
+  modelUsed       String?
+  // Prompt version tag, e.g. "ingredient-namer.v1".
+  generatorPrompt String?
+  shippedPRUrl    String?
+  shippedAt       DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  localeReviews IngredientNameDraftLocaleReview[]
+
+  @@index([status])
+  @@index([batchId])
+  @@index([ingredientSlug])
+}
+
+model IngredientNameDraftLocaleReview {
+  id              String              @id @default(uuid())
+  draft           IngredientNameDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draftId         String
+  locale          String
+  action          String
+  reviewedByLabel String
+  reason          String?
+  reviewedAt      DateTime            @default(now())
+
+  @@unique([draftId, locale])
+  @@index([draftId])
+}
+
+// Singleton runtime configuration owned by the operator and managed from
+// /admin. Currently carries the reviewer-interface toggle + password hash
+// (Phase H). Pattern mirrors how ADMIN_PASSWORD itself is handled.
+model InstanceSettings {
+  id                   String   @id @default("singleton")
+  reviewerEnabled      Boolean  @default(false)
+  // bcrypt hash; cleared (null) when the operator clears the password.
+  reviewerPasswordHash String?
+  updatedAt            DateTime @updatedAt
+}
+
 // ── Seed bookkeeping ──────────────────────────────────────────────────────────
 
 // Tracks the curated DB version that last ran through the seeder. A single
@@ -509,12 +659,12 @@ model AuditLog {
 // /admin DB-update flow uses it to surface "update available" when the current
 // hash of data/*.json differs from what's stored.
 model SeedMeta {
-  key       String   @id
-  hash      String
-  seededAt  DateTime
+  key           String   @id
+  hash          String
+  seededAt      DateTime
   // Counters captured at the moment of the last successful seed — cheap to
   // surface without re-counting tables on every stats request.
-  ingredients   Int @default(0)
-  recipes       Int @default(0)
-  substitutions Int @default(0)
+  ingredients   Int      @default(0)
+  recipes       Int      @default(0)
+  substitutions Int      @default(0)
 }
