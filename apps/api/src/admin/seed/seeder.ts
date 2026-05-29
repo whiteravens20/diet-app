@@ -249,26 +249,30 @@ export async function runSeed(
   }
 
   const anchors = readJson<RecipeSeed[]>(dir, 'recipes.json');
-  const composable: ComposableIngredient[] = ingredients.map((i) => ({
-    name: en(i.name),
-    category: i.category as ComposableIngredient['category'],
-    tags: i.tags,
-    dietCompatibility: i.dietCompatibility as ComposableIngredient['dietCompatibility'],
-  }));
-  const composed = composeRecipes(composable);
-  // Composed recipes ship plain-string title/description/steps and reference
-  // ingredients by English name. Normalise to the curated shape so the loop
-  // below has one code path.
-  const composedAsSeed: RecipeSeed[] = composed.map((r) => ({
-    ...r,
-    title: r.title,
-    description: r.description,
-    steps: r.steps,
-  }));
+  // The template composer produced semantically nonsense combinations
+  // ("cucumber baked with coconut oil") and is disabled by default. Toggle
+  // with RECIPE_COMPOSER_ENABLED=true as a temporary escape hatch; the
+  // curation queue replaces it.
+  const composerEnabled = process.env.RECIPE_COMPOSER_ENABLED === 'true';
+  const composedAsSeed: RecipeSeed[] = composerEnabled
+    ? composeRecipes(
+        ingredients.map((i) => ({
+          name: en(i.name),
+          category: i.category as ComposableIngredient['category'],
+          tags: i.tags,
+          dietCompatibility: i.dietCompatibility as ComposableIngredient['dietCompatibility'],
+        })),
+      ).map((r) => ({
+        ...r,
+        title: r.title,
+        description: r.description,
+        steps: r.steps,
+      }))
+    : [];
   const recipes = [...anchors, ...composedAsSeed];
   log(
     `Seeding recipes (nutrition computed deterministically): ` +
-      `${anchors.length} anchor + ${composed.length} composed…`,
+      `${anchors.length} anchor + ${composedAsSeed.length} composed…`,
   );
   onProgress({ stage: 'recipes', current: 0, total: recipes.length });
 
@@ -408,7 +412,7 @@ export async function runSeed(
     ingredients: ingredients.length,
     recipes: recipes.length,
     anchorRecipes: anchors.length,
-    composedRecipes: composed.length,
+    composedRecipes: composedAsSeed.length,
     substitutions,
   };
 }

@@ -1,12 +1,14 @@
 /**
- * Deterministic recipe-template composition.
+ * Deterministic recipe-template composition. **DEPRECATED.**
  *
- * The no-AI fallback needs a large, varied meal library. Rather than authoring
- * hundreds of recipes by hand, a small set of structural *templates* (e.g.
- * "protein + grain + vegetable bowl") is filled from the curated ingredient
- * database. Given the same database this always yields the same recipe set, so
- * the fallback is fully reproducible (PLAN.md: "recipe templates + database-
- * driven composition"). Hand-curated "anchor" recipes are seeded alongside.
+ * The composer enforces structural slots (hero + protein + vegetable + fat)
+ * with zero cuisine, cooking-method, or flavour-pairing rules, so it produces
+ * semantically nonsense combinations like "cucumber baked with coconut oil"
+ * or "fish dressed with 25 g of olive oil". Disabled by default (the seeder
+ * gates the `composeRecipes()` call behind `RECIPE_COMPOSER_ENABLED`, which
+ * defaults to `false`); the curation queue at /admin replaces it. Will be
+ * removed in a future major release. Kept importable for backwards compat
+ * and so the existing `recipe-templates.test.ts` keeps running.
  */
 import type { DietType, MealType, ProductCategory, Unit } from '@diet-app/shared';
 

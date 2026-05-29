@@ -1,6 +1,13 @@
 # ADR 0006 — USDA importer + template composition
 
-**Status:** accepted · 2026-05
+**Status:** superseded in part by [ADR-0008](0008-curation-queue.md) · 2026-05
+
+> **Note (2026-05).** The "template composition for the no-AI fallback"
+> half of this decision is superseded: the composer produced semantically
+> nonsense combinations and is disabled by default behind
+> `RECIPE_COMPOSER_ENABLED=false`. The curation queue (F18) replaces it.
+> The "USDA Foundation Foods importer for the ingredient catalogue" half
+> stands unchanged.
 
 ## Context
 

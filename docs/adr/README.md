@@ -12,3 +12,4 @@ Newest changes append a new file; superseded ADRs are marked, not deleted.
 | [0005](0005-curated-db-source-of-truth.md) | Curated database is the source of truth; AI never writes nutrition |
 | [0006](0006-fallback-recipe-strategy.md) | USDA importer + template composition for the no-AI fallback |
 | [0007](0007-curated-vs-ai-translations.md) | Curated translations hand-authored; USDA long-tail filled by admin AI |
+| [0008](0008-curation-queue.md) | Recipes + ingredient-name overrides: AI drafts → in-app human review → PR ship |
