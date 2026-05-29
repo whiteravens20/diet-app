@@ -192,6 +192,8 @@ export class MealPlansService {
             allergens: string[];
             excludedIngredientIds: string[];
             favoriteIngredientIds: string[];
+            maxConsecutiveDaysSameMeal: number;
+            maxTimesPerWeekSameMeal: number;
           }
         | null;
     },
@@ -216,6 +218,18 @@ export class MealPlansService {
       opts.respectFavorites === false
         ? undefined
         : new Set(profile.preferences?.favoriteIngredientIds ?? []);
+    // When mealPrepFriendly is set on the request, relax the profile's caps
+    // up to a generous baseline (4 consecutive days, 5 occurrences/week) —
+    // the user is asking for cook-once-eat-many, so honour their intent even
+    // if their profile defaults skew strict.
+    const profileCons = profile.preferences?.maxConsecutiveDaysSameMeal ?? 2;
+    const profileWeek = profile.preferences?.maxTimesPerWeekSameMeal ?? 3;
+    const maxConsecutiveDaysSameMeal = opts.mealPrepFriendly
+      ? Math.max(profileCons, 4)
+      : profileCons;
+    const maxTimesPerWeekSameMeal = opts.mealPrepFriendly
+      ? Math.max(profileWeek, 5)
+      : profileWeek;
     try {
       return optimisePlan({
         recipes: optimizerRecipes,
@@ -226,6 +240,8 @@ export class MealPlansService {
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
         favoriteIngredientIds,
+        maxConsecutiveDaysSameMeal,
+        maxTimesPerWeekSameMeal,
         seed: opts.seed,
       });
     } catch (err) {

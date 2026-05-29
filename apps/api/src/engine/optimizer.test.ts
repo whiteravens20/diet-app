@@ -91,4 +91,47 @@ describe('optimisePlan', () => {
   it('throws when a slot has no eligible recipe', () => {
     expect(() => optimisePlan({ ...baseInput, mealSlots: ['snack'] })).toThrow(OptimizerError);
   });
+
+  /**
+   * Reported failure mode: a 28-day plan would fill every breakfast slot with
+   * the same recipe because the reuse score formed a positive-feedback loop.
+   * The hard repetition cap must break that loop even when the candidate
+   * pool is small.
+   */
+  it('honours maxConsecutiveDaysSameMeal and maxTimesPerWeekSameMeal on long plans', () => {
+    // Three eligible recipes per slot: the cap is achievable. With only two
+    // it isn't (3+3 < 7), and the optimiser correctly falls back to the
+    // un-capped pool rather than throwing.
+    const longInput: OptimizerInput = {
+      ...baseInput,
+      recipes: [
+        ...baseInput.recipes,
+        recipe('b3', ['breakfast'], 480),
+        recipe('l3', ['lunch'], 680),
+        recipe('d3', ['dinner'], 580),
+      ],
+      days: 28,
+      maxConsecutiveDaysSameMeal: 2,
+      maxTimesPerWeekSameMeal: 3,
+    };
+    const result = optimisePlan(longInput);
+
+    // No three identical recipes in a row at any slot.
+    for (const slot of longInput.mealSlots) {
+      const ids = result.assignments
+        .filter((a) => a.slot === slot)
+        .sort((a, b) => a.dayIndex - b.dayIndex)
+        .map((a) => a.recipeId);
+      for (let i = 0; i + 2 < ids.length; i++) {
+        expect(ids[i] === ids[i + 1] && ids[i] === ids[i + 2]).toBe(false);
+      }
+      // No recipe appears more than 3 times in any rolling 7-day window.
+      for (let start = 0; start + 7 <= ids.length; start++) {
+        const window = ids.slice(start, start + 7);
+        const counts = new Map<string, number>();
+        for (const id of window) counts.set(id, (counts.get(id) ?? 0) + 1);
+        for (const c of counts.values()) expect(c).toBeLessThanOrEqual(3);
+      }
+    }
+  });
 });

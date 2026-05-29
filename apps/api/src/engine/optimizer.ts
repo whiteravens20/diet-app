@@ -36,6 +36,15 @@ export interface OptimizerInput {
    * receive a small scoring bonus. Empty / omitted disables the bias.
    */
   favoriteIngredientIds?: ReadonlySet<string>;
+  /**
+   * Hard caps that exclude a candidate from a slot when it would repeat too
+   * often. Resolved upstream from the profile's preferences (and, when the
+   * caller sets `mealPrepFriendly`, relaxed). Falsy / omitted falls back to
+   * generous defaults so existing callers behave the same as before this
+   * feature landed.
+   */
+  maxConsecutiveDaysSameMeal?: number;
+  maxTimesPerWeekSameMeal?: number;
   /** Changes the deterministic tie-break order so "regenerate" yields a new plan. */
   seed: number;
 }
@@ -109,16 +118,31 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
   const assignments: OptimizerAssignment[] = [];
   const planIngredients = new Set<string>(); // ingredients already "purchased"
   const recentUse = new Map<string, number>(); // recipeId → last dayIndex used
+  // Per-slot history of (day, recipeId) for the rolling-window and
+  // consecutive-day caps. Keyed by slot so the same recipe can be eligible
+  // in different slots without contention.
+  const slotHistory = new Map<MealType, Array<{ day: number; recipeId: string }>>();
+  // Generous defaults preserve pre-cap behaviour for any caller that doesn't
+  // pass the new fields (none exist in-tree, but keeps the change additive).
+  const maxConsecutive = input.maxConsecutiveDaysSameMeal ?? 7;
+  const maxPerWeek = input.maxTimesPerWeekSameMeal ?? 7;
 
   for (let day = 0; day < input.days; day++) {
     for (const slot of input.mealSlots) {
       const budget = budgets.get(slot)!;
-      const candidates = input.recipes.filter((r) => eligible(r, slot, input.dietType));
-      if (candidates.length === 0) {
+      const eligibleHere = input.recipes.filter((r) => eligible(r, slot, input.dietType));
+      if (eligibleHere.length === 0) {
         throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`);
       }
+      const history = slotHistory.get(slot) ?? [];
+      // Apply caps to narrow the pool. If both caps wipe everything out
+      // (e.g. a slot with only one eligible recipe over a long plan), fall
+      // back to the un-capped set rather than throw — better to repeat than
+      // to fail generation entirely.
+      const allowed = eligibleHere.filter((r) => allowedByCaps(r.id, day, history, maxConsecutive, maxPerWeek));
+      const pool = allowed.length > 0 ? allowed : eligibleHere;
 
-      const best = pickBest(candidates, {
+      const best = pickBest(pool, {
         budget,
         day,
         planIngredients,
@@ -136,10 +160,42 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
       });
       recentUse.set(best.id, day);
       best.ingredientIds.forEach((id) => planIngredients.add(id));
+      history.push({ day, recipeId: best.id });
+      slotHistory.set(slot, history);
     }
   }
 
   return { assignments, ingredientReuseScore: reuseScore(assignments, input.recipes) };
+}
+
+/**
+ * Returns false when picking `recipeId` for `day` would breach either of the
+ * per-slot caps (consecutive-day or rolling-week). Keeps the optimiser greedy
+ * but prevents one recipe from monopolising a slot for the whole plan.
+ */
+function allowedByCaps(
+  recipeId: string,
+  day: number,
+  history: ReadonlyArray<{ day: number; recipeId: string }>,
+  maxConsecutive: number,
+  maxPerWeek: number,
+): boolean {
+  // Consecutive-day check: count back from yesterday until the streak breaks.
+  let streak = 0;
+  for (let d = day - 1; d >= 0; d--) {
+    const entry = history.find((h) => h.day === d);
+    if (!entry) break;
+    if (entry.recipeId !== recipeId) break;
+    streak += 1;
+  }
+  if (streak + 1 > maxConsecutive) return false;
+
+  // Rolling 7-day window check, inclusive of the day we're about to fill.
+  const windowStart = day - 6;
+  const recent = history.filter((h) => h.day >= windowStart && h.recipeId === recipeId).length;
+  if (recent + 1 > maxPerWeek) return false;
+
+  return true;
 }
 
 interface PickContext {
@@ -183,14 +239,21 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   const cals = recipe.caloriesPerServing * servings;
   const calorieFit = 1 - Math.min(1, Math.abs(cals - ctx.budget) / ctx.budget);
 
+  // A recipe that's already been picked contributes nothing new to the
+  // shopping list, so its reuse score should not reward re-picking it. Without
+  // this, the first pick at a slot dominates the whole plan because all its
+  // ingredients are in `planIngredients` thanks to itself → reuse = 1.0.
   const reuse =
-    recipe.ingredientIds.length === 0
+    recipe.ingredientIds.length === 0 || ctx.recentUse.has(recipe.id)
       ? 0
       : recipe.ingredientIds.filter((id) => ctx.planIngredients.has(id)).length /
         recipe.ingredientIds.length;
 
+  // Asymptotic recovery rather than a hard cap at day 3 — a recipe used
+  // recently is still discouraged for longer plans, but never disqualified
+  // by score alone (the hard cap above handles the must-not-repeat case).
   const lastUsed = ctx.recentUse.get(recipe.id);
-  const variety = lastUsed === undefined ? 1 : Math.min(1, (ctx.day - lastUsed) / 3);
+  const variety = lastUsed === undefined ? 1 : 1 - 1 / (ctx.day - lastUsed + 1);
 
   const favorite = recipe.isFavorite ? 1 : 0;
 
