@@ -30,9 +30,11 @@ import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
 import type { AiProviderAdapter } from '../../ai/provider.interface.js';
 import { PROVIDER_TUNING } from '../translate/prompt.js';
 import {
+  MAX_EXISTING_RECIPES_IN_PROMPT,
   RECIPE_GENERATOR_PROMPT_VERSION,
   buildRecipeGeneratorPrompt,
   type CatalogueRow,
+  type ExistingRecipeSummary,
 } from './recipe-generator.prompt.js';
 import {
   validateRecipeBatch,
@@ -173,6 +175,8 @@ export class RecipeGeneratorRunner {
       }
       const resolveSlug = (slug: string) => resolverMap.get(slug) ?? null;
 
+      const existingRecipes = await this.loadExistingRecipes();
+
       const adapter = this.pickAdapter();
       const tuning = PROVIDER_TUNING[adapter.kind];
       const promptText = buildRecipeGeneratorPrompt({
@@ -186,6 +190,7 @@ export class RecipeGeneratorRunner {
         avoidSlugs: spec.avoidSlugs,
         preferSlugs: spec.preferSlugs,
         catalogue: this.catalogueForPrompt(catalogue),
+        existingRecipes,
       });
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -219,6 +224,7 @@ export class RecipeGeneratorRunner {
           targetLocales: targetLocalesWithEn,
           rawOutput: rawText,
           resolveSlug,
+          existingRecipes,
         });
         if (validation.ok) {
           await this.persistCandidates({
@@ -311,6 +317,60 @@ export class RecipeGeneratorRunner {
       });
     }
     return rows;
+  }
+
+  /** Load existing recipes (live + pending drafts) for dedup. Returns a
+   *  capped, newest-first list so the prompt stays bounded as the library
+   *  grows. The validator uses the same list for the Jaccard check, so the
+   *  model sees every recipe it's being held to. */
+  private async loadExistingRecipes(): Promise<ExistingRecipeSummary[]> {
+    const cap = MAX_EXISTING_RECIPES_IN_PROMPT;
+    const live = await this.prisma.recipe.findMany({
+      where: { slug: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      take: cap,
+      select: {
+        slug: true,
+        title: true,
+        ingredients: { select: { ingredient: { select: { slug: true } } } },
+      },
+    });
+    const pending = await this.prisma.recipeDraft.findMany({
+      where: { status: { in: ['PENDING', 'APPROVED'] } },
+      orderBy: { createdAt: 'desc' },
+      take: cap,
+      select: {
+        slug: true,
+        titles: true,
+        ingredientsJson: true,
+      },
+    });
+    const out: ExistingRecipeSummary[] = [];
+    for (const r of live) {
+      if (!r.slug) continue;
+      const slugs = r.ingredients
+        .map((ri) => ri.ingredient?.slug)
+        .filter((s): s is string => Boolean(s));
+      if (slugs.length === 0) continue;
+      out.push({ slug: r.slug, titleEn: r.title, ingredientSlugs: slugs });
+    }
+    const seen = new Set(out.map((r) => r.slug));
+    for (const d of pending) {
+      if (seen.has(d.slug)) continue;
+      const titles = (d.titles ?? {}) as Record<string, string>;
+      const lines = (d.ingredientsJson ?? []) as { slug?: unknown }[];
+      const slugs = lines
+        .map((l) => (typeof l?.slug === 'string' ? l.slug : null))
+        .filter((s): s is string => Boolean(s));
+      if (slugs.length === 0) continue;
+      out.push({
+        slug: d.slug,
+        titleEn: typeof titles.en === 'string' ? titles.en : d.slug,
+        ingredientSlugs: slugs,
+      });
+      seen.add(d.slug);
+    }
+    return out.slice(0, cap);
   }
 
   /** Trim per-100 macros to one decimal to keep the prompt compact. */

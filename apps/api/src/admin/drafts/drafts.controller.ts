@@ -16,14 +16,18 @@ import {
   Delete,
   Get,
   HttpCode,
+  InternalServerErrorException,
   NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { resolve as resolvePath } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import {
   IngredientNameGenerateSpec,
@@ -51,6 +55,27 @@ import {
 } from './recipe-generator.runner.js';
 import { nutritionFor, toCanonical } from '../../engine/units.js';
 import { classifyComplexity } from './recipe-generator.complexity.js';
+import {
+  shipIngredientNamesLocal,
+  shipRecipesLocal,
+  type LocalShipResult,
+} from './ship/local-mode.js';
+import {
+  findRepoRoot,
+  shipIngredientNamesUpstream,
+  shipRecipesUpstream,
+  upstreamBlockedReason,
+  UpstreamShipError,
+  type UpstreamShipConfig,
+  type UpstreamShipResult,
+} from './ship/upstream-mode.js';
+import {
+  consumeBundleToken,
+  markBundleShipped,
+  shipIngredientNamesBundle,
+  shipRecipesBundle,
+  type BundleShipResult,
+} from './ship/bundle-mode.js';
 
 const ApproveRejectBody = z.object({
   reviewedByLabel: z.string().min(1).max(80),
@@ -60,6 +85,39 @@ const ApproveRejectBody = z.object({
 const PatchSuggestionsBody = z.object({
   suggestions: IngredientNameSuggestion,
 });
+
+const ShipKind = z.enum(['recipe', 'ingredient-name']);
+const ShipMode = z.enum(['local', 'upstream-pr', 'bundle']);
+const ShipBody = z.object({
+  kind: ShipKind,
+  mode: ShipMode,
+  batchIds: z.array(z.string().min(1)).optional(),
+});
+
+const MarkShippedBody = z.object({
+  kind: ShipKind,
+  draftIds: z.array(z.string().uuid()).min(1),
+});
+
+interface ShipConfigDto {
+  modes: {
+    local: { available: true };
+    upstreamPr: {
+      available: boolean;
+      enabled: boolean;
+      reason: string | null;
+      baseBranch: string;
+      remote: string;
+    };
+    bundle: { available: true; ttlSeconds: number };
+  };
+  approvedCounts: { recipe: number; ingredientName: number };
+}
+
+type ShipResponseDto =
+  | ({ mode: 'local' } & LocalShipResult)
+  | ({ mode: 'upstream-pr' } & UpstreamShipResult)
+  | ({ mode: 'bundle' } & BundleShipResult);
 
 @Controller('admin/drafts')
 @UseGuards(BasicAuthGuard)
@@ -427,7 +485,173 @@ export class DraftsController {
     await this.prisma.recipeDraft.delete({ where: { id } });
   }
 
+  // ── Ship ───────────────────────────────────────────────────────────────────
+
+  @Get('ship/config')
+  async shipConfig(): Promise<ShipConfigDto> {
+    const upstreamConfig = this.readUpstreamConfig();
+    const recipeCount = await this.prisma.recipeDraft.count({
+      where: { status: 'APPROVED' },
+    });
+    const ingredientCount = await this.prisma.ingredientNameDraft.count({
+      where: { status: 'APPROVED' },
+    });
+    const repoRoot = findRepoRoot(process.cwd());
+    const upstreamReason = upstreamBlockedReason(upstreamConfig, repoRoot);
+    return {
+      modes: {
+        local: { available: true },
+        upstreamPr: {
+          available: upstreamReason === null,
+          enabled: upstreamConfig.enabled,
+          reason: upstreamReason,
+          baseBranch: upstreamConfig.baseBranch,
+          remote: upstreamConfig.remote,
+        },
+        bundle: { available: true, ttlSeconds: 600 },
+      },
+      approvedCounts: { recipe: recipeCount, ingredientName: ingredientCount },
+    };
+  }
+
+  @Post('ship')
+  async ship(@Body() body: unknown): Promise<ShipResponseDto> {
+    const parsed = ShipBody.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: 'INVALID_SHIP_REQUEST',
+        message: parsed.error.message,
+      });
+    }
+    const { kind, mode, batchIds } = parsed.data;
+
+    if (mode === 'local') {
+      const instanceDataDir = this.resolveInstanceDataDir();
+      const result =
+        kind === 'recipe'
+          ? await shipRecipesLocal(this.prisma, { kind, batchIds, instanceDataDir })
+          : await shipIngredientNamesLocal(this.prisma, { kind, batchIds, instanceDataDir });
+      if (result.shippedDraftIds.length === 0 && result.skipped.length === 0) {
+        throw new ConflictException({
+          error: 'SHIP_NO_APPROVED',
+          message: 'No approved drafts to ship.',
+        });
+      }
+      return { mode: 'local', ...result };
+    }
+
+    if (mode === 'upstream-pr') {
+      const config = this.readUpstreamConfig();
+      const repoRoot = findRepoRoot(process.cwd());
+      if (!repoRoot) {
+        throw new InternalServerErrorException({
+          error: 'SHIP_REPO_ROOT_NOT_FOUND',
+          message: 'Could not find git repo root.',
+        });
+      }
+      const blocked = upstreamBlockedReason(config, repoRoot);
+      if (blocked) {
+        throw new ConflictException({
+          error: blocked,
+          message: `Upstream-PR mode refused: ${blocked}.`,
+        });
+      }
+      const dataDir = resolvePath(repoRoot, 'data');
+      try {
+        const result =
+          kind === 'recipe'
+            ? await shipRecipesUpstream(this.prisma, { kind, batchIds, dataDir, repoRoot, config })
+            : await shipIngredientNamesUpstream(this.prisma, {
+                kind,
+                batchIds,
+                dataDir,
+                repoRoot,
+                config,
+              });
+        return { mode: 'upstream-pr', ...result };
+      } catch (err) {
+        if (err instanceof UpstreamShipError) {
+          throw new ConflictException({ error: err.code, message: err.message });
+        }
+        throw err;
+      }
+    }
+
+    // bundle
+    const secret = this.bundleSecret();
+    const appUrl = this.config.get('APP_URL', { infer: true }) ?? '';
+    try {
+      const result =
+        kind === 'recipe'
+          ? await shipRecipesBundle(this.prisma, { kind, batchIds }, secret, appUrl)
+          : await shipIngredientNamesBundle(this.prisma, { kind, batchIds }, secret, appUrl);
+      return { mode: 'bundle', ...result };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === 'NO_APPROVED_DRAFTS' || message === 'NO_VALID_DRAFTS') {
+        throw new ConflictException({ error: message, message });
+      }
+      throw err;
+    }
+  }
+
+  @Get('ship/download/:token')
+  async shipDownload(
+    @Param('token') token: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const secret = this.bundleSecret();
+    const payload = consumeBundleToken(token, secret);
+    if (!payload) {
+      res.status(410).json({
+        error: 'SHIP_BUNDLE_TOKEN_INVALID',
+        message: 'Bundle token expired, invalid, or already consumed.',
+      });
+      return;
+    }
+    const filename = `${payload.kind}-${payload.batchId}.json`;
+    res
+      .status(200)
+      .setHeader('Content-Type', 'application/json; charset=utf-8')
+      .setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+      .send(JSON.stringify(payload, null, 2));
+  }
+
+  @Post('ship/mark-shipped')
+  async shipMarkShipped(@Body() body: unknown): Promise<{ updated: number }> {
+    const parsed = MarkShippedBody.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: 'INVALID_MARK_SHIPPED_REQUEST',
+        message: parsed.error.message,
+      });
+    }
+    return markBundleShipped(this.prisma, parsed.data.kind, parsed.data.draftIds);
+  }
+
   // ── Internals ───────────────────────────────────────────────────────────────
+
+  private readUpstreamConfig(): UpstreamShipConfig {
+    return {
+      enabled: Boolean(this.config.get('SHIP_UPSTREAM_ENABLED', { infer: true })),
+      remote: this.config.get('SHIP_UPSTREAM_REMOTE', { infer: true }) ?? 'origin',
+      baseBranch: this.config.get('SHIP_UPSTREAM_BASE_BRANCH', { infer: true }) ?? 'main',
+      ghToken: this.config.get('SHIP_UPSTREAM_GH_TOKEN', { infer: true }) ?? null,
+      authorName: this.config.get('SHIP_UPSTREAM_GIT_AUTHOR_NAME', { infer: true }) ?? null,
+      authorEmail: this.config.get('SHIP_UPSTREAM_GIT_AUTHOR_EMAIL', { infer: true }) ?? null,
+    };
+  }
+
+  private resolveInstanceDataDir(): string {
+    const raw = this.config.get('INSTANCE_DATA_DIR', { infer: true }) ?? 'instance-data';
+    return resolvePath(process.cwd(), raw);
+  }
+
+  private bundleSecret(): string {
+    const explicit = this.config.get('SHIP_DOWNLOAD_TOKEN_SECRET', { infer: true });
+    if (explicit && explicit.length > 0) return explicit;
+    return this.config.get('JWT_ACCESS_SECRET', { infer: true })!;
+  }
 
   private async upsertIngredientReview(
     id: string,

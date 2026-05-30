@@ -50,7 +50,8 @@ export type RecipeValidationReason =
   | 'llm-yap'
   | 'invalid-quantity'
   | 'invalid-unit'
-  | 'invalid-difficulty';
+  | 'invalid-difficulty'
+  | 'duplicate-of-existing';
 
 export interface ResolvedIngredient {
   slug: string;
@@ -107,6 +108,22 @@ export interface ValidateRecipeBatchOptions {
   resolveSlug: (slug: string) => ResolvedIngredient | null;
   /** Tolerance for the AI-volunteered nutrition delta check. */
   nutritionDeltaTolerance?: number;
+  /** Existing recipes (live + pending drafts) to dedup against. Each new
+   *  candidate is rejected when Jaccard(new.ingredientSlugs,
+   *  existing.ingredientSlugs) > `duplicateThreshold` (default 0.75). */
+  existingRecipes?: { slug: string; ingredientSlugs: string[] }[];
+  duplicateThreshold?: number;
+}
+
+/** Jaccard similarity of two slug sets. 1.0 = identical, 0 = disjoint. */
+export function jaccard(a: readonly string[], b: readonly string[]): number {
+  if (a.length === 0 && b.length === 0) return 1;
+  const setA = new Set(a);
+  const setB = new Set(b);
+  let intersection = 0;
+  for (const x of setA) if (setB.has(x)) intersection += 1;
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
 }
 
 const LLM_YAP_PATTERNS = [
@@ -128,6 +145,8 @@ export function validateRecipeBatch(
 ): RecipeValidationResult {
   const { targetLocales, rawOutput, resolveSlug } = opts;
   const tolerance = opts.nutritionDeltaTolerance ?? 0.05;
+  const duplicateThreshold = opts.duplicateThreshold ?? 0.75;
+  const existingRecipes = opts.existingRecipes ?? [];
 
   let parsed: unknown;
   try {
@@ -275,6 +294,33 @@ export function validateRecipeBatch(
           };
         }
       }
+    }
+
+    // Duplicate-of-existing check. Jaccard on the ingredient slug set vs
+    // every existing recipe (live + pending) and prior candidates in this
+    // batch. > threshold → reject. Yogurt+apple vs yogurt+banana stays well
+    // under (J = 0.33); identical sets hit J = 1.0.
+    const newSlugs = ingredients.map((ing) => ing.slug);
+    let bestExistingMatch: { slug: string; score: number } | null = null;
+    for (const existing of existingRecipes) {
+      const score = jaccard(newSlugs, existing.ingredientSlugs);
+      if (score > duplicateThreshold && (!bestExistingMatch || score > bestExistingMatch.score)) {
+        bestExistingMatch = { slug: existing.slug, score };
+      }
+    }
+    for (const prior of candidates) {
+      const score = jaccard(newSlugs, prior.ingredients.map((i) => i.slug));
+      if (score > duplicateThreshold && (!bestExistingMatch || score > bestExistingMatch.score)) {
+        bestExistingMatch = { slug: prior.slug, score };
+      }
+    }
+    if (bestExistingMatch) {
+      return {
+        ok: false,
+        reason: 'duplicate-of-existing',
+        key: rowKey,
+        details: `vs ${bestExistingMatch.slug} (J=${bestExistingMatch.score.toFixed(2)})`,
+      };
     }
 
     // Allergen autodetection: union of ingredient allergens, sorted so

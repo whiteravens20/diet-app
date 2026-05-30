@@ -67,7 +67,25 @@ export interface RecipeGeneratorPromptInput {
   avoidSlugs?: string[];
   preferSlugs?: string[];
   catalogue: CatalogueRow[];
+  /** Existing recipes (live + pending drafts) the model should not duplicate.
+   *  Rendered as a slug + EN title + ingredient slug set list. The validator
+   *  enforces the rule via Jaccard similarity > 0.75 → reject. */
+  existingRecipes?: ExistingRecipeSummary[];
 }
+
+/** Compact view of a recipe already in the instance, used for the prompt's
+ *  "Avoid duplicating" section and the validator's Jaccard check. */
+export interface ExistingRecipeSummary {
+  slug: string;
+  titleEn: string;
+  ingredientSlugs: string[];
+}
+
+/** Cap so the prompt doesn't grow unbounded once the library is large. The
+ *  selection prefers the most recently created rows (the runner sorts before
+ *  trimming), so the model sees what's freshly drafted alongside the canonical
+ *  baseline. */
+export const MAX_EXISTING_RECIPES_IN_PROMPT = 60;
 
 interface FewShotRecipe {
   complexity: Complexity;
@@ -139,6 +157,26 @@ function renderCatalogue(catalogue: CatalogueRow[]): string {
   return [header, ...rows].join('\n');
 }
 
+function renderExistingRecipes(existing: ExistingRecipeSummary[] | undefined): string {
+  if (!existing || existing.length === 0) return '';
+  const trimmed = existing.slice(0, MAX_EXISTING_RECIPES_IN_PROMPT);
+  const lines = trimmed.map(
+    (r) => `- ${r.slug} — "${r.titleEn}" — ingredients: ${r.ingredientSlugs.join(', ')}`,
+  );
+  const suffix =
+    existing.length > trimmed.length
+      ? `\n(+ ${existing.length - trimmed.length} more not shown)`
+      : '';
+  return `Existing recipes already in the library — DO NOT duplicate them.
+You may share individual ingredients (yogurt + apples vs yogurt + bananas is
+fine), but a recipe whose entire ingredient set substantially overlaps an
+existing one (≥ 75 % Jaccard similarity) will be REJECTED. Pick distinct
+flavour profiles, swap a hero protein/veg, or shift cuisine.
+${lines.join('\n')}${suffix}
+
+`;
+}
+
 function renderComplexityBands(): string {
   return COMPLEXITY_BANDS.map(
     (b) =>
@@ -156,6 +194,7 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
   const mix = normaliseMix(input.complexityMix ?? DEFAULT_COMPLEXITY_MIX);
   const targetCounts = targetsForMix(input.count, mix);
   const fewShot = targetLocales.map((l) => renderFewShotForLocale(l)).join('');
+  const existingBlock = renderExistingRecipes(input.existingRecipes);
 
   const constraints: string[] = [];
   if (input.dietTags && input.dietTags.length > 0) {
@@ -295,7 +334,7 @@ ${localeStepsHints}
   ]
 }
 
-${fewShot}Ingredient catalogue (slugs you MUST pick from):
+${existingBlock}${fewShot}Ingredient catalogue (slugs you MUST pick from):
 ${renderCatalogue(input.catalogue)}
 
 Now write ${input.count} recipe(s).`;

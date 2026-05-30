@@ -151,6 +151,13 @@ services:
       # propagate); the USDA importer writes `ingredients.generated.json`
       # here at runtime and that file survives container recreates.
       - app-data:/app/data
+      # Curation-queue sidecar files (Phase E). The local-mode ship runner
+      # writes AI-drafted recipes / ingredient overrides here as
+      # operator-controlled backups. Named volume by default — for
+      # private-repo-backed storage, override the volume in
+      # docker-compose.override.yml with a host bind-mount pointing at
+      # your private repo's working tree (see ADR-0008 storage config B).
+      - instance-data:/app/instance-data
       # No `ports:` block — the API is reached by `web` over the internal Docker
       # network at `http://api:4000`, never from the public internet. If you
       # later want to serve a second subdomain (e.g. api.example.com for a
@@ -194,6 +201,7 @@ services:
       data-init: { condition: service_completed_successfully }
     volumes:
       - app-data:/app/data
+      - instance-data:/app/instance-data
 
   web:
     image: ghcr.io/whiteravens20/diet-app/web:${IMAGE_TAG:-latest}
@@ -243,3 +251,8 @@ volumes:
   # importer. Internal to the Docker engine — no host directory needed.
   # Inspect via `docker run --rm -v diet-app_app-data:/data alpine ls /data`.
   app-data:
+  # Curation-queue sidecar files (Phase E local-mode ship target). Operator
+  # may override with a host bind-mount for git-tracked backups; see
+  # ADR-0008 storage config B. Inspect via
+  # `docker run --rm -v diet-app_instance-data:/data alpine ls /data`.
+  instance-data:

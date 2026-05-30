@@ -16,7 +16,16 @@
  */
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ClipboardCheck, Loader2, Sparkles, X } from 'lucide-react';
+import {
+  ClipboardCheck,
+  Download,
+  GitPullRequest,
+  Loader2,
+  Send,
+  ServerCog,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +39,10 @@ import {
   type RecipeDraftIngredientLine,
   type RecipeDraftPatch,
   type RecipeRunnerState,
+  type ShipConfigDto,
+  type ShipKind,
+  type ShipMode,
+  type ShipResponse,
 } from '@/lib/admin-api';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
@@ -210,6 +223,8 @@ function IngredientPanel() {
           {error}
         </p>
       )}
+
+      <ShipBar kind="ingredient-name" onShipped={loadDrafts} />
 
       <FilterStrip
         status={statusFilter}
@@ -410,6 +425,8 @@ function RecipePanel() {
           <p className="text-muted-foreground">{t('rejectReasonHint')}</p>
         </div>
       )}
+
+      <ShipBar kind="recipe" onShipped={loadDrafts} />
 
       <FilterStrip
         status={statusFilter}
@@ -1054,5 +1071,233 @@ function LocaleReviewList({
         </li>
       ))}
     </ul>
+  );
+}
+
+// ── Ship bar ────────────────────────────────────────────────────────────────
+
+function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | Promise<void> }) {
+  const t = useTranslations('admin.curation');
+  const [config, setConfig] = useState<ShipConfigDto | null>(null);
+  const [busyMode, setBusyMode] = useState<ShipMode | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<ShipResponse | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const c = await adminApi.shipConfig();
+      setConfig(c);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  useEffect(() => {
+    void (async () => { await refresh(); })();
+  }, [refresh]);
+
+  const approvedCount =
+    kind === 'recipe'
+      ? config?.approvedCounts.recipe ?? 0
+      : config?.approvedCounts.ingredientName ?? 0;
+
+  const run = async (mode: ShipMode) => {
+    setBusyMode(mode);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await adminApi.ship({ kind, mode });
+      setSuccess(res);
+      await refresh();
+      await onShipped();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyMode(null);
+    }
+  };
+
+  const onMarkShipped = async (draftIds: string[]) => {
+    try {
+      await adminApi.shipMarkShipped({ kind, draftIds });
+      setSuccess(null);
+      await refresh();
+      await onShipped();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  if (!config) return null;
+  const disabled = approvedCount === 0 || busyMode !== null;
+
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t('shipHeader')}
+        </span>
+        <span className="rounded-full bg-background px-2 py-0.5 text-xs">
+          {t('shipApprovedCount', { count: approvedCount })}
+        </span>
+        <span className="flex-1" />
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={disabled}
+          onClick={() => run('local')}
+          className="gap-2"
+        >
+          {busyMode === 'local' ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <ServerCog className="h-3.5 w-3.5" />
+          )}
+          {t('shipModeLocal')}
+        </Button>
+        {config.modes.upstreamPr.enabled && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={disabled || !config.modes.upstreamPr.available}
+            onClick={() => run('upstream-pr')}
+            className="gap-2"
+            title={
+              config.modes.upstreamPr.reason ??
+              t('shipModeUpstreamHint', {
+                remote: config.modes.upstreamPr.remote,
+                branch: config.modes.upstreamPr.baseBranch,
+              })
+            }
+          >
+            {busyMode === 'upstream-pr' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <GitPullRequest className="h-3.5 w-3.5" />
+            )}
+            {t('shipModeUpstream')}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => run('bundle')}
+          className="gap-2"
+        >
+          {busyMode === 'bundle' ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
+          )}
+          {t('shipModeBundle')}
+        </Button>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{t('shipExplain')}</p>
+
+      {error && (
+        <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
+          {error}
+        </p>
+      )}
+      {success && (
+        <ShipSuccess
+          result={success}
+          onMarkShipped={onMarkShipped}
+          onDismiss={() => setSuccess(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ShipSuccess({
+  result,
+  onMarkShipped,
+  onDismiss,
+}: {
+  result: ShipResponse;
+  onMarkShipped: (draftIds: string[]) => void | Promise<void>;
+  onDismiss: () => void;
+}) {
+  const t = useTranslations('admin.curation');
+  if (result.mode === 'local') {
+    return (
+      <div className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs">
+        <div className="flex items-center gap-2">
+          <Send className="h-3.5 w-3.5" />
+          <strong>
+            {t('shipSuccessLocal', { count: result.shippedDraftIds.length })}
+          </strong>
+          <span className="flex-1" />
+          <button onClick={onDismiss} className="text-muted-foreground hover:underline">
+            {t('shipDismiss')}
+          </button>
+        </div>
+        {result.sidecarPaths.length > 0 && (
+          <p className="mt-1 text-muted-foreground">
+            {t('shipSidecarPath', { path: result.sidecarPaths[0] })}
+          </p>
+        )}
+        {result.skipped.length > 0 && (
+          <ul className="mt-1 list-disc pl-4 text-amber-600 dark:text-amber-400">
+            {result.skipped.map((s) => (
+              <li key={s.draftId}>
+                {s.draftId.slice(0, 8)} — {s.reason}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+  if (result.mode === 'upstream-pr') {
+    return (
+      <div className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs">
+        <div className="flex items-center gap-2">
+          <GitPullRequest className="h-3.5 w-3.5" />
+          <strong>{t('shipSuccessUpstream', { count: result.shippedDraftIds.length })}</strong>
+          <span className="flex-1" />
+          <button onClick={onDismiss} className="text-muted-foreground hover:underline">
+            {t('shipDismiss')}
+          </button>
+        </div>
+        <a href={result.prUrl} target="_blank" rel="noreferrer" className="text-primary underline">
+          {result.prUrl}
+        </a>
+      </div>
+    );
+  }
+  // bundle
+  return (
+    <div className="mt-2 rounded border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs space-y-1">
+      <div className="flex items-center gap-2">
+        <Download className="h-3.5 w-3.5" />
+        <strong>{t('shipBundleReady', { count: result.draftIds.length })}</strong>
+        <span className="flex-1" />
+        <button onClick={onDismiss} className="text-muted-foreground hover:underline">
+          {t('shipDismiss')}
+        </button>
+      </div>
+      <p>{t('shipBundleHint', { expiresAt: result.expiresAt })}</p>
+      <div className="flex flex-wrap gap-2">
+        <a
+          href={result.downloadUrl}
+          className="rounded bg-primary px-2 py-1 text-primary-foreground"
+          download
+        >
+          {t('shipBundleDownload')}
+        </a>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onMarkShipped(result.draftIds)}
+          className="gap-2"
+        >
+          <Send className="h-3.5 w-3.5" />
+          {t('shipBundleMarkShipped')}
+        </Button>
+      </div>
+    </div>
   );
 }

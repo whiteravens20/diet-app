@@ -144,7 +144,21 @@
     "RECIPE_GEN_IN_PROGRESS": "Generowanie przepisów już trwa.",
     "UNKNOWN_SLUG": "Składnik nie istnieje w katalogu — podaj inny slug.",
     "UNIT_CONVERSION_FAILED": "Nie udało się przeliczyć jednostek — brak gęstości lub gramów na sztukę.",
-    "OUT_OF_COMPLEXITY_BAND": "Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas."
+    "OUT_OF_COMPLEXITY_BAND": "Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas.",
+    "INVALID_SHIP_REQUEST": "Nieprawidłowe żądanie wysyłki.",
+    "INVALID_MARK_SHIPPED_REQUEST": "Nieprawidłowe żądanie oznaczenia jako wysłane.",
+    "SHIP_NO_APPROVED": "Brak zatwierdzonych szkiców do wysłania.",
+    "SHIP_UPSTREAM_DISABLED": "Tryb PR do upstream jest wyłączony w tej instancji.",
+    "SHIP_UPSTREAM_NO_TOKEN": "Brakuje tokenu gh do trybu PR upstream.",
+    "SHIP_UPSTREAM_UNAVAILABLE": "Tryb PR upstream jest niedostępny.",
+    "SHIP_REPO_ROOT_NOT_FOUND": "Nie znaleziono katalogu .git dla trybu PR upstream.",
+    "GH_MODE_UNAVAILABLE": "Polecenie `gh` nie znalezione w PATH.",
+    "GIT_FAILED": "Polecenie git zakończone błędem podczas wysyłki upstream.",
+    "GH_PR_CREATE_FAILED": "Utworzenie pull requesta przez gh nie powiodło się.",
+    "NO_APPROVED_DRAFTS": "Brak zatwierdzonych szkiców do spakowania.",
+    "NO_VALID_DRAFTS": "Każdy zatwierdzony szkic ma nieprawidłowy kształt.",
+    "SHIP_BUNDLE_TOKEN_INVALID": "Token pobierania wygasł, jest nieprawidłowy lub został już użyty.",
+    "SHIP_UPSTREAM_BLOCKED_CANONICAL": "Skonfigurowany remote wskazuje na kanoniczne repozytorium diet-app. AI-generowana treść nigdy tam nie trafia — nawet z instancji maintainera. Ustaw SHIP_UPSTREAM_REMOTE na prywatny mirror albo użyj trybu local/bundle."
   },
   "dashboard": {
     "title": "Panel",
@@ -302,7 +316,22 @@
       "scopeCurated": "Tylko wyselekcjonowane (zalecane)",
       "scopeAll": "Wszystkie (wyselekcjonowane + USDA)",
       "rejectReasonLabel": "Ostatni przebieg odrzucony: {reason} ({key})",
-      "rejectReasonHint": "Walidator odrzucił odpowiedź modelu przy każdej próbie. Częste przyczyny: unknown-slug (model wymyślił slug), invalid-unit (użył tbsp/cup), missing-field (pominął difficulty). Spróbuj innego modelu lub mniejszej liczby przepisów."
+      "rejectReasonHint": "Walidator odrzucił odpowiedź modelu przy każdej próbie. Częste przyczyny: unknown-slug (model wymyślił slug), invalid-unit (użył tbsp/cup), missing-field (pominął difficulty). Spróbuj innego modelu lub mniejszej liczby przepisów.",
+      "shipHeader": "Wyślij zatwierdzone",
+      "shipExplain": "Lokalnie zapisuje wiersze do bazy tej instancji (domyślnie). Upstream-PR otwiera PR przez gh (tylko admin, domyślnie wyłączone). Pakiet pobiera plik JSON, który zacommitujesz samodzielnie.",
+      "shipApprovedCount": "{count} zatwierdzonych",
+      "shipModeLocal": "Wyślij do tej instancji",
+      "shipModeUpstream": "Otwórz PR upstream",
+      "shipModeUpstreamHint": "Otwiera PR przeciw {remote}/{branch}.",
+      "shipModeBundle": "Pobierz pakiet",
+      "shipSuccessLocal": "Wysłano {count} szkic(ów) do tej instancji.",
+      "shipSuccessUpstream": "Otwarto PR z {count} szkicem(-ami).",
+      "shipSidecarPath": "Kopia zapasowa sidecar: {path}",
+      "shipBundleReady": "Pakiet z {count} szkicem(-ami) gotowy.",
+      "shipBundleHint": "Token wygasa {expiresAt}. Pobranie jest oddzielone od „oznacz jako wysłane” — przypadkowe kliknięcie da się cofnąć.",
+      "shipBundleDownload": "Pobierz",
+      "shipBundleMarkShipped": "Zacommitowałem — oznacz jako wysłane",
+      "shipDismiss": "Zamknij"
     }
   },
   "shoppingLists": {

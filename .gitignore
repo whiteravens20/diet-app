@@ -40,3 +40,8 @@ infra/.data/
 
 # Ingredients data
 /data/ingredients.generated.json
+
+# Curation-queue sidecar files (Phase E). The local-mode ship runner writes
+# operator-controlled approved drafts here as a portable backup. They are
+# instance-private and must not land in the public repo.
+/instance-data/

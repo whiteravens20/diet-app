@@ -170,6 +170,207 @@ struggle with the recipe-generator's nested structured shape — recipe
 generation against a remote API is the pragmatic choice even on a
 self-hosted instance.
 
+## Where do my recipes actually live? (self-hoster storage)
+
+Phase E ships three ship modes; the operator picks per ship action. Two
+deployment shapes covering the most common self-hoster questions:
+
+### A. Everything local, no extra repo
+
+The default. Works for every self-hoster who just wants their generated
+content on their own instance and doesn't care about git history.
+
+1. Generate a batch in `/admin/curation`.
+2. Review + approve drafts.
+3. Click **Ship to this instance**.
+
+What happens:
+
+- Approved rows land in the live `Recipe` / `Ingredient` / translation
+  tables with `origin = ai`, translations `source = MANUAL`. They show
+  up immediately at `/recipes` for every user on the instance.
+- A sidecar JSON file is dropped under
+  `INSTANCE_DATA_DIR/recipes/<batchId>.json` (default
+  `./instance-data/recipes/…`) and `INSTANCE_DATA_DIR/ingredient-overrides.json`.
+  This directory is **gitignored** — those files never leak into the
+  public repo.
+- The sidecar is pure operator backup. The seeder does NOT read it back
+  on re-seed in v1; the DB is the source of truth on a running instance.
+- Re-seeds from `data/*.json` only touch `CURATED_JSON` rows, so a
+  `POST /api/admin/db/update` does NOT wipe locally-shipped recipes.
+  They survive every upstream pull.
+
+Recovery / migration paths:
+
+- **Same host, fresh DB:** restore from `pg_dump` is the canonical
+  recovery path. The sidecar is a secondary backup; a small import
+  script can re-apply it (parked for v1.1 if anyone asks).
+- **New host, same content:** `rsync` `instance-data/` over and `pg_dump
+  | restore` the database. Two simple operations, no git involved.
+
+No env vars to set beyond the defaults — the local ship mode is always
+available.
+
+### B. Local + private repo as a backup / sync layer
+
+Some operators want git history for their generated content but don't
+want to push to the public diet-app repo (and shouldn't — the canonical
+baseline lives under maintainer review).
+
+The pattern:
+
+1. Create a **private** repo on GitHub / GitLab / Gitea (or just
+   `git init` a local repo on a NAS) that contains *only* the
+   `instance-data/` directory layout. Something like:
+
+   ```
+   my-diet-content/
+     recipes/
+       ship-2026-05-30T19-22-04Z.json
+       ship-2026-06-04T08-14-11Z.json
+     ingredient-overrides.json
+   ```
+
+2. Symlink (or bind-mount in Docker) `instance-data/` in the diet-app
+   working dir to your private repo's working tree.
+
+   **`npm run dev` (host-run API):** the API writes to
+   `<repo>/instance-data/` via `process.cwd()`. Replace that directory
+   with a symlink:
+
+   ```sh
+   rm -rf /opt/diet-app/instance-data
+   ln -s /opt/my-diet-content /opt/diet-app/instance-data
+   ```
+
+   **`docker compose -f infra/docker-compose.yml up` (full local
+   stack):** the API container bind-mounts `../instance-data` from the
+   compose file. Override that path with your private repo via a
+   `docker-compose.override.yml` next to the base file:
+
+   ```yaml
+   # infra/docker-compose.override.yml
+   services:
+     api:
+       volumes:
+         - /opt/my-diet-content:/app/instance-data
+     worker:
+       volumes:
+         - /opt/my-diet-content:/app/instance-data
+   ```
+
+   **`docker compose -f infra/docker-compose.prod.yml up` (production
+   stack on a server):** the API uses a named volume `instance-data`
+   by default. Override the volume to a host bind-mount the same way:
+
+   ```yaml
+   # infra/docker-compose.prod.override.yml
+   services:
+     api:
+       volumes:
+         - /var/lib/diet-app/my-content:/app/instance-data
+     worker:
+       volumes:
+         - /var/lib/diet-app/my-content:/app/instance-data
+   volumes:
+     instance-data: !reset null
+   ```
+
+   Then `git init` inside the bind-mounted directory, point it at your
+   private remote, commit on whatever cadence suits you.
+
+3. Ship as usual. The sidecar writes go into your private repo's
+   working tree. Run `git add . && git commit -m "feat: batch …" &&
+   git push` from `instance-data/` on whatever cadence you want
+   (manually, via cron, via `inotify`).
+
+4. **Do not set `SHIP_UPSTREAM_ENABLED=true` for this case** — that
+   flag is for opening PRs against the canonical diet-app repo, which
+   is the maintainer-only contribution path. Local ship + your own
+   commits is the right pattern here.
+
+If your "private repo" *is* a separate clone of diet-app on your
+machine (e.g. you forked it and want batches as PRs against your fork's
+`main`), you can flip `SHIP_UPSTREAM_REMOTE` to point at your fork and
+`SHIP_UPSTREAM_ENABLED=true` — `upstream-pr` mode then opens PRs against
+your fork instead of the canonical repo. The mode is repo-agnostic; the
+default just happens to be `origin`.
+
+### C. What about the canonical-baseline maintainer?
+
+The maintainer instance runs the same code as every other self-host.
+Pushing AI-drafted content to the canonical `whiteravens20/diet-app`
+repo is hard-disabled at runtime, with **no escape hatch**:
+
+- The upstream-PR runner resolves `git remote get-url <remote>` and
+  matches it against a hardcoded canonical-repo pattern.
+- A match returns `SHIP_UPSTREAM_BLOCKED_CANONICAL` whether or not
+  every other env var is correct. The block applies to every instance,
+  including the maintainer's.
+- The canonical baseline grows through **hand-authored PRs** that
+  modify `data/recipes.json` / `data/ingredients.json` directly. AI
+  drafting is for instance-local content only.
+
+This is intentional: it removes the foot-gun where a self-hoster might
+accidentally leave `origin` pointing at the canonical repo and ship a
+batch of AI slop into review. The maintainer's own instance keeps
+generated content in a private mirror (config B) — the same shape every
+other self-hoster gets.
+
+If the maintainer ever needs to grow the canonical baseline from
+in-app review, the recommended workflow is: review approved drafts in
+the admin queue, export the bundle (config C of the storage section —
+download a JSON), then hand-curate the rows into a normal PR against
+`data/recipes.json`. The bundle file is what makes that step easy; it
+already matches the on-disk shape the canonical baseline uses.
+
+### What is *not* shipped via gh PRs
+
+Anything generated locally on a self-hoster instance is **never**
+expected to reach the canonical diet-app repo. The default refuses
+upstream pushes (`SHIP_UPSTREAM_ENABLED=false`); even when enabled, the
+canonical-remote check refuses to ship if `SHIP_UPSTREAM_REMOTE` still
+resolves to `whiteravens20/diet-app`. The only way upstream-PR mode
+opens a PR is when it's pointing at a fork, a private mirror, or a
+self-hosted gitea — which is exactly the use case the mode exists for.
+
+### The canonical-remote guard is a foot-gun bumper, not a security control
+
+Anyone who clones this repo can edit `CANONICAL_REMOTE_PATTERNS` in
+[`apps/api/src/admin/drafts/ship/upstream-mode.ts`](../../apps/api/src/admin/drafts/ship/upstream-mode.ts),
+recompile, and ship to whatever remote they want. That's an inherent
+property of open source — runtime code in the operator's hands is
+never a real security boundary.
+
+What the guard does protect against is the **accident**: a self-hoster
+who forks diet-app, forgets to change `SHIP_UPSTREAM_REMOTE`, flips
+`SHIP_UPSTREAM_ENABLED=true`, and clicks Ship. Without the guard, that
+sequence would open an AI-slop PR against the canonical repo. With the
+guard, it returns `SHIP_UPSTREAM_BLOCKED_CANONICAL` and the operator
+has to consciously edit code to reach upstream — which is no longer
+"an accident."
+
+The real defences against malicious or careless upstream contributions
+are **GitHub-side**, not code-side:
+
+- **Push permissions.** Forks can't push branches to
+  `whiteravens20/diet-app`; the network rejects unauthorised pushes
+  regardless of what the runtime does.
+- **Branch protection on `main`.** Required CODEOWNER review, required
+  signed commits, required status checks (CodeQL, Trivy, `npm audit`,
+  the test matrix). See
+  [.github/workflows/branch-protection-audit.yml](../../.github/workflows/branch-protection-audit.yml).
+- **CODEOWNERS.** Every PR touching sensitive paths (`/.github/`,
+  `/apps/api/src/{auth,ai,engine}/`, `/apps/api/prisma/`,
+  `/SECURITY.md`, `/LICENSE`) requires maintainer approval.
+- **Forbidden-path auto-close.** A workflow rejects PRs that touch
+  paths that should never reach this repo (operator-private
+  `instance-data/`, generated files, etc.). See
+  [.github/workflows/forbidden-paths.yml](../../.github/workflows/forbidden-paths.yml).
+
+In short: the runtime check is "don't shoot yourself in the foot"; the
+GitHub-side checks are "even if you do, nothing gets merged."
+
 ## References
 
 - Implementation plan: [`/home/pavlojs/.claude/plans/plan-md-contains-actual-prompt-purring-ocean.md`](../../home/pavlojs/.claude/plans/plan-md-contains-actual-prompt-purring-ocean.md)

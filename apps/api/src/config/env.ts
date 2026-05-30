@@ -65,6 +65,28 @@ export const envSchema = z.object({
   // recipe-curation pipeline) replaces it. Set to "true" to restore the old
   // behaviour as a temporary escape hatch.
   RECIPE_COMPOSER_ENABLED: boolFromString,
+
+  // Curation-queue ship mechanism (Phase E).
+  //
+  // Three ship modes are exposed by the curation queue: `local` (writes to
+  // live DB tables with source=MANUAL + a gitignored sidecar file in
+  // INSTANCE_DATA_DIR), `upstream-pr` (opens a gh-CLI PR — admin-controlled,
+  // OFF by default), and `zip` (download a bundle behind a one-shot signed
+  // token).
+  //
+  // `local` always available; `zip` always available; `upstream-pr` only
+  // shown in the admin UI when SHIP_UPSTREAM_ENABLED=true AND a token + the
+  // `gh` binary on PATH are present at runtime.
+  INSTANCE_DATA_DIR: z.string().default('instance-data'),
+  SHIP_UPSTREAM_ENABLED: boolFromString,
+  SHIP_UPSTREAM_REMOTE: z.string().default('origin'),
+  SHIP_UPSTREAM_BASE_BRANCH: z.string().default('main'),
+  SHIP_UPSTREAM_GH_TOKEN: z.string().optional(),
+  SHIP_UPSTREAM_GIT_AUTHOR_NAME: z.string().optional(),
+  SHIP_UPSTREAM_GIT_AUTHOR_EMAIL: z.string().optional(),
+  // Signs the zip-download one-shot tokens. Defaults reuse JWT_ACCESS_SECRET
+  // when unset — the token has a 10-minute TTL so reuse is acceptable.
+  SHIP_DOWNLOAD_TOKEN_SECRET: z.string().optional(),
 });
 
 /** Sentinel password meaning "admin panel disabled". Mirrors archivum-null. */

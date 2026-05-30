@@ -1,0 +1,132 @@
+name: Forbidden Paths
+
+# Rejects PRs that touch paths that should never reach this repo:
+#   - `instance-data/`   — operator-private curation-queue sidecar files
+#     (per ADR-0008 storage config — local-mode ship writes here, gitignored).
+#   - `data/ingredients.generated.json` — USDA-importer output, per-instance.
+#   - any `*.env` file other than `.env.example`.
+#   - any compiled/build artefact under `dist/`, `build/`, `.next/`.
+#   - this workflow itself + sibling security workflows + CODEOWNERS — to
+#     make tampering visible. Maintainer edits to these go through the
+#     `allow-forbidden-path` label bypass.
+#
+# Self-defence note: this uses `pull_request_target`, which runs the
+# workflow from the BASE branch's `.github/workflows/`, not the PR head.
+# Even if a malicious PR deletes this file, the base-branch version still
+# fires on every PR event and would still flag the deletion as a forbidden
+# path hit.
+#
+# On a hit: post a comment with the rule + remediation link, then close the PR.
+# A maintainer can add the `allow-forbidden-path` label and re-open for a
+# genuine baseline edit (e.g. updating these workflows or removing a now-
+# tracked file).
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    # Both the canonical `main` and the integration `dev` branch are
+    # protected. PRs that target any other branch (rare in this repo) are
+    # not checked — branch protection is what gates the merges that matter.
+    branches: [main, dev]
+
+permissions: {}
+
+jobs:
+  check:
+    name: Reject forbidden paths
+    if: |
+      !contains(github.event.pull_request.labels.*.name, 'allow-forbidden-path')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Fetch changed file list
+        id: changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # `gh pr diff --name-only` is the cleanest way to get the changed
+          # paths without checking the PR contents out — important for
+          # pull_request_target (untrusted fork code).
+          gh pr view "$PR" --repo "$REPO" --json files --jq '.files[].path' > changed.txt
+          echo "count=$(wc -l < changed.txt)" >> "$GITHUB_OUTPUT"
+          cat changed.txt
+
+      - name: Match forbidden patterns
+        id: match
+        run: |
+          set -euo pipefail
+          # Patterns are POSIX grep extended regex; one per line.
+          cat > patterns.txt <<'PAT'
+          ^instance-data/
+          ^data/ingredients\.generated\.json$
+          (^|/)\.env(\.[^.]+)?$
+          ^dist/
+          ^build/
+          ^\.next/
+          ^\.github/workflows/forbidden-paths\.yml$
+          ^\.github/workflows/branch-protection-audit\.yml$
+          ^\.github/workflows/codeql\.yml$
+          ^\.github/workflows/security\.yml$
+          ^\.github/CODEOWNERS$
+          PAT
+          # The .env.example file is the documented template — never blocked.
+          grep -vE '^\.env\.example$' changed.txt > filtered.txt
+          if grep -E -f patterns.txt filtered.txt > hits.txt; then
+            echo "forbidden=true" >> "$GITHUB_OUTPUT"
+            {
+              echo 'list<<EOF'
+              cat hits.txt
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "forbidden=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment + close PR
+        if: steps.match.outputs.forbidden == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          HITS: ${{ steps.match.outputs.list }}
+        run: |
+          set -euo pipefail
+          BODY=$(cat <<EOF
+          Hi — this PR was closed automatically because it touches paths that
+          should not be committed to the canonical \`diet-app\` repository:
+
+          \`\`\`
+          $HITS
+          \`\`\`
+
+          These are either operator-private (\`instance-data/\` —
+          curation-queue ship output, per [ADR-0008](https://github.com/whiteravens20/diet-app/blob/main/docs/adr/0008-curation-queue.md)),
+          per-instance generated data (\`data/ingredients.generated.json\`),
+          local env secrets (\`.env*\` except \`.env.example\`), build
+          artefacts (\`dist/\`, \`build/\`, \`.next/\`), or protected
+          security workflows / CODEOWNERS (these are maintainer-only edits;
+          see the \`allow-forbidden-path\` bypass below).
+
+          If you meant to ship curated content (recipe or ingredient drafts):
+          - The canonical baseline grows through **hand-authored** edits to
+            \`data/recipes.json\` / \`data/ingredients.json\`, not via the
+            curation-queue PR mode. The runtime guard
+            \`SHIP_UPSTREAM_BLOCKED_CANONICAL\` enforces this.
+          - For your own instance, ship via the curation queue's
+            **local** mode — content stays on your instance + sidecar files
+            in your gitignored \`instance-data/\`. See [ADR-0008 §"Where do my recipes actually live?"](https://github.com/whiteravens20/diet-app/blob/main/docs/adr/0008-curation-queue.md).
+
+          If this PR was opened in good faith and the forbidden paths are
+          there by mistake, just \`git rm\` them and re-open. A maintainer
+          can add the \`allow-forbidden-path\` label and re-open if the path
+          truly belongs in this baseline edit (rare).
+          EOF
+          )
+          gh pr comment "$PR" --repo "$REPO" --body "$BODY"
+          gh pr close "$PR" --repo "$REPO"

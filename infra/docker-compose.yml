@@ -79,6 +79,13 @@ services:
       # survives container recreates and is visible to the host (and to
       # the worker, which shares the same mount).
       - ../data:/app/data
+      # Curation-queue sidecar files (Phase E). The local-mode ship runner
+      # writes approved AI-drafted recipes / ingredient overrides here as
+      # operator-controlled backups. Bind-mounted to the host so they
+      # survive container recreates AND so the operator can symlink this
+      # path to a private repo working tree if they want git-tracked
+      # backups (see ADR-0008 storage config B). Gitignored at repo root.
+      - ../instance-data:/app/instance-data
     ports:
       - '${API_PORT:-4000}:4000'
     healthcheck:
@@ -107,6 +114,7 @@ services:
       db-init: { condition: service_completed_successfully }
     volumes:
       - ../data:/app/data
+      - ../instance-data:/app/instance-data
 
   web:
     build:

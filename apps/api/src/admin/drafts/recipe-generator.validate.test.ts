@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  jaccard,
   validateRecipeBatch,
   type ResolvedIngredient,
 } from './recipe-generator.validate.js';
@@ -389,5 +390,96 @@ describe('validateRecipeBatch', () => {
     });
     if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
     expect(r.candidates[0].complexity).toBe('simple');
+  });
+
+  it('rejects a candidate that duplicates an existing recipe by ingredient set', () => {
+    const r = validateRecipeBatch({
+      targetLocales: ['en', 'pl'],
+      rawOutput: wrap([recipeShell()]),
+      resolveSlug,
+      existingRecipes: [
+        {
+          slug: 'existing-chicken-rice-bowl',
+          ingredientSlugs: [
+            'chicken-breast',
+            'white-rice',
+            'spinach',
+            'olive-oil',
+            'garlic',
+            'lemon',
+          ],
+        },
+      ],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reason).toBe('duplicate-of-existing');
+      expect(r.details).toContain('existing-chicken-rice-bowl');
+    }
+  });
+
+  it('allows a recipe with the same hero ingredient but a different supporting cast', () => {
+    // yogurt+apples vs yogurt+bananas — user's example. One overlap of three.
+    // J = 1/5 = 0.20 ≪ 0.75 → passes.
+    const r = validateRecipeBatch({
+      targetLocales: ['en', 'pl'],
+      rawOutput: wrap([
+        recipeShell({
+          slug: 'olive-lemon-chicken',
+          ingredients: [
+            { slug: 'chicken-breast', quantity: 200, unit: 'g' },
+            { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+            { slug: 'lemon', quantity: 1, unit: 'piece' },
+          ],
+          steps: {
+            en: ['Mix oil and lemon.', 'Roast chicken.', 'Rest, slice, serve.'],
+            pl: ['Wymieszaj oliwę z cytryną.', 'Upiecz kurczaka.', 'Odpocznij, pokrój, podaj.'],
+          },
+          prepMinutes: 5,
+          cookMinutes: 20,
+          dietTags: ['high_protein'],
+        }),
+      ]),
+      resolveSlug,
+      existingRecipes: [
+        {
+          slug: 'rice-and-spinach-chicken',
+          ingredientSlugs: ['chicken-breast', 'white-rice', 'spinach', 'garlic'],
+        },
+      ],
+    });
+    if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+    expect(r.candidates).toHaveLength(1);
+  });
+
+  it('rejects when two batch candidates duplicate each other', () => {
+    const r = validateRecipeBatch({
+      targetLocales: ['en', 'pl'],
+      rawOutput: wrap([
+        recipeShell({ slug: 'first' }),
+        recipeShell({ slug: 'second' }),
+      ]),
+      resolveSlug,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reason).toBe('duplicate-of-existing');
+      expect(r.details).toContain('first');
+    }
+  });
+});
+
+describe('jaccard', () => {
+  it('returns 1.0 for identical sets', () => {
+    expect(jaccard(['a', 'b', 'c'], ['a', 'b', 'c'])).toBe(1);
+  });
+  it('returns 0 for disjoint sets', () => {
+    expect(jaccard(['a', 'b'], ['c', 'd'])).toBe(0);
+  });
+  it('returns 1/3 for yogurt+apple vs yogurt+banana', () => {
+    expect(jaccard(['yogurt', 'apple'], ['yogurt', 'banana'])).toBeCloseTo(1 / 3, 5);
+  });
+  it('ignores order and duplicates within each input', () => {
+    expect(jaccard(['a', 'b', 'a'], ['b', 'a'])).toBe(1);
   });
 });

@@ -436,4 +436,69 @@ export const adminApi = {
     ),
   deleteRecipeDraft: (id: string) =>
     adminFetch<void>(`/drafts/recipes/${id}`, { method: 'DELETE' }),
+
+  // Ship
+  shipConfig: () => adminFetch<ShipConfigDto>('/drafts/ship/config'),
+  ship: (body: ShipRequest) =>
+    adminFetch<ShipResponse>('/drafts/ship', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  shipMarkShipped: (body: ShipMarkShippedRequest) =>
+    adminFetch<{ updated: number }>('/drafts/ship/mark-shipped', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
+
+export type ShipKind = 'recipe' | 'ingredient-name';
+export type ShipMode = 'local' | 'upstream-pr' | 'bundle';
+
+export interface ShipConfigDto {
+  modes: {
+    local: { available: true };
+    upstreamPr: {
+      available: boolean;
+      enabled: boolean;
+      reason: string | null;
+      baseBranch: string;
+      remote: string;
+    };
+    bundle: { available: true; ttlSeconds: number };
+  };
+  approvedCounts: { recipe: number; ingredientName: number };
+}
+
+export interface ShipRequest {
+  kind: ShipKind;
+  mode: ShipMode;
+  batchIds?: string[];
+}
+
+export interface ShipMarkShippedRequest {
+  kind: ShipKind;
+  draftIds: string[];
+}
+
+export type ShipResponse =
+  | {
+      mode: 'local';
+      kind: ShipKind;
+      shippedDraftIds: string[];
+      skipped: { draftId: string; reason: string }[];
+      sidecarPaths: string[];
+    }
+  | {
+      mode: 'upstream-pr';
+      prUrl: string;
+      branch: string;
+      shippedDraftIds: string[];
+      skipped: { draftId: string; reason: string }[];
+    }
+  | {
+      mode: 'bundle';
+      downloadUrl: string;
+      token: string;
+      expiresAt: string;
+      draftIds: string[];
+    };

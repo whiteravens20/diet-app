@@ -144,7 +144,21 @@
     "RECIPE_GEN_IN_PROGRESS": "A recipe-generator run is already in progress.",
     "UNKNOWN_SLUG": "Ingredient slug not found in the curated catalogue.",
     "UNIT_CONVERSION_FAILED": "Could not convert the recipe's quantities — missing density or grams-per-piece.",
-    "OUT_OF_COMPLEXITY_BAND": "Recipe is outside every complexity band — adjust ingredients, steps, or time."
+    "OUT_OF_COMPLEXITY_BAND": "Recipe is outside every complexity band — adjust ingredients, steps, or time.",
+    "INVALID_SHIP_REQUEST": "Invalid ship request.",
+    "INVALID_MARK_SHIPPED_REQUEST": "Invalid mark-shipped request.",
+    "SHIP_NO_APPROVED": "No approved drafts to ship.",
+    "SHIP_UPSTREAM_DISABLED": "Upstream PR mode is disabled on this instance.",
+    "SHIP_UPSTREAM_NO_TOKEN": "Upstream PR mode is missing a gh token.",
+    "SHIP_UPSTREAM_UNAVAILABLE": "Upstream PR mode is not available.",
+    "SHIP_REPO_ROOT_NOT_FOUND": "Could not find the git repo root for the upstream PR mode.",
+    "GH_MODE_UNAVAILABLE": "`gh` CLI not found on PATH.",
+    "GIT_FAILED": "A git command failed during the upstream-PR ship.",
+    "GH_PR_CREATE_FAILED": "Opening the pull request via gh failed.",
+    "NO_APPROVED_DRAFTS": "No approved drafts to bundle.",
+    "NO_VALID_DRAFTS": "Every approved draft failed shape validation.",
+    "SHIP_BUNDLE_TOKEN_INVALID": "Download token expired, invalid, or already consumed.",
+    "SHIP_UPSTREAM_BLOCKED_CANONICAL": "The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -302,7 +316,22 @@
       "scopeCurated": "Curated only (recommended)",
       "scopeAll": "All (curated + USDA)",
       "rejectReasonLabel": "Last batch rejected: {reason} ({key})",
-      "rejectReasonHint": "The validator rejected the model's output on every retry. Common causes: unknown-slug (model invented a slug), invalid-unit (used tbsp/cup), missing-field (skipped difficulty). Try a different model, or fewer recipes per batch."
+      "rejectReasonHint": "The validator rejected the model's output on every retry. Common causes: unknown-slug (model invented a slug), invalid-unit (used tbsp/cup), missing-field (skipped difficulty). Try a different model, or fewer recipes per batch.",
+      "shipHeader": "Ship approved",
+      "shipExplain": "Local lands rows in this instance's DB (default). Upstream-PR opens a gh PR (admin only, off by default). Bundle downloads a JSON file you commit yourself.",
+      "shipApprovedCount": "{count} approved",
+      "shipModeLocal": "Ship to this instance",
+      "shipModeUpstream": "Open upstream PR",
+      "shipModeUpstreamHint": "Opens a PR against {remote}/{branch}.",
+      "shipModeBundle": "Download bundle",
+      "shipSuccessLocal": "Shipped {count} draft(s) to this instance.",
+      "shipSuccessUpstream": "Opened PR with {count} draft(s).",
+      "shipSidecarPath": "Sidecar backup: {path}",
+      "shipBundleReady": "Bundle ready with {count} draft(s).",
+      "shipBundleHint": "Token expires {expiresAt}. Download is separate from \"mark shipped\" so an accidental click is recoverable.",
+      "shipBundleDownload": "Download",
+      "shipBundleMarkShipped": "I committed this — mark shipped",
+      "shipDismiss": "Dismiss"
     }
   },
   "shoppingLists": {
