@@ -7,12 +7,19 @@
  * → re-seed lands in DB** — these schemas describe every payload that crosses
  * the wire along that path.
  *
- * Phase C scope (this file): ingredient-name drafts + the runner-status
- * shape they share with the recipe pipeline. Phase D extends with the recipe
- * draft shape.
+ * Phase C: ingredient-name drafts + the runner-status shape they share with
+ * the recipe pipeline.
+ * Phase D: recipe drafts + the spec / preview / patch shapes.
  */
 import { z } from 'zod';
 import { Locale } from './settings.js';
+import { Unit, MealType, DietType } from './enums.js';
+
+export const Difficulty = z.enum(['easy', 'medium', 'hard']);
+export type Difficulty = z.infer<typeof Difficulty>;
+
+export const Complexity = z.enum(['simple', 'medium', 'complex']);
+export type Complexity = z.infer<typeof Complexity>;
 
 export const DraftStatus = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'SHIPPED']);
 export type DraftStatus = z.infer<typeof DraftStatus>;
@@ -114,3 +121,132 @@ export const DraftRunnerState = z.object({
   configured: z.boolean(),
 });
 export type DraftRunnerState = z.infer<typeof DraftRunnerState>;
+
+// ── Recipe drafts (Phase D) ───────────────────────────────────────────────────
+
+/** Locale-keyed string-array map — used for `steps` where every entry is an
+ *  ordered list, not a single string. Same key set as LocaleStringMap. */
+export const LocaleStringsMap = z.record(Locale, z.array(z.string().min(1)).min(1));
+export type LocaleStringsMap = z.infer<typeof LocaleStringsMap>;
+
+/** One ingredient line as the AI returns it inside a recipe draft. Slug must
+ *  resolve to an `Ingredient.slug` in the live DB; the validator rejects rows
+ *  that don't. */
+export const RecipeDraftIngredientLine = z.object({
+  slug: z.string().min(1),
+  quantity: z.number().positive(),
+  unit: Unit,
+  note: z.string().max(120).nullable().optional(),
+});
+export type RecipeDraftIngredientLine = z.infer<typeof RecipeDraftIngredientLine>;
+
+/** Per-serving nutrition the engine recomputed from `ingredients`. */
+export const RecipeDraftNutrition = z.object({
+  caloriesPerServing: z.number().nonnegative(),
+  proteinPerServing: z.number().nonnegative(),
+  fatPerServing: z.number().nonnegative(),
+  carbsPerServing: z.number().nonnegative(),
+});
+export type RecipeDraftNutrition = z.infer<typeof RecipeDraftNutrition>;
+
+/** Body persisted as a `RecipeDraft` row. Locale-keyed JSON columns + the
+ *  engine-computed numeric fields + the structural metadata. */
+export const RecipeDraft = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  titles: LocaleStringMap,
+  descriptions: LocaleStringMap,
+  steps: LocaleStringsMap,
+  locales: z.array(Locale),
+  servings: z.number().int().min(1),
+  mealTypes: z.array(MealType),
+  dietTags: z.array(DietType),
+  prepMinutes: z.number().int().min(0),
+  cookMinutes: z.number().int().min(0),
+  difficulty: Difficulty,
+  complexity: Complexity,
+  caloriesPerServing: z.number().nonnegative(),
+  proteinPerServing: z.number().nonnegative(),
+  fatPerServing: z.number().nonnegative(),
+  carbsPerServing: z.number().nonnegative(),
+  allergens: z.array(z.string()),
+  ingredients: z.array(RecipeDraftIngredientLine).min(1),
+  status: DraftStatus,
+  source: DraftSource,
+  batchId: z.string(),
+  modelUsed: z.string().nullable(),
+  generatorPrompt: z.string().nullable(),
+  generationSpec: z.unknown().nullable(),
+  provenanceUrl: z.string().nullable(),
+  provenanceLicense: z.string().nullable(),
+  shippedPRUrl: z.string().nullable(),
+  shippedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  localeReviews: z.array(LocaleReview),
+});
+export type RecipeDraft = z.infer<typeof RecipeDraft>;
+
+/** Optional complexity mix. Three weights that should sum to 1.0; the runner
+ *  normalises if they don't and stratifies the batch accordingly. */
+export const ComplexityMix = z.object({
+  simple: z.number().min(0).max(1),
+  medium: z.number().min(0).max(1),
+  complex: z.number().min(0).max(1),
+});
+export type ComplexityMix = z.infer<typeof ComplexityMix>;
+
+/** Spec passed to `POST /api/admin/drafts/recipes/generate`. Every knob is
+ *  optional except `count`; the runner derives sensible defaults (every
+ *  non-canonical locale + EN, balanced complexity mix). */
+/**
+ * Which slice of the ingredient catalogue the prompt sees. `curated` (default)
+ * shows only the hand-authored rows in `data/ingredients.json` — they have
+ * cookbook-style names (`chicken-breast`, `lemon`, `garlic`) the model can
+ * recognise and stay inside. `all` adds every USDA-imported row, useful once
+ * those rows have approved friendly names via the Phase C namer pipeline.
+ * Defaults to `curated` for v1: USDA rows carry FDC-bureaucratic names
+ * (`anchovies-canned-in-olive-oil-with-salt-drained`) that don't map to
+ * everyday cooking vocabulary, so the model invents simpler slugs that don't
+ * exist and the validator rejects the batch.
+ */
+export const CatalogueScope = z.enum(['curated', 'all']);
+export type CatalogueScope = z.infer<typeof CatalogueScope>;
+
+export const RecipeGenerateSpec = z.object({
+  count: z.number().int().min(1).max(25),
+  targetLocales: z.array(Locale).min(1).optional(),
+  catalogueScope: CatalogueScope.optional(),
+  dietTags: z.array(DietType).optional(),
+  mealTypes: z.array(MealType).optional(),
+  cuisine: z.string().min(1).max(80).optional(),
+  kcalRange: z
+    .object({
+      min: z.number().int().nonnegative(),
+      max: z.number().int().positive(),
+    })
+    .refine((r) => r.max >= r.min, { message: 'kcalRange.max must be >= min' })
+    .optional(),
+  avoidSlugs: z.array(z.string()).optional(),
+  preferSlugs: z.array(z.string()).optional(),
+  complexityMix: ComplexityMix.optional(),
+});
+export type RecipeGenerateSpec = z.infer<typeof RecipeGenerateSpec>;
+
+/** PATCH body for a recipe draft. All fields optional; the controller merges
+ *  into the existing row and re-runs the validator + engine recompute. The
+ *  `?dryRun=true` query flag returns the recomputed shape without persisting,
+ *  which the inline editor uses for live nutrition feedback. */
+export const RecipeDraftPatch = z.object({
+  titles: LocaleStringMap.optional(),
+  descriptions: LocaleStringMap.optional(),
+  steps: LocaleStringsMap.optional(),
+  servings: z.number().int().min(1).optional(),
+  mealTypes: z.array(MealType).optional(),
+  dietTags: z.array(DietType).optional(),
+  prepMinutes: z.number().int().min(0).optional(),
+  cookMinutes: z.number().int().min(0).optional(),
+  difficulty: Difficulty.optional(),
+  ingredients: z.array(RecipeDraftIngredientLine).min(1).optional(),
+});
+export type RecipeDraftPatch = z.infer<typeof RecipeDraftPatch>;

@@ -195,6 +195,22 @@ flow through the existing seeder. The concerns that argued against
   `(draftId, locale)`). Adding a new locale is enum + messages file
   only — zero schema migration.
 
+**Recommended model for the recipe generator.** v1 default for new
+operators: `AI_DEFAULT_PROVIDER=openrouter` +
+`AI_DEFAULT_MODEL=google/gemini-3.1-flash-lite`, with the queue's
+"Catalogue" picker set to **Curated only**. Live-tested against the
+curated baseline at $0.25 / $1.50 per 1 M tokens, it produces the full
+default complexity mix (simple + medium + complex) on the first try.
+Fallback if 3.1-flash-lite regresses or gets renamed:
+`google/gemini-2.5-flash`. The full price/quality table (including
+mid-tier `claude-haiku-4-5` and premium `claude-sonnet-4-6` for
+higher-quality batches) lives in
+[ADR-0008 § "Model recommendations"](../adr/0008-curation-queue.md#model-recommendations-recipe-generator).
+Self-hosted Ollama models work for the ingredient-namer pipeline
+(short single-field outputs) but struggle with the recipe generator's
+nested structured shape — recipe generation against a remote API is
+the pragmatic choice even on a privacy-first instance.
+
 ## 5. Non-functional requirements
 
 - **Security** — see [SECURITY.md](../../SECURITY.md); encrypted AI keys, scoped data access.

@@ -1,0 +1,255 @@
+[
+  {
+    "complexity": "simple",
+    "title": {
+      "en": "Greek yogurt with almonds and honey",
+      "pl": "Jogurt grecki z migdałami i miodem"
+    },
+    "description": {
+      "en": "A creamy high-protein snack ready in under five minutes.",
+      "pl": "Kremowa, wysokobiałkowa przekąska gotowa w niecałe pięć minut."
+    },
+    "servings": 1,
+    "mealTypes": ["snack"],
+    "dietTags": ["balanced", "vegetarian", "high_protein"],
+    "prepMinutes": 3,
+    "cookMinutes": 0,
+    "difficulty": "easy",
+    "ingredients": [
+      { "slug": "greek-yogurt", "quantity": 200, "unit": "g" },
+      { "slug": "almonds", "quantity": 20, "unit": "g" },
+      { "slug": "honey", "quantity": 10, "unit": "g" }
+    ],
+    "steps": {
+      "en": [
+        "Spoon the yogurt into a bowl.",
+        "Top with crushed almonds.",
+        "Drizzle honey over the top before serving."
+      ],
+      "pl": [
+        "Przełóż jogurt do miseczki.",
+        "Posyp pokruszonymi migdałami.",
+        "Przed podaniem polej miodem."
+      ]
+    }
+  },
+  {
+    "complexity": "simple",
+    "title": {
+      "en": "Avocado egg keto plate",
+      "pl": "Talerz keto z awokado i jajkiem"
+    },
+    "description": {
+      "en": "Halved avocado with soft-boiled eggs — fast, filling, keto-friendly.",
+      "pl": "Połówki awokado z jajkami na miękko — szybko, sycąco i przyjazne diecie keto."
+    },
+    "servings": 1,
+    "mealTypes": ["breakfast", "lunch"],
+    "dietTags": ["balanced", "keto", "vegetarian", "high_protein"],
+    "prepMinutes": 4,
+    "cookMinutes": 7,
+    "difficulty": "easy",
+    "ingredients": [
+      { "slug": "avocado", "quantity": 1, "unit": "piece" },
+      { "slug": "large-egg", "quantity": 2, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 5, "unit": "ml" }
+    ],
+    "steps": {
+      "en": [
+        "Soft-boil the eggs for seven minutes, then peel and halve.",
+        "Halve the avocado and remove the stone.",
+        "Plate the avocado and eggs, drizzle with olive oil."
+      ],
+      "pl": [
+        "Ugotuj jajka na miękko przez siedem minut, obierz i przekrój na pół.",
+        "Przekrój awokado na pół i usuń pestkę.",
+        "Ułóż awokado i jajka na talerzu, skrop oliwą."
+      ]
+    }
+  },
+  {
+    "complexity": "medium",
+    "title": {
+      "en": "Grilled chicken rice bowl with spinach",
+      "pl": "Miska ryżu z grillowanym kurczakiem i szpinakiem"
+    },
+    "description": {
+      "en": "Lean grilled chicken over fluffy rice with wilted spinach and a squeeze of lemon.",
+      "pl": "Chudy grillowany kurczak na puszystym ryżu ze szpinakiem i odrobiną cytryny."
+    },
+    "servings": 2,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["balanced", "high_protein"],
+    "prepMinutes": 10,
+    "cookMinutes": 25,
+    "difficulty": "medium",
+    "ingredients": [
+      { "slug": "chicken-breast", "quantity": 300, "unit": "g" },
+      { "slug": "white-rice", "quantity": 160, "unit": "g" },
+      { "slug": "spinach", "quantity": 120, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 10, "unit": "ml" },
+      { "slug": "lemon", "quantity": 1, "unit": "piece" },
+      { "slug": "garlic", "quantity": 2, "unit": "piece" }
+    ],
+    "steps": {
+      "en": [
+        "Season chicken with salt, pepper, and minced garlic.",
+        "Rinse the rice and simmer in salted water until tender, about 18 minutes.",
+        "Heat olive oil and sear chicken 4–5 minutes per side until cooked through.",
+        "Wilt the spinach in the same pan during the last minute.",
+        "Slice the chicken, plate over rice with spinach, finish with a lemon squeeze."
+      ],
+      "pl": [
+        "Dopraw kurczaka solą, pieprzem i posiekanym czosnkiem.",
+        "Opłucz ryż i gotuj w osolonej wodzie do miękkości, około 18 minut.",
+        "Rozgrzej oliwę i smaż kurczaka po 4–5 minut z każdej strony, aż będzie ścięty w środku.",
+        "W ostatniej minucie podsmaż szpinak na tej samej patelni.",
+        "Pokrój kurczaka, ułóż na ryżu ze szpinakiem, skrop sokiem z cytryny."
+      ]
+    }
+  },
+  {
+    "complexity": "medium",
+    "title": {
+      "en": "Chickpea tomato stew",
+      "pl": "Gulasz z ciecierzycy i pomidorów"
+    },
+    "description": {
+      "en": "Hearty one-pot stew with garlic, paprika, and a generous drizzle of olive oil.",
+      "pl": "Sycący gulasz z jednego garnka, z czosnkiem, papryką i sporą porcją oliwy."
+    },
+    "servings": 3,
+    "mealTypes": ["lunch", "dinner"],
+    "dietTags": ["balanced", "vegan", "vegetarian", "mediterranean"],
+    "prepMinutes": 10,
+    "cookMinutes": 30,
+    "difficulty": "easy",
+    "ingredients": [
+      { "slug": "chickpeas", "quantity": 400, "unit": "g" },
+      { "slug": "tomato", "quantity": 300, "unit": "g" },
+      { "slug": "onion", "quantity": 1, "unit": "piece" },
+      { "slug": "garlic", "quantity": 3, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 20, "unit": "ml" },
+      { "slug": "spinach", "quantity": 80, "unit": "g" }
+    ],
+    "steps": {
+      "en": [
+        "Dice the onion and mince the garlic.",
+        "Soften onion in olive oil over medium heat for 5 minutes.",
+        "Add garlic, then chopped tomato, and simmer 10 minutes until saucy.",
+        "Stir in chickpeas and cook 10 more minutes.",
+        "Fold spinach through at the end until just wilted, then serve."
+      ],
+      "pl": [
+        "Pokrój cebulę w kostkę i posiekaj czosnek.",
+        "Zeszklij cebulę na oliwie na średnim ogniu przez 5 minut.",
+        "Dodaj czosnek, potem pokrojone pomidory i duś 10 minut, aż powstanie sos.",
+        "Wmieszaj ciecierzycę i gotuj jeszcze 10 minut.",
+        "Na koniec wrzuć szpinak i mieszaj, aż lekko zwiędnie, podawaj."
+      ]
+    }
+  },
+  {
+    "complexity": "complex",
+    "title": {
+      "en": "Baked salmon with roasted potato, broccoli, and lemon-yogurt sauce",
+      "pl": "Pieczony łosoś z ziemniakami, brokułem i sosem cytrynowo-jogurtowym"
+    },
+    "description": {
+      "en": "Sunday-dinner energy: oven-baked salmon next to roasted potatoes and broccoli, finished with a bright lemon-yogurt sauce.",
+      "pl": "Klimat niedzielnego obiadu: pieczony łosoś z opiekanymi ziemniakami i brokułem, podany z lekkim sosem cytrynowo-jogurtowym."
+    },
+    "servings": 2,
+    "mealTypes": ["dinner"],
+    "dietTags": ["balanced", "high_protein", "mediterranean"],
+    "prepMinutes": 15,
+    "cookMinutes": 35,
+    "difficulty": "medium",
+    "ingredients": [
+      { "slug": "salmon-fillet", "quantity": 320, "unit": "g" },
+      { "slug": "potato", "quantity": 400, "unit": "g" },
+      { "slug": "broccoli", "quantity": 250, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 20, "unit": "ml" },
+      { "slug": "lemon", "quantity": 1, "unit": "piece" },
+      { "slug": "garlic", "quantity": 2, "unit": "piece" },
+      { "slug": "greek-yogurt", "quantity": 120, "unit": "g" },
+      { "slug": "spinach", "quantity": 40, "unit": "g" }
+    ],
+    "steps": {
+      "en": [
+        "Preheat the oven to 200°C.",
+        "Cube the potato, toss with half the olive oil and salt, roast 25 minutes.",
+        "Cut broccoli into florets and add to the tray for the last 12 minutes.",
+        "Season salmon with salt and pepper and place on a parchment-lined sheet.",
+        "Bake salmon for 12 minutes until just cooked through.",
+        "Mince garlic and stir into yogurt with lemon zest and juice for the sauce.",
+        "Wilt spinach briefly in a dry pan.",
+        "Plate salmon with potato and broccoli, top with spinach and a spoon of sauce."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 200°C.",
+        "Pokrój ziemniaki w kostkę, wymieszaj z połową oliwy i solą, piecz 25 minut.",
+        "Pokrój brokuł na różyczki i dorzuć na blachę na ostatnie 12 minut.",
+        "Dopraw łososia solą i pieprzem, ułóż na blasze wyłożonej papierem do pieczenia.",
+        "Piecz łososia przez 12 minut, aż będzie ledwo ścięty w środku.",
+        "Posiekaj czosnek i wmieszaj z jogurtem, skórką i sokiem z cytryny — to sos.",
+        "Krótko podgrzej szpinak na suchej patelni.",
+        "Podawaj łososia z ziemniakami i brokułem, polej sosem i posyp szpinakiem."
+      ]
+    }
+  },
+  {
+    "complexity": "complex",
+    "title": {
+      "en": "Beef vegetable pasta with roasted peppers",
+      "pl": "Makaron z wołowiną i pieczoną papryką"
+    },
+    "description": {
+      "en": "Pasta tossed with seared beef, roasted peppers, tomatoes, and a parmesan finish.",
+      "pl": "Makaron z podsmażoną wołowiną, pieczoną papryką, pomidorami i parmezanem na koniec."
+    },
+    "servings": 3,
+    "mealTypes": ["dinner"],
+    "dietTags": ["balanced", "high_protein"],
+    "prepMinutes": 15,
+    "cookMinutes": 40,
+    "difficulty": "medium",
+    "ingredients": [
+      { "slug": "beef-mince", "quantity": 350, "unit": "g" },
+      { "slug": "pasta", "quantity": 250, "unit": "g" },
+      { "slug": "bell-pepper", "quantity": 2, "unit": "piece" },
+      { "slug": "tomato", "quantity": 250, "unit": "g" },
+      { "slug": "onion", "quantity": 1, "unit": "piece" },
+      { "slug": "garlic", "quantity": 3, "unit": "piece" },
+      { "slug": "olive-oil", "quantity": 15, "unit": "ml" },
+      { "slug": "parmesan", "quantity": 30, "unit": "g" },
+      { "slug": "spinach", "quantity": 80, "unit": "g" }
+    ],
+    "steps": {
+      "en": [
+        "Heat the oven to 220°C and roast halved peppers cut-side down for 20 minutes.",
+        "Bring salted water to a boil for the pasta.",
+        "Dice onion, mince garlic, and chop the tomato.",
+        "Sear beef mince in olive oil over high heat, breaking it up, 6 minutes.",
+        "Add onion and garlic, soften 3 minutes.",
+        "Stir in tomato and simmer 8 minutes.",
+        "Cook the pasta to al dente, then drain reserving a cup of water.",
+        "Peel the roasted peppers, slice, and add to the sauce with spinach.",
+        "Toss pasta into the sauce with a splash of pasta water.",
+        "Plate and finish with grated parmesan."
+      ],
+      "pl": [
+        "Rozgrzej piekarnik do 220°C i piecz przekrojone papryki skórą do góry przez 20 minut.",
+        "Zagotuj osoloną wodę na makaron.",
+        "Pokrój cebulę w kostkę, posiekaj czosnek i pokrój pomidora.",
+        "Podsmaż mielone na oliwie na dużym ogniu, rozdrabniając, 6 minut.",
+        "Dodaj cebulę i czosnek, smaż 3 minuty, aż zmiękną.",
+        "Wmieszaj pomidora i duś 8 minut.",
+        "Ugotuj makaron al dente, odcedź, zostaw szklankę wody.",
+        "Obierz pieczone papryki, pokrój i dodaj do sosu razem ze szpinakiem.",
+        "Wymieszaj makaron z sosem, dolewając trochę wody z gotowania.",
+        "Podawaj posypane startym parmezanem."
+      ]
+    }
+  }
+]

@@ -4,6 +4,7 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
 import { BasicAuthGuard } from '../basic-auth.guard.js';
 import { DraftsController } from './drafts.controller.js';
 import { IngredientNamerRunner } from './ingredient-namer.runner.js';
+import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
 
 /**
  * Curation queue module. Phase C wires the ingredient-name pipeline;
@@ -13,6 +14,6 @@ import { IngredientNamerRunner } from './ingredient-namer.runner.js';
 @Module({
   imports: [PrismaModule, AiModule],
   controllers: [DraftsController],
-  providers: [BasicAuthGuard, IngredientNamerRunner],
+  providers: [BasicAuthGuard, IngredientNamerRunner, RecipeGeneratorRunner],
 })
 export class DraftsModule {}

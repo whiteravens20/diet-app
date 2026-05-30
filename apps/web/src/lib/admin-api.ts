@@ -219,6 +219,86 @@ export interface IngredientNameGenerateSpec {
   targetLocales?: string[];
 }
 
+// ── Recipe drafts (Phase D) ───────────────────────────────────────────────────
+
+export type RecipeComplexity = 'simple' | 'medium' | 'complex';
+
+export interface RecipeDraftIngredientLine {
+  slug: string;
+  quantity: number;
+  unit: 'g' | 'ml' | 'piece';
+  note?: string | null;
+}
+
+export interface RecipeDraft {
+  id: string;
+  slug: string;
+  titles: Record<string, string>;
+  descriptions: Record<string, string>;
+  steps: Record<string, string[]>;
+  locales: string[];
+  servings: number;
+  mealTypes: string[];
+  dietTags: string[];
+  prepMinutes: number;
+  cookMinutes: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  complexity: RecipeComplexity;
+  caloriesPerServing: number;
+  proteinPerServing: number;
+  fatPerServing: number;
+  carbsPerServing: number;
+  allergens: string[];
+  ingredients: RecipeDraftIngredientLine[];
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
+  source: 'AI' | 'EXTERNAL' | 'MANUAL';
+  batchId: string;
+  modelUsed: string | null;
+  generatorPrompt: string | null;
+  generationSpec: unknown;
+  provenanceUrl: string | null;
+  provenanceLicense: string | null;
+  shippedPRUrl: string | null;
+  shippedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  localeReviews: DraftLocaleReview[];
+}
+
+export interface RecipeGenerateSpec {
+  count: number;
+  targetLocales?: string[];
+  catalogueScope?: 'curated' | 'all';
+  dietTags?: string[];
+  mealTypes?: string[];
+  cuisine?: string;
+  kcalRange?: { min: number; max: number };
+  avoidSlugs?: string[];
+  preferSlugs?: string[];
+  complexityMix?: { simple: number; medium: number; complex: number };
+}
+
+export interface RecipeDraftPatch {
+  titles?: Record<string, string>;
+  descriptions?: Record<string, string>;
+  steps?: Record<string, string[]>;
+  servings?: number;
+  mealTypes?: string[];
+  dietTags?: string[];
+  prepMinutes?: number;
+  cookMinutes?: number;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  ingredients?: RecipeDraftIngredientLine[];
+}
+
+export interface RecipeRunnerState extends DraftRunnerState {
+  complexityCounts: { simple: number; medium: number; complex: number };
+  mixDrift: boolean;
+  lastRejectReason: string | null;
+  lastRejectKey: string | null;
+  lastRejectHead: string | null;
+}
+
 export interface PagedDrafts<T> {
   items: T[];
   total: number;
@@ -308,4 +388,52 @@ export const adminApi = {
     ),
   deleteIngredientNameDraft: (id: string) =>
     adminFetch<void>(`/drafts/ingredient-names/${id}`, { method: 'DELETE' }),
+
+  // Drafts: recipes
+  startRecipeGenerator: (spec: RecipeGenerateSpec) =>
+    adminFetch<RecipeRunnerState>('/drafts/recipes/generate', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    }),
+  recipeGeneratorStatus: () =>
+    adminFetch<RecipeRunnerState>('/drafts/recipes/generate/status'),
+  stopRecipeGenerator: () =>
+    adminFetch<RecipeRunnerState>('/drafts/recipes/generate/stop', { method: 'POST' }),
+  listRecipeDrafts: (params: {
+    status?: string;
+    batchId?: string;
+    complexity?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.batchId) q.set('batchId', params.batchId);
+    if (params.complexity) q.set('complexity', params.complexity);
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    const qs = q.toString();
+    return adminFetch<PagedDrafts<RecipeDraft>>(
+      `/drafts/recipes${qs ? `?${qs}` : ''}`,
+    );
+  },
+  getRecipeDraft: (id: string) =>
+    adminFetch<RecipeDraft>(`/drafts/recipes/${id}`),
+  patchRecipeDraft: (id: string, patch: RecipeDraftPatch, dryRun = false) =>
+    adminFetch<RecipeDraft>(
+      `/drafts/recipes/${id}${dryRun ? '?dryRun=true' : ''}`,
+      { method: 'PATCH', body: JSON.stringify(patch) },
+    ),
+  approveRecipeDraft: (id: string, locale: string, reviewedByLabel: string) =>
+    adminFetch<RecipeDraft>(
+      `/drafts/recipes/${id}/approve?locale=${encodeURIComponent(locale)}`,
+      { method: 'POST', body: JSON.stringify({ reviewedByLabel }) },
+    ),
+  rejectRecipeDraft: (id: string, locale: string, reviewedByLabel: string, reason?: string) =>
+    adminFetch<RecipeDraft>(
+      `/drafts/recipes/${id}/reject?locale=${encodeURIComponent(locale)}`,
+      { method: 'POST', body: JSON.stringify({ reviewedByLabel, reason }) },
+    ),
+  deleteRecipeDraft: (id: string) =>
+    adminFetch<void>(`/drafts/recipes/${id}`, { method: 'DELETE' }),
 };

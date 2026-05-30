@@ -8,7 +8,7 @@
  * successful run.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 export const SEED_FILES = [
@@ -18,6 +18,11 @@ export const SEED_FILES = [
   'recipes.json',
   'substitutions.json',
 ] as const;
+
+/** Subdirectory globbed for per-batch recipe files shipped by the curation
+ *  queue (Phase D). Every `<batchId>.json` inside is folded into the seed
+ *  hash so newly-shipped batches flip the "update available" flag. */
+const SEED_DIRS = ['recipes'] as const;
 
 export interface SeedFileSnapshot {
   name: (typeof SEED_FILES)[number];
@@ -63,6 +68,19 @@ export function computeDataState(dir = resolveDataDir()): DataState {
     } else {
       hash.update(`${name}:missing`);
       files.push({ name, present: false, bytes: 0 });
+    }
+  }
+  for (const subdir of SEED_DIRS) {
+    const subPath = join(dir, subdir);
+    if (existsSync(subPath) && statSync(subPath).isDirectory()) {
+      const entries = readdirSync(subPath)
+        .filter((f) => f.endsWith('.json'))
+        .sort();
+      for (const name of entries) {
+        const buf = readFileSync(join(subPath, name));
+        hash.update(`${subdir}/${name}:`);
+        hash.update(buf);
+      }
     }
   }
   return { hash: hash.digest('hex'), files };

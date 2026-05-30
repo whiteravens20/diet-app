@@ -133,6 +133,43 @@ next admin DB update.
   queue is for *new* rows; the translation runner is for *missing locale
   on existing rows*. Two distinct surfaces, one for each problem.
 
+## Model recommendations (recipe generator)
+
+The recipe-generator prompt asks the model to author N recipes in one shot:
+locale-keyed titles / descriptions / steps, structural metadata, an
+ingredient list strictly drawn from the in-prompt catalogue, and exact
+field shapes that the validator pins. This is a *long-context structured
+output* job, not a casual chat task. Live testing against the openrouter
+endpoint, count=3–5 on `catalogueScope: 'curated'`, produced the
+following picture:
+
+| Model | $/1M in→out (May 2026) | Behaviour observed |
+|---|---|---|
+| `google/gemini-2.5-flash-lite` | $0.10 / $0.40 | Cheapest. Fast. **Failed every run** — produced 2-ingredient recipes below the simple band, dropped `difficulty`, used `tbsp` for `unit`. Even with tightened prompt + catalogue scope, 0 / 3 written. Skip. |
+| `google/gemini-2.5-flash` | $0.30 / $2.50 | Reliable. 3 / 3 written on first try, sensible 3- to 7-ingredient recipes with EN + PL. Was the recommendation before live-testing 3.1-flash-lite. |
+| **`google/gemini-3.1-flash-lite`** | **$0.25 / $1.50** | **Recommended.** Cheaper than 2.5-flash on both input and output. Live test: 5 / 5 written first try, default complexity mix honoured (2 simple + 2 medium + 1 complex), and authored a genuine 10-ingredient *Hearty Beef Stew* in the complex band — a materially harder task than the 5- to 7-ingredient mediums other models produced. Generational jump over 2.5-flash-lite is real. |
+| `google/gemini-3-flash-preview` | $0.50 / $3.00 | "Preview" suffix — not stable for production. Skip until promoted. |
+| `google/gemini-3.5-flash` | $1.50 / $9.00 | Top flash tier; 5× the price of 3.1-flash-lite. Overkill for v1; revisit if the queue starts producing batches the recommended model can't write. |
+| `anthropic/claude-haiku-4-5` | ~$1.00 / $5.00 | Cleanest JSON output of the mid tier. Reliable difficulty + unit. Worth it when the operator wants 10-recipe batches with zero babysitting. |
+| `openai/gpt-4o-mini` | $0.15 / $0.60 | Cheap and JSON-disciplined; tends to write blander recipe text and over-uses `easy` difficulty. Acceptable for bulk-fill once the curated baseline is mature. |
+| `anthropic/claude-sonnet-4-6` | $3.00 / $15.00 | Highest recipe quality observed in side-tests. Useful when the operator wants generation to feel like a senior recipe editor wrote it — not the day-to-day pick. |
+
+**Default operator recommendation** for v1: set
+`AI_DEFAULT_PROVIDER=openrouter` +
+`AI_DEFAULT_MODEL=google/gemini-3.1-flash-lite` and run with
+`catalogueScope: 'curated'` until the USDA rows have approved friendly
+names via the ingredient-namer pipeline. That combination — newer
+architecture, sub-$1 input pricing, reliable structured-output discipline
+— is the current $ × quality × throughput sweet spot. If 3.1-flash-lite
+quality regresses or it gets renamed / deprecated, fall back to
+`google/gemini-2.5-flash` (proven stable).
+
+Cheaper or self-hosted alternatives (Ollama `qwen2.5:14b`, `llama3.1:8b`)
+work for the ingredient-namer pipeline (short single-field outputs) but
+struggle with the recipe-generator's nested structured shape — recipe
+generation against a remote API is the pragmatic choice even on a
+self-hosted instance.
+
 ## References
 
 - Implementation plan: [`/home/pavlojs/.claude/plans/plan-md-contains-actual-prompt-purring-ocean.md`](../../home/pavlojs/.claude/plans/plan-md-contains-actual-prompt-purring-ocean.md)

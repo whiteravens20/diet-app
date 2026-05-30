@@ -27,6 +27,7 @@ import {
   ingredientOverridesPath,
   readIngredientOverrides,
 } from '../drafts/ship/ingredient-overrides.writer.js';
+import { readAllRecipeBatches } from '../drafts/ship/recipe-batches.writer.js';
 
 type Unit = 'g' | 'ml' | 'piece';
 
@@ -285,6 +286,15 @@ export async function runSeed(
   }
 
   const anchors = readJson<RecipeSeed[]>(dir, 'recipes.json');
+  // Curation-queue recipe batches (Phase D). One file per shipped batch under
+  // `data/recipes/*.json`, sorted by filename for deterministic upsert order.
+  // Each batch row matches the same shape `data/recipes.json` uses (slug,
+  // localised title/description/steps, structural metadata), so the seeder
+  // doesn't need a branch.
+  const shipped = readAllRecipeBatches(dir) as unknown as RecipeSeed[];
+  if (shipped.length > 0) {
+    log(`Loaded ${shipped.length} shipped recipe(s) from data/recipes/*.json.`);
+  }
   // The template composer produced semantically nonsense combinations
   // ("cucumber baked with coconut oil") and is disabled by default. Toggle
   // with RECIPE_COMPOSER_ENABLED=true as a temporary escape hatch; the
@@ -305,10 +315,10 @@ export async function runSeed(
         steps: r.steps,
       }))
     : [];
-  const recipes = [...anchors, ...composedAsSeed];
+  const recipes = [...anchors, ...shipped, ...composedAsSeed];
   log(
     `Seeding recipes (nutrition computed deterministically): ` +
-      `${anchors.length} anchor + ${composedAsSeed.length} composed…`,
+      `${anchors.length} anchor + ${shipped.length} shipped + ${composedAsSeed.length} composed…`,
   );
   onProgress({ stage: 'recipes', current: 0, total: recipes.length });
 
