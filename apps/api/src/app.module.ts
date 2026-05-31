@@ -10,10 +10,12 @@ import { validateEnv, type Env } from './config/env.js';
 import { FavoritesModule } from './favorites/favorites.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IngredientsModule } from './ingredients/ingredients.module.js';
+import { InstanceSettingsModule } from './instance-settings/instance-settings.module.js';
 import { MealPlansModule } from './meal-plans/meal-plans.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProfilesModule } from './profiles/profiles.module.js';
 import { RecipesModule } from './recipes/recipes.module.js';
+import { ReviewModule } from './review/review.module.js';
 import { ShoppingListsModule } from './shopping-lists/shopping-lists.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -49,6 +51,8 @@ import { UsersModule } from './users/users.module.js';
     AiModule,
     AdminModule,
     DraftsModule,
+    InstanceSettingsModule,
+    ReviewModule,
     UsersModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

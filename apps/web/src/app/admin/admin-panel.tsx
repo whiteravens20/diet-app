@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { CurationCard } from './curation-card';
+import { ReviewerConfigCard } from './reviewer-config-card';
 import {
   AdminApiError,
   adminApi,
@@ -351,6 +352,8 @@ export function AdminPanel() {
       />
 
       <CurationCard />
+
+      <ReviewerConfigCard />
     </div>
   );
 }

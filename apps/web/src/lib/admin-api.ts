@@ -449,7 +449,27 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  // Instance settings (Phase H) — reviewer-interface toggle + password.
+  instanceSettings: () => adminFetch<InstanceSettingsDto>('/instance-settings'),
+  patchInstanceSettings: (body: InstanceSettingsPatchPayload) =>
+    adminFetch<InstanceSettingsDto>('/instance-settings', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
 };
+
+export interface InstanceSettingsDto {
+  reviewerEnabled: boolean;
+  reviewerPasswordSet: boolean;
+  updatedAt: string;
+}
+
+export interface InstanceSettingsPatchPayload {
+  reviewerEnabled?: boolean;
+  /** Empty string clears the existing hash; `undefined` means "no change". */
+  reviewerPassword?: string;
+}
 
 export type ShipKind = 'recipe' | 'ingredient-name';
 export type ShipMode = 'local' | 'upstream-pr' | 'bundle';

@@ -250,3 +250,129 @@ export const RecipeDraftPatch = z.object({
   ingredients: z.array(RecipeDraftIngredientLine).min(1).optional(),
 });
 export type RecipeDraftPatch = z.infer<typeof RecipeDraftPatch>;
+
+// ── Reviewer interface (Phase H) ──────────────────────────────────────────────
+
+/**
+ * Public `InstanceSettings` shape — never carries the bcrypt hash, just
+ * whether one is set.
+ */
+export const InstanceSettingsDto = z.object({
+  reviewerEnabled: z.boolean(),
+  reviewerPasswordSet: z.boolean(),
+  updatedAt: z.string(),
+});
+export type InstanceSettingsDto = z.infer<typeof InstanceSettingsDto>;
+
+export const InstanceSettingsPatchBody = z
+  .object({
+    reviewerEnabled: z.boolean().optional(),
+    // Empty string clears the existing hash; `undefined` means "no change".
+    reviewerPassword: z.string().max(200).optional(),
+  })
+  .strict();
+export type InstanceSettingsPatchBody = z.infer<typeof InstanceSettingsPatchBody>;
+
+/**
+ * Login body for the reviewer interface. The cookie carries the reviewer's
+ * `label` only — locale is supplied per-request as a query parameter, so a
+ * single reviewer can hop between locale tabs without re-authenticating.
+ * EN is rejected at the API layer wherever locale is supplied because EN is
+ * the canonical authoring language: the reviewer's job is to validate a
+ * *target* locale against the EN source.
+ */
+export const ReviewerLoginBody = z.object({
+  password: z.string().min(1).max(200),
+  label: z.string().min(1).max(80),
+});
+export type ReviewerLoginBody = z.infer<typeof ReviewerLoginBody>;
+
+/** What `GET /api/review/session` returns — minimum needed by the client. */
+export const ReviewerSessionDto = z.object({
+  label: z.string(),
+  issuedAt: z.string(),
+});
+export type ReviewerSessionDto = z.infer<typeof ReviewerSessionDto>;
+
+/**
+ * Per-locale slice of a recipe draft handed to a reviewer. Contains only the
+ * reviewer's `locale` slice as editable + the EN slice as a read-only source
+ * reference. Locale-independent metadata (engine nutrition, allergens, slug
+ * resolution, batch / model provenance) is always included.
+ */
+export const RecipeReviewSlice = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  locale: Locale,
+  title: z.string(),
+  titleSource: z.string(), // canonical EN
+  description: z.string(),
+  descriptionSource: z.string(),
+  steps: z.array(z.string()),
+  stepsSource: z.array(z.string()),
+  // Locale-independent.
+  servings: z.number().int().positive(),
+  mealTypes: z.array(MealType),
+  dietTags: z.array(DietType),
+  prepMinutes: z.number().int().nonnegative(),
+  cookMinutes: z.number().int().nonnegative(),
+  difficulty: Difficulty,
+  complexity: Complexity,
+  caloriesPerServing: z.number().nonnegative(),
+  proteinPerServing: z.number().nonnegative(),
+  fatPerServing: z.number().nonnegative(),
+  carbsPerServing: z.number().nonnegative(),
+  allergens: z.array(z.string()),
+  ingredients: z.array(RecipeDraftIngredientLine),
+  batchId: z.string(),
+  modelUsed: z.string().nullable(),
+  status: DraftStatus,
+  alreadyReviewed: z.boolean(),
+  alreadyReviewedAction: ReviewAction.nullable(),
+});
+export type RecipeReviewSlice = z.infer<typeof RecipeReviewSlice>;
+
+/** Per-locale slice of an ingredient-name draft. */
+export const IngredientNameReviewSlice = z.object({
+  id: z.string().uuid(),
+  ingredientSlug: z.string(),
+  rawDescription: z.string(),
+  locale: Locale,
+  name: z.string(),
+  nameSource: z.string(),
+  storageHint: z.string().nullable(),
+  storageHintSource: z.string().nullable(),
+  batchId: z.string(),
+  modelUsed: z.string().nullable(),
+  status: DraftStatus,
+  alreadyReviewed: z.boolean(),
+  alreadyReviewedAction: ReviewAction.nullable(),
+});
+export type IngredientNameReviewSlice = z.infer<typeof IngredientNameReviewSlice>;
+
+/**
+ * Reviewer PATCH bodies — scoped to the reviewer's `cookie.locale`. The
+ * controller writes only the cookie locale into the JSON columns; cross-locale
+ * edits are structurally impossible.
+ */
+export const RecipeReviewPatchBody = z
+  .object({
+    title: z.string().min(1).max(200).optional(),
+    description: z.string().min(1).max(2000).optional(),
+    steps: z.array(z.string().min(1).max(2000)).min(1).optional(),
+  })
+  .strict();
+export type RecipeReviewPatchBody = z.infer<typeof RecipeReviewPatchBody>;
+
+export const IngredientNameReviewPatchBody = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    storageHint: z.string().max(500).optional(),
+  })
+  .strict();
+export type IngredientNameReviewPatchBody = z.infer<typeof IngredientNameReviewPatchBody>;
+
+export const ReviewerReasonBody = z
+  .object({ reason: z.string().max(500).optional() })
+  .strict();
+export type ReviewerReasonBody = z.infer<typeof ReviewerReasonBody>;

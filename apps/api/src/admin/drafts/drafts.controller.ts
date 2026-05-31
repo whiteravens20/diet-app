@@ -45,6 +45,7 @@ import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Env } from '../../config/env.js';
 import { BasicAuthGuard } from '../basic-auth.guard.js';
+import { deriveDraftStatus } from './derive-status.js';
 import {
   IngredientNamerRunner,
   type IngredientNamerStartSpec,
@@ -711,7 +712,7 @@ export class DraftsController {
       const reviews = await tx.ingredientNameDraftLocaleReview.findMany({
         where: { draftId: id },
       });
-      const status = deriveStatus(existing.locales, reviews);
+      const status = deriveDraftStatus(existing.locales, reviews);
 
       return tx.ingredientNameDraft.update({
         where: { id },
@@ -784,7 +785,7 @@ export class DraftsController {
       const reviews = await tx.recipeDraftLocaleReview.findMany({
         where: { draftId: id },
       });
-      const status = deriveStatus(existing.locales, reviews);
+      const status = deriveDraftStatus(existing.locales, reviews);
 
       return tx.recipeDraft.update({
         where: { id },
@@ -939,21 +940,6 @@ export interface RecipeRunnerStateDto extends DraftRunnerState {
   lastRejectHead: string | null;
 }
 
-/** Status derivation — single source of truth shared by both pipelines.
- *  APPROVED iff every expected locale has an APPROVE row; REJECTED if any
- *  expected locale has a REJECT; PENDING otherwise. SHIPPED is owned by the
- *  ship runner (Phase E) and never derived here. */
-function deriveStatus(
-  expectedLocales: string[],
-  reviews: { locale: string; action: string }[],
-): 'PENDING' | 'APPROVED' | 'REJECTED' {
-  if (reviews.some((r) => r.action === 'REJECT')) return 'REJECTED';
-  const approved = new Set(
-    reviews.filter((r) => r.action === 'APPROVE').map((r) => r.locale),
-  );
-  if (expectedLocales.every((l) => approved.has(l))) return 'APPROVED';
-  return 'PENDING';
-}
 
 interface RawRecipeDraft {
   id: string;
