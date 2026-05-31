@@ -7,6 +7,7 @@ import { DraftsModule } from './admin/drafts/drafts.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { validateEnv, type Env } from './config/env.js';
+import { FavoriteSetsModule } from './favorite-sets/favorite-sets.module.js';
 import { FavoritesModule } from './favorites/favorites.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IngredientsModule } from './ingredients/ingredients.module.js';
@@ -47,6 +48,7 @@ import { UsersModule } from './users/users.module.js';
     IngredientsModule,
     MealPlansModule,
     FavoritesModule,
+    FavoriteSetsModule,
     ShoppingListsModule,
     AiModule,
     AdminModule,

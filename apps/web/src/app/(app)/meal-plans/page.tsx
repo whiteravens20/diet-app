@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatIngredientAmount } from '@/lib/ingredient-format';
+import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -354,7 +355,7 @@ function PlanCard({
   // Which meal's ingredient-substitution modal is open, if any.
   const [openSub, setOpenSub] = useState<MealPlan['days'][number]['meals'][number] | null>(null);
   return (
-    <Card className="max-w-4xl">
+    <Card className="relative max-w-4xl">
       <div className="flex items-center justify-between gap-4 p-4">
         <button type="button" onClick={onToggle} className="flex-1 text-left">
           <p className="font-medium">
@@ -369,6 +370,7 @@ function PlanCard({
           </p>
         </button>
         <div className="flex shrink-0 gap-2">
+          <ApplyFavoriteSetButton plan={plan} profileId={plan.profileId} disabled={busy} />
           <Button type="button" variant="outline" size="sm" onClick={onRegenerate} disabled={busy}>
             {t('recalculate')}
           </Button>

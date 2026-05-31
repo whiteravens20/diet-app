@@ -120,9 +120,10 @@ model Profile {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  preferences ProfilePreference?
-  mealPlans   MealPlan[]
-  favorites   Favorite[]
+  preferences  ProfilePreference?
+  mealPlans    MealPlan[]
+  favorites    Favorite[]
+  favoriteSets FavoriteSet[]
 
   @@index([userId])
 }
@@ -408,6 +409,23 @@ model Favorite {
   createdAt DateTime @default(now())
 
   @@unique([profileId, recipeId])
+  @@index([profileId])
+}
+
+// Per-profile saved day template — one favourited recipe per meal slot.
+// `slots` is a loose JSON map `{ [mealType]: recipeId }` validated against the
+// recipe table at apply-time; storing recipe ids in JSON instead of a join
+// table keeps reads to one row and applies symmetric with the meal-plan day
+// shape the optimiser writes.
+model FavoriteSet {
+  id        String   @id @default(uuid())
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId String
+  label     String
+  slots     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([profileId])
 }
 
