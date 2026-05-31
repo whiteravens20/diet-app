@@ -17,8 +17,11 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Check,
   ClipboardCheck,
+  Clock,
   Download,
+  ExternalLink,
   GitPullRequest,
   Loader2,
   Send,
@@ -595,7 +598,13 @@ function IngredientDraftRow({
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">{draft.ingredientSlug}</p>
         </div>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{draft.status}</span>
+        <LocaleReviewMatrix
+          expectedLocales={draft.locales}
+          localeReviews={draft.localeReviews}
+          status={draft.status}
+          shippedPRUrl={draft.shippedPRUrl}
+          compact
+        />
       </div>
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -616,7 +625,12 @@ function IngredientDraftRow({
         ))}
       </div>
 
-      <LocaleReviewList localeReviews={draft.localeReviews} />
+      <LocaleReviewMatrix
+        expectedLocales={draft.locales}
+        localeReviews={draft.localeReviews}
+        status={draft.status}
+        shippedPRUrl={draft.shippedPRUrl}
+      />
 
       {error && (
         <p className="mt-2 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
@@ -807,11 +821,17 @@ function RecipeDraftRow({
             {draft.descriptions.en}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
             {t(`complexity_${draft.complexity}`)}
           </span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{draft.status}</span>
+          <LocaleReviewMatrix
+            expectedLocales={draft.locales}
+            localeReviews={draft.localeReviews}
+            status={draft.status}
+            shippedPRUrl={draft.shippedPRUrl}
+            compact
+          />
         </div>
       </button>
 
@@ -850,7 +870,12 @@ function RecipeDraftRow({
             </p>
           )}
 
-          <LocaleReviewList localeReviews={draft.localeReviews} />
+          <LocaleReviewMatrix
+            expectedLocales={draft.locales}
+            localeReviews={draft.localeReviews}
+            status={draft.status}
+            shippedPRUrl={draft.shippedPRUrl}
+          />
 
           <div className="flex flex-wrap items-center gap-2">
             {editing ? (
@@ -1051,26 +1076,144 @@ function RecipeEditor({
   );
 }
 
-function LocaleReviewList({
+type DraftStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
+type LocaleReviewRow = {
+  locale: string;
+  action: 'APPROVE' | 'REJECT';
+  reviewedByLabel: string;
+  reason: string | null;
+  reviewedAt: string;
+};
+
+/**
+ * Per-locale review matrix — one chip per locale expected on the draft,
+ * coloured by its latest review action (APPROVE / REJECT / no review yet).
+ * Replaces the single status badge so reviewers can see at a glance which
+ * locales are still blocking a ship.
+ *
+ * `compact` mode is used inside the recipe row's collapsed header — chips
+ * carry no reviewer label, just locale + icon. The expanded body uses the
+ * full mode, which includes reviewer label and reject reason.
+ */
+function LocaleReviewMatrix({
+  expectedLocales,
   localeReviews,
+  status,
+  shippedPRUrl,
+  compact = false,
 }: {
-  localeReviews: { locale: string; action: 'APPROVE' | 'REJECT'; reviewedByLabel: string; reason: string | null; reviewedAt: string }[];
+  expectedLocales: string[];
+  localeReviews: LocaleReviewRow[];
+  status: DraftStatus;
+  shippedPRUrl?: string | null;
+  compact?: boolean;
 }) {
   const t = useTranslations('admin.curation');
-  if (localeReviews.length === 0) return null;
+  const reviewByLocale = new Map(localeReviews.map((r) => [r.locale, r]));
+
+  const pendingLocales = expectedLocales.filter((l) => !reviewByLocale.has(l));
+  const rejectedLocales = expectedLocales.filter(
+    (l) => reviewByLocale.get(l)?.action === 'REJECT',
+  );
+
+  const shipState =
+    status === 'SHIPPED'
+      ? 'shipped'
+      : rejectedLocales.length > 0
+        ? 'rejected'
+        : pendingLocales.length > 0
+          ? 'pending'
+          : 'ready';
+
   return (
-    <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-      {localeReviews.map((r) => (
-        <li key={`${r.locale}-${r.reviewedAt}`}>
-          {t('approvalState', {
-            locale: r.locale.toUpperCase(),
-            action: r.action,
-            label: r.reviewedByLabel,
-          })}
-          {r.reason ? ` — ${r.reason}` : ''}
-        </li>
-      ))}
-    </ul>
+    <div className={compact ? 'flex flex-wrap items-center gap-1' : 'mt-2 space-y-1.5'}>
+      <div className="flex flex-wrap items-center gap-1">
+        {expectedLocales.map((locale) => {
+          const review = reviewByLocale.get(locale);
+          const tone =
+            review?.action === 'APPROVE'
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+              : review?.action === 'REJECT'
+                ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                : 'border-border bg-muted text-muted-foreground';
+          const Icon =
+            review?.action === 'APPROVE' ? Check : review?.action === 'REJECT' ? X : Clock;
+          return (
+            <span
+              key={locale}
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${tone}`}
+              title={
+                review
+                  ? review.action === 'APPROVE'
+                    ? t('matrixApproved', { locale: locale.toUpperCase(), label: review.reviewedByLabel })
+                    : t('matrixRejected', { locale: locale.toUpperCase(), label: review.reviewedByLabel })
+                  : t('matrixPending', { locale: locale.toUpperCase() })
+              }
+            >
+              <span className="font-medium uppercase tracking-wide">{locale}</span>
+              <Icon className="h-3 w-3" />
+              {!compact && review ? <span className="truncate">{review.reviewedByLabel}</span> : null}
+            </span>
+          );
+        })}
+      </div>
+
+      {!compact && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {shipState === 'shipped' && (
+            <span className="inline-flex items-center gap-1 text-muted-foreground">
+              <Check className="h-3 w-3" />
+              {t('shipStateShipped')}
+              {shippedPRUrl ? (
+                <a
+                  href={shippedPRUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 underline"
+                >
+                  {t('shipStatePrLink')}
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              ) : null}
+            </span>
+          )}
+          {shipState === 'ready' && (
+            <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+              <Check className="h-3 w-3" />
+              {t('shipStateReady')}
+            </span>
+          )}
+          {shipState === 'pending' && (
+            <span className="text-muted-foreground">
+              {t('shipStateBlockedPending', {
+                count: pendingLocales.length,
+                locales: pendingLocales.map((l) => l.toUpperCase()).join(', '),
+              })}
+            </span>
+          )}
+          {shipState === 'rejected' && (
+            <span className="text-destructive">
+              {t('shipStateBlockedRejected', {
+                count: rejectedLocales.length,
+                locales: rejectedLocales.map((l) => l.toUpperCase()).join(', '),
+              })}
+            </span>
+          )}
+        </div>
+      )}
+
+      {!compact &&
+        localeReviews
+          .filter((r) => r.action === 'REJECT' && r.reason)
+          .map((r) => (
+            <p
+              key={`reason-${r.locale}-${r.reviewedAt}`}
+              className="text-xs text-muted-foreground"
+            >
+              {t('matrixRejectedReason', { locale: r.locale.toUpperCase(), reason: r.reason! })}
+            </p>
+          ))}
+    </div>
   );
 }
 
