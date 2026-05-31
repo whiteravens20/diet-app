@@ -252,6 +252,11 @@ Ollama deployment guidance.
 **Phase 3** — Android companion app, synchronisation, push notifications, offline-first
 mobile experience.
 
+**Parked for v1.1** — designs that are sized but intentionally not on the
+phased roadmap above live in [v1.1-candidates.md](v1.1-candidates.md).
+Currently parked: external-source recipe importer (TheMealDB et al.)
+as a third draft kind alongside AI and ingredient-name drafts.
+
 ## 7. Risks & mitigations
 
 | Risk | Mitigation |

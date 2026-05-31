@@ -96,12 +96,12 @@ next admin DB update.
   never invented" / "first-impression UX" objection above. Even with
   perfect macros, a recipe nobody approved isn't a curated recipe.
 - **External recipe-database import as the primary source** (TheMealDB,
-  Open Recipe Format, RecipeNLG). Considered for Phase F of the
-  implementation plan; deferred to v1.1. The AI generator already
-  produces unbounded supply at higher quality (EN+PL first-class).
-  External datasets are mostly EN-only, mostly American/British comfort
-  food, and would need a PL pass for every imported row. Worth
-  revisiting once the queue starves.
+  Open Recipe Format, RecipeNLG). Designed and parked in
+  [v1.1-candidates.md § "External-source recipe importer"](../product/v1.1-candidates.md#external-source-recipe-importer-phase-f-of-the-curation-queue-plan).
+  The AI generator already produces unbounded supply at higher quality
+  (EN+PL first-class); external datasets are mostly EN-only,
+  American/British comfort food, and would need a PL pass per row.
+  Worth revisiting once the queue starves.
 - **Community contribution from anonymous users.** Out of scope. The
   queue is reachable by admins (Basic Auth) and invited reviewers
   (toggle + password from `/admin`); no public submission path. May
