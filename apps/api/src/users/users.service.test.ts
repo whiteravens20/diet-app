@@ -38,7 +38,7 @@ function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-function makePrisma(user: ReturnType<typeof makeUser> | null) {
+function makePrisma(user: ReturnType<typeof makeUser> | null, enabledProviderCount = 0) {
   return {
     user: {
       findUnique: vi.fn().mockResolvedValue(user),
@@ -47,6 +47,7 @@ function makePrisma(user: ReturnType<typeof makeUser> | null) {
       ),
       delete: vi.fn().mockResolvedValue(user),
     },
+    aiProviderConfig: { count: vi.fn().mockResolvedValue(enabledProviderCount) },
     refreshToken: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     $transaction: vi.fn().mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
@@ -88,6 +89,27 @@ describe('UsersService', () => {
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: { locale: 'pl' },
+      });
+    });
+
+    it('rejects byok flip when the user has zero enabled provider configs', async () => {
+      prisma = makePrisma(makeUser(), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      service = new UsersService(prisma as any, config as any);
+      await expect(service.updateSettings('user-1', { aiMode: 'byok' })).rejects.toMatchObject({
+        response: expect.objectContaining({ error: 'BYOK_NO_PROVIDER' }),
+      });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('allows byok flip when at least one provider config is enabled', async () => {
+      prisma = makePrisma(makeUser(), 1);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      service = new UsersService(prisma as any, config as any);
+      await service.updateSettings('user-1', { aiMode: 'byok' });
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { aiMode: 'byok' },
       });
     });
   });

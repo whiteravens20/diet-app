@@ -61,6 +61,21 @@ export class UsersService {
     ) {
       throw new BadRequestException({ error: 'EMPTY_UPDATE', message: 'Nothing to update.' });
     }
+    // Flipping to `byok` with zero enabled provider configs would silently
+    // produce an empty failover chain and every AI feature would fall back to
+    // deterministic — the user would think they enabled AI but nothing
+    // happens. Reject the flip and tell the UI to point at the providers card.
+    if (dto.aiMode === 'byok') {
+      const enabled = await this.prisma.aiProviderConfig.count({
+        where: { userId, enabled: true },
+      });
+      if (enabled === 0) {
+        throw new BadRequestException({
+          error: 'BYOK_NO_PROVIDER',
+          message: 'Add at least one provider key before switching to bring-your-own.',
+        });
+      }
+    }
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {

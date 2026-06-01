@@ -265,6 +265,13 @@ function AiAssistantCard({
     queryKey: ['ai-quota'],
     queryFn: () => api.get<AiQuotaStatus>('/ai/quota'),
   });
+  // Shared cache key with AiProvidersCard — no extra round-trip. Used to
+  // gate the BYOK option: switching to byok with zero enabled rows would
+  // silently fall back to deterministic, which is the wrong UX.
+  const providers = useQuery({
+    queryKey: ['ai-providers'],
+    queryFn: () => api.get<AiProviderConfig[]>('/ai/providers'),
+  });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -288,11 +295,18 @@ function AiAssistantCard({
   });
 
   const status = quota.data;
-  // Admin mode is offered only when the operator has set AI_DEFAULT_PROVIDER
-  // AND the env-configured weekly limit is > 0. The status snapshot tells us
-  // both — we hide the radio rather than show a disabled-looking option.
+  // Admin mode is offered only when the operator has set both
+  // AI_DEFAULT_PROVIDER and AI_DEFAULT_MODEL AND the env-configured weekly
+  // limit is > 0. Gated on quota.isSuccess so we don't render the
+  // "operator hasn't configured" copy during the initial load — that would
+  // be a false negative for a perfectly configured instance.
   const adminAvailable =
-    status?.adminProviderConfigured === true && (status.limit ?? 0) > 0;
+    quota.isSuccess && status?.adminProviderConfigured === true && (status.limit ?? 0) > 0;
+  // Same idea for BYOK: only meaningful once the providers list resolved.
+  // When the user has zero enabled keys the radio is disabled so they can't
+  // flip into a mode that would silently fall back to deterministic.
+  const enabledProviderCount = providers.data?.filter((p) => p.enabled).length ?? 0;
+  const byokAvailable = providers.isSuccess && enabledProviderCount > 0;
 
   function pick(mode: AiMode) {
     setError(null);
@@ -301,6 +315,11 @@ function AiAssistantCard({
   }
 
   const modes: AiMode[] = adminAvailable ? ['none', 'admin', 'byok'] : ['none', 'byok'];
+
+  function isModeDisabled(mode: AiMode): boolean {
+    if (mode === 'byok') return !byokAvailable;
+    return false;
+  }
 
   return (
     <Card>
@@ -312,42 +331,51 @@ function AiAssistantCard({
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">{t('aiMode')}</legend>
-          {modes.map((mode) => (
-            <label
-              key={mode}
-              className={cn(
-                'flex cursor-pointer items-start gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors',
-                me.aiMode === mode && 'border-primary bg-primary/5',
-              )}
-            >
-              <input
-                type="radio"
-                name="aiMode"
-                value={mode}
-                checked={me.aiMode === mode}
-                onChange={() => pick(mode)}
-                disabled={save.isPending}
-                className="mt-1"
-              />
-              <span className="flex flex-col gap-0.5">
-                <span className="font-medium">
-                  {mode === 'none'
-                    ? t('aiModeNone')
-                    : mode === 'admin'
-                      ? t('aiModeAdmin')
-                      : t('aiModeByok')}
+          {modes.map((mode) => {
+            const disabled = isModeDisabled(mode);
+            return (
+              <label
+                key={mode}
+                className={cn(
+                  'flex items-start gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors',
+                  disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+                  me.aiMode === mode && 'border-primary bg-primary/5',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="aiMode"
+                  value={mode}
+                  checked={me.aiMode === mode}
+                  onChange={() => pick(mode)}
+                  disabled={save.isPending || disabled}
+                  className="mt-1"
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span className="font-medium">
+                    {mode === 'none'
+                      ? t('aiModeNone')
+                      : mode === 'admin'
+                        ? t('aiModeAdmin')
+                        : t('aiModeByok')}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {mode === 'none'
+                      ? t('aiModeNoneHint')
+                      : mode === 'admin'
+                        ? t('aiModeAdminHint', { limit: status?.limit ?? 10 })
+                        : t('aiModeByokHint')}
+                  </span>
+                  {mode === 'byok' && !byokAvailable && providers.isSuccess && (
+                    <span className="text-xs italic text-muted-foreground">
+                      {t('aiModeByokUnavailable')}
+                    </span>
+                  )}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  {mode === 'none'
-                    ? t('aiModeNoneHint')
-                    : mode === 'admin'
-                      ? t('aiModeAdminHint', { limit: status?.limit ?? 10 })
-                      : t('aiModeByokHint')}
-                </span>
-              </span>
-            </label>
-          ))}
-          {!adminAvailable && (
+              </label>
+            );
+          })}
+          {quota.isSuccess && !adminAvailable && (
             <p className="text-xs text-muted-foreground italic">
               {t('aiModeAdminUnavailable')}
             </p>

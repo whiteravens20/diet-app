@@ -32,9 +32,17 @@ export class AiQuotaService {
     private readonly config: ConfigService<Env, true>,
   ) {}
 
-  /** True when the operator has set `AI_DEFAULT_PROVIDER`. */
+  /**
+   * True when the admin chain in `AiKeyService.adminChainFromEnv` will actually
+   * resolve to a non-empty chain — i.e. when the operator has set BOTH
+   * `AI_DEFAULT_PROVIDER` AND `AI_DEFAULT_MODEL`. Checking only the provider
+   * here would let the Settings UI offer `admin` mode for an env that the
+   * router treats as misconfigured (silent fallback to deterministic).
+   */
   isAdminProviderConfigured(): boolean {
-    return this.config.get('AI_DEFAULT_PROVIDER', { infer: true }) !== undefined;
+    const provider = this.config.get('AI_DEFAULT_PROVIDER', { infer: true });
+    const model = this.config.get('AI_DEFAULT_MODEL', { infer: true });
+    return provider !== undefined && model !== undefined && model !== '';
   }
 
   /** Weekly call limit for admin-mode users. 0 means admin mode is disabled. */
