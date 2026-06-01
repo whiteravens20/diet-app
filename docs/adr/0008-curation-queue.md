@@ -80,10 +80,10 @@ Concretely:
    `de`) is an enum + messages file change — zero schema migration. The
    reviewer's session cookie is scoped to one locale at login.
 
-The deterministic template composer is **deprecated** and gated behind
-`RECIPE_COMPOSER_ENABLED=false`. Old composed seed recipes that no user
-data references are pruned by the existing orphan-cleanup pass on the
-next admin DB update.
+The deterministic template composer was **removed in 2026-06** along with
+its `RECIPE_COMPOSER_ENABLED` escape hatch. Old composed seed recipes that
+no user data references are pruned by the existing orphan-cleanup pass on
+the next admin DB update.
 
 ## Why not (alternatives)
 
@@ -111,10 +111,10 @@ next admin DB update.
 
 - **The 100-recipe composer pool drops on next admin DB update.** Existing
   planned / favorited composed recipes survive the orphan prune; the rest
-  go. Self-hosters who relied on the composer can set
-  `RECIPE_COMPOSER_ENABLED=true` as a temporary escape hatch.
+  go. The escape-hatch flag is gone — the composer module was deleted in
+  2026-06.
 - **The curated baseline gets smaller before it gets bigger.** Day 0
-  after the composer flip = ~18 anchor recipes only. Stage 1 of
+  after the composer removal = ~18 anchor recipes only. Stage 1 of
   §4.1 (staple ingredients) lands first, then Stage 2 (USDA name
   overrides via the queue), then Stage 3 (recipe drafts via the queue
   toward the matrix target and beyond).
@@ -377,5 +377,4 @@ GitHub-side checks are "even if you do, nothing gets merged."
 - F18 functional row in [product-spec.md §4](../product/product-spec.md)
 - Content roadmap in [product-spec.md §4.1](../product/product-spec.md)
 - Translation provenance design: [ADR-0007](0007-curated-vs-ai-translations.md)
-- Composer being replaced: `apps/api/src/engine/recipe-templates.ts`
-- Composer gate: `RECIPE_COMPOSER_ENABLED` in `apps/api/src/config/env.ts`
+- Composer replaced (removed 2026-06): formerly `apps/api/src/engine/recipe-templates.ts` + `RECIPE_COMPOSER_ENABLED`

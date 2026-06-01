@@ -16,11 +16,13 @@ also runs on every push (CI `api` job), so a bad hand edit or a malformed
 import is caught before it reaches the seeder.
 
 Recipe nutrition is **not** stored here — `seed.ts` computes every recipe's per-serving
-calories and macros from the ingredient table. The bulk of the recipe library is
-generated deterministically at seed time by the template composition engine
-([`apps/api/src/engine/recipe-templates.ts`](../apps/api/src/engine/recipe-templates.ts)).
+calories and macros from the ingredient table. The recipe library is the union of
+`data/recipes.json` (hand-curated anchors) and `data/recipes/*.json` (curation-queue
+batches approved in-app and shipped via PR).
 
-See [docs/adr/0006-fallback-recipe-strategy.md](../docs/adr/0006-fallback-recipe-strategy.md).
+See [docs/adr/0008-curation-queue.md](../docs/adr/0008-curation-queue.md) for the
+curation pipeline and [docs/adr/0006-fallback-recipe-strategy.md](../docs/adr/0006-fallback-recipe-strategy.md)
+for the USDA importer.
 
 ## Choosing `FDC_DATA_TYPES`
 
@@ -35,10 +37,9 @@ are documented here mostly so the choice doesn't get re-litigated:
 | `Branded` | ~1.5 M | Entirely brand-name packaged products. | No — not a whole-food source. |
 | `Survey (FNDDS)` | ~7 000 | Composed meals / mixed dishes for dietary recall surveys, not ingredients. | No. |
 
-The reason `SR Legacy` is the trap to avoid: the recipe library is generated
-by [`composeRecipes`](../apps/api/src/engine/recipe-templates.ts) as
-`templates × hero ingredients`, so every junk ingredient becomes the hero of
-several nonsense recipes ("Pan-seared HERSHEY'S bar with kale"). The number
+The reason `SR Legacy` is the trap to avoid: the catalogue is rendered into the
+recipe-draft AI prompt as the allowed-ingredient whitelist, so every brand SKU and
+hyper-specific cut becomes a candidate the model has to filter past. The number
 of ingredients also drives seed time — Foundation seeds in seconds, the full
 SR Legacy corpus takes ~11 minutes.
 

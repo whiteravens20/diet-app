@@ -21,7 +21,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import { nutritionFor, toCanonical } from '../../engine/units.js';
-import { composeRecipes, type ComposableIngredient } from '../../engine/recipe-templates.js';
 import { computeDataState, resolveDataDir } from './data-hash.js';
 import {
   ingredientOverridesPath,
@@ -31,9 +30,9 @@ import { readAllRecipeBatches } from '../drafts/ship/recipe-batches.writer.js';
 
 type Unit = 'g' | 'ml' | 'piece';
 
-/** A field that may be a plain string (legacy / composer output) OR a
- *  per-locale object (new shape in data/*.json). The seeder normalises both
- *  into a Record<locale, string> for the translation tables. */
+/** A field that may be a plain string (legacy) OR a per-locale object (new
+ *  shape in data/*.json). The seeder normalises both into a
+ *  Record<locale, string> for the translation tables. */
 type Localised<T extends string | string[]> = T | (Record<string, T> & { en: T });
 
 interface IngredientSeed {
@@ -93,7 +92,7 @@ export interface SeedCounts {
   ingredients: number;
   recipes: number;
   anchorRecipes: number;
-  composedRecipes: number;
+  shippedRecipes: number;
   substitutions: number;
 }
 
@@ -295,30 +294,10 @@ export async function runSeed(
   if (shipped.length > 0) {
     log(`Loaded ${shipped.length} shipped recipe(s) from data/recipes/*.json.`);
   }
-  // The template composer produced semantically nonsense combinations
-  // ("cucumber baked with coconut oil") and is disabled by default. Toggle
-  // with RECIPE_COMPOSER_ENABLED=true as a temporary escape hatch; the
-  // curation queue replaces it.
-  const composerEnabled = process.env.RECIPE_COMPOSER_ENABLED === 'true';
-  const composedAsSeed: RecipeSeed[] = composerEnabled
-    ? composeRecipes(
-        ingredients.map((i) => ({
-          name: en(i.name),
-          category: i.category as ComposableIngredient['category'],
-          tags: i.tags,
-          dietCompatibility: i.dietCompatibility as ComposableIngredient['dietCompatibility'],
-        })),
-      ).map((r) => ({
-        ...r,
-        title: r.title,
-        description: r.description,
-        steps: r.steps,
-      }))
-    : [];
-  const recipes = [...anchors, ...shipped, ...composedAsSeed];
+  const recipes = [...anchors, ...shipped];
   log(
     `Seeding recipes (nutrition computed deterministically): ` +
-      `${anchors.length} anchor + ${shipped.length} shipped + ${composedAsSeed.length} composed…`,
+      `${anchors.length} anchor + ${shipped.length} shipped…`,
   );
   onProgress({ stage: 'recipes', current: 0, total: recipes.length });
 
@@ -458,7 +437,7 @@ export async function runSeed(
     ingredients: ingredients.length,
     recipes: recipes.length,
     anchorRecipes: anchors.length,
-    composedRecipes: composedAsSeed.length,
+    shippedRecipes: shipped.length,
     substitutions,
   };
 }

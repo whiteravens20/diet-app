@@ -63,13 +63,6 @@ export const envSchema = z.object({
   ADMIN_USER: z.string().default('admin'),
   ADMIN_PASSWORD: z.string().default(''),
 
-  // Deprecated template composer (apps/api/src/engine/recipe-templates.ts) that
-  // produced semantically nonsense combinations like "cucumber baked with
-  // coconut oil". Off by default; the curation queue (Phase D of the
-  // recipe-curation pipeline) replaces it. Set to "true" to restore the old
-  // behaviour as a temporary escape hatch.
-  RECIPE_COMPOSER_ENABLED: boolFromString,
-
   // Curation-queue ship mechanism (Phase E).
   //
   // Three ship modes are exposed by the curation queue: `local` (writes to

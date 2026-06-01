@@ -25,7 +25,7 @@ runSeed(prisma)
   .then((counts) => {
     console.log(
       `Seed complete: ${counts.ingredients} ingredients, ` +
-        `${counts.recipes} recipes (${counts.anchorRecipes} anchor + ${counts.composedRecipes} composed), ` +
+        `${counts.recipes} recipes (${counts.anchorRecipes} anchor + ${counts.shippedRecipes} shipped), ` +
         `${counts.substitutions} substitutions.`,
     );
   })

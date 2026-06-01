@@ -47,14 +47,15 @@ for each day, for each meal slot:
 
 `ingredientReuseScore` (0–1) reports the share of plan ingredients used in >1 recipe.
 
-## 4. Recipe-template composition (`recipe-templates.ts`)
+## 4. Recipe-template composition — removed
 
-The no-AI fallback library. A handful of structural **templates** (e.g. "protein + grain
-+ vegetable bowl", "breakfast bowl", "low-carb skillet") are filled from the curated
-ingredient database: one recipe per `(template, hero ingredient)`, with a few variants
-rotating the supporting cast. From ~55 curated ingredients this yields 100+ valid,
-diet-tagged recipes. Each recipe's nutrition is then computed deterministically by the
-seed pipeline. Fully reproducible — same database, same library.
+The deterministic template composer (`recipe-templates.ts`) shipped in 2026-05 as a
+no-AI fallback that filled structural slots (hero + protein + vegetable + fat) from
+the curated catalogue. It produced semantically nonsense combinations
+("cucumber baked with coconut oil") because it enforced no cuisine, cooking-method,
+or flavour-pair rules. It was removed in 2026-06; the curation queue (F18) — AI
+drafts a recipe, a human approves, the deterministic engine recomputes nutrition —
+replaces it. See [ADR-0008](../adr/0008-curation-queue.md).
 
 ## 5. Shopping-list aggregation (`shopping.ts`)
 
