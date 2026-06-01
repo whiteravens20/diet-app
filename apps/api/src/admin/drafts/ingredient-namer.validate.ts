@@ -3,8 +3,7 @@
  *
  * Walks the AI's JSON response and rejects rows we wouldn't want a human
  * reviewer to even see — raw-FDC passthrough, invented digits, length blowup,
- * missing target locales, LLM yap. Mirrors the philosophy of
- * `apps/api/src/admin/translate/validate.ts`: every check has a stable
+ * missing target locales, LLM yap. Every check has a stable
  * `reason` so the runner can log + the test suite can pin failure modes.
  *
  * Input shape per row:
@@ -15,7 +14,7 @@
  * checks (JSON parsing, keyset parity) are also re-exported so the runner
  * can apply them up front.
  */
-import { extractJson } from '../translate/validate.js';
+import { extractJson } from './ai-helpers.js';
 import type { IngredientNameSuggestion } from '@diet-app/shared';
 
 export type IngredientNamerValidationReason =

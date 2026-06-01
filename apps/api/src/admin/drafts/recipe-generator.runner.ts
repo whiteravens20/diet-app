@@ -28,7 +28,7 @@ import { OllamaProvider } from '../../ai/providers/ollama.provider.js';
 import { OpenAiProvider } from '../../ai/providers/openai.provider.js';
 import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
 import type { AiProviderAdapter } from '../../ai/provider.interface.js';
-import { PROVIDER_TUNING } from '../translate/prompt.js';
+import { PROVIDER_TUNING } from './ai-helpers.js';
 import {
   MAX_EXISTING_RECIPES_IN_PROMPT,
   RECIPE_GENERATOR_PROMPT_VERSION,

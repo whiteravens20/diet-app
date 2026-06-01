@@ -99,46 +99,6 @@ export interface DbUpdateState {
   error: string | null;
 }
 
-/** Per-source counts inside a single parent partition. */
-export interface SourceBreakdown {
-  curated_json: number;
-  ai: number;
-  manual: number;
-  missing: number;
-}
-
-/** One row per non-canonical locale from `GET /api/admin/translations/status`. */
-export interface TranslationStatusEntry {
-  locale: string;
-  curated: { ingredients: SourceBreakdown; recipes: SourceBreakdown };
-  imported: { ingredients: SourceBreakdown };
-  missingSamples: {
-    curatedIngredients: string[];
-    curatedRecipes: string[];
-    importedIngredients: string[];
-  };
-}
-
-export type TranslateScope = 'missing' | 'ai' | 'all';
-export type TranslateStatus = 'idle' | 'running' | 'done' | 'error';
-
-export interface TranslateRunnerState {
-  status: TranslateStatus;
-  startedAt: string | null;
-  finishedAt: string | null;
-  localesQueued: string[];
-  localesDone: string[];
-  currentLocale: string | null;
-  processed: number;
-  total: number;
-  failed: number;
-  totals: { processed: number; failed: number; written: number };
-  provider: string | null;
-  model: string | null;
-  error: string | null;
-  configured?: boolean;
-}
-
 export type UsdaImportStatus = 'idle' | 'running' | 'done' | 'error';
 
 export interface UsdaImportRunnerState {
@@ -311,21 +271,6 @@ export const adminApi = {
   stats: () => adminFetch<AdminStats>('/stats'),
   startDbUpdate: () => adminFetch<DbUpdateState>('/db/update', { method: 'POST' }),
   dbUpdateStatus: () => adminFetch<DbUpdateState>('/db/update/status'),
-  translationsStatus: () =>
-    adminFetch<TranslationStatusEntry[]>('/translations/status'),
-  startTranslate: (locale: 'all' | string, scope: TranslateScope = 'missing') =>
-    adminFetch<TranslateRunnerState>(
-      `/translations/fill?locale=${encodeURIComponent(locale)}&scope=${scope}`,
-      { method: 'POST' },
-    ),
-  translateStatus: () =>
-    adminFetch<TranslateRunnerState>('/translations/fill/status'),
-  stopTranslate: () =>
-    adminFetch<TranslateRunnerState>('/translations/fill/stop', { method: 'POST' }),
-  wipeAiTranslations: () =>
-    adminFetch<{ ingredients: number; recipes: number }>('/translations/wipe-ai', {
-      method: 'POST',
-    }),
   startUsdaImport: (dataTypes?: string) =>
     adminFetch<UsdaImportRunnerState>(
       `/db/import-usda${dataTypes ? `?dataTypes=${encodeURIComponent(dataTypes)}` : ''}`,

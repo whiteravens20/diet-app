@@ -6,8 +6,8 @@
  * names per `targetLocales`. Drafts land in `IngredientNameDraft` as PENDING;
  * the live `Ingredient` table is never touched (see ADR-0008).
  *
- * Mirrors `apps/api/src/admin/translate/runner.ts` for the cancel + state
- * shape so the admin panel can poll one consistent payload.
+ * Single-flight + cancel + state shape so the admin panel can poll one
+ * consistent payload.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -20,7 +20,7 @@ import { OllamaProvider } from '../../ai/providers/ollama.provider.js';
 import { OpenAiProvider } from '../../ai/providers/openai.provider.js';
 import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
 import type { AiProviderAdapter } from '../../ai/provider.interface.js';
-import { PROVIDER_TUNING } from '../translate/prompt.js';
+import { PROVIDER_TUNING } from './ai-helpers.js';
 import {
   INGREDIENT_NAMER_PROMPT_VERSION,
   buildIngredientNamerPrompt,
@@ -247,9 +247,8 @@ export class IngredientNamerRunner {
     }
   }
 
-  /** Single batch with one retry + stricter reminder, mirroring the
-   *  translate runner's loop. Returns sanitised suggestions or null when
-   *  the whole batch failed validation. */
+  /** Single batch with one retry + stricter reminder. Returns sanitised
+   *  suggestions or null when the whole batch failed validation. */
   private async askWithRetry(
     adapter: AiProviderAdapter,
     source: Record<string, string>,

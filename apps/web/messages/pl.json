@@ -21,6 +21,12 @@
     "optional": "opcjonalne",
     "comingSoon": "Wkrótce"
   },
+  "notFound": {
+    "title": "Nie znaleziono strony",
+    "body": "Nie mogliśmy znaleźć tego, czego szukasz. Link może być nieaktualny lub strona została przeniesiona.",
+    "home": "Wróć na stronę główną",
+    "back": "Cofnij"
+  },
   "nav": {
     "dashboard": "Panel",
     "profiles": "Profile",
@@ -173,10 +179,8 @@
     "BYOK_NO_PROVIDER": "Dodaj co najmniej jeden klucz dostawcy, zanim przełączysz się na własny klucz.",
     "ADMIN_DISABLED": "Panel administracyjny jest wyłączony na tej instancji.",
     "UPDATE_IN_PROGRESS": "Aktualizacja bazy już trwa.",
-    "TRANSLATE_IN_PROGRESS": "Zadanie tłumaczenia już trwa.",
     "IMPORT_IN_PROGRESS": "Import USDA już trwa.",
     "INVALID_LOCALE": "Nieobsługiwany język.",
-    "INVALID_SCOPE": "Nieprawidłowy zakres tłumaczenia.",
     "INVALID_SPEC": "Nieprawidłowa specyfikacja generowania.",
     "INVALID_PATCH": "Nieprawidłowa edycja propozycji.",
     "INVALID_REVIEW": "Nieprawidłowe dane recenzji.",
@@ -294,34 +298,6 @@
       "substitutionsStage": "Seedowanie reguł zamian…",
       "done": "Gotowe.",
       "working": "Pracuję…"
-    },
-    "translations": {
-      "title": "Tłumaczenia",
-      "curated": "Kurowane",
-      "imported": "USDA",
-      "sourceCuratedJson": "z JSON",
-      "sourceAi": "AI",
-      "sourceManual": "ręcznie",
-      "missing": "brakuje",
-      "ingredients": "Składniki",
-      "recipes": "Przepisy",
-      "noNonCanonical": "Skonfigurowano tylko język kanoniczny (angielski) — dodaj kolejny do enum Locale, aby zobaczyć tu pokrycie tłumaczeń.",
-      "copyMissing": "Skopiuj brakujące",
-      "copied": "Skopiowano",
-      "showMissing": "Pokaż {count} brakujących slugów",
-      "hideMissing": "Ukryj",
-      "providerChip": "dostawca: {provider} · {model}",
-      "notConfigured": "Ustaw AI_DEFAULT_PROVIDER i AI_DEFAULT_MODEL w .env, aby włączyć automatyczne tłumaczenie.",
-      "translateAll": "Przetłumacz wszystko",
-      "translateLocale": "Przetłumacz {count} brakujących",
-      "translating": "Tłumaczę {locale}… ({done}/{queued})",
-      "progress": "{processed} / {total} pozycji · {failed} pominiętych",
-      "lastRun": "Ostatnie uruchomienie: zapisano {written}, pominięto {failed}",
-      "failed": "Tłumaczenie nie powiodło się: {error}",
-      "stop": "Zatrzymaj",
-      "wipeAi": "Wyczyść wiersze AI",
-      "wipeConfirm": "Usunąć wszystkie tłumaczenia wygenerowane przez AI we wszystkich językach? Wiersze kuratorowane i ręczne zostaną zachowane.",
-      "wipeDone": "Usunięto {ingredients} tłumaczeń składników i {recipes} tłumaczeń przepisów."
     },
     "usda": {
       "title": "Importer USDA",

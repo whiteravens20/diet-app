@@ -21,6 +21,12 @@
     "optional": "optional",
     "comingSoon": "Coming soon"
   },
+  "notFound": {
+    "title": "Page not found",
+    "body": "We couldn't find what you were looking for. The link may be outdated, or the page may have been moved.",
+    "home": "Go home",
+    "back": "Go back"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "profiles": "Profiles",
@@ -173,10 +179,8 @@
     "BYOK_NO_PROVIDER": "Add at least one provider key before switching to bring-your-own.",
     "ADMIN_DISABLED": "The admin panel is disabled on this instance.",
     "UPDATE_IN_PROGRESS": "A database update is already in progress.",
-    "TRANSLATE_IN_PROGRESS": "A translation job is already in progress.",
     "IMPORT_IN_PROGRESS": "A USDA import is already in progress.",
     "INVALID_LOCALE": "Unsupported locale.",
-    "INVALID_SCOPE": "Invalid translation scope.",
     "INVALID_SPEC": "Invalid generation spec.",
     "INVALID_PATCH": "Invalid draft edit.",
     "INVALID_REVIEW": "Invalid review submission.",
@@ -294,34 +298,6 @@
       "substitutionsStage": "Seeding substitution rules…",
       "done": "Done.",
       "working": "Working…"
-    },
-    "translations": {
-      "title": "Translations",
-      "curated": "Curated",
-      "imported": "USDA",
-      "sourceCuratedJson": "from JSON",
-      "sourceAi": "AI",
-      "sourceManual": "manual",
-      "missing": "missing",
-      "ingredients": "Ingredients",
-      "recipes": "Recipes",
-      "noNonCanonical": "Only the canonical locale (English) is configured — add another to the Locale enum to see translation coverage here.",
-      "copyMissing": "Copy missing",
-      "copied": "Copied",
-      "showMissing": "Show {count} missing slugs",
-      "hideMissing": "Hide",
-      "providerChip": "provider: {provider} · {model}",
-      "notConfigured": "Set AI_DEFAULT_PROVIDER and AI_DEFAULT_MODEL in .env to enable auto-translation.",
-      "translateAll": "Translate all",
-      "translateLocale": "Translate {count} missing",
-      "translating": "Translating {locale}… ({done}/{queued})",
-      "progress": "{processed} / {total} rows · {failed} failed",
-      "lastRun": "Last run: wrote {written}, skipped {failed}",
-      "failed": "Translation failed: {error}",
-      "stop": "Stop",
-      "wipeAi": "Wipe AI rows",
-      "wipeConfirm": "Delete every AI-generated translation row across all locales? Curated/manual rows are kept.",
-      "wipeDone": "Wiped {ingredients} ingredient and {recipes} recipe translations."
     },
     "usda": {
       "title": "USDA importer",

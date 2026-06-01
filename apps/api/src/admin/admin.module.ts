@@ -4,7 +4,6 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { AdminController } from './admin.controller.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
 import { SeedRunner } from './seed/runner.js';
-import { TranslateRunner } from './translate/runner.js';
 import { UsdaImportRunner } from './usda/runner.js';
 
 /**
@@ -15,6 +14,6 @@ import { UsdaImportRunner } from './usda/runner.js';
 @Module({
   imports: [PrismaModule, AiModule],
   controllers: [AdminController],
-  providers: [BasicAuthGuard, SeedRunner, TranslateRunner, UsdaImportRunner],
+  providers: [BasicAuthGuard, SeedRunner, UsdaImportRunner],
 })
 export class AdminModule {}

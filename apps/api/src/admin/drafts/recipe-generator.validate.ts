@@ -22,7 +22,7 @@
  * The validator is injected with `resolveSlug` so unit tests can stub
  * the catalogue without a live DB.
  */
-import { extractJson } from '../translate/validate.js';
+import { extractJson } from './ai-helpers.js';
 import { nutritionFor, toCanonical } from '../../engine/units.js';
 import {
   classifyComplexity,
