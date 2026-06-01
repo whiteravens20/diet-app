@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   MEAL_SLOTS_BY_COUNT,
+  type AiSwapMealRequest,
+  type AiSwapMealResponse,
   type GeneratePlanRequest,
   type Locale,
   type MealPlan,
@@ -29,6 +31,7 @@ import {
   type EngineIngredient,
   type OptimizerRecipe,
 } from '../engine/index.js';
+import { AiRouterService } from '../ai/ai-router.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
 
@@ -41,7 +44,10 @@ type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
  */
 @Injectable()
 export class MealPlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ai: AiRouterService,
+  ) {}
 
   /** Deterministically generate and persist a meal plan. */
   async generate(userId: string, locale: Locale, req: GeneratePlanRequest): Promise<MealPlan> {
@@ -444,6 +450,114 @@ export class MealPlansService {
   }
 
   /**
+   * AI-ranked meal swap (F20). The engine builds a deterministic candidate pool
+   * (same diet+slot filter as the random strategy) and AI picks one. If AI is
+   * unavailable (quota / no provider / total provider failure) OR the model
+   * returns an id that isn't in the pool, the engine falls back to the same
+   * hash-indexed pick the random strategy uses — so the user always gets a
+   * swap. The `aiMeta.fallbackReason` field tells the UI whether to surface
+   * the localised "AI didn't run" toast.
+   */
+  async aiSwapMeal(
+    userId: string,
+    locale: Locale,
+    req: AiSwapMealRequest,
+  ): Promise<AiSwapMealResponse> {
+    const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
+    const dietType = meal.day.plan.dietType;
+    const prevHistory = meal.swapHistory ?? [];
+    const excludeBeforeReset = new Set<string>([meal.recipeId, ...prevHistory]);
+
+    // Capped at 25 — keeps the prompt small enough for cheap models. Diet-tag
+    // and slot filter mirror the deterministic swapMeal pool exactly.
+    const candidates = await this.prisma.recipe.findMany({
+      where: {
+        dietTags: { has: dietType },
+        mealTypes: { has: meal.mealType },
+        id: { not: meal.recipeId },
+      },
+      select: {
+        id: true,
+        title: true,
+        caloriesPerServing: true,
+        proteinPerServing: true,
+        fatPerServing: true,
+        carbsPerServing: true,
+        ingredients: {
+          select: { ingredient: { select: { name: true } } },
+          take: 6,
+        },
+      },
+      take: 25,
+    });
+    if (candidates.length === 0) {
+      throw new NotFoundException({ error: 'NO_ALTERNATIVE', message: 'No alternative recipe found.' });
+    }
+
+    const freshCandidates = candidates.filter((c) => !excludeBeforeReset.has(c.id));
+    const pool = freshCandidates.length > 0 ? freshCandidates : candidates;
+
+    const daySlots = await this.prisma.plannedMeal.findMany({
+      where: { dayId: meal.dayId },
+      select: { mealType: true },
+    });
+    const budgets = slotBudgets(
+      daySlots.map((d) => d.mealType as MealType),
+      meal.day.calorieTarget,
+    );
+    const budget = budgets.get(meal.mealType as MealType) ?? meal.day.calorieTarget;
+
+    const current = await this.prisma.recipe.findUniqueOrThrow({
+      where: { id: meal.recipeId },
+      select: { title: true, caloriesPerServing: true },
+    });
+
+    const prompt = buildSwapPrompt({
+      slot: meal.mealType as MealType,
+      budget,
+      currentTitle: current.title,
+      currentKcal: Math.round(current.caloriesPerServing),
+      candidates: pool,
+      hint: req.hint,
+    });
+    const { text, meta } = await this.ai.chat(
+      userId,
+      [
+        { role: 'system', content: prompt.system },
+        { role: 'user', content: prompt.user },
+      ],
+      'meal-swap',
+      true,
+    );
+
+    const fallbackPick = (): string => {
+      const idx = hashIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length);
+      return pool[idx]!.id;
+    };
+
+    let replacementId: string;
+    if (text) {
+      const aiPick = parseAiRecipePick(text);
+      replacementId = aiPick && pool.some((c) => c.id === aiPick) ? aiPick : fallbackPick();
+    } else {
+      replacementId = fallbackPick();
+    }
+
+    const nextHistory =
+      freshCandidates.length > 0 ? appendUnique(prevHistory, meal.recipeId) : [meal.recipeId];
+
+    const replacement = pool.find((c) => c.id === replacementId)!;
+    const servings = fitServings(replacement.caloriesPerServing, budget);
+
+    await this.prisma.plannedMeal.update({
+      where: { id: req.plannedMealId },
+      data: { recipeId: replacementId, servings, swapHistory: nextHistory },
+    });
+    const plan = await this.get(userId, locale, req.planId);
+    return { plan, aiMeta: meta };
+  }
+
+  /**
    * Preview an ingredient substitution inside a planned meal's recipe. Returns
    * the calorie/macro delta; the caller confirms before persisting a variant.
    */
@@ -839,6 +953,91 @@ function hashIndex(key: string, modulo: number): number {
     h >>>= 0;
   }
   return h % modulo;
+}
+
+interface SwapPromptCandidate {
+  id: string;
+  title: string;
+  caloriesPerServing: number;
+  proteinPerServing: number;
+  fatPerServing: number;
+  carbsPerServing: number;
+  ingredients: { ingredient: { name: string } }[];
+}
+
+/**
+ * Build the system + user prompt for the meal-swap ranker. Nutrition values
+ * are rounded server-side and pinned into the prompt so the model can't move
+ * them; the deterministic engine recomputes everything anyway after the pick.
+ */
+function buildSwapPrompt(input: {
+  slot: MealType;
+  budget: number;
+  currentTitle: string;
+  currentKcal: number;
+  candidates: SwapPromptCandidate[];
+  hint?: string;
+}): { system: string; user: string } {
+  const lines = input.candidates.map((c) => {
+    const mains = c.ingredients
+      .map((x) => x.ingredient.name)
+      .slice(0, 4)
+      .join(', ');
+    return `- id=${c.id} | ${c.title} | ${Math.round(c.caloriesPerServing)} kcal · ${Math.round(c.proteinPerServing)}P/${Math.round(c.fatPerServing)}F/${Math.round(c.carbsPerServing)}C | ${mains}`;
+  });
+
+  const system =
+    'You rank meal-swap candidates for a deterministic meal-planning app. ' +
+    'You never invent ingredients or calories — your only job is to pick the ' +
+    'best id from the list provided. ' +
+    'Respond with valid JSON exactly matching {"recipeId":"<id>"} — no prose, ' +
+    'no markdown, no other keys.';
+
+  const user = [
+    `Slot: ${input.slot}`,
+    `Slot calorie budget: ~${Math.round(input.budget)} kcal`,
+    `Currently planned: ${input.currentTitle} (${input.currentKcal} kcal per serving)`,
+    input.hint ? `User hint: ${input.hint}` : null,
+    '',
+    'Pick the candidate that:',
+    '1. stays closest to the slot calorie budget at one serving,',
+    '2. honours the user hint if any,',
+    '3. is meaningfully different from the currently planned meal.',
+    '',
+    'Candidates:',
+    ...lines,
+    '',
+    'Respond with the JSON object only.',
+  ]
+    .filter((s): s is string => s !== null)
+    .join('\n');
+
+  return { system, user };
+}
+
+/**
+ * Pull a `recipeId` string out of the model's response. Tolerates a stray
+ * markdown fence or surrounding prose — returns null if no usable id is
+ * present, so the service can fall back deterministically.
+ */
+function parseAiRecipePick(text: string): string | null {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  const candidates: string[] = [];
+  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (braceMatch) candidates.push(braceMatch[0]);
+  candidates.push(trimmed);
+  for (const c of candidates) {
+    try {
+      const parsed = JSON.parse(c) as unknown;
+      if (parsed && typeof parsed === 'object' && 'recipeId' in parsed) {
+        const id = (parsed as { recipeId: unknown }).recipeId;
+        if (typeof id === 'string' && id.length > 0) return id;
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
 }
 
 function sumNutrition(items: { calories: number; protein: number; fat: number; carbs: number }[]) {

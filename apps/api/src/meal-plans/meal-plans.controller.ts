@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
+  AiSwapMealRequest,
   GeneratePlanRequest,
   type Locale,
   SwapIngredientRequest,
@@ -91,6 +92,21 @@ export class MealPlansController {
     @Body(new ZodValidationPipe(SwapMealRequest)) dto: SwapMealRequest,
   ) {
     return this.plans.swapMeal(user.id, locale, dto);
+  }
+
+  /**
+   * AI-ranked meal swap (F20). The deterministic engine builds the candidate
+   * pool; AI picks one. The response carries `aiMeta.fallbackReason` so the UI
+   * can surface a localised toast when AI was unavailable.
+   */
+  @Post('ai-swap-meal')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  aiSwapMeal(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Body(new ZodValidationPipe(AiSwapMealRequest)) dto: AiSwapMealRequest,
+  ) {
+    return this.plans.aiSwapMeal(user.id, locale, dto);
   }
 
   @Post('swap-ingredient/preview')

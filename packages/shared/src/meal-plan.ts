@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AiGenerationMeta } from './ai.js';
 import { DietType, MealType } from './enums.js';
 import { Macros, Nutrition } from './nutrition.js';
 import { Recipe } from './recipe.js';
@@ -76,6 +77,33 @@ export const SwapMealRequest = z.object({
   favoriteRecipeId: z.string().uuid().optional(),
 });
 export type SwapMealRequest = z.infer<typeof SwapMealRequest>;
+
+/**
+ * Request to AI-rank a meal swap (F20). Body-only; URL carries `planId` and
+ * `plannedMealId`. The engine builds the candidate set deterministically and
+ * AI picks one — never the other way around (nutrition is never invented).
+ */
+export const AiSwapMealRequest = z.object({
+  planId: z.string().uuid(),
+  plannedMealId: z.string().uuid(),
+  /**
+   * Optional free-form user hint surfaced in the prompt
+   * (e.g. *"something lighter"*, *"more protein"*, *"no fish today"*).
+   * Capped to keep the prompt cost predictable.
+   */
+  hint: z.string().trim().max(200).optional(),
+});
+export type AiSwapMealRequest = z.infer<typeof AiSwapMealRequest>;
+
+/**
+ * Response envelope: the updated plan plus the AI meta so the UI can render the
+ * ✨ badge on success or the localised fallback toast on `aiMeta.fallbackReason`.
+ */
+export const AiSwapMealResponse = z.object({
+  plan: MealPlan,
+  aiMeta: AiGenerationMeta,
+});
+export type AiSwapMealResponse = z.infer<typeof AiSwapMealResponse>;
 
 /** Request to substitute one ingredient inside a planned recipe. */
 export const SwapIngredientRequest = z.object({

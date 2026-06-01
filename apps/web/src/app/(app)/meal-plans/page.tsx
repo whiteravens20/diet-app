@@ -5,7 +5,14 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Suspense, useState } from 'react';
-import type { GeneratePlanRequest, MealPlan, Profile } from '@diet-app/shared';
+import { Sparkles } from 'lucide-react';
+import type {
+  AiSwapMealResponse,
+  GeneratePlanRequest,
+  MealPlan,
+  Profile,
+  SessionUser,
+} from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +29,7 @@ function MealPlansContent() {
   const tCommon = useTranslations('common');
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
+  const tFallback = useTranslations('aiFallback');
   const qc = useQueryClient();
   const params = useSearchParams();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
@@ -33,7 +41,16 @@ function MealPlansContent() {
   const active = list.find((p) => p.id === activeId) ?? null;
 
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [openPlan, setOpenPlan] = useState<string | null>(null);
+
+  // Drives whether the ✨ button renders. `aiMode === 'none'` users hid AI on
+  // purpose — they shouldn't see AI surfaces at all (matches AiChip semantics).
+  const session = useQuery({
+    queryKey: ['session'],
+    queryFn: () => api.get<SessionUser>('/users/me'),
+  });
+  const aiEnabled = session.data?.aiMode && session.data.aiMode !== 'none';
   const [status, setStatus] = useState<'' | 'active' | 'past' | 'upcoming'>('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -102,6 +119,22 @@ function MealPlansContent() {
     onError: fail(t('errSwap')),
   });
 
+  // AI-ranked swap. The server always applies a swap (engine fallback if AI is
+  // unavailable), so we always invalidate; the optional `fallbackReason` drives
+  // a localised info banner so the user knows when AI didn't actually run.
+  const aiSwapMeal = useMutation({
+    mutationFn: (v: { planId: string; plannedMealId: string; hint?: string }) =>
+      api.post<AiSwapMealResponse>('/meal-plans/ai-swap-meal', v),
+    onSuccess: (res) => {
+      invalidate();
+      // Bust the chip's quota query — successful admin calls decrement remaining.
+      qc.invalidateQueries({ queryKey: ['ai-quota'] });
+      const reason = res.aiMeta.fallbackReason;
+      setNotice(reason ? tFallback(reason) : null);
+    },
+    onError: fail(t('errAiSwap')),
+  });
+
   const remove = useMutation({
     mutationFn: (planId: string) => api.delete<void>(`/meal-plans/${planId}`),
     onSuccess: invalidate,
@@ -109,7 +142,11 @@ function MealPlansContent() {
   });
 
   const busy =
-    regenerate.isPending || regenerateDay.isPending || swapMeal.isPending || remove.isPending;
+    regenerate.isPending ||
+    regenerateDay.isPending ||
+    swapMeal.isPending ||
+    aiSwapMeal.isPending ||
+    remove.isPending;
 
   function onGenerate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -213,6 +250,14 @@ function MealPlansContent() {
       </Card>
 
       {error && <p className="max-w-2xl text-sm text-destructive">{error}</p>}
+      {notice && (
+        <p
+          className="max-w-2xl rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+          role="status"
+        >
+          {notice}
+        </p>
+      )}
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -305,6 +350,15 @@ function MealPlansContent() {
                   favoriteRecipeId,
                 });
               }}
+              onAiSwapMeal={
+                aiEnabled
+                  ? (plannedMealId) => {
+                      setError(null);
+                      setNotice(null);
+                      aiSwapMeal.mutate({ planId: plan.id, plannedMealId });
+                    }
+                  : undefined
+              }
               favorites={favorites.data ?? []}
               tMeal={tMeal}
             />
@@ -333,6 +387,7 @@ function PlanCard({
   onSwapMeal,
   onSwapByFavorites,
   onSwapToFavorite,
+  onAiSwapMeal,
 }: {
   plan: MealPlan;
   open: boolean;
@@ -347,6 +402,8 @@ function PlanCard({
   onSwapMeal: (plannedMealId: string) => void;
   onSwapByFavorites: (plannedMealId: string) => void;
   onSwapToFavorite: (plannedMealId: string, recipeId: string) => void;
+  /** Undefined when the user has `aiMode='none'` — the button is hidden. */
+  onAiSwapMeal?: (plannedMealId: string) => void;
 }) {
   const t = useTranslations('mealPlans');
   const tCommon = useTranslations('common');
@@ -453,6 +510,20 @@ function PlanCard({
                           >
                             {t('swap')}
                           </Button>
+                          {onAiSwapMeal && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              title={t('tooltipAiSwap')}
+                              onClick={() => onAiSwapMeal(m.id)}
+                              disabled={busy}
+                              className="text-primary"
+                            >
+                              <Sparkles size={14} aria-hidden />
+                              <span className="ml-1">{t('aiSwap')}</span>
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"

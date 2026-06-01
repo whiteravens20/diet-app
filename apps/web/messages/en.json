@@ -526,15 +526,18 @@
     "changeDay": "Change day",
     "swap": "Swap",
     "swapFavIngr": "Swap ★ ingr.",
+    "aiSwap": "AI swap",
     "tooltipSwapByFav": "Swap to a recipe that uses my favourite ingredients",
     "tooltipSwapToFav": "Swap to one of my favourited recipes",
     "tooltipSubstitute": "Substitute one ingredient inside this recipe",
+    "tooltipAiSwap": "Let AI pick the best alternative for this slot",
     "noFavoritesForSlot": "No favorited recipes for {mealType} yet — open a recipe to favorite it.",
     "deleteConfirm": "Delete this plan? This cannot be undone.",
     "errGenerate": "Could not generate the plan.",
     "errRecalculate": "Could not recalculate the plan.",
     "errChangeDay": "Could not change the day.",
     "errSwap": "Could not swap the meal.",
+    "errAiSwap": "Could not AI-swap the meal.",
     "errDelete": "Could not delete the plan."
   },
   "settings": {

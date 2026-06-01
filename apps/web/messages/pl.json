@@ -526,15 +526,18 @@
     "changeDay": "Zmień dzień",
     "swap": "Zamień",
     "swapFavIngr": "Zamień ★ skł.",
+    "aiSwap": "AI zamiana",
     "tooltipSwapByFav": "Zamień na przepis używający moich ulubionych składników",
     "tooltipSwapToFav": "Zamień na jeden z moich ulubionych przepisów",
     "tooltipSubstitute": "Zamień jeden składnik wewnątrz tego przepisu",
+    "tooltipAiSwap": "Niech AI wybierze najlepszą alternatywę dla tego slotu",
     "noFavoritesForSlot": "Brak ulubionych przepisów dla {mealType} — otwórz przepis, aby go polubić.",
     "deleteConfirm": "Usunąć ten plan? Tej operacji nie można cofnąć.",
     "errGenerate": "Nie udało się wygenerować planu.",
     "errRecalculate": "Nie udało się przeliczyć planu.",
     "errChangeDay": "Nie udało się zmienić dnia.",
     "errSwap": "Nie udało się zamienić posiłku.",
+    "errAiSwap": "Nie udało się dokonać zamiany przez AI.",
     "errDelete": "Nie udało się usunąć planu."
   },
   "settings": {
