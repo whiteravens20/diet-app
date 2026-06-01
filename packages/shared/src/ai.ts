@@ -79,13 +79,14 @@ export type AiGenerationMeta = z.infer<typeof AiGenerationMeta>;
 export const AiQuotaStatus = z.object({
   mode: z.enum(['none', 'admin', 'byok']),
   /**
-   * Weekly call limit. Only meaningful for `mode='admin'`; `null` for `none`
-   * and `byok` (no quota).
+   * Operator's env-configured weekly call cap (`AI_ADMIN_USER_WEEKLY_LIMIT`).
+   * Returned regardless of the caller's mode so the Settings UI can gate the
+   * `admin` option on it; `0` means admin mode is disabled instance-wide.
    */
-  limit: z.number().int().nonnegative().nullable(),
+  limit: z.number().int().nonnegative(),
   /** Calls in the trailing 7-day window. Only meaningful for `admin`. */
   used: z.number().int().nonnegative(),
-  /** `limit - used`, clamped at 0. `null` when no limit applies. */
+  /** `limit - used`, clamped at 0. `null` when no quota applies to the caller. */
   remaining: z.number().int().nonnegative().nullable(),
   /**
    * ISO timestamp of when the oldest counted call drops out of the rolling

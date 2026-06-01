@@ -52,24 +52,27 @@ export class AiQuotaService {
 
   /**
    * Snapshot the user's quota — what the app-shell chip and Settings card
-   * render. For `none`/`byok` the limit/remaining/resetAt are null because
-   * no quota applies; `used` is still the rolling-7d count of admin calls
-   * so a user who flips back from byok→admin sees their prior usage.
+   * render. `limit` is the operator's env-configured weekly cap and is
+   * returned regardless of the caller's mode (the Settings UI gates the
+   * `admin` option on it). `remaining` and `resetAt` are only meaningful for
+   * `admin` callers, so they're null for `none`/`byok`. `used` is still the
+   * rolling-7d count of admin calls so a user who flips back byok→admin
+   * sees their prior usage.
    */
   async status(userId: string, mode: AiMode): Promise<AiQuotaStatus> {
     const used = await this.countUsedLastWeek(userId);
     const adminProviderConfigured = this.isAdminProviderConfigured();
+    const limit = this.weeklyLimit();
     if (mode !== 'admin') {
       return {
         mode,
-        limit: null,
+        limit,
         used,
         remaining: null,
         resetAt: null,
         adminProviderConfigured,
       };
     }
-    const limit = this.weeklyLimit();
     return {
       mode,
       limit,

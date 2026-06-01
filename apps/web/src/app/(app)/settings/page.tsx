@@ -382,7 +382,7 @@ function AiAssistantCard({
           )}
         </fieldset>
 
-        {me.aiMode === 'admin' && status?.limit != null && (
+        {me.aiMode === 'admin' && status != null && (
           <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
             <p className="font-medium">{t('aiQuotaHeading')}</p>
             <p>
