@@ -26,9 +26,14 @@ interface QueueProps {
  */
 export function ReviewQueue({ locale, kind }: QueueProps) {
   const t = useTranslations('review');
+  // `itemsKind` is the kind the current `items` were fetched for. If it
+  // doesn't match the prop, the data is stale (mid-switch) and we must treat
+  // the queue as still loading — otherwise we'd cast e.g. an ingredient-name
+  // slice to a recipe slice and crash on the missing `.steps` field.
   const [items, setItems] = useState<
     RecipeReviewSlice[] | IngredientNameReviewSlice[] | null
   >(null);
+  const [itemsKind, setItemsKind] = useState<QueueProps['kind'] | null>(null);
   const [cursor, setCursor] = useState(0);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -48,21 +53,24 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
         setItems(page.items);
         setTotal(page.total);
       }
+      setItemsKind(kind);
       setCursor(0);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('queueFailed'));
       setItems([]);
+      setItemsKind(kind);
     }
   }, [kind, locale, t]);
 
   useEffect(() => {
     void (async () => {
       setItems(null);
+      setItemsKind(null);
       await fetchPage();
     })();
   }, [fetchPage]);
 
-  if (items === null) {
+  if (items === null || itemsKind !== kind) {
     return (
       <Card>
         <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
