@@ -297,11 +297,11 @@ function AiAssistantCard({
   const status = quota.data;
   // Admin mode is offered only when the operator has set both
   // AI_DEFAULT_PROVIDER and AI_DEFAULT_MODEL AND the env-configured weekly
-  // limit is > 0. Gated on quota.isSuccess so we don't render the
-  // "operator hasn't configured" copy during the initial load — that would
-  // be a false negative for a perfectly configured instance.
-  const adminAvailable =
-    quota.isSuccess && status?.adminProviderConfigured === true && (status.limit ?? 0) > 0;
+  // limit is > 0. The two failure modes get different copy so the operator
+  // can tell "not set up" from "set up but not shared with users."
+  const adminProviderConfigured = status?.adminProviderConfigured === true;
+  const adminSharingEnabled = (status?.limit ?? 0) > 0;
+  const adminAvailable = quota.isSuccess && adminProviderConfigured && adminSharingEnabled;
   // Same idea for BYOK: only meaningful once the providers list resolved.
   // When the user has zero enabled keys the radio is disabled so they can't
   // flip into a mode that would silently fall back to deterministic.
@@ -377,7 +377,9 @@ function AiAssistantCard({
           })}
           {quota.isSuccess && !adminAvailable && (
             <p className="text-xs text-muted-foreground italic">
-              {t('aiModeAdminUnavailable')}
+              {adminProviderConfigured
+                ? t('aiModeAdminDisabled')
+                : t('aiModeAdminUnavailable')}
             </p>
           )}
         </fieldset>

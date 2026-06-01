@@ -583,6 +583,7 @@
     "aiModeAdmin": "Use the instance default",
     "aiModeAdminHint": "Borrow the operator's provider, capped at {limit} requests per week.",
     "aiModeAdminUnavailable": "The operator hasn't configured a default provider.",
+    "aiModeAdminDisabled": "The operator has not enabled shared AI for users on this instance.",
     "aiModeByok": "Bring your own key",
     "aiModeByokHint": "Use your own OpenAI / Anthropic / OpenRouter key or Ollama instance. No quota — you own the cost.",
     "aiModeByokUnavailable": "Add at least one provider key below before switching to bring-your-own.",

@@ -583,6 +583,7 @@
     "aiModeAdmin": "Użyj domyślnego dostawcy instancji",
     "aiModeAdminHint": "Korzystasz z dostawcy operatora, z limitem {limit} zapytań na tydzień.",
     "aiModeAdminUnavailable": "Operator nie skonfigurował domyślnego dostawcy.",
+    "aiModeAdminDisabled": "Operator nie udostępnił współdzielonego AI użytkownikom tej instancji.",
     "aiModeByok": "Użyj własnego klucza",
     "aiModeByokHint": "Twój klucz OpenAI / Anthropic / OpenRouter lub instancja Ollama. Bez limitu — sam płacisz za zużycie.",
     "aiModeByokUnavailable": "Dodaj co najmniej jeden klucz dostawcy poniżej, zanim przełączysz się na własny klucz.",
