@@ -1,12 +1,15 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type {
+  AiSuggestIngredientResponse,
   Ingredient,
   MealPlan,
   RecipeIngredient,
+  SessionUser,
   SwapIngredientRequest,
   SwapPreview,
 } from '@diet-app/shared';
@@ -50,10 +53,21 @@ export function IngredientSubstituteModal({
   const tCommon = useTranslations('common');
   const tPickers = useTranslations('pickers');
   const tProf = useTranslations('profileSummary');
+  const tFallback = useTranslations('aiFallback');
   const [fromId, setFromId] = useState<string | null>(null);
   const [toId, setToId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // AI-suggested ingredient injected into the candidate list so its name
+  // renders without an extra search round-trip.
+  const [aiPick, setAiPick] = useState<Ingredient | null>(null);
+
+  const session = useQuery({
+    queryKey: ['session'],
+    queryFn: () => api.get<SessionUser>('/users/me'),
+  });
+  const aiEnabled = session.data?.aiMode && session.data.aiMode !== 'none';
 
   const fromLine = meal.recipe.ingredients.find((i) => i.ingredientId === fromId) ?? null;
 
@@ -63,9 +77,32 @@ export function IngredientSubstituteModal({
     queryFn: () => api.get<Ingredient[]>(`/ingredients?search=${encodeURIComponent(search)}`),
     enabled: search.trim().length >= 2,
   });
-  const candidates = (results.data ?? [])
+  const searchCandidates = (results.data ?? [])
     .filter((i) => i.id !== fromId)
     .slice(0, 20);
+  // Show the AI pick alongside searched results so the user sees what was
+  // suggested and can still browse alternatives.
+  const candidates = aiPick && !searchCandidates.some((c) => c.id === aiPick.id)
+    ? [aiPick, ...searchCandidates]
+    : searchCandidates;
+
+  const aiSuggest = useMutation({
+    mutationFn: () =>
+      api.post<AiSuggestIngredientResponse>('/meal-plans/swap-ingredient/ai-suggest', {
+        planId,
+        plannedMealId: meal.id,
+        fromIngredientId: fromId!,
+      }),
+    onSuccess: (res) => {
+      setAiPick(res.toIngredient);
+      setToId(res.toIngredient.id);
+      qc.invalidateQueries({ queryKey: ['ai-quota'] });
+      const reason = res.aiMeta.fallbackReason;
+      setNotice(reason ? tFallback(reason) : null);
+    },
+    onError: (e) =>
+      setError(e instanceof ApiClientError ? e.message : t('aiSuggestFailed')),
+  });
 
   // Delta preview — run when the user has both ends picked.
   const preview = useQuery({
@@ -143,6 +180,8 @@ export function IngredientSubstituteModal({
                         setToId(null);
                         setSearch('');
                         setError(null);
+                        setNotice(null);
+                        setAiPick(null);
                       }}
                     >
                       <span>{i.name}</span>
@@ -164,15 +203,45 @@ export function IngredientSubstituteModal({
                   name: () => <span className="text-primary">{fromLine.name}</span>,
                 })}
               </p>
-              <Input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setToId(null);
-                }}
-                placeholder={tPickers('ingredientSearch')}
-              />
-              {search.trim().length >= 2 && (
+              <div className="flex gap-2">
+                <Input
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setToId(null);
+                  }}
+                  placeholder={tPickers('ingredientSearch')}
+                />
+                {aiEnabled && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    title={t('tooltipAiSuggest')}
+                    onClick={() => {
+                      setError(null);
+                      setNotice(null);
+                      aiSuggest.mutate();
+                    }}
+                    disabled={aiSuggest.isPending}
+                    className="text-primary"
+                  >
+                    <Sparkles size={14} aria-hidden />
+                    <span className="ml-1">
+                      {aiSuggest.isPending ? t('aiSuggestPending') : t('aiSuggest')}
+                    </span>
+                  </Button>
+                )}
+              </div>
+              {notice && (
+                <p
+                  className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300"
+                  role="status"
+                >
+                  {notice}
+                </p>
+              )}
+              {(search.trim().length >= 2 || aiPick) && (
                 <ul className="mt-1 max-h-48 overflow-y-auto rounded-md border border-border">
                   {candidates.length === 0 && !results.isLoading && (
                     <li className="px-3 py-2 text-xs text-muted-foreground">
@@ -183,12 +252,15 @@ export function IngredientSubstituteModal({
                     <li key={c.id}>
                       <button
                         type="button"
-                        className={`w-full px-3 py-1.5 text-left text-sm hover:bg-muted ${
+                        className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-muted ${
                           c.id === toId ? 'bg-muted/60' : ''
                         }`}
                         onClick={() => setToId(c.id)}
                       >
-                        {c.name}
+                        <span>{c.name}</span>
+                        {aiPick?.id === c.id && (
+                          <Sparkles size={12} className="text-primary" aria-hidden />
+                        )}
                       </button>
                     </li>
                   ))}

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AiGenerationMeta } from './ai.js';
 import { DietType, MealType } from './enums.js';
+import { Ingredient } from './ingredient.js';
 import { Macros, Nutrition } from './nutrition.js';
 import { Recipe } from './recipe.js';
 
@@ -113,6 +114,33 @@ export const SwapIngredientRequest = z.object({
   toIngredientId: z.string().uuid(),
 });
 export type SwapIngredientRequest = z.infer<typeof SwapIngredientRequest>;
+
+/**
+ * Request to AI-rank a replacement ingredient (F20). The engine builds the
+ * candidate pool — same category as the source line, diet/allergen-safe — and
+ * AI picks one. The UI then runs the existing preview/apply pipeline on the
+ * AI's pick, so nutrition is recomputed by the engine end-to-end.
+ */
+export const AiSuggestIngredientRequest = z.object({
+  planId: z.string().uuid(),
+  plannedMealId: z.string().uuid(),
+  fromIngredientId: z.string().uuid(),
+  /** Optional free-form user hint, e.g. *"cheaper"*, *"higher protein"*. */
+  hint: z.string().trim().max(200).optional(),
+});
+export type AiSuggestIngredientRequest = z.infer<typeof AiSuggestIngredientRequest>;
+
+/**
+ * Response envelope: the AI's chosen replacement ingredient id and the meta.
+ * The caller runs `/meal-plans/swap-ingredient/preview` + `/apply` with this id
+ * so nutrition stays engine-owned. `aiMeta.fallbackReason` surfaces the
+ * localised toast when AI was unavailable and the pick is deterministic.
+ */
+export const AiSuggestIngredientResponse = z.object({
+  toIngredient: Ingredient,
+  aiMeta: AiGenerationMeta,
+});
+export type AiSuggestIngredientResponse = z.infer<typeof AiSuggestIngredientResponse>;
 
 /** The before/after delta surfaced to the user before confirming a swap. */
 export const SwapPreview = z.object({

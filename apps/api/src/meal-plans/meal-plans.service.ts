@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   MEAL_SLOTS_BY_COUNT,
+  type AiSuggestIngredientRequest,
+  type AiSuggestIngredientResponse,
   type AiSwapMealRequest,
   type AiSwapMealResponse,
   type GeneratePlanRequest,
@@ -33,6 +35,7 @@ import {
 } from '../engine/index.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
@@ -733,6 +736,107 @@ export class MealPlansService {
     return this.get(userId, locale, req.planId);
   }
 
+  /**
+   * AI-rank a replacement ingredient for a planned-meal line. The engine builds
+   * the candidate pool (same category, diet/allergen-safe, excluding what's
+   * already in the recipe); AI picks one id. The UI then runs the existing
+   * preview/apply pipeline so nutrition is recomputed deterministically.
+   */
+  async aiSuggestIngredient(
+    userId: string,
+    locale: Locale,
+    req: AiSuggestIngredientRequest,
+  ): Promise<AiSuggestIngredientResponse> {
+    const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
+    const recipe = await this.prisma.recipe.findUniqueOrThrow({
+      where: { id: meal.recipeId },
+      include: { ingredients: true },
+    });
+    const line = recipe.ingredients.find((i) => i.ingredientId === req.fromIngredientId);
+    if (!line) {
+      throw new NotFoundException({
+        error: 'INGREDIENT_NOT_IN_RECIPE',
+        message: 'Ingredient not in recipe.',
+      });
+    }
+    const from = await this.prisma.ingredient.findUniqueOrThrow({
+      where: { id: req.fromIngredientId },
+    });
+    const prefs = meal.day.plan.profile.preferences;
+    const userAllergens = new Set(prefs?.allergens ?? []);
+    const excludedIds = new Set([
+      ...recipe.ingredients.map((i) => i.ingredientId),
+      ...(prefs?.excludedIngredientIds ?? []),
+    ]);
+    const dietType = meal.day.plan.dietType;
+
+    // Same category as the source line — keeps the swap culinarily sensible
+    // (sub a meat for a meat, a vegetable for a vegetable).
+    const rawCandidates = await this.prisma.ingredient.findMany({
+      where: {
+        category: from.category,
+        id: { notIn: [...excludedIds] },
+        dietCompatibility: { has: dietType },
+      },
+      select: {
+        id: true,
+        name: true,
+        caloriesPer100: true,
+        proteinPer100: true,
+        fatPer100: true,
+        carbsPer100: true,
+        allergens: true,
+      },
+      take: 50,
+    });
+    const pool = rawCandidates
+      .filter((c) => !c.allergens.some((a) => userAllergens.has(a)))
+      .slice(0, 25);
+    if (pool.length === 0) {
+      throw new NotFoundException({
+        error: 'NO_ALTERNATIVE',
+        message: 'No alternative ingredient found.',
+      });
+    }
+
+    const prompt = buildIngredientSwapPrompt({
+      currentName: from.name,
+      currentCategory: from.category,
+      currentKcalPer100: Math.round(from.caloriesPer100),
+      candidates: pool,
+      hint: req.hint,
+    });
+    const { text, meta } = await this.ai.chat(
+      userId,
+      [
+        { role: 'system', content: prompt.system },
+        { role: 'user', content: prompt.user },
+      ],
+      'ingredient-swap',
+      true,
+    );
+
+    const fallbackPick = (): string => {
+      const idx = hashIndex(`${req.plannedMealId}:${req.fromIngredientId}`, pool.length);
+      return pool[idx]!.id;
+    };
+
+    let toIngredientId: string;
+    if (text) {
+      const aiPick = parseAiIngredientPick(text);
+      toIngredientId = aiPick && pool.some((c) => c.id === aiPick) ? aiPick : fallbackPick();
+    } else {
+      toIngredientId = fallbackPick();
+    }
+
+    const locales = locale === 'en' ? ['en'] : [locale, 'en'];
+    const toIngredient = await this.prisma.ingredient.findUniqueOrThrow({
+      where: { id: toIngredientId },
+      include: { translations: { where: { locale: { in: locales } } } },
+    });
+    return { toIngredient: toIngredientDto(toIngredient, locale), aiMeta: meta };
+  }
+
   // ── internals ───────────────────────────────────────────────────────────────
 
   private async loadProfile(userId: string, profileId: string) {
@@ -1031,6 +1135,85 @@ function parseAiRecipePick(text: string): string | null {
       const parsed = JSON.parse(c) as unknown;
       if (parsed && typeof parsed === 'object' && 'recipeId' in parsed) {
         const id = (parsed as { recipeId: unknown }).recipeId;
+        if (typeof id === 'string' && id.length > 0) return id;
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
+interface IngredientSwapPromptCandidate {
+  id: string;
+  name: string;
+  caloriesPer100: number;
+  proteinPer100: number;
+  fatPer100: number;
+  carbsPer100: number;
+}
+
+/**
+ * Build the system + user prompt for the ingredient-swap ranker. Macros are
+ * rounded and pinned into the prompt; the deterministic engine recomputes the
+ * recipe nutrition after the pick, so the model can't move numbers.
+ */
+function buildIngredientSwapPrompt(input: {
+  currentName: string;
+  currentCategory: string;
+  currentKcalPer100: number;
+  candidates: IngredientSwapPromptCandidate[];
+  hint?: string;
+}): { system: string; user: string } {
+  const lines = input.candidates.map(
+    (c) =>
+      `- id=${c.id} | ${c.name} | ${Math.round(c.caloriesPer100)} kcal/100g · ${Math.round(c.proteinPer100)}P/${Math.round(c.fatPer100)}F/${Math.round(c.carbsPer100)}C`,
+  );
+
+  const system =
+    'You rank ingredient-swap candidates for a deterministic meal-planning app. ' +
+    'You never invent ingredients or macros — your only job is to pick the best ' +
+    'id from the list provided. ' +
+    'Respond with valid JSON exactly matching {"ingredientId":"<id>"} — no prose, ' +
+    'no markdown, no other keys.';
+
+  const user = [
+    `Category: ${input.currentCategory}`,
+    `Currently using: ${input.currentName} (${input.currentKcalPer100} kcal/100g)`,
+    input.hint ? `User hint: ${input.hint}` : null,
+    '',
+    'Pick the candidate that:',
+    '1. is the closest culinary substitute,',
+    '2. honours the user hint if any,',
+    '3. has macros in the same ballpark unless the hint says otherwise.',
+    '',
+    'Candidates:',
+    ...lines,
+    '',
+    'Respond with the JSON object only.',
+  ]
+    .filter((s): s is string => s !== null)
+    .join('\n');
+
+  return { system, user };
+}
+
+/**
+ * Pull an `ingredientId` string out of the model's response. Tolerates a stray
+ * markdown fence or surrounding prose — returns null if no usable id is
+ * present, so the service can fall back deterministically.
+ */
+function parseAiIngredientPick(text: string): string | null {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  const candidates: string[] = [];
+  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (braceMatch) candidates.push(braceMatch[0]);
+  candidates.push(trimmed);
+  for (const c of candidates) {
+    try {
+      const parsed = JSON.parse(c) as unknown;
+      if (parsed && typeof parsed === 'object' && 'ingredientId' in parsed) {
+        const id = (parsed as { ingredientId: unknown }).ingredientId;
         if (typeof id === 'string' && id.length > 0) return id;
       }
     } catch {

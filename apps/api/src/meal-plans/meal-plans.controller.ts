@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
+  AiSuggestIngredientRequest,
   AiSwapMealRequest,
   GeneratePlanRequest,
   type Locale,
@@ -107,6 +108,20 @@ export class MealPlansController {
     @Body(new ZodValidationPipe(AiSwapMealRequest)) dto: AiSwapMealRequest,
   ) {
     return this.plans.aiSwapMeal(user.id, locale, dto);
+  }
+
+  /**
+   * AI-ranked ingredient suggestion (F20). Returns just an `ingredientId`;
+   * the caller still runs preview/apply so nutrition is engine-recomputed.
+   */
+  @Post('swap-ingredient/ai-suggest')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  aiSuggestIngredient(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Body(new ZodValidationPipe(AiSuggestIngredientRequest)) dto: AiSuggestIngredientRequest,
+  ) {
+    return this.plans.aiSuggestIngredient(user.id, locale, dto);
   }
 
   @Post('swap-ingredient/preview')

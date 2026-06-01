@@ -735,7 +735,11 @@
     "applyFailed": "Nie udało się zastosować zamiany.",
     "invalid": "Ta zamiana narusza ograniczenia profilu — nie można jej zastosować.",
     "apply": "Zastosuj zamianę",
-    "applying": "Stosowanie…"
+    "applying": "Stosowanie…",
+    "aiSuggest": "Zasugeruj",
+    "aiSuggestPending": "Myślę…",
+    "tooltipAiSuggest": "Pozwól AI wybrać zamiennik",
+    "aiSuggestFailed": "Nie udało się zasugerować zamiennika."
   },
   "profileSummary": {
     "generatePlan": "Wygeneruj plan posiłków",

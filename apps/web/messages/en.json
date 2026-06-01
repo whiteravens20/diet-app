@@ -735,7 +735,11 @@
     "applyFailed": "Could not apply the substitution.",
     "invalid": "This substitution violates the profile's constraints — cannot apply.",
     "apply": "Apply substitution",
-    "applying": "Applying…"
+    "applying": "Applying…",
+    "aiSuggest": "Suggest",
+    "aiSuggestPending": "Thinking…",
+    "tooltipAiSuggest": "Let AI pick a replacement",
+    "aiSuggestFailed": "Could not suggest a replacement."
   },
   "profileSummary": {
     "generatePlan": "Generate meal plan",

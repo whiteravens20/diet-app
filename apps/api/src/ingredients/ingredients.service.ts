@@ -51,7 +51,7 @@ function pickTranslated(
   return match ?? fallback;
 }
 
-function toIngredientDto(
+export function toIngredientDto(
   row: {
     id: string;
     name: string;
