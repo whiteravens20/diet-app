@@ -13,13 +13,11 @@
  */
 import { z } from 'zod';
 import { Locale } from './settings.js';
-import { Unit, MealType, DietType } from './enums.js';
+import { Complexity, Unit, MealType, DietType } from './enums.js';
+export { Complexity };
 
 export const Difficulty = z.enum(['easy', 'medium', 'hard']);
 export type Difficulty = z.infer<typeof Difficulty>;
-
-export const Complexity = z.enum(['simple', 'medium', 'complex']);
-export type Complexity = z.infer<typeof Complexity>;
 
 export const DraftStatus = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'SHIPPED']);
 export type DraftStatus = z.infer<typeof DraftStatus>;

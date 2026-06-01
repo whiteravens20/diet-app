@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { AiGenerationMeta } from './ai.js';
-import { Allergen, DietType, MealType, Unit } from './enums.js';
+import {
+  Allergen,
+  CookingMethod,
+  Complexity,
+  Cuisine,
+  DietType,
+  MealType,
+  Unit,
+} from './enums.js';
 import { Nutrition } from './nutrition.js';
 
 /** One ingredient line in a recipe, with an exact quantity. */
@@ -45,20 +53,47 @@ export const Recipe = z.object({
 export type Recipe = z.infer<typeof Recipe>;
 
 /**
- * Request to draft a new recipe from a user prompt (F20). AI authors only
- * the textual structure + ingredient choices; the deterministic engine
- * recomputes per-serving nutrition before write. The resulting Recipe row
- * is private to the requesting user (`origin='ai'` + ownership).
+ * Request to draft a new recipe (F20). Every preference field is optional —
+ * an empty request lets the AI pick freely from the catalogue. There is no
+ * free-text prompt field: user input is constrained to structured filters
+ * so the model can't be prompt-injected, and the catalogue slug-resolution
+ * invariant stays intact.
+ *
+ * The filters are **soft preferences**, not hard constraints. The backend
+ * builds the prompt to bias the model toward the chosen cuisine / cooking
+ * method / favourite ingredients / etc., but the model is always allowed
+ * to fall back to the broader eligible catalogue when the filter
+ * intersection is too narrow. The only hard rules are: allergens are
+ * always excluded, every returned ingredient slug must resolve against the
+ * live `Ingredient` table, the engine recomputes nutrition.
  */
 export const AiDraftRecipeRequest = z.object({
   profileId: z.string().uuid(),
-  /** Free-form description of what the user wants, e.g. *"quick high-protein chicken bowl"*. */
-  prompt: z.string().trim().min(3).max(500),
-  /** Bias the draft toward a specific meal slot. */
+  /** Optional bias toward a specific meal slot. */
   mealType: MealType.optional(),
-  /** Bias the draft toward a diet type. Defaults to the profile's dietType. */
+  /** Optional bias toward a diet type. Defaults to the profile's dietType. */
   dietType: DietType.optional(),
-  servings: z.number().int().min(1).max(12).optional(),
+  /** Optional cuisine hint. */
+  cuisine: Cuisine.optional(),
+  /** Optional cooking-method hint. */
+  cookingMethod: CookingMethod.optional(),
+  /** Optional complexity band. */
+  complexity: Complexity.optional(),
+  /** Optional per-serving kcal target (200-1200). */
+  kcalTarget: z.number().int().min(200).max(1200).optional(),
+  /** Optional cap on prep + cook minutes (5-120). */
+  prepTimeMaxMinutes: z.number().int().min(5).max(120).optional(),
+  /**
+   * When true, the prompt highlights the profile's `favoriteIngredientIds`
+   * as preferred picks (soft bias — not a hard constraint).
+   */
+  useFavoriteIngredients: z.boolean().default(false),
+  /**
+   * When true, the profile's `excludedIngredientIds` are removed from the
+   * eligible catalogue before the prompt is built. Allergens are always
+   * excluded regardless of this flag.
+   */
+  respectExclusions: z.boolean().default(true),
   /** When true, auto-add the new recipe to the profile's favourites. */
   addToFavorites: z.boolean().default(true),
 });

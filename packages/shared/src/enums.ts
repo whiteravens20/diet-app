@@ -74,3 +74,41 @@ export type Allergen = z.infer<typeof Allergen>;
 /** Supported AI providers. */
 export const AiProvider = z.enum(['openai', 'anthropic', 'openrouter', 'ollama']);
 export type AiProvider = z.infer<typeof AiProvider>;
+
+/**
+ * Cuisine hint for the AI recipe drafter (F20). Soft preference — when set
+ * the prompt biases the model toward that cuisine, but the model can fall
+ * back to any catalogue ingredient when the cuisine + diet + meal-type
+ * intersection is too narrow.
+ */
+export const Cuisine = z.enum([
+  'polish',
+  'italian',
+  'asian',
+  'mediterranean',
+  'middle_eastern',
+  'mexican',
+  'american',
+  'indian',
+]);
+export type Cuisine = z.infer<typeof Cuisine>;
+
+/** Cooking-method hint for the AI recipe drafter. Soft preference. */
+export const CookingMethod = z.enum([
+  'baked',
+  'grilled',
+  'pan_fried',
+  'boiled',
+  'steamed',
+  'stewed',
+  'raw',
+  'no_cook',
+]);
+export type CookingMethod = z.infer<typeof CookingMethod>;
+
+/**
+ * Recipe complexity band — shared by the curation queue's recipe generator
+ * (Phase D8 of the curation plan) and the user-facing AI recipe drafter.
+ */
+export const Complexity = z.enum(['simple', 'medium', 'complex']);
+export type Complexity = z.infer<typeof Complexity>;

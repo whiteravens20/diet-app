@@ -10,6 +10,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import {
   Allergen,
+  type CookingMethod,
+  type Complexity,
+  type Cuisine,
   DietType,
   MealType,
   Unit,
@@ -89,13 +92,24 @@ export class AiRecipeDraftService {
     }
 
     const dietType = req.dietType ?? profile.dietType;
-    const servings = req.servings ?? 2;
+    // Drafts are always single-serving. The user's per-day kcal target lives
+    // on the meal plan, not the recipe — keeping recipes at servings=1 keeps
+    // engine recompute trivial and the prompt small.
+    const servings = 1;
     const allergens = new Set((profile.preferences?.allergens ?? []) as string[]);
-    const excludedIds = new Set(profile.preferences?.excludedIngredientIds ?? []);
+    // Allergens are ALWAYS excluded. Other exclusions only when the user
+    // asked for it (defaults to true on the request shape).
+    const excludedIds = new Set(
+      req.respectExclusions ? (profile.preferences?.excludedIngredientIds ?? []) : [],
+    );
+    const favouriteIds = new Set(
+      req.useFavoriteIngredients ? (profile.preferences?.favoriteIngredientIds ?? []) : [],
+    );
 
-    // Curated catalogue, filtered by the user's constraints and capped to keep
-    // the prompt small enough for cheap models. Names are unique in the DB so
-    // we ask the AI to return names; we resolve back to ids server-side.
+    // Curated catalogue, filtered by the user's hard constraints (diet,
+    // allergens, exclusions). Cuisine / cooking method / complexity are NOT
+    // hard-filtered here — they're rendered into the prompt as preferences
+    // and the model is free to broaden when the intersection is too narrow.
     const rawCatalogue = await this.prisma.ingredient.findMany({
       where: {
         dietCompatibility: { has: dietType },
@@ -122,11 +136,16 @@ export class AiRecipeDraftService {
     }
 
     const prompt = buildDraftPrompt({
-      userPrompt: req.prompt,
       mealType: req.mealType,
       dietType,
+      cuisine: req.cuisine,
+      cookingMethod: req.cookingMethod,
+      complexity: req.complexity,
+      kcalTarget: req.kcalTarget,
+      prepTimeMaxMinutes: req.prepTimeMaxMinutes,
       servings,
       catalogue,
+      favouriteIds,
     });
     const { text, meta } = await this.ai.chat(
       userId,
@@ -284,7 +303,7 @@ export class AiRecipeDraftService {
     }
 
     const recipe = toRecipeDto(created, locale);
-    this.writeSidecar(userId, recipe, { prompt: req.prompt, aiMeta: meta });
+    this.writeSidecar(userId, recipe, { request: req, aiMeta: meta });
 
     return { recipe, aiMeta: meta };
   }
@@ -303,7 +322,7 @@ export class AiRecipeDraftService {
   private writeSidecar(
     userId: string,
     recipe: Recipe,
-    extra: { prompt: string; aiMeta: AiDraftRecipeResponse['aiMeta'] },
+    extra: { request: AiDraftRecipeRequest; aiMeta: AiDraftRecipeResponse['aiMeta'] },
   ): void {
     try {
       const raw = this.config.get('INSTANCE_DATA_DIR', { infer: true }) ?? 'instance-data';
@@ -313,7 +332,12 @@ export class AiRecipeDraftService {
       writeFileSync(
         path,
         JSON.stringify(
-          { ...recipe, draftedAt: new Date().toISOString(), prompt: extra.prompt, aiMeta: extra.aiMeta },
+          {
+            ...recipe,
+            draftedAt: new Date().toISOString(),
+            request: extra.request,
+            aiMeta: extra.aiMeta,
+          },
           null,
           2,
         ),
@@ -325,16 +349,34 @@ export class AiRecipeDraftService {
   }
 }
 
+/**
+ * Build the model prompt from the structured request. There is no user
+ * free-text path — every preference is a fixed enum / number, so this
+ * function is the entire surface the model sees beyond the system rules.
+ *
+ * Preferences are rendered as soft hints ("prefer", "lean toward"), never
+ * as hard constraints. The model knows the only hard constraints are: pick
+ * ingredients from the catalogue, every slug must resolve, no invented
+ * macros. That keeps the catalogue slug-resolution invariant intact while
+ * letting the model broaden when the cuisine/method/complexity filter
+ * intersection has too few ingredients.
+ */
 function buildDraftPrompt(input: {
-  userPrompt: string;
   mealType?: MealType;
   dietType: DietType;
+  cuisine?: Cuisine;
+  cookingMethod?: CookingMethod;
+  complexity?: Complexity;
+  kcalTarget?: number;
+  prepTimeMaxMinutes?: number;
   servings: number;
   catalogue: { id: string; name: string; category: string; caloriesPer100: number; proteinPer100: number }[];
+  favouriteIds: Set<string>;
 }): { system: string; user: string } {
-  const lines = input.catalogue.map(
-    (c) => `- ${c.name} (${c.category}, ${Math.round(c.caloriesPer100)} kcal/100g · ${Math.round(c.proteinPer100)} g protein)`,
-  );
+  const lines = input.catalogue.map((c) => {
+    const star = input.favouriteIds.has(c.id) ? ' ⭐' : '';
+    return `- ${c.name} (${c.category}, ${Math.round(c.caloriesPer100)} kcal/100g · ${Math.round(c.proteinPer100)} g protein)${star}`;
+  });
 
   const system =
     'You draft cooking recipes for a deterministic meal-planning app. ' +
@@ -350,15 +392,34 @@ function buildDraftPrompt(input: {
     '"ingredients":[{"ingredientName":string,"quantity":number,' +
     '"unit":"g"|"ml"|"piece","note":string|null}],"steps":string[]}';
 
+  const preferences: string[] = [];
+  if (input.cuisine) preferences.push(`- Cuisine: ${input.cuisine.replace(/_/g, ' ')}`);
+  if (input.cookingMethod) {
+    preferences.push(`- Cooking method: ${input.cookingMethod.replace(/_/g, ' ')}`);
+  }
+  if (input.complexity) preferences.push(`- Complexity: ${input.complexity}`);
+  if (input.kcalTarget) preferences.push(`- Aim for roughly ${input.kcalTarget} kcal per serving`);
+  if (input.prepTimeMaxMinutes) {
+    preferences.push(`- Keep prep + cook ≤ ${input.prepTimeMaxMinutes} minutes`);
+  }
+  if (input.favouriteIds.size > 0) {
+    preferences.push(
+      '- Favourite ingredients are marked with ⭐ in the catalogue — prefer them when they fit.',
+    );
+  }
+  const preferenceBlock = preferences.length > 0
+    ? ['', 'Soft preferences (use when sensible, ignore when they conflict with what makes a good recipe):', ...preferences]
+    : ['', '(No additional preferences — pick any cuisine, method or complexity that fits the diet + meal type.)'];
+
   const user = [
-    `User prompt: ${input.userPrompt}`,
     `Target diet type: ${input.dietType}`,
     input.mealType ? `Target meal type: ${input.mealType}` : null,
     `Target servings: ${input.servings}`,
+    ...preferenceBlock,
     '',
-    'Constraints:',
+    'Hard rules:',
     '1. Pick 3-12 ingredients from the catalogue below (use the exact name).',
-    '2. Quantity > 0; unit is g, ml or piece — match the ingredient\'s natural form.',
+    "2. Quantity > 0; unit is g, ml or piece — match the ingredient's natural form.",
     '3. 2-12 cooking steps, imperative ("Slice the chicken", "Combine and stir").',
     '4. dietTags must include the target diet; mealTypes is one or two slots.',
     '5. Difficulty reflects step count + technique.',
