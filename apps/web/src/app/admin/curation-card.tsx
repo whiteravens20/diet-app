@@ -34,6 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   adminApi,
+  AdminApiError,
   type DraftRunnerState,
   type IngredientNameDraft,
   type IngredientNameSuggestionMap,
@@ -699,6 +700,7 @@ function RecipeDraftRow({
   onChanged: () => void;
 }) {
   const t = useTranslations('admin.curation');
+  const tErrors = useTranslations('errors');
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [working, setWorking] = useState(false);
@@ -729,6 +731,15 @@ function RecipeDraftRow({
     complexity: string;
   } | null>(null);
 
+  // Prefer the locale-aware errors.<CODE> catalogue over the backend's raw
+  // English message (same pattern as the meal-plans page).
+  const messageFor = (err: unknown): string => {
+    if (err instanceof AdminApiError && err.code && tErrors.has(err.code)) {
+      return tErrors(err.code);
+    }
+    return err instanceof Error ? err.message : String(err);
+  };
+
   const handle = async (fn: () => Promise<unknown>) => {
     setWorking(true);
     setError(null);
@@ -736,21 +747,32 @@ function RecipeDraftRow({
       await fn();
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageFor(err));
     } finally {
       setWorking(false);
     }
   };
 
-  const buildPatch = (): RecipeDraftPatch => ({
-    titles: edit.titles,
-    descriptions: edit.descriptions,
-    steps: edit.steps,
-    servings: edit.servings,
-    prepMinutes: edit.prepMinutes,
-    cookMinutes: edit.cookMinutes,
-    ingredients: edit.ingredients,
-  });
+  // For AI_USER drafts the structural fields are read-only — sending them
+  // would trip the backend's `DRAFT_STRUCTURAL_EDIT_FORBIDDEN` guard even
+  // when the values haven't changed, so we strip them from the patch payload.
+  // Admin-batch drafts (`AI` / `EXTERNAL` / `MANUAL`) still send everything.
+  const buildPatch = (): RecipeDraftPatch =>
+    lockStructural
+      ? {
+          titles: edit.titles,
+          descriptions: edit.descriptions,
+          steps: edit.steps,
+        }
+      : {
+          titles: edit.titles,
+          descriptions: edit.descriptions,
+          steps: edit.steps,
+          servings: edit.servings,
+          prepMinutes: edit.prepMinutes,
+          cookMinutes: edit.cookMinutes,
+          ingredients: edit.ingredients,
+        };
 
   const runDryRun = async () => {
     setError(null);
@@ -765,7 +787,7 @@ function RecipeDraftRow({
         complexity: next.complexity,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageFor(err));
     }
   };
 

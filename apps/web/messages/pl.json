@@ -198,6 +198,7 @@
     "DRAFT_NOT_PROMOTABLE": "Tylko przepisy oznaczone jako AI_USER mogą zostać promowane do biblioteki.",
     "DRAFT_NOT_APPROVED": "Propozycja musi być zatwierdzona w każdym języku, zanim zostanie promowana.",
     "DRAFT_SLUG_UNRESOLVED": "Jeden ze składników propozycji nie istnieje już w katalogu — popraw przed promocją.",
+    "DRAFT_NO_SOURCE_RECIPE": "Ta propozycja nie jest powiązana z żadnym przepisem źródłowym i nie może zostać promowana.",
     "LOCALE_NOT_IN_DRAFT": "Ta propozycja nie została wygenerowana dla wybranego języka.",
     "INVALID_RECIPE_SPEC": "Nieprawidłowa specyfikacja generowania przepisów.",
     "RECIPE_GEN_IN_PROGRESS": "Generowanie przepisów już trwa.",

@@ -535,31 +535,37 @@ export class DraftsController {
     const titles = existing.titles as Record<string, string>;
     const descriptions = existing.descriptions as Record<string, string>;
     const steps = existing.steps as Record<string, string[]>;
-    const ingredientsJson = existing.ingredientsJson as Array<{
-      slug: string;
-      quantity: number;
-      unit: 'g' | 'ml' | 'piece';
-      note: string | null;
-    }>;
 
-    // Resolve slugs → ingredient ids inside the transaction so a slug that
-    // was retired between approve and promote surfaces as a real error.
-    const slugs = ingredientsJson.map((i) => i.slug).filter((s): s is string => Boolean(s));
-    const ingredients = await this.prisma.ingredient.findMany({
-      where: { slug: { in: slugs } },
-      select: { id: true, slug: true },
+    // Same-instance promotion: copy the structural payload (ingredients with
+    // their resolved ingredientId, units, quantities) directly from the
+    // first personal source Recipe rather than re-resolving slugs. Avoids
+    // failing on ingredients with null slugs (legacy / USDA imports).
+    if (existing.sourceRecipeIds.length === 0) {
+      throw new ConflictException({
+        error: 'DRAFT_NO_SOURCE_RECIPE',
+        message: 'Draft is not linked to a source recipe — cannot promote.',
+      });
+    }
+    const sourceRecipe = await this.prisma.recipe.findUnique({
+      where: { id: existing.sourceRecipeIds[0]! },
+      include: { ingredients: true },
     });
-    const idBySlug = new Map(ingredients.map((i) => [i.slug, i.id]));
-    for (const line of ingredientsJson) {
-      if (!idBySlug.has(line.slug)) {
-        throw new ConflictException({
-          error: 'DRAFT_SLUG_UNRESOLVED',
-          message: `Ingredient slug "${line.slug}" no longer exists — re-edit the draft before promoting.`,
-        });
-      }
+    if (!sourceRecipe) {
+      throw new ConflictException({
+        error: 'DRAFT_NO_SOURCE_RECIPE',
+        message: 'Source recipe was deleted — cannot promote.',
+      });
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      // `Recipe.fingerprint` is uniquely indexed; the personal source rows
+      // currently hold the same fingerprint as the draft. Clear it on them
+      // before assigning it to the curated row so future dedup hits land
+      // on curated (case 1) instead of the user's old variant.
+      await tx.recipe.updateMany({
+        where: { id: { in: existing.sourceRecipeIds } },
+        data: { fingerprint: null },
+      });
       const curated = await tx.recipe.create({
         data: {
           title: titles.en ?? Object.values(titles)[0] ?? existing.slug,
@@ -580,8 +586,8 @@ export class DraftsController {
           fatPerServing: existing.fatPerServing,
           carbsPerServing: existing.carbsPerServing,
           ingredients: {
-            create: ingredientsJson.map((line) => ({
-              ingredientId: idBySlug.get(line.slug)!,
+            create: sourceRecipe.ingredients.map((line) => ({
+              ingredientId: line.ingredientId,
               quantity: line.quantity,
               unit: line.unit,
               note: line.note,

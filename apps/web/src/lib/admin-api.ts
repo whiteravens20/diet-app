@@ -24,6 +24,10 @@ export class AdminApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** Backend error code, e.g. `DRAFT_STRUCTURAL_EDIT_FORBIDDEN`. Lets the
+     *  UI look up a localized message instead of showing the raw English
+     *  envelope text. */
+    public readonly code: string | null = null,
   ) {
     super(message);
     this.name = 'AdminApiError';
@@ -55,7 +59,11 @@ async function adminFetch<T>(
   }
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-    throw new AdminApiError(res.status, body.message ?? body.error ?? res.statusText);
+    throw new AdminApiError(
+      res.status,
+      body.message ?? body.error ?? res.statusText,
+      body.error ?? null,
+    );
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

@@ -198,6 +198,7 @@
     "DRAFT_NOT_PROMOTABLE": "Only user-drafted (AI_USER) recipes can be promoted to curated.",
     "DRAFT_NOT_APPROVED": "Draft must be approved in every locale before it can be promoted.",
     "DRAFT_SLUG_UNRESOLVED": "One of the draft's ingredients no longer exists in the catalogue — re-edit before promoting.",
+    "DRAFT_NO_SOURCE_RECIPE": "This draft isn't linked to any source recipe and can't be promoted.",
     "LOCALE_NOT_IN_DRAFT": "This draft wasn't generated for that locale.",
     "INVALID_RECIPE_SPEC": "Invalid recipe generation spec.",
     "RECIPE_GEN_IN_PROGRESS": "A recipe-generator run is already in progress.",
