@@ -46,6 +46,21 @@
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — używam silnika deterministycznego.",
     "all_providers_failed": "Dostawca AI nie odpowiada — używam silnika deterministycznego."
   },
+  "aiRecipeDraft": {
+    "title": "Zaproponuj przepis z AI",
+    "promptLabel": "Jaki przepis?",
+    "promptPlaceholder": "np. szybka miska z kurczakiem, ryżem i brokułami, dużo białka",
+    "promptHelp": "AI proponuje strukturę i składniki. Silnik przelicza kalorie i makro z bazy — nigdy nie wymyślone.",
+    "dietType": "Typ diety",
+    "mealType": "Posiłek",
+    "any": "Dowolny",
+    "servings": "Porcje",
+    "addToFavorites": "Dodaj do ulubionych tego profilu",
+    "determinismHint": "Wartości odżywcze są przeliczane z bazy składników po wygenerowaniu — AI nigdy nie pisze kalorii ani makro.",
+    "submit": "Wygeneruj przepis",
+    "drafting": "Generowanie…",
+    "failed": "Nie udało się zaproponować przepisu — spróbuj ponownie."
+  },
   "landing": {
     "tagline": "Samodzielnie hostowane · Docker-first",
     "headline": "Planowanie posiłków, które naprawdę ma sens.",
@@ -159,6 +174,10 @@
     "RECIPE_GEN_IN_PROGRESS": "Generowanie przepisów już trwa.",
     "UNKNOWN_SLUG": "Składnik nie istnieje w katalogu — podaj inny slug.",
     "UNIT_CONVERSION_FAILED": "Nie udało się przeliczyć jednostek — brak gęstości lub gramów na sztukę.",
+    "AI_UNAVAILABLE": "AI jest niedostępne — spróbuj ponownie lub skonfiguruj dostawcę w Ustawieniach.",
+    "AI_DRAFT_INVALID": "AI zwróciło niepoprawny szkic przepisu — spróbuj innego opisu.",
+    "AI_DRAFT_UNKNOWN_INGREDIENT": "AI zaproponowało składnik, którego nie ma w katalogu.",
+    "NO_ELIGIBLE_INGREDIENTS": "Żadne składniki nie pasują do diety i alergenów profilu.",
     "OUT_OF_COMPLEXITY_BAND": "Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas.",
     "INVALID_SHIP_REQUEST": "Nieprawidłowe żądanie wysyłki.",
     "INVALID_MARK_SHIPPED_REQUEST": "Nieprawidłowe żądanie oznaczenia jako wysłane.",
@@ -649,6 +668,7 @@
     "noneFiltered": "Żaden przepis nie pasuje do bieżących filtrów.",
     "noneAtAll": "Brak przepisów.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
+    "aiDraft": "Zaproponuj z AI",
     "pagination": {
       "label": "Strony przepisów",
       "summary": "Wyświetlam {start}–{end} z {total}",

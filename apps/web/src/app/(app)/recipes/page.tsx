@@ -1,11 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import type { Profile, RecipeSearchPage } from '@diet-app/shared';
+import type { Profile, RecipeSearchPage, SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -40,7 +42,14 @@ export default function RecipesPage() {
   const [usesFavorites, setUsesFavorites] = useState(false);
   const [favoritesProfileId, setFavoritesProfileId] = useState<string>('');
   const [page, setPage] = useState(1);
+  const [draftOpen, setDraftOpen] = useState(false);
   const PAGE_SIZE = 36;
+
+  const session = useQuery({
+    queryKey: ['session'],
+    queryFn: () => api.get<SessionUser>('/users/me'),
+  });
+  const aiEnabled = session.data?.aiMode && session.data.aiMode !== 'none';
 
   // Reset to page 1 whenever the filter set changes — React's "adjusting
   // state on prop change during render" pattern (preferred over useEffect
@@ -107,9 +116,23 @@ export default function RecipesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('subhead')}</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('subhead')}</p>
+        </div>
+        {aiEnabled && activeProfile && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setDraftOpen(true)}
+            className="text-primary"
+          >
+            <Sparkles size={14} aria-hidden />
+            <span className="ml-1">{t('aiDraft')}</span>
+          </Button>
+        )}
       </header>
 
       <div className="grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -262,6 +285,15 @@ export default function RecipesPage() {
             />
           )}
         </>
+      )}
+      {draftOpen && activeProfile && (
+        <AiRecipeDraftModal
+          profile={activeProfile}
+          onClose={() => setDraftOpen(false)}
+          onCreated={() => {
+            /* React Query invalidations inside the modal refresh the list. */
+          }}
+        />
       )}
     </div>
   );

@@ -58,10 +58,10 @@ export class RecipesService {
     // the locale-aware search match.
     const where: Prisma.RecipeWhereInput = {
       AND: [
-        // User-origin recipes (ingredient-substitution variants) are
-        // private to their creator — everyone else only sees seed +
-        // AI-validated recipes.
-        { OR: [{ origin: { not: 'user' } }, { createdByUserId: userId }] },
+        // Owner-scoped privacy: public recipes (createdByUserId null —
+        // seed library + future shared AI library) plus anything the
+        // requester owns (user-origin variants + their own AI drafts).
+        { OR: [{ createdByUserId: null }, { createdByUserId: userId }] },
         ...(filters.search ? [searchMatch(filters.search, locale)] : []),
         ...(filters.dietType ? [{ dietTags: { has: filters.dietType } }] : []),
         ...(filters.mealType ? [{ mealTypes: { has: filters.mealType } }] : []),
@@ -105,9 +105,9 @@ export class RecipesService {
       },
     });
     if (!row) throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
-    // Private variants are visible only to their owner; planned-meal recipes
-    // are still fetched via /meal-plans which has its own ownership check.
-    if (row.origin === 'user' && row.createdByUserId && row.createdByUserId !== userId) {
+    // Owner-scoped privacy: a recipe with an owner is visible only to them.
+    // Covers user-origin ingredient variants AND user-private AI drafts.
+    if (row.createdByUserId && row.createdByUserId !== userId) {
       throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
     }
     return toRecipeDto(row, locale);

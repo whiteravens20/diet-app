@@ -46,6 +46,21 @@
     "no_provider": "No AI provider is configured for your account — falling back to the rule-based engine.",
     "all_providers_failed": "AI provider didn't respond — falling back to the rule-based engine."
   },
+  "aiRecipeDraft": {
+    "title": "Draft a recipe with AI",
+    "promptLabel": "What kind of recipe?",
+    "promptPlaceholder": "e.g. quick high-protein chicken bowl with rice and broccoli",
+    "promptHelp": "AI proposes the structure and ingredient choices. The engine recomputes calories and macros from the database — never invented.",
+    "dietType": "Diet type",
+    "mealType": "Meal type",
+    "any": "Any",
+    "servings": "Servings",
+    "addToFavorites": "Add to favourites for this profile",
+    "determinismHint": "Nutrition is recomputed from the ingredient database after the draft — AI never writes calorie or macro values.",
+    "submit": "Draft recipe",
+    "drafting": "Drafting…",
+    "failed": "Could not draft a recipe — try again."
+  },
   "landing": {
     "tagline": "Self-hostable · Docker-first",
     "headline": "Meal planning that actually adds up.",
@@ -159,6 +174,10 @@
     "RECIPE_GEN_IN_PROGRESS": "A recipe-generator run is already in progress.",
     "UNKNOWN_SLUG": "Ingredient slug not found in the curated catalogue.",
     "UNIT_CONVERSION_FAILED": "Could not convert the recipe's quantities — missing density or grams-per-piece.",
+    "AI_UNAVAILABLE": "AI is unavailable — try again or configure a provider in Settings.",
+    "AI_DRAFT_INVALID": "AI returned a malformed recipe draft — try a different prompt.",
+    "AI_DRAFT_UNKNOWN_INGREDIENT": "AI proposed an ingredient that isn't in our catalogue.",
+    "NO_ELIGIBLE_INGREDIENTS": "No ingredients match your diet and allergen settings.",
     "OUT_OF_COMPLEXITY_BAND": "Recipe is outside every complexity band — adjust ingredients, steps, or time.",
     "INVALID_SHIP_REQUEST": "Invalid ship request.",
     "INVALID_MARK_SHIPPED_REQUEST": "Invalid mark-shipped request.",
@@ -649,6 +668,7 @@
     "noneFiltered": "No recipes match the current filters.",
     "noneAtAll": "No recipes.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
+    "aiDraft": "Draft with AI",
     "pagination": {
       "label": "Recipe pages",
       "summary": "Showing {start}–{end} of {total}",
