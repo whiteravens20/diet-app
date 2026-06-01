@@ -520,6 +520,7 @@
     "noLists": "No lists for this plan yet — generate one above.",
     "summary": "{checked}/{total} items checked · {kcal} kcal total",
     "deleteConfirm": "Delete this shopping list?",
+    "print": "Print",
     "ofTotal": "(of {amount})",
     "have": "have",
     "errGenerate": "Could not generate the list.",

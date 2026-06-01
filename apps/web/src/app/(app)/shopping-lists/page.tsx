@@ -131,13 +131,13 @@ export default function ShoppingListsPage() {
 
   return (
     <div className="space-y-8">
-      <header>
+      <header data-print-hide>
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">{t('subhead')}</p>
       </header>
 
       {profileList.length > 1 && (
-        <div className="flex gap-2">
+        <div className="flex gap-2" data-print-hide>
           {profileList.map((p) => (
             <Button
               key={p.id}
@@ -157,7 +157,7 @@ export default function ShoppingListsPage() {
         </div>
       )}
 
-      <Card className="max-w-3xl">
+      <Card className="max-w-3xl" data-print-hide>
         <CardHeader>
           <CardTitle>{t('generate')}</CardTitle>
         </CardHeader>
@@ -215,18 +215,18 @@ export default function ShoppingListsPage() {
         </CardContent>
       </Card>
 
-      {error && <p className="max-w-3xl text-sm text-destructive">{error}</p>}
+      {error && <p className="max-w-3xl text-sm text-destructive" data-print-hide>{error}</p>}
 
       {lists.isLoading ? (
         <Skeleton className="h-24 max-w-3xl" />
       ) : listOptions.length === 0 ? (
         planList.length > 0 && (
-          <p className="max-w-3xl text-sm text-muted-foreground">{t('noLists')}</p>
+          <p className="max-w-3xl text-sm text-muted-foreground" data-print-hide>{t('noLists')}</p>
         )
       ) : (
         <section className="space-y-3">
           {listOptions.length > 1 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" data-print-hide>
               {listOptions.map((l) => (
                 <Button
                   key={l.id}
@@ -253,6 +253,7 @@ export default function ShoppingListsPage() {
               ofLabel={(amount) => t('ofTotal', { amount })}
               deleteLabel={tCommon('delete')}
               deleteConfirm={t('deleteConfirm')}
+              printLabel={t('print')}
               onPatch={(item, patch) =>
                 updateItem.mutate({ listId: activeList.id, itemId: item.id, ...patch })
               }
@@ -275,6 +276,7 @@ function ListView({
   ofLabel,
   deleteLabel,
   deleteConfirm,
+  printLabel,
   onPatch,
   onDelete,
 }: {
@@ -287,6 +289,7 @@ function ListView({
   ofLabel: (amount: string) => string;
   deleteLabel: string;
   deleteConfirm: string;
+  printLabel: string;
   onPatch: (
     item: ShoppingListItem,
     patch: { checked?: boolean; alreadyHaveQuantity?: number },
@@ -303,7 +306,7 @@ function ListView({
   );
 
   return (
-    <Card className="max-w-3xl">
+    <Card className="max-w-3xl" data-print-area>
       <div className="flex items-center justify-between gap-4 border-b border-border p-4">
         <div>
           <p className="font-medium">
@@ -313,18 +316,29 @@ function ListView({
             {summaryLabel(checkedItems, totalItems, list.totalEstimatedCalories)}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-destructive"
-          onClick={() => {
-            if (window.confirm(deleteConfirm)) onDelete(list.id);
-          }}
-          disabled={busy}
-        >
-          {deleteLabel}
-        </Button>
+        <div className="flex items-center gap-2" data-print-hide>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => window.print()}
+            disabled={busy}
+          >
+            {printLabel}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={() => {
+              if (window.confirm(deleteConfirm)) onDelete(list.id);
+            }}
+            disabled={busy}
+          >
+            {deleteLabel}
+          </Button>
+        </div>
       </div>
       <CardContent className="space-y-5 pt-4">
         {list.groups.map((g) => (
@@ -392,7 +406,7 @@ function ItemRow({
           </span>
         )}
       </span>
-      <label className="flex items-center gap-1 text-xs text-muted-foreground">
+      <label className="flex items-center gap-1 text-xs text-muted-foreground" data-print-hide>
         {haveLabel}
         <input
           type="number"

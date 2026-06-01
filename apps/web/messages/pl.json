@@ -520,6 +520,7 @@
     "noLists": "Brak list dla tego planu — wygeneruj jedną powyżej.",
     "summary": "Odhaczone {checked}/{total} · łącznie {kcal} kcal",
     "deleteConfirm": "Usunąć tę listę zakupów?",
+    "print": "Drukuj",
     "ofTotal": "(z {amount})",
     "have": "masz",
     "errGenerate": "Nie udało się wygenerować listy.",

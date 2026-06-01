@@ -216,3 +216,62 @@ body {
   background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.12), transparent);
   animation: shimmer 1.6s infinite;
 }
+
+/* Print mode: collapse the app shell to a single ink-on-white sheet so a
+   shopping list (or any future printable surface) renders without the
+   sidebar, headers, forms, or theme chrome. Elements opted out via
+   [data-print-hide] disappear; the [data-print-area] subtree fills the
+   page. Strips colour to keep printer ink predictable. */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  [data-print-hide],
+  aside,
+  nav {
+    display: none !important;
+  }
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  [data-print-area] {
+    max-width: none !important;
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    page-break-inside: auto;
+  }
+  [data-print-area] * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #999 !important;
+    box-shadow: none !important;
+  }
+  [data-print-area] h1,
+  [data-print-area] h2,
+  [data-print-area] h3 {
+    page-break-after: avoid;
+  }
+  [data-print-area] li,
+  [data-print-area] > div {
+    page-break-inside: avoid;
+  }
+  [data-print-area] input[type='checkbox'] {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border: 1px solid #000;
+    border-radius: 2px;
+  }
+  [data-print-area] input[type='checkbox']:checked::after {
+    content: '✓';
+    display: block;
+    line-height: 10px;
+    text-align: center;
+    font-size: 11px;
+  }
+}
