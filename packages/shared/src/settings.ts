@@ -40,6 +40,22 @@ export const Palette = z.enum([
 export type Palette = z.infer<typeof Palette>;
 
 /**
+ * Per-user AI mode (F10):
+ * - `none`  — every AI feature falls back to the deterministic engine and no
+ *             provider call ever leaves the instance.
+ * - `admin` — the user borrows the operator's configured provider
+ *             (`AI_DEFAULT_PROVIDER` / `AI_DEFAULT_MODEL`), capped by
+ *             `AI_ADMIN_USER_WEEKLY_LIMIT` rolling-7-day requests.
+ * - `byok`  — the user supplies their own API key / Ollama URL via
+ *             `AiProviderConfig`; no quota, no admin failover.
+ *
+ * Default is `none` so a fresh account never makes outbound AI calls until
+ * the user opts in from Settings.
+ */
+export const AiMode = z.enum(['none', 'admin', 'byok']);
+export type AiMode = z.infer<typeof AiMode>;
+
+/**
  * `AuthUser` extended with the user-controlled preference fields. Returned by
  * `GET /users/me` and by every settings-mutation endpoint.
  */
@@ -47,6 +63,7 @@ export const SessionUser = AuthUser.extend({
   locale: Locale,
   theme: Theme,
   palette: Palette,
+  aiMode: AiMode,
 });
 export type SessionUser = z.infer<typeof SessionUser>;
 
@@ -55,6 +72,7 @@ export const UpdateUserSettings = z.object({
   locale: Locale.optional(),
   theme: Theme.optional(),
   palette: Palette.optional(),
+  aiMode: AiMode.optional(),
 });
 export type UpdateUserSettings = z.infer<typeof UpdateUserSettings>;
 

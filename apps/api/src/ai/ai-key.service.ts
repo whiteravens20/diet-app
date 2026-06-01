@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AiProviderConfig, AiProviderConfigInput } from '@diet-app/shared';
+import type { AiMode, AiProviderConfig, AiProviderConfigInput } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decrypt, encrypt } from '../common/crypto.js';
@@ -11,6 +11,8 @@ export interface ResolvedProviderConfig {
   model: string;
   priority: number;
   apiKey: string | null;
+  /** Routing mode that produced this entry — surfaced in AiUsageLog.mode. */
+  mode: 'admin' | 'byok';
 }
 
 /**
@@ -75,20 +77,60 @@ export class AiKeyService {
   }
 
   /**
-   * Ordered failover chain for a user: their enabled providers first (by
-   * priority), then admin defaults. Keys are decrypted here for the router.
+   * F10-aware failover chain for a user.
+   *
+   * The chain depends on the user's `aiMode`:
+   * - `none`  → empty chain; caller falls back to the deterministic engine.
+   * - `byok`  → only the user's own enabled `AiProviderConfig` rows, ordered
+   *             by priority. No admin failover.
+   * - `admin` → the operator's env-configured default (`AI_DEFAULT_PROVIDER` +
+   *             `AI_DEFAULT_MODEL`) as a single-entry chain. The admin keys
+   *             come from env (OPENAI_API_KEY / ANTHROPIC_API_KEY / …) or
+   *             from an Ollama base URL — no DB row required.
+   *
+   * Earlier behaviour mixed BYOK and admin into one failover chain; F10 makes
+   * the user's intent explicit (privacy / cost / quota), so the modes are
+   * disjoint by design.
    */
-  async resolveChain(userId: string): Promise<ResolvedProviderConfig[]> {
-    const rows = await this.prisma.aiProviderConfig.findMany({
-      where: { enabled: true, OR: [{ userId }, { isAdminDefault: true }] },
-      orderBy: [{ userId: 'desc' }, { priority: 'asc' }],
-    });
-    return rows.map((r) => ({
-      provider: r.provider,
-      model: r.model,
-      priority: r.priority,
-      apiKey: r.encryptedKey ? decrypt(r.encryptedKey, this.encKey) : null,
-    }));
+  async resolveChain(userId: string, mode: AiMode): Promise<ResolvedProviderConfig[]> {
+    if (mode === 'none') return [];
+    if (mode === 'byok') {
+      const rows = await this.prisma.aiProviderConfig.findMany({
+        where: { enabled: true, userId },
+        orderBy: { priority: 'asc' },
+      });
+      return rows.map((r) => ({
+        provider: r.provider,
+        model: r.model,
+        priority: r.priority,
+        apiKey: r.encryptedKey ? decrypt(r.encryptedKey, this.encKey) : null,
+        mode: 'byok' as const,
+      }));
+    }
+    return this.adminChainFromEnv();
+  }
+
+  private adminChainFromEnv(): ResolvedProviderConfig[] {
+    const provider = this.config.get('AI_DEFAULT_PROVIDER', { infer: true });
+    const model = this.config.get('AI_DEFAULT_MODEL', { infer: true });
+    if (!provider || !model) return [];
+    const apiKey =
+      provider === 'openai'
+        ? this.config.get('OPENAI_API_KEY', { infer: true })
+        : provider === 'anthropic'
+          ? this.config.get('ANTHROPIC_API_KEY', { infer: true })
+          : provider === 'openrouter'
+            ? this.config.get('OPENROUTER_API_KEY', { infer: true })
+            : null;
+    return [
+      {
+        provider,
+        model,
+        priority: 0,
+        apiKey: apiKey ?? null,
+        mode: 'admin',
+      },
+    ];
   }
 
   private toDto(row: {

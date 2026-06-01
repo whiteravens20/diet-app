@@ -11,7 +11,7 @@ import type {
   SessionUser,
   UpdateUserSettings,
 } from '@diet-app/shared';
-import { Locale, Palette, Theme } from '@diet-app/shared';
+import { AiMode, Locale, Palette, Theme } from '@diet-app/shared';
 import * as bcrypt from 'bcryptjs';
 import { decrypt, deriveKey, pepperPassword } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
@@ -45,17 +45,19 @@ export class UsersService {
   }
 
   async updateSettings(userId: string, dto: UpdateUserSettings): Promise<SessionUser> {
-    // Zod has already validated locale/theme/palette against the supported
-    // enums, but we re-validate at the boundary in case a runtime caller
-    // bypasses it.
+    // Zod has already validated locale/theme/palette/aiMode against the
+    // supported enums, but we re-validate at the boundary in case a runtime
+    // caller bypasses it.
     if (dto.locale !== undefined) Locale.parse(dto.locale);
     if (dto.theme !== undefined) Theme.parse(dto.theme);
     if (dto.palette !== undefined) Palette.parse(dto.palette);
+    if (dto.aiMode !== undefined) AiMode.parse(dto.aiMode);
     if (
       dto.displayName === undefined &&
       dto.locale === undefined &&
       dto.theme === undefined &&
-      dto.palette === undefined
+      dto.palette === undefined &&
+      dto.aiMode === undefined
     ) {
       throw new BadRequestException({ error: 'EMPTY_UPDATE', message: 'Nothing to update.' });
     }
@@ -66,6 +68,7 @@ export class UsersService {
         ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
         ...(dto.theme !== undefined ? { theme: dto.theme } : {}),
         ...(dto.palette !== undefined ? { palette: dto.palette } : {}),
+        ...(dto.aiMode !== undefined ? { aiMode: dto.aiMode } : {}),
       },
     });
     return this.toSessionUser(user);
@@ -128,6 +131,7 @@ export class UsersService {
     locale: string;
     theme: string;
     palette: string;
+    aiMode: string;
   }): SessionUser {
     return {
       id: user.id,
@@ -138,6 +142,7 @@ export class UsersService {
       locale: Locale.parse(user.locale),
       theme: Theme.parse(user.theme),
       palette: Palette.parse(user.palette),
+      aiMode: AiMode.parse(user.aiMode),
     };
   }
 }

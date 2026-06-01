@@ -33,6 +33,19 @@
     "signOut": "Wyloguj się",
     "signUp": "Załóż konto"
   },
+  "aiChip": {
+    "adminLabel": "{remaining}/{limit} w tym tygodniu",
+    "adminTooltip": "Pozostałe zapytania AI z puli instancji w tym tygodniu (okno 7 dni). Zarządzaj w Ustawieniach.",
+    "byokLabel": "BYOK",
+    "byokTooltip": "Używasz własnego klucza AI. Bez limitu.",
+    "exhaustedLabel": "0/{limit}",
+    "exhaustedTooltip": "Tygodniowy limit AI wyczerpany. Następne zapytanie odblokuje się {date}."
+  },
+  "aiFallback": {
+    "quota_exhausted": "Tygodniowy limit AI wyczerpany — używam silnika deterministycznego.",
+    "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — używam silnika deterministycznego.",
+    "all_providers_failed": "Dostawca AI nie odpowiada — używam silnika deterministycznego."
+  },
   "landing": {
     "tagline": "Samodzielnie hostowane · Docker-first",
     "headline": "Planowanie posiłków, które naprawdę ma sens.",
@@ -167,7 +180,8 @@
     "INVALID_REVIEW_PATCH": "Nieprawidłowa edycja recenzji.",
     "REVIEWER_DISABLED": "Panel recenzenta jest wyłączony.",
     "NO_REVIEWER_SESSION": "Zaloguj się, aby kontynuować recenzowanie.",
-    "INVALID_REVIEWER_SESSION": "Sesja recenzenta wygasła. Zaloguj się ponownie."
+    "INVALID_REVIEWER_SESSION": "Sesja recenzenta wygasła. Zaloguj się ponownie.",
+    "AI_WEEKLY_LIMIT_REACHED": "Wyczerpałeś tygodniowy limit zapytań AI."
   },
   "dashboard": {
     "title": "Panel",
@@ -548,6 +562,28 @@
       "mono": "Mono",
       "rose": "Róż"
     },
+    "aiAssistant": "Asystent AI",
+    "aiAssistantSubhead": "Wybierz, jak działają funkcje AI. Kalorie i makra zawsze przelicza deterministyczny silnik — AI nigdy nie wymyśla wartości odżywczych.",
+    "aiMode": "Tryb",
+    "aiModeNone": "Wyłączone",
+    "aiModeNoneHint": "Każda funkcja AI używa deterministycznego silnika. Żadne zapytanie nie opuszcza instancji.",
+    "aiModeAdmin": "Użyj domyślnego dostawcy instancji",
+    "aiModeAdminHint": "Korzystasz z dostawcy operatora, z limitem {limit} zapytań na tydzień.",
+    "aiModeAdminUnavailable": "Operator nie skonfigurował domyślnego dostawcy.",
+    "aiModeByok": "Użyj własnego klucza",
+    "aiModeByokHint": "Twój klucz OpenAI / Anthropic / OpenRouter lub instancja Ollama. Bez limitu — sam płacisz za zużycie.",
+    "aiModeSaving": "Zapisywanie…",
+    "aiModeSaved": "Tryb AI zaktualizowany.",
+    "aiModeFailed": "Nie udało się zaktualizować trybu AI.",
+    "aiQuotaHeading": "Tygodniowe użycie",
+    "aiQuotaUsed": "Wykorzystano {used}/{limit} zapytań w tym tygodniu",
+    "aiQuotaResetAt": "Najbliższy slot zwolni się {date}",
+    "aiQuotaUnused": "Nie użyto jeszcze żadnych zapytań — licznik resetuje się 7 dni po pierwszym wywołaniu.",
+    "aiTestConnection": "Sprawdź połączenie",
+    "aiTesting": "Sprawdzanie…",
+    "aiTestOk": "Połączono. Wybierz model poniżej.",
+    "aiTestFailed": "{error}",
+    "aiPickModel": "Wybierz model",
     "aiProviders": "Dostawcy AI",
     "aiSubhead": "Własne klucze do OpenAI, Anthropic, OpenRouter lub Ollama. Klucze są szyfrowane na dysku i nigdy nie są zwracane do klienta.",
     "aiNoProviders": "Brak skonfigurowanych dostawców — i nic się nie dzieje. Aplikacja działa w pełni bez AI; własny silnik obsłuży wszystko.",

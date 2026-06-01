@@ -6,9 +6,12 @@ import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
+  type AiMode,
   type AiProvider,
   type AiProviderConfig,
   type AiProviderConfigInput,
+  type AiQuotaStatus,
+  type AiTestConnectionResponse,
   type Palette,
   type SessionUser,
   type Theme,
@@ -51,6 +54,7 @@ export default function SettingsPage() {
       <LanguageCard />
       <ThemeCard initial={me.theme} />
       <PaletteCard initial={me.palette} />
+      <AiAssistantCard me={me} tErrors={tErrors} />
       <AiProvidersCard tErrors={tErrors} />
       <PasswordCard onChanged={() => router.push('/login')} />
       <EmailCard me={me} />
@@ -248,6 +252,143 @@ function PaletteCard({ initial }: { initial: Palette }) {
   );
 }
 
+function AiAssistantCard({
+  me,
+  tErrors,
+}: {
+  me: SessionUser;
+  tErrors: ReturnType<typeof useTranslations<'errors'>>;
+}) {
+  const t = useTranslations('settings');
+  const qc = useQueryClient();
+  const quota = useQuery({
+    queryKey: ['ai-quota'],
+    queryFn: () => api.get<AiQuotaStatus>('/ai/quota'),
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const save = useMutation({
+    mutationFn: (aiMode: AiMode) =>
+      api.patch<SessionUser>('/users/me', { aiMode }),
+    onSuccess: () => {
+      setSaved(true);
+      qc.invalidateQueries({ queryKey: ['session'] });
+      qc.invalidateQueries({ queryKey: ['ai-quota'] });
+      window.setTimeout(() => setSaved(false), 2000);
+    },
+    onError: (err) =>
+      setError(
+        err instanceof ApiClientError
+          ? tErrors.has(err.code)
+            ? tErrors(err.code)
+            : err.message
+          : t('aiModeFailed'),
+      ),
+  });
+
+  const status = quota.data;
+  // Admin mode is offered only when the operator has set AI_DEFAULT_PROVIDER
+  // AND the env-configured weekly limit is > 0. The status snapshot tells us
+  // both — we hide the radio rather than show a disabled-looking option.
+  const adminAvailable =
+    status?.adminProviderConfigured === true && (status.limit ?? 0) > 0;
+
+  function pick(mode: AiMode) {
+    setError(null);
+    if (mode === me.aiMode) return;
+    save.mutate(mode);
+  }
+
+  const modes: AiMode[] = adminAvailable ? ['none', 'admin', 'byok'] : ['none', 'byok'];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('aiAssistant')}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">{t('aiAssistantSubhead')}</p>
+
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">{t('aiMode')}</legend>
+          {modes.map((mode) => (
+            <label
+              key={mode}
+              className={cn(
+                'flex cursor-pointer items-start gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors',
+                me.aiMode === mode && 'border-primary bg-primary/5',
+              )}
+            >
+              <input
+                type="radio"
+                name="aiMode"
+                value={mode}
+                checked={me.aiMode === mode}
+                onChange={() => pick(mode)}
+                disabled={save.isPending}
+                className="mt-1"
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="font-medium">
+                  {mode === 'none'
+                    ? t('aiModeNone')
+                    : mode === 'admin'
+                      ? t('aiModeAdmin')
+                      : t('aiModeByok')}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {mode === 'none'
+                    ? t('aiModeNoneHint')
+                    : mode === 'admin'
+                      ? t('aiModeAdminHint', { limit: status?.limit ?? 10 })
+                      : t('aiModeByokHint')}
+                </span>
+              </span>
+            </label>
+          ))}
+          {!adminAvailable && (
+            <p className="text-xs text-muted-foreground italic">
+              {t('aiModeAdminUnavailable')}
+            </p>
+          )}
+        </fieldset>
+
+        {me.aiMode === 'admin' && status?.limit != null && (
+          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+            <p className="font-medium">{t('aiQuotaHeading')}</p>
+            <p>
+              {t('aiQuotaUsed', {
+                used: status.used,
+                limit: status.limit,
+              })}
+            </p>
+            {status.resetAt ? (
+              <p className="text-xs text-muted-foreground">
+                {t('aiQuotaResetAt', {
+                  date: new Date(status.resetAt).toLocaleString(),
+                })}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('aiQuotaUnused')}</p>
+            )}
+          </div>
+        )}
+
+        {save.isPending && (
+          <p className="text-xs text-muted-foreground">{t('aiModeSaving')}</p>
+        )}
+        {saved && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+            {t('aiModeSaved')}
+          </p>
+        )}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslations<'errors'>> }) {
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
@@ -286,19 +427,6 @@ function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslatio
           : t('aiDeleteFailed'),
       ),
   });
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    const f = new FormData(event.currentTarget);
-    save.mutate({
-      provider: f.get('provider') as AiProvider,
-      model: String(f.get('model') ?? '').trim(),
-      apiKey: String(f.get('apiKey') ?? '').trim() || undefined,
-      priority: Number(f.get('priority') ?? 0),
-      enabled: true,
-    });
-  }
 
   const list = providers.data ?? [];
 
@@ -349,48 +477,15 @@ function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslatio
         )}
 
         {editing ? (
-          <form onSubmit={onSubmit} className="grid max-w-2xl gap-3 sm:grid-cols-2">
-            <Field label={t('aiProvider')}>
-              <select
-                name="provider"
-                required
-                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                defaultValue="openai"
-              >
-                {PROVIDERS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t('aiModel')}>
-              <Input name="model" required placeholder="gpt-4o-mini" />
-            </Field>
-            <Field label={t('aiApiKey')}>
-              <Input name="apiKey" type="password" placeholder="sk-…" autoComplete="off" />
-            </Field>
-            <Field label={t('aiPriority')}>
-              <Input name="priority" type="number" min={0} max={100} defaultValue={0} />
-            </Field>
-            <div className="flex items-end gap-2 sm:col-span-2">
-              <Button type="submit" disabled={save.isPending}>
-                {save.isPending ? t('aiSaving') : t('aiSave')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setEditing(false);
-                  setError(null);
-                }}
-              >
-                {tCommon('cancel')}
-              </Button>
-              <p className="ml-auto text-xs text-muted-foreground">{t('aiPriorityHint')}</p>
-            </div>
-            {error && <p className="text-xs text-destructive sm:col-span-2">{error}</p>}
-          </form>
+          <ProviderForm
+            onCancel={() => {
+              setEditing(false);
+              setError(null);
+            }}
+            onSubmit={(dto) => save.mutate(dto)}
+            saving={save.isPending}
+            error={error}
+          />
         ) : (
           <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
             {t('aiAddProvider')}
@@ -399,6 +494,187 @@ function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslatio
         {!editing && error && <p className="text-xs text-destructive">{error}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * BYOK provider form with a Test-connection probe. The Test button hits
+ * `/ai/test` with the current provider + credentials, surfaces the
+ * provider's error verbatim on failure, or populates a model dropdown from
+ * the returned list on success so the user picks a real model instead of
+ * typing one. Saving without a successful test is still allowed (the user
+ * may know the model id), but the dropdown is the happy path.
+ */
+function ProviderForm({
+  onCancel,
+  onSubmit,
+  saving,
+  error,
+}: {
+  onCancel: () => void;
+  onSubmit: (dto: AiProviderConfigInput) => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const t = useTranslations('settings');
+  const tCommon = useTranslations('common');
+  const [provider, setProvider] = useState<AiProvider>('openai');
+  const [apiKey, setApiKey] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [model, setModel] = useState('');
+  const [priority, setPriority] = useState(0);
+  const [testResult, setTestResult] = useState<AiTestConnectionResponse | null>(null);
+
+  const test = useMutation({
+    mutationFn: () =>
+      api.post<AiTestConnectionResponse>('/ai/test', {
+        provider,
+        apiKey: apiKey.trim() || undefined,
+        baseUrl: baseUrl.trim() || undefined,
+        model: model.trim() || undefined,
+      }),
+    onSuccess: (res) => setTestResult(res),
+    onError: () =>
+      setTestResult({
+        ok: false,
+        models: [],
+        error: t('aiTestFailed', { error: '?' }),
+      }),
+  });
+
+  function reset() {
+    setTestResult(null);
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSubmit({
+      provider,
+      model: model.trim(),
+      apiKey: apiKey.trim() || undefined,
+      priority,
+      enabled: true,
+    });
+  }
+
+  const isOllama = provider === 'ollama';
+
+  return (
+    <form onSubmit={submit} className="grid max-w-2xl gap-3 sm:grid-cols-2">
+      <Field label={t('aiProvider')}>
+        <select
+          name="provider"
+          required
+          className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+          value={provider}
+          onChange={(e) => {
+            setProvider(e.target.value as AiProvider);
+            reset();
+          }}
+        >
+          {PROVIDERS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {testResult?.ok && testResult.models.length > 0 ? (
+        <Field label={t('aiPickModel')}>
+          <select
+            required
+            className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+          >
+            <option value="">—</option>
+            {testResult.models.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ) : (
+        <Field label={t('aiModel')}>
+          <Input
+            name="model"
+            required
+            placeholder={isOllama ? 'llama3.1:8b' : 'gpt-4o-mini'}
+            value={model}
+            onChange={(e) => {
+              setModel(e.target.value);
+              reset();
+            }}
+          />
+        </Field>
+      )}
+      {isOllama ? (
+        <Field label="Ollama URL">
+          <Input
+            name="baseUrl"
+            placeholder="http://localhost:11434"
+            value={baseUrl}
+            onChange={(e) => {
+              setBaseUrl(e.target.value);
+              reset();
+            }}
+          />
+        </Field>
+      ) : (
+        <Field label={t('aiApiKey')}>
+          <Input
+            name="apiKey"
+            type="password"
+            placeholder="sk-…"
+            autoComplete="off"
+            value={apiKey}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              reset();
+            }}
+          />
+        </Field>
+      )}
+      <Field label={t('aiPriority')}>
+        <Input
+          name="priority"
+          type="number"
+          min={0}
+          max={100}
+          value={priority}
+          onChange={(e) => setPriority(Number(e.target.value))}
+        />
+      </Field>
+      <div className="flex flex-wrap items-end gap-2 sm:col-span-2">
+        <Button type="submit" disabled={saving}>
+          {saving ? t('aiSaving') : t('aiSave')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={test.isPending}
+          onClick={() => test.mutate()}
+        >
+          {test.isPending ? t('aiTesting') : t('aiTestConnection')}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          {tCommon('cancel')}
+        </Button>
+        <p className="ml-auto text-xs text-muted-foreground">{t('aiPriorityHint')}</p>
+      </div>
+      {testResult && (
+        <p
+          className={cn(
+            'text-xs sm:col-span-2',
+            testResult.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive',
+          )}
+        >
+          {testResult.ok ? t('aiTestOk') : t('aiTestFailed', { error: testResult.error ?? '?' })}
+        </p>
+      )}
+      {error && <p className="text-xs text-destructive sm:col-span-2">{error}</p>}
+    </form>
   );
 }
 

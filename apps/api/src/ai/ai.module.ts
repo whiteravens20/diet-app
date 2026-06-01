@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AiController } from './ai.controller.js';
 import { AiKeyService } from './ai-key.service.js';
+import { AiQuotaService } from './ai-quota.service.js';
 import { AiRouterService } from './ai-router.service.js';
+import { AiTestService } from './ai-test.service.js';
 import { AiValidationService } from './ai-validation.service.js';
 import { AnthropicProvider } from './providers/anthropic.provider.js';
 import { OllamaProvider } from './providers/ollama.provider.js';
@@ -17,7 +19,9 @@ import { OpenRouterProvider } from './providers/openrouter.provider.js';
   controllers: [AiController],
   providers: [
     AiKeyService,
+    AiQuotaService,
     AiRouterService,
+    AiTestService,
     AiValidationService,
     OpenAiProvider,
     AnthropicProvider,
@@ -26,6 +30,7 @@ import { OpenRouterProvider } from './providers/openrouter.provider.js';
   ],
   exports: [
     AiKeyService,
+    AiQuotaService,
     AiRouterService,
     AiValidationService,
     // Exported so the admin auto-translate runner can call a provider

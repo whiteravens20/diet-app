@@ -33,6 +33,27 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  * Diagnostic envelope attached to AI-assisted responses so the UI can show how
  * a result was produced and which validations the engine applied afterward.
  */
+/**
+ * Why the deterministic engine had to take over. Populated only when
+ * `usedDeterministicFallback === true`. The UI maps these codes to a
+ * localised "AI unavailable" toast/badge so the user knows the result came
+ * from the engine and not from a model.
+ *
+ * - `quota_exhausted`     — `aiMode='admin'` user hit the weekly quota.
+ * - `no_provider`         — `aiMode='none'`, or `byok` with no enabled
+ *                           config, or `admin` with no configured admin
+ *                           default (the operator didn't set
+ *                           `AI_DEFAULT_PROVIDER`).
+ * - `all_providers_failed`— every provider in the chain errored (auth,
+ *                           network, model error). Details in `failoverChain`.
+ */
+export const AiFallbackReason = z.enum([
+  'quota_exhausted',
+  'no_provider',
+  'all_providers_failed',
+]);
+export type AiFallbackReason = z.infer<typeof AiFallbackReason>;
+
 export const AiGenerationMeta = z.object({
   /** Provider that ultimately served the request, or null in fallback mode. */
   provider: AiProvider.nullable(),
@@ -41,8 +62,67 @@ export const AiGenerationMeta = z.object({
   failoverChain: z.array(AiProvider),
   /** True when no provider was usable and the deterministic engine was used. */
   usedDeterministicFallback: z.boolean(),
+  /** Why fallback happened. Null when `usedDeterministicFallback === false`. */
+  fallbackReason: AiFallbackReason.nullable(),
   /** Ingredients the validation layer rejected or remapped. */
   rejectedIngredients: z.array(z.string()),
   remappedIngredients: z.array(z.object({ from: z.string(), to: z.string() })),
 });
 export type AiGenerationMeta = z.infer<typeof AiGenerationMeta>;
+
+/**
+ * Snapshot of the caller's AI routing state. The app-shell chip and the
+ * Settings AI card both render from this. `providerConfigured` flags whether
+ * the operator has set `AI_DEFAULT_PROVIDER` — when false the `admin` mode
+ * option is hidden in the UI.
+ */
+export const AiQuotaStatus = z.object({
+  mode: z.enum(['none', 'admin', 'byok']),
+  /**
+   * Weekly call limit. Only meaningful for `mode='admin'`; `null` for `none`
+   * and `byok` (no quota).
+   */
+  limit: z.number().int().nonnegative().nullable(),
+  /** Calls in the trailing 7-day window. Only meaningful for `admin`. */
+  used: z.number().int().nonnegative(),
+  /** `limit - used`, clamped at 0. `null` when no limit applies. */
+  remaining: z.number().int().nonnegative().nullable(),
+  /**
+   * ISO timestamp of when the oldest counted call drops out of the rolling
+   * window — i.e. when `used` will decrement by at least one. Null when
+   * `used === 0` or quota does not apply.
+   */
+  resetAt: z.string().datetime().nullable(),
+  /** Whether `AI_DEFAULT_PROVIDER` is set (gates the `admin` mode option). */
+  adminProviderConfigured: z.boolean(),
+});
+export type AiQuotaStatus = z.infer<typeof AiQuotaStatus>;
+
+/**
+ * Test-connection probe. Hits the provider's models-list endpoint without
+ * persisting the credential — the UI calls this from the BYOK form before
+ * saving so the user can confirm the key works (and pick a model from the
+ * returned list).
+ */
+export const AiTestConnectionRequest = z.object({
+  provider: AiProvider,
+  /** Required for OpenAI / Anthropic / OpenRouter; ignored for Ollama. */
+  apiKey: z.string().min(1).optional(),
+  /** Required for Ollama; ignored for the cloud providers. */
+  baseUrl: z.string().url().optional(),
+  /**
+   * Anthropic has no `/v1/models` endpoint, so the probe needs a model id to
+   * test. Optional for the others (they list models without it).
+   */
+  model: z.string().min(1).optional(),
+});
+export type AiTestConnectionRequest = z.infer<typeof AiTestConnectionRequest>;
+
+export const AiTestConnectionResponse = z.object({
+  ok: z.boolean(),
+  /** Sorted list of model ids the provider returned. Empty for Anthropic. */
+  models: z.array(z.string()),
+  /** Provider error verbatim when `ok === false`. */
+  error: z.string().nullable(),
+});
+export type AiTestConnectionResponse = z.infer<typeof AiTestConnectionResponse>;

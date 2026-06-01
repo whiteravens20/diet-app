@@ -16,6 +16,7 @@ import { api, tokenStore } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { AiChip } from '@/components/ai-chip';
 
 const NAV = [
   { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard },
@@ -47,7 +48,10 @@ export function Sidebar() {
         <span className="text-lg font-semibold tracking-tight">{tCommon('appName')}</span>
         <ThemeToggle />
       </div>
-      <nav className="mt-6 flex flex-1 flex-col gap-1">
+      <div className="mt-3 flex px-2">
+        <AiChip />
+      </div>
+      <nav className="mt-3 flex flex-1 flex-col gap-1">
         {NAV.map((item) => {
           const active = pathname.startsWith(item.href);
           return (

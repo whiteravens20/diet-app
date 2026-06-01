@@ -40,6 +40,10 @@ model User {
   // orthogonal to `theme`. Constrained at the API layer via the Palette enum
   // in packages/shared/src/settings.ts.
   palette        String   @default("default")
+  // Per-user AI mode (F10): 'none' | 'admin' | 'byok'. 'none' is the default
+  // so a fresh account never makes outbound AI calls until the user opts in.
+  // Constrained at the API layer via the AiMode enum in packages/shared.
+  aiMode         String   @default("none")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -493,7 +497,10 @@ model AiUsageLog {
   userId                  String?
   provider                String
   model                   String
-  operation               String // recipe_draft | substitution | plan_variation | ...
+  operation               String // recipe_draft | substitution | plan_variation | meal_swap | ingredient_swap | ...
+  // F10 routing mode at the time of the call: 'admin' (counts against the
+  // per-user weekly quota) or 'byok' (no quota). Nullable for pre-F10 rows.
+  mode                    String?
   promptTokens            Int      @default(0)
   outputTokens            Int      @default(0)
   latencyMs               Int      @default(0)
@@ -503,6 +510,7 @@ model AiUsageLog {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([userId, mode, createdAt])
 }
 
 model AuditLog {

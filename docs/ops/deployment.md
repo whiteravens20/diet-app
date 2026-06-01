@@ -84,3 +84,19 @@ the NVIDIA Container Toolkit on the host.
 - Health checks are defined for every long-running service.
 - Run `db:migrate` (not `migrate dev`) on deploy; back up the Postgres volume.
 - Bind published ports to a private interface in LAN-only deployments.
+
+### Server clock
+
+Rolling-window features (e.g. the F10 weekly AI quota, refresh-token TTLs,
+password-reset expiry) anchor on **the database's `NOW()`**, not the api
+container's wall clock — Postgres is the single source of truth for "now",
+so a drifting api container can't expire a user's quota early or late. The
+only requirement is that **Postgres itself runs on a sane clock**:
+
+- The official `postgres:*` image inherits the host's clock. Make sure the
+  Docker host runs NTP (`systemd-timesyncd`, `chrony`, etc.).
+- All `TIMESTAMP` columns store UTC. Don't set `TZ=` on the `postgres`
+  service unless you understand the consequences for `NOW()` vs.
+  `CURRENT_TIMESTAMP` — leave it default (`UTC`).
+- The web client renders rolling-window times via `Intl.DateTimeFormat`, so
+  the user always sees their browser-local time.
