@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  Locale as LocaleEnum,
   MEAL_SLOTS_BY_COUNT,
   type AiSuggestIngredientRequest,
   type AiSuggestIngredientResponse,
@@ -37,6 +38,19 @@ import { AiRouterService } from '../ai/ai-router.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
+import { DedupService } from '../admin/drafts/dedup.js';
+import {
+  computeFingerprint,
+  FingerprintError,
+  type FingerprintIngredientLookup,
+} from '../admin/drafts/fingerprint.js';
+import {
+  rewriteSwapModeA,
+  rewriteSwapModeB,
+  validateModeBOutput,
+  type ModeBRewriter,
+  type RecipeLocaleSlice,
+} from './swap-rewrite.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
@@ -50,6 +64,7 @@ export class MealPlansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiRouterService,
+    private readonly dedup: DedupService,
   ) {}
 
   /** Deterministically generate and persist a meal plan. */
@@ -379,9 +394,18 @@ export class MealPlansService {
       // Score all candidates that match the slot + diet (excluding current
       // recipe only); we apply the swap-history filter after scoring so the
       // user always gets a relevant fav-ingredient match even when history
-      // would have wiped the pool.
+      // would have wiped the pool. Visibility filter mirrors the public
+      // recipe library — curated rows + the user's own non-deleted recipes
+      // only. Without it the picker could land on another user's private
+      // AI draft which the recipe-detail page would 404 on.
       const candidates = await this.prisma.recipe.findMany({
-        where: { dietTags: { has: dietType }, mealTypes: { has: meal.mealType }, id: { not: meal.recipeId } },
+        where: {
+          dietTags: { has: dietType },
+          mealTypes: { has: meal.mealType },
+          id: { not: meal.recipeId },
+          deletedAt: null,
+          OR: [{ createdByUserId: null }, { createdByUserId: userId }],
+        },
         select: { id: true, ingredients: { select: { ingredientId: true } } },
       });
       const favSet = new Set(favIngs);
@@ -412,7 +436,13 @@ export class MealPlansService {
             [meal.recipeId];
     } else {
       const candidates = await this.prisma.recipe.findMany({
-        where: { dietTags: { has: dietType }, mealTypes: { has: meal.mealType }, id: { not: meal.recipeId } },
+        where: {
+          dietTags: { has: dietType },
+          mealTypes: { has: meal.mealType },
+          id: { not: meal.recipeId },
+          deletedAt: null,
+          OR: [{ createdByUserId: null }, { createdByUserId: userId }],
+        },
         select: { id: true },
       });
       if (candidates.length === 0) {
@@ -472,12 +502,16 @@ export class MealPlansService {
     const excludeBeforeReset = new Set<string>([meal.recipeId, ...prevHistory]);
 
     // Capped at 25 — keeps the prompt small enough for cheap models. Diet-tag
-    // and slot filter mirror the deterministic swapMeal pool exactly.
+    // and slot filter mirror the deterministic swapMeal pool exactly,
+    // including the visibility gate (no other users' private rows, no
+    // soft-deleted variants).
     const candidates = await this.prisma.recipe.findMany({
       where: {
         dietTags: { has: dietType },
         mealTypes: { has: meal.mealType },
         id: { not: meal.recipeId },
+        deletedAt: null,
+        OR: [{ createdByUserId: null }, { createdByUserId: userId }],
       },
       select: {
         id: true,
@@ -606,7 +640,10 @@ export class MealPlansService {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: meal.recipeId },
-      include: { ingredients: true },
+      include: {
+        ingredients: { include: { ingredient: true } },
+        translations: true,
+      },
     });
     const line = recipe.ingredients.find((i) => i.ingredientId === req.fromIngredientId);
     if (!line) {
@@ -633,14 +670,16 @@ export class MealPlansService {
       });
     }
 
-    // Build the variant's ingredient lines. Allergens become whatever the new
-    // line carries — the swapped-out ingredient might have been the only source
-    // of a given allergen, so we recompute from scratch.
+    // Build the variant's ingredient lines + load full ingredient rows for
+    // nutrition / fingerprint. Allergens become whatever the new line carries
+    // — the swapped-out ingredient might have been the only source of a given
+    // allergen, so recompute from scratch.
     const allIds = new Set(recipe.ingredients.map((i) => i.ingredientId));
     allIds.delete(req.fromIngredientId);
     allIds.add(req.toIngredientId);
     const ingredientRows = await this.prisma.ingredient.findMany({
       where: { id: { in: [...allIds] } },
+      include: { translations: true },
     });
     const ingredientById = new Map(ingredientRows.map((i) => [i.id, i]));
 
@@ -705,35 +744,393 @@ export class MealPlansService {
       ),
     );
 
-    const replacementName = ingredientById.get(req.toIngredientId)?.name ?? 'substitute';
-    const variant = await this.prisma.recipe.create({
-      data: {
-        title: `${recipe.title} (with ${replacementName})`,
-        description: recipe.description,
-        servings: recipe.servings,
-        mealTypes: recipe.mealTypes,
-        dietTags: recipe.dietTags,
-        steps: recipe.steps,
-        prepMinutes: recipe.prepMinutes,
-        cookMinutes: recipe.cookMinutes,
-        difficulty: recipe.difficulty,
-        allergens: variantAllergens,
-        origin: 'user',
-        createdByUserId: userId,
-        caloriesPerServing: perServing.calories,
-        proteinPerServing: perServing.protein,
-        fatPerServing: perServing.fat,
-        carbsPerServing: perServing.carbs,
-        reuseScore: recipe.reuseScore,
-        ingredients: { create: variantIngredients },
-      },
+    // Fingerprint dedup — see admin/drafts/fingerprint.ts + dedup.ts. The
+    // transaction below holds an advisory lock on the fingerprint so two
+    // racing swaps producing the same variant serialise: the loser hits the
+    // existing draft instead of inserting a duplicate.
+    const fingerprintLookup: FingerprintIngredientLookup = new Map(
+      ingredientRows
+        .filter((i): i is typeof i & { slug: string } => i.slug !== null)
+        .map((i) => [
+          i.slug,
+          {
+            canonicalUnit: i.canonicalUnit,
+            gramsPerPiece: i.gramsPerPiece,
+            density: i.density,
+          },
+        ]),
+    );
+    let fingerprint: string | null;
+    const fingerprintLines = variantIngredients.map((vi) => {
+      const ing = ingredientById.get(vi.ingredientId)!;
+      return { slug: ing.slug, quantity: vi.quantity, unit: vi.unit };
+    });
+    const allSlugsResolved = fingerprintLines.every(
+      (l): l is typeof l & { slug: string } => l.slug !== null,
+    );
+    if (allSlugsResolved) {
+      try {
+        fingerprint = computeFingerprint(
+          {
+            ingredients: fingerprintLines as { slug: string; quantity: number; unit: typeof fingerprintLines[number]['unit'] }[],
+            mealTypes: recipe.mealTypes,
+            dietTags: recipe.dietTags,
+            servings: recipe.servings,
+          },
+          fingerprintLookup,
+        );
+      } catch (err) {
+        if (err instanceof FingerprintError) {
+          // Don't block the swap on a fingerprint failure — write the variant
+          // without a fingerprint and skip the dedup path. The user still
+          // gets their swap; we just can't dedup this one.
+          fingerprint = null;
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      // At least one ingredient lacks a slug (legacy or imported row). Skip
+      // dedup; variant still gets written with no fingerprint.
+      fingerprint = null;
+    }
+
+    // Build per-locale translation slices for the variant. Mode B (AI
+    // sentence rewrite) when the user's AI is available + quota OK; falls
+    // back to Mode A on per-locale validator rejection or AI unavailability.
+    // Mode A directly when the user is on `aiMode: 'none'` (no provider
+    // call ever leaves the instance).
+    const variantTranslations = await this.buildVariantTranslations(
+      userId,
+      recipe.translations,
+      ingredientById.get(req.fromIngredientId),
+      ingredientById.get(req.toIngredientId),
+    );
+    const enSlice = variantTranslations.get('en');
+    const variantTitle = enSlice?.title ?? recipe.title;
+    const variantDescription = enSlice?.description ?? recipe.description;
+    const variantSteps = enSlice?.steps ?? recipe.steps;
+
+    const variantId = await this.persistVariantWithDedup({
+      userId,
+      fingerprint,
+      title: variantTitle,
+      description: variantDescription,
+      steps: variantSteps,
+      translations: variantTranslations,
+      sourceRecipe: recipe,
+      variantIngredients,
+      variantAllergens,
+      perServing,
     });
 
     await this.prisma.plannedMeal.update({
       where: { id: req.plannedMealId },
-      data: { recipeId: variant.id },
+      data: { recipeId: variantId },
     });
     return this.get(userId, locale, req.planId);
+  }
+
+  /**
+   * Resolve per-locale display name maps for old / new ingredient from their
+   * `IngredientTranslation` rows + canonical `name` fallback, then run Mode A
+   * substitution against every translation row that the source recipe carries.
+   * The output is the per-locale slice we'll write into `RecipeTranslation`
+   * for the variant.
+   */
+  private async buildVariantTranslations(
+    userId: string,
+    sourceTranslations: { locale: string; title: string; description: string; steps: string[] }[],
+    oldIngredient: { name: string; translations: { locale: string; name: string }[] } | undefined,
+    newIngredient: { name: string; translations: { locale: string; name: string }[] } | undefined,
+  ): Promise<Map<Locale, RecipeLocaleSlice>> {
+    const localeOptions = LocaleEnum.options;
+    const sourceSlices = new Map<Locale, RecipeLocaleSlice>();
+    for (const tr of sourceTranslations) {
+      if (!localeOptions.includes(tr.locale as Locale)) continue;
+      sourceSlices.set(tr.locale as Locale, {
+        title: tr.title,
+        description: tr.description,
+        steps: tr.steps,
+      });
+    }
+    const oldNames = nameByLocale(oldIngredient);
+    const newNames = nameByLocale(newIngredient);
+
+    // Decide on Mode B per request: only when the user has chosen a non-none
+    // aiMode. Quota / provider-chain failures inside the AI call surface as a
+    // null Rewriter return → per-locale Mode A fallback. We never block the
+    // user's swap on an AI hiccup.
+    const aiUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { aiMode: true },
+    });
+    const useModeB = aiUser?.aiMode && aiUser.aiMode !== 'none';
+    if (!useModeB) {
+      return rewriteSwapModeA({
+        source: sourceSlices,
+        oldName: oldNames,
+        newName: newNames,
+      });
+    }
+    const rewriter: ModeBRewriter = async (locale, slice) => {
+      return this.aiRewriteSwapSentences(userId, locale, slice);
+    };
+    return rewriteSwapModeB({
+      source: sourceSlices,
+      oldName: oldNames,
+      newName: newNames,
+      rewrite: rewriter,
+    });
+  }
+
+  /**
+   * One AI call per locale: ask the model to rewrite `description + steps` so
+   * the prose matches the new ingredient. The model must return JSON in the
+   * shape `{description, steps}`; everything is validated by
+   * `validateModeBOutput` before the caller decides to splice. Returns null
+   * on any failure — caller will Mode-A this locale.
+   */
+  private async aiRewriteSwapSentences(
+    userId: string,
+    locale: Locale,
+    source: { description: string; steps: string[]; oldName: string; newName: string },
+  ): Promise<{ description: string; steps: string[] } | null> {
+    const system =
+      'You polish cooking-recipe prose for an ingredient swap. ' +
+      'You are given a description, a list of steps, the ingredient that was ' +
+      'swapped out, and the ingredient that replaces it. ' +
+      'Rewrite so the prose matches the new ingredient, keeping the technique ' +
+      'verbs, every quantity, and every other ingredient unchanged. ' +
+      'You must return EXACTLY the same number of steps. ' +
+      `Write entirely in ${locale === 'pl' ? 'Polish' : 'English'}; do not switch language. ` +
+      'Never invent calories, weights, temperatures, or times. ' +
+      'Respond with valid JSON exactly matching this shape — no prose, no ' +
+      'markdown fences, no extra keys:\n' +
+      '{"description":string,"steps":string[]}';
+    const user = JSON.stringify({
+      description: source.description,
+      steps: source.steps,
+      swappedOut: source.oldName,
+      swappedIn: source.newName,
+    });
+
+    let text: string | null;
+    try {
+      const result = await this.ai.chat(
+        userId,
+        [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        'swap-rewrite',
+        true,
+      );
+      text = result.text;
+    } catch {
+      return null;
+    }
+    if (!text) return null;
+    const parsed = parseSwapRewritePayload(text);
+    if (!parsed) return null;
+    return validateModeBOutput(source, parsed) ? parsed : null;
+  }
+
+  /**
+   * Write the variant Recipe (+ RecipeTranslation rows) inside an advisory-
+   * locked transaction so concurrent swaps producing the same fingerprint
+   * serialise. Returns the resolved recipe id — either the existing curated /
+   * user / draft-attached row or a newly created variant.
+   */
+  private async persistVariantWithDedup(input: {
+    userId: string;
+    fingerprint: string | null;
+    title: string;
+    description: string;
+    steps: string[];
+    translations: Map<Locale, RecipeLocaleSlice>;
+    sourceRecipe: {
+      mealTypes: string[];
+      dietTags: string[];
+      servings: number;
+      prepMinutes: number;
+      cookMinutes: number;
+      difficulty: 'easy' | 'medium' | 'hard';
+      reuseScore: number;
+    };
+    variantIngredients: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
+    variantAllergens: string[];
+    perServing: { calories: number; protein: number; fat: number; carbs: number };
+  }): Promise<string> {
+    const writeFresh = async (
+      tx:
+        | import('@prisma/client').Prisma.TransactionClient
+        | PrismaService,
+    ): Promise<string> => {
+      const variant = await tx.recipe.create({
+        data: {
+          title: input.title,
+          description: input.description,
+          servings: input.sourceRecipe.servings,
+          mealTypes: input.sourceRecipe.mealTypes,
+          dietTags: input.sourceRecipe.dietTags,
+          steps: input.steps,
+          prepMinutes: input.sourceRecipe.prepMinutes,
+          cookMinutes: input.sourceRecipe.cookMinutes,
+          difficulty: input.sourceRecipe.difficulty,
+          allergens: input.variantAllergens,
+          origin: 'user',
+          createdByUserId: input.userId,
+          fingerprint: input.fingerprint,
+          caloriesPerServing: input.perServing.calories,
+          proteinPerServing: input.perServing.protein,
+          fatPerServing: input.perServing.fat,
+          carbsPerServing: input.perServing.carbs,
+          reuseScore: input.sourceRecipe.reuseScore,
+          ingredients: { create: input.variantIngredients },
+        },
+      });
+      // RecipeTranslation rows for every locale we generated a slice for.
+      for (const [locale, slice] of input.translations) {
+        await tx.recipeTranslation.create({
+          data: {
+            recipeId: variant.id,
+            locale,
+            title: slice.title,
+            description: slice.description,
+            steps: slice.steps,
+            source: 'MANUAL',
+          },
+        });
+      }
+      return variant.id;
+    };
+
+    if (!input.fingerprint) {
+      // No fingerprint available (rare: missing canonical-unit info). Just
+      // write the variant; no dedup possible.
+      return writeFresh(this.prisma);
+    }
+    const fingerprint = input.fingerprint;
+
+    return this.dedup.withFingerprintLock(fingerprint, async (tx) => {
+      // 1. Curated short-circuit.
+      const curated = await this.dedup.findCuratedByFingerprint(tx, fingerprint);
+      if (curated) return curated.id;
+      // 2. This user's own existing variant.
+      const userOwn = await this.dedup.findUserRecipeByFingerprint(
+        tx,
+        fingerprint,
+        input.userId,
+      );
+      if (userOwn) return userOwn.id;
+      // Write the variant first; then either attach to an existing draft or
+      // create a new AI_USER draft.
+      const newRecipeId = await writeFresh(tx);
+      const existingDraft = await this.dedup.findDraftByFingerprint(
+        tx,
+        fingerprint,
+      );
+      if (existingDraft) {
+        await this.dedup.attachRecipeToDraft(tx, existingDraft.id, newRecipeId);
+      } else {
+        await this.createAiUserDraft(tx, {
+          fingerprint,
+          recipeId: newRecipeId,
+          createdByUserId: input.userId,
+          title: input.title,
+          description: input.description,
+          steps: input.steps,
+          translations: input.translations,
+          servings: input.sourceRecipe.servings,
+          mealTypes: input.sourceRecipe.mealTypes,
+          dietTags: input.sourceRecipe.dietTags,
+          prepMinutes: input.sourceRecipe.prepMinutes,
+          cookMinutes: input.sourceRecipe.cookMinutes,
+          difficulty: input.sourceRecipe.difficulty,
+          allergens: input.variantAllergens,
+          ingredients: input.variantIngredients,
+          perServing: input.perServing,
+        });
+      }
+      return newRecipeId;
+    });
+  }
+
+  /**
+   * Insert the AI_USER `RecipeDraft` row that mirrors the just-written
+   * personal variant. Translation polish + curated promotion happen later via
+   * the admin/reviewer surface (Phase I.6 / I.7).
+   */
+  private async createAiUserDraft(
+    tx: import('@prisma/client').Prisma.TransactionClient,
+    input: {
+      fingerprint: string;
+      recipeId: string;
+      createdByUserId: string;
+      title: string;
+      description: string;
+      steps: string[];
+      translations: Map<Locale, RecipeLocaleSlice>;
+      servings: number;
+      mealTypes: string[];
+      dietTags: string[];
+      prepMinutes: number;
+      cookMinutes: number;
+      difficulty: 'easy' | 'medium' | 'hard';
+      allergens: string[];
+      ingredients: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
+      perServing: { calories: number; protein: number; fat: number; carbs: number };
+    },
+  ): Promise<void> {
+    const titles: Record<string, string> = {};
+    const descriptions: Record<string, string> = {};
+    const stepsByLocale: Record<string, string[]> = {};
+    for (const [locale, slice] of input.translations) {
+      titles[locale] = slice.title;
+      descriptions[locale] = slice.description;
+      stepsByLocale[locale] = slice.steps;
+    }
+    // Look up slug for each ingredient in the draft's ingredientsJson — the
+    // curation queue + dedup chain key everything by slug, not by db id.
+    const ingRows = await tx.ingredient.findMany({
+      where: { id: { in: input.ingredients.map((i) => i.ingredientId) } },
+      select: { id: true, slug: true },
+    });
+    const slugById = new Map(ingRows.map((r) => [r.id, r.slug]));
+    await tx.recipeDraft.create({
+      data: {
+        slug: `swap-${input.recipeId.slice(0, 8)}`,
+        titles,
+        descriptions,
+        steps: stepsByLocale,
+        locales: Array.from(input.translations.keys()),
+        servings: input.servings,
+        mealTypes: input.mealTypes,
+        dietTags: input.dietTags,
+        prepMinutes: input.prepMinutes,
+        cookMinutes: input.cookMinutes,
+        difficulty: input.difficulty,
+        complexity: 'medium',
+        caloriesPerServing: input.perServing.calories,
+        proteinPerServing: input.perServing.protein,
+        fatPerServing: input.perServing.fat,
+        carbsPerServing: input.perServing.carbs,
+        allergens: input.allergens,
+        ingredientsJson: input.ingredients.map((i) => ({
+          slug: slugById.get(i.ingredientId) ?? '',
+          quantity: i.quantity,
+          unit: i.unit,
+          note: i.note,
+        })),
+        status: 'PENDING',
+        source: 'AI_USER',
+        batchId: `user-swap-${input.createdByUserId.slice(0, 8)}-${Date.now()}`,
+        fingerprint: input.fingerprint,
+        sourceRecipeIds: [input.recipeId],
+        createdByUserId: input.createdByUserId,
+      },
+    });
   }
 
   /**
@@ -1022,6 +1419,65 @@ const MEAL_RANK: Record<string, number> = {
 };
 function mealRank(slot: string): number {
   return MEAL_RANK[slot] ?? 99;
+}
+
+/**
+ * Parse the AI's JSON response for swap-rewrite Mode B. Returns null on any
+ * shape mismatch; caller takes that as the signal to fall back to Mode A.
+ */
+function parseSwapRewritePayload(text: string): { description: string; steps: string[] } | null {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  const candidates: string[] = [];
+  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (braceMatch) candidates.push(braceMatch[0]);
+  candidates.push(trimmed);
+  for (const c of candidates) {
+    try {
+      const raw = JSON.parse(c) as unknown;
+      if (!raw || typeof raw !== 'object') continue;
+      const o = raw as Record<string, unknown>;
+      const description = typeof o.description === 'string' ? o.description.trim() : null;
+      if (!description) continue;
+      if (!Array.isArray(o.steps)) continue;
+      const steps: string[] = [];
+      let ok = true;
+      for (const s of o.steps) {
+        if (typeof s !== 'string' || s.trim().length === 0) {
+          ok = false;
+          break;
+        }
+        steps.push(s.trim());
+      }
+      if (!ok) continue;
+      return { description, steps };
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
+/**
+ * Per-locale display name for an ingredient. Pulls from `IngredientTranslation`
+ * rows for every locale present; falls back to the canonical English `name`
+ * for the EN slot so EN always has a value even when no translation row exists.
+ * Used by the swap-rewrite Mode A substitution.
+ */
+function nameByLocale(
+  ingredient:
+    | { name: string; translations: { locale: string; name: string }[] }
+    | undefined,
+): ReadonlyMap<Locale, string> {
+  const out = new Map<Locale, string>();
+  if (!ingredient) return out;
+  const localeOptions = LocaleEnum.options;
+  for (const tr of ingredient.translations) {
+    if (localeOptions.includes(tr.locale as Locale)) {
+      out.set(tr.locale as Locale, tr.name);
+    }
+  }
+  if (!out.has('en')) out.set('en', ingredient.name);
+  return out;
 }
 
 /** Nested `days.create` payload from a run of optimiser assignments. */

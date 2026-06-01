@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AiDraftRecipeRequest, type Locale } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
@@ -15,6 +15,23 @@ export class RecipesController {
     private readonly recipes: RecipesService,
     private readonly draft: AiRecipeDraftService,
   ) {}
+
+  /**
+   * "My Recipes" — list the requester's own non-deleted recipes (AI drafts +
+   * ingredient-swap variants). Soft-deleted rows are filtered out.
+   */
+  @Get('mine')
+  listMine(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.recipes.listMine(user.id, locale, {
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+    });
+  }
 
   @Get()
   search(
@@ -66,5 +83,16 @@ export class RecipesController {
   @Get(':id')
   get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id') id: string) {
     return this.recipes.get(user.id, locale, id);
+  }
+
+  /**
+   * Soft-delete a recipe the user owns. Marks `deletedAt`; planned-meal
+   * references stay intact so historical plans don't break. Curated / seed
+   * rows can't be deleted (403). Idempotent — re-deleting is a no-op.
+   */
+  @Delete(':id')
+  @HttpCode(204)
+  delete(@CurrentUser() user: RequestUser, @Param('id') id: string): Promise<void> {
+    return this.recipes.softDeleteMine(user.id, id);
   }
 }

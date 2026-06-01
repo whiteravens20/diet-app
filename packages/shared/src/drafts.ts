@@ -22,7 +22,7 @@ export type Difficulty = z.infer<typeof Difficulty>;
 export const DraftStatus = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'SHIPPED']);
 export type DraftStatus = z.infer<typeof DraftStatus>;
 
-export const DraftSource = z.enum(['AI', 'EXTERNAL', 'MANUAL']);
+export const DraftSource = z.enum(['AI', 'EXTERNAL', 'MANUAL', 'AI_USER']);
 export type DraftSource = z.infer<typeof DraftSource>;
 
 export const DraftKind = z.enum(['recipe', 'ingredient-name']);

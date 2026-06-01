@@ -269,6 +269,11 @@ enum RecipeOrigin {
   seed
   ai
   user
+  // Promoted from an AI_USER draft by an admin. Treated like `seed` by the
+  // dedup chain (short-circuits before draft lookup) and ships into
+  // data/recipes/promoted.json so the next re-seed turns it into a regular
+  // seed row deterministically.
+  curated
 }
 
 enum Difficulty {
@@ -301,6 +306,16 @@ model Recipe {
   reuseScore         Float        @default(0)
   // Owner is set for `user`-origin recipes; null for seed/ai library recipes.
   createdByUserId    String?
+  // Stable content hash — see admin/drafts/fingerprint.ts. Populated on write
+  // for AI/swap-origin recipes and (on next re-seed) for curated rows, so
+  // the dedup chain can short-circuit at curated before reaching the draft
+  // table. Nullable for legacy rows; the dedup helper treats null as "no
+  // match" rather than as a wildcard.
+  fingerprint        String?      @unique
+  // Soft-delete column. Users can delete their own AI/swap-variant recipes
+  // without breaking planned meals that already reference the row. Set by
+  // DELETE /recipes/:id; every user-facing list filters `deletedAt IS NULL`.
+  deletedAt          DateTime?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
@@ -310,6 +325,7 @@ model Recipe {
   translations RecipeTranslation[]
 
   @@index([origin])
+  @@index([createdByUserId, deletedAt])
 }
 
 // Per-locale display strings for a Recipe. `steps` is an array because recipe
@@ -545,6 +561,10 @@ enum DraftSource {
   AI
   EXTERNAL
   MANUAL
+  // Personal Recipe written by /recipes/ai-draft or applyIngredientSwap,
+  // mirrored into the queue for translation polish + optional promotion to
+  // curated. Reviewer can edit translations only; admin alone can promote.
+  AI_USER
 }
 
 model RecipeDraft {
@@ -593,6 +613,18 @@ model RecipeDraft {
   provenanceLicense  String?
   shippedPRUrl       String?
   shippedAt          DateTime?
+  // SHA256 of canonical (ingredientSlug, unit, normalizedQuantity) tuples +
+  // mealTypes + dietTags + servings. Single source of truth for dedup across
+  // curated Recipes, personal Recipes, and pending drafts. Nullable so
+  // legacy admin-batch drafts coexist; a backfill helper populates them.
+  fingerprint        String?     @unique
+  // Personal Recipe ids that resolved to this draft via the fingerprint
+  // dedup chain — append on each match, never replace.
+  sourceRecipeIds    String[]    @default([])
+  // For AI_USER drafts: the user who first triggered this draft (audit only).
+  createdByUserId    String?
+  // Set when an admin promotes an AI_USER draft to a curated Recipe.
+  promotedRecipeId   String?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -601,6 +633,7 @@ model RecipeDraft {
   @@index([status])
   @@index([batchId])
   @@index([source])
+  @@index([createdByUserId])
 }
 
 model RecipeDraftLocaleReview {

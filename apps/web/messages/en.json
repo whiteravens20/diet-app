@@ -52,6 +52,13 @@
     "no_provider": "No AI provider is configured for your account — falling back to the rule-based engine.",
     "all_providers_failed": "AI provider didn't respond — falling back to the rule-based engine."
   },
+  "disclaimers": {
+    "aiPlans": "AI helps draft plans and pick swaps — and it can get things wrong. Review every plan, recipe and swap against your own dietary needs and health before you rely on it.",
+    "enginePlans": "Plan generation and swaps run on a deterministic engine — fast and reproducible, but still review every result against your own dietary needs and health. Swap translations may read awkwardly; the instance operator reviews and polishes them.",
+    "aiRecipeDraft": "AI-drafted recipes can contain mistakes. Double-check the ingredients, quantities and steps before relying on the result.",
+    "aiActivated": "AI helps draft recipes and pick swaps, but it can make mistakes. Always review AI-generated content against your own dietary needs and health.",
+    "bugReport": "Spotted a bug? <link>Open an issue</link> on the source repository."
+  },
   "aiRecipeDraft": {
     "title": "Draft a recipe with AI",
     "subhead": "Pick the filters you care about — leave the rest blank and the AI picks freely. Allergens from your profile are always respected.",
@@ -187,6 +194,10 @@
     "NAMER_IN_PROGRESS": "An ingredient-namer run is already in progress.",
     "DRAFT_NOT_FOUND": "Draft not found.",
     "DRAFT_SHIPPED": "This draft has already shipped and can't be changed.",
+    "DRAFT_STRUCTURAL_EDIT_FORBIDDEN": "User-drafted recipes accept translation edits only — promote first to restructure.",
+    "DRAFT_NOT_PROMOTABLE": "Only user-drafted (AI_USER) recipes can be promoted to curated.",
+    "DRAFT_NOT_APPROVED": "Draft must be approved in every locale before it can be promoted.",
+    "DRAFT_SLUG_UNRESOLVED": "One of the draft's ingredients no longer exists in the catalogue — re-edit before promoting.",
     "LOCALE_NOT_IN_DRAFT": "This draft wasn't generated for that locale.",
     "INVALID_RECIPE_SPEC": "Invalid recipe generation spec.",
     "RECIPE_GEN_IN_PROGRESS": "A recipe-generator run is already in progress.",
@@ -339,6 +350,10 @@
       "reject": "Reject",
       "deleteAction": "Delete",
       "deleteConfirm": "Delete this draft permanently?",
+      "sourceUserBadge": "From user",
+      "userDraftHint": "User-drafted: translation edits only. Promote to curated for structural changes.",
+      "promoteButton": "Promote to curated",
+      "promoteConfirm": "Promote this user-drafted recipe into the curated library?",
       "reviewLabelPrompt": "Your reviewer label (saved to audit):",
       "rejectReasonPrompt": "Optional reason for rejecting:",
       "showing": "Showing {from}-{to} of {total}",
@@ -662,6 +677,15 @@
     "noneAtAll": "No recipes.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
     "aiDraft": "Draft with AI",
+    "tabs": {
+      "library": "Library",
+      "mine": "My recipes"
+    },
+    "mineEmpty": "You haven't created any recipes yet. Drafts and ingredient-swap variants land here.",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this recipe? Past planned meals stay intact — but it won't appear in your library or new plans.",
+    "deleteSuccess": "Recipe deleted.",
+    "variantTitle": "{base} (with {replacement})",
     "pagination": {
       "label": "Recipe pages",
       "summary": "Showing {start}–{end} of {total}",

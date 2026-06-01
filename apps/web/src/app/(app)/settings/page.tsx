@@ -20,6 +20,7 @@ import { api, ApiClientError, tokenStore } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { DEFAULT_PALETTE, SUPPORTED_PALETTES } from '@/lib/palette';
 import { usePalette } from '@/app/providers';
@@ -383,6 +384,8 @@ function AiAssistantCard({
             </p>
           )}
         </fieldset>
+
+        {me.aiMode !== 'none' && <DisclaimerNotice bodyKey="aiActivated" />}
 
         {me.aiMode === 'admin' && status != null && (
           <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">

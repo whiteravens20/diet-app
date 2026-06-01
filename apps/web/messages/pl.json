@@ -52,6 +52,13 @@
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — używam silnika deterministycznego.",
     "all_providers_failed": "Dostawca AI nie odpowiada — używam silnika deterministycznego."
   },
+  "disclaimers": {
+    "aiPlans": "AI pomaga tworzyć plany i dobierać zamiany — i bywa, że się pomyli. Każdy plan, przepis i zamianę sprawdź pod kątem swoich potrzeb żywieniowych i zdrowia, zanim z nich skorzystasz.",
+    "enginePlans": "Generowanie planów i zamiany działają na deterministycznym silniku — szybko i powtarzalnie, ale i tak sprawdzaj każdy wynik pod kątem swoich potrzeb żywieniowych i zdrowia. Tłumaczenia po zamianach bywają nieporadne; operator instancji je sprawdza i poprawia.",
+    "aiRecipeDraft": "Przepisy szkicowane przez AI mogą zawierać błędy. Zanim na nich polegniesz, sprawdź składniki, ilości i kroki.",
+    "aiActivated": "AI pomaga tworzyć przepisy i dobierać zamiany, ale może się mylić. Zawsze sprawdzaj wyniki AI pod kątem swoich potrzeb żywieniowych i zdrowia.",
+    "bugReport": "Znalazłeś błąd? <link>Zgłoś go</link> w repozytorium źródłowym."
+  },
   "aiRecipeDraft": {
     "title": "Zaproponuj przepis z AI",
     "subhead": "Wybierz tylko te filtry, na których Ci zależy — resztę zostaw pustą i AI dobierze sama. Alergeny z profilu są zawsze respektowane.",
@@ -187,6 +194,10 @@
     "NAMER_IN_PROGRESS": "Generowanie nazw składników już trwa.",
     "DRAFT_NOT_FOUND": "Nie znaleziono propozycji.",
     "DRAFT_SHIPPED": "Ta propozycja została już wysłana i nie może być zmieniana.",
+    "DRAFT_STRUCTURAL_EDIT_FORBIDDEN": "Przepisy użytkowników przyjmują tylko edycje tłumaczeń — najpierw promuj, aby zmieniać strukturę.",
+    "DRAFT_NOT_PROMOTABLE": "Tylko przepisy oznaczone jako AI_USER mogą zostać promowane do biblioteki.",
+    "DRAFT_NOT_APPROVED": "Propozycja musi być zatwierdzona w każdym języku, zanim zostanie promowana.",
+    "DRAFT_SLUG_UNRESOLVED": "Jeden ze składników propozycji nie istnieje już w katalogu — popraw przed promocją.",
     "LOCALE_NOT_IN_DRAFT": "Ta propozycja nie została wygenerowana dla wybranego języka.",
     "INVALID_RECIPE_SPEC": "Nieprawidłowa specyfikacja generowania przepisów.",
     "RECIPE_GEN_IN_PROGRESS": "Generowanie przepisów już trwa.",
@@ -339,6 +350,10 @@
       "reject": "Odrzuć",
       "deleteAction": "Usuń",
       "deleteConfirm": "Usunąć tę propozycję na stałe?",
+      "sourceUserBadge": "Od użytkownika",
+      "userDraftHint": "Wersja użytkownika: edycja tylko tłumaczeń. Aby zmienić strukturę, najpierw promuj do biblioteki.",
+      "promoteButton": "Promuj do biblioteki",
+      "promoteConfirm": "Promować ten przepis użytkownika do biblioteki curated?",
       "reviewLabelPrompt": "Twój identyfikator recenzenta (zapisany w audycie):",
       "rejectReasonPrompt": "Powód odrzucenia (opcjonalny):",
       "showing": "Pokazano {from}-{to} z {total}",
@@ -662,6 +677,15 @@
     "noneAtAll": "Brak przepisów.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
     "aiDraft": "Zaproponuj z AI",
+    "tabs": {
+      "library": "Biblioteka",
+      "mine": "Moje przepisy"
+    },
+    "mineEmpty": "Nie masz jeszcze własnych przepisów. Tu trafią szkice AI i warianty po zamianie składników.",
+    "delete": "Usuń",
+    "deleteConfirm": "Usunąć ten przepis? Przeszłe zaplanowane posiłki pozostaną, ale przepis zniknie z biblioteki i przyszłych planów.",
+    "deleteSuccess": "Przepis usunięty.",
+    "variantTitle": "{base} (z {replacement})",
     "pagination": {
       "label": "Strony przepisów",
       "summary": "Wyświetlam {start}–{end} z {total}",

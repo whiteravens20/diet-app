@@ -147,7 +147,7 @@ export interface IngredientNameDraft {
   suggestions: IngredientNameSuggestionMap;
   locales: string[];
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'MANUAL';
+  source: 'AI' | 'EXTERNAL' | 'MANUAL' | 'AI_USER';
   batchId: string;
   modelUsed: string | null;
   generatorPrompt: string | null;
@@ -211,7 +211,7 @@ export interface RecipeDraft {
   allergens: string[];
   ingredients: RecipeDraftIngredientLine[];
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'MANUAL';
+  source: 'AI' | 'EXTERNAL' | 'MANUAL' | 'AI_USER';
   batchId: string;
   modelUsed: string | null;
   generatorPrompt: string | null;
@@ -381,6 +381,8 @@ export const adminApi = {
     ),
   deleteRecipeDraft: (id: string) =>
     adminFetch<void>(`/drafts/recipes/${id}`, { method: 'DELETE' }),
+  promoteRecipeDraft: (id: string) =>
+    adminFetch<RecipeDraft>(`/drafts/recipes/${id}/promote`, { method: 'POST' }),
 
   // Ship
   shipConfig: () => adminFetch<ShipConfigDto>('/drafts/ship/config'),

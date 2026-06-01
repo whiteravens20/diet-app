@@ -47,8 +47,13 @@ export const Recipe = z.object({
   nutritionPerServing: Nutrition,
   /** 0-1 score: how reusable this recipe's ingredients are across a plan. */
   reuseScore: z.number().min(0).max(1),
-  /** `seed` = curated; `ai` = AI-drafted then validated; `user` = user-created. */
-  origin: z.enum(['seed', 'ai', 'user']),
+  /**
+   * `seed` = curated baseline from data/recipes.json; `ai` = AI-drafted then
+   * validated; `user` = user-created (incl. ingredient-swap variants);
+   * `curated` = promoted from an AI_USER draft, ships into data/recipes/
+   * promoted.json so the next re-seed makes it permanent.
+   */
+  origin: z.enum(['seed', 'ai', 'user', 'curated']),
 });
 export type Recipe = z.infer<typeof Recipe>;
 

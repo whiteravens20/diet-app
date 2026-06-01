@@ -1,7 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { Sparkles } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Sparkles, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
@@ -43,7 +43,9 @@ export default function RecipesPage() {
   const [favoritesProfileId, setFavoritesProfileId] = useState<string>('');
   const [page, setPage] = useState(1);
   const [draftOpen, setDraftOpen] = useState(false);
+  const [tab, setTab] = useState<'library' | 'mine'>('library');
   const PAGE_SIZE = 36;
+  const queryClient = useQueryClient();
 
   const session = useQuery({
     queryKey: ['session'],
@@ -76,9 +78,24 @@ export default function RecipesPage() {
     return `?${p.toString()}`;
   }, [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes, page]);
 
+  // Library vs My Recipes share the same card UI but hit different
+  // endpoints. `mine` skips the filter sidebar's server params (the personal
+  // list is short enough that client-side sorting beats query plumbing) and
+  // adds a delete affordance to each card.
   const recipes = useQuery({
-    queryKey: ['recipes', queryString],
-    queryFn: () => api.get<RecipeSearchPage>(`/recipes${queryString}`),
+    queryKey: tab === 'mine' ? ['recipes:mine', page] : ['recipes', queryString],
+    queryFn: () =>
+      tab === 'mine'
+        ? api.get<RecipeSearchPage>(`/recipes/mine?page=${page}&pageSize=${PAGE_SIZE}`)
+        : api.get<RecipeSearchPage>(`/recipes${queryString}`),
+  });
+
+  const deleteRecipe = useMutation({
+    mutationFn: (id: string) => api.delete(`/recipes/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes:mine'] });
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+    },
   });
 
   const profiles = useQuery({
@@ -135,7 +152,28 @@ export default function RecipesPage() {
         )}
       </header>
 
-      <div className="grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-sm">
+        {(['library', 'mine'] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => {
+              setTab(key);
+              setPage(1);
+            }}
+            className={
+              'rounded px-3 py-1.5 transition ' +
+              (tab === key
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground')
+            }
+          >
+            {t(`tabs.${key}`)}
+          </button>
+        ))}
+      </div>
+
+      <div className={tab === 'mine' ? 'hidden' : 'grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3'}>
         <Field label={t('search')}>
           <Input
             value={search}
@@ -193,7 +231,7 @@ export default function RecipesPage() {
         </Field>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
+      <div className={tab === 'mine' ? 'hidden' : 'flex flex-wrap items-center gap-4'}>
         {anyServerFilter && (
           <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
             {t('clearFilters')}
@@ -241,38 +279,60 @@ export default function RecipesPage() {
         </div>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {usesFavorites && favoriteIds.size > 0
-            ? t('noneFavorites')
-            : anyServerFilter || search
-              ? t('noneFiltered')
-              : t('noneAtAll')}
+          {tab === 'mine'
+            ? t('mineEmpty')
+            : usesFavorites && favoriteIds.size > 0
+              ? t('noneFavorites')
+              : anyServerFilter || search
+                ? t('noneFiltered')
+                : t('noneAtAll')}
         </p>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((r) => (
-              <Link key={r.id} href={`/recipes/${r.id}`}>
-                <Card className="h-full p-4 transition-shadow hover:shadow-md">
-                  <p className="font-medium">{r.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t('cardMeta', {
-                      kcal: r.nutritionPerServing.calories,
-                      difficulty: tDifficulty(r.difficulty),
-                      minutes: r.prepMinutes + r.cookMinutes,
-                    })}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {r.dietTags.map((d) => (
-                      <span
-                        key={d}
-                        className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
-                      >
-                        {tDiet.has(d) ? tDiet(d) : d.replace('_', ' ')}
-                      </span>
-                    ))}
-                  </div>
-                </Card>
-              </Link>
+              <div key={r.id} className="relative group">
+                <Link href={`/recipes/${r.id}`} className="block">
+                  <Card className="h-full p-4 transition-shadow hover:shadow-md">
+                    <p className="font-medium pr-7">{r.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t('cardMeta', {
+                        kcal: r.nutritionPerServing.calories,
+                        difficulty: tDifficulty(r.difficulty),
+                        minutes: r.prepMinutes + r.cookMinutes,
+                      })}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {r.dietTags.map((d) => (
+                        <span
+                          key={d}
+                          className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+                        >
+                          {tDiet.has(d) ? tDiet(d) : d.replace('_', ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  </Card>
+                </Link>
+                {tab === 'mine' && (
+                  <button
+                    type="button"
+                    title={t('delete')}
+                    aria-label={t('delete')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (typeof window !== 'undefined' && !window.confirm(t('deleteConfirm'))) {
+                        return;
+                      }
+                      deleteRecipe.mutate(r.id);
+                    }}
+                    disabled={deleteRecipe.isPending}
+                    className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus:opacity-100"
+                  >
+                    <Trash2 size={14} aria-hidden />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
           {totalPages > 1 && (

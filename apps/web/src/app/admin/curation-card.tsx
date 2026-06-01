@@ -805,6 +805,18 @@ function RecipeDraftRow({
     if (!window.confirm(t('deleteConfirm'))) return;
     void handle(() => adminApi.deleteRecipeDraft(draft.id));
   };
+  const onPromote = () => {
+    if (!window.confirm(t('promoteConfirm'))) return;
+    void handle(() => adminApi.promoteRecipeDraft(draft.id));
+  };
+
+  // AI_USER drafts mirror personal Recipe rows owned by the user. Editing
+  // structural fields would invalidate the fingerprint + the linked Recipe's
+  // nutrition recompute, so the editor locks ingredients / servings / times
+  // and the only way to restructure is to promote-then-edit-curated.
+  const isUserDraft = draft.source === 'AI_USER';
+  const lockStructural = isUserDraft;
+  const canPromote = isUserDraft && draft.status === 'APPROVED';
 
   const nutr = preview ?? draft;
 
@@ -822,6 +834,11 @@ function RecipeDraftRow({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {isUserDraft && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+              {t('sourceUserBadge')}
+            </span>
+          )}
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
             {t(`complexity_${draft.complexity}`)}
           </span>
@@ -859,9 +876,15 @@ function RecipeDraftRow({
               locales={draft.locales}
               onChange={setEdit}
               onDryRun={runDryRun}
+              lockStructural={lockStructural}
             />
           ) : (
             <RecipePreview draft={draft} />
+          )}
+          {isUserDraft && (
+            <p className="text-xs text-muted-foreground italic">
+              {t('userDraftHint')}
+            </p>
           )}
 
           {error && (
@@ -913,6 +936,16 @@ function RecipeDraftRow({
                       </Button>
                     </span>
                   ))}
+                {canPromote && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={working}
+                    onClick={onPromote}
+                  >
+                    {t('promoteButton')}
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -966,6 +999,7 @@ function RecipeEditor({
   locales,
   onChange,
   onDryRun,
+  lockStructural = false,
 }: {
   edit: {
     titles: Record<string, string>;
@@ -979,6 +1013,8 @@ function RecipeEditor({
   locales: string[];
   onChange: (next: typeof edit) => void;
   onDryRun: () => void;
+  /** AI_USER drafts allow translation edits only; structural fields lock. */
+  lockStructural?: boolean;
 }) {
   const t = useTranslations('admin.curation');
 
@@ -1028,6 +1064,7 @@ function RecipeEditor({
           value={edit.servings}
           onChange={(e) => onChange({ ...edit, servings: Number(e.target.value) || 1 })}
           className="w-16"
+          disabled={lockStructural}
         />
         <span className="text-muted-foreground">{t('prepMinutesLabel')}</span>
         <Input
@@ -1036,6 +1073,7 @@ function RecipeEditor({
           value={edit.prepMinutes}
           onChange={(e) => onChange({ ...edit, prepMinutes: Number(e.target.value) || 0 })}
           className="w-16"
+          disabled={lockStructural}
         />
         <span className="text-muted-foreground">{t('cookMinutesLabel')}</span>
         <Input
@@ -1044,6 +1082,7 @@ function RecipeEditor({
           value={edit.cookMinutes}
           onChange={(e) => onChange({ ...edit, cookMinutes: Number(e.target.value) || 0 })}
           className="w-16"
+          disabled={lockStructural}
         />
       </div>
 
@@ -1062,6 +1101,7 @@ function RecipeEditor({
                   updateIngredient(i, { quantity: Number(e.target.value) || 0 })
                 }
                 className="w-20"
+                disabled={lockStructural}
               />
               <span className="text-muted-foreground">{line.unit}</span>
             </li>
@@ -1069,7 +1109,7 @@ function RecipeEditor({
         </ul>
       </div>
 
-      <Button size="sm" variant="outline" onClick={onDryRun}>
+      <Button size="sm" variant="outline" onClick={onDryRun} disabled={lockStructural}>
         {t('recompute')}
       </Button>
     </div>

@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { Prisma } from '@prisma/client';
 import {
   Allergen,
   type CookingMethod,
@@ -29,6 +30,12 @@ import {
 import type { Env } from '../config/env.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { DedupService } from '../admin/drafts/dedup.js';
+import {
+  computeFingerprint,
+  FingerprintError,
+  type FingerprintIngredientLookup,
+} from '../admin/drafts/fingerprint.js';
 import { toRecipeDto } from './recipes.service.js';
 
 const ALLOWED_UNITS = Unit.options as readonly string[];
@@ -44,9 +51,16 @@ interface AiDraftLine {
   note: string | null;
 }
 
+/**
+ * Locale-keyed slice of the AI's response. Always has `en` (canonical); other
+ * locales are populated when the prompt asked for them. The DB row's `title` /
+ * `description` / `steps` are written from the `en` slot; `RecipeTranslation`
+ * rows are written for every locale present.
+ */
 interface AiDraftPayload {
-  title: string;
-  description: string;
+  titles: Record<Locale, string>;
+  descriptions: Record<Locale, string>;
+  steps: Record<Locale, string[]>;
   servings: number;
   mealTypes: MealType[];
   dietTags: DietType[];
@@ -54,7 +68,8 @@ interface AiDraftPayload {
   cookMinutes: number;
   difficulty: Difficulty;
   ingredients: AiDraftLine[];
-  steps: string[];
+  /** Locales the AI returned content for — always includes 'en'. */
+  locales: Locale[];
 }
 
 /**
@@ -73,6 +88,7 @@ export class AiRecipeDraftService {
     private readonly prisma: PrismaService,
     private readonly ai: AiRouterService,
     private readonly config: ConfigService<Env, true>,
+    private readonly dedup: DedupService,
   ) {}
 
   async draftFromPrompt(
@@ -135,6 +151,13 @@ export class AiRecipeDraftService {
       });
     }
 
+    // Target locales: always EN (canonical for nutrition / ingredient mapping
+    // + slot-resolution invariant) and, when the user's locale is non-EN, the
+    // user's locale so the recipe renders natively in their plan without a
+    // round-trip through the translation runner. Adding a new locale to the
+    // Locale enum auto-extends this without code changes.
+    const targetLocales: Locale[] = locale === 'en' ? ['en'] : ['en', locale];
+
     const prompt = buildDraftPrompt({
       mealType: req.mealType,
       dietType,
@@ -146,6 +169,7 @@ export class AiRecipeDraftService {
       servings,
       catalogue,
       favouriteIds,
+      targetLocales,
     });
     const { text, meta } = await this.ai.chat(
       userId,
@@ -163,7 +187,7 @@ export class AiRecipeDraftService {
       });
     }
 
-    const payload = parseDraftPayload(text);
+    const payload = parseDraftPayload(text, targetLocales);
     if (!payload) {
       throw new BadRequestException({
         error: 'AI_DRAFT_INVALID',
@@ -254,47 +278,65 @@ export class AiRecipeDraftService {
       new Set(resolved.flatMap((r) => (ingById.get(r.ingredientId)?.allergens ?? []) as string[])),
     );
 
-    const created = await this.prisma.recipe.create({
-      data: {
-        title: payload.title,
-        description: payload.description,
-        servings: payload.servings,
-        mealTypes: payload.mealTypes,
-        dietTags: payload.dietTags,
-        steps: payload.steps,
-        prepMinutes: payload.prepMinutes,
-        cookMinutes: payload.cookMinutes,
-        difficulty: payload.difficulty,
-        allergens: recipeAllergens as Allergen[],
-        origin: 'ai',
-        createdByUserId: userId,
-        caloriesPerServing: perServing.calories,
-        proteinPerServing: perServing.protein,
-        fatPerServing: perServing.fat,
-        carbsPerServing: perServing.carbs,
-        ingredients: {
-          create: resolved.map((r) => ({
-            ingredientId: r.ingredientId,
-            quantity: r.quantity,
-            unit: r.unit,
-            note: r.note,
-          })),
-        },
-      },
-      include: {
-        ingredients: {
-          include: { ingredient: { include: this.translationsInclude(locale) } },
-        },
-        ...this.translationsInclude(locale),
-      },
+    // Fingerprint — same helper used by the swap path + admin batch generator
+    // so the dedup chain catches duplicates across every on-ramp. When at
+    // least one ingredient is missing a slug (legacy USDA row), we skip
+    // dedup and write a fresh row without a fingerprint.
+    const fingerprintLookup: FingerprintIngredientLookup = new Map(
+      ingredientRows
+        .filter((i): i is typeof i & { slug: string } => i.slug !== null)
+        .map((i) => [
+          i.slug,
+          {
+            canonicalUnit: i.canonicalUnit,
+            gramsPerPiece: i.gramsPerPiece,
+            density: i.density,
+          },
+        ]),
+    );
+    const fingerprintLines = resolved.map((r) => {
+      const ing = ingById.get(r.ingredientId)!;
+      return { slug: ing.slug, quantity: r.quantity, unit: r.unit };
+    });
+    const allSlugsResolved = fingerprintLines.every(
+      (l): l is typeof l & { slug: string } => l.slug !== null,
+    );
+    let fingerprint: string | null = null;
+    if (allSlugsResolved) {
+      try {
+        fingerprint = computeFingerprint(
+          {
+            ingredients: fingerprintLines as { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece' }[],
+            mealTypes: payload.mealTypes,
+            dietTags: payload.dietTags,
+            servings: payload.servings,
+          },
+          fingerprintLookup,
+        );
+      } catch (err) {
+        if (err instanceof FingerprintError) {
+          fingerprint = null;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    const recipeId = await this.persistDraftWithDedup({
+      userId,
+      fingerprint,
+      payload,
+      resolved,
+      recipeAllergens,
+      perServing,
     });
 
     if (req.addToFavorites) {
       await this.prisma.favorite.upsert({
-        where: { profileId_recipeId: { profileId: profile.id, recipeId: created.id } },
+        where: { profileId_recipeId: { profileId: profile.id, recipeId } },
         create: {
           profileId: profile.id,
-          recipeId: created.id,
+          recipeId,
           tags: ['ai-drafted'],
           sentiment: 'favorite',
         },
@@ -302,10 +344,181 @@ export class AiRecipeDraftService {
       });
     }
 
+    const created = await this.prisma.recipe.findUniqueOrThrow({
+      where: { id: recipeId },
+      include: {
+        ingredients: {
+          include: { ingredient: { include: this.translationsInclude(locale) } },
+        },
+        ...this.translationsInclude(locale),
+      },
+    });
     const recipe = toRecipeDto(created, locale);
     this.writeSidecar(userId, recipe, { request: req, aiMeta: meta });
 
     return { recipe, aiMeta: meta };
+  }
+
+  /**
+   * Insert the Recipe + translations + (when AI_USER and no curated/personal
+   * match exists) the parallel `RecipeDraft`, all under a fingerprint advisory
+   * lock. Returns the resolved recipe id — either an existing curated /
+   * personal row this user already owns, or the freshly written variant.
+   */
+  private async persistDraftWithDedup(input: {
+    userId: string;
+    fingerprint: string | null;
+    payload: AiDraftPayload;
+    resolved: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
+    recipeAllergens: string[];
+    perServing: { calories: number; protein: number; fat: number; carbs: number };
+  }): Promise<string> {
+    const writeFresh = async (
+      tx: Prisma.TransactionClient | PrismaService,
+    ): Promise<string> => {
+      const created = await tx.recipe.create({
+        data: {
+          title: input.payload.titles.en,
+          description: input.payload.descriptions.en,
+          servings: input.payload.servings,
+          mealTypes: input.payload.mealTypes,
+          dietTags: input.payload.dietTags,
+          steps: input.payload.steps.en,
+          prepMinutes: input.payload.prepMinutes,
+          cookMinutes: input.payload.cookMinutes,
+          difficulty: input.payload.difficulty,
+          allergens: input.recipeAllergens as Allergen[],
+          origin: 'ai',
+          createdByUserId: input.userId,
+          fingerprint: input.fingerprint,
+          caloriesPerServing: input.perServing.calories,
+          proteinPerServing: input.perServing.protein,
+          fatPerServing: input.perServing.fat,
+          carbsPerServing: input.perServing.carbs,
+          ingredients: {
+            create: input.resolved.map((r) => ({
+              ingredientId: r.ingredientId,
+              quantity: r.quantity,
+              unit: r.unit,
+              note: r.note,
+            })),
+          },
+        },
+      });
+      for (const lc of input.payload.locales) {
+        await tx.recipeTranslation.create({
+          data: {
+            recipeId: created.id,
+            locale: lc,
+            title: input.payload.titles[lc],
+            description: input.payload.descriptions[lc],
+            steps: input.payload.steps[lc],
+            source: 'MANUAL',
+          },
+        });
+      }
+      return created.id;
+    };
+
+    if (!input.fingerprint) {
+      return writeFresh(this.prisma);
+    }
+    const fingerprint = input.fingerprint;
+
+    return this.dedup.withFingerprintLock(fingerprint, async (tx) => {
+      const curated = await this.dedup.findCuratedByFingerprint(tx, fingerprint);
+      if (curated) return curated.id;
+      const userOwn = await this.dedup.findUserRecipeByFingerprint(
+        tx,
+        fingerprint,
+        input.userId,
+      );
+      if (userOwn) return userOwn.id;
+      const newRecipeId = await writeFresh(tx);
+      const existingDraft = await this.dedup.findDraftByFingerprint(
+        tx,
+        fingerprint,
+      );
+      if (existingDraft) {
+        await this.dedup.attachRecipeToDraft(tx, existingDraft.id, newRecipeId);
+      } else {
+        await this.createAiUserDraft(tx, {
+          fingerprint,
+          recipeId: newRecipeId,
+          createdByUserId: input.userId,
+          payload: input.payload,
+          resolved: input.resolved,
+          recipeAllergens: input.recipeAllergens,
+          perServing: input.perServing,
+        });
+      }
+      return newRecipeId;
+    });
+  }
+
+  /**
+   * Insert the AI_USER `RecipeDraft` mirroring the personal Recipe we just
+   * wrote. Translation polish (per-locale via /review) and optional curated
+   * promotion happen later via the admin/reviewer surface.
+   */
+  private async createAiUserDraft(
+    tx: Prisma.TransactionClient,
+    input: {
+      fingerprint: string;
+      recipeId: string;
+      createdByUserId: string;
+      payload: AiDraftPayload;
+      resolved: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
+      recipeAllergens: string[];
+      perServing: { calories: number; protein: number; fat: number; carbs: number };
+    },
+  ): Promise<void> {
+    const ingRows = await tx.ingredient.findMany({
+      where: { id: { in: input.resolved.map((r) => r.ingredientId) } },
+      select: { id: true, slug: true },
+    });
+    const slugById = new Map(ingRows.map((r) => [r.id, r.slug]));
+    const titles: Record<string, string> = {};
+    const descriptions: Record<string, string> = {};
+    const stepsByLocale: Record<string, string[]> = {};
+    for (const lc of input.payload.locales) {
+      titles[lc] = input.payload.titles[lc];
+      descriptions[lc] = input.payload.descriptions[lc];
+      stepsByLocale[lc] = input.payload.steps[lc];
+    }
+    await tx.recipeDraft.create({
+      data: {
+        slug: `ai-draft-${input.recipeId.slice(0, 8)}`,
+        titles,
+        descriptions,
+        steps: stepsByLocale,
+        locales: input.payload.locales,
+        servings: input.payload.servings,
+        mealTypes: input.payload.mealTypes,
+        dietTags: input.payload.dietTags,
+        prepMinutes: input.payload.prepMinutes,
+        cookMinutes: input.payload.cookMinutes,
+        difficulty: input.payload.difficulty,
+        complexity: 'medium',
+        caloriesPerServing: input.perServing.calories,
+        proteinPerServing: input.perServing.protein,
+        fatPerServing: input.perServing.fat,
+        carbsPerServing: input.perServing.carbs,
+        allergens: input.recipeAllergens,
+        ingredientsJson: input.resolved.map((r) => ({
+          slug: slugById.get(r.ingredientId) ?? '',
+          quantity: r.quantity,
+          unit: r.unit,
+          note: r.note,
+        })),
+        status: 'PENDING',
+        source: 'AI_USER',
+        batchId: `user-ai-draft-${input.createdByUserId.slice(0, 8)}-${Date.now()}`,
+        fingerprint: input.fingerprint,
+        sourceRecipeIds: [input.recipeId],
+        createdByUserId: input.createdByUserId,
+      },
+    });
   }
 
   private translationsInclude(locale: Locale) {
@@ -372,11 +585,33 @@ function buildDraftPrompt(input: {
   servings: number;
   catalogue: { id: string; name: string; category: string; caloriesPer100: number; proteinPer100: number }[];
   favouriteIds: Set<string>;
+  targetLocales: Locale[];
 }): { system: string; user: string } {
   const lines = input.catalogue.map((c) => {
     const star = input.favouriteIds.has(c.id) ? ' ⭐' : '';
     return `- ${c.name} (${c.category}, ${Math.round(c.caloriesPer100)} kcal/100g · ${Math.round(c.proteinPer100)} g protein)${star}`;
   });
+
+  // Locale-keyed shape only when more than one locale is requested. For pure
+  // EN ('en' only), keep the legacy single-string shape so we don't pay a
+  // prompt-size and parser tax for monolingual operators.
+  const multi = input.targetLocales.length > 1;
+  const localeList = input.targetLocales.join(', ');
+  const titlesShape = multi
+    ? `"titles":{${input.targetLocales.map((l) => `"${l}":string`).join(',')}}`
+    : '"title":string';
+  const descShape = multi
+    ? `"descriptions":{${input.targetLocales.map((l) => `"${l}":string`).join(',')}}`
+    : '"description":string';
+  const stepsShape = multi
+    ? `"steps":{${input.targetLocales.map((l) => `"${l}":string[]`).join(',')}}`
+    : '"steps":string[]';
+
+  const localeRule = multi
+    ? `You write title, description, and steps in EVERY one of these locales: ${localeList}. ` +
+      'Translations are natural per locale — not literal word-for-word renderings. ' +
+      'Keep the cooking technique and ingredient choices identical across locales. '
+    : '';
 
   const system =
     'You draft cooking recipes for a deterministic meal-planning app. ' +
@@ -384,13 +619,14 @@ function buildDraftPrompt(input: {
     'ingredients, never propose substitutions. You never write or estimate ' +
     'calories, protein, fat, or carbs; the app recomputes those from the ' +
     'catalogue values. ' +
+    localeRule +
     'Respond with valid JSON exactly matching this shape — no prose, no ' +
     'markdown fences, no extra keys:\n' +
-    '{"title":string,"description":string,"servings":int,' +
+    `{${titlesShape},${descShape},"servings":int,` +
     '"mealTypes":string[],"dietTags":string[],"prepMinutes":int,' +
     '"cookMinutes":int,"difficulty":"easy"|"medium"|"hard",' +
     '"ingredients":[{"ingredientName":string,"quantity":number,' +
-    '"unit":"g"|"ml"|"piece","note":string|null}],"steps":string[]}';
+    `"unit":"g"|"ml"|"piece","note":string|null}],${stepsShape}}`;
 
   const preferences: string[] = [];
   if (input.cuisine) preferences.push(`- Cuisine: ${input.cuisine.replace(/_/g, ' ')}`);
@@ -440,7 +676,7 @@ function buildDraftPrompt(input: {
  * isn't usable — the caller throws so the user sees a clear error rather than
  * a half-broken recipe.
  */
-function parseDraftPayload(text: string): AiDraftPayload | null {
+function parseDraftPayload(text: string, targetLocales: Locale[]): AiDraftPayload | null {
   const trimmed = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
   const candidates: string[] = [];
   const braceMatch = trimmed.match(/\{[\s\S]*\}/);
@@ -449,7 +685,7 @@ function parseDraftPayload(text: string): AiDraftPayload | null {
   for (const c of candidates) {
     try {
       const raw = JSON.parse(c) as unknown;
-      const normalised = normalise(raw);
+      const normalised = normalise(raw, targetLocales);
       if (normalised) return normalised;
     } catch {
       // try next candidate
@@ -458,18 +694,48 @@ function parseDraftPayload(text: string): AiDraftPayload | null {
   return null;
 }
 
-function normalise(raw: unknown): AiDraftPayload | null {
+function normalise(raw: unknown, targetLocales: Locale[]): AiDraftPayload | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
 
-  const title = strField(o.title);
-  const description = strField(o.description);
+  const multi = targetLocales.length > 1;
+  const titles: Record<Locale, string> = {} as Record<Locale, string>;
+  const descriptions: Record<Locale, string> = {} as Record<Locale, string>;
+  const stepsByLocale: Record<Locale, string[]> = {} as Record<Locale, string[]>;
+
+  if (multi) {
+    // Locale-keyed maps required for every target locale; missing or empty
+    // locale rejects the entire payload.
+    const titlesRaw = o.titles as Record<string, unknown> | undefined;
+    const descsRaw = o.descriptions as Record<string, unknown> | undefined;
+    const stepsRaw = o.steps as Record<string, unknown> | undefined;
+    if (!titlesRaw || !descsRaw || !stepsRaw) return null;
+    for (const lc of targetLocales) {
+      const t = strField(titlesRaw[lc]);
+      const d = strField(descsRaw[lc]);
+      const s = arrField(stepsRaw[lc], (v) => (v.trim().length > 0 ? v.trim() : null));
+      if (!t || !d || s.length < 2 || s.length > 20) return null;
+      titles[lc] = t;
+      descriptions[lc] = d;
+      stepsByLocale[lc] = s;
+    }
+  } else {
+    // Legacy single-string shape — only EN. Fold into the locale-keyed
+    // payload so downstream code is uniform.
+    const title = strField(o.title);
+    const description = strField(o.description);
+    const steps = arrField(o.steps, (v) => (v.trim().length > 0 ? v.trim() : null));
+    if (!title || !description || steps.length < 2 || steps.length > 20) return null;
+    titles.en = title;
+    descriptions.en = description;
+    stepsByLocale.en = steps;
+  }
+
   const servings = intField(o.servings, 1, 12);
   const prepMinutes = intField(o.prepMinutes, 0, 480);
   const cookMinutes = intField(o.cookMinutes, 0, 480);
-  if (!title || !description || servings == null || prepMinutes == null || cookMinutes == null) {
-    return null;
-  }
+  if (servings == null || prepMinutes == null || cookMinutes == null) return null;
+
   const difficulty = ALLOWED_DIFFICULTIES.includes(o.difficulty as Difficulty)
     ? (o.difficulty as Difficulty)
     : null;
@@ -478,9 +744,6 @@ function normalise(raw: unknown): AiDraftPayload | null {
   const mealTypes = arrField(o.mealTypes, (v) => (ALLOWED_MEALS.includes(v) ? (v as MealType) : null));
   const dietTags = arrField(o.dietTags, (v) => (ALLOWED_DIETS.includes(v) ? (v as DietType) : null));
   if (mealTypes.length === 0 || dietTags.length === 0) return null;
-
-  const steps = arrField(o.steps, (v) => (v.trim().length > 0 ? v.trim() : null));
-  if (steps.length < 2 || steps.length > 20) return null;
 
   if (!Array.isArray(o.ingredients) || o.ingredients.length === 0 || o.ingredients.length > 20) {
     return null;
@@ -498,8 +761,9 @@ function normalise(raw: unknown): AiDraftPayload | null {
   }
 
   return {
-    title,
-    description,
+    titles,
+    descriptions,
+    steps: stepsByLocale,
     servings,
     mealTypes,
     dietTags,
@@ -507,7 +771,7 @@ function normalise(raw: unknown): AiDraftPayload | null {
     cookMinutes,
     difficulty,
     ingredients,
-    steps,
+    locales: targetLocales,
   };
 }
 

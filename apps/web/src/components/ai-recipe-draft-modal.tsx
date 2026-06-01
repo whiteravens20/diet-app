@@ -16,6 +16,7 @@ import type {
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { Field } from '@/components/ui/input';
 
 const DIET_TYPES: DietType[] = [
@@ -152,6 +153,8 @@ export function AiRecipeDraftModal({
 
         <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
           <p className="text-xs text-muted-foreground">{t('subhead')}</p>
+
+          <DisclaimerNotice bodyKey="aiRecipeDraft" />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={t('dietType')}>

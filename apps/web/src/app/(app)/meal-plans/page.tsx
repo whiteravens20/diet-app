@@ -20,6 +20,7 @@ import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatIngredientAmount } from '@/lib/ingredient-format';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
+import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -30,6 +31,7 @@ function MealPlansContent() {
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   const tFallback = useTranslations('aiFallback');
+  const tErrors = useTranslations('errors');
   const qc = useQueryClient();
   const params = useSearchParams();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
@@ -77,8 +79,17 @@ function MealPlansContent() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['meal-plans', activeId] });
-  const fail = (fallback: string) => (e: unknown) =>
-    setError(e instanceof ApiClientError ? e.message : fallback);
+  // Prefer the locale-aware `errors.<CODE>` catalogue over the backend's
+  // English `message` field — the contract is "backend codes, client
+  // translates" (F14). Falls back to the raw message if the code isn't in
+  // the catalogue, then to the caller's fallback string for non-Api errors.
+  const fail = (fallback: string) => (e: unknown) => {
+    if (e instanceof ApiClientError) {
+      setError(tErrors.has(e.code) ? tErrors(e.code) : e.message);
+      return;
+    }
+    setError(fallback);
+  };
 
   const generate = useMutation({
     mutationFn: (body: GeneratePlanRequest) => api.post<MealPlan>('/meal-plans/generate', body),
@@ -258,6 +269,8 @@ function MealPlansContent() {
           {notice}
         </p>
       )}
+
+      <DisclaimerNotice bodyKey={aiEnabled ? 'aiPlans' : 'enginePlans'} />
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">

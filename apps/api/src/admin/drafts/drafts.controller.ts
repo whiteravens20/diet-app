@@ -14,6 +14,7 @@ import {
   ConflictException,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   InternalServerErrorException,
@@ -398,6 +399,20 @@ export class DraftsController {
       });
     }
 
+    // AI_USER drafts (personal recipes mirrored into the queue by the user's
+    // /recipes/ai-draft or applyIngredientSwap path) accept TRANSLATION-only
+    // edits — `titles`, `descriptions`, `steps`. Structural edits would
+    // break the dedup invariant (the fingerprint is over the ingredient set)
+    // and undermine the personal Recipe's nutrition recompute. Admins who
+    // need to restructure must promote first, then edit the curated row via
+    // the existing admin path.
+    if (existing.source === 'AI_USER' && hasStructuralEdit(parsed.data)) {
+      throw new ForbiddenException({
+        error: 'DRAFT_STRUCTURAL_EDIT_FORBIDDEN',
+        message: 'User-drafted recipes: translation edits only.',
+      });
+    }
+
     const merged = mergeRecipeDraft(existing, parsed.data);
     const recompute = await this.recomputeRecipe(merged);
 
@@ -484,6 +499,119 @@ export class DraftsController {
       });
     }
     await this.prisma.recipeDraft.delete({ where: { id } });
+  }
+
+  /**
+   * Promote an APPROVED AI_USER draft to a curated `Recipe`. Creates a new
+   * Recipe row with `origin: 'curated'`, copies the polished `RecipeTranslation`
+   * rows from the draft (per-locale `titles` / `descriptions` / `steps`),
+   * sets `RecipeDraft.promotedRecipeId`, marks the draft `SHIPPED`. Personal
+   * Recipe rows in `sourceRecipeIds` are intentionally left untouched — their
+   * planned meals stay reproducible. Future fingerprint matches resolve to
+   * the new curated row.
+   */
+  @Post('recipes/:id/promote')
+  async promoteRecipeDraft(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<RecipeDraft> {
+    const existing = await this.prisma.recipeDraft.findUnique({
+      where: { id },
+      include: { localeReviews: true },
+    });
+    if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
+    if (existing.source !== 'AI_USER') {
+      throw new BadRequestException({
+        error: 'DRAFT_NOT_PROMOTABLE',
+        message: 'Only AI_USER drafts can be promoted.',
+      });
+    }
+    if (existing.status !== 'APPROVED') {
+      throw new ConflictException({
+        error: 'DRAFT_NOT_APPROVED',
+        message: 'Draft must be approved in every locale before it can be promoted.',
+      });
+    }
+
+    const titles = existing.titles as Record<string, string>;
+    const descriptions = existing.descriptions as Record<string, string>;
+    const steps = existing.steps as Record<string, string[]>;
+    const ingredientsJson = existing.ingredientsJson as Array<{
+      slug: string;
+      quantity: number;
+      unit: 'g' | 'ml' | 'piece';
+      note: string | null;
+    }>;
+
+    // Resolve slugs → ingredient ids inside the transaction so a slug that
+    // was retired between approve and promote surfaces as a real error.
+    const slugs = ingredientsJson.map((i) => i.slug).filter((s): s is string => Boolean(s));
+    const ingredients = await this.prisma.ingredient.findMany({
+      where: { slug: { in: slugs } },
+      select: { id: true, slug: true },
+    });
+    const idBySlug = new Map(ingredients.map((i) => [i.slug, i.id]));
+    for (const line of ingredientsJson) {
+      if (!idBySlug.has(line.slug)) {
+        throw new ConflictException({
+          error: 'DRAFT_SLUG_UNRESOLVED',
+          message: `Ingredient slug "${line.slug}" no longer exists — re-edit the draft before promoting.`,
+        });
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const curated = await tx.recipe.create({
+        data: {
+          title: titles.en ?? Object.values(titles)[0] ?? existing.slug,
+          description: descriptions.en ?? Object.values(descriptions)[0] ?? '',
+          servings: existing.servings,
+          mealTypes: existing.mealTypes,
+          dietTags: existing.dietTags,
+          steps: steps.en ?? Object.values(steps)[0] ?? [],
+          prepMinutes: existing.prepMinutes,
+          cookMinutes: existing.cookMinutes,
+          difficulty: existing.difficulty,
+          allergens: existing.allergens,
+          origin: 'curated',
+          createdByUserId: null,
+          fingerprint: existing.fingerprint,
+          caloriesPerServing: existing.caloriesPerServing,
+          proteinPerServing: existing.proteinPerServing,
+          fatPerServing: existing.fatPerServing,
+          carbsPerServing: existing.carbsPerServing,
+          ingredients: {
+            create: ingredientsJson.map((line) => ({
+              ingredientId: idBySlug.get(line.slug)!,
+              quantity: line.quantity,
+              unit: line.unit,
+              note: line.note,
+            })),
+          },
+        },
+      });
+      for (const lc of existing.locales) {
+        await tx.recipeTranslation.create({
+          data: {
+            recipeId: curated.id,
+            locale: lc,
+            title: titles[lc] ?? titles.en ?? existing.slug,
+            description: descriptions[lc] ?? descriptions.en ?? '',
+            steps: steps[lc] ?? steps.en ?? [],
+            source: 'CURATED_JSON',
+          },
+        });
+      }
+      return tx.recipeDraft.update({
+        where: { id },
+        data: {
+          promotedRecipeId: curated.id,
+          status: 'SHIPPED',
+          shippedAt: new Date(),
+        },
+        include: { localeReviews: true },
+      });
+    });
+    return toRecipeDraftDto(updated);
   }
 
   // ── Ship ───────────────────────────────────────────────────────────────────
@@ -962,7 +1090,7 @@ interface RawRecipeDraft {
   allergens: string[];
   ingredientsJson: unknown;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'MANUAL';
+  source: 'AI' | 'EXTERNAL' | 'MANUAL' | 'AI_USER';
   batchId: string;
   modelUsed: string | null;
   generatorPrompt: string | null;
@@ -1033,7 +1161,7 @@ interface RawIngredientNameDraft {
   suggestions: unknown;
   locales: string[];
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'MANUAL';
+  source: 'AI' | 'EXTERNAL' | 'MANUAL' | 'AI_USER';
   batchId: string;
   modelUsed: string | null;
   generatorPrompt: string | null;
@@ -1089,6 +1217,25 @@ interface MergedRecipeDraft {
   cookMinutes: number;
   difficulty: 'easy' | 'medium' | 'hard';
   ingredients: RecipeDraftIngredientLine[];
+}
+
+/**
+ * True when the patch touches any non-translation field. AI_USER drafts only
+ * accept `titles` / `descriptions` / `steps` per locale — anything else
+ * (ingredients, quantities, servings, mealTypes, dietTags, prep/cook times,
+ * difficulty) is forbidden because it would invalidate the personal Recipe
+ * rows attached via `sourceRecipeIds`.
+ */
+function hasStructuralEdit(patch: import('@diet-app/shared').RecipeDraftPatch): boolean {
+  return (
+    patch.servings != null ||
+    patch.mealTypes != null ||
+    patch.dietTags != null ||
+    patch.prepMinutes != null ||
+    patch.cookMinutes != null ||
+    patch.difficulty != null ||
+    patch.ingredients != null
+  );
 }
 
 function mergeRecipeDraft(
