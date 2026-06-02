@@ -4,6 +4,7 @@ import { getLocale, getMessages } from 'next-intl/server';
 import { Geist } from 'next/font/google';
 import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
+import { Footer } from '@/components/footer';
 import { DEFAULT_PALETTE, PALETTE_COOKIE, isSupportedPalette } from '@/lib/palette';
 import { Providers } from './providers';
 import './globals.css';
@@ -37,7 +38,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang={locale} data-palette={palette} suppressHydrationWarning>
       <body className={geist.variable}>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers initialPalette={palette}>{children}</Providers>
+          <Providers initialPalette={palette}>
+            <div className="flex min-h-screen flex-col">
+              <div className="flex flex-1 flex-col">{children}</div>
+              <Footer />
+            </div>
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>

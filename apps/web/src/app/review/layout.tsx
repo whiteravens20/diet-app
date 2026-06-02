@@ -9,7 +9,7 @@ import { useTranslations } from 'next-intl';
 export default function ReviewLayout({ children }: { children: ReactNode }) {
   const t = useTranslations('review');
   return (
-    <div className="mx-auto min-h-screen max-w-5xl px-6 py-10">
+    <div className="mx-auto flex-1 max-w-5xl px-6 py-10">
       <header className="mb-8 flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <p className="text-xs text-muted-foreground">{t('subhead')}</p>

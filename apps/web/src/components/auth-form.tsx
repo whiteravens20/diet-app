@@ -94,6 +94,22 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 ? t('signInButton')
                 : t('createAccountButton')}
           </Button>
+          {mode === 'register' && (
+            <p className="text-center text-xs text-muted-foreground">
+              {t.rich('termsConsent', {
+                link: (chunks) => (
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline-offset-2 hover:underline"
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              })}
+            </p>
+          )}
         </form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           {mode === 'login' ? (
