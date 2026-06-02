@@ -189,17 +189,20 @@ export default function InventoryPage() {
                         }}
                       />
                       <span className="text-xs text-muted-foreground w-8">{item.unit}</span>
-                      <Input
-                        type="date"
-                        defaultValue={item.bestBefore ?? ''}
-                        className="w-40"
-                        aria-label={t('bestBeforeLabel')}
-                        onBlur={(e) => {
-                          const next = e.currentTarget.value || null;
-                          if (next === (item.bestBefore ?? null)) return;
-                          patch.mutate({ id: item.id, bestBefore: next });
-                        }}
-                      />
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {t('bestBeforeLabel')}
+                        <Input
+                          type="date"
+                          defaultValue={item.bestBefore ?? ''}
+                          className="w-40"
+                          aria-label={t('bestBeforeLabel')}
+                          onBlur={(e) => {
+                            const next = e.currentTarget.value || null;
+                            if (next === (item.bestBefore ?? null)) return;
+                            patch.mutate({ id: item.id, bestBefore: next });
+                          }}
+                        />
+                      </label>
                       <Button
                         type="button"
                         variant="ghost"

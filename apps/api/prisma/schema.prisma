@@ -561,6 +561,10 @@ model AiProviderConfig {
   model          String
   // AES-256-GCM ciphertext (iv:tag:data); never returned by the API.
   encryptedKey   String?
+  // Per-config base URL — only meaningful for self-hosted Ollama instances.
+  // Required at the API layer when provider = ollama (the user picks the host
+  // explicitly). Other providers ignore it.
+  baseUrl        String?
   priority       Int            @default(0)
   enabled        Boolean        @default(true)
   isAdminDefault Boolean        @default(false)

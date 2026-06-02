@@ -450,7 +450,13 @@ function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslatio
   });
   const remove = useMutation({
     mutationFn: (id: string) => api.delete<void>(`/ai/providers/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-providers'] }),
+    // Backend auto-flips aiMode byok → admin when the last provider goes;
+    // refetch the session so the radio reflects the new mode immediately.
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai-providers'] });
+      qc.invalidateQueries({ queryKey: ['session'] });
+      qc.invalidateQueries({ queryKey: ['ai-quota'] });
+    },
     onError: (err) =>
       setError(
         err instanceof ApiClientError
@@ -585,6 +591,7 @@ function ProviderForm({
       provider,
       model: model.trim(),
       apiKey: apiKey.trim() || undefined,
+      baseUrl: baseUrl.trim() || undefined,
       priority,
       enabled: true,
     });
@@ -594,6 +601,13 @@ function ProviderForm({
 
   return (
     <form onSubmit={submit} className="grid max-w-2xl gap-3 sm:grid-cols-2">
+      <div
+        className="sm:col-span-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-200"
+        role="note"
+      >
+        <p className="font-medium">{t('aiModelWarningTitle')}</p>
+        <p className="mt-1">{t('aiModelWarning')}</p>
+      </div>
       <Field label={t('aiProvider')}>
         <select
           name="provider"
@@ -643,9 +657,13 @@ function ProviderForm({
         </Field>
       )}
       {isOllama ? (
-        <Field label="Ollama URL">
+        <Field label={t('aiOllamaUrl')}>
           <Input
             name="baseUrl"
+            type="url"
+            required
+            pattern="https?://.+"
+            title={t('aiOllamaUrlInvalid')}
             placeholder="http://localhost:11434"
             value={baseUrl}
             onChange={(e) => {
@@ -659,6 +677,7 @@ function ProviderForm({
           <Input
             name="apiKey"
             type="password"
+            required
             placeholder="sk-…"
             autoComplete="off"
             value={apiKey}

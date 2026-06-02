@@ -5,15 +5,35 @@ import { AiProvider } from './enums.js';
  * Per-user AI provider configuration. The API key is **write-only** — it is
  * encrypted at rest and never returned; the API exposes only `hasKey`.
  */
-export const AiProviderConfigInput = z.object({
-  provider: AiProvider,
-  /** Plaintext key on the way in; encrypted server-side immediately. */
-  apiKey: z.string().min(1).optional(),
-  model: z.string().min(1),
-  /** Lower number = tried first in the failover chain. */
-  priority: z.number().int().min(0).default(0),
-  enabled: z.boolean().default(true),
-});
+export const AiProviderConfigInput = z
+  .object({
+    provider: AiProvider,
+    /** Plaintext key on the way in; encrypted server-side immediately. */
+    apiKey: z.string().min(1).optional(),
+    /** Per-config Ollama host. Required when provider = ollama. */
+    baseUrl: z.string().url().optional(),
+    model: z.string().min(1),
+    /** Lower number = tried first in the failover chain. */
+    priority: z.number().int().min(0).default(0),
+    enabled: z.boolean().default(true),
+  })
+  .superRefine((cfg, ctx) => {
+    if (cfg.provider === 'ollama') {
+      if (!cfg.baseUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['baseUrl'],
+          message: 'AI_BASE_URL_REQUIRED',
+        });
+      }
+    } else if (!cfg.apiKey) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['apiKey'],
+        message: 'AI_API_KEY_REQUIRED',
+      });
+    }
+  });
 export type AiProviderConfigInput = z.infer<typeof AiProviderConfigInput>;
 
 /** AI provider config as returned by the API — never includes the key. */
@@ -24,6 +44,8 @@ export const AiProviderConfig = z.object({
   priority: z.number().int(),
   enabled: z.boolean(),
   hasKey: z.boolean(),
+  /** Per-config base URL (Ollama only). Null for other providers. */
+  baseUrl: z.string().nullable(),
   /** True for admin-supplied defaults visible to all users. */
   isAdminDefault: z.boolean(),
 });

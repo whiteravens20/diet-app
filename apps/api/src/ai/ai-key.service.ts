@@ -11,6 +11,8 @@ export interface ResolvedProviderConfig {
   model: string;
   priority: number;
   apiKey: string | null;
+  /** Per-config base URL — Ollama only. Null for other providers. */
+  baseUrl: string | null;
   /** Routing mode that produced this entry — surfaced in AiUsageLog.mode. */
   mode: 'admin' | 'byok';
 }
@@ -45,6 +47,7 @@ export class AiKeyService {
     });
     const encryptedKey = input.apiKey ? encrypt(input.apiKey, this.encKey) : undefined;
 
+    const baseUrl = input.provider === 'ollama' ? input.baseUrl ?? null : null;
     const row = existing
       ? await this.prisma.aiProviderConfig.update({
           where: { id: existing.id },
@@ -52,6 +55,7 @@ export class AiKeyService {
             model: input.model,
             priority: input.priority,
             enabled: input.enabled,
+            baseUrl,
             ...(encryptedKey !== undefined ? { encryptedKey } : {}),
           },
         })
@@ -63,6 +67,7 @@ export class AiKeyService {
             priority: input.priority,
             enabled: input.enabled,
             encryptedKey,
+            baseUrl,
           },
         });
     return this.toDto(row);
@@ -73,7 +78,20 @@ export class AiKeyService {
     if (!row || row.userId !== userId) {
       throw new NotFoundException({ error: 'AI_CONFIG_NOT_FOUND', message: 'Provider config not found.' });
     }
-    await this.prisma.aiProviderConfig.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.aiProviderConfig.delete({ where: { id } });
+      // If this was the user's last BYOK config, flip them back to admin mode
+      // — leaving aiMode='byok' with no providers would route every AI call to
+      // an empty chain → deterministic fallback on every operation, no signal
+      // to the user that their setup is broken. Admin mode is the safe default.
+      const remaining = await tx.aiProviderConfig.count({ where: { userId } });
+      if (remaining === 0) {
+        await tx.user.updateMany({
+          where: { id: userId, aiMode: 'byok' },
+          data: { aiMode: 'admin' },
+        });
+      }
+    });
   }
 
   /**
@@ -104,6 +122,7 @@ export class AiKeyService {
         model: r.model,
         priority: r.priority,
         apiKey: r.encryptedKey ? decrypt(r.encryptedKey, this.encKey) : null,
+        baseUrl: r.baseUrl,
         mode: 'byok' as const,
       }));
     }
@@ -122,12 +141,15 @@ export class AiKeyService {
           : provider === 'openrouter'
             ? this.config.get('OPENROUTER_API_KEY', { infer: true })
             : null;
+    const baseUrl =
+      provider === 'ollama' ? this.config.get('OLLAMA_BASE_URL', { infer: true }) ?? null : null;
     return [
       {
         provider,
         model,
         priority: 0,
         apiKey: apiKey ?? null,
+        baseUrl,
         mode: 'admin',
       },
     ];
@@ -141,6 +163,7 @@ export class AiKeyService {
     enabled: boolean;
     isAdminDefault: boolean;
     encryptedKey: string | null;
+    baseUrl: string | null;
   }): AiProviderConfig {
     return {
       id: row.id,
@@ -150,6 +173,7 @@ export class AiKeyService {
       enabled: row.enabled,
       isAdminDefault: row.isAdminDefault,
       hasKey: row.encryptedKey !== null,
+      baseUrl: row.baseUrl,
     };
   }
 }

@@ -90,9 +90,10 @@ export class AiRouterService {
         const result = await adapter.chat(messages, {
           model: cfg.model,
           apiKey: cfg.apiKey ?? undefined,
-          baseUrl: cfg.provider === 'ollama'
-            ? this.config.get('OLLAMA_BASE_URL', { infer: true })
-            : undefined,
+          baseUrl:
+            cfg.provider === 'ollama'
+              ? cfg.baseUrl ?? this.config.get('OLLAMA_BASE_URL', { infer: true })
+              : undefined,
           json,
         });
         await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation, result, Date.now() - started, true, false);
