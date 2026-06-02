@@ -41,15 +41,15 @@
     "signUp": "Create account"
   },
   "aiChip": {
-    "adminLabel": "{remaining}/{limit} this week",
-    "adminTooltip": "Instance AI requests left this week (rolling 7-day window). Manage in Settings.",
+    "adminLabel": "{remaining}/{limit} this month",
+    "adminTooltip": "Instance AI requests left this month (rolling 30-day window). Manage in Settings.",
     "byokLabel": "BYOK",
     "byokTooltip": "Using your own AI provider key. No quota.",
     "exhaustedLabel": "0/{limit}",
-    "exhaustedTooltip": "Weekly AI requests exhausted. Next slot frees up {date}."
+    "exhaustedTooltip": "Monthly AI requests exhausted. Next slot frees up {date}."
   },
   "aiFallback": {
-    "quota_exhausted": "Your weekly AI requests are used up — falling back to the rule-based engine.",
+    "quota_exhausted": "Your monthly AI requests are used up — falling back to the rule-based engine.",
     "no_provider": "No AI provider is configured for your account — falling back to the rule-based engine.",
     "all_providers_failed": "AI provider didn't respond — falling back to the rule-based engine."
   },
@@ -232,7 +232,7 @@
     "REVIEWER_DISABLED": "Reviewer interface is disabled.",
     "NO_REVIEWER_SESSION": "Sign in to continue reviewing.",
     "INVALID_REVIEWER_SESSION": "Your reviewer session expired. Please sign in again.",
-    "AI_WEEKLY_LIMIT_REACHED": "You've used your AI requests for this week.",
+    "AI_MONTHLY_LIMIT_REACHED": "You've used your AI requests for this month.",
     "INVENTORY_ITEM_NOT_FOUND": "Inventory item not found.",
     "ITEM_NOT_FOUND": "Shopping list item not found."
   },
@@ -627,7 +627,7 @@
     "aiModeNone": "Off",
     "aiModeNoneHint": "Every AI feature falls back to the deterministic engine. No request leaves the instance.",
     "aiModeAdmin": "Use the instance default",
-    "aiModeAdminHint": "Borrow the operator's provider, capped at {limit} requests per week.",
+    "aiModeAdminHint": "Borrow the operator's provider, capped at {limit} requests per month.",
     "aiModeAdminUnavailable": "The operator hasn't configured a default provider.",
     "aiModeAdminDisabled": "The operator has not enabled shared AI for users on this instance.",
     "aiModeByok": "Bring your own key",
@@ -636,10 +636,10 @@
     "aiModeSaving": "Saving…",
     "aiModeSaved": "AI mode updated.",
     "aiModeFailed": "Could not update AI mode.",
-    "aiQuotaHeading": "Weekly usage",
-    "aiQuotaUsed": "{used}/{limit} requests used this week",
+    "aiQuotaHeading": "Monthly usage",
+    "aiQuotaUsed": "{used}/{limit} requests used this month",
     "aiQuotaResetAt": "Next request frees up {date}",
-    "aiQuotaUnused": "No requests used yet — the counter resets seven days after your first call.",
+    "aiQuotaUnused": "No requests used yet — the counter resets thirty days after your first call.",
     "aiTestConnection": "Test connection",
     "aiTesting": "Testing…",
     "aiTestOk": "Connected. Pick a model below.",
@@ -944,7 +944,7 @@
     },
     "section3": {
       "title": "BYOK keys and admin AI mode",
-      "body": "When you enable BYOK (\"bring your own key\") in Settings you provide an API key for a third-party AI provider. The operator stores that key AES-encrypted at rest but does not insulate you from the provider's terms of service or pricing. When you use admin AI mode the operator is paying for your model calls within their configured weekly quota; abuse of that mode is grounds for the operator to disable your account."
+      "body": "When you enable BYOK (\"bring your own key\") in Settings you provide an API key for a third-party AI provider. The operator stores that key AES-encrypted at rest but does not insulate you from the provider's terms of service or pricing. When you use admin AI mode the operator is paying for your model calls within their configured monthly quota; abuse of that mode is grounds for the operator to disable your account."
     },
     "section4": {
       "title": "Nutrition is not medical advice",

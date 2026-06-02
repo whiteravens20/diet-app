@@ -45,7 +45,7 @@ export type Palette = z.infer<typeof Palette>;
  *             provider call ever leaves the instance.
  * - `admin` — the user borrows the operator's configured provider
  *             (`AI_DEFAULT_PROVIDER` / `AI_DEFAULT_MODEL`), capped by
- *             `AI_ADMIN_USER_WEEKLY_LIMIT` rolling-7-day requests.
+ *             `AI_ADMIN_USER_MONTHLY_LIMIT` rolling-30-day requests.
  * - `byok`  — the user supplies their own API key / Ollama URL via
  *             `AiProviderConfig`; no quota, no admin failover.
  *

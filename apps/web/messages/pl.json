@@ -41,15 +41,15 @@
     "signUp": "Załóż konto"
   },
   "aiChip": {
-    "adminLabel": "{remaining}/{limit} w tym tygodniu",
-    "adminTooltip": "Pozostałe zapytania AI z puli instancji w tym tygodniu (okno 7 dni). Zarządzaj w Ustawieniach.",
+    "adminLabel": "{remaining}/{limit} w tym miesiącu",
+    "adminTooltip": "Pozostałe zapytania AI z puli instancji w tym miesiącu (okno 30 dni). Zarządzaj w Ustawieniach.",
     "byokLabel": "BYOK",
     "byokTooltip": "Używasz własnego klucza AI. Bez limitu.",
     "exhaustedLabel": "0/{limit}",
-    "exhaustedTooltip": "Tygodniowy limit AI wyczerpany. Następne zapytanie odblokuje się {date}."
+    "exhaustedTooltip": "Miesięczny limit AI wyczerpany. Następne zapytanie odblokuje się {date}."
   },
   "aiFallback": {
-    "quota_exhausted": "Tygodniowy limit AI wyczerpany — używam silnika deterministycznego.",
+    "quota_exhausted": "Miesięczny limit AI wyczerpany — używam silnika deterministycznego.",
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — używam silnika deterministycznego.",
     "all_providers_failed": "Dostawca AI nie odpowiada — używam silnika deterministycznego."
   },
@@ -232,7 +232,7 @@
     "REVIEWER_DISABLED": "Panel recenzenta jest wyłączony.",
     "NO_REVIEWER_SESSION": "Zaloguj się, aby kontynuować recenzowanie.",
     "INVALID_REVIEWER_SESSION": "Sesja recenzenta wygasła. Zaloguj się ponownie.",
-    "AI_WEEKLY_LIMIT_REACHED": "Wyczerpałeś tygodniowy limit zapytań AI.",
+    "AI_MONTHLY_LIMIT_REACHED": "Wyczerpałeś miesięczny limit zapytań AI.",
     "INVENTORY_ITEM_NOT_FOUND": "Nie znaleziono pozycji w spiżarni.",
     "ITEM_NOT_FOUND": "Nie znaleziono pozycji listy zakupów."
   },
@@ -627,7 +627,7 @@
     "aiModeNone": "Wyłączone",
     "aiModeNoneHint": "Każda funkcja AI używa deterministycznego silnika. Żadne zapytanie nie opuszcza instancji.",
     "aiModeAdmin": "Użyj domyślnego dostawcy instancji",
-    "aiModeAdminHint": "Korzystasz z dostawcy operatora, z limitem {limit} zapytań na tydzień.",
+    "aiModeAdminHint": "Korzystasz z dostawcy operatora, z limitem {limit} zapytań na miesiąc.",
     "aiModeAdminUnavailable": "Operator nie skonfigurował domyślnego dostawcy.",
     "aiModeAdminDisabled": "Operator nie udostępnił współdzielonego AI użytkownikom tej instancji.",
     "aiModeByok": "Użyj własnego klucza",
@@ -636,10 +636,10 @@
     "aiModeSaving": "Zapisywanie…",
     "aiModeSaved": "Tryb AI zaktualizowany.",
     "aiModeFailed": "Nie udało się zaktualizować trybu AI.",
-    "aiQuotaHeading": "Tygodniowe użycie",
-    "aiQuotaUsed": "Wykorzystano {used}/{limit} zapytań w tym tygodniu",
+    "aiQuotaHeading": "Miesięczne użycie",
+    "aiQuotaUsed": "Wykorzystano {used}/{limit} zapytań w tym miesiącu",
     "aiQuotaResetAt": "Najbliższy slot zwolni się {date}",
-    "aiQuotaUnused": "Nie użyto jeszcze żadnych zapytań — licznik resetuje się 7 dni po pierwszym wywołaniu.",
+    "aiQuotaUnused": "Nie użyto jeszcze żadnych zapytań — licznik resetuje się 30 dni po pierwszym wywołaniu.",
     "aiTestConnection": "Sprawdź połączenie",
     "aiTesting": "Sprawdzanie…",
     "aiTestOk": "Połączono. Wybierz model poniżej.",
@@ -944,7 +944,7 @@
     },
     "section3": {
       "title": "Klucze BYOK i tryb admin AI",
-      "body": "Włączając BYOK (\"przynieś własny klucz\") w Ustawieniach podajesz klucz API zewnętrznego dostawcy AI. Operator przechowuje ten klucz zaszyfrowany AES-em, ale nie zwalnia Cię z regulaminu ani opłat dostawcy. Korzystając z trybu admin AI używasz puli operatora w ramach skonfigurowanego tygodniowego limitu; nadużycie tego trybu jest podstawą do wyłączenia konta przez operatora."
+      "body": "Włączając BYOK (\"przynieś własny klucz\") w Ustawieniach podajesz klucz API zewnętrznego dostawcy AI. Operator przechowuje ten klucz zaszyfrowany AES-em, ale nie zwalnia Cię z regulaminu ani opłat dostawcy. Korzystając z trybu admin AI używasz puli operatora w ramach skonfigurowanego miesięcznego limitu; nadużycie tego trybu jest podstawą do wyłączenia konta przez operatora."
     },
     "section4": {
       "title": "Wartości odżywcze to nie porada medyczna",

@@ -582,7 +582,7 @@ model AiUsageLog {
   model                   String
   operation               String // recipe_draft | substitution | plan_variation | meal_swap | ingredient_swap | ...
   // F10 routing mode at the time of the call: 'admin' (counts against the
-  // per-user weekly quota) or 'byok' (no quota). Nullable for pre-F10 rows.
+  // per-user monthly quota) or 'byok' (no quota). Nullable for pre-F10 rows.
   mode                    String?
   promptTokens            Int      @default(0)
   outputTokens            Int      @default(0)

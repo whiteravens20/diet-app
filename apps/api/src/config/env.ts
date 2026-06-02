@@ -31,10 +31,10 @@ export const envSchema = z.object({
 
   AI_DEFAULT_PROVIDER: z.enum(['openai', 'anthropic', 'openrouter', 'ollama']).optional(),
   AI_DEFAULT_MODEL: z.string().optional(),
-  // F10 per-user weekly quota for `aiMode='admin'` users (rolling 7 days).
+  // F10 per-user monthly quota for `aiMode='admin'` users (rolling 30 days).
   // 'byok' and 'none' users do not consume this. Set to 0 to deny the admin
   // mode entirely without unsetting AI_DEFAULT_PROVIDER.
-  AI_ADMIN_USER_WEEKLY_LIMIT: z.coerce.number().int().min(0).default(10),
+  AI_ADMIN_USER_MONTHLY_LIMIT: z.coerce.number().int().min(0).default(40),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),

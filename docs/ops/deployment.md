@@ -87,7 +87,7 @@ the NVIDIA Container Toolkit on the host.
 
 ### Server clock
 
-Rolling-window features (e.g. the F10 weekly AI quota, refresh-token TTLs,
+Rolling-window features (e.g. the F10 monthly AI quota, refresh-token TTLs,
 password-reset expiry) anchor on **the database's `NOW()`**, not the api
 container's wall clock — Postgres is the single source of truth for "now",
 so a drifting api container can't expire a user's quota early or late. The

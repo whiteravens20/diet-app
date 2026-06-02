@@ -61,7 +61,7 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  * localised "AI unavailable" toast/badge so the user knows the result came
  * from the engine and not from a model.
  *
- * - `quota_exhausted`     — `aiMode='admin'` user hit the weekly quota.
+ * - `quota_exhausted`     — `aiMode='admin'` user hit the monthly quota.
  * - `no_provider`         — `aiMode='none'`, or `byok` with no enabled
  *                           config, or `admin` with no configured admin
  *                           default (the operator didn't set
@@ -101,12 +101,12 @@ export type AiGenerationMeta = z.infer<typeof AiGenerationMeta>;
 export const AiQuotaStatus = z.object({
   mode: z.enum(['none', 'admin', 'byok']),
   /**
-   * Operator's env-configured weekly call cap (`AI_ADMIN_USER_WEEKLY_LIMIT`).
+   * Operator's env-configured monthly call cap (`AI_ADMIN_USER_MONTHLY_LIMIT`).
    * Returned regardless of the caller's mode so the Settings UI can gate the
    * `admin` option on it; `0` means admin mode is disabled instance-wide.
    */
   limit: z.number().int().nonnegative(),
-  /** Calls in the trailing 7-day window. Only meaningful for `admin`. */
+  /** Calls in the trailing 30-day window. Only meaningful for `admin`. */
   used: z.number().int().nonnegative(),
   /** `limit - used`, clamped at 0. `null` when no quota applies to the caller. */
   remaining: z.number().int().nonnegative().nullable(),

@@ -297,7 +297,7 @@ function AiAssistantCard({
 
   const status = quota.data;
   // Admin mode is offered only when the operator has set both
-  // AI_DEFAULT_PROVIDER and AI_DEFAULT_MODEL AND the env-configured weekly
+  // AI_DEFAULT_PROVIDER and AI_DEFAULT_MODEL AND the env-configured monthly
   // limit is > 0. The two failure modes get different copy so the operator
   // can tell "not set up" from "set up but not shared with users."
   const adminProviderConfigured = status?.adminProviderConfigured === true;
