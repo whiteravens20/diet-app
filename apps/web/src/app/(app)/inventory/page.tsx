@@ -16,6 +16,20 @@ const selectClass = 'h-10 w-full rounded-md border border-border bg-background p
 type UnitChoice = 'g' | 'ml' | 'piece';
 
 /**
+ * F15.1 best-before urgency: an item is "expiring soon" if today is within
+ * 2 days of `bestBefore` (inclusive of past dates — already expired is the
+ * loudest case). Compared on the day boundary in UTC so DST / timezone don't
+ * flip the result by a few hours.
+ */
+function isExpiringSoon(bestBefore: string): boolean {
+  const due = new Date(`${bestBefore}T00:00:00.000Z`).getTime();
+  if (Number.isNaN(due)) return false;
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return due - today <= 2 * 24 * 60 * 60 * 1000;
+}
+
+/**
  * F15 pantry-aware planning surface. Pick a profile, see what's in stock,
  * add/remove rows. The optimiser reads from this on the backend — every plan,
  * day re-roll and swap defaults to pantry-friendly when there's anything
@@ -152,7 +166,16 @@ export default function InventoryPage() {
                 <ul className="divide-y divide-border">
                   {rows.map((item) => (
                     <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">
-                      <span className="flex-1 min-w-[8rem] text-sm font-medium">{item.ingredient.name}</span>
+                      <span className="flex-1 min-w-[8rem] text-sm font-medium">
+                        {item.ingredient.name}
+                        {item.bestBefore && isExpiringSoon(item.bestBefore) && (
+                          <span
+                            className="ml-2 inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+                          >
+                            {t('expiringSoon')}
+                          </span>
+                        )}
+                      </span>
                       <Input
                         type="number"
                         step="0.01"

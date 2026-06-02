@@ -19,10 +19,29 @@ export const ShoppingListItem = z.object({
   /** Total quantity needed, in the canonical unit, after merging duplicates. */
   totalQuantity: z.number().min(0),
   unit: Unit,
-  /** Quantity the user already has — deducted from the buy amount. */
+  /**
+   * Snapshot of the pantry coverage at list-generation time — the portion of
+   * `totalQuantity` sourced from the user's inventory. Immutable; surfaces as
+   * the "from pantry" chip on the UI and is the amount the pantry decrements
+   * by when the row is checked off.
+   */
   alreadyHaveQuantity: z.number().min(0).default(0),
   /** totalQuantity - alreadyHaveQuantity, floored at 0. */
   toBuyQuantity: z.number().min(0),
+  /**
+   * F15.1 single user-facing quantity: how much the user has obtained for this
+   * row, counting the pantry pre-credit. Null until first edit. Row auto-checks
+   * when `purchasedQuantity >= totalQuantity`. Over-buy (purchased > total) is
+   * banked as leftover in the pantry on check-off; the pantry pre-credit is
+   * consumed. Idempotent on edit / uncheck.
+   */
+  purchasedQuantity: z.number().min(0).nullable().default(null),
+  /**
+   * Earliest best-before across pantry rows that contributed to
+   * `alreadyHaveQuantity`. Surfaced on the "from pantry" chip so the user sees
+   * urgency while shopping. Null when no contribution or no recorded expiry.
+   */
+  pantryBestBefore: z.string().date().nullable().default(null),
   /** Estimated calories contributed by this line (informational). */
   estimatedCalories: z.number().min(0),
   checked: z.boolean().default(false),
@@ -47,9 +66,13 @@ export const ShoppingList = z.object({
 });
 export type ShoppingList = z.infer<typeof ShoppingList>;
 
-/** Mark an item's "already have" amount or its checked state. */
+/**
+ * Mark an item's purchased quantity or checked state. `alreadyHaveQuantity` is
+ * a generate-time snapshot and is not user-editable. Setting `purchasedQuantity`
+ * to null clears it; values >= totalQuantity auto-check the row server-side.
+ */
 export const UpdateShoppingItemRequest = z.object({
-  alreadyHaveQuantity: z.number().min(0).optional(),
+  purchasedQuantity: z.number().min(0).nullable().optional(),
   checked: z.boolean().optional(),
 });
 export type UpdateShoppingItemRequest = z.infer<typeof UpdateShoppingItemRequest>;

@@ -233,7 +233,8 @@
     "NO_REVIEWER_SESSION": "Zaloguj się, aby kontynuować recenzowanie.",
     "INVALID_REVIEWER_SESSION": "Sesja recenzenta wygasła. Zaloguj się ponownie.",
     "AI_WEEKLY_LIMIT_REACHED": "Wyczerpałeś tygodniowy limit zapytań AI.",
-    "INVENTORY_ITEM_NOT_FOUND": "Nie znaleziono pozycji w spiżarni."
+    "INVENTORY_ITEM_NOT_FOUND": "Nie znaleziono pozycji w spiżarni.",
+    "ITEM_NOT_FOUND": "Nie znaleziono pozycji listy zakupów."
   },
   "dashboard": {
     "title": "Panel",
@@ -501,7 +502,7 @@
   },
   "shoppingLists": {
     "title": "Listy zakupów",
-    "subhead": "Lista zakupów z planu posiłków — pogrupowana według działów sklepu. Odhaczaj pozycje podczas zakupów; zaznacz, co już masz w domu, żeby odjąć to od ilości do kupienia.",
+    "subhead": "Lista zakupów z planu posiłków — pogrupowana według działów sklepu. Odhaczaj pozycje podczas zakupów; to, co masz w spiżarni, jest już wliczone, a pozycje odznaczają się same, gdy zbierzesz całą wymaganą ilość.",
     "noProfile": "Brak profilu",
     "noProfileBody": "Najpierw utwórz profil i wygeneruj plan posiłków — lista zakupów powstaje z planu.",
     "generate": "Wygeneruj listę",
@@ -517,7 +518,9 @@
     "deleteConfirm": "Usunąć tę listę zakupów?",
     "print": "Drukuj",
     "ofTotal": "(z {amount})",
-    "have": "masz",
+    "bought": "kupione",
+    "fromPantry": "ze spiżarni",
+    "fromPantryWithDate": "ze spiżarni · najlepiej przed {date}",
     "errGenerate": "Nie udało się wygenerować listy.",
     "errUpdate": "Nie udało się zaktualizować pozycji.",
     "errDelete": "Nie udało się usunąć listy.",
@@ -586,6 +589,7 @@
     "unitLabel": "Jednostka",
     "unitPiece": "szt.",
     "bestBeforeLabel": "Najlepiej spożyć przed",
+    "expiringSoon": "kończy się",
     "addButton": "Dodaj",
     "removeLabel": "Usuń {name}",
     "errAdd": "Nie udało się dodać pozycji.",
@@ -769,6 +773,8 @@
     "maxConsecutiveDaysSameMealHint": "Po tylu dniach pod rząd planer musi wybrać inny przepis.",
     "maxTimesPerWeekSameMeal": "Maks. powtórzeń tego samego dania w tygodniu",
     "maxTimesPerWeekSameMealHint": "Twardy limit w dowolnym 7-dniowym oknie. Tryb meal-prep go rozluźnia.",
+    "inventoryBiasResetEvery": "Przerwa od spiżarni (co ile planów)",
+    "inventoryBiasResetEveryHint": "Po tylu kolejnych planach opartych o spiżarnię następny pomija preferencję spiżarni dla urozmaicenia. 0 wyłącza przerwę.",
     "saving": "Zapisywanie…",
     "saveChanges": "Zapisz zmiany",
     "createProfile": "Utwórz profil",

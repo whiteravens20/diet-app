@@ -121,6 +121,11 @@ model Profile {
   // When set, overrides the calculated daily calorie target.
   manualCalorieTarget Int?
   mealCount           Int           @default(3)
+  // F15.1 transient counter — incremented on every plan-level generation that
+  // actually applied the inventory bias. Reset to 0 when it reaches
+  // `preferences.inventoryBiasResetEvery` (and the next round skips the bias).
+  // Swap-level reranking does NOT touch this column.
+  inventoryBiasStreak Int           @default(0)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -146,6 +151,11 @@ model ProfilePreference {
   // See ProfilePreferences zod schema in packages/shared for semantics.
   maxConsecutiveDaysSameMeal Int      @default(2)
   maxTimesPerWeekSameMeal    Int      @default(3)
+  // F15.1 anti-monotony rotation. After N consecutive inventory-biased plan
+  // generations the optimiser drops the pantry bias for the next round and
+  // resets the counter, so a long run of leftover-heavy weeks can't lock the
+  // user into one recipe corridor. 0 disables the reset entirely.
+  inventoryBiasResetEvery    Int      @default(5)
 }
 
 // ── Curated product database (SEED DATA — source of truth) ────────────────────
@@ -500,17 +510,35 @@ model ShoppingList {
 }
 
 model ShoppingListItem {
-  id                  String          @id @default(uuid())
-  list                ShoppingList    @relation(fields: [listId], references: [id], onDelete: Cascade)
-  listId              String
-  ingredientId        String
-  name                String
-  category            ProductCategory
-  totalQuantity       Float
-  unit                Unit
-  alreadyHaveQuantity Float           @default(0)
-  estimatedCalories   Float           @default(0)
-  checked             Boolean         @default(false)
+  id                    String          @id @default(uuid())
+  list                  ShoppingList    @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId                String
+  ingredientId          String
+  name                  String
+  category              ProductCategory
+  totalQuantity         Float
+  unit                  Unit
+  // Snapshot of pantry coverage at list-creation time. Immutable post-create —
+  // it is the row's "this much of the need was sourced from the pantry," and
+  // the pantry decrement on check-off is exactly this amount.
+  alreadyHaveQuantity   Float           @default(0)
+  // F15.1 single user-facing field: the total amount the user has obtained for
+  // this row, counting the pantry pre-credit. Null until first edit. Row is
+  // considered done (`checked = true`) when `purchasedQuantity >= totalQuantity`.
+  // Pantry net delta on check-off:
+  //   delta = max(0, purchasedQuantity - totalQuantity) - alreadyHaveQuantity
+  // i.e. any over-buy lands in pantry; the pre-credited pantry portion is
+  // consumed. `inventoryDelta` is the last-applied delta — uncheck reverses it
+  // exactly. Idempotent across any number of check/edit/uncheck cycles.
+  purchasedQuantity     Float?
+  inventoryDelta        Float           @default(0)
+  // Snapshot of the earliest best-before across pantry rows that contributed
+  // to `alreadyHaveQuantity`. Surfaced on the "from pantry" chip so the user
+  // sees urgency while shopping. Null when there was no pantry contribution or
+  // the contributing rows had no expiry.
+  pantryBestBefore      DateTime?
+  estimatedCalories     Float           @default(0)
+  checked               Boolean         @default(false)
 
   @@index([listId])
 }

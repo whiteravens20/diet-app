@@ -233,7 +233,8 @@
     "NO_REVIEWER_SESSION": "Sign in to continue reviewing.",
     "INVALID_REVIEWER_SESSION": "Your reviewer session expired. Please sign in again.",
     "AI_WEEKLY_LIMIT_REACHED": "You've used your AI requests for this week.",
-    "INVENTORY_ITEM_NOT_FOUND": "Inventory item not found."
+    "INVENTORY_ITEM_NOT_FOUND": "Inventory item not found.",
+    "ITEM_NOT_FOUND": "Shopping list item not found."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -501,7 +502,7 @@
   },
   "shoppingLists": {
     "title": "Shopping lists",
-    "subhead": "Consolidated, aisle-grouped lists generated from a meal plan. Tick items off as you shop; mark what you already have to deduct it from the buy amount.",
+    "subhead": "Consolidated, aisle-grouped lists generated from a meal plan. Tick items off as you shop — pantry stock is pre-credited and rows auto-check when the quantity is met.",
     "noProfile": "No profile yet",
     "noProfileBody": "Create a profile and generate a meal plan first — a shopping list is built from a plan.",
     "generate": "Generate a list",
@@ -517,7 +518,9 @@
     "deleteConfirm": "Delete this shopping list?",
     "print": "Print",
     "ofTotal": "(of {amount})",
-    "have": "have",
+    "bought": "bought",
+    "fromPantry": "from pantry",
+    "fromPantryWithDate": "from pantry · best before {date}",
     "errGenerate": "Could not generate the list.",
     "errUpdate": "Could not update the item.",
     "errDelete": "Could not delete the list.",
@@ -586,6 +589,7 @@
     "unitLabel": "Unit",
     "unitPiece": "piece",
     "bestBeforeLabel": "Best before",
+    "expiringSoon": "expiring soon",
     "addButton": "Add",
     "removeLabel": "Remove {name}",
     "errAdd": "Could not add the item.",
@@ -769,6 +773,8 @@
     "maxConsecutiveDaysSameMealHint": "Forces a different recipe after this many consecutive days.",
     "maxTimesPerWeekSameMeal": "Max times the same recipe per week",
     "maxTimesPerWeekSameMealHint": "Hard cap inside any rolling 7-day window. Meal-prep mode relaxes this automatically.",
+    "inventoryBiasResetEvery": "Pantry-bias cool-down (plans)",
+    "inventoryBiasResetEveryHint": "After this many consecutive plans that leaned on the pantry, the next round skips the pantry preference for variety. 0 disables the cool-down.",
     "saving": "Saving…",
     "saveChanges": "Save changes",
     "createProfile": "Create profile",

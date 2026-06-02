@@ -126,9 +126,14 @@ export default function ProfilePage() {
           preferredCuisines: [],
           maxConsecutiveDaysSameMeal: 2,
           maxTimesPerWeekSameMeal: 3,
+          inventoryBiasResetEvery: 5,
         }),
         maxConsecutiveDaysSameMeal: Number(f.get('maxConsecutiveDaysSameMeal')) || 2,
         maxTimesPerWeekSameMeal: Number(f.get('maxTimesPerWeekSameMeal')) || 3,
+        inventoryBiasResetEvery: Math.max(
+          0,
+          Math.min(20, Number(f.get('inventoryBiasResetEvery')) || 0),
+        ),
       },
     });
   }
@@ -334,6 +339,19 @@ export default function ProfilePage() {
                   min={1}
                   max={7}
                   defaultValue={editing?.preferences.maxTimesPerWeekSameMeal ?? 3}
+                />
+              </Field>
+              <Field
+                label={t('inventoryBiasResetEvery')}
+                hint={t('inventoryBiasResetEveryHint')}
+              >
+                <Input
+                  name="inventoryBiasResetEvery"
+                  type="number"
+                  required
+                  min={0}
+                  max={20}
+                  defaultValue={editing?.preferences.inventoryBiasResetEvery ?? 5}
                 />
               </Field>
               <div className="flex items-center gap-3 sm:col-span-2">

@@ -59,6 +59,9 @@ export default function ShoppingListsPage() {
       api.post<ShoppingList>('/shopping-lists/generate', body),
     onSuccess: (list) => {
       qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] });
+      // Generation may auto-check rows fully covered by pantry, decrementing
+      // inventory as a side-effect. Force the inventory page to refetch.
+      qc.invalidateQueries({ queryKey: ['inventory'] });
       setPickedList(list.id);
     },
     onError: (e) =>
@@ -69,16 +72,23 @@ export default function ShoppingListsPage() {
     mutationFn: (v: {
       listId: string;
       itemId: string;
-      alreadyHaveQuantity?: number;
+      purchasedQuantity?: number | null;
       checked?: boolean;
     }) =>
       api.patch<ShoppingList>(`/shopping-lists/${v.listId}/items/${v.itemId}`, {
-        ...(v.alreadyHaveQuantity !== undefined
-          ? { alreadyHaveQuantity: v.alreadyHaveQuantity }
-          : {}),
+        ...(v.purchasedQuantity !== undefined ? { purchasedQuantity: v.purchasedQuantity } : {}),
         ...(v.checked !== undefined ? { checked: v.checked } : {}),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] }),
+    // Update the cache synchronously from the response so the row reflects the
+    // server-derived state (auto-check, recomputed totals) without waiting on
+    // a refetch round-trip. Pantry inventory may have changed too — invalidate
+    // it so the inventory page reflects the consumption / leftover.
+    onSuccess: (updated) => {
+      qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (prev) =>
+        prev?.map((l) => (l.id === updated.id ? updated : l)) ?? [updated],
+      );
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+    },
     onError: (e) =>
       setError(e instanceof ApiClientError ? e.message : t('errUpdate')),
   });
@@ -88,6 +98,7 @@ export default function ShoppingListsPage() {
     onSuccess: () => {
       setPickedList(null);
       qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] });
+      qc.invalidateQueries({ queryKey: ['inventory'] });
     },
     onError: (e) =>
       setError(e instanceof ApiClientError ? e.message : t('errDelete')),
@@ -249,7 +260,9 @@ export default function ShoppingListsPage() {
               summaryLabel={(checked, total, kcal) =>
                 t('summary', { checked, total, kcal: kcal.toLocaleString() })
               }
-              haveLabel={t('have')}
+              boughtLabel={t('bought')}
+              fromPantryLabel={t('fromPantry')}
+              fromPantryWithDateLabel={(date) => t('fromPantryWithDate', { date })}
               ofLabel={(amount) => t('ofTotal', { amount })}
               deleteLabel={tCommon('delete')}
               deleteConfirm={t('deleteConfirm')}
@@ -272,7 +285,9 @@ function ListView({
   formatQty,
   categoryLabel,
   summaryLabel,
-  haveLabel,
+  boughtLabel,
+  fromPantryLabel,
+  fromPantryWithDateLabel,
   ofLabel,
   deleteLabel,
   deleteConfirm,
@@ -285,14 +300,16 @@ function ListView({
   formatQty: (qty: number, unit: string) => string;
   categoryLabel: (key: string) => string;
   summaryLabel: (checked: number, total: number, kcal: number) => string;
-  haveLabel: string;
+  boughtLabel: string;
+  fromPantryLabel: string;
+  fromPantryWithDateLabel: (date: string) => string;
   ofLabel: (amount: string) => string;
   deleteLabel: string;
   deleteConfirm: string;
   printLabel: string;
   onPatch: (
     item: ShoppingListItem,
-    patch: { checked?: boolean; alreadyHaveQuantity?: number },
+    patch: { checked?: boolean; purchasedQuantity?: number | null },
   ) => void;
   onDelete: (listId: string) => void;
 }) {
@@ -349,11 +366,13 @@ function ListView({
             <ul className="divide-y divide-border">
               {g.items.map((i) => (
                 <ItemRow
-                  key={`${i.id}-${i.alreadyHaveQuantity}`}
+                  key={`${i.id}-${i.purchasedQuantity ?? 'na'}-${i.checked}`}
                   item={i}
                   busy={busy}
                   formatQty={formatQty}
-                  haveLabel={haveLabel}
+                  boughtLabel={boughtLabel}
+                  fromPantryLabel={fromPantryLabel}
+                  fromPantryWithDateLabel={fromPantryWithDateLabel}
                   ofLabel={ofLabel}
                   onPatch={(patch) => onPatch(i, patch)}
                 />
@@ -370,24 +389,35 @@ function ItemRow({
   item,
   busy,
   formatQty,
-  haveLabel,
+  boughtLabel,
+  fromPantryLabel,
+  fromPantryWithDateLabel,
   ofLabel,
   onPatch,
 }: {
   item: ShoppingListItem;
   busy: boolean;
   formatQty: (qty: number, unit: string) => string;
-  haveLabel: string;
+  boughtLabel: string;
+  fromPantryLabel: string;
+  fromPantryWithDateLabel: (date: string) => string;
   ofLabel: (amount: string) => string;
-  onPatch: (patch: { checked?: boolean; alreadyHaveQuantity?: number }) => void;
+  onPatch: (patch: { checked?: boolean; purchasedQuantity?: number | null }) => void;
 }) {
-  // Local copy of the "already have" value so the input is editable without
-  // an API round-trip per keystroke. We commit on blur. The parent re-keys
-  // this component on server-side changes, so initial state is always fresh.
-  const [have, setHave] = useState(String(item.alreadyHaveQuantity || ''));
+  // Local copy of the numeric input so it's editable without an API round-trip
+  // per keystroke. We commit on blur. The parent re-keys this component on
+  // server-side changes, so initial state is always fresh after auto-check.
+  const [bought, setBought] = useState(
+    item.purchasedQuantity === null ? '' : String(item.purchasedQuantity),
+  );
+  const step = item.unit === 'piece' ? 0.25 : 1;
+  const pantryChipLabel =
+    item.pantryBestBefore != null
+      ? fromPantryWithDateLabel(item.pantryBestBefore)
+      : fromPantryLabel;
 
   return (
-    <li className="flex items-center gap-3 py-2 text-sm">
+    <li className="flex flex-wrap items-center gap-3 py-2 text-sm">
       <input
         type="checkbox"
         className="h-4 w-4 shrink-0"
@@ -397,6 +427,14 @@ function ItemRow({
       />
       <span className={item.checked ? 'flex-1 line-through text-muted-foreground' : 'flex-1'}>
         {item.name}
+        {item.alreadyHaveQuantity > 0 && (
+          <span
+            className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+            data-print-hide
+          >
+            {pantryChipLabel}
+          </span>
+        )}
       </span>
       <span className="tabular-nums text-muted-foreground">
         {formatQty(item.toBuyQuantity, item.unit)}
@@ -407,18 +445,19 @@ function ItemRow({
         )}
       </span>
       <label className="flex items-center gap-1 text-xs text-muted-foreground" data-print-hide>
-        {haveLabel}
+        {boughtLabel}
         <input
           type="number"
           min={0}
-          step={item.unit === 'piece' ? 0.25 : 1}
+          step={step}
           className="h-7 w-16 rounded border border-border bg-background px-1 text-right text-sm"
-          value={have}
+          value={bought}
           disabled={busy}
-          onChange={(e) => setHave(e.target.value)}
+          onChange={(e) => setBought(e.target.value)}
           onBlur={() => {
-            const next = Number(have) || 0;
-            if (next !== item.alreadyHaveQuantity) onPatch({ alreadyHaveQuantity: next });
+            const trimmed = bought.trim();
+            const next = trimmed === '' ? null : Number(bought) || 0;
+            if (next !== item.purchasedQuantity) onPatch({ purchasedQuantity: next });
           }}
         />
         {item.unit}

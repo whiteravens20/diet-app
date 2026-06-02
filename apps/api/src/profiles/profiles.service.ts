@@ -135,6 +135,7 @@ export class ProfilesService {
       preferredCuisines: string[];
       maxConsecutiveDaysSameMeal: number;
       maxTimesPerWeekSameMeal: number;
+      inventoryBiasResetEvery: number;
     } | null;
   }): Profile {
     return {
@@ -158,6 +159,7 @@ export class ProfilesService {
         preferredCuisines: row.preferences?.preferredCuisines ?? [],
         maxConsecutiveDaysSameMeal: row.preferences?.maxConsecutiveDaysSameMeal ?? 2,
         maxTimesPerWeekSameMeal: row.preferences?.maxTimesPerWeekSameMeal ?? 3,
+        inventoryBiasResetEvery: row.preferences?.inventoryBiasResetEvery ?? 5,
       },
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

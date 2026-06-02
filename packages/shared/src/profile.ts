@@ -28,6 +28,14 @@ export const ProfilePreferences = z.object({
    * plan (28 days = the same meal every day was the reported failure mode).
    */
   maxTimesPerWeekSameMeal: z.number().int().min(1).max(7).default(3),
+  /**
+   * F15.1 anti-monotony rotation threshold. After this many consecutive
+   * plan-level generations actually applied the inventory bias, the next
+   * round drops the pantry preference and the counter resets — keeps a
+   * leftover-heavy month from locking the user into one recipe corridor.
+   * `0` disables the rotation entirely (bias every round, no cap).
+   */
+  inventoryBiasResetEvery: z.number().int().min(0).max(20).default(5),
 });
 export type ProfilePreferences = z.infer<typeof ProfilePreferences>;
 
@@ -53,6 +61,7 @@ export const ProfileInput = z.object({
     preferredCuisines: [],
     maxConsecutiveDaysSameMeal: 2,
     maxTimesPerWeekSameMeal: 3,
+    inventoryBiasResetEvery: 5,
   }),
 });
 export type ProfileInput = z.infer<typeof ProfileInput>;
