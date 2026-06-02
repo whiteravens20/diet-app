@@ -33,6 +33,7 @@
     "recipes": "Recipes",
     "mealPlans": "Meal plans",
     "shoppingLists": "Shopping lists",
+    "inventory": "Inventory",
     "settings": "Settings",
     "admin": "Admin",
     "signIn": "Sign in",
@@ -231,7 +232,8 @@
     "REVIEWER_DISABLED": "Reviewer interface is disabled.",
     "NO_REVIEWER_SESSION": "Sign in to continue reviewing.",
     "INVALID_REVIEWER_SESSION": "Your reviewer session expired. Please sign in again.",
-    "AI_WEEKLY_LIMIT_REACHED": "You've used your AI requests for this week."
+    "AI_WEEKLY_LIMIT_REACHED": "You've used your AI requests for this week.",
+    "INVENTORY_ITEM_NOT_FOUND": "Inventory item not found."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -535,6 +537,9 @@
     "applyPrefsHint": "Independent — tick neither, one, or both. Allergens are always honoured.",
     "honourAvoid": "Honour my avoid list",
     "preferFavorites": "Prefer my favourite ingredients",
+    "preferInventory": "Prefer recipes that use my pantry",
+    "swapWithPantry": "Bias swaps toward what's in my pantry",
+    "swapWithPantryTooltip": "When on, every swap and AI-swap below prefers recipes (or substitute ingredients) the pantry can cover.",
     "generating": "Generating…",
     "generateButton": "Generate plan",
     "plansFor": "{name}'s plans",
@@ -566,6 +571,26 @@
     "errSwap": "Could not swap the meal.",
     "errAiSwap": "Could not AI-swap the meal.",
     "errDelete": "Could not delete the plan."
+  },
+  "inventory": {
+    "title": "Inventory",
+    "subhead": "What you have on hand. Plans, day re-rolls and meal swaps default to recipes the pantry can cover.",
+    "profileLabel": "Profile",
+    "createProfileFirst": "Create a profile first to track its pantry.",
+    "emptyState": "Your pantry is empty — add what you already have so the optimiser can use it.",
+    "addTitle": "Add to pantry",
+    "ingredientLabel": "Ingredient",
+    "searchPlaceholder": "Search the catalogue…",
+    "clearPick": "Change",
+    "quantityLabel": "Quantity",
+    "unitLabel": "Unit",
+    "unitPiece": "piece",
+    "bestBeforeLabel": "Best before",
+    "addButton": "Add",
+    "removeLabel": "Remove {name}",
+    "errAdd": "Could not add the item.",
+    "errUpdate": "Could not update the item.",
+    "errDelete": "Could not remove the item."
   },
   "settings": {
     "title": "Settings",

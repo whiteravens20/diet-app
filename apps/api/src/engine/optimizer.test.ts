@@ -3,6 +3,7 @@ import {
   OptimizerError,
   fitServings,
   optimisePlan,
+  recipeCoverage,
   slotBudgets,
   type OptimizerInput,
   type OptimizerRecipe,
@@ -133,5 +134,51 @@ describe('optimisePlan', () => {
         for (const c of counts.values()) expect(c).toBeLessThanOrEqual(3);
       }
     }
+  });
+});
+
+describe('recipeCoverage', () => {
+  it('returns 1.0 when every required ingredient is fully stocked', () => {
+    const reqs = [
+      { ingredientId: 'a', canonicalQuantity: 200 },
+      { ingredientId: 'b', canonicalQuantity: 100 },
+    ];
+    const pantry = new Map([
+      ['a', 500],
+      ['b', 300],
+    ]);
+    expect(recipeCoverage(reqs, pantry)).toBe(1);
+  });
+
+  it('caps each ingredient at the required mass — extra stock does not double-count', () => {
+    const reqs = [
+      { ingredientId: 'a', canonicalQuantity: 100 },
+      { ingredientId: 'b', canonicalQuantity: 100 },
+    ];
+    // Pantry has 1000 g of 'a' (only 100 g counts) and 0 of 'b' → coverage 0.5.
+    const pantry = new Map([['a', 1000]]);
+    expect(recipeCoverage(reqs, pantry)).toBe(0.5);
+  });
+
+  it('returns 0 when the pantry is empty', () => {
+    const reqs = [{ ingredientId: 'a', canonicalQuantity: 100 }];
+    expect(recipeCoverage(reqs, new Map())).toBe(0);
+  });
+
+  it('returns 0 for an empty requirement list (defensive)', () => {
+    expect(recipeCoverage([], new Map([['a', 100]]))).toBe(0);
+  });
+
+  it('partially covers when a row is short', () => {
+    const reqs = [
+      { ingredientId: 'a', canonicalQuantity: 200 },
+      { ingredientId: 'b', canonicalQuantity: 100 },
+    ];
+    // 100 + 100 = 200 covered of 300 required → 0.6666…
+    const pantry = new Map([
+      ['a', 100],
+      ['b', 100],
+    ]);
+    expect(recipeCoverage(reqs, pantry)).toBeCloseTo(2 / 3, 5);
   });
 });

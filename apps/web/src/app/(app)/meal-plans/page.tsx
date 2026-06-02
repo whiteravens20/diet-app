@@ -45,6 +45,9 @@ function MealPlansContent() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [openPlan, setOpenPlan] = useState<string | null>(null);
+  // F15 page-level toggle: applies to every swap / AI-swap on every plan card.
+  // Plan generation has its own checkbox inside the new-plan form.
+  const [swapWithPantry, setSwapWithPantry] = useState(true);
 
   // Drives whether the ✨ button renders. `aiMode === 'none'` users hid AI on
   // purpose — they shouldn't see AI surfaces at all (matches AiChip semantics).
@@ -124,6 +127,7 @@ function MealPlansContent() {
         planId: v.planId,
         plannedMealId: v.plannedMealId,
         strategy: v.strategy,
+        respectInventory: swapWithPantry,
         ...(v.favoriteRecipeId ? { favoriteRecipeId: v.favoriteRecipeId } : {}),
       }),
     onSuccess: invalidate,
@@ -135,7 +139,7 @@ function MealPlansContent() {
   // a localised info banner so the user knows when AI didn't actually run.
   const aiSwapMeal = useMutation({
     mutationFn: (v: { planId: string; plannedMealId: string; hint?: string }) =>
-      api.post<AiSwapMealResponse>('/meal-plans/ai-swap-meal', v),
+      api.post<AiSwapMealResponse>('/meal-plans/ai-swap-meal', { ...v, respectInventory: swapWithPantry }),
     onSuccess: (res) => {
       invalidate();
       // Bust the chip's quota query — successful admin calls decrement remaining.
@@ -171,6 +175,7 @@ function MealPlansContent() {
       mealPrepFriendly: f.get('mealPrepFriendly') === 'on',
       respectExclusions: f.get('respectExclusions') === 'on',
       respectFavorites: f.get('respectFavorites') === 'on',
+      respectInventory: f.get('respectInventory') === 'on',
     });
   }
 
@@ -252,6 +257,10 @@ function MealPlansContent() {
                 <input type="checkbox" name="respectFavorites" defaultChecked className="h-4 w-4" />
                 {t('preferFavorites')}
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="respectInventory" defaultChecked className="h-4 w-4" />
+                {t('preferInventory')}
+              </label>
             </fieldset>
             <Button type="submit" disabled={generate.isPending}>
               {generate.isPending ? t('generating') : t('generateButton')}
@@ -315,6 +324,15 @@ function MealPlansContent() {
             )}
           </div>
         </div>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground" title={t('swapWithPantryTooltip')}>
+          <input
+            type="checkbox"
+            className="h-3.5 w-3.5"
+            checked={swapWithPantry}
+            onChange={(e) => setSwapWithPantry(e.target.checked)}
+          />
+          {t('swapWithPantry')}
+        </label>
         {plans.isLoading ? (
           <Skeleton className="h-24 max-w-3xl" />
         ) : (plans.data ?? []).length === 0 ? (

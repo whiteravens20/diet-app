@@ -16,6 +16,7 @@ export * from './recipe.js';
 export * from './meal-plan.js';
 export * from './favorite-sets.js';
 export * from './shopping-list.js';
+export * from './inventory.js';
 export * from './ai.js';
 export * from './drafts.js';
 

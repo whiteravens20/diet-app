@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
+  Package,
   Settings,
   Soup,
   UserRound,
@@ -24,6 +25,7 @@ const NAV = [
   { href: '/meal-plans', labelKey: 'mealPlans', icon: CalendarRange },
   { href: '/recipes', labelKey: 'recipes', icon: Soup },
   { href: '/shopping-lists', labelKey: 'shoppingLists', icon: ListChecks },
+  { href: '/inventory', labelKey: 'inventory', icon: Package },
   { href: '/settings', labelKey: 'settings', icon: Settings },
 ] as const;
 

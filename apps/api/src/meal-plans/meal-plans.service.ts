@@ -27,9 +27,11 @@ import {
   nutritionFor,
   optimisePlan,
   OptimizerError,
+  recipeCoverage,
   slotBudgets,
   substituteIngredient,
   toCanonical,
+  UnitConversionError,
   type CalorieEngineInput,
   type EngineIngredient,
   type OptimizerRecipe,
@@ -84,6 +86,7 @@ export class MealPlansService {
       mealPrepFriendly: req.mealPrepFriendly,
       respectExclusions: req.respectExclusions,
       respectFavorites: req.respectFavorites,
+      respectInventory: req.respectInventory,
       seed,
     });
 
@@ -231,17 +234,25 @@ export class MealPlansService {
       respectExclusions?: boolean;
       /** Pass favourite-ingredient ids to the optimiser bias (default true). */
       respectFavorites?: boolean;
+      /** F15 pantry-aware bias toggle (default true). */
+      respectInventory?: boolean;
       seed: number;
     },
   ) {
     const mealSlots = MEAL_SLOTS_BY_COUNT[opts.mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
-    const { optimizerRecipes } = await this.loadEligibleRecipes(profile, {
+    const { optimizerRecipes, requirementsByRecipe } = await this.loadEligibleRecipes(profile, {
       respectExclusions: opts.respectExclusions,
     });
     const favoriteIngredientIds =
       opts.respectFavorites === false
         ? undefined
         : new Set(profile.preferences?.favoriteIngredientIds ?? []);
+    const inventoryCoverage = await this.resolveInventoryBias(
+      profile.id,
+      opts.respectInventory !== false,
+      optimizerRecipes,
+      requirementsByRecipe,
+    );
     // When mealPrepFriendly is set on the request, relax the profile's caps
     // up to a generous baseline (4 consecutive days, 5 occurrences/week) —
     // the user is asking for cook-once-eat-many, so honour their intent even
@@ -264,6 +275,7 @@ export class MealPlansService {
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
         favoriteIngredientIds,
+        inventoryCoverage,
         maxConsecutiveDaysSameMeal,
         maxTimesPerWeekSameMeal,
         seed: opts.seed,
@@ -449,7 +461,22 @@ export class MealPlansService {
         throw new NotFoundException({ error: 'NO_ALTERNATIVE', message: 'No alternative recipe found.' });
       }
       const fresh = candidates.filter((c) => !excludeBeforeReset.has(c.id));
-      const pool = fresh.length > 0 ? fresh : candidates;
+      let pool = fresh.length > 0 ? fresh : candidates;
+      // F15 re-rank by pantry coverage descending so an inventory-friendly
+      // random swap is picked when the user opted in. hashIndex on a stable
+      // order still rotates through the pool so consecutive clicks vary —
+      // but consistently among high-coverage candidates first.
+      const coverage = await this.recipeCoverageMap(
+        meal.day.plan.profileId,
+        pool.map((c) => c.id),
+        req.respectInventory !== false,
+      );
+      if (coverage) {
+        pool = [...pool].sort((a, b) => {
+          const diff = (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0);
+          return diff !== 0 ? diff : a.id.localeCompare(b.id);
+        });
+      }
       // Same seed-advance trick as above.
       const idx = hashIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length);
       replacementId = pool[idx]!.id;
@@ -532,7 +559,22 @@ export class MealPlansService {
     }
 
     const freshCandidates = candidates.filter((c) => !excludeBeforeReset.has(c.id));
-    const pool = freshCandidates.length > 0 ? freshCandidates : candidates;
+    let pool = freshCandidates.length > 0 ? freshCandidates : candidates;
+    // F15 sort the pool by pantry coverage descending so the AI sees pantry-
+    // friendly recipes first AND the deterministic fallback (hashIndex on
+    // pool order) prefers them. Coverage is null when the toggle is off or
+    // the pantry is empty — pool stays in its original order.
+    const aiSwapCoverage = await this.recipeCoverageMap(
+      meal.day.plan.profileId,
+      pool.map((c) => c.id),
+      req.respectInventory !== false,
+    );
+    if (aiSwapCoverage) {
+      pool = [...pool].sort((a, b) => {
+        const diff = (aiSwapCoverage.get(b.id) ?? 0) - (aiSwapCoverage.get(a.id) ?? 0);
+        return diff !== 0 ? diff : a.id.localeCompare(b.id);
+      });
+    }
 
     const daySlots = await this.prisma.plannedMeal.findMany({
       where: { dayId: meal.dayId },
@@ -1186,13 +1228,28 @@ export class MealPlansService {
       },
       take: 50,
     });
-    const pool = rawCandidates
+    let pool = rawCandidates
       .filter((c) => !c.allergens.some((a) => userAllergens.has(a)))
       .slice(0, 25);
     if (pool.length === 0) {
       throw new NotFoundException({
         error: 'NO_ALTERNATIVE',
         message: 'No alternative ingredient found.',
+      });
+    }
+    // F15 surface pantry-friendly substitutes first. The AI sees them at the
+    // top of the list AND the deterministic fallback (hashIndex on pool
+    // order) prefers them.
+    const pantryHits = await this.ingredientPantryHit(
+      meal.day.plan.profileId,
+      pool.map((c) => c.id),
+      req.respectInventory !== false,
+    );
+    if (pantryHits) {
+      pool = [...pool].sort((a, b) => {
+        const aHit = pantryHits.has(a.id) ? 1 : 0;
+        const bHit = pantryHits.has(b.id) ? 1 : 0;
+        return bHit - aHit || a.id.localeCompare(b.id);
       });
     }
 
@@ -1295,37 +1352,189 @@ export class MealPlansService {
         | null;
     },
     options: { respectExclusions?: boolean } = {},
-  ): Promise<{ optimizerRecipes: OptimizerRecipe[] }> {
+  ): Promise<{
+    optimizerRecipes: OptimizerRecipe[];
+    /**
+     * Per-recipe canonical-unit ingredient requirements, used by F15 coverage
+     * scoring. Rows whose unit conversion fails (missing density / gramsPerPiece)
+     * are dropped from the requirement list — they can't be compared against
+     * pantry stock, so treating them as "not covered" is the safe default.
+     */
+    requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>;
+  }> {
     const allergens = profile.preferences?.allergens ?? [];
     const excluded =
       options.respectExclusions === false
         ? new Set<string>()
         : new Set(profile.preferences?.excludedIngredientIds ?? []);
 
-    const recipes = await this.prisma.recipe.findMany({ include: { ingredients: true } });
+    const recipes = await this.prisma.recipe.findMany({
+      include: {
+        ingredients: {
+          include: {
+            ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } },
+          },
+        },
+      },
+    });
     const favorites = await this.prisma.favorite.findMany({
       where: { profileId: profile.id },
       select: { recipeId: true },
     });
     const favoriteIds = new Set(favorites.map((f) => f.recipeId));
 
-    const optimizerRecipes: OptimizerRecipe[] = recipes
+    const filteredRecipes = recipes
       .filter((r) => !r.allergens.some((a) => allergens.includes(a)))
-      .filter((r) => !r.ingredients.some((i) => excluded.has(i.ingredientId)))
-      .map((r) => ({
-        id: r.id,
-        mealTypes: r.mealTypes as MealType[],
-        dietTags: r.dietTags as OptimizerRecipe['dietTags'],
-        caloriesPerServing: r.caloriesPerServing,
-        proteinPerServing: r.proteinPerServing,
-        fatPerServing: r.fatPerServing,
-        carbsPerServing: r.carbsPerServing,
-        ingredientIds: r.ingredients.map((i) => i.ingredientId),
-        difficulty: r.difficulty,
-        isFavorite: favoriteIds.has(r.id),
-      }));
+      .filter((r) => !r.ingredients.some((i) => excluded.has(i.ingredientId)));
 
-    return { optimizerRecipes };
+    const optimizerRecipes: OptimizerRecipe[] = filteredRecipes.map((r) => ({
+      id: r.id,
+      mealTypes: r.mealTypes as MealType[],
+      dietTags: r.dietTags as OptimizerRecipe['dietTags'],
+      caloriesPerServing: r.caloriesPerServing,
+      proteinPerServing: r.proteinPerServing,
+      fatPerServing: r.fatPerServing,
+      carbsPerServing: r.carbsPerServing,
+      ingredientIds: r.ingredients.map((i) => i.ingredientId),
+      difficulty: r.difficulty,
+      isFavorite: favoriteIds.has(r.id),
+    }));
+
+    const requirementsByRecipe = new Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>();
+    for (const r of filteredRecipes) {
+      const reqs: Array<{ ingredientId: string; canonicalQuantity: number }> = [];
+      for (const ri of r.ingredients) {
+        try {
+          const canonical = toCanonical(ri.quantity, ri.unit, ri.ingredient);
+          if (canonical > 0) reqs.push({ ingredientId: ri.ingredientId, canonicalQuantity: canonical });
+        } catch (err) {
+          if (!(err instanceof UnitConversionError)) throw err;
+        }
+      }
+      requirementsByRecipe.set(r.id, reqs);
+    }
+
+    return { optimizerRecipes, requirementsByRecipe };
+  }
+
+  /**
+   * F15 build the per-recipe coverage map the optimiser scores against.
+   * Returns undefined when the toggle is off, the pantry is empty, or no
+   * candidate recipe touches anything in the pantry — callers leave the
+   * pool ordering / scoring untouched. Anti-monotony rotation is parked
+   * for F15.1.
+   */
+  private async resolveInventoryBias(
+    profileId: string,
+    respectInventory: boolean,
+    optimizerRecipes: OptimizerRecipe[],
+    requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
+  ): Promise<Map<string, number> | undefined> {
+    if (!respectInventory) return undefined;
+
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { profileId },
+      include: { ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } } },
+    });
+    if (items.length === 0) return undefined;
+
+    const pantryStock = new Map<string, number>();
+    for (const item of items) {
+      try {
+        const canonical = toCanonical(item.quantity, item.unit, item.ingredient);
+        pantryStock.set(item.ingredientId, (pantryStock.get(item.ingredientId) ?? 0) + canonical);
+      } catch (err) {
+        if (!(err instanceof UnitConversionError)) throw err;
+      }
+    }
+    if (pantryStock.size === 0) return undefined;
+
+    const coverage = new Map<string, number>();
+    for (const r of optimizerRecipes) {
+      const reqs = requirementsByRecipe.get(r.id) ?? [];
+      const score = recipeCoverage(reqs, pantryStock);
+      if (score > 0) coverage.set(r.id, score);
+    }
+    return coverage.size > 0 ? coverage : undefined;
+  }
+
+  /**
+   * F15 batch-score an arbitrary recipe-id list by pantry coverage. Used by
+   * the swap paths (deterministic + AI) to re-rank candidates before picking
+   * / before sending to the model. Returns null when respectInventory is off
+   * or the pantry is empty — callers leave their pool ordering untouched.
+   */
+  private async recipeCoverageMap(
+    profileId: string,
+    recipeIds: string[],
+    respectInventory: boolean,
+  ): Promise<Map<string, number> | null> {
+    if (!respectInventory || recipeIds.length === 0) return null;
+
+    const inventoryRows = await this.prisma.inventoryItem.findMany({
+      where: { profileId },
+      include: { ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } } },
+    });
+    if (inventoryRows.length === 0) return null;
+    const pantryStock = new Map<string, number>();
+    for (const item of inventoryRows) {
+      try {
+        const canonical = toCanonical(item.quantity, item.unit, item.ingredient);
+        pantryStock.set(item.ingredientId, (pantryStock.get(item.ingredientId) ?? 0) + canonical);
+      } catch (err) {
+        if (!(err instanceof UnitConversionError)) throw err;
+      }
+    }
+    if (pantryStock.size === 0) return null;
+
+    const recipes = await this.prisma.recipe.findMany({
+      where: { id: { in: recipeIds } },
+      include: {
+        ingredients: {
+          include: {
+            ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } },
+          },
+        },
+      },
+    });
+    const result = new Map<string, number>();
+    for (const r of recipes) {
+      const reqs: Array<{ ingredientId: string; canonicalQuantity: number }> = [];
+      for (const ri of r.ingredients) {
+        try {
+          const canonical = toCanonical(ri.quantity, ri.unit, ri.ingredient);
+          if (canonical > 0) reqs.push({ ingredientId: ri.ingredientId, canonicalQuantity: canonical });
+        } catch (err) {
+          if (!(err instanceof UnitConversionError)) throw err;
+        }
+      }
+      result.set(r.id, recipeCoverage(reqs, pantryStock));
+    }
+    return result;
+  }
+
+  /**
+   * F15 batch-score an arbitrary ingredient-id list by "is in the pantry".
+   * Returns a boolean-ish [0, 1] score keyed by ingredient id: 1 when the
+   * pantry has any stock of that ingredient, 0 otherwise. Used by AI-suggest
+   * ingredient swap to bias candidates toward the pantry without doing a
+   * full canonical-mass coverage calc.
+   */
+  private async ingredientPantryHit(
+    profileId: string,
+    ingredientIds: string[],
+    respectInventory: boolean,
+  ): Promise<Set<string> | null> {
+    if (!respectInventory || ingredientIds.length === 0) return null;
+    const rows = await this.prisma.inventoryItem.findMany({
+      where: { profileId, ingredientId: { in: ingredientIds } },
+      select: { ingredientId: true, quantity: true },
+    });
+    const hits = new Set<string>();
+    for (const r of rows) {
+      if (r.quantity > 0) hits.add(r.ingredientId);
+    }
+    return hits.size === 0 ? null : hits;
   }
 
   private toDto(plan: PlanWithRelations, locale: Locale): MealPlan {

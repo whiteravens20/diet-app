@@ -33,6 +33,7 @@
     "recipes": "Przepisy",
     "mealPlans": "Plany posiłków",
     "shoppingLists": "Listy zakupów",
+    "inventory": "Spiżarnia",
     "settings": "Ustawienia",
     "admin": "Administracja",
     "signIn": "Zaloguj się",
@@ -231,7 +232,8 @@
     "REVIEWER_DISABLED": "Panel recenzenta jest wyłączony.",
     "NO_REVIEWER_SESSION": "Zaloguj się, aby kontynuować recenzowanie.",
     "INVALID_REVIEWER_SESSION": "Sesja recenzenta wygasła. Zaloguj się ponownie.",
-    "AI_WEEKLY_LIMIT_REACHED": "Wyczerpałeś tygodniowy limit zapytań AI."
+    "AI_WEEKLY_LIMIT_REACHED": "Wyczerpałeś tygodniowy limit zapytań AI.",
+    "INVENTORY_ITEM_NOT_FOUND": "Nie znaleziono pozycji w spiżarni."
   },
   "dashboard": {
     "title": "Panel",
@@ -535,6 +537,9 @@
     "applyPrefsHint": "Działają niezależnie — możesz zaznaczyć żadne, jedno lub oba. Alergeny zawsze są pomijane.",
     "honourAvoid": "Pomijaj składniki z mojej listy unikanych",
     "preferFavorites": "Preferuj moje ulubione składniki",
+    "preferInventory": "Preferuj przepisy korzystające ze spiżarni",
+    "swapWithPantry": "Zamiany preferują to, co masz w spiżarni",
+    "swapWithPantryTooltip": "Gdy włączone, każda zamiana i zamiana AI poniżej preferuje przepisy (lub składniki zastępcze), które spiżarnia jest w stanie pokryć.",
     "generating": "Generowanie…",
     "generateButton": "Wygeneruj plan",
     "plansFor": "Plany {name}",
@@ -566,6 +571,26 @@
     "errSwap": "Nie udało się zamienić posiłku.",
     "errAiSwap": "Nie udało się dokonać zamiany przez AI.",
     "errDelete": "Nie udało się usunąć planu."
+  },
+  "inventory": {
+    "title": "Spiżarnia",
+    "subhead": "Co masz pod ręką. Plany, regeneracje dni i zamiany posiłków domyślnie korzystają z przepisów, które spiżarnia pokrywa.",
+    "profileLabel": "Profil",
+    "createProfileFirst": "Utwórz profil, aby śledzić jego spiżarnię.",
+    "emptyState": "Spiżarnia jest pusta — dodaj, co masz, by optymalizator mógł to wykorzystać.",
+    "addTitle": "Dodaj do spiżarni",
+    "ingredientLabel": "Składnik",
+    "searchPlaceholder": "Szukaj w katalogu…",
+    "clearPick": "Zmień",
+    "quantityLabel": "Ilość",
+    "unitLabel": "Jednostka",
+    "unitPiece": "szt.",
+    "bestBeforeLabel": "Najlepiej spożyć przed",
+    "addButton": "Dodaj",
+    "removeLabel": "Usuń {name}",
+    "errAdd": "Nie udało się dodać pozycji.",
+    "errUpdate": "Nie udało się zaktualizować pozycji.",
+    "errDelete": "Nie udało się usunąć pozycji."
   },
   "settings": {
     "title": "Ustawienia",

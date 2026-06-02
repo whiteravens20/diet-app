@@ -37,6 +37,14 @@ export interface OptimizerInput {
    */
   favoriteIngredientIds?: ReadonlySet<string>;
   /**
+   * F15 pantry-coverage map: `recipeId → [0..1]` share of the recipe's
+   * required ingredient mass already covered by the profile's inventory.
+   * Caller pre-computes this from the inventory snapshot + recipe
+   * requirements (the optimiser stays pure / unit-test friendly). Omitted or
+   * empty disables the bias — users with an empty pantry see no change.
+   */
+  inventoryCoverage?: ReadonlyMap<string, number>;
+  /**
    * Hard caps that exclude a candidate from a slot when it would repeat too
    * often. Resolved upstream from the profile's preferences (and, when the
    * caller sets `mealPrepFriendly`, relaxed). Falsy / omitted falls back to
@@ -77,6 +85,11 @@ const SCORE_WEIGHTS = {
   variety: 0.15,
   favorite: 0.1,
   favoriteIngredient: 0.08,
+  // F15: weighted equal to favorite (0.10) so a 100%-covered recipe and a
+  // favourited recipe weigh comparably. Lower would let day-to-day variety
+  // overrule the pantry; higher would risk monotony before the anti-monotony
+  // reset triggers.
+  inventoryCoverage: 0.1,
   complexity: 0.05,
 } as const;
 
@@ -149,6 +162,7 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
         recentUse,
         mealPrepFriendly: input.mealPrepFriendly,
         favoriteIngredientIds: input.favoriteIngredientIds,
+        inventoryCoverage: input.inventoryCoverage,
         seed: input.seed,
       });
 
@@ -205,6 +219,7 @@ interface PickContext {
   recentUse: Map<string, number>;
   mealPrepFriendly: boolean;
   favoriteIngredientIds?: ReadonlySet<string>;
+  inventoryCoverage?: ReadonlyMap<string, number>;
   seed: number;
 }
 
@@ -266,14 +281,42 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   const complexityPenalty =
     ctx.mealPrepFriendly && recipe.difficulty === 'hard' ? 1 : recipe.difficulty === 'hard' ? 0.4 : 0;
 
+  // F15 pantry coverage. Pre-computed by the caller; omitted/empty map → 0.
+  const inventoryCoverage = ctx.inventoryCoverage?.get(recipe.id) ?? 0;
+
   return (
     SCORE_WEIGHTS.calorieFit * calorieFit +
     SCORE_WEIGHTS.reuse * reuse +
     SCORE_WEIGHTS.variety * variety +
     SCORE_WEIGHTS.favorite * favorite +
-    SCORE_WEIGHTS.favoriteIngredient * favoriteIngredient -
+    SCORE_WEIGHTS.favoriteIngredient * favoriteIngredient +
+    SCORE_WEIGHTS.inventoryCoverage * inventoryCoverage -
     SCORE_WEIGHTS.complexity * complexityPenalty
   );
+}
+
+/**
+ * F15 per-recipe coverage. Given the recipe's required mass per ingredient
+ * (in any unit the caller normalises to a single comparable scalar — usually
+ * the ingredient's canonical unit) and the pantry's available mass for each
+ * ingredient, returns the share of the recipe's required mass already on
+ * hand, clamped to [0, 1]. Recipes with no requirements (defensive) → 0.
+ */
+export function recipeCoverage(
+  requirements: ReadonlyArray<{ ingredientId: string; canonicalQuantity: number }>,
+  pantryStock: ReadonlyMap<string, number>,
+): number {
+  if (requirements.length === 0) return 0;
+  let required = 0;
+  let covered = 0;
+  for (const req of requirements) {
+    if (req.canonicalQuantity <= 0) continue;
+    required += req.canonicalQuantity;
+    const available = pantryStock.get(req.ingredientId) ?? 0;
+    covered += Math.min(req.canonicalQuantity, available);
+  }
+  if (required === 0) return 0;
+  return Math.min(1, covered / required);
 }
 
 /** Share of plan ingredients that appear in more than one assigned recipe. */

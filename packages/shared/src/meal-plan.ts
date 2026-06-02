@@ -20,6 +20,14 @@ export const GeneratePlanRequest = z.object({
   respectExclusions: z.boolean().default(true),
   /** Bias the optimiser toward recipes built from the profile's favourites. */
   respectFavorites: z.boolean().default(true),
+  /**
+   * F15 bias the optimiser toward recipes the profile's inventory can cover.
+   * Default true; auto-no-ops when the pantry is empty so users without
+   * inventory see no change. The anti-monotony reset (every N consecutive
+   * biased rounds, see Profile.inventoryBiasResetEvery) drops the bias for
+   * one round to keep the menu varied.
+   */
+  respectInventory: z.boolean().default(true),
 });
 export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
 
@@ -76,6 +84,8 @@ export const SwapMealRequest = z.object({
    */
   strategy: z.enum(['random', 'favorite', 'favorite_ingredients']),
   favoriteRecipeId: z.string().uuid().optional(),
+  /** F15 bias the swap candidate pool toward recipes the pantry covers. */
+  respectInventory: z.boolean().default(true),
 });
 export type SwapMealRequest = z.infer<typeof SwapMealRequest>;
 
@@ -93,6 +103,8 @@ export const AiSwapMealRequest = z.object({
    * Capped to keep the prompt cost predictable.
    */
   hint: z.string().trim().max(200).optional(),
+  /** F15 bias the AI-ranked candidate pool toward pantry-covering recipes. */
+  respectInventory: z.boolean().default(true),
 });
 export type AiSwapMealRequest = z.infer<typeof AiSwapMealRequest>;
 
@@ -127,6 +139,8 @@ export const AiSuggestIngredientRequest = z.object({
   fromIngredientId: z.string().uuid(),
   /** Optional free-form user hint, e.g. *"cheaper"*, *"higher protein"*. */
   hint: z.string().trim().max(200).optional(),
+  /** F15 bias the AI-ranked candidate pool toward ingredients in the pantry. */
+  respectInventory: z.boolean().default(true),
 });
 export type AiSuggestIngredientRequest = z.infer<typeof AiSuggestIngredientRequest>;
 

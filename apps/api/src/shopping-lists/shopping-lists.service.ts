@@ -8,6 +8,8 @@ import type {
 import {
   aggregateShoppingList,
   toBuyQuantity,
+  toCanonical,
+  UnitConversionError,
   type EngineIngredient,
   type PlanIngredientLine,
 } from '../engine/index.js';
@@ -61,6 +63,17 @@ export class ShoppingListsService {
     const ingredients = await this.loadIngredients([...ingredientIds]);
     const groups = aggregateShoppingList(lines, ingredients);
 
+    // F15 pre-fill `alreadyHaveQuantity` from the profile's pantry so the
+    // user sees their on-hand stock subtracted from the buy column before
+    // they touch the list. Inventory rows in any unit are converted to the
+    // aggregated item's unit; rows that can't convert (missing density /
+    // gramsPerPiece) are skipped and treated as 0 stock.
+    const pantryByItemUnit = await this.pantryCoverageByItemUnit(
+      plan.profile.id,
+      groups.flatMap((g) => g.items),
+      ingredients,
+    );
+
     const list = await this.prisma.shoppingList.create({
       data: {
         planId: plan.id,
@@ -68,14 +81,18 @@ export class ShoppingListsService {
         toDate: to,
         items: {
           create: groups.flatMap((g) =>
-            g.items.map((item) => ({
-              ingredientId: item.ingredientId,
-              name: item.name,
-              category: item.category,
-              totalQuantity: item.totalQuantity,
-              unit: item.unit,
-              estimatedCalories: item.estimatedCalories,
-            })),
+            g.items.map((item) => {
+              const have = pantryByItemUnit.get(`${item.ingredientId}:${item.unit}`) ?? 0;
+              return {
+                ingredientId: item.ingredientId,
+                name: item.name,
+                category: item.category,
+                totalQuantity: item.totalQuantity,
+                unit: item.unit,
+                alreadyHaveQuantity: Math.min(have, item.totalQuantity),
+                estimatedCalories: item.estimatedCalories,
+              };
+            }),
           ),
         },
       },
@@ -135,6 +152,67 @@ export class ShoppingListsService {
       },
     });
     return this.get(userId, locale, listId);
+  }
+
+  /**
+   * Build a `(ingredientId + unit) → available canonical-quantity-in-that-unit`
+   * map for shopping-list pre-fill. Aggregates every inventory row for the
+   * profile, converting each into the requested item-unit using the engine's
+   * unit converter. Rows that can't convert (missing density or
+   * gramsPerPiece) drop out — better to under-count than to claim stock we
+   * can't honour.
+   */
+  private async pantryCoverageByItemUnit(
+    profileId: string,
+    items: ReadonlyArray<{ ingredientId: string; unit: 'g' | 'ml' | 'piece' }>,
+    ingredients: Map<string, EngineIngredient>,
+  ): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    if (items.length === 0) return result;
+    const inventoryRows = await this.prisma.inventoryItem.findMany({
+      where: { profileId, ingredientId: { in: [...new Set(items.map((i) => i.ingredientId))] } },
+    });
+    if (inventoryRows.length === 0) return result;
+
+    // Index inventory by ingredientId so we don't re-walk for every item unit.
+    const byIngredient = new Map<string, Array<{ quantity: number; unit: 'g' | 'ml' | 'piece' }>>();
+    for (const row of inventoryRows) {
+      const bucket = byIngredient.get(row.ingredientId) ?? [];
+      bucket.push({ quantity: row.quantity, unit: row.unit });
+      byIngredient.set(row.ingredientId, bucket);
+    }
+
+    for (const item of items) {
+      const rows = byIngredient.get(item.ingredientId);
+      if (!rows) continue;
+      const ingredient = ingredients.get(item.ingredientId);
+      if (!ingredient) continue;
+      // Re-route the converter: if the inventory row's unit doesn't match the
+      // shopping-list item's unit, convert via the ingredient's canonical unit
+      // by temporarily framing the item-unit as the canonical for conversion.
+      let total = 0;
+      for (const row of rows) {
+        if (row.unit === item.unit) {
+          total += row.quantity;
+          continue;
+        }
+        try {
+          const canonicalQty = toCanonical(row.quantity, row.unit, ingredient);
+          // Convert canonical → item.unit by inverting toCanonical with a
+          // synthetic ingredient whose canonicalUnit is the target item unit.
+          const itemUnitQty = toCanonical(canonicalQty, ingredient.canonicalUnit, {
+            canonicalUnit: item.unit,
+            gramsPerPiece: ingredient.gramsPerPiece,
+            density: ingredient.density,
+          });
+          total += itemUnitQty;
+        } catch (err) {
+          if (!(err instanceof UnitConversionError)) throw err;
+        }
+      }
+      if (total > 0) result.set(`${item.ingredientId}:${item.unit}`, total);
+    }
+    return result;
   }
 
   private async loadOwned(userId: string, listId: string) {
