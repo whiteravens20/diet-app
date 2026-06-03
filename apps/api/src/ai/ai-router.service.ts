@@ -15,7 +15,11 @@ import { AnthropicProvider } from './providers/anthropic.provider.js';
 import { OllamaProvider } from './providers/ollama.provider.js';
 import { OpenAiProvider } from './providers/openai.provider.js';
 import { OpenRouterProvider } from './providers/openrouter.provider.js';
-import type { AiProviderAdapter, ChatMessage } from './provider.interface.js';
+import {
+  AiProviderError,
+  type AiProviderAdapter,
+  type ChatMessage,
+} from './provider.interface.js';
 
 /** Result of a routed AI call. `text` is null when every provider failed. */
 export interface RoutedResult {
@@ -82,6 +86,7 @@ export class AiRouterService {
     if (chain.length === 0) return fallback('no_provider');
 
     const failoverChain: AiProvider[] = [];
+    let anyTimedOut = false;
 
     for (const cfg of chain) {
       const adapter = this.adapters[cfg.provider];
@@ -110,6 +115,7 @@ export class AiRouterService {
           },
         };
       } catch (err) {
+        if (err instanceof AiProviderError && err.timedOut) anyTimedOut = true;
         this.logger.warn(`AI provider ${cfg.provider} failed: ${describe(err)}`);
         failoverChain.push(cfg.provider);
         await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation, null, Date.now() - started, false, false);
@@ -117,8 +123,9 @@ export class AiRouterService {
     }
 
     // Every provider in the chain failed — caller uses the deterministic
-    // engine. The UI shows "AI providers all failed, using fallback".
-    return fallback('all_providers_failed', failoverChain);
+    // engine. Surface timeout distinctly so the UI can hint at "your model is
+    // too slow" instead of a generic "didn't respond".
+    return fallback(anyTimedOut ? 'provider_timeout' : 'all_providers_failed', failoverChain);
   }
 
   private async loadAiMode(userId: string): Promise<AiMode> {

@@ -51,7 +51,8 @@
   "aiFallback": {
     "quota_exhausted": "Miesięczny limit AI wyczerpany — używam silnika deterministycznego.",
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — używam silnika deterministycznego.",
-    "all_providers_failed": "Dostawca AI nie odpowiada — używam silnika deterministycznego."
+    "all_providers_failed": "Dostawca AI nie odpowiada — używam silnika deterministycznego.",
+    "provider_timeout": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. Używam silnika deterministycznego."
   },
   "disclaimers": {
     "aiPlans": "AI pomaga tworzyć plany i dobierać zamiany — i bywa, że się pomyli. Każdy plan, przepis i zamianę sprawdź pod kątem swoich potrzeb żywieniowych i zdrowia, zanim z nich skorzystasz.",
@@ -207,6 +208,7 @@
     "UNKNOWN_SLUG": "Składnik nie istnieje w katalogu — podaj inny slug.",
     "UNIT_CONVERSION_FAILED": "Nie udało się przeliczyć jednostek — brak gęstości lub gramów na sztukę.",
     "AI_UNAVAILABLE": "AI jest niedostępne — spróbuj ponownie lub skonfiguruj dostawcę w Ustawieniach.",
+    "AI_PROVIDER_TIMEOUT": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze.",
     "AI_DRAFT_INVALID": "AI zwróciło niepoprawny szkic przepisu — spróbuj innego opisu.",
     "AI_DRAFT_UNKNOWN_INGREDIENT": "AI zaproponowało składnik, którego nie ma w katalogu.",
     "NO_ELIGIBLE_INGREDIENTS": "Żadne składniki nie pasują do diety i alergenów profilu.",

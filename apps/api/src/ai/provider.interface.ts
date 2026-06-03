@@ -40,6 +40,7 @@ export class AiProviderError extends Error {
     public readonly provider: AiProvider,
     message: string,
     public readonly retryable: boolean,
+    public readonly timedOut: boolean = false,
   ) {
     super(message);
   }

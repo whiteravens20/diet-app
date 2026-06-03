@@ -17,6 +17,7 @@ The full design and reference set for the Diet App ecosystem. Start here.
 | **Design** | [design/design-system.md](design/design-system.md) — UI system, motion, example screens |
 | **Operations** | [ops/deployment.md](ops/deployment.md) — Docker, self-hosting, Ollama |
 | | [ops/env-reference.md](ops/env-reference.md) — every environment variable |
+| | [ops/ai-models.md](ops/ai-models.md) — model recommendations by surface and hardware tier |
 | | [ops/curation-shipping.md](ops/curation-shipping.md) — local vs. PR vs. zip ship modes, backup, migration |
 | | [ops/testing.md](ops/testing.md) — testing strategy |
 | | [ops/versions.md](ops/versions.md) — resolved dependency version matrix |

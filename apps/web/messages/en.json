@@ -51,7 +51,8 @@
   "aiFallback": {
     "quota_exhausted": "Your monthly AI requests are used up — falling back to the rule-based engine.",
     "no_provider": "No AI provider is configured for your account — falling back to the rule-based engine.",
-    "all_providers_failed": "AI provider didn't respond — falling back to the rule-based engine."
+    "all_providers_failed": "AI provider didn't respond — falling back to the rule-based engine.",
+    "provider_timeout": "AI provider was too slow — try a smaller model or a cloud provider. Falling back to the rule-based engine."
   },
   "disclaimers": {
     "aiPlans": "AI helps draft plans and pick swaps — and it can get things wrong. Review every plan, recipe and swap against your own dietary needs and health before you rely on it.",
@@ -207,6 +208,7 @@
     "UNKNOWN_SLUG": "Ingredient slug not found in the curated catalogue.",
     "UNIT_CONVERSION_FAILED": "Could not convert the recipe's quantities — missing density or grams-per-piece.",
     "AI_UNAVAILABLE": "AI is unavailable — try again or configure a provider in Settings.",
+    "AI_PROVIDER_TIMEOUT": "AI provider was too slow — try a smaller model or a cloud provider.",
     "AI_DRAFT_INVALID": "AI returned a malformed recipe draft — try a different prompt.",
     "AI_DRAFT_UNKNOWN_INGREDIENT": "AI proposed an ingredient that isn't in our catalogue.",
     "NO_ELIGIBLE_INGREDIENTS": "No ingredients match your diet and allergen settings.",

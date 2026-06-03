@@ -68,11 +68,18 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  *                           `AI_DEFAULT_PROVIDER`).
  * - `all_providers_failed`— every provider in the chain errored (auth,
  *                           network, model error). Details in `failoverChain`.
+ * - `provider_timeout`    — at least one provider's request was aborted on
+ *                           the client-side deadline (default 60s). Distinct
+ *                           from `all_providers_failed` so the UI can surface
+ *                           an actionable "your model is too slow, try a
+ *                           smaller model or a cloud provider" hint instead
+ *                           of a generic "didn't respond".
  */
 export const AiFallbackReason = z.enum([
   'quota_exhausted',
   'no_provider',
   'all_providers_failed',
+  'provider_timeout',
 ]);
 export type AiFallbackReason = z.infer<typeof AiFallbackReason>;
 

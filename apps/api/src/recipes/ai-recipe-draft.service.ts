@@ -181,6 +181,13 @@ export class AiRecipeDraftService {
       true,
     );
     if (!text) {
+      if (meta.fallbackReason === 'provider_timeout') {
+        throw new ServiceUnavailableException({
+          error: 'AI_PROVIDER_TIMEOUT',
+          message:
+            'AI provider was too slow — model may need a faster machine, or pick a smaller model.',
+        });
+      }
       throw new ServiceUnavailableException({
         error: 'AI_UNAVAILABLE',
         message: 'AI is unavailable — try again or configure a provider.',
@@ -189,6 +196,13 @@ export class AiRecipeDraftService {
 
     const payload = parseDraftPayload(text, targetLocales);
     if (!payload) {
+      // Log the raw response so the operator can see what the model produced
+      // — small Ollama models often return free-text or break the locale-keyed
+      // shape, and the user-facing "malformed draft" toast is too opaque to
+      // diagnose without this.
+      this.logger.warn(
+        `AI_DRAFT_INVALID (provider=${meta.provider ?? '?'}, model=${meta.model ?? '?'}): ${text.slice(0, 500).replace(/\s+/g, ' ')}`,
+      );
       throw new BadRequestException({
         error: 'AI_DRAFT_INVALID',
         message: 'AI returned a malformed draft.',
