@@ -3,7 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { MAX_PROFILES_PER_ACCOUNT, type Profile, type ProfileInput } from '@diet-app/shared';
+import {
+  MAX_PROFILES_PER_ACCOUNT,
+  type Profile,
+  type ProfileInput,
+  type WeightReminderCadence,
+} from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +48,8 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   // null = the form creates a new profile; a Profile = the form edits it.
   const [editing, setEditing] = useState<Profile | null>(null);
+  // Creation is opt-in: the form stays hidden until the user clicks "Add".
+  const [creating, setCreating] = useState(false);
 
   const list = profiles.data ?? [];
   const atLimit = list.length >= MAX_PROFILES_PER_ACCOUNT;
@@ -61,6 +68,7 @@ export default function ProfilePage() {
     onSuccess: () => {
       recalculate();
       setEditing(null);
+      setCreating(false);
     },
     onError: (e) =>
       setError(e instanceof ApiClientError ? e.message : t('saveFailed')),
@@ -115,6 +123,8 @@ export default function ProfilePage() {
         ? Number(f.get('manualCalorieTarget'))
         : null,
       mealCount: Number(f.get('mealCount')),
+      weightReminderCadence:
+        (f.get('weightReminderCadence') as WeightReminderCadence) ?? 'weekly',
       // Preserve preferences on edit; new profiles start with an empty set
       // (the cap defaults mirror packages/shared/src/profile.ts).
       preferences: {
@@ -145,8 +155,10 @@ export default function ProfilePage() {
     }
   }
 
-  // Show the form when editing, or when there is room for another profile.
-  const showForm = editing !== null || !atLimit;
+  // Form is opt-in: shown only while editing an existing profile or after the
+  // user explicitly clicks "Add profile".
+  const showForm = editing !== null || creating;
+  const canCreate = !creating && editing === null && !atLimit;
 
   return (
     <div className="space-y-8">
@@ -204,7 +216,21 @@ export default function ProfilePage() {
         )
       )}
 
-      {!showForm && (
+      {canCreate && (
+        <div className="max-w-2xl">
+          <Button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setCreating(true);
+            }}
+          >
+            {t('addProfile')}
+          </Button>
+        </div>
+      )}
+
+      {!showForm && atLimit && (
         <p className="max-w-2xl text-sm text-muted-foreground">
           {t('atLimit', { max: MAX_PROFILES_PER_ACCOUNT })}
         </p>
@@ -321,6 +347,20 @@ export default function ProfilePage() {
                   defaultValue={editing?.mealCount ?? 3}
                 />
               </Field>
+              <Field
+                label={t('weightReminderCadence')}
+                hint={t('weightReminderCadenceHint')}
+              >
+                <select
+                  name="weightReminderCadence"
+                  defaultValue={editing?.weightReminderCadence ?? 'weekly'}
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                >
+                  <option value="off">{t('weightReminderOff')}</option>
+                  <option value="daily">{t('weightReminderDaily')}</option>
+                  <option value="weekly">{t('weightReminderWeekly')}</option>
+                </select>
+              </Field>
               <Field label={t('maxConsecutiveDaysSameMeal')} hint={t('maxConsecutiveDaysSameMealHint')}>
                 <Input
                   name="maxConsecutiveDaysSameMeal"
@@ -362,18 +402,17 @@ export default function ProfilePage() {
                       ? t('saveChanges')
                       : t('createProfile')}
                 </Button>
-                {editing && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setError(null);
-                      setEditing(null);
-                    }}
-                  >
-                    {tCommon('cancel')}
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setError(null);
+                    setEditing(null);
+                    setCreating(false);
+                  }}
+                >
+                  {tCommon('cancel')}
+                </Button>
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
             </form>

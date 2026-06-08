@@ -7,6 +7,7 @@ import type { GeneratePlanRequest, Locale } from '@diet-app/shared';
 import { AppModule } from './app.module.js';
 import type { Env } from './config/env.js';
 import { MealPlansService } from './meal-plans/meal-plans.service.js';
+import { WeightReminderService } from './notifications/weight-reminder.service.js';
 
 /** Name of the BullMQ queue meal-plan generation jobs are enqueued on. */
 export const PLAN_QUEUE = 'plan-generation';
@@ -28,6 +29,7 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService) as ConfigService<Env, true>;
   const mealPlans = app.get(MealPlansService);
+  const weightReminders = app.get(WeightReminderService);
   const logger = new Logger('Worker');
 
   const connection = parseRedisUrl(config.get('REDIS_URL', { infer: true }));
@@ -46,7 +48,24 @@ async function bootstrap(): Promise<void> {
   worker.on('completed', (job) => logger.log(`Job ${job.id} completed`));
   logger.log(`Worker listening on queue "${PLAN_QUEUE}"`);
 
+  // F19 — periodic weight-reminder scan. Hourly granularity is enough: the
+  // service debounces per-profile against `lastWeightReminderAt`, so the
+  // user is never re-notified within their own cadence window. Running in
+  // the worker (not the API) means a multi-replica API deployment can't
+  // double-fire reminders.
+  const tickMs = 60 * 60 * 1000;
+  const fireScan = async (): Promise<void> => {
+    try {
+      await weightReminders.scan();
+    } catch (err) {
+      logger.error(`weight-reminder scan failed: ${(err as Error).message}`);
+    }
+  };
+  void fireScan();
+  const tick = setInterval(() => void fireScan(), tickMs);
+
   const shutdown = async (): Promise<void> => {
+    clearInterval(tick);
     await worker.close();
     await app.close();
     process.exit(0);

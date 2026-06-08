@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/stat-card';
 import { FavoriteSetsCard } from '@/components/favorite-sets-card';
+import { WeightCard } from '@/components/weight-card';
 
 const MACRO_COLORS = ['var(--color-primary)', 'var(--color-accent)', 'oklch(0.75 0.13 80)'];
 
@@ -100,6 +101,8 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
           )}
         </CardContent>
       </Card>
+
+      <WeightCard profile={profile} />
 
       <FavoriteSetsCard profileId={profile.id} />
     </section>

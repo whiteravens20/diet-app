@@ -2,10 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
+import { UserRound } from 'lucide-react';
 import type { Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/empty-state';
 import { ProfileSummary } from '@/components/profile-summary';
 
 /** Dashboard — calorie target, macro split and adherence for every profile. */
@@ -30,14 +33,18 @@ export default function DashboardPage() {
 
   if (list.length === 0) {
     return (
-      <Card className="mx-auto mt-20 max-w-md text-center">
-        <CardHeader>
-          <CardTitle>{t('welcome')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">{t('createFirstProfile')}</p>
-        </CardContent>
-      </Card>
+      <div className="mt-16">
+        <EmptyState
+          icon={UserRound}
+          title={t('welcome')}
+          description={t('createFirstProfile')}
+          cta={
+            <Link href="/profile" className={buttonVariants({ size: 'md' })}>
+              {t('createFirstProfileCta')}
+            </Link>
+          }
+        />
+      </div>
     );
   }
 

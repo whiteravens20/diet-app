@@ -19,6 +19,8 @@ export * from './shopping-list.js';
 export * from './inventory.js';
 export * from './ai.js';
 export * from './drafts.js';
+export * from './weight.js';
+export * from './notification.js';
 
 /** Standard API error envelope returned for any non-2xx response. */
 export { ApiError } from './error.js';

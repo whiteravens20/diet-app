@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2 } from 'lucide-react';
+import { Package, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { Ingredient, InventoryItem, Profile } from '@diet-app/shared';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/empty-state';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
@@ -150,11 +151,11 @@ export default function InventoryPage() {
       {inventory.isLoading ? (
         <Skeleton className="h-40" />
       ) : items.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {t('emptyState')}
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Package}
+          title={t('emptyTitle')}
+          description={t('emptyState')}
+        />
       ) : (
         <div className="space-y-4">
           {[...grouped.entries()].map(([category, rows]) => (

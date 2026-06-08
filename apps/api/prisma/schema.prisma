@@ -126,16 +126,61 @@ model Profile {
   // `preferences.inventoryBiasResetEvery` (and the next round skips the bias).
   // Swap-level reranking does NOT touch this column.
   inventoryBiasStreak Int           @default(0)
+  // F19 weight-reminder cadence: 'off' | 'daily' | 'weekly'. Default weekly
+  // so a fresh profile gets gentle nudges; constrained at the API layer via
+  // WeightReminderCadence in packages/shared.
+  weightReminderCadence String   @default("weekly")
+  // Last time the worker actually emitted a weight_reminder Notification for
+  // this profile. Used as a debounce so a stale-by-one-day profile isn't
+  // re-nudged every hourly tick.
+  lastWeightReminderAt  DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  preferences  ProfilePreference?
-  mealPlans    MealPlan[]
-  favorites    Favorite[]
-  favoriteSets FavoriteSet[]
-  inventory    InventoryItem[]
+  preferences   ProfilePreference?
+  mealPlans     MealPlan[]
+  favorites     Favorite[]
+  favoriteSets  FavoriteSet[]
+  inventory     InventoryItem[]
+  weightEntries WeightEntry[]
+  notifications Notification[]
 
   @@index([userId])
+}
+
+// F19 raw weight log. The dashboard chart, 7-day moving average and the
+// reference line against Profile.weightKg are all derived from these rows
+// client-side — no precomputed aggregates so a corrected entry is
+// instantly reflected.
+model WeightEntry {
+  id         String   @id @default(uuid())
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId  String
+  kg         Float
+  recordedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([profileId, recordedAt(sort: Desc)])
+}
+
+// F19 device-agnostic notification surface. The web client polls
+// /notifications/unread; the future Android app reads the same rows after
+// an FCM-triggered fetch. `type` is the discriminator, `payload` is
+// type-specific context (rendered client-side via the i18n catalogue).
+model Notification {
+  id        String    @id @default(uuid())
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId String
+  // Constrained at the API layer via NotificationType in packages/shared.
+  // Currently 'weight_reminder'; future types extend the enum without a
+  // migration.
+  type      String
+  payload   Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([profileId, readAt])
+  @@index([profileId, createdAt(sort: Desc)])
 }
 
 model ProfilePreference {

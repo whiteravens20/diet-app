@@ -236,12 +236,26 @@
     "INVALID_REVIEWER_SESSION": "Sesja recenzenta wygasła. Zaloguj się ponownie.",
     "AI_MONTHLY_LIMIT_REACHED": "Wyczerpałeś miesięczny limit zapytań AI.",
     "INVENTORY_ITEM_NOT_FOUND": "Nie znaleziono pozycji w spiżarni.",
-    "ITEM_NOT_FOUND": "Nie znaleziono pozycji listy zakupów."
+    "ITEM_NOT_FOUND": "Nie znaleziono pozycji listy zakupów.",
+    "WEIGHT_ENTRY_NOT_FOUND": "Nie znaleziono wpisu wagi.",
+    "NOTIFICATION_NOT_FOUND": "Nie znaleziono powiadomienia."
+  },
+  "notifications": {
+    "label": "Powiadomienia",
+    "title": "Powiadomienia",
+    "empty": "Brak nowości.",
+    "dismiss": "Odrzuć",
+    "markAllRead": "Oznacz wszystkie jako przeczytane",
+    "weight_reminder": {
+      "withHistory": "Czas zważyć się — minął {days, plural, one {1 dzień} few {# dni} many {# dni} other {# dnia}}.",
+      "noHistory": "Dodaj pierwszy wpis wagi, aby uruchomić wykres trendu."
+    }
   },
   "dashboard": {
     "title": "Panel",
     "welcome": "Witaj w Diet App",
     "createFirstProfile": "Utwórz pierwszy profil, aby wyliczyć cel kaloryczny i wygenerować plan posiłków.",
+    "createFirstProfileCta": "Utwórz profil",
     "subheadSingle": "Twój cel kaloryczny i podział makro.",
     "subheadMultiple": "Cele kaloryczne dla {count} profili."
   },
@@ -533,6 +547,7 @@
     "subhead": "Plany dopasowane do celu kalorycznego — układane osobno dla każdego profilu.",
     "noProfile": "Brak profilu",
     "noProfileBody": "Najpierw utwórz profil — plan posiłków jest generowany względem jego celu kalorycznego.",
+    "noProfileCta": "Utwórz profil",
     "generateFor": "Wygeneruj plan dla {name}",
     "generate": "Wygeneruj plan",
     "startDate": "Data początkowa",
@@ -555,7 +570,8 @@
     "statusPast": "Zakończone",
     "from": "Od",
     "to": "Do",
-    "noPlans": "Brak planów — wygeneruj jeden powyżej.",
+    "noPlansTitle": "Brak planów",
+    "noPlans": "Wygeneruj plan formularzem powyżej, aby zobaczyć dzienne makro, propozycje zamian i gotową listę zakupów.",
     "planSummary": "Plan na {days} dni · {dietType}",
     "planMeta": "Od {date} · śr. {kcal} kcal/dzień · {pct}% ponownego użycia składników",
     "recalculate": "Przelicz",
@@ -582,7 +598,8 @@
     "subhead": "Co masz pod ręką. Plany, regeneracje dni i zamiany posiłków domyślnie korzystają z przepisów, które spiżarnia pokrywa.",
     "profileLabel": "Profil",
     "createProfileFirst": "Utwórz profil, aby śledzić jego spiżarnię.",
-    "emptyState": "Spiżarnia jest pusta — dodaj, co masz, by optymalizator mógł to wykorzystać.",
+    "emptyTitle": "Spiżarnia jest pusta",
+    "emptyState": "Dodaj, co masz, by optymalizator mógł to wykorzystać.",
     "addTitle": "Dodaj do spiżarni",
     "ingredientLabel": "Składnik",
     "searchPlaceholder": "Szukaj w katalogu…",
@@ -756,11 +773,40 @@
     "clearMark": "Usuń oznaczenie",
     "prefsSaveFailed": "Nie udało się zapisać preferencji składnika."
   },
+  "weightCard": {
+    "title": "Dziennik wagi",
+    "formLabel": "Dzisiejsza waga (kg)",
+    "log": "Zapisz",
+    "logging": "Zapisywanie…",
+    "logFailed": "Nie udało się zapisać wagi.",
+    "rangeError": "Podaj wagę między 30 a 400 kg.",
+    "referenceHint": "Zarejestrowana waga: {kg} kg",
+    "referenceLabel": "zarejestrowana",
+    "seriesEntry": "Zapis",
+    "seriesMa7": "Średnia 7 dni",
+    "emptyState": "Zapisz wagę, aby zobaczyć trend z 90 dni."
+  },
+  "recipeModal": {
+    "title": "Szczegóły przepisu",
+    "close": "Zamknij",
+    "openPage": "Otwórz stronę"
+  },
+  "macrosChip": {
+    "proteinShort": "B",
+    "fatShort": "T",
+    "carbsShort": "W",
+    "caloriesShort": "kcal",
+    "proteinFull": "Białko (g)",
+    "fatFull": "Tłuszcze (g)",
+    "carbsFull": "Węglowodany (g)",
+    "caloriesFull": "Kalorie"
+  },
   "profile": {
     "title": "Profile",
     "subhead": "Profil to dane, z których liczony jest Twój cel kaloryczny. Konto może mieć do {max} profili — np. po jednym na członka rodziny albo do porównania różnych podejść do diety. Edycja profilu przelicza jego cele; usunięcie kasuje też powiązane plany posiłków i listy zakupów.",
     "atLimit": "Osiągnięto limit {max} profili. Edytuj jeden z istniejących lub usuń jeden, aby utworzyć nowy.",
     "newProfile": "Nowy profil",
+    "addProfile": "Dodaj profil",
     "editing": "Edytuj {name}",
     "summary": "{age} lat · {height} cm · {weight} kg · {dietType}",
     "name": "Imię",
@@ -776,6 +822,11 @@
     "manualKcalOverride": "Ręczne nadpisanie kcal (opcjonalne)",
     "auto": "auto",
     "mealsPerDay": "Posiłków dziennie",
+    "weightReminderCadence": "Przypomnienie o wadze",
+    "weightReminderCadenceHint": "Jak często aplikacja przypomina o zapisaniu wagi.",
+    "weightReminderOff": "Wyłączone",
+    "weightReminderDaily": "Codziennie",
+    "weightReminderWeekly": "Co tydzień",
     "maxConsecutiveDaysSameMeal": "Maks. dni z rzędu tego samego dania",
     "maxConsecutiveDaysSameMealHint": "Po tylu dniach pod rząd planer musi wybrać inny przepis.",
     "maxTimesPerWeekSameMeal": "Maks. powtórzeń tego samego dania w tygodniu",

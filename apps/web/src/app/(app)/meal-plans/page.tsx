@@ -1,11 +1,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Suspense, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { CalendarRange, Sparkles, UserRound } from 'lucide-react';
 import type {
   AiSwapMealResponse,
   GeneratePlanRequest,
@@ -14,14 +13,17 @@ import type {
   SessionUser,
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
-import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatIngredientAmount } from '@/lib/ingredient-format';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
+import { EmptyState } from '@/components/empty-state';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
+import { RecipeModal } from '@/components/recipe-modal';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -183,14 +185,18 @@ function MealPlansContent() {
 
   if (list.length === 0) {
     return (
-      <Card className="mx-auto mt-20 max-w-md text-center">
-        <CardHeader>
-          <CardTitle>{t('noProfile')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">{t('noProfileBody')}</p>
-        </CardContent>
-      </Card>
+      <div className="mt-16">
+        <EmptyState
+          icon={UserRound}
+          title={t('noProfile')}
+          description={t('noProfileBody')}
+          cta={
+            <Link href="/profile" className={buttonVariants({ size: 'md' })}>
+              {t('noProfileCta')}
+            </Link>
+          }
+        />
+      </div>
     );
   }
 
@@ -336,7 +342,11 @@ function MealPlansContent() {
         {plans.isLoading ? (
           <Skeleton className="h-24 max-w-3xl" />
         ) : (plans.data ?? []).length === 0 ? (
-          <p className="max-w-3xl text-sm text-muted-foreground">{t('noPlans')}</p>
+          <EmptyState
+            icon={CalendarRange}
+            title={t('noPlansTitle')}
+            description={t('noPlans')}
+          />
         ) : (
           (plans.data ?? []).map((plan) => (
             <PlanCard
@@ -442,6 +452,8 @@ function PlanCard({
   const [openFav, setOpenFav] = useState<string | null>(null);
   // Which meal's ingredient-substitution modal is open, if any.
   const [openSub, setOpenSub] = useState<MealPlan['days'][number]['meals'][number] | null>(null);
+  // Which recipe is open in the Framer Motion modal, if any.
+  const [openRecipeId, setOpenRecipeId] = useState<string | null>(null);
   return (
     <Card className="relative max-w-4xl">
       <div className="flex items-center justify-between gap-4 p-4">
@@ -521,17 +533,16 @@ function PlanCard({
                         <span className="min-w-0 flex-1">
                           <span className="text-muted-foreground">{mealLabel}</span>{' '}
                           ·{' '}
-                          <Link
-                            href={`/recipes/${m.recipe.id}`}
+                          <button
+                            type="button"
+                            onClick={() => setOpenRecipeId(m.recipe.id)}
                             className="font-medium text-primary hover:underline"
                           >
                             {m.recipe.title}
-                          </Link>
+                          </button>
                         </span>
                         <span className="flex shrink-0 items-center gap-4">
-                          <span className="tabular-nums text-muted-foreground">
-                            {m.nutrition.calories} kcal
-                          </span>
+                          <MacrosChipStrip nutrition={m.nutrition} />
                           <Button
                             type="button"
                             variant="ghost"
@@ -644,7 +655,56 @@ function PlanCard({
           }}
         />
       )}
+      <RecipeModal recipeId={openRecipeId} onClose={() => setOpenRecipeId(null)} />
     </Card>
+  );
+}
+
+/** Per-meal macro chips — P / F / C in grams, kcal trailing. Same row, no wrap. */
+function MacrosChipStrip({
+  nutrition,
+}: {
+  nutrition: { calories: number; protein: number; fat: number; carbs: number };
+}) {
+  const t = useTranslations('macrosChip');
+  const chips: { key: string; label: string; value: string; title: string }[] = [
+    {
+      key: 'p',
+      label: t('proteinShort'),
+      value: `${Math.round(nutrition.protein)}`,
+      title: t('proteinFull'),
+    },
+    {
+      key: 'f',
+      label: t('fatShort'),
+      value: `${Math.round(nutrition.fat)}`,
+      title: t('fatFull'),
+    },
+    {
+      key: 'c',
+      label: t('carbsShort'),
+      value: `${Math.round(nutrition.carbs)}`,
+      title: t('carbsFull'),
+    },
+  ];
+  return (
+    <span className="flex items-center gap-1">
+      {chips.map((c) => (
+        <span
+          key={c.key}
+          title={c.title}
+          className="rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground"
+        >
+          <span className="font-medium">{c.label}</span> {c.value}
+        </span>
+      ))}
+      <span
+        title={t('caloriesFull')}
+        className="rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground"
+      >
+        {Math.round(nutrition.calories)} {t('caloriesShort')}
+      </span>
+    </span>
   );
 }
 

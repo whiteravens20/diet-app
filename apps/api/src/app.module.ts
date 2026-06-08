@@ -14,12 +14,14 @@ import { IngredientsModule } from './ingredients/ingredients.module.js';
 import { InstanceSettingsModule } from './instance-settings/instance-settings.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
 import { MealPlansModule } from './meal-plans/meal-plans.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProfilesModule } from './profiles/profiles.module.js';
 import { RecipesModule } from './recipes/recipes.module.js';
 import { ReviewModule } from './review/review.module.js';
 import { ShoppingListsModule } from './shopping-lists/shopping-lists.module.js';
 import { UsersModule } from './users/users.module.js';
+import { WeightsModule } from './weights/weights.module.js';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { UsersModule } from './users/users.module.js';
     InventoryModule,
     ReviewModule,
     UsersModule,
+    WeightsModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -9,6 +9,7 @@ import {
   MAX_PROFILES_PER_ACCOUNT,
   type Profile,
   type ProfileInput,
+  WeightReminderCadence,
 } from '@diet-app/shared';
 import { calculateCalories } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -53,6 +54,7 @@ export class ProfilesService {
         weeklyLossTarget: input.weeklyLossTarget,
         manualCalorieTarget: input.manualCalorieTarget,
         mealCount: input.mealCount,
+        weightReminderCadence: input.weightReminderCadence,
         preferences: { create: input.preferences },
       },
       include: { preferences: true },
@@ -75,6 +77,7 @@ export class ProfilesService {
         weeklyLossTarget: input.weeklyLossTarget,
         manualCalorieTarget: input.manualCalorieTarget,
         mealCount: input.mealCount,
+        weightReminderCadence: input.weightReminderCadence,
         preferences: { upsert: { create: input.preferences, update: input.preferences } },
       },
       include: { preferences: true },
@@ -125,6 +128,7 @@ export class ProfilesService {
     weeklyLossTarget: string | null;
     manualCalorieTarget: number | null;
     mealCount: number;
+    weightReminderCadence: string;
     createdAt: Date;
     updatedAt: Date;
     preferences: {
@@ -151,6 +155,7 @@ export class ProfilesService {
       weeklyLossTarget: row.weeklyLossTarget as WeeklyTarget,
       manualCalorieTarget: row.manualCalorieTarget,
       mealCount: row.mealCount,
+      weightReminderCadence: WeightReminderCadence.parse(row.weightReminderCadence),
       preferences: {
         favoriteIngredientIds: row.preferences?.favoriteIngredientIds ?? [],
         excludedIngredientIds: row.preferences?.excludedIngredientIds ?? [],

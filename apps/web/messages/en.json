@@ -236,12 +236,26 @@
     "INVALID_REVIEWER_SESSION": "Your reviewer session expired. Please sign in again.",
     "AI_MONTHLY_LIMIT_REACHED": "You've used your AI requests for this month.",
     "INVENTORY_ITEM_NOT_FOUND": "Inventory item not found.",
-    "ITEM_NOT_FOUND": "Shopping list item not found."
+    "ITEM_NOT_FOUND": "Shopping list item not found.",
+    "WEIGHT_ENTRY_NOT_FOUND": "Weight entry not found.",
+    "NOTIFICATION_NOT_FOUND": "Notification not found."
+  },
+  "notifications": {
+    "label": "Notifications",
+    "title": "Notifications",
+    "empty": "Nothing new.",
+    "dismiss": "Dismiss",
+    "markAllRead": "Mark all read",
+    "weight_reminder": {
+      "withHistory": "Time to log your weight — {days, plural, one {it's been 1 day} other {it's been # days}}.",
+      "noHistory": "Log your first weight to start your trend chart."
+    }
   },
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome to Diet App",
     "createFirstProfile": "Create your first profile to calculate your calorie target and generate a meal plan.",
+    "createFirstProfileCta": "Create profile",
     "subheadSingle": "Your calorie target and macro split.",
     "subheadMultiple": "Calorie targets across your {count} profiles."
   },
@@ -533,6 +547,7 @@
     "subhead": "Deterministic, calorie-targeted plans — generated per profile.",
     "noProfile": "No profile yet",
     "noProfileBody": "Create a profile first — a meal plan is generated against its calorie target.",
+    "noProfileCta": "Create profile",
     "generateFor": "Generate a plan for {name}",
     "generate": "Generate a plan",
     "startDate": "Start date",
@@ -555,7 +570,8 @@
     "statusPast": "Past",
     "from": "From",
     "to": "To",
-    "noPlans": "No plans yet — generate one above.",
+    "noPlansTitle": "No plans yet",
+    "noPlans": "Generate one with the form above to see daily macros, swap ideas, and a shopping list ready to go.",
     "planSummary": "{days}-day plan · {dietType}",
     "planMeta": "From {date} · {kcal} kcal/day avg · {pct}% ingredient reuse",
     "recalculate": "Recalculate",
@@ -582,7 +598,8 @@
     "subhead": "What you have on hand. Plans, day re-rolls and meal swaps default to recipes the pantry can cover.",
     "profileLabel": "Profile",
     "createProfileFirst": "Create a profile first to track its pantry.",
-    "emptyState": "Your pantry is empty — add what you already have so the optimiser can use it.",
+    "emptyTitle": "Pantry is empty",
+    "emptyState": "Add what you already have so the optimiser can use it.",
     "addTitle": "Add to pantry",
     "ingredientLabel": "Ingredient",
     "searchPlaceholder": "Search the catalogue…",
@@ -756,11 +773,40 @@
     "clearMark": "Clear mark",
     "prefsSaveFailed": "Could not save ingredient preference."
   },
+  "weightCard": {
+    "title": "Weight log",
+    "formLabel": "Today's weight (kg)",
+    "log": "Log",
+    "logging": "Logging…",
+    "logFailed": "Could not log weight.",
+    "rangeError": "Enter a weight between 30 and 400 kg.",
+    "referenceHint": "Registered weight: {kg} kg",
+    "referenceLabel": "registered",
+    "seriesEntry": "Logged",
+    "seriesMa7": "7-day average",
+    "emptyState": "Log a weight to see your 90-day trend."
+  },
+  "recipeModal": {
+    "title": "Recipe details",
+    "close": "Close",
+    "openPage": "Open page"
+  },
+  "macrosChip": {
+    "proteinShort": "P",
+    "fatShort": "F",
+    "carbsShort": "C",
+    "caloriesShort": "kcal",
+    "proteinFull": "Protein (g)",
+    "fatFull": "Fat (g)",
+    "carbsFull": "Carbs (g)",
+    "caloriesFull": "Calories"
+  },
   "profile": {
     "title": "Profiles",
     "subhead": "A profile drives the deterministic calorie engine. An account can have up to {max} profiles — one per household member, or to compare diet scenarios. Editing a profile recalculates its targets; deleting one also removes its meal plans and shopping lists.",
     "atLimit": "You have reached the limit of {max} profiles. Edit one above, or delete a profile to create a new one.",
     "newProfile": "New profile",
+    "addProfile": "Add profile",
     "editing": "Edit {name}",
     "summary": "{age} y · {height} cm · {weight} kg · {dietType}",
     "name": "Name",
@@ -776,6 +822,11 @@
     "manualKcalOverride": "Manual kcal override (optional)",
     "auto": "auto",
     "mealsPerDay": "Meals per day",
+    "weightReminderCadence": "Weight reminder",
+    "weightReminderCadenceHint": "How often the app nudges you to log your weight.",
+    "weightReminderOff": "Off",
+    "weightReminderDaily": "Daily",
+    "weightReminderWeekly": "Weekly",
     "maxConsecutiveDaysSameMeal": "Max same recipe in a row (days)",
     "maxConsecutiveDaysSameMealHint": "Forces a different recipe after this many consecutive days.",
     "maxTimesPerWeekSameMeal": "Max times the same recipe per week",

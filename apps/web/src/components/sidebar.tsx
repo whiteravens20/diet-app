@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AiChip } from '@/components/ai-chip';
+import { NotificationsBell } from '@/components/notifications-bell';
 
 const NAV = [
   { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard },
@@ -48,7 +49,10 @@ export function Sidebar() {
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card p-4">
       <div className="flex items-center justify-between px-2">
         <span className="text-lg font-semibold tracking-tight">{tCommon('appName')}</span>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <NotificationsBell />
+          <ThemeToggle />
+        </div>
       </div>
       <div className="mt-3 flex px-2">
         <AiChip />
