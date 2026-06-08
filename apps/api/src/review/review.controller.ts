@@ -187,7 +187,7 @@ export class ReviewController {
     @Query('page') pageRaw: string | undefined,
     @Query('pageSize') pageSizeRaw: string | undefined,
   ): Promise<{ items: RecipeReviewSlice[]; total: number; page: number; pageSize: number }> {
-    const reviewer = requireReviewer(req);
+    requireReviewer(req);
     const locale = parseTargetLocale(localeRaw);
     const page = Math.max(1, Number.parseInt(pageRaw ?? '1', 10) || 1);
     const pageSize = Math.min(
@@ -226,7 +226,6 @@ export class ReviewController {
       page,
       pageSize,
     };
-    void reviewer;
   }
 
   @Get('drafts/recipes/:id')

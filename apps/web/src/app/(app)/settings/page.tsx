@@ -424,7 +424,6 @@ function AiAssistantCard({
 
 function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslations<'errors'>> }) {
   const t = useTranslations('settings');
-  const tCommon = useTranslations('common');
   const qc = useQueryClient();
   const providers = useQuery({
     queryKey: ['ai-providers'],
