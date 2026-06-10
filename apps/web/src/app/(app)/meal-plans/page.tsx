@@ -456,7 +456,7 @@ function PlanCard({
   // than the recipe's default servings.
   const [openRecipe, setOpenRecipe] = useState<{ id: string; scale: number } | null>(null);
   return (
-    <Card className="relative max-w-4xl">
+    <Card className="relative w-full">
       <div className="flex items-center justify-between gap-4 p-4">
         <button type="button" onClick={onToggle} className="flex-1 text-left">
           <p className="font-medium">
@@ -557,6 +557,16 @@ function PlanCard({
                           >
                             {t('swap')}
                           </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title={t('tooltipSwapToFav')}
+                            onClick={() => setOpenFav(favOpen ? null : m.id)}
+                            disabled={busy}
+                          >
+                            {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
+                          </Button>
                           {onAiSwapMeal && (
                             <Button
                               type="button"
@@ -585,21 +595,11 @@ function PlanCard({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            title={t('tooltipSwapToFav')}
-                            onClick={() => setOpenFav(favOpen ? null : m.id)}
-                            disabled={busy}
-                          >
-                            ★ {favOpen ? '▲' : '▾'}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
                             title={t('tooltipSubstitute')}
                             onClick={() => setOpenSub(m)}
                             disabled={busy}
                           >
-                            ⇄
+                            {t('substituteIngr')} ⇄
                           </Button>
                         </span>
                       </div>

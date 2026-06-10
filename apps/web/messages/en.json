@@ -585,6 +585,8 @@
     "changeDay": "Change day",
     "swap": "Swap",
     "swapFavIngr": "Swap ★ ingr.",
+    "swapToFav": "Swap from",
+    "substituteIngr": "Swap chosen ingr.",
     "aiSwap": "AI swap",
     "tooltipSwapByFav": "Swap to a recipe that uses my favourite ingredients",
     "tooltipSwapToFav": "Swap to one of my favourited recipes",

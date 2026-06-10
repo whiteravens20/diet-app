@@ -585,6 +585,8 @@
     "changeDay": "Zmień dzień",
     "swap": "Zamień",
     "swapFavIngr": "Zamień ★ skł.",
+    "swapToFav": "Zamiana z",
+    "substituteIngr": "Zamień wybrany skł.",
     "aiSwap": "AI zamiana",
     "tooltipSwapByFav": "Zamień na przepis używający moich ulubionych składników",
     "tooltipSwapToFav": "Zamień na jeden z moich ulubionych przepisów",
