@@ -45,8 +45,13 @@ export type LocaleReview = z.infer<typeof LocaleReview>;
  * Locale-keyed map of strings — e.g. `{ en: "Beef tenderloin",
  *  pl: "Polędwica wołowa" }`. Stored as a JSON column on the draft; the API
  * layer enforces "every key is a valid Locale, every value is non-empty".
+ *
+ * Uses `partialRecord` so a draft generated against a subset of locales
+ * (e.g. `targetLocales: ['pl']`) round-trips through PATCH without Zod v4's
+ * exhaustive-keys rule rejecting it. Coverage against `draft.locales` is the
+ * runner/seeder's job, not the wire schema's.
  */
-export const LocaleStringMap = z.record(Locale, z.string().min(1));
+export const LocaleStringMap = z.partialRecord(Locale, z.string().min(1));
 export type LocaleStringMap = z.infer<typeof LocaleStringMap>;
 
 // ── Ingredient-name drafts (Phase C) ──────────────────────────────────────────
