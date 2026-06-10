@@ -142,13 +142,13 @@ export default function ShoppingListsPage() {
 
   return (
     <div className="space-y-8">
-      <header data-print-hide>
+      <header>
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">{t('subhead')}</p>
       </header>
 
       {profileList.length > 1 && (
-        <div className="flex gap-2" data-print-hide>
+        <div className="flex gap-2">
           {profileList.map((p) => (
             <Button
               key={p.id}
@@ -168,7 +168,7 @@ export default function ShoppingListsPage() {
         </div>
       )}
 
-      <Card className="max-w-3xl" data-print-hide>
+      <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle>{t('generate')}</CardTitle>
         </CardHeader>
@@ -226,18 +226,18 @@ export default function ShoppingListsPage() {
         </CardContent>
       </Card>
 
-      {error && <p className="max-w-3xl text-sm text-destructive" data-print-hide>{error}</p>}
+      {error && <p className="max-w-3xl text-sm text-destructive">{error}</p>}
 
       {lists.isLoading ? (
         <Skeleton className="h-24 max-w-3xl" />
       ) : listOptions.length === 0 ? (
         planList.length > 0 && (
-          <p className="max-w-3xl text-sm text-muted-foreground" data-print-hide>{t('noLists')}</p>
+          <p className="max-w-3xl text-sm text-muted-foreground">{t('noLists')}</p>
         )
       ) : (
         <section className="space-y-3">
           {listOptions.length > 1 && (
-            <div className="flex flex-wrap gap-2" data-print-hide>
+            <div className="flex flex-wrap gap-2">
               {listOptions.map((l) => (
                 <Button
                   key={l.id}
@@ -266,7 +266,23 @@ export default function ShoppingListsPage() {
               ofLabel={(amount) => t('ofTotal', { amount })}
               deleteLabel={tCommon('delete')}
               deleteConfirm={t('deleteConfirm')}
-              printLabel={t('print')}
+              printNotebookLabel={t('printNotebook')}
+              printPdfLabel={t('printPdf')}
+              printGeneratingPdfLabel={t('printGeneratingPdf')}
+              printPdfErrorLabel={t('printPdfError')}
+              notesLabel={t('notes')}
+              foldHereLabel={t('foldHere')}
+              appName="Diet App"
+              planTitle={
+                activePlan
+                  ? t('planOption', {
+                      date: activePlan.startDate,
+                      days: activePlan.durationDays,
+                      dietType: tDiet(activePlan.dietType),
+                    })
+                  : ''
+              }
+              haveLabel={t('haveShort')}
               onPatch={(item, patch) =>
                 updateItem.mutate({ listId: activeList.id, itemId: item.id, ...patch })
               }
@@ -291,7 +307,15 @@ function ListView({
   ofLabel,
   deleteLabel,
   deleteConfirm,
-  printLabel,
+  printNotebookLabel,
+  printPdfLabel,
+  printGeneratingPdfLabel,
+  printPdfErrorLabel,
+  notesLabel,
+  foldHereLabel,
+  appName,
+  planTitle,
+  haveLabel,
   onPatch,
   onDelete,
 }: {
@@ -306,7 +330,15 @@ function ListView({
   ofLabel: (amount: string) => string;
   deleteLabel: string;
   deleteConfirm: string;
-  printLabel: string;
+  printNotebookLabel: string;
+  printPdfLabel: string;
+  printGeneratingPdfLabel: string;
+  printPdfErrorLabel: string;
+  notesLabel: string;
+  foldHereLabel: string;
+  appName: string;
+  planTitle: string;
+  haveLabel: string;
   onPatch: (
     item: ShoppingListItem,
     patch: { checked?: boolean; purchasedQuantity?: number | null },
@@ -321,27 +353,79 @@ function ListView({
     () => list.groups.reduce((n, g) => n + g.items.filter((i) => i.checked).length, 0),
     [list.groups],
   );
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const dateRangeLabel = `${list.fromDate} → ${list.toDate}`;
+
+  // Two PDF flavours from the same generator:
+  //   - download → 'pretty-a4': finished A4 shopping notebook with per-item
+  //     write-in lines.
+  //   - print    → 'foldable-a4': A4 sheet with list in top half, fold line,
+  //     blank Notatki area in bottom half. Opens in a new tab so the PDF
+  //     viewer's native print can fire.
+  // Lazy-import so the ~400 kB @react-pdf bundle only ships when a user clicks.
+  async function runPdf(action: 'print' | 'download') {
+    setPdfError(null);
+    setPdfBusy(true);
+    try {
+      const mod = await import('./pdf-document');
+      const opts = {
+        list,
+        appName,
+        planTitle,
+        dateRangeLabel,
+        categoryLabel,
+        formatQty,
+        ofLabel,
+        haveLabel,
+        boughtLabel,
+        notesLabel,
+        foldHereLabel,
+        mode: action === 'print' ? ('foldable-a4' as const) : ('pretty-a4' as const),
+      };
+      if (action === 'download') {
+        await mod.downloadShoppingListPdf({
+          ...opts,
+          filename: `shopping-list-${list.fromDate}_${list.toDate}.pdf`,
+        });
+      } else {
+        await mod.printShoppingListPdf(opts);
+      }
+    } catch (err) {
+      console.error('[shopping-list pdf] generation failed', err);
+      setPdfError(printPdfErrorLabel);
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   return (
-    <Card className="max-w-3xl" data-print-area>
+    <Card className="max-w-3xl">
       <div className="flex items-center justify-between gap-4 border-b border-border p-4">
         <div>
-          <p className="font-medium">
-            {list.fromDate} → {list.toDate}
-          </p>
+          <p className="font-medium">{dateRangeLabel}</p>
           <p className="text-sm text-muted-foreground">
             {summaryLabel(checkedItems, totalItems, list.totalEstimatedCalories)}
           </p>
         </div>
-        <div className="flex items-center gap-2" data-print-hide>
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => window.print()}
-            disabled={busy}
+            onClick={() => runPdf('print')}
+            disabled={busy || pdfBusy}
           >
-            {printLabel}
+            {pdfBusy ? printGeneratingPdfLabel : printNotebookLabel}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => runPdf('download')}
+            disabled={busy || pdfBusy}
+          >
+            {pdfBusy ? printGeneratingPdfLabel : printPdfLabel}
           </Button>
           <Button
             type="button"
@@ -351,12 +435,17 @@ function ListView({
             onClick={() => {
               if (window.confirm(deleteConfirm)) onDelete(list.id);
             }}
-            disabled={busy}
+            disabled={busy || pdfBusy}
           >
             {deleteLabel}
           </Button>
         </div>
       </div>
+      {pdfError && (
+        <p className="px-4 py-2 text-sm text-destructive">
+          {pdfError}
+        </p>
+      )}
       <CardContent className="space-y-5 pt-4">
         {list.groups.map((g) => (
           <div key={g.category}>
@@ -450,7 +539,7 @@ function ItemRow({
         {item.alreadyHaveQuantity > 0 && (
           <span
             className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-            data-print-hide
+           
           >
             {pantryChipLabel}
           </span>
@@ -464,7 +553,7 @@ function ItemRow({
           </span>
         )}
       </span>
-      <label className="flex items-center gap-1 text-xs text-muted-foreground" data-print-hide>
+      <label className="flex items-center gap-1 text-xs text-muted-foreground">
         {boughtLabel}
         <input
           type="number"
