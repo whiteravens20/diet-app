@@ -48,6 +48,10 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/api.Dockerfile
+      # Use the host network namespace for builds — buildkit's ephemeral netns
+      # occasionally fails to resolve registry / Alpine CDN hostnames on this
+      # daemon. Runtime container networking is unaffected.
+      network: host
     env_file: ../.env
     environment:
       NODE_ENV: production
@@ -62,6 +66,7 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/api.Dockerfile
+      network: host
     restart: unless-stopped
     env_file: ../.env
     environment:
@@ -100,6 +105,7 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/api.Dockerfile
+      network: host
     restart: unless-stopped
     env_file: ../.env
     environment:
@@ -120,6 +126,7 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/web.Dockerfile
+      network: host
       # The web app proxies `/api/*` to the `api` service, so the browser only
       # ever talks to the web origin — no CORS, host-agnostic.
       args:
