@@ -25,7 +25,19 @@ interface FavoriteRow {
  * Per-serving nutrition is unchanged — one serving is one eat regardless of
  * how many servings the meal occupies.
  */
-export function RecipeView({ recipe, scale = 1 }: { recipe: Recipe; scale?: number }) {
+export function RecipeView({
+  recipe,
+  scale = 1,
+  hideNutrition = false,
+}: {
+  recipe: Recipe;
+  scale?: number;
+  /** Meal-plan modal hides the per-serving nutrition card — those numbers
+   *  apply to one default serving and would mislead next to ingredient
+   *  quantities already scaled to the planned meal. Prep/cook time is still
+   *  useful, so we surface it as a compact one-liner instead. */
+  hideNutrition?: boolean;
+}) {
   const t = useTranslations('recipeDetail');
   const tDifficulty = useTranslations('enums.difficulty');
   const tMeal = useTranslations('enums.mealType');
@@ -174,33 +186,39 @@ export function RecipeView({ recipe, scale = 1 }: { recipe: Recipe; scale?: numb
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('perServing')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-4 gap-4 text-center">
-            {[
-              [t('calories'), `${n.calories}`],
-              [t('protein'), `${n.protein} g`],
-              [t('fat'), `${n.fat} g`],
-              [t('carbs'), `${n.carbs} g`],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-lg font-semibold">{value}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {t('servingMeta', {
-              servings: recipe.servings,
-              prep: recipe.prepMinutes,
-              cook: recipe.cookMinutes,
-            })}
-          </p>
-        </CardContent>
-      </Card>
+      {hideNutrition ? (
+        <p className="text-sm text-muted-foreground">
+          {t('timeOnly', { prep: recipe.prepMinutes, cook: recipe.cookMinutes })}
+        </p>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('perServing')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-4 gap-4 text-center">
+              {[
+                [t('calories'), `${n.calories}`],
+                [t('protein'), `${n.protein} g`],
+                [t('fat'), `${n.fat} g`],
+                [t('carbs'), `${n.carbs} g`],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <p className="text-lg font-semibold">{value}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {t('servingMeta', {
+                servings: recipe.servings,
+                prep: recipe.prepMinutes,
+                cook: recipe.cookMinutes,
+              })}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -99,7 +99,7 @@ export function RecipeModal({
                     : tDetail('loadFailed')}
                 </p>
               )}
-              {recipe.data && <RecipeView recipe={recipe.data} scale={scale} />}
+              {recipe.data && <RecipeView recipe={recipe.data} scale={scale} hideNutrition />}
             </div>
           </motion.div>
         </motion.div>

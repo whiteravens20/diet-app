@@ -773,6 +773,7 @@
     "method": "Sposób przygotowania",
     "allergens": "Alergeny:",
     "servingMeta": "Wychodzi {servings, plural, one {# porcja} few {# porcje} many {# porcji} other {# porcji}} · {prep} min przygotowania · {cook} min gotowania",
+    "timeOnly": "{prep} min przygotowania · {cook} min gotowania",
     "prefsFor": "Preferencje dla:",
     "markFavorite": "Oznacz jako ulubiony",
     "markAvoid": "Oznacz do unikania",
