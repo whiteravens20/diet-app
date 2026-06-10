@@ -416,13 +416,20 @@ function ItemRow({
       ? fromPantryWithDateLabel(item.pantryBestBefore)
       : fromPantryLabel;
 
+  // Live "still to buy" mirrors the pantry behaviour: as the user types into
+  // `bought`, the displayed required drops without waiting for blur/server.
+  // Clamped at zero so over-buying doesn't render negative numbers.
+  const boughtNum = bought.trim() === '' ? 0 : Math.max(0, Number(bought) || 0);
+  const remainingToBuy = Math.max(0, item.toBuyQuantity - boughtNum);
+  const showOfTotal = item.alreadyHaveQuantity > 0 || boughtNum > 0;
+
   /** Latest typed-but-not-yet-blurred bought value, or `undefined` if it
    *  matches the server. Including it in the checkbox PATCH avoids racing the
    *  blur-triggered PATCH against the checkbox one — clicking the checkbox
    *  while focused in the number input commits both fields atomically. */
   function pendingPurchasedPatch(): { purchasedQuantity: number | null } | null {
     const trimmed = bought.trim();
-    const next = trimmed === '' ? null : Number(bought) || 0;
+    const next = trimmed === '' ? null : Math.max(0, Number(bought) || 0);
     if (next === item.purchasedQuantity) return null;
     return { purchasedQuantity: next };
   }
@@ -450,8 +457,8 @@ function ItemRow({
         )}
       </span>
       <span className="tabular-nums text-muted-foreground">
-        {formatQty(item.toBuyQuantity, item.unit)}
-        {item.alreadyHaveQuantity > 0 && (
+        {formatQty(remainingToBuy, item.unit)}
+        {showOfTotal && (
           <span className="ml-1 text-xs">
             {ofLabel(formatQty(item.totalQuantity, item.unit))}
           </span>
@@ -466,10 +473,14 @@ function ItemRow({
           className="h-7 w-16 rounded border border-border bg-background px-1 text-right text-sm"
           value={bought}
           disabled={busy}
-          onChange={(e) => setBought(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            // Reject negative typed values; allow empty + non-negative.
+            if (v === '' || Number(v) >= 0) setBought(v);
+          }}
           onBlur={() => {
             const trimmed = bought.trim();
-            const next = trimmed === '' ? null : Number(bought) || 0;
+            const next = trimmed === '' ? null : Math.max(0, Number(bought) || 0);
             if (next !== item.purchasedQuantity) onPatch({ purchasedQuantity: next });
           }}
         />
