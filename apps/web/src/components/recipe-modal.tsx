@@ -19,9 +19,14 @@ import { RecipeView } from '@/components/recipe-view';
  */
 export function RecipeModal({
   recipeId,
+  scale = 1,
   onClose,
 }: {
   recipeId: string | null;
+  /** Multiplier for ingredient amounts — meal-plan rows pass
+   *  `meal.servings / recipe.servings` so the modal shows quantities scaled to
+   *  the planned meal, not the recipe's default servings. */
+  scale?: number;
   onClose: () => void;
 }) {
   const t = useTranslations('recipeModal');
@@ -94,7 +99,7 @@ export function RecipeModal({
                     : tDetail('loadFailed')}
                 </p>
               )}
-              {recipe.data && <RecipeView recipe={recipe.data} />}
+              {recipe.data && <RecipeView recipe={recipe.data} scale={scale} />}
             </div>
           </motion.div>
         </motion.div>

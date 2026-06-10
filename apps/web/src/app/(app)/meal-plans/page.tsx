@@ -18,7 +18,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatIngredientAmount } from '@/lib/ingredient-format';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
@@ -452,8 +451,10 @@ function PlanCard({
   const [openFav, setOpenFav] = useState<string | null>(null);
   // Which meal's ingredient-substitution modal is open, if any.
   const [openSub, setOpenSub] = useState<MealPlan['days'][number]['meals'][number] | null>(null);
-  // Which recipe is open in the Framer Motion modal, if any.
-  const [openRecipeId, setOpenRecipeId] = useState<string | null>(null);
+  // Which recipe is open in the Framer Motion modal, if any, plus the scale
+  // factor so the modal shows ingredient amounts for the planned meal rather
+  // than the recipe's default servings.
+  const [openRecipe, setOpenRecipe] = useState<{ id: string; scale: number } | null>(null);
   return (
     <Card className="relative max-w-4xl">
       <div className="flex items-center justify-between gap-4 p-4">
@@ -535,14 +536,18 @@ function PlanCard({
                           ·{' '}
                           <button
                             type="button"
-                            onClick={() => setOpenRecipeId(m.recipe.id)}
+                            onClick={() =>
+                              setOpenRecipe({
+                                id: m.recipe.id,
+                                scale: m.servings / Math.max(m.recipe.servings, 1),
+                              })
+                            }
                             className="font-medium text-primary hover:underline"
                           >
                             {m.recipe.title}
                           </button>
                         </span>
                         <span className="flex shrink-0 items-center gap-4">
-                          <MacrosChipStrip nutrition={m.nutrition} />
                           <Button
                             type="button"
                             variant="ghost"
@@ -598,17 +603,10 @@ function PlanCard({
                           </Button>
                         </span>
                       </div>
-                      {/* Concrete amounts for this meal — the recipe's ingredients
-                          scaled by the planned servings, so the user reads the
-                          finished list instead of doing math on a multiplier. */}
-                      <p className="ml-4 text-xs text-muted-foreground">
-                        {m.recipe.ingredients
-                          .map((i) => {
-                            const scale = m.servings / Math.max(m.recipe.servings, 1);
-                            return `${formatIngredientAmount(i, scale)} ${i.name.toLowerCase()}`;
-                          })
-                          .join(' · ')}
-                      </p>
+                      {/* Per-meal macros sit below the title as plain text — the
+                          modal opened from the recipe title carries the full
+                          ingredient list scaled for this meal. */}
+                      <MacrosLine nutrition={m.nutrition} />
                       {favOpen && (
                         <div className="ml-4 rounded-md border border-border bg-muted/40 p-2">
                           {slotFavorites.length === 0 ? (
@@ -655,56 +653,30 @@ function PlanCard({
           }}
         />
       )}
-      <RecipeModal recipeId={openRecipeId} onClose={() => setOpenRecipeId(null)} />
+      <RecipeModal
+        recipeId={openRecipe?.id ?? null}
+        scale={openRecipe?.scale ?? 1}
+        onClose={() => setOpenRecipe(null)}
+      />
     </Card>
   );
 }
 
-/** Per-meal macro chips — P / F / C in grams, kcal trailing. Same row, no wrap. */
-function MacrosChipStrip({
+/** Per-meal macros as plain inline text, sitting below the recipe title. Full
+ *  macro nouns (Protein / Białko) so it reads as a sentence, not a sticker
+ *  strip. Mirrors the layout the ingredient list used to occupy. */
+function MacrosLine({
   nutrition,
 }: {
   nutrition: { calories: number; protein: number; fat: number; carbs: number };
 }) {
-  const t = useTranslations('macrosChip');
-  const chips: { key: string; label: string; value: string; title: string }[] = [
-    {
-      key: 'p',
-      label: t('proteinShort'),
-      value: `${Math.round(nutrition.protein)}`,
-      title: t('proteinFull'),
-    },
-    {
-      key: 'f',
-      label: t('fatShort'),
-      value: `${Math.round(nutrition.fat)}`,
-      title: t('fatFull'),
-    },
-    {
-      key: 'c',
-      label: t('carbsShort'),
-      value: `${Math.round(nutrition.carbs)}`,
-      title: t('carbsFull'),
-    },
-  ];
+  const t = useTranslations('macrosLine');
   return (
-    <span className="flex items-center gap-1">
-      {chips.map((c) => (
-        <span
-          key={c.key}
-          title={c.title}
-          className="rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground"
-        >
-          <span className="font-medium">{c.label}</span> {c.value}
-        </span>
-      ))}
-      <span
-        title={t('caloriesFull')}
-        className="rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground"
-      >
-        {Math.round(nutrition.calories)} {t('caloriesShort')}
-      </span>
-    </span>
+    <p className="ml-4 text-xs text-muted-foreground">
+      {t('protein')} {Math.round(nutrition.protein)} g · {t('fat')}{' '}
+      {Math.round(nutrition.fat)} g · {t('carbs')} {Math.round(nutrition.carbs)} g ·{' '}
+      {Math.round(nutrition.calories)} {t('kcal')}
+    </p>
   );
 }
 

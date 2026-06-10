@@ -19,8 +19,13 @@ interface FavoriteRow {
  * Full recipe body. Used both by the standalone /recipes/[id] page and by
  * the Framer Motion RecipeModal opened from meal-plan rows — the page
  * wrapper owns navigation chrome (back link), this owns the content.
+ *
+ * `scale` multiplies ingredient quantities so the meal-plan modal can show
+ * amounts for the meal's planned servings rather than the recipe's default.
+ * Per-serving nutrition is unchanged — one serving is one eat regardless of
+ * how many servings the meal occupies.
  */
-export function RecipeView({ recipe }: { recipe: Recipe }) {
+export function RecipeView({ recipe, scale = 1 }: { recipe: Recipe; scale?: number }) {
   const t = useTranslations('recipeDetail');
   const tDifficulty = useTranslations('enums.difficulty');
   const tMeal = useTranslations('enums.mealType');
@@ -230,7 +235,7 @@ export function RecipeView({ recipe }: { recipe: Recipe }) {
                     {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
                   </span>
                   <span className="tabular-nums text-muted-foreground">
-                    {formatIngredientAmount(i)}
+                    {formatIngredientAmount(i, scale)}
                   </span>
                   {activePrefsProfile && (
                     <span className="flex items-center gap-1">

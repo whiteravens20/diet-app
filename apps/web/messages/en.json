@@ -789,17 +789,13 @@
   "recipeModal": {
     "title": "Recipe details",
     "close": "Close",
-    "openPage": "Open page"
+    "openPage": "Open original recipe"
   },
-  "macrosChip": {
-    "proteinShort": "P",
-    "fatShort": "F",
-    "carbsShort": "C",
-    "caloriesShort": "kcal",
-    "proteinFull": "Protein (g)",
-    "fatFull": "Fat (g)",
-    "carbsFull": "Carbs (g)",
-    "caloriesFull": "Calories"
+  "macrosLine": {
+    "protein": "Protein",
+    "fat": "Fat",
+    "carbs": "Carbs",
+    "kcal": "kcal"
   },
   "profile": {
     "title": "Profiles",

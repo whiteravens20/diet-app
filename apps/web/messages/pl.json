@@ -789,17 +789,13 @@
   "recipeModal": {
     "title": "Szczegóły przepisu",
     "close": "Zamknij",
-    "openPage": "Otwórz stronę"
+    "openPage": "Otwórz oryginalny przepis"
   },
-  "macrosChip": {
-    "proteinShort": "B",
-    "fatShort": "T",
-    "carbsShort": "W",
-    "caloriesShort": "kcal",
-    "proteinFull": "Białko (g)",
-    "fatFull": "Tłuszcze (g)",
-    "carbsFull": "Węglowodany (g)",
-    "caloriesFull": "Kalorie"
+  "macrosLine": {
+    "protein": "Białko",
+    "fat": "Tłuszcze",
+    "carbs": "Węglowodany",
+    "kcal": "kcal"
   },
   "profile": {
     "title": "Profile",
