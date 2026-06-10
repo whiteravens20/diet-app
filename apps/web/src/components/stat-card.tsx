@@ -20,8 +20,9 @@ export function StatCard({ label, value, hint, icon: Icon, index = 0 }: StatCard
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06, duration: 0.35, ease: 'easeOut' }}
+      className="h-full"
     >
-      <Card className="p-5">
+      <Card className="h-full p-5">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm text-muted-foreground">{label}</p>

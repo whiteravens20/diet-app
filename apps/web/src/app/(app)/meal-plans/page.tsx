@@ -456,7 +456,7 @@ function PlanCard({
   // than the recipe's default servings.
   const [openRecipe, setOpenRecipe] = useState<{ id: string; scale: number } | null>(null);
   return (
-    <Card className="relative w-full">
+    <Card className="relative w-full max-w-screen-2xl">
       <div className="flex items-center justify-between gap-4 p-4">
         <button type="button" onClick={onToggle} className="flex-1 text-left">
           <p className="font-medium">
