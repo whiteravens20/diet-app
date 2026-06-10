@@ -416,6 +416,17 @@ function ItemRow({
       ? fromPantryWithDateLabel(item.pantryBestBefore)
       : fromPantryLabel;
 
+  /** Latest typed-but-not-yet-blurred bought value, or `undefined` if it
+   *  matches the server. Including it in the checkbox PATCH avoids racing the
+   *  blur-triggered PATCH against the checkbox one — clicking the checkbox
+   *  while focused in the number input commits both fields atomically. */
+  function pendingPurchasedPatch(): { purchasedQuantity: number | null } | null {
+    const trimmed = bought.trim();
+    const next = trimmed === '' ? null : Number(bought) || 0;
+    if (next === item.purchasedQuantity) return null;
+    return { purchasedQuantity: next };
+  }
+
   return (
     <li className="flex flex-wrap items-center gap-3 py-2 text-sm">
       <input
@@ -423,7 +434,9 @@ function ItemRow({
         className="h-4 w-4 shrink-0"
         checked={item.checked}
         disabled={busy}
-        onChange={(e) => onPatch({ checked: e.target.checked })}
+        onChange={(e) =>
+          onPatch({ checked: e.target.checked, ...(pendingPurchasedPatch() ?? {}) })
+        }
       />
       <span className={item.checked ? 'flex-1 line-through text-muted-foreground' : 'flex-1'}>
         {item.name}
