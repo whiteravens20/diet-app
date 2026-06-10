@@ -4,6 +4,8 @@
 
 FROM node:24-alpine AS base
 WORKDIR /app
+# Match the host/CI npm pinned in package.json's packageManager field.
+RUN corepack enable && corepack prepare npm@11.16.0 --activate
 
 # ── deps + build ──────────────────────────────────────────────────────────────
 FROM base AS build

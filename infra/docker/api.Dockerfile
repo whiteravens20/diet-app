@@ -7,6 +7,9 @@ FROM node:24-alpine AS base
 WORKDIR /app
 # Prisma needs OpenSSL at build and runtime.
 RUN apk add --no-cache openssl
+# Match the host/CI npm pinned in package.json's packageManager field. Avoids
+# split-brain between the npm shipped with node:24-alpine and the project pin.
+RUN corepack enable && corepack prepare npm@11.16.0 --activate
 
 # ── deps + build ──────────────────────────────────────────────────────────────
 FROM base AS build

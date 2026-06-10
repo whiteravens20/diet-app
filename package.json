@@ -9,7 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/whiteravens20/diet-app.git"
   },
-  "packageManager": "npm@11.12.1",
+  "packageManager": "npm@11.16.0",
   "workspaces": [
     "apps/*",
     "packages/*"
