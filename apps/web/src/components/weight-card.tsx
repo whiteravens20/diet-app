@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Undo2 } from 'lucide-react';
 import type { Profile, WeightEntry } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,18 @@ export function WeightCard({ profile }: { profile: Profile }) {
     onError: (e) => setError(e instanceof ApiClientError ? e.message : t('logFailed')),
   });
 
+  // Delete the latest logged entry. Repeated clicks peel back successive
+  // entries — the list refetches after each delete, so the button targets
+  // whatever the newest remaining row is.
+  const remove = useMutation({
+    mutationFn: (id: string) => api.delete(`/weights/${id}`),
+    onSuccess: () => {
+      setError(null);
+      qc.invalidateQueries({ queryKey: ['weights', profile.id] });
+    },
+    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('removeFailed')),
+  });
+
   function submit(e: React.FormEvent): void {
     e.preventDefault();
     const v = Number(kg.replace(',', '.'));
@@ -75,6 +88,17 @@ export function WeightCard({ profile }: { profile: Profile }) {
 
   const points = buildSeries(entries.data ?? []);
   const hasData = points.length > 0;
+  // Entries arrive newest-first (`recordedAt: desc`), so [0] is the last one
+  // logged — what we want to peel back on click.
+  const latest = entries.data?.[0] ?? null;
+  const latestDate = latest?.recordedAt.slice(0, 10) ?? '';
+  const latestKg = latest ? latest.kg.toFixed(1) : '';
+
+  function onRemoveLatest(): void {
+    if (!latest) return;
+    if (!window.confirm(t('removeLatestConfirm', { kg: latestKg, date: latestDate }))) return;
+    remove.mutate(latest.id);
+  }
 
   return (
     <Card>
@@ -100,9 +124,28 @@ export function WeightCard({ profile }: { profile: Profile }) {
               {t('referenceHint', { kg: profile.weightKg })}
             </p>
             {error && <p className="text-xs text-destructive">{error}</p>}
-            <Button type="submit" size="sm" disabled={log.isPending || kg.trim() === ''}>
-              {log.isPending ? t('logging') : t('log')}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="submit" size="sm" disabled={log.isPending || kg.trim() === ''}>
+                {log.isPending ? t('logging') : t('log')}
+              </Button>
+              {latest && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRemoveLatest}
+                  disabled={remove.isPending}
+                  title={t('removeLatestLabel', { kg: latestKg, date: latestDate })}
+                  className="text-muted-foreground"
+                >
+                  <Undo2 size={14} aria-hidden />
+                  <span className="ml-1">{t('removeLatest')}</span>
+                  <span className="ml-1 text-xs">
+                    ({t('removeLatestLabel', { kg: latestKg, date: latestDate })})
+                  </span>
+                </Button>
+              )}
+            </div>
           </form>
 
           <div className="min-h-[200px]">

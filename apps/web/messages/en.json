@@ -793,7 +793,11 @@
     "referenceLabel": "registered",
     "seriesEntry": "Logged",
     "seriesMa7": "7-day average",
-    "emptyState": "Log a weight to see your 90-day trend."
+    "emptyState": "Log a weight to see your 90-day trend.",
+    "removeLatest": "Remove last entry",
+    "removeLatestLabel": "{kg} kg · {date}",
+    "removeLatestConfirm": "Remove the last logged weight ({kg} kg · {date})?",
+    "removeFailed": "Could not remove the weight entry."
   },
   "recipeModal": {
     "title": "Recipe details",

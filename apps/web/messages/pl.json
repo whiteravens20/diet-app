@@ -793,7 +793,11 @@
     "referenceLabel": "zarejestrowana",
     "seriesEntry": "Zapis",
     "seriesMa7": "Średnia 7 dni",
-    "emptyState": "Zapisz wagę, aby zobaczyć trend z 90 dni."
+    "emptyState": "Zapisz wagę, aby zobaczyć trend z 90 dni.",
+    "removeLatest": "Usuń ostatni wpis",
+    "removeLatestLabel": "{kg} kg · {date}",
+    "removeLatestConfirm": "Usunąć ostatni zapisany pomiar wagi ({kg} kg · {date})?",
+    "removeFailed": "Nie udało się usunąć wpisu wagi."
   },
   "recipeModal": {
     "title": "Szczegóły przepisu",
