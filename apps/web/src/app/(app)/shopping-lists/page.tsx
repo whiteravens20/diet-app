@@ -507,9 +507,12 @@ function ItemRow({
 
   // Live "still to buy" mirrors the pantry behaviour: as the user types into
   // `bought`, the displayed required drops without waiting for blur/server.
-  // Clamped at zero so over-buying doesn't render negative numbers.
+  // `purchasedQuantity` (and therefore `boughtNum`) is the cumulative total
+  // obtained — pantry pre-credit + actually bought — so we subtract it from
+  // `totalQuantity`, not from `toBuyQuantity` (which already had pantry
+  // removed and would double-count the pre-credit).
   const boughtNum = bought.trim() === '' ? 0 : Math.max(0, Number(bought) || 0);
-  const remainingToBuy = Math.max(0, item.toBuyQuantity - boughtNum);
+  const remainingToBuy = Math.max(0, item.totalQuantity - boughtNum);
   const showOfTotal = item.alreadyHaveQuantity > 0 || boughtNum > 0;
 
   /** Latest typed-but-not-yet-blurred bought value, or `undefined` if it
