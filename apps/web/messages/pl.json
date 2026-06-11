@@ -49,17 +49,17 @@
     "exhaustedTooltip": "Miesięczny limit AI wyczerpany. Następne zapytanie odblokuje się {date}."
   },
   "aiFallback": {
-    "quota_exhausted": "Miesięczny limit AI wyczerpany — używam silnika deterministycznego.",
-    "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — używam silnika deterministycznego.",
-    "all_providers_failed": "Dostawca AI nie odpowiada — używam silnika deterministycznego.",
-    "provider_timeout": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. Używam silnika deterministycznego."
+    "quota_exhausted": "Miesięczny limit AI wyczerpany — przełączam się na wbudowany silnik.",
+    "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — przełączam się na wbudowany silnik.",
+    "all_providers_failed": "Dostawca AI nie odpowiada — przełączam się na wbudowany silnik.",
+    "provider_timeout": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. Tym razem korzystam z wbudowanego silnika."
   },
   "disclaimers": {
     "aiPlans": "AI pomaga tworzyć plany i dobierać zamiany — i bywa, że się pomyli. Każdy plan, przepis i zamianę sprawdź pod kątem swoich potrzeb żywieniowych i zdrowia, zanim z nich skorzystasz.",
-    "enginePlans": "Generowanie planów i zamiany działają na deterministycznym silniku — szybko i powtarzalnie, ale i tak sprawdzaj każdy wynik pod kątem swoich potrzeb żywieniowych i zdrowia. Tłumaczenia po zamianach bywają nieporadne; operator instancji je sprawdza i poprawia.",
-    "aiRecipeDraft": "Przepisy szkicowane przez AI mogą zawierać błędy. Zanim na nich polegniesz, sprawdź składniki, ilości i kroki.",
+    "enginePlans": "Plany i zamiany układa wbudowany silnik aplikacji — szybko i powtarzalnie, ale i tak sprawdzaj każdy wynik pod kątem swoich potrzeb żywieniowych i zdrowia. Tłumaczenia po zamianach bywają nieporadne; operator instancji je sprawdza i poprawia.",
+    "aiRecipeDraft": "Przepisy szkicowane przez AI mogą zawierać błędy. Zanim zaczniesz z nich korzystać, sprawdź składniki, ilości i kroki.",
     "aiActivated": "AI pomaga tworzyć przepisy i dobierać zamiany, ale może się mylić. Zawsze sprawdzaj wyniki AI pod kątem swoich potrzeb żywieniowych i zdrowia.",
-    "bugReport": "Znalazłeś błąd? <link>Zgłoś go</link> w repozytorium źródłowym."
+    "bugReport": "Widzisz błąd? <link>Zgłoś go</link> w repozytorium źródłowym."
   },
   "aiRecipeDraft": {
     "title": "Zaproponuj przepis z AI",
@@ -92,7 +92,7 @@
   "landing": {
     "tagline": "Samodzielnie hostowane · Docker-first",
     "headline": "Planowanie posiłków, które naprawdę ma sens.",
-    "subhead": "Plany dopasowane do celu kalorycznego, dokładne wartości odżywcze i listy zakupów, które piszą się same. AI opcjonalne — nigdy wymagane.",
+    "subhead": "Plany dopasowane do celu kalorycznego, dokładne wartości odżywcze i listy zakupów, które piszą się same. AI do wyboru — nigdy obowiązkowe.",
     "getStarted": "Zacznij",
     "signIn": "Zaloguj się",
     "features": {
@@ -132,7 +132,7 @@
     "newPasswordDone": "Hasło zresetowane",
     "newPasswordDoneBody": "Możesz się teraz zalogować nowym hasłem.",
     "tokenInvalid": "Ten link do resetu jest nieprawidłowy lub wygasł.",
-    "termsConsent": "Zakładając konto akceptujesz <link>Regulamin</link>."
+    "termsConsent": "Zakładając konto, akceptujesz <link>Regulamin</link>."
   },
   "languageSwitcher": {
     "label": "Język",
@@ -234,7 +234,7 @@
     "REVIEWER_DISABLED": "Panel recenzenta jest wyłączony.",
     "NO_REVIEWER_SESSION": "Zaloguj się, aby kontynuować recenzowanie.",
     "INVALID_REVIEWER_SESSION": "Sesja recenzenta wygasła. Zaloguj się ponownie.",
-    "AI_MONTHLY_LIMIT_REACHED": "Wyczerpałeś miesięczny limit zapytań AI.",
+    "AI_MONTHLY_LIMIT_REACHED": "Skończył się Twój miesięczny limit zapytań AI.",
     "INVENTORY_ITEM_NOT_FOUND": "Nie znaleziono pozycji w spiżarni.",
     "ITEM_NOT_FOUND": "Nie znaleziono pozycji listy zakupów.",
     "WEIGHT_ENTRY_NOT_FOUND": "Nie znaleziono wpisu wagi.",
@@ -565,7 +565,7 @@
     "preferFavorites": "Preferuj moje ulubione składniki",
     "preferInventory": "Preferuj przepisy korzystające ze spiżarni",
     "swapWithPantry": "Zamiany preferują to, co masz w spiżarni",
-    "swapWithPantryTooltip": "Gdy włączone, każda zamiana i zamiana AI poniżej preferuje przepisy (lub składniki zastępcze), które spiżarnia jest w stanie pokryć.",
+    "swapWithPantryTooltip": "Gdy włączone, każda zamiana — także ta przez AI — preferuje przepisy (lub składniki zastępcze), które masz już w spiżarni.",
     "generating": "Generowanie…",
     "generateButton": "Wygeneruj plan",
     "plansFor": "Plany {name}",
@@ -649,16 +649,16 @@
       "rose": "Róż"
     },
     "aiAssistant": "Asystent AI",
-    "aiAssistantSubhead": "Wybierz, jak działają funkcje AI. Kalorie i makra zawsze przelicza deterministyczny silnik — AI nigdy nie wymyśla wartości odżywczych.",
+    "aiAssistantSubhead": "Wybierz, jak działają funkcje AI. Kalorie i makra zawsze przelicza wbudowany silnik aplikacji — AI nigdy nie wymyśla wartości odżywczych.",
     "aiMode": "Tryb",
     "aiModeNone": "Wyłączone",
-    "aiModeNoneHint": "Każda funkcja AI używa deterministycznego silnika. Żadne zapytanie nie opuszcza instancji.",
+    "aiModeNoneHint": "Każda funkcja AI korzysta z wbudowanego silnika. Żadne zapytanie nie opuszcza instancji.",
     "aiModeAdmin": "Użyj domyślnego dostawcy instancji",
     "aiModeAdminHint": "Korzystasz z dostawcy operatora, z limitem {limit} zapytań na miesiąc.",
     "aiModeAdminUnavailable": "Operator nie skonfigurował domyślnego dostawcy.",
     "aiModeAdminDisabled": "Operator nie udostępnił współdzielonego AI użytkownikom tej instancji.",
     "aiModeByok": "Użyj własnego klucza",
-    "aiModeByokHint": "Twój klucz OpenAI / Anthropic / OpenRouter lub instancja Ollama. Bez limitu — sam płacisz za zużycie.",
+    "aiModeByokHint": "Twój klucz OpenAI / Anthropic / OpenRouter lub instancja Ollama. Bez limitu — koszty zużycia po Twojej stronie.",
     "aiModeByokUnavailable": "Dodaj co najmniej jeden klucz dostawcy poniżej, zanim przełączysz się na własny klucz.",
     "aiModeSaving": "Zapisywanie…",
     "aiModeSaved": "Tryb AI zaktualizowany.",
@@ -685,7 +685,7 @@
     "aiOllamaUrlInvalid": "Podaj poprawny adres URL, np. http://localhost:11434",
     "aiApiKeyRequired": "Klucz API jest wymagany dla tego dostawcy.",
     "aiModelWarningTitle": "To Ty wybierasz model — i odpowiadasz za jakość.",
-    "aiModelWarning": "Słaby lub zbyt mały model może halucynować składniki, wymyślać ilości albo źle tłumaczyć. Wybierz model, któremu ufasz; deterministyczny silnik dalej liczy każdą wartość odżywczą, ale tekst tworzony przez AI (szkice przepisów, podmiany składników, tłumaczenia) jest tylko tak dobry, jak wybrany model.",
+    "aiModelWarning": "Słaby lub zbyt mały model może halucynować składniki, wymyślać ilości albo źle tłumaczyć. Wybierz model, któremu ufasz; wbudowany silnik aplikacji i tak liczy każdą wartość odżywczą, ale tekst tworzony przez AI (szkice przepisów, podmiany składników, tłumaczenia) jest tylko tak dobry, jak wybrany model.",
     "aiPriority": "Priorytet",
     "aiPriorityHint": "Niższy uruchamia się pierwszy w łańcuchu failover.",
     "aiSaving": "Zapisywanie…",
@@ -1006,23 +1006,23 @@
     },
     "section3": {
       "title": "Klucze BYOK i tryb admin AI",
-      "body": "Włączając BYOK (\"przynieś własny klucz\") w Ustawieniach podajesz klucz API zewnętrznego dostawcy AI. Operator przechowuje ten klucz zaszyfrowany AES-em, ale nie zwalnia Cię z regulaminu ani opłat dostawcy. Korzystając z trybu admin AI używasz puli operatora w ramach skonfigurowanego miesięcznego limitu; nadużycie tego trybu jest podstawą do wyłączenia konta przez operatora."
+      "body": "Włączając w Ustawieniach BYOK (\"przynieś własny klucz\"), podajesz klucz API zewnętrznego dostawcy AI. Operator przechowuje ten klucz zaszyfrowany AES-em, ale nie zwalnia Cię z regulaminu ani opłat dostawcy. Korzystając z trybu admin AI, używasz puli operatora w ramach skonfigurowanego miesięcznego limitu; nadużycie tego trybu jest podstawą do wyłączenia konta przez operatora."
     },
     "section4": {
       "title": "Wartości odżywcze to nie porada medyczna",
-      "body": "Każda wartość kalorii, makroskładników i mikroskładników w aplikacji jest wyliczana przez deterministyczny silnik na podstawie kuratorowanej bazy składników. Wartości są przybliżone i nie są walidowane do żadnych celów medycznych, klinicznych ani terapeutycznych. Skonsultuj się z wykwalifikowanym specjalistą zanim zmienisz dietę w sposób, który może wpłynąć na stan zdrowia."
+      "body": "Każda wartość kalorii, makroskładników i mikroskładników w aplikacji jest wyliczana przez wbudowany silnik aplikacji na podstawie wyselekcjonowanej bazy składników. Wartości są przybliżone i nie są walidowane do żadnych celów medycznych, klinicznych ani terapeutycznych. Skonsultuj się z wykwalifikowanym specjalistą, zanim zmienisz dietę w sposób, który może wpłynąć na stan zdrowia."
     },
     "section5": {
       "title": "Treści tworzone przy pomocy AI",
-      "body": "Przepisy, podmiany składników i wymiany posiłków wygenerowane przez AI mają znacznik ✨ AI-assisted. Sprawdź je zanim na nich polegniesz. Deterministyczny silnik ponownie wylicza wartości odżywcze dla każdego artefaktu AI i odrzuca wartości wymyślone przez model, ale dobór składników i kroki przygotowania pozostają autorstwa AI — zweryfikuj je względem własnych potrzeb żywieniowych i stanu zdrowia."
+      "body": "Przepisy, podmiany składników i wymiany posiłków wygenerowane przez AI mają znacznik ✨ AI-assisted. Sprawdź je, zanim zaczniesz z nich korzystać. Wbudowany silnik aplikacji ponownie wylicza wartości odżywcze dla każdej treści tworzonej przez AI i odrzuca liczby wymyślone przez model, ale dobór składników i kroki przygotowania pozostają autorstwa AI — zweryfikuj je względem własnych potrzeb żywieniowych i stanu zdrowia."
     },
     "section6": {
-      "title": "Licencja kuratorowanej zawartości",
-      "body": "Kuratorowane przepisy w data/recipes/ oraz kuratorowane składniki w data/ingredients.json są udostępniane na licencji MIT projektu. Przepisy promowane z propozycji użytkowników przez kolejkę kuracji są wnoszone na tej samej licencji w momencie przesłania."
+      "title": "Licencja wyselekcjonowanej zawartości",
+      "body": "Wyselekcjonowane przepisy w data/recipes/ oraz wyselekcjonowane składniki w data/ingredients.json są udostępniane na licencji MIT projektu. Przepisy promowane z propozycji użytkowników przez kolejkę kuratorską są wnoszone na tej samej licencji w momencie przesłania."
     },
     "section7": {
       "title": "Lokalizacja danych",
-      "body": "Twoje dane znajdują się w bazie danych tej instancji, której używasz. Projekt źródłowy nie ma do nich dostępu, nie posiada ich kopii zapasowych ani ścieżki ich odzyskiwania. Zapytaj operatora tej instancji o politykę backupów i postępowanie z danymi zanim przechowasz coś, czego nie możesz stracić."
+      "body": "Twoje dane znajdują się w bazie danych tej instancji, której używasz. Projekt źródłowy nie ma do nich dostępu, nie posiada ich kopii zapasowych ani ścieżki ich odzyskiwania. Zapytaj operatora tej instancji o politykę backupów i postępowanie z danymi, zanim powierzysz mu coś, czego nie możesz stracić."
     },
     "section8": {
       "title": "Odpowiedzialność i gwarancja",
