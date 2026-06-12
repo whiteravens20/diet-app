@@ -75,6 +75,11 @@ import {
 } from './ship/upstream-mode.js';
 import { buildCurrentIngredientOverrides } from './ship/current-overrides.js';
 import {
+  pullOverrides,
+  PullOverridesError,
+  type PullOverridesResult,
+} from './ship/pull-overrides.js';
+import {
   consumeBundleToken,
   markBundleShipped,
   shipIngredientNamesBundle,
@@ -104,6 +109,12 @@ const MarkShippedBody = z.object({
   draftIds: z.array(z.string().uuid()).min(1),
 });
 
+const PullOverridesBody = z.object({
+  /** Repo (`owner/repo[@branch]`) or a full raw URL. Falls back to the env
+   *  default when omitted/blank. */
+  source: z.string().trim().min(1).optional(),
+});
+
 interface ShipConfigDto {
   modes: {
     local: { available: true };
@@ -116,6 +127,7 @@ interface ShipConfigDto {
     };
     bundle: { available: true; ttlSeconds: number };
   };
+  pull: { available: true; defaultSource: string; tokenSet: boolean };
   approvedCounts: { recipe: number; ingredientName: number };
 }
 
@@ -648,6 +660,11 @@ export class DraftsController {
         },
         bundle: { available: true, ttlSeconds: 600 },
       },
+      pull: {
+        available: true,
+        defaultSource: this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }),
+        tokenSet: this.pullToken() !== null,
+      },
       approvedCounts: { recipe: recipeCount, ingredientName: ingredientCount },
     };
   }
@@ -798,6 +815,44 @@ export class DraftsController {
       }
       throw err;
     }
+  }
+
+  /** Pull ingredient overrides from a repo the operator names (or the env
+   *  default) and apply them to this instance's DB as MANUAL translations. The
+   *  reverse of the local ship — sync overrides authored elsewhere (or the
+   *  canonical community set) without rebuilding the image. Public repos need
+   *  no auth; private GitHub repos use the env PAT. */
+  @Post('ship/current-overrides/pull')
+  async pullCurrentOverrides(@Body() body: unknown): Promise<PullOverridesResult> {
+    const parsed = PullOverridesBody.safeParse(body ?? {});
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: 'INVALID_PULL_REQUEST',
+        message: parsed.error.message,
+      });
+    }
+    const source =
+      parsed.data.source ??
+      this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }) ??
+      'whiteravens20/diet-app';
+    try {
+      return await pullOverrides(this.prisma, source, this.pullToken());
+    } catch (err) {
+      if (err instanceof PullOverridesError) {
+        throw new ConflictException({ error: err.code, message: err.message });
+      }
+      throw err;
+    }
+  }
+
+  /** PAT for pulling from a private repo: the dedicated var, falling back to
+   *  the upstream-push token. Null when neither is set (public-only). */
+  private pullToken(): string | null {
+    return (
+      this.config.get('OVERRIDES_PULL_TOKEN', { infer: true }) ??
+      this.config.get('SHIP_UPSTREAM_GH_TOKEN', { infer: true }) ??
+      null
+    );
   }
 
   @Post('ship/mark-shipped')

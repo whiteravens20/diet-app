@@ -84,6 +84,18 @@ export const envSchema = z.object({
   // Signs the zip-download one-shot tokens. Defaults reuse JWT_ACCESS_SECRET
   // when unset — the token has a 10-minute TTL so reuse is acceptable.
   SHIP_DOWNLOAD_TOKEN_SECRET: z.string().optional(),
+
+  // "Pull ingredient overrides from a repo" — the reverse of the local ship.
+  // The admin panel fetches a repo's `data/ingredient-overrides.json` and
+  // applies the rows to the live DB as source=MANUAL. Read-only and
+  // container-friendly (a plain HTTP fetch, no git working tree). The operator
+  // types the repo in the UI; this is only the default prefill. Accepts an
+  // `owner/repo[@branch]` (GitHub) or a full raw URL (e.g. gitea/gitlab).
+  // Public repos need no auth; private GitHub repos use OVERRIDES_PULL_TOKEN.
+  OVERRIDES_PULL_SOURCE: z.string().default('whiteravens20/diet-app'),
+  // PAT for pulling from a PRIVATE repo. Only ever sent to GitHub hosts. Falls
+  // back to SHIP_UPSTREAM_GH_TOKEN when unset.
+  OVERRIDES_PULL_TOKEN: z.string().optional(),
 });
 
 /** Sentinel password meaning "admin panel disabled". Mirrors archivum-null. */

@@ -438,6 +438,11 @@ export const adminApi = {
     adminFetch<CurrentOverridesPushResponse>('/drafts/ship/current-overrides/push', {
       method: 'POST',
     }),
+  pullCurrentOverrides: (source?: string) =>
+    adminFetch<CurrentOverridesPullResponse>('/drafts/ship/current-overrides/pull', {
+      method: 'POST',
+      body: JSON.stringify(source ? { source } : {}),
+    }),
 
   // Instance settings (Phase H) — reviewer-interface toggle + password.
   instanceSettings: () => adminFetch<InstanceSettingsDto>('/instance-settings'),
@@ -475,6 +480,7 @@ export interface ShipConfigDto {
     };
     bundle: { available: true; ttlSeconds: number };
   };
+  pull: { available: true; defaultSource: string; tokenSet: boolean };
   approvedCounts: { recipe: number; ingredientName: number };
 }
 
@@ -493,6 +499,15 @@ export interface CurrentOverridesPushResponse {
   prUrl: string;
   branch: string;
   rowCount: number;
+}
+
+export interface CurrentOverridesPullResponse {
+  source: string;
+  resolvedUrl: string;
+  applied: number;
+  rowsWritten: number;
+  skippedSlugs: string[];
+  total: number;
 }
 
 export type ShipResponse =

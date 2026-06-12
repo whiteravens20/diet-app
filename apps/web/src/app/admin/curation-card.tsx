@@ -21,6 +21,7 @@ import {
   ClipboardCheck,
   Clock,
   Download,
+  DownloadCloud,
   ExternalLink,
   GitPullRequest,
   Loader2,
@@ -43,6 +44,7 @@ import {
   type RecipeDraftIngredientLine,
   type RecipeDraftPatch,
   type RecipeRunnerState,
+  type CurrentOverridesPullResponse,
   type ShipConfigDto,
   type ShipKind,
   type ShipMode,
@@ -1287,13 +1289,16 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
   const [busyMode, setBusyMode] = useState<ShipMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ShipResponse | null>(null);
-  const [currentBusy, setCurrentBusy] = useState<'download' | 'push' | null>(null);
+  const [currentBusy, setCurrentBusy] = useState<'download' | 'push' | 'pull' | null>(null);
   const [currentPushUrl, setCurrentPushUrl] = useState<string | null>(null);
+  const [pullResult, setPullResult] = useState<CurrentOverridesPullResponse | null>(null);
+  const [pullSource, setPullSource] = useState('');
 
   const refresh = useCallback(async () => {
     try {
       const c = await adminApi.shipConfig();
       setConfig(c);
+      setPullSource((prev) => prev || c.pull.defaultSource);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1354,6 +1359,21 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
     try {
       const res = await adminApi.pushCurrentOverrides();
       setCurrentPushUrl(res.prUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCurrentBusy(null);
+    }
+  };
+
+  const pullCurrent = async () => {
+    setCurrentBusy('pull');
+    setError(null);
+    setPullResult(null);
+    try {
+      const res = await adminApi.pullCurrentOverrides(pullSource.trim() || undefined);
+      setPullResult(res);
+      await onShipped();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1481,6 +1501,49 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
             )}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{t('shipCurrentExplain')}</p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('shipPullHeader')}
+            </span>
+            <Input
+              value={pullSource}
+              onChange={(e) => setPullSource(e.target.value)}
+              placeholder="owner/repo"
+              className="h-8 max-w-xs flex-1 text-xs"
+              disabled={currentDisabled}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={currentDisabled || pullSource.trim().length === 0}
+              onClick={pullCurrent}
+              className="gap-2"
+            >
+              {currentBusy === 'pull' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <DownloadCloud className="h-3.5 w-3.5" />
+              )}
+              {t('shipCurrentPull')}
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {config.pull.tokenSet ? t('shipPullExplainToken') : t('shipPullExplainNoToken')}
+          </p>
+          {pullResult && (
+            <div className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-xs">
+              <p>{t('shipPullSuccess', { applied: pullResult.applied, total: pullResult.total })}</p>
+              {pullResult.skippedSlugs.length > 0 && (
+                <p className="mt-1 text-amber-600 dark:text-amber-400">
+                  {t('shipPullSkipped', {
+                    count: pullResult.skippedSlugs.length,
+                    slugs: pullResult.skippedSlugs.slice(0, 8).join(', '),
+                  })}
+                </p>
+              )}
+            </div>
+          )}
           {currentPushUrl && (
             <p className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-xs">
               {t('shipCurrentPushSuccess')}{' '}
