@@ -16,8 +16,13 @@ import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { Locale } from '@diet-app/shared';
 
-/** Per-locale string map; same shape the validator hands us. */
-const LocaleStringMap = z.record(Locale, z.string().min(1));
+/** Per-locale string map; same shape the validator hands us. Uses
+ *  `partialRecord` because drafts are generated for a locale subset
+ *  (`targetLocales`, e.g. `['pl']` — EN is the canonical source, not a draft
+ *  target). Zod v4's `z.record` over an enum key is exhaustive and would reject
+ *  a `{ pl: … }` map for the missing `en` key, failing every ship with
+ *  `suggestions-shape-invalid`. Matches `IngredientNameSuggestion` in shared. */
+const LocaleStringMap = z.partialRecord(Locale, z.string().min(1));
 
 /** Shape of one slug's override row. */
 export const IngredientOverrideEntry = z.object({

@@ -128,8 +128,11 @@ export type DraftRunnerState = z.infer<typeof DraftRunnerState>;
 // ── Recipe drafts (Phase D) ───────────────────────────────────────────────────
 
 /** Locale-keyed string-array map — used for `steps` where every entry is an
- *  ordered list, not a single string. Same key set as LocaleStringMap. */
-export const LocaleStringsMap = z.record(Locale, z.array(z.string().min(1)).min(1));
+ *  ordered list, not a single string. Same key set as LocaleStringMap, and like
+ *  it uses `partialRecord`: drafts are generated for a locale subset
+ *  (`targetLocales`), so Zod v4's exhaustive `z.record` over the enum key would
+ *  wrongly reject a `{ pl: … }` map for the missing `en` key. */
+export const LocaleStringsMap = z.partialRecord(Locale, z.array(z.string().min(1)).min(1));
 export type LocaleStringsMap = z.infer<typeof LocaleStringsMap>;
 
 /** One ingredient line as the AI returns it inside a recipe draft. Slug must
