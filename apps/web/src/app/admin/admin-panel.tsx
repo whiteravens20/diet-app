@@ -226,7 +226,7 @@ export function AdminPanel() {
 
   if (view === 'login') {
     return (
-      <Card className="w-full max-w-sm">
+      <Card className="mx-auto max-w-md">
         <CardHeader>
           <CardTitle>{t('signIn')}</CardTitle>
         </CardHeader>
