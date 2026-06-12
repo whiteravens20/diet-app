@@ -1287,6 +1287,8 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
   const [busyMode, setBusyMode] = useState<ShipMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ShipResponse | null>(null);
+  const [currentBusy, setCurrentBusy] = useState<'download' | 'push' | null>(null);
+  const [currentPushUrl, setCurrentPushUrl] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -1333,8 +1335,52 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
     }
   };
 
+  const downloadCurrent = async () => {
+    setCurrentBusy('download');
+    setError(null);
+    try {
+      await adminApi.downloadCurrentOverrides();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCurrentBusy(null);
+    }
+  };
+
+  const pushCurrent = async () => {
+    setCurrentBusy('push');
+    setError(null);
+    setCurrentPushUrl(null);
+    try {
+      const res = await adminApi.pushCurrentOverrides();
+      setCurrentPushUrl(res.prUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCurrentBusy(null);
+    }
+  };
+
   if (!config) return null;
   const disabled = approvedCount === 0 || busyMode !== null;
+  const currentDisabled = busyMode !== null || currentBusy !== null;
+
+  // Explain why the upstream-PR option (approved-draft ship + current-overrides
+  // push) isn't usable, instead of silently hiding the button. Drives off the
+  // same config the backend computed: `available` means every precondition is
+  // met; otherwise `reason` says which one failed.
+  const up = config.modes.upstreamPr;
+  const upstreamStatus = up.available ? null : !up.enabled ? (
+    <p className="mt-2 text-xs text-muted-foreground">{t('shipUpstreamDisabledInfo')}</p>
+  ) : up.reason === 'SHIP_UPSTREAM_BLOCKED_CANONICAL' ? (
+    <p className="mt-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">
+      {t('shipUpstreamCanonicalWarning', { remote: up.remote })}
+    </p>
+  ) : (
+    <p className="mt-2 text-xs text-muted-foreground">
+      {t('shipUpstreamUnavailable', { reason: up.reason ?? '' })}
+    </p>
+  );
 
   return (
     <div className="rounded-md border border-border bg-muted/30 p-3">
@@ -1360,20 +1406,14 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
           )}
           {t('shipModeLocal')}
         </Button>
-        {config.modes.upstreamPr.enabled && (
+        {up.available && (
           <Button
             size="sm"
             variant="outline"
-            disabled={disabled || !config.modes.upstreamPr.available}
+            disabled={disabled}
             onClick={() => run('upstream-pr')}
             className="gap-2"
-            title={
-              config.modes.upstreamPr.reason ??
-              t('shipModeUpstreamHint', {
-                remote: config.modes.upstreamPr.remote,
-                branch: config.modes.upstreamPr.baseBranch,
-              })
-            }
+            title={t('shipModeUpstreamHint', { remote: up.remote, branch: up.baseBranch })}
           >
             {busyMode === 'upstream-pr' ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1399,6 +1439,63 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
         </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t('shipExplain')}</p>
+      {upstreamStatus}
+
+      {kind === 'ingredient-name' && (
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('shipCurrentHeader')}
+            </span>
+            <span className="flex-1" />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={currentDisabled}
+              onClick={downloadCurrent}
+              className="gap-2"
+            >
+              {currentBusy === 'download' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              {t('shipCurrentDownload')}
+            </Button>
+            {up.available && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentDisabled}
+                onClick={pushCurrent}
+                className="gap-2"
+                title={t('shipModeUpstreamHint', { remote: up.remote, branch: up.baseBranch })}
+              >
+                {currentBusy === 'push' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <GitPullRequest className="h-3.5 w-3.5" />
+                )}
+                {t('shipCurrentPush')}
+              </Button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{t('shipCurrentExplain')}</p>
+          {currentPushUrl && (
+            <p className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-xs">
+              {t('shipCurrentPushSuccess')}{' '}
+              <a
+                href={currentPushUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline"
+              >
+                {currentPushUrl}
+              </a>
+            </p>
+          )}
+        </div>
+      )}
 
       {error && (
         <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">

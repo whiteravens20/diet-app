@@ -38,6 +38,7 @@ import {
   writeRecipeBatch,
   type ShippedRecipe,
 } from './recipe-batches.writer.js';
+import { buildCurrentIngredientOverrides } from './current-overrides.js';
 
 export interface UpstreamShipConfig {
   enabled: boolean;
@@ -271,6 +272,49 @@ export async function shipIngredientNamesUpstream(
   };
 }
 
+export interface CurrentOverridesPushResult {
+  prUrl: string;
+  branch: string;
+  rowCount: number;
+}
+
+/** Push the *full current* ingredient-override state (every MANUAL row,
+ *  rebuilt from the DB) to the configured upstream repo as a gh PR. Unlike
+ *  `shipIngredientNamesUpstream`, this is not tied to draft status — it
+ *  exports the accumulated override set so the operator can sync it into
+ *  another instance or repo at any time. Merges additively (last write wins
+ *  per slug), so entries already in the target repo that this instance
+ *  doesn't have are preserved. Touches no draft rows. */
+export async function pushCurrentOverridesUpstream(
+  prisma: PrismaService,
+  request: { dataDir: string; repoRoot: string; config: UpstreamShipConfig },
+): Promise<CurrentOverridesPushResult> {
+  guardPreconditions(request.config, request.repoRoot);
+  const file = await buildCurrentIngredientOverrides(prisma);
+  const rowCount = Object.keys(file).length;
+  if (rowCount === 0) {
+    throw new UpstreamShipError(
+      'NO_CURRENT_OVERRIDES',
+      'this instance has no MANUAL ingredient overrides to push',
+    );
+  }
+
+  const branch = `overrides/sync-${Date.now().toString(36)}`;
+  await prepareBranch(request.repoRoot, request.config, branch);
+  const path = ingredientOverridesPath(request.dataDir);
+  if (!existsSync(dirname(path))) mkdirSync(dirname(path), { recursive: true });
+  mergeIngredientOverrides(path, file);
+  const commitMsg = `data: sync ingredient overrides (${rowCount} rows)`;
+  await commitAndPush(request.repoRoot, request.config, branch, [path], commitMsg);
+
+  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, {
+    title: commitMsg,
+    body: buildCurrentOverridesPrBody(Object.keys(file)),
+  });
+
+  return { prUrl, branch, rowCount };
+}
+
 // ── git plumbing ────────────────────────────────────────────────────────────
 
 function guardPreconditions(config: UpstreamShipConfig, repoRoot: string): void {
@@ -404,6 +448,22 @@ function buildIngredientPrBody(
     ...lines,
     '',
     'Reviewed in-app at /admin/curation before this PR was opened.',
+  ].join('\n');
+}
+
+function buildCurrentOverridesPrBody(slugs: string[]): string {
+  const preview = slugs.slice(0, 50).map((s) => `- ${s}`);
+  const more = slugs.length > 50 ? [`- …and ${slugs.length - 50} more`] : [];
+  return [
+    `Full ingredient-name override state synced from a Diet App instance (${slugs.length} rows).`,
+    '',
+    'This is the complete current set of MANUAL ingredient translations on the ' +
+      'instance, not an incremental draft batch. Merged additively into ' +
+      '`data/ingredient-overrides.json` (last write wins per slug).',
+    '',
+    'Slugs:',
+    ...preview,
+    ...more,
   ].join('\n');
 }
 

@@ -405,6 +405,40 @@ export const adminApi = {
       body: JSON.stringify(body),
     }),
 
+  // Current-state export/push — the full ingredient-override set rebuilt from
+  // the DB, available regardless of draft status (unlike the ship modes).
+  downloadCurrentOverrides: async (): Promise<void> => {
+    const headers = new Headers();
+    const creds = adminCreds.get();
+    if (creds) headers.set('authorization', `Basic ${creds}`);
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/api/admin/drafts/ship/current-overrides`, { headers });
+    } catch {
+      throw new AdminApiError(0, 'Cannot reach the API.');
+    }
+    if (res.status === 401) {
+      adminCreds.clear();
+      throw new AdminApiError(401, 'Invalid admin credentials.');
+    }
+    if (!res.ok) {
+      throw new AdminApiError(res.status, 'Could not export current overrides.');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ingredient-overrides.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+  pushCurrentOverrides: () =>
+    adminFetch<CurrentOverridesPushResponse>('/drafts/ship/current-overrides/push', {
+      method: 'POST',
+    }),
+
   // Instance settings (Phase H) — reviewer-interface toggle + password.
   instanceSettings: () => adminFetch<InstanceSettingsDto>('/instance-settings'),
   patchInstanceSettings: (body: InstanceSettingsPatchPayload) =>
@@ -453,6 +487,12 @@ export interface ShipRequest {
 export interface ShipMarkShippedRequest {
   kind: ShipKind;
   draftIds: string[];
+}
+
+export interface CurrentOverridesPushResponse {
+  prUrl: string;
+  branch: string;
+  rowCount: number;
 }
 
 export type ShipResponse =

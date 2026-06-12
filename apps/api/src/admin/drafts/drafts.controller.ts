@@ -64,13 +64,16 @@ import {
 } from './ship/local-mode.js';
 import {
   findRepoRoot,
+  pushCurrentOverridesUpstream,
   shipIngredientNamesUpstream,
   shipRecipesUpstream,
   upstreamBlockedReason,
   UpstreamShipError,
+  type CurrentOverridesPushResult,
   type UpstreamShipConfig,
   type UpstreamShipResult,
 } from './ship/upstream-mode.js';
+import { buildCurrentIngredientOverrides } from './ship/current-overrides.js';
 import {
   consumeBundleToken,
   markBundleShipped,
@@ -750,6 +753,51 @@ export class DraftsController {
       .setHeader('Content-Type', 'application/json; charset=utf-8')
       .setHeader('Content-Disposition', `attachment; filename="${filename}"`)
       .send(JSON.stringify(payload, null, 2));
+  }
+
+  /** Download the full current ingredient-override set, rebuilt from the live
+   *  DB (every MANUAL translation). Available any time — independent of draft
+   *  status — so the operator can lift the accumulated overrides into another
+   *  instance or repo even after everything has been shipped. */
+  @Get('ship/current-overrides')
+  async downloadCurrentOverrides(@Res() res: Response): Promise<void> {
+    const file = await buildCurrentIngredientOverrides(this.prisma);
+    res
+      .status(200)
+      .setHeader('Content-Type', 'application/json; charset=utf-8')
+      .setHeader('Content-Disposition', 'attachment; filename="ingredient-overrides.json"')
+      .send(JSON.stringify(file, null, 2) + '\n');
+  }
+
+  /** Push the full current ingredient-override set to the configured upstream
+   *  repo as a gh PR (reuses the upstream-pr env config + plumbing). Not tied
+   *  to draft status. */
+  @Post('ship/current-overrides/push')
+  async pushCurrentOverrides(): Promise<CurrentOverridesPushResult> {
+    const config = this.readUpstreamConfig();
+    const repoRoot = findRepoRoot(process.cwd());
+    if (!repoRoot) {
+      throw new InternalServerErrorException({
+        error: 'SHIP_REPO_ROOT_NOT_FOUND',
+        message: 'Could not find git repo root.',
+      });
+    }
+    const blocked = upstreamBlockedReason(config, repoRoot);
+    if (blocked) {
+      throw new ConflictException({
+        error: blocked,
+        message: `Upstream push refused: ${blocked}.`,
+      });
+    }
+    const dataDir = resolvePath(repoRoot, 'data');
+    try {
+      return await pushCurrentOverridesUpstream(this.prisma, { dataDir, repoRoot, config });
+    } catch (err) {
+      if (err instanceof UpstreamShipError) {
+        throw new ConflictException({ error: err.code, message: err.message });
+      }
+      throw err;
+    }
   }
 
   @Post('ship/mark-shipped')
