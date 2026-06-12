@@ -90,7 +90,16 @@
     "failed": "Nie udało się zaproponować przepisu — spróbuj ponownie."
   },
   "landing": {
-    "tagline": "Samodzielnie hostowane · Docker-first",
+    "highlights": {
+      "selfHosted": "Samodzielnie hostowane",
+      "privacy": "Prywatność na pierwszym miejscu",
+      "openSource": "Otwarte źródło · MIT",
+      "aiOptional": "AI opcjonalne"
+    },
+    "devWarning": {
+      "title": "Uwaga — wczesny etap rozwoju.",
+      "body": "To oprogramowanie przedpremierowe, wciąż intensywnie rozwijane. Coś może przestać działać, dane mogą zostać skasowane między aktualizacjami, a całość może po prostu wybuchnąć Ci w twarz. Nie polegaj na nim w ważnych sprawach."
+    },
     "headline": "Planowanie posiłków, które naprawdę ma sens.",
     "subhead": "Plany dopasowane do celu kalorycznego, dokładne wartości odżywcze i listy zakupów, które piszą się same. AI do wyboru — nigdy obowiązkowe.",
     "getStarted": "Zacznij",

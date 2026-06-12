@@ -90,7 +90,16 @@
     "failed": "Could not draft a recipe — try again."
   },
   "landing": {
-    "tagline": "Self-hostable · Docker-first",
+    "highlights": {
+      "selfHosted": "Self-hosted",
+      "privacy": "Privacy-first",
+      "openSource": "Open source · MIT",
+      "aiOptional": "AI optional"
+    },
+    "devWarning": {
+      "title": "Heads up — early development.",
+      "body": "This is pre-release software under active development. Things may break, data may be wiped between updates, and it might just blow up in your face. Don't rely on it for anything important yet."
+    },
     "headline": "Meal planning that actually adds up.",
     "subhead": "Calorie-targeted plans, deterministic nutrition and shopping lists that write themselves. AI optional — never required.",
     "getStarted": "Get started",

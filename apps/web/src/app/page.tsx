@@ -1,5 +1,15 @@
 import Link from 'next/link';
-import { CalendarRange, ListChecks, Sparkles, Utensils } from 'lucide-react';
+import {
+  CalendarRange,
+  Code2,
+  Cpu,
+  ListChecks,
+  Server,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+  Utensils,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,6 +22,15 @@ const FEATURE_KEYS = [
   { icon: Sparkles, titleKey: 'aiTitle', bodyKey: 'aiBody' },
 ] as const;
 
+// Pills shown above the headline. Each keeps a distinct icon — self-hosted
+// uses Server (not Sparkles, which the AI feature card owns).
+const HIGHLIGHT_KEYS = [
+  { icon: Server, key: 'selfHosted' },
+  { icon: ShieldCheck, key: 'privacy' },
+  { icon: Code2, key: 'openSource' },
+  { icon: Cpu, key: 'aiOptional' },
+] as const;
+
 /** Public landing page. */
 export default function Landing() {
   const t = useTranslations('landing');
@@ -22,9 +41,16 @@ export default function Landing() {
         <LanguageSwitcher />
       </div>
       <section className="mt-6 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-foreground">
-          <Sparkles size={13} /> {t('tagline')}
-        </span>
+        <div className="flex flex-wrap justify-center gap-2">
+          {HIGHLIGHT_KEYS.map((h) => (
+            <span
+              key={h.key}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-foreground"
+            >
+              <h.icon size={13} /> {t(`highlights.${h.key}`)}
+            </span>
+          ))}
+        </div>
         <h1 className="mt-6 text-balance text-5xl font-semibold tracking-tight">
           {t('headline')}
         </h1>
@@ -38,6 +64,13 @@ export default function Landing() {
           <Link href="/login" className={buttonVariants({ size: 'lg', variant: 'outline' })}>
             {t('signIn')}
           </Link>
+        </div>
+        <div className="mx-auto mt-8 flex max-w-xl items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left text-sm text-amber-700 dark:text-amber-300">
+          <TriangleAlert size={18} className="mt-0.5 shrink-0" />
+          <p>
+            <span className="font-semibold">{t('devWarning.title')}</span>{' '}
+            {t('devWarning.body')}
+          </p>
         </div>
       </section>
 
