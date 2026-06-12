@@ -86,11 +86,12 @@ services:
       - ../data:/app/data
       # Curation-queue sidecar files (Phase E). The local-mode ship runner
       # writes approved AI-drafted recipes / ingredient overrides here as
-      # operator-controlled backups. Bind-mounted to the host so they
-      # survive container recreates AND so the operator can symlink this
-      # path to a private repo working tree if they want git-tracked
-      # backups (see ADR-0008 storage config B). Gitignored at repo root.
-      - ../instance-data:/app/instance-data
+      # operator-controlled backups. A named volume (not a host bind-mount) so
+      # Docker manages ownership: the image creates /app/instance-data
+      # node-owned and the volume inherits it, so the runtime `node` user can
+      # write. To pull a copy onto the host, use the zip download in the admin
+      # UI or `docker run --rm -v diet-app_instance-data:/d alpine tar -C /d -cf - .`.
+      - instance-data:/app/instance-data
     ports:
       - '${API_PORT:-4000}:4000'
     healthcheck:
@@ -120,7 +121,7 @@ services:
       db-init: { condition: service_completed_successfully }
     volumes:
       - ../data:/app/data
-      - ../instance-data:/app/instance-data
+      - instance-data:/app/instance-data
 
   web:
     build:
@@ -164,3 +165,6 @@ volumes:
   postgres-data:
   redis-data:
   ollama-models:
+  # Curation-queue ship sidecars (gitignored backups). Named volume so Docker
+  # owns it as the image's `node` user — see the api service's volumes comment.
+  instance-data:

@@ -437,6 +437,7 @@
       "shipSuccessLocal": "Shipped {count} draft(s) to this instance.",
       "shipSuccessUpstream": "Opened PR with {count} draft(s).",
       "shipSidecarPath": "Sidecar backup: {path}",
+      "shipSidecarWarning": "Shipped to the database, but the sidecar backup file couldn't be written ({error}). The drafts are live; fix the instance-data directory permissions if you want the portable copy.",
       "shipBundleReady": "Bundle ready with {count} draft(s).",
       "shipBundleHint": "Token expires {expiresAt}. Download is separate from \"mark shipped\" so an accidental click is recoverable.",
       "shipBundleDownload": "Download",

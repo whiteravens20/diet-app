@@ -462,6 +462,7 @@ export type ShipResponse =
       shippedDraftIds: string[];
       skipped: { draftId: string; reason: string }[];
       sidecarPaths: string[];
+      sidecarError?: string;
     }
   | {
       mode: 'upstream-pr';

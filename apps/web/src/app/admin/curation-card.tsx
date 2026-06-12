@@ -1444,6 +1444,11 @@ function ShipSuccess({
             {t('shipSidecarPath', { path: result.sidecarPaths[0] })}
           </p>
         )}
+        {result.sidecarError && (
+          <p className="mt-1 text-amber-600 dark:text-amber-400">
+            {t('shipSidecarWarning', { error: result.sidecarError })}
+          </p>
+        )}
         {result.skipped.length > 0 && (
           <ul className="mt-1 list-disc pl-4 text-amber-600 dark:text-amber-400">
             {result.skipped.map((s) => (

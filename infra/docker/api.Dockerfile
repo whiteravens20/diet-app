@@ -44,6 +44,13 @@ COPY --from=build /app/apps/api/prisma.config.ts ./apps/api/
 # recipe nutrition. It is also the input compiled into dist.
 COPY --from=build /app/apps/api/src ./apps/api/src
 COPY --from=build /app/data ./data
+# Create the gitignored instance-data sidecar dir owned by the runtime user.
+# A Docker named volume inherits ownership from the directory that exists at
+# its mount path in the image; without this the volume (and a bind-mount
+# mountpoint) defaults to root:root and the local-mode ship runner — which runs
+# as `node` — gets EACCES writing its backup files (ingredient-overrides.json,
+# recipes/<batch>.json).
+RUN mkdir -p /app/instance-data/recipes && chown -R node:node /app/instance-data
 USER node
 EXPOSE 4000
 # Default: HTTP API. The worker service overrides this with dist/worker.js.

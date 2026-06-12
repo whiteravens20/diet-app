@@ -437,6 +437,7 @@
       "shipSuccessLocal": "Wysłano {count} szkic(ów) do tej instancji.",
       "shipSuccessUpstream": "Otwarto PR z {count} szkicem(-ami).",
       "shipSidecarPath": "Kopia zapasowa sidecar: {path}",
+      "shipSidecarWarning": "Wysłano do bazy danych, ale nie udało się zapisać pliku kopii zapasowej sidecar ({error}). Szkice są już aktywne; popraw uprawnienia katalogu instance-data, jeśli chcesz mieć przenośną kopię.",
       "shipBundleReady": "Pakiet z {count} szkicem(-ami) gotowy.",
       "shipBundleHint": "Token wygasa {expiresAt}. Pobranie jest oddzielone od „oznacz jako wysłane” — przypadkowe kliknięcie da się cofnąć.",
       "shipBundleDownload": "Pobierz",

@@ -62,6 +62,12 @@ export interface LocalShipResult {
   /** Sidecar paths the writer touched, so the UI can show the operator
    *  where their portable backup landed. */
   sidecarPaths: string[];
+  /** Set when the DB ship succeeded but the sidecar backup couldn't be
+   *  written (e.g. the gitignored `instance-data` dir isn't writable by the
+   *  container user). The ship is NOT failed over this — the sidecar is pure
+   *  backup, the DB is the source of truth — but the operator is told so they
+   *  can fix the permissions if they want the portable copy. */
+  sidecarError?: string;
 }
 
 /** Ship every APPROVED recipe draft (optionally filtered by batchIds) into
@@ -266,16 +272,21 @@ export async function shipRecipesLocal(
   }
 
   const sidecarPaths: string[] = [];
+  let sidecarError: string | undefined;
   if (sidecarRows.length > 0) {
-    const batchId = newSidecarBatchId();
-    if (!existsSync(recipeBatchesDir(request.instanceDataDir))) {
-      mkdirSync(recipeBatchesDir(request.instanceDataDir), { recursive: true });
+    try {
+      const batchId = newSidecarBatchId();
+      if (!existsSync(recipeBatchesDir(request.instanceDataDir))) {
+        mkdirSync(recipeBatchesDir(request.instanceDataDir), { recursive: true });
+      }
+      const written = writeRecipeBatch(request.instanceDataDir, batchId, sidecarRows);
+      sidecarPaths.push(written.path);
+    } catch (err) {
+      sidecarError = err instanceof Error ? err.message : String(err);
     }
-    const written = writeRecipeBatch(request.instanceDataDir, batchId, sidecarRows);
-    sidecarPaths.push(written.path);
   }
 
-  return { kind: 'recipe', shippedDraftIds: shipped, skipped, sidecarPaths };
+  return { kind: 'recipe', shippedDraftIds: shipped, skipped, sidecarPaths, sidecarError };
 }
 
 /** Ship every APPROVED ingredient-name draft into per-locale
@@ -341,13 +352,18 @@ export async function shipIngredientNamesLocal(
   }
 
   const sidecarPaths: string[] = [];
+  let sidecarError: string | undefined;
   if (Object.keys(additions).length > 0) {
-    const path = ingredientOverridesPath(request.instanceDataDir);
-    mergeIngredientOverrides(path, additions);
-    sidecarPaths.push(path);
+    try {
+      const path = ingredientOverridesPath(request.instanceDataDir);
+      mergeIngredientOverrides(path, additions);
+      sidecarPaths.push(path);
+    } catch (err) {
+      sidecarError = err instanceof Error ? err.message : String(err);
+    }
   }
 
-  return { kind: 'ingredient-name', shippedDraftIds: shipped, skipped, sidecarPaths };
+  return { kind: 'ingredient-name', shippedDraftIds: shipped, skipped, sidecarPaths, sidecarError };
 }
 
 function newSidecarBatchId(): string {
