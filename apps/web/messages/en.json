@@ -93,7 +93,7 @@
     "highlights": {
       "selfHosted": "Self-hosted",
       "privacy": "Privacy-first",
-      "openSource": "Open source · MIT",
+      "openSource": "Open source",
       "aiOptional": "AI optional"
     },
     "devWarning": {
@@ -1027,7 +1027,7 @@
     "back": "← Back to home",
     "section1": {
       "title": "What this is",
-      "body": "Diet App is a self-hosted meal-planning application. The operator of this instance is responsible for its uptime, your data, and any service guarantees they choose to offer. The upstream project at github.com/whiteravens20/diet-app provides the source code under the MIT licence with no warranty of any kind."
+      "body": "Diet App is a self-hosted meal-planning application. The operator of this instance is responsible for its uptime, your data, and any service guarantees they choose to offer. The upstream project at github.com/whiteravens20/diet-app provides the source code under the PolyForm Noncommercial licence with no warranty of any kind."
     },
     "section2": {
       "title": "Accounts",
@@ -1047,7 +1047,7 @@
     },
     "section6": {
       "title": "Curated content licence",
-      "body": "Curated recipes under data/recipes/ and curated ingredients under data/ingredients.json ship under the repository's MIT licence. Recipes promoted from user contributions through the curation queue are contributed under the same licence by the act of submission."
+      "body": "Curated recipes under data/recipes/ and curated ingredients under data/ingredients.json ship under the repository's PolyForm Noncommercial licence. Recipes promoted from user contributions through the curation queue are contributed under the same licence by the act of submission."
     },
     "section7": {
       "title": "Data residency",

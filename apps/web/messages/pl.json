@@ -93,7 +93,7 @@
     "highlights": {
       "selfHosted": "Samodzielnie hostowane",
       "privacy": "Prywatność na pierwszym miejscu",
-      "openSource": "Otwarte źródło · MIT",
+      "openSource": "Otwarte źródło",
       "aiOptional": "AI opcjonalne"
     },
     "devWarning": {
@@ -1027,7 +1027,7 @@
     "back": "← Wróć do strony głównej",
     "section1": {
       "title": "Czym to jest",
-      "body": "Diet App to aplikacja do planowania posiłków przeznaczona do samodzielnego hostowania. Operator tej instancji odpowiada za jej dostępność, Twoje dane oraz wszelkie gwarancje, które zdecyduje się oferować. Projekt źródłowy na github.com/whiteravens20/diet-app udostępnia kod na licencji MIT, bez żadnej gwarancji."
+      "body": "Diet App to aplikacja do planowania posiłków przeznaczona do samodzielnego hostowania. Operator tej instancji odpowiada za jej dostępność, Twoje dane oraz wszelkie gwarancje, które zdecyduje się oferować. Projekt źródłowy na github.com/whiteravens20/diet-app udostępnia kod na licencji PolyForm Noncommercial, bez żadnej gwarancji."
     },
     "section2": {
       "title": "Konta",
@@ -1047,7 +1047,7 @@
     },
     "section6": {
       "title": "Licencja wyselekcjonowanej zawartości",
-      "body": "Wyselekcjonowane przepisy w data/recipes/ oraz wyselekcjonowane składniki w data/ingredients.json są udostępniane na licencji MIT projektu. Przepisy promowane z propozycji użytkowników przez kolejkę kuratorską są wnoszone na tej samej licencji w momencie przesłania."
+      "body": "Wyselekcjonowane przepisy w data/recipes/ oraz wyselekcjonowane składniki w data/ingredients.json są udostępniane na licencji PolyForm Noncommercial projektu. Przepisy promowane z propozycji użytkowników przez kolejkę kuratorską są wnoszone na tej samej licencji w momencie przesłania."
     },
     "section7": {
       "title": "Lokalizacja danych",
