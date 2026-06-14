@@ -11,10 +11,12 @@ import type {
   FavoriteSetSlots,
   Locale,
   MealPlan,
+  MealType,
   UpdateFavoriteSetRequest,
 } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { fitServings, slotBudgets } from '../engine/index.js';
 
 /**
  * Per-profile saved day templates. The "apply" action rewrites the planned
@@ -104,20 +106,48 @@ export class FavoriteSetsService {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'No matching day in plan.' });
     }
 
+    // Recipe calories drive the per-slot serving rescale below; fetch once.
+    const caloriesById = new Map(
+      (
+        await this.prisma.recipe.findMany({
+          where: { id: { in: slotEntries.map(([, recipeId]) => recipeId) } },
+          select: { id: true, caloriesPerServing: true },
+        })
+      ).map((r) => [r.id, r.caloriesPerServing]),
+    );
+
     await this.prisma.$transaction(async (tx) => {
       for (const day of targetDays) {
+        const existing = await tx.plannedMeal.findMany({
+          where: { dayId: day.id },
+          select: { id: true, mealType: true },
+        });
+        const existingByType = new Map(existing.map((m) => [m.mealType, m]));
+        // Budgets weight by the full slot set the day will have after apply
+        // (the meals already there plus the set's slots), so each slot gets its
+        // correct share of the per-day calorie target. `day.calorieTarget` is
+        // the per-day target the generator persisted — the same value F17 will
+        // override per day and F22's quantity rebalancer reads at edit time —
+        // so a set applied here lands inside the plan's calorie window via
+        // `fitServings` instead of dumping a flat 1 serving of each recipe.
+        const slotTypes = new Set<MealType>([
+          ...existing.map((m) => m.mealType as MealType),
+          ...slotEntries.map(([mealType]) => mealType as MealType),
+        ]);
+        const budgets = slotBudgets([...slotTypes], day.calorieTarget);
+
         for (const [mealType, recipeId] of slotEntries) {
-          const existing = await tx.plannedMeal.findFirst({
-            where: { dayId: day.id, mealType },
-          });
-          if (existing) {
+          const budget = budgets.get(mealType as MealType) ?? day.calorieTarget;
+          const servings = fitServings(caloriesById.get(recipeId) ?? 0, budget);
+          const current = existingByType.get(mealType);
+          if (current) {
             await tx.plannedMeal.update({
-              where: { id: existing.id },
-              data: { recipeId, servings: 1, swapHistory: [recipeId] },
+              where: { id: current.id },
+              data: { recipeId, servings, swapHistory: [recipeId] },
             });
           } else {
             await tx.plannedMeal.create({
-              data: { dayId: day.id, mealType, recipeId, servings: 1, swapHistory: [recipeId] },
+              data: { dayId: day.id, mealType, recipeId, servings, swapHistory: [recipeId] },
             });
           }
         }
