@@ -119,7 +119,7 @@ rsync -a old-server:/srv/diet-app/instance-data/ ./instance-data/
 
 # 2. Boot the new stack with the same INSTANCE_DATA_DIR pointing at it
 cp .env.example .env       # then set INSTANCE_DATA_DIR=instance-data
-docker compose -f infra/docker-compose.yml up -d --build
+docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 
 # 3. Apply the canonical baseline + your overrides
 #    /admin → Update Database — this seeds data/*.json AND globs

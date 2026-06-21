@@ -26,8 +26,17 @@ Profiles gate optional services: `--profile ollama` (local AI), `--profile proxy
 
 ```bash
 cp .env.example .env            # then edit secrets — incl. ADMIN_PASSWORD
-docker compose -f infra/docker-compose.yml up -d --build
+docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 ```
+
+> **Why `--env-file .env`?** The compose file lives in `infra/`, so Compose looks
+> for its interpolation `.env` in `infra/` — not the repo root. Without the flag,
+> every `${VAR:-default}` in the compose file (`WEB_PORT`, `API_PORT`,
+> `POSTGRES_*`, `IMAGE_TAG`) silently falls back to its default and any non-default
+> override in your root `.env` is ignored. (Runtime secrets still load via
+> `env_file:`; this only affects `${...}` placeholders.) See the header comment in
+> [`infra/docker-compose.yml`](../../infra/docker-compose.yml) for the full
+> explanation.
 
 The `db-init` one-shot service applies pending Prisma migrations before `api`
 and `worker` start, then exits. **The curated ingredient/recipe database is
@@ -69,7 +78,8 @@ optional — any reverse proxy works; expose only the proxy port publicly.
 ## Ollama / GPU
 
 ```bash
-docker compose -f infra/docker-compose.yml -f infra/docker-compose.gpu.yml \
+docker compose --env-file .env \
+  -f infra/docker-compose.yml -f infra/docker-compose.gpu.yml \
   --profile ollama up -d
 docker compose exec ollama ollama pull llama3.1:8b
 ```

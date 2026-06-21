@@ -1,6 +1,22 @@
 # ── Diet App — production-like stack ──────────────────────────────────────────
-# Run from the repo root:  docker compose -f infra/docker-compose.yml up -d
+# Run from the repo root:
+#   docker compose --env-file .env -f infra/docker-compose.yml up -d
 # Configure via the repo-root .env (copy from .env.example).
+#
+# ⚠️  The `--env-file .env` flag is REQUIRED, not optional. Two distinct
+#     mechanisms read .env and they are NOT the same:
+#       • `env_file: ../.env` (below) injects the file into each container's
+#         runtime environment (process.env) — JWT/AI/encryption secrets, etc.
+#       • `${VAR}` placeholders in THIS file (port mappings, image tags, the
+#         POSTGRES_* in `environment:`) are resolved by Compose's interpolation,
+#         which reads its own `.env` from the *project directory* (= infra/),
+#         NOT the repo root. infra/.env doesn't exist, so without --env-file
+#         every `${VAR:-default}` silently falls back to its default. Most
+#         defaults happen to match .env, so the breakage is invisible until you
+#         override one to a non-default value (e.g. WEB_PORT) — then it's ignored.
+#     `--env-file .env` points interpolation at the repo-root .env and fixes it.
+#     (The prod stack docker-compose.prod.yml is immune: there the compose file
+#     and .env live in the same directory.)
 #
 # Optional services are profile-gated:
 #   --profile ollama   → local self-hosted AI
