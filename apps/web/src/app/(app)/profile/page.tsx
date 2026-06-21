@@ -12,6 +12,7 @@ import {
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AllergenPicker } from '@/components/allergen-picker';
 import { IngredientPicker } from '@/components/ingredient-picker';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -430,6 +431,20 @@ export default function ProfilePage() {
                 <CardTitle className="text-base">{p.name}</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-6 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <AllergenPicker
+                    label={t('allergensLabel')}
+                    hint={t('allergensHint')}
+                    selected={p.preferences.allergens}
+                    disabled={savePrefs.isPending}
+                    onChange={(allergens) =>
+                      savePrefs.mutate({
+                        profile: p,
+                        preferences: { ...p.preferences, allergens },
+                      })
+                    }
+                  />
+                </div>
                 <IngredientPicker
                   label={t('favouritesLabel')}
                   hint={t('favouritesHint')}

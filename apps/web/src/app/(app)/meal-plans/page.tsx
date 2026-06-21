@@ -661,14 +661,16 @@ function PlanCard({
                   const title = isCustom ? m.customName ?? t('customMeal') : m.recipe!.title;
                   const favOpen = openFav === m.id;
                   const mealLabel = tMeal.has(m.mealType) ? tMeal(m.mealType) : m.mealType.replace('_', ' ');
-                  // F22(a): the picker shows diet-matching favourites by default;
-                  // "show all my favourites" drops the diet filter (slot stays).
+                  // F22(a): the picker shows diet-matching, slot-matching favourites
+                  // by default; "show all my favourites" drops BOTH the diet and the
+                  // meal-time filter (allergens stay enforced server-side), so a
+                  // dinner favourite can be dropped onto breakfast.
                   const slotFavorites = favorites.filter(
                     (f) =>
-                      f.recipe.mealTypes.includes(m.mealType) &&
-                      (showAllFav ||
-                        plan.dietType === 'custom' ||
-                        f.recipe.dietTags.includes(plan.dietType)),
+                      showAllFav ||
+                      (f.recipe.mealTypes.includes(m.mealType) &&
+                        (plan.dietType === 'custom' ||
+                          f.recipe.dietTags.includes(plan.dietType))),
                   );
                   return (
                     <li key={m.id} className="space-y-1">
@@ -807,7 +809,9 @@ function PlanCard({
                           </label>
                           {slotFavorites.length === 0 ? (
                             <p className="text-xs text-muted-foreground">
-                              {t('noFavoritesForSlot', { mealType: mealLabel })}
+                              {showAllFav
+                                ? t('noFavorites')
+                                : t('noFavoritesForSlot', { mealType: mealLabel })}
                             </p>
                           ) : (
                             <ul className="space-y-1">
@@ -815,6 +819,7 @@ function PlanCard({
                                 const off =
                                   plan.dietType !== 'custom' &&
                                   !f.recipe.dietTags.includes(plan.dietType);
+                                const crossSlot = !f.recipe.mealTypes.includes(m.mealType);
                                 return (
                                   <li key={f.recipe.id}>
                                     <button
@@ -823,15 +828,24 @@ function PlanCard({
                                       disabled={busy}
                                       onClick={() => {
                                         setOpenFav(null);
-                                        onSwapToFavorite(m.id, f.recipe.id, off);
+                                        onSwapToFavorite(m.id, f.recipe.id, showAllFav);
                                       }}
                                     >
                                       <span>{f.recipe.title}</span>
-                                      {off && (
-                                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
-                                          {t('offDietTag')}
-                                        </span>
-                                      )}
+                                      <span className="flex shrink-0 items-center gap-1">
+                                        {crossSlot && (
+                                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                            {f.recipe.mealTypes
+                                              .map((mt) => (tMeal.has(mt) ? tMeal(mt) : mt))
+                                              .join(' · ')}
+                                          </span>
+                                        )}
+                                        {off && (
+                                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                                            {t('offDietTag')}
+                                          </span>
+                                        )}
+                                      </span>
                                     </button>
                                   </li>
                                 );

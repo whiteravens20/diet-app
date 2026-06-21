@@ -539,7 +539,10 @@ export class MealPlansService {
       ...prevHistory,
     ]);
     // F22(a): the candidate pool drops the diet filter when the user opted into
-    // "show all my favourites"; allergens + meal-type stay enforced everywhere.
+    // "show all my favourites". Allergens stay enforced everywhere. Meal-time is
+    // also relaxed for an explicit favourite pick under that same opt-in (a dinner
+    // favourite onto breakfast); the random / favourite-ingredient pools below
+    // keep meal-time so auto-swaps stay slot-appropriate.
     const allergens = meal.day.plan.profile.preferences?.allergens ?? [];
     const dietWhere = req.allowOffDiet ? {} : { dietTags: { has: dietType } };
 
@@ -550,15 +553,15 @@ export class MealPlansService {
       if (!req.favoriteRecipeId) {
         throw new NotFoundException({ error: 'NO_FAVORITE', message: 'favoriteRecipeId required.' });
       }
-      // Explicit user pick (diet-type be damned), but allergens + meal-type are
-      // never one click away — validate the chosen favourite before applying.
+      // Explicit user pick (diet-type be damned, and meal-time too when
+      // allowOffDiet); allergens are never relaxed — validate before applying.
       const fav = await this.prisma.recipe.findFirst({
         where: { id: req.favoriteRecipeId, deletedAt: null, OR: [{ createdByUserId: null }, { createdByUserId: userId }] },
         select: { id: true, mealTypes: true, allergens: true },
       });
       if (
         !fav ||
-        !fav.mealTypes.includes(meal.mealType) ||
+        (!req.allowOffDiet && !fav.mealTypes.includes(meal.mealType)) ||
         fav.allergens.some((a) => allergens.includes(a))
       ) {
         throw new BadRequestException({

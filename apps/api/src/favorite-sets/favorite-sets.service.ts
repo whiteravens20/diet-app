@@ -88,7 +88,7 @@ export class FavoriteSetsService {
 
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: req.planId },
-      include: { profile: true, days: true },
+      include: { profile: { include: { preferences: true } }, days: true },
     });
     if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profile.userId !== userId) {
@@ -107,15 +107,31 @@ export class FavoriteSetsService {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'No matching day in plan.' });
     }
 
-    // Recipe calories drive the per-slot serving rescale below; fetch once.
-    const caloriesById = new Map(
-      (
-        await this.prisma.recipe.findMany({
-          where: { id: { in: slotEntries.map(([, recipeId]) => recipeId) } },
-          select: { id: true, caloriesPerServing: true },
-        })
-      ).map((r) => [r.id, r.caloriesPerServing]),
-    );
+    // Recipe calories drive the per-slot serving rescale below; allergens gate
+    // the apply. Fetch once.
+    const recipes = await this.prisma.recipe.findMany({
+      where: { id: { in: slotEntries.map(([, recipeId]) => recipeId) } },
+      select: { id: true, caloriesPerServing: true, allergens: true },
+    });
+    const caloriesById = new Map(recipes.map((r) => [r.id, r.caloriesPerServing]));
+
+    // Allergens are the one hard safety rule the whole app enforces everywhere
+    // else (generation, swap, AI-swap, substitution). A saved set may hold a
+    // recipe that only became allergen-conflicting after the profile's allergen
+    // list changed, so re-check at apply time against the *current* profile and
+    // refuse rather than silently writing an unsafe meal into the plan.
+    const profileAllergens = new Set(plan.profile.preferences?.allergens ?? []);
+    if (profileAllergens.size > 0) {
+      const conflicting = recipes
+        .filter((r) => r.allergens.some((a) => profileAllergens.has(a)))
+        .map((r) => r.id);
+      if (conflicting.length > 0) {
+        throw new BadRequestException({
+          error: 'FAVORITE_SET_ALLERGEN_CONFLICT',
+          message: `Favorite set contains recipes with allergens this profile avoids: ${conflicting.join(', ')}.`,
+        });
+      }
+    }
 
     await this.prisma.$transaction(async (tx) => {
       for (const day of targetDays) {
