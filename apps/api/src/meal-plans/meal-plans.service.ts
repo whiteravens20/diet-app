@@ -11,6 +11,7 @@ import {
   type AiSuggestIngredientResponse,
   type AiSwapMealRequest,
   type AiSwapMealResponse,
+  type DayOverride,
   type GeneratePlanRequest,
   type Locale,
   type MealPlan,
@@ -23,6 +24,7 @@ import {
 } from '@diet-app/shared';
 import {
   calculateCalories,
+  dayTypeCalorieTarget,
   fitServings,
   nutritionFor,
   optimisePlan,
@@ -34,7 +36,9 @@ import {
   UnitConversionError,
   type CalorieEngineInput,
   type EngineIngredient,
+  type OptimizerDay,
   type OptimizerRecipe,
+  type OptimizerResult,
 } from '../engine/index.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -72,35 +76,46 @@ export class MealPlansService {
   /** Deterministically generate and persist a meal plan. */
   async generate(userId: string, locale: Locale, req: GeneratePlanRequest): Promise<MealPlan> {
     const profile = await this.loadProfile(userId, req.profileId);
-    const calorieTarget = req.calorieTargetOverride ?? this.calorieTargetFor(profile);
+    const baseCalorieTarget = req.calorieTargetOverride ?? this.calorieTargetFor(profile);
     const dietType = req.dietType ?? profile.dietType;
-    const mealCount = req.mealCount ?? profile.mealCount;
+    const baseMealCount = req.mealCount ?? profile.mealCount;
+
+    const start = new Date(req.startDate);
+    // F17: resolve a per-day descriptor (slot set, calorie target, locks, skip,
+    // cook-time budget, use-up-by) by layering req.dayOverrides over the plan
+    // defaults. Validates override dates + locked-slot membership.
+    const resolvedDays = resolvePlanDays({
+      startDate: start,
+      durationDays: req.durationDays,
+      defaultMealCount: baseMealCount,
+      defaultCalorieTarget: baseCalorieTarget,
+      dayOverrides: req.dayOverrides,
+    });
 
     // Deterministic seed: count of existing plans → "regenerate" yields variety.
     const seed = await this.prisma.mealPlan.count({ where: { profileId: profile.id } });
     const result = await this.optimiseFor(profile, {
-      days: req.durationDays,
-      mealCount,
-      calorieTarget,
+      days: resolvedDays,
       dietType,
       mealPrepFriendly: req.mealPrepFriendly,
       respectExclusions: req.respectExclusions,
       respectFavorites: req.respectFavorites,
       respectInventory: req.respectInventory,
+      maxRepeatsPerRecipe: req.maxRepeatsPerRecipe,
       seed,
     });
 
-    const start = new Date(req.startDate);
     const plan = await this.prisma.mealPlan.create({
       data: {
         profileId: profile.id,
         startDate: start,
         durationDays: req.durationDays,
         dietType,
-        calorieTarget,
+        calorieTarget: baseCalorieTarget,
         generationMode: 'deterministic',
         reuseScore: result.ingredientReuseScore,
-        days: { create: buildDays(start, req.durationDays, calorieTarget, result.assignments) },
+        maxRepeatsPerRecipe: req.maxRepeatsPerRecipe ?? null,
+        days: { create: buildDays(resolvedDays, result.assignments) },
       },
     });
     return this.get(userId, locale, plan.id);
@@ -121,14 +136,31 @@ export class MealPlansService {
     }
 
     const profile = await this.loadProfile(userId, existing.profileId);
-    const calorieTarget = this.calorieTargetFor(profile);
-    const mealCount = existing.days[0]?.meals.length ?? profile.mealCount;
+    // Picks up profile changes (calorie target, diet) for non-overridden days,
+    // while re-applying each day's persisted F17 overrides (meal count, per-day
+    // calorie target, locks, skip, cook-time budget, use-up-by).
+    const baseCalorieTarget = this.calorieTargetFor(profile);
+    const resolvedDays: ResolvedDay[] = existing.days.map((day) => {
+      const o = parseDayOverrides(day.overrides);
+      const mealCount = o?.mealCount ?? (day.meals.length || profile.mealCount);
+      return {
+        date: day.date,
+        isoDate: isoDate(day.date),
+        mealSlots: MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!,
+        calorieTarget: o?.calorieTarget ?? dayTypeCalorieTarget(baseCalorieTarget, o?.dayType),
+        cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
+        lockedSlots: o?.lockedSlots?.map((l) => ({ slot: l.mealType, recipeId: l.recipeId })),
+        useUpBy: o?.useUpBy ?? false,
+        skip: o?.skip ?? false,
+        overrides: o,
+      };
+    });
+
     const result = await this.optimiseFor(profile, {
-      days: existing.durationDays,
-      mealCount,
-      calorieTarget,
+      days: resolvedDays,
       dietType: profile.dietType,
       mealPrepFriendly: false,
+      maxRepeatsPerRecipe: existing.maxRepeatsPerRecipe ?? undefined,
       seed: Date.now(),
     });
 
@@ -137,10 +169,10 @@ export class MealPlansService {
       this.prisma.mealPlan.update({
         where: { id: planId },
         data: {
-          calorieTarget,
+          calorieTarget: baseCalorieTarget,
           dietType: profile.dietType,
           reuseScore: result.ingredientReuseScore,
-          days: { create: buildDays(existing.startDate, existing.durationDays, calorieTarget, result.assignments) },
+          days: { create: buildDays(resolvedDays, result.assignments) },
         },
       }),
     ]);
@@ -161,12 +193,32 @@ export class MealPlansService {
     }
 
     const profile = await this.loadProfile(userId, day.plan.profileId);
-    const result = await this.optimiseFor(profile, {
-      days: 1,
-      mealCount: day.meals.length || profile.mealCount,
+    const o = parseDayOverrides(day.overrides);
+
+    // A skipped day re-rolls to nothing — clear its meals and return.
+    if (o?.skip) {
+      await this.prisma.plannedMeal.deleteMany({ where: { dayId } });
+      return this.get(userId, locale, planId);
+    }
+
+    const mealCount = o?.mealCount ?? (day.meals.length || profile.mealCount);
+    const resolved: ResolvedDay = {
+      date: day.date,
+      isoDate: isoDate(day.date),
+      mealSlots: MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!,
       calorieTarget: day.calorieTarget,
+      cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
+      lockedSlots: o?.lockedSlots?.map((l) => ({ slot: l.mealType, recipeId: l.recipeId })),
+      useUpBy: o?.useUpBy ?? false,
+      skip: false,
+      overrides: o,
+    };
+
+    const result = await this.optimiseFor(profile, {
+      days: [resolved],
       dietType: day.plan.dietType,
       mealPrepFriendly: false,
+      maxRepeatsPerRecipe: day.plan.maxRepeatsPerRecipe ?? undefined,
       seed: Date.now(),
     });
 
@@ -210,7 +262,12 @@ export class MealPlansService {
     }).dailyTarget;
   }
 
-  /** Run the deterministic optimiser for a profile against the eligible recipes. */
+  /**
+   * Run the deterministic optimiser for a profile against the eligible recipes.
+   * Takes a fully-resolved F17 per-day descriptor list (slot set + calorie
+   * target + locks + skip + cook-time budget + use-up-by per day); the basic
+   * flow is just a list of uniform days.
+   */
   private async optimiseFor(
     profile: {
       id: string;
@@ -225,9 +282,7 @@ export class MealPlansService {
         | null;
     },
     opts: {
-      days: number;
-      mealCount: number;
-      calorieTarget: number;
+      days: ResolvedDay[];
       dietType: MealPlan['dietType'];
       mealPrepFriendly: boolean;
       /** Honour the avoid-list (default true). Allergens are always respected. */
@@ -236,13 +291,39 @@ export class MealPlansService {
       respectFavorites?: boolean;
       /** F15 pantry-aware bias toggle (default true). */
       respectInventory?: boolean;
+      /** F17 variety floor — max total uses of any recipe across the window. */
+      maxRepeatsPerRecipe?: number;
       seed: number;
     },
-  ) {
-    const mealSlots = MEAL_SLOTS_BY_COUNT[opts.mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
+  ): Promise<OptimizerResult> {
     const { optimizerRecipes, requirementsByRecipe } = await this.loadEligibleRecipes(profile, {
       respectExclusions: opts.respectExclusions,
     });
+
+    // F17 validate locked slots against the eligible recipe set. (Slot-membership
+    // was already checked when the day list was resolved.)
+    const recipeById = new Map(optimizerRecipes.map((r) => [r.id, r]));
+    for (const day of opts.days) {
+      for (const lock of day.lockedSlots ?? []) {
+        const recipe = recipeById.get(lock.recipeId);
+        if (!recipe) {
+          throw new NotFoundException({
+            error: 'LOCKED_RECIPE_NOT_FOUND',
+            message: `Locked recipe not found or not eligible: ${lock.recipeId}`,
+          });
+        }
+        const eligibleForSlot =
+          recipe.mealTypes.includes(lock.slot) &&
+          (opts.dietType === 'custom' || recipe.dietTags.includes(opts.dietType));
+        if (!eligibleForSlot) {
+          throw new BadRequestException({
+            error: 'LOCKED_RECIPE_INELIGIBLE',
+            message: `Locked recipe ${lock.recipeId} is not valid for ${lock.slot} on this diet.`,
+          });
+        }
+      }
+    }
+
     const favoriteIngredientIds =
       opts.respectFavorites === false
         ? undefined
@@ -253,6 +334,18 @@ export class MealPlansService {
       optimizerRecipes,
       requirementsByRecipe,
     );
+
+    // F15 use-up-by: build a per-date coverage map for each flagged day, scored
+    // only against stock expiring by that date. Falls back to the plan-level map.
+    const expiringByDate = new Map<string, ReadonlyMap<string, number>>();
+    if (opts.respectInventory !== false) {
+      const dates = [...new Set(opts.days.filter((d) => d.useUpBy && !d.skip).map((d) => d.isoDate))];
+      for (const iso of dates) {
+        const map = await this.expiringCoverageForDate(profile.id, new Date(iso), requirementsByRecipe);
+        if (map) expiringByDate.set(iso, map);
+      }
+    }
+
     // When mealPrepFriendly is set on the request, relax the profile's caps
     // up to a generous baseline (4 consecutive days, 5 occurrences/week) —
     // the user is asking for cook-once-eat-many, so honour their intent even
@@ -265,12 +358,20 @@ export class MealPlansService {
     const maxTimesPerWeekSameMeal = opts.mealPrepFriendly
       ? Math.max(profileWeek, 5)
       : profileWeek;
+
+    const days: OptimizerDay[] = opts.days.map((d) => ({
+      mealSlots: d.mealSlots,
+      dailyCalorieTarget: d.calorieTarget,
+      cookTimeBudgetMinutes: d.cookTimeBudgetMinutes,
+      lockedSlots: d.lockedSlots,
+      inventoryCoverage: d.useUpBy ? expiringByDate.get(d.isoDate) : undefined,
+      skip: d.skip,
+    }));
+
     try {
       return optimisePlan({
         recipes: optimizerRecipes,
-        days: opts.days,
-        mealSlots,
-        dailyCalorieTarget: opts.calorieTarget,
+        days,
         targetMacros: { protein: 0, fat: 0, carbs: 0 },
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
@@ -278,6 +379,7 @@ export class MealPlansService {
         inventoryCoverage,
         maxConsecutiveDaysSameMeal,
         maxTimesPerWeekSameMeal,
+        maxRepeatsPerRecipe: opts.maxRepeatsPerRecipe,
         seed: opts.seed,
       });
     } catch (err) {
@@ -292,6 +394,43 @@ export class MealPlansService {
       }
       throw err;
     }
+  }
+
+  /**
+   * F15 use-up-by: per-recipe coverage scored only against inventory expiring on
+   * or before `date`. Steers a flagged day toward recipes that consume
+   * soon-to-expire stock. Returns null when nothing qualifies. Unlike the
+   * plan-level bias it does not touch the anti-monotony streak — it's an
+   * explicit per-day request, not the rotation-governed default.
+   */
+  private async expiringCoverageForDate(
+    profileId: string,
+    date: Date,
+    requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
+  ): Promise<Map<string, number> | null> {
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { profileId, bestBefore: { not: null, lte: date } },
+      include: { ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } } },
+    });
+    if (items.length === 0) return null;
+
+    const pantryStock = new Map<string, number>();
+    for (const item of items) {
+      try {
+        const canonical = toCanonical(item.quantity, item.unit, item.ingredient);
+        pantryStock.set(item.ingredientId, (pantryStock.get(item.ingredientId) ?? 0) + canonical);
+      } catch (err) {
+        if (!(err instanceof UnitConversionError)) throw err;
+      }
+    }
+    if (pantryStock.size === 0) return null;
+
+    const coverage = new Map<string, number>();
+    for (const [recipeId, reqs] of requirementsByRecipe) {
+      const score = recipeCoverage(reqs, pantryStock);
+      if (score > 0) coverage.set(recipeId, score);
+    }
+    return coverage.size === 0 ? null : coverage;
   }
 
   async list(
@@ -1398,6 +1537,7 @@ export class MealPlansService {
       ingredientIds: r.ingredients.map((i) => i.ingredientId),
       difficulty: r.difficulty,
       isFavorite: favoriteIds.has(r.id),
+      totalMinutes: r.prepMinutes + r.cookMinutes,
     }));
 
     const requirementsByRecipe = new Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>();
@@ -1602,6 +1742,7 @@ export class MealPlansService {
         dayNutrition,
         calorieTarget: day.calorieTarget,
         calorieDelta: dayNutrition.calories - day.calorieTarget,
+        overrides: parseDayOverrides(day.overrides),
       };
     });
 
@@ -1643,6 +1784,7 @@ interface PlanWithRelations {
     id: string;
     date: Date;
     calorieTarget: number;
+    overrides: unknown;
     meals: { id: string; mealType: string; servings: number; recipe: Parameters<typeof toRecipeDto>[0] }[];
   }[];
 }
@@ -1724,16 +1866,129 @@ function nameByLocale(
   return out;
 }
 
-/** Nested `days.create` payload from a run of optimiser assignments. */
+/**
+ * F17 persisted per-day overrides. The resolved per-day calorie target lives in
+ * the `MealPlanDay.calorieTarget` column (so swap / favorite-set apply / F22 read
+ * it unchanged); this JSON carries the raw advanced inputs + semantics needed to
+ * re-roll the day and to render it. `calorieTarget` is stored here only when it
+ * was an explicit override, so `regenerate` can pick up profile changes for
+ * non-overridden days while preserving deliberate per-day targets.
+ */
+type DayOverridesJson = {
+  mealCount?: number;
+  calorieTarget?: number;
+  dayType?: 'normal' | 'rest' | 'training';
+  skip?: boolean;
+  cookTimeBudgetMinutes?: number;
+  useUpBy?: boolean;
+  lockedSlots?: { mealType: MealType; recipeId: string }[];
+};
+
+/** A fully-resolved day: defaults merged with overrides, ready for the optimiser. */
+interface ResolvedDay {
+  date: Date;
+  isoDate: string;
+  mealSlots: MealType[];
+  calorieTarget: number;
+  cookTimeBudgetMinutes?: number;
+  lockedSlots?: { slot: MealType; recipeId: string }[];
+  useUpBy: boolean;
+  skip: boolean;
+  /** The JSON to persist on the day row (null = basic-flow day). */
+  overrides: DayOverridesJson | null;
+}
+
+/** Narrow a Prisma JSON column to the day-overrides shape (null when absent). */
+function parseDayOverrides(raw: unknown): DayOverridesJson | null {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as DayOverridesJson;
+  }
+  return null;
+}
+
+/** Collapse a request `DayOverride` into the persisted JSON (only set keys). */
+function buildOverridesJson(o: DayOverride | undefined): DayOverridesJson | null {
+  if (!o) return null;
+  const out: DayOverridesJson = {};
+  if (o.mealCount !== undefined) out.mealCount = o.mealCount;
+  if (o.calorieTarget !== undefined) out.calorieTarget = o.calorieTarget;
+  if (o.dayType !== undefined) out.dayType = o.dayType;
+  if (o.skip !== undefined) out.skip = o.skip;
+  if (o.cookTimeBudgetMinutes !== undefined) out.cookTimeBudgetMinutes = o.cookTimeBudgetMinutes;
+  if (o.useUpBy !== undefined) out.useUpBy = o.useUpBy;
+  if (o.lockedSlots !== undefined) out.lockedSlots = o.lockedSlots;
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/**
+ * F17: resolve every day in `[startDate, +durationDays)` by layering the request's
+ * sparse `dayOverrides` over the plan defaults. Validates that override dates fall
+ * inside the plan range and that each locked slot belongs to its day's slot set.
+ */
+function resolvePlanDays(input: {
+  startDate: Date;
+  durationDays: number;
+  defaultMealCount: number;
+  defaultCalorieTarget: number;
+  dayOverrides?: DayOverride[];
+}): ResolvedDay[] {
+  const dates = Array.from({ length: input.durationDays }, (_, i) => addDays(input.startDate, i));
+  const validIso = new Set(dates.map(isoDate));
+  const byDate = new Map<string, DayOverride>();
+  for (const o of input.dayOverrides ?? []) {
+    if (!validIso.has(o.date)) {
+      throw new BadRequestException({
+        error: 'OVERRIDE_DATE_OUT_OF_RANGE',
+        message: `Day override date ${o.date} is outside the plan range.`,
+      });
+    }
+    byDate.set(o.date, o);
+  }
+
+  return dates.map((date) => {
+    const iso = isoDate(date);
+    const o = byDate.get(iso);
+    const mealCount = o?.mealCount ?? input.defaultMealCount;
+    const mealSlots = MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!;
+    const lockedSlots = o?.lockedSlots?.map((l) => ({ slot: l.mealType, recipeId: l.recipeId }));
+
+    for (const lock of lockedSlots ?? []) {
+      if (!mealSlots.includes(lock.slot)) {
+        throw new BadRequestException({
+          error: 'INVALID_LOCKED_SLOT',
+          message: `Locked slot ${lock.slot} is not part of the ${mealCount}-meal day ${iso}.`,
+        });
+      }
+    }
+
+    return {
+      date,
+      isoDate: iso,
+      mealSlots,
+      // An explicit per-day calorie override wins; otherwise a rest/training tag
+      // shifts the base target (training surplus / rest deficit). Plain days use
+      // the base unchanged.
+      calorieTarget: o?.calorieTarget ?? dayTypeCalorieTarget(input.defaultCalorieTarget, o?.dayType),
+      cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
+      lockedSlots,
+      useUpBy: o?.useUpBy ?? false,
+      skip: o?.skip ?? false,
+      overrides: buildOverridesJson(o),
+    };
+  });
+}
+
+/** Nested `days.create` payload from resolved days + optimiser assignments. */
 function buildDays(
-  start: Date,
-  durationDays: number,
-  calorieTarget: number,
+  resolved: ResolvedDay[],
   assignments: { dayIndex: number; slot: string; recipeId: string; servings: number }[],
 ) {
-  return Array.from({ length: durationDays }, (_, dayIndex) => ({
-    date: addDays(start, dayIndex),
-    calorieTarget,
+  return resolved.map((d, dayIndex) => ({
+    date: d.date,
+    calorieTarget: d.calorieTarget,
+    ...(d.overrides
+      ? { overrides: d.overrides as import('@prisma/client').Prisma.InputJsonValue }
+      : {}),
     meals: {
       create: assignments
         .filter((a) => a.dayIndex === dayIndex)

@@ -14,6 +14,7 @@ import type {
   MealType,
   UpdateFavoriteSetRequest,
 } from '@diet-app/shared';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { fitServings, slotBudgets } from '../engine/index.js';
@@ -150,6 +151,22 @@ export class FavoriteSetsService {
               data: { dayId: day.id, mealType, recipeId, servings, swapHistory: [recipeId] },
             });
           }
+        }
+
+        // F17: applying a set to a skipped day un-skips it — it now has meals,
+        // so a lingering `skip` flag would misrender the day and exclude it from
+        // the shopping list. Strip just that key, preserving the rest.
+        const ov = day.overrides;
+        if (ov && typeof ov === 'object' && !Array.isArray(ov) && (ov as { skip?: boolean }).skip) {
+          const rest: Record<string, unknown> = { ...(ov as Record<string, unknown>) };
+          delete rest.skip;
+          await tx.mealPlanDay.update({
+            where: { id: day.id },
+            data: {
+              overrides:
+                Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.JsonNull,
+            },
+          });
         }
       }
     });

@@ -126,3 +126,25 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
 function round(n: number): number {
   return Math.round(n);
 }
+
+/**
+ * F17 periodisation factors: a training day runs a surplus and a rest day a
+ * deficit relative to the plan's base target, so tagging a day actually shapes
+ * its calories. Defaults are ±15%; a user-supplied per-day calorie override
+ * always wins over these (handled by the caller).
+ */
+export const TRAINING_DAY_FACTOR = 1.15;
+export const REST_DAY_FACTOR = 0.85;
+
+/**
+ * Resolve a day's calorie target from its base target and semantic day type.
+ * `training` adds the surplus, `rest` applies the deficit; anything else (incl.
+ * `normal`/undefined) returns the base unchanged. Result rounded to a tidy 10.
+ */
+export function dayTypeCalorieTarget(
+  baseTarget: number,
+  dayType: 'normal' | 'rest' | 'training' | undefined,
+): number {
+  const factor = dayType === 'training' ? TRAINING_DAY_FACTOR : dayType === 'rest' ? REST_DAY_FACTOR : 1;
+  return Math.round((baseTarget * factor) / 10) * 10;
+}

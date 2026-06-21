@@ -23,6 +23,12 @@ import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
+import {
+  AdvancedOptions,
+  buildAdvancedRequest,
+  planDates,
+  type AdvancedValue,
+} from './advanced-options';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -49,6 +55,13 @@ function MealPlansContent() {
   // F15 page-level toggle: applies to every swap / AI-swap on every plan card.
   // Plan generation has its own checkbox inside the new-plan form.
   const [swapWithPantry, setSwapWithPantry] = useState(true);
+
+  // F17 advanced options. startDate/durationDays are controlled so the per-day
+  // override list can react to the plan window; the advanced disclosure is
+  // collapsed by default and untouched days fall back to the plan defaults.
+  const [startDate, setStartDate] = useState(today());
+  const [durationDays, setDurationDays] = useState(7);
+  const [advanced, setAdvanced] = useState<AdvancedValue>({ days: {} });
 
   // Drives whether the ✨ button renders. `aiMode === 'none'` users hid AI on
   // purpose — they shouldn't see AI surfaces at all (matches AiChip semantics).
@@ -169,14 +182,16 @@ function MealPlansContent() {
     setError(null);
     if (!activeId) return;
     const f = new FormData(event.currentTarget);
+    const dates = planDates(startDate, durationDays);
     generate.mutate({
       profileId: activeId,
-      startDate: String(f.get('startDate')),
-      durationDays: Number(f.get('durationDays')),
+      startDate,
+      durationDays,
       mealPrepFriendly: f.get('mealPrepFriendly') === 'on',
       respectExclusions: f.get('respectExclusions') === 'on',
       respectFavorites: f.get('respectFavorites') === 'on',
       respectInventory: f.get('respectInventory') === 'on',
+      ...buildAdvancedRequest(advanced, dates),
     });
   }
 
@@ -234,7 +249,13 @@ function MealPlansContent() {
           <form onSubmit={onGenerate} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={t('startDate')}>
-                <Input name="startDate" type="date" required defaultValue={today()} />
+                <Input
+                  name="startDate"
+                  type="date"
+                  required
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </Field>
               <Field label={t('durationDays')}>
                 <Input
@@ -243,7 +264,8 @@ function MealPlansContent() {
                   required
                   min={1}
                   max={28}
-                  defaultValue={7}
+                  value={durationDays}
+                  onChange={(e) => setDurationDays(Number(e.target.value))}
                 />
               </Field>
               <label className="flex items-end gap-2 pb-2 text-sm">
@@ -267,6 +289,13 @@ function MealPlansContent() {
                 {t('preferInventory')}
               </label>
             </fieldset>
+            <AdvancedOptions
+              dates={planDates(startDate, durationDays)}
+              defaultMealCount={active?.mealCount ?? 3}
+              favorites={(favorites.data ?? []).map((f) => f.recipe)}
+              value={advanced}
+              onChange={setAdvanced}
+            />
             <Button type="submit" disabled={generate.isPending}>
               {generate.isPending ? t('generating') : t('generateButton')}
             </Button>

@@ -5,6 +5,35 @@ import { Ingredient } from './ingredient.js';
 import { Macros, Nutrition } from './nutrition.js';
 import { Recipe } from './recipe.js';
 
+/**
+ * F17 advanced per-day override. Sparse on purpose: every field is optional and
+ * an untouched day sends nothing — the generator falls back to the plan-level
+ * defaults. `dayType` carries semantic meaning for the dashboard/stats and for
+ * F22's rebalancer; `useUpBy` biases that day toward recipes that consume
+ * expiring inventory (F15 compose); `lockedSlots` pins a recipe to a slot before
+ * generating so the rest of the day optimises around it.
+ */
+export const DayOverride = z.object({
+  date: z.string().date(),
+  /** Override the meal count for this day only (else the plan-level count). */
+  mealCount: z.number().int().min(2).max(5).optional(),
+  /** Skip the day entirely — no meals generated, excluded from the shopping list. */
+  skip: z.boolean().optional(),
+  /** Override the daily calorie target for this day (refeed / rest periodisation). */
+  calorieTarget: z.number().int().min(800).max(6000).optional(),
+  /** Semantic tag so a calorie override carries intent (read by F22 + stats). */
+  dayType: z.enum(['normal', 'rest', 'training']).optional(),
+  /** Hard cap on a recipe's prep+cook minutes for this day (busy weekdays). */
+  cookTimeBudgetMinutes: z.number().int().min(0).max(600).optional(),
+  /** F15: bias this day toward recipes that use inventory expiring by this date. */
+  useUpBy: z.boolean().optional(),
+  /** Pin recipes to slots before generating; the rest of the day fills around them. */
+  lockedSlots: z
+    .array(z.object({ mealType: MealType, recipeId: z.string().uuid() }))
+    .optional(),
+});
+export type DayOverride = z.infer<typeof DayOverride>;
+
 /** Request to generate a meal plan. */
 export const GeneratePlanRequest = z.object({
   profileId: z.string().uuid(),
@@ -28,6 +57,14 @@ export const GeneratePlanRequest = z.object({
    * one round to keep the menu varied.
    */
   respectInventory: z.boolean().default(true),
+  /**
+   * F17 variety floor: max total times any one recipe may appear across the
+   * whole plan window. Omitted = no floor. Persisted on the plan so
+   * `regenerate` re-applies it.
+   */
+  maxRepeatsPerRecipe: z.number().int().min(1).max(28).optional(),
+  /** F17 per-day advanced overrides (sparse — untouched days are omitted). */
+  dayOverrides: z.array(DayOverride).optional(),
 });
 export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
 
@@ -42,6 +79,14 @@ export const PlannedMeal = z.object({
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
+/**
+ * The F17 advanced overrides as surfaced on a generated day (the `date` is
+ * already on the day row, so it's omitted here). Null when the day used the
+ * basic flow. F22 reads `dayType`; the UI renders the rest.
+ */
+export const MealPlanDayOverrides = DayOverride.omit({ date: true });
+export type MealPlanDayOverrides = z.infer<typeof MealPlanDayOverrides>;
+
 /** One day of a plan. */
 export const MealPlanDay = z.object({
   id: z.string().uuid(),
@@ -51,6 +96,8 @@ export const MealPlanDay = z.object({
   calorieTarget: z.number(),
   /** Signed delta vs. target — positive means over budget. */
   calorieDelta: z.number(),
+  /** F17 advanced per-day overrides, or null for a basic-flow day. */
+  overrides: MealPlanDayOverrides.nullable(),
 });
 export type MealPlanDay = z.infer<typeof MealPlanDay>;
 

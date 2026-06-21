@@ -434,6 +434,10 @@ model MealPlan {
   calorieTarget  Int
   generationMode GenerationMode @default(deterministic)
   reuseScore     Float          @default(0)
+  // F17 variety floor: max total times any one recipe may appear across the
+  // whole plan window. Null = no floor (pre-F17 behaviour). Persisted so
+  // `regenerate` re-applies the same constraint.
+  maxRepeatsPerRecipe Int?
   createdAt      DateTime       @default(now())
 
   days          MealPlanDay[]
@@ -447,7 +451,14 @@ model MealPlanDay {
   plan          MealPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   planId        String
   date          DateTime @db.Date
+  // The resolved per-day calorie target. The F17 advanced per-day override
+  // (when set) lands here, so swap / favorite-set-apply / F22 read it unchanged.
   calorieTarget Int
+  // F17 raw advanced inputs + semantics for this day:
+  // { mealCount?, dayType?, skip?, cookTimeBudgetMinutes?, useUpBy?, lockedSlots? }.
+  // Null = no advanced options (basic flow). `regenerate*` re-applies these;
+  // F22 reads `dayType` (rest/refeed); the DTO surfaces them to the UI.
+  overrides     Json?
 
   meals PlannedMeal[]
 

@@ -3,9 +3,27 @@ import {
   calculateBmr,
   calculateCalories,
   calculateMaintenance,
+  dayTypeCalorieTarget,
   deficitForWeeklyTarget,
   macrosForCalories,
 } from './nutrition.js';
+
+describe('dayTypeCalorieTarget (F17 periodisation)', () => {
+  it('leaves a normal / undefined day at the base target', () => {
+    expect(dayTypeCalorieTarget(2000, 'normal')).toBe(2000);
+    expect(dayTypeCalorieTarget(2000, undefined)).toBe(2000);
+  });
+
+  it('adds a surplus on training days and a deficit on rest days', () => {
+    expect(dayTypeCalorieTarget(2000, 'training')).toBe(2300); // +15%
+    expect(dayTypeCalorieTarget(2000, 'rest')).toBe(1700); // -15%
+  });
+
+  it('rounds to a tidy 10 kcal', () => {
+    // 2209 * 1.15 = 2540.35 → 2540
+    expect(dayTypeCalorieTarget(2209, 'training')).toBe(2540);
+  });
+});
 
 describe('calculateBmr (Mifflin-St Jeor)', () => {
   it('matches the known male reference value', () => {

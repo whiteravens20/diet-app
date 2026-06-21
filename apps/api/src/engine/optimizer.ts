@@ -21,13 +21,33 @@ export interface OptimizerRecipe {
   ingredientIds: string[];
   difficulty: 'easy' | 'medium' | 'hard';
   isFavorite: boolean;
+  /** Total prep + cook minutes — used by the F17 per-day cook-time budget. */
+  totalMinutes: number;
+}
+
+/**
+ * F17 per-day descriptor. The optimiser fills each day independently against
+ * its own slot set + calorie target, while cross-day state (ingredient reuse,
+ * recent-use variety, per-slot caps, the variety floor) accumulates across the
+ * whole window. A day with `skip` produces no meals.
+ */
+export interface OptimizerDay {
+  mealSlots: MealType[];
+  dailyCalorieTarget: number;
+  /** Hard cap on a recipe's prep+cook minutes for this day. */
+  cookTimeBudgetMinutes?: number;
+  /** Recipes pinned to slots before the greedy fill (the rest fills around them). */
+  lockedSlots?: Array<{ slot: MealType; recipeId: string }>;
+  /** Per-day inventory-coverage map (F15 use-up-by); falls back to the plan map. */
+  inventoryCoverage?: ReadonlyMap<string, number>;
+  /** Produce no meals for this day. */
+  skip?: boolean;
 }
 
 export interface OptimizerInput {
   recipes: OptimizerRecipe[];
-  days: number;
-  mealSlots: MealType[];
-  dailyCalorieTarget: number;
+  /** One descriptor per day (length = plan duration). See {@link OptimizerDay}. */
+  days: OptimizerDay[];
   targetMacros: Macros;
   dietType: DietType;
   mealPrepFriendly: boolean;
@@ -53,8 +73,24 @@ export interface OptimizerInput {
    */
   maxConsecutiveDaysSameMeal?: number;
   maxTimesPerWeekSameMeal?: number;
+  /**
+   * F17 variety floor: the maximum number of times any one recipe may appear
+   * across the entire plan window (all days, all slots). Omitted = no floor.
+   * A recipe at the cap is excluded from further slots; if that would empty a
+   * slot's pool the cap is relaxed for that slot (better to repeat than fail).
+   */
+  maxRepeatsPerRecipe?: number;
   /** Changes the deterministic tie-break order so "regenerate" yields a new plan. */
   seed: number;
+}
+
+/** Build a uniform per-day descriptor list (the basic, no-overrides flow). */
+export function uniformDays(
+  days: number,
+  mealSlots: MealType[],
+  dailyCalorieTarget: number,
+): OptimizerDay[] {
+  return Array.from({ length: days }, () => ({ mealSlots, dailyCalorieTarget }));
 }
 
 export interface OptimizerAssignment {
@@ -127,7 +163,7 @@ function eligible(recipe: OptimizerRecipe, slot: MealType, dietType: DietType): 
  * callers fall back to the deterministic template engine or surface the gap.
  */
 export function optimisePlan(input: OptimizerInput): OptimizerResult {
-  const budgets = slotBudgets(input.mealSlots, input.dailyCalorieTarget);
+  const recipeById = new Map(input.recipes.map((r) => [r.id, r]));
   const assignments: OptimizerAssignment[] = [];
   const planIngredients = new Set<string>(); // ingredients already "purchased"
   const recentUse = new Map<string, number>(); // recipeId → last dayIndex used
@@ -135,25 +171,80 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
   // consecutive-day caps. Keyed by slot so the same recipe can be eligible
   // in different slots without contention.
   const slotHistory = new Map<MealType, Array<{ day: number; recipeId: string }>>();
+  // F17 variety floor: total uses of a recipe across the whole window.
+  const recipeUseCount = new Map<string, number>();
   // Generous defaults preserve pre-cap behaviour for any caller that doesn't
-  // pass the new fields (none exist in-tree, but keeps the change additive).
+  // pass the new fields.
   const maxConsecutive = input.maxConsecutiveDaysSameMeal ?? 7;
   const maxPerWeek = input.maxTimesPerWeekSameMeal ?? 7;
+  const maxRepeats = input.maxRepeatsPerRecipe;
 
-  for (let day = 0; day < input.days; day++) {
-    for (const slot of input.mealSlots) {
+  /** Record an assignment against every cross-day accumulator. */
+  const place = (day: number, slot: MealType, recipe: OptimizerRecipe, budget: number) => {
+    assignments.push({
+      dayIndex: day,
+      slot,
+      recipeId: recipe.id,
+      servings: fitServings(recipe.caloriesPerServing, budget),
+    });
+    recentUse.set(recipe.id, day);
+    recipeUseCount.set(recipe.id, (recipeUseCount.get(recipe.id) ?? 0) + 1);
+    recipe.ingredientIds.forEach((id) => planIngredients.add(id));
+    const history = slotHistory.get(slot) ?? [];
+    history.push({ day, recipeId: recipe.id });
+    slotHistory.set(slot, history);
+  };
+
+  for (let day = 0; day < input.days.length; day++) {
+    const spec = input.days[day]!;
+    if (spec.skip) continue;
+
+    const budgets = slotBudgets(spec.mealSlots, spec.dailyCalorieTarget);
+    const coverage = spec.inventoryCoverage ?? input.inventoryCoverage;
+    const lockedBySlot = new Map(
+      (spec.lockedSlots ?? []).map((l) => [l.slot, l.recipeId] as const),
+    );
+
+    // Locked slots are placed first so the day's remaining slots optimise
+    // around them (their ingredients seed the reuse score, their use counts
+    // toward the variety floor and per-slot caps).
+    for (const slot of spec.mealSlots) {
+      const lockedId = lockedBySlot.get(slot);
+      if (lockedId === undefined) continue;
+      const locked = recipeById.get(lockedId);
+      if (!locked) {
+        throw new OptimizerError(`locked recipe ${lockedId} not in candidate set`);
+      }
+      place(day, slot, locked, budgets.get(slot)!);
+    }
+
+    for (const slot of spec.mealSlots) {
+      if (lockedBySlot.has(slot)) continue;
       const budget = budgets.get(slot)!;
       const eligibleHere = input.recipes.filter((r) => eligible(r, slot, input.dietType));
       if (eligibleHere.length === 0) {
         throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`);
       }
+      // F17 cook-time budget: prefer recipes within the day's time cap; if that
+      // empties the pool, fall back to all eligible (better to exceed the cap
+      // than fail generation entirely — same philosophy as the variety caps).
+      const budgetMinutes = spec.cookTimeBudgetMinutes;
+      const timeFiltered =
+        budgetMinutes == null
+          ? eligibleHere
+          : eligibleHere.filter((r) => r.totalMinutes <= budgetMinutes);
+      const timePool = timeFiltered.length > 0 ? timeFiltered : eligibleHere;
+
       const history = slotHistory.get(slot) ?? [];
-      // Apply caps to narrow the pool. If both caps wipe everything out
-      // (e.g. a slot with only one eligible recipe over a long plan), fall
-      // back to the un-capped set rather than throw — better to repeat than
-      // to fail generation entirely.
-      const allowed = eligibleHere.filter((r) => allowedByCaps(r.id, day, history, maxConsecutive, maxPerWeek));
-      const pool = allowed.length > 0 ? allowed : eligibleHere;
+      // Apply the per-slot caps + the cross-window variety floor to narrow the
+      // pool. If the constraints wipe everything out, fall back to the
+      // time pool rather than throw.
+      const allowed = timePool.filter(
+        (r) =>
+          allowedByCaps(r.id, day, history, maxConsecutive, maxPerWeek) &&
+          (maxRepeats === undefined || (recipeUseCount.get(r.id) ?? 0) < maxRepeats),
+      );
+      const pool = allowed.length > 0 ? allowed : timePool;
 
       const best = pickBest(pool, {
         budget,
@@ -162,20 +253,11 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
         recentUse,
         mealPrepFriendly: input.mealPrepFriendly,
         favoriteIngredientIds: input.favoriteIngredientIds,
-        inventoryCoverage: input.inventoryCoverage,
+        inventoryCoverage: coverage,
         seed: input.seed,
       });
 
-      assignments.push({
-        dayIndex: day,
-        slot,
-        recipeId: best.id,
-        servings: fitServings(best.caloriesPerServing, budget),
-      });
-      recentUse.set(best.id, day);
-      best.ingredientIds.forEach((id) => planIngredients.add(id));
-      history.push({ day, recipeId: best.id });
-      slotHistory.set(slot, history);
+      place(day, slot, best, budget);
     }
   }
 

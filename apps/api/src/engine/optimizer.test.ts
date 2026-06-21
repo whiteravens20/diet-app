@@ -5,11 +5,17 @@ import {
   optimisePlan,
   recipeCoverage,
   slotBudgets,
+  uniformDays,
   type OptimizerInput,
   type OptimizerRecipe,
 } from './optimizer.js';
 
-function recipe(id: string, slots: OptimizerRecipe['mealTypes'], cals: number): OptimizerRecipe {
+function recipe(
+  id: string,
+  slots: OptimizerRecipe['mealTypes'],
+  cals: number,
+  totalMinutes = 20,
+): OptimizerRecipe {
   return {
     id,
     mealTypes: slots,
@@ -21,6 +27,7 @@ function recipe(id: string, slots: OptimizerRecipe['mealTypes'], cals: number): 
     ingredientIds: [`${id}-a`, `${id}-b`, 'shared'],
     difficulty: 'easy',
     isFavorite: false,
+    totalMinutes,
   };
 }
 
@@ -33,9 +40,7 @@ const baseInput: OptimizerInput = {
     recipe('d1', ['dinner'], 600),
     recipe('d2', ['dinner'], 550),
   ],
-  days: 3,
-  mealSlots: ['breakfast', 'lunch', 'dinner'],
-  dailyCalorieTarget: 2000,
+  days: uniformDays(3, ['breakfast', 'lunch', 'dinner'], 2000),
   targetMacros: { protein: 120, fat: 60, carbs: 220 },
   dietType: 'balanced',
   mealPrepFriendly: false,
@@ -90,7 +95,9 @@ describe('optimisePlan', () => {
   });
 
   it('throws when a slot has no eligible recipe', () => {
-    expect(() => optimisePlan({ ...baseInput, mealSlots: ['snack'] })).toThrow(OptimizerError);
+    expect(() => optimisePlan({ ...baseInput, days: uniformDays(1, ['snack'], 2000) })).toThrow(
+      OptimizerError,
+    );
   });
 
   /**
@@ -103,6 +110,7 @@ describe('optimisePlan', () => {
     // Three eligible recipes per slot: the cap is achievable. With only two
     // it isn't (3+3 < 7), and the optimiser correctly falls back to the
     // un-capped pool rather than throwing.
+    const slots: OptimizerRecipe['mealTypes'] = ['breakfast', 'lunch', 'dinner'];
     const longInput: OptimizerInput = {
       ...baseInput,
       recipes: [
@@ -111,14 +119,14 @@ describe('optimisePlan', () => {
         recipe('l3', ['lunch'], 680),
         recipe('d3', ['dinner'], 580),
       ],
-      days: 28,
+      days: uniformDays(28, slots, 2000),
       maxConsecutiveDaysSameMeal: 2,
       maxTimesPerWeekSameMeal: 3,
     };
     const result = optimisePlan(longInput);
 
     // No three identical recipes in a row at any slot.
-    for (const slot of longInput.mealSlots) {
+    for (const slot of slots) {
       const ids = result.assignments
         .filter((a) => a.slot === slot)
         .sort((a, b) => a.dayIndex - b.dayIndex)
@@ -134,6 +142,144 @@ describe('optimisePlan', () => {
         for (const c of counts.values()) expect(c).toBeLessThanOrEqual(3);
       }
     }
+  });
+
+  // ── F17 advanced per-day options ──────────────────────────────────────────
+
+  it('honours a per-day calorie target (different servings per day)', () => {
+    const result = optimisePlan({
+      ...baseInput,
+      recipes: [recipe('b1', ['breakfast'], 450)],
+      days: [
+        { mealSlots: ['breakfast'], dailyCalorieTarget: 450 },
+        { mealSlots: ['breakfast'], dailyCalorieTarget: 1350 },
+      ],
+    });
+    const day0 = result.assignments.find((a) => a.dayIndex === 0)!;
+    const day1 = result.assignments.find((a) => a.dayIndex === 1)!;
+    expect(day0.servings).toBe(1); // 450 / 450
+    expect(day1.servings).toBe(3); // 1350 / 450
+    expect(day1.servings).not.toBe(day0.servings);
+  });
+
+  it('honours a per-day meal count (different slot set per day)', () => {
+    const result = optimisePlan({
+      ...baseInput,
+      days: [
+        { mealSlots: ['breakfast', 'dinner'], dailyCalorieTarget: 2000 },
+        { mealSlots: ['breakfast', 'lunch', 'dinner'], dailyCalorieTarget: 2000 },
+      ],
+    });
+    expect(result.assignments.filter((a) => a.dayIndex === 0)).toHaveLength(2);
+    expect(result.assignments.filter((a) => a.dayIndex === 1)).toHaveLength(3);
+  });
+
+  it('produces no meals for a skipped day', () => {
+    const result = optimisePlan({
+      ...baseInput,
+      days: [
+        { mealSlots: ['breakfast', 'lunch', 'dinner'], dailyCalorieTarget: 2000 },
+        { mealSlots: ['breakfast', 'lunch', 'dinner'], dailyCalorieTarget: 2000, skip: true },
+        { mealSlots: ['breakfast', 'lunch', 'dinner'], dailyCalorieTarget: 2000 },
+      ],
+    });
+    expect(result.assignments.filter((a) => a.dayIndex === 1)).toHaveLength(0);
+    expect(result.assignments.filter((a) => a.dayIndex === 0)).toHaveLength(3);
+    expect(result.assignments.filter((a) => a.dayIndex === 2)).toHaveLength(3);
+  });
+
+  it('places a locked slot and fills the rest of the day around it', () => {
+    const result = optimisePlan({
+      ...baseInput,
+      days: [
+        {
+          mealSlots: ['breakfast', 'lunch', 'dinner'],
+          dailyCalorieTarget: 2000,
+          lockedSlots: [{ slot: 'breakfast', recipeId: 'b2' }],
+        },
+      ],
+    });
+    const breakfast = result.assignments.find((a) => a.slot === 'breakfast')!;
+    expect(breakfast.recipeId).toBe('b2');
+    expect(result.assignments.map((a) => a.slot).sort()).toEqual(['breakfast', 'dinner', 'lunch']);
+  });
+
+  it('throws when a locked recipe is not in the candidate set', () => {
+    expect(() =>
+      optimisePlan({
+        ...baseInput,
+        days: [
+          {
+            mealSlots: ['breakfast'],
+            dailyCalorieTarget: 2000,
+            lockedSlots: [{ slot: 'breakfast', recipeId: 'does-not-exist' }],
+          },
+        ],
+      }),
+    ).toThrow(OptimizerError);
+  });
+
+  it('caps total uses of a recipe at maxRepeatsPerRecipe', () => {
+    const result = optimisePlan({
+      ...baseInput,
+      recipes: [
+        recipe('b1', ['breakfast'], 500),
+        recipe('b2', ['breakfast'], 500),
+        recipe('b3', ['breakfast'], 500),
+      ],
+      days: uniformDays(3, ['breakfast'], 500),
+      maxRepeatsPerRecipe: 1,
+    });
+    const ids = result.assignments.map((a) => a.recipeId);
+    expect(new Set(ids).size).toBe(3); // all distinct — none reused
+  });
+
+  it('falls back past the variety floor rather than failing generation', () => {
+    const result = optimisePlan({
+      ...baseInput,
+      recipes: [recipe('b1', ['breakfast'], 500)],
+      days: uniformDays(3, ['breakfast'], 500),
+      maxRepeatsPerRecipe: 1,
+    });
+    // Only one recipe, cap of 1, three days → the cap is relaxed, not thrown.
+    expect(result.assignments.map((a) => a.recipeId)).toEqual(['b1', 'b1', 'b1']);
+  });
+
+  it('respects a per-day cook-time budget, then falls back when it would empty the pool', () => {
+    const recipes = [recipe('fast', ['breakfast'], 500, 10), recipe('slow', ['breakfast'], 500, 90)];
+    const picked = optimisePlan({
+      ...baseInput,
+      recipes,
+      days: [{ mealSlots: ['breakfast'], dailyCalorieTarget: 500, cookTimeBudgetMinutes: 15 }],
+    });
+    expect(picked.assignments[0]!.recipeId).toBe('fast');
+
+    // A budget no recipe can meet falls back to the eligible pool (no throw).
+    const fallback = optimisePlan({
+      ...baseInput,
+      recipes,
+      days: [{ mealSlots: ['breakfast'], dailyCalorieTarget: 500, cookTimeBudgetMinutes: 5 }],
+    });
+    expect(fallback.assignments).toHaveLength(1);
+  });
+
+  it('biases a day toward its inventory-coverage map (F15 use-up-by)', () => {
+    const recipes = [recipe('r1', ['breakfast'], 500), recipe('r2', ['breakfast'], 500)];
+    const seeds = Array.from({ length: 30 }, (_, i) => i + 1);
+    const countR2 = (coverage?: ReadonlyMap<string, number>) =>
+      seeds.filter((seed) => {
+        const out = optimisePlan({
+          ...baseInput,
+          recipes,
+          seed,
+          days: [{ mealSlots: ['breakfast'], dailyCalorieTarget: 500, inventoryCoverage: coverage }],
+        });
+        return out.assignments[0]!.recipeId === 'r2';
+      }).length;
+
+    // With r2 marked as covering expiring stock it wins more often than the
+    // unbiased baseline — proving the per-day coverage map is honoured.
+    expect(countR2(new Map([['r2', 1]]))).toBeGreaterThan(countR2(undefined));
   });
 });
 
