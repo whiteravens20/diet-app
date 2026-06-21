@@ -7,3 +7,4 @@ export * from './units.js';
 export * from './substitution.js';
 export * from './shopping.js';
 export * from './optimizer.js';
+export * from './rebalance.js';

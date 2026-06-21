@@ -129,8 +129,8 @@ const SCORE_WEIGHTS = {
   complexity: 0.05,
 } as const;
 
-const SERVING_MIN = 0.5;
-const SERVING_MAX = 3;
+export const SERVING_MIN = 0.5;
+export const SERVING_MAX = 3;
 
 export class OptimizerError extends Error {}
 

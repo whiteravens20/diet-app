@@ -72,10 +72,25 @@ export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
 export const PlannedMeal = z.object({
   id: z.string().uuid(),
   mealType: MealType,
-  recipe: Recipe,
-  /** Servings of the recipe assigned to this slot. */
+  /** Null for an F22 user-authored custom meal (it carries no catalogue recipe). */
+  recipe: Recipe.nullable(),
+  /** F22 `CATALOGUE` = from the recipe library; `USER_CUSTOM` = user-authored. */
+  source: z.enum(['CATALOGUE', 'USER_CUSTOM']),
+  /** Display name for a custom meal (null for catalogue meals — use the recipe). */
+  customName: z.string().nullable(),
+  /** Baseline servings assigned to this slot (before the rebalancer multiplier). */
   servings: z.number().min(0.25),
-  nutrition: Nutrition, // recipe.nutritionPerServing * servings
+  /** F22 rebalancer multiplier; effective amount = servings * quantityScale. */
+  quantityScale: z.number(),
+  /** F22 mark-eaten timestamp, or null. An eaten meal is pinned from rebalancing. */
+  eatenAt: z.string().datetime().nullable(),
+  /**
+   * F22(a): true when the user swapped in a favourite that does not match the
+   * plan's diet type. Derived (recipe.dietTags omits plan.dietType); the UI
+   * shows a chip so the dashboard "% on-diet" stat stays honest.
+   */
+  dietOverride: z.boolean(),
+  nutrition: Nutrition, // effective: per-serving macros * servings * quantityScale
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
@@ -133,6 +148,12 @@ export const SwapMealRequest = z.object({
   favoriteRecipeId: z.string().uuid().optional(),
   /** F15 bias the swap candidate pool toward recipes the pantry covers. */
   respectInventory: z.boolean().default(true),
+  /**
+   * F22(a) "show all my favourites": drop the diet-type filter on the candidate
+   * pool. Allergens + meal-type stay enforced. The resulting meal is flagged
+   * `dietOverride` so the dashboard on-diet stat stays honest.
+   */
+  allowOffDiet: z.boolean().default(false),
 });
 export type SwapMealRequest = z.infer<typeof SwapMealRequest>;
 
@@ -216,3 +237,64 @@ export const SwapPreview = z.object({
   valid: z.boolean(),
 });
 export type SwapPreview = z.infer<typeof SwapPreview>;
+
+// ── F22 flexible meal plans ─────────────────────────────────────────────────
+
+/**
+ * F22(b) add a user-authored custom meal to a day. The user owns the macros —
+ * we don't recompute them from an ingredient list, because a custom meal has
+ * none. `nutrition` is frozen on the row as entered.
+ */
+export const AddCustomMealRequest = z.object({
+  /** Free-text name for the meal (e.g. "Mum's lasagne"). */
+  name: z.string().trim().min(1).max(120),
+  mealType: MealType,
+  /** User-entered macros for one serving. Engine never recomputes these. */
+  nutrition: Nutrition,
+  servings: z.number().min(0.25).max(20).default(1),
+});
+export type AddCustomMealRequest = z.infer<typeof AddCustomMealRequest>;
+
+/**
+ * F22(c) explicit rebalance trigger. `day` rebalances the single date; `week`
+ * shares the surplus/deficit across the plan week. `restore` is the undo path:
+ * when present the service writes those exact scales verbatim and skips the
+ * solver (the toast's "Undo last rebalance" sends the pre-edit `before` map).
+ */
+export const RebalanceRequest = z.object({
+  scope: z.enum(['day', 'week']),
+  /** Required for `day` scope; for `week` it selects which week to rebalance. */
+  date: z.string().date().optional(),
+  restore: z
+    .array(z.object({ mealId: z.string().uuid(), scale: z.number().min(0) }))
+    .optional(),
+});
+export type RebalanceRequest = z.infer<typeof RebalanceRequest>;
+
+/** A single meal's quantity-scale change produced by a rebalance. */
+export const RebalanceChange = z.object({
+  mealId: z.string().uuid(),
+  before: z.number(),
+  after: z.number(),
+});
+export type RebalanceChange = z.infer<typeof RebalanceChange>;
+
+/**
+ * Envelope returned by every F22 edit that may rebalance (swap, custom-add,
+ * eaten toggle, explicit rebalance). Carries the updated plan plus the rebalance
+ * summary the UI renders as a toast (macro delta + per-meal scale) and uses to
+ * offer "Undo last rebalance" via `changes[].before`.
+ */
+export const RebalanceResult = z.object({
+  plan: MealPlan,
+  rebalance: z
+    .object({
+      scope: z.enum(['day', 'week']),
+      feasibility: z.enum(['in-window', 'best-effort']),
+      changes: z.array(RebalanceChange),
+      macrosBefore: Nutrition,
+      macrosAfter: Nutrition,
+    })
+    .nullable(),
+});
+export type RebalanceResult = z.infer<typeof RebalanceResult>;

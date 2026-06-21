@@ -5,16 +5,19 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
+  AddCustomMealRequest,
   AiSuggestIngredientRequest,
   AiSwapMealRequest,
   GeneratePlanRequest,
   type Locale,
+  RebalanceRequest,
   SwapIngredientRequest,
   SwapMealRequest,
 } from '@diet-app/shared';
@@ -93,6 +96,42 @@ export class MealPlansController {
     @Body(new ZodValidationPipe(SwapMealRequest)) dto: SwapMealRequest,
   ) {
     return this.plans.swapMeal(user.id, locale, dto);
+  }
+
+  /** F22(b) add a user-authored custom meal to a day. */
+  @Post(':id/days/:date/custom-meal')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  addCustomMeal(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id') id: string,
+    @Param('date') date: string,
+    @Body(new ZodValidationPipe(AddCustomMealRequest)) dto: AddCustomMealRequest,
+  ) {
+    return this.plans.addCustomMeal(user.id, locale, id, date, dto);
+  }
+
+  /** F22(d) toggle a planned meal's eaten flag (rebalances the day). */
+  @Patch(':id/meals/:mealId/eaten')
+  toggleEaten(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id') id: string,
+    @Param('mealId') mealId: string,
+  ) {
+    return this.plans.toggleEaten(user.id, locale, id, mealId);
+  }
+
+  /** F22(c) explicit rebalance (day / week) or undo via the `restore` map. */
+  @Post(':id/rebalance')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  rebalance(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(RebalanceRequest)) dto: RebalanceRequest,
+  ) {
+    return this.plans.rebalance(user.id, locale, id, dto);
   }
 
   /**

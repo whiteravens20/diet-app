@@ -3,13 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { CalendarRange, Sparkles, UserRound } from 'lucide-react';
 import type {
+  AddCustomMealRequest,
   AiSwapMealResponse,
   GeneratePlanRequest,
   MealPlan,
   Profile,
+  RebalanceResult,
   SessionUser,
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
@@ -23,6 +25,7 @@ import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
+import { CustomMealModal } from './custom-meal-modal';
 import {
   AdvancedOptions,
   buildAdvancedRequest,
@@ -89,7 +92,7 @@ function MealPlansContent() {
   const favorites = useQuery({
     queryKey: ['favorites', activeId],
     queryFn: () =>
-      api.get<{ recipe: { id: string; title: string; mealTypes: string[] } }[]>(
+      api.get<{ recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] } }[]>(
         `/favorites?profileId=${activeId}`,
       ),
     enabled: Boolean(activeId),
@@ -130,22 +133,77 @@ function MealPlansContent() {
     onError: fail(t('errChangeDay')),
   });
 
+  // F22 rebalance toast: surfaced after any edit that changed a day's totals.
+  const [rebalanceToast, setRebalanceToast] = useState<{
+    planId: string;
+    rebalance: NonNullable<RebalanceResult['rebalance']>;
+  } | null>(null);
+  const showRebalance = (planId: string, res: RebalanceResult) => {
+    invalidate();
+    if (res.rebalance && res.rebalance.changes.length > 0) {
+      setRebalanceToast({ planId, rebalance: res.rebalance });
+    }
+  };
+
   const swapMeal = useMutation({
     mutationFn: (v: {
       planId: string;
       plannedMealId: string;
       strategy: 'random' | 'favorite' | 'favorite_ingredients';
       favoriteRecipeId?: string;
+      allowOffDiet?: boolean;
     }) =>
-      api.post<MealPlan>('/meal-plans/swap-meal', {
+      api.post<RebalanceResult>('/meal-plans/swap-meal', {
         planId: v.planId,
         plannedMealId: v.plannedMealId,
         strategy: v.strategy,
         respectInventory: swapWithPantry,
+        allowOffDiet: v.allowOffDiet ?? false,
         ...(v.favoriteRecipeId ? { favoriteRecipeId: v.favoriteRecipeId } : {}),
       }),
-    onSuccess: invalidate,
+    onSuccess: (res, v) => showRebalance(v.planId, res),
     onError: fail(t('errSwap')),
+  });
+
+  const addCustomMeal = useMutation({
+    mutationFn: (v: { planId: string; date: string; body: AddCustomMealRequest }) =>
+      api.post<RebalanceResult>(
+        `/meal-plans/${v.planId}/days/${v.date}/custom-meal`,
+        v.body,
+      ),
+    onSuccess: (res, v) => showRebalance(v.planId, res),
+    onError: fail(t('errCustomMeal')),
+  });
+
+  const toggleEaten = useMutation({
+    mutationFn: (v: { planId: string; mealId: string }) =>
+      api.patch<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}/eaten`, {}),
+    onSuccess: (res, v) => showRebalance(v.planId, res),
+    onError: fail(t('errEaten')),
+  });
+
+  const rebalance = useMutation({
+    mutationFn: (v: {
+      planId: string;
+      scope: 'day' | 'week';
+      date?: string;
+      restore?: { mealId: string; scale: number }[];
+    }) =>
+      api.post<RebalanceResult>(`/meal-plans/${v.planId}/rebalance`, {
+        scope: v.scope,
+        ...(v.date ? { date: v.date } : {}),
+        ...(v.restore ? { restore: v.restore } : {}),
+      }),
+    onSuccess: (res, v) => {
+      // Undo / week re-runs replace the toast (undo simply clears it).
+      if (v.restore) {
+        invalidate();
+        setRebalanceToast(null);
+      } else {
+        showRebalance(v.planId, res);
+      }
+    },
+    onError: fail(t('errRebalance')),
   });
 
   // AI-ranked swap. The server always applies a swap (engine fallback if AI is
@@ -175,6 +233,9 @@ function MealPlansContent() {
     regenerateDay.isPending ||
     swapMeal.isPending ||
     aiSwapMeal.isPending ||
+    addCustomMeal.isPending ||
+    toggleEaten.isPending ||
+    rebalance.isPending ||
     remove.isPending;
 
   function onGenerate(event: React.FormEvent<HTMLFormElement>) {
@@ -410,13 +471,14 @@ function MealPlansContent() {
                   strategy: 'favorite_ingredients',
                 });
               }}
-              onSwapToFavorite={(plannedMealId, favoriteRecipeId) => {
+              onSwapToFavorite={(plannedMealId, favoriteRecipeId, allowOffDiet) => {
                 setError(null);
                 swapMeal.mutate({
                   planId: plan.id,
                   plannedMealId,
                   strategy: 'favorite',
                   favoriteRecipeId,
+                  allowOffDiet,
                 });
               }}
               onAiSwapMeal={
@@ -428,19 +490,52 @@ function MealPlansContent() {
                     }
                   : undefined
               }
+              onToggleEaten={(mealId) => {
+                setError(null);
+                toggleEaten.mutate({ planId: plan.id, mealId });
+              }}
+              onAddCustomMeal={(date, body) => {
+                setError(null);
+                addCustomMeal.mutate({ planId: plan.id, date, body });
+              }}
               favorites={favorites.data ?? []}
               tMeal={tMeal}
             />
           ))
         )}
       </section>
+
+      {rebalanceToast && (
+        <RebalanceToast
+          rebalance={rebalanceToast.rebalance}
+          busy={rebalance.isPending}
+          onUndo={() =>
+            rebalance.mutate({
+              planId: rebalanceToast.planId,
+              scope: 'day',
+              restore: rebalanceToast.rebalance.changes.map((c) => ({
+                mealId: c.mealId,
+                scale: c.before,
+              })),
+            })
+          }
+          onRebalanceWeek={() =>
+            rebalance.mutate({ planId: rebalanceToast.planId, scope: 'week' })
+          }
+          onDismiss={() => setRebalanceToast(null)}
+        />
+      )}
     </div>
   );
 }
 
 interface FavoriteOption {
-  recipe: { id: string; title: string; mealTypes: string[] };
+  recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] };
 }
+
+type PlannedMealView = MealPlan['days'][number]['meals'][number];
+/** A catalogue meal, narrowed so its recipe is guaranteed present. */
+type CatalogueMeal = PlannedMealView & { recipe: NonNullable<PlannedMealView['recipe']> };
 
 function PlanCard({
   plan,
@@ -457,6 +552,8 @@ function PlanCard({
   onSwapByFavorites,
   onSwapToFavorite,
   onAiSwapMeal,
+  onToggleEaten,
+  onAddCustomMeal,
 }: {
   plan: MealPlan;
   open: boolean;
@@ -470,16 +567,23 @@ function PlanCard({
   onRegenerateDay: (dayId: string) => void;
   onSwapMeal: (plannedMealId: string) => void;
   onSwapByFavorites: (plannedMealId: string) => void;
-  onSwapToFavorite: (plannedMealId: string, recipeId: string) => void;
+  onSwapToFavorite: (plannedMealId: string, recipeId: string, allowOffDiet: boolean) => void;
   /** Undefined when the user has `aiMode='none'` — the button is hidden. */
   onAiSwapMeal?: (plannedMealId: string) => void;
+  onToggleEaten: (mealId: string) => void;
+  onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
 }) {
   const t = useTranslations('mealPlans');
   const tCommon = useTranslations('common');
   // Which meal's "swap to favorite" picker is open, if any.
   const [openFav, setOpenFav] = useState<string | null>(null);
-  // Which meal's ingredient-substitution modal is open, if any.
-  const [openSub, setOpenSub] = useState<MealPlan['days'][number]['meals'][number] | null>(null);
+  // F22(a): show every favourite (drop the diet filter) in the open picker.
+  const [showAllFav, setShowAllFav] = useState(false);
+  // F22(b): which day's "add custom meal" modal is open, if any.
+  const [customDay, setCustomDay] = useState<string | null>(null);
+  // Which meal's ingredient-substitution modal is open, if any. Only catalogue
+  // meals (recipe present) can be substituted.
+  const [openSub, setOpenSub] = useState<CatalogueMeal | null>(null);
   // Which recipe is open in the Framer Motion modal, if any, plus the scale
   // factor so the modal shows ingredient amounts for the planned meal rather
   // than the recipe's default servings.
@@ -552,113 +656,186 @@ function PlanCard({
               </div>
               <ul className="mt-1 space-y-1 text-sm">
                 {day.meals.map((m) => {
-                  const slotFavorites = favorites.filter((f) =>
-                    f.recipe.mealTypes.includes(m.mealType),
-                  );
+                  const eaten = m.eatenAt !== null;
+                  const isCustom = m.source === 'USER_CUSTOM' || m.recipe === null;
+                  const title = isCustom ? m.customName ?? t('customMeal') : m.recipe!.title;
                   const favOpen = openFav === m.id;
                   const mealLabel = tMeal.has(m.mealType) ? tMeal(m.mealType) : m.mealType.replace('_', ' ');
+                  // F22(a): the picker shows diet-matching favourites by default;
+                  // "show all my favourites" drops the diet filter (slot stays).
+                  const slotFavorites = favorites.filter(
+                    (f) =>
+                      f.recipe.mealTypes.includes(m.mealType) &&
+                      (showAllFav ||
+                        plan.dietType === 'custom' ||
+                        f.recipe.dietTags.includes(plan.dietType)),
+                  );
                   return (
                     <li key={m.id} className="space-y-1">
                       <div className="flex items-center justify-between gap-6">
                         <span className="min-w-0 flex-1">
-                          <span className="text-muted-foreground">{mealLabel}</span>{' '}
-                          ·{' '}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenRecipe({
-                                id: m.recipe.id,
-                                scale: m.servings / Math.max(m.recipe.servings, 1),
-                              })
-                            }
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {m.recipe.title}
-                          </button>
+                          <input
+                            type="checkbox"
+                            className="mr-2 h-4 w-4 align-middle"
+                            checked={eaten}
+                            disabled={busy}
+                            aria-label={t('markEaten')}
+                            title={t('markEaten')}
+                            onChange={() => onToggleEaten(m.id)}
+                          />
+                          <span className="text-muted-foreground">{mealLabel}</span> ·{' '}
+                          {isCustom ? (
+                            <span className="font-medium">{title}</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenRecipe({
+                                  id: m.recipe!.id,
+                                  scale: m.servings / Math.max(m.recipe!.servings, 1),
+                                })
+                              }
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {title}
+                            </button>
+                          )}
+                          {isCustom && (
+                            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                              {t('customChip')}
+                            </span>
+                          )}
+                          {m.dietOverride && (
+                            <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                              {t('dietOverrideChip')}
+                            </span>
+                          )}
+                          {m.quantityScale !== 1 && (
+                            <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                              {t('autoBalancedChip', { scale: m.quantityScale.toFixed(2) })}
+                            </span>
+                          )}
                         </span>
                         <span className="flex shrink-0 items-center gap-4">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onSwapMeal(m.id)}
-                            disabled={busy}
-                          >
-                            {t('swap')}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSwapToFav')}
-                            onClick={() => setOpenFav(favOpen ? null : m.id)}
-                            disabled={busy}
-                          >
-                            {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
-                          </Button>
-                          {onAiSwapMeal && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              title={t('tooltipAiSwap')}
-                              onClick={() => onAiSwapMeal(m.id)}
-                              disabled={busy}
-                              className="text-primary"
-                            >
-                              <Sparkles size={14} aria-hidden />
-                              <span className="ml-1">{t('aiSwap')}</span>
-                            </Button>
+                          {eaten ? (
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {t('eatenBadge')}
+                            </span>
+                          ) : isCustom ? null : (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onSwapMeal(m.id)}
+                                disabled={busy}
+                              >
+                                {t('swap')}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                title={t('tooltipSwapToFav')}
+                                onClick={() => {
+                                  setShowAllFav(false);
+                                  setOpenFav(favOpen ? null : m.id);
+                                }}
+                                disabled={busy}
+                              >
+                                {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
+                              </Button>
+                              {onAiSwapMeal && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  title={t('tooltipAiSwap')}
+                                  onClick={() => onAiSwapMeal(m.id)}
+                                  disabled={busy}
+                                  className="text-primary"
+                                >
+                                  <Sparkles size={14} aria-hidden />
+                                  <span className="ml-1">{t('aiSwap')}</span>
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                title={t('tooltipSwapByFav')}
+                                onClick={() => onSwapByFavorites(m.id)}
+                                disabled={busy}
+                              >
+                                {t('swapFavIngr')}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                title={t('tooltipSubstitute')}
+                                onClick={() => {
+                                  if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
+                                }}
+                                disabled={busy}
+                              >
+                                {t('substituteIngr')} ⇄
+                              </Button>
+                            </>
                           )}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSwapByFav')}
-                            onClick={() => onSwapByFavorites(m.id)}
-                            disabled={busy}
-                          >
-                            {t('swapFavIngr')}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title={t('tooltipSubstitute')}
-                            onClick={() => setOpenSub(m)}
-                            disabled={busy}
-                          >
-                            {t('substituteIngr')} ⇄
-                          </Button>
                         </span>
                       </div>
                       {/* Per-meal macros sit below the title as plain text — the
                           modal opened from the recipe title carries the full
                           ingredient list scaled for this meal. */}
                       <MacrosLine nutrition={m.nutrition} />
-                      {favOpen && (
+                      {isCustom && (
+                        <p className="ml-6 text-xs italic text-muted-foreground">
+                          {t('customMacrosNote')}
+                        </p>
+                      )}
+                      {favOpen && !isCustom && (
                         <div className="ml-4 rounded-md border border-border bg-muted/40 p-2">
+                          <label className="mb-2 flex items-center gap-1 text-xs">
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5"
+                              checked={showAllFav}
+                              onChange={(e) => setShowAllFav(e.target.checked)}
+                            />
+                            {t('showAllFavorites')}
+                          </label>
                           {slotFavorites.length === 0 ? (
                             <p className="text-xs text-muted-foreground">
                               {t('noFavoritesForSlot', { mealType: mealLabel })}
                             </p>
                           ) : (
                             <ul className="space-y-1">
-                              {slotFavorites.map((f) => (
-                                <li key={f.recipe.id}>
-                                  <button
-                                    type="button"
-                                    className="w-full rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-50"
-                                    disabled={busy}
-                                    onClick={() => {
-                                      setOpenFav(null);
-                                      onSwapToFavorite(m.id, f.recipe.id);
-                                    }}
-                                  >
-                                    {f.recipe.title}
-                                  </button>
-                                </li>
-                              ))}
+                              {slotFavorites.map((f) => {
+                                const off =
+                                  plan.dietType !== 'custom' &&
+                                  !f.recipe.dietTags.includes(plan.dietType);
+                                return (
+                                  <li key={f.recipe.id}>
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-50"
+                                      disabled={busy}
+                                      onClick={() => {
+                                        setOpenFav(null);
+                                        onSwapToFavorite(m.id, f.recipe.id, off);
+                                      }}
+                                    >
+                                      <span>{f.recipe.title}</span>
+                                      {off && (
+                                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                                          {t('offDietTag')}
+                                        </span>
+                                      )}
+                                    </button>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           )}
                         </div>
@@ -667,9 +844,29 @@ function PlanCard({
                   );
                 })}
               </ul>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mt-1"
+                onClick={() => setCustomDay(day.date)}
+                disabled={busy}
+              >
+                {t('addCustomMeal')}
+              </Button>
             </div>
           ))}
         </CardContent>
+      )}
+      {customDay && (
+        <CustomMealModal
+          date={customDay}
+          onClose={() => setCustomDay(null)}
+          onSubmit={(body) => {
+            onAddCustomMeal(customDay, body);
+            setCustomDay(null);
+          }}
+        />
       )}
       {openSub && (
         <IngredientSubstituteModal
@@ -688,6 +885,67 @@ function PlanCard({
         onClose={() => setOpenRecipe(null)}
       />
     </Card>
+  );
+}
+
+/**
+ * F22 rebalance toast: a bottom-right card summarising the auto-rebalance, with
+ * "undo last rebalance" (restores the pre-edit scales), "rebalance the rest of
+ * the week", and dismiss. Auto-dismisses after 10 s.
+ */
+function RebalanceToast({
+  rebalance,
+  busy,
+  onUndo,
+  onRebalanceWeek,
+  onDismiss,
+}: {
+  rebalance: NonNullable<RebalanceResult['rebalance']>;
+  busy: boolean;
+  onUndo: () => void;
+  onRebalanceWeek: () => void;
+  onDismiss: () => void;
+}) {
+  const t = useTranslations('mealPlans');
+  // Keep the auto-dismiss timer stable across parent re-renders: the latest
+  // onDismiss lives in a ref (updated in an effect, never during render) so the
+  // 10 s timer is armed exactly once.
+  const dismiss = useRef(onDismiss);
+  useEffect(() => {
+    dismiss.current = onDismiss;
+  }, [onDismiss]);
+  useEffect(() => {
+    const id = setTimeout(() => dismiss.current(), 10_000);
+    return () => clearTimeout(id);
+  }, []);
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg">
+      <p className="text-sm font-medium">{t('rebalanceTitle')}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {t('rebalanceSummary', {
+          before: Math.round(rebalance.macrosBefore.calories),
+          after: Math.round(rebalance.macrosAfter.calories),
+          count: rebalance.changes.length,
+        })}
+      </p>
+      {rebalance.feasibility === 'best-effort' && (
+        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{t('rebalanceBestEffort')}</p>
+      )}
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={onUndo} disabled={busy}>
+          {t('rebalanceUndo')}
+        </Button>
+        {rebalance.scope === 'day' && (
+          <Button type="button" variant="outline" size="sm" onClick={onRebalanceWeek} disabled={busy}>
+            {t('rebalanceWeek')}
+          </Button>
+        )}
+        <Button type="button" variant="ghost" size="sm" onClick={onDismiss}>
+          {t('rebalanceDismiss')}
+        </Button>
+      </div>
+    </div>
   );
 }
 

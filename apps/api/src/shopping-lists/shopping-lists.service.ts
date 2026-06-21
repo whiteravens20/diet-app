@@ -47,6 +47,9 @@ export class ShoppingListsService {
     for (const day of plan.days) {
       if (day.date < from || day.date > to) continue;
       for (const meal of day.meals) {
+        // F22: custom meals have no ingredients → no shopping line. `eatenAt` is
+        // ignored: the list is generated once at plan start, not retroactively.
+        if (meal.source === 'USER_CUSTOM' || !meal.recipe) continue;
         for (const ri of meal.recipe.ingredients) {
           ingredientIds.add(ri.ingredientId);
           lines.push({
@@ -54,7 +57,8 @@ export class ShoppingListsService {
             quantity: ri.quantity,
             unit: ri.unit,
             recipeServings: meal.recipe.servings,
-            plannedServings: meal.servings,
+            // Effective amount folds the F22 rebalancer multiplier into servings.
+            plannedServings: meal.servings * meal.quantityScale,
           });
         }
       }

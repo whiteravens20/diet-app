@@ -469,9 +469,11 @@ model PlannedMeal {
   id          String      @id @default(uuid())
   day         MealPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
   dayId       String
-  recipe      Recipe      @relation(fields: [recipeId], references: [id])
-  recipeId    String
+  // Optional: F22 user-authored custom meals carry no catalogue recipe.
+  recipe      Recipe?     @relation(fields: [recipeId], references: [id])
+  recipeId    String?
   mealType    String
+  // The optimiser/swap baseline portion ("1 serving of recipe X").
   servings    Float       @default(1)
   // Recipe ids previously shown in this slot via the "swap meal" action.
   // The swap picker excludes the union of this array + the current recipeId
@@ -479,8 +481,27 @@ model PlannedMeal {
   // between two. Cleared (reset to just the current recipeId) when the pool
   // is exhausted.
   swapHistory String[]    @default([])
+  // F22 flexible meal plans:
+  // `source` distinguishes a catalogue meal from a user-authored custom meal.
+  source      PlannedMealSource @default(CATALOGUE)
+  // Custom meals (source=USER_CUSTOM) have no Recipe row; their name + frozen,
+  // user-entered macros { calories, protein, fat, carbs } live on the row.
+  customName  String?
+  customMacros Json?
+  // Mark-eaten: a checked meal is pinned (excluded from the rebalance set).
+  eatenAt     DateTime?
+  // Rebalancer multiplier on top of `servings`. Effective amount = servings *
+  // quantityScale. Default 1.0 = untouched (pre-F22 behaviour). Nutrition and
+  // shopping-list quantities read the product of the two.
+  quantityScale Float     @default(1.0)
+  lastRebalanceAt DateTime?
 
   @@index([dayId])
+}
+
+enum PlannedMealSource {
+  CATALOGUE
+  USER_CUSTOM
 }
 
 // ── Favorites ─────────────────────────────────────────────────────────────────

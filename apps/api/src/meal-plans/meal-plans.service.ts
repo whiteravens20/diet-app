@@ -4,9 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import {
   Locale as LocaleEnum,
   MEAL_SLOTS_BY_COUNT,
+  type AddCustomMealRequest,
   type AiSuggestIngredientRequest,
   type AiSuggestIngredientResponse,
   type AiSwapMealRequest,
@@ -18,6 +20,9 @@ import {
   type MealPlanDay,
   type MealType,
   type PlannedMeal,
+  type RebalanceChange,
+  type RebalanceRequest,
+  type RebalanceResult,
   type SwapIngredientRequest,
   type SwapMealRequest,
   type SwapPreview,
@@ -29,6 +34,8 @@ import {
   nutritionFor,
   optimisePlan,
   OptimizerError,
+  rebalanceDay,
+  rebalanceWeek,
   recipeCoverage,
   slotBudgets,
   substituteIngredient,
@@ -39,6 +46,7 @@ import {
   type OptimizerDay,
   type OptimizerRecipe,
   type OptimizerResult,
+  type RebalanceMeal,
 } from '../engine/index.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -142,7 +150,9 @@ export class MealPlansService {
     const baseCalorieTarget = this.calorieTargetFor(profile);
     const resolvedDays: ResolvedDay[] = existing.days.map((day) => {
       const o = parseDayOverrides(day.overrides);
-      const mealCount = o?.mealCount ?? (day.meals.length || profile.mealCount);
+      // Custom meals don't define a slot count — count catalogue meals only.
+      const catalogueCount = day.meals.filter((m) => m.source === 'CATALOGUE').length;
+      const mealCount = o?.mealCount ?? (catalogueCount || profile.mealCount);
       return {
         date: day.date,
         isoDate: isoDate(day.date),
@@ -201,7 +211,8 @@ export class MealPlansService {
       return this.get(userId, locale, planId);
     }
 
-    const mealCount = o?.mealCount ?? (day.meals.length || profile.mealCount);
+    const catalogueCount = day.meals.filter((m) => m.source === 'CATALOGUE').length;
+    const mealCount = o?.mealCount ?? (catalogueCount || profile.mealCount);
     const resolved: ResolvedDay = {
       date: day.date,
       isoDate: isoDate(day.date),
@@ -512,7 +523,7 @@ export class MealPlansService {
   }
 
   /** Swap a planned meal for a random / favorite alternative; applies immediately. */
-  async swapMeal(userId: string, locale: Locale, req: SwapMealRequest): Promise<MealPlan> {
+  async swapMeal(userId: string, locale: Locale, req: SwapMealRequest): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
     const dietType = meal.day.plan.dietType;
 
@@ -521,7 +532,16 @@ export class MealPlansService {
     // repeated clicks advance through fresh candidates instead of cycling
     // between two. `applyHistory` is the array we persist back to the row.
     const prevHistory = meal.swapHistory ?? [];
-    const excludeBeforeReset = new Set<string>([meal.recipeId, ...prevHistory]);
+    // A custom meal carries no recipeId; swapping converts it to catalogue.
+    const currentRecipeId = meal.recipeId;
+    const excludeBeforeReset = new Set<string>([
+      ...(currentRecipeId ? [currentRecipeId] : []),
+      ...prevHistory,
+    ]);
+    // F22(a): the candidate pool drops the diet filter when the user opted into
+    // "show all my favourites"; allergens + meal-type stay enforced everywhere.
+    const allergens = meal.day.plan.profile.preferences?.allergens ?? [];
+    const dietWhere = req.allowOffDiet ? {} : { dietTags: { has: dietType } };
 
     let replacementId: string;
     let nextHistory: string[];
@@ -530,10 +550,24 @@ export class MealPlansService {
       if (!req.favoriteRecipeId) {
         throw new NotFoundException({ error: 'NO_FAVORITE', message: 'favoriteRecipeId required.' });
       }
-      // Explicit user pick — bypass exclusion logic but still record it so a
-      // subsequent random swap doesn't immediately resurface it.
-      replacementId = req.favoriteRecipeId;
-      nextHistory = appendUnique(prevHistory, meal.recipeId);
+      // Explicit user pick (diet-type be damned), but allergens + meal-type are
+      // never one click away — validate the chosen favourite before applying.
+      const fav = await this.prisma.recipe.findFirst({
+        where: { id: req.favoriteRecipeId, deletedAt: null, OR: [{ createdByUserId: null }, { createdByUserId: userId }] },
+        select: { id: true, mealTypes: true, allergens: true },
+      });
+      if (
+        !fav ||
+        !fav.mealTypes.includes(meal.mealType) ||
+        fav.allergens.some((a) => allergens.includes(a))
+      ) {
+        throw new BadRequestException({
+          error: 'OFF_DIET_FAVORITE_NOT_ALLOWED',
+          message: 'That favourite is not valid for this slot (meal-type or allergen conflict).',
+        });
+      }
+      replacementId = fav.id;
+      nextHistory = currentRecipeId ? appendUnique(prevHistory, currentRecipeId) : prevHistory;
     } else if (req.strategy === 'favorite_ingredients') {
       const favIngs = meal.day.plan.profile.preferences?.favoriteIngredientIds ?? [];
       if (favIngs.length === 0) {
@@ -551,9 +585,10 @@ export class MealPlansService {
       // AI draft which the recipe-detail page would 404 on.
       const candidates = await this.prisma.recipe.findMany({
         where: {
-          dietTags: { has: dietType },
+          ...dietWhere,
+          NOT: { allergens: { hasSome: allergens } },
           mealTypes: { has: meal.mealType },
-          id: { not: meal.recipeId },
+          id: { not: currentRecipeId ?? undefined },
           deletedAt: null,
           OR: [{ createdByUserId: null }, { createdByUserId: userId }],
         },
@@ -581,16 +616,21 @@ export class MealPlansService {
       replacementId = pool[idx]!.id;
       nextHistory =
         fresh.length > 0
-          ? appendUnique(prevHistory, meal.recipeId)
+          ? currentRecipeId
+            ? appendUnique(prevHistory, currentRecipeId)
+            : prevHistory
           : // Pool wrapped — reset history to just the recipe leaving the slot
             // so the next swap sees the previously-shown options as fresh again.
-            [meal.recipeId];
+            currentRecipeId
+            ? [currentRecipeId]
+            : [];
     } else {
       const candidates = await this.prisma.recipe.findMany({
         where: {
-          dietTags: { has: dietType },
+          ...dietWhere,
+          NOT: { allergens: { hasSome: allergens } },
           mealTypes: { has: meal.mealType },
-          id: { not: meal.recipeId },
+          id: { not: currentRecipeId ?? undefined },
           deletedAt: null,
           OR: [{ createdByUserId: null }, { createdByUserId: userId }],
         },
@@ -620,7 +660,13 @@ export class MealPlansService {
       const idx = hashIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length);
       replacementId = pool[idx]!.id;
       nextHistory =
-        fresh.length > 0 ? appendUnique(prevHistory, meal.recipeId) : [meal.recipeId];
+        fresh.length > 0
+          ? currentRecipeId
+            ? appendUnique(prevHistory, currentRecipeId)
+            : prevHistory
+          : currentRecipeId
+            ? [currentRecipeId]
+            : [];
     }
 
     // Rescale servings so the swap stays close to the slot's calorie budget.
@@ -643,9 +689,132 @@ export class MealPlansService {
 
     await this.prisma.plannedMeal.update({
       where: { id: req.plannedMealId },
-      data: { recipeId: replacementId, servings, swapHistory: nextHistory },
+      data: {
+        recipeId: replacementId,
+        servings,
+        swapHistory: nextHistory,
+        // A fresh recipe is a new baseline — reset the rebalancer multiplier and
+        // drop any custom-meal residue (swapping converts a custom meal back).
+        quantityScale: 1,
+        source: 'CATALOGUE',
+        customName: null,
+        customMacros: Prisma.JsonNull,
+      },
     });
-    return this.get(userId, locale, req.planId);
+    // F22(c): the swap changed the day total — pull it back toward target.
+    const summary = await this.rebalanceDayInternal(meal.dayId);
+    return this.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
+  }
+
+  /**
+   * F22(b) add a user-authored custom meal to a day. The macros are frozen on
+   * the row as the user entered them — the engine never recomputes them, because
+   * a custom meal has no ingredient list. Adding it changes the day total, so a
+   * day rebalance runs immediately.
+   */
+  async addCustomMeal(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    date: string,
+    req: AddCustomMealRequest,
+  ): Promise<RebalanceResult> {
+    const day = await this.loadDay(userId, planId, date);
+    if (![req.nutrition.calories, req.nutrition.protein, req.nutrition.fat, req.nutrition.carbs].every(
+      (v) => Number.isFinite(v) && v >= 0,
+    )) {
+      throw new BadRequestException({
+        error: 'CUSTOM_MEAL_INVALID_MACROS',
+        message: 'Custom meal macros must be non-negative numbers.',
+      });
+    }
+
+    // Adding a meal to a previously-skipped day un-skips it (it now has content).
+    const overrides = parseDayOverrides(day.overrides);
+    if (overrides?.skip) {
+      const rest: Record<string, unknown> = { ...(overrides as Record<string, unknown>) };
+      delete rest.skip;
+      await this.prisma.mealPlanDay.update({
+        where: { id: day.id },
+        data: { overrides: Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.JsonNull },
+      });
+    }
+
+    await this.prisma.plannedMeal.create({
+      data: {
+        dayId: day.id,
+        recipeId: null,
+        mealType: req.mealType,
+        servings: req.servings,
+        quantityScale: 1,
+        source: 'USER_CUSTOM',
+        customName: req.name,
+        customMacros: {
+          calories: req.nutrition.calories,
+          protein: req.nutrition.protein,
+          fat: req.nutrition.fat,
+          carbs: req.nutrition.carbs,
+        },
+      },
+    });
+    const summary = await this.rebalanceDayInternal(day.id);
+    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+  }
+
+  /**
+   * F22(d) toggle a planned meal's eaten flag. An eaten meal is pinned out of
+   * the rebalance set (scaling an already-eaten portion is meaningless), so the
+   * day is rebalanced after the toggle to redistribute among the rest.
+   */
+  async toggleEaten(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    mealId: string,
+  ): Promise<RebalanceResult> {
+    const meal = await this.loadPlannedMeal(userId, planId, mealId);
+    await this.prisma.plannedMeal.update({
+      where: { id: mealId },
+      data: { eatenAt: meal.eatenAt ? null : new Date() },
+    });
+    const summary = await this.rebalanceDayInternal(meal.dayId);
+    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+  }
+
+  /**
+   * F22(c) explicit rebalance. `day` rebalances one date; `week` shares the
+   * surplus/deficit across the plan week. `restore` is the undo path: it writes
+   * the supplied scales verbatim (the toast's pre-edit `before` map) and skips
+   * the solver.
+   */
+  async rebalance(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    req: RebalanceRequest,
+  ): Promise<RebalanceResult> {
+    // Authorise the plan up front.
+    await this.get(userId, locale, planId);
+
+    if (req.restore && req.restore.length > 0) {
+      await this.restoreScales(planId, req.restore);
+      return this.buildRebalanceResult(userId, locale, planId, req.scope, null);
+    }
+
+    if (req.scope === 'week') {
+      const summary = await this.rebalanceWeekInternal(planId, req.date);
+      return this.buildRebalanceResult(userId, locale, planId, 'week', summary);
+    }
+
+    if (!req.date) {
+      throw new BadRequestException({
+        error: 'REBALANCE_DAY_NOT_FOUND',
+        message: 'A date is required to rebalance a single day.',
+      });
+    }
+    const day = await this.loadDay(userId, planId, req.date);
+    const summary = await this.rebalanceDayInternal(day.id);
+    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 
   /**
@@ -664,8 +833,15 @@ export class MealPlansService {
   ): Promise<AiSwapMealResponse> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
     const dietType = meal.day.plan.dietType;
+    const currentRecipeId = meal.recipeId;
+    if (!currentRecipeId) {
+      throw new BadRequestException({
+        error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
+        message: 'Custom meals cannot be swapped.',
+      });
+    }
     const prevHistory = meal.swapHistory ?? [];
-    const excludeBeforeReset = new Set<string>([meal.recipeId, ...prevHistory]);
+    const excludeBeforeReset = new Set<string>([currentRecipeId, ...prevHistory]);
 
     // Capped at 25 — keeps the prompt small enough for cheap models. Diet-tag
     // and slot filter mirror the deterministic swapMeal pool exactly,
@@ -675,7 +851,7 @@ export class MealPlansService {
       where: {
         dietTags: { has: dietType },
         mealTypes: { has: meal.mealType },
-        id: { not: meal.recipeId },
+        id: { not: currentRecipeId },
         deletedAt: null,
         OR: [{ createdByUserId: null }, { createdByUserId: userId }],
       },
@@ -726,7 +902,7 @@ export class MealPlansService {
     const budget = budgets.get(meal.mealType as MealType) ?? meal.day.calorieTarget;
 
     const current = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: meal.recipeId },
+      where: { id: currentRecipeId },
       select: { title: true, caloriesPerServing: true },
     });
 
@@ -762,15 +938,17 @@ export class MealPlansService {
     }
 
     const nextHistory =
-      freshCandidates.length > 0 ? appendUnique(prevHistory, meal.recipeId) : [meal.recipeId];
+      freshCandidates.length > 0 ? appendUnique(prevHistory, currentRecipeId) : [currentRecipeId];
 
     const replacement = pool.find((c) => c.id === replacementId)!;
     const servings = fitServings(replacement.caloriesPerServing, budget);
 
     await this.prisma.plannedMeal.update({
       where: { id: req.plannedMealId },
-      data: { recipeId: replacementId, servings, swapHistory: nextHistory },
+      data: { recipeId: replacementId, servings, swapHistory: nextHistory, quantityScale: 1 },
     });
+    // F22(c): the swap changed the day total — rebalance before returning.
+    await this.rebalanceDayInternal(meal.dayId);
     const plan = await this.get(userId, locale, req.planId);
     return { plan, aiMeta: meta };
   }
@@ -781,6 +959,12 @@ export class MealPlansService {
    */
   async previewIngredientSwap(userId: string, req: SwapIngredientRequest): Promise<SwapPreview> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
+    if (!meal.recipeId) {
+      throw new BadRequestException({
+        error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
+        message: 'Custom meals have no ingredients to substitute.',
+      });
+    }
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: meal.recipeId },
       include: { ingredients: true },
@@ -819,6 +1003,12 @@ export class MealPlansService {
    */
   async applyIngredientSwap(userId: string, locale: Locale, req: SwapIngredientRequest): Promise<MealPlan> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
+    if (!meal.recipeId) {
+      throw new BadRequestException({
+        error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
+        message: 'Custom meals have no ingredients to substitute.',
+      });
+    }
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: meal.recipeId },
       include: {
@@ -1009,6 +1199,9 @@ export class MealPlansService {
       where: { id: req.plannedMealId },
       data: { recipeId: variantId },
     });
+    // F20(b) ↔ F22(c): the substitution changed the meal's macros, so the day
+    // total moved — run the same rebalance pipeline as every other edit.
+    await this.rebalanceDayInternal(meal.dayId);
     return this.get(userId, locale, req.planId);
   }
 
@@ -1326,6 +1519,12 @@ export class MealPlansService {
     req: AiSuggestIngredientRequest,
   ): Promise<AiSuggestIngredientResponse> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
+    if (!meal.recipeId) {
+      throw new BadRequestException({
+        error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
+        message: 'Custom meals have no ingredients to substitute.',
+      });
+    }
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: meal.recipeId },
       include: { ingredients: true },
@@ -1456,6 +1655,141 @@ export class MealPlansService {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
     return meal;
+  }
+
+  /** Load + authorise a plan day by ISO date. */
+  private async loadDay(userId: string, planId: string, date: string) {
+    const day = await this.prisma.mealPlanDay.findFirst({
+      where: { planId, date: new Date(date) },
+      include: { plan: { include: { profile: true } } },
+    });
+    if (!day) {
+      throw new NotFoundException({ error: 'REBALANCE_DAY_NOT_FOUND', message: 'Plan day not found.' });
+    }
+    if (day.plan.profile.userId !== userId) {
+      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
+    }
+    return day;
+  }
+
+  /**
+   * F22(c) rebalance one day's unchecked, non-custom meals toward its target and
+   * persist the new quantity scales. Returns the summary the UI toast renders,
+   * or null when the day has vanished.
+   */
+  private async rebalanceDayInternal(dayId: string): Promise<RebalanceSummary | null> {
+    const day = await this.prisma.mealPlanDay.findUnique({
+      where: { id: dayId },
+      include: { meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } } },
+    });
+    if (!day) return null;
+    const rows = day.meals.map(toRebalanceRow);
+    const macrosBefore = rowsMacros(rows, (r) => r.quantityScale);
+    const { scales, feasibility } = rebalanceDay(rows.map(toEngineMeal), day.calorieTarget);
+    const changes = await this.persistScales(rows, scales);
+    const macrosAfter = rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale);
+    return { feasibility, changes, macrosBefore, macrosAfter };
+  }
+
+  /** F22(c) week-aware variant: share the surplus/deficit across the plan week. */
+  private async rebalanceWeekInternal(planId: string, _date?: string): Promise<RebalanceSummary | null> {
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { id: planId },
+      include: {
+        days: {
+          orderBy: { date: 'asc' },
+          include: { meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } } },
+        },
+      },
+    });
+    if (!plan) return null;
+    // A plan in our duration range is a single week; `_date` is reserved for a
+    // future multi-week split.
+    const dayRows = plan.days.map((d) => ({ target: d.calorieTarget, rows: d.meals.map(toRebalanceRow) }));
+    const allRows = dayRows.flatMap((d) => d.rows);
+    const macrosBefore = rowsMacros(allRows, (r) => r.quantityScale);
+    const { scales, feasibility } = rebalanceWeek(
+      dayRows.map((d) => ({ target: d.target, meals: d.rows.map(toEngineMeal) })),
+    );
+    const changes = await this.persistScales(allRows, scales);
+    const macrosAfter = rowsMacros(allRows, (r) => scales.get(r.id) ?? r.quantityScale);
+    return { feasibility, changes, macrosBefore, macrosAfter };
+  }
+
+  /** Persist only the meals whose quantity scale actually changed. */
+  private async persistScales(
+    rows: RebalanceRow[],
+    scales: Map<string, number>,
+  ): Promise<RebalanceChange[]> {
+    const changes: RebalanceChange[] = [];
+    const now = new Date();
+    const updates = [];
+    for (const r of rows) {
+      const next = scales.get(r.id);
+      if (next === undefined || Math.abs(next - r.quantityScale) < 1e-9) continue;
+      changes.push({ mealId: r.id, before: r.quantityScale, after: next });
+      updates.push(
+        this.prisma.plannedMeal.update({
+          where: { id: r.id },
+          data: { quantityScale: next, lastRebalanceAt: now },
+        }),
+      );
+    }
+    if (updates.length > 0) await this.prisma.$transaction(updates);
+    return changes;
+  }
+
+  /** F22 undo: write the supplied scales verbatim (the toast's pre-edit map). */
+  private async restoreScales(
+    planId: string,
+    restore: { mealId: string; scale: number }[],
+  ): Promise<void> {
+    const meals = await this.prisma.plannedMeal.findMany({
+      where: { id: { in: restore.map((r) => r.mealId) }, day: { planId } },
+      select: { id: true, source: true, eatenAt: true },
+    });
+    const byId = new Map(meals.map((m) => [m.id, m]));
+    for (const r of restore) {
+      const m = byId.get(r.mealId);
+      if (!m) throw new NotFoundException({ error: 'MEAL_NOT_FOUND', message: 'Planned meal not found.' });
+      if (m.source === 'USER_CUSTOM' || m.eatenAt != null) {
+        throw new BadRequestException({
+          error: 'MEAL_NOT_REBALANCEABLE',
+          message: 'Custom and eaten meals are never rebalanced.',
+        });
+      }
+    }
+    const now = new Date();
+    await this.prisma.$transaction(
+      restore.map((r) =>
+        this.prisma.plannedMeal.update({
+          where: { id: r.mealId },
+          data: { quantityScale: r.scale, lastRebalanceAt: now },
+        }),
+      ),
+    );
+  }
+
+  private async buildRebalanceResult(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    scope: 'day' | 'week',
+    summary: RebalanceSummary | null,
+  ): Promise<RebalanceResult> {
+    const plan = await this.get(userId, locale, planId);
+    return {
+      plan,
+      rebalance: summary
+        ? {
+            scope,
+            feasibility: summary.feasibility,
+            changes: summary.changes,
+            macrosBefore: summary.macrosBefore,
+            macrosAfter: summary.macrosAfter,
+          }
+        : null,
+    };
   }
 
   private async loadEngineIngredient(id: string): Promise<EngineIngredient> {
@@ -1719,18 +2053,48 @@ export class MealPlansService {
       // also changed.
       const orderedMeals = [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType));
       const meals: PlannedMeal[] = orderedMeals.map((m) => {
+        // Effective amount folds the rebalancer multiplier into the baseline.
+        const factor = m.servings * m.quantityScale;
+        const eatenAt = m.eatenAt ? m.eatenAt.toISOString() : null;
+        // F22 custom meal: no catalogue recipe, macros frozen on the row.
+        if (m.source === 'USER_CUSTOM' || !m.recipe) {
+          const per = customMacros(m.customMacros);
+          return {
+            id: m.id,
+            mealType: m.mealType as MealType,
+            recipe: null,
+            source: 'USER_CUSTOM' as const,
+            customName: m.customName ?? null,
+            servings: m.servings,
+            quantityScale: m.quantityScale,
+            eatenAt,
+            dietOverride: false,
+            nutrition: {
+              calories: Math.round(per.calories * factor),
+              protein: Math.round(per.protein * factor),
+              fat: Math.round(per.fat * factor),
+              carbs: Math.round(per.carbs * factor),
+            },
+          };
+        }
         const recipe = toRecipeDto(m.recipe, locale);
         const n = recipe.nutritionPerServing;
         return {
           id: m.id,
           mealType: m.mealType as MealType,
           recipe,
+          source: 'CATALOGUE' as const,
+          customName: null,
           servings: m.servings,
+          quantityScale: m.quantityScale,
+          eatenAt,
+          // F22(a): a swapped-in favourite whose diet tags miss the plan diet.
+          dietOverride: plan.dietType !== 'custom' && !m.recipe.dietTags.includes(plan.dietType),
           nutrition: {
-            calories: Math.round(n.calories * m.servings),
-            protein: Math.round(n.protein * m.servings),
-            fat: Math.round(n.fat * m.servings),
-            carbs: Math.round(n.carbs * m.servings),
+            calories: Math.round(n.calories * factor),
+            protein: Math.round(n.protein * factor),
+            fat: Math.round(n.fat * factor),
+            carbs: Math.round(n.carbs * factor),
           },
         };
       });
@@ -1785,7 +2149,17 @@ interface PlanWithRelations {
     date: Date;
     calorieTarget: number;
     overrides: unknown;
-    meals: { id: string; mealType: string; servings: number; recipe: Parameters<typeof toRecipeDto>[0] }[];
+    meals: {
+      id: string;
+      mealType: string;
+      servings: number;
+      quantityScale: number;
+      source: 'CATALOGUE' | 'USER_CUSTOM';
+      customName: string | null;
+      customMacros: unknown;
+      eatenAt: Date | null;
+      recipe: Parameters<typeof toRecipeDto>[0] | null;
+    }[];
   }[];
 }
 
@@ -2176,6 +2550,105 @@ function parseAiIngredientPick(text: string): string | null {
     }
   }
   return null;
+}
+
+// ── F22 rebalance helpers ───────────────────────────────────────────────────
+
+type MacroQuad = { calories: number; protein: number; fat: number; carbs: number };
+
+/** Per-baseline-serving macros + state for one meal, fed to the rebalancer. */
+interface RebalanceRow {
+  id: string;
+  per: MacroQuad;
+  servings: number;
+  quantityScale: number;
+  locked: boolean;
+}
+
+interface RebalanceSummary {
+  feasibility: 'in-window' | 'best-effort';
+  changes: RebalanceChange[];
+  macrosBefore: MacroQuad;
+  macrosAfter: MacroQuad;
+}
+
+/** Prisma select for the per-serving macros the rebalancer reads off a recipe. */
+const REBALANCE_MACRO_SELECT = {
+  caloriesPerServing: true,
+  proteinPerServing: true,
+  fatPerServing: true,
+  carbsPerServing: true,
+} as const;
+
+type RebalanceMealRow = {
+  id: string;
+  source: 'CATALOGUE' | 'USER_CUSTOM';
+  customMacros: unknown;
+  eatenAt: Date | null;
+  servings: number;
+  quantityScale: number;
+  recipe: {
+    caloriesPerServing: number;
+    proteinPerServing: number;
+    fatPerServing: number;
+    carbsPerServing: number;
+  } | null;
+};
+
+function toRebalanceRow(m: RebalanceMealRow): RebalanceRow {
+  const per: MacroQuad =
+    m.source === 'USER_CUSTOM' || !m.recipe
+      ? customMacros(m.customMacros)
+      : {
+          calories: m.recipe.caloriesPerServing,
+          protein: m.recipe.proteinPerServing,
+          fat: m.recipe.fatPerServing,
+          carbs: m.recipe.carbsPerServing,
+        };
+  return {
+    id: m.id,
+    per,
+    servings: m.servings,
+    quantityScale: m.quantityScale,
+    // Pinned out of the rebalance set: user-owned custom macros or already eaten.
+    locked: m.source === 'USER_CUSTOM' || m.eatenAt != null,
+  };
+}
+
+const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({
+  id: r.id,
+  calories: r.per.calories,
+  servings: r.servings,
+  quantityScale: r.quantityScale,
+  locked: r.locked,
+});
+
+/** Sum a day/week's effective macros given a per-meal scale lookup. */
+function rowsMacros(rows: RebalanceRow[], scaleOf: (r: RebalanceRow) => number): MacroQuad {
+  return rows.reduce(
+    (acc, r) => {
+      const f = r.servings * scaleOf(r);
+      return {
+        calories: acc.calories + r.per.calories * f,
+        protein: acc.protein + r.per.protein * f,
+        fat: acc.fat + r.per.fat * f,
+        carbs: acc.carbs + r.per.carbs * f,
+      };
+    },
+    { calories: 0, protein: 0, fat: 0, carbs: 0 },
+  );
+}
+
+/** Read frozen, user-entered macros off a custom meal row (defaults to zero). */
+function customMacros(raw: unknown): { calories: number; protein: number; fat: number; carbs: number } {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  return {
+    calories: num(o.calories),
+    protein: num(o.protein),
+    fat: num(o.fat),
+    carbs: num(o.carbs),
+  };
 }
 
 function sumNutrition(items: { calories: number; protein: number; fat: number; carbs: number }[]) {
