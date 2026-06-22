@@ -58,7 +58,7 @@
     "@types/nodemailer": "8.0.1",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.20.0",
-    "eslint": "^9.39.4",
+    "eslint": "^10.5.0",
     "fast-check": "^4.8.0",
     "prisma": "^7.8.0",
     "tsx": "^4.22.4",
