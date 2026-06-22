@@ -8,6 +8,7 @@
  */
 export * from './enums.js';
 export * from './nutrition.js';
+export * from './config.js';
 export * from './auth.js';
 export * from './settings.js';
 export * from './profile.js';

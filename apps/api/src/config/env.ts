@@ -46,6 +46,9 @@ export const envSchema = z.object({
   ),
 
   TURNSTILE_ENABLED: boolFromString,
+  // Public site key — safe to expose to the browser via GET /api/config. The
+  // secret key never leaves the server.
+  TURNSTILE_SITE_KEY: z.string().optional(),
   TURNSTILE_SECRET_KEY: z.string().optional(),
 
   RATE_LIMIT_WINDOW: z.coerce.number().int().default(60),

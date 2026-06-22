@@ -17,6 +17,7 @@ import {
   type Theme,
 } from '@diet-app/shared';
 import { api, ApiClientError, tokenStore } from '@/lib/api';
+import { useConfig } from '@/lib/use-config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -800,16 +801,131 @@ function PasswordCard({ onChanged }: { onChanged: () => void }) {
 
 function EmailCard({ me }: { me: SessionUser }) {
   const t = useTranslations('settings');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
+  const config = useConfig();
+  const emailEnabled = config.data?.email.enabled ?? false;
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
+
+  function mapError(err: unknown, fallback: string): string {
+    return err instanceof ApiClientError
+      ? tErrors.has(err.code)
+        ? tErrors(err.code)
+        : err.message
+      : fallback;
+  }
+
+  const change = useMutation({
+    mutationFn: (body: { newEmail: string; currentPassword: string }) =>
+      api.post<void>('/users/me/email', body),
+    onSuccess: () => {
+      setSent(true);
+      setEditing(false);
+    },
+    onError: (err) => setError(mapError(err, t('changeEmailFailed'))),
+  });
+
+  const resend = useMutation({
+    mutationFn: () => api.post<void>('/users/me/email/resend-verification'),
+    onSuccess: () => setResendDone(true),
+    onError: (err) => setError(mapError(err, t('resendVerificationFailed'))),
+  });
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    const f = new FormData(event.currentTarget);
+    change.mutate({
+      newEmail: String(f.get('newEmail') ?? '').trim(),
+      currentPassword: String(f.get('currentPassword') ?? ''),
+    });
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t('email')}</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-1">
-        <p className="font-mono text-sm">{me.email}</p>
-        <p className="text-xs text-muted-foreground">
-          {me.emailVerified ? t('emailVerified') : t('emailUnverified')} · {t('emailHint')}
-        </p>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <p className="font-mono text-sm">{me.email}</p>
+          <p className="text-xs text-muted-foreground">
+            {me.emailVerified ? t('emailVerified') : t('emailUnverified')} · {t('emailHint')}
+          </p>
+        </div>
+
+        {/* Resend verification — only meaningful when unverified AND mail works. */}
+        {!me.emailVerified && emailEnabled && (
+          <div>
+            {resendDone ? (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                {t('resendVerificationSent')}
+              </p>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={resend.isPending}
+                onClick={() => {
+                  setError(null);
+                  resend.mutate();
+                }}
+              >
+                {resend.isPending ? t('resendVerificationSending') : t('resendVerification')}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Change email — gated entirely on SMTP being configured. */}
+        {sent ? (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400">{t('changeEmailSent')}</p>
+        ) : emailEnabled ? (
+          editing ? (
+            <form onSubmit={onSubmit} className="grid max-w-md gap-3 sm:grid-cols-2">
+              <Field label={t('changeEmailNew')}>
+                <Input name="newEmail" type="email" required autoComplete="email" />
+              </Field>
+              <Field label={t('currentPassword')}>
+                <Input
+                  name="currentPassword"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                />
+              </Field>
+              <div className="flex items-center gap-2 sm:col-span-2">
+                <Button type="submit" disabled={change.isPending}>
+                  {change.isPending ? t('changeEmailSending') : t('changeEmailSubmit')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditing(false);
+                    setError(null);
+                  }}
+                >
+                  {tCommon('cancel')}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+                {t('changeEmail')}
+              </Button>
+            </div>
+          )
+        ) : (
+          <p className="text-xs italic text-muted-foreground">{t('changeEmailDisabled')}</p>
+        )}
+
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </CardContent>
     </Card>
   );

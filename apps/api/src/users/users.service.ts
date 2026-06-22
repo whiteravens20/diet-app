@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'node:crypto';
 import {
   BadRequestException,
   Injectable,
@@ -6,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
+  ChangeEmailRequest,
   ChangePasswordRequest,
   DeleteAccountRequest,
   SessionUser,
@@ -13,8 +15,10 @@ import type {
 } from '@diet-app/shared';
 import { AiMode, Locale, Palette, Theme } from '@diet-app/shared';
 import * as bcrypt from 'bcryptjs';
-import { decrypt, deriveKey, pepperPassword } from '../common/crypto.js';
+import { blindIndex, decrypt, deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
+import { AuthService } from '../auth/auth.service.js';
+import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
@@ -27,14 +31,18 @@ import { PrismaService } from '../prisma/prisma.service.js';
 @Injectable()
 export class UsersService {
   private readonly emailKey: string;
+  private readonly emailIndexKey: string;
   private readonly pepperKey: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
+    private readonly mail: MailService,
+    private readonly auth: AuthService,
   ) {
     const master = this.config.get('DATA_ENCRYPTION_SECRET', { infer: true });
     this.emailKey = deriveKey(master, 'email-encryption');
+    this.emailIndexKey = deriveKey(master, 'email-blind-index');
     this.pepperKey = deriveKey(master, 'password-pepper');
   }
 
@@ -116,6 +124,81 @@ export class UsersService {
         data: { revokedAt: new Date() },
       }),
     ]);
+    // Best-effort "your password was changed" notice. Never let a mail hiccup
+    // fail the password change itself.
+    if (this.mail.enabled) {
+      try {
+        await this.mail.sendPasswordChangedNotice(
+          decrypt(user.emailEncrypted, this.emailKey),
+          Locale.parse(user.locale),
+        );
+      } catch {
+        // swallow — the password was already rotated successfully.
+      }
+    }
+  }
+
+  /**
+   * Requests an email change. Only available when SMTP is configured (the one
+   * email action gated entirely on mail): a confirmation link is sent to the
+   * NEW address and the change only lands once that link is followed
+   * (`AuthService.confirmEmailChange`).
+   */
+  async requestEmailChange(userId: string, dto: ChangeEmailRequest): Promise<void> {
+    if (!this.mail.enabled) {
+      throw new BadRequestException({
+        error: 'EMAIL_CHANGE_REQUIRES_SMTP',
+        message: 'Changing your email requires the operator to configure SMTP.',
+      });
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
+    const ok = await bcrypt.compare(
+      pepperPassword(dto.currentPassword, this.pepperKey),
+      user.passwordHash,
+    );
+    if (!ok) {
+      throw new UnauthorizedException({
+        error: 'INVALID_PASSWORD',
+        message: 'Current password is incorrect.',
+      });
+    }
+    const newEmail = dto.newEmail.trim().toLowerCase();
+    const newEmailIndex = blindIndex(newEmail, this.emailIndexKey);
+    // Covers both "already in use by someone else" and "this is already your
+    // address" — either way there's nothing to change.
+    const clash = await this.prisma.user.findUnique({ where: { emailIndex: newEmailIndex } });
+    if (clash) throw new BadRequestException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' });
+
+    const raw = randomBytes(32).toString('hex');
+    await this.prisma.emailChangeToken.create({
+      data: {
+        userId,
+        newEmailEncrypted: encrypt(newEmail, this.emailKey),
+        newEmailIndex,
+        tokenHash: createHash('sha256').update(raw).digest('hex'),
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
+    const link = `${this.config.get('APP_URL', { infer: true })}/confirm-email-change?token=${raw}`;
+    await this.mail.sendEmailChange(newEmail, link, Locale.parse(user.locale));
+  }
+
+  /** Re-sends the verification email for a logged-in, still-unverified user. */
+  async resendVerification(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
+    if (user.emailVerified) {
+      throw new BadRequestException({
+        error: 'EMAIL_ALREADY_VERIFIED',
+        message: 'This email address is already verified.',
+      });
+    }
+    await this.auth.sendVerificationEmail(
+      userId,
+      decrypt(user.emailEncrypted, this.emailKey),
+      Locale.parse(user.locale),
+    );
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {

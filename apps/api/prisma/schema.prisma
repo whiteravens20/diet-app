@@ -47,12 +47,14 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  profiles      Profile[]
-  refreshTokens RefreshToken[]
-  resetTokens   PasswordResetToken[]
-  aiConfigs     AiProviderConfig[]
-  aiUsageLogs   AiUsageLog[]
-  auditLogs     AuditLog[]
+  profiles           Profile[]
+  refreshTokens      RefreshToken[]
+  resetTokens        PasswordResetToken[]
+  verificationTokens EmailVerificationToken[]
+  emailChangeTokens  EmailChangeToken[]
+  aiConfigs          AiProviderConfig[]
+  aiUsageLogs        AiUsageLog[]
+  auditLogs          AuditLog[]
 }
 
 model RefreshToken {
@@ -75,6 +77,38 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// One-time token emailed at registration (and on resend) to confirm the user
+// owns the address. Only created when SMTP is configured; otherwise accounts
+// are auto-verified at creation.
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// One-time token emailed to the *new* address to confirm an email change. The
+// pending address is stored exactly like User.email* (never plaintext) and only
+// promoted onto the User once the link is followed.
+model EmailChangeToken {
+  id                String    @id @default(uuid())
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  newEmailEncrypted String
+  newEmailIndex     String
+  tokenHash         String    @unique
+  expiresAt         DateTime
+  usedAt            DateTime?
+  createdAt         DateTime  @default(now())
 
   @@index([userId])
 }

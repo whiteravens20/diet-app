@@ -55,6 +55,18 @@ export const RefreshRequest = z.object({
 });
 export type RefreshRequest = z.infer<typeof RefreshRequest>;
 
+/** Confirms an email address from a verification link. */
+export const VerifyEmailRequest = z.object({
+  token: z.string().min(1),
+});
+export type VerifyEmailRequest = z.infer<typeof VerifyEmailRequest>;
+
+/** Confirms a pending email change from the link sent to the new address. */
+export const ConfirmEmailChangeRequest = z.object({
+  token: z.string().min(1),
+});
+export type ConfirmEmailChangeRequest = z.infer<typeof ConfirmEmailChangeRequest>;
+
 /** Token pair returned by login / register / refresh. */
 export const AuthTokens = z.object({
   accessToken: z.string(),

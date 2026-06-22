@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AdminModule } from './admin/admin.module.js';
 import { DraftsModule } from './admin/drafts/drafts.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { AppConfigModule } from './app-config/app-config.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { validateEnv, type Env } from './config/env.js';
 import { FavoriteSetsModule } from './favorite-sets/favorite-sets.module.js';
@@ -45,6 +46,7 @@ import { WeightsModule } from './weights/weights.module.js';
     }),
     PrismaModule,
     HealthModule,
+    AppConfigModule,
     AuthModule,
     ProfilesModule,
     RecipesModule,

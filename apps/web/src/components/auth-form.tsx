@@ -8,7 +8,9 @@ import type { AuthResponse } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { TurnstileWidget } from '@/components/turnstile-widget';
 import { api, ApiClientError, tokenStore } from '@/lib/api';
+import { useConfig } from '@/lib/use-config';
 
 /** Shared login / registration form. */
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
@@ -18,6 +20,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const tRules = useTranslations('auth.passwordRules');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const config = useConfig();
+  const turnstile = config.data?.turnstile;
+  const [token, setToken] = useState<string | null>(null);
+  // Bumped to force a fresh Turnstile challenge after a failed submit.
+  const [widgetKey, setWidgetKey] = useState(0);
+  const needsToken = Boolean(turnstile?.enabled && turnstile.siteKey);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,6 +36,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       email: String(form.get('email')),
       password: String(form.get('password')),
       ...(mode === 'register' ? { displayName: String(form.get('displayName')) } : {}),
+      ...(needsToken ? { turnstileToken: token ?? undefined } : {}),
     };
     try {
       const res = await api.post<AuthResponse>(`/auth/${mode}`, body);
@@ -40,6 +49,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         setError(tErrors.has(err.code) ? tErrors(err.code) : err.message);
       } else {
         setError(tErrors('GENERIC'));
+      }
+      // The just-used token is single-shot — reset the challenge for a retry.
+      if (needsToken) {
+        setToken(null);
+        setWidgetKey((k) => k + 1);
       }
     } finally {
       setLoading(false);
@@ -86,8 +100,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               <li>• {tRules('digit')}</li>
             </ul>
           )}
+          {needsToken && turnstile?.siteKey && (
+            <TurnstileWidget key={widgetKey} siteKey={turnstile.siteKey} onToken={setToken} />
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || (needsToken && !token)}>
             {loading
               ? t('submitting')
               : mode === 'login'

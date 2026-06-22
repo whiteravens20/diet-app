@@ -87,6 +87,46 @@ docker compose exec ollama ollama pull llama3.1:8b
 Set `AI_DEFAULT_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://ollama:11434`. GPU mode needs
 the NVIDIA Container Toolkit on the host.
 
+## Anti-abuse (Turnstile)
+
+Cloudflare Turnstile is **optional** and **off by default** (`TURNSTILE_ENABLED=false`);
+rate limiting protects the auth endpoints regardless. To turn it on, set all three:
+
+```env
+TURNSTILE_ENABLED=true
+TURNSTILE_SITE_KEY=0x...      # public — served to the browser via GET /api/config
+TURNSTILE_SECRET_KEY=0x...    # secret — stays on the server
+```
+
+The widget then renders on **Register, Login, and Forgot-password**; the front-end
+reads the site key from `/api/config` at runtime, so no web rebuild is needed to
+flip it. With `TURNSTILE_ENABLED=true` but the keys missing, verification
+fails closed (every submit is rejected).
+
+## Email (SMTP)
+
+Email is **optional**. "Configured" means **`SMTP_HOST` is set**:
+
+```env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587                 # 465 = implicit TLS; 587/25 = STARTTLS
+SMTP_USER=...
+SMTP_PASSWORD=...
+SMTP_FROM=no-reply@your-domain
+```
+
+Behaviour switches on whether SMTP is configured:
+
+| Action | SMTP configured | SMTP blank |
+|---|---|---|
+| Register | account starts **unverified** + a confirmation email is sent | account is **auto-verified** at creation (nothing to verify against) |
+| Forgot password | reset link is **emailed** | reset link is **logged to the api stdout** (dev convenience) |
+| Change password (in Settings) | applies immediately + a "password changed" **notice email** | applies immediately, no email |
+| **Change email** (in Settings) | confirmation link emailed to the **new** address; change lands on confirm | **not available** — the option is hidden |
+
+Changing the account email is the one action gated entirely on SMTP. All confirmation
+links expire after 1 hour.
+
 ## Production notes
 
 - Set strong `JWT_*` secrets and a 64-hex `AI_KEY_ENCRYPTION_SECRET` (`openssl rand`).

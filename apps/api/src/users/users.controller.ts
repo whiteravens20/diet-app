@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ChangeEmailRequest,
   ChangePasswordRequest,
   DeleteAccountRequest,
   UpdateUserSettings,
@@ -43,6 +44,21 @@ export class UsersController {
     @Body(new ZodValidationPipe(ChangePasswordRequest)) dto: ChangePasswordRequest,
   ) {
     await this.users.changePassword(user.id, dto);
+  }
+
+  @Post('email')
+  @HttpCode(202)
+  async requestEmailChange(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(ChangeEmailRequest)) dto: ChangeEmailRequest,
+  ) {
+    await this.users.requestEmailChange(user.id, dto);
+  }
+
+  @Post('email/resend-verification')
+  @HttpCode(202)
+  async resendVerification(@CurrentUser() user: RequestUser) {
+    await this.users.resendVerification(user.id);
   }
 
   @Delete()

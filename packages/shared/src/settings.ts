@@ -86,3 +86,14 @@ export const DeleteAccountRequest = z.object({
   currentPassword: z.string().min(1).max(128),
 });
 export type DeleteAccountRequest = z.infer<typeof DeleteAccountRequest>;
+
+/**
+ * Requests a change of the account email. Only available when the instance has
+ * SMTP configured — a confirmation link is sent to the new address, and the
+ * change only takes effect once that link is followed.
+ */
+export const ChangeEmailRequest = z.object({
+  newEmail: z.string().email(),
+  currentPassword: z.string().min(1).max(128),
+});
+export type ChangeEmailRequest = z.infer<typeof ChangeEmailRequest>;

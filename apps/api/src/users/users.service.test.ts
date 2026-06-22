@@ -22,6 +22,11 @@ const config = {
   },
 };
 
+// Mail off by default — the password/settings/delete paths under test don't
+// depend on delivery, and `enabled: false` skips the notice email.
+const mail = { enabled: false, sendPasswordChangedNotice: vi.fn() };
+const auth = { sendVerificationEmail: vi.fn() };
+
 function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'user-1',
@@ -60,7 +65,7 @@ describe('UsersService', () => {
   beforeEach(() => {
     prisma = makePrisma(makeUser());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    service = new UsersService(prisma as any, config as any);
+    service = new UsersService(prisma as any, config as any, mail as any, auth as any);
   });
 
   describe('getMe', () => {
@@ -74,7 +79,7 @@ describe('UsersService', () => {
     it('throws USER_NOT_FOUND when missing', async () => {
       prisma = makePrisma(null);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      service = new UsersService(prisma as any, config as any);
+      service = new UsersService(prisma as any, config as any, mail as any, auth as any);
       await expect(service.getMe('nope')).rejects.toBeInstanceOf(NotFoundException);
     });
   });
@@ -95,7 +100,7 @@ describe('UsersService', () => {
     it('rejects byok flip when the user has zero enabled provider configs', async () => {
       prisma = makePrisma(makeUser(), 0);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      service = new UsersService(prisma as any, config as any);
+      service = new UsersService(prisma as any, config as any, mail as any, auth as any);
       await expect(service.updateSettings('user-1', { aiMode: 'byok' })).rejects.toMatchObject({
         response: expect.objectContaining({ error: 'BYOK_NO_PROVIDER' }),
       });
@@ -105,7 +110,7 @@ describe('UsersService', () => {
     it('allows byok flip when at least one provider config is enabled', async () => {
       prisma = makePrisma(makeUser(), 1);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      service = new UsersService(prisma as any, config as any);
+      service = new UsersService(prisma as any, config as any, mail as any, auth as any);
       await service.updateSettings('user-1', { aiMode: 'byok' });
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },

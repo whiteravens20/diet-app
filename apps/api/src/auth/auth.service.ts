@@ -3,7 +3,6 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -15,9 +14,11 @@ import type {
   PasswordResetRequest,
   RegisterRequest,
 } from '@diet-app/shared';
+import { Locale } from '@diet-app/shared';
 import * as bcrypt from 'bcryptjs';
 import { blindIndex, decrypt, deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
+import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TurnstileService } from './turnstile.service.js';
 
@@ -26,8 +27,6 @@ const DUMMY_HASH = '$2b$12$invalidinvalidinvalidinvalidinvalidinvalidina';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   // Purpose-specific keys derived from the single DATA_ENCRYPTION_SECRET.
   private readonly emailKey: string;
   private readonly emailIndexKey: string;
@@ -38,6 +37,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService<Env, true>,
     private readonly turnstile: TurnstileService,
+    private readonly mail: MailService,
   ) {
     const master = this.config.get('DATA_ENCRYPTION_SECRET', { infer: true });
     this.emailKey = deriveKey(master, 'email-encryption');
@@ -45,7 +45,7 @@ export class AuthService {
     this.pepperKey = deriveKey(master, 'password-pepper');
   }
 
-  async register(dto: RegisterRequest): Promise<AuthResponse> {
+  async register(dto: RegisterRequest, locale: Locale = 'en'): Promise<AuthResponse> {
     await this.assertHuman(dto.turnstileToken);
     const email = normalizeEmail(dto.email);
     const emailIndex = blindIndex(email, this.emailIndexKey);
@@ -60,9 +60,27 @@ export class AuthService {
         emailEncrypted: encrypt(email, this.emailKey),
         passwordHash: await this.hashPassword(dto.password, rounds),
         displayName: dto.displayName,
+        // With mail configured the address must be confirmed via an emailed
+        // link; without it there's nothing to verify against, so the account is
+        // trusted-verified immediately ("od ręki").
+        emailVerified: !this.mail.enabled,
       },
     });
+    if (this.mail.enabled) await this.sendVerificationEmail(user.id, email, locale);
     return this.issueTokens(user, email);
+  }
+
+  /**
+   * Issues a fresh verification token and emails the confirm link. Public so
+   * the logged-in "resend verification" flow in UsersService can reuse it.
+   */
+  async sendVerificationEmail(userId: string, email: string, locale: Locale): Promise<void> {
+    const raw = randomBytes(32).toString('hex');
+    await this.prisma.emailVerificationToken.create({
+      data: { userId, tokenHash: sha256(raw), expiresAt: new Date(Date.now() + 3_600_000) },
+    });
+    const link = `${this.config.get('APP_URL', { infer: true })}/verify-email?token=${raw}`;
+    await this.mail.sendEmailVerification(email, link, locale);
   }
 
   async login(dto: LoginRequest): Promise<AuthResponse> {
@@ -123,8 +141,66 @@ export class AuthService {
       },
     });
     const link = `${this.config.get('APP_URL', { infer: true })}/reset-password?token=${raw}`;
-    // TODO(email): deliver via SMTP when configured. Dev mode logs the link.
-    this.logger.log(`Password reset link for ${email}: ${link}`);
+    // Emails the link when SMTP is configured; otherwise MailService logs it to
+    // stdout (the previous dev behaviour). Use the user's stored locale.
+    await this.mail.sendPasswordReset(email, link, Locale.parse(user.locale));
+  }
+
+  /** Confirms an email address from a verification link. */
+  async verifyEmail(rawToken: string): Promise<void> {
+    const token = await this.prisma.emailVerificationToken.findUnique({
+      where: { tokenHash: sha256(rawToken) },
+    });
+    if (!token || token.usedAt || token.expiresAt < new Date()) {
+      throw new BadRequestException({
+        error: 'INVALID_VERIFICATION_TOKEN',
+        message: 'Verification link is invalid or expired.',
+      });
+    }
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: token.userId }, data: { emailVerified: true } }),
+      this.prisma.emailVerificationToken.update({
+        where: { id: token.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+  }
+
+  /**
+   * Confirms a pending email change from the link sent to the *new* address.
+   * Re-checks the new address is still free, promotes it onto the User (marking
+   * it verified), and revokes active sessions so the next sign-in uses the new
+   * identity.
+   */
+  async confirmEmailChange(rawToken: string): Promise<void> {
+    const token = await this.prisma.emailChangeToken.findUnique({
+      where: { tokenHash: sha256(rawToken) },
+    });
+    if (!token || token.usedAt || token.expiresAt < new Date()) {
+      throw new BadRequestException({
+        error: 'INVALID_EMAIL_CHANGE_TOKEN',
+        message: 'Email-change link is invalid or expired.',
+      });
+    }
+    const clash = await this.prisma.user.findUnique({ where: { emailIndex: token.newEmailIndex } });
+    if (clash && clash.id !== token.userId) {
+      throw new ConflictException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' });
+    }
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: token.userId },
+        data: {
+          emailEncrypted: token.newEmailEncrypted,
+          emailIndex: token.newEmailIndex,
+          emailVerified: true,
+        },
+      }),
+      this.prisma.emailChangeToken.update({ where: { id: token.id }, data: { usedAt: new Date() } }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: token.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 
   async confirmPasswordReset(dto: PasswordResetConfirm): Promise<void> {

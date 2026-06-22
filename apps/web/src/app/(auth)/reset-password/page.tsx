@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { PASSWORD_RULES } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,9 @@ import { Field, Input } from '@/components/ui/input';
 function ResetPasswordInner() {
   const router = useRouter();
   const params = useSearchParams();
+  const t = useTranslations('auth');
+  const tRules = useTranslations('auth.passwordRules');
+  const tErrors = useTranslations('errors');
   const token = params.get('token') ?? '';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,7 +32,7 @@ function ResetPasswordInner() {
     const password = String(f.get('password'));
     const confirm = String(f.get('confirm'));
     if (password !== confirm) {
-      setError('The two passwords do not match.');
+      setError(t('passwordsDontMatch'));
       setLoading(false);
       return;
     }
@@ -41,8 +44,10 @@ function ResetPasswordInner() {
     } catch (err) {
       setError(
         err instanceof ApiClientError
-          ? err.message
-          : 'Could not reset the password. The link may have expired.',
+          ? tErrors.has(err.code)
+            ? tErrors(err.code)
+            : err.message
+          : t('resetFailed'),
       );
     } finally {
       setLoading(false);
@@ -53,15 +58,17 @@ function ResetPasswordInner() {
     return (
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">Missing token</CardTitle>
+          <CardTitle className="text-xl">{t('missingTokenTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p className="text-muted-foreground">
-            This page expects a reset token in the URL. Request a new email from{' '}
-            <Link href="/forgot-password" className="text-primary hover:underline">
-              forgot password
-            </Link>
-            .
+            {t.rich('missingTokenBody', {
+              link: (chunks) => (
+                <Link href="/forgot-password" className="text-primary hover:underline">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         </CardContent>
       </Card>
@@ -72,11 +79,9 @@ function ResetPasswordInner() {
     return (
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">Password updated</CardTitle>
+          <CardTitle className="text-xl">{t('newPasswordDone')}</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Sending you to sign in…
-        </CardContent>
+        <CardContent className="text-sm text-muted-foreground">{t('redirecting')}</CardContent>
       </Card>
     );
   }
@@ -84,11 +89,11 @@ function ResetPasswordInner() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-xl">Set a new password</CardTitle>
+        <CardTitle className="text-xl">{t('newPasswordTitle')}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4">
-          <Field label="New password">
+          <Field label={t('newPasswordField')}>
             <Input
               name="password"
               type="password"
@@ -97,7 +102,7 @@ function ResetPasswordInner() {
               autoComplete="new-password"
             />
           </Field>
-          <Field label="Confirm new password">
+          <Field label={t('confirmPasswordField')}>
             <Input
               name="confirm"
               type="password"
@@ -107,13 +112,13 @@ function ResetPasswordInner() {
             />
           </Field>
           <ul className="-mt-2 space-y-0.5 text-xs text-muted-foreground">
-            {PASSWORD_RULES.map((rule) => (
-              <li key={rule}>• {rule}</li>
-            ))}
+            <li>• {tRules('minLength')}</li>
+            <li>• {tRules('case')}</li>
+            <li>• {tRules('digit')}</li>
           </ul>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Please wait…' : 'Update password'}
+            {loading ? t('submitting') : t('newPasswordSubmit')}
           </Button>
         </form>
       </CardContent>
