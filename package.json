@@ -9,7 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/whiteravens20/diet-app.git"
   },
-  "packageManager": "npm@11.16.0",
+  "packageManager": "npm@11.17.0",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -43,6 +43,8 @@
   "overrides": {
     "postcss": "^8.5.10",
     "@hono/node-server": "^1.19.13",
+    "multer": "^2.2.0",
+    "js-yaml": "^4.2.0",
     "next": {
       "postcss": "^8.5.10"
     }

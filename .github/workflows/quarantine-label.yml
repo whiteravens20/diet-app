@@ -26,106 +26,53 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Check package quarantine
         id: quarantine
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
           QUARANTINE_DAYS: 7
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-
-          BLOCKED_PKGS=""
-
-          # Extract changed packages from backend and frontend package.json files.
-          # gh pr diff doesn't support -- file filtering, so use awk to isolate
-          # only added lines from the relevant sections of the diff.
-          # The @? in the regex handles scoped packages like @tailwindcss/vite.
-          PACKAGES=$(gh pr diff "$PR_NUMBER" 2>/dev/null \
-            | awk '
-                /^\+\+\+ b\/(backend|frontend)\/package\.json/ { in_file=1; next }
-                /^\+\+\+/ { in_file=0 }
-                in_file && /^\+/ && !/^\+\+\+/ { print }
-              ' \
-            | grep -oP '"@?[^"]+": "\d[^"]*"' \
-            | grep -vP '"(version|name|description|main|module|license|author|repository)":' \
-            | sed 's/": "/|/; s/"//g' || true)
-
-          if [ -z "$PACKAGES" ]; then
-            echo "No package changes detected."
-            echo "blocked=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          NOW=$(date +%s)
-
-          while IFS='|' read -r PKG VERSION; do
-            [ -z "$PKG" ] && continue
-
-            PUBLISHED=$(npm view "${PKG}@${VERSION}" time --json 2>/dev/null \
-              | jq -r --arg v "$VERSION" '.[$v] // empty' 2>/dev/null || true)
-
-            if [ -z "$PUBLISHED" ]; then
-              echo "⚠️  ${PKG}@${VERSION} — publish date unknown, treating as blocked"
-              BLOCKED_PKGS="${BLOCKED_PKGS}\n- \`${PKG}@${VERSION}\` — publish date unknown"
-              continue
-            fi
-
-            PUB_TS=$(date -d "$PUBLISHED" +%s 2>/dev/null || date -D "%Y-%m-%dT%H:%M:%S" -d "$PUBLISHED" +%s 2>/dev/null || echo 0)
-            AGE_DAYS=$(( (NOW - PUB_TS) / 86400 ))
-
-            if [ "$AGE_DAYS" -lt "$QUARANTINE_DAYS" ]; then
-              echo "🔒 ${PKG}@${VERSION} — ${AGE_DAYS}d old (needs ${QUARANTINE_DAYS}d)"
-              BLOCKED_PKGS="${BLOCKED_PKGS}\n- \`${PKG}@${VERSION}\` — ${AGE_DAYS}d old (needs ${QUARANTINE_DAYS}d)"
-            else
-              echo "✅ ${PKG}@${VERSION} — ${AGE_DAYS}d old (OK)"
-            fi
-          done <<< "$PACKAGES"
-
-          if [ -n "$BLOCKED_PKGS" ]; then
-            echo "blocked=true" >> "$GITHUB_OUTPUT"
-            # Escape newlines for GitHub Actions output
-            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-            echo "details<<$EOF" >> "$GITHUB_OUTPUT"
-            echo -e "$BLOCKED_PKGS" >> "$GITHUB_OUTPUT"
-            echo "$EOF" >> "$GITHUB_OUTPUT"
-          else
-            echo "blocked=false" >> "$GITHUB_OUTPUT"
-          fi
+          RESULT=$(node .github/scripts/check-quarantine.mjs "${{ github.event.pull_request.number }}")
+          echo "blocked=$(echo "$RESULT" | jq -r .blocked)" >> "$GITHUB_OUTPUT"
+          {
+            echo "details<<__QUARANTINE_EOF__"
+            echo "$RESULT" | jq -r .details
+            echo "__QUARANTINE_EOF__"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Add quarantine label
         if: steps.quarantine.outputs.blocked == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           DETAILS: ${{ steps.quarantine.outputs.details }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr edit "$PR_NUMBER" --add-label "min-release-age"
           # Only comment if this is a new label addition (avoid spam on re-runs)
           EXISTING=$(gh pr view "$PR_NUMBER" --json comments --jq '.comments[].body' | grep -c "min-release-age quarantine" || true)
           if [ "$EXISTING" -eq 0 ]; then
             gh pr comment "$PR_NUMBER" --body "🔒 **min-release-age quarantine**
-            The following packages do not yet meet the 7-day release-age policy:
-            ${DETAILS}
-            This label will be automatically removed once all packages pass quarantine. Re-checked daily at 06:00 UTC."
+          The following packages do not yet meet the 7-day release-age policy:
+          ${DETAILS}
+          This label will be automatically removed once all packages pass quarantine. Re-checked daily at 06:00 UTC."
           fi
 
       - name: Remove quarantine label
         if: steps.quarantine.outputs.blocked == 'false'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Only remove if label exists
           HAS_LABEL=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name' | grep -c "min-release-age" || true)
           if [ "$HAS_LABEL" -gt 0 ]; then
             gh pr edit "$PR_NUMBER" --remove-label "min-release-age"
             gh pr comment "$PR_NUMBER" --body "✅ **Quarantine cleared** — all packages now meet the 7-day release-age policy. Safe to merge."
           fi
 
-  # Scheduled re-check of all open Dependabot PRs with quarantine label
+  # Scheduled re-check of all open Dependabot PRs with the quarantine label
   recheck:
     name: Re-check quarantined PRs
     if: github.event_name == 'schedule'
@@ -141,16 +88,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Re-check all quarantined PRs
         env:
           QUARANTINE_DAYS: 7
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-
-          # Find open PRs with the min-release-age label
           PRS=$(gh pr list --state open --label "min-release-age" --json number --jq '.[].number')
 
           if [ -z "$PRS" ]; then
@@ -158,51 +103,10 @@ jobs:
             exit 0
           fi
 
-          NOW=$(date +%s)
-
           for PR_NUMBER in $PRS; do
             echo "--- Checking PR #${PR_NUMBER} ---"
-            STILL_BLOCKED=false
-
-            PACKAGES=$(gh pr diff "$PR_NUMBER" 2>/dev/null \
-              | awk '
-                  /^\+\+\+ b\/(backend|frontend)\/package\.json/ { in_file=1; next }
-                  /^\+\+\+/ { in_file=0 }
-                  in_file && /^\+/ && !/^\+\+\+/ { print }
-                ' \
-              | grep -oP '"@?[^"]+": "\d[^"]*"' \
-              | grep -vP '"(version|name|description|main|module|license|author|repository)":' \
-              | sed 's/": "/|/; s/"//g' || true)
-
-            if [ -z "$PACKAGES" ]; then
-              echo "  No package changes — removing label"
-              gh pr edit "$PR_NUMBER" --remove-label "min-release-age"
-              continue
-            fi
-
-            while IFS='|' read -r PKG VERSION; do
-              [ -z "$PKG" ] && continue
-
-              PUBLISHED=$(npm view "${PKG}@${VERSION}" time --json 2>/dev/null \
-                | jq -r --arg v "$VERSION" '.[$v] // empty' 2>/dev/null || true)
-
-              if [ -z "$PUBLISHED" ]; then
-                STILL_BLOCKED=true
-                continue
-              fi
-
-              PUB_TS=$(date -d "$PUBLISHED" +%s 2>/dev/null || echo 0)
-              AGE_DAYS=$(( (NOW - PUB_TS) / 86400 ))
-
-              if [ "$AGE_DAYS" -lt "$QUARANTINE_DAYS" ]; then
-                echo "  🔒 ${PKG}@${VERSION} — ${AGE_DAYS}d old"
-                STILL_BLOCKED=true
-              else
-                echo "  ✅ ${PKG}@${VERSION} — ${AGE_DAYS}d old (OK)"
-              fi
-            done <<< "$PACKAGES"
-
-            if [ "$STILL_BLOCKED" = false ]; then
+            RESULT=$(node .github/scripts/check-quarantine.mjs "$PR_NUMBER")
+            if [ "$(echo "$RESULT" | jq -r .blocked)" = "false" ]; then
               echo "  Quarantine cleared for PR #${PR_NUMBER}"
               gh pr edit "$PR_NUMBER" --remove-label "min-release-age"
               gh pr comment "$PR_NUMBER" --body "✅ **Quarantine cleared** — all packages now meet the 7-day release-age policy. Safe to merge."

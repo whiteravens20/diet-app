@@ -30,3 +30,9 @@ updates:
     groups:
       non-breaking:
         update-types: [minor, patch]
+    ignore:
+      # ESLint 10 breaks eslint-config-next@16's plugin chain
+      # (`scopeManager.addGlobals is not a function`) — pinned to 9.x per
+      # ADR 0004. Remove this once eslint-config-next supports ESLint 10.
+      - dependency-name: "eslint"
+        versions: ["10.x"]
