@@ -32,10 +32,10 @@
     "@eslint/js": "^9.39.4",
     "eslint": "^9.39.4",
     "husky": "9.1.7",
-    "prettier": "^3.4.2",
-    "turbo": "^2.9.16",
+    "prettier": "^3.8.4",
+    "turbo": "^2.9.18",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1"
+    "typescript-eslint": "^8.62.0"
   },
   "engines": {
     "node": ">=24"
