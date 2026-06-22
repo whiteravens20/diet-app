@@ -49,7 +49,9 @@ in `package-lock.json`; the ranges below are the manifest pins.
 - **ESLint 9, not 10** — `eslint-config-next@16`'s plugin chain is not yet ESLint-10
   compatible. [ADR 0004](../adr/0004-eslint-major-fallback.md).
 - **`min-release-age` not set** in `.npmrc` — it broke resolution of the newest releases
-  with the current npm. Supply-chain hardening still relies on `ignore-scripts`,
-  `npm audit signatures` and Trivy/CodeQL.
+  with the current npm. Release-age is instead enforced on Dependabot PRs by the
+  `min-release-age` quarantine workflow (7-day hold, see
+  `.github/workflows/quarantine-label.yml`). Supply-chain hardening also relies on
+  `ignore-scripts`, `npm audit signatures` and Trivy/CodeQL.
 
 Regenerate this matrix when bumping majors; record any new deviation as an ADR.

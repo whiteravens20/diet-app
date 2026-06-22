@@ -4,10 +4,13 @@
 
 FROM node:24-alpine AS base
 WORKDIR /app
+# Upgrade the alpine ssl libs to pull the patched libcrypto3/libssl3
+# (CVE-2026-45447, OpenSSL PKCS7_verify UAF).
+RUN apk upgrade --no-cache libcrypto3 libssl3
 # Match the host/CI npm pinned in package.json's packageManager field.
 # Using `npm install -g` instead of corepack — npm's fetcher has built-in
 # retries that corepack lacks, which matters on flaky build networks.
-RUN npm install -g npm@11.16.0
+RUN npm install -g npm@11.17.0
 
 # ── deps + build ──────────────────────────────────────────────────────────────
 FROM base AS build
