@@ -7,6 +7,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
+import { applySecurityHeaders } from './common/security.js';
 import type { Env } from './config/env.js';
 
 async function bootstrap(): Promise<void> {
@@ -14,6 +15,8 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService) as ConfigService<Env, true>;
 
   app.setGlobalPrefix('api');
+  // Defence-in-depth security headers on /api/* — see common/security.ts.
+  applySecurityHeaders(app);
   app.useGlobalFilters(new AllExceptionsFilter());
   // Input validation is per-route via ZodValidationPipe against packages/shared.
   app.enableCors({ origin: config.get('APP_URL', { infer: true }), credentials: true });

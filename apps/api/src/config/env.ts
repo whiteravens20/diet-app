@@ -17,7 +17,6 @@ export const envSchema = z.object({
   APP_URL: z.string().url().default('http://localhost:3000'),
 
   DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().url().default('redis://localhost:6379'),
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
@@ -47,6 +46,15 @@ export const envSchema = z.object({
     z.string().url().default('http://localhost:11434'),
   ),
 
+  // USDA FoodData Central importer (admin-triggered). `DEMO_KEY` is FDC's public
+  // rate-limited key; operators set a real key for bulk imports.
+  FDC_API_KEY: z.string().default('DEMO_KEY'),
+  FDC_DATA_TYPES: z.string().default('Foundation'),
+
+  // Override the curated `data/` directory location (tests / non-standard
+  // layouts). Read by the non-DI CLI path helper `admin/seed/data-hash.ts`.
+  SEED_DATA_DIR: z.string().optional(),
+
   TURNSTILE_ENABLED: boolFromString,
   // Public site key — safe to expose to the browser via GET /api/config. The
   // secret key never leaves the server.
@@ -68,7 +76,7 @@ export const envSchema = z.object({
   ADMIN_USER: z.string().default('admin'),
   ADMIN_PASSWORD: z.string().default(''),
 
-  // Curation-queue ship mechanism (Phase E).
+  // Curation-queue ship mechanism.
   //
   // Three ship modes are exposed by the curation queue: `local` (writes to
   // live DB tables with source=MANUAL + a gitignored sidecar file in

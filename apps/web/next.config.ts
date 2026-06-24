@@ -2,6 +2,7 @@
 
 import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
+import { SECURITY_HEADERS } from './src/lib/security-headers';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -21,6 +22,10 @@ const config: NextConfig = {
   // or a domain without reconfiguration.
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${API_PROXY_URL}/api/:path*` }];
+  },
+  // Security headers on every response. See src/lib/security-headers.ts.
+  async headers() {
+    return [{ source: '/:path*', headers: SECURITY_HEADERS.map((h) => ({ ...h })) }];
   },
 };
 

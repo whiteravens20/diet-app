@@ -22,7 +22,7 @@ export const SEED_FILES = [
 ] as const;
 
 /** Subdirectory globbed for per-batch recipe files shipped by the curation
- *  queue (Phase D). Every `<batchId>.json` inside is folded into the seed
+ *  queue. Every `<batchId>.json` inside is folded into the seed
  *  hash so newly-shipped batches flip the "update available" flag. */
 const SEED_DIRS = ['recipes'] as const;
 
@@ -47,6 +47,7 @@ export interface DataState {
  * Override via `SEED_DATA_DIR` for tests / non-standard layouts.
  */
 export function resolveDataDir(): string {
+  // eslint-disable-next-line no-restricted-syntax -- non-DI path helper; also called from CLI scripts (seed/validate-data) that run outside Nest, so ConfigService is unavailable here
   if (process.env.SEED_DATA_DIR) return resolve(process.env.SEED_DATA_DIR);
   const candidates = [
     resolve(process.cwd(), 'data'),

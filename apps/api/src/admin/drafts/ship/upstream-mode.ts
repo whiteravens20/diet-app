@@ -374,6 +374,7 @@ async function commitAndPush(
   if (config.authorEmail) commitEnv.GIT_AUTHOR_EMAIL = config.authorEmail;
   if (config.authorName) commitEnv.GIT_COMMITTER_NAME = config.authorName;
   if (config.authorEmail) commitEnv.GIT_COMMITTER_EMAIL = config.authorEmail;
+  // eslint-disable-next-line no-restricted-syntax -- subprocess plumbing: git needs the inherited PATH/HOME; we layer the commit identity on top
   run(repoRoot, ['commit', '-m', commitMessage], { env: { ...process.env, ...commitEnv } });
   run(repoRoot, ['push', '-u', config.remote, branch]);
 }
@@ -384,6 +385,7 @@ async function createPullRequest(
   branch: string,
   pr: { title: string; body: string },
 ): Promise<string> {
+  // eslint-disable-next-line no-restricted-syntax -- subprocess plumbing: gh needs the inherited PATH/HOME; we layer GH_TOKEN on top
   const env: NodeJS.ProcessEnv = { ...process.env };
   if (config.ghToken) env.GH_TOKEN = config.ghToken;
   const result = spawnSync(

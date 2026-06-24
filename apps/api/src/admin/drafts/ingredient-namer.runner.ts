@@ -351,11 +351,11 @@ export class IngredientNamerRunner {
   private adapterKey(adapter: AiProviderAdapter): string | undefined {
     switch (adapter.kind) {
       case 'openai':
-        return process.env.OPENAI_API_KEY;
+        return this.config.get('OPENAI_API_KEY', { infer: true });
       case 'anthropic':
-        return process.env.ANTHROPIC_API_KEY;
+        return this.config.get('ANTHROPIC_API_KEY', { infer: true });
       case 'openrouter':
-        return process.env.OPENROUTER_API_KEY;
+        return this.config.get('OPENROUTER_API_KEY', { infer: true });
       case 'ollama':
         return undefined;
     }

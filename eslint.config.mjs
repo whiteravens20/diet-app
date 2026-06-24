@@ -16,4 +16,22 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    // Secrets/config are resolved through the validated config layer
+    // (config/env.ts + ConfigService), never ad-hoc process.env reads. The few
+    // legitimate bootstrap/subprocess reads carry an inline eslint-disable with
+    // a reason. Tests may stub env freely.
+    files: ['src/**/*.ts'],
+    ignores: ['src/**/*.test.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[object.name='process'][property.name='env']",
+          message:
+            'Resolve configuration through ConfigService / config/env.ts, not process.env directly.',
+        },
+      ],
+    },
+  },
 );

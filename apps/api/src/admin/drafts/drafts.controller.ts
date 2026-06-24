@@ -1,14 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Curation queue endpoints.
+ * Curation queue endpoints: ingredient-name drafts, recipe drafts (with a
+ * dry-run PATCH for live nutrition recompute) and the ship endpoints — all on
+ * this one controller.
  *
- * Phase C: ingredient-name drafts. Phase D extends with recipe drafts +
- * dry-run PATCH for live nutrition recompute. Ship endpoints arrive in
- * Phase E on the same controller.
- *
- * Auth: BasicAuthGuard, like the rest of /api/admin. Reviewer-cookie auth is
- * Phase H and lives on a separate controller (`/api/review/*`).
+ * Auth: BasicAuthGuard, like the rest of /api/admin. Reviewer-cookie auth lives
+ * on a separate controller (`/api/review/*`).
  */
 import {
   BadRequestException,
@@ -32,6 +30,7 @@ import {
 import type { Response } from 'express';
 import { resolve as resolvePath } from 'node:path';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import {
   IngredientNameGenerateSpec,
   IngredientNameSuggestion,
@@ -150,6 +149,9 @@ export class DraftsController {
 
   // ── Ingredient-name generation ──────────────────────────────────────────────
 
+  // Kicks off an expensive batched AI run. Admin-gated already; the explicit
+  // cap stops an authenticated admin from queuing many costly batches at once.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('ingredient-names/generate')
   @HttpCode(202)
   startNamerRun(@Body() body: unknown): DraftRunnerState {
@@ -302,6 +304,8 @@ export class DraftsController {
 
   // ── Recipe generation ──────────────────────────────────────────────────────
 
+  // Same rationale as ingredient-name generation: cap the costly AI batch start.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('recipes/generate')
   @HttpCode(202)
   startRecipeRun(@Body() body: unknown): RecipeRunnerStateDto {

@@ -59,8 +59,12 @@ export class UsdaImportRunner {
   start(dataTypesOverride?: string): boolean {
     if (this.state.status === 'running') return false;
 
-    const apiKey = process.env.FDC_API_KEY ?? 'DEMO_KEY';
-    const dataTypes = (dataTypesOverride ?? process.env.FDC_DATA_TYPES ?? 'Foundation').trim();
+    const apiKey = this.config.get('FDC_API_KEY', { infer: true }) ?? 'DEMO_KEY';
+    const dataTypes = (
+      dataTypesOverride ??
+      this.config.get('FDC_DATA_TYPES', { infer: true }) ??
+      'Foundation'
+    ).trim();
 
     this.state = {
       status: 'running',
