@@ -9,9 +9,8 @@
  * → re-seed lands in DB** — these schemas describe every payload that crosses
  * the wire along that path.
  *
- * Phase C: ingredient-name drafts + the runner-status shape they share with
- * the recipe pipeline.
- * Phase D: recipe drafts + the spec / preview / patch shapes.
+ * Covers ingredient-name drafts (and the runner-status shape they share with
+ * the recipe pipeline) and recipe drafts (spec / preview / patch shapes).
  */
 import { z } from 'zod';
 import { Locale } from './settings.js';
@@ -56,7 +55,7 @@ export type LocaleReview = z.infer<typeof LocaleReview>;
 export const LocaleStringMap = z.partialRecord(Locale, z.string().min(1));
 export type LocaleStringMap = z.infer<typeof LocaleStringMap>;
 
-// ── Ingredient-name drafts (Phase C) ──────────────────────────────────────────
+// ── Ingredient-name drafts ────────────────────────────────────────────────────
 
 /** Body the AI returns for one ingredient. Stored as `suggestions` JSON. */
 export const IngredientNameSuggestion = z.object({
@@ -127,7 +126,7 @@ export const DraftRunnerState = z.object({
 });
 export type DraftRunnerState = z.infer<typeof DraftRunnerState>;
 
-// ── Recipe drafts (Phase D) ───────────────────────────────────────────────────
+// ── Recipe drafts ─────────────────────────────────────────────────────────────
 
 /** Locale-keyed string-array map — used for `steps` where every entry is an
  *  ordered list, not a single string. Same key set as LocaleStringMap, and like
@@ -212,7 +211,7 @@ export type ComplexityMix = z.infer<typeof ComplexityMix>;
  * shows only the hand-authored rows in `data/ingredients.json` — they have
  * cookbook-style names (`chicken-breast`, `lemon`, `garlic`) the model can
  * recognise and stay inside. `all` adds every USDA-imported row, useful once
- * those rows have approved friendly names via the Phase C namer pipeline.
+ * those rows have approved friendly names via the namer pipeline.
  * Defaults to `curated` for v1: USDA rows carry FDC-bureaucratic names
  * (`anchovies-canned-in-olive-oil-with-salt-drained`) that don't map to
  * everyday cooking vocabulary, so the model invents simpler slugs that don't
@@ -259,7 +258,7 @@ export const RecipeDraftPatch = z.object({
 });
 export type RecipeDraftPatch = z.infer<typeof RecipeDraftPatch>;
 
-// ── Reviewer interface (Phase H) ──────────────────────────────────────────────
+// ── Reviewer interface ────────────────────────────────────────────────────────
 
 /**
  * Public `InstanceSettings` shape — never carries the bcrypt hash, just

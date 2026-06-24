@@ -2,7 +2,7 @@
 
 import type { MetadataRoute } from 'next';
 
-/** PWA manifest — enables install + offline shell (Phase 2 roadmap item). */
+/** PWA manifest — enables install + offline shell. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Diet App',

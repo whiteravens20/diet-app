@@ -373,7 +373,6 @@ GitHub-side checks are "even if you do, nothing gets merged."
 
 ## References
 
-- Implementation plan: [`/home/pavlojs/.claude/plans/plan-md-contains-actual-prompt-purring-ocean.md`](../../home/pavlojs/.claude/plans/plan-md-contains-actual-prompt-purring-ocean.md)
 - F18 functional row in [product-spec.md §4](../product/product-spec.md)
 - Content roadmap in [product-spec.md §4.1](../product/product-spec.md)
 - Translation provenance design: [ADR-0007](0007-curated-vs-ai-translations.md)

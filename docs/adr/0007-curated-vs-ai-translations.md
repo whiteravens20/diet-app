@@ -101,9 +101,9 @@ Per `apps/api/src/admin/translate/prompt.ts` and `validate.ts`:
   gets wrong on niche vocabulary (food / cooking). PL ships with ~30 pairs in
   `few-shot/pl.json` covering wrong-species swaps (pollock ≠ cod), wrong-anatomy
   swaps (flank ≠ tenderloin), and phrase-pattern flips ("96% fat free"
-  → "96% fat"). Each new locale earns its file via the
-  [iteration recipe](../../apps/api/src/admin/translate/few-shot/README.md):
-  run → scan errors → anchor → re-run. Anchors do not transfer across locales —
+  → "96% fat"). Each new locale earns its file in
+  [`apps/api/src/admin/drafts/few-shot/`](../../apps/api/src/admin/drafts/few-shot)
+  via the iteration recipe: run → scan errors → anchor → re-run. Anchors do not transfer across locales —
   PL anchors don't help DE.
 - **Post-validator** rejects: malformed JSON, missing/extra keys, LLM yapping
   (`Note:` / `I cannot` / `As an AI`), added quotes, identical-to-source (unless

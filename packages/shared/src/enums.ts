@@ -110,7 +110,7 @@ export type CookingMethod = z.infer<typeof CookingMethod>;
 
 /**
  * Recipe complexity band — shared by the curation queue's recipe generator
- * (Phase D8 of the curation plan) and the user-facing AI recipe drafter.
+ * and the user-facing AI recipe drafter.
  */
 export const Complexity = z.enum(['simple', 'medium', 'complex']);
 export type Complexity = z.infer<typeof Complexity>;

@@ -6,7 +6,7 @@ Docker-first and self-host-friendly: local, LAN-only, or cloud. No vendor lock-i
 
 | Image | Dockerfile | Notes |
 |---|---|---|
-| `diet-app-api` | `infra/docker/api.Dockerfile` | Multi-stage, Alpine, non-root. Runs the API; the worker reuses it with `node apps/api/dist/worker.js`. |
+| `diet-app-api` | `infra/docker/api.Dockerfile` | Multi-stage, Alpine, non-root. Runs the API; the scheduled-tasks worker reuses it with `node apps/api/dist/worker.js`. |
 | `diet-app-web` | `infra/docker/web.Dockerfile` | Multi-stage; Next.js standalone output. |
 
 Build context is the repo root. Both are built and tagged by the `release.yml` workflow
@@ -16,8 +16,8 @@ on a `vX.Y.Z` tag and pushed to GHCR with provenance + SBOM.
 
 | File | Purpose |
 |---|---|
-| `infra/docker-compose.yml` | Production-like stack: web, api, worker, postgres, redis. |
-| `infra/docker-compose.dev.yml` | Just Postgres + Redis — run the apps on the host with HMR. |
+| `infra/docker-compose.yml` | Production-like stack: web, api, worker, postgres. |
+| `infra/docker-compose.dev.yml` | Just Postgres — run the apps on the host with HMR. |
 | `infra/docker-compose.gpu.yml` | Overlay giving Ollama NVIDIA GPU access. |
 
 Profiles gate optional services: `--profile ollama` (local AI), `--profile proxy` (Traefik).
@@ -62,7 +62,7 @@ Web → `:3000`, API → `:4000/api`, health → `:4000/api/health`.
 ## Development
 
 ```bash
-docker compose -f infra/docker-compose.dev.yml up -d   # Postgres + Redis
+docker compose -f infra/docker-compose.dev.yml up -d   # Postgres
 npm install && npm run db:migrate
 npm run dev                                            # web + api with HMR
 ```
@@ -130,7 +130,7 @@ links expire after 1 hour.
 ## Production notes
 
 - Set strong `JWT_*` secrets and a 64-hex `AI_KEY_ENCRYPTION_SECRET` (`openssl rand`).
-- Persisted volumes: `postgres-data`, `redis-data`, `ollama-models`.
+- Persisted volumes: `postgres-data`, `ollama-models`.
 - Health checks are defined for every long-running service.
 - Run `db:migrate` (not `migrate dev`) on deploy; back up the Postgres volume.
 - Bind published ports to a private interface in LAN-only deployments.

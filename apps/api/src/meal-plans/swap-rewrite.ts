@@ -11,7 +11,7 @@ import type { Locale } from '@diet-app/shared';
  *    each translation row, then rewrite the title via the locale-specific
  *    `variantTitle` template. Free, deterministic, works without a provider.
  *  - **Mode B:** sentence-level AI rewrite — only sentences mentioning the
- *    old ingredient get sent to the model. Implemented in Phase I.5 mode B.
+ *    old ingredient get sent to the model. Implemented as swap rewrite mode B.
  *
  * This file owns Mode A. The variantTitle template is hardcoded per locale on
  * the backend because (a) next-intl runs on the web, not here, and (b)

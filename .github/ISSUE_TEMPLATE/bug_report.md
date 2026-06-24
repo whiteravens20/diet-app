@@ -7,7 +7,7 @@ assignees: ''
 ---
 
 > **Security vulnerability?** Do not open a public issue.
-> Use [private vulnerability reporting](../../security/advisories/new) instead.
+> Use [private vulnerability reporting](https://github.com/whiteravens20/diet-app/security/advisories/new) instead.
 
 ## Bug Description
 A clear and concise description of what the bug is.
@@ -15,7 +15,7 @@ A clear and concise description of what the bug is.
 ## Affected Area
 - [ ] Web app (`apps/web`)
 - [ ] API (`apps/api`)
-- [ ] Background worker (meal-plan generation)
+- [ ] Background worker (scheduled tasks — weight-reminder scan)
 - [ ] Deterministic engine (calorie / macro / optimizer / shopping / substitution)
 - [ ] AI integration (provider routing / validation)
 - [ ] Other:

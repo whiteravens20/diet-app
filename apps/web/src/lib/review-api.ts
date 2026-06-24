@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Reviewer API client (Phase H).
+ * Reviewer API client.
  *
  * Cookie-based — `fetch` is called with `credentials: 'include'` so the
  * `reviewer_session` httpOnly cookie set by the backend rides along. No

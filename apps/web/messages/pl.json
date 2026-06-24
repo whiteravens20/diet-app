@@ -169,9 +169,6 @@
     "label": "Język",
     "ariaLabel": "Zmień język"
   },
-  "placeholder": {
-    "scaffolded": "Ten ekran jest zarysowany. Wykorzysta:"
-  },
   "themeToggle": {
     "ariaLabel": "Przełącz motyw",
     "light": "Jasny",

@@ -1439,7 +1439,7 @@ export class MealPlansService {
   /**
    * Insert the AI_USER `RecipeDraft` row that mirrors the just-written
    * personal variant. Translation polish + curated promotion happen later via
-   * the admin/reviewer surface (Phase I.6 / I.7).
+   * the admin/reviewer surface.
    */
   private async createAiUserDraft(
     tx: import('@prisma/client').Prisma.TransactionClient,

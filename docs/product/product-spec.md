@@ -221,8 +221,9 @@ the pragmatic choice even on a privacy-first instance.
 ## 5. Non-functional requirements
 
 - **Security** — see [SECURITY.md](../../SECURITY.md); encrypted AI keys, scoped data access.
-- **Performance** — plan generation off the request path via a worker queue.
-- **Scalability** — stateless API, horizontally scalable; Postgres + Redis.
+- **Performance** — plan generation runs synchronously within the request budget
+  (see [perf budgets](../perf/budgets.md)); periodic jobs run in a single-instance worker.
+- **Scalability** — stateless API, horizontally scalable; Postgres as the single datastore.
 - **Testability** — pure deterministic engines, unit-tested; typed API contract.
 - **Accessibility** — semantic HTML, keyboard navigation, dark mode, sufficient contrast.
 - **Localization-ready** — English first; copy is centralisable. Full i18n delivery is

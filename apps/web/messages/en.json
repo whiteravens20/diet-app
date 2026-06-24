@@ -169,9 +169,6 @@
     "label": "Language",
     "ariaLabel": "Change language"
   },
-  "placeholder": {
-    "scaffolded": "This screen is scaffolded. It will consume:"
-  },
   "themeToggle": {
     "ariaLabel": "Toggle theme",
     "light": "Light",

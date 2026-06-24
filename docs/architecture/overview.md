@@ -11,16 +11,16 @@
                                  ┌──────────────┐    │
                                  │  api (Nest)  │────┤
                                  └──────┬───────┘    │
-              enqueue plan jobs ───────▶│            │
+       scheduled scans (1 instance)     │            │
                                  ┌──────▼───────┐    │
                                  │ worker (Nest)│    │
                                  └──────┬───────┘    │
                        ┌────────────────┼────────────┼───────────┐
-                       ▼                ▼            ▼           ▼
-                  ┌─────────┐     ┌──────────┐  ┌─────────┐  ┌────────┐
-                  │ Postgres│     │  Redis   │  │ Ollama  │  │ AI SaaS│
-                  │ (Prisma)│     │ (BullMQ) │  │ (local) │  │  APIs  │
-                  └─────────┘     └──────────┘  └─────────┘  └────────┘
+                       ▼                              ▼           ▼
+                  ┌─────────┐                    ┌─────────┐  ┌────────┐
+                  │ Postgres│                    │ Ollama  │  │ AI SaaS│
+                  │ (Prisma)│                    │ (local) │  │  APIs  │
+                  └─────────┘                    └─────────┘  └────────┘
 ```
 
 ## Components
@@ -29,10 +29,9 @@
 |---|---|---|
 | `apps/web` | Next.js 16, React 19, Tailwind 4 | UI: dashboard, wizard, planner, shopping list. |
 | `apps/api` | NestJS 11, Prisma 7 | REST API, auth, deterministic engine, AI orchestration. |
-| `apps/api` (worker) | NestJS + BullMQ | Background meal-plan generation. Same codebase, `worker.ts` entry. |
+| `apps/api` (worker) | NestJS | Scheduled tasks (weight-reminder scan), run on a single instance. Same codebase, `worker.ts` entry. |
 | `packages/shared` | TypeScript + Zod | The API contract: every request/response schema + type. |
 | Postgres | 18 | Curated database + user data. |
-| Redis | 8 | Cache + BullMQ job queue. |
 | Ollama | optional | Local self-hosted AI models. |
 
 ## Layering inside the API
@@ -72,7 +71,10 @@ output always passes back through the engine for validation.
 3. `MealPlansService` loads the profile, runs the deterministic calorie engine, loads
    eligible recipes, and calls the optimiser engine (`optimisePlan`).
 4. The plan is persisted (`MealPlan` → `MealPlanDay` → `PlannedMeal`) and returned.
-5. (Optional, Phase 2) Large jobs are enqueued on Redis/BullMQ and run in the `worker`.
+
+Generation runs synchronously on the request path — even a 28-day plan completes well
+within the request budget (see [perf budgets](../perf/budgets.md)). The `worker` process
+handles only periodic scheduled tasks (the weight-reminder scan), not plan generation.
 
 ## Why these choices
 

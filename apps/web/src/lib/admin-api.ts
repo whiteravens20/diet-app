@@ -189,7 +189,7 @@ export interface IngredientNameGenerateSpec {
   targetLocales?: string[];
 }
 
-// ── Recipe drafts (Phase D) ───────────────────────────────────────────────────
+// ── Recipe drafts ─────────────────────────────────────────────────────────────
 
 export type RecipeComplexity = 'simple' | 'medium' | 'complex';
 
@@ -446,7 +446,7 @@ export const adminApi = {
       body: JSON.stringify(source ? { source } : {}),
     }),
 
-  // Instance settings (Phase H) — reviewer-interface toggle + password.
+  // Instance settings — reviewer-interface toggle + password.
   instanceSettings: () => adminFetch<InstanceSettingsDto>('/instance-settings'),
   patchInstanceSettings: (body: InstanceSettingsPatchPayload) =>
     adminFetch<InstanceSettingsDto>('/instance-settings', {

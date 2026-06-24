@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 
 /**
- * Standalone shell for the Phase H reviewer interface — public route, no app
+ * Standalone shell for the reviewer interface — public route, no app
  * sidebar, no user identity. Admin's `(app)` layout group requires the user
  * JWT which an invited reviewer does not have.
  */

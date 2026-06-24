@@ -287,7 +287,7 @@ export async function runSeed(
   }
 
   const anchors = readJson<RecipeSeed[]>(dir, 'recipes.json');
-  // Curation-queue recipe batches (Phase D). One file per shipped batch under
+  // Curation-queue recipe batches. One file per shipped batch under
   // `data/recipes/*.json`, sorted by filename for deterministic upsert order.
   // Each batch row matches the same shape `data/recipes.json` uses (slug,
   // localised title/description/steps, structural metadata), so the seeder

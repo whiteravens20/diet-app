@@ -19,7 +19,7 @@ through `apps/api/src/engine`. See [ADR 0005](../adr/0005-curated-db-source-of-t
 
 ```
 apps/web         Next.js front-end
-apps/api         NestJS API + BullMQ worker
+apps/api         NestJS API + scheduled-tasks worker
   src/engine     Deterministic pure functions — calorie, optimiser, shopping, substitution
   src/ai         AI provider abstraction, router, validation, encrypted key store
   src/<feature>  One module per feature: controller + service (+ module)

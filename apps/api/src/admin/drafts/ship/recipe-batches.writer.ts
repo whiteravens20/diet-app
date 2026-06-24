@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * On-disk shape for `data/recipes/<batchId>.json` + the writer the Phase E
+ * On-disk shape for `data/recipes/<batchId>.json` + the writer the
  * ship runner will call.
  *
  * One file per ship batch — never merge into a single file. Concurrent

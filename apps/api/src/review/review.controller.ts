@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Reviewer-facing API (Phase H).
+ * Reviewer-facing API.
  *
  * Three classes of endpoints:
  *   1. Auth — public; cookie-based login / logout / session probe.

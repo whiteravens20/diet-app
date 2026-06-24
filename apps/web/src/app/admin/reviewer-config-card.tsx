@@ -15,7 +15,7 @@ import {
 } from '@/lib/admin-api';
 
 /**
- * Admin card that manages the Phase H reviewer interface — toggle, password,
+ * Admin card that manages the reviewer interface — toggle, password,
  * and the shareable `/review` URL the operator hands to invited reviewers.
  *
  * The reviewer interface itself lives at `/review` (a public Next.js route).

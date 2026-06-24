@@ -2,7 +2,7 @@
 
 /**
  * On-disk shape for `data/ingredient-overrides.json` + the merge helper the
- * Phase E ship runner will call.
+ * ship runner will call.
  *
  * The file is slug-keyed and additive: one approved draft per slug at a time,
  * subsequent ships merge on top (last write wins per slug). This makes
@@ -55,7 +55,7 @@ export function readIngredientOverrides(path: string): IngredientOverrideFile {
 
 /** Merge `additions` into the file at `path` and write it back. Deterministic
  *  output: keys sorted, two-space indent, trailing newline — keeps PR diffs
- *  reviewable. Used by the Phase E ship runner. */
+ *  reviewable. Used by the ship runner. */
 export function mergeIngredientOverrides(
   path: string,
   additions: IngredientOverrideFile,

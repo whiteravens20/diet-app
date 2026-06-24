@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Cookie-based guard for the reviewer interface (Phase H).
+ * Cookie-based guard for the reviewer interface.
  *
  * Refuses entry unless:
  *   1. `InstanceSettings.reviewerEnabled = true` (re-read every request, so

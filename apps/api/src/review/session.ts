@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Reviewer-session cookie helpers (Phase H).
+ * Reviewer-session cookie helpers.
  *
  * The cookie carries a signed JWT with `{ kind: 'reviewer', label, locale }`,
  * 7-day TTL, httpOnly + sameSite=lax. We reuse the existing JWT_ACCESS_SECRET

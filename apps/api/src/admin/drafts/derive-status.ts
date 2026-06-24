@@ -3,12 +3,12 @@
 /**
  * Per-locale status derivation — single source of truth for the curation
  * queue. Used by the admin draft controller (BasicAuth) and the reviewer
- * controller (Phase H, cookie auth).
+ * controller (cookie auth).
  *
  *   APPROVED  ↔ every expected locale has an APPROVE row.
  *   REJECTED  ↔ at least one expected locale has a REJECT row.
  *   PENDING   ↔ otherwise.
- *   SHIPPED   ↔ owned by the ship runner (Phase E); never derived here.
+ *   SHIPPED   ↔ owned by the ship runner; never derived here.
  */
 export function deriveDraftStatus(
   expectedLocales: string[],

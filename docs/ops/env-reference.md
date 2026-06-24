@@ -12,10 +12,9 @@ environment fails fast with a clear message.
 | `API_URL` | `http://localhost:4000` | Public API origin. |
 | `WEB_PORT` / `API_PORT` | `3000` / `4000` | Host port bindings. |
 
-## Database & cache
+## Database
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | — | Postgres credentials. |
 | `DATABASE_URL` | — | Full Postgres connection string. |
-| `REDIS_URL` | `redis://redis:6379` | Redis (cache + BullMQ). |
 
 ## Auth
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | — | 32+ random bytes each (`openssl rand -hex 32`). |

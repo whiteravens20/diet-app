@@ -7,9 +7,9 @@
  *
  * Top-level tab strip switches between two pipelines that share the same
  * card chrome:
- *   - Ingredient-name drafts (Phase C). One-line raw-FDC → friendly name
+ *   - Ingredient-name drafts. One-line raw-FDC → friendly name
  *     editor with per-locale approve/reject.
- *   - Recipe drafts (Phase D). Title / description / ingredient editor
+ *   - Recipe drafts. Title / description / ingredient editor
  *     with live engine-recomputed nutrition + complexity chip.
  *
  * Both kinds use the single-flight runner pattern shared with `translate/`,

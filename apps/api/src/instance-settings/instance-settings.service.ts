@@ -2,7 +2,7 @@
 
 /**
  * Singleton runtime configuration owned by the operator and managed from
- * /admin. Currently surfaces the Phase H reviewer-interface toggle +
+ * /admin. Currently surfaces the reviewer-interface toggle +
  * password. Mirrors the ADMIN_PASSWORD pattern but stored in DB so the
  * operator can flip it from the panel without restarting the API.
  */
