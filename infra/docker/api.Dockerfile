@@ -1,7 +1,7 @@
 # ── Diet App API (+ worker) image ─────────────────────────────────────────────
-# Multi-stage, Alpine, non-root. The same image runs the HTTP API and the BullMQ
-# worker — the compose service overrides the command for the worker.
-# Build context is the repo root.
+# Multi-stage, Alpine, non-root. The same image runs the HTTP API and the
+# scheduled-tasks worker — the compose service overrides the command for the
+# worker. Build context is the repo root.
 
 FROM node:24-alpine AS base
 WORKDIR /app

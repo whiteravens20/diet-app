@@ -1,9 +1,9 @@
 # ── Diet App — development stack ──────────────────────────────────────────────
-# Postgres + Redis in containers; run the apps on the host with `npm run dev`
+# Postgres in a container; run the apps on the host with `npm run dev`
 # for fast HMR. Or `docker compose -f infra/docker-compose.dev.yml --profile full
 # up` to also containerise the API + web.
 #
-#   docker compose -f infra/docker-compose.dev.yml up -d   # just the datastores
+#   docker compose -f infra/docker-compose.dev.yml up -d   # just the datastore
 
 name: diet-app-dev
 
@@ -25,14 +25,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:8-alpine
-    restart: unless-stopped
-    ports:
-      - '6379:6379'
-    volumes:
-      - redis-dev:/data
-
   ollama:
     image: ollama/ollama:latest
     profiles: ['ollama']
@@ -44,5 +36,4 @@ services:
 
 volumes:
   postgres-dev:
-  redis-dev:
   ollama-dev:

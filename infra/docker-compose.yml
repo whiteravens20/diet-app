@@ -40,18 +40,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:8-alpine
-    restart: unless-stopped
-    command: ['redis-server', '--appendonly', 'yes']
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # ── One-shot: apply pending migrations and exit ─────────────────────────────
   # `api` and `worker` wait for this so they never start against an un-migrated
   # database. Safe to re-run: `migrate deploy` is a no-op when nothing is pending.
@@ -89,10 +77,8 @@ services:
       NODE_ENV: production
       # Override host-oriented .env values with Compose service hostnames.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-      REDIS_URL: redis://redis:6379
     depends_on:
       postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
     volumes:
       # Bind-mount the host `data/` directory so the admin-panel USDA
@@ -128,12 +114,11 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-      REDIS_URL: redis://redis:6379
-    # Same image as `api`, different entrypoint.
+    # Same image as `api`, different entrypoint: runs scheduled tasks
+    # (weight-reminder scan) on a single instance.
     command: ['node', 'apps/api/dist/worker.js']
     depends_on:
       postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
     volumes:
       - ../data:/app/data
@@ -179,7 +164,6 @@ services:
 
 volumes:
   postgres-data:
-  redis-data:
   ollama-models:
   # Curation-queue ship sidecars (gitignored backups). Named volume so Docker
   # owns it as the image's `node` user — see the api service's volumes comment.

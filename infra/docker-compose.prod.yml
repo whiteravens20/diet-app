@@ -55,20 +55,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:8-alpine
-    container_name: diet-app-redis
-    restart: unless-stopped
-    networks: [diet-app]
-    command: ['redis-server', '--appendonly', 'yes']
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # ── One-shot: seed the `app-data` volume from the image ────────────────────
   # The api image bakes `data/*.json` (curated ingredients, recipes,
   # substitutions) into `/app/data`. Docker auto-populates a fresh named
@@ -134,7 +120,6 @@ services:
       NODE_ENV: production
       # Override host-oriented .env values with Compose service hostnames.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-      REDIS_URL: redis://redis:6379
       # Pin the internal listen port to 4000. The `web` image was built with
       # `API_PROXY_URL=http://api:4000` baked into its Next.js rewrites — it
       # cannot be changed at runtime. The `.env` API_PORT (intended for host
@@ -142,7 +127,6 @@ services:
       API_PORT: 4000
     depends_on:
       postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
       data-init: { condition: service_completed_successfully }
     volumes:
@@ -191,12 +175,11 @@ services:
       # uses `localhost` (correct for `npm run dev`), which would point the
       # worker at itself inside the network.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-      REDIS_URL: redis://redis:6379
-    # Same image as `api`, different entrypoint.
+    # Same image as `api`, different entrypoint: runs scheduled tasks
+    # (weight-reminder scan) on a single instance.
     command: ['node', 'apps/api/dist/worker.js']
     depends_on:
       postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
       data-init: { condition: service_completed_successfully }
     volumes:
@@ -244,7 +227,6 @@ networks:
 
 volumes:
   postgres-data:
-  redis-data:
   ollama-models:
   # Curated `data/*.json` (from the image, refreshed by `data-init` on every
   # boot) + the user-owned `ingredients.generated.json` from the USDA
