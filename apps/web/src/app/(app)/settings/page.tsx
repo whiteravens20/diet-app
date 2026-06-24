@@ -147,7 +147,7 @@ function ThemeCard({ initial }: { initial: Theme }) {
   const { setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [value, setValue] = useState<Theme>(initial);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount flag; gates next-themes hydration so first client paint matches SSR
   useEffect(() => setMounted(true), []);
 
   async function pick(next: Theme) {

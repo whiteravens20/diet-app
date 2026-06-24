@@ -27,12 +27,8 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U diet" --health-interval 10s
           --health-timeout 5s --health-retries 5
-      redis:
-        image: redis:8-alpine
-        ports: ['6379:6379']
     env:
       DATABASE_URL: postgresql://diet:diet@localhost:5432/diet_app_test?schema=public
-      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -42,7 +38,10 @@ jobs:
       - run: npm run lint -- --filter=@diet-app/api
       - run: npm run typecheck -- --filter=@diet-app/api
       - run: npm run data:lint
-      - run: npm run test -- --filter=@diet-app/api
+      - run: npm run test -- --filter=@diet-app/shared
+      # Coverage-gated: vitest fails the job if a threshold in vitest.config.ts
+      # regresses (engine floors today, ratcheting toward the spec floors).
+      - run: npm run test:cov -- --filter=@diet-app/api
       - run: npm run build -- --filter=@diet-app/api
 
   web:
@@ -55,7 +54,31 @@ jobs:
       - run: npm ci
       - run: npm run lint -- --filter=@diet-app/web
       - run: npm run typecheck -- --filter=@diet-app/web
+      - run: npm run test -- --filter=@diet-app/web
       - run: npm run build -- --filter=@diet-app/web
+
+  markers:
+    name: markers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check intra-repo doc links
+        run: node scripts/check-doc-links.mjs
+      - name: Reject roadmap/TODO markers in shipped source
+        # The release gate forbids historical-phase / roadmap / TODO markers in
+        # shipped code comments. Bare feature refs (F19, F10) are allowed; the
+        # hyphenated F-XX roadmap form is not. Tests are excluded.
+        run: |
+          set -uo pipefail
+          hits=$(grep -rniE 'phase [a-z0-9]|coming soon|\bTODO\b|\bFIXME\b|\bF-[0-9]' \
+            apps/*/src packages/*/src --include='*.ts' --include='*.tsx' \
+            | grep -v '\.test\.' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Forbidden roadmap/TODO marker(s) in shipped source:"
+            echo "$hits"
+            exit 1
+          fi
+          echo "No forbidden markers."
 
   docker:
     name: docker

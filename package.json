@@ -19,8 +19,10 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:cov": "turbo run test:cov",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
+    "check:docs": "node scripts/check-doc-links.mjs",
     "db:migrate": "npm run db:migrate -w apps/api",
     "db:seed": "npm run db:seed -w apps/api",
     "db:generate": "npm run db:generate -w apps/api",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9.39.4",
     "husky": "9.1.7",
     "prettier": "^3.4.2",

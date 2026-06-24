@@ -6,6 +6,12 @@ import { UnitConversionError, nutritionFor, toCanonical } from './units.js';
 const milk = { canonicalUnit: 'ml' as const, gramsPerPiece: null, density: 1.03 };
 const egg = { canonicalUnit: 'g' as const, gramsPerPiece: 55, density: null };
 const rice = { canonicalUnit: 'g' as const, gramsPerPiece: null, density: null };
+// Ingredients whose canonical unit is `piece` exercise the g/ml → piece branch.
+const eggPiece = { canonicalUnit: 'piece' as const, gramsPerPiece: 55, density: null };
+const scoop = { canonicalUnit: 'piece' as const, gramsPerPiece: 30, density: 1 };
+const bottledMilk = { canonicalUnit: 'ml' as const, gramsPerPiece: 50, density: 1 };
+const piecelessTarget = { canonicalUnit: 'piece' as const, gramsPerPiece: null, density: null };
+const yogurt = { canonicalUnit: 'g' as const, gramsPerPiece: null, density: 1.04 };
 
 describe('toCanonical', () => {
   it('is a no-op when the unit already matches', () => {
@@ -26,6 +32,26 @@ describe('toCanonical', () => {
 
   it('throws when gramsPerPiece is missing for a piece conversion', () => {
     expect(() => toCanonical(2, 'piece', rice)).toThrow(UnitConversionError);
+  });
+
+  it('converts ml to grams using density', () => {
+    expect(toCanonical(100, 'ml', yogurt)).toBeCloseTo(104); // 100 ml × 1.04 g/ml
+  });
+
+  it('converts grams to pieces using gramsPerPiece', () => {
+    expect(toCanonical(110, 'g', eggPiece)).toBe(2); // 110 g / 55 g per piece
+  });
+
+  it('converts ml to pieces via density then gramsPerPiece', () => {
+    expect(toCanonical(60, 'ml', scoop)).toBe(2); // 60 ml × 1 g/ml = 60 g / 30 g per piece
+  });
+
+  it('converts pieces to ml via gramsPerPiece then density', () => {
+    expect(toCanonical(1, 'piece', bottledMilk)).toBe(50); // 1 × 50 g / 1 g per ml
+  });
+
+  it('throws when gramsPerPiece is missing converting TO piece', () => {
+    expect(() => toCanonical(100, 'g', piecelessTarget)).toThrow(UnitConversionError);
   });
 });
 

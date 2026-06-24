@@ -15,7 +15,7 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
   // Mount gate: next-themes resolves the theme only on the client, so the first
   // client render must match the server output (no icon) to avoid a mismatch.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount flag; the effect runs once to gate hydration, not on every render
   useEffect(() => setMounted(true), []);
   if (!mounted) return <div className="size-10" />;
 

@@ -102,7 +102,7 @@ function useIsAuthenticated(): boolean {
   // resolves the real value. Same shape as ThemeToggle's hydration gate.
   useEffect(() => {
     mounted.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount gate; reads the client-only token store after the SSR'd render
     setAuthed(Boolean(tokenStore.access));
     const onStorage = () => mounted.current && setAuthed(Boolean(tokenStore.access));
     window.addEventListener('storage', onStorage);

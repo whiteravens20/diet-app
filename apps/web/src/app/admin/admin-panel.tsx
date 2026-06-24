@@ -365,7 +365,7 @@ function UsdaImportCard({ onFinished }: { onFinished: () => Promise<boolean> }) 
       })
       .catch(() => undefined);
     return () => stopPolling();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run-once on mount; the polling helpers are stable and re-running would restart polling
   }, []);
 
   function stopPolling() {

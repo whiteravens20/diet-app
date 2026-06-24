@@ -66,7 +66,7 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     prisma = makePrisma(makeUser());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise
     service = new UsersService(prisma as any, config as any, mail as any, auth as any);
   });
 
@@ -80,7 +80,7 @@ describe('UsersService', () => {
 
     it('throws USER_NOT_FOUND when missing', async () => {
       prisma = makePrisma(null);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise
       service = new UsersService(prisma as any, config as any, mail as any, auth as any);
       await expect(service.getMe('nope')).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -101,7 +101,7 @@ describe('UsersService', () => {
 
     it('rejects byok flip when the user has zero enabled provider configs', async () => {
       prisma = makePrisma(makeUser(), 0);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise
       service = new UsersService(prisma as any, config as any, mail as any, auth as any);
       await expect(service.updateSettings('user-1', { aiMode: 'byok' })).rejects.toMatchObject({
         response: expect.objectContaining({ error: 'BYOK_NO_PROVIDER' }),
@@ -111,7 +111,7 @@ describe('UsersService', () => {
 
     it('allows byok flip when at least one provider config is enabled', async () => {
       prisma = makePrisma(makeUser(), 1);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise
       service = new UsersService(prisma as any, config as any, mail as any, auth as any);
       await service.updateSettings('user-1', { aiMode: 'byok' });
       expect(prisma.user.update).toHaveBeenCalledWith({

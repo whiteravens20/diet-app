@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "apps/api": {
+      // `start:worker` runs the built `dist/worker.js`; declare the source so
+      // knip doesn't report the scheduled-tasks entrypoint as an unused file.
+      "entry": ["src/main.ts", "src/worker.ts", "scripts/*.ts"],
+      "ignoreDependencies": [
+        // `pg` is a runtime peer of `@prisma/adapter-pg` (PrismaPg opens the
+        // Postgres connection through it). Not imported directly in source, so
+        // knip can't see the link — removing it breaks the DB driver at boot.
+        "pg",
+        "@types/pg",
+        // Reserved for the controller integration suite (Nest e2e harness); kept
+        // declared so that work doesn't re-add it.
+        "@nestjs/testing"
+      ]
+    },
+    "apps/web": {
+      "entry": [
+        "src/app/**/{page,layout,loading,error,not-found,route,template,default}.tsx"
+      ]
+    }
+  }
+}

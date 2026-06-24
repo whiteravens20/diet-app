@@ -54,6 +54,9 @@ export function toCanonical(
     return grams / ingredient.gramsPerPiece;
   }
 
+  // Unreachable with the 3-value Unit enum (every g/ml/piece pair is handled
+  // above) — kept as a defensive guard if a new unit is ever added.
+  /* v8 ignore next */
   throw new UnitConversionError(`unsupported conversion ${unit} → ${target}`);
 }
 
