@@ -10,6 +10,8 @@ import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { ProfileSummary } from '@/components/profile-summary';
+import { PageBanner } from '@/components/page-banner';
+import { IMAGERY } from '@/lib/imagery';
 
 /** Dashboard — calorie target, macro split and adherence for every profile. */
 export default function DashboardPage() {
@@ -36,6 +38,7 @@ export default function DashboardPage() {
       <div className="mt-16">
         <EmptyState
           icon={UserRound}
+          image={IMAGERY.emptyDashboard}
           title={t('welcome')}
           description={t('createFirstProfile')}
           cta={
@@ -50,14 +53,13 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">
-          {list.length === 1
-            ? t('subheadSingle')
-            : t('subheadMultiple', { count: list.length })}
-        </p>
-      </header>
+      <PageBanner
+        image={IMAGERY.dashboard}
+        title={t('title')}
+        subtitle={
+          list.length === 1 ? t('subheadSingle') : t('subheadMultiple', { count: list.length })
+        }
+      />
 
       {list.map((p) => (
         <ProfileSummary key={p.id} profile={p} />

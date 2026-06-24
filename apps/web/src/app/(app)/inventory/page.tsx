@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
+import { PageBanner } from '@/components/page-banner';
+import { IMAGERY } from '@/lib/imagery';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
@@ -108,10 +110,7 @@ export default function InventoryPage() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('subhead')}</p>
-      </div>
+      <PageBanner image={IMAGERY.inventory} title={t('title')} subtitle={t('subhead')} />
 
       {profileList.length > 1 && (
         <div className="max-w-xs">
@@ -153,6 +152,7 @@ export default function InventoryPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={Package}
+          image={IMAGERY.emptyInventory}
           title={t('emptyTitle')}
           description={t('emptyState')}
         />

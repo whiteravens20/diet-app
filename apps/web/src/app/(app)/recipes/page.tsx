@@ -10,6 +10,8 @@ import { api } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { PageBanner } from '@/components/page-banner';
+import { IMAGERY } from '@/lib/imagery';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -133,11 +135,7 @@ export default function RecipesPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('subhead')}</p>
-        </div>
+      <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')}>
         {aiEnabled && activeProfile && (
           <Button
             type="button"
@@ -150,7 +148,7 @@ export default function RecipesPage() {
             <span className="ml-1">{t('aiDraft')}</span>
           </Button>
         )}
-      </header>
+      </PageBanner>
 
       <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-sm">
         {(['library', 'mine'] as const).map((key) => (

@@ -6,10 +6,10 @@ import { useTranslations } from 'next-intl';
 import {
   CalendarRange,
   LayoutDashboard,
-  ListChecks,
   LogOut,
   Package,
   Settings,
+  ShoppingBasket,
   Soup,
   UserRound,
 } from 'lucide-react';
@@ -25,7 +25,7 @@ const NAV = [
   { href: '/profile', labelKey: 'profiles', icon: UserRound },
   { href: '/meal-plans', labelKey: 'mealPlans', icon: CalendarRange },
   { href: '/recipes', labelKey: 'recipes', icon: Soup },
-  { href: '/shopping-lists', labelKey: 'shoppingLists', icon: ListChecks },
+  { href: '/shopping-lists', labelKey: 'shoppingLists', icon: ShoppingBasket },
   { href: '/inventory', labelKey: 'inventory', icon: Package },
   { href: '/settings', labelKey: 'settings', icon: Settings },
 ] as const;

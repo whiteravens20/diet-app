@@ -8,6 +8,8 @@ import { api, ApiClientError } from '@/lib/api';
 import { roundKitchenAmount } from '@/lib/ingredient-format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageBanner } from '@/components/page-banner';
+import { IMAGERY } from '@/lib/imagery';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -142,10 +144,7 @@ export default function ShoppingListsPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('subhead')}</p>
-      </header>
+      <PageBanner image={IMAGERY.shopping} title={t('title')} subtitle={t('subhead')} />
 
       {profileList.length > 1 && (
         <div className="flex gap-2">

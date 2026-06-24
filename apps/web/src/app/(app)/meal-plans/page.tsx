@@ -25,6 +25,8 @@ import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
+import { PageBanner } from '@/components/page-banner';
+import { IMAGERY } from '@/lib/imagery';
 import { CustomMealModal } from './custom-meal-modal';
 import {
   AdvancedOptions,
@@ -263,6 +265,7 @@ function MealPlansContent() {
       <div className="mt-16">
         <EmptyState
           icon={UserRound}
+          image={IMAGERY.emptyMealPlans}
           title={t('noProfile')}
           description={t('noProfileBody')}
           cta={
@@ -277,10 +280,7 @@ function MealPlansContent() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('subhead')}</p>
-      </header>
+      <PageBanner image={IMAGERY.mealPlans} title={t('title')} subtitle={t('subhead')} />
 
       {list.length > 1 && (
         <div className="flex gap-2">
@@ -433,6 +433,7 @@ function MealPlansContent() {
         ) : (plans.data ?? []).length === 0 ? (
           <EmptyState
             icon={CalendarRange}
+            image={IMAGERY.emptyMealPlans}
             title={t('noPlansTitle')}
             description={t('noPlans')}
           />

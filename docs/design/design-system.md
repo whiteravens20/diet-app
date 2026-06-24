@@ -32,6 +32,28 @@ Located in `apps/web/src/components/ui` and `apps/web/src/components`:
 New components follow the same rules: semantic tokens, `cva` for variants, the `cn()`
 class merger, and a focus-visible ring on every interactive element.
 
+## Photography
+
+Curated, free-license food photography gives the product its "radiates diet app"
+personality (F19.1). Images are committed under
+[`apps/web/public/imagery`](../../apps/web/public/imagery) (no runtime third-party
+hosts — the app stays self-hostable), referenced by key from
+[`src/lib/imagery.ts`](../../apps/web/src/lib/imagery.ts), and rendered with
+`next/image`.
+
+- **Page banners** — `PageBanner` puts a photo behind each surface title
+  (dashboard / meal-plans / recipes / shopping-lists / inventory) with a
+  left-to-right scrim in the `background` token, so the heading stays legible and the
+  banner still reads in light/dark + every palette. The photo is decorative
+  (`alt=""`); the heading carries meaning.
+- **Empty states** — `EmptyState image={IMAGERY.…}` shows a photo instead of the
+  Lucide glyph (the `icon` prop remains the fallback).
+- **Sourcing & licensing** — pulled from Wikimedia Commons (CC BY / CC0), exported at
+  ~2048px for banners and ~900px for empty-state thumbs, optimised to WebP, and
+  attributed in [`public/imagery/CREDITS.md`](../../apps/web/public/imagery/CREDITS.md).
+  To add or swap one: drop the WebP in `public/imagery`, add a key to `IMAGERY`, and
+  record the attribution in `CREDITS.md`.
+
 ## Motion
 
 Framer Motion, used sparingly and purposefully:
