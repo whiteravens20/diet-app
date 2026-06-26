@@ -53,8 +53,14 @@ export function recipeBatchesDir(dataDir: string): string {
   return join(dataDir, RECIPE_BATCHES_DIR);
 }
 
-/** Resolve the file path for one batch. */
+/** Resolve the file path for one batch. `batchId` is server-generated today
+ *  (`rec-<iso>-<uuid>`, `bundle-<iso>`, a sanitised branch name), but this is a
+ *  filesystem boundary — reject anything but a single safe segment so a stray
+ *  `..` or path separator from a future caller can't escape `data/recipes/`. */
 export function recipeBatchFilePath(dataDir: string, batchId: string): string {
+  if (!batchId || /[/\\]|\.\./.test(batchId)) {
+    throw new Error(`unsafe recipe batch id: ${batchId}`);
+  }
   return join(recipeBatchesDir(dataDir), `${batchId}.json`);
 }
 
