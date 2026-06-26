@@ -531,6 +531,9 @@ model PlannedMeal {
   lastRebalanceAt DateTime?
 
   @@index([dayId])
+  // Cross-plan "which meals use recipe X" lookups (cascade checks, future
+  // reporting) would otherwise full-scan PlannedMeal.
+  @@index([recipeId])
 }
 
 enum PlannedMealSource {
