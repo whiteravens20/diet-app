@@ -2,7 +2,7 @@
  * Unit tests for FavoritesService. Prisma + the recipe DTO mapper are mocked.
  * Focus on the per-profile ownership guard and the upsert/remove semantics.
  */
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // toRecipeDto is exercised by recipes.service tests; here we only need it not to
@@ -26,6 +26,11 @@ function makePrisma(owner: string | null = 'user-1') {
       upsert: vi.fn().mockResolvedValue({ id: 'f1' }),
       delete: vi.fn().mockResolvedValue({}),
     },
+    // Default: the recipe is visible (curated or own). Tests override to null
+    // to exercise the IDOR guard (favoriting a foreign/private recipe).
+    recipe: {
+      findFirst: vi.fn().mockResolvedValue({ id: 'r1' }),
+    },
   };
 }
 
@@ -44,6 +49,28 @@ describe('FavoritesService ownership', () => {
     await expect(makeService(prisma).add('user-1', 'p1', 'r1', [], 'favorite')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+
+  // IDOR: favoriting another user's private (or soft-deleted) recipe must be
+  // refused, otherwise its full content leaks back through `list`.
+  it('rejects add for a recipe the user cannot see', async () => {
+    const prisma = makePrisma('user-1');
+    prisma.recipe.findFirst = vi.fn().mockResolvedValue(null);
+    await expect(
+      makeService(prisma).add('user-1', 'p1', 'foreign-recipe', [], 'favorite'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.favorite.upsert).not.toHaveBeenCalled();
+  });
+
+  it('scopes the list query to visible recipes (not deleted / own-or-curated)', async () => {
+    const prisma = makePrisma('user-1');
+    await makeService(prisma).list('user-1', 'en', 'p1');
+    const where = prisma.favorite.findMany.mock.calls[0][0].where;
+    expect(where.recipe.deletedAt).toBeNull();
+    expect(where.recipe.OR).toEqual([
+      { createdByUserId: null },
+      { createdByUserId: 'user-1' },
+    ]);
   });
 });
 

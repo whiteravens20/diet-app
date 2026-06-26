@@ -1,8 +1,8 @@
 /**
  * Unit tests for InventoryService (F15 pantry). Prisma + the ingredient DTO
  * mapper are mocked. Focus: ownership guards on every mutation, the upsert
- * aggregation rule (same profile+ingredient+unit adds quantity), and the
- * snapshot read the optimiser uses.
+ * aggregation rule (same profile+ingredient+unit adds quantity), and DTO
+ * date formatting.
  */
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
@@ -76,17 +76,6 @@ describe('InventoryService.upsert aggregation', () => {
     await makeService(prisma).upsert('user-1', 'en', 'p1', { ingredientId: 'ing-1', quantity: 50, unit: 'g' } as never);
     expect(prisma.inventoryItem.update).toHaveBeenCalled();
     expect(prisma.inventoryItem.update.mock.calls[0][0].data.quantity).toBe(250);
-  });
-});
-
-describe('InventoryService.snapshot', () => {
-  it('returns the raw (ingredientId, quantity, unit) rows for the optimiser', async () => {
-    const prisma = makePrisma('user-1');
-    prisma.inventoryItem.findMany = vi.fn().mockResolvedValue([
-      { ingredientId: 'ing-1', quantity: 200, unit: 'g' },
-    ]);
-    const snap = await makeService(prisma).snapshot('p1');
-    expect(snap).toEqual([{ ingredientId: 'ing-1', quantity: 200, unit: 'g' }]);
   });
 });
 

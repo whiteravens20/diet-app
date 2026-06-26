@@ -84,20 +84,6 @@ export class InventoryService {
     await this.prisma.inventoryItem.delete({ where: { id: row.id } });
   }
 
-  /**
-   * Map of `ingredientId → quantity` in the canonical unit. Read by the
-   * optimiser to score recipe coverage. Aggregates across units by
-   * converting non-canonical rows via the engine's unit converter at call
-   * time (see optimiser integration).
-   */
-  async snapshot(profileId: string): Promise<Array<{ ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece' }>> {
-    const rows = await this.prisma.inventoryItem.findMany({
-      where: { profileId },
-      select: { ingredientId: true, quantity: true, unit: true },
-    });
-    return rows;
-  }
-
   private async assertProfile(userId: string, profileId: string): Promise<void> {
     const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
     if (!profile || profile.userId !== userId) {
