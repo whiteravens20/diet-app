@@ -225,6 +225,8 @@
     "LIST_NOT_FOUND": "Nie znaleziono listy zakupów.",
     "AI_CONFIG_NOT_FOUND": "Nie znaleziono konfiguracji dostawcy AI.",
     "BYOK_NO_PROVIDER": "Dodaj co najmniej jeden klucz dostawcy, zanim przełączysz się na własny klucz.",
+    "OLLAMA_HOST_NOT_ALLOWED": "Ten adres Ollama nie jest dozwolony na tej instancji. Poproś operatora o dodanie go do OLLAMA_ALLOWED_HOSTS.",
+    "OLLAMA_USER_DISABLED": "Własna instancja Ollama jest wyłączona na tej instancji.",
     "ADMIN_DISABLED": "Panel administracyjny jest wyłączony na tej instancji.",
     "UPDATE_IN_PROGRESS": "Aktualizacja bazy już trwa.",
     "IMPORT_IN_PROGRESS": "Import USDA już trwa.",

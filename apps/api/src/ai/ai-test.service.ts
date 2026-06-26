@@ -4,6 +4,11 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AiTestConnectionRequest, AiTestConnectionResponse } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
+import { assertAllowedOllamaUrl, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
+
+/** Hard ceiling on a single provider probe — a slow/hostile endpoint must not
+ *  hold a request slot open for the OS TCP timeout. */
+const PROBE_TIMEOUT_MS = 10_000;
 
 /**
  * Test-connection probe behind `POST /ai/test`.
@@ -53,6 +58,7 @@ export class AiTestService {
     if (!apiKey) return { ok: false, models: [], error: 'API key required.' };
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     if (!res.ok) {
       return { ok: false, models: [], error: `HTTP ${res.status} ${res.statusText}` };
@@ -66,9 +72,25 @@ export class AiTestService {
   }
 
   private async testOllama(baseUrl: string | undefined): Promise<AiTestConnectionResponse> {
-    const root = baseUrl ?? this.config.get('OLLAMA_BASE_URL', { infer: true });
+    const defaultBaseUrl = this.config.get('OLLAMA_BASE_URL', { infer: true });
+    const root = baseUrl ?? defaultBaseUrl;
     if (!root) return { ok: false, models: [], error: 'OLLAMA_BASE_URL not configured.' };
-    const res = await fetch(`${root.replace(/\/$/, '')}/api/tags`);
+    // Guard the user-supplied host against SSRF before any outbound request.
+    try {
+      assertAllowedOllamaUrl(root, {
+        policy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
+        defaultBaseUrl,
+        allowedHosts: parseAllowedHosts(
+          this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true }),
+        ),
+      });
+    } catch (err) {
+      if (err instanceof OllamaUrlError) return { ok: false, models: [], error: err.message };
+      throw err;
+    }
+    const res = await fetch(`${root.replace(/\/$/, '')}/api/tags`, {
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
     if (!res.ok) {
       return { ok: false, models: [], error: `HTTP ${res.status} ${res.statusText}` };
     }
@@ -100,6 +122,7 @@ export class AiTestService {
         max_tokens: 1,
         messages: [{ role: 'user', content: 'ping' }],
       }),
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     if (!res.ok) {
       const text = await res.text();

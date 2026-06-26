@@ -46,9 +46,21 @@ export interface DataState {
  *
  * Override via `SEED_DATA_DIR` for tests / non-standard layouts.
  */
+/**
+ * The one place `SEED_DATA_DIR` is read. This helper runs outside the Nest DI
+ * container (the seed / validate-data CLI scripts call it before an app exists),
+ * so `ConfigService` is unavailable; the single annotated read is the typed
+ * boundary. The value is a directory path, never a secret.
+ */
+function seedDataDirOverride(): string | undefined {
+  // eslint-disable-next-line no-restricted-syntax -- non-DI CLI path helper; ConfigService is unavailable here
+  const raw = process.env.SEED_DATA_DIR;
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw : undefined;
+}
+
 export function resolveDataDir(): string {
-  // eslint-disable-next-line no-restricted-syntax -- non-DI path helper; also called from CLI scripts (seed/validate-data) that run outside Nest, so ConfigService is unavailable here
-  if (process.env.SEED_DATA_DIR) return resolve(process.env.SEED_DATA_DIR);
+  const override = seedDataDirOverride();
+  if (override) return resolve(override);
   const candidates = [
     resolve(process.cwd(), 'data'),
     resolve(process.cwd(), '../../data'),

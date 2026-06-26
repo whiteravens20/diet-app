@@ -13,6 +13,7 @@ import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiKeyService } from './ai-key.service.js';
 import { AiQuotaService } from './ai-quota.service.js';
+import { assertAllowedOllamaUrl, parseAllowedHosts } from './ollama-url.js';
 import { AnthropicProvider } from './providers/anthropic.provider.js';
 import { OllamaProvider } from './providers/ollama.provider.js';
 import { OpenAiProvider } from './providers/openai.provider.js';
@@ -94,13 +95,26 @@ export class AiRouterService {
       const adapter = this.adapters[cfg.provider];
       const started = Date.now();
       try {
+        let baseUrl: string | undefined;
+        if (cfg.provider === 'ollama') {
+          const defaultBaseUrl = this.config.get('OLLAMA_BASE_URL', { infer: true });
+          baseUrl = cfg.baseUrl ?? defaultBaseUrl;
+          // Defence-in-depth SSRF guard: BYOK URLs are validated at write time,
+          // but re-check here so a directly-seeded admin-default or a legacy row
+          // can never dial a disallowed host. A bad host is skipped like any
+          // other provider failure (the chain continues / falls back).
+          assertAllowedOllamaUrl(baseUrl, {
+            policy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
+            defaultBaseUrl,
+            allowedHosts: parseAllowedHosts(
+              this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true }),
+            ),
+          });
+        }
         const result = await adapter.chat(messages, {
           model: cfg.model,
           apiKey: cfg.apiKey ?? undefined,
-          baseUrl:
-            cfg.provider === 'ollama'
-              ? cfg.baseUrl ?? this.config.get('OLLAMA_BASE_URL', { infer: true })
-              : undefined,
+          baseUrl,
           json,
         });
         await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation, result, Date.now() - started, true, false);

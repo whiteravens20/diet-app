@@ -29,6 +29,9 @@ export class AppConfigController {
         siteKey: this.config.get('TURNSTILE_SITE_KEY', { infer: true }) ?? null,
       },
       email: { enabled: this.mail.enabled },
+      ai: {
+        ollamaUserPolicy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
+      },
     };
   }
 }

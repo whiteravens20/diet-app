@@ -21,14 +21,19 @@ async function bootstrap(): Promise<void> {
   // Input validation is per-route via ZodValidationPipe against packages/shared.
   app.enableCors({ origin: config.get('APP_URL', { infer: true }), credentials: true });
 
-  // OpenAPI — served at /api/docs, JSON at /api/docs-json.
-  const swagger = new DocumentBuilder()
-    .setTitle('Diet App API')
-    .setDescription('Deterministic diet & meal-planning API. See packages/shared for contracts.')
-    .setVersion('0.0.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swagger));
+  // OpenAPI — served at /api/docs, JSON at /api/docs-json. Off in production
+  // unless explicitly enabled: the schema dump is recon-enabling and there is
+  // no reason to expose it on a public instance by default.
+  if (config.get('SWAGGER_ENABLED', { infer: true })) {
+    const swagger = new DocumentBuilder()
+      .setTitle('Diet App API')
+      .setDescription('Deterministic diet & meal-planning API. See packages/shared for contracts.')
+      .setVersion('0.0.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swagger));
+    Logger.log('Swagger UI enabled at /api/docs', 'Bootstrap');
+  }
 
   const port = config.get('API_PORT', { infer: true });
   await app.listen(port, '0.0.0.0');

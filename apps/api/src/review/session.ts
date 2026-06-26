@@ -11,9 +11,24 @@
  * Cookies are parsed inline from the `Cookie` header to avoid pulling in
  * `cookie-parser` for this single cookie name.
  */
+import type { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
+import type { Env } from '../config/env.js';
 
 export const REVIEWER_COOKIE_NAME = 'reviewer_session';
+
+/**
+ * Secret the reviewer cookie is signed/verified with. Prefers the dedicated
+ * REVIEWER_SESSION_SECRET; falls back to JWT_ACCESS_SECRET when an operator
+ * hasn't configured a separate one (acceptable for single-secret deployments,
+ * but a distinct secret keeps reviewer auth independent of user-access auth).
+ */
+export function resolveReviewerSecret(config: ConfigService<Env, true>): string {
+  return (
+    config.get('REVIEWER_SESSION_SECRET', { infer: true }) ??
+    config.get('JWT_ACCESS_SECRET', { infer: true })
+  );
+}
 /** 7 days, in seconds — matches the spec ("7-day TTL"). */
 export const REVIEWER_COOKIE_TTL_SECONDS = 7 * 24 * 60 * 60;
 

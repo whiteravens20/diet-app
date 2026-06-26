@@ -41,6 +41,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Throttle } from '@nestjs/throttler';
 import * as bcrypt from 'bcryptjs';
 import type { Request, Response } from 'express';
 import {
@@ -64,6 +65,7 @@ import {
   REVIEWER_COOKIE_NAME,
   buildReviewerSetCookie,
   readCookie,
+  resolveReviewerSecret,
   signReviewerCookie,
   verifyReviewerCookie,
 } from './session.js';
@@ -99,6 +101,9 @@ export class ReviewController {
     };
   }
 
+  // Tightened past the global default to blunt password enumeration against the
+  // bcrypt-hashed reviewer credential — mirrors the /auth controller posture.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('auth')
   @HttpCode(204)
   async login(@Body() body: unknown, @Res({ passthrough: true }) res: Response): Promise<void> {
@@ -126,7 +131,7 @@ export class ReviewController {
       });
     }
 
-    const secret = this.config.get('JWT_ACCESS_SECRET', { infer: true });
+    const secret = resolveReviewerSecret(this.config);
     const { token, maxAgeSeconds } = signReviewerCookie(this.jwt, secret, {
       label: parsed.data.label,
     });
@@ -173,7 +178,7 @@ export class ReviewController {
       REVIEWER_COOKIE_NAME,
     );
     if (!token) return { session: null };
-    const secret = this.config.get('JWT_ACCESS_SECRET', { infer: true });
+    const secret = resolveReviewerSecret(this.config);
     const parsedSession = verifyReviewerCookie(this.jwt, secret, token);
     return { session: parsedSession };
   }
@@ -198,9 +203,15 @@ export class ReviewController {
     );
     const includeReviewed = includeReviewedRaw === 'true';
 
+    // Filter "already approved for this locale" in the query so `total` and the
+    // returned page stay consistent — an in-memory post-filter made `total`
+    // count rows the page omitted, breaking pagination.
     const where = {
       status: { in: ['PENDING', 'APPROVED'] as ('PENDING' | 'APPROVED')[] },
       locales: { has: locale },
+      ...(includeReviewed
+        ? {}
+        : { localeReviews: { none: { locale, action: 'APPROVE' as const } } }),
     };
     const [items, total] = await Promise.all([
       this.prisma.recipeDraft.findMany({
@@ -213,17 +224,8 @@ export class ReviewController {
       this.prisma.recipeDraft.count({ where }),
     ]);
 
-    const filtered = includeReviewed
-      ? items
-      : items.filter(
-          (row) =>
-            !row.localeReviews.some(
-              (r) => r.locale === locale && r.action === 'APPROVE',
-            ),
-        );
-
     return {
-      items: filtered.map((row) => toRecipeReviewSlice(row, locale)),
+      items: items.map((row) => toRecipeReviewSlice(row, locale)),
       total,
       page,
       pageSize,
@@ -427,9 +429,14 @@ export class ReviewController {
     );
     const includeReviewed = includeReviewedRaw === 'true';
 
+    // See listRecipeSlices — query-level filter keeps `total` and the page in
+    // sync so pagination doesn't advance into empty pages.
     const where = {
       status: { in: ['PENDING', 'APPROVED'] as ('PENDING' | 'APPROVED')[] },
       locales: { has: locale },
+      ...(includeReviewed
+        ? {}
+        : { localeReviews: { none: { locale, action: 'APPROVE' as const } } }),
     };
     const [items, total] = await Promise.all([
       this.prisma.ingredientNameDraft.findMany({
@@ -442,17 +449,8 @@ export class ReviewController {
       this.prisma.ingredientNameDraft.count({ where }),
     ]);
 
-    const filtered = includeReviewed
-      ? items
-      : items.filter(
-          (row) =>
-            !row.localeReviews.some(
-              (r) => r.locale === locale && r.action === 'APPROVE',
-            ),
-        );
-
     return {
-      items: filtered.map((row) => toIngredientNameReviewSlice(row, locale)),
+      items: items.map((row) => toIngredientNameReviewSlice(row, locale)),
       total,
       page,
       pageSize,

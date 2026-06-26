@@ -16,10 +16,20 @@ export const envSchema = z.object({
   API_PORT: z.coerce.number().int().default(4000),
   APP_URL: z.string().url().default('http://localhost:3000'),
 
+  // OpenAPI/Swagger UI at /api/docs. Off in production by default (the schema
+  // dump aids reconnaissance); operators opt in explicitly. Left unset, it
+  // resolves to `true` outside production — see validateEnv.
+  SWAGGER_ENABLED: z.enum(['true', 'false']).optional(),
+
   DATABASE_URL: z.string().url(),
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
+  // Independent secret for the reviewer-session cookie. Optional: when unset it
+  // falls back to JWT_ACCESS_SECRET. Set it to a distinct value so a leaked (or
+  // rotated) user-access secret can't be used to forge reviewer cookies, and so
+  // rotating one doesn't invalidate the other. See review/session.ts.
+  REVIEWER_SESSION_SECRET: z.string().min(16).optional(),
   JWT_ACCESS_TTL: z.coerce.number().int().default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().default(2_592_000),
   PASSWORD_HASH_ROUNDS: z.coerce.number().int().min(8).max(15).default(12),
@@ -45,6 +55,18 @@ export const envSchema = z.object({
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
     z.string().url().default('http://localhost:11434'),
   ),
+  // Whether/how a user may point their own BYOK Ollama config at a host:
+  //   off       — users can't configure Ollama (operator default still serves
+  //               admin-mode users).
+  //   allowlist — (default) only OLLAMA_BASE_URL's host + OLLAMA_ALLOWED_HOSTS.
+  //   public    — any host except internal/private/loopback ranges.
+  // See packages/shared OllamaUserPolicy and apps/api/src/ai/ollama-url.ts.
+  OLLAMA_USER_POLICY: z.enum(['off', 'allowlist', 'public']).default('allowlist'),
+  // SSRF allowlist for user-supplied Ollama base URLs (the `/ai/test` probe and
+  // persisted BYOK configs) when OLLAMA_USER_POLICY=allowlist. Comma-separated
+  // `host` or `host:port` entries. OLLAMA_BASE_URL's host is always allowed;
+  // this only widens the set for operators who let users point BYOK elsewhere.
+  OLLAMA_ALLOWED_HOSTS: z.string().optional(),
 
   // USDA FoodData Central importer (admin-triggered). `DEMO_KEY` is FDC's public
   // rate-limited key; operators set a real key for bulk imports.
@@ -120,7 +142,12 @@ export function isAdminEnabled(env: Pick<Env, 'ADMIN_PASSWORD'>): boolean {
   return p.length > 0 && p !== ADMIN_PASSWORD_PLACEHOLDER;
 }
 
-export type Env = z.infer<typeof envSchema>;
+// `SWAGGER_ENABLED` is parsed as an optional string flag but resolved to a
+// firm boolean by validateEnv (NODE_ENV-aware default), so the runtime type
+// the rest of the app sees is always a boolean.
+export type Env = Omit<z.infer<typeof envSchema>, 'SWAGGER_ENABLED'> & {
+  SWAGGER_ENABLED: boolean;
+};
 
 /** @nestjs/config `validate` hook. */
 export function validateEnv(raw: Record<string, unknown>): Env {
@@ -131,5 +158,13 @@ export function validateEnv(raw: Record<string, unknown>): Env {
       .join('\n');
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
-  return result.data;
+  const { SWAGGER_ENABLED, ...rest } = result.data;
+  return {
+    ...rest,
+    // Explicit flag wins; otherwise on everywhere except production.
+    SWAGGER_ENABLED:
+      SWAGGER_ENABLED !== undefined
+        ? SWAGGER_ENABLED === 'true'
+        : rest.NODE_ENV !== 'production',
+  };
 }

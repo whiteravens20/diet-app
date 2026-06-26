@@ -1,11 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AiMode, AiProviderConfig, AiProviderConfigInput } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decrypt, encrypt } from '../common/crypto.js';
+import { assertAllowedOllamaUrl, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
 
 /** A resolved provider config with the decrypted key, for internal use only. */
 export interface ResolvedProviderConfig {
@@ -50,6 +51,24 @@ export class AiKeyService {
     const encryptedKey = input.apiKey ? encrypt(input.apiKey, this.encKey) : undefined;
 
     const baseUrl = input.provider === 'ollama' ? input.baseUrl ?? null : null;
+    // SSRF guard: a persisted Ollama baseUrl is later dialled by the router, so
+    // reject a disallowed host at write time rather than on every chat call.
+    if (input.provider === 'ollama' && baseUrl) {
+      try {
+        assertAllowedOllamaUrl(baseUrl, {
+          policy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
+          defaultBaseUrl: this.config.get('OLLAMA_BASE_URL', { infer: true }),
+          allowedHosts: parseAllowedHosts(
+            this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true }),
+          ),
+        });
+      } catch (err) {
+        if (err instanceof OllamaUrlError) {
+          throw new BadRequestException({ error: err.code, message: err.message });
+        }
+        throw err;
+      }
+    }
     const row = existing
       ? await this.prisma.aiProviderConfig.update({
           where: { id: existing.id },

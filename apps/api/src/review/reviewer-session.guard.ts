@@ -29,6 +29,7 @@ import { InstanceSettingsService } from '../instance-settings/instance-settings.
 import {
   REVIEWER_COOKIE_NAME,
   readCookie,
+  resolveReviewerSecret,
   verifyReviewerCookie,
   type ReviewerSession,
 } from './session.js';
@@ -68,7 +69,7 @@ export class ReviewerSessionGuard implements CanActivate {
       });
     }
 
-    const secret = this.config.get('JWT_ACCESS_SECRET', { infer: true });
+    const secret = resolveReviewerSecret(this.config);
     const session = verifyReviewerCookie(this.jwt, secret, token);
     if (!session) {
       throw new UnauthorizedException({

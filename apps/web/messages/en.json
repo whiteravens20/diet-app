@@ -225,6 +225,8 @@
     "LIST_NOT_FOUND": "Shopping list not found.",
     "AI_CONFIG_NOT_FOUND": "AI provider configuration not found.",
     "BYOK_NO_PROVIDER": "Add at least one provider key before switching to bring-your-own.",
+    "OLLAMA_HOST_NOT_ALLOWED": "That Ollama address isn't allowed on this instance. Ask the operator to add it to OLLAMA_ALLOWED_HOSTS.",
+    "OLLAMA_USER_DISABLED": "Bring-your-own Ollama is turned off on this instance.",
     "ADMIN_DISABLED": "The admin panel is disabled on this instance.",
     "UPDATE_IN_PROGRESS": "A database update is already in progress.",
     "IMPORT_IN_PROGRESS": "A USDA import is already in progress.",
