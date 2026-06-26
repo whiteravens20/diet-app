@@ -104,7 +104,7 @@ export class MealPlansService {
 
     // Deterministic seed: count of existing plans → "regenerate" yields variety.
     const seed = await this.prisma.mealPlan.count({ where: { profileId: profile.id } });
-    const result = await this.optimiseFor(profile, {
+    const result = await this.optimiseFor(userId, profile, {
       days: resolvedDays,
       dietType,
       mealPrepFriendly: req.mealPrepFriendly,
@@ -168,7 +168,7 @@ export class MealPlansService {
       };
     });
 
-    const result = await this.optimiseFor(profile, {
+    const result = await this.optimiseFor(userId, profile, {
       days: resolvedDays,
       dietType: profile.dietType,
       mealPrepFriendly: false,
@@ -227,7 +227,7 @@ export class MealPlansService {
       overrides: o,
     };
 
-    const result = await this.optimiseFor(profile, {
+    const result = await this.optimiseFor(userId, profile, {
       days: [resolved],
       dietType: day.plan.dietType,
       mealPrepFriendly: false,
@@ -282,6 +282,7 @@ export class MealPlansService {
    * flow is just a list of uniform days.
    */
   private async optimiseFor(
+    ownerUserId: string,
     profile: {
       id: string;
       preferences:
@@ -309,7 +310,7 @@ export class MealPlansService {
       seed: number;
     },
   ): Promise<OptimizerResult> {
-    const { optimizerRecipes, requirementsByRecipe } = await this.loadEligibleRecipes(profile, {
+    const { optimizerRecipes, requirementsByRecipe } = await this.loadEligibleRecipes(ownerUserId, profile, {
       respectExclusions: opts.respectExclusions,
     });
 
@@ -1823,6 +1824,7 @@ export class MealPlansService {
    * `respectExclusions: false` for one-off plans.
    */
   private async loadEligibleRecipes(
+    ownerUserId: string,
     profile: {
       id: string;
       preferences:
@@ -1846,7 +1848,16 @@ export class MealPlansService {
         ? new Set<string>()
         : new Set(profile.preferences?.excludedIngredientIds ?? []);
 
+    // Candidate pool is the public/curated library plus the requesting user's
+    // own non-deleted recipes — never another user's private (user/AI_USER)
+    // rows, which the optimiser would otherwise be free to embed into this
+    // user's plan and leak through the plan view. Mirrors the visibility filter
+    // used by the recipe list and the meal-swap candidate query.
     const recipes = await this.prisma.recipe.findMany({
+      where: {
+        deletedAt: null,
+        OR: [{ createdByUserId: null }, { createdByUserId: ownerUserId }],
+      },
       include: {
         ingredients: {
           include: {

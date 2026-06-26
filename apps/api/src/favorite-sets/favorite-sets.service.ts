@@ -46,7 +46,7 @@ export class FavoriteSetsService {
 
   async create(userId: string, dto: CreateFavoriteSetRequest): Promise<FavoriteSet> {
     await this.assertProfile(userId, dto.profileId);
-    await this.assertRecipes(Object.values(dto.slots));
+    await this.assertRecipes(userId, Object.values(dto.slots));
     const row = await this.prisma.favoriteSet.create({
       data: {
         profileId: dto.profileId,
@@ -59,7 +59,7 @@ export class FavoriteSetsService {
 
   async update(userId: string, id: string, dto: UpdateFavoriteSetRequest): Promise<FavoriteSet> {
     const set = await this.load(userId, id);
-    if (dto.slots) await this.assertRecipes(Object.values(dto.slots));
+    if (dto.slots) await this.assertRecipes(userId, Object.values(dto.slots));
     const row = await this.prisma.favoriteSet.update({
       where: { id: set.id },
       data: {
@@ -110,12 +110,27 @@ export class FavoriteSetsService {
     }
 
     // Recipe calories drive the per-slot serving rescale below; allergens gate
-    // the apply. Fetch once.
+    // the apply. Fetch once, scoped to recipes this user may see (curated/public
+    // or their own, non-deleted) — a recipe saved into the set may since have
+    // been soft-deleted, and we must never write a foreign/invisible recipe into
+    // the plan. Any slot whose recipe is no longer visible aborts the apply.
+    const slotRecipeIds = [...new Set(slotEntries.map(([, recipeId]) => recipeId))];
     const recipes = await this.prisma.recipe.findMany({
-      where: { id: { in: slotEntries.map(([, recipeId]) => recipeId) } },
+      where: {
+        id: { in: slotRecipeIds },
+        deletedAt: null,
+        OR: [{ createdByUserId: null }, { createdByUserId: userId }],
+      },
       select: { id: true, caloriesPerServing: true, allergens: true },
     });
     const caloriesById = new Map(recipes.map((r) => [r.id, r.caloriesPerServing]));
+    const missing = slotRecipeIds.filter((id) => !caloriesById.has(id));
+    if (missing.length > 0) {
+      throw new NotFoundException({
+        error: 'RECIPE_NOT_FOUND',
+        message: `Favorite set references a recipe that no longer exists: ${missing[0]}`,
+      });
+    }
 
     // Allergens are the one hard safety rule the whole app enforces everywhere
     // else (generation, swap, AI-swap, substitution). A saved set may hold a
@@ -214,10 +229,21 @@ export class FavoriteSetsService {
     }
   }
 
-  private async assertRecipes(recipeIds: string[]): Promise<void> {
+  /**
+   * Validate that every referenced recipe is one the user is actually allowed
+   * to see — a curated/public row OR their own non-deleted recipe. Without the
+   * ownership + soft-delete scope a user could save (and later `apply`) another
+   * user's private AI-drafted recipe into their own plan, leaking its content
+   * through the plan view. Mirrors the visibility filter the swap path uses.
+   */
+  private async assertRecipes(userId: string, recipeIds: string[]): Promise<void> {
     if (recipeIds.length === 0) return;
     const found = await this.prisma.recipe.findMany({
-      where: { id: { in: recipeIds } },
+      where: {
+        id: { in: recipeIds },
+        deletedAt: null,
+        OR: [{ createdByUserId: null }, { createdByUserId: userId }],
+      },
       select: { id: true },
     });
     const ok = new Set(found.map((r) => r.id));
