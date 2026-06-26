@@ -190,6 +190,7 @@
     "INVALID_AUTH_HEADER": "Invalid authorization header.",
     "EMAIL_TAKEN": "That email is already registered.",
     "INVALID_CREDENTIALS": "Email or password is incorrect.",
+    "INVALID_ACCESS_TOKEN": "Your session is invalid. Please sign in again.",
     "INVALID_REFRESH": "Your session expired. Please sign in again.",
     "INVALID_RESET_TOKEN": "This reset link is invalid or has expired.",
     "TURNSTILE_FAILED": "Anti-abuse check failed. Please try again.",
