@@ -22,11 +22,28 @@ export default defineConfig({
         'src/**/index.ts',
       ],
       // Floors are ratcheted up as suites land; never lowered — that is the
-      // regression gate. The engine carries the deterministic math, so it holds
-      // the spec's strictest floor. Branches sit at 85 (today's real number is
-      // ~88) pending deeper optimizer/rebalance branch tests; ratchet toward 90.
+      // regression gate. The global floor is set at today's measured number;
+      // the engine carries the deterministic math at the strict floor; the
+      // directories with service suites hold interim per-file floors so their
+      // gains can't erode while the large orchestration services (meal-plans,
+      // shopping-lists, recipes) are still being covered toward the 85% target.
       thresholds: {
+        lines: 23,
+        functions: 22,
+        branches: 21,
+        statements: 23,
         'src/engine/**': { lines: 95, functions: 95, branches: 85, statements: 95 },
+        'src/ai/ai-key.service.ts': { lines: 85, functions: 80, branches: 60, statements: 85 },
+        'src/ai/ai-quota.service.ts': { lines: 95, functions: 95, branches: 75, statements: 95 },
+        'src/ai/ai-validation.service.ts': { lines: 90, functions: 90, branches: 80, statements: 90 },
+        'src/ai/ollama-url.ts': { lines: 94, functions: 95, branches: 90, statements: 94 },
+        'src/auth/auth.service.ts': { lines: 78, functions: 70, branches: 60, statements: 78 },
+        'src/auth/turnstile.service.ts': { lines: 90, functions: 100, branches: 87, statements: 90 },
+        'src/favorites/favorites.service.ts': { lines: 95, functions: 95, branches: 80, statements: 95 },
+        'src/inventory/inventory.service.ts': { lines: 80, functions: 95, branches: 55, statements: 80 },
+        'src/profiles/profiles.service.ts': { lines: 75, functions: 75, branches: 90, statements: 75 },
+        'src/weights/weights.service.ts': { lines: 95, functions: 95, branches: 90, statements: 95 },
+        'src/ingredients/ingredients.service.ts': { lines: 95, functions: 95, branches: 75, statements: 95 },
       },
     },
   },
