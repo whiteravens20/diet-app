@@ -11,6 +11,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   AiProviderConfigInput,
   AiTestConnectionRequest,
@@ -69,7 +70,13 @@ export class AiController {
    * Verify a provider credential without persisting it. The UI calls this
    * from the BYOK form to confirm the key works and populate the model
    * dropdown.
+   *
+   * Throttled tighter than the global default: each call makes an *outbound*
+   * request to a user-named provider (including a user-supplied Ollama base URL,
+   * bounded by the SSRF policy), so it's an abuse / cost / probe vector if left
+   * at the loose 120/min global limit.
    */
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('test')
   async testConnection(
     @Body(new ZodValidationPipe(AiTestConnectionRequest)) dto: AiTestConnectionRequest,

@@ -37,9 +37,8 @@ environment fails fast with a clear message.
 ## Anti-abuse
 | `TURNSTILE_ENABLED` | `false` | Enable Cloudflare Turnstile. |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | — | Required only when enabled. |
-| `RATE_LIMIT_WINDOW` | `60` | Rate-limit window (seconds). |
-| `RATE_LIMIT_MAX` | `120` | Requests/window/IP, general endpoints. |
-| `RATE_LIMIT_AI_MAX` | `20` | Requests/window/user, AI + plan generation. |
+| `RATE_LIMIT_WINDOW` | `60` | Rate-limit window (seconds), applies to every endpoint. |
+| `RATE_LIMIT_MAX` | `120` | Requests/window/IP, global default. AI + plan-generation routes carry fixed tighter per-route limits (recipe draft 10, plan (re)generate 20, AI swap 30, provider test 20/min) that are not operator-tunable. |
 
 ## Email (optional)
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | — | SMTP for password reset. Unset → reset links log to stdout (dev). |

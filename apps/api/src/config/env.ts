@@ -85,7 +85,6 @@ export const envSchema = z.object({
 
   RATE_LIMIT_WINDOW: z.coerce.number().int().default(60),
   RATE_LIMIT_MAX: z.coerce.number().int().default(120),
-  RATE_LIMIT_AI_MAX: z.coerce.number().int().default(20),
 
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().default(587),
