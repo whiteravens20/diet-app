@@ -24,15 +24,21 @@ import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TurnstileService } from './turnstile.service.js';
 
-/** A bcrypt hash of a constant value, for a uniform-time compare on a miss. */
-const DUMMY_HASH = '$2b$12$invalidinvalidinvalidinvalidinvalidinvalidina';
-
 @Injectable()
 export class AuthService {
   // Purpose-specific keys derived from the single DATA_ENCRYPTION_SECRET.
   private readonly emailKey: string;
   private readonly emailIndexKey: string;
   private readonly pepperKey: string;
+  /**
+   * A *valid* bcrypt hash at the configured cost, computed once at startup, so
+   * the login "no such user" path spends the same time as a real password
+   * compare. A malformed/hardcoded constant lets `bcrypt.compare` fail-fast
+   * (returning in ~0ms instead of ~250ms), which leaks account existence
+   * through a response-timing oracle. Derived from the live rounds so it stays
+   * uniform even if the operator retunes `PASSWORD_HASH_ROUNDS`.
+   */
+  private readonly dummyHash: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -45,6 +51,10 @@ export class AuthService {
     this.emailKey = deriveKey(master, 'email-encryption');
     this.emailIndexKey = deriveKey(master, 'email-blind-index');
     this.pepperKey = deriveKey(master, 'password-pepper');
+    this.dummyHash = bcrypt.hashSync(
+      'uniform-timing-placeholder',
+      this.config.get('PASSWORD_HASH_ROUNDS', { infer: true }),
+    );
   }
 
   async register(dto: RegisterRequest, locale: Locale = 'en'): Promise<AuthResponse> {
@@ -94,7 +104,7 @@ export class AuthService {
     // Always run a hash comparison to keep the response time uniform.
     const ok = await bcrypt.compare(
       pepperPassword(dto.password, this.pepperKey),
-      user?.passwordHash ?? DUMMY_HASH,
+      user?.passwordHash ?? this.dummyHash,
     );
     if (!user || !ok) {
       throw new UnauthorizedException({
