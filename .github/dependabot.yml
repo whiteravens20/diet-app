@@ -4,6 +4,12 @@ version: 2
 
 updates:
   - package-ecosystem: github-actions
+    # Let a newly published version settle for a week before proposing it. A
+    # release can be yanked or a tag repointed in the hours after it lands, and
+    # none of these bumps is urgent. Dependabot security updates are exempt
+    # from cooldown and still open the moment an advisory lands.
+    cooldown:
+      default-days: 7
     directory: /
     target-branch: dev
     schedule:
@@ -17,6 +23,12 @@ updates:
 
   # Single root manifest — npm workspaces resolve apps/* and packages/*.
   - package-ecosystem: npm
+    # Let a newly published version settle for a week before proposing it. A
+    # release can be yanked or a tag repointed in the hours after it lands, and
+    # none of these bumps is urgent. Dependabot security updates are exempt
+    # from cooldown and still open the moment an advisory lands.
+    cooldown:
+      default-days: 7
     directory: /
     target-branch: dev
     schedule:
