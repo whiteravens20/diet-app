@@ -24,7 +24,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.102.0",
+    "@anthropic-ai/sdk": "^0.122.0",
     "@diet-app/shared": "*",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.1.25",
@@ -35,21 +35,21 @@
     "@nestjs/platform-express": "^11.1.25",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.5.0",
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "bcryptjs": "^3.0.2",
     "bullmq": "^5.78.0",
     "ioredis": "^5.11.1",
-    "nestjs-zod": "^5.4.0",
-    "nodemailer": "9.0.1",
+    "nestjs-zod": "^5.5.0",
+    "nodemailer": "9.0.6",
     "ollama": "^0.6.3",
     "openai": "^6.42.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
-    "pg": "^8.21.0",
+    "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "zod": "^4.4.3"
+    "rxjs": "^7.8.2",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.22",
@@ -57,12 +57,12 @@
     "@types/node": "^25.9.2",
     "@types/nodemailer": "8.0.1",
     "@types/passport-jwt": "^4.0.1",
-    "@types/pg": "^8.20.0",
+    "@types/pg": "^8.23.1",
     "eslint": "^9.39.4",
-    "fast-check": "^4.8.0",
-    "prisma": "^7.8.0",
-    "tsx": "^4.22.4",
+    "fast-check": "^4.9.0",
+    "prisma": "^7.10.0",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.11"
   }
 }
