@@ -16,6 +16,11 @@ jobs:
   images:
     name: Build & push images
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write       # Sign the provenance attestation
+      attestations: write
     strategy:
       matrix:
         service: [api, web]
@@ -36,6 +41,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
       - uses: docker/build-push-action@v7
+        id: build
         with:
           context: .
           file: infra/docker/${{ matrix.service }}.Dockerfile
@@ -44,6 +50,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           provenance: true
           sbom: true
+      # Sigstore-signed build provenance, pushed to ghcr.io next to the image.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}-${{ matrix.service }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   release:
     name: GitHub Release
