@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { MailModule } from '../mail/mail.module.js';

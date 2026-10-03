@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 

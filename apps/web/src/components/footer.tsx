@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { BookOpen, Code2, Heart, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';

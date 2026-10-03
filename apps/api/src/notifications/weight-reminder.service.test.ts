@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for WeightReminderService. Pins the cadence math + the
  * lastWeightReminderAt debounce — bugs here would either pester users or

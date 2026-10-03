@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { type ExecutionContext, createParamDecorator } from '@nestjs/common';
 import { Locale, type Locale as LocaleType } from '@diet-app/shared';
 

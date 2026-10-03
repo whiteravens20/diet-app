@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Shared AI helpers used by the draft pipelines: per-provider tuning knobs
  * + a JSON extractor that strips markdown fences and leading prose from raw

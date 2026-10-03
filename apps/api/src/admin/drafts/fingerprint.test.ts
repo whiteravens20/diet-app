@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { describe, expect, it } from 'vitest';
 import type { ConvertibleIngredient } from '../../engine/units.js';
 import {

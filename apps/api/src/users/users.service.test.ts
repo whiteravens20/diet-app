@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for UsersService. Prisma is mocked — the goal is to lock down
  * the small but security-sensitive behaviours: current-password proof for

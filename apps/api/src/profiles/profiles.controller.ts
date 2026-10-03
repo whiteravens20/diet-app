@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ProfileInput } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';

@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import type { Locale } from '@diet-app/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';

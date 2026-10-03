@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Bundle (download) ship mode — universal fallback when neither local nor
  * upstream-pr fits the operator's workflow.

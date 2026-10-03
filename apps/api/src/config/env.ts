@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Environment validation. Parsed once at boot; a malformed env fails fast with
  * a clear message rather than surfacing as a runtime error later.

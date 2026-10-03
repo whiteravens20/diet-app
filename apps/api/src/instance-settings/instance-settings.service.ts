@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Singleton runtime configuration owned by the operator and managed from
  * /admin. Currently surfaces the Phase H reviewer-interface toggle +

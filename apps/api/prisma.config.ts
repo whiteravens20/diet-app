@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Prisma 7 configuration. The connection URL lives here (for Migrate) and is
  * also passed to PrismaClient via the pg adapter — Prisma 7 no longer accepts

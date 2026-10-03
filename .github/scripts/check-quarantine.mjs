@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 // Quarantine check for a Dependabot PR.
 //
 // Reads the *target* versions Dependabot wants to introduce from the PR title

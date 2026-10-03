@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Admin API client (F16). Uses HTTP Basic against `/api/admin/*` — totally
  * separate identity space from the user JWT used by `lib/api.ts`. Credentials

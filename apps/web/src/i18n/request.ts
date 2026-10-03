@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * next-intl request config — loaded by the NextIntl plugin (see next.config.ts)
  * for every server render. Picks the locale from the NEXT_LOCALE cookie and

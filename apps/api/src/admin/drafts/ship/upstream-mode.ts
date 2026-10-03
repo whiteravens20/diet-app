@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Upstream-PR ship runner — maintainer-only path that lands approved drafts
  * in the canonical repo via a gh-CLI pull request.

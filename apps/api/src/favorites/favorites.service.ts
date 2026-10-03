@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { Locale } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';

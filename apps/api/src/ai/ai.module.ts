@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { Module } from '@nestjs/common';
 import { AiController } from './ai.controller.js';
 import { AiKeyService } from './ai-key.service.js';

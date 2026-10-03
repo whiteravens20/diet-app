@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { Injectable, Logger } from '@nestjs/common';
 import type { WeightReminderPayload } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';

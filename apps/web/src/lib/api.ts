@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Typed API client. Every payload is a type from `@diet-app/shared`, so the
  * client and server cannot drift. Tokens live in localStorage; a 401 triggers a

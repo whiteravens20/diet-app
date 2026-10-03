@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import { Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';

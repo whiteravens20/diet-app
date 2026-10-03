@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Tests the canonical-remote guard from ADR-0008. The self-hoster foot-gun
  * is "I left `origin` pointing at whiteravens20/diet-app and flipped

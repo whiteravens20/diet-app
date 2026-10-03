@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 import type { ReactNode } from 'react';
 import { LanguageSwitcher } from '@/components/language-switcher';
 
