@@ -1137,7 +1137,7 @@
     "back": "← Back to home",
     "section1": {
       "title": "What this is",
-      "body": "Diet App is a self-hosted meal-planning application. The operator of this instance is responsible for its uptime, your data, and any service guarantees they choose to offer. The upstream project at github.com/whiteravens20/diet-app provides the source code under the PolyForm Noncommercial licence with no warranty of any kind."
+      "body": "Diet App is a self-hosted meal-planning application. The operator of this instance is responsible for its uptime, your data, and any service guarantees they choose to offer.\n\nThe software is Diet App by White Ravens, with its original source code at https://github.com/whiteravens20/diet-app. It is free software under the GNU Affero General Public License, version 3: anyone may share and change it on the terms of that licence, whose text is in the LICENSE file of the source code. It comes with no warranty of any kind. If this instance runs a changed version, the licence requires its operator to offer you the source code of that version."
     },
     "section2": {
       "title": "Accounts",
@@ -1157,7 +1157,7 @@
     },
     "section6": {
       "title": "Curated content licence",
-      "body": "Curated recipes under data/recipes/ and curated ingredients under data/ingredients.json ship under the repository's PolyForm Noncommercial licence. Recipes promoted from user contributions through the curation queue are contributed under the same licence by the act of submission."
+      "body": "Curated recipes under data/recipes/ and curated ingredients under data/ingredients.json ship under the repository's licence, the GNU Affero General Public License, version 3. Recipes promoted from user contributions through the curation queue are contributed under the same licence by the act of submission."
     },
     "section7": {
       "title": "Data residency",

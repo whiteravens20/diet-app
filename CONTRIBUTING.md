@@ -6,7 +6,8 @@ Thank you for considering a contribution. Please read this guide before opening 
 
 - Open an issue for non-trivial changes so the approach can be agreed first.
 - By contributing you agree your work is licensed under the project
-  [LICENSE](LICENSE) (PolyForm Noncommercial 1.0.0).
+  [LICENSE](LICENSE) (GNU Affero General Public License, version 3) with the
+  attribution term in [NOTICE](NOTICE).
 
 ## Development Setup
 

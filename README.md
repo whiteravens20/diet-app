@@ -2,7 +2,7 @@
 
 > Self-hostable diet & meal-planning platform with deterministic nutrition and BYOK AI.
 
-[![License](https://img.shields.io/badge/license-PolyForm--NC--1.0.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![CI](https://github.com/whiteravens20/diet-app/actions/workflows/test.yml/badge.svg)](https://github.com/whiteravens20/diet-app/actions)
 [![CodeQL](https://github.com/whiteravens20/diet-app/actions/workflows/codeql.yml/badge.svg)](https://github.com/whiteravens20/diet-app/actions/workflows/codeql.yml)
 
@@ -177,5 +177,10 @@ See [SECURITY.md](SECURITY.md) for the disclosure policy.
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE) — © 2026 White Ravens. Free for personal and
-non-commercial self-hosting; commercial use requires a separate license.
+[GNU Affero General Public License, version 3](LICENSE) (AGPL-3.0-only), with one
+additional term in [NOTICE](NOTICE) — © 2026 White Ravens.
+
+You are free to self-host, change and share Diet App. If you run a changed version for
+other people, the licence requires you to offer them its source code, and every copy has
+to keep the attribution "Diet App by White Ravens" together with the address of this
+repository.

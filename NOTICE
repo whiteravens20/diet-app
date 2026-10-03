@@ -1,0 +1,45 @@
+Diet App
+Copyright (C) 2026 White Ravens
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License, version 3, as published by
+the Free Software Foundation, together with the additional term below.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+The text of the License is in the LICENSE file and at
+<https://www.gnu.org/licenses/agpl-3.0.html>.
+
+
+Additional term under section 7(b) of the License
+-------------------------------------------------
+
+White Ravens supplements the License with the term below, as section 7(b) of
+the License permits. The term covers all material in this repository whose
+copyright White Ravens holds, whether or not a file refers to this notice.
+
+Every copy of this program, and every work based on it, must preserve this
+author attribution, including the address of the original source code:
+
+    Diet App by White Ravens
+    https://github.com/whiteravens20/diet-app
+
+The attribution must be preserved in two places:
+
+1. In the source code. Keep this NOTICE file, and keep the line in each source
+   file that refers to it.
+
+2. In the Appropriate Legal Notices that an interactive user interface of the
+   program, or of a work based on it, displays. A modified version may put the
+   words "Based on" before the attribution and may show the address as a link.
+
+
+Material from third parties
+---------------------------
+
+Material that White Ravens did not write, such as the typefaces in
+apps/web/public/fonts and the photographs listed in
+apps/web/public/imagery/CREDITS.md, keeps its own licence and is not covered by
+the term above.

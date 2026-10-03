@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
 
-const LAST_UPDATED = '2026-06-02';
+const LAST_UPDATED = '2026-10-04';
 
 const SECTION_KEYS = [
   'section1',

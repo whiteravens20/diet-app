@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Diet App backend — NestJS REST API, deterministic engine, AI orchestration, BullMQ worker.",
-  "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",

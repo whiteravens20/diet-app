@@ -1137,7 +1137,7 @@
     "back": "← Wróć do strony głównej",
     "section1": {
       "title": "Czym to jest",
-      "body": "Diet App to aplikacja do planowania posiłków przeznaczona do samodzielnego hostowania. Operator tej instancji odpowiada za jej dostępność, Twoje dane oraz wszelkie gwarancje, które zdecyduje się oferować. Projekt źródłowy na github.com/whiteravens20/diet-app udostępnia kod na licencji PolyForm Noncommercial, bez żadnej gwarancji."
+      "body": "Diet App to aplikacja do planowania posiłków przeznaczona do samodzielnego hostowania. Operator tej instancji odpowiada za jej dostępność, Twoje dane oraz wszelkie gwarancje, które zdecyduje się oferować.\n\nOprogramowanie to Diet App by White Ravens, a jego oryginalny kod źródłowy jest pod adresem https://github.com/whiteravens20/diet-app. To wolne oprogramowanie na licencji GNU Affero General Public License w wersji 3: każdy może je rozpowszechniać i zmieniać na warunkach tej licencji, której tekst jest w pliku LICENSE w kodzie źródłowym. Program nie ma żadnej gwarancji. Jeśli ta instancja działa na zmienionej wersji, licencja wymaga od operatora udostępnienia Ci kodu źródłowego tej wersji."
     },
     "section2": {
       "title": "Konta",
@@ -1157,7 +1157,7 @@
     },
     "section6": {
       "title": "Licencja wyselekcjonowanej zawartości",
-      "body": "Wyselekcjonowane przepisy w data/recipes/ oraz wyselekcjonowane składniki w data/ingredients.json są udostępniane na licencji PolyForm Noncommercial projektu. Przepisy promowane z propozycji użytkowników przez kolejkę kuratorską są wnoszone na tej samej licencji w momencie przesłania."
+      "body": "Wyselekcjonowane przepisy w data/recipes/ oraz wyselekcjonowane składniki w data/ingredients.json są udostępniane na licencji projektu, czyli GNU Affero General Public License w wersji 3. Przepisy promowane z propozycji użytkowników przez kolejkę kuratorską są wnoszone na tej samej licencji w momencie przesłania."
     },
     "section7": {
       "title": "Lokalizacja danych",

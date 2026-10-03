@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Diet App web front-end — Next.js, premium SaaS UI.",
-  "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

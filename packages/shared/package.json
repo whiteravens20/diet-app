@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Shared Zod schemas and types — the Diet App API contract.",
-  "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+  "license": "AGPL-3.0-only",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
