@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for AiQuotaService (F10 monthly admin quota). Prisma `$queryRaw`
  * and config are mocked. Focus: the status snapshot per aiMode, the admin

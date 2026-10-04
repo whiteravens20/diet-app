@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for InventoryService (F15 pantry). Prisma + the ingredient DTO
  * mapper are mocked. Focus: ownership guards on every mutation, the upsert

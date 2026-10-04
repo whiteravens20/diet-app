@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for AiKeyService. Prisma + config are mocked. Focus: BYOK key
  * encryption (write-only — `hasKey`, never the plaintext), the SSRF write-time

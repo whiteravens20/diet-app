@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for FavoritesService. Prisma + the recipe DTO mapper are mocked.
  * Focus on the per-profile ownership guard and the upsert/remove semantics.

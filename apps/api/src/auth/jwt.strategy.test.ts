@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for JwtStrategy.validate — the token-shape gate that decides who
  * becomes `request.user`. The security-critical case: a reviewer-session JWT

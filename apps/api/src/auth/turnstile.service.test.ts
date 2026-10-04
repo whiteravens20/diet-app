@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for TurnstileService. `fetch` is stubbed. Focus: the no-op pass
  * when disabled (self-host default), fail-closed when enabled-but-misconfigured,

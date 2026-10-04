@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for WeightsService (F19 weight log). Prisma is mocked. Focus on
  * the ownership guard (a user cannot read/write/delete another user's profile

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Relative-link checker for Markdown. Walks every tracked `*.md` file, extracts
  * relative links (and image sources), and fails if a target doesn't exist on

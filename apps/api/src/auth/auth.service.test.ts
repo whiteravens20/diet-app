@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for AuthService. Prisma / JWT / Turnstile / Mail are mocked. Focus
  * on the security-sensitive behaviours: anti-abuse gate, duplicate-email

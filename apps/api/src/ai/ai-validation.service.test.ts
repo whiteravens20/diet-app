@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * Unit tests for AiValidationService — the AI safety contract. AI may draft
  * recipe structure, but every ingredient must resolve to a curated DB record

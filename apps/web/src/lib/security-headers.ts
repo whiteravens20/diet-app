@@ -1,3 +1,5 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
 /**
  * HTTP security headers applied to every web response (wired through
  * `next.config.ts` → `headers()`). Kept in a dependency-free module so the
