@@ -18,21 +18,33 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - uses: actions/checkout@v6
+
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
-      # Fail CI on HIGH/CRITICAL advisories. Moderate transitive advisories
-      # (e.g. the postcss bundled by Next.js) are tracked by Dependabot instead
-      # of blocking the build — see docs/ops/testing.md.
-      - name: Audit (production)
-        run: npm audit --omit=dev --audit-level=high
-      - name: Audit (all dependencies)
-        run: npm audit --audit-level=high
-      - name: Install for signature audit
+
+      # Production dependencies get the tighter bar (moderate): they ship in the
+      # image. Everything else stays at high.
+      #
+      # audit-check.mjs wraps `npm audit` so that an advisory with no installable
+      # fix and no reachable code path can be allowlisted on its own, with a
+      # justification and an expiry, instead of lowering the bar for every
+      # package. See .github/scripts/audit-allowlist.json.
+      - name: Audit (production, moderate)
+        run: node .github/scripts/audit-check.mjs --dir . --omit=dev --audit-level moderate
+
+      - name: Audit (all dependencies, high)
+        run: node .github/scripts/audit-check.mjs --dir . --audit-level high
+
+      # Verify every installed tarball has a valid registry signature.
+      # `audit signatures` reads node_modules, so it needs an install first.
+      - name: Install (for signature audit)
         run: npm ci
+
       - name: Verify package signatures
         run: npm audit signatures
 

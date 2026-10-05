@@ -1,0 +1,20 @@
+{
+  "_comment": [
+    "Advisories that `npm audit` reports but which are not reachable in this",
+    "application. Every entry must carry a justification and an expiry date.",
+    "",
+    "This is NOT a way to defer work on an exploitable finding. An entry is only",
+    "legitimate when the vulnerable code path cannot be reached at all. If a fix",
+    "exists and is installable, bump the dependency instead.",
+    "",
+    "Entries are checked by .github/scripts/audit-check.mjs. An expired entry is a",
+    "hard failure, so every suppression comes back for review on its own.",
+    "",
+    "`workspaces` names the directory an entry was justified for. This repo has",
+    "one lockfile, at the root, so it is always [\".\"].",
+    "",
+    "Shape of an entry:",
+    "  { \"ghsa\": \"GHSA-xxxx-xxxx-xxxx\", \"reason\": \"...\", \"expires\": \"YYYY-MM-DD\", \"workspaces\": [\".\"] }"
+  ],
+  "allow": []
+}
