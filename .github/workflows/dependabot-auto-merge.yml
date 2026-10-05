@@ -10,11 +10,12 @@ jobs:
   dependabot:
     name: Auto-merge Dependabot PRs
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     if: github.actor == 'dependabot[bot]'
     permissions:
       contents: write
       pull-requests: write
+      checks: read
 
     steps:
       - name: Fetch Dependabot metadata
@@ -23,15 +24,19 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Wait for CI checks
+      # `dev` has no required status checks while the project is in development,
+      # so `gh pr merge --auto` alone would merge at once, with CI unread. This
+      # step is the gate in their place: it fails, and the merge below never
+      # runs, unless every CI job and the CodeQL analysis succeed on this commit.
+      - name: Wait for the CI jobs
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         uses: lewagon/wait-on-check-action@v1.9.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          check-regexp: '(Backend tests|Frontend tests|Analyze).*'
+          check-regexp: '^(api|web|docker|markers|Analyze \(.+\))$'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 20
-          allowed-conclusions: success,skipped
-        continue-on-error: true
+          allowed-conclusions: success
 
       - name: Auto-merge patch updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
@@ -40,19 +45,9 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Label minor updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        run: |
-          gh pr comment "$PR_URL" --body "✅ Minor dependency update detected. Please review and merge when ready."
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Label major updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
-        run: |
-          gh pr edit "$PR_URL" --add-label "dependencies,major-update"
-          gh pr comment "$PR_URL" --body "⚠️ Major version update detected. Manual review required before merging."
+        run: gh pr edit "$PR_URL" --add-label "dependencies,major-update"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
