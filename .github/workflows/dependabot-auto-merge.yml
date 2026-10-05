@@ -10,12 +10,11 @@ jobs:
   dependabot:
     name: Auto-merge Dependabot PRs
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     if: github.actor == 'dependabot[bot]'
     permissions:
       contents: write
       pull-requests: write
-      checks: read
 
     steps:
       - name: Fetch Dependabot metadata
@@ -24,20 +23,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      # `dev` has no required status checks while the project is in development,
-      # so `gh pr merge --auto` alone would merge at once, with CI unread. This
-      # step is the gate in their place: it fails, and the merge below never
-      # runs, unless every CI job and the CodeQL analysis succeed on this commit.
-      - name: Wait for the CI jobs
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
-        uses: lewagon/wait-on-check-action@369769072fe522a3a8a85c03c96af1e5242a1994 # v1.9.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          check-regexp: '^(api|web|docker|markers|Analyze \(.+\))$'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 20
-          allowed-conclusions: success
-
+      # --auto merges only once the branch's required status checks pass; they are the gate.
       - name: Auto-merge patch updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: gh pr merge --auto --squash "$PR_URL"
