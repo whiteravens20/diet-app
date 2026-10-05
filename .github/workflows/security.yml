@@ -69,7 +69,7 @@ jobs:
           deny-licenses: GPL-2.0-only, SSPL-1.0
           # The IDs of .github/scripts/audit-allowlist.json, where each one has
           # its justification and expiry. Keep the two in sync.
-          allow-ghsas: GHSA-ggr8-5vv4-36mx, GHSA-vfj7-8cjw-p6xm
+          allow-ghsas: GHSA-vfj7-8cjw-p6xm
 
   trivy-fs:
     name: Trivy filesystem scan
