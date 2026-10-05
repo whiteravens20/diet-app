@@ -1,19 +1,33 @@
 # ── Dependabot ────────────────────────────────────────────────────────────────
-# Weekly dependency updates against `dev`. CI must pass before merge.
+# Dependency updates against `dev`: npm weekly, GitHub Actions monthly.
+#
+# Every ecosystem sets `cooldown: default-days: 7`, so a version is not proposed
+# until it has been public for a week. That is the enforcement point of the
+# 7-day release-age policy: a version that is too fresh never becomes a pull
+# request, so it cannot be merged early. `min-release-age=7` in .npmrc is the
+# backstop for installs made by hand. Cooldown governs version updates only;
+# Dependabot security updates are exempt by design and open the moment an
+# advisory lands.
 version: 2
 
 updates:
+  # Bumps the commit SHA and the version comment of each `uses:` line. Minor and
+  # patch bumps come as one pull request, a major on its own.
   - package-ecosystem: github-actions
     directory: /
     target-branch: dev
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "08:00"
       timezone: UTC
     labels: [dependencies, github-actions]
     commit-message:
       prefix: "ci"
+    cooldown:
+      default-days: 7
+    groups:
+      actions-non-breaking:
+        update-types: [minor, patch]
 
   # Single root manifest — npm workspaces resolve apps/* and packages/*.
   - package-ecosystem: npm
@@ -27,9 +41,17 @@ updates:
     labels: [dependencies]
     commit-message:
       prefix: "chore(deps)"
+    cooldown:
+      default-days: 7
     groups:
+      # @vitest/coverage-v8 pins vitest to its own exact version, so neither can
+      # be bumped alone. They always update together here, and the non-breaking
+      # group leaves them out so they cannot match both.
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
       non-breaking:
         update-types: [minor, patch]
+        exclude-patterns: ["vitest", "@vitest/*"]
     ignore:
       # ESLint 10 breaks eslint-config-next@16's plugin chain
       # (`scopeManager.addGlobals is not a function`) — pinned to 9.x per
