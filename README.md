@@ -37,6 +37,14 @@ The companion Android app lives in a separate repository:
   full deterministic fallback so the app works with **no AI key at all**.
 - **Self-hosted, Docker-first** — `docker compose up` boots the whole stack.
 
+## Architecture
+
+Diet App is one image started in several roles, plus PostgreSQL. The web front-end is a Next.js server and the only thing a browser talks to: it renders the pages and passes every `/api` request on to the API over the internal network, so there is a single origin and no CORS to configure. The API is a NestJS service that validates each request against schemas it shares with the web, checks who owns what, and runs the planning logic. A worker runs the scheduled tasks from the same code, and a one-shot job applies database migrations before either of them starts.
+
+Every calorie and macro comes from one place. The curated ingredient database is the source of truth, and a deterministic engine inside the API computes nutrition, meal plans, shopping lists and substitutions from it as pure functions, so the same inputs always give the same numbers. AI is optional and never writes nutrition. When a user brings their own provider key, the model is asked only for the structure of a recipe, built from the ingredients it was given; a validation layer then rejects anything it does not know and recomputes every number from the database. With no key at all, the app runs on the engine alone.
+
+PostgreSQL holds the accounts, profiles, plans and the curated data. E-mail addresses and AI provider keys are stored encrypted and passwords hashed. A provider key is used inside the API to call the provider its owner chose, and is never sent back to the browser.
+
 ## Install
 
 ```bash
