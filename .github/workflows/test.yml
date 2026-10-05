@@ -35,6 +35,11 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run db:generate
+      # The migrations must apply to an empty database and leave it exactly as
+      # schema.prisma describes; `--exit-code` fails the step on any difference.
+      - run: npm run db:migrate
+      - run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+        working-directory: apps/api
       - run: npm run lint -- --filter=@diet-app/api
       - run: npm run typecheck -- --filter=@diet-app/api
       - run: npm run data:lint
