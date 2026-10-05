@@ -1,72 +1,90 @@
-# Security Policy
+# Security — Diet App
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-Please report security issues **privately**. Do not open a public issue.
+Report vulnerabilities privately through GitHub's [private vulnerability reporting](https://github.com/whiteravens20/diet-app/security/advisories/new). Please do not open a public issue, discussion or pull request for a security bug.
 
-- Use [GitHub Security Advisories](https://github.com/whiteravens20/diet-app/security/advisories/new), or
-- email the maintainer (see the GitHub profile of `@pavlojs`).
+Include the version or commit you tested, the steps that reproduce the problem and the impact you expect. You will get a first reply within a week. A confirmed issue is fixed on the `dev` branch, and the advisory credits you unless you ask otherwise.
 
-Expect an acknowledgement within 72 hours. Please allow a reasonable window for a fix
-before public disclosure.
+## Supported versions
 
-## Supported Versions
+Diet App has no release yet and is not production ready. Until the first release, security fixes land on the `dev` branch only.
 
-Until the first stable release, only the `main` branch receives security fixes.
+## Security checklist
 
-## Security Model & Checklist
+What the code guarantees today, and what it deliberately does not protect against. Diet App stores personal health-adjacent data (age, weight, dietary preferences, allergens) and the AI provider keys its users supply.
 
-Diet App stores **personal health-adjacent data** (age, weight, dietary preferences,
-allergens) and **user-supplied AI API keys**. The following controls apply.
+### Authentication and Sessions
 
-### Authentication & sessions
+- [x] Passwords hashed with bcrypt (cost configurable, 12 by default) after an HMAC-SHA256 pepper
+- [x] Login runs the hash comparison for an unknown account too, so response time does not reveal whether an e-mail is registered
+- [x] Short-lived JWT access tokens (15 minutes by default) and rotating refresh tokens
+- [x] Refresh tokens stored hashed and revocable — rotated on use, revoked on logout and on password reset
+- [x] Password-reset, e-mail-verification and e-mail-change tokens are single-use, time-limited and stored hashed
+- [x] Reviewer sessions use their own signed cookie (`httpOnly`, `SameSite=Lax`, `Secure` behind HTTPS); a reviewer token is rejected as a user access token
 
-- [x] Passwords hashed with bcrypt (configurable cost, default 12).
-- [x] Short-lived JWT access tokens + rotating refresh tokens.
-- [x] Refresh tokens are revocable; password reset invalidates all sessions.
-- [x] Password reset uses single-use, time-limited, hashed tokens.
+### Data at Rest
 
-### AI API key storage
+- [x] E-mail addresses encrypted with AES-256-GCM; lookups go through a keyed HMAC-SHA256 blind index, never the plaintext
+- [x] Per-user AI provider keys encrypted with AES-256-GCM under `AI_KEY_ENCRYPTION_SECRET`, which lives in the environment, never in the database
+- [x] Provider keys decrypted in-process at call time only — never logged, never returned to the client
+- [x] Independent keys for encryption, blind indexing and the password pepper, derived with HKDF from one configured secret
 
-- [x] Per-user provider keys encrypted at rest with **AES-256-GCM**.
-- [x] Encryption key supplied via `AI_KEY_ENCRYPTION_SECRET` (env, never in DB).
-- [x] Keys decrypted only in-process at call time; never logged, never returned to the
-      client (write-only field — UI shows a masked placeholder).
+### Authorization and Data Isolation
 
-### Authorization & data isolation
+- [x] Every profile, plan, shopping-list, favourite and inventory query is scoped to the authenticated user
+- [x] A recipe referenced from a plan or a favourite set must be one the user may see — curated, or their own
+- [x] Admin panel and `/api/admin/*` behind HTTP Basic Auth with timing-safe comparison; closed when `ADMIN_PASSWORD` is unset or left at its placeholder
+- [x] All input validated with Zod schemas shared between client and server
 
-- [x] Every profile/plan/list query is scoped to the authenticated user.
-- [x] Role-based access control for admin-only provider defaults.
-- [x] All input validated with Zod schemas shared between client and server.
+### Anti-Abuse
 
-### Anti-abuse
+- [x] Rate limiting on every endpoint, active whether or not Turnstile is on
+- [x] Tighter limits on authentication, AI, plan-generation, reviewer-login and admin generation routes
+- [x] Cloudflare Turnstile integration (optional) on login, registration and password reset — fails closed when enabled without a secret key
+- [x] Outbound probes of an AI provider carry a 10-second timeout
 
-- [x] Per-IP and per-user rate limiting on all endpoints; stricter limits on AI and
-      plan-generation routes — **active even when Turnstile is disabled**.
-- [x] Optional Cloudflare Turnstile on login, registration, password reset and
-      anonymous AI-heavy endpoints; fully env-gated for key-free self-hosting.
+### Server-Side Request Forgery
 
-### AI safety
+- [x] A user-supplied Ollama address is checked against the operator's policy (`OLLAMA_USER_POLICY`: `off`, `allowlist` by default, or `public`) when it is saved, when it is tested and again when it is dialled
+- [x] In `public` mode, private, loopback, link-local and carrier-grade NAT addresses are refused, for IPv4 and IPv6
 
-- [x] AI output passes a deterministic validation layer: unknown ingredients are
-      rejected or mapped to approved substitutes; all nutrition is recomputed from the
-      curated database.
-- [x] AI can never write nutrition facts, ignore allergens, or silently break the
-      calorie target — deltas are always surfaced.
+### HTTP Surface
 
-### Logging & privacy
+- [x] API responses carry a Content-Security-Policy that loads nothing and forbids framing
+- [x] Security headers on the API and the web: HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- [x] CORS restricted to `APP_URL`
+- [x] Swagger UI and the OpenAPI document are off in production unless `SWAGGER_ENABLED` is set
+- [x] Unhandled errors return a generic response without a stack trace
 
-- [x] Logs exclude passwords, tokens, API keys and raw health data.
-- [x] `audit_logs` records security-relevant actions without sensitive payloads.
+### AI Safety
 
-### Supply chain & containers
+- [x] AI output passes a deterministic validation layer — unknown ingredients are rejected or mapped to approved substitutes, and all nutrition is recomputed from the curated database
+- [x] AI never writes nutrition facts; the app works with no AI key at all
 
-- [x] `.npmrc` with `ignore-scripts` and a release-age quarantine.
-- [x] Multi-stage, non-root, Alpine-based Docker images.
-- [x] CodeQL, `npm audit`, signature verification and Trivy scans in CI.
+### Container Security
 
-## Out of Scope
+- [x] One multi-stage, Alpine-based image, running as a non-root user
+- [x] No package manager in the image
+- [x] Base image pinned by version and digest
+- [x] Install scripts off in the image build, except Prisma's engine download
 
-- Compromised client devices or malicious browser extensions.
-- Sustained DDoS — deploy behind a CDN/WAF for that threat model.
-- The security of third-party AI providers the user chooses to BYOK.
+### Supply Chain
+
+- [x] 7-day dependency quarantine — Dependabot `cooldown: default-days: 7` on every ecosystem, so a freshly published version is never proposed. Security advisories are exempt and land immediately.
+- [x] `.npmrc` with `ignore-scripts=true` and `min-release-age=7` as the client-side backstop for manual installs
+- [x] Registry signatures verified in CI (`npm audit signatures`)
+- [x] `npm audit`, Trivy (repository and image), CodeQL and dependency review in CI
+- [x] GitHub Actions pinned to commit SHAs and checked against their tags on every run
+
+### What This Does NOT Protect Against
+
+| Threat vector | Why it is out of scope |
+|---|---|
+| Compromised client device or malicious browser extension | Session tokens and everything the user sees live in the browser; malware or an extension can read them |
+| Content injection in the web app | The web pages' Content-Security-Policy is sent report-only and is not enforced yet |
+| The application log when SMTP is off | With no mail server configured, password-reset, verification and e-mail-change links, each carrying a one-time token, are written to the log together with the recipient's address instead of being sent. Configure SMTP, or treat the log as sensitive |
+| Third-party AI providers | Prompts, and the data in them, go to the provider the user chose; its security and retention are outside the app |
+| A malicious or compromised admin | The admin account can change curated data and make the server fetch a URL of its choice |
+| The operator's deployment | TLS termination and network exposure belong to the reverse proxy in front of the stack |
+| Sustained DDoS | Rate limiting covers casual abuse; deploy behind a CDN or WAF for sustained attacks |
