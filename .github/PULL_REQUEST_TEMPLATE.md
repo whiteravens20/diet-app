@@ -9,6 +9,7 @@ Please check the relevant options:
 - [ ] Documentation update
 - [ ] Performance improvement
 - [ ] Code refactoring
+- [ ] CI, build or tooling
 
 ## Related Issue
 Closes #(issue number)
@@ -29,18 +30,17 @@ Please review the [Contributing Guidelines](../CONTRIBUTING.md) before submittin
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
-- [ ] I have updated the CHANGELOG.md (if applicable)
 
 ## ⚠️ Additional Security Checklist
 
-- [ ] No plaintext file content is stored or logged server-side
-- [ ] No encryption key leaves the client
-- [ ] Vault ID input is validated before any filesystem operation
+- [ ] No nutrition value is produced outside the deterministic engine
+- [ ] Every new query is scoped to the authenticated user
+- [ ] No provider key, password or token is logged or returned to the client
 - [ ] No new unvalidated environment variable is introduced
 - [ ] `npm audit` shows no new high/critical findings
-- [ ] All tests pass (backend + frontend)
-- [ ] ESLint passes with zero warnings (backend + frontend)
-- [ ] TypeScript compiles with zero errors (backend + frontend)
+- [ ] All tests pass
+- [ ] ESLint passes with zero warnings
+- [ ] TypeScript compiles with zero errors
 
 ## Screenshots (if applicable)
 Add screenshots showing the changes in action.
