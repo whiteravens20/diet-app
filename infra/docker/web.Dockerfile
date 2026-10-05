@@ -1,8 +1,12 @@
 # ── Diet App web image ────────────────────────────────────────────────────────
 # Multi-stage, Alpine, non-root. Uses Next.js standalone output for a minimal
 # runtime image. Build context is the repo root.
+#
+# The base image is pinned by version and digest: the digest is what gets
+# pulled, the version says what it is. Dependabot moves both
+# (.github/dependabot.yml).
 
-FROM node:24-alpine AS base
+FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS base
 WORKDIR /app
 # Upgrade the alpine ssl libs to pull the patched libcrypto3/libssl3
 # (CVE-2026-45447, OpenSSL PKCS7_verify UAF).

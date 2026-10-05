@@ -1,5 +1,6 @@
 # ── Dependabot ────────────────────────────────────────────────────────────────
-# Dependency updates against `dev`: npm weekly, GitHub Actions monthly.
+# Dependency updates against `dev`: npm and the Docker base image weekly, GitHub
+# Actions monthly.
 #
 # Every ecosystem sets `cooldown: default-days: 7`, so a version is not proposed
 # until it has been public for a week. That is the enforcement point of the
@@ -58,3 +59,24 @@ updates:
       # ADR 0004. Remove this once eslint-config-next supports ESLint 10.
       - dependency-name: "eslint"
         versions: ["10.x"]
+
+  # Both Dockerfiles pin node by version and digest. A new minor or patch moves
+  # the two together; a rebuild of the same version moves the digest alone.
+  - package-ecosystem: docker
+    directory: /infra/docker
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: UTC
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(docker)"
+    cooldown:
+      default-days: 7
+    # A new major of Node is a change to the project, made by hand together with
+    # `node-version` in the workflows.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
