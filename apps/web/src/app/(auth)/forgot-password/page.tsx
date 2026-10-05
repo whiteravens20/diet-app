@@ -55,6 +55,26 @@ export default function ForgotPasswordPage() {
     }
   }
 
+  // The reset link arrives by email: without it the request would be accepted
+  // and nothing would ever reach the user.
+  if (config.data && !config.data.email.enabled) {
+    return (
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-xl">{t('resetTitle')}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <p className="text-muted-foreground">{t('resetUnavailable')}</p>
+          <p className="text-center">
+            <Link href="/login" className="text-primary hover:underline">
+              {t('backToSignIn')}
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (sent) {
     return (
       <Card className="w-full max-w-sm">

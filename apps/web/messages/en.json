@@ -143,6 +143,7 @@
     "tokenInvalid": "This reset link is invalid or has expired.",
     "termsConsent": "By creating an account you agree to the <link>Terms of Service</link>.",
     "forgotIntro": "Enter your email and we'll send a link to reset your password.",
+    "resetUnavailable": "Password reset isn't available on this instance — the operator hasn't configured email.",
     "backToSignIn": "Back to sign in",
     "remembered": "Remembered it?",
     "newPasswordField": "New password",

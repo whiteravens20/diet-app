@@ -88,7 +88,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </Field>
-          {mode === 'login' && (
+          {/* The reset link arrives by email, so it is offered only where email is configured. */}
+          {mode === 'login' && config.data?.email.enabled && (
             <p className="-mt-2 text-right text-xs">
               <Link href="/forgot-password" className="text-muted-foreground hover:underline">
                 {t('forgotPassword')}

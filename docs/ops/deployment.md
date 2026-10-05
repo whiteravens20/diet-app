@@ -129,7 +129,7 @@ Behaviour switches on whether SMTP is configured:
 | Action | SMTP configured | SMTP blank |
 |---|---|---|
 | Register | account starts **unverified** + a confirmation email is sent | account is **auto-verified** at creation (nothing to verify against) |
-| Forgot password | reset link is **emailed** | outside production the reset link is **logged to the api stdout**; in production nothing is logged and reset is **not available** |
+| Forgot password | reset link is **emailed** | **not available** — the sign-in page has no link and the reset page says so. A request sent straight to the API is still accepted: outside production its link is **logged to the api stdout**, in production nothing is logged |
 | Change password (in Settings) | applies immediately + a "password changed" **notice email** | applies immediately, no email |
 | **Change email** (in Settings) | confirmation link emailed to the **new** address; change lands on confirm | **not available** — the option is hidden |
 

@@ -143,6 +143,7 @@
     "tokenInvalid": "Ten link do resetu jest nieprawidłowy lub wygasł.",
     "termsConsent": "Zakładając konto, akceptujesz <link>Regulamin</link>.",
     "forgotIntro": "Podaj swój adres e-mail, a wyślemy link do zresetowania hasła.",
+    "resetUnavailable": "Reset hasła nie jest dostępny na tej instancji — operator nie skonfigurował poczty.",
     "backToSignIn": "Powrót do logowania",
     "remembered": "Pamiętasz hasło?",
     "newPasswordField": "Nowe hasło",
