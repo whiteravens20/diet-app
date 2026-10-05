@@ -1,7 +1,8 @@
-# Trivy ignore file — acknowledged CVEs for the snapshot Docker scans.
+# Trivy ignore file — acknowledged CVEs for the Trivy scans.
 #
 # Add a CVE ID on its own line, each with a justification comment above it.
-# Entries here suppress findings in the "Snapshot build" Trivy scan.
+# Entries here suppress findings in the filesystem and image scans of
+# security.yml and in the "Snapshot build" scan.
 # Keep this list short and review it regularly.
 #
 # Example:
