@@ -502,8 +502,9 @@ model PlannedMeal {
   id          String      @id @default(uuid())
   day         MealPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
   dayId       String
-  // Optional: F22 user-authored custom meals carry no catalogue recipe.
-  recipe      Recipe?     @relation(fields: [recipeId], references: [id])
+  // Optional: F22 user-authored custom meals carry no catalogue recipe. A
+  // recipe that a plan still uses cannot be deleted.
+  recipe      Recipe?     @relation(fields: [recipeId], references: [id], onDelete: Restrict)
   recipeId    String?
   mealType    String
   // The optimiser/swap baseline portion ("1 serving of recipe X").
