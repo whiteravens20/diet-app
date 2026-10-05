@@ -4,10 +4,11 @@
 
 import { Globe } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { Locale } from '@diet-app/shared';
 import { LOCALE_COOKIE, SUPPORTED_LOCALES, isSupportedLocale } from '@/lib/locale';
-import { api, ApiClientError, tokenStore } from '@/lib/api';
+import { api, ApiClientError } from '@/lib/api';
+import { useIsAuthenticated } from '@/lib/use-is-authenticated';
 import { cn } from '@/lib/utils';
 
 /**
@@ -86,27 +87,4 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       </select>
     </label>
   );
-}
-
-/**
- * Cheap "do we have an access token?" check. Avoids a network probe; the
- * Settings page already gates on real auth via a server-side mechanism.
- * Reactive via a `storage` event listener so logout in another tab flips
- * the switcher back to anonymous behaviour.
- */
-function useIsAuthenticated(): boolean {
-  const [authed, setAuthed] = useState(false);
-  const mounted = useRef(false);
-  // Mount gate: tokenStore only works on the client, so the first client
-  // render has to match the SSR'd output (assumed-anonymous) before this
-  // resolves the real value. Same shape as ThemeToggle's hydration gate.
-  useEffect(() => {
-    mounted.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount gate; reads the client-only token store after the SSR'd render
-    setAuthed(Boolean(tokenStore.access));
-    const onStorage = () => mounted.current && setAuthed(Boolean(tokenStore.access));
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-  return authed;
 }

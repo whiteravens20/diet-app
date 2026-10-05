@@ -8,7 +8,8 @@ import { Bell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import type { Notification, WeightReminderPayload } from '@diet-app/shared';
-import { api, tokenStore } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useIsAuthenticated } from '@/lib/use-is-authenticated';
 import { Button } from '@/components/ui/button';
 
 const POLL_INTERVAL_MS = 60_000;
@@ -26,8 +27,9 @@ export function NotificationsBell() {
   const ref = useRef<HTMLDivElement | null>(null);
 
   // Only poll once an access token is present — otherwise unauthenticated
-  // public pages would spam 401s.
-  const hasToken = tokenStore.access !== null;
+  // public pages would spam 401s. Resolved after mount, so the first client
+  // render matches the server's, which has no token store to read.
+  const hasToken = useIsAuthenticated();
 
   const unread = useQuery({
     queryKey: ['notifications-unread'],
