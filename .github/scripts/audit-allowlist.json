@@ -16,5 +16,22 @@
     "Shape of an entry:",
     "  { \"ghsa\": \"GHSA-xxxx-xxxx-xxxx\", \"reason\": \"...\", \"expires\": \"YYYY-MM-DD\", \"workspaces\": [\".\"] }"
   ],
-  "allow": []
+  "allow": [
+    {
+      "ghsa": "GHSA-ggr8-5vv4-36mx",
+      "reason": "deepmerge-ts 7.1.5 reaches the tree only through @prisma/config, which the Prisma CLI uses to merge its own configuration. The API never loads it, and the CLI merges this repository's prisma.config.ts, not anything a user sends, so a recursive object graph cannot reach it. No fix is installable: every Prisma 7 release pins 7.1.5 exactly and the patched line starts at 8.0.0. Remove when Prisma ships a patched deepmerge-ts.",
+      "expires": "2027-01-05",
+      "workspaces": [
+        "."
+      ]
+    },
+    {
+      "ghsa": "GHSA-vfj7-8cjw-p6xm",
+      "reason": "braces 3.0.3 reaches the tree only through eslint-config-next (fast-glob, micromatch), a development dependency of the linter. It is not in the image, and the glob patterns it expands come from the lint configuration in this repository, never from a request. No patched release exists: the advisory covers every published version, up to the latest, 3.0.3. Remove when a patched braces is released.",
+      "expires": "2027-01-05",
+      "workspaces": [
+        "."
+      ]
+    }
+  ]
 }

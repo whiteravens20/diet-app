@@ -8,3 +8,14 @@
 # Example:
 #   # CVE-0000-00000 — false positive: package not reachable at runtime.
 #   CVE-0000-00000
+
+# CVE-2026-40345 — deepmerge-ts: stack exhaustion when merging recursive object graphs.
+# deepmerge-ts 7.1.5 is in the tree only as a dependency of @prisma/config,
+# which the Prisma CLI uses to merge its own configuration when the migration
+# job starts. The API never loads it, and the CLI merges prisma.config.ts from
+# this repository, not anything a user sends.
+# No fix is installable: every Prisma 7 release pins 7.1.5 exactly and the
+# patched line starts at 8.0.0.
+# Remove when Prisma ships a patched deepmerge-ts.
+# Justification mirrored in .github/scripts/audit-allowlist.json (GHSA-ggr8-5vv4-36mx).
+CVE-2026-40345
