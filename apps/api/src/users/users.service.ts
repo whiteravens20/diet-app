@@ -217,8 +217,8 @@ export class UsersService {
       });
     }
     // Cascade-deletes everything user-owned: profiles, plans, favorites,
-    // inventory, refresh tokens, AI configs. AiUsageLog and AuditLog rows
-    // are kept (userId set null) so aggregate instance stats stay intact.
+    // inventory, refresh tokens, AI configs. AiUsageLog rows are kept
+    // (userId set null) so aggregate instance stats stay intact.
     await this.prisma.user.delete({ where: { id: userId } });
   }
 

@@ -54,7 +54,6 @@ model User {
   emailChangeTokens  EmailChangeToken[]
   aiConfigs          AiProviderConfig[]
   aiUsageLogs        AiUsageLog[]
-  auditLogs          AuditLog[]
 }
 
 model RefreshToken {
@@ -708,22 +707,6 @@ model AiUsageLog {
   @@index([userId])
   @@index([createdAt])
   @@index([userId, mode, createdAt])
-}
-
-model AuditLog {
-  id        String   @id @default(uuid())
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userId    String?
-  action    String // auth.login | profile.update | plan.generate | ...
-  entity    String?
-  entityId  String?
-  // Non-sensitive context only — never store passwords/keys/raw health data.
-  metadata  Json?
-  ip        String?
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([createdAt])
 }
 
 // ── Curation queue (drafts) ───────────────────────────────────────────────────
