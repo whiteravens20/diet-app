@@ -55,7 +55,8 @@ admin panel:
 3. Click **Update Database**. Subsequent edits or re-imports show
    "update available" via a sha256 of `data/*.json` stored in `SeedMeta`.
 
-CLI alternative: `docker compose ... exec api npm run db:seed -w apps/api`.
+CLI alternative (the image ships no npm, so the seed runs through its binary):
+`docker compose ... exec -w /app/apps/api api /app/node_modules/.bin/tsx prisma/seed.ts`.
 
 Web → `:3000`, API → `:4000/api`, health → `:4000/api/health`.
 

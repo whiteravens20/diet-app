@@ -11,10 +11,6 @@ WORKDIR /app
 # Upgrade the alpine ssl libs to pull the patched libcrypto3/libssl3
 # (CVE-2026-45447, OpenSSL PKCS7_verify UAF).
 RUN apk upgrade --no-cache libcrypto3 libssl3
-# Match the host/CI npm pinned in package.json's packageManager field.
-# Using `npm install -g` instead of corepack — npm's fetcher has built-in
-# retries that corepack lacks, which matters on flaky build networks.
-RUN npm install -g npm@11.17.0
 
 # ── deps + build ──────────────────────────────────────────────────────────────
 FROM base AS build
@@ -37,6 +33,12 @@ RUN npm run build --workspace @diet-app/shared \
 FROM base AS runtime
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# No package manager ships. The container starts plain `node`, so npm, corepack
+# and yarn are build-time tools here; each carries a dependency tree of its own
+# that an image scan reads like the app's.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-v* /root/.npm
 # Next.js standalone bundle (server.js + a pruned node_modules).
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static

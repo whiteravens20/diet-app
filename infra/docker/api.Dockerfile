@@ -13,11 +13,6 @@ WORKDIR /app
 # the patched libcrypto3/libssl3 (CVE-2026-45447, OpenSSL PKCS7_verify UAF).
 RUN apk add --no-cache openssl \
  && apk upgrade --no-cache libcrypto3 libssl3 openssl
-# Match the host/CI npm pinned in package.json's packageManager field. Avoids
-# split-brain between the npm shipped with node:24-alpine and the project pin.
-# Using `npm install -g` instead of corepack — npm's fetcher has built-in
-# retries that corepack lacks, which matters on flaky build networks.
-RUN npm install -g npm@11.17.0
 
 # ── deps + build ──────────────────────────────────────────────────────────────
 FROM base AS build
@@ -37,6 +32,13 @@ RUN npm run build --workspace @diet-app/shared \
 # ── runtime ───────────────────────────────────────────────────────────────────
 FROM base AS runtime
 ENV NODE_ENV=production
+# No package manager ships. The container starts plain `node` and Compose runs
+# migrations through the Prisma CLI binary, so npm, corepack and yarn are
+# build-time tools here; each carries a dependency tree of its own that an
+# image scan reads like the app's.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-v* /root/.npm
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
