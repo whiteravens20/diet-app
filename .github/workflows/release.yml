@@ -1,7 +1,16 @@
 # ── Diet App — Release ────────────────────────────────────────────────────────
+#
+# DISABLED while the project is in development. The workflow is switched off in
+# the repository's Actions settings (`gh workflow disable release.yml`), so no
+# tag starts it. It stays here as the scaffold for v1.0.0: enable it with
+# `gh workflow enable release.yml` as part of that release.
+#
 # Triggered by a semver tag (v1.2.3). Builds the production image, pushes it to
 # GitHub Container Registry, and creates a GitHub Release whose notes are
 # generated from .github/release.yml.
+#
+# Image: ghcr.io/whiteravens20/diet-app — the one image every service of
+# infra/docker-compose.prod.yml runs from.
 name: Release
 
 on:
@@ -9,8 +18,7 @@ on:
     tags: ['v*.*.*']
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   image:
@@ -58,6 +66,8 @@ jobs:
     name: GitHub Release
     needs: image
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # Create the release
     steps:
       - uses: actions/checkout@v6
       - name: Create release
