@@ -15,6 +15,8 @@ const config: NextConfig = {
   // Standalone output → minimal production Docker image.
   output: 'standalone',
   reactStrictMode: true,
+  // Keep `next dev` from generating files in the repository.
+  agentRules: false,
   // Transpile the shared contract package (it ships as TypeScript-built ESM).
   transpilePackages: ['@diet-app/shared'],
   // Proxy `/api/*` to the backend so the browser only ever talks to its own
