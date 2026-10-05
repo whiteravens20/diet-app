@@ -20,7 +20,7 @@ import {
 } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
-import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { InventoryService } from './inventory.service.js';
 
@@ -36,7 +36,7 @@ export class InventoryController {
   list(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Query('profileId') profileId: string,
+    @Query('profileId', requiredUuid) profileId: string,
   ) {
     return this.inventory.list(user.id, locale, profileId);
   }

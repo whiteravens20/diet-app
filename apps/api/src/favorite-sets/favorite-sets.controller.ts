@@ -21,7 +21,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
-import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { FavoriteSetsService } from './favorite-sets.service.js';
 
 @Controller('favorite-sets')
@@ -30,7 +30,7 @@ export class FavoriteSetsController {
   constructor(private readonly sets: FavoriteSetsService) {}
 
   @Get()
-  list(@CurrentUser() user: RequestUser, @Query('profileId') profileId: string) {
+  list(@CurrentUser() user: RequestUser, @Query('profileId', requiredUuid) profileId: string) {
     return this.sets.list(user.id, profileId);
   }
 

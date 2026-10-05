@@ -4,7 +4,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, Use
 import { GenerateShoppingListRequest, type Locale, UpdateShoppingItemRequest } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
-import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { ShoppingListsService } from './shopping-lists.service.js';
 
@@ -27,7 +27,7 @@ export class ShoppingListsController {
   list(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Query('planId') planId: string,
+    @Query('planId', requiredUuid) planId: string,
   ) {
     return this.lists.listForPlan(user.id, locale, planId);
   }

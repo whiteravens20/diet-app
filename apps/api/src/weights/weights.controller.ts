@@ -14,7 +14,7 @@ import {
 import { z } from 'zod';
 import { WeightEntryInput } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
-import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { WeightsService } from './weights.service.js';
 
@@ -34,7 +34,7 @@ export class WeightsController {
   @Get()
   list(
     @CurrentUser() user: RequestUser,
-    @Query('profileId') profileId: string,
+    @Query('profileId', requiredUuid) profileId: string,
     @Query('since') since?: string,
   ) {
     const sinceDate = since ? new Date(since) : undefined;
