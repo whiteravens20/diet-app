@@ -119,9 +119,8 @@ WARN lines showing prose preambles or missing locale keys.
   3B model in JSON mode will still drop the locale keys.
 - **Polish prose quality follows model size.** 7B–13B Polish is "good enough
   with operator polish in /admin/curation"; ≥24B is "ships unedited". The
-  reviewer interface ([Phase H](../../docs/adr/0008-curation-queue.md) when it
-  lands) is the right surface for polishing low-end output rather than
-  jumping to a bigger model.
+  reviewer interface is the right surface for polishing low-end output rather
+  than jumping to a bigger model.
 - **Temperature.** Drafting paths run at `temperature: 0.7` for variety;
   translation runs at `0.2` for fidelity. Don't raise translation
   temperature — it produces "creative" mistranslations that pass the

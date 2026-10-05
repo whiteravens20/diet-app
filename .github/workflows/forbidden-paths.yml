@@ -106,7 +106,7 @@ jobs:
           \`\`\`
 
           These are either operator-private (\`instance-data/\` —
-          curation-queue ship output, per [ADR-0008](https://github.com/whiteravens20/diet-app/blob/main/docs/adr/0008-curation-queue.md)),
+          curation-queue ship output),
           per-instance generated data (\`data/ingredients.generated.json\`),
           local env secrets (\`.env*\` except \`.env.example\`), build
           artefacts (\`dist/\`, \`build/\`, \`.next/\`), or protected
@@ -120,7 +120,7 @@ jobs:
             \`SHIP_UPSTREAM_BLOCKED_CANONICAL\` enforces this.
           - For your own instance, ship via the curation queue's
             **local** mode — content stays on your instance + sidecar files
-            in your gitignored \`instance-data/\`. See [ADR-0008 §"Where do my recipes actually live?"](https://github.com/whiteravens20/diet-app/blob/main/docs/adr/0008-curation-queue.md).
+            in your gitignored \`instance-data/\`. See [the shipping guide](https://github.com/whiteravens20/diet-app/blob/dev/docs/ops/curation-shipping.md).
 
           If this PR was opened in good faith and the forbidden paths are
           there by mistake, just \`git rm\` them and re-open. A maintainer

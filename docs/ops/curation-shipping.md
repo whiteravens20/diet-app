@@ -167,8 +167,7 @@ fallback. `local` mode reads only `INSTANCE_DATA_DIR`.
 
 - **The deterministic engine owns nutrition.** Shipping a draft never
   invents macros; the engine recomputes from the curated ingredient DB
-  on every PATCH and on every seed. See
-  [adr/0008-curation-queue.md](../adr/0008-curation-queue.md).
+  on every PATCH and on every seed.
 - **`source = MANUAL` survives re-seeds.** The seeder's wipe at the
   start of each translation upsert only touches `CURATED_JSON` rows.
   Your `local`-shipped rows are safe across `npm run db:seed` and

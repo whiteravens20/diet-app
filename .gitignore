@@ -45,3 +45,15 @@ infra/.data/
 # operator-controlled approved drafts here as a portable backup. They are
 # instance-private and must not land in the public repo.
 /instance-data/
+
+# Planning, architecture and developer docs stay local until v1.0.0. What the
+# repo carries before then is the operator documentation under docs/ops/.
+/docs/adr/
+/docs/architecture/
+/docs/design/
+/docs/perf/
+/docs/product/
+/docs/release/
+/docs/security/
+/docs/ops/testing.md
+/docs/ops/versions.md

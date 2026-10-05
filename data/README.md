@@ -20,9 +20,8 @@ calories and macros from the ingredient table. The recipe library is the union o
 `data/recipes.json` (hand-curated anchors) and `data/recipes/*.json` (curation-queue
 batches approved in-app and shipped via PR).
 
-See [docs/adr/0008-curation-queue.md](../docs/adr/0008-curation-queue.md) for the
-curation pipeline and [docs/adr/0006-fallback-recipe-strategy.md](../docs/adr/0006-fallback-recipe-strategy.md)
-for the USDA importer.
+See [docs/ops/curation-shipping.md](../docs/ops/curation-shipping.md) for how the
+curation queue ships its batches.
 
 ## Choosing `FDC_DATA_TYPES`
 

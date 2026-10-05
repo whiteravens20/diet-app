@@ -37,29 +37,6 @@ The companion Android app lives in a separate repository:
   full deterministic fallback so the app works with **no AI key at all**.
 - **Self-hosted, Docker-first** — `docker compose up` boots the whole stack.
 
-### Feature matrix
-
-Every shipped capability maps to a row in the
-[product spec](docs/product/product-spec.md), the canonical feature reference.
-
-| Capability | Where it's specified |
-|---|---|
-| Auth, email verification, account lifecycle | [product-spec F1](docs/product/product-spec.md) · [security posture](docs/security/posture.md) |
-| Profile wizard + calorie engine | [product-spec F2](docs/product/product-spec.md) · [architecture](docs/architecture/overview.md) |
-| Meal-plan generation + advanced/flexible options | [product-spec F3/F4/F17/F22](docs/product/product-spec.md) |
-| Recipes, swaps, ingredient substitution | [product-spec F5/F6/F20](docs/product/product-spec.md) |
-| Shopping lists (merge, normalise, "already have") | [product-spec F7](docs/product/product-spec.md) |
-| Inventory | [product-spec F8/F15](docs/product/product-spec.md) |
-| Favorites + favorite sets | [product-spec F13](docs/product/product-spec.md) |
-| Settings, i18n (en/pl), theming | [product-spec F14](docs/product/product-spec.md) · [design system](docs/design/design-system.md) |
-| BYOK AI + deterministic fallback | [product-spec F10](docs/product/product-spec.md) · [AI models](docs/ops/ai-models.md) |
-| Admin panel, curation queue, reviewer interface | [product-spec F16/F18](docs/product/product-spec.md) · [ADR-0008](docs/adr/0008-curation-queue.md) |
-| Visual identity (food photography) | [product-spec F19.1](docs/product/product-spec.md) · [design system](docs/design/design-system.md) |
-| Footer + Terms of Service | [product-spec F21](docs/product/product-spec.md) |
-
-> Screenshots of the dashboard, plan builder and shopping list are tracked for a
-> follow-up pass (they need a seeded instance to capture) — see the F100 audit.
-
 ## Install
 
 ```bash
@@ -164,12 +141,14 @@ The CLI alternative is `npm run db:seed`. See
 
 ## Documentation
 
-- [docs/architecture/](docs/architecture/) — system design, data model, API, AI orchestration
-- [docs/product/](docs/product/) — spec, user stories, roadmap
-- [docs/security/](docs/security/) — security posture, CSP, accepted-risk register, sign-off log
-- [docs/perf/budgets.md](docs/perf/budgets.md) — performance + bundle budgets
-- [docs/llm/onboarding.md](docs/llm/onboarding.md) — onboarding for developers & LLM agents
-- [AGENTS.md](AGENTS.md) — quick reference for AI coding agents
+- [docs/ops/deployment.md](docs/ops/deployment.md) — Docker, self-hosting, Ollama
+- [docs/ops/env-reference.md](docs/ops/env-reference.md) — every environment variable
+- [docs/ops/ai-models.md](docs/ops/ai-models.md) — model recommendations by surface and hardware tier
+- [docs/ops/curation-shipping.md](docs/ops/curation-shipping.md) — curation queue ship modes, backup, migration
+
+The product specification and the architecture and design documents are not
+published while the project is in development; they join the repository with
+v1.0.0.
 
 ## Development with AI Assistance
 

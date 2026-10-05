@@ -1,6 +1,6 @@
 # `data/recipes/`
 
-Shipped recipe batches from the **curation queue** (F18, [ADR-0008](../../docs/adr/0008-curation-queue.md)).
+Shipped recipe batches from the **curation queue** (see [docs/ops/curation-shipping.md](../../docs/ops/curation-shipping.md)).
 
 - One file per shipped batch, named `<batchId>.json`.
 - Each file is an array of recipe rows in the same shape as
