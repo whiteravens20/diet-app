@@ -41,7 +41,7 @@ environment fails fast with a clear message.
 | `RATE_LIMIT_MAX` | `120` | Requests/window/IP, global default. AI + plan-generation routes carry fixed tighter per-route limits (recipe draft 10, plan (re)generate 20, AI swap 30, provider test 20/min) that are not operator-tunable. |
 
 ## Email (optional)
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | — | SMTP for password reset. Unset → reset links log to stdout (dev). |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | — | SMTP for mail. Unset → no mail is sent: outside production the reset link is logged instead, in production password reset is not available. |
 | `SMTP_FROM` | `no-reply@diet-app.local` | From address. |
 
 ## Web

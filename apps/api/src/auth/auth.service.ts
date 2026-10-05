@@ -153,8 +153,8 @@ export class AuthService {
       },
     });
     const link = `${this.config.get('APP_URL', { infer: true })}/reset-password?token=${raw}`;
-    // Emails the link when SMTP is configured; otherwise MailService logs it to
-    // stdout (the previous dev behaviour). Use the user's stored locale.
+    // Emails the link when SMTP is configured. Without SMTP, MailService logs
+    // it outside production only. Use the user's stored locale.
     await this.mail.sendPasswordReset(email, link, Locale.parse(user.locale));
   }
 

@@ -21,6 +21,7 @@ What the code guarantees today, and what it deliberately does not protect agains
 - [x] Short-lived JWT access tokens (15 minutes by default) and rotating refresh tokens
 - [x] Refresh tokens stored hashed and revocable — rotated on use, revoked on logout and on password reset
 - [x] Password-reset, e-mail-verification and e-mail-change tokens are single-use, time-limited and stored hashed
+- [x] A password-reset link is never written to the log in production; without SMTP it is logged outside production only
 - [x] Reviewer sessions use their own signed cookie (`httpOnly`, `SameSite=Lax`, `Secure` behind HTTPS); a reviewer token is rejected as a user access token
 
 ### Data at Rest
@@ -83,7 +84,6 @@ What the code guarantees today, and what it deliberately does not protect agains
 |---|---|
 | Compromised client device or malicious browser extension | Session tokens and everything the user sees live in the browser; malware or an extension can read them |
 | Content injection in the web app | The web pages' Content-Security-Policy is sent report-only and is not enforced yet |
-| The application log when SMTP is off | With no mail server configured, password-reset, verification and e-mail-change links, each carrying a one-time token, are written to the log together with the recipient's address instead of being sent. Configure SMTP, or treat the log as sensitive |
 | Third-party AI providers | Prompts, and the data in them, go to the provider the user chose; its security and retention are outside the app |
 | A malicious or compromised admin | The admin account can change curated data and make the server fetch a URL of its choice |
 | The operator's deployment | TLS termination and network exposure belong to the reverse proxy in front of the stack |
