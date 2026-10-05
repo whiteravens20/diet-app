@@ -6,9 +6,3 @@ contact_links:
     about: >
       Report a security vulnerability privately via GitHub's built-in
       private reporting. Do NOT open a public issue for security bugs.
-
-  - name: "\U0001F4AC Question / Discussion"
-    url: https://github.com/whiteravens20/diet-app/discussions
-    about: >
-      Ask a question, share feedback, or start a general discussion
-      about the project.
