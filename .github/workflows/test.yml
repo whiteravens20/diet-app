@@ -1,6 +1,6 @@
 # ── CI ────────────────────────────────────────────────────────────────────────
-# Lint, typecheck, build and test the monorepo. The job names `api`, `web` and
-# `docker` are the required status checks on the protected `main` branch.
+# Lint, typecheck, build and test the monorepo. The job names `api`, `web`,
+# `markers` and `docker` are required status checks on `dev` and `main`.
 name: CI
 
 on:
