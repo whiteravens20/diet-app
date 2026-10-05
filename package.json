@@ -48,6 +48,7 @@
     "multer": "^2.2.0",
     "js-yaml": "^4.2.0",
     "mysql2": "^3.23.1",
+    "deepmerge-ts": "^8.0.0",
     "next": {
       "postcss": "^8.5.10"
     }
