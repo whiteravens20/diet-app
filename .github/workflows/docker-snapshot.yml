@@ -1,19 +1,18 @@
-# ── Diet App — Snapshot Builds ────────────────────────────────────────────────
+# ── Diet App — Snapshot Build ─────────────────────────────────────────────────
 #
-# Manually-triggered build of the `api` and `web` Docker images from `dev`.
-# Publishes to GHCR with the `:dev` tag so a snapshot can be pulled and tested
-# without building locally. These are NOT production releases — use a semver
-# tag and the release workflow for that.
+# Manually-triggered build of the Docker image from `dev`. Publishes to GHCR
+# with the `:dev` tag so a snapshot can be pulled and tested without building
+# locally. It is NOT a production release — a semver tag and the release
+# workflow are for that.
 #
 # Run it:  Actions → "Snapshot build" → Run workflow (pick the `dev` branch).
 #
-# Tags produced per image:
-#   ghcr.io/whiteravens20/diet-app/api:dev
-#   ghcr.io/whiteravens20/diet-app/api:dev-<7-char-sha>
-#   ghcr.io/whiteravens20/diet-app/web:dev
-#   ghcr.io/whiteravens20/diet-app/web:dev-<7-char-sha>
+# Tags produced:
+#   ghcr.io/whiteravens20/diet-app:dev
+#   ghcr.io/whiteravens20/diet-app:dev-<7-char-sha>
 #
-# Pull to test:  docker pull ghcr.io/whiteravens20/diet-app/api:dev
+# Pull to test:  docker pull ghcr.io/whiteravens20/diet-app:dev
+# Run it with IMAGE_TAG=dev in the .env of infra/docker-compose.prod.yml.
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,20 +26,11 @@ env:
 
 jobs:
   build-push:
-    name: Build ${{ matrix.image }} snapshot
+    name: Build snapshot
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: api
-            dockerfile: infra/docker/api.Dockerfile
-          - image: web
-            dockerfile: infra/docker/web.Dockerfile
 
     steps:
       - name: Checkout
@@ -50,8 +40,7 @@ jobs:
         id: tag
         run: |
           SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          IMG="${{ env.REGISTRY }}/${REPO_LC}/${{ matrix.image }}"
+          IMG="${{ env.REGISTRY }}/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
           {
             echo "value<<EOF"
             echo "${IMG}:dev"
@@ -74,28 +63,23 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
+          file: infra/docker/Dockerfile
           push: true
           tags: ${{ steps.tag.outputs.value }}
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ── Trivy scan ────────────────────────────────────────────────────────────────
   # Snapshot scans REPORT ONLY — findings land in the Security tab but never
-  # block the dev snapshot. A production release tag is the blocking gate.
+  # block the dev snapshot. The image scan in security.yml is the blocking one.
   scan:
-    name: Trivy scan ${{ matrix.image }}
+    name: Trivy scan
     needs: build-push
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
       security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        image: [api, web]
 
     steps:
       - name: Checkout (for .trivyignore)
@@ -111,8 +95,8 @@ jobs:
       - name: Resolve lowercase image ref
         id: img
         run: |
-          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "ref=${{ env.REGISTRY }}/${REPO_LC}/${{ matrix.image }}:dev" >> "$GITHUB_OUTPUT"
+          IMG="${{ env.REGISTRY }}/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          echo "ref=${IMG}:dev" >> "$GITHUB_OUTPUT"
 
       - name: Scan for CVEs
         uses: aquasecurity/trivy-action@v0.36.0
@@ -125,11 +109,11 @@ jobs:
           # Snapshot builds report only — do not block dev iteration.
           exit-code: '0'
           format: sarif
-          output: trivy-${{ matrix.image }}.sarif
+          output: trivy-snapshot.sarif
 
       - name: Upload SARIF to Security tab
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: trivy-${{ matrix.image }}.sarif
-          category: trivy-snapshot-${{ matrix.image }}
+          sarif_file: trivy-snapshot.sarif
+          category: trivy-snapshot

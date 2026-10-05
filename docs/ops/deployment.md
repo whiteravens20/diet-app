@@ -2,15 +2,23 @@
 
 Docker-first and self-host-friendly: local, LAN-only, or cloud. No vendor lock-in.
 
-## Images
+## Image
 
-| Image | Dockerfile | Notes |
-|---|---|---|
-| `diet-app-api` | `infra/docker/api.Dockerfile` | Multi-stage, Alpine, non-root. Runs the API; the scheduled-tasks worker reuses it with `node apps/api/dist/worker.js`. |
-| `diet-app-web` | `infra/docker/web.Dockerfile` | Multi-stage; Next.js standalone output. |
+There is one image, `diet-app`, built from `infra/docker/Dockerfile`: multi-stage,
+Alpine, non-root, with no package manager inside. Every service runs from it and
+differs only by its command, so one tag pins the whole application and the web can
+never be from a different version than the API it talks to.
 
-Build context is the repo root. Both are built and tagged by the `release.yml` workflow
-on a `vX.Y.Z` tag and pushed to GHCR with provenance + SBOM.
+| Role | Command |
+|---|---|
+| API | `node apps/api/dist/main.js` (the image's default) |
+| Scheduled-tasks worker | `node apps/api/dist/worker.js` |
+| Migrations (`db-init`) | `/app/node_modules/.bin/prisma migrate deploy`, in `/app/apps/api` |
+| Web front-end | `node /web/apps/web/server.js` (Next.js standalone output) |
+
+Build context is the repo root. The `release.yml` workflow builds the image on a
+`vX.Y.Z` tag and pushes it to GHCR with provenance + SBOM; it is disabled while the
+project is in development.
 
 ## Compose files
 

@@ -88,12 +88,12 @@ Web app → `http://localhost:3000`, API → `http://localhost:4000`.
 ## Production deploy (pre-built images)
 
 For deploying to a server you do **not** need the repo or a build toolchain.
-Official multi-arch images are published to GHCR and consumed by a
-self-contained compose file at
-[`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml):
+The official image is published to GHCR and consumed by a self-contained
+compose file at [`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml):
 
-- `ghcr.io/whiteravens20/diet-app/api:latest` — HTTP API + scheduled-tasks worker
-- `ghcr.io/whiteravens20/diet-app/web:latest` — Next.js frontend
+- `ghcr.io/whiteravens20/diet-app:latest` — one image for the HTTP API, the
+  scheduled-tasks worker, the migration job and the Next.js frontend; each
+  service starts it with its own command
 
 On the target server:
 
@@ -125,8 +125,8 @@ docker compose -f docker-compose.prod.yml up -d
 ```
 
 **Pinning a version** — `latest` follows the production release channel; set
-`IMAGE_TAG=<release-tag>` in `.env` to pin both images to a known-good
-version and bump manually after testing.
+`IMAGE_TAG=<release-tag>` in `.env` to pin the whole application to a
+known-good version and bump manually after testing.
 
 **Local self-hosted AI** — start with `--profile ollama` to add an Ollama
 service on the same host; set `AI_DEFAULT_PROVIDER=ollama` and

@@ -24,6 +24,25 @@
 
 name: diet-app
 
+# One image, several roles (see infra/docker/Dockerfile): the API, the worker,
+# the migration job and the web front-end all run from it and differ only by
+# their command. Every app service below builds the same Dockerfile under one
+# tag, so the layers are built once.
+x-app-image: &app-image
+  image: diet-app:local
+  build:
+    context: ..
+    dockerfile: infra/docker/Dockerfile
+    # Use the host network namespace for builds — buildkit's ephemeral netns
+    # occasionally fails to resolve registry / Alpine CDN hostnames on this
+    # daemon. Runtime container networking is unaffected.
+    network: host
+    # The web proxies `/api/*` to the `api` service, so the browser only ever
+    # talks to the web origin — no CORS, host-agnostic. The target is baked in
+    # at build time.
+    args:
+      API_PROXY_URL: http://api:4000
+
 services:
   postgres:
     image: postgres:18-alpine
@@ -49,13 +68,7 @@ services:
   # `POST /api/admin/db/update`). Boot stays fast even with 7k+ ingredients and
   # 30k+ composed recipes.
   db-init:
-    build:
-      context: ..
-      dockerfile: infra/docker/api.Dockerfile
-      # Use the host network namespace for builds — buildkit's ephemeral netns
-      # occasionally fails to resolve registry / Alpine CDN hostnames on this
-      # daemon. Runtime container networking is unaffected.
-      network: host
+    <<: *app-image
     env_file: ../.env
     environment:
       NODE_ENV: production
@@ -67,10 +80,7 @@ services:
     restart: 'no'
 
   api:
-    build:
-      context: ..
-      dockerfile: infra/docker/api.Dockerfile
-      network: host
+    <<: *app-image
     restart: unless-stopped
     env_file: ../.env
     environment:
@@ -105,17 +115,14 @@ services:
       retries: 5
 
   worker:
-    build:
-      context: ..
-      dockerfile: infra/docker/api.Dockerfile
-      network: host
+    <<: *app-image
     restart: unless-stopped
     env_file: ../.env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-    # Same image as `api`, different entrypoint: runs scheduled tasks
-    # (weight-reminder scan) on a single instance.
+    # Same image, different command: runs scheduled tasks (weight-reminder
+    # scan) on a single instance.
     command: ['node', 'apps/api/dist/worker.js']
     depends_on:
       postgres: { condition: service_healthy }
@@ -125,14 +132,9 @@ services:
       - instance-data:/app/instance-data
 
   web:
-    build:
-      context: ..
-      dockerfile: infra/docker/web.Dockerfile
-      network: host
-      # The web app proxies `/api/*` to the `api` service, so the browser only
-      # ever talks to the web origin — no CORS, host-agnostic.
-      args:
-        API_PROXY_URL: http://api:4000
+    <<: *app-image
+    # Same image, different command: the Next.js standalone server under /web.
+    command: ['node', '/web/apps/web/server.js']
     restart: unless-stopped
     depends_on:
       - api

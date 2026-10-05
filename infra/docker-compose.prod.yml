@@ -1,7 +1,9 @@
 # ── Diet App — production stack (pre-built images from GHCR) ──────────────────
 # Self-contained compose file for running Diet App on a server WITHOUT cloning
-# the repo. Pulls the official multi-arch images from the GitHub Container
-# Registry instead of building locally.
+# the repo. Pulls the official image from the GitHub Container Registry instead
+# of building locally. There is one image: the API, the worker, the migration
+# job and the web front-end all run from it and differ only by their command,
+# so one IMAGE_TAG pins the whole application.
 #
 # Quick start (on the target server):
 #
@@ -56,7 +58,7 @@ services:
       retries: 5
 
   # ── One-shot: seed the `app-data` volume from the image ────────────────────
-  # The api image bakes `data/*.json` (curated ingredients, recipes,
+  # The image bakes `data/*.json` (curated ingredients, recipes,
   # substitutions) into `/app/data`. Docker auto-populates a fresh named
   # volume from the image's contents on first attach, but does NOT re-seed it
   # on subsequent boots — so without this init, upgrading IMAGE_TAG would
@@ -69,7 +71,7 @@ services:
   # left alone. Final chown gives the `node` user (uid 1000) in api / worker
   # write access for the USDA importer.
   data-init:
-    image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    image: ghcr.io/whiteravens20/diet-app:${IMAGE_TAG:-latest}
     container_name: diet-app-data-init
     pull_policy: always
     networks: [diet-app]
@@ -87,15 +89,15 @@ services:
     restart: 'no'
 
   # ── One-shot: apply pending migrations and exit ─────────────────────────────
-  # Same image as `api`, different entrypoint. `api` and `worker` depend on
-  # this so they never start against an un-migrated database. Safe to re-run:
+  # Same image, different command. `api` and `worker` depend on this so they
+  # never start against an un-migrated database. Safe to re-run:
   # `migrate deploy` is a no-op when nothing is pending.
   #
   # Seeding the curated ingredient database is intentionally NOT done here —
   # it's a one-click admin action from `/admin` once the stack is up (see
   # README → "First-run").
   db-init:
-    image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    image: ghcr.io/whiteravens20/diet-app:${IMAGE_TAG:-latest}
     container_name: diet-app-db-init
     pull_policy: always
     networks: [diet-app]
@@ -110,7 +112,7 @@ services:
     restart: 'no'
 
   api:
-    image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    image: ghcr.io/whiteravens20/diet-app:${IMAGE_TAG:-latest}
     container_name: diet-app-api
     pull_policy: always
     restart: unless-stopped
@@ -120,9 +122,9 @@ services:
       NODE_ENV: production
       # Override host-oriented .env values with Compose service hostnames.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-      # Pin the internal listen port to 4000. The `web` image was built with
-      # `API_PROXY_URL=http://api:4000` baked into its Next.js rewrites — it
-      # cannot be changed at runtime. The `.env` API_PORT (intended for host
+      # Pin the internal listen port to 4000. The web bundle in the image was
+      # built with `API_PROXY_URL=http://api:4000` baked into its Next.js
+      # rewrites — it cannot be changed at runtime. The `.env` API_PORT (intended for host
       # port mapping) must NOT leak in or NestJS will listen on the wrong port.
       API_PORT: 4000
     depends_on:
@@ -163,7 +165,7 @@ services:
       retries: 5
 
   worker:
-    image: ghcr.io/whiteravens20/diet-app/api:${IMAGE_TAG:-latest}
+    image: ghcr.io/whiteravens20/diet-app:${IMAGE_TAG:-latest}
     container_name: diet-app-worker
     pull_policy: always
     restart: unless-stopped
@@ -175,8 +177,8 @@ services:
       # uses `localhost` (correct for `npm run dev`), which would point the
       # worker at itself inside the network.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
-    # Same image as `api`, different entrypoint: runs scheduled tasks
-    # (weight-reminder scan) on a single instance.
+    # Same image, different command: runs scheduled tasks (weight-reminder
+    # scan) on a single instance.
     command: ['node', 'apps/api/dist/worker.js']
     depends_on:
       postgres: { condition: service_healthy }
@@ -187,11 +189,13 @@ services:
       - instance-data:/app/instance-data
 
   web:
-    image: ghcr.io/whiteravens20/diet-app/web:${IMAGE_TAG:-latest}
+    image: ghcr.io/whiteravens20/diet-app:${IMAGE_TAG:-latest}
     container_name: diet-app-web
     pull_policy: always
     restart: unless-stopped
     networks: [diet-app]
+    # Same image, different command: the Next.js standalone server under /web.
+    command: ['node', '/web/apps/web/server.js']
     depends_on:
       - api
     # Bind to loopback so only a reverse proxy on the same host can reach it.

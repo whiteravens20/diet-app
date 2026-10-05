@@ -1,7 +1,7 @@
 # ── Diet App — Release ────────────────────────────────────────────────────────
-# Triggered by a semver tag (v1.2.3). Builds the api + web production images,
-# pushes them to GitHub Container Registry, and creates a GitHub Release whose
-# notes are generated from .github/release.yml.
+# Triggered by a semver tag (v1.2.3). Builds the production image, pushes it to
+# GitHub Container Registry, and creates a GitHub Release whose notes are
+# generated from .github/release.yml.
 name: Release
 
 on:
@@ -13,17 +13,14 @@ permissions:
   packages: write
 
 jobs:
-  images:
-    name: Build & push images
+  image:
+    name: Build & push image
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       id-token: write       # Sign the provenance attestation
       attestations: write
-    strategy:
-      matrix:
-        service: [api, web]
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v4
@@ -35,7 +32,7 @@ jobs:
       - uses: docker/metadata-action@v6
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}-${{ matrix.service }}
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -44,7 +41,7 @@ jobs:
         id: build
         with:
           context: .
-          file: infra/docker/${{ matrix.service }}.Dockerfile
+          file: infra/docker/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -53,13 +50,13 @@ jobs:
       # Sigstore-signed build provenance, pushed to ghcr.io next to the image.
       - uses: actions/attest-build-provenance@v4
         with:
-          subject-name: ghcr.io/${{ github.repository }}-${{ matrix.service }}
+          subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
   release:
     name: GitHub Release
-    needs: images
+    needs: image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

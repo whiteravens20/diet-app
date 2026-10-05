@@ -85,7 +85,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Validate Docker images build
-        run: |
-          docker build -f infra/docker/api.Dockerfile -t diet-app-api:ci .
-          docker build -f infra/docker/web.Dockerfile -t diet-app-web:ci .
+      - name: Validate the Docker image builds
+        run: docker build -f infra/docker/Dockerfile -t diet-app:ci .
