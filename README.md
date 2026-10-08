@@ -158,28 +158,6 @@ The product specification and the architecture and design documents are not
 published while the project is in development; they join the repository with
 v1.0.0.
 
-## Development with AI Assistance
-
-> [!NOTE]
-> **This project was developed with AI assistance.**
->
-> AI-generated code can contain subtle bugs, insecure patterns, or
-> plausible-looking nonsense ("AI slop"). Here is what keeps the bar high — and
-> what to check when auditing:
->
-> - **The deterministic core is human-specified.** Nutrition is computed by the
->   engine (`apps/api/src/engine`) from a curated database — AI never invents
->   calorie or macro values. That rule was a design decision, not an AI default.
-> - **Tests are mandatory.** `npm run lint && npm run typecheck && npm test`
->   must pass before any commit lands; every engine function is unit-tested.
-> - **ESLint enforces standards.** All workspaces lint with zero warnings.
-> - **Security-critical code is read line by line.** `common/crypto.ts` and
->   `auth/auth.service.ts` (email encryption, password peppering, blind-index
->   lookups) were reviewed manually after generation.
->
-> If you find a slop pattern, a logical bug, or a security issue, please open an
-> issue or see [SECURITY.md](SECURITY.md).
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
@@ -187,6 +165,50 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT
 ## Security
 
 See [SECURITY.md](SECURITY.md) for the disclosure policy.
+
+## How the code is written and checked
+
+Diet App is built by one maintainer using AI coding tools. The tools write most of the
+code, tests and documentation; the maintainer decides what gets built and is responsible
+for everything that lands here. The project is in early development: there is no release
+yet, no independent security review and no second human reviewer.
+
+**What a change goes through**
+
+- Every push and pull request runs lint with no warnings allowed, type checking, the
+  unit tests and a build for the API and for the web app, checks that the database
+  migrations match the schema, and builds the Docker image
+  ([test.yml](.github/workflows/test.yml)).
+- CodeQL, `npm audit`, package signature checks and Trivy scans of the repository and of
+  the image run on every push and pull request, and again every week
+  ([codeql.yml](.github/workflows/codeql.yml),
+  [security.yml](.github/workflows/security.yml)).
+- Commits are signed, and the [OpenSSF
+  Scorecard](https://scorecard.dev/viewer/?uri=github.com/whiteravens20/diet-app)
+  results are public.
+
+**What the maintainer decided and read**
+
+- Nutrition never comes from a language model. The maintainer specified that every
+  calorie and macro is computed by the engine in `apps/api/src/engine` from the curated
+  database. A model may only draft the structure of a recipe, and a validation layer
+  then recomputes every number.
+- Each engine module has its own unit tests.
+- `apps/api/src/common/crypto.ts` and `apps/api/src/auth/auth.service.ts` (e-mail
+  encryption, password peppering, blind-index lookups) are read line by line by the
+  maintainer whenever they change.
+
+**Before a release**
+
+- There is no release yet. Before the first one, the whole application is audited and
+  tested on running instances, not only in unit tests.
+- The latest audit found problems that have to be fixed first, which is why the project
+  is still marked as not production ready.
+- A release will be cut from `main`, which requires CodeQL, `npm audit` and both Trivy
+  scans on top of the tests.
+
+If something looks wrong, open an issue. For a vulnerability, follow
+[SECURITY.md](SECURITY.md).
 
 ## License
 
