@@ -70,13 +70,42 @@ export function resolveDataDir(): string {
   return candidates[0];
 }
 
-export function computeDataState(dir = resolveDataDir()): DataState {
+/** The seed files as they are on disk at one moment. */
+export interface SeedInputs {
+  /** Top-level files by name; `null` when a file is absent. */
+  files: Map<(typeof SEED_FILES)[number], Buffer | null>;
+  /** The per-batch files of each globbed subdirectory, in filename order. */
+  batches: { path: string; bytes: Buffer }[];
+}
+
+/**
+ * Read every seed file once. The update hashes and seeds from these same
+ * bytes, so the stored hash always describes what was actually seeded, even if
+ * a file changes while the update runs.
+ */
+export function readSeedInputs(dir = resolveDataDir()): SeedInputs {
+  const files: SeedInputs['files'] = new Map();
+  for (const name of SEED_FILES) {
+    const path = join(dir, name);
+    files.set(name, existsSync(path) ? readFileSync(path) : null);
+  }
+  const batches: SeedInputs['batches'] = [];
+  for (const subdir of SEED_DIRS) {
+    const subPath = join(dir, subdir);
+    if (!existsSync(subPath) || !statSync(subPath).isDirectory()) continue;
+    for (const name of readdirSync(subPath).filter((f) => f.endsWith('.json')).sort()) {
+      batches.push({ path: `${subdir}/${name}`, bytes: readFileSync(join(subPath, name)) });
+    }
+  }
+  return { files, batches };
+}
+
+export function hashSeedInputs(inputs: SeedInputs): DataState {
   const hash = createHash('sha256');
   const files: SeedFileSnapshot[] = [];
   for (const name of SEED_FILES) {
-    const path = join(dir, name);
-    if (existsSync(path)) {
-      const buf = readFileSync(path);
+    const buf = inputs.files.get(name) ?? null;
+    if (buf) {
       hash.update(`${name}:`);
       hash.update(buf);
       files.push({ name, present: true, bytes: buf.length });
@@ -85,18 +114,13 @@ export function computeDataState(dir = resolveDataDir()): DataState {
       files.push({ name, present: false, bytes: 0 });
     }
   }
-  for (const subdir of SEED_DIRS) {
-    const subPath = join(dir, subdir);
-    if (existsSync(subPath) && statSync(subPath).isDirectory()) {
-      const entries = readdirSync(subPath)
-        .filter((f) => f.endsWith('.json'))
-        .sort();
-      for (const name of entries) {
-        const buf = readFileSync(join(subPath, name));
-        hash.update(`${subdir}/${name}:`);
-        hash.update(buf);
-      }
-    }
+  for (const batch of inputs.batches) {
+    hash.update(`${batch.path}:`);
+    hash.update(batch.bytes);
   }
   return { hash: hash.digest('hex'), files };
+}
+
+export function computeDataState(dir = resolveDataDir()): DataState {
+  return hashSeedInputs(readSeedInputs(dir));
 }
