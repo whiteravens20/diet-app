@@ -144,6 +144,13 @@ services:
       - api
     ports:
       - '${WEB_PORT:-3000}:3000'
+    healthcheck:
+      # The standalone server listens on the container's own hostname, which
+      # is not the loopback address.
+      test: ['CMD-SHELL', 'wget -q --spider "http://$$(hostname):3000/" || exit 1']
+      interval: 20s
+      timeout: 5s
+      retries: 5
 
   # ── Optional: local self-hosted AI ──────────────────────────────────────────
   ollama:

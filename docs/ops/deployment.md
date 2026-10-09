@@ -141,7 +141,7 @@ links expire after 1 hour.
 
 - Set strong `JWT_*` secrets and a 64-hex `AI_KEY_ENCRYPTION_SECRET` (`openssl rand`).
 - Persisted volumes: `postgres-data`, `ollama-models`.
-- Health checks are defined for every long-running service.
+- PostgreSQL, the API and the web front-end have health checks; the API's fails when it cannot reach the database. The worker has none: Docker restarts it when its process exits.
 - Run `db:migrate` (not `migrate dev`) on deploy; back up the Postgres volume.
 - Bind published ports to a private interface in LAN-only deployments.
 

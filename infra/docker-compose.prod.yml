@@ -207,6 +207,13 @@ services:
     command: ['node', '/web/apps/web/server.js']
     depends_on:
       - api
+    healthcheck:
+      # The standalone server listens on the container's own hostname, which
+      # is not the loopback address.
+      test: ['CMD-SHELL', 'wget -q --spider "http://$$(hostname):3000/" || exit 1']
+      interval: 20s
+      timeout: 5s
+      retries: 5
     # Bind to loopback so only a reverse proxy on the same host can reach it.
     # Drop the `127.0.0.1:` prefix to expose on all interfaces (e.g. if the
     # reverse proxy runs on a different host on the same private network).

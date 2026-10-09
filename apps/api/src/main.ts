@@ -14,6 +14,10 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService) as ConfigService<Env, true>;
 
   configureApp(app);
+  // As PID 1 in a container the process gets no default signal handling: with
+  // these hooks a `docker stop` lets requests in flight finish and closes the
+  // database pool, instead of being killed after the grace period.
+  app.enableShutdownHooks();
 
   // OpenAPI — served at /api/docs, JSON at /api/docs-json. Off in production
   // unless explicitly enabled: the schema dump is recon-enabling and there is
