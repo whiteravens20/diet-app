@@ -6,30 +6,19 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
-import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
-import { applySecurityHeaders } from './common/security.js';
+import { SWAGGER_PATH, configureApp } from './app.setup.js';
 import type { Env } from './config/env.js';
-
-/** Where Swagger UI is mounted, global prefix included. */
-const SWAGGER_PATH = 'api/docs';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService) as ConfigService<Env, true>;
-  const swaggerEnabled = config.get('SWAGGER_ENABLED', { infer: true });
 
-  app.setGlobalPrefix('api');
-  // Security headers on /api/* — see common/security.ts. The Swagger routes
-  // get their own policy only while Swagger is on.
-  applySecurityHeaders(app, swaggerEnabled ? { swaggerPath: `/${SWAGGER_PATH}` } : {});
-  app.useGlobalFilters(new AllExceptionsFilter());
-  // Input validation is per-route via ZodValidationPipe against packages/shared.
-  app.enableCors({ origin: config.get('APP_URL', { infer: true }), credentials: true });
+  configureApp(app);
 
   // OpenAPI — served at /api/docs, JSON at /api/docs-json. Off in production
   // unless explicitly enabled: the schema dump is recon-enabling and there is
   // no reason to expose it on a public instance by default.
-  if (swaggerEnabled) {
+  if (config.get('SWAGGER_ENABLED', { infer: true })) {
     const swagger = new DocumentBuilder()
       .setTitle('Diet App API')
       .setDescription('Deterministic diet & meal-planning API. See packages/shared for contracts.')
