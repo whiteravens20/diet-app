@@ -182,8 +182,8 @@ function MealPlansContent() {
   });
 
   const toggleEaten = useMutation({
-    mutationFn: (v: { planId: string; mealId: string }) =>
-      api.patch<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}/eaten`, {}),
+    mutationFn: (v: { planId: string; mealId: string; eaten: boolean }) =>
+      api.patch<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}/eaten`, { eaten: v.eaten }),
     onSuccess: (res, v) => showRebalance(v.planId, res),
     onError: fail(t('errEaten')),
   });
@@ -218,8 +218,8 @@ function MealPlansContent() {
   const aiSwapMeal = useMutation({
     mutationFn: (v: { planId: string; plannedMealId: string; hint?: string }) =>
       api.post<AiSwapMealResponse>('/meal-plans/ai-swap-meal', { ...v, respectInventory: swapWithPantry }),
-    onSuccess: (res) => {
-      invalidate();
+    onSuccess: (res, v) => {
+      showRebalance(v.planId, res);
       // Bust the chip's quota query — successful admin calls decrement remaining.
       qc.invalidateQueries({ queryKey: ['ai-quota'] });
       const reason = res.aiMeta.fallbackReason;
@@ -495,10 +495,11 @@ function MealPlansContent() {
                     }
                   : undefined
               }
-              onToggleEaten={(mealId) => {
+              onToggleEaten={(mealId, eaten) => {
                 setError(null);
-                toggleEaten.mutate({ planId: plan.id, mealId });
+                toggleEaten.mutate({ planId: plan.id, mealId, eaten });
               }}
+              onIngredientSwapped={(res) => showRebalance(plan.id, res)}
               onAddCustomMeal={(date, body) => {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
@@ -558,6 +559,7 @@ function PlanCard({
   onSwapToFavorite,
   onAiSwapMeal,
   onToggleEaten,
+  onIngredientSwapped,
   onAddCustomMeal,
 }: {
   plan: MealPlan;
@@ -575,7 +577,8 @@ function PlanCard({
   onSwapToFavorite: (plannedMealId: string, recipeId: string, allowOffDiet: boolean) => void;
   /** Undefined when the user has `aiMode='none'` — the button is hidden. */
   onAiSwapMeal?: (plannedMealId: string) => void;
-  onToggleEaten: (mealId: string) => void;
+  onToggleEaten: (mealId: string, eaten: boolean) => void;
+  onIngredientSwapped: (result: RebalanceResult) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
 }) {
   const t = useTranslations('mealPlans');
@@ -688,7 +691,7 @@ function PlanCard({
                             disabled={busy}
                             aria-label={t('markEaten')}
                             title={t('markEaten')}
-                            onChange={() => onToggleEaten(m.id)}
+                            onChange={() => onToggleEaten(m.id, !m.eatenAt)}
                           />
                           <span className="text-muted-foreground">{mealLabel}</span> ·{' '}
                           {isCustom ? (
@@ -892,10 +895,7 @@ function PlanCard({
           meal={openSub}
           planId={plan.id}
           onClose={() => setOpenSub(null)}
-          onApplied={() => {
-            /* Invalidation happens via the parent's react-query cache when the
-               plan refetches; the modal closes itself on success. */
-          }}
+          onApplied={onIngredientSwapped}
         />
       )}
       <RecipeModal

@@ -9,7 +9,7 @@ import { useState } from 'react';
 import type {
   AiSuggestIngredientResponse,
   Ingredient,
-  MealPlan,
+  RebalanceResult,
   RecipeIngredient,
   SessionUser,
   SwapIngredientRequest,
@@ -48,7 +48,7 @@ export function IngredientSubstituteModal({
   meal: PlannedMealLike;
   planId: string;
   onClose: () => void;
-  onApplied: (plan: MealPlan) => void;
+  onApplied: (result: RebalanceResult) => void;
 }) {
   const qc = useQueryClient();
   const t = useTranslations('swap');
@@ -121,17 +121,17 @@ export function IngredientSubstituteModal({
 
   const apply = useMutation({
     mutationFn: () =>
-      api.post<MealPlan>('/meal-plans/swap-ingredient/apply', {
+      api.post<RebalanceResult>('/meal-plans/swap-ingredient/apply', {
         planId,
         plannedMealId: meal.id,
         fromIngredientId: fromId!,
         toIngredientId: toId!,
       } satisfies SwapIngredientRequest),
-    onSuccess: (plan) => {
+    onSuccess: (result) => {
       // Refresh whichever plan list is currently rendered so the meal card
       // picks up the new recipe variant and its recomputed nutrition.
       qc.invalidateQueries({ queryKey: ['meal-plans'] });
-      onApplied(plan);
+      onApplied(result);
       onClose();
     },
     onError: (e) =>
