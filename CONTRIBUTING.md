@@ -156,6 +156,7 @@ infra/               # Dockerfile and Compose files
 - **All user-facing text is translated.** No English literals in `.ts` or `.tsx` for buttons, labels, toasts, exception messages or rendered enum labels. A new string lands in both `apps/web/messages/en.json` and `apps/web/messages/pl.json`; a new thrown exception gets a stable `error` code and a row in `messages.errors`.
 - New persistent data means a Prisma model and a migration.
 - No dead code or commented-out blocks in submitted PRs.
+- **A comment says what the code guarantees or why it is written this way.** No ticket, feature or phase identifiers, no history of how the code got here, and no pointers to documents that are not in the repository. The same goes for test names and documentation.
 - Match the existing code style; ESLint is the source of truth.
 
 ### Linting
@@ -164,7 +165,8 @@ Every workspace enforces zero warnings:
 
 ```bash
 npm run lint
-npm run data:lint     # validates the curated data in data/
+npm run data:lint                # validates the curated data in data/
+node scripts/check-markers.mjs   # rejects planning labels and dangling references
 ```
 
 Fix all lint errors before opening a PR. The CI gate is `eslint --max-warnings 0`.
