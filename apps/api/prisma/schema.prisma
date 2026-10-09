@@ -292,6 +292,11 @@ model Ingredient {
   packSize          Float?
   brand             String?
   storageHint       String?
+  // Set when the curated data no longer carries the ingredient but user data
+  // still refers to it. A retired ingredient is hidden from search and from
+  // every candidate pool; rows that use it keep working. Cleared when the
+  // ingredient returns to the data.
+  retiredAt         DateTime?
 
   nutritionFacts       NutritionFact[]
   recipeIngredients    RecipeIngredient[]
@@ -405,6 +410,11 @@ model Recipe {
   // without breaking planned meals that already reference the row. Set by
   // DELETE /recipes/:id; every user-facing list filters `deletedAt IS NULL`.
   deletedAt          DateTime?
+  // Set when the curated data no longer carries the recipe but a plan, a
+  // favourite or a favourite set still refers to it. A retired recipe is
+  // hidden from the library and from every candidate pool; the rows that use
+  // it keep working. Cleared when the recipe returns to the data.
+  retiredAt          DateTime?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
@@ -596,7 +606,8 @@ model InventoryItem {
   id           String     @id @default(uuid())
   profile      Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
   profileId    String
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  // Restrict: removing an ingredient must never take a user's stock with it.
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
   ingredientId String
   quantity     Float
   unit         Unit

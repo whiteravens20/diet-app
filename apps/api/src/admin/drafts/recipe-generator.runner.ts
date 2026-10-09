@@ -275,8 +275,8 @@ export class RecipeGeneratorRunner {
     // names via the namer pipeline, they sit out of recipe generation.
     const where =
       scope === 'curated'
-        ? { slug: { not: null }, NOT: { tags: { has: 'usda-imported' } } }
-        : { slug: { not: null } };
+        ? { slug: { not: null }, retiredAt: null, NOT: { tags: { has: 'usda-imported' } } }
+        : { slug: { not: null }, retiredAt: null };
     const ingredients = await this.prisma.ingredient.findMany({
       where,
       select: {

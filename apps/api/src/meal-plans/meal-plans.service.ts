@@ -562,7 +562,7 @@ export class MealPlansService {
       // Explicit user pick (diet-type be damned, and meal-time too when
       // allowOffDiet); allergens are never relaxed — validate before applying.
       const fav = await this.prisma.recipe.findFirst({
-        where: { id: req.favoriteRecipeId, deletedAt: null, OR: [{ createdByUserId: null }, { createdByUserId: userId }] },
+        where: { id: req.favoriteRecipeId, deletedAt: null, retiredAt: null, OR: [{ createdByUserId: null }, { createdByUserId: userId }] },
         select: { id: true, mealTypes: true, allergens: true },
       });
       if (
@@ -599,6 +599,7 @@ export class MealPlansService {
           mealTypes: { has: meal.mealType },
           id: { not: currentRecipeId ?? undefined },
           deletedAt: null,
+          retiredAt: null,
           OR: [{ createdByUserId: null }, { createdByUserId: userId }],
         },
         select: { id: true, ingredients: { select: { ingredientId: true } } },
@@ -641,6 +642,7 @@ export class MealPlansService {
           mealTypes: { has: meal.mealType },
           id: { not: currentRecipeId ?? undefined },
           deletedAt: null,
+          retiredAt: null,
           OR: [{ createdByUserId: null }, { createdByUserId: userId }],
         },
         select: { id: true },
@@ -877,6 +879,7 @@ export class MealPlansService {
         mealTypes: { has: meal.mealType },
         id: { not: currentRecipeId },
         deletedAt: null,
+        retiredAt: null,
         OR: [{ createdByUserId: null }, { createdByUserId: userId }],
       },
       select: {
@@ -1588,6 +1591,7 @@ export class MealPlansService {
         category: from.category,
         id: { notIn: [...excludedIds] },
         dietCompatibility: { has: dietType },
+        retiredAt: null,
       },
       select: {
         id: true,
@@ -1884,6 +1888,7 @@ export class MealPlansService {
     const recipes = await this.prisma.recipe.findMany({
       where: {
         deletedAt: null,
+        retiredAt: null,
         OR: [{ createdByUserId: null }, { createdByUserId: ownerUserId }],
       },
       include: {

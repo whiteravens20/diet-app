@@ -33,6 +33,9 @@ export interface RunnerState {
   result: {
     deletedRecipes: number;
     deletedIngredients: number;
+    retiredRecipes: number;
+    retiredIngredients: number;
+    repairedProfiles: number;
     counts: { ingredients: number; recipes: number; substitutions: number };
     hash: string;
     seededAt: string;
@@ -102,6 +105,9 @@ export class SeedRunner {
         result: {
           deletedRecipes: result.deletedRecipes,
           deletedIngredients: result.deletedIngredients,
+          retiredRecipes: result.retiredRecipes,
+          retiredIngredients: result.retiredIngredients,
+          repairedProfiles: result.repairedProfiles,
           counts: {
             ingredients: result.ingredients,
             recipes: result.recipes,

@@ -18,8 +18,19 @@ import { z } from 'zod';
  */
 
 /** Discriminator for `Notification.type`. Extend additively. */
-export const NotificationType = z.enum(['weight_reminder']);
+export const NotificationType = z.enum(['weight_reminder', 'preferences_review']);
 export type NotificationType = z.infer<typeof NotificationType>;
+
+/**
+ * Payload for `type='preferences_review'`: an update of the catalogue found
+ * that the profile's preferences or favourite sets referred to ingredients or
+ * recipes that no longer exist, and removed those references.
+ */
+export const PreferencesReviewPayload = z.object({
+  ingredients: z.number().int().min(0),
+  recipes: z.number().int().min(0),
+});
+export type PreferencesReviewPayload = z.infer<typeof PreferencesReviewPayload>;
 
 /** Payload for `type='weight_reminder'`. */
 export const WeightReminderPayload = z.object({

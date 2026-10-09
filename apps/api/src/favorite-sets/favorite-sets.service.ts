@@ -120,6 +120,7 @@ export class FavoriteSetsService {
       where: {
         id: { in: slotRecipeIds },
         deletedAt: null,
+        retiredAt: null,
         OR: [{ createdByUserId: null }, { createdByUserId: userId }],
       },
       select: { id: true, caloriesPerServing: true, allergens: true },
@@ -243,6 +244,7 @@ export class FavoriteSetsService {
       where: {
         id: { in: recipeIds },
         deletedAt: null,
+        retiredAt: null,
         OR: [{ createdByUserId: null }, { createdByUserId: userId }],
       },
       select: { id: true },

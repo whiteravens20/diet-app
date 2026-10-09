@@ -132,6 +132,7 @@ export class AiRecipeDraftService {
       where: {
         dietCompatibility: { has: dietType },
         id: { notIn: [...excludedIds] },
+        retiredAt: null,
       },
       select: {
         id: true,

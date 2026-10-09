@@ -174,6 +174,7 @@ export class IngredientNamerRunner {
       where: {
         tags: { has: 'usda-imported' },
         slug: { not: null },
+        retiredAt: null,
         ...(spec.scope === 'specific-slugs' && spec.slugs && spec.slugs.length > 0
           ? { slug: { in: spec.slugs } }
           : {}),

@@ -47,10 +47,16 @@ describe('IngredientsService.search', () => {
     expect(JSON.stringify(where.OR)).toContain('insensitive');
   });
 
-  it('omits the where filter entirely when no query is given', async () => {
+  it('lists every ingredient still in the catalogue when no query is given', async () => {
     const { service, prisma } = makeService();
     await service.search('en', undefined);
-    expect(prisma.ingredient.findMany.mock.calls[0][0].where).toBeUndefined();
+    expect(prisma.ingredient.findMany.mock.calls[0][0].where).toEqual({ retiredAt: null });
+  });
+
+  it('never lists a retired ingredient, with or without a query', async () => {
+    const { service, prisma } = makeService();
+    await service.search('pl', 'oliwa');
+    expect(prisma.ingredient.findMany.mock.calls[0][0].where.retiredAt).toBeNull();
   });
 });
 

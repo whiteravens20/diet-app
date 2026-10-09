@@ -52,10 +52,10 @@ export default defineConfig({
       // gains can't erode while the large orchestration services (meal-plans,
       // shopping-lists, recipes) are still being covered toward the 85% target.
       thresholds: {
-        lines: 40,
-        functions: 42,
-        branches: 32,
-        statements: 40,
+        lines: 43,
+        functions: 45,
+        branches: 33,
+        statements: 42,
         'src/engine/**': { lines: 95, functions: 95, branches: 85, statements: 95 },
         'src/ai/ai-key.service.ts': { lines: 85, functions: 80, branches: 60, statements: 85 },
         'src/ai/ai-quota.service.ts': { lines: 95, functions: 95, branches: 75, statements: 95 },

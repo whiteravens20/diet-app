@@ -15,9 +15,10 @@ export class IngredientsService {
       // Match against the canonical English `name` OR the translated name
       // for the request locale, so users searching in PL can find rows
       // whose English title is the only canonical source.
-      where: contains
-        ? { OR: [{ name: contains }, { translations: { some: { locale, name: contains } } }] }
-        : undefined,
+      where: {
+        retiredAt: null,
+        ...(contains ? { OR: [{ name: contains }, { translations: { some: { locale, name: contains } } }] } : {}),
+      },
       include: translationsInclude(locale),
       orderBy: { name: 'asc' },
       take: 100,

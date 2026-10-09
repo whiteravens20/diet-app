@@ -14,7 +14,7 @@
  * pool. Each row uses the same shape `data/recipes.json` uses, so the seeder
  * doesn't need a branch.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import {
@@ -76,28 +76,6 @@ export function writeRecipeBatch(
   const path = recipeBatchFilePath(dataDir, batchId);
   writeFileSync(path, JSON.stringify(rows, null, 2) + '\n', 'utf8');
   return { path, count: rows.length };
-}
-
-/** Read every `<batchId>.json` under `data/recipes/`, sorted by filename so
- *  the seeder is deterministic. Malformed files are skipped silently —
- *  operator-edited junk shouldn't brick the seeder. */
-export function readAllRecipeBatches(dataDir: string): ShippedRecipeBatch {
-  const dir = recipeBatchesDir(dataDir);
-  if (!existsSync(dir)) return [];
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .sort();
-  const out: ShippedRecipe[] = [];
-  for (const file of files) {
-    try {
-      const raw = JSON.parse(readFileSync(join(dir, file), 'utf8'));
-      const parsed = ShippedRecipeBatch.safeParse(raw);
-      if (parsed.success) out.push(...parsed.data);
-    } catch {
-      // skip malformed files
-    }
-  }
-  return out;
 }
 
 // Re-export shared Unit so the seeder's union types pick up the literal.

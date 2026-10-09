@@ -67,6 +67,7 @@ export class RecipesService {
         // Soft-deleted user recipes stay referenced by planned meals so
         // history doesn't break, but they never appear in any list query.
         { deletedAt: null },
+        { retiredAt: null },
         ...(filters.search ? [searchMatch(filters.search, locale)] : []),
         ...(filters.dietType ? [{ dietTags: { has: filters.dietType } }] : []),
         ...(filters.mealType ? [{ mealTypes: { has: filters.mealType } }] : []),
