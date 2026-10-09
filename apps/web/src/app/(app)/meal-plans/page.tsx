@@ -109,6 +109,8 @@ function MealPlansContent() {
   // the catalogue, then to the caller's fallback string for non-Api errors.
   const fail = (fallback: string) => (e: unknown) => {
     if (e instanceof ApiClientError) {
+      // Another request changed the plan first, so the one on screen is stale.
+      if (e.code === 'PLAN_CHANGED') void invalidate();
       setError(tErrors.has(e.code) ? tErrors(e.code) : e.message);
       return;
     }
