@@ -82,5 +82,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-      - name: Validate the Docker image builds
-        run: docker build -f infra/docker/Dockerfile -t diet-app:ci .
+      # The stack is started the way the README says, from a freshly generated
+      # .env, with the API's host port moved off its default: a setup that only
+      # works on the defaults, or does not start at all, fails here.
+      - name: Build the image the Compose file describes
+        run: |
+          sh scripts/init-env.sh
+          sed -i 's/^API_PORT=.*/API_PORT=4100/' .env
+          docker compose --env-file .env -f infra/docker-compose.yml build
+      - name: Boot the stack and reach the API directly and through the web proxy
+        run: |
+          docker compose --env-file .env -f infra/docker-compose.yml up -d
+          for attempt in $(seq 1 60); do
+            health() { docker inspect --format '{{.State.Health.Status}}' "$(docker compose --env-file .env -f infra/docker-compose.yml ps -q "$1")"; }
+            if curl -fsS -o /dev/null http://localhost:4100/api/health \
+              && curl -fsS -o /dev/null http://localhost:3000/api/health \
+              && curl -fsS -o /dev/null http://localhost:3000/ \
+              && [ "$(health api)" = healthy ] && [ "$(health web)" = healthy ]; then
+              echo "Up and healthy after $attempt attempt(s)."
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose --env-file .env -f infra/docker-compose.yml ps
+          docker compose --env-file .env -f infra/docker-compose.yml logs --no-color --tail 60
+          exit 1
+      - name: Check that the unedited template is refused
+        run: |
+          docker compose --env-file .env -f infra/docker-compose.yml down -v
+          cp .env.example .env
+          docker compose --env-file .env -f infra/docker-compose.yml up -d
+          sleep 25
+          if curl -fsS -o /dev/null http://localhost:4000/api/health; then
+            echo "::error::The API started on the template's blank secrets."
+            exit 1
+          fi
+          docker compose --env-file .env -f infra/docker-compose.yml logs --no-color api | grep -q 'JWT_ACCESS_SECRET'
