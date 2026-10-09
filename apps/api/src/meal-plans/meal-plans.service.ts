@@ -141,7 +141,7 @@ export class MealPlansService {
       where: { id: planId },
       include: { profile: true, days: { include: { meals: true }, orderBy: { date: 'asc' } } },
     });
-    if (!existing) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!existing?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (existing.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
@@ -198,7 +198,7 @@ export class MealPlansService {
       where: { id: dayId },
       include: { plan: { include: { profile: true } }, meals: true },
     });
-    if (!day || day.planId !== planId) {
+    if (!day?.plan?.profile || day.planId !== planId) {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
     }
     if (day.plan.profile.userId !== userId) {
@@ -255,7 +255,7 @@ export class MealPlansService {
       where: { id: planId },
       include: { profile: true },
     });
-    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
@@ -521,7 +521,7 @@ export class MealPlansService {
         profile: true,
       },
     });
-    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
@@ -1681,12 +1681,19 @@ export class MealPlansService {
     return profile;
   }
 
+  /*
+   * A note for every loader below and its like in the other services: Prisma
+   * fetches an included relation with a query of its own. When a plan is
+   * deleted between two of those queries, a row comes back with a relation the
+   * types call required set to null. Such a row is on its way out, so the
+   * loaders treat a missing relation as "not found".
+   */
   private async loadPlannedMeal(userId: string, planId: string, plannedMealId: string) {
     const meal = await this.prisma.plannedMeal.findUnique({
       where: { id: plannedMealId },
       include: { day: { include: { plan: { include: { profile: { include: { preferences: true } } } } } } },
     });
-    if (!meal || meal.day.planId !== planId) {
+    if (!meal?.day?.plan?.profile || meal.day.planId !== planId) {
       throw new NotFoundException({ error: 'MEAL_NOT_FOUND', message: 'Planned meal not found.' });
     }
     if (meal.day.plan.profile.userId !== userId) {
@@ -1701,7 +1708,7 @@ export class MealPlansService {
       where: { planId, date: new Date(date) },
       include: { plan: { include: { profile: true } } },
     });
-    if (!day) {
+    if (!day?.plan?.profile) {
       throw new NotFoundException({ error: 'REBALANCE_DAY_NOT_FOUND', message: 'Plan day not found.' });
     }
     if (day.plan.profile.userId !== userId) {

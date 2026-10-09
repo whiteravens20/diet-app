@@ -35,7 +35,7 @@ export class ShoppingListsService {
         },
       },
     });
-    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
@@ -136,7 +136,7 @@ export class ShoppingListsService {
       where: { id: planId },
       include: { profile: true },
     });
-    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
@@ -352,7 +352,7 @@ export class ShoppingListsService {
       where: { id: listId },
       include: { items: true, plan: { include: { profile: true } } },
     });
-    if (!list) throw new NotFoundException({ error: 'LIST_NOT_FOUND', message: 'Shopping list not found.' });
+    if (!list?.plan?.profile) throw new NotFoundException({ error: 'LIST_NOT_FOUND', message: 'Shopping list not found.' });
     if (list.plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'List belongs to another user.' });
     }

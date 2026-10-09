@@ -36,7 +36,7 @@ export class NotificationsService {
       where: { id },
       include: { profile: { select: { userId: true } } },
     });
-    if (!row) throw new NotFoundException({ error: 'NOTIFICATION_NOT_FOUND', message: 'Notification not found.' });
+    if (!row?.profile) throw new NotFoundException({ error: 'NOTIFICATION_NOT_FOUND', message: 'Notification not found.' });
     if (row.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Notification belongs to another user.' });
     }

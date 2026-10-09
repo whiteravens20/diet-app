@@ -93,7 +93,7 @@ export class FavoriteSetsService {
       where: { id: req.planId },
       include: { profile: { include: { preferences: true } }, days: true },
     });
-    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
@@ -214,7 +214,7 @@ export class FavoriteSetsService {
       where: { id },
       include: { profile: true },
     });
-    if (!row) throw new NotFoundException({ error: 'SET_NOT_FOUND', message: 'Favorite set not found.' });
+    if (!row?.profile) throw new NotFoundException({ error: 'SET_NOT_FOUND', message: 'Favorite set not found.' });
     if (row.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Favorite set belongs to another user.' });
     }

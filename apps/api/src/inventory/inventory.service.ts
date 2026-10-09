@@ -97,7 +97,7 @@ export class InventoryService {
       where: { id },
       include: { profile: true },
     });
-    if (!row) {
+    if (!row?.profile) {
       throw new NotFoundException({ error: 'INVENTORY_ITEM_NOT_FOUND', message: 'Inventory item not found.' });
     }
     if (row.profile.userId !== userId) {

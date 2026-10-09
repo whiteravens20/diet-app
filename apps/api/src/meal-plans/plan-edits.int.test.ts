@@ -138,7 +138,8 @@ describe('editing a plan', () => {
     expect((await plans.get(user.id, 'en', plan.id)).revision).toBe(1);
   });
 
-  it('never answers an edit that overlaps a delete with a server error', async () => {
+  // Repeated: only some interleavings reach the half-deleted plan this guards against.
+  it('never answers an edit that overlaps a delete with a server error', { repeats: 25 }, async () => {
     const meal = plan.days[0]!.meals[0]!;
 
     const results = await Promise.allSettled([swap(meal.id), plans.remove(user.id, plan.id)]);
