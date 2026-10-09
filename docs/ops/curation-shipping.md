@@ -121,15 +121,21 @@ rsync -a old-server:/srv/diet-app/instance-data/ ./instance-data/
 cp .env.example .env       # then set INSTANCE_DATA_DIR=instance-data
 docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 
-# 3. Apply the canonical baseline + your overrides
-#    /admin → Update Database — this seeds data/*.json AND globs
-#    instance-data/recipes/*.json + instance-data/ingredient-overrides.json
+# 3. Apply the canonical baseline
+#    /admin → Update Database — this seeds data/*.json
 ```
 
-The seeder treats the sidecar files the same way it treats
-`data/recipes/<batchId>.json` — globbed in, upserted, written as
-`source = MANUAL` translations. Re-seeds wipe `CURATED_JSON` rows but
-leave `MANUAL` alone, so your imported rows stick.
+**The files under `INSTANCE_DATA_DIR` are a backup, not an import source.**
+Update Database reads only `data/`; it does not load
+`instance-data/recipes/*.json` or `instance-data/ingredient-overrides.json`
+back into a fresh database. To carry what you shipped in local mode to a new
+server, either move the database itself (dump the old instance with `pg_dump`
+and restore it into the new one), or ship through your own fork (scenario 2):
+the fork's `data/` then holds your rows, and the new server seeds from it.
+
+On an instance that already has them, the rows you shipped locally survive
+every Update Database: catalogue rows keep their ids, and a `MANUAL`
+translation outranks the curated file for its locale.
 
 ### 4. Maintainer flow — push to canonical
 
