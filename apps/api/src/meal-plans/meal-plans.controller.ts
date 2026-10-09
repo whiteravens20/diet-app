@@ -20,6 +20,7 @@ import {
   GeneratePlanRequest,
   type Locale,
   RebalanceRequest,
+  SetMealEatenRequest,
   SwapIngredientRequest,
   SwapMealRequest,
 } from '@diet-app/shared';
@@ -113,15 +114,16 @@ export class MealPlansController {
     return this.plans.addCustomMeal(user.id, locale, id, date, dto);
   }
 
-  /** Toggle a planned meal's eaten flag (rebalances the day). */
+  /** Mark a planned meal eaten or not eaten (rebalances the day). */
   @Patch(':id/meals/:mealId/eaten')
-  toggleEaten(
+  setEaten(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Param('id') id: string,
     @Param('mealId') mealId: string,
+    @Body(new ZodValidationPipe(SetMealEatenRequest)) dto: SetMealEatenRequest,
   ) {
-    return this.plans.toggleEaten(user.id, locale, id, mealId);
+    return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten);
   }
 
   /** Explicit rebalance (day / week) or undo via the `restore` map. */

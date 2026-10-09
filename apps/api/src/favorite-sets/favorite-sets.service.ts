@@ -19,6 +19,7 @@ import type {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { writePlan } from '../meal-plans/plan-write.js';
 import { fitServings, slotBudgets } from '../engine/index.js';
 
 /**
@@ -150,7 +151,7 @@ export class FavoriteSetsService {
       }
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    await writePlan(this.prisma, plan.id, plan.revision, async (tx) => {
       for (const day of targetDays) {
         const existing = await tx.plannedMeal.findMany({
           where: { dayId: day.id },

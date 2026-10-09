@@ -184,16 +184,6 @@ export const AiSwapMealRequest = z.object({
 });
 export type AiSwapMealRequest = z.infer<typeof AiSwapMealRequest>;
 
-/**
- * Response envelope: the updated plan plus the AI meta so the UI can render the
- * ✨ badge on success or the localised fallback toast on `aiMeta.fallbackReason`.
- */
-export const AiSwapMealResponse = z.object({
-  plan: MealPlan,
-  aiMeta: AiGenerationMeta,
-});
-export type AiSwapMealResponse = z.infer<typeof AiSwapMealResponse>;
-
 /** Request to substitute one ingredient inside a planned recipe. */
 export const SwapIngredientRequest = z.object({
   planId: z.string().uuid(),
@@ -287,6 +277,10 @@ export const RebalanceChange = z.object({
 });
 export type RebalanceChange = z.infer<typeof RebalanceChange>;
 
+/** Mark a planned meal eaten (`true`) or not eaten (`false`). Repeating a request changes nothing. */
+export const SetMealEatenRequest = z.object({ eaten: z.boolean() });
+export type SetMealEatenRequest = z.infer<typeof SetMealEatenRequest>;
+
 /**
  * Envelope returned by every edit that may rebalance (swap, custom-add,
  * eaten toggle, explicit rebalance). Carries the updated plan plus the rebalance
@@ -306,3 +300,10 @@ export const RebalanceResult = z.object({
     .nullable(),
 });
 export type RebalanceResult = z.infer<typeof RebalanceResult>;
+
+/**
+ * Response envelope: the updated plan plus the AI meta so the UI can render the
+ * ✨ badge on success or the localised fallback toast on `aiMeta.fallbackReason`.
+ */
+export const AiSwapMealResponse = RebalanceResult.extend({ aiMeta: AiGenerationMeta });
+export type AiSwapMealResponse = z.infer<typeof AiSwapMealResponse>;

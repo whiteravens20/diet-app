@@ -2,7 +2,6 @@
 
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -68,6 +67,7 @@ import {
   type ModeBRewriter,
   type RecipeLocaleSlice,
 } from './swap-rewrite.js';
+import { writePlan } from './plan-write.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
@@ -177,7 +177,7 @@ export class MealPlansService {
       seed: Date.now(),
     });
 
-    await this.writePlan(planId, existing.revision, async (tx) => {
+    await writePlan(this.prisma, planId, existing.revision, async (tx) => {
       await tx.mealPlanDay.deleteMany({ where: { planId } });
       await tx.mealPlan.update({
         where: { id: planId },
@@ -210,7 +210,7 @@ export class MealPlansService {
 
     // A skipped day re-rolls to nothing — clear its meals and return.
     if (o?.skip) {
-      await this.writePlan(planId, day.plan.revision, async (tx) => {
+      await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
         await tx.plannedMeal.deleteMany({ where: { dayId } });
       });
       return this.get(userId, locale, planId);
@@ -238,7 +238,7 @@ export class MealPlansService {
       seed: Date.now(),
     });
 
-    await this.writePlan(planId, day.plan.revision, async (tx) => {
+    await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
       await tx.plannedMeal.deleteMany({ where: { dayId } });
       await tx.plannedMeal.createMany({
         data: result.assignments
@@ -247,33 +247,6 @@ export class MealPlansService {
       });
     });
     return this.get(userId, locale, planId);
-  }
-
-  /**
-   * Write a change that was computed from the plan as it stood at
-   * `readAtRevision`. The revision is advanced first, and only if it is still
-   * the one that was read: when another request changed the plan in the
-   * meantime nothing is written and the caller gets `PLAN_CHANGED`. Two
-   * requests that overlap therefore cannot both rewrite the plan.
-   */
-  private writePlan(
-    planId: string,
-    readAtRevision: number,
-    write: (tx: Prisma.TransactionClient) => Promise<void>,
-  ): Promise<void> {
-    return this.prisma.$transaction(async (tx) => {
-      const claimed = await tx.mealPlan.updateMany({
-        where: { id: planId, revision: readAtRevision },
-        data: { revision: { increment: 1 } },
-      });
-      if (claimed.count !== 1) {
-        throw new ConflictException({
-          error: 'PLAN_CHANGED',
-          message: 'The plan changed while this request was running. Reload it and try again.',
-        });
-      }
-      await write(tx);
-    });
   }
 
   /** Delete a plan and everything under it (days, meals, shopping lists cascade). */
@@ -723,22 +696,24 @@ export class MealPlansService {
     const budget = budgets.get(meal.mealType as MealType) ?? meal.day.calorieTarget;
     const servings = fitServings(replacement.caloriesPerServing, budget);
 
-    await this.prisma.plannedMeal.update({
-      where: { id: req.plannedMealId },
-      data: {
-        recipeId: replacementId,
-        servings,
-        swapHistory: nextHistory,
-        // A fresh recipe is a new baseline — reset the rebalancer multiplier and
-        // drop any custom-meal residue (swapping converts a custom meal back).
-        quantityScale: 1,
-        source: 'CATALOGUE',
-        customName: null,
-        customMacros: Prisma.JsonNull,
-      },
+    const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
+      await tx.plannedMeal.update({
+        where: { id: req.plannedMealId },
+        data: {
+          recipeId: replacementId,
+          servings,
+          swapHistory: nextHistory,
+          // A fresh recipe is a new baseline — reset the rebalancer multiplier and
+          // drop any custom-meal residue (swapping converts a custom meal back).
+          quantityScale: 1,
+          source: 'CATALOGUE',
+          customName: null,
+          customMacros: Prisma.JsonNull,
+        },
+      });
+      // The swap changed the day total — pull it back toward target.
+      return this.rebalanceDayInternal(meal.dayId, tx);
     });
-    // The swap changed the day total — pull it back toward target.
-    const summary = await this.rebalanceDayInternal(meal.dayId);
     return this.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
   }
 
@@ -765,55 +740,63 @@ export class MealPlansService {
       });
     }
 
-    // Adding a meal to a previously-skipped day un-skips it (it now has content).
     const overrides = parseDayOverrides(day.overrides);
-    if (overrides?.skip) {
-      const rest: Record<string, unknown> = { ...(overrides as Record<string, unknown>) };
-      delete rest.skip;
-      await this.prisma.mealPlanDay.update({
-        where: { id: day.id },
-        data: { overrides: Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.JsonNull },
-      });
-    }
-
-    await this.prisma.plannedMeal.create({
-      data: {
-        dayId: day.id,
-        recipeId: null,
-        mealType: req.mealType,
-        servings: req.servings,
-        quantityScale: 1,
-        source: 'USER_CUSTOM',
-        customName: req.name,
-        customMacros: {
-          calories: req.nutrition.calories,
-          protein: req.nutrition.protein,
-          fat: req.nutrition.fat,
-          carbs: req.nutrition.carbs,
+    const summary = await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
+      // Adding a meal to a previously-skipped day un-skips it (it now has content).
+      if (overrides?.skip) {
+        const rest: Record<string, unknown> = { ...(overrides as Record<string, unknown>) };
+        delete rest.skip;
+        await tx.mealPlanDay.update({
+          where: { id: day.id },
+          data: { overrides: Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.JsonNull },
+        });
+      }
+      await tx.plannedMeal.create({
+        data: {
+          dayId: day.id,
+          recipeId: null,
+          mealType: req.mealType,
+          servings: req.servings,
+          quantityScale: 1,
+          source: 'USER_CUSTOM',
+          customName: req.name,
+          customMacros: {
+            calories: req.nutrition.calories,
+            protein: req.nutrition.protein,
+            fat: req.nutrition.fat,
+            carbs: req.nutrition.carbs,
+          },
         },
-      },
+      });
+      return this.rebalanceDayInternal(day.id, tx);
     });
-    const summary = await this.rebalanceDayInternal(day.id);
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 
   /**
-   * Toggle a planned meal's eaten flag. An eaten meal is pinned out of
-   * the rebalance set (scaling an already-eaten portion is meaningless), so the
-   * day is rebalanced after the toggle to redistribute among the rest.
+   * Mark a planned meal eaten or not eaten. An eaten meal is pinned out of the
+   * rebalance set (scaling an already-eaten portion is meaningless), so the day
+   * is rebalanced after a change to redistribute among the rest. Asking for the
+   * state the meal is already in changes nothing, so a repeated request is safe.
    */
-  async toggleEaten(
+  async setEaten(
     userId: string,
     locale: Locale,
     planId: string,
     mealId: string,
+    eaten: boolean,
   ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, planId, mealId);
-    await this.prisma.plannedMeal.update({
-      where: { id: mealId },
-      data: { eatenAt: meal.eatenAt ? null : new Date() },
+    if ((meal.eatenAt !== null) === eaten) {
+      return this.buildRebalanceResult(userId, locale, planId, 'day', null);
+    }
+    const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
+      await tx.plannedMeal.update({
+        where: { id: mealId },
+        data: { eatenAt: eaten ? new Date() : null },
+      });
+      return this.rebalanceDayInternal(meal.dayId, tx);
     });
-    const summary = await this.rebalanceDayInternal(meal.dayId);
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 
@@ -829,16 +812,19 @@ export class MealPlansService {
     planId: string,
     req: RebalanceRequest,
   ): Promise<RebalanceResult> {
-    // Authorise the plan up front.
-    await this.get(userId, locale, planId);
+    // Authorise the plan up front, and note the revision the request starts from.
+    const { revision } = await this.get(userId, locale, planId);
 
-    if (req.restore && req.restore.length > 0) {
-      await this.restoreScales(planId, req.restore);
+    const restore = req.restore;
+    if (restore && restore.length > 0) {
+      await writePlan(this.prisma, planId, revision, (tx) => this.restoreScales(planId, restore, tx));
       return this.buildRebalanceResult(userId, locale, planId, req.scope, null);
     }
 
     if (req.scope === 'week') {
-      const summary = await this.rebalanceWeekInternal(planId, req.date);
+      const summary = await writePlan(this.prisma, planId, revision, (tx) =>
+        this.rebalanceWeekInternal(planId, tx),
+      );
       return this.buildRebalanceResult(userId, locale, planId, 'week', summary);
     }
 
@@ -849,7 +835,9 @@ export class MealPlansService {
       });
     }
     const day = await this.loadDay(userId, planId, req.date);
-    const summary = await this.rebalanceDayInternal(day.id);
+    const summary = await writePlan(this.prisma, planId, revision, (tx) =>
+      this.rebalanceDayInternal(day.id, tx),
+    );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 
@@ -979,14 +967,18 @@ export class MealPlansService {
     const replacement = pool.find((c) => c.id === replacementId)!;
     const servings = fitServings(replacement.caloriesPerServing, budget);
 
-    await this.prisma.plannedMeal.update({
-      where: { id: req.plannedMealId },
-      data: { recipeId: replacementId, servings, swapHistory: nextHistory, quantityScale: 1 },
+    // The revision was read before the model was asked: if the plan changed
+    // while the model was answering, the pick is not written.
+    const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
+      await tx.plannedMeal.update({
+        where: { id: req.plannedMealId },
+        data: { recipeId: replacementId, servings, swapHistory: nextHistory, quantityScale: 1 },
+      });
+      // The swap changed the day total — rebalance before returning.
+      return this.rebalanceDayInternal(meal.dayId, tx);
     });
-    // The swap changed the day total — rebalance before returning.
-    await this.rebalanceDayInternal(meal.dayId);
-    const plan = await this.get(userId, locale, req.planId);
-    return { plan, aiMeta: meta };
+    const result = await this.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
+    return { ...result, aiMeta: meta };
   }
 
   /**
@@ -1037,7 +1029,11 @@ export class MealPlansService {
    * recompute per-serving nutrition deterministically, and repoint the planned
    * meal at the clone. Servings are kept; the substitute is calorie-scaled.
    */
-  async applyIngredientSwap(userId: string, locale: Locale, req: SwapIngredientRequest): Promise<MealPlan> {
+  async applyIngredientSwap(
+    userId: string,
+    locale: Locale,
+    req: SwapIngredientRequest,
+  ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
     if (!meal.recipeId) {
       throw new BadRequestException({
@@ -1231,14 +1227,16 @@ export class MealPlansService {
       perServing,
     });
 
-    await this.prisma.plannedMeal.update({
-      where: { id: req.plannedMealId },
-      data: { recipeId: variantId },
+    const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
+      await tx.plannedMeal.update({
+        where: { id: req.plannedMealId },
+        data: { recipeId: variantId },
+      });
+      // The substitution changed the meal's macros, so the day total moved —
+      // run the same rebalance pipeline as every other edit.
+      return this.rebalanceDayInternal(meal.dayId, tx);
     });
-    // The substitution changed the meal's macros, so the day
-    // total moved — run the same rebalance pipeline as every other edit.
-    await this.rebalanceDayInternal(meal.dayId);
-    return this.get(userId, locale, req.planId);
+    return this.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
   }
 
   /**
@@ -1713,8 +1711,11 @@ export class MealPlansService {
    * persist the new quantity scales. Returns the summary the UI toast renders,
    * or null when the day has vanished.
    */
-  private async rebalanceDayInternal(dayId: string): Promise<RebalanceSummary | null> {
-    const day = await this.prisma.mealPlanDay.findUnique({
+  private async rebalanceDayInternal(
+    dayId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<RebalanceSummary | null> {
+    const day = await tx.mealPlanDay.findUnique({
       where: { id: dayId },
       include: { meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } } },
     });
@@ -1722,14 +1723,17 @@ export class MealPlansService {
     const rows = day.meals.map(toRebalanceRow);
     const macrosBefore = rowsMacros(rows, (r) => r.quantityScale);
     const { scales, feasibility } = rebalanceDay(rows.map(toEngineMeal), day.calorieTarget);
-    const changes = await this.persistScales(rows, scales);
+    const changes = await this.persistScales(rows, scales, tx);
     const macrosAfter = rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale);
     return { feasibility, changes, macrosBefore, macrosAfter };
   }
 
   /** Week-aware variant: share the surplus/deficit across the plan week. */
-  private async rebalanceWeekInternal(planId: string, _date?: string): Promise<RebalanceSummary | null> {
-    const plan = await this.prisma.mealPlan.findUnique({
+  private async rebalanceWeekInternal(
+    planId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<RebalanceSummary | null> {
+    const plan = await tx.mealPlan.findUnique({
       where: { id: planId },
       include: {
         days: {
@@ -1739,15 +1743,13 @@ export class MealPlansService {
       },
     });
     if (!plan) return null;
-    // A plan in our duration range is a single week; `_date` is reserved for a
-    // future multi-week split.
     const dayRows = plan.days.map((d) => ({ target: d.calorieTarget, rows: d.meals.map(toRebalanceRow) }));
     const allRows = dayRows.flatMap((d) => d.rows);
     const macrosBefore = rowsMacros(allRows, (r) => r.quantityScale);
     const { scales, feasibility } = rebalanceWeek(
       dayRows.map((d) => ({ target: d.target, meals: d.rows.map(toEngineMeal) })),
     );
-    const changes = await this.persistScales(allRows, scales);
+    const changes = await this.persistScales(allRows, scales, tx);
     const macrosAfter = rowsMacros(allRows, (r) => scales.get(r.id) ?? r.quantityScale);
     return { feasibility, changes, macrosBefore, macrosAfter };
   }
@@ -1756,22 +1758,19 @@ export class MealPlansService {
   private async persistScales(
     rows: RebalanceRow[],
     scales: Map<string, number>,
+    tx: Prisma.TransactionClient,
   ): Promise<RebalanceChange[]> {
     const changes: RebalanceChange[] = [];
     const now = new Date();
-    const updates = [];
     for (const r of rows) {
       const next = scales.get(r.id);
       if (next === undefined || Math.abs(next - r.quantityScale) < 1e-9) continue;
       changes.push({ mealId: r.id, before: r.quantityScale, after: next });
-      updates.push(
-        this.prisma.plannedMeal.update({
-          where: { id: r.id },
-          data: { quantityScale: next, lastRebalanceAt: now },
-        }),
-      );
+      await tx.plannedMeal.update({
+        where: { id: r.id },
+        data: { quantityScale: next, lastRebalanceAt: now },
+      });
     }
-    if (updates.length > 0) await this.prisma.$transaction(updates);
     return changes;
   }
 
@@ -1779,8 +1778,9 @@ export class MealPlansService {
   private async restoreScales(
     planId: string,
     restore: { mealId: string; scale: number }[],
+    tx: Prisma.TransactionClient,
   ): Promise<void> {
-    const meals = await this.prisma.plannedMeal.findMany({
+    const meals = await tx.plannedMeal.findMany({
       where: { id: { in: restore.map((r) => r.mealId) }, day: { planId } },
       select: { id: true, source: true, eatenAt: true },
     });
@@ -1796,14 +1796,12 @@ export class MealPlansService {
       }
     }
     const now = new Date();
-    await this.prisma.$transaction(
-      restore.map((r) =>
-        this.prisma.plannedMeal.update({
-          where: { id: r.mealId },
-          data: { quantityScale: r.scale, lastRebalanceAt: now },
-        }),
-      ),
-    );
+    for (const r of restore) {
+      await tx.plannedMeal.update({
+        where: { id: r.mealId },
+        data: { quantityScale: r.scale, lastRebalanceAt: now },
+      });
+    }
   }
 
   private async buildRebalanceResult(
