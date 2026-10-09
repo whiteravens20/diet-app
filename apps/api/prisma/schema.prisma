@@ -1,6 +1,6 @@
 // Diet App data model.
 // The product/ingredient + nutrition tables are CURATED SEED DATA and the single
-// source of truth for nutrition. AI never writes to them. See docs/architecture.
+// source of truth for nutrition. AI never writes to them.
 
 generator client {
   provider      = "prisma-client-js"
@@ -40,7 +40,7 @@ model User {
   // orthogonal to `theme`. Constrained at the API layer via the Palette enum
   // in packages/shared/src/settings.ts.
   palette        String   @default("default")
-  // Per-user AI mode (F10): 'none' | 'admin' | 'byok'. 'none' is the default
+  // Per-user AI mode: 'none' | 'admin' | 'byok'. 'none' is the default
   // so a fresh account never makes outbound AI calls until the user opts in.
   // Constrained at the API layer via the AiMode enum in packages/shared.
   aiMode         String   @default("none")
@@ -154,12 +154,12 @@ model Profile {
   // When set, overrides the calculated daily calorie target.
   manualCalorieTarget Int?
   mealCount           Int           @default(3)
-  // F15.1 transient counter — incremented on every plan-level generation that
+  // Transient counter — incremented on every plan-level generation that
   // actually applied the inventory bias. Reset to 0 when it reaches
   // `preferences.inventoryBiasResetEvery` (and the next round skips the bias).
   // Swap-level reranking does NOT touch this column.
   inventoryBiasStreak Int           @default(0)
-  // F19 weight-reminder cadence: 'off' | 'daily' | 'weekly'. Default weekly
+  // Weight-reminder cadence: 'off' | 'daily' | 'weekly'. Default weekly
   // so a fresh profile gets gentle nudges; constrained at the API layer via
   // WeightReminderCadence in packages/shared.
   weightReminderCadence String   @default("weekly")
@@ -181,7 +181,7 @@ model Profile {
   @@index([userId])
 }
 
-// F19 raw weight log. The dashboard chart, 7-day moving average and the
+// Raw weight log. The dashboard chart, 7-day moving average and the
 // reference line against Profile.weightKg are all derived from these rows
 // client-side — no precomputed aggregates so a corrected entry is
 // instantly reflected.
@@ -196,7 +196,7 @@ model WeightEntry {
   @@index([profileId, recordedAt(sort: Desc)])
 }
 
-// F19 device-agnostic notification surface. The web client polls
+// Device-agnostic notification surface. The web client polls
 // /notifications/unread; the future Android app reads the same rows after
 // an FCM-triggered fetch. `type` is the discriminator, `payload` is
 // type-specific context (rendered client-side via the i18n catalogue).
@@ -229,7 +229,7 @@ model ProfilePreference {
   // See ProfilePreferences zod schema in packages/shared for semantics.
   maxConsecutiveDaysSameMeal Int      @default(2)
   maxTimesPerWeekSameMeal    Int      @default(3)
-  // F15.1 anti-monotony rotation. After N consecutive inventory-biased plan
+  // Anti-monotony rotation. After N consecutive inventory-biased plan
   // generations the optimiser drops the pantry bias for the next round and
   // resets the counter, so a long run of leftover-heavy weeks can't lock the
   // user into one recipe corridor. 0 disables the reset entirely.
@@ -305,8 +305,7 @@ model Ingredient {
 }
 
 // Per-locale display strings for an Ingredient. Numeric/structural fields stay
-// on Ingredient — only user-facing text is localised. See docs/adr/ for the
-// curated-vs-AI translation split.
+// on Ingredient — only user-facing text is localised.
 model IngredientTranslation {
   ingredientId String
   locale       String
@@ -467,8 +466,8 @@ model MealPlan {
   calorieTarget  Int
   generationMode GenerationMode @default(deterministic)
   reuseScore     Float          @default(0)
-  // F17 variety floor: max total times any one recipe may appear across the
-  // whole plan window. Null = no floor (pre-F17 behaviour). Persisted so
+  // Variety floor: max total times any one recipe may appear across the
+  // whole plan window. Null = no floor. Persisted so
   // `regenerate` re-applies the same constraint.
   maxRepeatsPerRecipe Int?
   createdAt      DateTime       @default(now())
@@ -484,13 +483,14 @@ model MealPlanDay {
   plan          MealPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   planId        String
   date          DateTime @db.Date
-  // The resolved per-day calorie target. The F17 advanced per-day override
-  // (when set) lands here, so swap / favorite-set-apply / F22 read it unchanged.
+  // The resolved per-day calorie target. The advanced per-day override
+  // (when set) lands here, so swap, favorite-set apply and the rebalancer read
+  // it unchanged.
   calorieTarget Int
-  // F17 raw advanced inputs + semantics for this day:
+  // Raw advanced inputs + semantics for this day:
   // { mealCount?, dayType?, skip?, cookTimeBudgetMinutes?, useUpBy?, lockedSlots? }.
   // Null = no advanced options (basic flow). `regenerate*` re-applies these;
-  // F22 reads `dayType` (rest/refeed); the DTO surfaces them to the UI.
+  // the rebalancer reads `dayType`; the DTO surfaces them to the UI.
   overrides     Json?
 
   meals PlannedMeal[]
@@ -502,7 +502,7 @@ model PlannedMeal {
   id          String      @id @default(uuid())
   day         MealPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
   dayId       String
-  // Optional: F22 user-authored custom meals carry no catalogue recipe. A
+  // Optional: user-authored custom meals carry no catalogue recipe. A
   // recipe that a plan still uses cannot be deleted.
   recipe      Recipe?     @relation(fields: [recipeId], references: [id], onDelete: Restrict)
   recipeId    String?
@@ -515,7 +515,7 @@ model PlannedMeal {
   // between two. Cleared (reset to just the current recipeId) when the pool
   // is exhausted.
   swapHistory String[]    @default([])
-  // F22 flexible meal plans:
+  // Flexible meal plans:
   // `source` distinguishes a catalogue meal from a user-authored custom meal.
   source      PlannedMealSource @default(CATALOGUE)
   // Custom meals (source=USER_CUSTOM) have no Recipe row; their name + frozen,
@@ -525,7 +525,7 @@ model PlannedMeal {
   // Mark-eaten: a checked meal is pinned (excluded from the rebalance set).
   eatenAt     DateTime?
   // Rebalancer multiplier on top of `servings`. Effective amount = servings *
-  // quantityScale. Default 1.0 = untouched (pre-F22 behaviour). Nutrition and
+  // quantityScale. Default 1.0 = untouched. Nutrition and
   // shopping-list quantities read the product of the two.
   quantityScale Float     @default(1.0)
   lastRebalanceAt DateTime?
@@ -575,7 +575,7 @@ model FavoriteSet {
   @@index([profileId])
 }
 
-// ── Inventory (F15 pantry-aware planning) ─────────────────────────────────────
+// ── Inventory (pantry-aware planning) ─────────────────────────────────────
 
 // Per-profile stock of ingredients the user actually has. Auto-fills from
 // checked-off shopping-list items, decrements from meals marked eaten, and
@@ -636,7 +636,7 @@ model ShoppingListItem {
   // it is the row's "this much of the need was sourced from the pantry," and
   // the pantry decrement on check-off is exactly this amount.
   alreadyHaveQuantity   Float           @default(0)
-  // F15.1 single user-facing field: the total amount the user has obtained for
+  // Single user-facing field: the total amount the user has obtained for
   // this row, counting the pantry pre-credit. Null until first edit. Row is
   // considered done (`checked = true`) when `purchasedQuantity >= totalQuantity`.
   // Pantry net delta on check-off:
@@ -695,8 +695,9 @@ model AiUsageLog {
   provider                String
   model                   String
   operation               String // recipe_draft | substitution | plan_variation | meal_swap | ingredient_swap | ...
-  // F10 routing mode at the time of the call: 'admin' (counts against the
-  // per-user monthly quota) or 'byok' (no quota). Nullable for pre-F10 rows.
+  // Routing mode at the time of the call: 'admin' (counts against the
+  // per-user monthly quota) or 'byok' (no quota). Null on rows logged before
+  // the mode was recorded.
   mode                    String?
   promptTokens            Int      @default(0)
   outputTokens            Int      @default(0)
@@ -713,7 +714,7 @@ model AiUsageLog {
 // ── Curation queue (drafts) ───────────────────────────────────────────────────
 
 // AI proposes, human approves, PR ships. Drafts never reach the live Recipe /
-// Ingredient tables — see docs/adr/0008-curation-queue.md.
+// Ingredient tables.
 
 enum DraftStatus {
   PENDING
@@ -866,8 +867,7 @@ model IngredientNameDraftLocaleReview {
 }
 
 // Singleton runtime configuration owned by the operator and managed from
-// /admin. Currently carries the reviewer-interface toggle + password hash
-// (Phase H). Pattern mirrors how ADMIN_PASSWORD itself is handled.
+// /admin. Carries the reviewer-interface toggle and its password hash.
 model InstanceSettings {
   id                   String   @id @default("singleton")
   reviewerEnabled      Boolean  @default(false)
