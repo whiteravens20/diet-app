@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { CSP_REPORT_ONLY, SECURITY_HEADERS } from './security-headers';
 
-describe('web security headers (WI-F1)', () => {
+describe('web security headers', () => {
   const byKey = new Map(SECURITY_HEADERS.map((h) => [h.key.toLowerCase(), h.value]));
 
   it('declares every required security header', () => {

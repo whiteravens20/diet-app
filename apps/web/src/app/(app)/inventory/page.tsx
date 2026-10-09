@@ -21,7 +21,7 @@ const selectClass = 'h-10 w-full rounded-md border border-border bg-background p
 type UnitChoice = 'g' | 'ml' | 'piece';
 
 /**
- * F15.1 best-before urgency: an item is "expiring soon" if today is within
+ * Best-before urgency: an item is "expiring soon" if today is within
  * 2 days of `bestBefore` (inclusive of past dates — already expired is the
  * loudest case). Compared on the day boundary in UTC so DST / timezone don't
  * flip the result by a few hours.
@@ -35,7 +35,7 @@ function isExpiringSoon(bestBefore: string): boolean {
 }
 
 /**
- * F15 pantry-aware planning surface. Pick a profile, see what's in stock,
+ * Pantry-aware planning surface. Pick a profile, see what's in stock,
  * add/remove rows. The optimiser reads from this on the backend — every plan,
  * day re-roll and swap defaults to pantry-friendly when there's anything
  * here. The toggles to opt out per-request live on the plan / swap forms.

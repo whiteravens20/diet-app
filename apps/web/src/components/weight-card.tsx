@@ -34,7 +34,7 @@ interface ChartPoint {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * F19 — per-profile weight log with a 90-day trend, a 7-day moving average,
+ * Per-profile weight log with a 90-day trend, a 7-day moving average,
  * and the registered Profile.weightKg as a horizontal reference. Empty state
  * stays out of the operator's way; the chart only renders once the user
  * starts logging.

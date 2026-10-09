@@ -16,8 +16,8 @@ import { RecipeView } from '@/components/recipe-view';
 
 /**
  * Recipe detail in a modal. Lazy-loads the recipe by id when opened. Click on
- * the backdrop or the close button to dismiss; Escape also closes. The
- * scale-95→100 / 180ms transition matches the F19 spec.
+ * the backdrop or the close button to dismiss; Escape also closes. It opens
+ * with a scale-95→100 transition over 180 ms.
  */
 export function RecipeModal({
   recipeId,

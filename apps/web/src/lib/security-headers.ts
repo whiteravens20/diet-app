@@ -15,7 +15,7 @@
  *    styles, so an enforcing CSP must first be validated in a browser across
  *    every palette + light/dark. Report-Only surfaces violations in the console
  *    without breaking the page. Promote to enforcing (ideally nonce-based via a
- *    middleware) once that QA pass is done — see docs/security/csp.md.
+ *    middleware) once that QA pass is done.
  */
 
 /** `key`/`value` pairs in the shape Next's `headers()` expects. */

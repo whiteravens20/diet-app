@@ -59,11 +59,11 @@ function MealPlansContent() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [openPlan, setOpenPlan] = useState<string | null>(null);
-  // F15 page-level toggle: applies to every swap / AI-swap on every plan card.
+  // Page-level toggle: applies to every swap / AI-swap on every plan card.
   // Plan generation has its own checkbox inside the new-plan form.
   const [swapWithPantry, setSwapWithPantry] = useState(true);
 
-  // F17 advanced options. startDate/durationDays are controlled so the per-day
+  // Advanced options. startDate/durationDays are controlled so the per-day
   // override list can react to the plan window; the advanced disclosure is
   // collapsed by default and untouched days fall back to the plan defaults.
   const [startDate, setStartDate] = useState(today());
@@ -105,7 +105,7 @@ function MealPlansContent() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ['meal-plans', activeId] });
   // Prefer the locale-aware `errors.<CODE>` catalogue over the backend's
   // English `message` field — the contract is "backend codes, client
-  // translates" (F14). Falls back to the raw message if the code isn't in
+  // translates". Falls back to the raw message if the code isn't in
   // the catalogue, then to the caller's fallback string for non-Api errors.
   const fail = (fallback: string) => (e: unknown) => {
     if (e instanceof ApiClientError) {
@@ -137,7 +137,7 @@ function MealPlansContent() {
     onError: fail(t('errChangeDay')),
   });
 
-  // F22 rebalance toast: surfaced after any edit that changed a day's totals.
+  // Rebalance toast: surfaced after any edit that changed a day's totals.
   const [rebalanceToast, setRebalanceToast] = useState<{
     planId: string;
     rebalance: NonNullable<RebalanceResult['rebalance']>;
@@ -580,9 +580,9 @@ function PlanCard({
   const tCommon = useTranslations('common');
   // Which meal's "swap to favorite" picker is open, if any.
   const [openFav, setOpenFav] = useState<string | null>(null);
-  // F22(a): show every favourite (drop the diet filter) in the open picker.
+  // Show every favourite (drop the diet filter) in the open picker.
   const [showAllFav, setShowAllFav] = useState(false);
-  // F22(b): which day's "add custom meal" modal is open, if any.
+  // Which day's "add custom meal" modal is open, if any.
   const [customDay, setCustomDay] = useState<string | null>(null);
   // Which meal's ingredient-substitution modal is open, if any. Only catalogue
   // meals (recipe present) can be substituted.
@@ -664,7 +664,7 @@ function PlanCard({
                   const title = isCustom ? m.customName ?? t('customMeal') : m.recipe!.title;
                   const favOpen = openFav === m.id;
                   const mealLabel = tMeal.has(m.mealType) ? tMeal(m.mealType) : m.mealType.replace('_', ' ');
-                  // F22(a): the picker shows diet-matching, slot-matching favourites
+                  // The picker shows diet-matching, slot-matching favourites
                   // by default; "show all my favourites" drops BOTH the diet and the
                   // meal-time filter (allergens stay enforced server-side), so a
                   // dinner favourite can be dropped onto breakfast.
@@ -906,7 +906,7 @@ function PlanCard({
 }
 
 /**
- * F22 rebalance toast: a bottom-right card summarising the auto-rebalance, with
+ * Rebalance toast: a bottom-right card summarising the auto-rebalance, with
  * "undo last rebalance" (restores the pre-edit scales), "rebalance the rest of
  * the week", and dismiss. Auto-dismisses after 10 s.
  */

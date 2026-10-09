@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 const POLL_INTERVAL_MS = 60_000;
 
 /**
- * F19 — unread-notification bell with a small dropdown. Polls the API every
+ * Unread-notification bell with a small dropdown. Polls the API every
  * 60s when a session is active; the same row shape feeds the future Android
  * surface, so this component is the web-only render of a shared contract.
  */

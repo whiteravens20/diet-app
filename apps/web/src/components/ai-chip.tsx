@@ -11,7 +11,7 @@ import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 /**
- * App-shell AI status chip (F10). Renders nothing when the user's
+ * App-shell AI status chip. Renders nothing when the user's
  * `aiMode === 'none'`, so users who have AI turned off see no extra
  * chrome. For `admin` mode it shows the remaining monthly quota with a
  * tooltip of the rolling-window reset time; for `byok` it shows

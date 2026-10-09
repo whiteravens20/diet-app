@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * F19.1 — curated, free-license food photography committed under
+ * Curated, free-license food photography committed under
  * `apps/web/public/imagery` (no runtime third-party fetches, so the app stays
  * self-hostable). Attribution for each photo lives in
  * `apps/web/public/imagery/CREDITS.md`. Reference images by these keys so paths

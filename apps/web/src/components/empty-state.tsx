@@ -7,11 +7,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 /**
- * F19 — shared empty-state surface: a headline, supporting copy, and a single
+ * Shared empty-state surface: a headline, supporting copy, and a single
  * primary CTA. Lives inside a Card so it inherits the same border/background
  * treatment as content rows.
  *
- * F19.1 (b): pass `image` (a path under /imagery) to show real food photography
+ * Pass `image` (a path under /imagery) to show real food photography
  * instead of the Lucide glyph; `icon` stays the fallback, so callers that don't
  * set an image are unchanged.
  */

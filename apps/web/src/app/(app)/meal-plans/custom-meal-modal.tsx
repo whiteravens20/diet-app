@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 
 /**
- * F22(b) modal for adding a user-authored custom meal to a day. The user owns
+ * Modal for adding a user-authored custom meal to a day. The user owns
  * the macros — the engine never recomputes them (a custom meal has no ingredient
  * list), so the inputs are required and frozen on submit.
  */

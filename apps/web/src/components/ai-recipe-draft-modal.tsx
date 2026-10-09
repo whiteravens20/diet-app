@@ -62,7 +62,7 @@ const COMPLEXITIES: Complexity[] = ['simple', 'medium', 'complex'];
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
 /**
- * Draft a brand-new recipe from structured filters (F20). No free-text input:
+ * Draft a brand-new recipe from structured filters. No free-text input:
  * every preference is a fixed enum or numeric, so there's no prompt-injection
  * surface and every catalogue slug the AI returns is still validated against
  * the live `Ingredient` table. Filters are soft hints — the backend lets the

@@ -6,7 +6,6 @@
 /*
  * Design tokens — the single source of truth for the Diet App visual system.
  * Light + dark palettes, an emerald-forward brand ramp, radii and shadows.
- * See docs/design/design-system.md.
  */
 :root {
   --background: oklch(0.99 0.005 120);

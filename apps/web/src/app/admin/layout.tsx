@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 
-/** Plain shell for the F16 admin panel — no app sidebar, no user identity. */
+/** Plain shell for the admin panel — no app sidebar, no user identity. */
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const t = useTranslations('admin');
   return (
