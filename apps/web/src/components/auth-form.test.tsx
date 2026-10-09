@@ -15,6 +15,7 @@ function renderLogin(emailEnabled: boolean) {
     turnstile: { enabled: false, siteKey: null },
     email: { enabled: emailEnabled },
     ai: { ollamaUserPolicy: 'off' },
+    instance: { supportUrl: null, operatorContact: null, version: '0.0.0' },
   };
   const client = new QueryClient();
   client.setQueryData(['config'], config);

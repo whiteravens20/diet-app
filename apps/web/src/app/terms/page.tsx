@@ -3,6 +3,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { OperatorContact } from '@/components/operator-contact';
 import { LanguageSwitcher } from '@/components/language-switcher';
 
 const LAST_UPDATED = '2026-10-04';
@@ -26,7 +27,6 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   const t = useTranslations('terms');
-  const operatorContact = process.env.NEXT_PUBLIC_OPERATOR_CONTACT;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 lg:flex-row">
@@ -90,20 +90,7 @@ export default function TermsPage() {
           <p className="whitespace-pre-line leading-relaxed text-muted-foreground">
             {t(`${CONTACT_KEY}.body`)}
           </p>
-          {operatorContact ? (
-            <p>
-              <a
-                href={`mailto:${operatorContact}`}
-                className="text-primary underline-offset-2 hover:underline"
-              >
-                {operatorContact}
-              </a>
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground/70">
-              {t(`${CONTACT_KEY}.operatorNotSet`)}
-            </p>
-          )}
+          <OperatorContact notPublished={t(`${CONTACT_KEY}.operatorNotSet`)} />
         </section>
       </article>
     </div>

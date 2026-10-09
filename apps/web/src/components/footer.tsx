@@ -1,8 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+'use client';
 
 import { BookOpen, Code2, Heart, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useConfig } from '@/lib/use-config';
 
 const SOURCE_URL = 'https://github.com/whiteravens20/diet-app';
 const DOCS_URL = 'https://wrservices.link';
@@ -16,8 +18,7 @@ type FooterLink = {
   Icon: typeof Code2;
 };
 
-function getLinks(): FooterLink[] {
-  const supportUrl = process.env.NEXT_PUBLIC_SUPPORT_URL ?? DEFAULT_SUPPORT_URL;
+function getLinks(supportUrl: string): FooterLink[] {
   return [
     { key: 'source', href: SOURCE_URL, external: true, Icon: Code2 },
     { key: 'docs', href: DOCS_URL, external: true, Icon: BookOpen },
@@ -33,11 +34,11 @@ function getLinks(): FooterLink[] {
  */
 export function Footer() {
   const t = useTranslations('footer');
-  // Blank / unset → hide the chip entirely. Operators opt in by setting
-  // NEXT_PUBLIC_APP_VERSION (e.g. to the package version, a release tag, a
-  // CI SHA) and opt out by leaving it empty.
-  const version = process.env.NEXT_PUBLIC_APP_VERSION?.trim();
-  const links = getLinks();
+  // What the operator publishes comes from the API at run time. Until it has
+  // loaded, the support link points at the project's page and no version shows.
+  const { data: config } = useConfig();
+  const version = config?.instance.version;
+  const links = getLinks(config?.instance.supportUrl ?? DEFAULT_SUPPORT_URL);
 
   return (
     <footer className="mt-auto border-t border-border/60 px-6 py-5 text-xs text-muted-foreground">
