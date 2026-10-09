@@ -19,6 +19,7 @@ import type {
 import { Locale } from '@diet-app/shared';
 import * as bcrypt from 'bcryptjs';
 import { blindIndex, decrypt, deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
+import { isUniqueViolation } from '../common/prisma-errors.js';
 import type { Env } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -63,21 +64,26 @@ export class AuthService {
     const emailIndex = blindIndex(email, this.emailIndexKey);
 
     const existing = await this.prisma.user.findUnique({ where: { emailIndex } });
-    if (existing) throw new ConflictException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' });
+    if (existing) throw emailTaken();
 
     const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
-    const user = await this.prisma.user.create({
-      data: {
-        emailIndex,
-        emailEncrypted: encrypt(email, this.emailKey),
-        passwordHash: await this.hashPassword(dto.password, rounds),
-        displayName: dto.displayName,
-        // With mail configured the address must be confirmed via an emailed
-        // link; without it there's nothing to verify against, so the account is
-        // trusted-verified immediately ("od ręki").
-        emailVerified: !this.mail.enabled,
-      },
-    });
+    const passwordHash = await this.hashPassword(dto.password, rounds);
+    const user = await this.prisma.user
+      .create({
+        data: {
+          emailIndex,
+          emailEncrypted: encrypt(email, this.emailKey),
+          passwordHash,
+          displayName: dto.displayName,
+          // With mail configured the address must be confirmed via an emailed
+          // link; without it there's nothing to verify against, so the account is
+          // trusted-verified immediately ("od ręki").
+          emailVerified: !this.mail.enabled,
+        },
+      })
+      // Two registrations of one address can both pass the check above. The
+      // unique index decides, and the one that loses gets the usual answer.
+      .catch(rethrowAsEmailTaken);
     if (this.mail.enabled) await this.sendVerificationEmail(user.id, email, locale);
     return this.issueTokens(user, email);
   }
@@ -195,24 +201,25 @@ export class AuthService {
       });
     }
     const clash = await this.prisma.user.findUnique({ where: { emailIndex: token.newEmailIndex } });
-    if (clash && clash.id !== token.userId) {
-      throw new ConflictException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' });
-    }
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: token.userId },
-        data: {
-          emailEncrypted: token.newEmailEncrypted,
-          emailIndex: token.newEmailIndex,
-          emailVerified: true,
-        },
-      }),
-      this.prisma.emailChangeToken.update({ where: { id: token.id }, data: { usedAt: new Date() } }),
-      this.prisma.refreshToken.updateMany({
-        where: { userId: token.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
+    if (clash && clash.id !== token.userId) throw emailTaken();
+    await this.prisma
+      .$transaction([
+        this.prisma.user.update({
+          where: { id: token.userId },
+          data: {
+            emailEncrypted: token.newEmailEncrypted,
+            emailIndex: token.newEmailIndex,
+            emailVerified: true,
+          },
+        }),
+        this.prisma.emailChangeToken.update({ where: { id: token.id }, data: { usedAt: new Date() } }),
+        this.prisma.refreshToken.updateMany({
+          where: { userId: token.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+      ])
+      // Someone registered the address after the check above.
+      .catch(rethrowAsEmailTaken);
   }
 
   async confirmPasswordReset(dto: PasswordResetConfirm): Promise<void> {
@@ -277,6 +284,15 @@ export class AuthService {
       tokens: { accessToken, refreshToken, expiresIn: accessTtl },
     };
   }
+}
+
+function emailTaken(): ConflictException {
+  return new ConflictException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' });
+}
+
+/** Turns the unique index refusing an address into the answer a client expects. */
+function rethrowAsEmailTaken(error: unknown): never {
+  throw isUniqueViolation(error) ? emailTaken() : error;
 }
 
 /** Lowercased + trimmed, so the blind index is stable regardless of casing. */
