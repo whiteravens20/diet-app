@@ -1,7 +1,7 @@
 # ── Diet App — production-like stack ──────────────────────────────────────────
 # Run from the repo root:
 #   docker compose --env-file .env -f infra/docker-compose.yml up -d
-# Configure via the repo-root .env (copy from .env.example).
+# Configure via the repo-root .env (`sh scripts/init-env.sh` writes it).
 #
 # ⚠️  The `--env-file .env` flag is REQUIRED, not optional. Two distinct
 #     mechanisms read .env and they are NOT the same:
@@ -65,8 +65,7 @@ services:
   #
   # Seeding the curated/USDA ingredient database is intentionally NOT done here
   # — it's an admin action triggered from `/admin` once the stack is up (see
-  # `POST /api/admin/db/update`). Boot stays fast even with 7k+ ingredients and
-  # 30k+ composed recipes.
+  # `POST /api/admin/db/update`). Boot stays fast however large the catalogue is.
   db-init:
     <<: *app-image
     env_file: ../.env
@@ -87,6 +86,10 @@ services:
       NODE_ENV: production
       # Override host-oriented .env values with Compose service hostnames.
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
+      # Inside the container the API always listens on 4000: the port mapping,
+      # the health check and the web proxy all point there. API_PORT in .env
+      # only chooses the host side of the mapping below.
+      API_PORT: 4000
     depends_on:
       postgres: { condition: service_healthy }
       db-init: { condition: service_completed_successfully }
@@ -121,6 +124,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-diet}:${POSTGRES_PASSWORD:-diet}@postgres:5432/${POSTGRES_DB:-diet_app}?schema=public
+      API_PORT: 4000
     # Same image, different command: runs scheduled tasks (weight-reminder
     # scan) on a single instance.
     command: ['node', 'apps/api/dist/worker.js']
