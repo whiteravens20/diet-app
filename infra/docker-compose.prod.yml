@@ -65,8 +65,10 @@ services:
   # leave the running stack on the old curated data.
   #
   # We mount the volume at `/target` (a non-/app/data path) so the image's
-  # baked-in files are visible, then copy curated JSON in — always
-  # overwriting, because curated data is image-owned.
+  # baked-in files are visible, then mirror the curated set in: the three
+  # seed files, the shipped recipe batches and the ingredient name overrides.
+  # They are image-owned, so they are always overwritten, and a batch or an
+  # overrides file the new image no longer carries is removed.
   # The user-owned `ingredients.generated.json` (USDA importer output) is
   # left alone. Final chown gives the `node` user (uid 1000) in api / worker
   # write access for the USDA importer.
@@ -83,6 +85,11 @@ services:
         cp -f /app/data/ingredients.json   /target/ingredients.json
         cp -f /app/data/recipes.json       /target/recipes.json
         cp -f /app/data/substitutions.json /target/substitutions.json
+        rm -rf /target/recipes /target/ingredient-overrides.json
+        if [ -d /app/data/recipes ]; then cp -r /app/data/recipes /target/recipes; fi
+        if [ -f /app/data/ingredient-overrides.json ]; then
+          cp -f /app/data/ingredient-overrides.json /target/ingredient-overrides.json
+        fi
         chown -R 1000:1000 /target
     volumes:
       - app-data:/target
