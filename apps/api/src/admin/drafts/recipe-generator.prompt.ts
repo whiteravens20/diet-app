@@ -6,8 +6,8 @@
  * Renders a single prompt asking the AI to author N recipes — locale-keyed
  * titles / descriptions / steps + structural metadata + an ingredient list
  * picked exclusively from the in-prompt catalogue. The model authors entirely
- * from its training-data knowledge of cooking; there is no internet fetch
- * (plan D9). The ingredient catalogue is the hard whitelist.
+ * from its training-data knowledge of cooking; there is no internet fetch.
+ * The ingredient catalogue is the hard whitelist.
  *
  * Few-shot files at `few-shot/recipe.<locale>.json` carry stratified exemplars
  * (~5 simple + ~5 medium + ~5 complex) sliced into the prompt. Each file is

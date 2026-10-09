@@ -49,7 +49,7 @@ export class ShoppingListsService {
     for (const day of plan.days) {
       if (day.date < from || day.date > to) continue;
       for (const meal of day.meals) {
-        // F22: custom meals have no ingredients → no shopping line. `eatenAt` is
+        // Custom meals have no ingredients → no shopping line. `eatenAt` is
         // ignored: the list is generated once at plan start, not retroactively.
         if (meal.source === 'USER_CUSTOM' || !meal.recipe) continue;
         for (const ri of meal.recipe.ingredients) {
@@ -59,7 +59,7 @@ export class ShoppingListsService {
             quantity: ri.quantity,
             unit: ri.unit,
             recipeServings: meal.recipe.servings,
-            // Effective amount folds the F22 rebalancer multiplier into servings.
+            // Effective amount folds the rebalancer multiplier into servings.
             plannedServings: meal.servings * meal.quantityScale,
           });
         }
@@ -69,7 +69,7 @@ export class ShoppingListsService {
     const ingredients = await this.loadIngredients([...ingredientIds]);
     const groups = aggregateShoppingList(lines, ingredients);
 
-    // F15 pre-fill `alreadyHaveQuantity` from the profile's pantry so the
+    // Pre-fill `alreadyHaveQuantity` from the profile's pantry so the
     // user sees their on-hand stock subtracted from the buy column before
     // they touch the list. Inventory rows in any unit are converted to the
     // aggregated item's unit; rows that can't convert (missing density /
@@ -85,7 +85,7 @@ export class ShoppingListsService {
         const key = `${item.ingredientId}:${item.unit}`;
         const coverage = pantryByItemUnit.get(key);
         const have = Math.min(coverage?.quantity ?? 0, item.totalQuantity);
-        // F15.1 single-field UX: pre-fill `purchasedQuantity` with the
+        // Single-field UX: pre-fill `purchasedQuantity` with the
         // pantry-credited amount so the user sees one count to grow as
         // they shop. When pantry fully covers the need, the row arrives
         // already checked off (no shopping required) and the pantry
@@ -174,7 +174,7 @@ export class ShoppingListsService {
   }
 
   /**
-   * Update an item's purchased quantity or checked state. F15.1 single-field
+   * Update an item's purchased quantity or checked state. Single-field
    * model: `purchasedQuantity` is the total obtained (pantry pre-credit +
    * shopping). Checked-state derives from the quantity (purchased >= total →
    * checked) unless the caller explicitly overrides. When checked, the net

@@ -10,9 +10,9 @@
  *     can shrink, not just grow.
  *
  * Nutrition is **always** recomputed from the ingredient table by the engine;
- * recipes never carry hand-authored kcal/macros. See ADR 0005.
+ * recipes never carry hand-authored kcal/macros.
  *
- * F14 translation handling: each ingredient/recipe row carries an embedded
+ * Translation handling: each ingredient/recipe row carries an embedded
  * `{ en, pl?, ... }` for human-readable fields. The seeder writes the canonical
  * row from the numeric/structural fields, then wipes and rewrites only the
  * `source = CURATED_JSON` translation children for that parent. AI / MANUAL
@@ -256,7 +256,7 @@ export async function runSeed(
 
   // Apply curation-queue ingredient-name overrides as MANUAL translations.
   // These are slug-keyed friendly names produced by the AI namer + human
-  // review pipeline (ADR-0008); they live in data/ingredient-overrides.json
+  // review pipeline; they live in data/ingredient-overrides.json
   // and are layered on top of the CURATED_JSON rows the seeder just wrote.
   // The wipe at line ~228 only touches CURATED_JSON, so MANUAL writes here
   // survive re-seeds — same provenance contract as the AI translator.

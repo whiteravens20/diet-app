@@ -4,8 +4,8 @@
  * Deterministic calorie & macro engine.
  *
  * Every function here is pure and unit-tested. Results are reproducible from
- * profile inputs alone — no randomness, no AI, no I/O. This is the contract
- * behind product principle #3 ("all calorie/macro calculations deterministic").
+ * profile inputs alone — no randomness, no AI, no I/O: every calorie and macro
+ * calculation is deterministic.
  */
 import type { ActivityLevel, CalorieCalculation, DietType, Macros, Sex } from '@diet-app/shared';
 
@@ -130,7 +130,7 @@ function round(n: number): number {
 }
 
 /**
- * F17 periodisation factors: a training day runs a surplus and a rest day a
+ * Periodisation factors: a training day runs a surplus and a rest day a
  * deficit relative to the plan's base target, so tagging a day actually shapes
  * its calories. Defaults are ±15%; a user-supplied per-day calorie override
  * always wins over these (handled by the caller).

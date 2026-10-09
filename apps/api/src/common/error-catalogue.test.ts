@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Catalogue-completeness gate for F14.
+ * Catalogue-completeness gate for translated error messages.
  *
  * Scans every `throw new *Exception(...)` site in apps/api/src for a string
  * `error:` code, then asserts each unique code has a matching row under

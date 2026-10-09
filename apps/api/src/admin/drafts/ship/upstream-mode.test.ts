@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Tests the canonical-remote guard from ADR-0008. The self-hoster foot-gun
+ * Tests the canonical-remote guard. The self-hoster foot-gun
  * is "I left `origin` pointing at whiteravens20/diet-app and flipped
  * SHIP_UPSTREAM_ENABLED on" — the runner has to refuse that loudly while
  * still allowing forks and private mirrors.

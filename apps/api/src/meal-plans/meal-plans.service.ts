@@ -91,7 +91,7 @@ export class MealPlansService {
     const baseMealCount = req.mealCount ?? profile.mealCount;
 
     const start = new Date(req.startDate);
-    // F17: resolve a per-day descriptor (slot set, calorie target, locks, skip,
+    // Resolve a per-day descriptor (slot set, calorie target, locks, skip,
     // cook-time budget, use-up-by) by layering req.dayOverrides over the plan
     // defaults. Validates override dates + locked-slot membership.
     const resolvedDays = resolvePlanDays({
@@ -147,7 +147,7 @@ export class MealPlansService {
 
     const profile = await this.loadProfile(userId, existing.profileId);
     // Picks up profile changes (calorie target, diet) for non-overridden days,
-    // while re-applying each day's persisted F17 overrides (meal count, per-day
+    // while re-applying each day's persisted overrides (meal count, per-day
     // calorie target, locks, skip, cook-time budget, use-up-by).
     const baseCalorieTarget = this.calorieTargetFor(profile);
     const resolvedDays: ResolvedDay[] = existing.days.map((day) => {
@@ -277,7 +277,7 @@ export class MealPlansService {
 
   /**
    * Run the deterministic optimiser for a profile against the eligible recipes.
-   * Takes a fully-resolved F17 per-day descriptor list (slot set + calorie
+   * Takes a fully-resolved per-day descriptor list (slot set + calorie
    * target + locks + skip + cook-time budget + use-up-by per day); the basic
    * flow is just a list of uniform days.
    */
@@ -303,9 +303,9 @@ export class MealPlansService {
       respectExclusions?: boolean;
       /** Pass favourite-ingredient ids to the optimiser bias (default true). */
       respectFavorites?: boolean;
-      /** F15 pantry-aware bias toggle (default true). */
+      /** Pantry-aware bias toggle (default true). */
       respectInventory?: boolean;
-      /** F17 variety floor — max total uses of any recipe across the window. */
+      /** Variety floor — max total uses of any recipe across the window. */
       maxRepeatsPerRecipe?: number;
       seed: number;
     },
@@ -314,7 +314,7 @@ export class MealPlansService {
       respectExclusions: opts.respectExclusions,
     });
 
-    // F17 validate locked slots against the eligible recipe set. (Slot-membership
+    // Validate locked slots against the eligible recipe set. (Slot-membership
     // was already checked when the day list was resolved.)
     const recipeById = new Map(optimizerRecipes.map((r) => [r.id, r]));
     for (const day of opts.days) {
@@ -349,7 +349,7 @@ export class MealPlansService {
       requirementsByRecipe,
     );
 
-    // F15 use-up-by: build a per-date coverage map for each flagged day, scored
+    // Use-up-by: build a per-date coverage map for each flagged day, scored
     // only against stock expiring by that date. Falls back to the plan-level map.
     const expiringByDate = new Map<string, ReadonlyMap<string, number>>();
     if (opts.respectInventory !== false) {
@@ -411,7 +411,7 @@ export class MealPlansService {
   }
 
   /**
-   * F15 use-up-by: per-recipe coverage scored only against inventory expiring on
+   * Use-up-by: per-recipe coverage scored only against inventory expiring on
    * or before `date`. Steers a flagged day toward recipes that consume
    * soon-to-expire stock. Returns null when nothing qualifies. Unlike the
    * plan-level bias it does not touch the anti-monotony streak — it's an
@@ -541,7 +541,7 @@ export class MealPlansService {
       ...(currentRecipeId ? [currentRecipeId] : []),
       ...prevHistory,
     ]);
-    // F22(a): the candidate pool drops the diet filter when the user opted into
+    // The candidate pool drops the diet filter when the user opted into
     // "show all my favourites". Allergens stay enforced everywhere. Meal-time is
     // also relaxed for an explicit favourite pick under that same opt-in (a dinner
     // favourite onto breakfast); the random / favourite-ingredient pools below
@@ -647,7 +647,7 @@ export class MealPlansService {
       }
       const fresh = candidates.filter((c) => !excludeBeforeReset.has(c.id));
       let pool = fresh.length > 0 ? fresh : candidates;
-      // F15 re-rank by pantry coverage descending so an inventory-friendly
+      // Re-rank by pantry coverage descending so an inventory-friendly
       // random swap is picked when the user opted in. hashIndex on a stable
       // order still rotates through the pool so consecutive clicks vary —
       // but consistently among high-coverage candidates first.
@@ -707,13 +707,13 @@ export class MealPlansService {
         customMacros: Prisma.JsonNull,
       },
     });
-    // F22(c): the swap changed the day total — pull it back toward target.
+    // The swap changed the day total — pull it back toward target.
     const summary = await this.rebalanceDayInternal(meal.dayId);
     return this.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
   }
 
   /**
-   * F22(b) add a user-authored custom meal to a day. The macros are frozen on
+   * Add a user-authored custom meal to a day. The macros are frozen on
    * the row as the user entered them — the engine never recomputes them, because
    * a custom meal has no ingredient list. Adding it changes the day total, so a
    * day rebalance runs immediately.
@@ -768,7 +768,7 @@ export class MealPlansService {
   }
 
   /**
-   * F22(d) toggle a planned meal's eaten flag. An eaten meal is pinned out of
+   * Toggle a planned meal's eaten flag. An eaten meal is pinned out of
    * the rebalance set (scaling an already-eaten portion is meaningless), so the
    * day is rebalanced after the toggle to redistribute among the rest.
    */
@@ -788,7 +788,7 @@ export class MealPlansService {
   }
 
   /**
-   * F22(c) explicit rebalance. `day` rebalances one date; `week` shares the
+   * Explicit rebalance. `day` rebalances one date; `week` shares the
    * surplus/deficit across the plan week. `restore` is the undo path: it writes
    * the supplied scales verbatim (the toast's pre-edit `before` map) and skips
    * the solver.
@@ -824,7 +824,7 @@ export class MealPlansService {
   }
 
   /**
-   * AI-ranked meal swap (F20). The engine builds a deterministic candidate pool
+   * AI-ranked meal swap. The engine builds a deterministic candidate pool
    * (same diet+slot filter as the random strategy) and AI picks one. If AI is
    * unavailable (quota / no provider / total provider failure) OR the model
    * returns an id that isn't in the pool, the engine falls back to the same
@@ -881,7 +881,7 @@ export class MealPlansService {
 
     const freshCandidates = candidates.filter((c) => !excludeBeforeReset.has(c.id));
     let pool = freshCandidates.length > 0 ? freshCandidates : candidates;
-    // F15 sort the pool by pantry coverage descending so the AI sees pantry-
+    // Sort the pool by pantry coverage descending so the AI sees pantry-
     // friendly recipes first AND the deterministic fallback (hashIndex on
     // pool order) prefers them. Coverage is null when the toggle is off or
     // the pantry is empty — pool stays in its original order.
@@ -953,7 +953,7 @@ export class MealPlansService {
       where: { id: req.plannedMealId },
       data: { recipeId: replacementId, servings, swapHistory: nextHistory, quantityScale: 1 },
     });
-    // F22(c): the swap changed the day total — rebalance before returning.
+    // The swap changed the day total — rebalance before returning.
     await this.rebalanceDayInternal(meal.dayId);
     const plan = await this.get(userId, locale, req.planId);
     return { plan, aiMeta: meta };
@@ -1205,7 +1205,7 @@ export class MealPlansService {
       where: { id: req.plannedMealId },
       data: { recipeId: variantId },
     });
-    // F20(b) ↔ F22(c): the substitution changed the meal's macros, so the day
+    // The substitution changed the meal's macros, so the day
     // total moved — run the same rebalance pipeline as every other edit.
     await this.rebalanceDayInternal(meal.dayId);
     return this.get(userId, locale, req.planId);
@@ -1581,7 +1581,7 @@ export class MealPlansService {
         message: 'No alternative ingredient found.',
       });
     }
-    // F15 surface pantry-friendly substitutes first. The AI sees them at the
+    // Surface pantry-friendly substitutes first. The AI sees them at the
     // top of the list AND the deterministic fallback (hashIndex on pool
     // order) prefers them.
     const pantryHits = await this.ingredientPantryHit(
@@ -1679,7 +1679,7 @@ export class MealPlansService {
   }
 
   /**
-   * F22(c) rebalance one day's unchecked, non-custom meals toward its target and
+   * Rebalance one day's unchecked, non-custom meals toward its target and
    * persist the new quantity scales. Returns the summary the UI toast renders,
    * or null when the day has vanished.
    */
@@ -1697,7 +1697,7 @@ export class MealPlansService {
     return { feasibility, changes, macrosBefore, macrosAfter };
   }
 
-  /** F22(c) week-aware variant: share the surplus/deficit across the plan week. */
+  /** Week-aware variant: share the surplus/deficit across the plan week. */
   private async rebalanceWeekInternal(planId: string, _date?: string): Promise<RebalanceSummary | null> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
@@ -1745,7 +1745,7 @@ export class MealPlansService {
     return changes;
   }
 
-  /** F22 undo: write the supplied scales verbatim (the toast's pre-edit map). */
+  /** Undo: write the supplied scales verbatim (the toast's pre-edit map). */
   private async restoreScales(
     planId: string,
     restore: { mealId: string; scale: number }[],
@@ -1835,7 +1835,7 @@ export class MealPlansService {
   ): Promise<{
     optimizerRecipes: OptimizerRecipe[];
     /**
-     * Per-recipe canonical-unit ingredient requirements, used by F15 coverage
+     * Per-recipe canonical-unit ingredient requirements, used by pantry-coverage
      * scoring. Rows whose unit conversion fails (missing density / gramsPerPiece)
      * are dropped from the requirement list — they can't be compared against
      * pantry stock, so treating them as "not covered" is the safe default.
@@ -1908,12 +1908,12 @@ export class MealPlansService {
   }
 
   /**
-   * F15 build the per-recipe coverage map the optimiser scores against.
+   * Build the per-recipe coverage map the optimiser scores against.
    * Returns undefined when the toggle is off, the pantry is empty, or no
    * candidate recipe touches anything in the pantry — callers leave the
    * pool ordering / scoring untouched.
    *
-   * F15.1 anti-monotony rotation: after `inventoryBiasResetEvery` consecutive
+   * Anti-monotony rotation: after `inventoryBiasResetEvery` consecutive
    * plan-level generations actually applied a bias, this round drops it and
    * resets the streak — keeps a leftover-heavy month from locking the user
    * into one recipe corridor. The counter only moves on plan-level paths
@@ -1984,7 +1984,7 @@ export class MealPlansService {
   }
 
   /**
-   * F15 batch-score an arbitrary recipe-id list by pantry coverage. Used by
+   * Batch-score an arbitrary recipe-id list by pantry coverage. Used by
    * the swap paths (deterministic + AI) to re-rank candidates before picking
    * / before sending to the model. Returns null when respectInventory is off
    * or the pantry is empty — callers leave their pool ordering untouched.
@@ -2039,7 +2039,7 @@ export class MealPlansService {
   }
 
   /**
-   * F15 batch-score an arbitrary ingredient-id list by "is in the pantry".
+   * Batch-score an arbitrary ingredient-id list by "is in the pantry".
    * Returns a boolean-ish [0, 1] score keyed by ingredient id: 1 when the
    * pantry has any stock of that ingredient, 0 otherwise. Used by AI-suggest
    * ingredient swap to bias candidates toward the pantry without doing a
@@ -2072,7 +2072,7 @@ export class MealPlansService {
         // Effective amount folds the rebalancer multiplier into the baseline.
         const factor = m.servings * m.quantityScale;
         const eatenAt = m.eatenAt ? m.eatenAt.toISOString() : null;
-        // F22 custom meal: no catalogue recipe, macros frozen on the row.
+        // Custom meal: no catalogue recipe, macros frozen on the row.
         if (m.source === 'USER_CUSTOM' || !m.recipe) {
           const per = customMacros(m.customMacros);
           return {
@@ -2104,7 +2104,7 @@ export class MealPlansService {
           servings: m.servings,
           quantityScale: m.quantityScale,
           eatenAt,
-          // F22(a): a swapped-in favourite whose diet tags miss the plan diet.
+          // A swapped-in favourite whose diet tags miss the plan diet.
           dietOverride: plan.dietType !== 'custom' && !m.recipe.dietTags.includes(plan.dietType),
           nutrition: {
             calories: Math.round(n.calories * factor),
@@ -2257,9 +2257,9 @@ function nameByLocale(
 }
 
 /**
- * F17 persisted per-day overrides. The resolved per-day calorie target lives in
- * the `MealPlanDay.calorieTarget` column (so swap / favorite-set apply / F22 read
- * it unchanged); this JSON carries the raw advanced inputs + semantics needed to
+ * Persisted per-day overrides. The resolved per-day calorie target lives in
+ * the `MealPlanDay.calorieTarget` column (so swap, favorite-set apply and the
+ * rebalancer read it unchanged); this JSON carries the raw advanced inputs + semantics needed to
  * re-roll the day and to render it. `calorieTarget` is stored here only when it
  * was an explicit override, so `regenerate` can pick up profile changes for
  * non-overridden days while preserving deliberate per-day targets.
@@ -2311,7 +2311,7 @@ function buildOverridesJson(o: DayOverride | undefined): DayOverridesJson | null
 }
 
 /**
- * F17: resolve every day in `[startDate, +durationDays)` by layering the request's
+ * Resolve every day in `[startDate, +durationDays)` by layering the request's
  * sparse `dayOverrides` over the plan defaults. Validates that override dates fall
  * inside the plan range and that each locked slot belongs to its day's slot set.
  */
@@ -2568,7 +2568,7 @@ function parseAiIngredientPick(text: string): string | null {
   return null;
 }
 
-// ── F22 rebalance helpers ───────────────────────────────────────────────────
+// ── Rebalance helpers ───────────────────────────────────────────────────
 
 type MacroQuad = { calories: number; protein: number; fat: number; carbs: number };
 

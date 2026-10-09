@@ -33,7 +33,7 @@ export interface RoutedResult {
 /**
  * Routes an AI request through the user's failover chain. On total failure it
  * returns `text: null` so callers fall back to the deterministic engine — AI is
- * never a hard dependency (product principle #8).
+ * never a hard dependency.
  */
 @Injectable()
 export class AiRouterService {
@@ -58,7 +58,7 @@ export class AiRouterService {
    * logs. Empty chain or all-failed → `text: null` (caller falls back to the
    * deterministic engine — AI is never a hard dependency).
    *
-   * The chain is built from the user's F10 `aiMode`: `none` short-circuits to
+   * The chain is built from the user's `aiMode`: `none` short-circuits to
    * the fallback, `byok` walks the user's own configs, `admin` borrows the
    * operator's env-configured provider after a quota guard.
    */

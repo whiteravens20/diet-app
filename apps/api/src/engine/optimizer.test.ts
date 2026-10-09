@@ -146,7 +146,7 @@ describe('optimisePlan', () => {
     }
   });
 
-  // ── F17 advanced per-day options ──────────────────────────────────────────
+  // ── Advanced per-day options ──────────────────────────────────────────
 
   it('honours a per-day calorie target (different servings per day)', () => {
     const result = optimisePlan({
@@ -265,7 +265,7 @@ describe('optimisePlan', () => {
     expect(fallback.assignments).toHaveLength(1);
   });
 
-  it('biases a day toward its inventory-coverage map (F15 use-up-by)', () => {
+  it('biases a day toward its inventory-coverage map (use-up-by)', () => {
     const recipes = [recipe('r1', ['breakfast'], 500), recipe('r2', ['breakfast'], 500)];
     const seeds = Array.from({ length: 30 }, (_, i) => i + 1);
     const countR2 = (coverage?: ReadonlyMap<string, number>) =>

@@ -9,7 +9,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
- * F19 — device-agnostic notification surface. HTTP side (this service) is
+ * Device-agnostic notification surface. HTTP side (this service) is
  * read-mostly: the client polls `unread`, then marks rows read. Writes
  * come from the worker (weight-reminder cron) via `createWeightReminder()`.
  */

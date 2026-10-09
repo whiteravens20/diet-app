@@ -18,8 +18,7 @@
  * sight (validating EN against itself is meaningless).
  *
  * PATCH invalidation: editing any translatable field wipes every locale's
- * review row and resets `status = PENDING` (matches admin PATCH semantics —
- * see drafts.controller.ts §3 invariant in the plan).
+ * review row and resets `status = PENDING`, as the admin PATCH does.
  */
 import {
   BadRequestException,
@@ -310,7 +309,7 @@ export class ReviewController {
         data.steps = steps;
       }
 
-      // §3 invariant — any edit invalidates partial reviews.
+      // Any edit invalidates partial reviews.
       await tx.recipeDraftLocaleReview.deleteMany({ where: { draftId: id } });
       return tx.recipeDraft.update({
         where: { id },

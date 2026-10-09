@@ -100,7 +100,7 @@ export class MealPlansController {
     return this.plans.swapMeal(user.id, locale, dto);
   }
 
-  /** F22(b) add a user-authored custom meal to a day. */
+  /** Add a user-authored custom meal to a day. */
   @Post(':id/days/:date/custom-meal')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   addCustomMeal(
@@ -113,7 +113,7 @@ export class MealPlansController {
     return this.plans.addCustomMeal(user.id, locale, id, date, dto);
   }
 
-  /** F22(d) toggle a planned meal's eaten flag (rebalances the day). */
+  /** Toggle a planned meal's eaten flag (rebalances the day). */
   @Patch(':id/meals/:mealId/eaten')
   toggleEaten(
     @CurrentUser() user: RequestUser,
@@ -124,7 +124,7 @@ export class MealPlansController {
     return this.plans.toggleEaten(user.id, locale, id, mealId);
   }
 
-  /** F22(c) explicit rebalance (day / week) or undo via the `restore` map. */
+  /** Explicit rebalance (day / week) or undo via the `restore` map. */
   @Post(':id/rebalance')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   rebalance(
@@ -137,7 +137,7 @@ export class MealPlansController {
   }
 
   /**
-   * AI-ranked meal swap (F20). The deterministic engine builds the candidate
+   * AI-ranked meal swap. The deterministic engine builds the candidate
    * pool; AI picks one. The response carries `aiMeta.fallbackReason` so the UI
    * can surface a localised toast when AI was unavailable.
    */
@@ -152,7 +152,7 @@ export class MealPlansController {
   }
 
   /**
-   * AI-ranked ingredient suggestion (F20). Returns just an `ingredientId`;
+   * AI-ranked ingredient suggestion. Returns just an `ingredientId`;
    * the caller still runs preview/apply so nutrition is engine-recomputed.
    */
   @Post('swap-ingredient/ai-suggest')

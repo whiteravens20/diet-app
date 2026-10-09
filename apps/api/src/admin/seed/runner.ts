@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * In-memory job runner for the admin DB updater (F16).
+ * In-memory job runner for the admin DB updater.
  *
  * The seed/update workload takes minutes — far longer than any sensible HTTP
  * proxy idle timeout — so we run it detached in the background and let the

@@ -1,11 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * F16 admin gate. HTTP Basic against ADMIN_USER / ADMIN_PASSWORD, constant-
+ * Admin gate. HTTP Basic against ADMIN_USER / ADMIN_PASSWORD, constant-
  * time compare. Fail-closed: when ADMIN_PASSWORD is empty / placeholder,
  * every request returns 403 so the panel can never be opened by accident.
- *
- * Mirrors archivum-null/backend/src/middleware/basicAuth.ts.
  */
 import {
   ForbiddenException,

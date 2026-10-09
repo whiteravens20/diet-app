@@ -4,7 +4,7 @@
  * Unit tests for AiKeyService. Prisma + config are mocked. Focus: BYOK key
  * encryption (write-only — `hasKey`, never the plaintext), the SSRF write-time
  * guard on Ollama baseUrl (OLLAMA_USER_POLICY), ownership checks on remove, the
- * "last config flips back to admin" safety net, and the F10 failover chain per
+ * "last config flips back to admin" safety net, and the failover chain per
  * aiMode.
  */
 import { BadRequestException, NotFoundException } from '@nestjs/common';

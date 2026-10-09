@@ -20,7 +20,7 @@ function probeApp(options?: SecurityHeadersOptions): express.Express {
 
 const STRICT_CSP = "default-src 'none';frame-ancestors 'none'";
 
-describe('API security headers (WI-F1)', () => {
+describe('API security headers', () => {
   it('sets the defence-in-depth headers on responses', async () => {
     const res = await request(probeApp()).get('/api/probe').expect(200);
 

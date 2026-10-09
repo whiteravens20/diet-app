@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
   const weightReminders = app.get(WeightReminderService);
   const logger = new Logger('Worker');
 
-  // F19 — periodic weight-reminder scan. Hourly granularity is enough: the
+  // Periodic weight-reminder scan. Hourly granularity is enough: the
   // service debounces per-profile against `lastWeightReminderAt`, so the
   // user is never re-notified within their own cadence window.
   const tickMs = 60 * 60 * 1000;

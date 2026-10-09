@@ -6,7 +6,7 @@
  * Single-flight job that walks USDA-imported ingredients lacking a current
  * draft and asks the admin-default AI provider to propose friendly culinary
  * names per `targetLocales`. Drafts land in `IngredientNameDraft` as PENDING;
- * the live `Ingredient` table is never touched (see ADR-0008).
+ * the live `Ingredient` table is never touched.
  *
  * Single-flight + cancel + state shape so the admin panel can poll one
  * consistent payload.

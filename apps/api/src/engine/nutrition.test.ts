@@ -10,7 +10,7 @@ import {
   macrosForCalories,
 } from './nutrition.js';
 
-describe('dayTypeCalorieTarget (F17 periodisation)', () => {
+describe('dayTypeCalorieTarget (periodisation)', () => {
   it('leaves a normal / undefined day at the base target', () => {
     expect(dayTypeCalorieTarget(2000, 'normal')).toBe(2000);
     expect(dayTypeCalorieTarget(2000, undefined)).toBe(2000);

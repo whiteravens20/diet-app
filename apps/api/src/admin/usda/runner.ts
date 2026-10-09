@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * USDA importer background-job runner (F16 extension).
+ * USDA importer background-job runner.
  *
  * Mirrors {@link SeedRunner}'s single-flight pattern. Bulk-imports from the
  * FDC API can take minutes (Foundation: seconds; Foundation + SR Legacy:

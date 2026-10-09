@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 
 /**
- * F15 per-profile pantry. CRUD + the read path the optimiser uses for
+ * Per-profile pantry. CRUD + the read path the optimiser uses for
  * coverage scoring. Mutations are all profile-scoped and authorise against
  * the calling user.
  */

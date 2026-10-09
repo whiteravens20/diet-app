@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from './notifications.service.js';
 
 /**
- * F19 — periodic scan that emits `weight_reminder` notifications.
+ * Periodic scan that emits `weight_reminder` notifications.
  *
  * Called from the worker process on a 1-hour interval (see worker.ts).
  * Cadence is per-profile: `daily` fires when the last entry is ≥1 day old;

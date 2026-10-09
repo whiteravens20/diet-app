@@ -29,7 +29,7 @@ export function resolveReviewerSecret(config: ConfigService<Env, true>): string 
     config.get('JWT_ACCESS_SECRET', { infer: true })
   );
 }
-/** 7 days, in seconds — matches the spec ("7-day TTL"). */
+/** 7 days, in seconds. */
 export const REVIEWER_COOKIE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface ReviewerClaims {

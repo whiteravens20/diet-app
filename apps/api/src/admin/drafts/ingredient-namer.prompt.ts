@@ -6,7 +6,7 @@
  * Asks the AI to rewrite a raw USDA FoodData Central description into a
  * friendly culinary name for every locale in the spec. The result is stored
  * in `IngredientNameDraft.suggestions` as a JSON column, never written
- * directly to `Ingredient` — see ADR-0008.
+ * directly to `Ingredient`: a person approves a draft before it ships.
  *
  * Locale-generic: the prompt is rendered against `targetLocales` from the
  * generation spec. Each locale loads its own optional `few-shot/ingredient-namer.<locale>.json`

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * F16 admin surfaces. Privacy: instance-only stats — ingredient / recipe /
+ * Admin surfaces. Privacy: instance-only stats — ingredient / recipe /
  * substitution counts and seed bookkeeping. **No per-user signals**, so this
  * panel can never become a user-activity dashboard.
  */

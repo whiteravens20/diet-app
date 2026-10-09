@@ -127,9 +127,8 @@ export class AiKeyService {
    *             come from env (OPENAI_API_KEY / ANTHROPIC_API_KEY / …) or
    *             from an Ollama base URL — no DB row required.
    *
-   * Earlier behaviour mixed BYOK and admin into one failover chain; F10 makes
-   * the user's intent explicit (privacy / cost / quota), so the modes are
-   * disjoint by design.
+   * The modes never share a failover chain: a mode states the user's intent
+   * (privacy / cost / quota), so they are disjoint by design.
    */
   async resolveChain(userId: string, mode: AiMode): Promise<ResolvedProviderConfig[]> {
     if (mode === 'none') return [];

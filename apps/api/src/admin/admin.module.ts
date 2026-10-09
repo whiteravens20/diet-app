@@ -9,7 +9,7 @@ import { SeedRunner } from './seed/runner.js';
 import { UsdaImportRunner } from './usda/runner.js';
 
 /**
- * F16 admin module — isolated namespace under `/api/admin/*`. No JWT, no
+ * Admin module — isolated namespace under `/api/admin/*`. No JWT, no
  * user identity; auth is HTTP Basic checked against ADMIN_USER / ADMIN_PASSWORD
  * by `BasicAuthGuard`.
  */

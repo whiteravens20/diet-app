@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * F22 deterministic quantity rebalancer.
+ * Deterministic quantity rebalancer.
  *
  * After a plan edit changes a day's total (a swap, a custom meal, an ingredient
  * substitution), the day may drift away from its calorie target. This module

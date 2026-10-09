@@ -35,9 +35,9 @@ import { OpenRouterProvider } from './providers/openrouter.provider.js';
     AiQuotaService,
     AiRouterService,
     AiValidationService,
-    // Exported so the admin auto-translate runner can call a provider
-    // directly with the AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL env config —
-    // env-driven, not DB-driven, see F14 / B.6.1.
+    // Exported so the admin curation runners can call a provider directly
+    // with the AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL env config: env-driven,
+    // not DB-driven.
     OpenAiProvider,
     AnthropicProvider,
     OpenRouterProvider,

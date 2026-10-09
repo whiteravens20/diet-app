@@ -25,7 +25,7 @@ function meal(
 const dayKcal = (meals: RebalanceMeal[], scales: Map<string, number>) =>
   meals.reduce((s, m) => s + m.calories * m.servings * (scales.get(m.id) ?? m.quantityScale), 0);
 
-describe('rebalanceDay (F22 quantity rebalancer)', () => {
+describe('rebalanceDay (quantity rebalancer)', () => {
   it('leaves a day already inside the ±10% window untouched', () => {
     const meals = [meal('a', 700), meal('b', 700), meal('c', 650)]; // 2050 vs 2000 → 2.5%
     const { scales, feasibility } = rebalanceDay(meals, 2000);
@@ -99,7 +99,7 @@ describe('rebalanceDay (F22 quantity rebalancer)', () => {
   });
 });
 
-describe('rebalanceWeek (F22 week-aware redistribution)', () => {
+describe('rebalanceWeek (week-aware redistribution)', () => {
   it('shares a single day overshoot across the whole week', () => {
     // Monday carries a locked 1500 custom meal on a 2000 target; the other days
     // are at target. Week mode pulls the week total to 6000 by shrinking every

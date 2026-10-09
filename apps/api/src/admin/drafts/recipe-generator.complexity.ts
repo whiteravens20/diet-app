@@ -38,7 +38,7 @@ export const COMPLEXITY_BANDS: readonly ComplexityBand[] = [
   { name: 'complex', minIngredients: 10, maxIngredients: 16, maxSteps: 25, maxTotalMinutes: 120 },
 ] as const;
 
-/** Default mix when the spec omits `complexityMix`. Matches plan D1. */
+/** Default mix when the spec omits `complexityMix`. */
 export const DEFAULT_COMPLEXITY_MIX: ComplexityMix = {
   simple: 0.3,
   medium: 0.5,

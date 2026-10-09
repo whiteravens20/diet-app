@@ -42,7 +42,7 @@ export const envSchema = z.object({
 
   AI_DEFAULT_PROVIDER: z.enum(['openai', 'anthropic', 'openrouter', 'ollama']).optional(),
   AI_DEFAULT_MODEL: z.string().optional(),
-  // F10 per-user monthly quota for `aiMode='admin'` users (rolling 30 days).
+  // Per-user monthly quota for `aiMode='admin'` users (rolling 30 days).
   // 'byok' and 'none' users do not consume this. Set to 0 to deny the admin
   // mode entirely without unsetting AI_DEFAULT_PROVIDER.
   AI_ADMIN_USER_MONTHLY_LIMIT: z.coerce.number().int().min(0).default(40),
@@ -92,7 +92,7 @@ export const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().default('no-reply@diet-app.local'),
 
-  // Admin panel (F16). Fail-closed: when ADMIN_PASSWORD is empty or left at
+  // Admin panel. Fail-closed: when ADMIN_PASSWORD is empty or left at
   // the placeholder, every /api/admin/* route returns 403 — no JWT, no user.
   ADMIN_USER: z.string().default('admin'),
   ADMIN_PASSWORD: z.string().default(''),
@@ -132,7 +132,7 @@ export const envSchema = z.object({
   OVERRIDES_PULL_TOKEN: z.string().optional(),
 });
 
-/** Sentinel password meaning "admin panel disabled". Mirrors archivum-null. */
+/** Sentinel password meaning "admin panel disabled". */
 export const ADMIN_PASSWORD_PLACEHOLDER = 'CHANGE_ME_IMMEDIATELY';
 
 /** Whether ADMIN_PASSWORD has been set to a real value. */

@@ -122,7 +122,7 @@ export async function rewriteSwapModeB(
 /**
  * Validate an AI-rewritten {description, steps} against the source. Returns
  * `true` when the output is safe to splice into the variant. Rejection rules
- * mirror the prompt-validator pattern from F14 translation work:
+ * mirror the prompt-validator pattern from translation work:
  *
  *  - Step count must match (AI must not add or drop steps).
  *  - No new digit sequences (no invented calories, weights, times).

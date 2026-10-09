@@ -160,8 +160,8 @@ export class FavoriteSetsService {
         // Budgets weight by the full slot set the day will have after apply
         // (the meals already there plus the set's slots), so each slot gets its
         // correct share of the per-day calorie target. `day.calorieTarget` is
-        // the per-day target the generator persisted — the same value F17 will
-        // override per day and F22's quantity rebalancer reads at edit time —
+        // the per-day target the generator persisted — the value a per-day
+        // override replaces and the quantity rebalancer reads at edit time —
         // so a set applied here lands inside the plan's calorie window via
         // `fitServings` instead of dumping a flat 1 serving of each recipe.
         const slotTypes = new Set<MealType>([
@@ -186,7 +186,7 @@ export class FavoriteSetsService {
           }
         }
 
-        // F17: applying a set to a skipped day un-skips it — it now has meals,
+        // Applying a set to a skipped day un-skips it — it now has meals,
         // so a lingering `skip` flag would misrender the day and exclude it from
         // the shopping list. Strip just that key, preserving the rest.
         const ov = day.overrides;

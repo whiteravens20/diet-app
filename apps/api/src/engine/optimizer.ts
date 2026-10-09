@@ -7,7 +7,7 @@
  * local-search refinement pass. Given the same inputs it always produces the
  * same plan — "regenerate" varies the plan by passing a different `seed`.
  *
- * Scoring balances (product principle #10):
+ * Scoring balances:
  *   calorie fit · ingredient reuse · variety · preference · complexity.
  */
 import type { DietType, Macros, MealType } from '@diet-app/shared';
@@ -23,12 +23,12 @@ export interface OptimizerRecipe {
   ingredientIds: string[];
   difficulty: 'easy' | 'medium' | 'hard';
   isFavorite: boolean;
-  /** Total prep + cook minutes — used by the F17 per-day cook-time budget. */
+  /** Total prep + cook minutes — used by the per-day cook-time budget. */
   totalMinutes: number;
 }
 
 /**
- * F17 per-day descriptor. The optimiser fills each day independently against
+ * Per-day descriptor. The optimiser fills each day independently against
  * its own slot set + calorie target, while cross-day state (ingredient reuse,
  * recent-use variety, per-slot caps, the variety floor) accumulates across the
  * whole window. A day with `skip` produces no meals.
@@ -40,7 +40,7 @@ export interface OptimizerDay {
   cookTimeBudgetMinutes?: number;
   /** Recipes pinned to slots before the greedy fill (the rest fills around them). */
   lockedSlots?: Array<{ slot: MealType; recipeId: string }>;
-  /** Per-day inventory-coverage map (F15 use-up-by); falls back to the plan map. */
+  /** Per-day inventory-coverage map (use-up-by); falls back to the plan map. */
   inventoryCoverage?: ReadonlyMap<string, number>;
   /** Produce no meals for this day. */
   skip?: boolean;
@@ -59,7 +59,7 @@ export interface OptimizerInput {
    */
   favoriteIngredientIds?: ReadonlySet<string>;
   /**
-   * F15 pantry-coverage map: `recipeId → [0..1]` share of the recipe's
+   * Pantry-coverage map: `recipeId → [0..1]` share of the recipe's
    * required ingredient mass already covered by the profile's inventory.
    * Caller pre-computes this from the inventory snapshot + recipe
    * requirements (the optimiser stays pure / unit-test friendly). Omitted or
@@ -76,7 +76,7 @@ export interface OptimizerInput {
   maxConsecutiveDaysSameMeal?: number;
   maxTimesPerWeekSameMeal?: number;
   /**
-   * F17 variety floor: the maximum number of times any one recipe may appear
+   * Variety floor: the maximum number of times any one recipe may appear
    * across the entire plan window (all days, all slots). Omitted = no floor.
    * A recipe at the cap is excluded from further slots; if that would empty a
    * slot's pool the cap is relaxed for that slot (better to repeat than fail).
@@ -123,7 +123,7 @@ const SCORE_WEIGHTS = {
   variety: 0.15,
   favorite: 0.1,
   favoriteIngredient: 0.08,
-  // F15: weighted equal to favorite (0.10) so a 100%-covered recipe and a
+  // Weighted equal to favorite (0.10) so a 100%-covered recipe and a
   // favourited recipe weigh comparably. Lower would let day-to-day variety
   // overrule the pantry; higher would risk monotony before the anti-monotony
   // reset triggers.
@@ -173,7 +173,7 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
   // consecutive-day caps. Keyed by slot so the same recipe can be eligible
   // in different slots without contention.
   const slotHistory = new Map<MealType, Array<{ day: number; recipeId: string }>>();
-  // F17 variety floor: total uses of a recipe across the whole window.
+  // Variety floor: total uses of a recipe across the whole window.
   const recipeUseCount = new Map<string, number>();
   // Generous defaults preserve pre-cap behaviour for any caller that doesn't
   // pass the new fields.
@@ -227,7 +227,7 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
       if (eligibleHere.length === 0) {
         throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`);
       }
-      // F17 cook-time budget: prefer recipes within the day's time cap; if that
+      // Cook-time budget: prefer recipes within the day's time cap; if that
       // empties the pool, fall back to all eligible (better to exceed the cap
       // than fail generation entirely — same philosophy as the variety caps).
       const budgetMinutes = spec.cookTimeBudgetMinutes;
@@ -365,7 +365,7 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   const complexityPenalty =
     ctx.mealPrepFriendly && recipe.difficulty === 'hard' ? 1 : recipe.difficulty === 'hard' ? 0.4 : 0;
 
-  // F15 pantry coverage. Pre-computed by the caller; omitted/empty map → 0.
+  // Pantry coverage. Pre-computed by the caller; omitted/empty map → 0.
   const inventoryCoverage = ctx.inventoryCoverage?.get(recipe.id) ?? 0;
 
   return (
@@ -380,7 +380,7 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
 }
 
 /**
- * F15 per-recipe coverage. Given the recipe's required mass per ingredient
+ * Per-recipe coverage. Given the recipe's required mass per ingredient
  * (in any unit the caller normalises to a single comparable scalar — usually
  * the ingredient's canonical unit) and the pantry's available mass for each
  * ingredient, returns the share of the recipe's required mass already on

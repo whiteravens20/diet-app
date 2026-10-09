@@ -67,7 +67,7 @@ export class RecipesController {
   }
 
   /**
-   * Draft a brand-new recipe from a free-form prompt (F20). AI proposes the
+   * Draft a brand-new recipe from a free-form prompt. AI proposes the
    * structure + ingredient choices; the deterministic engine recomputes
    * nutrition before persist. The recipe is private to the requester
    * (`origin='ai'` + owner-scoped privacy filter).

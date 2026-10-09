@@ -5,7 +5,7 @@ import type { WeightEntry, WeightEntryInput } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
- * F19 — per-profile weight log. The dashboard chart, 7-day moving average
+ * Per-profile weight log. The dashboard chart, 7-day moving average
  * and delta against the profile's target weight are all derived client-side
  * from the rows this service returns, so a corrected entry shows up
  * immediately without a server round-trip beyond the create/delete itself.

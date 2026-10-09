@@ -251,7 +251,7 @@ export class DraftsController {
     if (!parsed.success) {
       throw new BadRequestException({ error: 'INVALID_PATCH', message: parsed.error.message });
     }
-    // Any edit invalidates partial reviews (§3 invariant).
+    // Any edit invalidates partial reviews.
     const updated = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.ingredientNameDraft.findUnique({ where: { id } });
       if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
@@ -391,7 +391,7 @@ export class DraftsController {
    * Patch a recipe draft. `?dryRun=true` returns the recomputed shape without
    * persisting — the inline editor uses it for live nutrition feedback. A
    * persisted patch re-runs the engine recompute, re-tags complexity, and
-   * wipes existing localeReviews (PATCH invalidates partial reviews per §3).
+   * wipes existing localeReviews: an edit invalidates partial reviews.
    */
   @Patch('recipes/:id')
   async patchRecipeDraft(

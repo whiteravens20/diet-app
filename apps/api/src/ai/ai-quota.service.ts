@@ -8,7 +8,7 @@ import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
- * F10 monthly quota for `aiMode='admin'` users.
+ * Monthly quota for `aiMode='admin'` users.
  *
  * Counts AiUsageLog rows with `userId=<user>`, `mode='admin'` and
  * `createdAt >= NOW() - INTERVAL '30 days'`. `byok` and `none` callers don't
