@@ -20,6 +20,7 @@ const INGREDIENT = { id: 'ing-1', translations: [] };
 function makePrisma(owner: string | null = 'user-1', existing: Record<string, unknown> | null = null) {
   return {
     profile: { findUnique: vi.fn().mockResolvedValue(owner === null ? null : { userId: owner }) },
+    ingredient: { findUnique: vi.fn().mockResolvedValue({ id: 'ing-1' }) },
     inventoryItem: {
       findMany: vi.fn().mockResolvedValue([
         { id: 'i1', quantity: 200, unit: 'g', bestBefore: null, note: null, createdAt: new Date(), updatedAt: new Date(), ingredient: INGREDIENT },
@@ -71,6 +72,15 @@ describe('InventoryService.upsert aggregation', () => {
     await makeService(prisma).upsert('user-1', 'en', 'p1', { ingredientId: 'ing-1', quantity: 150, unit: 'g' } as never);
     expect(prisma.inventoryItem.create).toHaveBeenCalled();
     expect(prisma.inventoryItem.create.mock.calls[0][0].data.quantity).toBe(150);
+  });
+
+  it('refuses a new row for an ingredient that does not exist', async () => {
+    const prisma = makePrisma('user-1', null);
+    prisma.ingredient.findUnique = vi.fn().mockResolvedValue(null);
+    await expect(
+      makeService(prisma).upsert('user-1', 'en', 'p1', { ingredientId: 'gone', quantity: 150, unit: 'g' } as never),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
   });
 
   it('adds to the existing quantity when the row already exists', async () => {

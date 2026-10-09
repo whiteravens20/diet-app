@@ -41,6 +41,7 @@ export class InventoryService {
         },
       },
     });
+    if (!existing) await this.assertIngredient(body.ingredientId);
     const updated = existing
       ? await this.prisma.inventoryItem.update({
           where: { id: existing.id },
@@ -107,6 +108,16 @@ export class InventoryService {
 
   private trLocales(locale: Locale): string[] {
     return locale === 'en' ? ['en'] : [locale, 'en'];
+  }
+
+  private async assertIngredient(ingredientId: string): Promise<void> {
+    const ingredient = await this.prisma.ingredient.findUnique({
+      where: { id: ingredientId },
+      select: { id: true },
+    });
+    if (!ingredient) {
+      throw new NotFoundException({ error: 'INGREDIENT_NOT_FOUND', message: 'Ingredient not found.' });
+    }
   }
 
   private parseDate(iso: string | null | undefined): Date | null {
