@@ -85,14 +85,16 @@ jobs:
       # The stack is started the way the README says, from a freshly generated
       # .env, with the API's host port moved off its default: a setup that only
       # works on the defaults, or does not start at all, fails here.
-      - name: Build the image the Compose file describes
+      # Built directly, under the tag and with the build argument the Compose
+      # file gives the image: Compose's own build asks for host networking,
+      # which a CI runner does not grant.
+      - name: Build the image the Compose file runs
+        run: docker build -f infra/docker/Dockerfile --build-arg API_PROXY_URL=http://api:4000 -t diet-app:local .
+      - name: Boot the stack and reach the API directly and through the web proxy
         run: |
           sh scripts/init-env.sh
           sed -i 's/^API_PORT=.*/API_PORT=4100/' .env
-          docker compose --env-file .env -f infra/docker-compose.yml build
-      - name: Boot the stack and reach the API directly and through the web proxy
-        run: |
-          docker compose --env-file .env -f infra/docker-compose.yml up -d
+          docker compose --env-file .env -f infra/docker-compose.yml up -d --no-build
           for attempt in $(seq 1 60); do
             health() { docker inspect --format '{{.State.Health.Status}}' "$(docker compose --env-file .env -f infra/docker-compose.yml ps -q "$1")"; }
             if curl -fsS -o /dev/null http://localhost:4100/api/health \
@@ -111,7 +113,7 @@ jobs:
         run: |
           docker compose --env-file .env -f infra/docker-compose.yml down -v
           cp .env.example .env
-          docker compose --env-file .env -f infra/docker-compose.yml up -d
+          docker compose --env-file .env -f infra/docker-compose.yml up -d --no-build
           sleep 25
           if curl -fsS -o /dev/null http://localhost:4000/api/health; then
             echo "::error::The API started on the template's blank secrets."
