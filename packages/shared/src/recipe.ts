@@ -60,7 +60,7 @@ export const Recipe = z.object({
 export type Recipe = z.infer<typeof Recipe>;
 
 /**
- * Request to draft a new recipe (F20). Every preference field is optional —
+ * Request to draft a new recipe. Every preference field is optional —
  * an empty request lets the AI pick freely from the catalogue. There is no
  * free-text prompt field: user input is constrained to structured filters
  * so the model can't be prompt-injected, and the catalogue slug-resolution

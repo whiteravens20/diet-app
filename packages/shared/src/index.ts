@@ -5,7 +5,7 @@
  *
  * Every request/response shape crossing the network is a Zod schema here, with
  * its TypeScript type inferred from it. The web app imports these directly; the
- * Android app mirrors them (see docs/contracts in the Android repo). Changing a
+ * Android app mirrors them. Changing a
  * schema is a contract change — bump it deliberately.
  */
 export * from './enums.js';

@@ -78,7 +78,7 @@ export const AiProvider = z.enum(['openai', 'anthropic', 'openrouter', 'ollama']
 export type AiProvider = z.infer<typeof AiProvider>;
 
 /**
- * Cuisine hint for the AI recipe drafter (F20). Soft preference — when set
+ * Cuisine hint for the AI recipe drafter. Soft preference — when set
  * the prompt biases the model toward that cuisine, but the model can fall
  * back to any catalogue ingredient when the cuisine + diet + meal-type
  * intersection is too narrow.

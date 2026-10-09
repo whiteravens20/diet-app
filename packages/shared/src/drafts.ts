@@ -4,7 +4,7 @@
  * Curation queue contracts.
  *
  * Drafts are the AI-proposed / human-approved staging area for recipes and
- * ingredient-name overrides. See [docs/adr/0008-curation-queue.md]. The
+ * ingredient-name overrides. The
  * invariant is **AI proposes → human approves in-app → PR ships to data/*.json
  * → re-seed lands in DB** — these schemas describe every payload that crosses
  * the wire along that path.

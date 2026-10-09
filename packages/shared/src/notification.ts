@@ -3,7 +3,7 @@
 import { z } from 'zod';
 
 /**
- * F19 — device-agnostic notification surface.
+ * Device-agnostic notification surface.
  *
  * The web client polls `GET /notifications/unread` and renders a toast +
  * bell-icon counter. The future Android app (separate repo) reads the same

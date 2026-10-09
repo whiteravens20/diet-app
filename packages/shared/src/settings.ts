@@ -42,7 +42,7 @@ export const Palette = z.enum([
 export type Palette = z.infer<typeof Palette>;
 
 /**
- * Per-user AI mode (F10):
+ * Per-user AI mode:
  * - `none`  — every AI feature falls back to the deterministic engine and no
  *             provider call ever leaves the instance.
  * - `admin` — the user borrows the operator's configured provider

@@ -3,7 +3,7 @@
 import { z } from 'zod';
 
 /**
- * F19 — per-profile weight log + reminder cadence.
+ * Per-profile weight log + reminder cadence.
  *
  * Raw entries land on the client; the dashboard derives the 90-day trend
  * line, the 7-day moving average and the delta against `Profile.weightKg`

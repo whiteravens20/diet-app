@@ -31,7 +31,7 @@ export const ShoppingListItem = z.object({
   /** totalQuantity - alreadyHaveQuantity, floored at 0. */
   toBuyQuantity: z.number().min(0),
   /**
-   * F15.1 single user-facing quantity: how much the user has obtained for this
+   * Single user-facing quantity: how much the user has obtained for this
    * row, counting the pantry pre-credit. Null until first edit. Row auto-checks
    * when `purchasedQuantity >= totalQuantity`. Over-buy (purchased > total) is
    * banked as leftover in the pantry on check-off; the pantry pre-credit is

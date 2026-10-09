@@ -8,11 +8,11 @@ import { Macros, Nutrition } from './nutrition.js';
 import { Recipe } from './recipe.js';
 
 /**
- * F17 advanced per-day override. Sparse on purpose: every field is optional and
+ * Advanced per-day override. Sparse on purpose: every field is optional and
  * an untouched day sends nothing — the generator falls back to the plan-level
  * defaults. `dayType` carries semantic meaning for the dashboard/stats and for
- * F22's rebalancer; `useUpBy` biases that day toward recipes that consume
- * expiring inventory (F15 compose); `lockedSlots` pins a recipe to a slot before
+ * the rebalancer; `useUpBy` biases that day toward recipes that consume
+ * expiring inventory; `lockedSlots` pins a recipe to a slot before
  * generating so the rest of the day optimises around it.
  */
 export const DayOverride = z.object({
@@ -23,11 +23,11 @@ export const DayOverride = z.object({
   skip: z.boolean().optional(),
   /** Override the daily calorie target for this day (refeed / rest periodisation). */
   calorieTarget: z.number().int().min(800).max(6000).optional(),
-  /** Semantic tag so a calorie override carries intent (read by F22 + stats). */
+  /** Semantic tag so a calorie override carries intent (read by the rebalancer and stats). */
   dayType: z.enum(['normal', 'rest', 'training']).optional(),
   /** Hard cap on a recipe's prep+cook minutes for this day (busy weekdays). */
   cookTimeBudgetMinutes: z.number().int().min(0).max(600).optional(),
-  /** F15: bias this day toward recipes that use inventory expiring by this date. */
+  /** Bias this day toward recipes that use inventory expiring by this date. */
   useUpBy: z.boolean().optional(),
   /** Pin recipes to slots before generating; the rest of the day fills around them. */
   lockedSlots: z
@@ -52,7 +52,7 @@ export const GeneratePlanRequest = z.object({
   /** Bias the optimiser toward recipes built from the profile's favourites. */
   respectFavorites: z.boolean().default(true),
   /**
-   * F15 bias the optimiser toward recipes the profile's inventory can cover.
+   * Bias the optimiser toward recipes the profile's inventory can cover.
    * Default true; auto-no-ops when the pantry is empty so users without
    * inventory see no change. The anti-monotony reset (every N consecutive
    * biased rounds, see Profile.inventoryBiasResetEvery) drops the bias for
@@ -60,12 +60,12 @@ export const GeneratePlanRequest = z.object({
    */
   respectInventory: z.boolean().default(true),
   /**
-   * F17 variety floor: max total times any one recipe may appear across the
+   * Variety floor: max total times any one recipe may appear across the
    * whole plan window. Omitted = no floor. Persisted on the plan so
    * `regenerate` re-applies it.
    */
   maxRepeatsPerRecipe: z.number().int().min(1).max(28).optional(),
-  /** F17 per-day advanced overrides (sparse — untouched days are omitted). */
+  /** Per-day advanced overrides (sparse — untouched days are omitted). */
   dayOverrides: z.array(DayOverride).optional(),
 });
 export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
@@ -74,20 +74,20 @@ export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
 export const PlannedMeal = z.object({
   id: z.string().uuid(),
   mealType: MealType,
-  /** Null for an F22 user-authored custom meal (it carries no catalogue recipe). */
+  /** Null for a user-authored custom meal (it carries no catalogue recipe). */
   recipe: Recipe.nullable(),
-  /** F22 `CATALOGUE` = from the recipe library; `USER_CUSTOM` = user-authored. */
+  /** `CATALOGUE` = from the recipe library; `USER_CUSTOM` = user-authored. */
   source: z.enum(['CATALOGUE', 'USER_CUSTOM']),
   /** Display name for a custom meal (null for catalogue meals — use the recipe). */
   customName: z.string().nullable(),
   /** Baseline servings assigned to this slot (before the rebalancer multiplier). */
   servings: z.number().min(0.25),
-  /** F22 rebalancer multiplier; effective amount = servings * quantityScale. */
+  /** Rebalancer multiplier; effective amount = servings * quantityScale. */
   quantityScale: z.number(),
-  /** F22 mark-eaten timestamp, or null. An eaten meal is pinned from rebalancing. */
+  /** Mark-eaten timestamp, or null. An eaten meal is pinned from rebalancing. */
   eatenAt: z.string().datetime().nullable(),
   /**
-   * F22(a): true when the user swapped in a favourite that does not match the
+   * True when the user swapped in a favourite that does not match the
    * plan's diet type. Derived (recipe.dietTags omits plan.dietType); the UI
    * shows a chip so the dashboard "% on-diet" stat stays honest.
    */
@@ -97,9 +97,9 @@ export const PlannedMeal = z.object({
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
 /**
- * The F17 advanced overrides as surfaced on a generated day (the `date` is
+ * The advanced overrides as surfaced on a generated day (the `date` is
  * already on the day row, so it's omitted here). Null when the day used the
- * basic flow. F22 reads `dayType`; the UI renders the rest.
+ * basic flow. The rebalancer reads `dayType`; the UI renders the rest.
  */
 export const MealPlanDayOverrides = DayOverride.omit({ date: true });
 export type MealPlanDayOverrides = z.infer<typeof MealPlanDayOverrides>;
@@ -113,7 +113,7 @@ export const MealPlanDay = z.object({
   calorieTarget: z.number(),
   /** Signed delta vs. target — positive means over budget. */
   calorieDelta: z.number(),
-  /** F17 advanced per-day overrides, or null for a basic-flow day. */
+  /** Advanced per-day overrides, or null for a basic-flow day. */
   overrides: MealPlanDayOverrides.nullable(),
 });
 export type MealPlanDay = z.infer<typeof MealPlanDay>;
@@ -148,10 +148,10 @@ export const SwapMealRequest = z.object({
    */
   strategy: z.enum(['random', 'favorite', 'favorite_ingredients']),
   favoriteRecipeId: z.string().uuid().optional(),
-  /** F15 bias the swap candidate pool toward recipes the pantry covers. */
+  /** Bias the swap candidate pool toward recipes the pantry covers. */
   respectInventory: z.boolean().default(true),
   /**
-   * F22(a) "show all my favourites": drop the diet-type filter on the candidate
+   * "show all my favourites": drop the diet-type filter on the candidate
    * pool. Allergens + meal-type stay enforced. The resulting meal is flagged
    * `dietOverride` so the dashboard on-diet stat stays honest.
    */
@@ -160,7 +160,7 @@ export const SwapMealRequest = z.object({
 export type SwapMealRequest = z.infer<typeof SwapMealRequest>;
 
 /**
- * Request to AI-rank a meal swap (F20). Body-only; URL carries `planId` and
+ * Request to AI-rank a meal swap. Body-only; URL carries `planId` and
  * `plannedMealId`. The engine builds the candidate set deterministically and
  * AI picks one — never the other way around (nutrition is never invented).
  */
@@ -173,7 +173,7 @@ export const AiSwapMealRequest = z.object({
    * Capped to keep the prompt cost predictable.
    */
   hint: z.string().trim().max(200).optional(),
-  /** F15 bias the AI-ranked candidate pool toward pantry-covering recipes. */
+  /** Bias the AI-ranked candidate pool toward pantry-covering recipes. */
   respectInventory: z.boolean().default(true),
 });
 export type AiSwapMealRequest = z.infer<typeof AiSwapMealRequest>;
@@ -198,7 +198,7 @@ export const SwapIngredientRequest = z.object({
 export type SwapIngredientRequest = z.infer<typeof SwapIngredientRequest>;
 
 /**
- * Request to AI-rank a replacement ingredient (F20). The engine builds the
+ * Request to AI-rank a replacement ingredient. The engine builds the
  * candidate pool — same category as the source line, diet/allergen-safe — and
  * AI picks one. The UI then runs the existing preview/apply pipeline on the
  * AI's pick, so nutrition is recomputed by the engine end-to-end.
@@ -209,7 +209,7 @@ export const AiSuggestIngredientRequest = z.object({
   fromIngredientId: z.string().uuid(),
   /** Optional free-form user hint, e.g. *"cheaper"*, *"higher protein"*. */
   hint: z.string().trim().max(200).optional(),
-  /** F15 bias the AI-ranked candidate pool toward ingredients in the pantry. */
+  /** Bias the AI-ranked candidate pool toward ingredients in the pantry. */
   respectInventory: z.boolean().default(true),
 });
 export type AiSuggestIngredientRequest = z.infer<typeof AiSuggestIngredientRequest>;
@@ -240,10 +240,10 @@ export const SwapPreview = z.object({
 });
 export type SwapPreview = z.infer<typeof SwapPreview>;
 
-// ── F22 flexible meal plans ─────────────────────────────────────────────────
+// ── Flexible meal plans ─────────────────────────────────────────────────
 
 /**
- * F22(b) add a user-authored custom meal to a day. The user owns the macros —
+ * Add a user-authored custom meal to a day. The user owns the macros —
  * we don't recompute them from an ingredient list, because a custom meal has
  * none. `nutrition` is frozen on the row as entered.
  */
@@ -258,7 +258,7 @@ export const AddCustomMealRequest = z.object({
 export type AddCustomMealRequest = z.infer<typeof AddCustomMealRequest>;
 
 /**
- * F22(c) explicit rebalance trigger. `day` rebalances the single date; `week`
+ * Explicit rebalance trigger. `day` rebalances the single date; `week`
  * shares the surplus/deficit across the plan week. `restore` is the undo path:
  * when present the service writes those exact scales verbatim and skips the
  * solver (the toast's "Undo last rebalance" sends the pre-edit `before` map).
@@ -282,7 +282,7 @@ export const RebalanceChange = z.object({
 export type RebalanceChange = z.infer<typeof RebalanceChange>;
 
 /**
- * Envelope returned by every F22 edit that may rebalance (swap, custom-add,
+ * Envelope returned by every edit that may rebalance (swap, custom-add,
  * eaten toggle, explicit rebalance). Carries the updated plan plus the rebalance
  * summary the UI renders as a toast (macro delta + per-meal scale) and uses to
  * offer "Undo last rebalance" via `changes[].before`.

@@ -32,7 +32,7 @@ export const ProfilePreferences = z.object({
    */
   maxTimesPerWeekSameMeal: z.number().int().min(1).max(7).default(3),
   /**
-   * F15.1 anti-monotony rotation threshold. After this many consecutive
+   * Anti-monotony rotation threshold. After this many consecutive
    * plan-level generations actually applied the inventory bias, the next
    * round drops the pantry preference and the counter resets — keeps a
    * leftover-heavy month from locking the user into one recipe corridor.
@@ -56,7 +56,7 @@ export const ProfileInput = z.object({
   manualCalorieTarget: z.number().int().min(800).max(6000).nullable().default(null),
   /** Default meal count (2-5) for new plans. */
   mealCount: z.number().int().min(2).max(5).default(3),
-  /** F19 — how often the background worker should nudge to log a weight. */
+  /** How often the background worker should nudge to log a weight. */
   weightReminderCadence: WeightReminderCadence.default('weekly'),
   preferences: ProfilePreferences.default({
     favoriteIngredientIds: [],
