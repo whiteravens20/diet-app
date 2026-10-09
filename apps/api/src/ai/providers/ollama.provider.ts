@@ -25,6 +25,32 @@ import {
  */
 const OLLAMA_DEADLINE_MS = 60_000;
 
+/**
+ * The largest response body that is read. An admin batch of recipes is a few
+ * hundred kilobytes; an endpoint that sends more is not answering the prompt,
+ * and the body is not buffered beyond this.
+ */
+const MAX_RESPONSE_BYTES = 2_000_000;
+
+/** The response body as text, or an error once it grows past `maxBytes`. */
+async function readCapped(res: Response, maxBytes: number): Promise<string> {
+  if (!res.body) return '';
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      await reader.cancel();
+      throw new AiProviderError('ollama', `Ollama sent more than ${maxBytes} bytes; the reply was discarded.`, false);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 interface OllamaChatResponse {
   message?: { content?: string };
   prompt_eval_count?: number;
@@ -60,7 +86,7 @@ export class OllamaProvider implements AiProviderAdapter {
           res.status >= 500,
         );
       }
-      const body = (await res.json()) as OllamaChatResponse;
+      const body = JSON.parse(await readCapped(res, MAX_RESPONSE_BYTES)) as OllamaChatResponse;
       return {
         text: body.message?.content ?? '',
         promptTokens: body.prompt_eval_count ?? 0,
