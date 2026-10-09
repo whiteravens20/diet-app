@@ -311,7 +311,8 @@
     "weight_reminder": {
       "withHistory": "Time to log your weight — {days, plural, one {it's been 1 day} other {it's been # days}}.",
       "noHistory": "Log your first weight to start your trend chart."
-    }
+    },
+    "preferences_review": "Some ingredients or recipes you had marked are no longer in the catalogue. Check your avoided and favourite ingredients and your favourite sets."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -381,7 +382,7 @@
     "loadStatsFailed": "Failed to load stats.",
     "lostConnection": "Lost connection to API.",
     "updateFailed": "Update failed.",
-    "updatedSummary": "Updated {when} · removed {recipes} stale recipes + {ingredients} unused ingredients · now {newIngredients} ingredients / {newRecipes} recipes.",
+    "updatedSummary": "Updated {when} · removed {recipes} recipes and {ingredients} ingredients that nothing used · hid {retiredRecipes} recipes and {retiredIngredients} ingredients that are still in use · now {newIngredients} ingredients / {newRecipes} recipes.",
     "stages": {
       "starting": "Starting…",
       "pruneRecipes": "Removing stale recipes…",

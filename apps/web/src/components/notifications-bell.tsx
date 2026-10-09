@@ -68,6 +68,7 @@ export function NotificationsBell() {
         ? tBody('withHistory', { days })
         : tBody('noHistory');
     }
+    if (n.type === 'preferences_review') return t('preferences_review');
     return n.type;
   }
 

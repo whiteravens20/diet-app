@@ -311,7 +311,8 @@
     "weight_reminder": {
       "withHistory": "Czas zważyć się — minął {days, plural, one {1 dzień} few {# dni} many {# dni} other {# dnia}}.",
       "noHistory": "Dodaj pierwszy wpis wagi, aby uruchomić wykres trendu."
-    }
+    },
+    "preferences_review": "Części składników lub przepisów, które były u Ciebie oznaczone, nie ma już w katalogu. Sprawdź unikane i ulubione składniki oraz zestawy ulubionych."
   },
   "dashboard": {
     "title": "Panel",
@@ -381,7 +382,7 @@
     "loadStatsFailed": "Nie udało się wczytać statystyk.",
     "lostConnection": "Utracono połączenie z API.",
     "updateFailed": "Aktualizacja nie powiodła się.",
-    "updatedSummary": "Zaktualizowano {when} · usunięto {recipes} przestarzałych przepisów + {ingredients} nieużywanych składników · obecnie {newIngredients} składników / {newRecipes} przepisów.",
+    "updatedSummary": "Zaktualizowano {when} · usunięto przepisy ({recipes}) i składniki ({ingredients}), z których nic nie korzystało · ukryto przepisy ({retiredRecipes}) i składniki ({retiredIngredients}), które są nadal w użyciu · obecnie {newIngredients} składników / {newRecipes} przepisów.",
     "stages": {
       "starting": "Uruchamianie…",
       "pruneRecipes": "Usuwanie przestarzałych przepisów…",

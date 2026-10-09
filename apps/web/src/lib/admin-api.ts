@@ -90,6 +90,9 @@ export interface AdminStats {
 export interface DbUpdateResult {
   deletedRecipes: number;
   deletedIngredients: number;
+  /** Dropped from the data but still used by someone: kept, hidden from search and planning. */
+  retiredRecipes: number;
+  retiredIngredients: number;
   counts: { ingredients: number; recipes: number; substitutions: number };
   hash: string;
   seededAt: string;

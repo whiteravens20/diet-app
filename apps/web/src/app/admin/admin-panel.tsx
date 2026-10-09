@@ -83,6 +83,8 @@ export function AdminPanel() {
             when: new Date(r.seededAt).toLocaleString(),
             recipes: r.deletedRecipes,
             ingredients: r.deletedIngredients,
+            retiredRecipes: r.retiredRecipes,
+            retiredIngredients: r.retiredIngredients,
             newIngredients: r.counts.ingredients,
             newRecipes: r.counts.recipes,
           }),
