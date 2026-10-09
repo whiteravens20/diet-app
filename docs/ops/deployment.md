@@ -33,7 +33,8 @@ Profiles gate optional services: `--profile ollama` (local AI), `--profile proxy
 ## Quick start
 
 ```bash
-cp .env.example .env            # then edit secrets — incl. ADMIN_PASSWORD
+sh scripts/init-env.sh          # writes .env with freshly generated secrets
+#                                 then set ADMIN_PASSWORD in it
 docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 ```
 

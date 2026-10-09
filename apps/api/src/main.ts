@@ -7,7 +7,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { SWAGGER_PATH, configureApp } from './app.setup.js';
-import type { Env } from './config/env.js';
+import { describePosture, type Env } from './config/env.js';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -32,6 +32,19 @@ async function bootstrap(): Promise<void> {
   const port = config.get('API_PORT', { infer: true });
   await app.listen(port, '0.0.0.0');
   Logger.log(`Diet App API listening on :${port}`, 'Bootstrap');
+  const posture = describePosture({
+    NODE_ENV: config.get('NODE_ENV', { infer: true }),
+    APP_URL: config.get('APP_URL', { infer: true }),
+    ADMIN_PASSWORD: config.get('ADMIN_PASSWORD', { infer: true }),
+    SMTP_HOST: config.get('SMTP_HOST', { infer: true }),
+    SMTP_PORT: config.get('SMTP_PORT', { infer: true }),
+    AI_DEFAULT_PROVIDER: config.get('AI_DEFAULT_PROVIDER', { infer: true }),
+    SWAGGER_ENABLED: config.get('SWAGGER_ENABLED', { infer: true }),
+  });
+  for (const line of posture) {
+    if (line.startsWith('!')) Logger.warn(line.slice(1).trim(), 'Posture');
+    else Logger.log(line, 'Posture');
+  }
 }
 
 void bootstrap();

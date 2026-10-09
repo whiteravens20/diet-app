@@ -50,7 +50,7 @@ PostgreSQL holds the accounts, profiles, plans and the curated data. E-mail addr
 ```bash
 git clone https://github.com/whiteravens20/diet-app
 cd diet-app
-cp .env.example .env          # then edit secrets
+sh scripts/init-env.sh        # writes .env with freshly generated secrets
 ```
 
 ## Run

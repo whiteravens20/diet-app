@@ -87,7 +87,7 @@ Contributions we will **not accept**:
 ### Local start
 
 ```bash
-cp .env.example .env            # then fill in the secrets
+sh scripts/init-env.sh          # writes .env with freshly generated secrets
 npm install
 npm run db:generate             # Prisma client; install scripts are off, so it is not generated for you
 
@@ -100,14 +100,13 @@ npm run dev                     # web on http://localhost:3000, API on http://lo
 
 ### Environment variables
 
-Every variable is listed in [`docs/ops/env-reference.md`](docs/ops/env-reference.md) and validated at start-up by [`apps/api/src/config/env.ts`](apps/api/src/config/env.ts); the API refuses to boot on an invalid value.
+Every variable is listed in [`docs/ops/env-reference.md`](docs/ops/env-reference.md) and validated at start-up by [`apps/api/src/config/env.ts`](apps/api/src/config/env.ts); the API refuses to boot on an invalid value, and on a secret that is a template placeholder or too short to be random. A key left blank counts as not set.
 
 Security-sensitive variables (never commit these):
 
 ```
 POSTGRES_PASSWORD=
 JWT_ACCESS_SECRET=
-JWT_REFRESH_SECRET=
 AI_KEY_ENCRYPTION_SECRET=
 DATA_ENCRYPTION_SECRET=
 ADMIN_PASSWORD=

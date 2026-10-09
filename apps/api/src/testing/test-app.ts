@@ -32,7 +32,6 @@ function environment(modelUrl: string): Record<string, string> {
     APP_URL: 'http://localhost:3000',
     DATABASE_URL: testDatabaseUrl(),
     JWT_ACCESS_SECRET: 'integration-test-access-secret-0123456789',
-    JWT_REFRESH_SECRET: 'integration-test-refresh-secret-0123456789',
     AI_KEY_ENCRYPTION_SECRET: 'a1'.repeat(32),
     DATA_ENCRYPTION_SECRET: 'b2'.repeat(32),
     // The lowest cost the schema accepts: hashing speed is not under test.

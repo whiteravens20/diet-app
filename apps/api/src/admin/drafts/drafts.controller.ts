@@ -46,6 +46,7 @@ import {
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Env } from '../../config/env.js';
+import { deriveKey } from '../../common/crypto.js';
 import { BasicAuthGuard } from '../basic-auth.guard.js';
 import { deriveDraftStatus } from './derive-status.js';
 import {
@@ -894,7 +895,7 @@ export class DraftsController {
   private bundleSecret(): string {
     const explicit = this.config.get('SHIP_DOWNLOAD_TOKEN_SECRET', { infer: true });
     if (explicit && explicit.length > 0) return explicit;
-    return this.config.get('JWT_ACCESS_SECRET', { infer: true })!;
+    return deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'bundle-download');
   }
 
   private async upsertIngredientReview(

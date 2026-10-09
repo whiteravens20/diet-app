@@ -28,9 +28,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   validate(payload: AccessTokenPayload): RequestUser {
     // Only a genuine user access token may authenticate here. The reviewer-
-    // session cookie is a JWT signed with the same secret (when
-    // REVIEWER_SESSION_SECRET is unset it falls back to JWT_ACCESS_SECRET) but
-    // carries `kind: 'reviewer'` and no `sub`. Without this guard such a token
+    // session cookie is a JWT too; it is signed with its own key and carries
+    // `kind: 'reviewer'` and no `sub`. Should the two keys ever be configured
+    // to the same value, without this guard such a token
     // would pass signature + expiry checks and `validate` would return
     // `{ id: undefined }` — authenticating as a phantom user. A downstream
     // `where: { userId: undefined }` then matches *every* row (Prisma treats

@@ -118,7 +118,7 @@ rsync -a old-server:/srv/diet-app/instance-data/ ./instance-data/
 #    or: git clone git@github.com:you/my-diet-app-data.git instance-data
 
 # 2. Boot the new stack with the same INSTANCE_DATA_DIR pointing at it
-cp .env.example .env       # then set INSTANCE_DATA_DIR=instance-data
+sh scripts/init-env.sh     # then set INSTANCE_DATA_DIR=instance-data in .env
 docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 
 # 3. Apply the canonical baseline

@@ -27,14 +27,16 @@
 # release tag and only bump it after testing.
 #
 # ──────────────────────────────────────────────────────────────────────────────
-# `.env` essentials — these MUST be set before first boot:
+# `.env` essentials — these MUST be set before first boot. The API refuses to
+# start on a secret that is blank, a template placeholder or too short:
 #   POSTGRES_PASSWORD          strong random value
 #   JWT_ACCESS_SECRET          openssl rand -hex 32
-#   JWT_REFRESH_SECRET         openssl rand -hex 32
 #   AI_KEY_ENCRYPTION_SECRET   openssl rand -hex 32
 #   DATA_ENCRYPTION_SECRET     openssl rand -hex 32  (NEVER change after first boot — existing accounts become unreadable)
 #   ADMIN_PASSWORD             strong random value (admin panel auth)
 #   APP_URL / API_URL          public origins your reverse proxy serves
+# `sh scripts/init-env.sh` in a checkout of the repository writes a `.env` with
+# the three secrets generated.
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: diet-app

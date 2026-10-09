@@ -13,20 +13,22 @@
  */
 import type { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
+import { deriveKey } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
 
 export const REVIEWER_COOKIE_NAME = 'reviewer_session';
 
 /**
- * Secret the reviewer cookie is signed/verified with. Prefers the dedicated
- * REVIEWER_SESSION_SECRET; falls back to JWT_ACCESS_SECRET when an operator
- * hasn't configured a separate one (acceptable for single-secret deployments,
- * but a distinct secret keeps reviewer auth independent of user-access auth).
+ * Secret the reviewer cookie is signed and verified with: the dedicated
+ * REVIEWER_SESSION_SECRET, or a key derived from the data secret when the
+ * operator has not set one. Either way it is never the key of user access
+ * tokens, so a reviewer cookie cannot pass as one and neither secret leaks the
+ * other.
  */
 export function resolveReviewerSecret(config: ConfigService<Env, true>): string {
   return (
     config.get('REVIEWER_SESSION_SECRET', { infer: true }) ??
-    config.get('JWT_ACCESS_SECRET', { infer: true })
+    deriveKey(config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'reviewer-session')
   );
 }
 /** 7 days, in seconds. */
