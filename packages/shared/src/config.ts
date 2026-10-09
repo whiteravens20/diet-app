@@ -22,7 +22,8 @@ export type OllamaUserPolicy = z.infer<typeof OllamaUserPolicy>;
  * non-secret operator choices so the front-end can self-configure at runtime
  * (no `NEXT_PUBLIC_*` rebuild): whether to render the Turnstile widget and which
  * site key to use, whether email-driven flows (verification, email change) are
- * available, and whether users may bring their own Ollama host.
+ * available, whether users may bring their own Ollama host, and what the
+ * operator publishes about the instance.
  */
 export const PublicConfig = z.object({
   turnstile: z.object({
@@ -34,6 +35,14 @@ export const PublicConfig = z.object({
   }),
   ai: z.object({
     ollamaUserPolicy: OllamaUserPolicy,
+  }),
+  instance: z.object({
+    /** Where the "support us" link points; null means the project's own page. */
+    supportUrl: z.string().url().nullable(),
+    /** How to reach whoever runs this instance; null when they published nothing. */
+    operatorContact: z.string().nullable(),
+    /** The running version: the package version unless the operator set another label. */
+    version: z.string(),
   }),
 });
 export type PublicConfig = z.infer<typeof PublicConfig>;

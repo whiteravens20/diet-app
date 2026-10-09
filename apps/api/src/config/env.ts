@@ -88,6 +88,15 @@ export const envSchema = z.object({
   RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).max(3_600).default(60),
   RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1_000_000).default(120),
 
+  // What the operator publishes about the instance. Served by GET /api/config,
+  // so a change takes effect on restart, without rebuilding the web app.
+  // Where the footer's "support us" link points; unset uses the project's page.
+  SUPPORT_URL: z.string().url().optional(),
+  // An e-mail address shown on the terms page; unset shows that none was published.
+  OPERATOR_CONTACT: z.string().email().max(200).optional(),
+  // Version label shown in the footer; unset uses the package version.
+  APP_VERSION: z.string().max(40).optional(),
+
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(587),
   SMTP_USER: z.string().optional(),

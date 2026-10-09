@@ -123,9 +123,6 @@ describe('the shipped .env.example', () => {
       'POSTGRES_DB',
       'WEB_PORT',
       'IMAGE_TAG',
-      'NEXT_PUBLIC_SUPPORT_URL',
-      'NEXT_PUBLIC_OPERATOR_CONTACT',
-      'NEXT_PUBLIC_APP_VERSION',
     ]);
     const known = new Set(Object.keys(envSchema.shape));
     expect(Object.keys(template()).filter((key) => !known.has(key) && !elsewhere.has(key))).toEqual([]);

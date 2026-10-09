@@ -75,6 +75,15 @@ See [curation-shipping.md](curation-shipping.md) for the three ship modes.
 | `OVERRIDES_PULL_SOURCE` | `whiteravens20/diet-app` | Default repository (`owner/repo[@branch]`) or raw URL the admin panel pulls ingredient name overrides from. |
 | `OVERRIDES_PULL_TOKEN` | `SHIP_UPSTREAM_GH_TOKEN` | Token for pulling from a private GitHub repository. Sent to GitHub hosts only. |
 
+## What the instance publishes
+Served by `GET /api/config` and read by the web app at run time.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SUPPORT_URL` | the project's page | Where the footer's "Support us" link points. |
+| `OPERATOR_CONTACT` | *(none)* | E-mail address of whoever runs the instance, shown on the terms page. |
+| `APP_VERSION` | the package version | Version label in the footer. |
+
 ## Web
 | Variable | Default | Purpose |
 |---|---|---|
