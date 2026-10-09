@@ -2,7 +2,7 @@ name: Forbidden Paths
 
 # Rejects PRs that touch paths that should never reach this repo:
 #   - `instance-data/`   — operator-private curation-queue sidecar files
-#     (per ADR-0008 storage config — local-mode ship writes here, gitignored).
+#     (the local ship mode writes here; gitignored).
 #   - `data/ingredients.generated.json` — USDA-importer output, per-instance.
 #   - any `*.env` file other than `.env.example`.
 #   - any compiled/build artefact under `dist/`, `build/`, `.next/`.

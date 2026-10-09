@@ -30,7 +30,7 @@ environment fails fast with a clear message.
 | `FDC_API_KEY` | `DEMO_KEY` | USDA importer key — see [ops/deployment.md](deployment.md). |
 | `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC dataTypes. Default ≈ 340 clean generic foods. Adding `SR Legacy` swells the corpus to ~7 k, but most additions are brand SKUs or hyper-specific cuts that pollute template-generated recipes — see [data/README.md](../../data/README.md#choosing-fdc_data_types). |
 
-## Admin (F16)
+## Admin
 | `ADMIN_USER` | `admin` | Basic-auth username for `/admin` + `/api/admin/*`. |
 | `ADMIN_PASSWORD` | `` *(empty)* | Required to enable the panel. Empty or `CHANGE_ME_IMMEDIATELY` → every admin route returns 403 (fail-closed). |
 

@@ -66,7 +66,7 @@ services:
   #
   # We mount the volume at `/target` (a non-/app/data path) so the image's
   # baked-in files are visible, then copy curated JSON in — always
-  # overwriting, because curated data is image-owned (see docs/adr/0007).
+  # overwriting, because curated data is image-owned.
   # The user-owned `ingredients.generated.json` (USDA importer output) is
   # left alone. Final chown gives the `node` user (uid 1000) in api / worker
   # write access for the USDA importer.
@@ -137,12 +137,12 @@ services:
       # propagate); the USDA importer writes `ingredients.generated.json`
       # here at runtime and that file survives container recreates.
       - app-data:/app/data
-      # Curation-queue sidecar files (Phase E). The local-mode ship runner
+      # Curation-queue sidecar files. The local-mode ship runner
       # writes AI-drafted recipes / ingredient overrides here as
       # operator-controlled backups. Named volume by default — for
       # private-repo-backed storage, override the volume in
       # docker-compose.override.yml with a host bind-mount pointing at
-      # your private repo's working tree (see ADR-0008 storage config B).
+      # your private repo's working tree.
       - instance-data:/app/instance-data
       # No `ports:` block — the API is reached by `web` over the internal Docker
       # network at `http://api:4000`, never from the public internet. If you
@@ -237,8 +237,7 @@ volumes:
   # importer. Internal to the Docker engine — no host directory needed.
   # Inspect via `docker run --rm -v diet-app_app-data:/data alpine ls /data`.
   app-data:
-  # Curation-queue sidecar files (Phase E local-mode ship target). Operator
-  # may override with a host bind-mount for git-tracked backups; see
-  # ADR-0008 storage config B. Inspect via
+  # Curation-queue sidecar files, written by the local ship mode. Operator
+  # may override with a host bind-mount for git-tracked backups. Inspect via
   # `docker run --rm -v diet-app_instance-data:/data alpine ls /data`.
   instance-data:

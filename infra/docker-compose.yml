@@ -96,7 +96,7 @@ services:
       # survives container recreates and is visible to the host (and to
       # the worker, which shares the same mount).
       - ../data:/app/data
-      # Curation-queue sidecar files (Phase E). The local-mode ship runner
+      # Curation-queue sidecar files. The local-mode ship runner
       # writes approved AI-drafted recipes / ingredient overrides here as
       # operator-controlled backups. A named volume (not a host bind-mount) so
       # Docker manages ownership: the image creates /app/instance-data
