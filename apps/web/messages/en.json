@@ -406,7 +406,7 @@
     },
     "curation": {
       "title": "Curation queue",
-      "explain": "AI proposes friendly names for USDA ingredients; you approve, edit, or reject. Approved rows ship via PR (Phase E).",
+      "explain": "AI proposes friendly names for USDA ingredients; you approve, edit, or reject. Approved rows ship via PR.",
       "generate": "Generate drafts",
       "running": "Generating… {processed}/{total}",
       "lastRun": "Last run: wrote {written}, skipped {failed}",

@@ -406,7 +406,7 @@
     },
     "curation": {
       "title": "Kolejka kuratorska",
-      "explain": "AI proponuje przyjazne nazwy dla składników USDA; Ty akceptujesz, edytujesz lub odrzucasz. Zatwierdzone wiersze są wysyłane przez PR (Faza E).",
+      "explain": "AI proponuje przyjazne nazwy dla składników USDA; Ty akceptujesz, edytujesz lub odrzucasz. Zatwierdzone wiersze są wysyłane przez PR.",
       "generate": "Wygeneruj propozycje",
       "running": "Generuję… {processed}/{total}",
       "lastRun": "Ostatnie uruchomienie: zapisano {written}, pominięto {failed}",
