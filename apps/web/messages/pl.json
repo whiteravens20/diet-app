@@ -211,6 +211,7 @@
     "PROFILE_NOT_FOUND": "Nie znaleziono profilu.",
     "PROFILE_LIMIT_REACHED": "Osiągnięto maksymalną liczbę profili.",
     "PLAN_NOT_FOUND": "Nie znaleziono planu posiłków.",
+    "PLAN_CHANGED": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie.",
     "DAY_NOT_FOUND": "Nie znaleziono dnia w tym planie.",
     "MEAL_NOT_FOUND": "Nie znaleziono posiłku w tym planie.",
     "RECIPE_NOT_FOUND": "Nie znaleziono przepisu.",

@@ -132,6 +132,12 @@ export const MealPlan = z.object({
   ingredientReuseScore: z.number().min(0).max(1),
   /** `deterministic` = engine only; `ai_assisted` = AI-drafted + validated. */
   generationMode: z.enum(['deterministic', 'ai_assisted']),
+  /**
+   * How many times the plan has been changed. A change computed from an older
+   * revision is refused with `PLAN_CHANGED`, so a client that sees that code
+   * reloads the plan.
+   */
+  revision: z.number().int().min(0),
   createdAt: z.string().datetime(),
 });
 export type MealPlan = z.infer<typeof MealPlan>;

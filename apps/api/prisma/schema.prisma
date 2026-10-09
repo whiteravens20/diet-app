@@ -470,6 +470,10 @@ model MealPlan {
   // whole plan window. Null = no floor. Persisted so
   // `regenerate` re-applies the same constraint.
   maxRepeatsPerRecipe Int?
+  // Counts the changes made to the plan. A change is written only if the
+  // revision is still the one it was computed from, so two requests that
+  // overlap cannot both rewrite the plan.
+  revision       Int            @default(0)
   createdAt      DateTime       @default(now())
 
   days          MealPlanDay[]
@@ -495,7 +499,7 @@ model MealPlanDay {
 
   meals PlannedMeal[]
 
-  @@index([planId])
+  @@unique([planId, date])
 }
 
 model PlannedMeal {

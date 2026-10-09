@@ -211,6 +211,7 @@
     "PROFILE_NOT_FOUND": "Profile not found.",
     "PROFILE_LIMIT_REACHED": "You've reached the maximum number of profiles.",
     "PLAN_NOT_FOUND": "Meal plan not found.",
+    "PLAN_CHANGED": "The plan changed in the meantime. It has been reloaded; try again.",
     "DAY_NOT_FOUND": "Day not found in this plan.",
     "MEAL_NOT_FOUND": "Meal not found in this plan.",
     "RECIPE_NOT_FOUND": "Recipe not found.",

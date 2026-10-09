@@ -2,6 +2,7 @@
 
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -176,9 +177,9 @@ export class MealPlansService {
       seed: Date.now(),
     });
 
-    await this.prisma.$transaction([
-      this.prisma.mealPlanDay.deleteMany({ where: { planId } }),
-      this.prisma.mealPlan.update({
+    await this.writePlan(planId, existing.revision, async (tx) => {
+      await tx.mealPlanDay.deleteMany({ where: { planId } });
+      await tx.mealPlan.update({
         where: { id: planId },
         data: {
           calorieTarget: baseCalorieTarget,
@@ -186,8 +187,8 @@ export class MealPlansService {
           reuseScore: result.ingredientReuseScore,
           days: { create: buildDays(resolvedDays, result.assignments) },
         },
-      }),
-    ]);
+      });
+    });
     return this.get(userId, locale, planId);
   }
 
@@ -209,7 +210,9 @@ export class MealPlansService {
 
     // A skipped day re-rolls to nothing — clear its meals and return.
     if (o?.skip) {
-      await this.prisma.plannedMeal.deleteMany({ where: { dayId } });
+      await this.writePlan(planId, day.plan.revision, async (tx) => {
+        await tx.plannedMeal.deleteMany({ where: { dayId } });
+      });
       return this.get(userId, locale, planId);
     }
 
@@ -235,15 +238,42 @@ export class MealPlansService {
       seed: Date.now(),
     });
 
-    await this.prisma.$transaction([
-      this.prisma.plannedMeal.deleteMany({ where: { dayId } }),
-      this.prisma.plannedMeal.createMany({
+    await this.writePlan(planId, day.plan.revision, async (tx) => {
+      await tx.plannedMeal.deleteMany({ where: { dayId } });
+      await tx.plannedMeal.createMany({
         data: result.assignments
           .filter((a) => a.dayIndex === 0)
           .map((a) => ({ dayId, recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
-      }),
-    ]);
+      });
+    });
     return this.get(userId, locale, planId);
+  }
+
+  /**
+   * Write a change that was computed from the plan as it stood at
+   * `readAtRevision`. The revision is advanced first, and only if it is still
+   * the one that was read: when another request changed the plan in the
+   * meantime nothing is written and the caller gets `PLAN_CHANGED`. Two
+   * requests that overlap therefore cannot both rewrite the plan.
+   */
+  private writePlan(
+    planId: string,
+    readAtRevision: number,
+    write: (tx: Prisma.TransactionClient) => Promise<void>,
+  ): Promise<void> {
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.mealPlan.updateMany({
+        where: { id: planId, revision: readAtRevision },
+        data: { revision: { increment: 1 } },
+      });
+      if (claimed.count !== 1) {
+        throw new ConflictException({
+          error: 'PLAN_CHANGED',
+          message: 'The plan changed while this request was running. Reload it and try again.',
+        });
+      }
+      await write(tx);
+    });
   }
 
   /** Delete a plan and everything under it (days, meals, shopping lists cascade). */
@@ -2144,6 +2174,7 @@ export class MealPlansService {
       targetMacros: { protein: 0, fat: 0, carbs: 0 },
       ingredientReuseScore: plan.reuseScore,
       generationMode: plan.generationMode,
+      revision: plan.revision,
       createdAt: plan.createdAt.toISOString(),
     };
   }
@@ -2159,6 +2190,7 @@ interface PlanWithRelations {
   dietType: MealPlan['dietType'];
   reuseScore: number;
   generationMode: 'deterministic' | 'ai_assisted';
+  revision: number;
   createdAt: Date;
   days: {
     id: string;
