@@ -16,7 +16,7 @@
  * checks (JSON parsing, keyset parity) are also re-exported so the runner
  * can apply them up front.
  */
-import { extractJson } from './ai-helpers.js';
+import { MAX_BATCH_REPLY_CHARS, readModelObject } from '../../ai/model-json.js';
 import type { IngredientNameSuggestion } from '@diet-app/shared';
 
 export type IngredientNamerValidationReason =
@@ -74,16 +74,9 @@ export function validateIngredientNamer(
   const { source, targetLocales, rawOutput } = opts;
   const sourceKeys = Object.keys(source);
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJson(rawOutput));
-  } catch {
-    return { ok: false, reason: 'malformed-json' };
-  }
-  if (typeof parsed !== 'object' || parsed === null) {
-    return { ok: false, reason: 'malformed-json' };
-  }
-  const out = parsed as Record<string, unknown>;
+  const reply = readModelObject(rawOutput, MAX_BATCH_REPLY_CHARS);
+  if (!reply.ok) return { ok: false, reason: 'malformed-json' };
+  const out = reply.value;
   const outKeys = Object.keys(out);
 
   for (const k of sourceKeys) {

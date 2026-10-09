@@ -31,6 +31,7 @@ import {
 } from '../engine/index.js';
 import type { Env } from '../config/env.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
+import { readModelObject } from '../ai/model-json.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DedupService } from '../admin/drafts/dedup.js';
 import {
@@ -694,26 +695,11 @@ function buildDraftPrompt(input: {
  * a half-broken recipe.
  */
 function parseDraftPayload(text: string, targetLocales: Locale[]): AiDraftPayload | null {
-  const trimmed = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
-  const candidates: string[] = [];
-  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (braceMatch) candidates.push(braceMatch[0]);
-  candidates.push(trimmed);
-  for (const c of candidates) {
-    try {
-      const raw = JSON.parse(c) as unknown;
-      const normalised = normalise(raw, targetLocales);
-      if (normalised) return normalised;
-    } catch {
-      // try next candidate
-    }
-  }
-  return null;
+  const reply = readModelObject(text);
+  return reply.ok ? normalise(reply.value, targetLocales) : null;
 }
 
-function normalise(raw: unknown, targetLocales: Locale[]): AiDraftPayload | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const o = raw as Record<string, unknown>;
+function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraftPayload | null {
 
   const multi = targetLocales.length > 1;
   const titles: Record<Locale, string> = {} as Record<Locale, string>;

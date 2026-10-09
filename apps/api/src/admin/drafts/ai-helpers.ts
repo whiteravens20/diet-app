@@ -23,13 +23,3 @@ export const PROVIDER_TUNING: Record<
   ollama: { temperature: 0.2, batchSize: 20, interBatchDelayMs: 0 },
 };
 
-/** Strip a leading markdown fence and any prose preceding the first `{`. */
-export function extractJson(raw: string): string {
-  const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*\n([\s\S]+?)\n\s*```/i);
-  if (fenced) return fenced[1].trim();
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
-  return trimmed;
-}

@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import {
   Locale as LocaleEnum,
   MEAL_SLOTS_BY_COUNT,
@@ -51,6 +52,7 @@ import {
   type RebalanceMeal,
 } from '../engine/index.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
+import { readModelReply } from '../ai/model-json.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
@@ -70,6 +72,14 @@ import {
 import { writePlan } from './plan-write.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
+
+// What each prompt asks the model to answer with.
+const RecipePick = z.object({ recipeId: z.string().min(1) });
+const IngredientPick = z.object({ ingredientId: z.string().min(1) });
+const SwapRewrite = z.object({
+  description: z.string().trim().min(1),
+  steps: z.array(z.string().trim().min(1)),
+});
 
 /**
  * Meal-plan generation, retrieval and swapping. Generation is fully
@@ -2244,35 +2254,8 @@ function mealRank(slot: string): number {
  * shape mismatch; caller takes that as the signal to fall back to Mode A.
  */
 function parseSwapRewritePayload(text: string): { description: string; steps: string[] } | null {
-  const trimmed = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
-  const candidates: string[] = [];
-  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (braceMatch) candidates.push(braceMatch[0]);
-  candidates.push(trimmed);
-  for (const c of candidates) {
-    try {
-      const raw = JSON.parse(c) as unknown;
-      if (!raw || typeof raw !== 'object') continue;
-      const o = raw as Record<string, unknown>;
-      const description = typeof o.description === 'string' ? o.description.trim() : null;
-      if (!description) continue;
-      if (!Array.isArray(o.steps)) continue;
-      const steps: string[] = [];
-      let ok = true;
-      for (const s of o.steps) {
-        if (typeof s !== 'string' || s.trim().length === 0) {
-          ok = false;
-          break;
-        }
-        steps.push(s.trim());
-      }
-      if (!ok) continue;
-      return { description, steps };
-    } catch {
-      // try next candidate
-    }
-  }
-  return null;
+  const reply = readModelReply(text, SwapRewrite);
+  return reply.ok ? reply.value : null;
 }
 
 /**
@@ -2512,23 +2495,8 @@ function buildSwapPrompt(input: {
  * present, so the service can fall back deterministically.
  */
 function parseAiRecipePick(text: string): string | null {
-  const trimmed = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
-  const candidates: string[] = [];
-  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (braceMatch) candidates.push(braceMatch[0]);
-  candidates.push(trimmed);
-  for (const c of candidates) {
-    try {
-      const parsed = JSON.parse(c) as unknown;
-      if (parsed && typeof parsed === 'object' && 'recipeId' in parsed) {
-        const id = (parsed as { recipeId: unknown }).recipeId;
-        if (typeof id === 'string' && id.length > 0) return id;
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-  return null;
+  const reply = readModelReply(text, RecipePick);
+  return reply.ok ? reply.value.recipeId : null;
 }
 
 interface IngredientSwapPromptCandidate {
@@ -2591,23 +2559,8 @@ function buildIngredientSwapPrompt(input: {
  * present, so the service can fall back deterministically.
  */
 function parseAiIngredientPick(text: string): string | null {
-  const trimmed = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
-  const candidates: string[] = [];
-  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (braceMatch) candidates.push(braceMatch[0]);
-  candidates.push(trimmed);
-  for (const c of candidates) {
-    try {
-      const parsed = JSON.parse(c) as unknown;
-      if (parsed && typeof parsed === 'object' && 'ingredientId' in parsed) {
-        const id = (parsed as { ingredientId: unknown }).ingredientId;
-        if (typeof id === 'string' && id.length > 0) return id;
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-  return null;
+  const reply = readModelReply(text, IngredientPick);
+  return reply.ok ? reply.value.ingredientId : null;
 }
 
 // ── Rebalance helpers ───────────────────────────────────────────────────

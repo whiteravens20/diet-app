@@ -168,6 +168,23 @@ describe('editing a plan', () => {
       expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
     });
 
+    it.each([
+      ['a long run of spaces after the object', '```json\n{"recipeId":"x"}' + ' '.repeat(120_000) + 'x'],
+      ['a long run of opening braces', '{'.repeat(120_000)],
+      ['five megabytes of text', 'A'.repeat(5_000_000)],
+    ])('stays responsive and still swaps when the model answers with %s', async (_name, text) => {
+      const meal = plan.days[0]!.meals[0]!;
+      t.model.reply({ text });
+
+      const started = performance.now();
+      const result = await aiSwap(meal.id);
+
+      // Read with a backtracking pattern, the first two took ten seconds each.
+      expect(performance.now() - started).toBeLessThan(3_000);
+      // The answer was unusable, so the engine picked: the user still gets a swap.
+      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
+    });
+
     it('does not write a pick the model returned after the plan changed', async () => {
       const meal = plan.days[0]!.meals[0]!;
       t.model.reply({ delayMs: 600, text: '{"recipeId":"too-late"}' });

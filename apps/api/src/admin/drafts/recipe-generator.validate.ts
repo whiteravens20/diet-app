@@ -24,7 +24,7 @@
  * The validator is injected with `resolveSlug` so unit tests can stub
  * the catalogue without a live DB.
  */
-import { extractJson } from './ai-helpers.js';
+import { MAX_BATCH_REPLY_CHARS, readModelObject } from '../../ai/model-json.js';
 import { nutritionFor, toCanonical } from '../../engine/units.js';
 import {
   classifyComplexity,
@@ -150,16 +150,9 @@ export function validateRecipeBatch(
   const duplicateThreshold = opts.duplicateThreshold ?? 0.75;
   const existingRecipes = opts.existingRecipes ?? [];
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJson(rawOutput));
-  } catch {
-    return { ok: false, reason: 'malformed-json' };
-  }
-  if (typeof parsed !== 'object' || parsed === null) {
-    return { ok: false, reason: 'malformed-json' };
-  }
-  const root = parsed as Raw;
+  const reply = readModelObject(rawOutput, MAX_BATCH_REPLY_CHARS);
+  if (!reply.ok) return { ok: false, reason: 'malformed-json' };
+  const root = reply.value as Raw;
   if (!Array.isArray(root.recipes)) {
     return { ok: false, reason: 'no-recipes-key' };
   }
