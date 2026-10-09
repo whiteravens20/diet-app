@@ -44,8 +44,9 @@ jobs:
       - run: npm run typecheck -- --filter=@diet-app/api
       - run: npm run data:lint
       - run: npm run test -- --filter=@diet-app/shared
-      # Coverage-gated: vitest fails the job if a threshold in vitest.config.ts
-      # regresses (engine floors today, ratcheting toward the spec floors).
+      # Unit and integration tests together. The integration tests start the API
+      # on the PostgreSQL service above, in a database of their own. Coverage-gated:
+      # vitest fails the job if a threshold in vitest.config.ts regresses.
       - run: npm run test:cov -- --filter=@diet-app/api
       - run: npm run build -- --filter=@diet-app/api
 

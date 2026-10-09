@@ -20,9 +20,9 @@ export default tseslint.config(
     // Secrets/config are resolved through the validated config layer
     // (config/env.ts + ConfigService), never ad-hoc process.env reads. The few
     // legitimate bootstrap/subprocess reads carry an inline eslint-disable with
-    // a reason. Tests may stub env freely.
+    // a reason. Tests and their support code may read and set env freely.
     files: ['src/**/*.ts'],
-    ignores: ['src/**/*.test.ts'],
+    ignores: ['src/**/*.test.ts', 'src/testing/**'],
     rules: {
       'no-restricted-syntax': [
         'error',

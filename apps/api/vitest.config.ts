@@ -4,9 +4,32 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
-    environment: 'node',
-    globals: true,
+    // Two projects. `unit` needs nothing but Node. `integration` starts the real
+    // application on a PostgreSQL database (see src/testing/database.ts) and runs
+    // its files one after another, because they share that database.
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          include: ['src/**/*.test.ts'],
+          exclude: ['src/**/*.int.test.ts'],
+          environment: 'node',
+          globals: true,
+        },
+      },
+      {
+        test: {
+          name: 'integration',
+          include: ['src/**/*.int.test.ts'],
+          environment: 'node',
+          globals: true,
+          globalSetup: ['src/testing/global-setup.ts'],
+          fileParallelism: false,
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'text', 'json-summary', 'html'],
@@ -15,6 +38,7 @@ export default defineConfig({
       // from the denominator — they carry no branch logic to cover.
       exclude: [
         'src/**/*.test.ts',
+        'src/testing/**',
         'src/main.ts',
         'src/worker.ts',
         'src/**/*.module.ts',
@@ -28,10 +52,10 @@ export default defineConfig({
       // gains can't erode while the large orchestration services (meal-plans,
       // shopping-lists, recipes) are still being covered toward the 85% target.
       thresholds: {
-        lines: 23,
-        functions: 22,
-        branches: 21,
-        statements: 23,
+        lines: 36,
+        functions: 38,
+        branches: 28,
+        statements: 36,
         'src/engine/**': { lines: 95, functions: 95, branches: 85, statements: 95 },
         'src/ai/ai-key.service.ts': { lines: 85, functions: 80, branches: 60, statements: 85 },
         'src/ai/ai-quota.service.ts': { lines: 95, functions: 95, branches: 75, statements: 95 },

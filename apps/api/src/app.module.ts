@@ -9,7 +9,7 @@ import { DraftsModule } from './admin/drafts/drafts.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { AppConfigModule } from './app-config/app-config.module.js';
 import { AuthModule } from './auth/auth.module.js';
-import { validateEnv, type Env } from './config/env.js';
+import { IGNORE_ENV_FILES, validateEnv, type Env } from './config/env.js';
 import { FavoriteSetsModule } from './favorite-sets/favorite-sets.module.js';
 import { FavoritesModule } from './favorites/favorites.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -33,6 +33,7 @@ import { WeightsModule } from './weights/weights.module.js';
       validate: validateEnv,
       // Repo-root .env for local runs; containers inject the env directly.
       envFilePath: ['../../.env', '.env'],
+      ignoreEnvFile: IGNORE_ENV_FILES,
     }),
     // Global rate limiting — active regardless of whether Turnstile is enabled.
     ThrottlerModule.forRootAsync({

@@ -148,6 +148,14 @@ export type Env = Omit<z.infer<typeof envSchema>, 'SWAGGER_ENABLED'> & {
   SWAGGER_ENABLED: boolean;
 };
 
+/**
+ * Whether ConfigModule skips the env files on disk. A test run supplies its
+ * whole environment explicitly, so a developer's own `.env` (a real SMTP host,
+ * provider keys, the development database) can never reach a test.
+ */
+// eslint-disable-next-line no-restricted-syntax -- decides where configuration is read from, before ConfigService exists
+export const IGNORE_ENV_FILES = process.env.NODE_ENV === 'test';
+
 /** @nestjs/config `validate` hook. */
 export function validateEnv(raw: Record<string, unknown>): Env {
   const result = envSchema.safeParse(raw);

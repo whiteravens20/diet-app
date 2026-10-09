@@ -1,11 +1,12 @@
 # ── Pre-commit gate ───────────────────────────────────────────────────────────
-# Mirrors the CI checks that don't need Postgres/Redis so a failing commit can
-# never reach origin. The full Vitest suite is intentionally NOT here — it
-# needs the DB services and is slow. Run `npm test` manually before a PR.
+# Mirrors the CI checks that need no services, so a failing commit can never
+# reach origin. The test suites are not here: run `npm test` (unit, no services)
+# and, for a change that touches persistence, `npm run test:int -w apps/api`
+# (needs PostgreSQL) before pushing.
 #
-# `test:catalogue` is the one Vitest file that has no service dependencies
-# (filesystem only) — it catches i18n error-key drift, which previously
-# slipped past lint/typecheck and broke CI.
+# `test:catalogue` is the one test file that runs here: it catches drift between
+# thrown error codes and their translated messages, which lint and typecheck
+# cannot see.
 #
 # Bypass (only for true emergencies, and fix in the next commit):
 #   git commit --no-verify

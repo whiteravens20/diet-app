@@ -222,7 +222,16 @@ Keep commits focused — one logical change per commit. Avoid mixing refactors w
 npm test
 ```
 
-It must pass **with zero failures** before submitting.
+It must pass **with zero failures** before submitting. This runs the unit tests of every workspace and needs nothing but Node.
+
+### Integration tests
+
+```bash
+docker compose -f infra/docker-compose.dev.yml up -d postgres
+npm run test:int -w apps/api
+```
+
+These start the real API on PostgreSQL and exercise it over HTTP and through its services: transactions, constraints, cascades and concurrent requests, which a mock cannot show. They create and reset a database of their own, `diet_app_it`, on the server `TEST_DATABASE_URL` (or `DATABASE_URL`) points at, and never touch another database or read your `.env`. The support code is in `apps/api/src/testing`; a test file is named `*.int.test.ts` and sits beside the code it covers.
 
 ### Coverage
 
@@ -230,13 +239,14 @@ It must pass **with zero failures** before submitting.
 npm run test:cov
 ```
 
-The API's coverage floors live in `apps/api/vitest.config.ts` and only move up. New code should not decrease coverage. PRs that add testable logic without corresponding tests will be asked to add them.
+For the API this runs the unit and the integration tests together, so it needs the same PostgreSQL. The API's coverage floors live in `apps/api/vitest.config.ts` and only move up. New code should not decrease coverage. PRs that add testable logic without corresponding tests will be asked to add them.
 
 ### What to test
 
 - **Bug fixes** — add a regression test that fails on the original code and passes on the fix.
 - **Engine functions** — unit-test every one, with seeded inputs: the same inputs must always give the same numbers.
 - **Services** — test the success path, validation failure, and the ownership check that keeps one user out of another's data.
+- **Anything that writes to the database** — an integration test: what the rows look like afterwards, and what happens when two requests overlap.
 - **New error codes** — the catalogue test fails until the code has its translated message.
 - **Web components** — test rendering, user interaction, and edge cases.
 - **Security-critical paths** — test with boundary values, malformed input, and adversarial cases.
