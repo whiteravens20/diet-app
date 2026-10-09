@@ -260,3 +260,52 @@ describe('updating the curated database', () => {
     await expect(t.prisma.ingredient.delete({ where: { id: heirloom } })).rejects.toMatchObject({ code: 'P2003' });
   });
 });
+
+describe('the admin "Update database" action', () => {
+  let t: TestApp;
+  const admin = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+
+  beforeAll(async () => {
+    t = await createTestApp();
+    await resetDatabase(t.prisma);
+    await seedCatalogue(t.prisma);
+  });
+
+  afterAll(async () => {
+    await t.close();
+  });
+
+  /** Start the update over HTTP and poll its status until it ends. */
+  async function runUpdate(): Promise<{ status: string; result: Record<string, unknown> | null; error: string | null }> {
+    await t.http().post('/api/admin/db/update').set(admin).expect(202);
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const { body } = await t.http().get('/api/admin/db/update/status').set(admin).expect(200);
+      if (body.status !== 'running') return body;
+      await new Promise((done) => setTimeout(done, 100));
+    }
+    throw new Error('the update did not finish');
+  }
+
+  it('is closed to a caller without the admin credentials', async () => {
+    await t.http().post('/api/admin/db/update').expect(401);
+  });
+
+  it('runs to the end and leaves a pantry and its ingredient ids as they were', async () => {
+    const user = await aUser(t);
+    const profile = await aProfile(t, user);
+    const salmon = await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'salmon' } });
+    await t.prisma.inventoryItem.create({ data: { profileId: profile.id, ingredientId: salmon.id, quantity: 250, unit: 'g' } });
+
+    const state = await runUpdate();
+
+    expect(state).toMatchObject({
+      status: 'done',
+      error: null,
+      result: { deletedIngredients: 0, retiredIngredients: 0, deletedRecipes: 0, retiredRecipes: 0, repairedProfiles: 0 },
+    });
+    expect(await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } })).toMatchObject([
+      { ingredientId: salmon.id, quantity: 250 },
+    ]);
+    expect((await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'salmon' } })).id).toBe(salmon.id);
+  });
+});
