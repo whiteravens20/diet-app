@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
+  fitsDiet,
   Locale as LocaleEnum,
   MEAL_SLOTS_BY_COUNT,
   type AddCustomMealRequest,
@@ -57,6 +58,7 @@ import { INGREDIENT_SWAP, MEAL_SWAP, SWAP_REWRITE } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
+import { recipesForDiet } from '../recipes/diet-where.js';
 import { DedupService } from '../admin/drafts/dedup.js';
 import {
   computeFingerprint,
@@ -348,8 +350,7 @@ export class MealPlansService {
           });
         }
         const eligibleForSlot =
-          recipe.mealTypes.includes(lock.slot) &&
-          (opts.dietType === 'custom' || recipe.dietTags.includes(opts.dietType));
+          recipe.mealTypes.includes(lock.slot) && fitsDiet(recipe.dietTags, opts.dietType);
         if (!eligibleForSlot) {
           throw new BadRequestException({
             error: 'LOCKED_RECIPE_INELIGIBLE',
@@ -568,7 +569,7 @@ export class MealPlansService {
     // favourite onto breakfast); the random / favourite-ingredient pools below
     // keep meal-time so auto-swaps stay slot-appropriate.
     const allergens = meal.day.plan.profile.preferences?.allergens ?? [];
-    const dietWhere = req.allowOffDiet ? {} : { dietTags: { has: dietType } };
+    const dietWhere = req.allowOffDiet ? {} : recipesForDiet(dietType);
 
     let replacementId: string;
     let nextHistory: string[];
@@ -893,7 +894,7 @@ export class MealPlansService {
     // soft-deleted variants).
     const candidates = await this.prisma.recipe.findMany({
       where: {
-        dietTags: { has: dietType },
+        ...recipesForDiet(dietType),
         mealTypes: { has: meal.mealType },
         id: { not: currentRecipeId },
         deletedAt: null,
@@ -1935,7 +1936,7 @@ export class MealPlansService {
     const optimizerRecipes: OptimizerRecipe[] = filteredRecipes.map((r) => ({
       id: r.id,
       mealTypes: r.mealTypes as MealType[],
-      dietTags: r.dietTags as OptimizerRecipe['dietTags'],
+      dietTags: r.dietTags,
       caloriesPerServing: r.caloriesPerServing,
       proteinPerServing: r.proteinPerServing,
       fatPerServing: r.fatPerServing,
@@ -2160,8 +2161,9 @@ export class MealPlansService {
           servings: m.servings,
           quantityScale: m.quantityScale,
           eatenAt,
-          // A swapped-in favourite whose diet tags miss the plan diet.
-          dietOverride: plan.dietType !== 'custom' && !m.recipe.dietTags.includes(plan.dietType),
+          // A meal the plan's diet does not admit: a favourite swapped in on
+          // purpose, or a recipe whose ingredients turned out not to qualify.
+          dietOverride: !fitsDiet(m.recipe.dietTags, plan.dietType),
           nutrition: {
             calories: Math.round(n.calories * factor),
             protein: Math.round(n.protein * factor),

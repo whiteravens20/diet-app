@@ -7,7 +7,7 @@ import { Sparkles, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import type { Profile, RecipeSearchPage, SessionUser } from '@diet-app/shared';
+import { RecipeDietTag, type Profile, type RecipeSearchPage, type SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
 import { Button } from '@/components/ui/button';
@@ -19,15 +19,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
-const DIET_TYPES = [
-  'balanced',
-  'high_protein',
-  'low_carb',
-  'vegetarian',
-  'vegan',
-  'keto',
-  'mediterranean',
-] as const;
+// Only the diets a recipe has to qualify for narrow the library; any recipe
+// may appear in a balanced or a high-protein plan.
+const DIET_TYPES = RecipeDietTag.options;
 const MEAL_TYPES = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'] as const;
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 

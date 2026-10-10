@@ -10,12 +10,13 @@
  * Scoring balances:
  *   calorie fit · ingredient reuse · variety · preference · complexity.
  */
-import type { DietType, Macros, MealType } from '@diet-app/shared';
+import { fitsDiet, type DietType, type Macros, type MealType } from '@diet-app/shared';
 
 export interface OptimizerRecipe {
   id: string;
   mealTypes: MealType[];
-  dietTags: DietType[];
+  /** The diets the recipe qualifies for; see `fitsDiet` for the ones that need no tag. */
+  dietTags: string[];
   caloriesPerServing: number;
   proteinPerServing: number;
   fatPerServing: number;
@@ -155,9 +156,7 @@ export function fitServings(caloriesPerServing: number, budget: number): number 
 }
 
 function eligible(recipe: OptimizerRecipe, slot: MealType, dietType: DietType): boolean {
-  if (!recipe.mealTypes.includes(slot)) return false;
-  if (dietType === 'custom') return true;
-  return recipe.dietTags.includes(dietType);
+  return recipe.mealTypes.includes(slot) && fitsDiet(recipe.dietTags, dietType);
 }
 
 /**

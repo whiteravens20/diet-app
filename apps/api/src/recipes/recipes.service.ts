@@ -4,6 +4,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import type { Prisma } from '@prisma/client';
 import type { Locale, Recipe, RecipeSearchPage } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { recipesForDiet } from './diet-where.js';
 
 export interface RecipeFilters {
   search?: string;
@@ -69,7 +70,7 @@ export class RecipesService {
         { deletedAt: null },
         { retiredAt: null },
         ...(filters.search ? [searchMatch(filters.search, locale)] : []),
-        ...(filters.dietType ? [{ dietTags: { has: filters.dietType } }] : []),
+        ...(filters.dietType ? [recipesForDiet(filters.dietType)] : []),
         ...(filters.mealType ? [{ mealTypes: { has: filters.mealType } }] : []),
         ...(filters.maxCalories ? [{ caloriesPerServing: { lte: filters.maxCalories } }] : []),
         ...(filters.maxPrepMinutes ? [{ prepMinutes: { lte: filters.maxPrepMinutes } }] : []),

@@ -7,14 +7,15 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { CalendarRange, Sparkles, UserRound } from 'lucide-react';
-import type {
-  AddCustomMealRequest,
-  AiSwapMealResponse,
-  GeneratePlanRequest,
-  MealPlan,
-  Profile,
-  RebalanceResult,
-  SessionUser,
+import {
+  fitsDiet,
+  type AddCustomMealRequest,
+  type AiSwapMealResponse,
+  type GeneratePlanRequest,
+  type MealPlan,
+  type Profile,
+  type RebalanceResult,
+  type SessionUser,
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import Link from 'next/link';
@@ -689,8 +690,7 @@ function PlanCard({
                     (f) =>
                       showAllFav ||
                       (f.recipe.mealTypes.includes(m.mealType) &&
-                        (plan.dietType === 'custom' ||
-                          f.recipe.dietTags.includes(plan.dietType))),
+                        fitsDiet(f.recipe.dietTags, plan.dietType)),
                   );
                   return (
                     <li key={m.id} className="space-y-1">
@@ -836,9 +836,7 @@ function PlanCard({
                           ) : (
                             <ul className="space-y-1">
                               {slotFavorites.map((f) => {
-                                const off =
-                                  plan.dietType !== 'custom' &&
-                                  !f.recipe.dietTags.includes(plan.dietType);
+                                const off = !fitsDiet(f.recipe.dietTags, plan.dietType);
                                 const crossSlot = !f.recipe.mealTypes.includes(m.mealType);
                                 return (
                                   <li key={f.recipe.id}>
