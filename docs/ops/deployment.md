@@ -114,27 +114,41 @@ visitor could then claim any address, and with it somebody else's allowance.
 
 ### Rate limits
 
-Every route is limited, and a request is counted against the most specific thing that
-is known about its sender:
+Every route is limited, and a request is counted against its sender: the user when it
+carries a valid sign-in, otherwise the client's address. A route that tries a credential
+is counted by that credential as well, so that guessing at one account never uses up
+anybody else's tries.
 
 | Request | Counted against | Limit |
 |---|---|---|
 | With a valid sign-in | The user | `RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW` and route; less on AI routes |
+| Without one | The client's address | The same; 10 a minute for sign-up |
 | Sign-in | The account and the address together | 10 in 15 minutes |
 | | The account, from everywhere together | 50 in 15 minutes |
-| Password-reset request | The address the reset is for | 5 in 15 minutes |
-| Token refresh, sign-out, links from mails | The token presented | 10 a minute |
+| | The address, whatever the account ¹ | 30 in 15 minutes |
+| Password-reset request | The account the reset is for | 5 in 15 minutes |
+| | The address, whatever the account ¹ | 15 in 15 minutes |
+| Token refresh, sign-out | The token presented | 10 a minute |
+| | The address, whatever the token ¹ | 30 a minute |
+| Links from mails | The token presented | 10 a minute |
+| | The address, whatever the token ¹ | 10 a minute |
 | Changing the password or address, deleting the account | The user | 5 a minute each |
-| Creating an account, everything else without a sign-in | The client's address | 10 a minute for sign-up, otherwise `RATE_LIMIT_MAX` |
 | Health and public configuration | Not limited | |
+
+¹ Only with `TRUST_PROXY` set. Without it the API sees one address for everybody, and
+counting sign-ins or refreshes against that address would let a handful of requests
+keep every user out. So on these routes the address is left out until the API is told
+whose word to take for it, and one client can then go through account after account
+unhindered. An instance that is open to the internet needs `TRUST_PROXY`.
 
 Wrong passwords for one account never slow down sign-in to another account. With
 `TRUST_PROXY` set they do not keep the owner out either: the ten tries are those of the
 address that guessed, and the owner sits at another one. Only five addresses guessing
 together reach the fifty an account allows from everywhere, which is what stops somebody
-with many addresses from guessing without end. Without `TRUST_PROXY` the API sees one
-address for everybody, and ten wrong passwords close the account to its owner too, for up
-to a quarter of an hour.
+with many addresses from guessing without end. Without `TRUST_PROXY` ten wrong passwords
+close the account to its owner too, for up to a quarter of an hour.
+
+An IPv6 client is counted as its /64 network: one machine has that many addresses.
 
 What is counted against the address is only as good as the address: without
 `TRUST_PROXY` it is one allowance for the whole instance, and sign-ups, for example, stop

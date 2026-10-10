@@ -66,6 +66,48 @@ describe('rate limits behind one trusted proxy', () => {
     });
   });
 
+  describe('a route that tries a credential', () => {
+    const fresh = (): string => `nobody-${(sequence += 1)}-${Date.now().toString(36)}@example.test`;
+    const statuses = async (count: number, send: (index: number) => Promise<{ status: number }>): Promise<number[]> => {
+      const seen: number[] = [];
+      for (let index = 0; index < count; index += 1) seen.push((await send(index)).status);
+      return seen;
+    };
+
+    it('counts sign-ins against the address they come from as well, whatever the account', async () => {
+      const user = await aUser(t);
+      const login = (from: string, email: string, password: string) =>
+        t.http().post('/api/auth/login').set('X-Forwarded-For', from).send({ email, password });
+
+      // Thirty accounts in a quarter of an hour, one try each: no account ran out, the address did.
+      expect(await statuses(30, () => login('203.0.113.130', fresh(), 'whatever-it-is'))).toEqual(Array(30).fill(401));
+      expect((await login('203.0.113.130', user.email, user.password)).status).toBe(429);
+      expect((await login('203.0.113.131', user.email, user.password)).status).toBe(200);
+    });
+
+    it('counts made-up tokens against the address they come from', async () => {
+      const refresh = (from: string, refreshToken: string) =>
+        t.http().post('/api/auth/refresh').set('X-Forwarded-For', from).send({ refreshToken });
+
+      expect(await statuses(31, (index) => refresh('203.0.113.140', `made-up-${index}`))).toEqual([...Array(30).fill(401), 429]);
+      expect((await refresh('203.0.113.141', 'made-up-0')).status).toBe(401);
+    });
+
+    it('lets one address ask for fifteen password resets in a quarter of an hour, whoever they are for', async () => {
+      const ask = (from: string) => t.http().post('/api/auth/password-reset/request').set('X-Forwarded-For', from).send({ email: fresh() });
+
+      expect(await statuses(16, () => ask('203.0.113.150'))).toEqual([...Array(15).fill(202), 429]);
+      expect((await ask('203.0.113.151')).status).toBe(202);
+    });
+
+    it('lets one address try ten links from mails a minute', async () => {
+      const verify = (from: string, token: string) => t.http().post('/api/auth/verify-email').set('X-Forwarded-For', from).send({ token });
+
+      expect(await statuses(11, (index) => verify('203.0.113.160', `token-${index}`))).toEqual([...Array(10).fill(400), 429]);
+      expect((await verify('203.0.113.161', 'token-0')).status).toBe(400);
+    });
+  });
+
   it('gives two clients an allowance each', async () => {
     const first: number[] = [];
     for (let i = 0; i < 11; i += 1) first.push((await register('203.0.113.7')).status);

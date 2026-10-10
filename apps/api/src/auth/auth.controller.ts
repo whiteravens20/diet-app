@@ -21,11 +21,14 @@ const MINUTE = 60_000;
 const QUARTER_HOUR = 15 * MINUTE;
 
 /**
- * Auth endpoints. Each is limited tighter than the global default, and counts
- * a request by the credential it tries: the account for a sign-in or a reset,
- * the token for a refresh or a link from a mail. Attempts on one account, or
- * with one token, therefore never use up anybody else's. Creating an account
- * has no identity yet and is counted against the client's address.
+ * Auth endpoints. Each is limited tighter than the global default, twice
+ * over. `@Throttle` is what one sender may do, as on every route: ten a
+ * minute unless the route says otherwise. `@TriesCredential` is what may be
+ * tried at one credential: the account for a sign-in or a reset, the token
+ * for a refresh or a link from a mail. Attempts on one account, or with one
+ * token, therefore never use up anybody else's, and one sender cannot go
+ * through account after account. Creating an account has no identity yet and
+ * is counted against its sender alone.
  */
 @Controller('auth')
 @Throttle({ default: { limit: 10, ttl: MINUTE } })
@@ -47,13 +50,17 @@ export class AuthController {
   // together before that keeps the owner out.
   @Post('login')
   @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: QUARTER_HOUR } })
   @TriesCredential({ by: byAccountAndAddress, limit: 10, ttl: QUARTER_HOUR }, { by: byAccount, limit: 50, ttl: QUARTER_HOUR })
   login(@Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest) {
     return this.auth.login(dto);
   }
 
+  // Thirty a minute for one sender: many people behind one address refresh
+  // their sessions through it.
   @Post('refresh')
   @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: MINUTE } })
   @TriesCredential({ by: byToken('refreshToken'), limit: 10, ttl: MINUTE })
   refresh(@Body(new ZodValidationPipe(RefreshRequest)) dto: RefreshRequest) {
     return this.auth.refresh(dto.refreshToken);
@@ -61,6 +68,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(204)
+  @Throttle({ default: { limit: 30, ttl: MINUTE } })
   @TriesCredential({ by: byToken('refreshToken'), limit: 10, ttl: MINUTE })
   async logout(@Body(new ZodValidationPipe(RefreshRequest)) dto: RefreshRequest) {
     await this.auth.logout(dto.refreshToken);
@@ -72,6 +80,7 @@ export class AuthController {
   // it is the mailbox that is protected.
   @Post('password-reset/request')
   @HttpCode(202)
+  @Throttle({ default: { limit: 15, ttl: QUARTER_HOUR } })
   @TriesCredential({ by: byAccount, limit: 5, ttl: QUARTER_HOUR })
   async requestReset(@Body(new ZodValidationPipe(PasswordResetRequest)) dto: PasswordResetRequest) {
     await this.auth.requestPasswordReset(dto);

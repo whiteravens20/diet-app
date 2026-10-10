@@ -13,33 +13,31 @@ import {
   type ThrottlerStorage,
 } from '@nestjs/throttler';
 import type { Env } from '../config/env.js';
+import { parseTrustProxy } from '../config/trust-proxy.js';
 import { countedAddress } from './client-address.js';
 import { CREDENTIAL_COUNTS, type CredentialCount } from './trackers.js';
 
 /**
  * The limiter in front of every route, and whom it counts a request against.
  *
- * Counting by address alone fails behind a proxy: the API sees one address
- * for everybody, so ten bad requests from one visitor used up the allowance
- * of every user. A request is therefore counted against the most specific
- * thing that is known about who sent it:
+ * Every request is counted against its sender: the signed-in user when it
+ * carries a valid access token, otherwise the client's address. A route that
+ * tries a credential is counted by that credential on top (see `trackers.ts`:
+ * the account and the address together for a sign-in, the token for a
+ * refresh), so that guessing at one account uses up nobody else's tries.
  *
- *  1. a signed-in user, when the request carries a valid access token;
- *  2. on a route that tries a credential, the credential it tries (see
- *     `trackers.ts`: the account and the address together for a sign-in, the
- *     token for a refresh);
- *  3. otherwise the client's address, as far as `TRUST_PROXY` lets it be
- *     known.
- *
- * So one user cannot use up another's allowance, and nobody can lock an
- * account out by guessing at a different one. The address is the weakest of
- * the three: behind the web server with `TRUST_PROXY` off it is the same for
- * everybody, and what is counted against it is then one allowance for the
- * whole instance.
+ * An address says who the sender is only as far as `TRUST_PROXY` lets it be
+ * known. Behind the web server with `TRUST_PROXY` off it is the same for
+ * everybody, and what is counted against it is one allowance for the whole
+ * instance. On a route that tries a credential that would let a handful of
+ * requests keep every user out, so there the address is counted only once
+ * `TRUST_PROXY` says whose word to take for it.
  */
 @Injectable()
 export class ClientThrottlerGuard extends ThrottlerGuard {
   private readonly tokens: JwtService;
+  /** Whether the address of a request is its sender's: the operator said which proxies write it. */
+  private readonly addressKnown: boolean;
 
   constructor(
     @InjectThrottlerOptions() options: ThrottlerModuleOptions,
@@ -49,6 +47,7 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
   ) {
     super(options, storage, reflector);
     this.tokens = new JwtService({ secret: config.get('JWT_ACCESS_SECRET', { infer: true }) });
+    this.addressKnown = parseTrustProxy(config.get('TRUST_PROXY', { infer: true })) !== false;
   }
 
   protected override async getTracker(req: Record<string, unknown>): Promise<string> {
@@ -57,14 +56,20 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
   }
 
   /**
-   * Count one request. A route that tries a credential (`@TriesCredential`)
-   * is counted by each thing it names, in that order; every other route by
-   * its sender.
+   * Count one request against its sender, and a route that tries a
+   * credential (`@TriesCredential`) by each thing it names as well, in that
+   * order. Whichever runs out first refuses the request.
    */
   protected override async handleRequest(request: ThrottlerRequest): Promise<boolean> {
     const { context } = request;
     const counts = this.reflector.getAllAndOverride<CredentialCount[] | undefined>(CREDENTIAL_COUNTS, [context.getHandler(), context.getClass()]);
     if (!counts) return super.handleRequest(request);
+
+    const sender = await this.getTracker(this.getRequestResponse(context).req);
+    // Not an address that everybody behind the proxy shares: see above.
+    if (this.addressKnown || sender.startsWith('user:')) {
+      await super.handleRequest({ ...request, getTracker: () => sender });
+    }
     for (const count of counts) {
       await super.handleRequest({ ...request, limit: count.limit, ttl: count.ttl, blockDuration: count.ttl, getTracker: count.by });
     }

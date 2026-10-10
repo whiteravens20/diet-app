@@ -81,6 +81,15 @@ describe('rate limits behind a proxy that is not trusted', () => {
       expect(real.body.tokens.accessToken).toBeTruthy();
     });
 
+    it('count a signed-in sender as well, whom the API knows without an address', async () => {
+      const user = await aUser(t);
+      const signOut = (index: number) => t.http().post('/api/auth/logout').set(as(user)).send({ refreshToken: `made-up-for-sign-out-${index}` });
+
+      expect(await statuses(31, signOut)).toEqual([...Array(30).fill(204), 429]);
+      // Nobody else is counted with them: the same without a sign-in goes through.
+      expect((await t.http().post('/api/auth/logout').send({ refreshToken: 'made-up-for-sign-out-31' })).status).toBe(204);
+    });
+
     it('count a link from a mail against its token', async () => {
       const verify = (token: string) => t.http().post('/api/auth/verify-email').send({ token });
 
