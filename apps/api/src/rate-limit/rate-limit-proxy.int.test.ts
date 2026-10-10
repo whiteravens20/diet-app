@@ -141,10 +141,19 @@ describe('rate limits behind one trusted proxy', () => {
     expect(res.body).toMatchObject({
       clientAddress: '203.0.113.21',
       forwardedFor: '198.51.100.99, 203.0.113.21',
+      forwardedHops: 2,
       trustProxy: 1,
       countedAsProxy: false,
+      overTrusted: false,
     });
     expect(res.body.peerAddress).not.toBe('203.0.113.21');
+  });
+
+  it('tells the administrator when the setting counts a proxy the request did not pass', async () => {
+    // No proxy wrote the header: whoever reaches the API this way could write it themselves.
+    const res = await t.http().get('/api/admin/connection').set(basic).expect(200);
+
+    expect(res.body).toMatchObject({ forwardedFor: null, forwardedHops: 0, trustProxy: 1, overTrusted: true });
   });
 
   it('counts a wrong administrator password against the client, not against the proxy', async () => {

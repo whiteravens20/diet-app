@@ -51,6 +51,8 @@ interface AdminConnectionDto {
   peerAddress: string | null;
   /** `X-Forwarded-For` as it arrived, or null when the request carried none. */
   forwardedFor: string | null;
+  /** How many addresses that header holds: one for every proxy that wrote into it. */
+  forwardedHops: number;
   /** What `TRUST_PROXY` is set to: `false`, a number of proxies, or their addresses. */
   trustProxy: false | number | string[];
   /**
@@ -59,6 +61,14 @@ interface AdminConnectionDto {
    * for everything that is limited by address.
    */
   countedAsProxy: boolean;
+  /**
+   * True when `TRUST_PROXY` counts more proxies than wrote into the header of
+   * this request. The API then takes an address further left for the client
+   * than any proxy wrote, which is one a visitor can write themselves: every
+   * limit by address can be walked around. The administrator's own browser
+   * writes no such header, so their request shows the chain as it is.
+   */
+  overTrusted: boolean;
 }
 
 @Controller('admin')
@@ -96,14 +106,18 @@ export class AdminController {
   connection(@Req() req: Request): AdminConnectionDto {
     const header = req.headers['x-forwarded-for'];
     const forwardedFor = Array.isArray(header) ? header.join(', ') : (header ?? null);
+    const forwardedHops = (forwardedFor ?? '').split(',').filter((address) => address.trim().length > 0).length;
     const clientAddress = req.ip ?? null;
     const peerAddress = req.socket.remoteAddress ?? null;
+    const trustProxy = parseTrustProxy(this.config.get('TRUST_PROXY', { infer: true }));
     return {
       clientAddress,
       peerAddress,
       forwardedFor,
-      trustProxy: parseTrustProxy(this.config.get('TRUST_PROXY', { infer: true })),
+      forwardedHops,
+      trustProxy,
       countedAsProxy: forwardedFor !== null && clientAddress === peerAddress,
+      overTrusted: typeof trustProxy === 'number' && forwardedHops < trustProxy,
     };
   }
 

@@ -545,6 +545,8 @@
       "trustOff": "off",
       "trustHops": "{count, plural, one {# proxy} other {# proxies}}",
       "countedAsProxy": "Requests reach the API through a proxy, and the API takes that proxy for the client. Every visitor then shares one allowance for sign-ups and for wrong admin passwords. Put a reverse proxy in front, set TRUST_PROXY and check here again: the deployment guide says how.",
+      "overTrustedDirect": "This request reached the API without passing a proxy that writes X-Forwarded-For, although TRUST_PROXY is set. Whoever reaches the instance this way can claim any client address, and with it a fresh allowance for every limit. Close this way in (publish only the reverse proxy's port), or turn TRUST_PROXY off.",
+      "overTrusted": "TRUST_PROXY counts more proxies than wrote the X-Forwarded-For header of this request ({passed}). A visitor who writes that header themselves can then claim any client address, and with it a fresh allowance for every limit. Set TRUST_PROXY={passed}.",
       "loadFailed": "Could not read the connection."
     },
     "reviewer": {

@@ -54,6 +54,16 @@ export function ConnectionCard() {
                 {t('countedAsProxy')}
               </p>
             )}
+            {connection.overTrusted && (
+              <p
+                role="status"
+                className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300"
+              >
+                {connection.forwardedHops === 0
+                  ? t('overTrustedDirect')
+                  : t('overTrusted', { passed: connection.forwardedHops })}
+              </p>
+            )}
             <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[12rem_1fr]">
               <dt className="text-muted-foreground">{t('clientAddress')}</dt>
               <dd>

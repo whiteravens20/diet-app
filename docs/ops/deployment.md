@@ -109,6 +109,13 @@ when told to, because without a proxy in front anybody can write that header the
    proxy does not write the header; if a page warns that requests are "counted as the
    proxy", `TRUST_PROXY` is not set.
 
+Count only proxies that write the header. The web server is not one: one Traefik or one
+nginx in front is `1`, whether it sends `/api` to the API itself or everything to the web
+server. A number that is too high is the mistake that matters: the page still shows your
+own address, but the API then reads an address further left in the header than any proxy
+wrote, and a visitor who writes the header themselves can claim any address. The
+Connection page warns when the setting counts more proxies than your request passed.
+
 Never set `TRUST_PROXY` on an instance whose web or API port is reachable directly: a
 visitor could then claim any address, and with it somebody else's allowance.
 

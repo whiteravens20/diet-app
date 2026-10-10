@@ -12,9 +12,12 @@ import { isIP } from 'node:net';
  * proxy the operator runs:
  *
  *  - `false`: believe nothing. The address is that of the connection.
- *  - a number: that many proxies stand between the client and the API and
- *    each adds the address it saw. The web server counts as one, the reverse
- *    proxy in front of it as the next.
+ *  - a number: that many reverse proxies stand in front and each adds the
+ *    address it saw to the header. The web server is not one of them: it
+ *    passes the header on as it arrives and writes nothing. One Traefik or
+ *    nginx is 1, whether it sends `/api` to the API itself or to the web
+ *    server. A number that is too high is the dangerous mistake: the API
+ *    then reads an address further left than any proxy wrote.
  *  - a list: the addresses or networks of the proxies themselves.
  *
  * The web server passes the header on as it arrives, so the setting is only

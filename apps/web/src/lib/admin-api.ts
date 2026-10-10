@@ -81,8 +81,12 @@ export interface AdminConnection {
   clientAddress: string | null;
   peerAddress: string | null;
   forwardedFor: string | null;
+  /** How many addresses the forwarding header holds: one for every proxy that wrote into it. */
+  forwardedHops: number;
   trustProxy: false | number | string[];
   countedAsProxy: boolean;
+  /** `TRUST_PROXY` counts more proxies than wrote into the header: a visitor can claim any address. */
+  overTrusted: boolean;
 }
 
 export interface AdminStats {

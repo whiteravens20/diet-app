@@ -202,7 +202,7 @@ describe('rate limits behind a proxy that is not trusted', () => {
       const direct = await stats('integration-test-admin-password').then(() =>
         t.http().get('/api/admin/connection').set(basic('integration-test-admin-password')).expect(200),
       );
-      expect(direct.body).toMatchObject({ forwardedFor: null, trustProxy: false, countedAsProxy: false });
+      expect(direct.body).toMatchObject({ forwardedFor: null, forwardedHops: 0, trustProxy: false, countedAsProxy: false, overTrusted: false });
       expect(direct.body.clientAddress).toBe(direct.body.peerAddress);
 
       const forwarded = await t
