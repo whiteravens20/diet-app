@@ -1,0 +1,2331 @@
+[
+ {
+  "fdcId": 2346393,
+  "description": "Nuts, almonds, whole, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 51.1
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 20.0
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 21.5
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 626
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 584
+   }
+  ]
+ },
+ {
+  "fdcId": 2346394,
+  "description": "Nuts, walnuts, English, halves, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 69.7
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 10.9
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 14.6
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 730
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 679
+   }
+  ]
+ },
+ {
+  "fdcId": 2346395,
+  "description": "Nuts, pecans, halves, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 73.3
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 12.7
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 9.96
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 750
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 700
+   }
+  ]
+ },
+ {
+  "fdcId": 2515375,
+  "description": "Nuts, hazelnuts or filberts, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 53.5
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 13.5
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 26.5
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 641
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 602
+   }
+  ]
+ },
+ {
+  "fdcId": 2346392,
+  "description": "Nuts, pine nuts, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 61.3
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 18.6
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 15.7
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 689
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 643
+   }
+  ]
+ },
+ {
+  "fdcId": 2515373,
+  "description": "Nuts, brazilnuts, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 57.4
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 15.0
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 21.6
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 664
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 621
+   }
+  ]
+ },
+ {
+  "fdcId": 2259792,
+  "description": "Buttermilk, low fat",
+  "dataType": "Foundation",
+  "foodCategory": "Dairy and Egg Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.08
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 3.46
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 4.81
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 42.8
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 42.9
+   }
+  ]
+ },
+ {
+  "fdcId": 333008,
+  "description": "Cookies, oatmeal, soft, with raisins",
+  "dataType": "Foundation",
+  "foodCategory": "Baked Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 14.3
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 5.79
+   },
+   {
+    "nutrientNumber": "205.2",
+    "nutrientName": "Carbohydrate, by summation",
+    "unitName": "G",
+    "value": 67.9
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 13.7
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 69.6
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 430
+   }
+  ]
+ },
+ {
+  "fdcId": 2003586,
+  "description": "Flour, 00",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.52
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 11.4
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 74.4
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 357
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 366
+   }
+  ]
+ },
+ {
+  "fdcId": 1104913,
+  "description": "Flour, pastry, unenriched, unbleached",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.64
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 8.75
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 77.2
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 358
+   }
+  ]
+ },
+ {
+  "fdcId": 747444,
+  "description": "Beans, Dry, Black (0% moisture)",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 24.4
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.45
+   }
+  ]
+ },
+ {
+  "fdcId": 2747675,
+  "description": "Watermelon, seedless, flesh only, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Fruits and Fruit Juices",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.871
+   }
+  ]
+ },
+ {
+  "fdcId": 2727587,
+  "description": "Juice, prune, shelf-stable",
+  "dataType": "Foundation",
+  "foodCategory": "Fruits and Fruit Juices",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.423
+   }
+  ]
+ },
+ {
+  "fdcId": 2727581,
+  "description": "Blackberries, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Fruits and Fruit Juices",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 1.53
+   }
+  ]
+ },
+ {
+  "fdcId": 171401,
+  "description": "Lard",
+  "dataType": "SR Legacy",
+  "foodCategory": "Fats and Oils",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 902
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.0
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 100
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.0
+   }
+  ]
+ },
+ {
+  "fdcId": 171400,
+  "description": "Fat, beef tallow",
+  "dataType": "SR Legacy",
+  "foodCategory": "Fats and Oils",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 902
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 100
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.0
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.0
+   }
+  ]
+ },
+ {
+  "fdcId": 169640,
+  "description": "Honey",
+  "dataType": "SR Legacy",
+  "foodCategory": "Sweets",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.3
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.0
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 82.4
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 304
+   }
+  ]
+ },
+ {
+  "fdcId": 173577,
+  "description": "Fish oil, cod liver",
+  "dataType": "SR Legacy",
+  "foodCategory": "Fats and Oils",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 100
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.0
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 902
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.0
+   }
+  ]
+ },
+ {
+  "fdcId": 171542,
+  "description": "Soup, chicken broth, canned, condensed",
+  "dataType": "SR Legacy",
+  "foodCategory": "Soups, Sauces, and Gravies",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.04
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.75
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 31.0
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 4.42
+   }
+  ]
+ },
+ {
+  "fdcId": 2262074,
+  "description": "Almond butter, creamy",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 53.0
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 21.2
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 20.8
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 645
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 603
+   }
+  ]
+ },
+ {
+  "fdcId": 1999631,
+  "description": "Almond milk, unsweetened, plain, shelf stable",
+  "dataType": "Foundation",
+  "foodCategory": "Beverages",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.22
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.555
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.337
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 14.6
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 14.6
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 1.11
+   }
+  ]
+ },
+ {
+  "fdcId": 2257046,
+  "description": "Oat milk, unsweetened, plain, refrigerated",
+  "dataType": "Foundation",
+  "foodCategory": "Beverages",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 2.75
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.797
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 5.1
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 48.3
+   }
+  ]
+ },
+ {
+  "fdcId": 2262072,
+  "description": "Peanut butter, creamy",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 49.4
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 24.0
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 22.7
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 632
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 589
+   }
+  ]
+ },
+ {
+  "fdcId": 2262073,
+  "description": "Sesame butter, creamy",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 62.4
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 14.2
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 19.7
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 697
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 648
+   }
+  ]
+ },
+ {
+  "fdcId": 1999630,
+  "description": "Soy milk, unsweetened, plain, shelf stable",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 2.12
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 3.55
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 1.29
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 38.5
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 38.5
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 1.88
+   }
+  ]
+ },
+ {
+  "fdcId": 2685577,
+  "description": "Eggplant, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Vegetables and Vegetable Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.12
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.852
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 5.4
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 26.1
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 22.4
+   }
+  ]
+ },
+ {
+  "fdcId": 2685570,
+  "description": "Squash, winter, butternut, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Vegetables and Vegetable Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.168
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 1.15
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 10.5
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 48.1
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 41.7
+   }
+  ]
+ },
+ {
+  "fdcId": 2003599,
+  "description": "Mushroom, king oyster",
+  "dataType": "Foundation",
+  "foodCategory": "Vegetables and Vegetable Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.308
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 2.41
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 8.5
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 46.4
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 38.5
+   }
+  ]
+ },
+ {
+  "fdcId": 1750343,
+  "description": "Apples, honeycrisp, with skin, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Fruits and Fruit Juices",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.1
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.102
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 14.7
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 60.0
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 54.0
+   },
+   {
+    "nutrientNumber": "205.2",
+    "nutrientName": "Carbohydrate, by summation",
+    "unitName": "G",
+    "value": 14.1
+   }
+  ]
+ },
+ {
+  "fdcId": 2710816,
+  "description": "Melons, honeydew, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Fruits and Fruit Juices",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.216
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.531
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 8.15
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 36.7
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 32.9
+   }
+  ]
+ },
+ {
+  "fdcId": 2515377,
+  "description": "Flour, chestnut",
+  "dataType": "Foundation",
+  "foodCategory": "Nut and Seed Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 4.64
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 5.29
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 80.5
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 385
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 385
+   }
+  ]
+ },
+ {
+  "fdcId": 2512378,
+  "description": "Buckwheat, whole grain",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 3.04
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 356
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 11.1
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 71.1
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 332
+   }
+  ]
+ },
+ {
+  "fdcId": 2512374,
+  "description": "Flour, buckwheat",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 2.48
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 358
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 8.88
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 75.0
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 334
+   }
+  ]
+ },
+ {
+  "fdcId": 332282,
+  "description": "Sauce, pasta, spaghetti/marinara, ready-to-serve",
+  "dataType": "Foundation",
+  "foodCategory": "Soups, Sauces, and Gravies",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.48
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 8.05
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 45.0
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 1.41
+   },
+   {
+    "nutrientNumber": "205.2",
+    "nutrientName": "Carbohydrate, by summation",
+    "unitName": "G",
+    "value": 7.31
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 1.05
+   }
+  ]
+ },
+ {
+  "fdcId": 2710840,
+  "description": "Sorghum flour, white, pearled, unenriched, dry, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 3.24
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 364
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 10.2
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 73.5
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 350
+   }
+  ]
+ },
+ {
+  "fdcId": 2727579,
+  "description": "Squash, spaghetti, peeled, seeded, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Vegetables and Vegetable Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.792
+   }
+  ]
+ },
+ {
+  "fdcId": 2710827,
+  "description": "Einkorn, grain, dry, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 3.81
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 369
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 15.1
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 68.7
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 346
+   }
+  ]
+ },
+ {
+  "fdcId": 2710830,
+  "description": "Khorasan, grain, dry, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 2.8
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 371
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 14.8
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 71.8
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 348
+   }
+  ]
+ },
+ {
+  "fdcId": 2346396,
+  "description": "Oats, whole grain, rolled, old fashioned",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 5.89
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 68.7
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 13.5
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 382
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 379
+   }
+  ]
+ },
+ {
+  "fdcId": 790214,
+  "description": "Flour, rice, white, unenriched",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.3
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 79.8
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 359
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 6.94
+   }
+  ]
+ },
+ {
+  "fdcId": 2758993,
+  "description": "Bread, white, commercial",
+  "dataType": "Foundation",
+  "foodCategory": "Baked Products",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 2758997,
+  "description": "Tortilla, corn, shelf stable",
+  "dataType": "Foundation",
+  "foodCategory": "Baked Products",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 2758998,
+  "description": "Pasta, dry, enriched, spaghetti",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 328637,
+  "description": "Cheese, cheddar",
+  "dataType": "Foundation",
+  "foodCategory": "Dairy and Egg Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 2.44
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 408
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 23.3
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 34.0
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 29.0
+   }
+  ]
+ },
+ {
+  "fdcId": 323604,
+  "description": "Egg, whole, raw, frozen, pasteurized",
+  "dataType": "Foundation",
+  "foodCategory": "Dairy and Egg Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 12.3
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 10.3
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.91
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 150
+   }
+  ]
+ },
+ {
+  "fdcId": 748967,
+  "description": "Eggs, Grade A, Large, egg whole",
+  "dataType": "Foundation",
+  "foodCategory": "Dairy and Egg Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 148
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 12.4
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 9.96
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.96
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 8.65
+   },
+   {
+    "nutrientNumber": "205.2",
+    "nutrientName": "Carbohydrate, by summation",
+    "unitName": "G",
+    "value": 0.2
+   }
+  ]
+ },
+ {
+  "fdcId": 790508,
+  "description": "Butter, stick, salted",
+  "dataType": "Foundation",
+  "foodCategory": "Dairy and Egg Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 82.2
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 65.0
+   }
+  ]
+ },
+ {
+  "fdcId": 2758986,
+  "description": "Mayonnaise, Regular",
+  "dataType": "Foundation",
+  "foodCategory": "Fats and Oils",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 2684441,
+  "description": "Fish, salmon, Atlantic, farm raised, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Finfish and Shellfish Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 13.1
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 20.3
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.0
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 197
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 203
+   }
+  ]
+ },
+ {
+  "fdcId": 2684443,
+  "description": "Crustaceans, shrimp, farm raised, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Finfish and Shellfish Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.801
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 15.6
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.485
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 71.4
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 75.7
+   }
+  ]
+ },
+ {
+  "fdcId": 2747671,
+  "description": "Squid (calamari), frozen, tubes only",
+  "dataType": "Foundation",
+  "foodCategory": "Finfish and Shellfish Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.551
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 8.81
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.932
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 43.9
+   }
+  ]
+ },
+ {
+  "fdcId": 2747652,
+  "description": "Anchovies, canned in olive oil, with salt, drained",
+  "dataType": "Foundation",
+  "foodCategory": "Finfish and Shellfish Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 9.85
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 26.9
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 2.41
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 206
+   }
+  ]
+ },
+ {
+  "fdcId": 321358,
+  "description": "Hummus, commercial",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 7.35
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 17.1
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 14.9
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 229
+   },
+   {
+    "nutrientNumber": "205.2",
+    "nutrientName": "Carbohydrate, by summation",
+    "unitName": "G",
+    "value": 13.9
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 16.1
+   }
+  ]
+ },
+ {
+  "fdcId": 2515376,
+  "description": "Peanuts, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 43.3
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 23.2
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 26.5
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 588
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 551
+   }
+  ]
+ },
+ {
+  "fdcId": 1104766,
+  "description": "Flour, soy, full-fat",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 27.9
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 452
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 38.6
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 20.7
+   }
+  ]
+ },
+ {
+  "fdcId": 2758981,
+  "description": "Edamame, frozen, prepared",
+  "dataType": "Foundation",
+  "foodCategory": "Vegetables and Vegetable Products",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 748608,
+  "description": "Oil, olive, extra virgin",
+  "dataType": "Foundation",
+  "foodCategory": "Fats and Oils",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 93.7
+   }
+  ]
+ },
+ {
+  "fdcId": 1750348,
+  "description": "Oil, peanut",
+  "dataType": "Foundation",
+  "foodCategory": "Fats and Oils",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 93.4
+   }
+  ]
+ },
+ {
+  "fdcId": 330458,
+  "description": "Oil, coconut",
+  "dataType": "Foundation",
+  "foodCategory": "Fats and Oils",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.0
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 99.1
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 833
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.84
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 90.5
+   }
+  ]
+ },
+ {
+  "fdcId": 746784,
+  "description": "Sugars, granulated",
+  "dataType": "Foundation",
+  "foodCategory": "Sweets",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 0.0
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.32
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 385
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 99.6
+   }
+  ]
+ },
+ {
+  "fdcId": 2646170,
+  "description": "Chicken, breast, boneless, skinless, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Poultry Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.93
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 22.5
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 0.0
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 106
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 112
+   }
+  ]
+ },
+ {
+  "fdcId": 2758982,
+  "description": "Baked beans, Original, canned, with pork",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 2758983,
+  "description": "Beans, baked, canned, vegetarian",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 2758984,
+  "description": "Refried beans, canned (pinto)",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 2758985,
+  "description": "Refried beans, canned, vegetarian",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": []
+ },
+ {
+  "fdcId": 324317,
+  "description": "Onion rings, breaded, par fried, frozen, prepared, heated in oven",
+  "dataType": "Foundation",
+  "foodCategory": "Vegetables and Vegetable Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 14.4
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 36.3
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 288
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 4.52
+   },
+   {
+    "nutrientNumber": "205.2",
+    "nutrientName": "Carbohydrate, by summation",
+    "unitName": "G",
+    "value": 34.0
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 12.6
+   }
+  ]
+ },
+ {
+  "fdcId": 2644283,
+  "description": "Lentils, dry",
+  "dataType": "Foundation",
+  "foodCategory": "Legumes and Legume Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.92
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 23.6
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 62.2
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 360
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 351
+   }
+  ]
+ },
+ {
+  "fdcId": 747447,
+  "description": "Broccoli, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Vegetables and Vegetable Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 6.27
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 31.0
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.34
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 2.57
+   },
+   {
+    "nutrientNumber": "205.2",
+    "nutrientName": "Carbohydrate, by summation",
+    "unitName": "G",
+    "value": 3.8
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 0.07
+   }
+  ]
+ },
+ {
+  "fdcId": 2512381,
+  "description": "Rice, white, long grain, unenriched, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 1.03
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 80.3
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 7.04
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 359
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 370
+   }
+  ]
+ },
+ {
+  "fdcId": 334536,
+  "description": "Restaurant, Chinese, fried rice, without meat",
+  "dataType": "Foundation",
+  "foodCategory": "Restaurant Foods",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 3.19
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 32.5
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 174
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 3.84
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 2.22
+   }
+  ]
+ },
+ {
+  "fdcId": 2710819,
+  "description": "Chia seeds, dry, raw",
+  "dataType": "Foundation",
+  "foodCategory": "Cereal Grains and Pasta",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 32.9
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 17.0
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 38.3
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 517
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 490
+   }
+  ]
+ },
+ {
+  "fdcId": 1999632,
+  "description": "Spinach, baby",
+  "dataType": "Foundation",
+  "foodCategory": "Vegetables and Vegetable Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.619
+   },
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 2.85
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 2.41
+   },
+   {
+    "nutrientNumber": "957",
+    "nutrientName": "Energy (Atwater General Factors)",
+    "unitName": "KCAL",
+    "value": 26.6
+   },
+   {
+    "nutrientNumber": "958",
+    "nutrientName": "Energy (Atwater Specific Factors)",
+    "unitName": "KCAL",
+    "value": 20.7
+   },
+   {
+    "nutrientNumber": "205.2",
+    "nutrientName": "Carbohydrate, by summation",
+    "unitName": "G",
+    "value": 1.56
+   }
+  ]
+ },
+ {
+  "fdcId": 330137,
+  "description": "Yogurt, Greek, plain, nonfat",
+  "dataType": "Foundation",
+  "foodCategory": "Dairy and Egg Products",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 10.3
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 0.37
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 3.64
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 61.0
+   },
+   {
+    "nutrientNumber": "298",
+    "nutrientName": "Total fat (NLEA)",
+    "unitName": "G",
+    "value": 0.17
+   }
+  ]
+ },
+ {
+  "fdcId": 174611,
+  "description": "Ham, honey, smoked, cooked",
+  "dataType": "SR Legacy",
+  "foodCategory": "Sausages and Luncheon Meats",
+  "foodNutrients": [
+   {
+    "nutrientNumber": "203",
+    "nutrientName": "Protein",
+    "unitName": "G",
+    "value": 17.9
+   },
+   {
+    "nutrientNumber": "204",
+    "nutrientName": "Total lipid (fat)",
+    "unitName": "G",
+    "value": 2.37
+   },
+   {
+    "nutrientNumber": "205",
+    "nutrientName": "Carbohydrate, by difference",
+    "unitName": "G",
+    "value": 7.27
+   },
+   {
+    "nutrientNumber": "208",
+    "nutrientName": "Energy",
+    "unitName": "KCAL",
+    "value": 122
+   }
+  ]
+ }
+]

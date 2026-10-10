@@ -3,14 +3,16 @@
 /**
  * USDA FoodData Central importer — reusable module.
  *
- * Encapsulates the FDC pagination + category filtering + heuristic tagging
- * that `scripts/import-usda.ts` originally hosted. Same algorithm; just
- * separated so the admin-panel runner and the CLI script can both call it.
+ * Encapsulates the FDC pagination and category filtering that
+ * `scripts/import-usda.ts` originally hosted, so the admin-panel runner and the
+ * CLI script can both call it. What a food contains and which diets it suits
+ * is decided in `classify.ts`.
  *
  * Output is byte-stable for identical inputs (results are sorted by slug).
  */
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { classify } from './classify.js';
 
 export type Category =
   | 'vegetables'
@@ -54,30 +56,6 @@ const CATEGORY_MAP: Record<string, Category | null> = {
   'American Indian/Alaska Native Foods': null,
 };
 
-const ALLERGEN_RULES: { allergen: string; re: RegExp }[] = [
-  {
-    allergen: 'gluten',
-    re: /\b(wheat|barley|rye|bulgur|spelt|farro|kamut|semolina|bread|pasta|noodle|couscous|cracker)\b/i,
-  },
-  { allergen: 'dairy', re: /\b(milk|cheese|yogurt|butter|cream|whey|casein|kefir|ghee)\b/i },
-  { allergen: 'eggs', re: /\begg\b/i },
-  {
-    allergen: 'nuts',
-    re: /\b(almond|cashew|hazelnut|pecan|pistachio|walnut|brazil nut|macadamia|pine nut|chestnut)\b/i,
-  },
-  { allergen: 'peanuts', re: /\bpeanut/i },
-  { allergen: 'soy', re: /\b(soy|tofu|edamame|tempeh|miso)\b/i },
-  {
-    allergen: 'fish',
-    re: /\b(salmon|tuna|cod|haddock|trout|halibut|sardine|mackerel|herring|anchovy|tilapia|catfish)\b/i,
-  },
-  {
-    allergen: 'shellfish',
-    re: /\b(shrimp|prawn|crab|lobster|clam|mussel|oyster|scallop|squid|octopus)\b/i,
-  },
-  { allergen: 'sesame', re: /\b(sesame|tahini)\b/i },
-];
-
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -87,42 +65,20 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-function detectAllergens(name: string, category: Category): string[] {
-  const a = new Set<string>();
-  for (const { allergen, re } of ALLERGEN_RULES) if (re.test(name)) a.add(allergen);
-  if (category === 'fish') a.add('fish');
-  return [...a];
-}
-
+/**
+ * The diets a row lists. `balanced` suits everything; the three that depend on
+ * what the food is come from its classification; the three that depend on its
+ * figures are read off the figures.
+ */
 function dietCompatibility(
-  category: Category,
-  allergens: string[],
-  macros: { protein: number; fat: number; carbs: number },
+  established: readonly string[],
+  macros: { proteinPer100: number; fatPer100: number; carbsPer100: number },
 ): string[] {
-  const tags = new Set<string>(['balanced']);
-  const animal = category === 'meat' || category === 'fish';
-  const dairyOrEgg = allergens.includes('dairy') || allergens.includes('eggs');
-
-  if (!animal && !dairyOrEgg) {
-    tags.add('vegetarian');
-    tags.add('vegan');
-  } else if (!animal) {
-    tags.add('vegetarian');
-  }
-  if (macros.carbs < 10) tags.add('low_carb');
-  if (macros.carbs < 5 && macros.fat > 15) tags.add('keto');
-  if (macros.protein >= 15) tags.add('high_protein');
-  if (
-    category === 'fish' ||
-    category === 'vegetables' ||
-    category === 'fruits' ||
-    category === 'legumes' ||
-    category === 'nuts_seeds' ||
-    category === 'grains'
-  ) {
-    tags.add('mediterranean');
-  }
-  return [...tags];
+  const tags = ['balanced', ...established];
+  if (macros.carbsPer100 < 10) tags.push('low_carb');
+  if (macros.carbsPer100 < 5 && macros.fatPer100 > 15) tags.push('keto');
+  if (macros.proteinPer100 >= 15) tags.push('high_protein');
+  return tags;
 }
 
 interface FdcNutrient {
@@ -252,12 +208,8 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
         continue;
       }
 
-      const allergens = detectAllergens(name, category);
-      const diet = dietCompatibility(category, allergens, {
-        protein: proteinPer100,
-        fat: fatPer100,
-        carbs: carbsPer100,
-      });
+      const { allergens, diets } = classify(name, fdcCategory);
+      const diet = dietCompatibility(diets, { proteinPer100, fatPer100, carbsPer100 });
 
       ingredients.push({
         slug: slugify(name),
