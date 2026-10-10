@@ -63,9 +63,11 @@ export function AiChip({ className }: { className?: string }) {
       className={className}
       tone={exhausted ? 'exhausted' : 'admin'}
       title={
-        exhausted
-          ? t('exhaustedTooltip', { date: reset })
-          : t('adminTooltip')
+        status.instanceLimitReached
+          ? t('instanceExhaustedTooltip', { date: reset })
+          : exhausted
+            ? t('exhaustedTooltip', { date: reset })
+            : t('adminTooltip')
       }
       label={
         exhausted

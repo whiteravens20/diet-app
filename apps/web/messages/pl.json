@@ -46,10 +46,12 @@
     "byokLabel": "BYOK",
     "byokTooltip": "Używasz własnego klucza AI. Bez limitu.",
     "exhaustedLabel": "0/{limit}",
-    "exhaustedTooltip": "Miesięczny limit AI wyczerpany. Następne zapytanie odblokuje się {date}."
+    "exhaustedTooltip": "Miesięczny limit AI wyczerpany. Następne zapytanie odblokuje się {date}.",
+    "instanceExhaustedTooltip": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. Kolejne miejsce zwolni się {date}."
   },
   "aiFallback": {
     "quota_exhausted": "Miesięczny limit AI wyczerpany — przełączam się na wbudowany silnik.",
+    "instance_quota_exhausted": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana — używam silnika regułowego.",
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — przełączam się na wbudowany silnik.",
     "all_providers_failed": "Dostawca AI nie odpowiada — przełączam się na wbudowany silnik.",
     "provider_timeout": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. Tym razem korzystam z wbudowanego silnika."

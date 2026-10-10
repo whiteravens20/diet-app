@@ -46,10 +46,12 @@
     "byokLabel": "BYOK",
     "byokTooltip": "Using your own AI provider key. No quota.",
     "exhaustedLabel": "0/{limit}",
-    "exhaustedTooltip": "Monthly AI requests exhausted. Next slot frees up {date}."
+    "exhaustedTooltip": "Monthly AI requests exhausted. Next slot frees up {date}.",
+    "instanceExhaustedTooltip": "This instance's shared AI requests for the month are used up. Next slot frees up {date}."
   },
   "aiFallback": {
     "quota_exhausted": "Your monthly AI requests are used up — falling back to the rule-based engine.",
+    "instance_quota_exhausted": "This instance's shared AI requests for the month are used up — falling back to the rule-based engine.",
     "no_provider": "No AI provider is configured for your account — falling back to the rule-based engine.",
     "all_providers_failed": "AI provider didn't respond — falling back to the rule-based engine.",
     "provider_timeout": "AI provider was too slow — try a smaller model or a cloud provider. Falling back to the rule-based engine."
