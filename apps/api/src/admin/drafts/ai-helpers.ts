@@ -1,14 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Shared AI helpers used by the draft pipelines: per-provider tuning knobs
- * + a JSON extractor that strips markdown fences and leading prose from raw
- * model output.
+ * Per-provider tuning of the admin draft runs: how freely the model writes,
+ * how many ingredient names go into one call at most, and how long to pause
+ * between calls where the provider limits the request rate.
  */
-
-/** Per-provider temperature / batch-size tuning. Drafts use only
- *  `temperature` from this table; `batchSize` and `interBatchDelayMs` are
- *  here because the runners share the constant with future batching work. */
 export const PROVIDER_TUNING: Record<
   'openai' | 'anthropic' | 'openrouter' | 'ollama',
   { temperature: number; batchSize: number; interBatchDelayMs: number }

@@ -23,7 +23,7 @@ import { OpenAiProvider } from '../../ai/providers/openai.provider.js';
 import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
 import type { AiProviderAdapter } from '../../ai/provider.interface.js';
 import { PROVIDER_TUNING } from './ai-helpers.js';
-import { ingredientNames } from '../../ai/operations.js';
+import { ingredientNames, namesPerCall } from '../../ai/operations.js';
 import {
   INGREDIENT_NAMER_PROMPT_VERSION,
   buildIngredientNamerPrompt,
@@ -138,14 +138,16 @@ export class IngredientNamerRunner {
 
       const adapter = this.pickAdapter();
       const tuning = PROVIDER_TUNING[adapter.kind];
+      // No more names per call than fit one answer.
+      const batchSize = Math.min(tuning.batchSize, namesPerCall(targetLocales.length));
 
-      for (let i = 0; i < targets.length; i += tuning.batchSize) {
+      for (let i = 0; i < targets.length; i += batchSize) {
         if (this.cancelRequested) break;
-        const batch = targets.slice(i, i + tuning.batchSize);
+        const batch = targets.slice(i, i + batchSize);
         await this.processBatch(batch, targetLocales, adapter, tuning.temperature, batchId);
         if (
           tuning.interBatchDelayMs > 0 &&
-          i + tuning.batchSize < targets.length &&
+          i + batchSize < targets.length &&
           !this.cancelRequested
         ) {
           await this.cancellableSleep(tuning.interBatchDelayMs);
@@ -259,7 +261,7 @@ export class IngredientNamerRunner {
     targetLocales: Locale[],
     temperature: number,
   ): Promise<Record<string, import('@diet-app/shared').IngredientNameSuggestion> | null> {
-    const failures: { key: string; reason: IngredientNamerValidationReason }[] = [];
+    const failures: { key: string; reason: IngredientNamerValidationReason | 'answer-cut-off' }[] = [];
     const limits = ingredientNames(Object.keys(source).length, targetLocales.length, temperature);
     for (const attempt of [0, 1, 2]) {
       try {
@@ -280,6 +282,12 @@ export class IngredientNamerRunner {
             timeoutMs: limits.timeoutMs,
           },
         );
+        if (result.truncated) {
+          // A cut-off answer is not worth parsing: its JSON does not close.
+          failures.push({ key: '?', reason: 'answer-cut-off' });
+          this.logger.warn(`namer batch cut off at ${limits.maxTokens} tokens`);
+          continue;
+        }
         const v = validateIngredientNamer({
           source,
           targetLocales,

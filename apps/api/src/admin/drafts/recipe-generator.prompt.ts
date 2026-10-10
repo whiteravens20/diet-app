@@ -19,13 +19,8 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Locale, MealType, DietType, ComplexityMix, Complexity } from '@diet-app/shared';
-import {
-  COMPLEXITY_BANDS,
-  DEFAULT_COMPLEXITY_MIX,
-  normaliseMix,
-  targetsForMix,
-} from './recipe-generator.complexity.js';
+import type { Locale, MealType, DietType, Complexity } from '@diet-app/shared';
+import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
 export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v1';
 
@@ -60,8 +55,8 @@ export interface CatalogueRow {
 
 export interface RecipeGeneratorPromptInput {
   targetLocales: Locale[];
-  count: number;
-  complexityMix?: ComplexityMix;
+  /** How many recipes of each complexity band this call asks for. */
+  targets: Record<Complexity, number>;
   dietTags?: DietType[];
   mealTypes?: MealType[];
   cuisine?: string;
@@ -193,8 +188,8 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
   const localeList = targetLocales
     .map((l) => `${LOCALE_LABEL[l] ?? l} (${l})`)
     .join(', ');
-  const mix = normaliseMix(input.complexityMix ?? DEFAULT_COMPLEXITY_MIX);
-  const targetCounts = targetsForMix(input.count, mix);
+  const targetCounts = input.targets;
+  const count = targetCounts.simple + targetCounts.medium + targetCounts.complex;
   const fewShot = targetLocales.map((l) => renderFewShotForLocale(l)).join('');
   const existingBlock = renderExistingRecipes(input.existingRecipes);
 
@@ -234,7 +229,7 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
     .join(',\n');
 
   return `You are a recipe author for a self-hosted diet and meal-planning
-application. You will draft ${input.count} ORIGINAL home-cook recipes from your
+application. You will draft ${count} ORIGINAL home-cook recipes from your
 own training knowledge of cooking. You MUST pick every ingredient from the
 catalogue at the end of this prompt — you may NOT invent or rename ingredients.
 
@@ -264,7 +259,7 @@ would actually write on a recipe card.
 Complexity bands (every recipe MUST fit inside ONE band — outside every band = reject):
 ${renderComplexityBands()}
 
-Requested complexity mix for this batch (${input.count} total): ${targetCounts.simple} simple, ${targetCounts.medium} medium, ${targetCounts.complex} complex.
+Requested complexity mix for this batch (${count} total): ${targetCounts.simple} simple, ${targetCounts.medium} medium, ${targetCounts.complex} complex.
 ${constraintsBlock}
 Hard rules — follow strictly. The validator rejects the WHOLE batch on a
 single violation, so be precise:
@@ -339,5 +334,5 @@ ${localeStepsHints}
 ${existingBlock}${fewShot}Ingredient catalogue (slugs you MUST pick from):
 ${renderCatalogue(input.catalogue)}
 
-Now write ${input.count} recipe(s).`;
+Now write ${count} recipe(s).`;
 }

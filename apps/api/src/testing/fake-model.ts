@@ -12,8 +12,10 @@ import type { AddressInfo } from 'node:net';
 export interface ModelReply {
   /** Only answer a request whose model name or prompt contains this text. */
   match?: string;
-  /** The text the model "says". */
-  text?: string;
+  /** The text the model "says", or a function of the request that produces it. */
+  text?: string | ((request: ModelRequest) => string);
+  /** Answer as a model does when it runs into its token limit. */
+  truncated?: boolean;
   /** A status other than 200 makes the call fail like a provider error. */
   status?: number;
   delayMs?: number;
@@ -26,6 +28,9 @@ export interface ModelRequest {
   model: string;
   prompt: string;
   format?: string;
+  /** The limits the application put on the answer. */
+  maxTokens?: number;
+  temperature?: number;
 }
 
 export interface FakeModel {
@@ -72,9 +77,17 @@ export async function startFakeModel(): Promise<FakeModel> {
           model?: string;
           format?: string;
           messages?: { content: string }[];
+          options?: { num_predict?: number; temperature?: number };
         };
         const prompt = (body.messages ?? []).map((m) => m.content).join('\n');
-        requests.push({ model: body.model ?? '', prompt, format: body.format });
+        const received: ModelRequest = {
+          model: body.model ?? '',
+          prompt,
+          format: body.format,
+          maxTokens: body.options?.num_predict,
+          temperature: body.options?.temperature,
+        };
+        requests.push(received);
 
         const haystack = `${body.model ?? ''}\n${prompt}`;
         const index = rules.findIndex((rule) => !rule.match || haystack.includes(rule.match));
@@ -83,15 +96,17 @@ export async function startFakeModel(): Promise<FakeModel> {
           rule.times -= 1;
           if (rule.times <= 0) rules.splice(index, 1);
           if (rule.delayMs) await sleep(rule.delayMs);
-          if (rule.status && rule.status !== 200) {
-            send(rule.status, rule.text ?? 'scripted failure');
-            return;
-          }
+        }
+        const text = typeof rule?.text === 'function' ? rule.text(received) : rule?.text;
+        if (rule?.status && rule.status !== 200) {
+          send(rule.status, text ?? 'scripted failure');
+          return;
         }
         send(200, {
           model: body.model,
-          message: { role: 'assistant', content: rule ? (rule.text ?? '') : UNSCRIPTED_REPLY },
+          message: { role: 'assistant', content: rule ? (text ?? '') : UNSCRIPTED_REPLY },
           done: true,
+          done_reason: rule?.truncated ? 'length' : 'stop',
           prompt_eval_count: 1,
           eval_count: 1,
         });

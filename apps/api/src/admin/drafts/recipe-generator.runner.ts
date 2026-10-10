@@ -6,10 +6,11 @@
  * Single-flight job. The operator submits a `RecipeGenerateSpec`; the runner
  * fetches the curated + USDA-imported ingredient catalogue (rendered into the
  * prompt as the hard whitelist), asks the admin-default AI provider to author
- * N recipes in one call, runs every row through the validator (engine
- * recompute included), and persists accepted candidates as `RecipeDraft`
- * rows with `status = PENDING`. Rejected rows are counted in `failed` and the
- * row is dropped — same philosophy as the ingredient namer.
+ * the recipes a few per call (as many as fit one answer), runs every row
+ * through the validator (engine recompute included), and persists accepted
+ * candidates as `RecipeDraft` rows with `status = PENDING`. Rejected rows are
+ * counted in `failed` and the row is dropped — same philosophy as the
+ * ingredient namer.
  *
  * Mirrors the state shape + cancel + pickAdapter pattern from the ingredient
  * namer so the controller can return one unified payload.
@@ -29,8 +30,8 @@ import { AnthropicProvider } from '../../ai/providers/anthropic.provider.js';
 import { OllamaProvider } from '../../ai/providers/ollama.provider.js';
 import { OpenAiProvider } from '../../ai/providers/openai.provider.js';
 import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
-import type { AiProviderAdapter } from '../../ai/provider.interface.js';
-import { recipeBatch } from '../../ai/operations.js';
+import type { AiProviderAdapter, CompletionResult } from '../../ai/provider.interface.js';
+import { recipeBatch, recipesPerCall } from '../../ai/operations.js';
 import { PROVIDER_TUNING } from './ai-helpers.js';
 import {
   MAX_EXISTING_RECIPES_IN_PROMPT,
@@ -41,11 +42,13 @@ import {
 } from './recipe-generator.prompt.js';
 import {
   validateRecipeBatch,
+  type RecipeDraftCandidate,
   type ResolvedIngredient,
 } from './recipe-generator.validate.js';
 import {
   batchMixDrift,
   DEFAULT_COMPLEXITY_MIX,
+  planCalls,
 } from './recipe-generator.complexity.js';
 
 export type RecipeRunnerStatus = 'idle' | 'running' | 'done' | 'error';
@@ -182,92 +185,156 @@ export class RecipeGeneratorRunner {
 
       const adapter = this.pickAdapter();
       const tuning = PROVIDER_TUNING[adapter.kind];
-      const limits = recipeBatch(spec.count, targetLocalesWithEn.length, tuning.temperature);
-      const promptText = buildRecipeGeneratorPrompt({
-        targetLocales: targetLocalesWithEn,
-        count: spec.count,
-        complexityMix: spec.complexityMix,
-        dietTags: spec.dietTags,
-        mealTypes: spec.mealTypes,
-        cuisine: spec.cuisine,
-        kcalRange: spec.kcalRange,
-        avoidSlugs: spec.avoidSlugs,
-        preferSlugs: spec.preferSlugs,
-        catalogue: this.catalogueForPrompt(catalogue),
-        existingRecipes,
-      });
+      // One answer holds only a few recipes, so a run is a series of calls.
+      const calls = planCalls(
+        spec.count,
+        recipesPerCall(targetLocalesWithEn.length),
+        spec.complexityMix ?? DEFAULT_COMPLEXITY_MIX,
+      );
 
-      for (let attempt = 0; attempt < 3; attempt += 1) {
+      for (const [index, targets] of calls.entries()) {
         if (this.cancelRequested) break;
-        const reminder = attempt === 0
-          ? ''
-          : '\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.';
-        let rawText: string;
-        try {
-          const result = await adapter.chat(
-            [{ role: 'user', content: promptText + reminder }],
-            {
-              model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
-              apiKey: this.adapterKey(adapter),
-              baseUrl: this.adapterBaseUrl(adapter),
-              json: true,
-              maxTokens: limits.maxTokens,
-              temperature: limits.temperature,
-              timeoutMs: limits.timeoutMs,
-            },
-          );
-          rawText = result.text;
-        } catch (err) {
-          this.logger.warn(`recipe-gen call failed (attempt ${attempt}): ${describe(err)}`);
-          if (attempt === 2) {
-            this.finishWithError(`provider call failed: ${describe(err)}`);
-            return;
-          }
-          continue;
-        }
-
-        const validation = validateRecipeBatch({
+        const asked = targets.simple + targets.medium + targets.complex;
+        const answer = await this.askForRecipes({
+          adapter,
+          temperature: tuning.temperature,
+          targets,
+          spec,
           targetLocales: targetLocalesWithEn,
-          rawOutput: rawText,
+          catalogue,
           resolveSlug,
           existingRecipes,
         });
-        if (validation.ok) {
-          await this.persistCandidates({
-            candidates: validation.candidates,
-            spec,
-            targetLocales: targetLocalesWithEn,
-            batchId,
-          });
-          this.summariseMix(spec, validation.candidates.length);
-          this.finish(this.cancelRequested ? 'cancelled' : null);
+        if (answer.failure) {
+          // The provider itself is failing; the calls still to come would too.
+          this.finishWithError(`provider call failed: ${answer.failure}`);
           return;
         }
-        const head = rawText.slice(0, 200).replace(/\s+/g, ' ');
-        const detailsSuffix = validation.details ? ` [${validation.details}]` : '';
-        this.logger.warn(
-          `recipe batch reject (${validation.reason}${validation.key ? `, ${validation.key}` : ''})${detailsSuffix}: head="${head}"`,
-        );
+        if (this.cancelRequested && answer.candidates.length === 0) break;
+        // Never more than was asked for, whatever the model sent.
+        const accepted = answer.candidates.slice(0, asked);
+        await this.persistCandidates({
+          candidates: accepted,
+          spec,
+          targetLocales: targetLocalesWithEn,
+          batchId,
+        });
+        const missing = asked - accepted.length;
         this.state = {
           ...this.state,
-          lastRejectReason: validation.reason,
-          lastRejectKey: validation.key
-            ? `${validation.key}${detailsSuffix}`
-            : validation.details ?? null,
-          lastRejectHead: head,
+          processed: this.state.processed + missing,
+          failed: this.state.failed + missing,
         };
+        // The calls still to come must not repeat what this one wrote.
+        existingRecipes.unshift(
+          ...accepted.map((c) => ({
+            slug: c.slug,
+            titleEn: c.titles.en ?? c.slug,
+            ingredientSlugs: c.ingredients.map((i) => i.slug),
+          })),
+        );
+        if (tuning.interBatchDelayMs > 0 && index < calls.length - 1 && !this.cancelRequested) {
+          await new Promise((waited) => setTimeout(waited, tuning.interBatchDelayMs));
+        }
       }
 
-      // All 3 attempts exhausted without an OK batch.
-      this.state = {
-        ...this.state,
-        failed: spec.count,
-        processed: spec.count,
-      };
-      this.finish('batch rejected on every retry');
+      this.summariseMix(spec, this.state.written);
+      if (this.cancelRequested) this.finish('cancelled');
+      else this.finish(this.state.written === 0 ? 'batch rejected on every retry' : null);
     } catch (err) {
       this.finishWithError(describe(err));
     }
+  }
+
+  /**
+   * One call of a run, with up to three attempts. Returns the recipes that
+   * passed validation (none when every attempt was rejected), or the failure
+   * when the provider could not be reached at all.
+   */
+  private async askForRecipes(opts: {
+    adapter: AiProviderAdapter;
+    temperature: number;
+    targets: Record<Complexity, number>;
+    spec: RecipeGenerateSpec;
+    targetLocales: Locale[];
+    catalogue: CatalogueRow[];
+    resolveSlug: (slug: string) => ResolvedIngredient | null;
+    existingRecipes: ExistingRecipeSummary[];
+  }): Promise<{ candidates: RecipeDraftCandidate[]; failure: string | null }> {
+    const { adapter, targets, spec, targetLocales, existingRecipes } = opts;
+    const asked = targets.simple + targets.medium + targets.complex;
+    const limits = recipeBatch(asked, targetLocales.length, opts.temperature);
+    const promptText = buildRecipeGeneratorPrompt({
+      targetLocales,
+      targets,
+      dietTags: spec.dietTags,
+      mealTypes: spec.mealTypes,
+      cuisine: spec.cuisine,
+      kcalRange: spec.kcalRange,
+      avoidSlugs: spec.avoidSlugs,
+      preferSlugs: spec.preferSlugs,
+      catalogue: this.catalogueForPrompt(opts.catalogue),
+      existingRecipes,
+    });
+
+    let failure: string | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (this.cancelRequested) break;
+      const reminder = attempt === 0
+        ? ''
+        : '\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.';
+      let result: CompletionResult;
+      try {
+        result = await adapter.chat([{ role: 'user', content: promptText + reminder }], {
+          model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
+          apiKey: this.adapterKey(adapter),
+          baseUrl: this.adapterBaseUrl(adapter),
+          json: true,
+          maxTokens: limits.maxTokens,
+          temperature: limits.temperature,
+          timeoutMs: limits.timeoutMs,
+        });
+      } catch (err) {
+        failure = describe(err);
+        this.logger.warn(`recipe-gen call failed (attempt ${attempt}): ${failure}`);
+        continue;
+      }
+      failure = null;
+
+      const head = result.text.slice(0, 200).replace(/\s+/g, ' ');
+      if (result.truncated) {
+        // A cut-off answer is not worth parsing: its JSON does not close.
+        this.logger.warn(`recipe batch cut off at ${limits.maxTokens} tokens: head="${head}"`);
+        this.state = {
+          ...this.state,
+          lastRejectReason: 'answer-cut-off',
+          lastRejectKey: null,
+          lastRejectHead: head,
+        };
+        continue;
+      }
+      const validation = validateRecipeBatch({
+        targetLocales,
+        rawOutput: result.text,
+        resolveSlug: opts.resolveSlug,
+        existingRecipes,
+      });
+      if (validation.ok) return { candidates: validation.candidates, failure: null };
+
+      const detailsSuffix = validation.details ? ` [${validation.details}]` : '';
+      this.logger.warn(
+        `recipe batch reject (${validation.reason}${validation.key ? `, ${validation.key}` : ''})${detailsSuffix}: head="${head}"`,
+      );
+      this.state = {
+        ...this.state,
+        lastRejectReason: validation.reason,
+        lastRejectKey: validation.key
+          ? `${validation.key}${detailsSuffix}`
+          : validation.details ?? null,
+        lastRejectHead: head,
+      };
+    }
+    return { candidates: [], failure };
   }
 
   private async loadCatalogue(
@@ -391,7 +458,7 @@ export class RecipeGeneratorRunner {
   }
 
   private async persistCandidates(opts: {
-    candidates: import('./recipe-generator.validate.js').RecipeDraftCandidate[];
+    candidates: RecipeDraftCandidate[];
     spec: RecipeGenerateSpec;
     targetLocales: Locale[];
     batchId: string;

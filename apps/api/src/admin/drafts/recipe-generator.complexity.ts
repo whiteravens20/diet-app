@@ -106,6 +106,33 @@ export function targetsForMix(count: number, mix: ComplexityMix): Record<Complex
   return floored;
 }
 
+/**
+ * Split a run of `count` recipes into calls of at most `perCall`, and say how
+ * many recipes of each band every call asks for. The bands are spread over the
+ * calls, so the mix holds for the run as a whole and a small call is not asked
+ * for the same band every time.
+ */
+export function planCalls(
+  count: number,
+  perCall: number,
+  mix: ComplexityMix,
+): Record<Complexity, number>[] {
+  const left = targetsForMix(count, mix);
+  const wanted = { ...left };
+  const bands = Object.keys(left) as Complexity[];
+  const calls: Record<Complexity, number>[] = [];
+  for (let planned = 0; planned < count; planned += 1) {
+    if (planned % perCall === 0) calls.push({ simple: 0, medium: 0, complex: 0 });
+    // The band that is furthest behind its share goes next.
+    const next = bands
+      .filter((band) => left[band] > 0)
+      .sort((a, b) => left[b] / wanted[b] - left[a] / wanted[a])[0]!;
+    left[next] -= 1;
+    calls.at(-1)![next] += 1;
+  }
+  return calls;
+}
+
 /** Whether the realised mix (counts per band) deviates from the target mix
  *  by > `tolerancePp` percentage-points in any band. The runner surfaces this
  *  as a yellow warning chip on the batch; it never rejects. */
