@@ -29,8 +29,10 @@ The companion Android app lives in a separate repository:
   an optimiser that maximises ingredient reuse and minimises waste.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
   approved ingredients, then a validation layer recomputes every number.
-- **Shopping lists** — merged, unit-normalised, category-grouped, with "already at home"
-  deductions and export.
+- **Shopping lists and a pantry** — merged and category-grouped, counted the way one
+  shops (eggs and slices of bread in pieces, weights rounded up to 5 g), with what the
+  pantry already holds taken off, what was bought beyond the need put into it, and PDF
+  export.
 - **Meal & ingredient swapping** — random/favorite meal swaps and ingredient substitutions
   that preserve calories and report the macro delta.
 - **BYOK AI** — per-user OpenAI / Anthropic / OpenRouter / Ollama keys with failover, and a
