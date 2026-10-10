@@ -64,3 +64,33 @@ export function aPlan(
 export function race<T>(n: number, fn: (index: number) => Promise<T>): Promise<PromiseSettledResult<T>[]> {
   return Promise.allSettled(Array.from({ length: n }, (_, index) => fn(index)));
 }
+
+/** A recipe that belongs to `user` alone, as an AI draft or an ingredient swap leaves one. */
+export async function aPrivateRecipe(
+  t: TestApp,
+  user: TestUser,
+  overrides: { title?: string; allergens?: string[]; mealTypes?: string[] } = {},
+): Promise<{ id: string; title: string }> {
+  const ingredient = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'white-rice' } });
+  return t.prisma.recipe.create({
+    data: {
+      title: overrides.title ?? 'A private recipe',
+      description: 'Only its owner may see this.',
+      servings: 1,
+      mealTypes: overrides.mealTypes ?? ['lunch'],
+      dietTags: ['balanced'],
+      steps: ['Cook the rice.', 'Serve.'],
+      prepMinutes: 5,
+      cookMinutes: 15,
+      allergens: overrides.allergens ?? [],
+      origin: 'ai',
+      caloriesPerServing: 360,
+      proteinPerServing: 7,
+      fatPerServing: 1,
+      carbsPerServing: 79,
+      createdByUserId: user.id,
+      ingredients: { create: [{ ingredientId: ingredient.id, quantity: 100, unit: 'g' }] },
+    },
+    select: { id: true, title: true },
+  });
+}
