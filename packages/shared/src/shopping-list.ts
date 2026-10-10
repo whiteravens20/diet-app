@@ -47,7 +47,8 @@ export const ShoppingListItem = z.object({
   displayUnit: DisplayUnit,
   /**
    * What the list took as already at home when it was made: the pantry's
-   * stock, rounded down to what one counts. Never changes afterwards.
+   * stock, less what the profile's other lists had already claimed and not
+   * yet ticked off, rounded down to what one counts. Never changes afterwards.
    */
   alreadyHaveQuantity: z.number().min(0).default(0),
   /** totalQuantity - alreadyHaveQuantity, floored at 0. */

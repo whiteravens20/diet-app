@@ -297,6 +297,57 @@ describe('shopping lists and the pantry', () => {
     });
   });
 
+  describe('two lists of one profile', () => {
+    // Day one needs 120 g of oats, day two 60 g.
+    beforeEach(async () => {
+      await menu(0, [PORRIDGE, PORRIDGE, TOFU_BOWL]);
+      await menu(1, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+      await stock('rolled-oats', 100, 'g');
+    });
+
+    it('do not both count on the same stock', async () => {
+      const first = await listFor(0);
+      const second = await listFor(1);
+
+      expect(rowOf(first, 'Rolled oats')).toMatchObject({ totalQuantity: 120, alreadyHaveQuantity: 100, toBuyQuantity: 20 });
+      // The 100 g are spoken for.
+      expect(rowOf(second, 'Rolled oats')).toMatchObject({ totalQuantity: 60, alreadyHaveQuantity: 0, toBuyQuantity: 60 });
+    });
+
+    it('see stock again once the list that counted on it has taken it', async () => {
+      const first = await listFor(0);
+      await edit(first, 'Rolled oats', { purchasedQuantity: 300 });
+      // 100 g taken, 180 g beyond the need put in.
+      expect(await pantry('rolled-oats')).toEqual(['180 g']);
+
+      const second = await listFor(1);
+
+      expect(rowOf(second, 'Rolled oats')).toMatchObject({ alreadyHaveQuantity: 60, checked: true });
+      expect(await pantry('rolled-oats')).toEqual(['120 g']);
+    });
+
+    it('count on the stock of another plan of the same profile as taken, too', async () => {
+      await listFor(0);
+      const otherPlan = await aPlan(t, user, profile, { startDate: '2026-02-02' });
+      const breakfast = otherPlan.days[0]!.meals.find((meal) => meal.mealType === 'breakfast')!;
+      const porridge = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: PORRIDGE } });
+      await t.prisma.plannedMeal.update({ where: { id: breakfast.id }, data: { recipeId: porridge.id, servings: 1, quantityScale: 1 } });
+
+      const other = await lists.generate(user.id, 'en', { planId: otherPlan.id, fromDate: otherPlan.days[0]!.date, toDate: otherPlan.days[0]!.date });
+
+      expect(rowOf(other, 'Rolled oats').alreadyHaveQuantity).toBe(0);
+    });
+
+    it('are made one after the other when asked for at the same moment', async () => {
+      const results = await race(2, (index) => listFor(index));
+
+      const claims = results.map((result) => (result.status === 'fulfilled' ? rowOf(result.value, 'Rolled oats').alreadyHaveQuantity : -1)).sort();
+      // One of them got the stock; they did not both get it.
+      expect(claims.reduce((sum, claim) => sum + claim, 0)).toBeLessThanOrEqual(100);
+      expect(claims).not.toContain(-1);
+    });
+  });
+
   it("another user's plan and lists are out of reach", async () => {
     const list = await listFor(0);
     const other = await aUser(t);

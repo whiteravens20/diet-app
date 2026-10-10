@@ -69,7 +69,9 @@ interface StoredList {
  *
  *  - one row is changed under a lock on that row, so two edits of it take
  *    turns and the second sees what the first did;
- *  - the pantry rows of one ingredient change under `lockPantry`.
+ *  - the pantry rows of one ingredient change under `lockPantry`;
+ *  - lists of one profile are made one at a time, so that two of them cannot
+ *    both count on the same stock.
  */
 @Injectable()
 export class ShoppingListsService {
@@ -91,11 +93,14 @@ export class ShoppingListsService {
     const to = req.toDate ? new Date(req.toDate) : plan.days.at(-1)?.date ?? plan.startDate;
 
     const listId = await this.prisma.$transaction(async (tx) => {
+      // One list of a profile at a time: each counts on what the others left.
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`shopping:${profileId}`}, 0))`);
       // The menu must not change between reading it and writing the list.
       await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${plan.id} FOR UPDATE`);
 
       const needs = await planNeeds(tx, plan.id, from, to);
       const items = needs.groups.flatMap((group) => group.items);
+      const claimed = await openClaims(tx, profileId, needs.ingredients);
 
       const list = await tx.shoppingList.create({ data: { planId: plan.id, fromDate: from, toDate: to } });
       // In the order every writer takes the pantry locks in.
@@ -107,7 +112,8 @@ export class ShoppingListsService {
           select: { unit: true, quantity: true, bestBefore: true },
         });
         const stock = pantryStock(rows, ingredient);
-        const have = quantityToClaim(convertUnit(stock.quantity, ingredient.canonicalUnit, item.unit, ingredient), item.unit, item.totalQuantity);
+        const free = stock.quantity - (claimed.get(ingredient.id) ?? 0);
+        const have = quantityToClaim(convertUnit(free, ingredient.canonicalUnit, item.unit, ingredient), item.unit, item.totalQuantity);
         // A need the pantry covers in full needs no shopping: the row arrives
         // ticked, and what it counts on leaves the pantry now.
         const covered = have > 0 && have >= item.totalQuantity;
@@ -327,6 +333,34 @@ async function planNeeds(db: Reader, planId: string, from: Date, to: Date) {
   const lines = await planLines(db, planId, from, to);
   const ingredients = await loadIngredients(db, [...new Set(lines.map((line) => line.ingredientId))]);
   return { groups: aggregateShoppingList(lines, ingredients), ingredients };
+}
+
+/**
+ * What the profile's lists count on from the pantry without having taken it
+ * yet: the claims of rows that are not ticked, per ingredient, in its
+ * canonical unit. A new list sees the stock less these.
+ */
+async function openClaims(tx: Tx, profileId: string, ingredients: ReadonlyMap<string, ShoppingIngredient>): Promise<Map<string, number>> {
+  const rows = await tx.shoppingListItem.findMany({
+    where: {
+      checked: false,
+      alreadyHaveQuantity: { gt: 0 },
+      ingredientId: { in: [...ingredients.keys()] },
+      list: { plan: { profileId } },
+    },
+    select: { ingredientId: true, unit: true, alreadyHaveQuantity: true },
+  });
+  const claims = new Map<string, number>();
+  for (const row of rows) {
+    const ingredient = ingredients.get(row.ingredientId)!;
+    try {
+      const amount = convertUnit(row.alreadyHaveQuantity, row.unit, ingredient.canonicalUnit, ingredient);
+      claims.set(row.ingredientId, (claims.get(row.ingredientId) ?? 0) + amount);
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+    }
+  }
+  return claims;
 }
 
 /**
