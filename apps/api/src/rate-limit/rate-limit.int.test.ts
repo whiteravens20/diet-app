@@ -39,11 +39,12 @@ describe('rate limits behind a proxy that is not trusted', () => {
 
       expect(await statuses(10, () => login(victim.email, 'not-the-password'))).toEqual(Array(10).fill(401));
 
-      // The account that was guessed at is closed for the rest of the minute, even to its owner.
+      // Where everybody has the same address, the account and the address together are the
+      // account alone: it is closed for a quarter of an hour, even to its owner.
       const eleventh = await login(victim.email, victim.password);
       expect(eleventh.status).toBe(429);
       expect(eleventh.body.error).toBe('RATE_LIMITED');
-      expect(eleventh.headers['retry-after']).toBeDefined();
+      expect(Number(eleventh.headers['retry-after'])).toBeGreaterThan(600);
       // Everybody else signs in as if nothing had happened.
       expect((await login(bystander.email, bystander.password)).status).toBe(200);
     });

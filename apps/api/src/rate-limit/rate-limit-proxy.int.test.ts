@@ -2,6 +2,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
+import { aUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 /** One reverse proxy stands in front and is trusted: it writes the client's address into the header. */
@@ -25,6 +26,45 @@ describe('rate limits behind one trusted proxy', () => {
       .set('X-Forwarded-For', forwardedFor)
       .send({ email: `visitor-${(sequence += 1)}-${Date.now().toString(36)}@example.test`, password: 'Integration-Passw0rd', displayName: 'Visitor' });
   const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+
+  describe('signing in', () => {
+    const login = (from: string, email: string, password: string) =>
+      t.http().post('/api/auth/login').set('X-Forwarded-For', from).send({ email, password });
+
+    it('counts wrong passwords against the account and the address together, so that a stranger cannot keep the owner out', async () => {
+      const owner = await aUser(t);
+      for (let i = 0; i < 10; i += 1) expect((await login('203.0.113.101', owner.email, 'not-the-password')).status).toBe(401);
+
+      // The address that guessed is held up for a quarter of an hour, right password or not.
+      const held = await login('203.0.113.101', owner.email, owner.password);
+      expect(held.status).toBe(429);
+      expect(held.body.error).toBe('RATE_LIMITED');
+      expect(Number(held.headers['retry-after'])).toBeGreaterThan(600);
+      // The owner, at another address, signs in as if nothing had happened.
+      expect((await login('203.0.113.102', owner.email, owner.password)).status).toBe(200);
+    });
+
+    it('takes every address of one IPv6 network for the one client it is', async () => {
+      const owner = await aUser(t);
+      for (let i = 0; i < 10; i += 1) await login(`2001:db8:1:2::${i + 1}`, owner.email, 'not-the-password');
+
+      expect((await login('2001:db8:1:2:aaaa:bbbb:cccc:dddd', owner.email, owner.password)).status).toBe(429);
+      expect((await login('2001:db8:1:3::1', owner.email, owner.password)).status).toBe(200);
+    });
+
+    it('lets one account be tried fifty times in a quarter of an hour from everywhere together', async () => {
+      const owner = await aUser(t);
+      for (let address = 1; address <= 5; address += 1) {
+        for (let i = 0; i < 10; i += 1) expect((await login(`203.0.113.${110 + address}`, owner.email, 'not-the-password')).status).toBe(401);
+      }
+
+      // Five addresses used up what the account allows: a sixth is refused before its password is looked at.
+      expect((await login('203.0.113.120', owner.email, owner.password)).status).toBe(429);
+      // Nobody else's account is held up by it.
+      const other = await aUser(t);
+      expect((await login('203.0.113.120', other.email, other.password)).status).toBe(200);
+    });
+  });
 
   it('gives two clients an allowance each', async () => {
     const first: number[] = [];

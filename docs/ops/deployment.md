@@ -120,17 +120,25 @@ is known about its sender:
 | Request | Counted against | Limit |
 |---|---|---|
 | With a valid sign-in | The user | `RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW` and route; less on AI routes |
-| Sign-in | The account being signed in to | 10 a minute |
+| Sign-in | The account and the address together | 10 in 15 minutes |
+| | The account, from everywhere together | 50 in 15 minutes |
 | Password-reset request | The address the reset is for | 5 in 15 minutes |
 | Token refresh, sign-out, links from mails | The token presented | 10 a minute |
 | Changing the password or address, deleting the account | The user | 5 a minute each |
 | Creating an account, everything else without a sign-in | The client's address | 10 a minute for sign-up, otherwise `RATE_LIMIT_MAX` |
 | Health and public configuration | Not limited | |
 
-So wrong passwords for one account slow down that account's sign-in and nobody else's,
-whether or not `TRUST_PROXY` is set. What is counted against the address is only as good
-as the address: without `TRUST_PROXY` it is one allowance for the whole instance, and
-sign-ups, for example, stop for everybody once ten were tried in a minute.
+Wrong passwords for one account never slow down sign-in to another account. With
+`TRUST_PROXY` set they do not keep the owner out either: the ten tries are those of the
+address that guessed, and the owner sits at another one. Only five addresses guessing
+together reach the fifty an account allows from everywhere, which is what stops somebody
+with many addresses from guessing without end. Without `TRUST_PROXY` the API sees one
+address for everybody, and ten wrong passwords close the account to its owner too, for up
+to a quarter of an hour.
+
+What is counted against the address is only as good as the address: without
+`TRUST_PROXY` it is one allowance for the whole instance, and sign-ups, for example, stop
+for everybody once ten were tried in a minute.
 
 The administrator's and the reviewers' passwords have no account to count attempts
 against. After five wrong ones in a row from one address, that address waits 30 seconds

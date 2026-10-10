@@ -4,9 +4,17 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { InjectThrottlerOptions, InjectThrottlerStorage, ThrottlerGuard, type ThrottlerModuleOptions, type ThrottlerStorage } from '@nestjs/throttler';
+import {
+  InjectThrottlerOptions,
+  InjectThrottlerStorage,
+  ThrottlerGuard,
+  type ThrottlerModuleOptions,
+  type ThrottlerRequest,
+  type ThrottlerStorage,
+} from '@nestjs/throttler';
 import type { Env } from '../config/env.js';
 import { countedAddress } from './client-address.js';
+import { CREDENTIAL_COUNTS, type CredentialCount } from './trackers.js';
 
 /**
  * The limiter in front of every route, and whom it counts a request against.
@@ -17,8 +25,9 @@ import { countedAddress } from './client-address.js';
  * thing that is known about who sent it:
  *
  *  1. a signed-in user, when the request carries a valid access token;
- *  2. on a route that tries a credential, whose credential it is (see
- *     `trackers.ts`: the account for a sign-in, the token for a refresh);
+ *  2. on a route that tries a credential, the credential it tries (see
+ *     `trackers.ts`: the account and the address together for a sign-in, the
+ *     token for a refresh);
  *  3. otherwise the client's address, as far as `TRUST_PROXY` lets it be
  *     known.
  *
@@ -45,6 +54,21 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
   protected override async getTracker(req: Record<string, unknown>): Promise<string> {
     const user = this.signedInUser(req);
     return user ? `user:${user}` : `addr:${countedAddress(req.ip)}`;
+  }
+
+  /**
+   * Count one request. A route that tries a credential (`@TriesCredential`)
+   * is counted by each thing it names, in that order; every other route by
+   * its sender.
+   */
+  protected override async handleRequest(request: ThrottlerRequest): Promise<boolean> {
+    const { context } = request;
+    const counts = this.reflector.getAllAndOverride<CredentialCount[] | undefined>(CREDENTIAL_COUNTS, [context.getHandler(), context.getClass()]);
+    if (!counts) return super.handleRequest(request);
+    for (const count of counts) {
+      await super.handleRequest({ ...request, limit: count.limit, ttl: count.ttl, blockDuration: count.ttl, getTracker: count.by });
+    }
+    return true;
   }
 
   /**

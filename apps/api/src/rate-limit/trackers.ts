@@ -1,29 +1,46 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { createHash } from 'node:crypto';
+import { SetMetadata } from '@nestjs/common';
 import type { ThrottlerGetTrackerFunction } from '@nestjs/throttler';
 import { countedAddress } from './client-address.js';
 
 /**
- * Whom a route that tries a credential counts a request against: the identity
- * that is being tried, not the address it comes from. Ten wrong passwords for
- * one account then slow down attempts on that account and nothing else.
+ * What a route that tries a credential is counted by: the credential that is
+ * being tried, on top of who sends the request. Wrong passwords for one
+ * account then slow down attempts on that account and nothing else.
  *
- * A tracker is a key in the limiter's memory and nothing more: it is hashed so
- * that no address or token sits there in the clear, never stored and never
- * sent anywhere.
+ * What a request is counted by is a key in the limiter's memory and nothing
+ * more: it is hashed so that no address or token sits there in the clear,
+ * never stored and never sent anywhere.
  */
+
+/** One count of a route that tries a credential. */
+export interface CredentialCount {
+  /** What the request is counted by. */
+  by: ThrottlerGetTrackerFunction;
+  /** How often that may be tried within `ttl`. */
+  limit: number;
+  /** Milliseconds. Whoever passes the limit waits as long. */
+  ttl: number;
+}
+
+export const CREDENTIAL_COUNTS = 'rate-limit:credential-counts';
+
+/**
+ * Marks a route that tries a credential and says what it is counted by. The
+ * counts are taken in the order given, and the first that is used up refuses
+ * the request before the later ones see it.
+ */
+export const TriesCredential = (...counts: CredentialCount[]): MethodDecorator => SetMetadata(CREDENTIAL_COUNTS, counts);
 
 const digest = (kind: string, value: string): string => `${kind}:${createHash('sha256').update(value).digest('hex')}`;
 
-/** The client's address, for a request that names nothing to count against. */
-const byAddress = (req: Record<string, unknown>): string => `addr:${countedAddress(req.ip)}`;
-
-/** A text field of the request body, or null when it is not there. */
-function field(req: Record<string, unknown>, name: string): string | null {
+/** A text field of the request body; a request without it counts with all the others without it. */
+function field(req: Record<string, unknown>, name: string): string {
   const body = req.body as Record<string, unknown> | undefined;
   const value = body?.[name];
-  return typeof value === 'string' && value.length > 0 ? value : null;
+  return typeof value === 'string' ? value : '';
 }
 
 /**
@@ -31,15 +48,24 @@ function field(req: Record<string, unknown>, name: string): string | null {
  * address is one account, so the address is trimmed and lower-cased as it is
  * when it is looked up.
  */
-export const byEmail: ThrottlerGetTrackerFunction = (req) => {
-  const email = field(req, 'email');
-  return email === null ? byAddress(req) : digest('email', email.trim().toLowerCase());
-};
+const account = (req: Record<string, unknown>): string => field(req, 'email').trim().toLowerCase();
+
+/** The account a request names, wherever the request comes from. */
+export const byAccount: ThrottlerGetTrackerFunction = (req) => digest('account', account(req));
+
+/**
+ * The account a request names, as tried from the address the request comes
+ * from. Somebody guessing at an account uses up what their own address may
+ * try at it, and not what its owner may, who sits at another address.
+ *
+ * Where the API cannot tell its clients apart (`TRUST_PROXY` off behind a
+ * proxy) every request has the same address, and this is the account alone.
+ */
+export const byAccountAndAddress: ThrottlerGetTrackerFunction = (req) =>
+  digest('account+address', `${account(req)}\n${countedAddress(req.ip)}`);
 
 /** The token a request presents: a refresh token, or one from a link in a mail. */
 export const byToken =
   (name: string): ThrottlerGetTrackerFunction =>
-  (req) => {
-    const token = field(req, name);
-    return token === null ? byAddress(req) : digest('token', token);
-  };
+  (req) =>
+    digest('token', field(req, name));
