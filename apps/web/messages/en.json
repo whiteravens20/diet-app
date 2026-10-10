@@ -425,7 +425,8 @@
       "running": "Importing…",
       "demoKeyHint": "Using DEMO_KEY (30 req/hr). Set FDC_API_KEY in .env for the larger SR Legacy import.",
       "progress": "Page {page}/{total} · {kept} kept",
-      "doneSummary": "Done. Wrote {kept} ingredients · skipped {skipped} (dup / zero-kcal) · excluded {excluded} by category.",
+      "doneSummary": "Done. Wrote {kept} ingredients · {skipped} listed twice · excluded {excluded} by category.",
+      "refusedSummary": "{count, plural, one {# food was} other {# foods were}} left out: the source's record lacks a macronutrient, or its figures contradict each other. They are not stored as zero.",
       "failed": "Import failed: {error}"
     },
     "curation": {

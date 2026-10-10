@@ -425,7 +425,8 @@
       "running": "Importuję…",
       "demoKeyHint": "Używam DEMO_KEY (30 zapytań/godz). Ustaw FDC_API_KEY w .env, aby zaimportować większy zestaw SR Legacy.",
       "progress": "Strona {page}/{total} · {kept} zachowanych",
-      "doneSummary": "Gotowe. Zapisano {kept} składników · pominięto {skipped} (duplikaty / zero kcal) · wykluczono {excluded} wg kategorii.",
+      "doneSummary": "Gotowe. Zapisano {kept} składników · {skipped} zdublowanych · wykluczono {excluded} wg kategorii.",
+      "refusedSummary": "Pominięto {count, plural, one {# produkt} few {# produkty} many {# produktów} other {# produktu}}: w danych źródła brakuje makroskładnika albo wartości sobie przeczą. Nie są zapisywane jako zero.",
       "failed": "Import nie powiódł się: {error}"
     },
     "curation": {

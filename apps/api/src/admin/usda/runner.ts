@@ -31,6 +31,8 @@ export interface ImportRunnerState {
   kept: number;
   skipped: number;
   excluded: number;
+  /** Foods left out because their record is incomplete; `result.refusals` names them. */
+  refused: number;
   /** Comma-separated FDC dataTypes for this run. */
   dataTypes: string | null;
   /** True if the API key was DEMO_KEY (panel surfaces a hint). */
@@ -75,6 +77,7 @@ export class UsdaImportRunner {
       kept: 0,
       skipped: 0,
       excluded: 0,
+      refused: 0,
       dataTypes,
       demoKey: apiKey === 'DEMO_KEY',
       result: null,
@@ -94,6 +97,7 @@ export class UsdaImportRunner {
         kept: p.kept,
         skipped: p.skipped,
         excluded: p.excluded,
+        refused: p.refused,
       };
     };
 
@@ -102,7 +106,7 @@ export class UsdaImportRunner {
       this.logger.log(`USDA import starting: dataTypes=${dataTypes} outDir=${outDir}`);
       const result = await runImport({ apiKey, dataTypes, outDir, onProgress });
       this.logger.log(
-        `USDA import done: kept=${result.kept} skipped=${result.skipped} excluded=${result.excluded}`,
+        `USDA import done: kept=${result.kept} refused=${result.refused} skipped=${result.skipped} excluded=${result.excluded}`,
       );
       this.state = {
         ...this.state,
@@ -111,6 +115,7 @@ export class UsdaImportRunner {
         kept: result.kept,
         skipped: result.skipped,
         excluded: result.excluded,
+        refused: result.refused,
         totalPages: result.totalPages,
         result,
       };
@@ -136,6 +141,7 @@ export class UsdaImportRunner {
       kept: 0,
       skipped: 0,
       excluded: 0,
+      refused: 0,
       dataTypes: null,
       demoKey: false,
       result: null,

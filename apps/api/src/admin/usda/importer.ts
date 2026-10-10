@@ -1,18 +1,21 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * USDA FoodData Central importer — reusable module.
+ * USDA FoodData Central importer, used by the admin panel's runner and by the
+ * command-line script.
  *
- * Encapsulates the FDC pagination and category filtering that
- * `scripts/import-usda.ts` originally hosted, so the admin-panel runner and the
- * CLI script can both call it. What a food contains and which diets it suits
- * is decided in `classify.ts`.
+ * It pages through the source, keeps the foods of the categories that are
+ * ingredients, and writes them as catalogue rows. What a food contains and
+ * which diets it suits is decided in `classify.ts`, its energy and
+ * macronutrients in `nutrients.ts`. A food whose record is incomplete is left
+ * out and reported: a row with a made-up zero is worse than no row.
  *
- * Output is byte-stable for identical inputs (results are sorted by slug).
+ * The output is the same file for the same input (rows are sorted by slug).
  */
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { classify } from './classify.js';
+import { macrosOf, type SourceNutrient } from './nutrients.js';
 
 export type Category =
   | 'vegetables'
@@ -81,38 +84,25 @@ function dietCompatibility(
   return tags;
 }
 
-interface FdcNutrient {
-  nutrientNumber?: string;
-  value?: number;
-  number?: string;
-  amount?: number;
-  nutrient?: { number?: string };
-}
-interface FdcFood {
+/** A food as the source's search returns it. */
+export interface SourceFood {
   fdcId: number;
   description: string;
   dataType?: string;
   foodCategory?: string;
-  foodNutrients: FdcNutrient[];
+  foodNutrients: SourceNutrient[];
 }
-interface FdcSearchResponse {
+interface SourcePage {
   totalHits: number;
   totalPages: number;
   currentPage: number;
-  foods: FdcFood[];
-}
-
-function nutrient(food: FdcFood, code: string): number {
-  const n = food.foodNutrients.find(
-    (x) => x.nutrientNumber === code || x.number === code || x.nutrient?.number === code,
-  );
-  const raw = n?.value ?? n?.amount;
-  if (raw == null) return 0;
-  return Math.max(0, Math.round(raw * 10) / 10);
+  foods: SourceFood[];
 }
 
 const BASE = 'https://api.nal.usda.gov/fdc/v1/foods/search';
 const PAGE_SIZE = 200;
+/** The refusals a run lists by name; the count is always complete. */
+const LISTED_REFUSALS = 100;
 
 export interface ImportProgress {
   page: number;
@@ -120,12 +110,19 @@ export interface ImportProgress {
   kept: number;
   skipped: number;
   excluded: number;
+  refused: number;
 }
 
 export interface ImportResult {
   kept: number;
+  /** Foods the source lists twice under one description. */
   skipped: number;
+  /** Foods of categories that are dishes or products, not ingredients. */
   excluded: number;
+  /** Foods left out because their record is incomplete or contradicts itself. */
+  refused: number;
+  /** The first of them, with the reason. */
+  refusals: { name: string; reason: string }[];
   totalPages: number;
   outFile: string;
   dataTypes: string;
@@ -140,14 +137,14 @@ export interface ImportOptions {
   outDir: string;
   onProgress?: (p: ImportProgress) => void;
   /** Override page-fetch (test injection). */
-  fetchPage?: (page: number) => Promise<FdcSearchResponse>;
+  fetchPage?: (page: number) => Promise<SourcePage>;
 }
 
 async function defaultFetchPage(
   apiKey: string,
   dataTypes: string,
   pageNumber: number,
-): Promise<FdcSearchResponse> {
+): Promise<SourcePage> {
   const url =
     `${BASE}?api_key=${apiKey}` +
     `&dataType=${encodeURIComponent(dataTypes)}` +
@@ -155,7 +152,7 @@ async function defaultFetchPage(
     `&query=*`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`FDC API ${res.status} on page ${pageNumber}`);
-  return (await res.json()) as FdcSearchResponse;
+  return (await res.json()) as SourcePage;
 }
 
 /**
@@ -168,10 +165,12 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
     opts.fetchPage ?? ((p: number) => defaultFetchPage(opts.apiKey, opts.dataTypes, p));
 
   const seen = new Set<string>();
-  const ingredients: unknown[] = [];
+  const ingredients: { slug: string }[] = [];
+  const refusals: ImportResult['refusals'] = [];
   let kept = 0;
   let skipped = 0;
   let excluded = 0;
+  let refused = 0;
 
   let totalPages = 1;
   for (let page = 1; page <= totalPages; page++) {
@@ -181,12 +180,12 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
     if (foods.length === 0) break;
 
     for (const food of foods) {
-      const fdcCategory = food.foodCategory ?? '';
-      if (!(fdcCategory in CATEGORY_MAP) || CATEGORY_MAP[fdcCategory] === null) {
+      const sourceCategory = food.foodCategory ?? '';
+      const category = CATEGORY_MAP[sourceCategory];
+      if (!category) {
         excluded++;
         continue;
       }
-      const category = CATEGORY_MAP[fdcCategory] as Category;
 
       const name = food.description.trim();
       const key = name.toLowerCase();
@@ -194,46 +193,33 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
         skipped++;
         continue;
       }
+      seen.add(key);
 
-      const proteinPer100 = nutrient(food, '203');
-      const fatPer100 = nutrient(food, '204');
-      const carbsPer100 = nutrient(food, '205');
-      let caloriesPer100 = nutrient(food, '208');
-      if (caloriesPer100 === 0) {
-        caloriesPer100 =
-          Math.round((proteinPer100 * 4 + fatPer100 * 9 + carbsPer100 * 4) * 10) / 10;
-      }
-      if (caloriesPer100 === 0) {
-        skipped++;
+      const macros = macrosOf(food.foodNutrients);
+      if ('refused' in macros) {
+        refused++;
+        if (refusals.length < LISTED_REFUSALS) refusals.push({ name, reason: macros.refused });
         continue;
       }
-
-      const { allergens, diets } = classify(name, fdcCategory);
-      const diet = dietCompatibility(diets, { proteinPer100, fatPer100, carbsPer100 });
+      const { allergens, diets } = classify(name, sourceCategory);
 
       ingredients.push({
         slug: slugify(name),
         name: { en: name },
         category,
         canonicalUnit: 'g',
-        caloriesPer100,
-        proteinPer100,
-        fatPer100,
-        carbsPer100,
+        ...macros,
         allergens,
-        dietCompatibility: diet,
+        dietCompatibility: dietCompatibility(diets, macros),
         tags: ['usda-imported', `fdc:${food.fdcId}`],
-      });
-      seen.add(key);
+      } as { slug: string });
       kept++;
     }
-    opts.onProgress?.({ page, totalPages, kept, skipped, excluded });
+    opts.onProgress?.({ page, totalPages, kept, skipped, excluded, refused });
     if (page < totalPages) await new Promise((r) => setTimeout(r, 250));
   }
 
-  ingredients.sort((a, b) =>
-    (a as { slug: string }).slug.localeCompare((b as { slug: string }).slug),
-  );
+  ingredients.sort((a, b) => a.slug.localeCompare(b.slug));
 
   const outFile = join(opts.outDir, 'ingredients.generated.json');
   writeFileSync(outFile, `${JSON.stringify(ingredients, null, 2)}\n`);
@@ -242,6 +228,8 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
     kept,
     skipped,
     excluded,
+    refused,
+    refusals,
     totalPages,
     outFile,
     dataTypes: opts.dataTypes,

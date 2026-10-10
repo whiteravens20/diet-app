@@ -475,13 +475,27 @@ function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unknown> }) 
         )}
 
         {run?.status === 'done' && run.result && (
-          <p className="text-xs text-emerald-600 dark:text-emerald-400">
-            {t('doneSummary', {
-              kept: run.result.kept,
-              skipped: run.result.skipped,
-              excluded: run.result.excluded,
-            })}
-          </p>
+          <>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              {t('doneSummary', {
+                kept: run.result.kept,
+                skipped: run.result.skipped,
+                excluded: run.result.excluded,
+              })}
+            </p>
+            {run.result.refused > 0 && (
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer">{t('refusedSummary', { count: run.result.refused })}</summary>
+                <ul className="mt-1 max-h-48 space-y-0.5 overflow-y-auto">
+                  {run.result.refusals.map((refusal) => (
+                    <li key={refusal.name}>
+                      {refusal.name}: {refusal.reason}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
         )}
 
         {run?.status === 'error' && (

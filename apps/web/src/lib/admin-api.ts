@@ -141,12 +141,17 @@ export interface UsdaImportRunnerState {
   kept: number;
   skipped: number;
   excluded: number;
+  /** Foods left out because their record is incomplete or contradicts itself. */
+  refused: number;
   dataTypes: string | null;
   demoKey: boolean;
   result: {
     kept: number;
     skipped: number;
     excluded: number;
+    refused: number;
+    /** The first hundred of them, with the reason. */
+    refusals: { name: string; reason: string }[];
     totalPages: number;
     outFile: string;
     dataTypes: string;
