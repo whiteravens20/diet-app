@@ -174,6 +174,27 @@ describe("a user's monthly allowance on the operator's provider", () => {
       await t.http().patch('/api/users/me').set(as(user)).send({ aiMode: 'byok' }).expect(200);
     });
 
+    it("an entry that points at the operator's instance is counted like any other call on it", async () => {
+      await t
+        .http()
+        .put('/api/ai/providers')
+        .set(as(user))
+        .send({ provider: 'ollama', baseUrl: t.model.url, model: 'borrowed-model' })
+        .expect(200);
+      t.model.reply({ text: '{"recipeId":"borrowed"}', times: 10 });
+
+      for (let call = 0; call < LIMIT; call += 1) {
+        expect((await ask()).text).toBe('{"recipeId":"borrowed"}');
+      }
+      const refused = await ask();
+
+      expect(refused.meta.fallbackReason).toBe('quota_exhausted');
+      expect(t.model.requests).toHaveLength(LIMIT);
+      expect((await quota()).used).toBe(LIMIT);
+      const rows = await t.prisma.aiUsageLog.findMany();
+      expect(rows.map((row) => row.mode)).toEqual(Array(LIMIT).fill('admin'));
+    });
+
     it('nothing is counted and nothing is refused', async () => {
       own.reply({ text: '{"recipeId":"mine"}', times: 10 });
 

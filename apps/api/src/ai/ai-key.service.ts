@@ -6,7 +6,7 @@ import type { AiMode, AiProviderConfig, AiProviderConfigInput } from '@diet-app/
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decrypt, encrypt } from '../common/crypto.js';
-import { assertAllowedOllamaUrl, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
+import { assertAllowedOllamaUrl, isOperatorOllama, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
 
 /** A resolved provider config with the decrypted key, for internal use only. */
 export interface ResolvedProviderConfig {
@@ -18,7 +18,12 @@ export interface ResolvedProviderConfig {
   baseUrl: string | null;
   /** Who set the entry up. An address in a user's entry is checked before it is dialled. */
   owner: 'operator' | 'user';
-  /** Routing mode that produced this entry — surfaced in AiUsageLog.mode. */
+  /**
+   * Who pays for a call through this entry, recorded in `AiUsageLog.mode`:
+   * 'admin' is the operator, whose monthly allowances apply; 'byok' is the
+   * user. A user's own Ollama entry that points at the operator's instance is
+   * the operator's to pay for.
+   */
   mode: 'admin' | 'byok';
 }
 
@@ -139,6 +144,7 @@ export class AiKeyService {
         where: { enabled: true, userId },
         orderBy: { priority: 'asc' },
       });
+      const operatorOllama = this.config.get('OLLAMA_BASE_URL', { infer: true });
       return rows.map((r) => ({
         provider: r.provider,
         model: r.model,
@@ -146,7 +152,10 @@ export class AiKeyService {
         apiKey: r.encryptedKey ? decrypt(r.encryptedKey, this.encKey) : null,
         baseUrl: r.baseUrl,
         owner: 'user' as const,
-        mode: 'byok' as const,
+        mode:
+          r.provider === 'ollama' && isOperatorOllama(r.baseUrl ?? operatorOllama, operatorOllama)
+            ? ('admin' as const)
+            : ('byok' as const),
       }));
     }
     return this.adminChainFromEnv();

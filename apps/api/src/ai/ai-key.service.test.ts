@@ -221,6 +221,25 @@ describe('AiKeyService.resolveChain', () => {
     expect(chain[0].mode).toBe('byok');
   });
 
+  it("byok mode marks a user's entries as theirs, and an Ollama entry on the operator's host as the operator's to pay for", async () => {
+    const prisma = makePrisma();
+    prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
+      { provider: 'ollama', model: 'own', priority: 0, encryptedKey: null, baseUrl: 'http://gpu-box:11434' },
+      { provider: 'ollama', model: 'shared', priority: 1, encryptedKey: null, baseUrl: 'http://OLLAMA.:11434/' },
+      { provider: 'ollama', model: 'no-address', priority: 2, encryptedKey: null, baseUrl: null },
+    ]);
+    const service = makeService(prisma, makeConfig({ OLLAMA_BASE_URL: 'http://ollama:11434' }));
+
+    const chain = await service.resolveChain('user-1', 'byok');
+
+    expect(chain.map((entry) => [entry.model, entry.owner, entry.mode])).toEqual([
+      ['own', 'user', 'byok'],
+      ['shared', 'user', 'admin'],
+      // An entry without an address is dialled at the operator's.
+      ['no-address', 'user', 'admin'],
+    ]);
+  });
+
   it('admin mode builds a single-entry chain from env provider+model', async () => {
     const config = makeConfig({
       AI_DEFAULT_PROVIDER: 'openai',
