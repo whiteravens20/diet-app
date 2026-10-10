@@ -823,6 +823,7 @@
     "aiNoProviders": "No providers configured. The deterministic engine handles every feature without one.",
     "aiHasKey": "Key set",
     "aiNoKey": "No key (Ollama or admin default)",
+    "aiKeyUnreadable": "Key can no longer be read — enter it again",
     "aiAddProvider": "Add provider",
     "aiProvider": "Provider",
     "aiModel": "Model",

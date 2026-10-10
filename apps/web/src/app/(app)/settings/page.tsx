@@ -494,9 +494,13 @@ function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslatio
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-muted-foreground">
-                    {p.hasKey ? t('aiHasKey') : t('aiNoKey')}
-                  </span>
+                  {p.keyUnreadable ? (
+                    <span className="text-destructive">{t('aiKeyUnreadable')}</span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {p.hasKey ? t('aiHasKey') : t('aiNoKey')}
+                    </span>
+                  )}
                   {!p.isAdminDefault && (
                     <Button
                       type="button"

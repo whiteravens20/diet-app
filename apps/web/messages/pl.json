@@ -823,6 +823,7 @@
     "aiNoProviders": "Brak skonfigurowanych dostawców — i nic się nie dzieje. Aplikacja działa w pełni bez AI; własny silnik obsłuży wszystko.",
     "aiHasKey": "Klucz ustawiony",
     "aiNoKey": "Bez klucza (Ollama lub domyślne admina)",
+    "aiKeyUnreadable": "Klucza nie da się już odczytać — wprowadź go ponownie",
     "aiAddProvider": "Dodaj dostawcę",
     "aiProvider": "Dostawca",
     "aiModel": "Model",
