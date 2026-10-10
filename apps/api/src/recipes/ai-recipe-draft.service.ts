@@ -18,7 +18,8 @@ import {
   type CookingMethod,
   type Complexity,
   type Cuisine,
-  DietType,
+  type DietType,
+  fitsDiet,
   MealType,
   Unit,
   type AiDraftRecipeRequest,
@@ -27,11 +28,7 @@ import {
   type Locale,
   type Recipe,
 } from '@diet-app/shared';
-import {
-  nutritionFor,
-  toCanonical,
-  type EngineIngredient,
-} from '../engine/index.js';
+import { recipeFacts, UnitConversionError, type RecipeFacts } from '../engine/index.js';
 import type { Env } from '../config/env.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { plainLine, readModelObject } from '../ai/model-json.js';
@@ -47,7 +44,6 @@ import { toRecipeDto } from './recipes.service.js';
 
 const ALLOWED_UNITS = Unit.options as readonly string[];
 const ALLOWED_MEALS = MealType.options as readonly string[];
-const ALLOWED_DIETS = DietType.options as readonly string[];
 const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 type Difficulty = (typeof ALLOWED_DIFFICULTIES)[number];
 
@@ -70,7 +66,6 @@ interface AiDraftPayload {
   steps: Record<Locale, string[]>;
   servings: number;
   mealTypes: MealType[];
-  dietTags: DietType[];
   prepMinutes: number;
   cookMinutes: number;
   difficulty: Difficulty;
@@ -239,54 +234,22 @@ export class AiRecipeDraftService {
     });
     const ingById = new Map(ingredientRows.map((i) => [i.id, i]));
 
-    const totals = resolved.reduce(
-      (acc, ri) => {
-        const ing = ingById.get(ri.ingredientId);
-        if (!ing) return acc;
-        const engineIng: EngineIngredient = {
-          id: ing.id,
-          name: ing.name,
-          category: ing.category,
-          canonicalUnit: ing.canonicalUnit,
-          gramsPerPiece: ing.gramsPerPiece,
-          density: ing.density,
-          caloriesPer100: ing.caloriesPer100,
-          proteinPer100: ing.proteinPer100,
-          fatPer100: ing.fatPer100,
-          carbsPer100: ing.carbsPer100,
-          allergens: ing.allergens as EngineIngredient['allergens'],
-          dietCompatibility: ing.dietCompatibility as EngineIngredient['dietCompatibility'],
-        };
-        let canonical: number;
-        try {
-          canonical = toCanonical(ri.quantity, ri.unit, engineIng);
-        } catch {
-          throw new BadRequestException({
-            error: 'UNIT_CONVERSION_FAILED',
-            message: `Cannot convert ${ri.unit} to canonical unit for ${ing.name}.`,
-          });
-        }
-        const n = nutritionFor(canonical, {
-          calories: ing.caloriesPer100,
-          protein: ing.proteinPer100,
-          fat: ing.fatPer100,
-          carbs: ing.carbsPer100,
-        });
-        return {
-          calories: acc.calories + n.calories,
-          protein: acc.protein + n.protein,
-          fat: acc.fat + n.fat,
-          carbs: acc.carbs + n.carbs,
-        };
-      },
-      { calories: 0, protein: 0, fat: 0, carbs: 0 },
-    );
-    const perServing = {
-      calories: Math.round(totals.calories / payload.servings),
-      protein: Math.round(totals.protein / payload.servings),
-      fat: Math.round(totals.fat / payload.servings),
-      carbs: Math.round(totals.carbs / payload.servings),
-    };
+    // Nutrition, allergens and diets are the engine's, from the ingredient
+    // table: the model authors none of them.
+    let facts: RecipeFacts;
+    try {
+      facts = recipeFacts(
+        resolved.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: ingById.get(line.ingredientId)! })),
+        payload.servings,
+      );
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      throw new BadRequestException({
+        error: 'UNIT_CONVERSION_FAILED',
+        message: 'The draft measures an ingredient in a unit it cannot be converted from.',
+      });
+    }
+    const perServing = facts.perServing;
 
     // Whether this is a serving is judged by the engine's number, not by what
     // the model meant: a draft that is no meal at all is refused, and so is one
@@ -306,10 +269,19 @@ export class AiRecipeDraftService {
       });
     }
 
-    // Allergens auto-detected from ingredients — AI never authors them.
-    const recipeAllergens = Array.from(
-      new Set(resolved.flatMap((r) => (ingById.get(r.ingredientId)?.allergens ?? []) as string[])),
-    );
+    // The ingredients offered were all compatible with the diet, but whether a
+    // recipe is low in carbohydrate depends on how much of each it uses.
+    if (!fitsDiet(facts.dietTags, dietType)) {
+      this.logger.warn(
+        `AI_DRAFT_OFF_DIET (provider=${meta.provider ?? '?'}, model=${meta.model ?? '?'}): asked for ${dietType}, the draft qualifies for [${facts.dietTags.join(', ')}]`,
+      );
+      throw new BadRequestException({
+        error: 'AI_DRAFT_OFF_DIET',
+        message: 'The draft does not fit the diet that was asked for.',
+      });
+    }
+    const recipeAllergens = facts.allergens;
+    const dietTags = facts.dietTags;
 
     // Fingerprint — same helper used by the swap path + admin batch generator
     // so the dedup chain catches duplicates across every on-ramp. When at
@@ -341,7 +313,7 @@ export class AiRecipeDraftService {
           {
             ingredients: fingerprintLines as { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece' }[],
             mealTypes: payload.mealTypes,
-            dietTags: payload.dietTags,
+            dietTags,
             servings: payload.servings,
           },
           fingerprintLookup,
@@ -361,6 +333,7 @@ export class AiRecipeDraftService {
       payload,
       resolved,
       recipeAllergens,
+      dietTags,
       perServing,
     });
 
@@ -404,6 +377,7 @@ export class AiRecipeDraftService {
     payload: AiDraftPayload;
     resolved: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
     recipeAllergens: string[];
+    dietTags: string[];
     perServing: { calories: number; protein: number; fat: number; carbs: number };
   }): Promise<string> {
     const writeFresh = async (
@@ -415,7 +389,7 @@ export class AiRecipeDraftService {
           description: input.payload.descriptions.en,
           servings: input.payload.servings,
           mealTypes: input.payload.mealTypes,
-          dietTags: input.payload.dietTags,
+          dietTags: input.dietTags,
           steps: input.payload.steps.en,
           prepMinutes: input.payload.prepMinutes,
           cookMinutes: input.payload.cookMinutes,
@@ -482,6 +456,7 @@ export class AiRecipeDraftService {
           payload: input.payload,
           resolved: input.resolved,
           recipeAllergens: input.recipeAllergens,
+          dietTags: input.dietTags,
           perServing: input.perServing,
         });
       }
@@ -503,6 +478,7 @@ export class AiRecipeDraftService {
       payload: AiDraftPayload;
       resolved: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
       recipeAllergens: string[];
+      dietTags: string[];
       perServing: { calories: number; protein: number; fat: number; carbs: number };
     },
   ): Promise<void> {
@@ -528,7 +504,7 @@ export class AiRecipeDraftService {
         locales: input.payload.locales,
         servings: input.payload.servings,
         mealTypes: input.payload.mealTypes,
-        dietTags: input.payload.dietTags,
+        dietTags: input.dietTags,
         prepMinutes: input.payload.prepMinutes,
         cookMinutes: input.payload.cookMinutes,
         difficulty: input.payload.difficulty,
@@ -656,7 +632,7 @@ function buildDraftPrompt(input: {
     'Respond with valid JSON exactly matching this shape — no prose, no ' +
     'markdown fences, no extra keys:\n' +
     `{${titlesShape},${descShape},"servings":int,` +
-    '"mealTypes":string[],"dietTags":string[],"prepMinutes":int,' +
+    '"mealTypes":string[],"prepMinutes":int,' +
     '"cookMinutes":int,"difficulty":"easy"|"medium"|"hard",' +
     '"ingredients":[{"ingredientName":string,"quantity":number,' +
     `"unit":"g"|"ml"|"piece","note":string|null}],${stepsShape}}`;
@@ -690,7 +666,7 @@ function buildDraftPrompt(input: {
     '1. Pick 3-12 ingredients from the catalogue below (use the exact name).',
     "2. Quantity > 0; unit is g, ml or piece — match the ingredient's natural form.",
     '3. 2-12 cooking steps, imperative ("Slice the chicken", "Combine and stir").',
-    '4. dietTags must include the target diet; mealTypes is one or two slots.',
+    '4. mealTypes is one or two slots.',
     '5. Difficulty reflects step count + technique.',
     '',
     'Ingredient catalogue:',
@@ -804,8 +780,7 @@ function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraft
   if (!difficulty) return null;
 
   const mealTypes = arrField(o.mealTypes, (v) => (ALLOWED_MEALS.includes(v) ? (v as MealType) : null));
-  const dietTags = arrField(o.dietTags, (v) => (ALLOWED_DIETS.includes(v) ? (v as DietType) : null));
-  if (mealTypes.length === 0 || dietTags.length === 0) return null;
+  if (mealTypes.length === 0) return null;
 
   if (!Array.isArray(o.ingredients) || o.ingredients.length === 0 || o.ingredients.length > 20) {
     return null;
@@ -833,7 +808,6 @@ function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraft
     steps: stepsByLocale,
     servings,
     mealTypes,
-    dietTags,
     prepMinutes,
     cookMinutes,
     difficulty,

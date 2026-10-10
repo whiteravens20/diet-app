@@ -22,7 +22,6 @@ function draft(request: ModelRequest, overrides: Record<string, unknown> = {}): 
     description: 'A quick bowl from three things in the cupboard.',
     servings: 1,
     mealTypes: ['lunch'],
-    dietTags: ['balanced'],
     prepMinutes: 5,
     cookMinutes: 10,
     difficulty: 'easy',
@@ -132,6 +131,94 @@ describe('drafting a recipe with a model', () => {
 
     expect(t.model.requests[1]!.maxTokens).toBe(recipeDraft(2).maxTokens);
     expect(polish.recipe.title).toBe('Gulasz ze skryptu');
+  });
+
+  describe('the diets of a drafted recipe', () => {
+    const named = (request: ModelRequest, ...names: string[]): Record<string, unknown>[] => {
+      const available = offered(request);
+      return names.map((ingredientName) => {
+        expect(available).toContain(ingredientName);
+        return { ingredientName, quantity: 150, unit: 'g', note: null };
+      });
+    };
+
+    it('are those of its ingredients, whatever the model claims', async () => {
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify(
+            draft(request, {
+              dietTags: ['vegan', 'keto'],
+              ingredients: named(request, 'Chicken breast', 'White rice', 'Broccoli'),
+            }),
+          ),
+      });
+
+      const { recipe } = await ask();
+
+      expect(recipe.dietTags).not.toContain('vegan');
+      expect(recipe.dietTags).not.toContain('vegetarian');
+      expect(recipe.dietTags).not.toContain('keto');
+    });
+
+    it('include vegan when every ingredient is', async () => {
+      t.model.reply({
+        text: (request) => JSON.stringify(draft(request, { ingredients: named(request, 'Firm tofu', 'White rice', 'Broccoli') })),
+      });
+
+      const { recipe } = await ask({ dietType: 'vegan' });
+
+      expect(recipe.dietTags).toEqual(expect.arrayContaining(['vegetarian', 'vegan']));
+    });
+
+    it('offers a vegan request nothing that is not vegan', async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+
+      await ask({ dietType: 'vegan' });
+
+      const names = offered(t.model.requests[0]!);
+      expect(names).toContain('Firm tofu');
+      expect(names).not.toContain('Chicken breast');
+      expect(names).not.toContain('Whole milk');
+    });
+
+    it('refuses a draft that does not fit the diet asked for, and stores nothing', async () => {
+      // Every ingredient offered may appear in a low-carbohydrate recipe, rice
+      // included; a recipe that is mostly rice is not one.
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify(
+            draft(request, {
+              ingredients: [
+                { ingredientName: 'White rice', quantity: 150, unit: 'g' },
+                { ingredientName: 'Chicken breast', quantity: 50, unit: 'g' },
+                { ingredientName: 'Olive oil', quantity: 5, unit: 'ml' },
+              ],
+            }),
+          ),
+      });
+
+      expect(await refusal(ask({ dietType: 'low_carb' }))).toMatchObject({ status: 400, error: 'AI_DRAFT_OFF_DIET' });
+      expect(await stored()).toBe(0);
+    });
+
+    it('accepts a draft that is low in carbohydrate when that was asked for', async () => {
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify(
+            draft(request, {
+              ingredients: [
+                { ingredientName: 'Chicken breast', quantity: 200, unit: 'g' },
+                { ingredientName: 'Olive oil', quantity: 10, unit: 'ml' },
+                { ingredientName: 'White rice', quantity: 10, unit: 'g' },
+              ],
+            }),
+          ),
+      });
+
+      const { recipe } = await ask({ dietType: 'low_carb' });
+
+      expect(recipe.dietTags).toContain('low_carb');
+    });
   });
 
   describe('when the model was not asked, or did not answer', () => {

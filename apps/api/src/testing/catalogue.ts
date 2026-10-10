@@ -27,7 +27,9 @@ interface FixtureIngredient {
   density?: number;
 }
 
-const OMNIVORE = ['balanced', 'high_protein'];
+// `low_carb` on an ingredient says only that it may appear in such a recipe;
+// whether a recipe is low in carbohydrate depends on how much of what it uses.
+const OMNIVORE = ['balanced', 'high_protein', 'low_carb'];
 const VEGETARIAN = ['balanced', 'vegetarian'];
 const VEGAN = ['balanced', 'vegetarian', 'vegan'];
 const VEGAN_PROTEIN = [...VEGAN, 'high_protein'];
@@ -39,7 +41,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
   { slug: 'large-egg', category: 'dairy', canonicalUnit: 'g', per100: [143, 13, 9.5, 1.1], allergens: ['eggs'], diets: [...VEGETARIAN, 'high_protein'], gramsPerPiece: 55 },
   { slug: 'chicken-breast', category: 'meat', canonicalUnit: 'g', per100: [120, 22.5, 2.6, 0], allergens: [], diets: OMNIVORE },
   { slug: 'salmon', category: 'fish', canonicalUnit: 'g', per100: [208, 20, 13, 0], allergens: ['fish'], diets: OMNIVORE },
-  { slug: 'white-rice', category: 'grains', canonicalUnit: 'g', per100: [360, 7, 0.6, 79], allergens: [], diets: VEGAN },
+  { slug: 'white-rice', category: 'grains', canonicalUnit: 'g', per100: [360, 7, 0.6, 79], allergens: [], diets: [...VEGAN, 'low_carb'] },
   { slug: 'wholegrain-bread', category: 'grains', canonicalUnit: 'g', per100: [247, 13, 3.4, 41], allergens: ['gluten'], diets: VEGAN, gramsPerPiece: 35 },
   { slug: 'firm-tofu', category: 'legumes', canonicalUnit: 'g', per100: [144, 17, 9, 3], allergens: ['soy'], diets: VEGAN_PROTEIN },
   { slug: 'chickpeas', category: 'legumes', canonicalUnit: 'g', per100: [164, 8.9, 2.6, 27], allergens: [], diets: VEGAN_PROTEIN },
@@ -48,7 +50,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
   { slug: 'banana', category: 'fruits', canonicalUnit: 'g', per100: [89, 1.1, 0.3, 23], allergens: [], diets: VEGAN, gramsPerPiece: 120 },
   { slug: 'broccoli', category: 'vegetables', canonicalUnit: 'g', per100: [34, 2.8, 0.4, 7], allergens: [], diets: VEGAN_PROTEIN },
   { slug: 'tomato', category: 'vegetables', canonicalUnit: 'g', per100: [18, 0.9, 0.2, 3.9], allergens: [], diets: VEGAN_PROTEIN },
-  { slug: 'olive-oil', category: 'fats_oils', canonicalUnit: 'ml', per100: [813, 0, 92, 0], allergens: [], diets: VEGAN_PROTEIN, density: 0.92 },
+  { slug: 'olive-oil', category: 'fats_oils', canonicalUnit: 'ml', per100: [813, 0, 92, 0], allergens: [], diets: [...VEGAN_PROTEIN, 'low_carb'], density: 0.92 },
 ];
 
 interface FixtureRecipe {
