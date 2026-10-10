@@ -129,6 +129,10 @@ async function tryRefresh(): Promise<boolean> {
         body: JSON.stringify({ refreshToken: tokenStore.refresh }),
       });
       if (!res.ok) {
+        // Only a refused token ends the session. "Too many requests" or a
+        // server that is down says nothing about the token: it is kept, and
+        // the next request tries again.
+        if (res.status !== 401) return false;
         tokenStore.clear();
         // Hard-nav to /login so every in-memory query state is dropped — half-
         // refreshed React Query caches would otherwise show "Unauthorized"
