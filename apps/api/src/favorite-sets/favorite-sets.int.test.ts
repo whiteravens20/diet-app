@@ -84,6 +84,15 @@ describe('favourite sets', () => {
       expect(res.status).toBe(404);
     });
 
+    it('refuses a recipe under a meal it is not a recipe for', async () => {
+      // The tofu scramble is a breakfast.
+      const res = await create(user, { profileId: profile.id, label: 'Mixed up', slots: { dinner: shared['tofu-scramble']! } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('FAVORITE_SET_NOT_ELIGIBLE');
+      expect(await t.prisma.favoriteSet.count()).toBe(0);
+    });
+
     it('needs at least one slot', async () => {
       await create(user, { profileId: profile.id, label: 'Empty', slots: {} }).expect(400);
     });
@@ -131,6 +140,16 @@ describe('favourite sets', () => {
 
       await t.http().delete(`/api/favorite-sets/${set.id}`).set(as(user)).expect(204);
       expect((await list(user, profile.id)).body).toEqual([]);
+    });
+
+    it('cannot be given a recipe under the wrong meal afterwards', async () => {
+      await t
+        .http()
+        .patch(`/api/favorite-sets/${set.id}`)
+        .set(as(user))
+        .send({ slots: { breakfast: shared['chickpea-tomato-stew']! } })
+        .expect(400);
+      expect(((await list(user, profile.id)).body as FavoriteSet[])[0]!.slots).toEqual(slots());
     });
 
     it("cannot be pointed at another user's private recipe afterwards", async () => {

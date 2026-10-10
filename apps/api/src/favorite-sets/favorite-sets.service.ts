@@ -49,7 +49,7 @@ export class FavoriteSetsService {
 
   async create(userId: string, dto: CreateFavoriteSetRequest): Promise<FavoriteSet> {
     await this.assertProfile(userId, dto.profileId);
-    await this.assertRecipes(userId, Object.values(dto.slots));
+    await this.assertRecipes(userId, dto.slots);
     const row = await this.prisma.favoriteSet.create({
       data: {
         profileId: dto.profileId,
@@ -62,7 +62,7 @@ export class FavoriteSetsService {
 
   async update(userId: string, id: string, dto: UpdateFavoriteSetRequest): Promise<FavoriteSet> {
     const set = await this.load(userId, id);
-    if (dto.slots) await this.assertRecipes(userId, Object.values(dto.slots));
+    if (dto.slots) await this.assertRecipes(userId, dto.slots);
     const row = await this.prisma.favoriteSet.update({
       where: { id: set.id },
       data: {
@@ -251,30 +251,41 @@ export class FavoriteSetsService {
   }
 
   /**
-   * Validate that every referenced recipe is one the user is actually allowed
-   * to see — a curated/public row OR their own non-deleted recipe. Without the
-   * ownership + soft-delete scope a user could save (and later `apply`) another
-   * user's private AI-drafted recipe into their own plan, leaking its content
-   * through the plan view. Mirrors the visibility filter the swap path uses.
+   * A set may hold only recipes its owner can see (a shared one, or their own
+   * that is not deleted), each under a meal it is a recipe for. Without the
+   * first rule a user could save, and later apply, another user's private
+   * recipe and read it through the plan; without the second a set would plan
+   * a dinner for breakfast. What the profile rules out is judged when the set
+   * is applied, against the profile as it is then.
    */
-  private async assertRecipes(userId: string, recipeIds: string[]): Promise<void> {
-    if (recipeIds.length === 0) return;
+  private async assertRecipes(userId: string, slots: FavoriteSetSlots): Promise<void> {
+    const entries = Object.entries(slots);
+    if (entries.length === 0) return;
     const found = await this.prisma.recipe.findMany({
       where: {
-        id: { in: recipeIds },
+        id: { in: entries.map(([, recipeId]) => recipeId) },
         deletedAt: null,
         retiredAt: null,
         OR: [{ createdByUserId: null }, { createdByUserId: userId }],
       },
-      select: { id: true },
+      select: { id: true, mealTypes: true },
     });
-    const ok = new Set(found.map((r) => r.id));
-    const missing = recipeIds.filter((id) => !ok.has(id));
-    if (missing.length > 0) {
-      throw new NotFoundException({
-        error: 'RECIPE_NOT_FOUND',
-        message: `Recipe not found: ${missing[0]}`,
-      });
+    const byId = new Map(found.map((r) => [r.id, r]));
+    for (const [mealType, recipeId] of entries) {
+      const recipe = byId.get(recipeId);
+      if (!recipe) {
+        throw new NotFoundException({
+          error: 'RECIPE_NOT_FOUND',
+          message: `Recipe not found: ${recipeId}`,
+        });
+      }
+      if (!recipe.mealTypes.includes(mealType)) {
+        throw new BadRequestException({
+          error: 'FAVORITE_SET_NOT_ELIGIBLE',
+          message: `Recipe ${recipeId} is not a recipe for ${mealType}.`,
+          violations: ['wrong_meal'],
+        });
+      }
     }
   }
 }
