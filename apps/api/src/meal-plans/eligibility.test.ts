@@ -61,10 +61,15 @@ describe('violations', () => {
   });
 
   describe('when the user asked for this very recipe', () => {
-    const waived = { dietAndMeal: true };
+    const waived = { diet: true, meal: true };
 
     it('lets the diet and the meal go', () => {
       expect(violations(recipe(), restrictions({ diet: 'vegan' }), 'breakfast', waived)).toEqual([]);
+    });
+
+    it('lets the diet go alone when only the diet was waived', () => {
+      expect(violations(recipe(), restrictions({ diet: 'vegan' }), 'breakfast', { diet: true })).toEqual(['wrong_meal']);
+      expect(violations(recipe(), restrictions({ diet: 'vegan' }), 'lunch', { diet: true })).toEqual([]);
     });
 
     it('still holds to allergens, skipped ingredients, the avoid mark and availability', () => {

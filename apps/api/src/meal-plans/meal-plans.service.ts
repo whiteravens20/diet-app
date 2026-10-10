@@ -2,6 +2,7 @@
 
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -59,7 +60,6 @@ import { INGREDIENT_SWAP, MEAL_SWAP, SWAP_REWRITE } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
-import { recipesForDiet } from '../recipes/diet-where.js';
 import { DedupService } from '../admin/drafts/dedup.js';
 import {
   computeFingerprint,
@@ -74,8 +74,20 @@ import {
   type RecipeLocaleSlice,
 } from './swap-rewrite.js';
 import { writePlan } from './plan-write.js';
+import {
+  assertMayEnter,
+  CANDIDATE,
+  pickIndex,
+  poolWhere,
+  restrictionsFor,
+  type Candidate,
+  type Waived,
+} from './eligibility.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
+
+/** How many candidates an AI swap puts before the model. */
+const AI_SWAP_POOL = 25;
 
 // What each prompt asks the model to answer with. A reason is welcome and
 // never required: a pick without one is still a pick.
@@ -547,162 +559,109 @@ export class MealPlansService {
   /** Swap a planned meal for a random / favorite alternative; applies immediately. */
   async swapMeal(userId: string, locale: Locale, req: SwapMealRequest): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    const dietType = meal.day.plan.dietType;
+    const currentRecipeId = swappableRecipeOf(meal);
+    const restrictions = await restrictionsFor(this.prisma, meal.day.plan);
 
     // History of recipes already shown for THIS slot (across previous swaps),
-    // plus the currently displayed recipe. The picker excludes the union so
+    // plus the currently displayed recipe. The picker leaves them out so
     // repeated clicks advance through fresh candidates instead of cycling
-    // between two. `applyHistory` is the array we persist back to the row.
+    // between two.
     const prevHistory = meal.swapHistory ?? [];
-    // A custom meal carries no recipeId; swapping converts it to catalogue.
-    const currentRecipeId = meal.recipeId;
-    const excludeBeforeReset = new Set<string>([
-      ...(currentRecipeId ? [currentRecipeId] : []),
-      ...prevHistory,
-    ]);
-    // The candidate pool drops the diet filter when the user opted into
-    // "show all my favourites". Allergens stay enforced everywhere. Meal-time is
-    // also relaxed for an explicit favourite pick under that same opt-in (a dinner
-    // favourite onto breakfast); the random / favourite-ingredient pools below
-    // keep meal-time so auto-swaps stay slot-appropriate.
-    const allergens = meal.day.plan.profile.preferences?.allergens ?? [];
-    const dietWhere = req.allowOffDiet ? {} : recipesForDiet(dietType);
+    const shown = new Set<string>([currentRecipeId, ...prevHistory]);
+    // What the user waived by asking: "show all my favourites" drops the diet
+    // for the pools, and for one favourite picked by hand the meal as well.
+    // Allergens, skipped ingredients and the avoid mark are never waived.
+    const waived: Waived =
+      req.strategy === 'favorite'
+        ? { diet: req.allowOffDiet, meal: req.allowOffDiet }
+        : { diet: req.allowOffDiet };
 
-    let replacementId: string;
-    let nextHistory: string[];
+    let replacement: Candidate & { caloriesPerServing: number };
+    // Whether the pick came from recipes not yet shown in this slot.
+    let fromFresh = true;
 
     if (req.strategy === 'favorite') {
       if (!req.favoriteRecipeId) {
         throw new NotFoundException({ error: 'NO_FAVORITE', message: 'favoriteRecipeId required.' });
       }
-      // Explicit user pick (diet-type be damned, and meal-time too when
-      // allowOffDiet); allergens are never relaxed — validate before applying.
-      const fav = await this.prisma.recipe.findFirst({
-        where: { id: req.favoriteRecipeId, deletedAt: null, retiredAt: null, OR: [{ createdByUserId: null }, { createdByUserId: userId }] },
-        select: { id: true, mealTypes: true, allergens: true },
+      const picked = await this.prisma.recipe.findUnique({
+        where: { id: req.favoriteRecipeId },
+        select: { ...CANDIDATE, caloriesPerServing: true },
       });
-      if (
-        !fav ||
-        (!req.allowOffDiet && !fav.mealTypes.includes(meal.mealType)) ||
-        fav.allergens.some((a) => allergens.includes(a))
-      ) {
+      if (!picked) {
         throw new BadRequestException({
           error: 'OFF_DIET_FAVORITE_NOT_ALLOWED',
-          message: 'That favourite is not valid for this slot (meal-type or allergen conflict).',
+          message: 'That favourite is not available.',
         });
       }
-      replacementId = fav.id;
-      nextHistory = currentRecipeId ? appendUnique(prevHistory, currentRecipeId) : prevHistory;
-    } else if (req.strategy === 'favorite_ingredients') {
-      const favIngs = meal.day.plan.profile.preferences?.favoriteIngredientIds ?? [];
-      if (favIngs.length === 0) {
-        throw new BadRequestException({
-          error: 'NO_FAVORITE_INGREDIENTS',
-          message: 'Add favourite ingredients on the profile before swapping by them.',
-        });
-      }
-      // Score all candidates that match the slot + diet (excluding current
-      // recipe only); we apply the swap-history filter after scoring so the
-      // user always gets a relevant fav-ingredient match even when history
-      // would have wiped the pool. Visibility filter mirrors the public
-      // recipe library — curated rows + the user's own non-deleted recipes
-      // only. Without it the picker could land on another user's private
-      // AI draft which the recipe-detail page would 404 on.
-      const candidates = await this.prisma.recipe.findMany({
-        where: {
-          ...dietWhere,
-          NOT: { allergens: { hasSome: allergens } },
-          mealTypes: { has: meal.mealType },
-          id: { not: currentRecipeId ?? undefined },
-          deletedAt: null,
-          retiredAt: null,
-          OR: [{ createdByUserId: null }, { createdByUserId: userId }],
-        },
-        select: { id: true, ingredients: { select: { ingredientId: true } } },
-      });
-      const favSet = new Set(favIngs);
-      const scored = candidates
-        .map((c) => ({ id: c.id, hits: c.ingredients.filter((i) => favSet.has(i.ingredientId)).length }))
-        .filter((c) => c.hits > 0)
-        .sort((a, b) => b.hits - a.hits || a.id.localeCompare(b.id));
-      if (scored.length === 0) {
-        throw new NotFoundException({
-          error: 'NO_FAVORITE_INGREDIENT_MATCH',
-          message: 'No recipe in this slot uses any of your favourite ingredients.',
-        });
-      }
-      // First-choice pool: top-scoring AND not yet shown in this slot.
-      const topHits = scored[0]!.hits;
-      const top = scored.filter((c) => c.hits === topHits);
-      const fresh = top.filter((c) => !excludeBeforeReset.has(c.id));
-      const pool = fresh.length > 0 ? fresh : top;
-      // history advances the seed so consecutive picks vary even when pool
-      // composition stays the same.
-      const idx = hashIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length);
-      replacementId = pool[idx]!.id;
-      nextHistory =
-        fresh.length > 0
-          ? currentRecipeId
-            ? appendUnique(prevHistory, currentRecipeId)
-            : prevHistory
-          : // Pool wrapped — reset history to just the recipe leaving the slot
-            // so the next swap sees the previously-shown options as fresh again.
-            currentRecipeId
-            ? [currentRecipeId]
-            : [];
+      replacement = picked;
     } else {
-      const candidates = await this.prisma.recipe.findMany({
-        where: {
-          ...dietWhere,
-          NOT: { allergens: { hasSome: allergens } },
-          mealTypes: { has: meal.mealType },
-          id: { not: currentRecipeId ?? undefined },
-          deletedAt: null,
-          retiredAt: null,
-          OR: [{ createdByUserId: null }, { createdByUserId: userId }],
-        },
-        select: { id: true },
+      // One pool for both automatic strategies, in a fixed order.
+      const pool = await this.prisma.recipe.findMany({
+        where: poolWhere(restrictions, meal.mealType, waived, [currentRecipeId]),
+        select: { ...CANDIDATE, caloriesPerServing: true },
+        orderBy: { id: 'asc' },
       });
-      if (candidates.length === 0) {
+      let ranked = pool;
+      if (req.strategy === 'favorite_ingredients') {
+        const favIngs = new Set(meal.day.plan.profile.preferences?.favoriteIngredientIds ?? []);
+        if (favIngs.size === 0) {
+          throw new BadRequestException({
+            error: 'NO_FAVORITE_INGREDIENTS',
+            message: 'Add favourite ingredients on the profile before swapping by them.',
+          });
+        }
+        const hits = (recipe: Candidate): number => recipe.ingredients.filter((i) => favIngs.has(i.ingredientId)).length;
+        const best = Math.max(0, ...pool.map(hits));
+        if (best === 0) {
+          throw new NotFoundException({
+            error: 'NO_FAVORITE_INGREDIENT_MATCH',
+            message: 'No recipe in this slot uses any of your favourite ingredients.',
+          });
+        }
+        // Only the recipes that use the most favourite ingredients compete.
+        ranked = pool.filter((recipe) => hits(recipe) === best);
+      } else if (pool.length === 0) {
         throw new NotFoundException({ error: 'NO_ALTERNATIVE', message: 'No alternative recipe found.' });
       }
-      const fresh = candidates.filter((c) => !excludeBeforeReset.has(c.id));
-      let pool = fresh.length > 0 ? fresh : candidates;
-      // Re-rank by pantry coverage descending so an inventory-friendly
-      // random swap is picked when the user opted in. hashIndex on a stable
-      // order still rotates through the pool so consecutive clicks vary —
-      // but consistently among high-coverage candidates first.
-      const coverage = await this.recipeCoverageMap(
-        meal.day.plan.profileId,
-        pool.map((c) => c.id),
-        req.respectInventory !== false,
-      );
-      if (coverage) {
-        pool = [...pool].sort((a, b) => {
-          const diff = (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0);
-          return diff !== 0 ? diff : a.id.localeCompare(b.id);
-        });
+
+      const fresh = ranked.filter((recipe) => !shown.has(recipe.id));
+      fromFresh = fresh.length > 0;
+      let candidates = fromFresh ? fresh : ranked;
+      if (req.strategy === 'random') {
+        // Re-rank by pantry coverage descending so an inventory-friendly swap is
+        // picked first when the user opted in; the pick below still rotates.
+        const coverage = await this.recipeCoverageMap(
+          meal.day.plan.profileId,
+          candidates.map((c) => c.id),
+          req.respectInventory !== false,
+        );
+        if (coverage) {
+          candidates = [...candidates].sort((a, b) => {
+            const diff = (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0);
+            return diff !== 0 ? diff : a.id.localeCompare(b.id);
+          });
+        }
       }
-      // Same seed-advance trick as above.
-      const idx = hashIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length);
-      replacementId = pool[idx]!.id;
-      nextHistory =
-        fresh.length > 0
-          ? currentRecipeId
-            ? appendUnique(prevHistory, currentRecipeId)
-            : prevHistory
-          : currentRecipeId
-            ? [currentRecipeId]
-            : [];
+      // The history length advances the key, so consecutive picks vary even
+      // when the candidates stay the same.
+      replacement = candidates[pickIndex(`${req.plannedMealId}:${prevHistory.length}`, candidates.length)]!;
     }
+
+    // The gate: whatever chose the recipe, it is judged once more before it is written.
+    assertMayEnter(
+      replacement,
+      restrictions,
+      meal.mealType,
+      req.strategy === 'favorite' ? 'OFF_DIET_FAVORITE_NOT_ALLOWED' : 'RECIPE_NOT_ELIGIBLE',
+      waived,
+    );
+    const replacementId = replacement.id;
+    const nextHistory = nextSwapHistory(prevHistory, currentRecipeId, fromFresh);
 
     // Rescale servings so the swap stays close to the slot's calorie budget.
     // Without this, swapping a 100 kcal/serving recipe for a 200 kcal one
     // would double the meal's calories at the same servings count.
-    const replacement = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: replacementId },
-      select: { caloriesPerServing: true },
-    });
     const daySlots = await this.prisma.plannedMeal.findMany({
       where: { dayId: meal.dayId },
       select: { mealType: true },
@@ -721,12 +680,8 @@ export class MealPlansService {
           recipeId: replacementId,
           servings,
           swapHistory: nextHistory,
-          // A fresh recipe is a new baseline — reset the rebalancer multiplier and
-          // drop any custom-meal residue (swapping converts a custom meal back).
+          // A fresh recipe is a new baseline for the rebalancer.
           quantityScale: 1,
-          source: 'CATALOGUE',
-          customName: null,
-          customMacros: Prisma.JsonNull,
         },
       });
       // The swap changed the day total — pull it back toward target.
@@ -874,54 +829,37 @@ export class MealPlansService {
     req: AiSwapMealRequest,
   ): Promise<AiSwapMealResponse> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    const dietType = meal.day.plan.dietType;
-    const currentRecipeId = meal.recipeId;
-    if (!currentRecipeId) {
-      throw new BadRequestException({
-        error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
-        message: 'Custom meals cannot be swapped.',
-      });
-    }
+    const currentRecipeId = swappableRecipeOf(meal);
+    const restrictions = await restrictionsFor(this.prisma, meal.day.plan);
     const prevHistory = meal.swapHistory ?? [];
-    const excludeBeforeReset = new Set<string>([currentRecipeId, ...prevHistory]);
+    const shown = new Set<string>([currentRecipeId, ...prevHistory]);
 
-    // Capped at 25 — keeps the prompt small enough for cheap models. Diet-tag
-    // and slot filter mirror the deterministic swapMeal pool exactly,
-    // including the visibility gate (no other users' private rows, no
-    // soft-deleted variants).
+    // The same pool as the deterministic swap: everything the profile may be
+    // given for this meal, in a fixed order. The model is never shown a
+    // recipe it must not pick.
     const candidates = await this.prisma.recipe.findMany({
-      where: {
-        ...recipesForDiet(dietType),
-        mealTypes: { has: meal.mealType },
-        id: { not: currentRecipeId },
-        deletedAt: null,
-        retiredAt: null,
-        OR: [{ createdByUserId: null }, { createdByUserId: userId }],
-      },
+      where: poolWhere(restrictions, meal.mealType, {}, [currentRecipeId]),
       select: {
-        id: true,
+        ...CANDIDATE,
         title: true,
         caloriesPerServing: true,
         proteinPerServing: true,
         fatPerServing: true,
         carbsPerServing: true,
-        ingredients: {
-          select: { ingredient: { select: { name: true } } },
-          take: 6,
-        },
+        ingredients: { select: { ingredientId: true, ingredient: { select: { name: true } } } },
       },
-      take: 25,
+      orderBy: { id: 'asc' },
     });
     if (candidates.length === 0) {
       throw new NotFoundException({ error: 'NO_ALTERNATIVE', message: 'No alternative recipe found.' });
     }
 
-    const freshCandidates = candidates.filter((c) => !excludeBeforeReset.has(c.id));
+    const freshCandidates = candidates.filter((c) => !shown.has(c.id));
     let pool = freshCandidates.length > 0 ? freshCandidates : candidates;
     // Sort the pool by pantry coverage descending so the AI sees pantry-
-    // friendly recipes first AND the deterministic fallback (hashIndex on
-    // pool order) prefers them. Coverage is null when the toggle is off or
-    // the pantry is empty — pool stays in its original order.
+    // friendly recipes first AND the engine's own pick prefers them. Coverage
+    // is null when the toggle is off or the pantry is empty — pool stays in
+    // its original order.
     const aiSwapCoverage = await this.recipeCoverageMap(
       meal.day.plan.profileId,
       pool.map((c) => c.id),
@@ -933,6 +871,9 @@ export class MealPlansService {
         return diff !== 0 ? diff : a.id.localeCompare(b.id);
       });
     }
+    // Cut after filtering and ordering, so the cut never hides what was not
+    // shown yet. Twenty-five keeps the prompt small enough for cheap models.
+    pool = pool.slice(0, AI_SWAP_POOL);
 
     const daySlots = await this.prisma.plannedMeal.findMany({
       where: { dayId: meal.dayId },
@@ -968,22 +909,18 @@ export class MealPlansService {
       true,
     );
 
-    const fallbackPick = (): string => {
-      const idx = hashIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length);
-      return pool[idx]!.id;
-    };
-
     // Only one of the candidates counts as a pick. When the model answered with
     // anything else the engine picks, and the response says that it did.
     const offered = text === null ? null : parseAiRecipePick(text);
     const pick = offered && pool.some((c) => c.id === offered.id) ? offered : null;
-    const replacementId = pick?.id ?? fallbackPick();
+    const replacement =
+      pool.find((c) => c.id === pick?.id) ?? pool[pickIndex(`${req.plannedMealId}:${prevHistory.length}`, pool.length)]!;
     const aiMeta = pick ? { ...meta, reason: pick.reason } : text === null ? meta : withUnusableAnswer(meta);
 
-    const nextHistory =
-      freshCandidates.length > 0 ? appendUnique(prevHistory, currentRecipeId) : [currentRecipeId];
-
-    const replacement = pool.find((c) => c.id === replacementId)!;
+    // The gate: the model's pick and the engine's are judged alike before the write.
+    assertMayEnter(replacement, restrictions, meal.mealType, 'RECIPE_NOT_ELIGIBLE');
+    const replacementId = replacement.id;
+    const nextHistory = nextSwapHistory(prevHistory, currentRecipeId, freshCandidates.length > 0);
     const servings = fitServings(replacement.caloriesPerServing, budget);
 
     // The revision was read before the model was asked: if the plan changed
@@ -1006,14 +943,9 @@ export class MealPlansService {
    */
   async previewIngredientSwap(userId: string, req: SwapIngredientRequest): Promise<SwapPreview> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    if (!meal.recipeId) {
-      throw new BadRequestException({
-        error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
-        message: 'Custom meals have no ingredients to substitute.',
-      });
-    }
+    const mealRecipeId = swappableRecipeOf(meal);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: meal.recipeId },
+      where: { id: mealRecipeId },
       include: { ingredients: true },
     });
     const line = recipe.ingredients.find((i) => i.ingredientId === req.fromIngredientId);
@@ -1054,14 +986,9 @@ export class MealPlansService {
     req: SwapIngredientRequest,
   ): Promise<RebalanceResult> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    if (!meal.recipeId) {
-      throw new BadRequestException({
-        error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
-        message: 'Custom meals have no ingredients to substitute.',
-      });
-    }
+    const mealRecipeId = swappableRecipeOf(meal);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: meal.recipeId },
+      where: { id: mealRecipeId },
       include: {
         ingredients: { include: { ingredient: true } },
         translations: true,
@@ -1547,14 +1474,9 @@ export class MealPlansService {
     req: AiSuggestIngredientRequest,
   ): Promise<AiSuggestIngredientResponse> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    if (!meal.recipeId) {
-      throw new BadRequestException({
-        error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
-        message: 'Custom meals have no ingredients to substitute.',
-      });
-    }
+    const mealRecipeId = swappableRecipeOf(meal);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: meal.recipeId },
+      where: { id: mealRecipeId },
       include: { ingredients: true },
     });
     const line = recipe.ingredients.find((i) => i.ingredientId === req.fromIngredientId);
@@ -1577,11 +1499,15 @@ export class MealPlansService {
 
     // Same category as the source line — keeps the swap culinarily sensible
     // (sub a meat for a meat, a vegetable for a vegetable).
+    // Filtered in the query and in a fixed order, so that the cut below never
+    // drops an ingredient the profile could have had.
     const rawCandidates = await this.prisma.ingredient.findMany({
       where: {
         category: from.category,
         id: { notIn: [...excludedIds] },
-        dietCompatibility: { has: dietType },
+        // A custom diet filters nothing.
+        ...(dietType === 'custom' ? {} : { dietCompatibility: { has: dietType } }),
+        NOT: { allergens: { hasSome: [...userAllergens] } },
         retiredAt: null,
       },
       select: {
@@ -1593,11 +1519,9 @@ export class MealPlansService {
         carbsPer100: true,
         allergens: true,
       },
-      take: 50,
+      orderBy: { id: 'asc' },
     });
-    let pool = rawCandidates
-      .filter((c) => !c.allergens.some((a) => userAllergens.has(a)))
-      .slice(0, 25);
+    let pool = rawCandidates;
     if (pool.length === 0) {
       throw new NotFoundException({
         error: 'NO_ALTERNATIVE',
@@ -1619,6 +1543,7 @@ export class MealPlansService {
         return bHit - aHit || a.id.localeCompare(b.id);
       });
     }
+    pool = pool.slice(0, AI_SWAP_POOL);
 
     const prompt = buildIngredientSwapPrompt({
       currentName: from.name,
@@ -1639,7 +1564,7 @@ export class MealPlansService {
     );
 
     const fallbackPick = (): string => {
-      const idx = hashIndex(`${req.plannedMealId}:${req.fromIngredientId}`, pool.length);
+      const idx = pickIndex(`${req.plannedMealId}:${req.fromIngredientId}`, pool.length);
       return pool[idx]!.id;
     };
 
@@ -1709,9 +1634,10 @@ export class MealPlansService {
   /**
    * Rebalance one day's unchecked, non-custom meals toward its target and
    * persist the new quantity scales. Returns the summary the UI toast renders,
-   * or null when the day has vanished.
+   * or null when the day has vanished. Runs inside the transaction of the edit
+   * that changed the day, whichever service made it.
    */
-  private async rebalanceDayInternal(
+  async rebalanceDayInternal(
     dayId: string,
     tx: Prisma.TransactionClient,
   ): Promise<RebalanceSummary | null> {
@@ -2400,17 +2326,35 @@ function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function appendUnique(arr: readonly string[], value: string): string[] {
-  return arr.includes(value) ? [...arr] : [...arr, value];
+/**
+ * The recipes already shown in a slot, after a swap replaced `leaving`. While
+ * the pick came from recipes not shown yet, the one leaving joins the list.
+ * Once every candidate has been shown the list starts again with it alone, so
+ * the next swap sees the earlier ones as fresh.
+ */
+function nextSwapHistory(previous: readonly string[], leaving: string, fromFresh: boolean): string[] {
+  if (!fromFresh) return [leaving];
+  return previous.includes(leaving) ? [...previous] : [...previous, leaving];
 }
 
-function hashIndex(key: string, modulo: number): number {
-  let h = 2166136261;
-  for (let i = 0; i < key.length; i++) {
-    h = (h ^ key.charCodeAt(i)) * 16777619;
-    h >>>= 0;
+/**
+ * The recipe a swap or a substitution would replace. A custom meal has none
+ * and cannot be swapped; a meal that was eaten is a record of what was eaten.
+ */
+function swappableRecipeOf(meal: { recipeId: string | null; source: string; eatenAt: Date | null }): string {
+  if (!meal.recipeId || meal.source === 'USER_CUSTOM') {
+    throw new BadRequestException({
+      error: 'CUSTOM_MEAL_NOT_SWAPPABLE',
+      message: 'Custom meals cannot be swapped or substituted.',
+    });
   }
-  return h % modulo;
+  if (meal.eatenAt) {
+    throw new ConflictException({
+      error: 'MEAL_EATEN',
+      message: 'A meal that was eaten cannot be changed. Unmark it first.',
+    });
+  }
+  return meal.recipeId;
 }
 
 interface SwapPromptCandidate {
