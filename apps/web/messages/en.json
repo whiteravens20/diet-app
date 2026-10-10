@@ -1041,7 +1041,7 @@
     "kcal": "kcal"
   },
   "catalogue": {
-    "none": "This instance has no recipe on the \"{diet}\" diet for at least one of the {count} meals a day, so it cannot make a plan. {advice, select, fewer {Choose another diet, or no more than {fewer} meals a day.} other {Choose another diet.}}",
+    "none": "The catalogue has no recipe on the \"{diet}\" diet for at least one of the {count} meals a day. Without a recipe of your own for that meal no plan can be made: choose another diet{advice, select, fewer {, or no more than {fewer} meals a day} other {}}.",
     "thin": "On the \"{diet}\" diet, one of the {count} meals a day has only {recipes, plural, one {# recipe} other {# recipes}} to choose from: plans will repeat the same dish often.",
     "dietNone": "{diet} (no recipes yet)",
     "dietThin": "{diet} (few recipes)"

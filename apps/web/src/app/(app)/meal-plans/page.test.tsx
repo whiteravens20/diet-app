@@ -78,7 +78,7 @@ describe('the plan page, where the catalogue is short of recipes', () => {
     depth.vegan = { 2: 9, 3: 9, 4: 0, 5: 0 };
     await renderPage(depth);
 
-    expect(screen.getByRole('status').textContent).toContain('so it cannot make a plan. Choose another diet, or no more than 3 meals a day.');
+    expect(screen.getByRole('status').textContent).toContain('no plan can be made: choose another diet, or no more than 3 meals a day.');
   });
 
   it('warns that plans will repeat when one of the meals has few', async () => {

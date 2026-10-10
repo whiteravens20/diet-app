@@ -1041,7 +1041,7 @@
     "kcal": "kcal"
   },
   "catalogue": {
-    "none": "Ta instancja nie ma przepisu w diecie „{diet}” na co najmniej jeden z {count} posiłków dziennie, więc nie ułoży planu. {advice, select, fewer {Wybierz inną dietę albo najwyżej {fewer} posiłki dziennie.} other {Wybierz inną dietę.}}",
+    "none": "W katalogu nie ma przepisu w diecie „{diet}” na co najmniej jeden z {count} posiłków dziennie. Bez własnego przepisu na ten posiłek planu nie da się ułożyć: wybierz inną dietę{advice, select, fewer { albo najwyżej {fewer} posiłki dziennie} other {}}.",
     "thin": "W diecie „{diet}” na jeden z {count} posiłków dziennie {recipes, plural, one {jest tylko # przepis} few {są tylko # przepisy} many {jest tylko # przepisów} other {jest tylko # przepisu}}: plany będą często powtarzać to samo danie.",
     "dietNone": "{diet} (brak przepisów)",
     "dietThin": "{diet} (mało przepisów)"

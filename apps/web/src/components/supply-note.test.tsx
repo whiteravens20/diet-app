@@ -30,11 +30,11 @@ function renderNote(recipes?: number, atFewer = 9) {
 }
 
 describe('the note on what the catalogue has for a diet', () => {
-  it('says no plan can be made when one of the meals has no recipe, and how many meals a day can be planned', () => {
+  it('says no plan can be made from the catalogue when one of the meals has no recipe, and how many meals a day can be planned', () => {
     renderNote(0);
 
     expect(screen.getByRole('status').textContent).toBe(
-      'This instance has no recipe on the "Vegan" diet for at least one of the 4 meals a day, so it cannot make a plan. Choose another diet, or no more than 3 meals a day.',
+      'The catalogue has no recipe on the "Vegan" diet for at least one of the 4 meals a day. Without a recipe of your own for that meal no plan can be made: choose another diet, or no more than 3 meals a day.',
     );
   });
 
@@ -42,7 +42,7 @@ describe('the note on what the catalogue has for a diet', () => {
     renderNote(0, 0);
 
     expect(screen.getByRole('status').textContent).toBe(
-      'This instance has no recipe on the "Vegan" diet for at least one of the 4 meals a day, so it cannot make a plan. Choose another diet.',
+      'The catalogue has no recipe on the "Vegan" diet for at least one of the 4 meals a day. Without a recipe of your own for that meal no plan can be made: choose another diet.',
     );
   });
 

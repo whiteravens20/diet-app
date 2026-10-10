@@ -11,7 +11,8 @@ import { cn } from '@/lib/utils';
 /**
  * A warning when the catalogue has no recipe, or too few, for one of the meals
  * of a diet at a number of meals a day. Nothing when it has enough or has not
- * answered yet.
+ * answered yet. It speaks of the catalogue only: a recipe the user made for
+ * themselves can fill a gap, and the planner counts it.
  */
 export function SupplyNote({ diet, mealCount, className }: { diet: DietType; mealCount: number; className?: string }) {
   const t = useTranslations('catalogue');
