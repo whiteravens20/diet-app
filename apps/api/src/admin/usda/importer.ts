@@ -15,6 +15,7 @@
  */
 import { renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { FdcDataTypes } from '@diet-app/shared';
 import { classify } from './classify.js';
 import { macrosOf, type SourceNutrient } from './nutrients.js';
 
@@ -144,6 +145,21 @@ export interface ImportOptions {
   onProgress?: (p: ImportProgress) => void;
   /** Override page-fetch (test injection). */
   fetchPage?: (page: number) => Promise<SourcePage>;
+}
+
+/**
+ * The key and the data sets of a run started from the command line, read from
+ * the environment the way the API reads its own settings: a variable set to
+ * nothing is not set, and a data set the source does not have is refused
+ * before anything is asked for.
+ */
+export function settingsFromEnvironment(env: Record<string, string | undefined>): { apiKey: string; dataTypes: string } {
+  const set = (name: string): string | undefined => env[name]?.trim() || undefined;
+  const dataTypes = FdcDataTypes.safeParse(set('FDC_DATA_TYPES') ?? 'Foundation');
+  if (!dataTypes.success) {
+    throw new Error(`FDC_DATA_TYPES: ${dataTypes.error.issues.map((issue) => issue.message).join('; ')}`);
+  }
+  return { apiKey: set('FDC_API_KEY') ?? 'DEMO_KEY', dataTypes: dataTypes.data };
 }
 
 /**

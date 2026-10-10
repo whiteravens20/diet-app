@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { pageFetcher, runImport, type SourceFood } from './importer.js';
+import { pageFetcher, runImport, settingsFromEnvironment, type SourceFood } from './importer.js';
 
 /** Real records of the source, cut down to what the importer reads. */
 const foods = JSON.parse(readFileSync(join(__dirname, 'fixtures/fdc-foods.json'), 'utf8')) as SourceFood[];
@@ -156,5 +156,27 @@ describe('asking the source for a page', () => {
 
     await expect(fetchPage(1)).resolves.toEqual(page);
     expect(calls).toHaveLength(3);
+  });
+});
+
+describe('the settings of a run from the command line', () => {
+  it('are the demonstration key and the foundation foods when nothing is set', () => {
+    expect(settingsFromEnvironment({})).toEqual({ apiKey: 'DEMO_KEY', dataTypes: 'Foundation' });
+  });
+
+  it('take a variable that is set to nothing as not set', () => {
+    // How a container gets a line of the env file that has no value.
+    expect(settingsFromEnvironment({ FDC_API_KEY: '', FDC_DATA_TYPES: '  ' })).toEqual({ apiKey: 'DEMO_KEY', dataTypes: 'Foundation' });
+  });
+
+  it('take what is set, the data sets in the form the source expects', () => {
+    expect(settingsFromEnvironment({ FDC_API_KEY: ' a-key ', FDC_DATA_TYPES: 'SR Legacy , Foundation' })).toEqual({
+      apiKey: 'a-key',
+      dataTypes: 'SR Legacy,Foundation',
+    });
+  });
+
+  it('refuse a data set the source does not have, by the name of the variable', () => {
+    expect(() => settingsFromEnvironment({ FDC_DATA_TYPES: 'Foundation,Branded' })).toThrow(/^FDC_DATA_TYPES: /);
   });
 });

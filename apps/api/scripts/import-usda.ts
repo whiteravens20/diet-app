@@ -19,21 +19,20 @@
  */
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { runImport } from '../src/admin/usda/importer.js';
+import { runImport, settingsFromEnvironment } from '../src/admin/usda/importer.js';
 
-const API_KEY = process.env.FDC_API_KEY ?? 'DEMO_KEY';
-const DATA_TYPES = process.env.FDC_DATA_TYPES ?? 'Foundation';
 const outDir = join(dirname(fileURLToPath(import.meta.url)), '../../../data');
 
 async function main(): Promise<void> {
-  if (API_KEY === 'DEMO_KEY') {
+  const { apiKey, dataTypes } = settingsFromEnvironment(process.env);
+  if (apiKey === 'DEMO_KEY') {
     console.warn('⚠ Using DEMO_KEY (30 req/hr). Set FDC_API_KEY for a real key.');
   }
-  console.log(`Bulk-importing ${DATA_TYPES} from USDA FDC at 200/page…`);
+  console.log(`Bulk-importing ${dataTypes} from USDA FDC at 200/page…`);
 
   const result = await runImport({
-    apiKey: API_KEY,
-    dataTypes: DATA_TYPES,
+    apiKey,
+    dataTypes,
     outDir,
     onProgress: (p) =>
       console.log(
