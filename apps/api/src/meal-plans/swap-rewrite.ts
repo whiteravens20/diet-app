@@ -176,8 +176,10 @@ function wordBoundaryRegex(name: string): RegExp {
  *  - `description`: replace every occurrence of `oldName` with `newName`.
  *  - `steps[]`: same per element.
  *  - `title`: append the variantTitle template using the new replacement;
- *    the base title is the source's *current* title in that locale (which
- *    may already be a variant — that's fine, we just keep stacking).
+ *    the base title is the source's *current* title in that locale. That may
+ *    be a variant already: an earlier swap that still holds stays in the
+ *    title, and one whose ingredient is now taken out gives its place to the
+ *    new one.
  *
  * The replace is case-insensitive on the first-letter only (`Chicken` and
  * `chicken` both match), preserving the original word's casing on the
@@ -201,7 +203,7 @@ export function rewriteSwapModeA(input: SwapRewriteInput): Map<Locale, RecipeLoc
       continue;
     }
     out.set(locale, {
-      title: applyTitleTemplate(locale, slice.title, newName),
+      title: applyTitleTemplate(locale, slice.title, newName, oldName),
       description: substituteCaseAware(slice.description, oldName, newName),
       steps: slice.steps.map((s) => substituteCaseAware(s, oldName, newName)),
     });
@@ -209,7 +211,18 @@ export function rewriteSwapModeA(input: SwapRewriteInput): Map<Locale, RecipeLoc
   return out;
 }
 
-function applyTitleTemplate(locale: Locale, base: string, replacement: string): string {
+/**
+ * The title of a variant. A title that names the ingredient now taken out,
+ * because that one came in by an earlier swap ("… (with Kidney beans)"),
+ * names the new one in its place: left standing it would promise an
+ * ingredient the recipe no longer has.
+ */
+function applyTitleTemplate(locale: Locale, base: string, replacement: string, replaced?: string): string {
+  if (replaced) {
+    const earlier = VARIANT_TITLE[locale]('', replaced);
+    const at = base.lastIndexOf(earlier);
+    if (at > 0) return `${base.slice(0, at)}${VARIANT_TITLE[locale]('', replacement)}${base.slice(at + earlier.length)}`;
+  }
   return VARIANT_TITLE[locale](base, replacement);
 }
 

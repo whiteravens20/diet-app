@@ -54,6 +54,29 @@ describe('rewriteSwapModeA', () => {
   const en: Locale = 'en';
   const pl: Locale = 'pl';
 
+  it('names the new ingredient in the title in place of one it took the place of', () => {
+    const slice = (title: string) => ({ title, description: 'A soup.', steps: ['Simmer.', 'Blend.'] });
+    const swap = (titles: [string, string], from: [string, string], to: [string, string]) =>
+      rewriteSwapModeA({
+        source: new Map([[en, slice(titles[0])], [pl, slice(titles[1])]]),
+        oldName: new Map([[en, from[0]], [pl, from[1]]]),
+        newName: new Map([[en, to[0]], [pl, to[1]]]),
+      });
+
+    // The lentils were swapped for kidney beans before; now the kidney beans go.
+    const again = swap(['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (z Fasola czerwona)'], ['Kidney beans', 'Fasola czerwona'], ['Black beans', 'Fasola czarna']);
+    expect(again.get(en)!.title).toBe('Lentil soup (with Black beans)');
+    expect(again.get(pl)!.title).toBe('Zupa z soczewicy (z Fasola czarna)');
+
+    // Another ingredient of the same recipe: the earlier swap is still true and stays.
+    const other = swap(['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (z Fasola czerwona)'], ['Carrot', 'Marchew'], ['Parsnip', 'Pasternak']);
+    expect(other.get(en)!.title).toBe('Lentil soup (with Kidney beans) (with Parsnip)');
+
+    // And an earlier one of two is found wherever it stands.
+    const first = swap(['Lentil soup (with Kidney beans) (with Parsnip)', 'Zupa (z Fasola czerwona) (z Pasternak)'], ['Kidney beans', 'Fasola czerwona'], ['Chickpeas', 'Ciecierzyca']);
+    expect(first.get(en)!.title).toBe('Lentil soup (with Chickpeas) (with Parsnip)');
+  });
+
   it('substitutes per locale and rewrites the title via the template', () => {
     const out = rewriteSwapModeA({
       source: new Map([
