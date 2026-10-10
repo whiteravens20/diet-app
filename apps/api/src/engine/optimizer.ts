@@ -10,7 +10,8 @@
  * Scoring balances:
  *   calorie fit · ingredient reuse · variety · preference · complexity.
  */
-import { fitsDiet, type DietType, type Macros, type MealType } from '@diet-app/shared';
+import { fitsDiet, type DietType, type Macros, type MealType, type Unit } from '@diet-app/shared';
+import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
 
 export interface OptimizerRecipe {
   id: string;
@@ -376,6 +377,30 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
     SCORE_WEIGHTS.inventoryCoverage * inventoryCoverage -
     SCORE_WEIGHTS.complexity * complexityPenalty
   );
+}
+
+/**
+ * What one serving of a recipe needs of each ingredient, in the ingredient's
+ * canonical unit. A plan places about one serving of a recipe, so this, not
+ * the whole recipe, is what the pantry is compared with: 150 g of chicken at
+ * home cover a serving of a two-serving recipe that takes 300 g in all. A
+ * line that cannot be converted is left out, and so counts as not covered.
+ */
+export function requirementsPerServing(recipe: {
+  servings: number;
+  ingredients: readonly { ingredientId: string; quantity: number; unit: Unit; ingredient: ConvertibleIngredient }[];
+}): { ingredientId: string; canonicalQuantity: number }[] {
+  const servings = Math.max(1, recipe.servings);
+  const needs: { ingredientId: string; canonicalQuantity: number }[] = [];
+  for (const line of recipe.ingredients) {
+    try {
+      const canonical = toCanonical(line.quantity, line.unit, line.ingredient) / servings;
+      if (canonical > 0) needs.push({ ingredientId: line.ingredientId, canonicalQuantity: canonical });
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+    }
+  }
+  return needs;
 }
 
 /**

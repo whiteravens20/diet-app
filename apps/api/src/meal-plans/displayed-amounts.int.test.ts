@@ -2,6 +2,7 @@
 
 import type { MealPlan, PlannedMeal, Recipe } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -100,6 +101,39 @@ describe('quantities as a client receives them', () => {
       const custom = body.plan.days[0]!.meals.find((meal) => meal.source === 'USER_CUSTOM')!;
 
       expect(custom.ingredients).toEqual([]);
+    });
+  });
+
+  describe('the stock a plan is steered by', () => {
+    const ingredientId = async (slug: string): Promise<string> => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+    const hold = async (slug: string, quantity: number, unit: 'g' | 'ml' | 'piece', bestBefore: string | null = null) =>
+      t.prisma.inventoryItem.create({
+        data: { profileId: plan.profileId, ingredientId: await ingredientId(slug), quantity, unit, bestBefore: bestBefore ? new Date(bestBefore) : null },
+      });
+
+    it('adds up the rows of an ingredient across units, and leaves out what cannot be converted', async () => {
+      await hold('large-egg', 6, 'piece');
+      await hold('large-egg', 110, 'g');
+      await hold('white-rice', 500, 'g');
+      await hold('white-rice', 3, 'piece');
+      await hold('broccoli', 0, 'g');
+
+      const stock = await stockByIngredient(t.prisma, plan.profileId);
+
+      expect(stock.get(await ingredientId('large-egg'))).toBe(440);
+      expect(stock.get(await ingredientId('white-rice'))).toBe(500);
+      expect(stock.has(await ingredientId('broccoli'))).toBe(false);
+    });
+
+    it('counts as expiring only what goes off within the plan, not what went off before it began', async () => {
+      await hold('whole-milk', 500, 'ml', '2025-12-20');
+      await hold('large-egg', 6, 'piece', '2026-01-07');
+      await hold('white-rice', 500, 'g', '2026-03-01');
+      await hold('broccoli', 300, 'g');
+
+      const expiring = await stockExpiringBetween(t.prisma, plan.profileId, new Date('2026-01-05'), new Date('2026-01-08'));
+
+      expect([...expiring.keys()]).toEqual([await ingredientId('large-egg')]);
     });
   });
 });

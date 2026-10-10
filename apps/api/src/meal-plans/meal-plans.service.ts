@@ -45,9 +45,9 @@ import {
   rebalanceWeek,
   recipeCoverage,
   recipeFacts,
+  requirementsPerServing,
   slotBudgets,
   substituteIngredient,
-  toCanonical,
   UnitConversionError,
   type CalorieEngineInput,
   type EngineIngredient,
@@ -70,6 +70,7 @@ import {
   validateModeBOutput,
   type RecipeLocaleSlice,
 } from './swap-rewrite.js';
+import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { writePlan } from './plan-write.js';
 import {
@@ -424,8 +425,10 @@ export class MealPlansService {
     const expiringByDate = new Map<string, ReadonlyMap<string, number>>();
     if (opts.respectInventory !== false) {
       const dates = [...new Set(opts.days.filter((d) => d.useUpBy && !d.skip).map((d) => d.isoDate))];
+      // ISO dates sort as text.
+      const planStart = new Date(opts.days.map((d) => d.isoDate).sort()[0]!);
       for (const iso of dates) {
-        const map = await this.expiringCoverageForDate(profile.id, new Date(iso), requirementsByRecipe);
+        const map = await this.expiringCoverageForDate(profile.id, planStart, new Date(iso), requirementsByRecipe);
         if (map) expiringByDate.set(iso, map);
       }
     }
@@ -481,37 +484,26 @@ export class MealPlansService {
   }
 
   /**
-   * Use-up-by: per-recipe coverage scored only against inventory expiring on
-   * or before `date`. Steers a flagged day toward recipes that consume
-   * soon-to-expire stock. Returns null when nothing qualifies. Unlike the
-   * plan-level bias it does not touch the anti-monotony streak — it's an
-   * explicit per-day request, not the rotation-governed default.
+   * Use-up-by: per-recipe coverage scored only against stock that goes off
+   * between the start of the plan and `date`. Steers a flagged day toward
+   * recipes that consume soon-to-expire stock; what went off before the plan
+   * begins is no reason to cook anything. Returns null when nothing
+   * qualifies. Unlike the plan-level bias it does not touch the anti-monotony
+   * streak — it's an explicit per-day request, not the rotation-governed
+   * default.
    */
   private async expiringCoverageForDate(
     profileId: string,
+    planStart: Date,
     date: Date,
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
   ): Promise<Map<string, number> | null> {
-    const items = await this.prisma.inventoryItem.findMany({
-      where: { profileId, bestBefore: { not: null, lte: date } },
-      include: { ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } } },
-    });
-    if (items.length === 0) return null;
-
-    const pantryStock = new Map<string, number>();
-    for (const item of items) {
-      try {
-        const canonical = toCanonical(item.quantity, item.unit, item.ingredient);
-        pantryStock.set(item.ingredientId, (pantryStock.get(item.ingredientId) ?? 0) + canonical);
-      } catch (err) {
-        if (!(err instanceof UnitConversionError)) throw err;
-      }
-    }
-    if (pantryStock.size === 0) return null;
+    const stock = await stockExpiringBetween(this.prisma, profileId, planStart, date);
+    if (stock.size === 0) return null;
 
     const coverage = new Map<string, number>();
     for (const [recipeId, reqs] of requirementsByRecipe) {
-      const score = recipeCoverage(reqs, pantryStock);
+      const score = recipeCoverage(reqs, stock);
       if (score > 0) coverage.set(recipeId, score);
     }
     return coverage.size === 0 ? null : coverage;
@@ -1659,18 +1651,7 @@ export class MealPlansService {
     }));
 
     const requirementsByRecipe = new Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>();
-    for (const r of filteredRecipes) {
-      const reqs: Array<{ ingredientId: string; canonicalQuantity: number }> = [];
-      for (const ri of r.ingredients) {
-        try {
-          const canonical = toCanonical(ri.quantity, ri.unit, ri.ingredient);
-          if (canonical > 0) reqs.push({ ingredientId: ri.ingredientId, canonicalQuantity: canonical });
-        } catch (err) {
-          if (!(err instanceof UnitConversionError)) throw err;
-        }
-      }
-      requirementsByRecipe.set(r.id, reqs);
-    }
+    for (const r of filteredRecipes) requirementsByRecipe.set(r.id, requirementsPerServing(r));
 
     return { optimizerRecipes, requirementsByRecipe };
   }
@@ -1715,27 +1696,13 @@ export class MealPlansService {
       return undefined;
     }
 
-    const items = await this.prisma.inventoryItem.findMany({
-      where: { profileId },
-      include: { ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } } },
-    });
-    if (items.length === 0) return undefined;
-
-    const pantryStock = new Map<string, number>();
-    for (const item of items) {
-      try {
-        const canonical = toCanonical(item.quantity, item.unit, item.ingredient);
-        pantryStock.set(item.ingredientId, (pantryStock.get(item.ingredientId) ?? 0) + canonical);
-      } catch (err) {
-        if (!(err instanceof UnitConversionError)) throw err;
-      }
-    }
-    if (pantryStock.size === 0) return undefined;
+    const stock = await stockByIngredient(this.prisma, profileId);
+    if (stock.size === 0) return undefined;
 
     const coverage = new Map<string, number>();
     for (const r of optimizerRecipes) {
       const reqs = requirementsByRecipe.get(r.id) ?? [];
-      const score = recipeCoverage(reqs, pantryStock);
+      const score = recipeCoverage(reqs, stock);
       if (score > 0) coverage.set(r.id, score);
     }
     if (coverage.size === 0) return undefined;
@@ -1764,21 +1731,8 @@ export class MealPlansService {
   ): Promise<Map<string, number> | null> {
     if (!respectInventory || recipeIds.length === 0) return null;
 
-    const inventoryRows = await this.prisma.inventoryItem.findMany({
-      where: { profileId },
-      include: { ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } } },
-    });
-    if (inventoryRows.length === 0) return null;
-    const pantryStock = new Map<string, number>();
-    for (const item of inventoryRows) {
-      try {
-        const canonical = toCanonical(item.quantity, item.unit, item.ingredient);
-        pantryStock.set(item.ingredientId, (pantryStock.get(item.ingredientId) ?? 0) + canonical);
-      } catch (err) {
-        if (!(err instanceof UnitConversionError)) throw err;
-      }
-    }
-    if (pantryStock.size === 0) return null;
+    const stock = await stockByIngredient(this.prisma, profileId);
+    if (stock.size === 0) return null;
 
     const recipes = await this.prisma.recipe.findMany({
       where: { id: { in: recipeIds } },
@@ -1791,27 +1745,14 @@ export class MealPlansService {
       },
     });
     const result = new Map<string, number>();
-    for (const r of recipes) {
-      const reqs: Array<{ ingredientId: string; canonicalQuantity: number }> = [];
-      for (const ri of r.ingredients) {
-        try {
-          const canonical = toCanonical(ri.quantity, ri.unit, ri.ingredient);
-          if (canonical > 0) reqs.push({ ingredientId: ri.ingredientId, canonicalQuantity: canonical });
-        } catch (err) {
-          if (!(err instanceof UnitConversionError)) throw err;
-        }
-      }
-      result.set(r.id, recipeCoverage(reqs, pantryStock));
-    }
+    for (const r of recipes) result.set(r.id, recipeCoverage(requirementsPerServing(r), stock));
     return result;
   }
 
   /**
-   * Batch-score an arbitrary ingredient-id list by "is in the pantry".
-   * Returns a boolean-ish [0, 1] score keyed by ingredient id: 1 when the
-   * pantry has any stock of that ingredient, 0 otherwise. Used by AI-suggest
-   * ingredient swap to bias candidates toward the pantry without doing a
-   * full canonical-mass coverage calc.
+   * Which of the given ingredients the pantry holds any of. Used by the AI
+   * ingredient suggestion to put what is at home first. Null when the toggle
+   * is off or the pantry holds none of them.
    */
   private async ingredientPantryHit(
     profileId: string,
@@ -1819,15 +1760,8 @@ export class MealPlansService {
     respectInventory: boolean,
   ): Promise<Set<string> | null> {
     if (!respectInventory || ingredientIds.length === 0) return null;
-    const rows = await this.prisma.inventoryItem.findMany({
-      where: { profileId, ingredientId: { in: ingredientIds } },
-      select: { ingredientId: true, quantity: true },
-    });
-    const hits = new Set<string>();
-    for (const r of rows) {
-      if (r.quantity > 0) hits.add(r.ingredientId);
-    }
-    return hits.size === 0 ? null : hits;
+    const stock = await stockByIngredient(this.prisma, profileId, { ingredientId: { in: ingredientIds } });
+    return stock.size === 0 ? null : new Set(stock.keys());
   }
 
   private toDto(plan: PlanWithRelations, locale: Locale, restrictions: Restrictions): MealPlan {

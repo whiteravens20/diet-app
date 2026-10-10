@@ -4,7 +4,7 @@ import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { MAX_QUANTITY, type Unit } from '@diet-app/shared';
 import { z } from 'zod';
-import { settle, type PantryIngredient, type PantryMove } from '../engine/pantry.js';
+import { pantryStock, settle, type PantryIngredient, type PantryMove } from '../engine/pantry.js';
 
 /**
  * The pantry in the database: the part of `engine/pantry.ts` that reads and
@@ -71,6 +71,43 @@ export async function settlePantry(
     });
   }
   return result.moves;
+}
+
+/**
+ * What a profile holds of each ingredient, in the ingredient's canonical unit,
+ * across its pantry rows of every unit. An ingredient it holds nothing of is
+ * absent. `only` narrows the rows that count.
+ */
+export async function stockByIngredient(
+  db: Pick<Prisma.TransactionClient, 'inventoryItem'>,
+  profileId: string,
+  only: Prisma.InventoryItemWhereInput = {},
+): Promise<Map<string, number>> {
+  const rows = await db.inventoryItem.findMany({
+    where: { profileId, ...only },
+    include: { ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } } },
+  });
+  const byIngredient = new Map<string, typeof rows>();
+  for (const row of rows) byIngredient.set(row.ingredientId, [...(byIngredient.get(row.ingredientId) ?? []), row]);
+  const stock = new Map<string, number>();
+  for (const [ingredientId, group] of byIngredient) {
+    const { quantity } = pantryStock(group, group[0]!.ingredient);
+    if (quantity > 0) stock.set(ingredientId, quantity);
+  }
+  return stock;
+}
+
+/**
+ * The stock that goes off between two dates, both included. What went off
+ * before `from` is past saving, and what has no date does not go off.
+ */
+export function stockExpiringBetween(
+  db: Pick<Prisma.TransactionClient, 'inventoryItem'>,
+  profileId: string,
+  from: Date,
+  to: Date,
+): Promise<Map<string, number>> {
+  return stockByIngredient(db, profileId, { bestBefore: { gte: from, lte: to } });
 }
 
 /** Refuse a quantity beyond what a row of its unit may hold. */

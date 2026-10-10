@@ -6,6 +6,7 @@ import {
   fitServings,
   optimisePlan,
   recipeCoverage,
+  requirementsPerServing,
   slotBudgets,
   uniformDays,
   type OptimizerInput,
@@ -328,5 +329,53 @@ describe('recipeCoverage', () => {
       ['b', 100],
     ]);
     expect(recipeCoverage(reqs, pantry)).toBeCloseTo(2 / 3, 5);
+  });
+});
+
+describe('what one serving of a recipe needs', () => {
+  const chicken = { canonicalUnit: 'g' as const, gramsPerPiece: null, density: null };
+  const egg = { canonicalUnit: 'g' as const, gramsPerPiece: 55, density: null };
+  const milk = { canonicalUnit: 'ml' as const, gramsPerPiece: null, density: 1.03 };
+
+  it('is the recipe divided by its servings, in canonical units', () => {
+    const needs = requirementsPerServing({
+      servings: 2,
+      ingredients: [
+        { ingredientId: 'chicken', quantity: 300, unit: 'g', ingredient: chicken },
+        { ingredientId: 'egg', quantity: 4, unit: 'piece', ingredient: egg },
+        { ingredientId: 'milk', quantity: 206, unit: 'g', ingredient: milk },
+      ],
+    });
+
+    expect(needs).toEqual([
+      { ingredientId: 'chicken', canonicalQuantity: 150 },
+      { ingredientId: 'egg', canonicalQuantity: 110 },
+      { ingredientId: 'milk', canonicalQuantity: 100 },
+    ]);
+  });
+
+  it('makes a pantry that holds one serving cover a two-serving recipe in full', () => {
+    const recipe = { servings: 2, ingredients: [{ ingredientId: 'chicken', quantity: 300, unit: 'g' as const, ingredient: chicken }] };
+
+    expect(recipeCoverage(requirementsPerServing(recipe), new Map([['chicken', 150]]))).toBe(1);
+  });
+
+  it('leaves out a line that cannot be converted, and one of nothing', () => {
+    const needs = requirementsPerServing({
+      servings: 1,
+      ingredients: [
+        { ingredientId: 'chicken', quantity: 2, unit: 'piece', ingredient: chicken },
+        { ingredientId: 'egg', quantity: 0, unit: 'g', ingredient: egg },
+        { ingredientId: 'milk', quantity: 100, unit: 'ml', ingredient: milk },
+      ],
+    });
+
+    expect(needs).toEqual([{ ingredientId: 'milk', canonicalQuantity: 100 }]);
+  });
+
+  it('takes a recipe that claims no servings as one serving', () => {
+    const needs = requirementsPerServing({ servings: 0, ingredients: [{ ingredientId: 'chicken', quantity: 300, unit: 'g', ingredient: chicken }] });
+
+    expect(needs).toEqual([{ ingredientId: 'chicken', canonicalQuantity: 300 }]);
   });
 });
