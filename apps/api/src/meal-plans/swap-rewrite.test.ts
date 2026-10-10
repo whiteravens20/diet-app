@@ -31,6 +31,20 @@ describe('substituteCaseAware', () => {
     ).toBe('feta tastes mild');
   });
 
+  it.each([
+    ['a name that ends in a Polish letter', 'Ugotuj ryż. Podaj ryż z warzywami.', 'ryż', 'makaron', 'Ugotuj makaron. Podaj makaron z warzywami.'],
+    ['a name that starts with a Polish letter', 'Żurawina na wierzch, potem jeszcze żurawina.', 'żurawina', 'rodzynki', 'Rodzynki na wierzch, potem jeszcze rodzynki.'],
+    ['a name with Polish letters on both ends', 'Dodaj łosoś.', 'łosoś', 'dorsz', 'Dodaj dorsz.'],
+    ['an inflected form of a longer name', 'Podawaj z brokułem i brokułami.', 'brokuł', 'kalafior', 'Podawaj z kalafior i kalafior.'],
+  ])('replaces %s', (_name, text, oldName, newName, expected) => {
+    expect(substituteCaseAware(text, oldName, newName)).toBe(expected);
+  });
+
+  it('does not replace a name inside a longer word, in any alphabet', () => {
+    expect(substituteCaseAware('Dodaj ryżowy makaron.', 'ryż', 'kasza')).toBe('Dodaj ryżowy makaron.');
+    expect(substituteCaseAware('Add eggplant.', 'egg', 'tofu')).toBe('Add eggplant.');
+  });
+
   it('returns the input unchanged when oldName is empty', () => {
     expect(substituteCaseAware('hello', '', 'world')).toBe('hello');
   });
@@ -142,6 +156,24 @@ describe('rewriteSwapModeA', () => {
   });
 });
 
+describe('a locale in which the substitute has no name', () => {
+  const pl: Locale = 'pl';
+
+  it('keeps its title as it was, and never names the ingredient that was taken out', () => {
+    const out = rewriteSwapModeA({
+      source: new Map([[pl, { title: 'Curry z kurczakiem', description: 'Ostre curry z kurczakiem.', steps: ['Podsmaż kurczaka.'] }]]),
+      oldName: new Map([[pl, 'kurczak']]),
+      newName: new Map(),
+    });
+
+    expect(out.get(pl)).toEqual({
+      title: 'Curry z kurczakiem',
+      description: 'Ostre curry z kurczakiem.',
+      steps: ['Podsmaż kurczaka.'],
+    });
+  });
+});
+
 describe('validateModeBOutput', () => {
   const source = {
     description: 'A spicy chicken curry with 200g of chicken.',
@@ -204,6 +236,27 @@ describe('validateModeBOutput', () => {
         steps: [longStep + 'Sear the tofu.', 'Add 250ml coconut milk.', 'Simmer 15 minutes.'],
       }),
     ).toBe(false);
+  });
+});
+
+describe('validateModeBOutput with names in Polish', () => {
+  const source = {
+    description: 'Ryż z kurczakiem.',
+    steps: ['Ugotuj ryż.', 'Podaj.'],
+    oldName: 'ryż',
+    newName: 'łosoś',
+  };
+
+  it('accepts a rewrite that names the new ingredient', () => {
+    expect(validateModeBOutput(source, { description: 'Łosoś z kurczakiem.', steps: ['Upiecz łosoś.', 'Podaj.'] })).toBe(true);
+  });
+
+  it('rejects a rewrite that still names the old one', () => {
+    expect(validateModeBOutput(source, { description: 'Łosoś i ryż z kurczakiem.', steps: ['Upiecz łosoś.', 'Podaj.'] })).toBe(false);
+  });
+
+  it('rejects a rewrite that never names the new one', () => {
+    expect(validateModeBOutput(source, { description: 'Danie z kurczakiem.', steps: ['Ugotuj wszystko.', 'Podaj.'] })).toBe(false);
   });
 });
 

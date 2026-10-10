@@ -173,9 +173,18 @@ function extractDigitSequences(description: string, steps: string[]): Set<string
   return new Set(all.match(/\d+(?:[.,]\d+)?/g) ?? []);
 }
 
+/**
+ * The edges of a word, for any alphabet. `\b` knows only ASCII letters, so a
+ * name that starts or ends with a Polish letter ("brokuł", "żurawina") would
+ * have no edge next to a space and never match.
+ */
+const WORD_START = '(?<![\\p{L}\\p{N}_])';
+const WORD_END = '(?![\\p{L}\\p{N}_])';
+
+const escapeForRegex = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 function wordBoundaryRegex(name: string): RegExp {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`\\b${escaped}\\b`, 'gi');
+  return new RegExp(`${WORD_START}${escapeForRegex(name)}${WORD_END}`, 'giu');
 }
 
 /**
@@ -199,11 +208,11 @@ export function rewriteSwapModeA(input: SwapRewriteInput): Map<Locale, RecipeLoc
     const oldName = input.oldName.get(locale);
     const newName = input.newName.get(locale);
     if (!oldName || !newName) {
-      // No translation for this locale on either ingredient — leave the slice
-      // untouched and let the title-template still wrap it so the user sees
-      // *something* changed. Better than dropping the locale.
+      // Without a name for the substitute there is nothing true to say about
+      // it: the text stays as it is. The title in particular never gets the
+      // name of the ingredient that was taken out.
       out.set(locale, {
-        title: applyTitleTemplate(locale, slice.title, newName ?? oldName ?? ''),
+        title: newName ? applyTitleTemplate(locale, slice.title, newName) : slice.title,
         description: slice.description,
         steps: slice.steps,
       });
@@ -237,7 +246,7 @@ export function substituteCaseAware(
   newName: string,
 ): string {
   if (!oldName) return text;
-  const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escaped = escapeForRegex(oldName);
   // Two-pass substitution. The first pass uses a strict word boundary so
   // clean nominative cases (most English) substitute cleanly. The second
   // pass kicks in only when the first found nothing — it allows a trailing
@@ -246,13 +255,13 @@ export function substituteCaseAware(
   // dropping the inflection). Length-gated to ≥4 characters so short names
   // like "egg" don't overmatch "eggplant" without the strict pass having
   // already done its work.
-  const strict = new RegExp(`\\b${escaped}\\b`, 'gi');
+  const strict = new RegExp(`${WORD_START}${escaped}${WORD_END}`, 'giu');
   if (strict.test(text)) {
     strict.lastIndex = 0;
     return text.replace(strict, (match) => preserveLeadingCase(match, newName));
   }
   if (oldName.length < 4) return text;
-  const stem = new RegExp(`\\b${escaped}[\\w']*\\b`, 'gi');
+  const stem = new RegExp(`${WORD_START}${escaped}[\\p{L}\\p{N}_']*${WORD_END}`, 'giu');
   return text.replace(stem, (match) => preserveLeadingCase(match, newName));
 }
 

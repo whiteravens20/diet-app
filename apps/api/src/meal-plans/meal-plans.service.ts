@@ -1046,15 +1046,11 @@ export class MealPlansService {
       });
     }
 
-    // Build the variant's ingredient lines + load full ingredient rows for
-    // nutrition / fingerprint. Allergens become whatever the new line carries
-    // — the swapped-out ingredient might have been the only source of a given
-    // allergen, so recompute from scratch.
-    const allIds = new Set(recipe.ingredients.map((i) => i.ingredientId));
-    allIds.delete(req.fromIngredientId);
-    allIds.add(req.toIngredientId);
+    // Build the variant's ingredient lines + load full ingredient rows: those
+    // of the variant for its nutrition, and the one swapped out as well, whose
+    // names the text of the variant is searched for.
     const ingredientRows = await this.prisma.ingredient.findMany({
-      where: { id: { in: [...allIds] } },
+      where: { id: { in: [...recipe.ingredients.map((i) => i.ingredientId), req.toIngredientId] } },
       include: { translations: true },
     });
     const ingredientById = new Map(ingredientRows.map((i) => [i.id, i]));
@@ -1118,21 +1114,14 @@ export class MealPlansService {
       },
     );
 
-    // Build per-locale translation slices for the variant. Mode B (AI
-    // sentence rewrite) when the user's AI is available + quota OK; falls
-    // back to Mode A on per-locale validator rejection or AI unavailability.
-    // Mode A directly when the user is on `aiMode: 'none'` (no provider
-    // call ever leaves the instance).
-    const variantTranslations = await this.buildVariantTranslations(
+    // The text of the variant: the substitute's name in place of the old one,
+    // by plain replacement, or reworded by a model for a user who has AI on.
+    const text = await this.buildVariantTranslations(
       userId,
-      recipe.translations,
-      ingredientById.get(req.fromIngredientId),
-      ingredientById.get(req.toIngredientId),
+      recipe,
+      ingredientById.get(req.fromIngredientId)!,
+      ingredientById.get(req.toIngredientId)!,
     );
-    // The recipe row carries the English text: the variant's, or the source's
-    // where the source has no English translation row.
-    const text = new Map<string, RecipeLocaleSlice>(variantTranslations);
-    if (!text.has('en')) text.set('en', { title: recipe.title, description: recipe.description, steps: recipe.steps });
 
     // Stored as the user's own recipe, or recognised as one that exists
     // already. A shared recipe the profile avoids is not handed back for it.
@@ -1174,13 +1163,16 @@ export class MealPlansService {
    */
   private async buildVariantTranslations(
     userId: string,
-    sourceTranslations: { locale: string; title: string; description: string; steps: string[] }[],
-    oldIngredient: { name: string; translations: { locale: string; name: string }[] } | undefined,
-    newIngredient: { name: string; translations: { locale: string; name: string }[] } | undefined,
+    source: { title: string; description: string; steps: string[]; translations: { locale: string; title: string; description: string; steps: string[] }[] },
+    oldIngredient: { name: string; translations: { locale: string; name: string }[] },
+    newIngredient: { name: string; translations: { locale: string; name: string }[] },
   ): Promise<Map<Locale, RecipeLocaleSlice>> {
     const localeOptions = LocaleEnum.options;
-    const sourceSlices = new Map<Locale, RecipeLocaleSlice>();
-    for (const tr of sourceTranslations) {
+    // The recipe row itself holds the English text; a translation row for `en` wins over it.
+    const sourceSlices = new Map<Locale, RecipeLocaleSlice>([
+      ['en', { title: source.title, description: source.description, steps: source.steps }],
+    ]);
+    for (const tr of source.translations) {
       if (!localeOptions.includes(tr.locale as Locale)) continue;
       sourceSlices.set(tr.locale as Locale, {
         title: tr.title,
@@ -1188,8 +1180,11 @@ export class MealPlansService {
         steps: tr.steps,
       });
     }
-    const oldNames = nameByLocale(oldIngredient);
-    const newNames = nameByLocale(newIngredient);
+    const input = {
+      source: sourceSlices,
+      oldName: nameByLocale(oldIngredient),
+      newName: nameByLocale(newIngredient),
+    };
 
     // Decide on Mode B per request: only when the user has chosen a non-none
     // aiMode. Quota / provider-chain failures inside the AI call surface as a
@@ -1200,22 +1195,11 @@ export class MealPlansService {
       select: { aiMode: true },
     });
     const useModeB = aiUser?.aiMode && aiUser.aiMode !== 'none';
-    if (!useModeB) {
-      return rewriteSwapModeA({
-        source: sourceSlices,
-        oldName: oldNames,
-        newName: newNames,
-      });
-    }
+    if (!useModeB) return rewriteSwapModeA(input);
     const rewriter: ModeBRewriter = async (locale, slice) => {
       return this.aiRewriteSwapSentences(userId, locale, slice);
     };
-    return rewriteSwapModeB({
-      source: sourceSlices,
-      oldName: oldNames,
-      newName: newNames,
-      rewrite: rewriter,
-    });
+    return rewriteSwapModeB({ ...input, rewrite: rewriter });
   }
 
   /**
@@ -1983,26 +1967,12 @@ function parseSwapRewritePayload(text: string): { description: string; steps: st
 }
 
 /**
- * Per-locale display name for an ingredient. Pulls from `IngredientTranslation`
- * rows for every locale present; falls back to the canonical English `name`
- * for the EN slot so EN always has a value even when no translation row exists.
- * Used by the swap-rewrite Mode A substitution.
+ * What to call an ingredient in each locale: its translation, or its English
+ * name where it has none. The second-best name is still the right ingredient.
  */
-function nameByLocale(
-  ingredient:
-    | { name: string; translations: { locale: string; name: string }[] }
-    | undefined,
-): ReadonlyMap<Locale, string> {
-  const out = new Map<Locale, string>();
-  if (!ingredient) return out;
-  const localeOptions = LocaleEnum.options;
-  for (const tr of ingredient.translations) {
-    if (localeOptions.includes(tr.locale as Locale)) {
-      out.set(tr.locale as Locale, tr.name);
-    }
-  }
-  if (!out.has('en')) out.set('en', ingredient.name);
-  return out;
+function nameByLocale(ingredient: { name: string; translations: { locale: string; name: string }[] }): ReadonlyMap<Locale, string> {
+  const translated = new Map(ingredient.translations.map((tr) => [tr.locale, tr.name]));
+  return new Map(LocaleEnum.options.map((locale) => [locale, translated.get(locale) ?? ingredient.name]));
 }
 
 /**

@@ -17,6 +17,8 @@ type Unit = 'g' | 'ml' | 'piece';
 
 interface FixtureIngredient {
   slug: string;
+  /** The Polish name. Several begin or end with a letter outside ASCII, as real ones do. */
+  pl: string;
   category: string;
   canonicalUnit: Unit;
   /** Energy, protein, fat and carbohydrate per 100 canonical units. */
@@ -35,22 +37,22 @@ const VEGAN = ['balanced', 'vegetarian', 'vegan'];
 const VEGAN_PROTEIN = [...VEGAN, 'high_protein'];
 
 export const INGREDIENTS: FixtureIngredient[] = [
-  { slug: 'rolled-oats', category: 'grains', canonicalUnit: 'g', per100: [379, 13, 7, 68], allergens: ['gluten'], diets: VEGAN },
-  { slug: 'whole-milk', category: 'dairy', canonicalUnit: 'ml', per100: [61, 3.2, 3.3, 4.8], allergens: ['dairy'], diets: VEGETARIAN, density: 1.03 },
-  { slug: 'oat-drink', category: 'beverages', canonicalUnit: 'ml', per100: [45, 1, 1.5, 7], allergens: [], diets: VEGAN, density: 1.03 },
-  { slug: 'large-egg', category: 'dairy', canonicalUnit: 'g', per100: [143, 13, 9.5, 1.1], allergens: ['eggs'], diets: [...VEGETARIAN, 'high_protein'], gramsPerPiece: 55 },
-  { slug: 'chicken-breast', category: 'meat', canonicalUnit: 'g', per100: [120, 22.5, 2.6, 0], allergens: [], diets: OMNIVORE },
-  { slug: 'salmon', category: 'fish', canonicalUnit: 'g', per100: [208, 20, 13, 0], allergens: ['fish'], diets: OMNIVORE },
-  { slug: 'white-rice', category: 'grains', canonicalUnit: 'g', per100: [360, 7, 0.6, 79], allergens: [], diets: [...VEGAN, 'low_carb'] },
-  { slug: 'wholegrain-bread', category: 'grains', canonicalUnit: 'g', per100: [247, 13, 3.4, 41], allergens: ['gluten'], diets: VEGAN, gramsPerPiece: 35 },
-  { slug: 'firm-tofu', category: 'legumes', canonicalUnit: 'g', per100: [144, 17, 9, 3], allergens: ['soy'], diets: VEGAN_PROTEIN },
-  { slug: 'chickpeas', category: 'legumes', canonicalUnit: 'g', per100: [164, 8.9, 2.6, 27], allergens: [], diets: VEGAN_PROTEIN },
-  { slug: 'greek-yogurt', category: 'dairy', canonicalUnit: 'g', per100: [97, 9, 5, 4], allergens: ['dairy'], diets: [...VEGETARIAN, 'high_protein'] },
-  { slug: 'peanut-butter', category: 'nuts_seeds', canonicalUnit: 'g', per100: [588, 25, 50, 20], allergens: ['peanuts'], diets: VEGAN_PROTEIN },
-  { slug: 'banana', category: 'fruits', canonicalUnit: 'g', per100: [89, 1.1, 0.3, 23], allergens: [], diets: VEGAN, gramsPerPiece: 120 },
-  { slug: 'broccoli', category: 'vegetables', canonicalUnit: 'g', per100: [34, 2.8, 0.4, 7], allergens: [], diets: VEGAN_PROTEIN },
-  { slug: 'tomato', category: 'vegetables', canonicalUnit: 'g', per100: [18, 0.9, 0.2, 3.9], allergens: [], diets: VEGAN_PROTEIN },
-  { slug: 'olive-oil', category: 'fats_oils', canonicalUnit: 'ml', per100: [813, 0, 92, 0], allergens: [], diets: [...VEGAN_PROTEIN, 'low_carb'], density: 0.92 },
+  { slug: 'rolled-oats', pl: 'Płatki owsiane', category: 'grains', canonicalUnit: 'g', per100: [379, 13, 7, 68], allergens: ['gluten'], diets: VEGAN },
+  { slug: 'whole-milk', pl: 'Mleko pełne', category: 'dairy', canonicalUnit: 'ml', per100: [61, 3.2, 3.3, 4.8], allergens: ['dairy'], diets: VEGETARIAN, density: 1.03 },
+  { slug: 'oat-drink', pl: 'Napój owsiany', category: 'beverages', canonicalUnit: 'ml', per100: [45, 1, 1.5, 7], allergens: [], diets: VEGAN, density: 1.03 },
+  { slug: 'large-egg', pl: 'Jajko', category: 'dairy', canonicalUnit: 'g', per100: [143, 13, 9.5, 1.1], allergens: ['eggs'], diets: [...VEGETARIAN, 'high_protein'], gramsPerPiece: 55 },
+  { slug: 'chicken-breast', pl: 'Pierś z kurczaka', category: 'meat', canonicalUnit: 'g', per100: [120, 22.5, 2.6, 0], allergens: [], diets: OMNIVORE },
+  { slug: 'salmon', pl: 'Łosoś', category: 'fish', canonicalUnit: 'g', per100: [208, 20, 13, 0], allergens: ['fish'], diets: OMNIVORE },
+  { slug: 'white-rice', pl: 'Ryż biały', category: 'grains', canonicalUnit: 'g', per100: [360, 7, 0.6, 79], allergens: [], diets: [...VEGAN, 'low_carb'] },
+  { slug: 'wholegrain-bread', pl: 'Chleb pełnoziarnisty', category: 'grains', canonicalUnit: 'g', per100: [247, 13, 3.4, 41], allergens: ['gluten'], diets: VEGAN, gramsPerPiece: 35 },
+  { slug: 'firm-tofu', pl: 'Tofu twarde', category: 'legumes', canonicalUnit: 'g', per100: [144, 17, 9, 3], allergens: ['soy'], diets: VEGAN_PROTEIN },
+  { slug: 'chickpeas', pl: 'Ciecierzyca', category: 'legumes', canonicalUnit: 'g', per100: [164, 8.9, 2.6, 27], allergens: [], diets: VEGAN_PROTEIN },
+  { slug: 'greek-yogurt', pl: 'Jogurt grecki', category: 'dairy', canonicalUnit: 'g', per100: [97, 9, 5, 4], allergens: ['dairy'], diets: [...VEGETARIAN, 'high_protein'] },
+  { slug: 'peanut-butter', pl: 'Masło orzechowe', category: 'nuts_seeds', canonicalUnit: 'g', per100: [588, 25, 50, 20], allergens: ['peanuts'], diets: VEGAN_PROTEIN },
+  { slug: 'banana', pl: 'Banan', category: 'fruits', canonicalUnit: 'g', per100: [89, 1.1, 0.3, 23], allergens: [], diets: VEGAN, gramsPerPiece: 120 },
+  { slug: 'broccoli', pl: 'Brokuł', category: 'vegetables', canonicalUnit: 'g', per100: [34, 2.8, 0.4, 7], allergens: [], diets: VEGAN_PROTEIN },
+  { slug: 'tomato', pl: 'Pomidor', category: 'vegetables', canonicalUnit: 'g', per100: [18, 0.9, 0.2, 3.9], allergens: [], diets: VEGAN_PROTEIN },
+  { slug: 'olive-oil', pl: 'Oliwa z oliwek', category: 'fats_oils', canonicalUnit: 'ml', per100: [813, 0, 92, 0], allergens: [], diets: [...VEGAN_PROTEIN, 'low_carb'], density: 0.92 },
 ];
 
 interface FixtureRecipe {
@@ -101,7 +103,7 @@ export function catalogueDirectory(): string {
 
   const ingredients = INGREDIENTS.map((i) => ({
     slug: i.slug,
-    name: { en: label(i.slug), pl: `${label(i.slug)} (pl)` },
+    name: { en: label(i.slug), pl: i.pl },
     category: i.category,
     canonicalUnit: i.canonicalUnit,
     caloriesPer100: i.per100[0],
@@ -115,8 +117,10 @@ export function catalogueDirectory(): string {
     tags: [],
   }));
 
+  // Each language names the ingredients as that language's catalogue does.
   const recipes = RECIPES.map((r) => {
     const names = r.lines.map(([slug]) => label(slug).toLowerCase()).join(', ');
+    const polishNames = r.lines.map(([slug]) => bySlug.get(slug)!.pl.toLowerCase()).join(', ');
     return {
       slug: r.slug,
       title: { en: label(r.slug), pl: `${label(r.slug)} (pl)` },
@@ -127,7 +131,7 @@ export function catalogueDirectory(): string {
       cookMinutes: 10,
       difficulty: 'easy',
       ingredients: r.lines.map(([slug, quantity]) => ({ slug, quantity, unit: bySlug.get(slug)!.canonicalUnit })),
-      steps: { en: [`Combine ${names}.`], pl: [`Połącz: ${names}.`] },
+      steps: { en: [`Combine ${names}.`], pl: [`Połącz: ${polishNames}.`] },
     };
   });
 
