@@ -38,6 +38,7 @@ test('does not mistake hex colours, key names or identifiers for feature numbers
 
 test('rejects phase labels and work-item ids everywhere', () => {
   assert.deepEqual(check('.env.example', '# Ship mechanism (Phase E)'), ['phase label']);
+  assert.deepEqual(check('apps/api/src/x.test.ts', '// Regression guard for the post-Phase-D live-test fix.'), ['phase label']);
   assert.deepEqual(check('apps/api/src/common/security.test.ts', "describe('headers (WI-F1)', () => {"), ['work-item id']);
   assert.deepEqual(check('README.md', 'Tracked as WP-07.'), ['work-item id']);
 });
