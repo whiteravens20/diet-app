@@ -5,6 +5,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { WeightReminderService } from './notifications/weight-reminder.service.js';
+import { PersonalRecipesService } from './recipes/personal-recipes.service.js';
 
 /**
  * Scheduled-tasks process. Runs as a separate container
@@ -17,22 +18,38 @@ async function bootstrap(): Promise<void> {
   // the buffer, so buffering would swallow every log — including scan errors.
   const app = await NestFactory.createApplicationContext(AppModule);
   const weightReminders = app.get(WeightReminderService);
+  const personalRecipes = app.get(PersonalRecipesService);
   const logger = new Logger('Worker');
 
-  // Periodic weight-reminder scan. Hourly granularity is enough: the
-  // service debounces per-profile against `lastWeightReminderAt`, so the
-  // user is never re-notified within their own cadence window.
+  // Hourly granularity is enough for both. The reminder scan debounces
+  // per-profile against `lastWeightReminderAt`, so the user is never
+  // re-notified within their own cadence window; a deleted recipe waits days
+  // before it is removed for good.
+  const jobs: [name: string, run: () => Promise<unknown>][] = [
+    ['weight-reminder scan', () => weightReminders.scan()],
+    [
+      'removal of deleted personal recipes',
+      async () => {
+        const removed = await personalRecipes.collectDeleted();
+        if (removed > 0) logger.log(`Removed ${removed} deleted personal recipe(s) that nothing uses any more.`);
+      },
+    ],
+  ];
   const tickMs = 60 * 60 * 1000;
-  const fireScan = async (): Promise<void> => {
-    try {
-      await weightReminders.scan();
-    } catch (err) {
-      logger.error(`weight-reminder scan failed: ${(err as Error).message}`);
+  // One after another, each failing on its own: a job that throws does not
+  // keep the next one from running.
+  const fireJobs = async (): Promise<void> => {
+    for (const [name, run] of jobs) {
+      try {
+        await run();
+      } catch (err) {
+        logger.error(`${name} failed: ${(err as Error).message}`);
+      }
     }
   };
-  void fireScan();
-  const tick = setInterval(() => void fireScan(), tickMs);
-  logger.log('Worker started — weight-reminder scan every 1h');
+  void fireJobs();
+  const tick = setInterval(() => void fireJobs(), tickMs);
+  logger.log(`Worker started — every 1h: ${jobs.map(([name]) => name).join(', ')}`);
 
   const shutdown = async (): Promise<void> => {
     clearInterval(tick);

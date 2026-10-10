@@ -19,6 +19,9 @@ export const MAX_PERSONAL_RECIPES = 200;
 /** The most recipes a model may write for one account within 24 hours. */
 export const MAX_AI_DRAFTS_PER_DAY = 20;
 
+/** How long a deleted personal recipe that nothing uses is kept before it is removed for good. */
+const KEEP_DELETED_DAYS = 7;
+
 /** The batch every draft made from personal recipes belongs to: it says nothing about who or when. */
 const QUEUE_BATCH = 'personal-recipes';
 
@@ -155,6 +158,44 @@ export class PersonalRecipesService {
    */
   async assertRoomFor(userId: string, origin: PersonalRecipe['origin']): Promise<void> {
     await this.assertRoom(this.prisma, userId, origin);
+  }
+
+  /**
+   * Remove for good the personal recipes that were deleted a while ago and
+   * that nothing uses any more: no plan, favourite or favourite set, and no
+   * draft the curators have yet to decide on. Returns how many were removed.
+   */
+  async collectDeleted(): Promise<number> {
+    const before = new Date(Date.now() - KEEP_DELETED_DAYS * 86_400_000);
+    const candidates = await this.prisma.recipe.findMany({
+      where: {
+        createdByUserId: { not: null },
+        deletedAt: { lt: before },
+        plannedMeals: { none: {} },
+        favorites: { none: {} },
+      },
+      select: { id: true },
+    });
+    let removed = 0;
+    for (const { id } of candidates) {
+      const inSet = await this.prisma.$queryRaw<{ found: number }[]>(Prisma.sql`
+        SELECT 1 AS found FROM "FavoriteSet" favourites, jsonb_each_text(favourites."slots"::jsonb) slot WHERE slot.value = ${id} LIMIT 1
+      `);
+      // A draft still in review is promoted from the recipes it stands for.
+      const inReview = await this.prisma.recipeDraft.count({
+        where: { sourceRecipeIds: { has: id }, status: { in: ['PENDING', 'APPROVED'] } },
+      });
+      if (inSet.length > 0 || inReview > 0) continue;
+      await this.prisma.$transaction([
+        // A decided draft keeps no pointer to a row that is gone.
+        this.prisma.$executeRaw(Prisma.sql`
+          UPDATE "RecipeDraft" SET "sourceRecipeIds" = array_remove("sourceRecipeIds", ${id}) WHERE ${id} = ANY("sourceRecipeIds")
+        `),
+        this.prisma.recipe.delete({ where: { id } }),
+      ]);
+      removed += 1;
+    }
+    return removed;
   }
 
   /** The fingerprint of a recipe, or null when one of its ingredients has no slug. */

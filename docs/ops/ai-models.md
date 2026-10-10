@@ -71,7 +71,9 @@ runs on a provider's defaults.
 - **An account's own recipes are limited.** An account holds at most 200
   recipes of its own (drafts a model wrote and recipes with a swapped
   ingredient), and a model writes at most 20 recipes for it in 24 hours,
-  whoever pays for the calls. Neither number is a setting.
+  whoever pays for the calls. Neither number is a setting. A recipe its owner
+  deleted is removed for good by the worker a week later, once no plan,
+  favourite or pending curation draft uses it.
 - **Users' recipes stay out of the curation queue** unless the owner sends one
   in ("Suggest for the shared library" on their recipes), or a second user
   comes to own the same recipe. The draft in the queue shows the recipe, not

@@ -360,3 +360,45 @@ describe("submitting a recipe of one's own", () => {
     expect(refused.body.error).toBe('RECIPE_NOT_SUBMITTABLE');
   });
 });
+
+describe('deleted recipes nobody uses any more', () => {
+  it('are removed for good after a while, and only those', async () => {
+    const account = await anAccount();
+    const longAgo = new Date(Date.now() - 30 * 86_400_000);
+    const make = (title: string, deletedAt: Date | null) =>
+      t.prisma.recipe.create({
+        data: { title, description: '', servings: 1, prepMinutes: 1, cookMinutes: 1, origin: 'user', createdByUserId: account.user.id, deletedAt },
+      });
+    const gone = await make('Deleted long ago, unused', longAgo);
+    const recent = await make('Deleted yesterday', new Date(Date.now() - 86_400_000));
+    const live = await make('Not deleted', null);
+    const planned = await make('Deleted, still in a plan', longAgo);
+    const favourite = await make('Deleted, still a favourite', longAgo);
+    const inSet = await make('Deleted, still in a favourite set', longAgo);
+    await t.prisma.plannedMeal.update({ where: { id: account.plan.days[0]!.meals[0]!.id }, data: { recipeId: planned.id } });
+    await t.prisma.favorite.create({ data: { profileId: account.profile.id, recipeId: favourite.id } });
+    await t.prisma.favoriteSet.create({ data: { profileId: account.profile.id, label: 'Old', slots: { lunch: inSet.id } } });
+
+    expect(await personal.collectDeleted()).toBe(1);
+
+    const left = (await t.prisma.recipe.findMany({ where: { createdByUserId: account.user.id } })).map((row) => row.id);
+    expect(left).not.toContain(gone.id);
+    expect(left).toEqual(expect.arrayContaining([recent.id, live.id, planned.id, favourite.id, inSet.id]));
+  });
+
+  it('wait for the curators while a draft that stands for them is undecided, and leave no pointer behind after', async () => {
+    const account = await anAccount();
+    const variant = await tofuForChicken(account);
+    await personal.submit(account.user.id, variant);
+    // Out of the plan, and deleted long ago.
+    const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
+    await t.prisma.plannedMeal.updateMany({ where: { recipeId: variant }, data: { recipeId: bowl.id } });
+    await t.prisma.recipe.update({ where: { id: variant }, data: { deletedAt: new Date(Date.now() - 30 * 86_400_000) } });
+
+    expect(await personal.collectDeleted()).toBe(0);
+
+    await t.prisma.recipeDraft.updateMany({ data: { status: 'REJECTED' } });
+    expect(await personal.collectDeleted()).toBe(1);
+    expect((await t.prisma.recipeDraft.findFirstOrThrow()).sourceRecipeIds).toEqual([]);
+  });
+});
