@@ -681,6 +681,7 @@
     "errChangeDay": "Could not change the day.",
     "errSwap": "Could not swap the meal.",
     "errAiSwap": "Could not AI-swap the meal.",
+    "aiReason": "AI: {reason}",
     "errDelete": "Could not delete the plan.",
     "errCustomMeal": "Could not add the custom meal.",
     "errEaten": "Could not update the meal.",
@@ -1031,7 +1032,8 @@
     "aiSuggest": "Suggest",
     "aiSuggestPending": "Thinking…",
     "tooltipAiSuggest": "Let AI pick a replacement",
-    "aiSuggestFailed": "Could not suggest a replacement."
+    "aiSuggestFailed": "Could not suggest a replacement.",
+    "aiReason": "AI: {reason}"
   },
   "profileSummary": {
     "generatePlan": "Generate meal plan",

@@ -58,6 +58,8 @@ function MealPlansContent() {
 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // What the model said about its last pick, shown next to the changed plan.
+  const [aiReason, setAiReason] = useState<string | null>(null);
   const [openPlan, setOpenPlan] = useState<string | null>(null);
   // Page-level toggle: applies to every swap / AI-swap on every plan card.
   // Plan generation has its own checkbox inside the new-plan form.
@@ -224,6 +226,7 @@ function MealPlansContent() {
       qc.invalidateQueries({ queryKey: ['ai-quota'] });
       const reason = res.aiMeta.fallbackReason;
       setNotice(reason ? tFallback(reason) : null);
+      setAiReason(res.aiMeta.reason);
     },
     onError: fail(t('errAiSwap')),
   });
@@ -377,6 +380,14 @@ function MealPlansContent() {
           {notice}
         </p>
       )}
+      {aiReason && (
+        <p
+          className="max-w-2xl rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary"
+          role="status"
+        >
+          {t('aiReason', { reason: aiReason })}
+        </p>
+      )}
 
       <DisclaimerNotice bodyKey={aiEnabled ? 'aiPlans' : 'enginePlans'} />
 
@@ -491,6 +502,7 @@ function MealPlansContent() {
                   ? (plannedMealId) => {
                       setError(null);
                       setNotice(null);
+                      setAiReason(null);
                       aiSwapMeal.mutate({ planId: plan.id, plannedMealId });
                     }
                   : undefined

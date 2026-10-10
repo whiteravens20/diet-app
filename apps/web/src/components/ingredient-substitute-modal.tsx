@@ -61,6 +61,8 @@ export function IngredientSubstituteModal({
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // What the model said about its suggestion.
+  const [aiReason, setAiReason] = useState<string | null>(null);
   // AI-suggested ingredient injected into the candidate list so its name
   // renders without an extra search round-trip.
   const [aiPick, setAiPick] = useState<Ingredient | null>(null);
@@ -101,6 +103,7 @@ export function IngredientSubstituteModal({
       qc.invalidateQueries({ queryKey: ['ai-quota'] });
       const reason = res.aiMeta.fallbackReason;
       setNotice(reason ? tFallback(reason) : null);
+      setAiReason(res.aiMeta.reason);
     },
     onError: (e) =>
       setError(e instanceof ApiClientError ? e.message : t('aiSuggestFailed')),
@@ -183,6 +186,7 @@ export function IngredientSubstituteModal({
                         setSearch('');
                         setError(null);
                         setNotice(null);
+                        setAiReason(null);
                         setAiPick(null);
                       }}
                     >
@@ -223,6 +227,7 @@ export function IngredientSubstituteModal({
                     onClick={() => {
                       setError(null);
                       setNotice(null);
+                      setAiReason(null);
                       aiSuggest.mutate();
                     }}
                     disabled={aiSuggest.isPending}
@@ -241,6 +246,14 @@ export function IngredientSubstituteModal({
                   role="status"
                 >
                   {notice}
+                </p>
+              )}
+              {aiReason && (
+                <p
+                  className="mt-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary"
+                  role="status"
+                >
+                  {t('aiReason', { reason: aiReason })}
                 </p>
               )}
               {(search.trim().length >= 2 || aiPick) && (

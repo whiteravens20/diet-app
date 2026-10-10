@@ -681,6 +681,7 @@
     "errChangeDay": "Nie udało się zmienić dnia.",
     "errSwap": "Nie udało się zamienić posiłku.",
     "errAiSwap": "Nie udało się dokonać zamiany przez AI.",
+    "aiReason": "AI: {reason}",
     "errDelete": "Nie udało się usunąć planu.",
     "errCustomMeal": "Nie udało się dodać własnego posiłku.",
     "errEaten": "Nie udało się zaktualizować posiłku.",
@@ -1031,7 +1032,8 @@
     "aiSuggest": "Zasugeruj",
     "aiSuggestPending": "Myślę…",
     "tooltipAiSuggest": "Pozwól AI wybrać zamiennik",
-    "aiSuggestFailed": "Nie udało się zasugerować zamiennika."
+    "aiSuggestFailed": "Nie udało się zasugerować zamiennika.",
+    "aiReason": "AI: {reason}"
   },
   "profileSummary": {
     "generatePlan": "Wygeneruj plan posiłków",
