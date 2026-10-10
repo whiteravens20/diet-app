@@ -53,13 +53,23 @@ export class ApiClientError extends Error {
 }
 
 /**
- * The whole minutes to wait after a request that was held up for more than a
- * moment, or null. Sign-in and password-reset requests are held up for as long
- * as a quarter of an hour: "try again in a moment" would be wrong there.
+ * How long to wait after a request that was held up, as the server said, or
+ * null when it was not held up or did not say. Sign-in is held up for as long
+ * as a quarter of an hour, the administrator's for half a minute at first:
+ * "try again in a moment" would be wrong for either. Seconds up to a minute
+ * and a half, whole minutes beyond.
  */
-export function minutesToWait(err: ApiClientError): number | null {
-  const seconds = err.retryAfterSeconds;
-  return err.status === 429 && seconds !== undefined && seconds > 60 ? Math.ceil(seconds / 60) : null;
+export function waitOf(status: number, retryAfterSeconds: number | undefined): { unit: 'seconds' | 'minutes'; count: number } | null {
+  if (status !== 429 || retryAfterSeconds === undefined) return null;
+  return retryAfterSeconds > 90
+    ? { unit: 'minutes', count: Math.ceil(retryAfterSeconds / 60) }
+    : { unit: 'seconds', count: Math.ceil(retryAfterSeconds) };
+}
+
+/** `Retry-After` in seconds, as the API writes it; a date or nothing at all is no number. */
+export function retryAfterOf(res: Response): number | undefined {
+  const seconds = Number(res.headers.get('retry-after'));
+  return seconds > 0 ? seconds : undefined;
 }
 
 /** Locale module-state so every fetch carries the right Accept-Language. The
@@ -110,9 +120,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       body.issues && body.issues.length > 0
         ? body.issues.map((i) => i.message).join(' ')
         : (body.message ?? res.statusText);
-    // Seconds, as the API writes it; a date or nothing at all is no number.
-    const wait = Number(res.headers.get('retry-after'));
-    throw new ApiClientError(res.status, body.error ?? 'ERROR', message, body.issues, wait > 0 ? wait : undefined);
+    throw new ApiClientError(res.status, body.error ?? 'ERROR', message, body.issues, retryAfterOf(res));
   }
   // Treat any 2xx with no body (204 No Content, 202 Accepted with empty body,
   // or anything that didn't actually write JSON) as undefined — calling

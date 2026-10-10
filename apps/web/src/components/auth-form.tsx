@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { TurnstileWidget } from '@/components/turnstile-widget';
-import { api, ApiClientError, minutesToWait, tokenStore } from '@/lib/api';
+import { api, ApiClientError, waitOf, tokenStore } from '@/lib/api';
 import { useConfig } from '@/lib/use-config';
 
 /** Shared login / registration form. */
@@ -48,8 +48,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       // Prefer a translated error-code message; fall back to the server's
       // English text, then the generic catch-all.
       if (err instanceof ApiClientError) {
-        const minutes = minutesToWait(err);
-        setError(minutes !== null ? t('heldUp', { minutes }) : tErrors.has(err.code) ? tErrors(err.code) : err.message);
+        const wait = waitOf(err.status, err.retryAfterSeconds);
+        setError(wait ? t(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait) : tErrors.has(err.code) ? tErrors(err.code) : err.message);
       } else {
         setError(tErrors('GENERIC'));
       }

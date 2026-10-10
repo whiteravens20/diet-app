@@ -9,6 +9,7 @@ import type { Locale, ReviewerSessionDto } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { waitOf } from '@/lib/api';
 import {
   ReviewApiError,
   reviewApi,
@@ -105,6 +106,7 @@ export function ReviewSurface() {
 
 function ReviewLoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
   const t = useTranslations('review');
+  const tAuth = useTranslations('auth');
   const [password, setPassword] = useState('');
   const [label, setLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -119,7 +121,10 @@ function ReviewLoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
       await reviewApi.login({ password, label });
       onLoggedIn();
     } catch (err) {
-      if (err instanceof ReviewApiError && err.code === 'INVALID_REVIEWER_PASSWORD') {
+      const wait = err instanceof ReviewApiError ? waitOf(err.status, err.retryAfterSeconds) : null;
+      if (wait) {
+        setError(tAuth(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait));
+      } else if (err instanceof ReviewApiError && err.code === 'INVALID_REVIEWER_PASSWORD') {
         setError(t('loginBadPassword'));
       } else {
         setError(err instanceof Error ? err.message : t('loginFailed'));

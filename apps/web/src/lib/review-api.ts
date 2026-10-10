@@ -15,6 +15,8 @@ import type {
   ReviewerSessionDto,
 } from '@diet-app/shared';
 
+import { retryAfterOf } from './api';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export class ReviewApiError extends Error {
@@ -22,6 +24,8 @@ export class ReviewApiError extends Error {
     public readonly status: number,
     public readonly code: string | null,
     message: string,
+    /** How long the server asks to wait before the next try, in seconds, when it said so. */
+    public readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = 'ReviewApiError';
@@ -49,6 +53,7 @@ async function reviewFetch<T>(path: string, init: RequestInit = {}): Promise<T> 
       res.status,
       body.error ?? null,
       body.message ?? body.error ?? res.statusText,
+      retryAfterOf(res),
     );
   }
   if (res.status === 204) return undefined as T;

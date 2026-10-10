@@ -8,6 +8,7 @@ import { AlertTriangle, CheckCircle2, Database, Download, RefreshCw } from 'luci
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { waitOf } from '@/lib/api';
 import { ConnectionCard } from './connection-card';
 import { CurationCard } from './curation-card';
 import { ReviewerConfigCard } from './reviewer-config-card';
@@ -37,6 +38,7 @@ const STAGE_KEY: Record<string, string> = {
 
 export function AdminPanel() {
   const t = useTranslations('admin');
+  const tAuth = useTranslations('auth');
   const tStages = useTranslations('admin.stages');
   const [view, setView] = useState<View>('loading');
   const [status, setStatus] = useState<AdminStatus | null>(null);
@@ -48,20 +50,21 @@ export function AdminPanel() {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const loadStats = useCallback(async (): Promise<boolean> => {
+  /** Load the first numbers. Resolves to null when that worked, else to what went wrong. */
+  const loadStats = useCallback(async (): Promise<unknown> => {
     try {
       const s = await adminApi.stats();
       setStats(s);
       setView('ready');
-      return true;
+      return null;
     } catch (err) {
       if (err instanceof AdminApiError && err.status === 401) {
         setView('login');
-        return false;
+        return err;
       }
       setUpdateError(err instanceof Error ? err.message : t('loadStatsFailed'));
       setView('login');
-      return false;
+      return err;
     }
   }, [t]);
 
@@ -161,8 +164,18 @@ export function AdminPanel() {
     setLoginError(null);
     const form = new FormData(event.currentTarget);
     adminCreds.set(String(form.get('user')), String(form.get('password')));
-    const ok = await loadStats();
-    if (!ok) setLoginError(t('invalidCreds'));
+    const failure = await loadStats();
+    if (failure === null) return;
+    // Held up after wrong passwords: say for how long, and keep nothing that was not checked.
+    const wait = failure instanceof AdminApiError ? waitOf(failure.status, failure.retryAfterSeconds) : null;
+    if (wait) {
+      adminCreds.clear();
+      setLoginError(tAuth(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait));
+    } else if (failure instanceof AdminApiError && failure.status === 401) {
+      setLoginError(t('invalidCreds'));
+    } else {
+      setLoginError(failure instanceof Error ? failure.message : t('loadStatsFailed'));
+    }
   }
 
   async function onUpdate(): Promise<void> {
@@ -353,7 +366,7 @@ export function AdminPanel() {
   );
 }
 
-function UsdaImportCard({ onFinished }: { onFinished: () => Promise<boolean> }) {
+function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unknown> }) {
   const t = useTranslations('admin.usda');
   const [run, setRun] = useState<UsdaImportRunnerState | null>(null);
   const [error, setError] = useState<string | null>(null);

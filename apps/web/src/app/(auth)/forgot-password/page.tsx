@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { api, ApiClientError, minutesToWait } from '@/lib/api';
+import { api, ApiClientError, waitOf } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -42,8 +42,8 @@ export default function ForgotPasswordPage() {
       setSent(true);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        const minutes = minutesToWait(err);
-        setError(minutes !== null ? t('heldUp', { minutes }) : tErrors.has(err.code) ? tErrors(err.code) : err.message);
+        const wait = waitOf(err.status, err.retryAfterSeconds);
+        setError(wait ? t(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait) : tErrors.has(err.code) ? tErrors(err.code) : err.message);
       } else {
         setError(tErrors('GENERIC'));
       }

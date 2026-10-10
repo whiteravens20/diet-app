@@ -6,6 +6,8 @@
  * live in sessionStorage so they vanish when the tab closes; never persisted
  * across browser sessions.
  */
+import { retryAfterOf } from './api';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const CREDS_KEY = 'diet-app.admin-basic';
 
@@ -30,6 +32,8 @@ export class AdminApiError extends Error {
      *  UI look up a localized message instead of showing the raw English
      *  envelope text. */
     public readonly code: string | null = null,
+    /** How long the server asks to wait before the next try, in seconds, when it said so. */
+    public readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = 'AdminApiError';
@@ -65,6 +69,7 @@ async function adminFetch<T>(
       res.status,
       body.message ?? body.error ?? res.statusText,
       body.error ?? null,
+      retryAfterOf(res),
     );
   }
   if (res.status === 204) return undefined as T;
