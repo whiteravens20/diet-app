@@ -46,6 +46,8 @@ export class ApiClientError extends Error {
     public readonly issues?: ApiErrorIssue[],
     /** How long the server asks to wait before the next try, in seconds, when it said so. */
     public readonly retryAfterSeconds?: number,
+    /** What the refusal was about, in fields that depend on its code. */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ApiClientError';
@@ -113,6 +115,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       error?: string;
       message?: string;
       issues?: ApiErrorIssue[];
+      details?: Record<string, unknown>;
     };
     // A validation failure carries per-field issues — surface those instead of
     // the generic envelope message.
@@ -120,7 +123,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       body.issues && body.issues.length > 0
         ? body.issues.map((i) => i.message).join(' ')
         : (body.message ?? res.statusText);
-    throw new ApiClientError(res.status, body.error ?? 'ERROR', message, body.issues, retryAfterOf(res));
+    throw new ApiClientError(res.status, body.error ?? 'ERROR', message, body.issues, retryAfterOf(res), body.details);
   }
   // Treat any 2xx with no body (204 No Content, 202 Accepted with empty body,
   // or anything that didn't actually write JSON) as undefined — calling

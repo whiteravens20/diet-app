@@ -738,6 +738,8 @@
     "noFavorites": "No favorited recipes yet — open a recipe to favorite it.",
     "deleteConfirm": "Delete this plan? This cannot be undone.",
     "errGenerate": "Could not generate the plan.",
+    "noRecipeInCatalogue": "There is no recipe for \"{meal}\" on the \"{diet}\" diet, so the plan could not be made. {advice, select, fewer {Choose another diet or fewer meals a day in the profile.} other {Choose another diet in the profile.}}",
+    "noRecipeLeft": "The profile's allergens, skipped ingredients and avoided recipes rule out {count, plural, one {the only recipe} other {all # recipes}} for \"{meal}\" on the \"{diet}\" diet, so the plan could not be made.",
     "errRecalculate": "Could not recalculate the plan.",
     "errChangeDay": "Could not change the day.",
     "dropLockAndRetry": "Drop that lock and try again",

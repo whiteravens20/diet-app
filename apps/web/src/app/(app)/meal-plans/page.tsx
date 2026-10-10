@@ -8,6 +8,8 @@ import { useTranslations } from 'next-intl';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { CalendarRange, Sparkles, UserRound } from 'lucide-react';
 import {
+  MEAL_SLOTS_BY_COUNT,
+  UnfilledMeal,
   fitsDiet,
   type AddCustomMealRequest,
   type AiSwapMealResponse,
@@ -116,10 +118,21 @@ function MealPlansContent() {
     if (e instanceof ApiClientError) {
       // Another request changed the plan first, so the one on screen is stale.
       if (e.code === 'PLAN_CHANGED') void invalidate();
-      setError(tErrors.has(e.code) ? tErrors(e.code) : e.message);
+      setError(unfilledMeal(e) ?? (tErrors.has(e.code) ? tErrors(e.code) : e.message));
       return;
     }
     setError(fallback);
+  };
+  // A plan that could not be made names the meal it had no recipe for, and
+  // tells a catalogue without one from a profile that rules out what there is.
+  const unfilledMeal = (e: ApiClientError): string | null => {
+    const gap = e.code === 'NO_ELIGIBLE_RECIPE' ? UnfilledMeal.safeParse(e.details) : null;
+    if (!gap?.success) return null;
+    const { slot, dietType, ruledOut } = gap.data;
+    const named = { meal: tMeal(slot), diet: tDiet(dietType) };
+    if (ruledOut > 0) return t('noRecipeLeft', { ...named, count: ruledOut });
+    // Fewer meals a day help only with a meal that the shortest day does not have.
+    return t('noRecipeInCatalogue', { ...named, advice: MEAL_SLOTS_BY_COUNT[2]!.includes(slot) ? 'diet' : 'fewer' });
   };
 
   const generate = useMutation({

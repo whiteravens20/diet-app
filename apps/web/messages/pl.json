@@ -738,6 +738,8 @@
     "noFavorites": "Brak ulubionych przepisów — otwórz przepis, aby go polubić.",
     "deleteConfirm": "Usunąć ten plan? Tej operacji nie można cofnąć.",
     "errGenerate": "Nie udało się wygenerować planu.",
+    "noRecipeInCatalogue": "W diecie „{diet}” nie ma przepisu na posiłek „{meal}”, więc planu nie udało się ułożyć. {advice, select, fewer {Zmień w profilu dietę albo zmniejsz liczbę posiłków dziennie.} other {Zmień dietę w profilu.}}",
+    "noRecipeLeft": "Alergeny, pomijane składniki i przepisy oznaczone do unikania wykluczają w tym profilu {count, plural, one {jedyny przepis} few {wszystkie # przepisy} many {wszystkie # przepisów} other {wszystkie # przepisu}} na posiłek „{meal}” w diecie „{diet}”, więc planu nie udało się ułożyć.",
     "errRecalculate": "Nie udało się przeliczyć planu.",
     "errChangeDay": "Nie udało się zmienić dnia.",
     "dropLockAndRetry": "Usuń to przypięcie i spróbuj ponownie",
