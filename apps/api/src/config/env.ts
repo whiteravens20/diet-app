@@ -153,6 +153,9 @@ export const envSchema = z.object({
 /** Sentinel password meaning "admin panel disabled". */
 export const ADMIN_PASSWORD_PLACEHOLDER = 'CHANGE_ME_IMMEDIATELY';
 
+/** Below this length the boot log warns: wrong guesses are slowed down, not made impossible. */
+const ADMIN_PASSWORD_ADVISED_LENGTH = 16;
+
 /** Whether ADMIN_PASSWORD has been set to a real value. */
 export function isAdminEnabled(env: Pick<Env, 'ADMIN_PASSWORD'>): boolean {
   const p = env.ADMIN_PASSWORD;
@@ -273,7 +276,11 @@ export function describePosture(
     https
       ? `public origin: ${env.APP_URL}`
       : `! public origin ${env.APP_URL} is not https: session cookies travel unprotected outside a trusted network`,
-    isAdminEnabled(env) ? 'admin panel: enabled' : 'admin panel: disabled (ADMIN_PASSWORD not set)',
+    !isAdminEnabled(env)
+      ? 'admin panel: disabled (ADMIN_PASSWORD not set)'
+      : env.ADMIN_PASSWORD.length < ADMIN_PASSWORD_ADVISED_LENGTH
+        ? `! admin panel: enabled with a password shorter than ${ADMIN_PASSWORD_ADVISED_LENGTH} characters; it guards the AI keys and the catalogue`
+        : 'admin panel: enabled',
     env.SMTP_HOST ? `mail: ${env.SMTP_HOST}:${env.SMTP_PORT}` : 'mail: not configured (accounts are verified on sign-up, no password reset)',
     env.AI_DEFAULT_PROVIDER
       ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days`

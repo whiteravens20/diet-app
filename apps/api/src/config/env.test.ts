@@ -153,6 +153,23 @@ describe('describePosture', () => {
     expect(lines.filter((line) => line.startsWith('!'))).toHaveLength(2);
   });
 
+  it('warns about an admin password that is short, without repeating it or its length', () => {
+    const lines = describePosture({ ...env(), ADMIN_PASSWORD: 'diet2026' });
+
+    expect(lines.filter((line) => line.startsWith('!'))).toEqual([
+      '! admin panel: enabled with a password shorter than 16 characters; it guards the AI keys and the catalogue',
+    ]);
+    expect(lines.join('\n')).not.toContain('diet2026');
+    expect(lines.join('\n')).not.toMatch(/\b8 characters/);
+  });
+
+  it('says nothing about an admin password of the advised length', () => {
+    const lines = describePosture({ ...env(), ADMIN_PASSWORD: 'a'.repeat(16) });
+
+    expect(lines.filter((line) => line.startsWith('!'))).toEqual([]);
+    expect(lines).toContain('admin panel: enabled');
+  });
+
   it('says whose word is taken for a client\'s address', () => {
     expect(describePosture(env()).at(-1)).toMatch(/^client address: that of the connection/);
     expect(describePosture({ ...env(), TRUST_PROXY: '1' }).at(-1)).toBe('client address: from X-Forwarded-For, written by 1 trusted proxy');
