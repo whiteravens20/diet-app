@@ -100,6 +100,10 @@ RUN mkdir -p /app/instance-data/recipes && chown -R node:node /app/instance-data
 COPY --from=build /app/apps/web/.next/standalone /web
 COPY --from=build /app/apps/web/.next/static /web/apps/web/.next/static
 COPY --from=build /app/apps/web/public /web/apps/web/public
+# The web server keeps the pictures it has resized under .next/cache. It runs as
+# `node`, so that directory has to be its own: without it every request
+# resizes the picture again and logs a failed write.
+RUN mkdir -p /web/apps/web/.next/cache && chown node:node /web/apps/web/.next/cache
 
 USER node
 EXPOSE 4000 3000
