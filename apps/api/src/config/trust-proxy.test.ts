@@ -29,7 +29,9 @@ describe('TRUST_PROXY', () => {
   });
 
   it('says in one line whose word is taken', () => {
-    expect(describeTrustProxy(false)).toMatch(/TRUST_PROXY is off/);
+    expect(describeTrustProxy(false)).toMatch(/^client address: that of the connection \(TRUST_PROXY is off/);
+    expect(describeTrustProxy(false, true)).toMatch(/^! client address: that of the proxy for every visitor alike/);
+    expect(describeTrustProxy(1, true)).toMatch(/^client address: /);
     expect(describeTrustProxy(1)).toMatch(/1 trusted proxy$/);
     expect(describeTrustProxy(2)).toMatch(/2 trusted proxies$/);
     expect(describeTrustProxy(['10.0.0.0/8'])).toMatch(/10\.0\.0\.0\/8/);

@@ -112,6 +112,9 @@ when told to, because without a proxy in front anybody can write that header the
 Never set `TRUST_PROXY` on an instance whose web or API port is reachable directly: a
 visitor could then claim any address, and with it somebody else's allowance.
 
+An instance whose `APP_URL` is https has a proxy in front by necessity. If `TRUST_PROXY`
+is off there, the API says so in a warning every time it starts.
+
 ### Rate limits
 
 Every route is limited, and a request is counted against its sender: the user when it

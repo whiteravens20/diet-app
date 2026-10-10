@@ -51,9 +51,17 @@ export function parseTrustProxy(raw: string | undefined): TrustProxy {
   return entries;
 }
 
-/** One line for the boot log. */
-export function describeTrustProxy(setting: TrustProxy): string {
-  if (setting === false) return 'client address: that of the connection (TRUST_PROXY is off; behind the web server every client then counts as one)';
+/**
+ * One line for the boot log. `behindProxy` says that a proxy is known to stand
+ * in front: with the setting off that is a warning, because the address the
+ * API then counts against is the proxy's.
+ */
+export function describeTrustProxy(setting: TrustProxy, behindProxy = false): string {
+  if (setting === false) {
+    return behindProxy
+      ? '! client address: that of the proxy for every visitor alike. The public origin is https, so a proxy stands in front, and TRUST_PROXY is off: limits by address cannot tell visitors apart until it is set'
+      : 'client address: that of the connection (TRUST_PROXY is off; behind the web server every client then counts as one)';
+  }
   if (typeof setting === 'number') return `client address: from X-Forwarded-For, written by ${setting} trusted ${setting === 1 ? 'proxy' : 'proxies'}`;
   return `client address: from X-Forwarded-For, written by proxies at ${setting.join(', ')}`;
 }

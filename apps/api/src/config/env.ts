@@ -288,6 +288,7 @@ export function describePosture(
     env.SWAGGER_ENABLED && env.NODE_ENV === 'production'
       ? '! API documentation is served at /api/docs on a production instance'
       : `API documentation: ${env.SWAGGER_ENABLED ? 'served at /api/docs' : 'off'}`,
-    describeTrustProxy(parseTrustProxy(env.TRUST_PROXY)),
+    // Neither the API nor the web server speaks https: an https origin is a proxy's.
+    describeTrustProxy(parseTrustProxy(env.TRUST_PROXY), https),
   ];
 }

@@ -135,7 +135,7 @@ describe('the shipped .env.example', () => {
 });
 
 describe('describePosture', () => {
-  const env = () => validateEnv(valid({ APP_URL: 'https://diet.example.org', ADMIN_PASSWORD: 'a-real-admin-password' }));
+  const env = () => validateEnv(valid({ APP_URL: 'https://diet.example.org', ADMIN_PASSWORD: 'a-real-admin-password', TRUST_PROXY: '1' }));
 
   it('reports a sound setup without a warning', () => {
     expect(describePosture(env()).filter((line) => line.startsWith('!'))).toEqual([]);
@@ -171,8 +171,18 @@ describe('describePosture', () => {
   });
 
   it('says whose word is taken for a client\'s address', () => {
-    expect(describePosture(env()).at(-1)).toMatch(/^client address: that of the connection/);
-    expect(describePosture({ ...env(), TRUST_PROXY: '1' }).at(-1)).toBe('client address: from X-Forwarded-For, written by 1 trusted proxy');
+    expect(describePosture(env()).at(-1)).toBe('client address: from X-Forwarded-For, written by 1 trusted proxy');
+    expect(describePosture({ ...env(), APP_URL: 'http://192.0.2.10:3000', TRUST_PROXY: undefined }).at(-1)).toMatch(
+      /^client address: that of the connection/,
+    );
+  });
+
+  it('warns when the public origin is https, which only a proxy can serve, and no proxy is believed', () => {
+    const lines = describePosture({ ...env(), TRUST_PROXY: undefined });
+
+    expect(lines.filter((line) => line.startsWith('!'))).toEqual([
+      '! client address: that of the proxy for every visitor alike. The public origin is https, so a proxy stands in front, and TRUST_PROXY is off: limits by address cannot tell visitors apart until it is set',
+    ]);
   });
 });
 
