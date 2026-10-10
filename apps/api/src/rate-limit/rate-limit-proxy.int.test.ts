@@ -116,6 +116,17 @@ describe('rate limits behind one trusted proxy', () => {
     expect((await register('203.0.113.8')).status).toBe(201);
   });
 
+  it('counts the health probe for each client on its own', async () => {
+    const remaining = async (from: string): Promise<number> =>
+      Number((await t.http().get('/api/health').set('X-Forwarded-For', from).expect(200)).headers['x-ratelimit-remaining']);
+
+    const first = await remaining('203.0.113.170');
+    expect(first).toBeGreaterThan(0);
+    expect(await remaining('203.0.113.170')).toBe(first - 1);
+    // Somebody flooding the route from one address does not use up a probe's allowance at another.
+    expect(await remaining('203.0.113.171')).toBe(first);
+  });
+
   it('believes the address the proxy wrote, not one a client wrote in front of it', async () => {
     // The proxy appends what it saw; whatever stood there before is the client's own claim.
     const res = await register('198.51.100.99, 203.0.113.7');

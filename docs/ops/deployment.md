@@ -133,7 +133,6 @@ anybody else's tries.
 | Links from mails | The token presented | 10 a minute |
 | | The address, whatever the token ¹ | 10 a minute |
 | Changing the password or address, deleting the account | The user | 5 a minute each |
-| Health and public configuration | Not limited | |
 
 ¹ Only with `TRUST_PROXY` set. Without it the API sees one address for everybody, and
 counting sign-ins or refreshes against that address would let a handful of requests
@@ -149,6 +148,11 @@ with many addresses from guessing without end. Without `TRUST_PROXY` ten wrong p
 close the account to its owner too, for up to a quarter of an hour.
 
 An IPv6 client is counted as its /64 network: one machine has that many addresses.
+
+No route is left out, the health probe and the public configuration included. The
+container's own health check comes from inside the container and has an allowance of its
+own. A monitor that reaches the instance through the same proxy as the visitors shares
+theirs until `TRUST_PROXY` is set.
 
 What is counted against the address is only as good as the address: without
 `TRUST_PROXY` it is one allowance for the whole instance, and sign-ups, for example, stop

@@ -1,7 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Controller, Get, Res } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -9,10 +8,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
  * Liveness + readiness probe used by Docker / Traefik health checks. Without
  * the database the API cannot serve anything, so it answers 503: an
  * orchestrator then sees the instance as unhealthy instead of routing to it.
+ *
+ * Limited like every other route: each request asks the database, and a
+ * route without a limit is one anybody can use to keep it busy. A probe is
+ * counted against its own address, which is not that of the visitors: the
+ * container's own check comes from inside the container.
  */
-// Not limited: a probe that was told "too many requests" would report a
-// healthy instance as down.
-@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}

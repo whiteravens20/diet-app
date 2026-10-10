@@ -158,10 +158,13 @@ describe('rate limits behind a proxy that is not trusted', () => {
       expect(await statuses(11, register)).toEqual([...Array(10).fill(201), 429]);
     });
 
-    it('does not include the health probe or the public configuration', async () => {
+    it('includes the health probe and the public configuration, like every other route', async () => {
       for (const path of ['/api/health', '/api/config']) {
-        const res = await t.http().get(path).expect(200);
-        expect(res.headers['x-ratelimit-limit']).toBeUndefined();
+        const first = await t.http().get(path).expect(200);
+        const second = await t.http().get(path).expect(200);
+
+        expect(Number(first.headers['x-ratelimit-limit'])).toBe(100_000);
+        expect(Number(second.headers['x-ratelimit-remaining'])).toBe(Number(first.headers['x-ratelimit-remaining']) - 1);
       }
     });
   });
