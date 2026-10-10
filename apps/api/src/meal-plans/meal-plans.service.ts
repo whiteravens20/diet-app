@@ -28,6 +28,7 @@ import {
   type RebalanceChange,
   type RebalanceRequest,
   type RebalanceResult,
+  type RegenerateRequest,
   type SwapIngredientRequest,
   type SwapMealRequest,
   type SwapPreview,
@@ -171,7 +172,12 @@ export class MealPlansService {
    * Re-run the optimiser for an existing plan, in place. Picks up any profile
    * changes (calorie target, diet type) and yields a fresh set of meals.
    */
-  async regenerate(userId: string, locale: Locale, planId: string): Promise<MealPlan> {
+  async regenerate(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    options: RegenerateRequest = { dropIneligibleLocks: false },
+  ): Promise<MealPlan> {
     const existing = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: { profile: true, days: { include: { meals: true }, orderBy: { date: 'asc' } } },
@@ -209,6 +215,7 @@ export class MealPlansService {
       dietType: profile.dietType,
       mealPrepFriendly: false,
       maxRepeatsPerRecipe: existing.maxRepeatsPerRecipe ?? undefined,
+      dropIneligibleLocks: options.dropIneligibleLocks,
       seed: Date.now(),
     });
 
@@ -228,7 +235,13 @@ export class MealPlansService {
   }
 
   /** Re-roll the meals of a single day, leaving the rest of the plan untouched. */
-  async regenerateDay(userId: string, locale: Locale, planId: string, dayId: string): Promise<MealPlan> {
+  async regenerateDay(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    dayId: string,
+    options: RegenerateRequest = { dropIneligibleLocks: false },
+  ): Promise<MealPlan> {
     const day = await this.prisma.mealPlanDay.findUnique({
       where: { id: dayId },
       include: { plan: { include: { profile: true } }, meals: true },
@@ -270,10 +283,18 @@ export class MealPlansService {
       dietType: day.plan.dietType,
       mealPrepFriendly: false,
       maxRepeatsPerRecipe: day.plan.maxRepeatsPerRecipe ?? undefined,
+      dropIneligibleLocks: options.dropIneligibleLocks,
       seed: Date.now(),
     });
 
     await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
+      // A lock that was dropped leaves the stored overrides of the day as well.
+      if (options.dropIneligibleLocks) {
+        await tx.mealPlanDay.update({
+          where: { id: dayId },
+          data: { overrides: resolved.overrides ? (resolved.overrides as Prisma.InputJsonValue) : Prisma.JsonNull },
+        });
+      }
       await tx.plannedMeal.deleteMany({ where: { dayId } });
       await tx.plannedMeal.createMany({
         data: result.assignments
@@ -345,6 +366,11 @@ export class MealPlansService {
       respectInventory?: boolean;
       /** Variety floor — max total uses of any recipe across the window. */
       maxRepeatsPerRecipe?: number;
+      /**
+       * Take a lock that may not enter the plan out of the day, and out of the
+       * overrides stored with it, instead of refusing.
+       */
+      dropIneligibleLocks?: boolean;
       seed: number;
     },
   ): Promise<OptimizerResult> {
@@ -357,9 +383,13 @@ export class MealPlansService {
     // for that meal, on this diet.
     const recipeById = new Map(optimizerRecipes.map((r) => [r.id, r]));
     for (const day of opts.days) {
-      for (const lock of day.lockedSlots ?? []) {
+      for (const lock of [...(day.lockedSlots ?? [])]) {
         const recipe = recipeById.get(lock.recipeId);
         if (!recipe || !recipe.mealTypes.includes(lock.slot) || !fitsDiet(recipe.dietTags, opts.dietType)) {
+          if (opts.dropIneligibleLocks) {
+            dropLock(day, lock);
+            continue;
+          }
           throw new BadRequestException({
             error: 'LOCKED_RECIPE_INELIGIBLE',
             message: `The recipe locked for ${lock.slot} on ${day.isoDate} cannot go into this plan: it is unavailable, or the profile's diet, allergens, skipped ingredients or avoided recipes rule it out.`,
@@ -2332,6 +2362,22 @@ function buildDays(
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Take one lock out of a day that is about to be planned, and out of the
+ * overrides that are stored with the day, so that it does not come back at the
+ * next re-roll. Overrides left with nothing in them are stored as none.
+ */
+function dropLock(day: ResolvedDay, lock: { slot: MealType; recipeId: string }): void {
+  day.lockedSlots = (day.lockedSlots ?? []).filter((kept) => kept !== lock);
+  if (!day.overrides) return;
+  const kept = (day.overrides.lockedSlots ?? []).filter(
+    (stored) => !(stored.mealType === lock.slot && stored.recipeId === lock.recipeId),
+  );
+  const next: DayOverridesJson = { ...day.overrides, lockedSlots: kept };
+  if (kept.length === 0) delete next.lockedSlots;
+  day.overrides = Object.keys(next).length > 0 ? next : null;
 }
 
 /**

@@ -20,6 +20,7 @@ import {
   GeneratePlanRequest,
   type Locale,
   RebalanceRequest,
+  RegenerateRequest,
   SetMealEatenRequest,
   SwapIngredientRequest,
   SwapMealRequest,
@@ -70,8 +71,9 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Param('id') id: string,
+    @Body(new ZodValidationPipe(RegenerateRequest)) options: RegenerateRequest,
   ) {
-    return this.plans.regenerate(user.id, locale, id);
+    return this.plans.regenerate(user.id, locale, id, options);
   }
 
   /** Re-roll the meals of a single day. */
@@ -82,8 +84,9 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Param('id') id: string,
     @Param('dayId') dayId: string,
+    @Body(new ZodValidationPipe(RegenerateRequest)) options: RegenerateRequest,
   ) {
-    return this.plans.regenerateDay(user.id, locale, id, dayId);
+    return this.plans.regenerateDay(user.id, locale, id, dayId, options);
   }
 
   @Delete(':id')

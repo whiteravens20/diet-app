@@ -103,6 +103,19 @@ export const PlannedMeal = z.object({
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
+/** Options of a re-roll, of a whole plan or of one of its days. */
+export const RegenerateRequest = z
+  .object({
+    /**
+     * Drop a lock whose recipe may no longer go into the plan (it was deleted,
+     * or the profile has since ruled it out) instead of refusing the re-roll
+     * with `LOCKED_RECIPE_INELIGIBLE`.
+     */
+    dropIneligibleLocks: z.boolean().default(false),
+  })
+  .default({ dropIneligibleLocks: false });
+export type RegenerateRequest = z.infer<typeof RegenerateRequest>;
+
 /**
  * The advanced overrides as surfaced on a generated day (the `date` is
  * already on the day row, so it's omitted here). Null when the day used the
