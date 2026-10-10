@@ -60,7 +60,7 @@
   },
   "disclaimers": {
     "aiPlans": "AI pomaga tworzyć plany i dobierać zamiany — i bywa, że się pomyli. Każdy plan, przepis i zamianę sprawdź pod kątem swoich potrzeb żywieniowych i zdrowia, zanim z nich skorzystasz.",
-    "enginePlans": "Plany i zamiany układa wbudowany silnik aplikacji — szybko i powtarzalnie, ale i tak sprawdzaj każdy wynik pod kątem swoich potrzeb żywieniowych i zdrowia. Tłumaczenia po zamianach bywają nieporadne; operator instancji je sprawdza i poprawia.",
+    "enginePlans": "Plany i zamiany układa wbudowany silnik aplikacji — szybko i powtarzalnie, ale i tak sprawdzaj każdy wynik pod kątem swoich potrzeb żywieniowych i zdrowia. Po zamianie składnika treść przepisu jest poprawiana przez proste podstawienie nazwy i może brzmieć nieporadnie.",
     "aiRecipeDraft": "Przepisy szkicowane przez AI mogą zawierać błędy. Zanim zaczniesz z nich korzystać, sprawdź składniki, ilości i kroki.",
     "aiActivated": "AI pomaga tworzyć przepisy i dobierać zamiany, ale może się mylić. Zawsze sprawdzaj wyniki AI pod kątem swoich potrzeb żywieniowych i zdrowia.",
     "bugReport": "Widzisz błąd? <link>Zgłoś go</link> w repozytorium źródłowym."

@@ -60,7 +60,7 @@
   },
   "disclaimers": {
     "aiPlans": "AI helps draft plans and pick swaps — and it can get things wrong. Review every plan, recipe and swap against your own dietary needs and health before you rely on it.",
-    "enginePlans": "Plan generation and swaps run on a deterministic engine — fast and reproducible, but still review every result against your own dietary needs and health. Swap translations may read awkwardly; the instance operator reviews and polishes them.",
+    "enginePlans": "Plan generation and swaps run on a deterministic engine — fast and reproducible, but still review every result against your own dietary needs and health. After an ingredient swap the recipe text is adjusted by plain replacement and may read awkwardly.",
     "aiRecipeDraft": "AI-drafted recipes can contain mistakes. Double-check the ingredients, quantities and steps before relying on the result.",
     "aiActivated": "AI helps draft recipes and pick swaps, but it can make mistakes. Always review AI-generated content against your own dietary needs and health.",
     "bugReport": "Spotted a bug? <link>Open an issue</link> on the source repository."
