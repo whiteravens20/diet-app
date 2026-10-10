@@ -29,15 +29,25 @@ export function toCanonical(
   unit: Unit,
   ingredient: ConvertibleIngredient,
 ): number {
-  const target = ingredient.canonicalUnit;
+  return convertUnit(quantity, unit, ingredient.canonicalUnit, ingredient);
+}
+
+/**
+ * Convert `quantity` of an ingredient from one unit into another. Throws when
+ * the factor the conversion needs is missing, or is not a positive number: a
+ * density of zero would turn every weight into an infinite volume.
+ */
+export function convertUnit(
+  quantity: number,
+  unit: Unit,
+  target: Unit,
+  ingredient: Pick<ConvertibleIngredient, 'gramsPerPiece' | 'density'>,
+): number {
   if (unit === target) return quantity;
 
   // piece → g/ml
   if (unit === 'piece') {
-    if (ingredient.gramsPerPiece == null) {
-      throw new UnitConversionError('gramsPerPiece required to convert from piece');
-    }
-    const grams = quantity * ingredient.gramsPerPiece;
+    const grams = quantity * gramsPerPiece(ingredient, 'from piece');
     return target === 'g' ? grams : gramsToMl(grams, ingredient);
   }
 
@@ -47,11 +57,8 @@ export function toCanonical(
 
   // g/ml → piece
   if (target === 'piece') {
-    if (ingredient.gramsPerPiece == null) {
-      throw new UnitConversionError('gramsPerPiece required to convert to piece');
-    }
     const grams = unit === 'g' ? quantity : mlToGrams(quantity, ingredient);
-    return grams / ingredient.gramsPerPiece;
+    return grams / gramsPerPiece(ingredient, 'to piece');
   }
 
   // Unreachable with the 3-value Unit enum (every g/ml/piece pair is handled
@@ -60,14 +67,26 @@ export function toCanonical(
   throw new UnitConversionError(`unsupported conversion ${unit} → ${target}`);
 }
 
-function gramsToMl(grams: number, ingredient: ConvertibleIngredient): number {
-  if (ingredient.density == null) throw new UnitConversionError('density required (g→ml)');
-  return grams / ingredient.density;
+function gramsPerPiece(ingredient: Pick<ConvertibleIngredient, 'gramsPerPiece'>, direction: string): number {
+  if (ingredient.gramsPerPiece == null || !(ingredient.gramsPerPiece > 0)) {
+    throw new UnitConversionError(`a positive gramsPerPiece is required to convert ${direction}`);
+  }
+  return ingredient.gramsPerPiece;
 }
 
-function mlToGrams(ml: number, ingredient: ConvertibleIngredient): number {
-  if (ingredient.density == null) throw new UnitConversionError('density required (ml→g)');
-  return ml * ingredient.density;
+function density(ingredient: Pick<ConvertibleIngredient, 'density'>, direction: string): number {
+  if (ingredient.density == null || !(ingredient.density > 0)) {
+    throw new UnitConversionError(`a positive density is required (${direction})`);
+  }
+  return ingredient.density;
+}
+
+function gramsToMl(grams: number, ingredient: Pick<ConvertibleIngredient, 'density'>): number {
+  return grams / density(ingredient, 'g→ml');
+}
+
+function mlToGrams(ml: number, ingredient: Pick<ConvertibleIngredient, 'density'>): number {
+  return ml * density(ingredient, 'ml→g');
 }
 
 /** Nutrition contribution of `canonicalQuantity` units of an ingredient. */

@@ -13,15 +13,15 @@ export const Ingredient = z.object({
   name: z.string(),
   category: ProductCategory,
   canonicalUnit: Unit,
-  /** Nutrition per 100 canonical units (per 100 g / 100 ml / per piece). */
+  /** Nutrition per 100 canonical units: per 100 g, 100 ml or 100 pieces. */
   caloriesPer100: z.number().min(0),
   proteinPer100: z.number().min(0),
   fatPer100: z.number().min(0),
   carbsPer100: z.number().min(0),
   /** g per piece — required when canonicalUnit is `piece` for unit conversion. */
-  gramsPerPiece: z.number().min(0).nullable().default(null),
+  gramsPerPiece: z.number().positive().nullable().default(null),
   /** g per ml — enables volume↔mass conversion for liquids. */
-  density: z.number().min(0).nullable().default(null),
+  density: z.number().positive().nullable().default(null),
   allergens: z.array(Allergen).default([]),
   /** Diet types this ingredient is compatible with. */
   dietCompatibility: z.array(DietType).default([]),

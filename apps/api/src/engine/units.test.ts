@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { UnitConversionError, nutritionFor, toCanonical } from './units.js';
+import { UnitConversionError, convertUnit, nutritionFor, toCanonical } from './units.js';
 
 const milk = { canonicalUnit: 'ml' as const, gramsPerPiece: null, density: 1.03 };
 const egg = { canonicalUnit: 'g' as const, gramsPerPiece: 55, density: null };
@@ -60,5 +60,27 @@ describe('nutritionFor', () => {
     const n = nutritionFor(250, { calories: 130, protein: 2.7, fat: 0.3, carbs: 28 });
     expect(n.calories).toBeCloseTo(325); // 130 * 2.5
     expect(n.carbs).toBeCloseTo(70);
+  });
+});
+
+describe('a factor that is not a positive number', () => {
+  const zeroDensity = { canonicalUnit: 'ml' as const, gramsPerPiece: 0, density: 0 };
+
+  it('is refused like a missing one, instead of making nothing or infinity', () => {
+    expect(() => toCanonical(100, 'g', zeroDensity)).toThrow(UnitConversionError);
+    expect(() => toCanonical(3, 'piece', zeroDensity)).toThrow(UnitConversionError);
+    expect(() => toCanonical(100, 'ml', { canonicalUnit: 'piece', gramsPerPiece: -5, density: 1 })).toThrow(UnitConversionError);
+  });
+});
+
+describe('convertUnit', () => {
+  it('converts between any two units, not only into the canonical one', () => {
+    expect(convertUnit(220, 'g', 'piece', egg)).toBe(4);
+    expect(convertUnit(4, 'piece', 'g', egg)).toBe(220);
+    expect(convertUnit(7, 'g', 'g', egg)).toBe(7);
+  });
+
+  it('refuses a conversion the ingredient has no factor for', () => {
+    expect(() => convertUnit(100, 'g', 'ml', egg)).toThrow(UnitConversionError);
   });
 });
