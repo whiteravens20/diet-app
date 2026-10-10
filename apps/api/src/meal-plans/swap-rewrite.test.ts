@@ -277,6 +277,7 @@ describe('rewriteSwapModeB', () => {
       ]),
       oldName: new Map([[en, 'chicken']]),
       newName: new Map([[en, 'tofu']]),
+      locale: en,
       rewrite: async () => ({
         description: 'A spicy tofu curry.',
         steps: ['Sear the tofu until crisp.', 'Add coconut milk.'],
@@ -303,6 +304,7 @@ describe('rewriteSwapModeB', () => {
       ]),
       oldName: new Map([[en, 'chicken']]),
       newName: new Map([[en, 'tofu']]),
+      locale: en,
       rewrite: async () => null,
     });
     expect(out.get(en)).toEqual({
@@ -310,5 +312,52 @@ describe('rewriteSwapModeB', () => {
       description: 'A spicy tofu curry.',
       steps: ['Sear the tofu.', 'Add coconut milk.'],
     });
+  });
+
+  it('asks the model for one language and gives the others the plain replacement', async () => {
+    const pl: Locale = 'pl';
+    const asked: Locale[] = [];
+    const out = await rewriteSwapModeB({
+      source: new Map([
+        [en, { title: 'Broccoli rice', description: 'Rice with broccoli.', steps: ['Steam the broccoli.', 'Serve.'] }],
+        [pl, { title: 'Ryż z brokułem', description: 'Ryż, a do niego brokuł.', steps: ['Ugotuj brokuł na parze.', 'Podaj.'] }],
+      ]),
+      oldName: new Map([[en, 'broccoli'], [pl, 'brokuł']]),
+      newName: new Map([[en, 'tomato'], [pl, 'pomidor']]),
+      locale: pl,
+      rewrite: async (locale) => {
+        asked.push(locale);
+        return { description: 'Ryż, a do niego pomidor.', steps: ['Pokrój pomidora.', 'Podaj.'] };
+      },
+    });
+
+    expect(asked).toEqual([pl]);
+    expect(out.get(pl)).toEqual({
+      title: 'Ryż z brokułem (z pomidor)',
+      description: 'Ryż, a do niego pomidor.',
+      steps: ['Pokrój pomidora.', 'Podaj.'],
+    });
+    expect(out.get(en)).toEqual({
+      title: 'Broccoli rice (with tomato)',
+      description: 'Rice with tomato.',
+      steps: ['Steam the tomato.', 'Serve.'],
+    });
+  });
+
+  it('asks no model when the recipe is not written in that language', async () => {
+    let asked = 0;
+    const out = await rewriteSwapModeB({
+      source: new Map([[en, { title: 'Broccoli rice', description: 'Rice with broccoli.', steps: ['Steam the broccoli.'] }]]),
+      oldName: new Map([[en, 'broccoli']]),
+      newName: new Map([[en, 'tomato']]),
+      locale: 'pl',
+      rewrite: async () => {
+        asked += 1;
+        return null;
+      },
+    });
+
+    expect(asked).toBe(0);
+    expect(out.get(en)?.description).toBe('Rice with tomato.');
   });
 });

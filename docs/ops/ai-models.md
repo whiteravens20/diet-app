@@ -24,7 +24,7 @@ provider/model that clears the demand bar for the surface you actually use.
 | **Admin recipe batch** | `POST /api/admin/drafts/recipes/generate` ([recipe-generator.runner.ts](../../apps/api/src/admin/drafts/recipe-generator.runner.ts)) | ~3k tok (full catalogue) | ~1.5k tok per locale | strict, nested | yes |
 | **AI meal swap** | `POST /api/meal-plans/ai-swap-meal` | ~1k tok (candidate pool) | ~100 tok (pick + reason) | lenient | no |
 | **AI ingredient swap suggest** | `POST /api/meal-plans/swap-ingredient/ai-suggest` | ~800 tok | ~100 tok | lenient | no |
-| **Swap-rewrite (Mode B)** | internal call from `applyIngredientSwap` | ~500 tok (sentences only) | ~500 tok | raw text | yes (per locale) |
+| **Swap rewrite** | `POST /api/meal-plans/swap-ingredient/apply` with `rewriteWithAi: true`, only when the user ticks it | ~500 tok (sentences only) | ~500 tok | strict (two keys) | no: one call, in the user's language |
 | **Admin auto-translate** | `POST /api/admin/translations/fill` | per-row, ~200 tok | ~200 tok | strict (key-preserving) | yes |
 | **Admin ingredient-name draft** | `POST /api/admin/drafts/ingredient-names/generate` ([ingredient-namer.runner.ts](../../apps/api/src/admin/drafts/ingredient-namer.runner.ts)) | per-row, ~150 tok | ~80 tok | strict | yes |
 
@@ -47,7 +47,7 @@ runs on a provider's defaults.
 |---|---|---|---|
 | AI meal swap, AI ingredient suggestion | 60 s | 400 tokens | 0.2 |
 | Recipe draft from prompt | 60 s | 1,800 tokens for one language, 1,200 more for each further one | 0.7 |
-| Swap rewrite | 20 s per language, all languages at once | 3,000 tokens | 0.3 |
+| Swap rewrite | 20 s | 3,000 tokens | 0.3 |
 | Admin recipe batch | 180 s per call | about 1,100 tokens per recipe in one language, 700 more for each further one | 0.2 |
 | Admin ingredient names | 180 s per call | about 80 tokens per name in one language | 0.2 |
 
@@ -68,6 +68,12 @@ runs on a provider's defaults.
   is nine calls of three recipes or fewer; each call sees what the earlier ones
   wrote, so the run does not repeat itself. A rejected call fails only its own
   recipes.
+- **An ingredient swap asks no model unless the user ticks the box.** The
+  substitute's name then replaces the old one in the text of every language.
+  With the box ticked, one call rewords the text in the language the user
+  reads; the other languages keep the plain replacement. An answer that still
+  names the removed ingredient, changes the number of steps or adds a number
+  is thrown away, and the plain replacement stands.
 
 The web front-end and any reverse proxy in front of it must wait longer than
 the API does; see [Reverse proxy](deployment.md#reverse-proxy).

@@ -16,6 +16,7 @@ import {
   type Profile,
   type RebalanceResult,
   type SessionUser,
+  type SwapIngredientResponse,
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import Link from 'next/link';
@@ -536,7 +537,12 @@ function MealPlansContent() {
                 setError(null);
                 toggleEaten.mutate({ planId: plan.id, mealId, eaten });
               }}
-              onIngredientSwapped={(res) => showRebalance(plan.id, res)}
+              onIngredientSwapped={(res) => {
+                showRebalance(plan.id, res);
+                // Set only when a rewording by a model was asked for: say so
+                // when the plain replacement stands instead.
+                if (res.aiMeta) setNotice(res.aiMeta.fallbackReason ? tFallback(res.aiMeta.fallbackReason) : null);
+              }}
               onAddCustomMeal={(date, body) => {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
@@ -615,7 +621,7 @@ function PlanCard({
   /** Undefined when the user has `aiMode='none'` — the button is hidden. */
   onAiSwapMeal?: (plannedMealId: string) => void;
   onToggleEaten: (mealId: string, eaten: boolean) => void;
-  onIngredientSwapped: (result: RebalanceResult) => void;
+  onIngredientSwapped: (result: SwapIngredientResponse) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
 }) {
   const t = useTranslations('mealPlans');

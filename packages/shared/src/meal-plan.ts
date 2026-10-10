@@ -210,6 +210,13 @@ export const SwapIngredientRequest = z.object({
   plannedMealId: z.string().uuid(),
   fromIngredientId: z.string().uuid(),
   toIngredientId: z.string().uuid(),
+  /**
+   * Have a model reword the description and the steps around the substitute,
+   * in the language of the request: one call on the caller's AI allowance.
+   * Off by default: the substitute's name then simply replaces the old one in
+   * the text, as it does in every other language either way.
+   */
+  rewriteWithAi: z.boolean().default(false),
 });
 export type SwapIngredientRequest = z.infer<typeof SwapIngredientRequest>;
 
@@ -327,3 +334,11 @@ export type RebalanceResult = z.infer<typeof RebalanceResult>;
  */
 export const AiSwapMealResponse = RebalanceResult.extend({ aiMeta: AiGenerationMeta });
 export type AiSwapMealResponse = z.infer<typeof AiSwapMealResponse>;
+
+/**
+ * The result of applying an ingredient substitution. `aiMeta` is null unless
+ * the request asked a model to reword the text; then it says who reworded it,
+ * or why the plain replacement stands instead.
+ */
+export const SwapIngredientResponse = RebalanceResult.extend({ aiMeta: AiGenerationMeta.nullable() });
+export type SwapIngredientResponse = z.infer<typeof SwapIngredientResponse>;

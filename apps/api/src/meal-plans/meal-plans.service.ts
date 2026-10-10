@@ -14,6 +14,7 @@ import {
   Locale as LocaleEnum,
   MEAL_SLOTS_BY_COUNT,
   type AddCustomMealRequest,
+  type AiGenerationMeta,
   type AiSuggestIngredientRequest,
   type AiSuggestIngredientResponse,
   type AiSwapMealRequest,
@@ -30,6 +31,7 @@ import {
   type RebalanceResult,
   type RegenerateRequest,
   type SwapIngredientRequest,
+  type SwapIngredientResponse,
   type SwapMealRequest,
   type SwapPreview,
 } from '@diet-app/shared';
@@ -66,7 +68,6 @@ import {
   rewriteSwapModeA,
   rewriteSwapModeB,
   validateModeBOutput,
-  type ModeBRewriter,
   type RecipeLocaleSlice,
 } from './swap-rewrite.js';
 import { writePlan } from './plan-write.js';
@@ -1011,7 +1012,7 @@ export class MealPlansService {
     userId: string,
     locale: Locale,
     req: SwapIngredientRequest,
-  ): Promise<RebalanceResult> {
+  ): Promise<SwapIngredientResponse> {
     const meal = await this.loadPlannedMeal(userId, req.planId, req.plannedMealId);
     const mealRecipeId = swappableRecipeOf(meal);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
@@ -1115,12 +1116,14 @@ export class MealPlansService {
     );
 
     // The text of the variant: the substitute's name in place of the old one,
-    // by plain replacement, or reworded by a model for a user who has AI on.
-    const text = await this.buildVariantTranslations(
+    // by plain replacement, or reworded by a model when the user asked for it.
+    const variant = await this.buildVariantTranslations(
       userId,
+      locale,
       recipe,
       ingredientById.get(req.fromIngredientId)!,
       ingredientById.get(req.toIngredientId)!,
+      req.rewriteWithAi,
     );
 
     // Stored as the user's own recipe, or recognised as one that exists
@@ -1129,7 +1132,7 @@ export class MealPlansService {
       {
         userId,
         origin: 'user',
-        text,
+        text: variant.text,
         servings: recipe.servings,
         mealTypes: recipe.mealTypes,
         prepMinutes: recipe.prepMinutes,
@@ -1151,7 +1154,10 @@ export class MealPlansService {
       // run the same rebalance pipeline as every other edit.
       return this.rebalanceDayInternal(meal.dayId, tx);
     });
-    return this.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
+    return {
+      ...(await this.buildRebalanceResult(userId, locale, req.planId, 'day', summary)),
+      aiMeta: variant.aiMeta,
+    };
   }
 
   /**
@@ -1163,10 +1169,12 @@ export class MealPlansService {
    */
   private async buildVariantTranslations(
     userId: string,
+    locale: Locale,
     source: { title: string; description: string; steps: string[]; translations: { locale: string; title: string; description: string; steps: string[] }[] },
     oldIngredient: { name: string; translations: { locale: string; name: string }[] },
     newIngredient: { name: string; translations: { locale: string; name: string }[] },
-  ): Promise<Map<Locale, RecipeLocaleSlice>> {
+    rewriteWithAi: boolean,
+  ): Promise<{ text: Map<Locale, RecipeLocaleSlice>; aiMeta: AiGenerationMeta | null }> {
     const localeOptions = LocaleEnum.options;
     // The recipe row itself holds the English text; a translation row for `en` wins over it.
     const sourceSlices = new Map<Locale, RecipeLocaleSlice>([
@@ -1186,34 +1194,38 @@ export class MealPlansService {
       newName: nameByLocale(newIngredient),
     };
 
-    // Decide on Mode B per request: only when the user has chosen a non-none
-    // aiMode. Quota / provider-chain failures inside the AI call surface as a
-    // null Rewriter return → per-locale Mode A fallback. We never block the
-    // user's swap on an AI hiccup.
-    const aiUser = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { aiMode: true },
+    // A model rewords the text only when the user asked for it in this
+    // request: it costs them a call and time they did not otherwise spend.
+    if (!rewriteWithAi) return { text: rewriteSwapModeA(input), aiMeta: null };
+
+    // One call, for the language the user reads the recipe in: their own, or
+    // English when the recipe is not written in it. Where the model delivers
+    // nothing usable the plain replacement stands, and the answer says why.
+    let aiMeta: AiGenerationMeta | null = null;
+    const text = await rewriteSwapModeB({
+      ...input,
+      locale: sourceSlices.has(locale) ? locale : 'en',
+      rewrite: async (rewritten, slice) => {
+        const answer = await this.aiRewriteSwapSentences(userId, rewritten, slice);
+        aiMeta = answer.aiMeta;
+        return answer.text;
+      },
     });
-    const useModeB = aiUser?.aiMode && aiUser.aiMode !== 'none';
-    if (!useModeB) return rewriteSwapModeA(input);
-    const rewriter: ModeBRewriter = async (locale, slice) => {
-      return this.aiRewriteSwapSentences(userId, locale, slice);
-    };
-    return rewriteSwapModeB({ ...input, rewrite: rewriter });
+    return { text, aiMeta };
   }
 
   /**
-   * One AI call per locale: ask the model to rewrite `description + steps` so
-   * the prose matches the new ingredient. The model must return JSON in the
-   * shape `{description, steps}`; everything is validated by
-   * `validateModeBOutput` before the caller decides to splice. Returns null
-   * on any failure — caller will Mode-A this locale.
+   * Ask the model to rewrite `description + steps` in one language so the
+   * prose matches the new ingredient. The model must return JSON in the shape
+   * `{description, steps}`; everything is validated by `validateModeBOutput`
+   * before the caller decides to splice. The text is null on any failure, and
+   * `aiMeta` then says which.
    */
   private async aiRewriteSwapSentences(
     userId: string,
     locale: Locale,
     source: { description: string; steps: string[]; oldName: string; newName: string },
-  ): Promise<{ description: string; steps: string[] } | null> {
+  ): Promise<{ text: { description: string; steps: string[] } | null; aiMeta: AiGenerationMeta }> {
     const system =
       'You polish cooking-recipe prose for an ingredient swap. ' +
       'You are given a description, a list of steps, the ingredient that was ' +
@@ -1233,25 +1245,19 @@ export class MealPlansService {
       swappedIn: source.newName,
     });
 
-    let text: string | null;
-    try {
-      const result = await this.ai.chat(
-        userId,
-        [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        SWAP_REWRITE,
-        true,
-      );
-      text = result.text;
-    } catch {
-      return null;
-    }
-    if (!text) return null;
+    const { text, meta } = await this.ai.chat(
+      userId,
+      [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      SWAP_REWRITE,
+      true,
+    );
+    if (!text) return { text: null, aiMeta: meta };
     const parsed = parseSwapRewritePayload(text);
-    if (!parsed) return null;
-    return validateModeBOutput(source, parsed) ? parsed : null;
+    if (!parsed || !validateModeBOutput(source, parsed)) return { text: null, aiMeta: withUnusableAnswer(meta) };
+    return { text: parsed, aiMeta: meta };
   }
 
   /**

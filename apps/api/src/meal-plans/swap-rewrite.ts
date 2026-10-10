@@ -9,8 +9,9 @@ import type { Locale } from '@diet-app/shared';
  *    OLD ingredient's translated name with the NEW one's translated name in
  *    each translation row, then rewrite the title via the locale-specific
  *    `variantTitle` template. Free, deterministic, works without a provider.
- *  - **Mode B:** the model rewords the description and the steps around the
- *    new ingredient; the title still comes from the template.
+ *  - **Mode B:** on top of Mode A, a model rewords the description and the
+ *    steps of one language around the new ingredient; the title still comes
+ *    from the template.
  *
  * The variantTitle template is hardcoded per locale on
  * the backend because (a) next-intl runs on the web, not here, and (b)
@@ -44,9 +45,9 @@ const VARIANT_TITLE: Record<Locale, (base: string, replacement: string) => strin
 };
 
 /**
- * Per-locale rewrite callback. Returns the new {description, steps} pair —
- * or `null` when the AI is unavailable / the validator rejected its output.
- * The caller falls back to Mode A for that locale on null.
+ * Rewrite callback. Returns the new {description, steps} pair — or `null`
+ * when the AI is unavailable / the validator rejected its output. The text
+ * Mode A made then stands.
  */
 export type ModeBRewriter = (
   locale: Locale,
@@ -54,64 +55,45 @@ export type ModeBRewriter = (
 ) => Promise<{ description: string; steps: string[] } | null>;
 
 export interface SwapRewriteBInput extends SwapRewriteInput {
+  /** The language the model rewords: the one the user reads the recipe in. */
+  locale: Locale;
   rewrite: ModeBRewriter;
 }
 
 /**
- * Mode B: AI-driven per-locale rewrite. For each locale present on the source:
+ * Mode B: every language gets the Mode A text, and a model then rewords one
+ * of them. One language means one call: the recipe is read by the one user
+ * who made it, in the language they asked in, and a call for every language
+ * a recipe is written in would take that many from their allowance.
  *
- *  - Compute the Mode A title (templated suffix — cheaper and more consistent
- *    than asking the AI to rewrite a 4-word title).
- *  - If `oldName`/`newName` are absent for that locale, fall back to Mode A.
- *  - Otherwise call `rewrite(locale, …)`. On a non-null return, use it; on
- *    null, fall back to Mode A for that locale so the user still gets a
- *    coherent result.
+ * The title always comes from the template, which is more consistent than a
+ * model's rewording of four words.
  *
  * The validator that decides "is this AI output safe to splice in?" lives
  * inside the caller's `rewrite` implementation — it has access to the prompt
- * + the catalogue + the original sentences, which the splicer doesn't. The
- * splicer's only job is the per-locale orchestration.
+ * + the catalogue + the original sentences, which the splicer doesn't.
  */
 export async function rewriteSwapModeB(
   input: SwapRewriteBInput,
 ): Promise<Map<Locale, RecipeLocaleSlice>> {
-  // Every locale falls back to the template on its own: a rewrite the
-  // validator rejects, or one that never arrives, leaves the others standing.
-  const templated = (locale: Locale, slice: RecipeLocaleSlice): RecipeLocaleSlice | undefined =>
-    rewriteSwapModeA({
-      source: new Map([[locale, slice]]),
-      oldName: input.oldName,
-      newName: input.newName,
-    }).get(locale);
+  const out = rewriteSwapModeA(input);
+  const slice = input.source.get(input.locale);
+  const oldName = input.oldName.get(input.locale);
+  const newName = input.newName.get(input.locale);
+  if (!slice || !oldName || !newName) return out;
 
-  // The locales are rewritten side by side, so the wait for the model does not
-  // grow with the number of languages a recipe is written in.
-  const rewritten = await Promise.all(
-    [...input.source].map(async ([locale, slice]): Promise<[Locale, RecipeLocaleSlice | undefined]> => {
-      const oldName = input.oldName.get(locale);
-      const newName = input.newName.get(locale);
-      if (!oldName || !newName) return [locale, templated(locale, slice)];
-      const aiOut = await input.rewrite(locale, {
-        description: slice.description,
-        steps: slice.steps,
-        oldName,
-        newName,
-      });
-      if (!aiOut) return [locale, templated(locale, slice)];
-      return [
-        locale,
-        {
-          title: VARIANT_TITLE[locale](slice.title, newName),
-          description: aiOut.description,
-          steps: aiOut.steps,
-        },
-      ];
-    }),
-  );
-
-  const out = new Map<Locale, RecipeLocaleSlice>();
-  for (const [locale, slice] of rewritten) {
-    if (slice) out.set(locale, slice);
+  const reworded = await input.rewrite(input.locale, {
+    description: slice.description,
+    steps: slice.steps,
+    oldName,
+    newName,
+  });
+  if (reworded) {
+    out.set(input.locale, {
+      title: VARIANT_TITLE[input.locale](slice.title, newName),
+      description: reworded.description,
+      steps: reworded.steps,
+    });
   }
   return out;
 }

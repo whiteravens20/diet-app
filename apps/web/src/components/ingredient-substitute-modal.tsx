@@ -9,10 +9,10 @@ import { useState } from 'react';
 import type {
   AiSuggestIngredientResponse,
   Ingredient,
-  RebalanceResult,
   RecipeIngredient,
   SessionUser,
   SwapIngredientRequest,
+  SwapIngredientResponse,
   SwapPreview,
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
@@ -48,7 +48,7 @@ export function IngredientSubstituteModal({
   meal: PlannedMealLike;
   planId: string;
   onClose: () => void;
-  onApplied: (result: RebalanceResult) => void;
+  onApplied: (result: SwapIngredientResponse) => void;
 }) {
   const qc = useQueryClient();
   const t = useTranslations('swap');
@@ -66,6 +66,8 @@ export function IngredientSubstituteModal({
   // AI-suggested ingredient injected into the candidate list so its name
   // renders without an extra search round-trip.
   const [aiPick, setAiPick] = useState<Ingredient | null>(null);
+  // Off unless the user asks: a rewording costs one of their AI requests.
+  const [rewriteWithAi, setRewriteWithAi] = useState(false);
 
   const session = useQuery({
     queryKey: ['session'],
@@ -118,22 +120,25 @@ export function IngredientSubstituteModal({
         plannedMealId: meal.id,
         fromIngredientId: fromId!,
         toIngredientId: toId!,
+        rewriteWithAi: false,
       } satisfies SwapIngredientRequest),
     enabled: Boolean(fromId && toId),
   });
 
   const apply = useMutation({
     mutationFn: () =>
-      api.post<RebalanceResult>('/meal-plans/swap-ingredient/apply', {
+      api.post<SwapIngredientResponse>('/meal-plans/swap-ingredient/apply', {
         planId,
         plannedMealId: meal.id,
         fromIngredientId: fromId!,
         toIngredientId: toId!,
+        rewriteWithAi: Boolean(aiEnabled) && rewriteWithAi,
       } satisfies SwapIngredientRequest),
     onSuccess: (result) => {
       // Refresh whichever plan list is currently rendered so the meal card
       // picks up the new recipe variant and its recomputed nutrition.
       qc.invalidateQueries({ queryKey: ['meal-plans'] });
+      if (result.aiMeta) qc.invalidateQueries({ queryKey: ['ai-quota'] });
       onApplied(result);
       onClose();
     },
@@ -311,6 +316,20 @@ export function IngredientSubstituteModal({
                     <p className="mt-2 text-xs text-destructive">{t('invalid')}</p>
                   )}
                 </>
+              )}
+              {aiEnabled && (
+                <label className="mt-3 flex items-start gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={rewriteWithAi}
+                    onChange={(e) => setRewriteWithAi(e.target.checked)}
+                  />
+                  <span>
+                    {t('rewriteWithAi')}
+                    <span className="block text-muted-foreground">{t('rewriteWithAiHint')}</span>
+                  </span>
+                </label>
               )}
               <div className="mt-3 flex items-center justify-end gap-2">
                 {error && <span className="text-xs text-destructive">{error}</span>}

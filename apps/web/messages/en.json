@@ -1043,7 +1043,9 @@
     "aiSuggestPending": "Thinking…",
     "tooltipAiSuggest": "Let AI pick a replacement",
     "aiSuggestFailed": "Could not suggest a replacement.",
-    "aiReason": "AI: {reason}"
+    "aiReason": "AI: {reason}",
+    "rewriteWithAi": "Reword the recipe text with AI",
+    "rewriteWithAiHint": "Uses one AI request. Without it, the name of the new ingredient simply replaces the old one in the text."
   },
   "profileSummary": {
     "generatePlan": "Generate meal plan",

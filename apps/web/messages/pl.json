@@ -1043,7 +1043,9 @@
     "aiSuggestPending": "Myślę…",
     "tooltipAiSuggest": "Pozwól AI wybrać zamiennik",
     "aiSuggestFailed": "Nie udało się zasugerować zamiennika.",
-    "aiReason": "AI: {reason}"
+    "aiReason": "AI: {reason}",
+    "rewriteWithAi": "Przeredaguj treść przepisu z pomocą AI",
+    "rewriteWithAiHint": "Zużywa jedno zapytanie AI. Bez tego nazwa nowego składnika po prostu zastąpi w treści starą."
   },
   "profileSummary": {
     "generatePlan": "Wygeneruj plan posiłków",
