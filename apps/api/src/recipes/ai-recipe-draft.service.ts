@@ -31,7 +31,7 @@ import {
 } from '../engine/index.js';
 import type { Env } from '../config/env.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
-import { readModelObject } from '../ai/model-json.js';
+import { plainLine, readModelObject } from '../ai/model-json.js';
 import { recipeDraft } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DedupService } from '../admin/drafts/dedup.js';
@@ -224,9 +224,11 @@ export class AiRecipeDraftService {
     for (const line of payload.ingredients) {
       const hit = catalogueByLowerName.get(line.ingredientName.trim().toLowerCase());
       if (!hit) {
+        // The name goes to the log, not to the client: it is the model's text.
+        this.logger.warn(`AI_DRAFT_UNKNOWN_INGREDIENT: ${line.ingredientName.slice(0, 80)}`);
         throw new BadRequestException({
           error: 'AI_DRAFT_UNKNOWN_INGREDIENT',
-          message: `Unknown ingredient in draft: ${line.ingredientName}.`,
+          message: 'The draft uses an ingredient that is not in the catalogue.',
         });
       }
       resolved.push({
@@ -291,6 +293,24 @@ export class AiRecipeDraftService {
       fat: Math.round(totals.fat / payload.servings),
       carbs: Math.round(totals.carbs / payload.servings),
     };
+
+    // Whether this is a serving is judged by the engine's number, not by what
+    // the model meant: a draft that is no meal at all is refused, and so is one
+    // far from the calories the user asked for.
+    const asked = req.kcalTarget;
+    if (
+      perServing.calories < SERVING_KCAL.min ||
+      perServing.calories > SERVING_KCAL.max ||
+      (asked !== undefined && (perServing.calories < asked / 2 || perServing.calories > asked * 2))
+    ) {
+      this.logger.warn(
+        `AI_DRAFT_OFF_TARGET (provider=${meta.provider ?? '?'}, model=${meta.model ?? '?'}): ${perServing.calories} kcal per serving, asked for ${asked ?? 'no target'}`,
+      );
+      throw new BadRequestException({
+        error: 'AI_DRAFT_OFF_TARGET',
+        message: 'The draft is far from the calories of a serving, or from the calories asked for.',
+      });
+    }
 
     // Allergens auto-detected from ingredients — AI never authors them.
     const recipeAllergens = Array.from(
@@ -691,6 +711,15 @@ function buildDraftPrompt(input: {
 }
 
 /**
+ * What a drafted recipe may hold. Text beyond these lengths is not a recipe
+ * card, and a quantity beyond these is not an ingredient of one serving.
+ */
+const TEXT_LIMITS = { title: 120, description: 600, step: 300, steps: 25, note: 120, ingredientName: 120 } as const;
+const MAX_QUANTITY = { g: 2_000, ml: 2_000, piece: 50 } as const;
+/** The calories of anything that can be called a serving of a meal. */
+const SERVING_KCAL = { min: 30, max: 2_500 } as const;
+
+/**
  * Parse + lightly validate the model's response. Returns null when the shape
  * isn't usable — the caller throws so the user sees a clear error rather than
  * a half-broken recipe.
@@ -715,10 +744,10 @@ function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraft
     const stepsRaw = o.steps as Record<string, unknown> | undefined;
     if (!titlesRaw || !descsRaw || !stepsRaw) return null;
     for (const lc of targetLocales) {
-      const t = strField(titlesRaw[lc]);
-      const d = strField(descsRaw[lc]);
-      const s = arrField(stepsRaw[lc], (v) => (v.trim().length > 0 ? v.trim() : null));
-      if (!t || !d || s.length < 2 || s.length > 20) return null;
+      const t = textField(titlesRaw[lc], TEXT_LIMITS.title);
+      const d = textField(descsRaw[lc], TEXT_LIMITS.description);
+      const s = stepsField(stepsRaw[lc]);
+      if (!t || !d || !s) return null;
       titles[lc] = t;
       descriptions[lc] = d;
       stepsByLocale[lc] = s;
@@ -726,10 +755,10 @@ function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraft
   } else {
     // Legacy single-string shape — only EN. Fold into the locale-keyed
     // payload so downstream code is uniform.
-    const title = strField(o.title);
-    const description = strField(o.description);
-    const steps = arrField(o.steps, (v) => (v.trim().length > 0 ? v.trim() : null));
-    if (!title || !description || steps.length < 2 || steps.length > 20) return null;
+    const title = textField(o.title, TEXT_LIMITS.title);
+    const description = textField(o.description, TEXT_LIMITS.description);
+    const steps = stepsField(o.steps);
+    if (!title || !description || !steps) return null;
     titles.en = title;
     descriptions.en = description;
     stepsByLocale.en = steps;
@@ -756,11 +785,16 @@ function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraft
   for (const line of o.ingredients) {
     if (!line || typeof line !== 'object') return null;
     const l = line as Record<string, unknown>;
-    const name = strField(l.ingredientName);
-    const quantity = typeof l.quantity === 'number' && l.quantity > 0 ? l.quantity : null;
+    const name = textField(l.ingredientName, TEXT_LIMITS.ingredientName);
     const unit = typeof l.unit === 'string' && ALLOWED_UNITS.includes(l.unit) ? (l.unit as 'g' | 'ml' | 'piece') : null;
-    const note = typeof l.note === 'string' && l.note.trim().length > 0 ? l.note.trim() : null;
-    if (!name || quantity == null || unit == null) return null;
+    if (!name || unit == null) return null;
+    // `1e400` is valid JSON and reads as Infinity; a serving has a ceiling.
+    const quantity = l.quantity;
+    if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0 || quantity > MAX_QUANTITY[unit]) {
+      return null;
+    }
+    // A note is optional, so one that is too long is dropped, not fatal.
+    const note = textField(l.note, TEXT_LIMITS.note);
     ingredients.push({ ingredientName: name, quantity, unit, note });
   }
 
@@ -779,8 +813,24 @@ function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraft
   };
 }
 
-function strField(v: unknown): string | null {
-  return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
+/** A text field as one plain line, or null when it is missing or longer than `max`. */
+function textField(v: unknown, max: number): string | null {
+  const line = plainLine(v);
+  return line !== null && line.length <= max ? line : null;
+}
+
+/** The steps of one language, or null when their number or the length of one is out of bounds. */
+function stepsField(v: unknown): string[] | null {
+  if (!Array.isArray(v) || v.length > TEXT_LIMITS.steps) return null;
+  const steps: string[] = [];
+  for (const raw of v) {
+    // An empty entry is skipped; one that is too long spoils the recipe.
+    if (plainLine(raw) === null) continue;
+    const step = textField(raw, TEXT_LIMITS.step);
+    if (step === null) return null;
+    steps.push(step);
+  }
+  return steps.length >= 2 ? steps : null;
 }
 
 function intField(v: unknown, min: number, max: number): number | null {
