@@ -9,7 +9,7 @@
  */
 import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service.js';
 import { deriveKey, encrypt, pepperPassword } from '../common/crypto.js';

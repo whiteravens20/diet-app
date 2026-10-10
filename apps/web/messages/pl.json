@@ -313,6 +313,7 @@
     "SHOPPING_LIST_LIMIT": "Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich.",
     "QUANTITY_TOO_LARGE": "Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę.",
     "TOO_MANY_ATTEMPTS": "Zbyt wiele nieudanych prób logowania. Odczekaj chwilę, zanim spróbujesz ponownie.",
+    "SERVER_BUSY": "Serwer jest teraz zajęty. Spróbuj ponownie za chwilę.",
     "UNIT_NOT_CONVERTIBLE": "Tego składnika nie można trzymać w tej jednostce. Użyj jednostki, w której się go waży lub mierzy.",
     "WEIGHT_ENTRY_NOT_FOUND": "Nie znaleziono wpisu wagi.",
     "NOTIFICATION_NOT_FOUND": "Nie znaleziono powiadomienia.",

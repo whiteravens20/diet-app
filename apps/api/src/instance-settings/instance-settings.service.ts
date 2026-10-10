@@ -8,7 +8,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcryptjs';
+import { hashPassword } from '../common/password-hash.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -84,7 +84,7 @@ export class InstanceSettingsService {
         data.reviewerPasswordHash = null;
       } else {
         const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
-        data.reviewerPasswordHash = await bcrypt.hash(patch.reviewerPassword, rounds);
+        data.reviewerPasswordHash = await hashPassword(patch.reviewerPassword, rounds);
       }
     }
 

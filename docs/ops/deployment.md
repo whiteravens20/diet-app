@@ -136,6 +136,10 @@ to 15 minutes. Each failure is logged as `failed admin sign-in from <address>`. 
 reason to set it. These counts, like the limits above, are kept in the memory of each
 API process.
 
+Checking a password costs about a fifth of a second of processor time by design. The
+checks run beside the request handling, not in it, and at most 64 wait at once; beyond
+that a request is answered `503 SERVER_BUSY`.
+
 ## Ollama / GPU
 
 ```bash

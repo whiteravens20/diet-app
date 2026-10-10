@@ -17,8 +17,8 @@ import type {
   RegisterRequest,
 } from '@diet-app/shared';
 import { Locale } from '@diet-app/shared';
-import * as bcrypt from 'bcryptjs';
 import { blindIndex, decrypt, deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
+import { hashPassword, hashPasswordAtStartup, verifyPassword } from '../common/password-hash.js';
 import { isUniqueViolation } from '../common/prisma-errors.js';
 import type { Env } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
@@ -52,7 +52,7 @@ export class AuthService {
     this.emailKey = deriveKey(master, 'email-encryption');
     this.emailIndexKey = deriveKey(master, 'email-blind-index');
     this.pepperKey = deriveKey(master, 'password-pepper');
-    this.dummyHash = bcrypt.hashSync(
+    this.dummyHash = hashPasswordAtStartup(
       'uniform-timing-placeholder',
       this.config.get('PASSWORD_HASH_ROUNDS', { infer: true }),
     );
@@ -108,7 +108,7 @@ export class AuthService {
       where: { emailIndex: blindIndex(email, this.emailIndexKey) },
     });
     // Always run a hash comparison to keep the response time uniform.
-    const ok = await bcrypt.compare(
+    const ok = await verifyPassword(
       pepperPassword(dto.password, this.pepperKey),
       user?.passwordHash ?? this.dummyHash,
     );
@@ -244,7 +244,7 @@ export class AuthService {
 
   /** Peppers the password with an app-only key, then bcrypt-hashes it. */
   private hashPassword(password: string, rounds: number): Promise<string> {
-    return bcrypt.hash(pepperPassword(password, this.pepperKey), rounds);
+    return hashPassword(pepperPassword(password, this.pepperKey), rounds);
   }
 
   private async assertHuman(token: string | undefined): Promise<void> {

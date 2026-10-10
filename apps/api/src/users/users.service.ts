@@ -16,8 +16,8 @@ import type {
   UpdateUserSettings,
 } from '@diet-app/shared';
 import { AiMode, Locale, Palette, Theme } from '@diet-app/shared';
-import * as bcrypt from 'bcryptjs';
 import { blindIndex, decrypt, deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
+import { hashPassword, verifyPassword } from '../common/password-hash.js';
 import type { Env } from '../config/env.js';
 import { AuthService } from '../auth/auth.service.js';
 import { MailService } from '../mail/mail.service.js';
@@ -102,7 +102,7 @@ export class UsersService {
   async changePassword(userId: string, dto: ChangePasswordRequest): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await bcrypt.compare(
+    const ok = await verifyPassword(
       pepperPassword(dto.currentPassword, this.pepperKey),
       user.passwordHash,
     );
@@ -113,7 +113,7 @@ export class UsersService {
       });
     }
     const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
-    const passwordHash = await bcrypt.hash(
+    const passwordHash = await hashPassword(
       pepperPassword(dto.newPassword, this.pepperKey),
       rounds,
     );
@@ -155,7 +155,7 @@ export class UsersService {
     }
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await bcrypt.compare(
+    const ok = await verifyPassword(
       pepperPassword(dto.currentPassword, this.pepperKey),
       user.passwordHash,
     );
@@ -206,7 +206,7 @@ export class UsersService {
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await bcrypt.compare(
+    const ok = await verifyPassword(
       pepperPassword(dto.currentPassword, this.pepperKey),
       user.passwordHash,
     );

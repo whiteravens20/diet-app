@@ -41,7 +41,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
-import * as bcrypt from 'bcryptjs';
 import type { Request, Response } from 'express';
 import {
   IngredientNameReviewPatchBody,
@@ -55,6 +54,7 @@ import {
   type RecipeReviewSlice,
   type ReviewerSessionDto,
 } from '@diet-app/shared';
+import { verifyPassword } from '../common/password-hash.js';
 import type { Env } from '../config/env.js';
 import { deriveDraftStatus } from '../admin/drafts/derive-status.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
@@ -127,7 +127,7 @@ export class ReviewController {
     }
     const client = req.ip ?? 'unknown';
     this.gate.assertOpen('reviewer', client, res);
-    const ok = await bcrypt.compare(parsed.data.password, reviewerPasswordHash);
+    const ok = await verifyPassword(parsed.data.password, reviewerPasswordHash);
     if (!ok) {
       this.gate.failed('reviewer', client);
       throw new UnauthorizedException({

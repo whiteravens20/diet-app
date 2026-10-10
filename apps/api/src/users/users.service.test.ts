@@ -7,7 +7,7 @@
  * session-invalidation on password rotation.
  */
 import { BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
 import { UsersService } from './users.service.js';
