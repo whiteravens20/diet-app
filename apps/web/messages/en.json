@@ -423,7 +423,7 @@
     },
     "usda": {
       "title": "USDA importer",
-      "explain": "Pulls public-domain food data from the USDA FoodData Central API into data/ingredients.generated.json. Click \"Update DB\" afterwards to load the new rows.",
+      "explain": "Pulls public-domain food data from the USDA FoodData Central API into data/ingredients.generated.json. Click \"Update database\" afterwards to load the new rows.",
       "foundationOnly": "Foundation (~340)",
       "foundationPlusSr": "Foundation + SR Legacy (~8k)",
       "runImport": "Run import",
