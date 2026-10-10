@@ -251,7 +251,7 @@ export default function ShoppingListsPage() {
           {activeList && (
             <ListView
               list={activeList}
-              busy={updateItem.isPending || remove.isPending}
+              busy={updateItem.isPending || remove.isPending || generate.isPending}
               formatQty={formatItemQty}
               categoryLabel={(c) => (tCategory.has(c) ? tCategory(c) : c)}
               summaryLabel={(checked, total, kcal) =>
@@ -280,10 +280,17 @@ export default function ShoppingListsPage() {
                   : ''
               }
               haveLabel={t('haveShort')}
+              staleLabel={t('stale')}
+              staleUpdateLabel={t('staleUpdate')}
+              staleUpdateHint={t('staleUpdateHint')}
               onPatch={(item, patch) =>
                 updateItem.mutate({ listId: activeList.id, itemId: item.id, ...patch })
               }
               onDelete={remove.mutate}
+              // A list for the same dates replaces this one, and counts what was obtained for it.
+              onUpdate={(list) =>
+                generate.mutate({ planId: list.planId, fromDate: list.fromDate, toDate: list.toDate })
+              }
             />
           )}
         </section>
@@ -313,8 +320,12 @@ function ListView({
   appName,
   planTitle,
   haveLabel,
+  staleLabel,
+  staleUpdateLabel,
+  staleUpdateHint,
   onPatch,
   onDelete,
+  onUpdate,
 }: {
   list: ShoppingList;
   busy: boolean;
@@ -336,11 +347,15 @@ function ListView({
   appName: string;
   planTitle: string;
   haveLabel: string;
+  staleLabel: string;
+  staleUpdateLabel: string;
+  staleUpdateHint: string;
   onPatch: (
     item: ShoppingListItem,
     patch: { checked?: boolean; purchasedQuantity?: number | null },
   ) => void;
   onDelete: (listId: string) => void;
+  onUpdate: (list: ShoppingList) => void;
 }) {
   const totalItems = useMemo(
     () => list.groups.reduce((n, g) => n + g.items.length, 0),
@@ -442,6 +457,19 @@ function ListView({
         <p className="px-4 py-2 text-sm text-destructive">
           {pdfError}
         </p>
+      )}
+      {list.stale && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300"
+        >
+          <p>
+            {staleLabel} <span className="text-xs">{staleUpdateHint}</span>
+          </p>
+          <Button type="button" size="sm" variant="outline" onClick={() => onUpdate(list)} disabled={busy}>
+            {staleUpdateLabel}
+          </Button>
+        </div>
       )}
       <CardContent className="space-y-5 pt-4">
         {list.groups.map((g) => (

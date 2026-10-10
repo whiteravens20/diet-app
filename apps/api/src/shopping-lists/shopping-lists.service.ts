@@ -24,6 +24,7 @@ import {
   shareAhead,
   toBuyQuantity,
   UnitConversionError,
+  type AggregatedItem,
   type PlanIngredientLine,
   type ShoppingIngredient,
 } from '../engine/index.js';
@@ -268,6 +269,9 @@ export class ShoppingListsService {
     if (lists.length === 0) return [];
     const ids = [...new Set(lists.flatMap((list) => list.items.map((item) => item.ingredientId)))];
     const ingredients = await loadIngredients(this.prisma, ids);
+    const from = new Date(Math.min(...lists.map((list) => list.fromDate.getTime())));
+    const to = new Date(Math.max(...lists.map((list) => list.toDate.getTime())));
+    const lines = await planLines(this.prisma, lists[0]!.planId, from, to);
 
     return lists.map((list) => {
       const items = list.items.map((item) => {
@@ -297,6 +301,7 @@ export class ShoppingListsService {
         toDate: isoDate(list.toDate),
         groups: groupByAisle(items),
         totalEstimatedCalories: Math.round(list.items.reduce((sum, item) => sum + item.estimatedCalories, 0)),
+        stale: isStale(list, lines, ingredients),
         createdAt: list.createdAt.toISOString(),
       };
     });
@@ -325,11 +330,15 @@ async function loadIngredients(db: Pick<Tx, 'ingredient'>, ids: string[]): Promi
   );
 }
 
+/** One ingredient line of a planned meal, with the day it is for. */
+type DatedLine = PlanIngredientLine & { date: Date };
+
 /** Every ingredient line the plan's menu has between two dates, as the menu is now. */
-async function planLines(db: Pick<Tx, 'mealPlanDay'>, planId: string, from: Date, to: Date): Promise<PlanIngredientLine[]> {
+async function planLines(db: Pick<Tx, 'mealPlanDay'>, planId: string, from: Date, to: Date): Promise<DatedLine[]> {
   const days = await db.mealPlanDay.findMany({
     where: { planId, date: { gte: from, lte: to } },
     select: {
+      date: true,
       meals: {
         select: {
           source: true,
@@ -340,7 +349,7 @@ async function planLines(db: Pick<Tx, 'mealPlanDay'>, planId: string, from: Date
       },
     },
   });
-  const lines: PlanIngredientLine[] = [];
+  const lines: DatedLine[] = [];
   for (const day of days) {
     for (const meal of day.meals) {
       // A custom meal has no ingredients. Whether a meal was eaten changes
@@ -348,6 +357,7 @@ async function planLines(db: Pick<Tx, 'mealPlanDay'>, planId: string, from: Date
       if (meal.source === 'USER_CUSTOM' || !meal.recipe) continue;
       for (const line of meal.recipe.ingredients) {
         lines.push({
+          date: day.date,
           ingredientId: line.ingredientId,
           quantity: line.quantity,
           unit: line.unit,
@@ -366,6 +376,29 @@ async function planNeeds(db: Reader, planId: string, from: Date, to: Date) {
   const lines = await planLines(db, planId, from, to);
   const ingredients = await loadIngredients(db, [...new Set(lines.map((line) => line.ingredientId))]);
   return { groups: aggregateShoppingList(lines, ingredients), ingredients };
+}
+
+/**
+ * Whether the plan's menu still needs what a list says. Compared row by row
+ * with what a list made now would hold; a row of an ingredient that no longer
+ * exists cannot be compared and makes the list stale.
+ */
+function isStale(list: StoredList, lines: readonly DatedLine[], ingredients: ReadonlyMap<string, IngredientRow>): boolean {
+  const inRange = lines.filter((line) => line.date >= list.fromDate && line.date <= list.toDate);
+  if (inRange.some((line) => !ingredients.has(line.ingredientId))) return true;
+  let now: AggregatedItem[];
+  try {
+    now = aggregateShoppingList(inRange, ingredients as Map<string, IngredientRow>).flatMap((group) => group.items);
+  } catch (err) {
+    if (!(err instanceof UnitConversionError)) throw err;
+    return true;
+  }
+  if (now.length !== list.items.length) return true;
+  const stored = new Map(list.items.map((item) => [item.ingredientId, item]));
+  return now.some((item) => {
+    const row = stored.get(item.ingredientId);
+    return !row || row.unit !== item.unit || Math.abs(row.totalQuantity - item.totalQuantity) > 1e-6;
+  });
 }
 
 /**

@@ -641,7 +641,10 @@
     "fromPantryWithDate": "ze spiżarni · najlepiej przed {date}",
     "errGenerate": "Nie udało się wygenerować listy.",
     "errUpdate": "Nie udało się zaktualizować pozycji.",
-    "errDelete": "Nie udało się usunąć listy."
+    "errDelete": "Nie udało się usunąć listy.",
+    "stale": "Jadłospis planu zmienił się po utworzeniu tej listy, więc nie odpowiada już temu, czego plan potrzebuje.",
+    "staleUpdate": "Zaktualizuj listę",
+    "staleUpdateHint": "To, co już masz, zostanie policzone na poczet nowej listy."
   },
   "units": {
     "amount": {

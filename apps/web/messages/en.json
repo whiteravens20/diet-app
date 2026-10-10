@@ -641,7 +641,10 @@
     "fromPantryWithDate": "from pantry · best before {date}",
     "errGenerate": "Could not generate the list.",
     "errUpdate": "Could not update the item.",
-    "errDelete": "Could not delete the list."
+    "errDelete": "Could not delete the list.",
+    "stale": "The plan's menu changed after this list was made, so it no longer matches what the plan needs.",
+    "staleUpdate": "Update the list",
+    "staleUpdateHint": "What you already have for it is counted for the new one."
   },
   "units": {
     "amount": {

@@ -104,6 +104,7 @@ describe('shopping lists and the pantry', () => {
       expect(rowOf(list, 'Olive oil')).toMatchObject({ totalQuantity: 20, unit: 'ml', displayUnit: 'ml' });
       expect(rowOf(list, 'White rice')).toMatchObject({ totalQuantity: 160, unit: 'g', displayUnit: 'g' });
       expect(rowOf(list, 'Broccoli')).toMatchObject({ totalQuantity: 250, toBuyQuantity: 250, alreadyHaveQuantity: 0, purchasedQuantity: null, checked: false });
+      expect(list.stale).toBe(false);
     });
 
     it('rounds a need up, never down: a scaled meal that takes 3.3 eggs asks for four', async () => {
@@ -137,6 +138,25 @@ describe('shopping lists and the pantry', () => {
 
       expect(rows(polish).map((row) => row.name)).toContain('Jajko');
       expect(rows(polish).map((row) => row.name)).toContain('Brokuł');
+    });
+
+    it('says when the menu no longer needs what it lists', async () => {
+      const list = await listFor(0);
+      expect((await lists.get(user.id, 'en', list.id)).stale).toBe(false);
+
+      await menu(0, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+
+      expect((await lists.get(user.id, 'en', list.id)).stale).toBe(true);
+      const all = await lists.listForPlan(user.id, 'en', plan.id);
+      expect(all.map((entry) => entry.stale)).toEqual([true]);
+    });
+
+    it('is not stale because another day of the plan changed', async () => {
+      const list = await listFor(0);
+
+      await menu(1, [PORRIDGE, PORRIDGE, PORRIDGE]);
+
+      expect((await lists.get(user.id, 'en', list.id)).stale).toBe(false);
     });
   });
 
@@ -476,6 +496,22 @@ describe('shopping lists and the pantry', () => {
       expect(left.map((list) => list.id).sort()).toEqual([both.id, dayThree.id].sort());
       // Two days need 320 g; the 160 g bought for day one are counted.
       expect(rowOf(both, 'White rice')).toMatchObject({ totalQuantity: 320, alreadyHaveQuantity: 160, toBuyQuantity: 160 });
+    });
+
+    it('asks only for what changed after the menu did', async () => {
+      const first = await listFor(0);
+      for (const row of rows(first)) await lists.updateItem(user.id, 'en', first.id, row.id, { checked: true });
+      // Chicken out, a second tofu bowl in.
+      await menu(0, [PORRIDGE, TOFU_BOWL, TOFU_BOWL]);
+      expect((await lists.get(user.id, 'en', first.id)).stale).toBe(true);
+
+      const second = await listFor(0);
+
+      expect(second.stale).toBe(false);
+      expect(rowOf(second, 'White rice')).toMatchObject({ totalQuantity: 160, checked: true });
+      expect(rowOf(second, 'Firm tofu')).toMatchObject({ totalQuantity: 360, alreadyHaveQuantity: 180, toBuyQuantity: 180, checked: false });
+      // What is no longer needed stays in the pantry: it was bought.
+      expect(await pantry('chicken-breast')).toEqual(['150 g']);
     });
   });
 

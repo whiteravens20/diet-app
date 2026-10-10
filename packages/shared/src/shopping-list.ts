@@ -94,6 +94,12 @@ export const ShoppingList = z.object({
   /** Groups in aisle order, the same on every read. */
   groups: z.array(ShoppingListGroup),
   totalEstimatedCalories: z.number().min(0),
+  /**
+   * True when the plan's menu for these dates no longer needs what the list
+   * says: a meal was swapped, re-rolled or resized after the list was made.
+   * Generating a list for the same dates again replaces this one.
+   */
+  stale: z.boolean(),
   createdAt: z.string().datetime(),
 });
 export type ShoppingList = z.infer<typeof ShoppingList>;
