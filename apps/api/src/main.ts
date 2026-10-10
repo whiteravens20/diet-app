@@ -46,6 +46,7 @@ async function bootstrap(): Promise<void> {
     AI_ADMIN_USER_MONTHLY_LIMIT: config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true }),
     AI_ADMIN_INSTANCE_MONTHLY_LIMIT: config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true }),
     SWAGGER_ENABLED: config.get('SWAGGER_ENABLED', { infer: true }),
+    TRUST_PROXY: config.get('TRUST_PROXY', { infer: true }),
   });
   for (const line of posture) {
     if (line.startsWith('!')) Logger.warn(line.slice(1).trim(), 'Posture');

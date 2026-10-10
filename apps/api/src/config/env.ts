@@ -9,6 +9,7 @@
  * "the value is an empty string".
  */
 import { z } from 'zod';
+import { describeTrustProxy, parseTrustProxy } from './trust-proxy.js';
 
 const boolFromString = z
   .enum(['true', 'false'])
@@ -90,6 +91,9 @@ export const envSchema = z.object({
   // request, so both have a floor of one.
   RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).max(3_600).default(60),
   RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1_000_000).default(120),
+  // Whose word is taken for a client's address: off, a number of proxies, or
+  // their addresses. See config/trust-proxy.ts.
+  TRUST_PROXY: z.string().optional(),
 
   // What the operator publishes about the instance. Served by GET /api/config,
   // so a change takes effect on restart, without rebuilding the web app.
@@ -228,6 +232,11 @@ export function validateEnv(raw: Record<string, unknown>): Env {
   if (weak.length > 0) {
     throw new Error(`Refusing to start with secrets that are not secret:\n${weak.join('\n')}`);
   }
+  try {
+    parseTrustProxy(result.data.TRUST_PROXY);
+  } catch (err) {
+    throw new Error(`Invalid environment configuration:\n  TRUST_PROXY: ${(err as Error).message}`);
+  }
   const { SWAGGER_ENABLED, ...rest } = result.data;
   return {
     ...rest,
@@ -255,6 +264,7 @@ export function describePosture(
     | 'AI_ADMIN_USER_MONTHLY_LIMIT'
     | 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT'
     | 'SWAGGER_ENABLED'
+    | 'TRUST_PROXY'
   >,
 ): string[] {
   const https = env.APP_URL.startsWith('https://');
@@ -271,5 +281,6 @@ export function describePosture(
     env.SWAGGER_ENABLED && env.NODE_ENV === 'production'
       ? '! API documentation is served at /api/docs on a production instance'
       : `API documentation: ${env.SWAGGER_ENABLED ? 'served at /api/docs' : 'off'}`,
+    describeTrustProxy(parseTrustProxy(env.TRUST_PROXY)),
   ];
 }

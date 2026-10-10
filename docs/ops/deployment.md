@@ -90,6 +90,24 @@ A request that asks an AI model can take up to 60 seconds before the API answers
 timeout above that — 90 seconds matches the web front-end's own. Traefik has none by
 default; nginx stops at 60 seconds unless `proxy_read_timeout` is raised.
 
+### Telling the API who the client is
+
+The API never sees a visitor's own connection: requests reach it from the web server, or
+from the reverse proxy. Left alone it therefore takes every visitor for one client. The
+visitor's address arrives in the `X-Forwarded-For` header, which the API believes only
+when told to, because without a proxy in front anybody can write that header themselves.
+
+1. Put a reverse proxy in front and make sure the app cannot be reached around it. With
+   `docker-compose.prod.yml` the web port is bound to `127.0.0.1` for exactly this; with
+   `--profile proxy`, publish only Traefik's port.
+2. Let the proxy write the header. Traefik and Caddy do so on their own. nginx needs
+   `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`.
+3. Set `TRUST_PROXY=1` in `.env` and restart the API. With a CDN or a second proxy in
+   front of the first, count that one too: `TRUST_PROXY=2`.
+
+Never set `TRUST_PROXY` on an instance whose web or API port is reachable directly: a
+visitor could then claim any address, and with it somebody else's allowance.
+
 ## Ollama / GPU
 
 ```bash

@@ -152,6 +152,24 @@ describe('describePosture', () => {
     const lines = describePosture({ ...env(), APP_URL: 'http://192.0.2.10:3000', SWAGGER_ENABLED: true });
     expect(lines.filter((line) => line.startsWith('!'))).toHaveLength(2);
   });
+
+  it('says whose word is taken for a client\'s address', () => {
+    expect(describePosture(env()).at(-1)).toMatch(/^client address: that of the connection/);
+    expect(describePosture({ ...env(), TRUST_PROXY: '1' }).at(-1)).toBe('client address: from X-Forwarded-For, written by 1 trusted proxy');
+  });
+});
+
+describe('TRUST_PROXY in the environment', () => {
+  it('is refused with a reason when it is not a number of proxies or their addresses', () => {
+    expect(() => validateEnv(valid({ TRUST_PROXY: 'true' }))).toThrow(/TRUST_PROXY: "true" would believe/);
+    expect(() => validateEnv(valid({ TRUST_PROXY: 'traefik' }))).toThrow(/TRUST_PROXY: "traefik" is neither/);
+  });
+
+  it('is accepted as a number, as a list, and left out', () => {
+    expect(validateEnv(valid({ TRUST_PROXY: '1' })).TRUST_PROXY).toBe('1');
+    expect(validateEnv(valid({ TRUST_PROXY: '10.0.0.0/8, loopback' })).TRUST_PROXY).toBe('10.0.0.0/8, loopback');
+    expect(validateEnv(valid({})).TRUST_PROXY).toBeUndefined();
+  });
 });
 
 describe('the environment reference', () => {

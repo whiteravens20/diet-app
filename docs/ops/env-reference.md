@@ -57,6 +57,7 @@ Two rules apply to every variable:
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | — | Required only when enabled. |
 | `RATE_LIMIT_WINDOW` | `60` | Rate-limit window (seconds), applies to every endpoint. |
 | `RATE_LIMIT_MAX` | `120` | Requests/window/IP, global default. AI + plan-generation routes carry fixed tighter per-route limits (recipe draft 10, recipe submission 10, plan (re)generate 20, AI swap 30, ingredient swap 30, provider test 20/min) that are not operator-tunable. |
+| `TRUST_PROXY` | — | Whose word is taken for a client's address. Blank: the address of the connection, which behind the web server or a reverse proxy is the same for everybody. A number: that many reverse proxies stand in front of the app and their `X-Forwarded-For` is believed (`1` for one Traefik, Caddy or nginx). A list: the proxies' addresses or networks (`10.0.0.0/8,172.16.0.0/12`, or `loopback`, `linklocal`, `uniquelocal`). Set it only when the proxy is there and the app cannot be reached around it. `true` is refused. See [deployment](deployment.md#reverse-proxy). |
 
 ## Email (optional)
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | — | SMTP for mail. Unset → no mail is sent and the web app does not offer password reset. A reset requested straight from the API is logged outside production and dropped in production. |
