@@ -62,7 +62,7 @@ async function tofuForChicken(account: Account): Promise<string> {
 
 /** A draft a model writes the same way every time it is asked. */
 const sameDraft = (request: ModelRequest): string => {
-  const offered = [...request.prompt.matchAll(/^- (.+?) \([a-z_]+, \d+ kcal\/100g/gm)].map((match) => match[1]!).sort();
+  const offered = [...request.prompt.matchAll(/^- ([a-z0-9-]+): /gm)].map((match) => match[1]!);
   return JSON.stringify({
     title: 'The usual bowl',
     description: 'What this model always writes.',
@@ -71,7 +71,7 @@ const sameDraft = (request: ModelRequest): string => {
     prepMinutes: 5,
     cookMinutes: 10,
     difficulty: 'easy',
-    ingredients: offered.slice(0, 3).map((ingredientName) => ({ ingredientName, quantity: 100, unit: 'g', note: null })),
+    ingredients: offered.slice(0, 3).map((slug) => ({ slug, quantity: 100, unit: 'g', note: null })),
     steps: ['Prepare.', 'Cook and serve.'],
   });
 };

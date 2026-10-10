@@ -20,7 +20,7 @@ provider/model that clears the demand bar for the surface you actually use.
 
 | Surface | Endpoint / file | Input | Output | JSON strictness | Locale-keyed |
 |---|---|---|---|---|---|
-| **Recipe draft from prompt** | `POST /api/recipes/drafts/from-prompt` ([ai-recipe-draft.service.ts](../../apps/api/src/recipes/ai-recipe-draft.service.ts)) | ~2.5k tok (60-ingredient catalogue + rules) | ~1.5k tok per locale | strict, nested | yes |
+| **Recipe draft from prompt** | `POST /api/recipes/drafts/from-prompt` ([ai-recipe-draft.service.ts](../../apps/api/src/recipes/ai-recipe-draft.service.ts)) | ~2.5k tok (up to 60 ingredients, named by slug, + rules) | ~1.5k tok per locale | strict, nested | yes |
 | **Admin recipe batch** | `POST /api/admin/drafts/recipes/generate` ([recipe-generator.runner.ts](../../apps/api/src/admin/drafts/recipe-generator.runner.ts)) | ~3k tok (full catalogue) | ~1.5k tok per locale | strict, nested | yes |
 | **AI meal swap** | `POST /api/meal-plans/ai-swap-meal` | ~1k tok (candidate pool) | ~100 tok (pick + reason) | lenient | no |
 | **AI ingredient swap suggest** | `POST /api/meal-plans/swap-ingredient/ai-suggest` | ~800 tok | ~100 tok | lenient | no |

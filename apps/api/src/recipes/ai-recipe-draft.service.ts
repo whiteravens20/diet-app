@@ -27,6 +27,7 @@ import { AiRouterService } from '../ai/ai-router.service.js';
 import { plainLine, readModelObject } from '../ai/model-json.js';
 import { recipeDraft } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { draftCatalogue } from './draft-catalogue.js';
 import { PersonalRecipesService } from './personal-recipes.service.js';
 import { toRecipeDto } from './recipes.service.js';
 
@@ -36,7 +37,8 @@ const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 type Difficulty = (typeof ALLOWED_DIFFICULTIES)[number];
 
 interface AiDraftLine {
-  ingredientName: string;
+  /** What the model wrote to name the ingredient: its slug, as asked. */
+  slug: string;
   quantity: number;
   unit: 'g' | 'ml' | 'piece';
   note: string | null;
@@ -106,7 +108,7 @@ export class AiRecipeDraftService {
     // on the meal plan, not the recipe — keeping recipes at servings=1 keeps
     // engine recompute trivial and the prompt small.
     const servings = 1;
-    const allergens = new Set((profile.preferences?.allergens ?? []) as string[]);
+    const allergens = (profile.preferences?.allergens ?? []) as string[];
     // Allergens are ALWAYS excluded. Other exclusions only when the user
     // asked for it (defaults to true on the request shape).
     const excludedIds = new Set(
@@ -116,35 +118,43 @@ export class AiRecipeDraftService {
       req.useFavoriteIngredients ? (profile.preferences?.favoriteIngredientIds ?? []) : [],
     );
 
-    // Curated catalogue, filtered by the user's hard constraints (diet,
-    // allergens, exclusions). Cuisine / cooking method / complexity are NOT
-    // hard-filtered here — they're rendered into the prompt as preferences
-    // and the model is free to broaden when the intersection is too narrow.
-    const rawCatalogue = await this.prisma.ingredient.findMany({
+    // Every ingredient the profile may eat: the hard constraints (diet,
+    // allergens, exclusions) are applied in the query, so nothing eligible is
+    // lost to a cut made before them. Cuisine / cooking method / complexity
+    // are NOT hard-filtered here — they're rendered into the prompt as
+    // preferences and the model is free to broaden.
+    const eligible = await this.prisma.ingredient.findMany({
       where: {
-        dietCompatibility: { has: dietType },
-        id: { notIn: [...excludedIds] },
+        // The model names its picks by slug, and a recipe is recognised by them.
+        slug: { not: null },
         retiredAt: null,
+        id: { notIn: [...excludedIds] },
+        // A custom diet filters nothing.
+        ...(dietType === 'custom' ? {} : { dietCompatibility: { has: dietType } }),
+        NOT: { allergens: { hasSome: allergens } },
       },
       select: {
         id: true,
+        slug: true,
         name: true,
         category: true,
         caloriesPer100: true,
         proteinPer100: true,
-        allergens: true,
       },
-      take: 200,
     });
-    const catalogue = rawCatalogue
-      .filter((c) => !c.allergens.some((a) => allergens.has(a)))
-      .slice(0, 60);
-    if (catalogue.length === 0) {
+    if (eligible.length === 0) {
       throw new BadRequestException({
         error: 'NO_ELIGIBLE_INGREDIENTS',
         message: 'No ingredients are eligible for this profile.',
       });
     }
+    // What the model is offered: the same list for the same request, with the
+    // favourites in it and something of every category.
+    const catalogue = draftCatalogue(
+      eligible.map((row) => ({ ...row, slug: row.slug! })),
+      favouriteIds,
+      [profile.id, dietType, req.mealType, req.cuisine, req.cookingMethod, req.complexity].join(':'),
+    );
 
     // Target locales: always EN (canonical for nutrition / ingredient mapping
     // + slot-resolution invariant) and, when the user's locale is non-EN, the
@@ -195,21 +205,25 @@ export class AiRecipeDraftService {
       });
     }
 
-    // Resolve ingredient names → catalogue ids. Names are unique in the
-    // schema; reject the whole draft if any line refers to something we don't
-    // recognise — we never invent rows or guess substitutions silently.
-    const catalogueByLowerName = new Map(
-      catalogue.map((c) => [c.name.toLowerCase(), c]),
-    );
+    // Resolve the model's picks among the ingredients it was offered, and
+    // only among those: that is what keeps an allergen, an excluded ingredient
+    // or one outside the diet out of the draft. A model that wrote the name
+    // where the slug was asked for is still understood. Anything else rejects
+    // the whole draft — we never invent rows or guess substitutions silently.
+    const offered = new Map<string, (typeof catalogue)[number]>();
+    for (const ingredient of catalogue) {
+      offered.set(ingredient.name.toLowerCase(), ingredient);
+      offered.set(ingredient.slug, ingredient);
+    }
     const resolved: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[] = [];
     for (const line of payload.ingredients) {
-      const hit = catalogueByLowerName.get(line.ingredientName.trim().toLowerCase());
+      const hit = offered.get(line.slug.trim().toLowerCase());
       if (!hit) {
         // The name goes to the log, not to the client: it is the model's text.
-        this.logger.warn(`AI_DRAFT_UNKNOWN_INGREDIENT: ${line.ingredientName.slice(0, 80)}`);
+        this.logger.warn(`AI_DRAFT_UNKNOWN_INGREDIENT: ${line.slug.slice(0, 80)}`);
         throw new BadRequestException({
           error: 'AI_DRAFT_UNKNOWN_INGREDIENT',
-          message: 'The draft uses an ingredient that is not in the catalogue.',
+          message: 'The draft uses an ingredient that was not on offer.',
         });
       }
       resolved.push({
@@ -338,10 +352,7 @@ export class AiRecipeDraftService {
  *
  * Preferences are rendered as soft hints ("prefer", "lean toward"), never
  * as hard constraints. The model knows the only hard constraints are: pick
- * ingredients from the catalogue, every slug must resolve, no invented
- * macros. That keeps the catalogue slug-resolution invariant intact while
- * letting the model broaden when the cuisine/method/complexity filter
- * intersection has too few ingredients.
+ * ingredients from the catalogue, name each by its slug, no invented macros.
  */
 function buildDraftPrompt(input: {
   mealType?: MealType;
@@ -352,13 +363,13 @@ function buildDraftPrompt(input: {
   kcalTarget?: number;
   prepTimeMaxMinutes?: number;
   servings: number;
-  catalogue: { id: string; name: string; category: string; caloriesPer100: number; proteinPer100: number }[];
+  catalogue: { id: string; slug: string; name: string; category: string; caloriesPer100: number; proteinPer100: number }[];
   favouriteIds: Set<string>;
   targetLocales: Locale[];
 }): { system: string; user: string } {
   const lines = input.catalogue.map((c) => {
     const star = input.favouriteIds.has(c.id) ? ' ⭐' : '';
-    return `- ${c.name} (${c.category}, ${Math.round(c.caloriesPer100)} kcal/100g · ${Math.round(c.proteinPer100)} g protein)${star}`;
+    return `- ${c.slug}: ${c.name} (${c.category}, ${Math.round(c.caloriesPer100)} kcal/100g · ${Math.round(c.proteinPer100)} g protein)${star}`;
   });
 
   // Locale-keyed shape only when more than one locale is requested. For pure
@@ -394,7 +405,7 @@ function buildDraftPrompt(input: {
     `{${titlesShape},${descShape},"servings":int,` +
     '"mealTypes":string[],"prepMinutes":int,' +
     '"cookMinutes":int,"difficulty":"easy"|"medium"|"hard",' +
-    '"ingredients":[{"ingredientName":string,"quantity":number,' +
+    '"ingredients":[{"slug":string,"quantity":number,' +
     `"unit":"g"|"ml"|"piece","note":string|null}],${stepsShape}}`;
 
   const preferences: string[] = [];
@@ -423,7 +434,7 @@ function buildDraftPrompt(input: {
     ...preferenceBlock,
     '',
     'Hard rules:',
-    '1. Pick 3-12 ingredients from the catalogue below (use the exact name).',
+    '1. Pick 3-12 ingredients from the catalogue below. Name each by its slug: the part of its line before the colon.',
     "2. Quantity > 0; unit is g, ml or piece — match the ingredient's natural form.",
     '3. 2-12 cooking steps, imperative ("Slice the chicken", "Combine and stir").',
     '4. mealTypes is one or two slots.',
@@ -444,7 +455,7 @@ function buildDraftPrompt(input: {
  * What a drafted recipe may hold. Text beyond these lengths is not a recipe
  * card, and a quantity beyond these is not an ingredient of one serving.
  */
-const TEXT_LIMITS = { title: 120, description: 600, step: 300, steps: 25, note: 120, ingredientName: 120 } as const;
+const TEXT_LIMITS = { title: 120, description: 600, step: 300, steps: 25, note: 120, slug: 120 } as const;
 const MAX_QUANTITY = { g: 2_000, ml: 2_000, piece: 50 } as const;
 /** The calories of anything that can be called a serving of a meal. */
 const SERVING_KCAL = { min: 30, max: 2_500 } as const;
@@ -549,9 +560,9 @@ function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraft
   for (const line of o.ingredients) {
     if (!line || typeof line !== 'object') return null;
     const l = line as Record<string, unknown>;
-    const name = textField(l.ingredientName, TEXT_LIMITS.ingredientName);
+    const slug = textField(l.slug, TEXT_LIMITS.slug);
     const unit = typeof l.unit === 'string' && ALLOWED_UNITS.includes(l.unit) ? (l.unit as 'g' | 'ml' | 'piece') : null;
-    if (!name || unit == null) return null;
+    if (!slug || unit == null) return null;
     // `1e400` is valid JSON and reads as Infinity; a serving has a ceiling.
     const quantity = l.quantity;
     if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0 || quantity > MAX_QUANTITY[unit]) {
@@ -559,7 +570,7 @@ function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraft
     }
     // A note is optional, so one that is too long is dropped, not fatal.
     const note = textField(l.note, TEXT_LIMITS.note);
-    ingredients.push({ ingredientName: name, quantity, unit, note });
+    ingredients.push({ slug, quantity, unit, note });
   }
 
   return {

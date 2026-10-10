@@ -12,9 +12,12 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
 import { MAX_AI_DRAFTS_PER_DAY, MAX_PERSONAL_RECIPES } from './personal-recipes.service.js';
 
-/** The ingredient names a prompt offers, in the order it lists them. */
-const offered = (request: ModelRequest): string[] =>
-  [...request.prompt.matchAll(/^- (.+?) \([a-z_]+, \d+ kcal\/100g/gm)].map((match) => match[1]!);
+/** The catalogue lines of a prompt, as it lists them. */
+const offeredLines = (request: ModelRequest): string[] =>
+  [...request.prompt.matchAll(/^- [a-z0-9-]+: .+ \([a-z_]+, \d+ kcal\/100g.*$/gm)].map((match) => match[0]);
+
+/** The slugs of the ingredients a prompt offers, in the order it lists them. */
+const offered = (request: ModelRequest): string[] => offeredLines(request).map((line) => line.slice(2, line.indexOf(':')));
 
 /** A draft a careful model would write: three offered ingredients, 100 g of each. */
 function draft(request: ModelRequest, overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -28,7 +31,7 @@ function draft(request: ModelRequest, overrides: Record<string, unknown> = {}): 
     difficulty: 'easy',
     ingredients: offered(request)
       .slice(0, 3)
-      .map((ingredientName) => ({ ingredientName, quantity: 100, unit: 'g', note: null })),
+      .map((slug) => ({ slug, quantity: 100, unit: 'g', note: null })),
     steps: ['Prepare the ingredients.', 'Cook everything together and serve.'],
     ...overrides,
   };
@@ -39,7 +42,7 @@ const withQuantity = (request: ModelRequest, quantity: number): Record<string, u
   draft(request, {
     ingredients: offered(request)
       .slice(0, 3)
-      .map((ingredientName) => ({ ingredientName, quantity, unit: 'g', note: null })),
+      .map((slug) => ({ slug, quantity, unit: 'g', note: null })),
   });
 
 describe('drafting a recipe with a model', () => {
@@ -124,7 +127,7 @@ describe('drafting a recipe with a model', () => {
             steps: { en: ['Chop.', 'Simmer.'], pl: ['Pokrój.', 'Duś.'] },
             ingredients: offered(request)
               .slice(3, 6)
-              .map((ingredientName) => ({ ingredientName, quantity: 100, unit: 'g', note: null })),
+              .map((slug) => ({ slug, quantity: 100, unit: 'g', note: null })),
           }),
         ),
     });
@@ -135,11 +138,11 @@ describe('drafting a recipe with a model', () => {
   });
 
   describe('the diets of a drafted recipe', () => {
-    const named = (request: ModelRequest, ...names: string[]): Record<string, unknown>[] => {
+    const named = (request: ModelRequest, ...slugs: string[]): Record<string, unknown>[] => {
       const available = offered(request);
-      return names.map((ingredientName) => {
-        expect(available).toContain(ingredientName);
-        return { ingredientName, quantity: 150, unit: 'g', note: null };
+      return slugs.map((slug) => {
+        expect(available).toContain(slug);
+        return { slug, quantity: 150, unit: 'g', note: null };
       });
     };
 
@@ -149,7 +152,7 @@ describe('drafting a recipe with a model', () => {
           JSON.stringify(
             draft(request, {
               dietTags: ['vegan', 'keto'],
-              ingredients: named(request, 'Chicken breast', 'White rice', 'Broccoli'),
+              ingredients: named(request, 'chicken-breast', 'white-rice', 'broccoli'),
             }),
           ),
       });
@@ -163,7 +166,7 @@ describe('drafting a recipe with a model', () => {
 
     it('include vegan when every ingredient is', async () => {
       t.model.reply({
-        text: (request) => JSON.stringify(draft(request, { ingredients: named(request, 'Firm tofu', 'White rice', 'Broccoli') })),
+        text: (request) => JSON.stringify(draft(request, { ingredients: named(request, 'firm-tofu', 'white-rice', 'broccoli') })),
       });
 
       const { recipe } = await ask({ dietType: 'vegan' });
@@ -176,10 +179,10 @@ describe('drafting a recipe with a model', () => {
 
       await ask({ dietType: 'vegan' });
 
-      const names = offered(t.model.requests[0]!);
-      expect(names).toContain('Firm tofu');
-      expect(names).not.toContain('Chicken breast');
-      expect(names).not.toContain('Whole milk');
+      const slugs = offered(t.model.requests[0]!);
+      expect(slugs).toContain('firm-tofu');
+      expect(slugs).not.toContain('chicken-breast');
+      expect(slugs).not.toContain('whole-milk');
     });
 
     it('refuses a draft that does not fit the diet asked for, and stores nothing', async () => {
@@ -190,9 +193,9 @@ describe('drafting a recipe with a model', () => {
           JSON.stringify(
             draft(request, {
               ingredients: [
-                { ingredientName: 'White rice', quantity: 150, unit: 'g' },
-                { ingredientName: 'Chicken breast', quantity: 50, unit: 'g' },
-                { ingredientName: 'Olive oil', quantity: 5, unit: 'ml' },
+                { slug: 'white-rice', quantity: 150, unit: 'g' },
+                { slug: 'chicken-breast', quantity: 50, unit: 'g' },
+                { slug: 'olive-oil', quantity: 5, unit: 'ml' },
               ],
             }),
           ),
@@ -208,9 +211,9 @@ describe('drafting a recipe with a model', () => {
           JSON.stringify(
             draft(request, {
               ingredients: [
-                { ingredientName: 'Chicken breast', quantity: 200, unit: 'g' },
-                { ingredientName: 'Olive oil', quantity: 10, unit: 'ml' },
-                { ingredientName: 'White rice', quantity: 10, unit: 'g' },
+                { slug: 'chicken-breast', quantity: 200, unit: 'g' },
+                { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+                { slug: 'white-rice', quantity: 10, unit: 'g' },
               ],
             }),
           ),
@@ -286,8 +289,8 @@ describe('drafting a recipe with a model', () => {
           JSON.stringify(
             draft(request, {
               ingredients: [
-                ...offered(request).slice(0, 2).map((ingredientName) => ({ ingredientName, quantity: 100, unit: 'g' })),
-                { ingredientName: '<script>alert(1)</script> dragon fruit', quantity: 100, unit: 'g' },
+                ...offered(request).slice(0, 2).map((slug) => ({ slug, quantity: 100, unit: 'g' })),
+                { slug: '<script>alert(1)</script> dragon fruit', quantity: 100, unit: 'g' },
               ],
             }),
           ),
@@ -323,7 +326,7 @@ describe('drafting a recipe with a model', () => {
               title: 'Two\nline title',
               ingredients: offered(request)
                 .slice(0, 3)
-                .map((ingredientName) => ({ ingredientName, quantity: 100, unit: 'g', note: 'n'.repeat(500) })),
+                .map((slug) => ({ slug, quantity: 100, unit: 'g', note: 'n'.repeat(500) })),
             }),
           ),
       });
@@ -332,6 +335,104 @@ describe('drafting a recipe with a model', () => {
 
       expect(recipe.title).toBe('Two line title');
       expect(recipe.ingredients.map((line) => line.note)).toEqual([null, null, null]);
+    });
+  });
+
+  describe('the ingredients a model is offered', () => {
+    const slugId = async (slug: string): Promise<string> => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+
+    const prefer = (data: { allergens?: string[]; favoriteIngredientIds?: string[]; excludedIngredientIds?: string[] }) =>
+      t.prisma.profilePreference.upsert({
+        where: { profileId: profile.id },
+        update: data,
+        create: { profileId: profile.id, ...data },
+      });
+
+    it('are the same every time the same request is made', async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
+
+      await ask({ mealType: 'lunch' });
+      await ask({ mealType: 'lunch' });
+
+      expect(offeredLines(t.model.requests[0]!).length).toBeGreaterThan(10);
+      expect(offeredLines(t.model.requests[1]!)).toEqual(offeredLines(t.model.requests[0]!));
+    });
+
+    it('are every ingredient the profile may eat when its diet is a custom one', async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+      const all = await t.prisma.ingredient.count();
+
+      const { recipe } = await ask({ dietType: 'custom' });
+
+      expect(offered(t.model.requests[0]!)).toHaveLength(all);
+      expect(recipe.title).toBe('Scripted bowl');
+    });
+
+    it('leave out what the profile is allergic to, and a draft cannot bring it back', async () => {
+      await prefer({ allergens: ['soy'] });
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+      await ask();
+      expect(offered(t.model.requests[0]!)).not.toContain('firm-tofu');
+
+      // A model that names it anyway: by slug, and by name.
+      for (const tofu of ['firm-tofu', 'Firm tofu']) {
+        t.model.reply({
+          text: (request) =>
+            JSON.stringify(
+              draft(request, {
+                ingredients: [
+                  { slug: tofu, quantity: 150, unit: 'g' },
+                  { slug: 'white-rice', quantity: 80, unit: 'g' },
+                  { slug: 'broccoli', quantity: 100, unit: 'g' },
+                ],
+              }),
+            ),
+        });
+        expect(await refusal(ask())).toMatchObject({ status: 400, error: 'AI_DRAFT_UNKNOWN_INGREDIENT' });
+      }
+      expect(await stored()).toBe(1);
+    });
+
+    it('leave out what the profile skips, unless the request says otherwise', async () => {
+      await prefer({ excludedIngredientIds: [await slugId('broccoli')] });
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
+
+      await ask();
+      await ask({ respectExclusions: false });
+
+      expect(offered(t.model.requests[0]!)).not.toContain('broccoli');
+      expect(offered(t.model.requests[1]!)).toContain('broccoli');
+    });
+
+    it('mark the favourites when the request asks for them', async () => {
+      await prefer({ favoriteIngredientIds: [await slugId('salmon'), await slugId('tomato')] });
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
+
+      await ask({ useFavoriteIngredients: true });
+      await ask();
+
+      const starred = offeredLines(t.model.requests[0]!).filter((line) => line.endsWith('⭐'));
+      expect(starred.map((line) => line.slice(2, line.indexOf(':'))).sort()).toEqual(['salmon', 'tomato']);
+      expect(offeredLines(t.model.requests[1]!).some((line) => line.endsWith('⭐'))).toBe(false);
+    });
+
+    it('may be named by a model that wrote the name where the slug was asked for', async () => {
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify(
+            draft(request, {
+              ingredients: [
+                { slug: 'Chicken breast', quantity: 150, unit: 'g' },
+                { slug: ' WHITE RICE ', quantity: 80, unit: 'g' },
+                { slug: 'broccoli', quantity: 100, unit: 'g' },
+              ],
+            }),
+          ),
+      });
+
+      const { recipe } = await ask();
+
+      expect(recipe.ingredients).toHaveLength(3);
     });
   });
 
