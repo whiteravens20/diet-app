@@ -236,6 +236,7 @@
     "SET_NOT_FOUND": "Nie znaleziono zestawu ulubionych.",
     "EMPTY_SET": "Ten zestaw ulubionych nie ma slotów — dodaj co najmniej jeden przed zastosowaniem.",
     "FAVORITE_SET_ALLERGEN_CONFLICT": "Ten zestaw ulubionych zawiera przepis z alergenem, którego ten profil unika — nie można go zastosować.",
+    "FAVORITE_SET_NOT_ELIGIBLE": "Ten zestaw zawiera przepis, którego nie można dodać do tego planu: nie pasuje do diety lub posiłku, zawiera pomijany składnik albo jest oznaczony do unikania.",
     "RECIPE_NOT_ELIGIBLE": "Tego przepisu nie można dodać do tego planu.",
     "MEAL_EATEN": "Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie.",
     "NO_FAVORITE_INGREDIENTS": "Dodaj ulubione składniki w profilu przed zamianą po nich.",

@@ -236,6 +236,7 @@
     "SET_NOT_FOUND": "Favourite set not found.",
     "EMPTY_SET": "This favourite set has no slots — add at least one before applying.",
     "FAVORITE_SET_ALLERGEN_CONFLICT": "This favourite set contains a recipe with an allergen this profile avoids — it can't be applied.",
+    "FAVORITE_SET_NOT_ELIGIBLE": "This set holds a recipe that can't go into this plan: it doesn't fit the diet or the meal, uses an ingredient the profile skips, or is marked to avoid.",
     "RECIPE_NOT_ELIGIBLE": "That recipe can't go into this plan.",
     "MEAL_EATEN": "This meal is marked as eaten and can't be changed. Unmark it first.",
     "NO_FAVORITE_INGREDIENTS": "Add favourite ingredients on the profile before swapping by them.",

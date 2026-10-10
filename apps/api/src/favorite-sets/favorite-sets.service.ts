@@ -2,6 +2,7 @@
 
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -19,6 +20,7 @@ import type {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { CANDIDATE, restrictionsFor, violations, type Violation } from '../meal-plans/eligibility.js';
 import { writePlan } from '../meal-plans/plan-write.js';
 import { fitServings, slotBudgets } from '../engine/index.js';
 
@@ -110,46 +112,51 @@ export class FavoriteSetsService {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'No matching day in plan.' });
     }
 
-    // Recipe calories drive the per-slot serving rescale below; allergens gate
-    // the apply. Fetch once, scoped to recipes this user may see (curated/public
-    // or their own, non-deleted) — a recipe saved into the set may since have
-    // been soft-deleted, and we must never write a foreign/invisible recipe into
-    // the plan. Any slot whose recipe is no longer visible aborts the apply.
+    // Every recipe of the set passes the same gate as any other way into the
+    // plan, against the profile as it is now: a set may have been saved before
+    // an allergen was added, an ingredient skipped or a recipe deleted.
+    const restrictions = await restrictionsFor(this.prisma, plan);
     const slotRecipeIds = [...new Set(slotEntries.map(([, recipeId]) => recipeId))];
     const recipes = await this.prisma.recipe.findMany({
-      where: {
-        id: { in: slotRecipeIds },
-        deletedAt: null,
-        retiredAt: null,
-        OR: [{ createdByUserId: null }, { createdByUserId: userId }],
-      },
-      select: { id: true, caloriesPerServing: true, allergens: true },
+      where: { id: { in: slotRecipeIds } },
+      select: { ...CANDIDATE, caloriesPerServing: true },
     });
-    const caloriesById = new Map(recipes.map((r) => [r.id, r.caloriesPerServing]));
-    const missing = slotRecipeIds.filter((id) => !caloriesById.has(id));
-    if (missing.length > 0) {
-      throw new NotFoundException({
-        error: 'RECIPE_NOT_FOUND',
-        message: `Favorite set references a recipe that no longer exists: ${missing[0]}`,
-      });
-    }
-
-    // Allergens are the one hard safety rule the whole app enforces everywhere
-    // else (generation, swap, AI-swap, substitution). A saved set may hold a
-    // recipe that only became allergen-conflicting after the profile's allergen
-    // list changed, so re-check at apply time against the *current* profile and
-    // refuse rather than silently writing an unsafe meal into the plan.
-    const profileAllergens = new Set(plan.profile.preferences?.allergens ?? []);
-    if (profileAllergens.size > 0) {
-      const conflicting = recipes
-        .filter((r) => r.allergens.some((a) => profileAllergens.has(a)))
-        .map((r) => r.id);
-      if (conflicting.length > 0) {
-        throw new BadRequestException({
-          error: 'FAVORITE_SET_ALLERGEN_CONFLICT',
-          message: `Favorite set contains recipes with allergens this profile avoids: ${conflicting.join(', ')}.`,
+    const recipeById = new Map(recipes.map((r) => [r.id, r]));
+    for (const [mealType, recipeId] of slotEntries) {
+      const recipe = recipeById.get(recipeId);
+      const found: Violation[] = recipe ? violations(recipe, restrictions, mealType) : ['not_available'];
+      if (found.includes('not_available')) {
+        throw new NotFoundException({
+          error: 'RECIPE_NOT_FOUND',
+          message: `Favorite set references a recipe that no longer exists: ${recipeId}`,
         });
       }
+      if (found.includes('allergen')) {
+        throw new BadRequestException({
+          error: 'FAVORITE_SET_ALLERGEN_CONFLICT',
+          message: `Favorite set contains a recipe with an allergen this profile avoids: ${recipeId}.`,
+        });
+      }
+      if (found.length > 0) {
+        throw new BadRequestException({
+          error: 'FAVORITE_SET_NOT_ELIGIBLE',
+          message: `Favorite set contains a recipe that cannot go into this plan for ${mealType}: ${recipeId}.`,
+          violations: found,
+        });
+      }
+    }
+    const caloriesById = new Map(recipes.map((r) => [r.id, r.caloriesPerServing]));
+
+    // A meal that was eaten is a record; a set does not write over it.
+    const targetDayIds = targetDays.map((d) => d.id);
+    const eaten = await this.prisma.plannedMeal.count({
+      where: { dayId: { in: targetDayIds }, mealType: { in: slotEntries.map(([mealType]) => mealType) }, eatenAt: { not: null } },
+    });
+    if (eaten > 0) {
+      throw new ConflictException({
+        error: 'MEAL_EATEN',
+        message: 'A meal that was eaten cannot be changed. Unmark it first.',
+      });
     }
 
     await writePlan(this.prisma, plan.id, plan.revision, async (tx) => {
@@ -177,9 +184,19 @@ export class FavoriteSetsService {
           const servings = fitServings(caloriesById.get(recipeId) ?? 0, budget);
           const current = existingByType.get(mealType);
           if (current) {
+            // The same reset as a swap: the new recipe is a new baseline, and
+            // nothing of a custom meal that stood here stays behind.
             await tx.plannedMeal.update({
               where: { id: current.id },
-              data: { recipeId, servings, swapHistory: [recipeId] },
+              data: {
+                recipeId,
+                servings,
+                swapHistory: [recipeId],
+                quantityScale: 1,
+                source: 'CATALOGUE',
+                customName: null,
+                customMacros: Prisma.JsonNull,
+              },
             });
           } else {
             await tx.plannedMeal.create({
@@ -203,6 +220,8 @@ export class FavoriteSetsService {
             },
           });
         }
+        // The day's total moved: pull it back toward its target, as every edit does.
+        await this.mealPlans.rebalanceDayInternal(day.id, tx);
       }
     });
 
