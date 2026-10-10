@@ -11,7 +11,7 @@ import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/fact
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
-import { PersonalRecipesService } from './personal-recipes.service.js';
+import { MAX_PERSONAL_RECIPES, PersonalRecipesService } from './personal-recipes.service.js';
 
 let t: TestApp;
 let plans: MealPlansService;
@@ -260,5 +260,43 @@ describe('a recipe the shared library already has', () => {
 
     expect(id).toBe(porridge.id);
     expect(await t.prisma.recipe.count({ where: { createdByUserId: account.user.id } })).toBe(0);
+  });
+});
+
+describe('the number of recipes an account may hold', () => {
+  it('is capped, and the cap counts only recipes that are not deleted', async () => {
+    const account = await anAccount();
+    const filler = (index: number, deleted: boolean) => ({
+      title: `Filler ${index}`,
+      description: '',
+      servings: 1,
+      prepMinutes: 1,
+      cookMinutes: 1,
+      origin: 'user' as const,
+      createdByUserId: account.user.id,
+      deletedAt: deleted ? new Date() : null,
+    });
+    await t.prisma.recipe.createMany({
+      data: [
+        ...Array.from({ length: MAX_PERSONAL_RECIPES - 1 }, (_, index) => filler(index, false)),
+        ...Array.from({ length: 5 }, (_, index) => filler(1000 + index, true)),
+      ],
+    });
+
+    // One place is left.
+    await tofuForChicken(account);
+
+    // Another swap, of another ingredient, finds the account full.
+    const meal = account.plan.days[1]!.meals.find((m) => m.mealType === 'lunch')!;
+    const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
+    await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: bowl.id } });
+    const full = plans.applyIngredientSwap(account.user.id, 'en', {
+      planId: account.plan.id,
+      plannedMealId: meal.id,
+      fromIngredientId: await ingredientId('firm-tofu'),
+      toIngredientId: await ingredientId('chickpeas'),
+    });
+    await expect(full).rejects.toMatchObject({ status: 403, response: { error: 'PERSONAL_RECIPE_LIMIT' } });
+    expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId).toBe(bowl.id);
   });
 });

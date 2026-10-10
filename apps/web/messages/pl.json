@@ -274,6 +274,8 @@
     "AI_DRAFT_INVALID": "AI zwróciło niepoprawny szkic przepisu — spróbuj innego opisu.",
     "AI_DRAFT_OFF_TARGET": "Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie.",
     "AI_DRAFT_OFF_DIET": "Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie.",
+    "AI_DRAFT_DAILY_LIMIT": "AI napisało już dla Ciebie tyle przepisów, ile może w ciągu jednego dnia. Spróbuj ponownie jutro.",
+    "PERSONAL_RECIPE_LIMIT": "Masz już tyle własnych przepisów, ile mieści jedno konto. Usuń te, których już nie używasz.",
     "AI_DRAFT_UNKNOWN_INGREDIENT": "AI zaproponowało składnik, którego nie ma w katalogu.",
     "NO_ELIGIBLE_INGREDIENTS": "Żadne składniki nie pasują do diety i alergenów profilu.",
     "OUT_OF_COMPLEXITY_BAND": "Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas.",

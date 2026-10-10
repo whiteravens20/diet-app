@@ -68,6 +68,10 @@ runs on a provider's defaults.
   is nine calls of three recipes or fewer; each call sees what the earlier ones
   wrote, so the run does not repeat itself. A rejected call fails only its own
   recipes.
+- **An account's own recipes are limited.** An account holds at most 200
+  recipes of its own (drafts a model wrote and recipes with a swapped
+  ingredient), and a model writes at most 20 recipes for it in 24 hours,
+  whoever pays for the calls. Neither number is a setting.
 - **An ingredient swap asks no model unless the user ticks the box.** The
   substitute's name then replaces the old one in the text of every language.
   With the box ticked, one call rewords the text in the language the user

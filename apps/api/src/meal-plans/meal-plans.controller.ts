@@ -180,6 +180,7 @@ export class MealPlansController {
 
   /** Apply a substitution: clone the recipe with the swap baked in, repoint the meal. */
   @Post('swap-ingredient/apply')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   applyIngredientSwap(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,

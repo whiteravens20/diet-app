@@ -274,6 +274,8 @@
     "AI_DRAFT_INVALID": "AI returned a malformed recipe draft — try a different prompt.",
     "AI_DRAFT_OFF_TARGET": "The AI's recipe came out far from the calories you asked for — try again.",
     "AI_DRAFT_OFF_DIET": "The AI's recipe does not fit the diet you asked for — try again.",
+    "AI_DRAFT_DAILY_LIMIT": "AI has written as many recipes for you as it may in one day. Try again tomorrow.",
+    "PERSONAL_RECIPE_LIMIT": "You have as many recipes of your own as an account can hold. Delete some you no longer use.",
     "AI_DRAFT_UNKNOWN_INGREDIENT": "AI proposed an ingredient that isn't in our catalogue.",
     "NO_ELIGIBLE_INGREDIENTS": "No ingredients match your diet and allergen settings.",
     "OUT_OF_COMPLEXITY_BAND": "Recipe is outside every complexity band — adjust ingredients, steps, or time.",

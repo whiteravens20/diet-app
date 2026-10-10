@@ -10,6 +10,7 @@ import { aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
+import { MAX_AI_DRAFTS_PER_DAY, MAX_PERSONAL_RECIPES } from './personal-recipes.service.js';
 
 /** The ingredient names a prompt offers, in the order it lists them. */
 const offered = (request: ModelRequest): string[] =>
@@ -331,6 +332,55 @@ describe('drafting a recipe with a model', () => {
 
       expect(recipe.title).toBe('Two line title');
       expect(recipe.ingredients.map((line) => line.note)).toEqual([null, null, null]);
+    });
+  });
+
+  describe('how many recipes a model may write for one account', () => {
+    const plant = (count: number, data: { origin: 'ai' | 'user'; createdAt?: Date; deletedAt?: Date | null }) =>
+      t.prisma.recipe.createMany({
+        data: Array.from({ length: count }, (_, index) => ({
+          title: `Planted ${index}`,
+          description: '',
+          servings: 1,
+          prepMinutes: 1,
+          cookMinutes: 1,
+          createdByUserId: user.id,
+          ...data,
+        })),
+      });
+
+    it('is limited within a day, deleted drafts included, and the model is not asked past the limit', async () => {
+      await plant(MAX_AI_DRAFTS_PER_DAY - 1, { origin: 'ai', deletedAt: new Date() });
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 5 });
+
+      // The last draft of the day.
+      await ask();
+      const res = await t.http().post('/api/recipes/drafts/from-prompt').set(as(user)).send({ profileId: profile.id });
+
+      expect(res.status).toBe(429);
+      expect(res.body.error).toBe('AI_DRAFT_DAILY_LIMIT');
+      expect(t.model.requests).toHaveLength(1);
+    });
+
+    it('counts a day, not a lifetime', async () => {
+      await plant(MAX_AI_DRAFTS_PER_DAY, { origin: 'ai', createdAt: new Date(Date.now() - 25 * 3_600_000) });
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+
+      expect((await ask()).recipe.title).toBe('Scripted bowl');
+    });
+
+    it('does not count the recipes the user made by hand', async () => {
+      await plant(MAX_AI_DRAFTS_PER_DAY, { origin: 'user' });
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+
+      expect((await ask()).recipe.title).toBe('Scripted bowl');
+    });
+
+    it('ends where the account is full, and the model is not asked then either', async () => {
+      await plant(MAX_PERSONAL_RECIPES, { origin: 'user' });
+
+      expect(await refusal(ask())).toMatchObject({ status: 403, error: 'PERSONAL_RECIPE_LIMIT' });
+      expect(t.model.requests).toHaveLength(0);
     });
   });
 });

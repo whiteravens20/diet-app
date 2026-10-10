@@ -97,6 +97,10 @@ export class AiRecipeDraftService {
       });
     }
 
+    // Asked before the model is: a draft the account has no room for, or one
+    // past the day's limit, would be paid for and then thrown away.
+    await this.personalRecipes.assertRoomFor(userId, 'ai');
+
     const dietType = req.dietType ?? profile.dietType;
     // Drafts are always single-serving. The user's per-day kcal target lives
     // on the meal plan, not the recipe — keeping recipes at servings=1 keeps

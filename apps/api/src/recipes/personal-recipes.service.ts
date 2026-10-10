@@ -1,10 +1,16 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Prisma, type Difficulty, type Unit } from '@prisma/client';
 import { computeFingerprint } from '../admin/drafts/fingerprint.js';
 import type { RecipeFacts } from '../engine/recipe-facts.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+
+/** The most recipes of their own one account may hold at a time. */
+export const MAX_PERSONAL_RECIPES = 200;
+
+/** The most recipes a model may write for one account within 24 hours. */
+export const MAX_AI_DRAFTS_PER_DAY = 20;
 
 /** The batch every draft made from personal recipes belongs to: it says nothing about who or when. */
 const QUEUE_BATCH = 'personal-recipes';
@@ -43,12 +49,15 @@ const lock = (tx: Prisma.TransactionClient, key: string): Promise<number> =>
  *
  * A recipe is identified by its fingerprint (see `computeFingerprint`), which
  * is unique per owner: two users may each have the same recipe. Saving one
- * goes through these steps, under a lock on the fingerprint so that two
- * requests for the same recipe cannot both write it:
+ * goes through these steps:
  *
  *  1. the shared library already has it: that recipe is used, nothing is written;
  *  2. the user already has it: theirs is used, and brought back if they had deleted it;
- *  3. otherwise it is written as theirs.
+ *  3. otherwise it is written as theirs, if the account has room for it.
+ *
+ * Two locks make this exact. The saves of one account take turns, so two of
+ * them cannot both take the last place the account has; then the saves of one
+ * recipe take turns, so two requests for it cannot both write it.
  *
  * A personal recipe reaches the curation queue in one way only: a second user
  * comes to own the same recipe, which is the sign that it may be worth sharing.
@@ -67,9 +76,11 @@ export class PersonalRecipesService {
   async save(recipe: PersonalRecipe, avoid: readonly string[] = []): Promise<string> {
     const fingerprint = await this.fingerprintOf(recipe);
     return this.prisma.$transaction(async (tx) => {
+      await lock(tx, `personal-recipes:${recipe.userId}`);
       if (fingerprint === null) {
         // An ingredient without a slug cannot be named across instances, so
         // there is nothing to recognise the recipe by: it is simply written.
+        await this.assertRoom(tx, recipe.userId, recipe.origin);
         return this.write(tx, recipe, null);
       }
       await lock(tx, fingerprint);
@@ -86,10 +97,15 @@ export class PersonalRecipesService {
         select: { id: true, deletedAt: true },
       });
       if (own) {
-        if (own.deletedAt) await tx.recipe.update({ where: { id: own.id }, data: { deletedAt: null } });
+        if (own.deletedAt) {
+          // Brought back, it takes a place again.
+          await this.assertRoom(tx, recipe.userId, 'user');
+          await tx.recipe.update({ where: { id: own.id }, data: { deletedAt: null } });
+        }
         return own.id;
       }
 
+      await this.assertRoom(tx, recipe.userId, recipe.origin);
       const id = await this.write(tx, recipe, fingerprint);
 
       // A second owner is the sign that the recipe may be worth sharing. One
@@ -101,6 +117,14 @@ export class PersonalRecipesService {
       if (others.length > 0) await this.mirror(tx, id, fingerprint, [id, ...others.map((other) => other.id)]);
       return id;
     });
+  }
+
+  /**
+   * Refuse now what `save` would refuse later for a recipe of this origin.
+   * Asked before a model is put to work on a draft there is no room for.
+   */
+  async assertRoomFor(userId: string, origin: PersonalRecipe['origin']): Promise<void> {
+    await this.assertRoom(this.prisma, userId, origin);
   }
 
   /** The fingerprint of a recipe, or null when one of its ingredients has no slug. */
@@ -117,6 +141,35 @@ export class PersonalRecipesService {
       lines.push({ slug, quantity: line.quantity, unit: line.unit });
     }
     return computeFingerprint({ ingredients: lines, mealTypes: recipe.mealTypes, servings: recipe.servings });
+  }
+
+  private async assertRoom(
+    db: Pick<Prisma.TransactionClient, 'recipe'>,
+    userId: string,
+    origin: PersonalRecipe['origin'],
+  ): Promise<void> {
+    const held = await db.recipe.count({ where: { createdByUserId: userId, deletedAt: null } });
+    if (held >= MAX_PERSONAL_RECIPES) {
+      throw new ForbiddenException({
+        error: 'PERSONAL_RECIPE_LIMIT',
+        message: `An account holds at most ${MAX_PERSONAL_RECIPES} recipes of its own. Delete some you no longer use.`,
+      });
+    }
+    if (origin !== 'ai') return;
+    // Deleted drafts count too: deleting one does not hand the place back
+    // within the day, or the limit would bound nothing.
+    const drafted = await db.recipe.count({
+      where: { createdByUserId: userId, origin: 'ai', createdAt: { gte: new Date(Date.now() - 86_400_000) } },
+    });
+    if (drafted >= MAX_AI_DRAFTS_PER_DAY) {
+      throw new HttpException(
+        {
+          error: 'AI_DRAFT_DAILY_LIMIT',
+          message: `A model writes at most ${MAX_AI_DRAFTS_PER_DAY} recipes for one account in 24 hours.`,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
 
   private async write(tx: Prisma.TransactionClient, recipe: PersonalRecipe, fingerprint: string | null): Promise<string> {
