@@ -8,7 +8,7 @@ import { ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useEffect } from 'react';
-import type { Recipe } from '@diet-app/shared';
+import type { PlannedIngredient, Recipe } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,14 +21,13 @@ import { RecipeView } from '@/components/recipe-view';
  */
 export function RecipeModal({
   recipeId,
-  scale = 1,
+  amounts,
   onClose,
 }: {
   recipeId: string | null;
-  /** Multiplier for ingredient amounts — meal-plan rows pass
-   *  `meal.servings / recipe.servings` so the modal shows quantities scaled to
-   *  the planned meal, not the recipe's default servings. */
-  scale?: number;
+  /** The ingredient lines of the planned meal the modal was opened from, so it
+   *  shows what that meal takes, not the recipe's own servings. */
+  amounts?: PlannedIngredient[];
   onClose: () => void;
 }) {
   const t = useTranslations('recipeModal');
@@ -101,7 +100,7 @@ export function RecipeModal({
                     : tDetail('loadFailed')}
                 </p>
               )}
-              {recipe.data && <RecipeView recipe={recipe.data} scale={scale} hideNutrition />}
+              {recipe.data && <RecipeView recipe={recipe.data} amounts={amounts} hideNutrition />}
             </div>
           </motion.div>
         </motion.div>

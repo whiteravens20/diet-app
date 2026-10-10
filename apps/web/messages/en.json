@@ -640,6 +640,24 @@
     "errDelete": "Could not delete the list.",
     "piecePlural": "{count, plural, one {# piece} other {# pieces}}"
   },
+  "units": {
+    "amount": {
+      "g": "{count} g",
+      "ml": "{count} ml",
+      "piece": "{count, plural, one {# piece} other {# pieces}}",
+      "slice": "{count, plural, one {# slice} other {# slices}}",
+      "clove": "{count, plural, one {# clove} other {# cloves}}",
+      "handful": "{count, plural, one {# handful} other {# handfuls}}"
+    },
+    "name": {
+      "g": "g",
+      "ml": "ml",
+      "piece": "pieces",
+      "slice": "slices",
+      "clove": "cloves",
+      "handful": "handfuls"
+    }
+  },
   "mealPlans": {
     "title": "Meal plans",
     "subhead": "Deterministic, calorie-targeted plans — generated per profile.",

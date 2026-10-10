@@ -260,6 +260,15 @@ enum Unit {
   piece
 }
 
+// What one piece of an ingredient is called, for the ingredients people count
+// instead of weigh. Its weight is the ingredient's `gramsPerPiece`.
+enum NaturalUnit {
+  piece
+  slice
+  clove
+  handful
+}
+
 // Provenance for translation rows. CURATED_JSON rows are derived from
 // data/*.json and re-written on every seed; AI / MANUAL rows survive re-seeds
 // so operator-generated translations are not lost when curated data is updated.
@@ -286,6 +295,10 @@ model Ingredient {
   carbsPer100       Float
   gramsPerPiece     Float?
   density           Float?
+  // Set for an ingredient that is counted, not weighed (eggs, slices of bread,
+  // cloves of garlic). Curated in the data; needs `gramsPerPiece`. Quantities
+  // of it are shown, bought and stocked in pieces. See `engine/display.ts`.
+  displayUnit       NaturalUnit?
   allergens         String[]        @default([])
   dietCompatibility String[]        @default([])
   tags              String[]        @default([])

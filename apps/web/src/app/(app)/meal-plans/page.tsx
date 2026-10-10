@@ -13,6 +13,7 @@ import {
   type AiSwapMealResponse,
   type GeneratePlanRequest,
   type MealPlan,
+  type PlannedIngredient,
   type Profile,
   type RebalanceResult,
   type SessionUser,
@@ -635,10 +636,10 @@ function PlanCard({
   // Which meal's ingredient-substitution modal is open, if any. Only catalogue
   // meals (recipe present) can be substituted.
   const [openSub, setOpenSub] = useState<CatalogueMeal | null>(null);
-  // Which recipe is open in the Framer Motion modal, if any, plus the scale
-  // factor so the modal shows ingredient amounts for the planned meal rather
-  // than the recipe's default servings.
-  const [openRecipe, setOpenRecipe] = useState<{ id: string; scale: number } | null>(null);
+  // Which recipe is open in the Framer Motion modal, if any, with the
+  // ingredient lines of the meal it was opened from, so the modal shows what
+  // that meal takes rather than the recipe's own servings.
+  const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[] } | null>(null);
   return (
     <Card className="relative w-full max-w-screen-2xl">
       <div className="flex items-center justify-between gap-4 p-4">
@@ -742,10 +743,7 @@ function PlanCard({
                             <button
                               type="button"
                               onClick={() =>
-                                setOpenRecipe({
-                                  id: m.recipe!.id,
-                                  scale: m.servings / Math.max(m.recipe!.servings, 1),
-                                })
+                                setOpenRecipe({ id: m.recipe!.id, amounts: m.ingredients })
                               }
                               className="font-medium text-primary hover:underline"
                             >
@@ -940,7 +938,7 @@ function PlanCard({
       )}
       <RecipeModal
         recipeId={openRecipe?.id ?? null}
-        scale={openRecipe?.scale ?? 1}
+        amounts={openRecipe?.amounts}
         onClose={() => setOpenRecipe(null)}
       />
     </Card>

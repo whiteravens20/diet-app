@@ -223,6 +223,7 @@ async function applyIngredients(
       carbsPer100: ing.carbsPer100,
       gramsPerPiece: ing.gramsPerPiece ?? null,
       density: ing.density ?? null,
+      displayUnit: ing.displayUnit ?? null,
       allergens: ing.allergens,
       dietCompatibility: ing.dietCompatibility,
       tags: ing.tags,

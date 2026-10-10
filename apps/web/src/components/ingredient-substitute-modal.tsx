@@ -9,7 +9,7 @@ import { useState } from 'react';
 import type {
   AiSuggestIngredientResponse,
   Ingredient,
-  RecipeIngredient,
+  PlannedIngredient,
   SessionUser,
   SwapIngredientRequest,
   SwapIngredientResponse,
@@ -18,17 +18,16 @@ import type {
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { formatIngredientAmount } from '@/lib/ingredient-format';
+import { useAmount } from '@/lib/ingredient-format';
 
 interface PlannedMealLike {
   id: string;
-  servings: number;
   recipe: {
     id: string;
     title: string;
-    servings: number;
-    ingredients: RecipeIngredient[];
   };
+  /** What the meal takes of each ingredient, as the API scaled and rounded it. */
+  ingredients: PlannedIngredient[];
 }
 
 /**
@@ -56,6 +55,7 @@ export function IngredientSubstituteModal({
   const tPickers = useTranslations('pickers');
   const tProf = useTranslations('profileSummary');
   const tFallback = useTranslations('aiFallback');
+  const amount = useAmount();
   const [fromId, setFromId] = useState<string | null>(null);
   const [toId, setToId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -75,7 +75,7 @@ export function IngredientSubstituteModal({
   });
   const aiEnabled = session.data?.aiMode && session.data.aiMode !== 'none';
 
-  const fromLine = meal.recipe.ingredients.find((i) => i.ingredientId === fromId) ?? null;
+  const fromLine = meal.ingredients.find((i) => i.ingredientId === fromId) ?? null;
 
   // Replacement candidates — only fire once the user has typed something.
   const results = useQuery({
@@ -175,8 +175,7 @@ export function IngredientSubstituteModal({
           <section>
             <p className="mb-1 text-sm font-medium">{t('stepPick')}</p>
             <ul className="divide-y divide-border rounded-md border border-border">
-              {meal.recipe.ingredients.map((i) => {
-                const scale = meal.servings / Math.max(meal.recipe.servings, 1);
+              {meal.ingredients.map((i) => {
                 const selected = i.ingredientId === fromId;
                 return (
                   <li key={i.ingredientId}>
@@ -197,7 +196,7 @@ export function IngredientSubstituteModal({
                     >
                       <span>{i.name}</span>
                       <span className="text-xs tabular-nums text-muted-foreground">
-                        {formatIngredientAmount(i, scale)}
+                        {amount(i.display.quantity, i.display.unit)}
                       </span>
                     </button>
                   </li>

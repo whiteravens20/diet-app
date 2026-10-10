@@ -62,7 +62,7 @@ import { modelText, readModelReply } from '../ai/model-json.js';
 import { INGREDIENT_SWAP, MEAL_SWAP, SWAP_REWRITE } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
-import { toRecipeDto } from '../recipes/recipes.service.js';
+import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
 import { PersonalRecipesService } from '../recipes/personal-recipes.service.js';
 import {
   rewriteSwapModeA,
@@ -1838,6 +1838,7 @@ export class MealPlansService {
             recipe: null,
             source: 'USER_CUSTOM' as const,
             customName: m.customName ?? null,
+            ingredients: [],
             servings: m.servings,
             quantityScale: m.quantityScale,
             eatenAt,
@@ -1857,6 +1858,8 @@ export class MealPlansService {
           id: m.id,
           mealType: m.mealType as MealType,
           recipe,
+          // The recipe's lines are for `recipe.servings` servings; the meal takes `factor` of one.
+          ingredients: toPlannedIngredients(m.recipe.ingredients, factor / Math.max(1, m.recipe.servings), locale),
           source: 'CATALOGUE' as const,
           customName: null,
           servings: m.servings,

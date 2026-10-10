@@ -2,7 +2,8 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { Locale, Recipe, RecipeSearchPage } from '@diet-app/shared';
+import type { Locale, PlannedIngredient, Recipe, RecipeSearchPage } from '@diet-app/shared';
+import { displayAmount, type DisplayedIngredient } from '../engine/display.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { recipesForDiet } from './diet-where.js';
 
@@ -217,6 +218,36 @@ export function pickIngredient(
   return match?.name ?? fallback;
 }
 
+/** One ingredient line of a recipe row, with what is needed to name and show it. */
+export interface RecipeLine {
+  ingredientId: string;
+  quantity: number;
+  unit: 'g' | 'ml' | 'piece';
+  note: string | null;
+  ingredient: DisplayedIngredient & {
+    name: string;
+    translations?: { locale: string; name: string }[];
+  };
+}
+
+/**
+ * The lines of a recipe in the amounts one planned meal takes: each scaled by
+ * `factor` (the meal's servings over the recipe's), exact and as it is shown.
+ */
+export function toPlannedIngredients(lines: readonly RecipeLine[], factor: number, locale: Locale): PlannedIngredient[] {
+  return lines.map((line) => {
+    const quantity = line.quantity * factor;
+    return {
+      ingredientId: line.ingredientId,
+      name: pickIngredient(locale, line.ingredient.translations, line.ingredient.name),
+      quantity,
+      unit: line.unit,
+      display: displayAmount(quantity, line.unit, line.ingredient),
+      note: line.note,
+    };
+  });
+}
+
 /** Prisma recipe row (+ ingredients + translations) → shared Recipe contract. */
 export function toRecipeDto(
   row: {
@@ -238,17 +269,7 @@ export function toRecipeDto(
     carbsPerServing: number;
     reuseScore: number;
     translations?: { locale: string; title: string; description: string; steps: string[] }[];
-    ingredients: {
-      ingredientId: string;
-      quantity: number;
-      unit: 'g' | 'ml' | 'piece';
-      note: string | null;
-      ingredient: {
-        name: string;
-        gramsPerPiece: number | null;
-        translations?: { locale: string; name: string }[];
-      };
-    }[];
+    ingredients: RecipeLine[];
   },
   locale: Locale,
 ): Recipe {
@@ -269,7 +290,7 @@ export function toRecipeDto(
       name: pickIngredient(locale, i.ingredient.translations, i.ingredient.name),
       quantity: i.quantity,
       unit: i.unit,
-      gramsPerPiece: i.ingredient.gramsPerPiece,
+      display: displayAmount(i.quantity, i.unit, i.ingredient),
       note: i.note,
     })),
     steps: recipeText.steps,

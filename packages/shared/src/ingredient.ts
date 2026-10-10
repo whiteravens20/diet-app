@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
-import { Allergen, DietType, ProductCategory, Unit } from './enums.js';
+import { Allergen, DietType, NaturalUnit, ProductCategory, Unit } from './enums.js';
 
 /**
  * A curated product / ingredient record. This is **static seed data** and the
@@ -22,6 +22,11 @@ export const Ingredient = z.object({
   gramsPerPiece: z.number().positive().nullable().default(null),
   /** g per ml — enables volume↔mass conversion for liquids. */
   density: z.number().positive().nullable().default(null),
+  /**
+   * Set for an ingredient that is counted, not weighed: what one piece of it
+   * is called. Its quantities are shown in pieces of `gramsPerPiece` grams.
+   */
+  displayUnit: NaturalUnit.nullable().default(null),
   allergens: z.array(Allergen).default([]),
   /** Diet types this ingredient is compatible with. */
   dietCompatibility: z.array(DietType).default([]),

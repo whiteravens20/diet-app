@@ -73,6 +73,29 @@ export type ProductCategory = z.infer<typeof ProductCategory>;
 export const Unit = z.enum(['g', 'ml', 'piece']);
 export type Unit = z.infer<typeof Unit>;
 
+/**
+ * What one piece of an ingredient is called, for the ingredients people count
+ * instead of weigh: an egg (`piece`), a `slice` of bread, a `clove` of garlic,
+ * a `handful` of spinach. Its weight is the ingredient's `gramsPerPiece`.
+ */
+export const NaturalUnit = z.enum(['piece', 'slice', 'clove', 'handful']);
+export type NaturalUnit = z.infer<typeof NaturalUnit>;
+
+/** Every unit a quantity can be shown in. */
+export const DisplayUnit = z.enum(['g', 'ml', ...NaturalUnit.options]);
+export type DisplayUnit = z.infer<typeof DisplayUnit>;
+
+/**
+ * A quantity as a person reads it: rounded by the API (grams and millilitres
+ * to the nearest 5 above 10, pieces to halves) and in the unit the ingredient
+ * is handled in. The exact quantity next to it is what the engine works with.
+ */
+export const DisplayAmount = z.object({
+  quantity: z.number().min(0),
+  unit: DisplayUnit,
+});
+export type DisplayAmount = z.infer<typeof DisplayAmount>;
+
 /** Recognised allergen flags. */
 export const Allergen = z.enum([
   'gluten',

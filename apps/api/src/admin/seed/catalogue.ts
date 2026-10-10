@@ -9,7 +9,7 @@
  * seeder can load, and a broken file stops an update while the database is
  * still untouched.
  */
-import { Allergen, DietType, MealType, ProductCategory, Unit, type RecipeDietTag } from '@diet-app/shared';
+import { Allergen, DietType, MealType, NaturalUnit, ProductCategory, Unit, type RecipeDietTag } from '@diet-app/shared';
 import { z } from 'zod';
 import { recipeFacts, type FactsLine } from '../../engine/recipe-facts.js';
 import { IngredientOverrideFile } from '../drafts/ship/ingredient-overrides.writer.js';
@@ -38,6 +38,8 @@ const IngredientSeed = z.object({
   // A zero factor would turn every converted quantity into zero or infinity.
   gramsPerPiece: z.number().positive().optional(),
   density: z.number().positive().optional(),
+  // What a piece is called, for an ingredient that is counted instead of weighed.
+  displayUnit: NaturalUnit.optional(),
   allergens: z.array(Allergen),
   dietCompatibility: z.array(DietType),
   tags: z.array(z.string()),
@@ -211,6 +213,14 @@ export function readCatalogue(dir: string = resolveDataDir()): {
   );
   withinFile('ingredients.json', curated);
   withinFile('ingredients.generated.json', generated);
+  // An ingredient can only be counted in pieces when a piece has a weight.
+  for (const [file, list] of [['ingredients.json', curated], ['ingredients.generated.json', generated]] as const) {
+    list.forEach((row, i) => {
+      if (row.displayUnit && row.gramsPerPiece === undefined) {
+        problems.push({ file, path: `[${i}].displayUnit`, message: `"${identity(row)}" is counted in ${row.displayUnit}s but has no gramsPerPiece` });
+      }
+    });
+  }
 
   const bySlug = new Map<string, CatalogueIngredient>();
   const byName = new Map<string, CatalogueIngredient>();

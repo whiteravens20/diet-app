@@ -640,6 +640,24 @@
     "errDelete": "Nie udało się usunąć listy.",
     "piecePlural": "{count, plural, one {# sztuka} few {# sztuki} many {# sztuk} other {# sztuki}}"
   },
+  "units": {
+    "amount": {
+      "g": "{count} g",
+      "ml": "{count} ml",
+      "piece": "{count, plural, one {# sztuka} few {# sztuki} many {# sztuk} other {# sztuki}}",
+      "slice": "{count, plural, one {# kromka} few {# kromki} many {# kromek} other {# kromki}}",
+      "clove": "{count, plural, one {# ząbek} few {# ząbki} many {# ząbków} other {# ząbka}}",
+      "handful": "{count, plural, one {# garść} few {# garście} many {# garści} other {# garści}}"
+    },
+    "name": {
+      "g": "g",
+      "ml": "ml",
+      "piece": "szt.",
+      "slice": "kromki",
+      "clove": "ząbki",
+      "handful": "garście"
+    }
+  },
   "mealPlans": {
     "title": "Plany posiłków",
     "subhead": "Plany dopasowane do celu kalorycznego — układane osobno dla każdego profilu.",

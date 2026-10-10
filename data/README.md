@@ -28,6 +28,26 @@ any recipe. A `dietTags` or `allergens` key written into a recipe is ignored.
 The recipe library is the union of `data/recipes.json` (hand-curated anchors) and
 `data/recipes/*.json` (curation-queue batches approved in-app and shipped).
 
+## Ingredients that are counted, not weighed
+
+Nobody cooks with "110 g of egg". An ingredient with a `displayUnit` is shown,
+bought and kept in the pantry in pieces of its own:
+
+| `displayUnit` | For | In `ingredients.json` |
+|---|---|---|
+| `piece` | what is used whole | egg, banana, avocado, apple, orange, onion, tortilla wrap |
+| `slice` | bread | whole-grain bread |
+| `clove` | garlic | garlic |
+| `handful` | leafy greens | spinach |
+
+It needs a `gramsPerPiece`: the weight of one piece, slice, clove or handful.
+Nutrition is still worked out from grams, and a recipe may write the line in
+grams or in pieces; only what is shown changes (`2 slices`, not `80 g`). An
+amount too small to be half a piece stays in grams. Vegetables sold by weight
+(tomato, potato, carrot) have a `gramsPerPiece` for recipes that count them, but
+no `displayUnit`: they are shown in grams. The lint refuses a `displayUnit`
+without a `gramsPerPiece`.
+
 See [docs/ops/curation-shipping.md](../docs/ops/curation-shipping.md) for how the
 curation queue ships its batches.
 

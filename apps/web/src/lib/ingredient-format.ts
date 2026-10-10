@@ -1,6 +1,25 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { RecipeIngredient } from '@diet-app/shared';
+import { useTranslations } from 'next-intl';
+import type { DisplayUnit } from '@diet-app/shared';
+
+/**
+ * Spell a quantity in the reader's language: "215 g", "2 slices", "1 handful".
+ *
+ * The API decides the number and the unit: it rounds grams to kitchen steps
+ * and counts eggs, bread and garlic in pieces of their own. Nothing here
+ * rounds or converts, so every client shows the same amounts.
+ */
+export function useAmount(): (quantity: number, unit: DisplayUnit) => string {
+  const t = useTranslations('units');
+  return (quantity, unit) => t(`amount.${unit}`, { count: quantity });
+}
+
+/** The name of a unit on its own, for the label next to a number field. */
+export function useUnitName(): (unit: DisplayUnit) => string {
+  const t = useTranslations('units');
+  return (unit) => t(`name.${unit}`);
+}
 
 /**
  * Round a mass/volume amount to a kitchen-realistic increment. Above 10 the
@@ -10,30 +29,4 @@ import type { RecipeIngredient } from '@diet-app/shared';
 export function roundKitchenAmount(value: number): number {
   if (value <= 10) return Math.round(value);
   return Math.round(value / 5) * 5;
-}
-
-/**
- * Render a recipe ingredient as a concrete shopping/cooking amount.
- *
- * Pieces are always converted to grams when the ingredient carries a
- * `gramsPerPiece` weight — fractional pieces ("0.75 banana") are confusing,
- * grams aren't. Falls back to the raw unit only when no conversion is known.
- *
- * @param scale  multiplier (e.g. plannedServings / recipeServings); defaults to 1.
- */
-export function formatIngredientAmount(
-  i: Pick<RecipeIngredient, 'quantity' | 'unit' | 'gramsPerPiece'>,
-  scale = 1,
-): string {
-  const qty = i.quantity * scale;
-  if (i.unit === 'piece' && i.gramsPerPiece) {
-    return `${roundKitchenAmount(qty * i.gramsPerPiece)} g`;
-  }
-  if (i.unit === 'piece') {
-    // Fallback: no per-piece weight in the curated DB — keep pieces, but
-    // round to a quarter so we never show seven decimal places.
-    const rounded = Math.round(qty * 4) / 4;
-    return `${rounded} ${rounded === 1 ? 'piece' : 'pieces'}`;
-  }
-  return `${roundKitchenAmount(qty)} ${i.unit}`;
 }

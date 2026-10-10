@@ -6,11 +6,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { Profile, Recipe } from '@diet-app/shared';
+import type { PlannedIngredient, Profile, Recipe } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatIngredientAmount } from '@/lib/ingredient-format';
+import { useAmount } from '@/lib/ingredient-format';
 
 interface FavoriteRow {
   id: string;
@@ -22,18 +22,19 @@ interface FavoriteRow {
  * the Framer Motion RecipeModal opened from meal-plan rows — the page
  * wrapper owns navigation chrome (back link), this owns the content.
  *
- * `scale` multiplies ingredient quantities so the meal-plan modal can show
- * amounts for the meal's planned servings rather than the recipe's default.
- * Per-serving nutrition is unchanged — one serving is one eat regardless of
- * how many servings the meal occupies.
+ * `amounts` are the ingredient lines of one planned meal, as the API scaled
+ * them: the meal-plan modal passes them so the list shows what that meal
+ * takes, not what the recipe says for its own number of servings. Per-serving
+ * nutrition is unchanged — one serving is one eat regardless of how many
+ * servings the meal occupies.
  */
 export function RecipeView({
   recipe,
-  scale = 1,
+  amounts,
   hideNutrition = false,
 }: {
   recipe: Recipe;
-  scale?: number;
+  amounts?: PlannedIngredient[];
   /** Meal-plan modal hides the per-serving nutrition card — those numbers
    *  apply to one default serving and would mislead next to ingredient
    *  quantities already scaled to the planned meal. Prep/cook time is still
@@ -45,6 +46,7 @@ export function RecipeView({
   const tMeal = useTranslations('enums.mealType');
   const tDiet = useTranslations('enums.dietType');
   const tAllergen = useTranslations('enums.allergen');
+  const amount = useAmount();
   const qc = useQueryClient();
 
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
@@ -245,7 +247,7 @@ export function RecipeView({
           )}
           {prefsError && <p className="mb-2 text-xs text-destructive">{prefsError}</p>}
           <ul className="space-y-1 text-sm">
-            {recipe.ingredients.map((i) => {
+            {(amounts ?? recipe.ingredients).map((i) => {
               const isFav = favIngredientSet.has(i.ingredientId);
               const isExcl = excludedIngredientSet.has(i.ingredientId);
               return (
@@ -255,7 +257,7 @@ export function RecipeView({
                     {i.note ? <span className="text-muted-foreground"> — {i.note}</span> : null}
                   </span>
                   <span className="tabular-nums text-muted-foreground">
-                    {formatIngredientAmount(i, scale)}
+                    {amount(i.display.quantity, i.display.unit)}
                   </span>
                   {activePrefsProfile && (
                     <span className="flex items-center gap-1">

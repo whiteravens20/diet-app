@@ -66,6 +66,7 @@ export function toIngredientDto(
     carbsPer100: number;
     gramsPerPiece: number | null;
     density: number | null;
+    displayUnit: Ingredient['displayUnit'];
     allergens: string[];
     dietCompatibility: string[];
     tags: string[];
@@ -88,6 +89,7 @@ export function toIngredientDto(
     carbsPer100: row.carbsPer100,
     gramsPerPiece: row.gramsPerPiece,
     density: row.density,
+    displayUnit: row.displayUnit,
     allergens: row.allergens as Ingredient['allergens'],
     dietCompatibility: row.dietCompatibility as Ingredient['dietCompatibility'],
     tags: row.tags,

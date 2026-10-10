@@ -8,6 +8,7 @@ import {
   Complexity,
   Cuisine,
   DietType,
+  DisplayAmount,
   MealType,
   Unit,
 } from './enums.js';
@@ -21,8 +22,8 @@ export const RecipeIngredient = z.object({
   /** Quantity in the given unit; the engine converts to the canonical unit. */
   quantity: z.number().min(0),
   unit: Unit,
-  /** g per piece — when present, UIs render the line in grams. */
-  gramsPerPiece: z.number().min(0).nullable().default(null),
+  /** The quantity as it is shown: rounded, in grams, millilitres or pieces of the ingredient. */
+  display: DisplayAmount,
   /** Optional free-text note, e.g. "diced", "to taste". */
   note: z.string().nullable().default(null),
 });

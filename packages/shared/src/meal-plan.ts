@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { AiGenerationMeta } from './ai.js';
-import { DietType, MealType } from './enums.js';
+import { DietType, DisplayAmount, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 import { Macros, Nutrition } from './nutrition.js';
 import { Recipe } from './recipe.js';
@@ -71,11 +71,33 @@ export const GeneratePlanRequest = z.object({
 export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
 
 /** A single scheduled meal within a plan day. */
+/**
+ * One ingredient of a planned meal, in the amount this meal uses: the recipe's
+ * line scaled by the meal's servings and by the rebalancer's multiplier.
+ */
+export const PlannedIngredient = z.object({
+  ingredientId: z.string().uuid(),
+  name: z.string(),
+  /** The exact amount, in `unit`. */
+  quantity: z.number().min(0),
+  unit: Unit,
+  /** The amount as it is shown: rounded, in grams, millilitres or pieces of the ingredient. */
+  display: DisplayAmount,
+  note: z.string().nullable(),
+});
+export type PlannedIngredient = z.infer<typeof PlannedIngredient>;
+
 export const PlannedMeal = z.object({
   id: z.string().uuid(),
   mealType: MealType,
   /** Null for a user-authored custom meal (it carries no catalogue recipe). */
   recipe: Recipe.nullable(),
+  /**
+   * What this meal takes of each ingredient. `recipe.ingredients` is the
+   * recipe as written, for its own number of servings; these lines are scaled
+   * to the meal, so no client has to scale or round. Empty for a custom meal.
+   */
+  ingredients: z.array(PlannedIngredient),
   /** `CATALOGUE` = from the recipe library; `USER_CUSTOM` = user-authored. */
   source: z.enum(['CATALOGUE', 'USER_CUSTOM']),
   /** Display name for a custom meal (null for catalogue meals — use the recipe). */
