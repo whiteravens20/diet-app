@@ -1099,6 +1099,32 @@ export class MealPlansService {
     const perServing = facts.perServing;
     const variantAllergens = facts.allergens;
 
+    // The substitute was judged as an ingredient; the gate judges what the
+    // meal becomes. A recipe can stop fitting a diet through quantities alone:
+    // a low-carbohydrate dish with rice in place of chicken is no longer one.
+    // What the meal already was by the user's own choice (an off-diet
+    // favourite, a recipe of another meal) is not held against the swap.
+    assertMayEnter(
+      {
+        id: recipe.id,
+        mealTypes: recipe.mealTypes,
+        dietTags: facts.dietTags,
+        allergens: facts.allergens,
+        createdByUserId: userId,
+        deletedAt: null,
+        retiredAt: null,
+        ingredients: variantIngredients,
+      },
+      // The recipe being replaced is not a candidate, so its avoid mark does not apply to the variant.
+      { ...(await restrictionsFor(this.prisma, meal.day.plan)), avoidedRecipeIds: [] },
+      meal.mealType,
+      'INVALID_SUBSTITUTION',
+      {
+        diet: !fitsDiet(recipe.dietTags, meal.day.plan.dietType),
+        meal: !recipe.mealTypes.includes(meal.mealType),
+      },
+    );
+
     // Fingerprint dedup — see admin/drafts/fingerprint.ts + dedup.ts. The
     // transaction below holds an advisory lock on the fingerprint so two
     // racing swaps producing the same variant serialise: the loser hits the

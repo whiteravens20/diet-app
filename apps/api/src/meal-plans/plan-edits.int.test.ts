@@ -214,6 +214,43 @@ describe('editing a plan', () => {
       expect(plannedIds).not.toContain(variant.id);
     });
 
+    it('refuses a substitution that would take the meal out of the diet of the plan', async () => {
+      // A low-carbohydrate plan with a low-carbohydrate dinner of the user's own.
+      await t.prisma.mealPlan.update({ where: { id: plan.id }, data: { dietType: 'low_carb' } });
+      const chicken = await ingredientId('chicken-breast');
+      const oil = await ingredientId('olive-oil');
+      const own = await t.prisma.recipe.create({
+        data: {
+          title: 'Chicken in oil',
+          description: 'Low in carbohydrate.',
+          servings: 1,
+          mealTypes: ['lunch'],
+          // What the engine works out for chicken and oil: no carbohydrate at all.
+          dietTags: ['low_carb', 'keto'],
+          steps: ['Fry.', 'Serve.'],
+          prepMinutes: 5,
+          cookMinutes: 10,
+          origin: 'ai',
+          caloriesPerServing: 320,
+          createdByUserId: user.id,
+          ingredients: { create: [{ ingredientId: chicken, quantity: 200, unit: 'g' }, { ingredientId: oil, quantity: 10, unit: 'ml' }] },
+        },
+      });
+      const meal = plan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
+      await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: own.id } });
+
+      // Rice may appear in a low-carbohydrate recipe; a dish that is mostly rice is not one.
+      const swap = plans.applyIngredientSwap(user.id, 'en', {
+        planId: plan.id,
+        plannedMealId: meal.id,
+        fromIngredientId: chicken,
+        toIngredientId: await ingredientId('white-rice'),
+      });
+
+      await expect(swap).rejects.toMatchObject({ status: 400, response: { error: 'INVALID_SUBSTITUTION', violations: ['off_diet'] } });
+      expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId).toBe(own.id);
+    });
+
     it('stores the nutrition the engine works out for the variant', async () => {
       const variant = await substitute(await planned('tofu-rice-bowl'), 'firm-tofu', 'chicken-breast');
       const lines = await t.prisma.recipeIngredient.findMany({
