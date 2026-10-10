@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adminApi, type UsdaImportRunnerState } from '@/lib/admin-api';
@@ -87,5 +88,37 @@ describe('the food import card', () => {
 
     expect(await screen.findByText('Import failed: Unexpected end of JSON input')).toBeInTheDocument();
     expect(screen.getAllByText(/Unexpected end of JSON input/)).toHaveLength(1);
+  });
+
+  it('lists the foods a finished run left out, a food the source lists twice included', async () => {
+    const complaints = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await renderAfter({
+      status: 'done',
+      kept: 310,
+      result: {
+        kept: 310,
+        skipped: 4,
+        excluded: 21,
+        refused: 3,
+        refusals: [
+          { name: 'Beans, snap, green, raw', reason: 'no value for carbohydrate' },
+          { name: 'Beans, snap, green, raw', reason: 'no energy' },
+          { name: 'Wine, table, red', reason: '85 kcal stated, 11.6 kcal from its protein, fat and carbohydrate' },
+        ],
+        totalPages: 2,
+        outFile: '/app/data/ingredients.generated.json',
+        dataTypes: 'Foundation',
+        demoKey: true,
+      },
+    });
+
+    expect(await screen.findByText('Done. Wrote 310 ingredients · 4 listed twice · excluded 21 by category.')).toBeInTheDocument();
+    await userEvent.click(screen.getByText(/^3 foods were left out/));
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Beans, snap, green, raw: no value for carbohydrate',
+      'Beans, snap, green, raw: no energy',
+      'Wine, table, red: 85 kcal stated, 11.6 kcal from its protein, fat and carbohydrate',
+    ]);
+    expect(complaints).not.toHaveBeenCalled();
   });
 });

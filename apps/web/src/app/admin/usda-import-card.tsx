@@ -153,8 +153,9 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
               <details className="text-xs text-muted-foreground">
                 <summary className="cursor-pointer">{t('refusedSummary', { count: run.result.refused })}</summary>
                 <ul className="mt-1 max-h-48 space-y-0.5 overflow-y-auto">
-                  {run.result.refusals.map((refusal) => (
-                    <li key={refusal.name}>
+                  {/* The source lists some foods more than once: a name is no key. */}
+                  {run.result.refusals.map((refusal, index) => (
+                    <li key={index}>
                       {refusal.name}: {refusal.reason}
                     </li>
                   ))}
