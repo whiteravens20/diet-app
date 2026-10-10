@@ -9,8 +9,9 @@
  */
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DietType, MealType, fitsDiet } from '@diet-app/shared';
+import { DietType, MealType } from '@diet-app/shared';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
+import { COVERAGE_FLOOR, COVERAGE_TARGET, recipesPerDietAndMeal } from '../src/engine/coverage.js';
 
 const dataDir = join(dirname(fileURLToPath(import.meta.url)), '../../../data');
 
@@ -33,13 +34,22 @@ console.log(
 // How many recipes each diet can draw on for each meal. The diets are worked
 // out from the ingredients, so this is what a plan really has to choose from.
 const slots = MealType.options;
+const coverage = recipesPerDietAndMeal(catalogue.recipes.map((r) => ({ dietTags: r.dietTags, mealTypes: r.seed.mealTypes })));
+const diets = DietType.options.filter((diet) => diet !== 'custom');
 console.log(`\n  recipes per diet and meal\n  ${''.padEnd(14)}${slots.map((slot) => slot.padStart(17)).join('')}`);
-for (const diet of DietType.options) {
-  if (diet === 'custom') continue;
-  const counts = slots.map(
-    (slot) => catalogue.recipes.filter((r) => r.seed.mealTypes.includes(slot) && fitsDiet(r.dietTags, diet)).length,
-  );
-  console.log(`  ${diet.padEnd(14)}${counts.map((count) => String(count).padStart(17)).join('')}`);
+for (const diet of diets) {
+  console.log(`  ${diet.padEnd(14)}${slots.map((slot) => String(coverage[diet][slot]).padStart(17)).join('')}`);
 }
+
+// A cell under the floor is a diet no plan can be made for, or one that
+// serves the same dish every day. The floor rises as recipes are added.
+const thin = diets.flatMap((diet) => slots.filter((slot) => coverage[diet][slot] < COVERAGE_FLOOR).map((slot) => `${diet} ${slot}: ${coverage[diet][slot]}`));
+if (thin.length > 0) {
+  console.error(`\n✗ ${thin.length} diet and meal pair(s) have fewer than ${COVERAGE_FLOOR} recipe(s):`);
+  for (const cell of thin) console.error(`  ${cell}`);
+  process.exit(1);
+}
+const short = diets.reduce((sum, diet) => sum + slots.filter((slot) => coverage[diet][slot] < COVERAGE_TARGET).length, 0);
+console.log(`\n  every pair has at least ${COVERAGE_FLOOR}; ${short} of ${diets.length * slots.length} are still under the ${COVERAGE_TARGET} a release needs`);
 
 console.log('\n✓ Curated data is valid.');
