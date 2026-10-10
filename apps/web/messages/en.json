@@ -748,6 +748,16 @@
     "customChip": "Custom",
     "customMacrosNote": "Custom meal — macros entered by you.",
     "dietOverrideChip": "Off-diet",
+    "conflictChip": {
+      "allergen": "Allergen",
+      "excluded_ingredient": "Skipped ingredient",
+      "avoided": "Marked to avoid"
+    },
+    "conflictHint": {
+      "allergen": "This recipe holds an allergen the profile now avoids. Swap the meal.",
+      "excluded_ingredient": "This recipe uses an ingredient the profile now skips. Swap the meal or the ingredient.",
+      "avoided": "This recipe is marked to avoid for the profile. Swap the meal."
+    },
     "offDietTag": "off-diet",
     "autoBalancedChip": "auto-balanced ×{scale}",
     "showAllFavorites": "Show all my favourites (any diet & meal time)",

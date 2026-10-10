@@ -760,6 +760,16 @@ function PlanCard({
                               {t('dietOverrideChip')}
                             </span>
                           )}
+                          {/* What the profile has ruled out since this meal was planned: the plan is not rewritten, it says so. */}
+                          {m.restrictionConflicts.map((conflict) => (
+                            <span
+                              key={conflict}
+                              title={t(`conflictHint.${conflict}`)}
+                              className="ml-2 rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
+                            >
+                              {t(`conflictChip.${conflict}`)}
+                            </span>
+                          ))}
                           {m.quantityScale !== 1 && (
                             <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
                               {t('autoBalancedChip', { scale: m.quantityScale.toFixed(2) })}

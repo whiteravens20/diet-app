@@ -748,6 +748,16 @@
     "customChip": "Własny",
     "customMacrosNote": "Własny posiłek — makroskładniki wpisane przez Ciebie.",
     "dietOverrideChip": "Spoza diety",
+    "conflictChip": {
+      "allergen": "Alergen",
+      "excluded_ingredient": "Pomijany składnik",
+      "avoided": "Do unikania"
+    },
+    "conflictHint": {
+      "allergen": "Ten przepis zawiera alergen, którego profil teraz unika. Wymień posiłek.",
+      "excluded_ingredient": "Ten przepis zawiera składnik, który profil teraz pomija. Wymień posiłek albo składnik.",
+      "avoided": "Ten przepis jest w profilu oznaczony do unikania. Wymień posiłek."
+    },
     "offDietTag": "spoza diety",
     "autoBalancedChip": "przeliczono ×{scale}",
     "showAllFavorites": "Pokaż wszystkie ulubione (każda dieta i pora)",
