@@ -1040,6 +1040,12 @@
     "carbs": "Węglowodany",
     "kcal": "kcal"
   },
+  "catalogue": {
+    "none": "Ta instancja nie ma przepisu w diecie „{diet}” na co najmniej jeden z {count} posiłków dziennie, więc nie ułoży planu. {advice, select, fewer {Wybierz inną dietę albo najwyżej {fewer} posiłki dziennie.} other {Wybierz inną dietę.}}",
+    "thin": "W diecie „{diet}” na jeden z {count} posiłków dziennie {recipes, plural, one {jest tylko # przepis} few {są tylko # przepisy} many {jest tylko # przepisów} other {jest tylko # przepisu}}: plany będą często powtarzać to samo danie.",
+    "dietNone": "{diet} (brak przepisów)",
+    "dietThin": "{diet} (mało przepisów)"
+  },
   "profile": {
     "title": "Profile",
     "subhead": "Profil to dane, z których liczony jest Twój cel kaloryczny. Konto może mieć do {max} profili — np. po jednym na członka rodziny albo do porównania różnych podejść do diety. Edycja profilu przelicza jego cele; usunięcie kasuje też powiązane plany posiłków i listy zakupów.",

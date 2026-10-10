@@ -5,9 +5,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Profile, UnfilledMeal } from '@diet-app/shared';
+import type { CatalogueDepth, Profile, UnfilledMeal } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
-import { aPublicConfig } from '@/testing/public-config';
+import { aDepth, aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import MealPlansPage from './page';
 
@@ -42,13 +42,13 @@ const profile: Profile = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
-/** The page of somebody with that one profile and no plan yet. */
-async function renderPage() {
+/** The page of somebody with that one profile and no plan yet, on an instance whose catalogue has `depth`. */
+async function renderPage(depth: CatalogueDepth = aDepth(9)) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve((path === '/profiles' ? [profile] : path === '/users/me' ? { aiMode: 'none' } : []) as never),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(['config'], aPublicConfig());
+  client.setQueryData(['config'], aPublicConfig({ catalogue: { depth } }));
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>
@@ -68,9 +68,31 @@ async function refusedWith(details: UnfilledMeal) {
   await userEvent.click(generate);
 }
 
-describe('the plan page, when a plan is refused for lack of a recipe', () => {
+describe('the plan page, where the catalogue is short of recipes', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('warns on the form when the profile\'s diet has no recipe for one of its meals', async () => {
+    const depth = aDepth(9);
+    depth.vegan = { 2: 9, 3: 9, 4: 0, 5: 0 };
+    await renderPage(depth);
+
+    expect(screen.getByRole('status').textContent).toContain('so it cannot make a plan. Choose another diet, or no more than 3 meals a day.');
+  });
+
+  it('warns that plans will repeat when one of the meals has few', async () => {
+    const depth = aDepth(9);
+    depth.vegan['4'] = 2;
+    await renderPage(depth);
+
+    expect(screen.getByRole('status').textContent).toContain('has only 2 recipes to choose from');
+  });
+
+  it('says nothing on the form when there are enough', async () => {
+    await renderPage();
+
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('names the meal and the diet a refused plan had no recipe for, and what can be changed', async () => {

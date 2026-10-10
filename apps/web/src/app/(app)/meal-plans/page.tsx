@@ -33,6 +33,7 @@ import { EmptyState } from '@/components/empty-state';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
 import { PageBanner } from '@/components/page-banner';
+import { SupplyNote } from '@/components/supply-note';
 import { IMAGERY } from '@/lib/imagery';
 import { CustomMealModal } from './custom-meal-modal';
 import {
@@ -390,6 +391,7 @@ function MealPlansContent() {
               value={advanced}
               onChange={setAdvanced}
             />
+            {active && <SupplyNote diet={active.dietType} mealCount={active.mealCount} />}
             <Button type="submit" disabled={generate.isPending}>
               {generate.isPending ? t('generating') : t('generateButton')}
             </Button>

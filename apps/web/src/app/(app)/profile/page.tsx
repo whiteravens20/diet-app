@@ -7,21 +7,25 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import {
   MAX_PROFILES_PER_ACCOUNT,
+  type DietType,
   type Profile,
   type ProfileInput,
   type WeightReminderCadence,
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
+import { supplyOf } from '@/lib/catalogue';
+import { useConfig } from '@/lib/use-config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AllergenPicker } from '@/components/allergen-picker';
 import { IngredientPicker } from '@/components/ingredient-picker';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SupplyNote } from '@/components/supply-note';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
-const DIET_TYPES = [
+const DIET_TYPES: readonly DietType[] = [
   'balanced',
   'high_protein',
   'low_carb',
@@ -29,7 +33,7 @@ const DIET_TYPES = [
   'vegan',
   'keto',
   'mediterranean',
-] as const;
+];
 
 const ACTIVITY_LEVELS = [
   'sedentary',
@@ -304,19 +308,7 @@ export default function ProfilePage() {
                   ))}
                 </select>
               </Field>
-              <Field label={t('dietType')}>
-                <select
-                  name="dietType"
-                  className={selectClass}
-                  defaultValue={editing?.dietType ?? 'balanced'}
-                >
-                  {DIET_TYPES.map((d) => (
-                    <option key={d} value={d}>
-                      {tDiet(d)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              <DietAndMealCount diet={editing?.dietType ?? 'balanced'} mealCount={editing?.mealCount ?? 3} />
               <Field label={t('weeklyLossTarget')}>
                 <select
                   name="weeklyLossTarget"
@@ -338,16 +330,6 @@ export default function ProfilePage() {
                   max={6000}
                   placeholder={t('auto')}
                   defaultValue={editing?.manualCalorieTarget ?? ''}
-                />
-              </Field>
-              <Field label={t('mealsPerDay')}>
-                <Input
-                  name="mealCount"
-                  type="number"
-                  required
-                  min={2}
-                  max={5}
-                  defaultValue={editing?.mealCount ?? 3}
                 />
               </Field>
               <Field
@@ -477,5 +459,59 @@ export default function ProfilePage() {
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * The diet and the number of meals a day. Each diet is marked when the
+ * catalogue has no recipe, or few, for one of that many meals, and the chosen
+ * pair gets a line saying what that means for a plan.
+ */
+function DietAndMealCount(initial: { diet: DietType; mealCount: number }) {
+  const t = useTranslations('profile');
+  const tCatalogue = useTranslations('catalogue');
+  const tDiet = useTranslations('enums.dietType');
+  const depth = useConfig().data?.catalogue.depth;
+  // The fields stay the form's own; these follow them for the marks.
+  const [diet, setDiet] = useState(initial.diet);
+  const [mealCount, setMealCount] = useState(initial.mealCount);
+  // A profile keeps the diet it has, also one this form does not offer.
+  const diets = DIET_TYPES.includes(initial.diet) ? DIET_TYPES : [...DIET_TYPES, initial.diet];
+  return (
+    <>
+      <Field label={t('dietType')}>
+        <select
+          name="dietType"
+          className={selectClass}
+          defaultValue={initial.diet}
+          onChange={(e) => setDiet(e.target.value as DietType)}
+        >
+          {diets.map((d) => {
+            const supply = supplyOf(depth, d, mealCount)?.supply;
+            return (
+              <option key={d} value={d}>
+                {supply === 'none'
+                  ? tCatalogue('dietNone', { diet: tDiet(d) })
+                  : supply === 'thin'
+                    ? tCatalogue('dietThin', { diet: tDiet(d) })
+                    : tDiet(d)}
+              </option>
+            );
+          })}
+        </select>
+      </Field>
+      <Field label={t('mealsPerDay')}>
+        <Input
+          name="mealCount"
+          type="number"
+          required
+          min={2}
+          max={5}
+          defaultValue={initial.mealCount}
+          onChange={(e) => setMealCount(e.target.valueAsNumber)}
+        />
+      </Field>
+      <SupplyNote diet={diet} mealCount={mealCount} className="sm:col-span-2" />
+    </>
   );
 }

@@ -1040,6 +1040,12 @@
     "carbs": "Carbs",
     "kcal": "kcal"
   },
+  "catalogue": {
+    "none": "This instance has no recipe on the \"{diet}\" diet for at least one of the {count} meals a day, so it cannot make a plan. {advice, select, fewer {Choose another diet, or no more than {fewer} meals a day.} other {Choose another diet.}}",
+    "thin": "On the \"{diet}\" diet, one of the {count} meals a day has only {recipes, plural, one {# recipe} other {# recipes}} to choose from: plans will repeat the same dish often.",
+    "dietNone": "{diet} (no recipes yet)",
+    "dietThin": "{diet} (few recipes)"
+  },
   "profile": {
     "title": "Profiles",
     "subhead": "A profile drives the deterministic calorie engine. An account can have up to {max} profiles — one per household member, or to compare diet scenarios. Editing a profile recalculates its targets; deleting one also removes its meal plans and shopping lists.",
