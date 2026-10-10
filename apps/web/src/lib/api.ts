@@ -44,10 +44,22 @@ export class ApiClientError extends Error {
     message: string,
     /** Field-level validation problems, when the API reported any. */
     public readonly issues?: ApiErrorIssue[],
+    /** How long the server asks to wait before the next try, in seconds, when it said so. */
+    public readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = 'ApiClientError';
   }
+}
+
+/**
+ * The whole minutes to wait after a request that was held up for more than a
+ * moment, or null. Sign-in and password-reset requests are held up for as long
+ * as a quarter of an hour: "try again in a moment" would be wrong there.
+ */
+export function minutesToWait(err: ApiClientError): number | null {
+  const seconds = err.retryAfterSeconds;
+  return err.status === 429 && seconds !== undefined && seconds > 60 ? Math.ceil(seconds / 60) : null;
 }
 
 /** Locale module-state so every fetch carries the right Accept-Language. The
@@ -98,7 +110,9 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       body.issues && body.issues.length > 0
         ? body.issues.map((i) => i.message).join(' ')
         : (body.message ?? res.statusText);
-    throw new ApiClientError(res.status, body.error ?? 'ERROR', message, body.issues);
+    // Seconds, as the API writes it; a date or nothing at all is no number.
+    const wait = Number(res.headers.get('retry-after'));
+    throw new ApiClientError(res.status, body.error ?? 'ERROR', message, body.issues, wait > 0 ? wait : undefined);
   }
   // Treat any 2xx with no body (204 No Content, 202 Accepted with empty body,
   // or anything that didn't actually write JSON) as undefined — calling

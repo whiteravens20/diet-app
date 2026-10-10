@@ -131,6 +131,7 @@
       "digit": "At least one digit"
     },
     "signInButton": "Sign in",
+    "heldUp": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "createAccountButton": "Create account",
     "forgotPassword": "Forgot password?",
     "noAccount": "Don't have an account?",

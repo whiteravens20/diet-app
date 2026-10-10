@@ -131,6 +131,7 @@
       "digit": "Co najmniej jedna cyfra"
     },
     "signInButton": "Zaloguj się",
+    "heldUp": "Zbyt wiele prób. Spróbuj ponownie za {minutes, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}.",
     "createAccountButton": "Załóż konto",
     "forgotPassword": "Nie pamiętasz hasła?",
     "noAccount": "Nie masz konta?",
