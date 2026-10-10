@@ -1,11 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AiMode, AiProviderConfig, AiProviderConfigInput } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { decrypt, encrypt } from '../common/crypto.js';
+import { openKey, sealKey } from './key-cipher.js';
 import { assertAllowedOllamaUrl, isOperatorOllama, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
 
 /** A resolved provider config with the decrypted key, for internal use only. */
@@ -14,6 +14,8 @@ export interface ResolvedProviderConfig {
   model: string;
   priority: number;
   apiKey: string | null;
+  /** A key is stored for this entry but cannot be decrypted; the entry is not usable. */
+  keyUnreadable: boolean;
   /** Per-config base URL — Ollama only. Null for other providers. */
   baseUrl: string | null;
   /** Who set the entry up. An address in a user's entry is checked before it is dialled. */
@@ -34,6 +36,8 @@ export interface ResolvedProviderConfig {
  */
 @Injectable()
 export class AiKeyService {
+  private readonly logger = new Logger(AiKeyService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
@@ -55,7 +59,7 @@ export class AiKeyService {
     const existing = await this.prisma.aiProviderConfig.findFirst({
       where: { userId, provider: input.provider },
     });
-    const encryptedKey = input.apiKey ? encrypt(input.apiKey, this.encKey) : undefined;
+    const encryptedKey = input.apiKey ? sealKey(input.apiKey, this.encKey) : undefined;
 
     const baseUrl = input.provider === 'ollama' ? input.baseUrl ?? null : null;
     // SSRF guard: a persisted Ollama baseUrl is later dialled by the router, so
@@ -145,18 +149,27 @@ export class AiKeyService {
         orderBy: { priority: 'asc' },
       });
       const operatorOllama = this.config.get('OLLAMA_BASE_URL', { infer: true });
-      return rows.map((r) => ({
-        provider: r.provider,
-        model: r.model,
-        priority: r.priority,
-        apiKey: r.encryptedKey ? decrypt(r.encryptedKey, this.encKey) : null,
-        baseUrl: r.baseUrl,
-        owner: 'user' as const,
-        mode:
-          r.provider === 'ollama' && isOperatorOllama(r.baseUrl ?? operatorOllama, operatorOllama)
-            ? ('admin' as const)
-            : ('byok' as const),
-      }));
+      return rows.map((r) => {
+        // A key that cannot be read does not stop the request: the entry is
+        // marked, the router passes over it, and the others are still tried.
+        const opened = r.encryptedKey ? openKey(r.encryptedKey, this.encKey) : null;
+        if (opened && !opened.ok) {
+          this.logger.warn(`the ${r.provider} key of user ${userId} cannot be read: ${opened.why}`);
+        }
+        return {
+          provider: r.provider,
+          model: r.model,
+          priority: r.priority,
+          apiKey: opened?.ok ? opened.key : null,
+          keyUnreadable: opened !== null && !opened.ok,
+          baseUrl: r.baseUrl,
+          owner: 'user' as const,
+          mode:
+            r.provider === 'ollama' && isOperatorOllama(r.baseUrl ?? operatorOllama, operatorOllama)
+              ? ('admin' as const)
+              : ('byok' as const),
+        };
+      });
     }
     return this.adminChainFromEnv();
   }
@@ -181,6 +194,7 @@ export class AiKeyService {
         model,
         priority: 0,
         apiKey: apiKey ?? null,
+        keyUnreadable: false,
         baseUrl,
         owner: 'operator',
         mode: 'admin',
@@ -206,6 +220,7 @@ export class AiKeyService {
       enabled: row.enabled,
       isAdminDefault: row.isAdminDefault,
       hasKey: row.encryptedKey !== null,
+      keyUnreadable: row.encryptedKey !== null && !openKey(row.encryptedKey, this.encKey).ok,
       baseUrl: row.baseUrl,
     };
   }

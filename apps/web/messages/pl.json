@@ -55,6 +55,7 @@
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — przełączam się na wbudowany silnik.",
     "all_providers_failed": "Dostawca AI nie odpowiada — przełączam się na wbudowany silnik.",
     "provider_timeout": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. Tym razem korzystam z wbudowanego silnika.",
+    "key_unreadable": "Zapisanego klucza AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach. Używam silnika regułowego.",
     "invalid_output": "Odpowiedzi AI nie dało się użyć — wyboru dokonał silnik regułowy."
   },
   "disclaimers": {
@@ -265,6 +266,7 @@
     "UNIT_CONVERSION_FAILED": "Nie udało się przeliczyć jednostek — brak gęstości lub gramów na sztukę.",
     "AI_UNAVAILABLE": "Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę.",
     "AI_NOT_CONFIGURED": "Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach.",
+    "AI_KEY_UNREADABLE": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach.",
     "AI_INSTANCE_LIMIT_REACHED": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana.",
     "AI_PROVIDER_TIMEOUT": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze.",
     "AI_DRAFT_INVALID": "AI zwróciło niepoprawny szkic przepisu — spróbuj innego opisu.",

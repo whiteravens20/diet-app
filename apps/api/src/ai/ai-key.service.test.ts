@@ -10,7 +10,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AiKeyService } from './ai-key.service.js';
-import { decrypt } from '../common/crypto.js';
+import { encrypt } from '../common/crypto.js';
+import { openKey, sealKey } from './key-cipher.js';
 
 const ENC_KEY = 'b'.repeat(64);
 
@@ -30,17 +31,21 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
   return { get: (k: string) => values[k] };
 }
 
+const withoutUndefined = (data: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+
 function makePrisma(overrides: Record<string, unknown> = {}) {
   return {
     aiProviderConfig: {
       findFirst: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn().mockResolvedValue(null),
+      // As the database answers: a column that was not written is null.
       create: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'cfg-1', isAdminDefault: false, ...args.data }),
+        Promise.resolve({ id: 'cfg-1', isAdminDefault: false, encryptedKey: null, ...withoutUndefined(args.data) }),
       ),
       update: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'cfg-1', isAdminDefault: false, ...args.data }),
+        Promise.resolve({ id: 'cfg-1', isAdminDefault: false, encryptedKey: null, ...withoutUndefined(args.data) }),
       ),
       delete: vi.fn().mockResolvedValue({}),
       count: vi.fn().mockResolvedValue(0),
@@ -90,7 +95,8 @@ describe('AiKeyService.upsert', () => {
     expect(created.encryptedKey).toBeTypeOf('string');
     expect(created.encryptedKey).not.toContain('sk-secret-123');
     // Round-trips back to the original under the configured key.
-    expect(decrypt(created.encryptedKey as string, ENC_KEY)).toBe('sk-secret-123');
+    expect(openKey(created.encryptedKey as string, ENC_KEY)).toEqual({ ok: true, key: 'sk-secret-123' });
+    expect(dto.keyUnreadable).toBe(false);
   });
 
   it('persists an allowlisted Ollama baseUrl (operator default host)', async () => {
@@ -202,6 +208,31 @@ describe('AiKeyService.remove', () => {
   });
 });
 
+describe('AiKeyService.list', () => {
+  it('flags a stored key that can no longer be read, and never returns a key', async () => {
+    const prisma = makePrisma();
+    const row = { id: 'cfg', model: 'm', priority: 0, enabled: true, isAdminDefault: false, baseUrl: null };
+    prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
+      { ...row, provider: 'openai', encryptedKey: sealKey('sk-a', ENC_KEY) },
+      { ...row, provider: 'openrouter', encryptedKey: encrypt('sk-b', ENC_KEY) },
+      { ...row, provider: 'anthropic', encryptedKey: sealKey('sk-c', 'c'.repeat(64)) },
+      { ...row, provider: 'ollama', encryptedKey: null, baseUrl: 'http://ollama:11434' },
+    ]);
+
+    const list = await makeService(prisma).list('user-1');
+
+    expect(list.map((entry) => [entry.provider, entry.hasKey, entry.keyUnreadable])).toEqual([
+      ['openai', true, false],
+      // Stored before keys carried the id of their secret: still readable.
+      ['openrouter', true, false],
+      ['anthropic', true, true],
+      ['ollama', false, false],
+    ]);
+    expect(JSON.stringify(list)).not.toContain('sk-');
+    expect(JSON.stringify(list)).not.toContain('encryptedKey');
+  });
+});
+
 describe('AiKeyService.resolveChain', () => {
   it('returns an empty chain for aiMode none', async () => {
     const service = makeService(makePrisma());
@@ -210,7 +241,6 @@ describe('AiKeyService.resolveChain', () => {
 
   it('byok mode decrypts each enabled config key, ordered by priority', async () => {
     const prisma = makePrisma();
-    const { encrypt } = await import('../common/crypto.js');
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
       { provider: 'openai', model: 'gpt-4o', priority: 0, encryptedKey: encrypt('sk-a', ENC_KEY), baseUrl: null },
     ]);
@@ -219,6 +249,24 @@ describe('AiKeyService.resolveChain', () => {
     expect(chain).toHaveLength(1);
     expect(chain[0].apiKey).toBe('sk-a');
     expect(chain[0].mode).toBe('byok');
+  });
+
+  it('byok mode marks an entry whose key cannot be read, instead of failing the whole chain', async () => {
+    const prisma = makePrisma();
+    prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
+      { provider: 'openai', model: 'gpt-4o', priority: 0, encryptedKey: sealKey('sk-a', 'c'.repeat(64)), baseUrl: null },
+      { provider: 'anthropic', model: 'claude', priority: 1, encryptedKey: '00:00:00', baseUrl: null },
+      { provider: 'openrouter', model: 'llama', priority: 2, encryptedKey: sealKey('sk-c', ENC_KEY), baseUrl: null },
+    ]);
+    const service = makeService(prisma);
+
+    const chain = await service.resolveChain('user-1', 'byok');
+
+    expect(chain.map((entry) => [entry.provider, entry.keyUnreadable, entry.apiKey])).toEqual([
+      ['openai', true, null],
+      ['anthropic', true, null],
+      ['openrouter', false, 'sk-c'],
+    ]);
   });
 
   it("byok mode marks a user's entries as theirs, and an Ollama entry on the operator's host as the operator's to pay for", async () => {

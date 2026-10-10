@@ -152,6 +152,19 @@ describe('drafting a recipe with a model', () => {
       expect(await refusal(ask())).toMatchObject({ status: 409, error: 'AI_NOT_CONFIGURED' });
     });
 
+    it('says that a saved key has to be entered again when it can no longer be read', async () => {
+      await t
+        .http()
+        .put('/api/ai/providers')
+        .set(as(user))
+        .send({ provider: 'openai', apiKey: 'sk-test-key', model: 'gpt-4o-mini' })
+        .expect(200);
+      await t.http().patch('/api/users/me').set(as(user)).send({ aiMode: 'byok' }).expect(200);
+      await t.prisma.aiProviderConfig.updateMany({ data: { encryptedKey: '00:00:00' } });
+
+      expect(await refusal(ask())).toMatchObject({ status: 409, error: 'AI_KEY_UNREADABLE' });
+    });
+
     it('says that the provider did not respond', async () => {
       t.model.reply({ status: 500, text: 'out of memory' });
 

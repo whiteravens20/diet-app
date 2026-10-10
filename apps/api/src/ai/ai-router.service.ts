@@ -87,6 +87,7 @@ export class AiRouterService {
     const failoverChain: AiProvider[] = [];
     let anyTimedOut = false;
     let refused: AiFallbackReason | null = null;
+    let unreadableKey = false;
     let asked = 0;
     const deadline = Date.now() + operation.timeoutMs;
 
@@ -97,6 +98,12 @@ export class AiRouterService {
       if (timeoutMs < SHORTEST_ATTEMPT_MS) {
         anyTimedOut = true;
         break;
+      }
+      // A saved key that can no longer be decrypted: nothing to ask with.
+      if (cfg.keyUnreadable) {
+        unreadableKey = true;
+        failoverChain.push(cfg.provider);
+        continue;
       }
       const call = await this.quota.begin(userId, {
         provider: cfg.provider,
@@ -173,7 +180,9 @@ export class AiRouterService {
       }
     }
 
-    // No provider was asked because the allowance did not permit it.
+    // No provider was asked: a key has to be entered again, or the allowance
+    // did not permit the call.
+    if (asked === 0 && unreadableKey) return fallback('key_unreadable', failoverChain);
     if (asked === 0 && refused) return fallback(refused);
     // Every provider in the chain failed — caller uses the deterministic
     // engine. Surface timeout distinctly so the UI can hint at "your model is

@@ -46,6 +46,12 @@ export const AiProviderConfig = z.object({
   priority: z.number().int(),
   enabled: z.boolean(),
   hasKey: z.boolean(),
+  /**
+   * True when a key is stored but can no longer be decrypted (the instance's
+   * encryption secret changed, or the stored value is damaged). The provider
+   * is skipped until the key is entered again.
+   */
+  keyUnreadable: z.boolean(),
   /** Per-config base URL (Ollama only). Null for other providers. */
   baseUrl: z.string().nullable(),
   /** True for admin-supplied defaults visible to all users. */
@@ -75,6 +81,9 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  *                           an actionable "your model is too slow, try a
  *                           smaller model or a cloud provider" hint instead
  *                           of a generic "didn't respond".
+ * - `key_unreadable`      — the user's saved provider key can no longer be
+ *                           decrypted, and no other provider answered. It
+ *                           has to be entered again.
  * - `invalid_output`      — a provider answered, but not with something the
  *                           application could use (no JSON, the wrong shape,
  *                           an id that was not on offer). `provider` and
@@ -86,6 +95,7 @@ export const AiFallbackReason = z.enum([
   'no_provider',
   'all_providers_failed',
   'provider_timeout',
+  'key_unreadable',
   'invalid_output',
 ]);
 export type AiFallbackReason = z.infer<typeof AiFallbackReason>;

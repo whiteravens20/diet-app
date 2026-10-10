@@ -275,6 +275,30 @@ describe('editing a plan', () => {
       });
     });
 
+    it('still swaps, and says that a saved key has to be entered again, when that key can no longer be read', async () => {
+      const meal = plan.days[0]!.meals[0]!;
+      await t
+        .http()
+        .put('/api/ai/providers')
+        .set(as(user))
+        .send({ provider: 'openai', apiKey: 'sk-test-key', model: 'gpt-4o-mini' })
+        .expect(200);
+      await t.http().patch('/api/users/me').set(as(user)).send({ aiMode: 'byok' }).expect(200);
+      // As after a change of the instance's encryption secret.
+      await t.prisma.aiProviderConfig.updateMany({ data: { encryptedKey: '00:00:00' } });
+
+      const res = await t
+        .http()
+        .post('/api/meal-plans/ai-swap-meal')
+        .set(as(user))
+        .send({ planId: plan.id, plannedMealId: meal.id })
+        .expect(201);
+
+      expect(res.body.aiMeta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'key_unreadable' });
+      const providers = await t.http().get('/api/ai/providers').set(as(user)).expect(200);
+      expect(providers.body).toEqual([expect.objectContaining({ provider: 'openai', hasKey: true, keyUnreadable: true })]);
+    });
+
     it("asks for the reason in the user's language", async () => {
       const meal = plan.days[0]!.meals[0]!;
 

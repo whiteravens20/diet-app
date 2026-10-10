@@ -48,6 +48,7 @@ function setup(input: {
       model: 'some-model',
       priority,
       apiKey: 'key',
+      keyUnreadable: false,
       baseUrl: null,
       // Unless a test says otherwise, an entry is the user's own in both senses.
       owner: entry.mode === 'admin' ? 'operator' : 'user',
@@ -205,6 +206,52 @@ describe('AiRouterService.chat', () => {
     expect(result.meta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'quota_exhausted' });
     expect(calls).toHaveLength(0);
     expect(usage).toHaveLength(0);
+  });
+
+  describe('a saved key that can no longer be read', () => {
+    it('is passed over, and the next provider answers', async () => {
+      const { router, calls, usage } = setup({
+        chain: [{ provider: 'openai', apiKey: null, keyUnreadable: true }, { provider: 'anthropic' }],
+        behaviour: { anthropic: async () => answer('from the second') },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.text).toBe('from the second');
+      expect(result.meta.failoverChain).toEqual(['openai']);
+      expect(calls.map((c) => c.provider)).toEqual(['anthropic']);
+      // Nothing was asked of the first provider, so nothing is logged for it.
+      expect(usage.map((row) => row.provider)).toEqual(['anthropic']);
+    });
+
+    it('is the reason given when it leaves no provider to ask', async () => {
+      const { router, calls, usage } = setup({
+        chain: [{ provider: 'openai', apiKey: null, keyUnreadable: true }],
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.text).toBeNull();
+      expect(result.meta).toMatchObject({
+        usedDeterministicFallback: true,
+        fallbackReason: 'key_unreadable',
+        failoverChain: ['openai'],
+      });
+      expect(calls).toHaveLength(0);
+      expect(usage).toHaveLength(0);
+    });
+
+    it('gives way to the failure of a provider that was asked', async () => {
+      const { router } = setup({
+        chain: [{ provider: 'openai', apiKey: null, keyUnreadable: true }, { provider: 'anthropic' }],
+        behaviour: { anthropic: fails('529 overloaded') },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.meta.fallbackReason).toBe('all_providers_failed');
+      expect(result.meta.failoverChain).toEqual(['openai', 'anthropic']);
+    });
   });
 
   it('keeps the answer when the usage log cannot be written', async () => {
