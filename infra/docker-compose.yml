@@ -33,10 +33,6 @@ x-app-image: &app-image
   build:
     context: ..
     dockerfile: infra/docker/Dockerfile
-    # Use the host network namespace for builds — buildkit's ephemeral netns
-    # occasionally fails to resolve registry / Alpine CDN hostnames on this
-    # daemon. Runtime container networking is unaffected.
-    network: host
     # The web proxies `/api/*` to the `api` service, so the browser only ever
     # talks to the web origin — no CORS, host-agnostic. The target is baked in
     # at build time.
