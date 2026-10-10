@@ -2,7 +2,9 @@
 
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  type HttpException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -21,6 +23,7 @@ import {
   Unit,
   type AiDraftRecipeRequest,
   type AiDraftRecipeResponse,
+  type AiFallbackReason,
   type Locale,
   type Recipe,
 } from '@diet-app/shared';
@@ -185,19 +188,10 @@ export class AiRecipeDraftService {
       recipeDraft(targetLocales.length),
       true,
     );
-    if (!text) {
-      if (meta.fallbackReason === 'provider_timeout') {
-        throw new ServiceUnavailableException({
-          error: 'AI_PROVIDER_TIMEOUT',
-          message:
-            'AI provider was too slow — model may need a faster machine, or pick a smaller model.',
-        });
-      }
-      throw new ServiceUnavailableException({
-        error: 'AI_UNAVAILABLE',
-        message: 'AI is unavailable — try again or configure a provider.',
-      });
-    }
+    // A draft has no engine fallback, so each reason the model was not asked,
+    // or did not answer, is an error of its own: trying again helps with some
+    // of them and not with others.
+    if (!text) throw draftUnavailable(meta.fallbackReason);
 
     const payload = parseDraftPayload(text, targetLocales);
     if (!payload) {
@@ -718,6 +712,36 @@ const TEXT_LIMITS = { title: 120, description: 600, step: 300, steps: 25, note: 
 const MAX_QUANTITY = { g: 2_000, ml: 2_000, piece: 50 } as const;
 /** The calories of anything that can be called a serving of a meal. */
 const SERVING_KCAL = { min: 30, max: 2_500 } as const;
+
+function draftUnavailable(reason: AiFallbackReason | null): HttpException {
+  switch (reason) {
+    case 'quota_exhausted':
+      return new ForbiddenException({
+        error: 'AI_MONTHLY_LIMIT_REACHED',
+        message: 'Monthly AI request limit reached.',
+      });
+    case 'instance_quota_exhausted':
+      return new ForbiddenException({
+        error: 'AI_INSTANCE_LIMIT_REACHED',
+        message: "This instance's shared AI requests for the month are used up.",
+      });
+    case 'no_provider':
+      return new ConflictException({
+        error: 'AI_NOT_CONFIGURED',
+        message: 'No AI provider is set up for your account.',
+      });
+    case 'provider_timeout':
+      return new ServiceUnavailableException({
+        error: 'AI_PROVIDER_TIMEOUT',
+        message: 'AI provider was too slow — model may need a faster machine, or pick a smaller model.',
+      });
+    default:
+      return new ServiceUnavailableException({
+        error: 'AI_UNAVAILABLE',
+        message: 'The AI provider did not respond — try again in a moment.',
+      });
+  }
+}
 
 /**
  * Parse + lightly validate the model's response. Returns null when the shape

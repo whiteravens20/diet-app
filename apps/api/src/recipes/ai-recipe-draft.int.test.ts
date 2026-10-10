@@ -134,6 +134,31 @@ describe('drafting a recipe with a model', () => {
     expect(polish.recipe.title).toBe('Gulasz ze skryptu');
   });
 
+  describe('when the model was not asked, or did not answer', () => {
+    it('says that the monthly allowance is used up', async () => {
+      const call = { userId: user.id, provider: 'ollama', model: 'test-model', operation: 'recipe-draft', mode: 'admin' };
+      await t.prisma.aiUsageLog.createMany({ data: Array.from({ length: 40 }, () => ({ ...call, outcome: 'COMPLETED' as const })) });
+
+      const res = await t.http().post('/api/recipes/drafts/from-prompt').set(as(user)).send({ profileId: profile.id });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('AI_MONTHLY_LIMIT_REACHED');
+      expect(t.model.requests).toHaveLength(0);
+    });
+
+    it('says that no provider is set up, for a user who has AI turned off', async () => {
+      await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'none' } });
+
+      expect(await refusal(ask())).toMatchObject({ status: 409, error: 'AI_NOT_CONFIGURED' });
+    });
+
+    it('says that the provider did not respond', async () => {
+      t.model.reply({ status: 500, text: 'out of memory' });
+
+      expect(await refusal(ask())).toMatchObject({ status: 503, error: 'AI_UNAVAILABLE' });
+    });
+  });
+
   describe('when the answer is not a usable recipe', () => {
     it.each<[string, (request: ModelRequest) => string]>([
       ['is prose', () => 'Here is a lovely recipe: take some rice…'],
