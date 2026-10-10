@@ -309,6 +309,8 @@
     "AI_MONTHLY_LIMIT_REACHED": "Skończył się Twój miesięczny limit zapytań AI.",
     "INVENTORY_ITEM_NOT_FOUND": "Nie znaleziono pozycji w spiżarni.",
     "ITEM_NOT_FOUND": "Nie znaleziono pozycji listy zakupów.",
+    "QUANTITY_TOO_LARGE": "Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę.",
+    "UNIT_NOT_CONVERTIBLE": "Tego składnika nie można trzymać w tej jednostce. Użyj jednostki, w której się go waży lub mierzy.",
     "WEIGHT_ENTRY_NOT_FOUND": "Nie znaleziono wpisu wagi.",
     "NOTIFICATION_NOT_FOUND": "Nie znaleziono powiadomienia.",
     "INVALID_VERIFICATION_TOKEN": "Ten link potwierdzający jest nieprawidłowy lub wygasł.",
@@ -637,8 +639,7 @@
     "fromPantryWithDate": "ze spiżarni · najlepiej przed {date}",
     "errGenerate": "Nie udało się wygenerować listy.",
     "errUpdate": "Nie udało się zaktualizować pozycji.",
-    "errDelete": "Nie udało się usunąć listy.",
-    "piecePlural": "{count, plural, one {# sztuka} few {# sztuki} many {# sztuk} other {# sztuki}}"
+    "errDelete": "Nie udało się usunąć listy."
   },
   "units": {
     "amount": {
@@ -785,7 +786,6 @@
     "clearPick": "Zmień",
     "quantityLabel": "Ilość",
     "unitLabel": "Jednostka",
-    "unitPiece": "szt.",
     "bestBeforeLabel": "Najlepiej spożyć przed",
     "expiringSoon": "kończy się",
     "addButton": "Dodaj",

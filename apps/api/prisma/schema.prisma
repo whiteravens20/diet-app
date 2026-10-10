@@ -605,17 +605,17 @@ model FavoriteSet {
 
 // ── Inventory (pantry-aware planning) ─────────────────────────────────────
 
-// Per-profile stock of ingredients the user actually has. Auto-fills from
-// checked-off shopping-list items, decrements from meals marked eaten, and
-// editable by hand for impulse buys / leftovers. Plan generation, day re-roll
-// and meal swap bias toward recipes the inventory can cover; see
-// `engine/optimizer.ts` for the coverage scoring factor.
+// Per-profile stock of ingredients the user actually has, kept by hand. The
+// one thing that changes it for the user is a shopping list: ticking a row off
+// takes what the list counted as already at home and adds what was bought
+// beyond the need (see `ShoppingListItem.pantryMoves`). Marking a meal eaten
+// changes nothing here. Plan generation, day re-roll and meal swap lean toward
+// recipes the pantry can cover; see `engine/optimizer.ts`.
 //
-// Quantities are stored in their native `unit` (g / ml / piece); the engine's
-// unit converter normalises against the recipe ingredient's canonical unit
-// at scoring/decrement time. Multiple rows for the same `(profile, ingredient)`
-// in different units are allowed (a row of 200g chicken AND a row of 1 piece
-// chicken breast coexist); the unique constraint is per-unit.
+// A quantity is stored in the `unit` it was entered in (g / ml / piece), one
+// row per `(profile, ingredient, unit)`: six eggs as pieces next to 200 g of
+// egg white as grams. Everything that reads or changes the stock of an
+// ingredient adds its rows up in the canonical unit through `engine/pantry.ts`.
 model InventoryItem {
   id           String     @id @default(uuid())
   profile      Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
@@ -661,20 +661,23 @@ model ShoppingListItem {
   category              ProductCategory
   totalQuantity         Float
   unit                  Unit
-  // Snapshot of pantry coverage at list-creation time. Immutable post-create —
-  // it is the row's "this much of the need was sourced from the pantry," and
-  // the pantry decrement on check-off is exactly this amount.
+  // What the list took as already at home when it was made: the pantry's
+  // stock less the open claims of the profile's other lists. Never changes.
   alreadyHaveQuantity   Float           @default(0)
-  // Single user-facing field: the total amount the user has obtained for
-  // this row, counting the pantry pre-credit. Null until first edit. Row is
-  // considered done (`checked = true`) when `purchasedQuantity >= totalQuantity`.
-  // Pantry net delta on check-off:
-  //   delta = max(0, purchasedQuantity - totalQuantity) - alreadyHaveQuantity
-  // i.e. any over-buy lands in pantry; the pre-credited pantry portion is
-  // consumed. `inventoryDelta` is the last-applied delta — uncheck reverses it
-  // exactly. Idempotent across any number of check/edit/uncheck cycles.
+  // Everything the user has for this row, the part already at home included.
+  // Null until first edit. The row ticks itself (`checked = true`) when this
+  // reaches `totalQuantity`. While it is ticked the row's net effect on the
+  // pantry is meant to be
+  //   max(0, purchasedQuantity - totalQuantity) - alreadyHaveQuantity
+  // in the row's unit: the surplus enters the pantry, what was counted as
+  // already at home leaves it.
   purchasedQuantity     Float?
-  inventoryDelta        Float           @default(0)
+  // What the row has actually done to the pantry: a list of
+  // `{ unit, quantity, bestBefore? }`, one entry per pantry row it changed,
+  // negative for what it took. It records the effect, not the intent: when
+  // the pantry held less than the row counted on, less was taken. Undoing the
+  // row gives back exactly these moves. Written by `engine/pantry.ts` only.
+  pantryMoves           Json            @default("[]")
   // Snapshot of the earliest best-before across pantry rows that contributed
   // to `alreadyHaveQuantity`. Surfaced on the "from pantry" chip so the user
   // sees urgency while shopping. Null when there was no pantry contribution or

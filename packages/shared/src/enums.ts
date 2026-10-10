@@ -96,6 +96,13 @@ export const DisplayAmount = z.object({
 });
 export type DisplayAmount = z.infer<typeof DisplayAmount>;
 
+/**
+ * The most of one ingredient a pantry row or a shopping row may hold: 100 kg,
+ * 100 l or 1000 pieces. Far beyond any kitchen, and a bound on what a typing
+ * slip can do to every later shopping list.
+ */
+export const MAX_QUANTITY: Record<Unit, number> = { g: 100_000, ml: 100_000, piece: 1_000 };
+
 /** Recognised allergen flags. */
 export const Allergen = z.enum([
   'gluten',

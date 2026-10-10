@@ -15,10 +15,27 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
+import { useUnitName } from '@/lib/ingredient-format';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
 type UnitChoice = 'g' | 'ml' | 'piece';
+
+/**
+ * The units an ingredient can be kept in: the one it is weighed or measured
+ * in, pieces when a piece has a weight, and the other of grams and millilitres
+ * when it has a density.
+ */
+function unitsFor(ingredient: Ingredient | null): UnitChoice[] {
+  if (!ingredient) return ['g', 'ml', 'piece'];
+  const units = new Set<UnitChoice>([ingredient.canonicalUnit]);
+  if (ingredient.gramsPerPiece) units.add('piece');
+  if (ingredient.density) {
+    units.add('g');
+    units.add('ml');
+  }
+  return (['g', 'ml', 'piece'] as const).filter((unit) => units.has(unit));
+}
 
 /**
  * Best-before urgency: an item is "expiring soon" if today is within
@@ -43,6 +60,7 @@ function isExpiringSoon(bestBefore: string): boolean {
 export default function InventoryPage() {
   const t = useTranslations('inventory');
   const tCategory = useTranslations('enums.category');
+  const unitName = useUnitName();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
@@ -179,19 +197,23 @@ export default function InventoryPage() {
                           </span>
                         )}
                       </span>
+                      {/* The field shows the amount as the API rounds it; leaving it
+                          untouched must not write the rounded number over the exact one. */}
                       <Input
+                        key={`${item.id}-${item.display.quantity}`}
                         type="number"
                         step="0.01"
-                        defaultValue={item.quantity}
+                        min="0"
+                        defaultValue={item.display.quantity}
                         className="w-24"
                         aria-label={t('quantityLabel')}
                         onBlur={(e) => {
                           const next = Number(e.currentTarget.value);
-                          if (!Number.isFinite(next) || next === item.quantity) return;
+                          if (!Number.isFinite(next) || next < 0 || next === item.display.quantity) return;
                           patch.mutate({ id: item.id, quantity: next });
                         }}
                       />
-                      <span className="text-xs text-muted-foreground w-8">{item.unit}</span>
+                      <span className="w-14 text-xs text-muted-foreground">{unitName(item.display.unit)}</span>
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">
                         {t('bestBeforeLabel')}
                         <Input
@@ -246,6 +268,7 @@ function AddInventoryForm({
   submitting: boolean;
 }) {
   const t = useTranslations('inventory');
+  const unitName = useUnitName();
   const [search, setSearch] = useState('');
   const [pickedIngredient, setPickedIngredient] = useState<Ingredient | null>(null);
   const [quantity, setQuantity] = useState('');
@@ -318,7 +341,8 @@ function AddInventoryForm({
                           onClick={() => {
                             setPickedIngredient(i);
                             setSearch('');
-                            setUnit(i.canonicalUnit);
+                            // What is counted is kept in pieces of its own, the rest as it is weighed or measured.
+                            setUnit(i.displayUnit && i.gramsPerPiece ? 'piece' : i.canonicalUnit);
                           }}
                         >
                           {i.name}
@@ -349,9 +373,12 @@ function AddInventoryForm({
               value={unit}
               onChange={(e) => setUnit(e.target.value as UnitChoice)}
             >
-              <option value="g">g</option>
-              <option value="ml">ml</option>
-              <option value="piece">{t('unitPiece')}</option>
+              {/* Only what the ingredient can be converted from: stock in any other unit would count as nothing. */}
+              {unitsFor(pickedIngredient).map((choice) => (
+                <option key={choice} value={choice}>
+                  {choice === 'piece' ? unitName(pickedIngredient?.displayUnit ?? 'piece') : choice}
+                </option>
+              ))}
             </select>
           </div>
           <div>

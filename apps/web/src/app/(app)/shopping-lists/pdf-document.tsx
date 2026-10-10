@@ -15,7 +15,7 @@ import {
   Circle,
   pdf,
 } from '@react-pdf/renderer';
-import type { ShoppingList } from '@diet-app/shared';
+import type { DisplayUnit, ShoppingList } from '@diet-app/shared';
 
 /*
  * Self-hosted PDF generator for the shopping list. The default @react-pdf
@@ -216,7 +216,7 @@ type BuildOpts = {
   foldHereLabel: string;
   boughtLabel: string;
   categoryLabel: (key: string) => string;
-  formatQty: (qty: number, unit: string) => string;
+  formatQty: (qty: number, unit: DisplayUnit) => string;
   ofLabel: (amount: string) => string;
   haveLabel: string;
   mode: Mode;
@@ -275,9 +275,9 @@ function buildPretty(opts: BuildOpts) {
             </Text>
           </View>
           <Text style={prettyStyles.qty}>
-            {formatQty(i.toBuyQuantity, i.unit)}
+            {formatQty(i.toBuyQuantity, i.displayUnit)}
             {i.alreadyHaveQuantity > 0 && (
-              <Text style={prettyStyles.qtyOf}> {ofLabel(formatQty(i.totalQuantity, i.unit))}</Text>
+              <Text style={prettyStyles.qtyOf}> {ofLabel(formatQty(i.totalQuantity, i.displayUnit))}</Text>
             )}
           </Text>
         </View>
@@ -339,9 +339,9 @@ function buildFoldable(opts: BuildOpts) {
           </Text>
         </View>
         <Text style={foldableStyles.qty}>
-          {formatQty(i.toBuyQuantity, i.unit)}
+          {formatQty(i.toBuyQuantity, i.displayUnit)}
           {i.alreadyHaveQuantity > 0 && (
-            <Text style={foldableStyles.qtyOf}> {ofLabel(formatQty(i.totalQuantity, i.unit))}</Text>
+            <Text style={foldableStyles.qtyOf}> {ofLabel(formatQty(i.totalQuantity, i.displayUnit))}</Text>
           )}
         </Text>
       </View>

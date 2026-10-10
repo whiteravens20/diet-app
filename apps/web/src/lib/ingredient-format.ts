@@ -20,13 +20,3 @@ export function useUnitName(): (unit: DisplayUnit) => string {
   const t = useTranslations('units');
   return (unit) => t(`name.${unit}`);
 }
-
-/**
- * Round a mass/volume amount to a kitchen-realistic increment. Above 10 the
- * nearest 5 (so 213 → 215, 212 → 210, never "213 g chicken"); at or below
- * 10 the nearest 1 (so a 3 g pinch of salt isn't rounded down to zero).
- */
-export function roundKitchenAmount(value: number): number {
-  if (value <= 10) return Math.round(value);
-  return Math.round(value / 5) * 5;
-}

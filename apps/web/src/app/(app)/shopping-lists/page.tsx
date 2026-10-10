@@ -5,9 +5,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import type { MealPlan, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
+import type { DisplayUnit, MealPlan, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
-import { roundKitchenAmount } from '@/lib/ingredient-format';
+import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageBanner } from '@/components/page-banner';
@@ -122,12 +122,8 @@ export default function ShoppingListsPage() {
     });
   }
 
-  /** Pretty-print a unit value: "240 g" / "1.5 pieces" — locale-aware. */
-  function formatItemQty(qty: number, unit: string): string {
-    const rounded = unit === 'piece' ? Math.round(qty * 4) / 4 : roundKitchenAmount(qty);
-    if (unit === 'piece') return t('piecePlural', { count: rounded });
-    return `${rounded} ${unit}`;
-  }
+  // The API has rounded every quantity and named its unit; this spells it.
+  const formatItemQty = useAmount();
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
 
@@ -322,7 +318,7 @@ function ListView({
 }: {
   list: ShoppingList;
   busy: boolean;
-  formatQty: (qty: number, unit: string) => string;
+  formatQty: (qty: number, unit: DisplayUnit) => string;
   categoryLabel: (key: string) => string;
   summaryLabel: (checked: number, total: number, kcal: number) => string;
   boughtLabel: string;
@@ -487,7 +483,7 @@ function ItemRow({
 }: {
   item: ShoppingListItem;
   busy: boolean;
-  formatQty: (qty: number, unit: string) => string;
+  formatQty: (qty: number, unit: DisplayUnit) => string;
   boughtLabel: string;
   fromPantryLabel: string;
   fromPantryWithDateLabel: (date: string) => string;
@@ -500,7 +496,9 @@ function ItemRow({
   const [bought, setBought] = useState(
     item.purchasedQuantity === null ? '' : String(item.purchasedQuantity),
   );
-  const step = item.unit === 'piece' ? 0.25 : 1;
+  const unitName = useUnitName();
+  // Eggs come whole; half a loaf's slice is as fine as it gets.
+  const step = item.unit === 'piece' ? 0.5 : 1;
   const pantryChipLabel =
     item.pantryBestBefore != null
       ? fromPantryWithDateLabel(item.pantryBestBefore)
@@ -550,10 +548,10 @@ function ItemRow({
         )}
       </span>
       <span className="tabular-nums text-muted-foreground">
-        {formatQty(remainingToBuy, item.unit)}
+        {formatQty(remainingToBuy, item.displayUnit)}
         {showOfTotal && (
           <span className="ml-1 text-xs">
-            {ofLabel(formatQty(item.totalQuantity, item.unit))}
+            {ofLabel(formatQty(item.totalQuantity, item.displayUnit))}
           </span>
         )}
       </span>
@@ -577,7 +575,7 @@ function ItemRow({
             if (next !== item.purchasedQuantity) onPatch({ purchasedQuantity: next });
           }}
         />
-        {item.unit}
+        {unitName(item.displayUnit)}
       </label>
     </li>
   );

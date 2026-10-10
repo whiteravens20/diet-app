@@ -1,24 +1,76 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import type {
-  GenerateShoppingListRequest,
-  Locale,
-  ShoppingList,
-  UpdateShoppingItemRequest,
+import { Prisma } from '@prisma/client';
+import {
+  type DisplayUnit,
+  type GenerateShoppingListRequest,
+  type Locale,
+  type ShoppingList,
+  type Unit,
+  type UpdateShoppingItemRequest,
 } from '@diet-app/shared';
 import {
   aggregateShoppingList,
+  convertUnit,
+  editRow,
+  groupByAisle,
+  intendedPantryEffect,
+  isCounted,
+  pantryStock,
+  quantityToClaim,
   toBuyQuantity,
-  toCanonical,
   UnitConversionError,
-  type EngineIngredient,
   type PlanIngredientLine,
+  type ShoppingIngredient,
 } from '../engine/index.js';
+import { assertWithinCeiling, lockPantry, readMoves, settlePantry } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 
-/** Builds and maintains consolidated shopping lists from meal plans. */
+/** A list touches many pantry rows in one transaction; the default five seconds is too tight on a slow disk. */
+const TRANSACTION = { timeout: 30_000, maxWait: 10_000 } as const;
+
+type Tx = Prisma.TransactionClient;
+
+/** An ingredient row as the shopping code reads it. */
+type IngredientRow = ShoppingIngredient & { translations: { locale: string; name: string }[] };
+
+interface StoredItem {
+  id: string;
+  ingredientId: string;
+  name: string;
+  category: string;
+  totalQuantity: number;
+  unit: Unit;
+  alreadyHaveQuantity: number;
+  purchasedQuantity: number | null;
+  pantryMoves: Prisma.JsonValue;
+  pantryBestBefore: Date | null;
+  estimatedCalories: number;
+  checked: boolean;
+}
+
+interface StoredList {
+  id: string;
+  planId: string;
+  fromDate: Date;
+  toDate: Date;
+  createdAt: Date;
+  items: StoredItem[];
+}
+
+/**
+ * Builds and maintains consolidated shopping lists from meal plans.
+ *
+ * A row and the pantry: see `ShoppingListItem` in the contract for what a row
+ * means, `engine/shopping.ts` for the rules and `engine/pantry.ts` for how the
+ * pantry rows change. This service adds the order of things:
+ *
+ *  - one row is changed under a lock on that row, so two edits of it take
+ *    turns and the second sees what the first did;
+ *  - the pantry rows of one ingredient change under `lockPantry`.
+ */
 @Injectable()
 export class ShoppingListsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,107 +79,63 @@ export class ShoppingListsService {
   async generate(userId: string, locale: Locale, req: GenerateShoppingListRequest): Promise<ShoppingList> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: req.planId },
-      include: {
-        profile: true,
-        days: {
-          orderBy: { date: 'asc' },
-          include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
-        },
-      },
+      include: { profile: true, days: { orderBy: { date: 'asc' }, select: { date: true } } },
     });
     if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
+    const profileId = plan.profile.id;
 
     const from = req.fromDate ? new Date(req.fromDate) : plan.days[0]?.date ?? plan.startDate;
     const to = req.toDate ? new Date(req.toDate) : plan.days.at(-1)?.date ?? plan.startDate;
 
-    // Collect ingredient lines from every meal within the range.
-    const lines: PlanIngredientLine[] = [];
-    const ingredientIds = new Set<string>();
-    for (const day of plan.days) {
-      if (day.date < from || day.date > to) continue;
-      for (const meal of day.meals) {
-        // Custom meals have no ingredients → no shopping line. `eatenAt` is
-        // ignored: the list is generated once at plan start, not retroactively.
-        if (meal.source === 'USER_CUSTOM' || !meal.recipe) continue;
-        for (const ri of meal.recipe.ingredients) {
-          ingredientIds.add(ri.ingredientId);
-          lines.push({
-            ingredientId: ri.ingredientId,
-            quantity: ri.quantity,
-            unit: ri.unit,
-            recipeServings: meal.recipe.servings,
-            // Effective amount folds the rebalancer multiplier into servings.
-            plannedServings: meal.servings * meal.quantityScale,
-          });
-        }
+    const listId = await this.prisma.$transaction(async (tx) => {
+      // The menu must not change between reading it and writing the list.
+      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${plan.id} FOR UPDATE`);
+
+      const needs = await planNeeds(tx, plan.id, from, to);
+      const items = needs.groups.flatMap((group) => group.items);
+
+      const list = await tx.shoppingList.create({ data: { planId: plan.id, fromDate: from, toDate: to } });
+      // In the order every writer takes the pantry locks in.
+      for (const item of [...items].sort((a, b) => (a.ingredientId < b.ingredientId ? -1 : 1))) {
+        const ingredient = needs.ingredients.get(item.ingredientId)!;
+        await lockPantry(tx, profileId, ingredient.id);
+        const rows = await tx.inventoryItem.findMany({
+          where: { profileId, ingredientId: ingredient.id },
+          select: { unit: true, quantity: true, bestBefore: true },
+        });
+        const stock = pantryStock(rows, ingredient);
+        const have = quantityToClaim(convertUnit(stock.quantity, ingredient.canonicalUnit, item.unit, ingredient), item.unit, item.totalQuantity);
+        // A need the pantry covers in full needs no shopping: the row arrives
+        // ticked, and what it counts on leaves the pantry now.
+        const covered = have > 0 && have >= item.totalQuantity;
+        const moves = covered
+          ? await settlePantry(tx, profileId, ingredient, [], -convertUnit(have, item.unit, ingredient.canonicalUnit, ingredient))
+          : [];
+        await tx.shoppingListItem.create({
+          data: {
+            listId: list.id,
+            ingredientId: item.ingredientId,
+            name: item.name,
+            category: item.category,
+            totalQuantity: item.totalQuantity,
+            unit: item.unit,
+            alreadyHaveQuantity: have,
+            // One number for the user to raise as they shop: it starts at what is at home.
+            purchasedQuantity: have > 0 ? have : null,
+            checked: covered,
+            pantryMoves: moves as unknown as Prisma.InputJsonValue,
+            pantryBestBefore: have > 0 ? stock.bestBefore : null,
+            estimatedCalories: item.estimatedCalories,
+          },
+        });
       }
-    }
+      return list.id;
+    }, TRANSACTION);
 
-    const ingredients = await this.loadIngredients([...ingredientIds]);
-    const groups = aggregateShoppingList(lines, ingredients);
-
-    // Pre-fill `alreadyHaveQuantity` from the profile's pantry so the
-    // user sees their on-hand stock subtracted from the buy column before
-    // they touch the list. Inventory rows in any unit are converted to the
-    // aggregated item's unit; rows that can't convert (missing density /
-    // gramsPerPiece) are skipped and treated as 0 stock.
-    const pantryByItemUnit = await this.pantryCoverageByItemUnit(
-      plan.profile.id,
-      groups.flatMap((g) => g.items),
-      ingredients,
-    );
-
-    const itemsToCreate = groups.flatMap((g) =>
-      g.items.map((item) => {
-        const key = `${item.ingredientId}:${item.unit}`;
-        const coverage = pantryByItemUnit.get(key);
-        const have = Math.min(coverage?.quantity ?? 0, item.totalQuantity);
-        // Single-field UX: pre-fill `purchasedQuantity` with the
-        // pantry-credited amount so the user sees one count to grow as
-        // they shop. When pantry fully covers the need, the row arrives
-        // already checked off (no shopping required) and the pantry
-        // decrement is applied immediately.
-        const fullyCovered = have >= item.totalQuantity && have > 0;
-        return {
-          ingredientId: item.ingredientId,
-          name: item.name,
-          category: item.category,
-          totalQuantity: item.totalQuantity,
-          unit: item.unit,
-          alreadyHaveQuantity: have,
-          purchasedQuantity: have > 0 ? have : null,
-          checked: fullyCovered,
-          inventoryDelta: fullyCovered ? -have : 0,
-          pantryBestBefore: coverage?.bestBefore ?? null,
-          estimatedCalories: item.estimatedCalories,
-        };
-      }),
-    );
-
-    const list = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.shoppingList.create({
-        data: {
-          planId: plan.id,
-          fromDate: from,
-          toDate: to,
-          items: { create: itemsToCreate },
-        },
-        include: { items: true },
-      });
-      // Pantry decrement for rows that arrived already checked off (full pantry
-      // coverage). Same transaction so the inventory view is consistent with
-      // the new list the user is about to see.
-      for (const it of created.items) {
-        if (!it.checked || it.alreadyHaveQuantity <= 0) continue;
-        await this.applyPantryDeltaTx(tx, plan.profile.id, it.ingredientId, it.unit, -it.alreadyHaveQuantity);
-      }
-      return created;
-    });
-
-    return this.toDto(list, await this.translationsFor(list.items.map((i) => i.ingredientId), locale));
+    return this.get(userId, locale, listId);
   }
 
   /** Every list belonging to a plan the user owns, newest first. */
@@ -145,46 +153,28 @@ export class ShoppingListsService {
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
-    const allIds = rows.flatMap((r) => r.items.map((i) => i.ingredientId));
-    const trans = await this.translationsFor(allIds, locale);
-    return rows.map((r) => this.toDto(r, trans));
+    return this.toDtos(rows, locale);
   }
 
   /**
-   * Delete a list the user owns. Reverses every row's `inventoryDelta` first so
-   * the pantry returns to the state it was in before the list ever changed it
-   * — otherwise a freshly-generated list (or a re-generated one) sees no pantry
-   * because the previous list still "owns" the consumption.
+   * Delete a list the user owns. Every row first undoes what it did to the
+   * pantry, as if it had been unticked: what it took comes back, what it put
+   * in is taken out again.
    */
   async remove(userId: string, listId: string): Promise<void> {
     const list = await this.loadOwned(userId, listId);
-    const profileId = list.plan.profile.id;
     await this.prisma.$transaction(async (tx) => {
-      for (const item of list.items) {
-        if (item.inventoryDelta === 0) continue;
-        await this.applyPantryDeltaTx(tx, profileId, item.ingredientId, item.unit, -item.inventoryDelta);
-      }
-      await tx.shoppingList.delete({ where: { id: listId } });
-    });
+      await releaseLists(tx, list.plan.profile.id, [listId]);
+      await tx.shoppingList.deleteMany({ where: { id: listId } });
+    }, TRANSACTION);
   }
 
   async get(userId: string, locale: Locale, listId: string): Promise<ShoppingList> {
     const list = await this.loadOwned(userId, listId);
-    return this.toDto(list, await this.translationsFor(list.items.map((i) => i.ingredientId), locale));
+    return (await this.toDtos([list], locale))[0]!;
   }
 
-  /**
-   * Update an item's purchased quantity or checked state. Single-field
-   * model: `purchasedQuantity` is the total obtained (pantry pre-credit +
-   * shopping). Checked-state derives from the quantity (purchased >= total →
-   * checked) unless the caller explicitly overrides. When checked, the net
-   * pantry change is:
-   *   delta = max(0, purchasedQuantity - totalQuantity) - alreadyHaveQuantity
-   * i.e. over-buy banked as leftover, pre-credited pantry consumed. When
-   * unchecked, the target delta is zero. `inventoryDelta` snapshots the
-   * last-applied delta so any later edit only applies the difference,
-   * idempotent across any number of check / edit / uncheck cycles.
-   */
+  /** Update an item's purchased quantity or checked state: see `editRow`. */
   async updateItem(
     userId: string,
     locale: Locale,
@@ -193,158 +183,28 @@ export class ShoppingListsService {
     patch: UpdateShoppingItemRequest,
   ): Promise<ShoppingList> {
     const list = await this.loadOwned(userId, listId);
-    const item = list.items.find((i) => i.id === itemId);
-    if (!item) {
-      throw new NotFoundException({ error: 'ITEM_NOT_FOUND', message: 'Shopping list item not found.' });
-    }
     const profileId = list.plan.profile.id;
 
-    const nextPurchased =
-      patch.purchasedQuantity !== undefined ? patch.purchasedQuantity : item.purchasedQuantity;
-    // Auto-derive `checked` from quantity unless the client explicitly sets it.
-    // Typing kupione >= total auto-checks; typing less auto-unchecks. Explicit
-    // checkbox click wins so the user can still mark a row done at a partial
-    // purchase (e.g. shop ran out and they're done shopping for it).
-    const autoChecked = (nextPurchased ?? 0) >= item.totalQuantity;
-    const nextChecked =
-      patch.checked !== undefined
-        ? patch.checked
-        : patch.purchasedQuantity !== undefined
-        ? autoChecked
-        : item.checked;
-
-    // When the user explicitly checks a row without filling kupione, treat it
-    // as "I got everything" — default the purchased quantity to total.
-    const effectivePurchased = nextChecked ? nextPurchased ?? item.totalQuantity : nextPurchased;
-    const overBuy = nextChecked ? Math.max(0, (effectivePurchased ?? 0) - item.totalQuantity) : 0;
-    const targetDelta = nextChecked ? overBuy - item.alreadyHaveQuantity : 0;
-    const pantryDiff = targetDelta - item.inventoryDelta;
-
     await this.prisma.$transaction(async (tx) => {
+      // Read under a lock, so that a second edit of the row waits for this one
+      // and works from what it left.
+      const locked = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT "id" FROM "ShoppingListItem" WHERE "id" = ${itemId} AND "listId" = ${listId} FOR UPDATE`,
+      );
+      if (locked.length === 0) {
+        throw new NotFoundException({ error: 'ITEM_NOT_FOUND', message: 'Shopping list item not found.' });
+      }
+      const item = await tx.shoppingListItem.findUniqueOrThrow({ where: { id: itemId } });
+      const next = editRow(item, patch);
+      if (next.purchasedQuantity !== null) assertWithinCeiling(next.purchasedQuantity, item.unit);
+
+      const moves = await settleRow(tx, profileId, item, intendedPantryEffect({ ...item, ...next }));
       await tx.shoppingListItem.update({
         where: { id: itemId },
-        data: {
-          purchasedQuantity: effectivePurchased ?? null,
-          checked: nextChecked,
-          inventoryDelta: targetDelta,
-        },
+        data: { ...next, ...(moves ? { pantryMoves: moves as unknown as Prisma.InputJsonValue } : {}) },
       });
-      if (pantryDiff === 0) return;
-      await this.applyPantryDeltaTx(tx, profileId, item.ingredientId, item.unit, pantryDiff);
-    });
+    }, TRANSACTION);
     return this.get(userId, locale, listId);
-  }
-
-  /** Apply a signed delta to a pantry row, creating / deleting as needed. */
-  private async applyPantryDelta(
-    profileId: string,
-    ingredientId: string,
-    unit: 'g' | 'ml' | 'piece',
-    diff: number,
-  ): Promise<void> {
-    if (diff === 0) return;
-    await this.prisma.$transaction((tx) =>
-      this.applyPantryDeltaTx(tx, profileId, ingredientId, unit, diff),
-    );
-  }
-
-  private async applyPantryDeltaTx(
-    tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
-    profileId: string,
-    ingredientId: string,
-    unit: 'g' | 'ml' | 'piece',
-    diff: number,
-  ): Promise<void> {
-    if (diff === 0) return;
-    const existing = await tx.inventoryItem.findUnique({
-      where: {
-        profileId_ingredientId_unit: { profileId, ingredientId, unit },
-      },
-    });
-    if (!existing) {
-      // No row yet — only worth creating if we're adding stock. A negative
-      // diff against empty pantry is silently dropped (the user may have
-      // hand-deleted the row; we never push a negative quantity).
-      if (diff > 0) {
-        await tx.inventoryItem.create({
-          data: { profileId, ingredientId, quantity: diff, unit },
-        });
-      }
-      return;
-    }
-    const next = existing.quantity + diff;
-    if (next <= 0) {
-      await tx.inventoryItem.delete({ where: { id: existing.id } });
-    } else {
-      await tx.inventoryItem.update({ where: { id: existing.id }, data: { quantity: next } });
-    }
-  }
-
-  /**
-   * Build a `(ingredientId + unit) → { quantity, bestBefore }` map for
-   * shopping-list pre-fill. Aggregates every inventory row for the profile,
-   * converting each into the requested item-unit using the engine's unit
-   * converter, and tracks the earliest best-before across contributing rows so
-   * the UI can surface urgency on the "from pantry" chip. Rows that can't
-   * convert (missing density / gramsPerPiece) drop out — better to under-count
-   * than to claim stock we can't honour.
-   */
-  private async pantryCoverageByItemUnit(
-    profileId: string,
-    items: ReadonlyArray<{ ingredientId: string; unit: 'g' | 'ml' | 'piece' }>,
-    ingredients: Map<string, EngineIngredient>,
-  ): Promise<Map<string, { quantity: number; bestBefore: Date | null }>> {
-    const result = new Map<string, { quantity: number; bestBefore: Date | null }>();
-    if (items.length === 0) return result;
-    const inventoryRows = await this.prisma.inventoryItem.findMany({
-      where: { profileId, ingredientId: { in: [...new Set(items.map((i) => i.ingredientId))] } },
-    });
-    if (inventoryRows.length === 0) return result;
-
-    // Index inventory by ingredientId so we don't re-walk for every item unit.
-    const byIngredient = new Map<
-      string,
-      Array<{ quantity: number; unit: 'g' | 'ml' | 'piece'; bestBefore: Date | null }>
-    >();
-    for (const row of inventoryRows) {
-      const bucket = byIngredient.get(row.ingredientId) ?? [];
-      bucket.push({ quantity: row.quantity, unit: row.unit, bestBefore: row.bestBefore });
-      byIngredient.set(row.ingredientId, bucket);
-    }
-
-    for (const item of items) {
-      const rows = byIngredient.get(item.ingredientId);
-      if (!rows) continue;
-      const ingredient = ingredients.get(item.ingredientId);
-      if (!ingredient) continue;
-      let total = 0;
-      let earliest: Date | null = null;
-      for (const row of rows) {
-        let contribution = 0;
-        if (row.unit === item.unit) {
-          contribution = row.quantity;
-        } else {
-          try {
-            const canonicalQty = toCanonical(row.quantity, row.unit, ingredient);
-            contribution = toCanonical(canonicalQty, ingredient.canonicalUnit, {
-              canonicalUnit: item.unit,
-              gramsPerPiece: ingredient.gramsPerPiece,
-              density: ingredient.density,
-            });
-          } catch (err) {
-            if (!(err instanceof UnitConversionError)) throw err;
-            continue;
-          }
-        }
-        if (contribution <= 0) continue;
-        total += contribution;
-        if (row.bestBefore && (!earliest || row.bestBefore < earliest)) {
-          earliest = row.bestBefore;
-        }
-      }
-      if (total > 0) result.set(`${item.ingredientId}:${item.unit}`, { quantity: total, bestBefore: earliest });
-    }
-    return result;
   }
 
   private async loadOwned(userId: string, listId: string) {
@@ -360,109 +220,144 @@ export class ShoppingListsService {
   }
 
   /**
-   * Load locale-resolved display names for the given ingredient ids. The
-   * shopping-list row snapshots the English name at generation time; resolving
-   * fresh on every read means switching the user's locale localises old lists
-   * too, with no schema migration of historical rows.
+   * Lists of one plan as the contract shows them. Names and the name of a
+   * piece are read from the ingredient as it is now, so a list follows the
+   * user's language and a corrected name; a row whose ingredient is gone keeps
+   * the name it was made with.
    */
-  private async translationsFor(
-    ingredientIds: string[],
-    locale: Locale,
-  ): Promise<Map<string, string>> {
-    if (ingredientIds.length === 0) return new Map();
-    const rows = await this.prisma.ingredient.findMany({
-      where: { id: { in: [...new Set(ingredientIds)] } },
-      select: { id: true, name: true, translations: { select: { locale: true, name: true } } },
-    });
-    return new Map(rows.map((r) => [r.id, pickIngredient(locale, r.translations, r.name)]));
-  }
+  private async toDtos(lists: StoredList[], locale: Locale): Promise<ShoppingList[]> {
+    if (lists.length === 0) return [];
+    const ids = [...new Set(lists.flatMap((list) => list.items.map((item) => item.ingredientId)))];
+    const ingredients = await loadIngredients(this.prisma, ids);
 
-  private async loadIngredients(ids: string[]): Promise<Map<string, EngineIngredient>> {
-    const rows = await this.prisma.ingredient.findMany({ where: { id: { in: ids } } });
-    return new Map(
-      rows.map((i) => [
-        i.id,
-        {
-          id: i.id,
-          name: i.name,
-          category: i.category,
-          canonicalUnit: i.canonicalUnit,
-          gramsPerPiece: i.gramsPerPiece,
-          density: i.density,
-          caloriesPer100: i.caloriesPer100,
-          proteinPer100: i.proteinPer100,
-          fatPer100: i.fatPer100,
-          carbsPer100: i.carbsPer100,
-          allergens: i.allergens as EngineIngredient['allergens'],
-          dietCompatibility: i.dietCompatibility as EngineIngredient['dietCompatibility'],
-        },
-      ]),
-    );
-  }
-
-  private toDto(
-    list: {
-      id: string;
-      planId: string;
-      fromDate: Date;
-      toDate: Date;
-      createdAt: Date;
-      items: {
-        id: string;
-        ingredientId: string;
-        name: string;
-        category: string;
-        totalQuantity: number;
-        unit: 'g' | 'ml' | 'piece';
-        alreadyHaveQuantity: number;
-        purchasedQuantity: number | null;
-        pantryBestBefore: Date | null;
-        estimatedCalories: number;
-        checked: boolean;
-      }[];
-    },
-    names: Map<string, string>,
-  ): ShoppingList {
-    const byCategory = new Map<string, ShoppingList['groups'][number]['items']>();
-    let totalCalories = 0;
-
-    for (const item of list.items) {
-      totalCalories += item.estimatedCalories;
-      const entry = {
-        id: item.id,
-        ingredientId: item.ingredientId,
-        // Use the locale-resolved name; fall back to the snapshot stored on
-        // the row if the underlying ingredient was deleted (the row keeps the
-        // English name as a tombstone so the user still sees something).
-        name: names.get(item.ingredientId) ?? item.name,
-        category: item.category as ShoppingList['groups'][number]['category'],
-        totalQuantity: item.totalQuantity,
-        unit: item.unit,
-        alreadyHaveQuantity: item.alreadyHaveQuantity,
-        toBuyQuantity: toBuyQuantity(item.totalQuantity, item.alreadyHaveQuantity),
-        purchasedQuantity: item.purchasedQuantity,
-        pantryBestBefore: item.pantryBestBefore
-          ? item.pantryBestBefore.toISOString().slice(0, 10)
-          : null,
-        estimatedCalories: item.estimatedCalories,
-        checked: item.checked,
+    return lists.map((list) => {
+      const items = list.items.map((item) => {
+        const ingredient = ingredients.get(item.ingredientId);
+        // A row in pieces is called what its ingredient calls a piece.
+        const displayUnit: DisplayUnit = item.unit === 'piece' && ingredient && isCounted(ingredient) ? ingredient.displayUnit : item.unit;
+        return {
+          id: item.id,
+          ingredientId: item.ingredientId,
+          name: ingredient ? pickIngredient(locale, ingredient.translations, ingredient.name) : item.name,
+          category: item.category as ShoppingList['groups'][number]['category'],
+          totalQuantity: item.totalQuantity,
+          unit: item.unit,
+          displayUnit,
+          alreadyHaveQuantity: item.alreadyHaveQuantity,
+          toBuyQuantity: toBuyQuantity(item.totalQuantity, item.alreadyHaveQuantity),
+          purchasedQuantity: item.purchasedQuantity,
+          pantryBestBefore: item.pantryBestBefore ? isoDate(item.pantryBestBefore) : null,
+          estimatedCalories: item.estimatedCalories,
+          checked: item.checked,
+        };
+      });
+      return {
+        id: list.id,
+        planId: list.planId,
+        fromDate: isoDate(list.fromDate),
+        toDate: isoDate(list.toDate),
+        groups: groupByAisle(items),
+        totalEstimatedCalories: Math.round(list.items.reduce((sum, item) => sum + item.estimatedCalories, 0)),
+        createdAt: list.createdAt.toISOString(),
       };
-      const bucket = byCategory.get(item.category) ?? [];
-      bucket.push(entry);
-      byCategory.set(item.category, bucket);
-    }
-
-    return {
-      id: list.id,
-      planId: list.planId,
-      fromDate: list.fromDate.toISOString().slice(0, 10),
-      toDate: list.toDate.toISOString().slice(0, 10),
-      groups: [...byCategory.entries()].map(([category, items]) => ({
-        category: category as ShoppingList['groups'][number]['category'],
-        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
-      })),
-      totalEstimatedCalories: Math.round(totalCalories),
-      createdAt: list.createdAt.toISOString(),
-    };
+    });
   }
+}
+
+const isoDate = (date: Date): string => date.toISOString().slice(0, 10);
+
+type Reader = Pick<Tx, 'ingredient' | 'mealPlanDay'>;
+
+async function loadIngredients(db: Pick<Tx, 'ingredient'>, ids: string[]): Promise<Map<string, IngredientRow>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db.ingredient.findMany({
+    where: { id: { in: ids } },
+    include: { translations: { select: { locale: true, name: true } } },
+  });
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        ...row,
+        allergens: row.allergens as ShoppingIngredient['allergens'],
+        dietCompatibility: row.dietCompatibility as ShoppingIngredient['dietCompatibility'],
+      },
+    ]),
+  );
+}
+
+/** Every ingredient line the plan's menu has between two dates, as the menu is now. */
+async function planLines(db: Pick<Tx, 'mealPlanDay'>, planId: string, from: Date, to: Date): Promise<PlanIngredientLine[]> {
+  const days = await db.mealPlanDay.findMany({
+    where: { planId, date: { gte: from, lte: to } },
+    select: {
+      meals: {
+        select: {
+          source: true,
+          servings: true,
+          quantityScale: true,
+          recipe: { select: { servings: true, ingredients: { select: { ingredientId: true, quantity: true, unit: true } } } },
+        },
+      },
+    },
+  });
+  const lines: PlanIngredientLine[] = [];
+  for (const day of days) {
+    for (const meal of day.meals) {
+      // A custom meal has no ingredients. Whether a meal was eaten changes
+      // nothing: a list says what the days need, not what is left of them.
+      if (meal.source === 'USER_CUSTOM' || !meal.recipe) continue;
+      for (const line of meal.recipe.ingredients) {
+        lines.push({
+          ingredientId: line.ingredientId,
+          quantity: line.quantity,
+          unit: line.unit,
+          recipeServings: meal.recipe.servings,
+          // Effective amount folds the rebalancer multiplier into servings.
+          plannedServings: meal.servings * meal.quantityScale,
+        });
+      }
+    }
+  }
+  return lines;
+}
+
+/** What the plan's menu needs between two dates, by aisle, with the ingredients it names. */
+async function planNeeds(db: Reader, planId: string, from: Date, to: Date) {
+  const lines = await planLines(db, planId, from, to);
+  const ingredients = await loadIngredients(db, [...new Set(lines.map((line) => line.ingredientId))]);
+  return { groups: aggregateShoppingList(lines, ingredients), ingredients };
+}
+
+/**
+ * Bring a row's effect on the pantry to `effect` (in the row's unit) and
+ * return its ledger afterwards. Null when the pantry cannot be reached for
+ * the row: its ingredient is gone, or can no longer be converted from the
+ * row's unit. The row then keeps the ledger it has.
+ */
+async function settleRow(tx: Tx, profileId: string, item: StoredItem, effect: number) {
+  const ingredient = await tx.ingredient.findUnique({ where: { id: item.ingredientId } });
+  if (!ingredient) return null;
+  let target: number;
+  try {
+    target = convertUnit(effect, item.unit, ingredient.canonicalUnit, ingredient);
+  } catch (err) {
+    if (!(err instanceof UnitConversionError)) throw err;
+    return null;
+  }
+  await lockPantry(tx, profileId, ingredient.id);
+  return settlePantry(tx, profileId, ingredient, readMoves(item.pantryMoves), target);
+}
+
+/**
+ * Undo what the rows of lists that are about to be removed did to the pantry.
+ * The lists themselves are left for the caller to delete, in the same
+ * transaction.
+ */
+async function releaseLists(tx: Tx, profileId: string, listIds: readonly string[]): Promise<void> {
+  if (listIds.length === 0) return;
+  // Rows first, then the pantry: the order every writer takes its locks in.
+  await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "ShoppingListItem" WHERE "listId" IN (${Prisma.join(listIds)}) ORDER BY "id" FOR UPDATE`);
+  const items = await tx.shoppingListItem.findMany({ where: { listId: { in: [...listIds] } }, orderBy: { ingredientId: 'asc' } });
+  for (const item of items) await settleRow(tx, profileId, item, 0);
 }
