@@ -92,6 +92,13 @@ export const PlannedMeal = z.object({
    * shows a chip so the dashboard "% on-diet" stat stays honest.
    */
   dietOverride: z.boolean(),
+  /**
+   * What the profile has ruled out since this meal was planned: an allergen it
+   * now avoids, an ingredient it now skips, or the recipe itself marked to
+   * avoid. A plan is never rewritten behind the user's back, so the meal stays
+   * and says so. Empty for a meal that is still fine, and for a custom meal.
+   */
+  restrictionConflicts: z.array(z.enum(['allergen', 'excluded_ingredient', 'avoided'])),
   nutrition: Nutrition, // effective: per-serving macros * servings * quantityScale
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;

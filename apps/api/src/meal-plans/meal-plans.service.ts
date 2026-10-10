@@ -80,7 +80,9 @@ import {
   pickIndex,
   poolWhere,
   restrictionsFor,
+  violations,
   type Candidate,
+  type Restrictions,
   type Waived,
 } from './eligibility.js';
 
@@ -546,14 +548,14 @@ export class MealPlansService {
             },
           },
         },
-        profile: true,
+        profile: { include: { preferences: true } },
       },
     });
     if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
-    return this.toDto(plan, locale);
+    return this.toDto(plan, locale, await restrictionsFor(this.prisma, plan));
   }
 
   /** Swap a planned meal for a random / favorite alternative; applies immediately. */
@@ -2021,7 +2023,7 @@ export class MealPlansService {
     return hits.size === 0 ? null : hits;
   }
 
-  private toDto(plan: PlanWithRelations, locale: Locale): MealPlan {
+  private toDto(plan: PlanWithRelations, locale: Locale, restrictions: Restrictions): MealPlan {
     const days: MealPlanDay[] = plan.days.map((day) => {
       // Sort meals into canonical eating order — Prisma's row order is
       // undefined and shifts after updates, which would look like other meals
@@ -2044,6 +2046,7 @@ export class MealPlansService {
             quantityScale: m.quantityScale,
             eatenAt,
             dietOverride: false,
+            restrictionConflicts: [],
             nutrition: {
               calories: Math.round(per.calories * factor),
               protein: Math.round(per.protein * factor),
@@ -2066,6 +2069,11 @@ export class MealPlansService {
           // A meal the plan's diet does not admit: a favourite swapped in on
           // purpose, or a recipe whose ingredients turned out not to qualify.
           dietOverride: !fitsDiet(m.recipe.dietTags, plan.dietType),
+          // What the profile ruled out after this meal was planned. The diet has
+          // its own flag above, and the meal is in the slot it was planned for.
+          restrictionConflicts: violations(m.recipe, restrictions, m.mealType, { diet: true, meal: true }).filter(
+            (violation) => violation !== 'not_available',
+          ) as PlannedMeal['restrictionConflicts'],
           nutrition: {
             calories: Math.round(n.calories * factor),
             protein: Math.round(n.protein * factor),
@@ -2136,7 +2144,7 @@ interface PlanWithRelations {
       customName: string | null;
       customMacros: unknown;
       eatenAt: Date | null;
-      recipe: Parameters<typeof toRecipeDto>[0] | null;
+      recipe: (Parameters<typeof toRecipeDto>[0] & Candidate) | null;
     }[];
   }[];
 }
