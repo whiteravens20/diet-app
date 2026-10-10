@@ -532,6 +532,20 @@
       "shipBundleMarkShipped": "Zacommitowałem — oznacz jako wysłane",
       "shipDismiss": "Zamknij"
     },
+    "connection": {
+      "title": "Połączenie",
+      "intro": "To, co API widzi z połączenia, przez które tu jesteś. Otwórz tę stronę przez publiczny adres instancji, żeby sprawdzić reverse proxy.",
+      "clientAddress": "Adres klienta",
+      "clientAddressHint": "Na ten adres liczone są zapytania bez zalogowania.",
+      "peerAddress": "Połączono z adresu",
+      "forwardedFor": "X-Forwarded-For",
+      "notSent": "nie wysłano",
+      "trustProxy": "TRUST_PROXY",
+      "trustOff": "wyłączone",
+      "trustHops": "{count, plural, one {# proxy} few {# proxy} many {# proxy} other {# proxy}}",
+      "countedAsProxy": "Zapytania docierają do API przez proxy, a API bierze to proxy za klienta. Wszyscy odwiedzający mają wtedy jeden wspólny limit na rejestracje i na błędne hasła administratora. Postaw z przodu reverse proxy, ustaw TRUST_PROXY i sprawdź tutaj ponownie: jak to zrobić, opisuje przewodnik wdrożenia.",
+      "loadFailed": "Nie udało się odczytać połączenia."
+    },
     "reviewer": {
       "title": "Panel recenzenta",
       "explain": "Pozwala zaprosić osobę spoza administracji do recenzowania tłumaczeń szkiców dla jednego lub kilku języków. Strona /review jest miejscem, z którego korzystają; ta karta steruje jej dostępnością i hasłem.",

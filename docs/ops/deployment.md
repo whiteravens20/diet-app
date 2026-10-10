@@ -104,6 +104,10 @@ when told to, because without a proxy in front anybody can write that header the
    `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`.
 3. Set `TRUST_PROXY=1` in `.env` and restart the API. With a CDN or a second proxy in
    front of the first, count that one too: `TRUST_PROXY=2`.
+4. Sign in to `/admin` through the public address and open **Connection**. "Client
+   address" must be your own address. If it is the proxy's, the number is too low or the
+   proxy does not write the header; if a page warns that requests are "counted as the
+   proxy", `TRUST_PROXY` is not set.
 
 Never set `TRUST_PROXY` on an instance whose web or API port is reachable directly: a
 visitor could then claim any address, and with it somebody else's allowance.

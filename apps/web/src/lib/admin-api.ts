@@ -76,6 +76,15 @@ export interface AdminStatus {
   message: string | null;
 }
 
+/** How a request reached the API: see the admin controller's connection check. */
+export interface AdminConnection {
+  clientAddress: string | null;
+  peerAddress: string | null;
+  forwardedFor: string | null;
+  trustProxy: false | number | string[];
+  countedAsProxy: boolean;
+}
+
 export interface AdminStats {
   counts: { ingredients: number; recipes: number; substitutions: number };
   seed: {
@@ -447,6 +456,9 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(source ? { source } : {}),
     }),
+
+  // What the API sees of the connection this request arrived on.
+  connection: () => adminFetch<AdminConnection>('/connection'),
 
   // Instance settings — reviewer-interface toggle + password.
   instanceSettings: () => adminFetch<InstanceSettingsDto>('/instance-settings'),

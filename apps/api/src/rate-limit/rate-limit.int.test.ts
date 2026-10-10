@@ -184,6 +184,24 @@ describe('rate limits behind a proxy that is not trusted', () => {
 
       expect((await stats('integration-test-admin-password')).status).toBe(200);
     });
+
+    it('shows the administrator what the API sees of the connection', async () => {
+      const direct = await stats('integration-test-admin-password').then(() =>
+        t.http().get('/api/admin/connection').set(basic('integration-test-admin-password')).expect(200),
+      );
+      expect(direct.body).toMatchObject({ forwardedFor: null, trustProxy: false, countedAsProxy: false });
+      expect(direct.body.clientAddress).toBe(direct.body.peerAddress);
+
+      const forwarded = await t
+        .http()
+        .get('/api/admin/connection')
+        .set(basic('integration-test-admin-password'))
+        .set('X-Forwarded-For', '203.0.113.7')
+        .expect(200);
+      // The header is shown, and not believed: the request counts as the proxy it came through.
+      expect(forwarded.body).toMatchObject({ forwardedFor: '203.0.113.7', countedAsProxy: true });
+      expect(forwarded.body.clientAddress).toBe(forwarded.body.peerAddress);
+    });
   });
 
   describe('the reviewers\' password', () => {

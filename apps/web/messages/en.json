@@ -532,6 +532,20 @@
       "shipBundleMarkShipped": "I committed this — mark shipped",
       "shipDismiss": "Dismiss"
     },
+    "connection": {
+      "title": "Connection",
+      "intro": "What the API sees of the connection you are on. Open this page through the instance's public address to check a reverse proxy.",
+      "clientAddress": "Client address",
+      "clientAddressHint": "What a request without a sign-in is counted against.",
+      "peerAddress": "Connected from",
+      "forwardedFor": "X-Forwarded-For",
+      "notSent": "not sent",
+      "trustProxy": "TRUST_PROXY",
+      "trustOff": "off",
+      "trustHops": "{count, plural, one {# proxy} other {# proxies}}",
+      "countedAsProxy": "Requests reach the API through a proxy, and the API takes that proxy for the client. Every visitor then shares one allowance for sign-ups and for wrong admin passwords. Put a reverse proxy in front, set TRUST_PROXY and check here again: the deployment guide says how.",
+      "loadFailed": "Could not read the connection."
+    },
     "reviewer": {
       "title": "Reviewer interface",
       "explain": "Lets you invite a non-admin to review draft translations for one or more locales. The /review page is the surface they use; this card controls whether it's reachable and what password protects it.",

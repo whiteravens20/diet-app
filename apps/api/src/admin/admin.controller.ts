@@ -12,11 +12,14 @@ import {
   HttpCode,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
+import { parseTrustProxy } from '../config/trust-proxy.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
 import { computeDataState, resolveDataDir } from './seed/data-hash.js';
 import { SeedRunner, type RunnerState } from './seed/runner.js';
@@ -40,6 +43,24 @@ interface AdminStatsDto {
   };
 }
 
+/** How this request reached the API, for an operator setting up a reverse proxy. */
+interface AdminConnectionDto {
+  /** The address requests are counted against: the client's, as far as `TRUST_PROXY` lets it be known. */
+  clientAddress: string | null;
+  /** The address of the connection itself: the proxy nearest to the API, or the client when there is none. */
+  peerAddress: string | null;
+  /** `X-Forwarded-For` as it arrived, or null when the request carried none. */
+  forwardedFor: string | null;
+  /** What `TRUST_PROXY` is set to: `false`, a number of proxies, or their addresses. */
+  trustProxy: false | number | string[];
+  /**
+   * True when the request came through a proxy and the address it is counted
+   * against is that proxy's: every client behind it then shares one allowance
+   * for everything that is limited by address.
+   */
+  countedAsProxy: boolean;
+}
+
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -61,6 +82,28 @@ export class AdminController {
       message: enabled
         ? null
         : 'Admin panel is disabled. Set ADMIN_PASSWORD in .env to enable it, then restart the API.',
+    };
+  }
+
+  /**
+   * What the API sees of the connection the administrator is on. Opened
+   * through the public address of the instance, it shows whether the reverse
+   * proxy passes the client's address on and whether `TRUST_PROXY` is set to
+   * believe it.
+   */
+  @Get('connection')
+  @UseGuards(BasicAuthGuard)
+  connection(@Req() req: Request): AdminConnectionDto {
+    const header = req.headers['x-forwarded-for'];
+    const forwardedFor = Array.isArray(header) ? header.join(', ') : (header ?? null);
+    const clientAddress = req.ip ?? null;
+    const peerAddress = req.socket.remoteAddress ?? null;
+    return {
+      clientAddress,
+      peerAddress,
+      forwardedFor,
+      trustProxy: parseTrustProxy(this.config.get('TRUST_PROXY', { infer: true })),
+      countedAsProxy: forwardedFor !== null && clientAddress === peerAddress,
     };
   }
 

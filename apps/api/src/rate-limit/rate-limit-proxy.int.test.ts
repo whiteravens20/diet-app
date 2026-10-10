@@ -42,6 +42,18 @@ describe('rate limits behind one trusted proxy', () => {
     expect(res.status).toBe(429);
   });
 
+  it('shows the administrator the client it took the request for', async () => {
+    const res = await t.http().get('/api/admin/connection').set(basic).set('X-Forwarded-For', '198.51.100.99, 203.0.113.21').expect(200);
+
+    expect(res.body).toMatchObject({
+      clientAddress: '203.0.113.21',
+      forwardedFor: '198.51.100.99, 203.0.113.21',
+      trustProxy: 1,
+      countedAsProxy: false,
+    });
+    expect(res.body.peerAddress).not.toBe('203.0.113.21');
+  });
+
   it('counts a wrong administrator password against the client, not against the proxy', async () => {
     const wrong = { Authorization: `Basic ${Buffer.from('admin:not-the-password').toString('base64')}` };
     for (let i = 0; i < 5; i += 1) {

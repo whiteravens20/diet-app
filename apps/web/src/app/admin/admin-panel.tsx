@@ -8,6 +8,7 @@ import { AlertTriangle, CheckCircle2, Database, Download, RefreshCw } from 'luci
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { ConnectionCard } from './connection-card';
 import { CurationCard } from './curation-card';
 import { ReviewerConfigCard } from './reviewer-config-card';
 import {
@@ -346,6 +347,8 @@ export function AdminPanel() {
       <CurationCard />
 
       <ReviewerConfigCard />
+
+      <ConnectionCard />
     </div>
   );
 }
