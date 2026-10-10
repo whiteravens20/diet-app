@@ -1,6 +1,5 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ForbiddenException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AiMode, AiProvider } from '@diet-app/shared';
@@ -54,6 +53,7 @@ function setup(input: {
       ...entry,
     }),
   );
+  /** The usage log: one row per call that was let through, settled with its outcome. */
   const usage: Record<string, unknown>[] = [];
   const env: Partial<Env> = {
     OLLAMA_BASE_URL: 'http://ollama:11434',
@@ -65,18 +65,16 @@ function setup(input: {
   const router = new AiRouterService(
     { resolveChain: vi.fn(async () => chain) } as unknown as AiKeyService,
     {
-      assertAllowsAdminCall: vi.fn(async () => {
-        if (input.quotaExhausted) throw new ForbiddenException({ error: 'AI_MONTHLY_LIMIT_REACHED' });
+      begin: vi.fn(async (userId: string, call: { mode: string }) => {
+        if (input.quotaExhausted && call.mode === 'admin') return { refused: 'quota_exhausted' };
+        usage.push({ userId, ...call });
+        return { id: String(usage.length - 1) };
+      }),
+      end: vi.fn(async (id: string, result: Record<string, unknown>) => {
+        Object.assign(usage[Number(id)]!, result);
       }),
     } as unknown as AiQuotaService,
-    {
-      user: { findUnique: vi.fn(async () => ({ aiMode: input.mode ?? 'byok' })) },
-      aiUsageLog: {
-        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-          usage.push(data);
-        }),
-      },
-    } as unknown as PrismaService,
+    { user: { findUnique: vi.fn(async () => ({ aiMode: input.mode ?? 'byok' })) } } as unknown as PrismaService,
     { get: (key: keyof Env) => env[key] } as unknown as ConfigService<Env, true>,
     adapter('openai') as never,
     adapter('anthropic') as never,
@@ -125,7 +123,7 @@ describe('AiRouterService.chat', () => {
         operation: 'test-operation',
         promptTokens: 7,
         outputTokens: 3,
-        success: true,
+        outcome: 'COMPLETED',
       }),
     ]);
   });
@@ -159,10 +157,10 @@ describe('AiRouterService.chat', () => {
     expect(result.meta.provider).toBe('openrouter');
     expect(result.meta.failoverChain).toEqual(['openai', 'anthropic']);
     expect(calls.map((c) => c.provider)).toEqual(['openai', 'anthropic', 'openrouter']);
-    expect(usage.map((row) => [row.provider, row.success])).toEqual([
-      ['openai', false],
-      ['anthropic', false],
-      ['openrouter', true],
+    expect(usage.map((row) => [row.provider, row.outcome])).toEqual([
+      ['openai', 'FAILED'],
+      ['anthropic', 'FAILED'],
+      ['openrouter', 'COMPLETED'],
     ]);
   });
 
@@ -194,7 +192,7 @@ describe('AiRouterService.chat', () => {
   });
 
   it('calls no provider once the monthly allowance of the shared provider is used up', async () => {
-    const { router, calls } = setup({
+    const { router, calls, usage } = setup({
       mode: 'admin',
       chain: [{ provider: 'openai', mode: 'admin' }],
       quotaExhausted: true,
@@ -204,6 +202,21 @@ describe('AiRouterService.chat', () => {
 
     expect(result.meta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'quota_exhausted' });
     expect(calls).toHaveLength(0);
+    expect(usage).toHaveLength(0);
+  });
+
+  it('keeps the answer when the usage log cannot be written', async () => {
+    const { router } = setup({
+      chain: [{ provider: 'openai' }, { provider: 'anthropic' }],
+      behaviour: { openai: async () => answer('still here') },
+    });
+    // The second provider would be called if a failed write counted as a failed call.
+    vi.spyOn(router['quota'], 'end').mockRejectedValue(new Error('database is restarting'));
+
+    const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+    expect(result.text).toBe('still here');
+    expect(result.meta.provider).toBe('openai');
   });
 
   describe('the wait', () => {
@@ -239,7 +252,7 @@ describe('AiRouterService.chat', () => {
     });
 
     it('is reported as a timeout, and never outlasted, when no provider answers in time', async () => {
-      const { router, calls } = setup({
+      const { router, calls, usage } = setup({
         chain: [
           { provider: 'ollama', baseUrl: 'http://ollama:11434' },
           { provider: 'openai' },
@@ -253,6 +266,7 @@ describe('AiRouterService.chat', () => {
       expect(result.text).toBeNull();
       expect(result.meta.fallbackReason).toBe('provider_timeout');
       expect(calls).toHaveLength(2);
+      expect(usage.map((row) => row.outcome)).toEqual(['TIMED_OUT', 'TIMED_OUT']);
       expect(Date.now() - started).toBeLessThan(2_400 + 300);
     });
 

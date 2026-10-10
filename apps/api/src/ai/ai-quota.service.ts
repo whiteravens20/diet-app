@@ -1,18 +1,47 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import type { AiMode, AiQuotaStatus } from '@diet-app/shared';
+import type { AiFallbackReason, AiMode, AiQuotaStatus } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
+/** A call to a provider, as the usage log records it. */
+export interface UsageCall {
+  provider: string;
+  model: string;
+  operation: string;
+  /** Who pays: 'admin' is the operator's provider, 'byok' the user's own. */
+  mode: 'admin' | 'byok';
+}
+
+/** How a call ended, with what the provider reported about it. */
+export interface UsageResult {
+  outcome: 'COMPLETED' | 'FAILED' | 'TIMED_OUT';
+  promptTokens?: number;
+  outputTokens?: number;
+  latencyMs: number;
+}
+
 /**
- * Monthly quota for `aiMode='admin'` users.
- *
- * Counts AiUsageLog rows with `userId=<user>`, `mode='admin'` and
- * `createdAt >= NOW() - INTERVAL '30 days'`. `byok` and `none` callers don't
- * consume this — they get `null` for limit/remaining in the status snapshot.
+ * Which rows of the usage log count against an allowance: calls to the
+ * operator's provider in the last thirty days that the provider completed,
+ * plus the ones still in flight. A call the provider never completed was not
+ * paid for. A row left PENDING for longer than any call lasts was abandoned
+ * (the process stopped in mid-call) and stops holding a place.
+ */
+const COUNTED = Prisma.sql`
+  "mode" = 'admin'
+  AND "createdAt" >= NOW() - INTERVAL '30 days'
+  AND ("outcome" = 'COMPLETED' OR ("outcome" = 'PENDING' AND "createdAt" >= NOW() - INTERVAL '5 minutes'))`;
+
+type Db = Pick<Prisma.TransactionClient, '$queryRaw'>;
+
+/**
+ * The log of calls to AI providers, and the monthly allowance of a user on the
+ * operator's provider, which is counted from it. Calls on a user's own
+ * provider are logged but never limited.
  *
  * **Time source.** All rolling-window arithmetic uses the database's `NOW()`
  * rather than JS `Date.now()`. The api container's wall clock is allowed to
@@ -21,11 +50,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
  * the row timestamps are always coherent. This avoids a class of bugs where
  * a misconfigured container TZ or NTP-less host would expire users' quotas
  * early or late by hours/days.
- *
- * The status snapshot powers the app-shell chip and the Settings AI card;
- * `assertAllowsAdminCall()` is the pre-flight guard the router runs before
- * dispatching an admin-mode call so the user sees `AI_MONTHLY_LIMIT_REACHED`
- * instead of an opaque provider failure.
  */
 @Injectable()
 export class AiQuotaService {
@@ -62,7 +86,7 @@ export class AiQuotaService {
    * sees their prior usage.
    */
   async status(userId: string, mode: AiMode): Promise<AiQuotaStatus> {
-    const used = await this.countUsedLastMonth(userId);
+    const used = await this.countUsed(this.prisma, userId);
     const adminProviderConfigured = this.isAdminProviderConfigured();
     const limit = this.monthlyLimit();
     if (mode !== 'admin') {
@@ -86,34 +110,36 @@ export class AiQuotaService {
   }
 
   /**
-   * Pre-flight guard for admin-mode calls. Throws `AI_MONTHLY_LIMIT_REACHED`
-   * (403) when the user has spent the rolling-month budget. Never called for
-   * byok/none — the router decides which mode to dispatch first.
+   * Record that a provider is about to be asked, and return the row to settle
+   * when it answers. For the operator's provider this is also where the
+   * allowance is enforced: the count and the new row are written under one
+   * lock, so calls started at the same moment cannot all take the last place.
    */
-  async assertAllowsAdminCall(userId: string): Promise<void> {
-    const limit = this.monthlyLimit();
-    if (limit === 0) {
-      throw new ForbiddenException({
-        error: 'AI_MONTHLY_LIMIT_REACHED',
-        message: 'Admin AI mode is disabled on this instance.',
-      });
+  async begin(userId: string, call: UsageCall): Promise<{ id: string } | { refused: AiFallbackReason }> {
+    const data = { userId, ...call, outcome: 'PENDING' as const };
+    if (call.mode !== 'admin') {
+      return this.prisma.aiUsageLog.create({ data, select: { id: true } });
     }
-    const used = await this.countUsedLastMonth(userId);
-    if (used >= limit) {
-      throw new ForbiddenException({
-        error: 'AI_MONTHLY_LIMIT_REACHED',
-        message: 'Monthly AI request limit reached.',
-      });
-    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('ai-allowance'))`;
+      const limit = this.monthlyLimit();
+      if (limit === 0 || (await this.countUsed(tx, userId)) >= limit) {
+        return { refused: 'quota_exhausted' as const };
+      }
+      return tx.aiUsageLog.create({ data, select: { id: true } });
+    });
   }
 
-  private async countUsedLastMonth(userId: string): Promise<number> {
-    const rows = await this.prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+  /** Record how a call ended. Only a completed one keeps its place in the allowance. */
+  async end(id: string, result: UsageResult): Promise<void> {
+    await this.prisma.aiUsageLog.update({ where: { id }, data: result });
+  }
+
+  private async countUsed(db: Db, userId: string): Promise<number> {
+    const rows = await db.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
       SELECT COUNT(*)::bigint AS count
       FROM "AiUsageLog"
-      WHERE "userId" = ${userId}
-        AND "mode" = 'admin'
-        AND "createdAt" >= NOW() - INTERVAL '30 days'
+      WHERE "userId" = ${userId} AND ${COUNTED}
     `);
     return Number(rows[0]?.count ?? 0n);
   }
@@ -122,9 +148,7 @@ export class AiQuotaService {
     const rows = await this.prisma.$queryRaw<Array<{ resetAt: Date | null }>>(Prisma.sql`
       SELECT MIN("createdAt") + INTERVAL '30 days' AS "resetAt"
       FROM "AiUsageLog"
-      WHERE "userId" = ${userId}
-        AND "mode" = 'admin'
-        AND "createdAt" >= NOW() - INTERVAL '30 days'
+      WHERE "userId" = ${userId} AND ${COUNTED}
     `);
     const resetAt = rows[0]?.resetAt;
     return resetAt ? resetAt.toISOString() : null;

@@ -703,23 +703,33 @@ model AiProviderConfig {
   @@index([userId])
 }
 
+// How a call to a provider ended. A row starts as PENDING, before the provider
+// is asked, and is settled when the provider returns.
+enum AiCallOutcome {
+  PENDING
+  COMPLETED // the provider answered, whether or not the answer was usable
+  FAILED // the provider refused, errored or could not be reached
+  TIMED_OUT
+}
+
 model AiUsageLog {
-  id                      String   @id @default(uuid())
-  user                    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userId                  String?
-  provider                String
-  model                   String
-  operation               String // recipe_draft | substitution | plan_variation | meal_swap | ingredient_swap | ...
-  // Routing mode at the time of the call: 'admin' (counts against the
-  // per-user monthly quota) or 'byok' (no quota). Null on rows logged before
-  // the mode was recorded.
-  mode                    String?
-  promptTokens            Int      @default(0)
-  outputTokens            Int      @default(0)
-  latencyMs               Int      @default(0)
-  success                 Boolean
-  fellBackToDeterministic Boolean  @default(false)
-  createdAt               DateTime @default(now())
+  id           String        @id @default(uuid())
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId       String?
+  provider     String
+  model        String
+  operation    String // recipe-draft | meal-swap | ingredient-swap | swap-rewrite
+  // Who pays for the call: 'admin' is the operator's provider, whose calls
+  // count against the monthly allowance; 'byok' is the user's own. Null on
+  // rows logged before the mode was recorded.
+  mode         String?
+  // Only COMPLETED calls, and PENDING ones still in flight, count against an
+  // allowance: a call the provider never completed was not paid for.
+  outcome      AiCallOutcome
+  promptTokens Int           @default(0)
+  outputTokens Int           @default(0)
+  latencyMs    Int           @default(0)
+  createdAt    DateTime      @default(now())
 
   @@index([userId])
   @@index([createdAt])

@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
   AiFallbackReason,
@@ -12,7 +12,7 @@ import { AiMode as AiModeSchema } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiKeyService } from './ai-key.service.js';
-import { AiQuotaService } from './ai-quota.service.js';
+import { AiQuotaService, type UsageResult } from './ai-quota.service.js';
 import { assertAllowedOllamaUrl, parseAllowedHosts } from './ollama-url.js';
 import type { Operation } from './operations.js';
 import { AnthropicProvider } from './providers/anthropic.provider.js';
@@ -65,7 +65,9 @@ export class AiRouterService {
    *
    * The chain is built from the user's `aiMode`: `none` short-circuits to
    * the fallback, `byok` walks the user's own configs, `admin` borrows the
-   * operator's env-configured provider after a quota guard.
+   * operator's env-configured provider, as far as the monthly allowance goes.
+   * A refused call is not an error: the caller gets a fallback with the
+   * reason, which the UI shows, so the user knows AI did not run and why.
    *
    * The operation's wait covers the whole chain. Each provider still to be
    * tried gets an equal share of the time that is left, so a slow first
@@ -79,27 +81,13 @@ export class AiRouterService {
     json = false,
   ): Promise<RoutedResult> {
     const mode = await this.loadAiMode(userId);
-
-    // Quota / availability guards short-circuit BEFORE we hit a provider, so
-    // callers always get a clean fallback meta (with `fallbackReason`) instead
-    // of a thrown 403. The UI surfaces the reason as a localised toast so the
-    // user knows AI didn't run *and why* — never a silent demotion.
-    if (mode === 'admin') {
-      try {
-        await this.quota.assertAllowsAdminCall(userId);
-      } catch (err) {
-        if (err instanceof ForbiddenException) {
-          return fallback('quota_exhausted');
-        }
-        throw err;
-      }
-    }
-
     const chain = await this.keys.resolveChain(userId, mode);
     if (chain.length === 0) return fallback('no_provider');
 
     const failoverChain: AiProvider[] = [];
     let anyTimedOut = false;
+    let refused: AiFallbackReason | null = null;
+    let asked = 0;
     const deadline = Date.now() + operation.timeoutMs;
 
     for (const [index, cfg] of chain.entries()) {
@@ -110,6 +98,17 @@ export class AiRouterService {
         anyTimedOut = true;
         break;
       }
+      const call = await this.quota.begin(userId, {
+        provider: cfg.provider,
+        model: cfg.model,
+        operation: operation.name,
+        mode: cfg.mode,
+      });
+      if ('refused' in call) {
+        refused = call.refused;
+        continue;
+      }
+      asked += 1;
       try {
         let baseUrl: string | undefined;
         if (cfg.provider === 'ollama') {
@@ -141,7 +140,12 @@ export class AiRouterService {
             `AI provider ${cfg.provider} cut its answer to ${operation.name} at ${operation.maxTokens} tokens`,
           );
         }
-        await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation.name, result, Date.now() - started, true, false);
+        await this.settle(call.id, {
+          outcome: 'COMPLETED',
+          promptTokens: result.promptTokens,
+          outputTokens: result.outputTokens,
+          latencyMs: Date.now() - started,
+        });
         return {
           text: result.text,
           meta: {
@@ -155,17 +159,28 @@ export class AiRouterService {
           },
         };
       } catch (err) {
-        if (err instanceof AiProviderError && err.timedOut) anyTimedOut = true;
+        const timedOut = err instanceof AiProviderError && err.timedOut;
+        if (timedOut) anyTimedOut = true;
         this.logger.warn(`AI provider ${cfg.provider} failed: ${describe(err)}`);
         failoverChain.push(cfg.provider);
-        await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation.name, null, Date.now() - started, false, false);
+        await this.settle(call.id, {
+          outcome: timedOut ? 'TIMED_OUT' : 'FAILED',
+          latencyMs: Date.now() - started,
+        });
       }
     }
 
+    // No provider was asked because the allowance did not permit it.
+    if (asked === 0 && refused) return fallback(refused);
     // Every provider in the chain failed — caller uses the deterministic
     // engine. Surface timeout distinctly so the UI can hint at "your model is
     // too slow" instead of a generic "didn't respond".
     return fallback(anyTimedOut ? 'provider_timeout' : 'all_providers_failed', failoverChain);
+  }
+
+  /** Settle a usage row. A failure to write it must not cost the user the answer. */
+  private async settle(id: string, result: UsageResult): Promise<void> {
+    await this.quota.end(id, result).catch((e) => this.logger.error('failed to write AI usage log', e));
   }
 
   private async loadAiMode(userId: string): Promise<AiMode> {
@@ -176,35 +191,6 @@ export class AiRouterService {
     if (!row) return 'none';
     const parsed = AiModeSchema.safeParse(row.aiMode);
     return parsed.success ? parsed.data : 'none';
-  }
-
-  private async log(
-    userId: string,
-    provider: string,
-    model: string,
-    mode: 'admin' | 'byok',
-    operation: string,
-    result: { promptTokens: number; outputTokens: number } | null,
-    latencyMs: number,
-    success: boolean,
-    fellBack: boolean,
-  ): Promise<void> {
-    await this.prisma.aiUsageLog
-      .create({
-        data: {
-          userId,
-          provider,
-          model,
-          mode,
-          operation,
-          promptTokens: result?.promptTokens ?? 0,
-          outputTokens: result?.outputTokens ?? 0,
-          latencyMs,
-          success,
-          fellBackToDeterministic: fellBack,
-        },
-      })
-      .catch((e) => this.logger.error('failed to write AI usage log', e));
   }
 }
 
