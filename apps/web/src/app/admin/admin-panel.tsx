@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { waitOf } from '@/lib/api';
 import { ConnectionCard } from './connection-card';
+import { CoverageCard } from './coverage-card';
 import { CurationCard } from './curation-card';
 import { ReviewerConfigCard } from './reviewer-config-card';
 import {
@@ -354,6 +355,8 @@ export function AdminPanel() {
           </div>
         </CardContent>
       </Card>
+
+      <CoverageCard coverage={stats.coverage} />
 
       <UsdaImportCard onFinished={loadStats} />
 

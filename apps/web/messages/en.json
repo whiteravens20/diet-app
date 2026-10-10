@@ -416,6 +416,11 @@
       "done": "Done.",
       "working": "Working…"
     },
+    "coverage": {
+      "title": "Recipes per diet and meal",
+      "explain": "How many recipes a plan can choose from. With none, no plan can be made for that diet with that meal; with fewer than {enough}, a week repeats the same dish more often than a profile allows by default.",
+      "diet": "Diet"
+    },
     "usda": {
       "title": "USDA importer",
       "explain": "Pulls public-domain food data from the USDA FoodData Central API into data/ingredients.generated.json. Click \"Update DB\" afterwards to load the new rows.",

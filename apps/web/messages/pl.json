@@ -416,6 +416,11 @@
       "done": "Gotowe.",
       "working": "Pracuję…"
     },
+    "coverage": {
+      "title": "Przepisy według diety i posiłku",
+      "explain": "Z ilu przepisów plan może wybierać. Gdy nie ma żadnego, dla tej diety z tym posiłkiem nie da się ułożyć planu; gdy jest ich mniej niż {enough}, tydzień powtarza to samo danie częściej, niż domyślnie pozwala profil.",
+      "diet": "Dieta"
+    },
     "usda": {
       "title": "Importer USDA",
       "explain": "Pobiera publiczne dane o żywności z API USDA FoodData Central do data/ingredients.generated.json. Następnie kliknij „Zaktualizuj bazę”, aby załadować nowe wiersze.",

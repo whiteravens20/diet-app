@@ -6,6 +6,7 @@
  * live in sessionStorage so they vanish when the tab closes; never persisted
  * across browser sessions.
  */
+import type { DietType, MealType } from '@diet-app/shared';
 import { retryAfterOf } from './api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -96,6 +97,8 @@ export interface AdminConnection {
 
 export interface AdminStats {
   counts: { ingredients: number; recipes: number; substitutions: number };
+  /** How many recipes each diet has for each meal. */
+  coverage: Record<DietType, Record<MealType, number>>;
   seed: {
     lastSeededAt: string | null;
     storedHash: string | null;
