@@ -20,6 +20,7 @@ import { MealPlansModule } from './meal-plans/meal-plans.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ClientThrottlerGuard } from './rate-limit/client-throttler.guard.js';
+import { RateLimitModule } from './rate-limit/rate-limit.module.js';
 import { ProfilesModule } from './profiles/profiles.module.js';
 import { RecipesModule } from './recipes/recipes.module.js';
 import { ReviewModule } from './review/review.module.js';
@@ -49,6 +50,7 @@ import { WeightsModule } from './weights/weights.module.js';
         ],
       }),
     }),
+    RateLimitModule,
     PrismaModule,
     HealthModule,
     AppConfigModule,

@@ -312,6 +312,7 @@
     "SHOPPING_RANGE_OUTSIDE_PLAN": "Those dates are not within the plan. Pick dates the plan covers.",
     "SHOPPING_LIST_LIMIT": "This plan already has as many shopping lists as it can hold. Delete one first.",
     "QUANTITY_TOO_LARGE": "That quantity is larger than a kitchen holds. Check the number.",
+    "TOO_MANY_ATTEMPTS": "Too many failed sign-ins. Wait a moment before you try again.",
     "UNIT_NOT_CONVERTIBLE": "This ingredient can't be kept in that unit. Use the unit it is weighed or measured in.",
     "WEIGHT_ENTRY_NOT_FOUND": "Weight entry not found.",
     "NOTIFICATION_NOT_FOUND": "Notification not found.",

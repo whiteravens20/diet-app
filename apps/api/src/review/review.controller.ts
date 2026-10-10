@@ -59,6 +59,7 @@ import type { Env } from '../config/env.js';
 import { deriveDraftStatus } from '../admin/drafts/derive-status.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { SignInGate } from '../rate-limit/sign-in-gate.js';
 import { ReviewerSessionGuard, type ReviewerRequest } from './reviewer-session.guard.js';
 import {
   REVIEWER_COOKIE_NAME,
@@ -78,6 +79,7 @@ export class ReviewController {
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
     private readonly settings: InstanceSettingsService,
+    private readonly gate: SignInGate,
   ) {}
 
   // ── Auth ────────────────────────────────────────────────────────────────────
@@ -100,12 +102,13 @@ export class ReviewController {
     };
   }
 
-  // Tightened past the global default to blunt password enumeration against the
-  // bcrypt-hashed reviewer credential — mirrors the /auth controller posture.
+  // One password for every reviewer, so there is no account to count attempts
+  // against: five a minute per client, and wrong ones are slowed down by the
+  // sign-in gate.
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('auth')
   @HttpCode(204)
-  async login(@Body() body: unknown, @Res({ passthrough: true }) res: Response): Promise<void> {
+  async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     const parsed = ReviewerLoginBody.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -122,13 +125,17 @@ export class ReviewController {
         message: 'Reviewer interface is disabled.',
       });
     }
+    const client = req.ip ?? 'unknown';
+    this.gate.assertOpen('reviewer', client, res);
     const ok = await bcrypt.compare(parsed.data.password, reviewerPasswordHash);
     if (!ok) {
+      this.gate.failed('reviewer', client);
       throw new UnauthorizedException({
         error: 'INVALID_REVIEWER_PASSWORD',
         message: 'Invalid password.',
       });
     }
+    this.gate.succeeded('reviewer', client);
 
     const secret = resolveReviewerSecret(this.config);
     const { token, maxAgeSeconds } = signReviewerCookie(this.jwt, secret, {

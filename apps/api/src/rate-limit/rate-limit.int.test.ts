@@ -1,9 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
 import { aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { SignInGate } from './sign-in-gate.js';
 
 /**
  * No proxy is trusted here (`TRUST_PROXY` is not set), and every request comes
@@ -152,6 +153,59 @@ describe('rate limits behind a proxy that is not trusted', () => {
         const res = await t.http().get(path).expect(200);
         expect(res.headers['x-ratelimit-limit']).toBeUndefined();
       }
+    });
+  });
+
+  describe('the administrator\'s password', () => {
+    const basic = (password: string) => ({ Authorization: `Basic ${Buffer.from(`admin:${password}`).toString('base64')}` });
+    const stats = (password: string) => t.http().get('/api/admin/stats').set(basic(password));
+
+    it('makes a client wait after five wrong tries, right password or not, and lets it in once the wait is over', async () => {
+      const gate = t.app.get(SignInGate);
+      let time = Date.now();
+      gate.now = () => time;
+
+      expect(await statuses(5, () => stats('not-the-password'))).toEqual(Array(5).fill(401));
+
+      const held = await stats('integration-test-admin-password');
+      expect(held.status).toBe(429);
+      expect(held.body.error).toBe('TOO_MANY_ATTEMPTS');
+      expect(held.headers['retry-after']).toBe('30');
+
+      time += 31_000;
+      expect((await stats('integration-test-admin-password')).status).toBe(200);
+      // A correct sign-in clears the count: four more wrong ones cost nothing.
+      expect(await statuses(4, () => stats('not-the-password'))).toEqual(Array(4).fill(401));
+      expect((await stats('integration-test-admin-password')).status).toBe(200);
+    });
+
+    it('does not count a request that presents no password at all', async () => {
+      expect(await statuses(8, () => t.http().get('/api/admin/stats'))).toEqual(Array(8).fill(401));
+
+      expect((await stats('integration-test-admin-password')).status).toBe(200);
+    });
+  });
+
+  describe('the reviewers\' password', () => {
+    it('counts wrong tries at the same gate', async () => {
+      const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+      await t.http().patch('/api/admin/instance-settings').set(basic).send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' }).expect(200);
+      const gate = t.app.get(SignInGate);
+      const signIn = (password: string) => t.http().post('/api/review/auth').send({ password, label: 'pl reviewer' });
+
+      const counted = vi.spyOn(gate, 'failed');
+
+      expect((await signIn('Reviewers-Passw0rd')).status).toBe(204);
+      expect(await statuses(4, () => signIn('not-the-password'))).toEqual(Array(4).fill(401));
+
+      // Four wrong ones in a row were counted at the reviewers' door, for this client.
+      expect(counted.mock.calls.map(([door]) => door)).toEqual(Array(4).fill('reviewer'));
+      const client = counted.mock.calls[0]![1];
+      expect(() => gate.assertOpen('reviewer', client)).not.toThrow();
+      // One more closes the gate for it.
+      gate.failed('reviewer', client);
+      expect(() => gate.assertOpen('reviewer', client)).toThrow();
+      counted.mockRestore();
     });
   });
 });

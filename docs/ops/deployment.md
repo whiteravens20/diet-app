@@ -128,6 +128,14 @@ whether or not `TRUST_PROXY` is set. What is counted against the address is only
 as the address: without `TRUST_PROXY` it is one allowance for the whole instance, and
 sign-ups, for example, stop for everybody once ten were tried in a minute.
 
+The administrator's and the reviewers' passwords have no account to count attempts
+against. After five wrong ones in a row from one address, that address waits 30 seconds
+before its next attempt is looked at, then twice as long after every further failure, up
+to 15 minutes. Each failure is logged as `failed admin sign-in from <address>`. Without
+`TRUST_PROXY` an attacker's failures also make the real administrator wait: one more
+reason to set it. These counts, like the limits above, are kept in the memory of each
+API process.
+
 ## Ollama / GPU
 
 ```bash

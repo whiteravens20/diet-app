@@ -312,6 +312,7 @@
     "SHOPPING_RANGE_OUTSIDE_PLAN": "Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje.",
     "SHOPPING_LIST_LIMIT": "Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich.",
     "QUANTITY_TOO_LARGE": "Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę.",
+    "TOO_MANY_ATTEMPTS": "Zbyt wiele nieudanych prób logowania. Odczekaj chwilę, zanim spróbujesz ponownie.",
     "UNIT_NOT_CONVERTIBLE": "Tego składnika nie można trzymać w tej jednostce. Użyj jednostki, w której się go waży lub mierzy.",
     "WEIGHT_ENTRY_NOT_FOUND": "Nie znaleziono wpisu wagi.",
     "NOTIFICATION_NOT_FOUND": "Nie znaleziono powiadomienia.",

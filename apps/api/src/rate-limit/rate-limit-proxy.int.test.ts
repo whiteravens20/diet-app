@@ -24,6 +24,7 @@ describe('rate limits behind one trusted proxy', () => {
       .post('/api/auth/register')
       .set('X-Forwarded-For', forwardedFor)
       .send({ email: `visitor-${(sequence += 1)}-${Date.now().toString(36)}@example.test`, password: 'Integration-Passw0rd', displayName: 'Visitor' });
+  const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
 
   it('gives two clients an allowance each', async () => {
     const first: number[] = [];
@@ -39,5 +40,16 @@ describe('rate limits behind one trusted proxy', () => {
 
     // Counted as 203.0.113.7, whose allowance the first test used up.
     expect(res.status).toBe(429);
+  });
+
+  it('counts a wrong administrator password against the client, not against the proxy', async () => {
+    const wrong = { Authorization: `Basic ${Buffer.from('admin:not-the-password').toString('base64')}` };
+    for (let i = 0; i < 5; i += 1) {
+      await t.http().get('/api/admin/stats').set(wrong).set('X-Forwarded-For', '203.0.113.50').expect(401);
+    }
+
+    // The guesser waits; the administrator, at another address, does not.
+    await t.http().get('/api/admin/stats').set(basic).set('X-Forwarded-For', '203.0.113.50').expect(429);
+    await t.http().get('/api/admin/stats').set(basic).set('X-Forwarded-For', '203.0.113.60').expect(200);
   });
 });

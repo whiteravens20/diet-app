@@ -4,6 +4,7 @@
  * Admin gate. HTTP Basic against ADMIN_USER / ADMIN_PASSWORD, constant-
  * time compare. Fail-closed: when ADMIN_PASSWORD is empty / placeholder,
  * every request returns 403 so the panel can never be opened by accident.
+ * Wrong credentials are counted per client and slowed down by `SignInGate`.
  */
 import {
   ForbiddenException,
@@ -15,6 +16,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { timingSafeEqual } from 'node:crypto';
 import { ADMIN_PASSWORD_PLACEHOLDER, type Env, isAdminEnabled } from '../config/env.js';
+import { SignInGate } from '../rate-limit/sign-in-gate.js';
 
 const REALM = 'Diet App Admin';
 
@@ -32,7 +34,10 @@ function safeCompare(a: string, b: string): boolean {
 
 @Injectable()
 export class BasicAuthGuard implements CanActivate {
-  constructor(private readonly config: ConfigService<Env, true>) {}
+  constructor(
+    private readonly config: ConfigService<Env, true>,
+    private readonly gate: SignInGate,
+  ) {}
 
   canActivate(ctx: ExecutionContext): boolean {
     const adminPassword = this.config.get('ADMIN_PASSWORD', { infer: true });
@@ -47,7 +52,7 @@ export class BasicAuthGuard implements CanActivate {
       });
     }
 
-    const req = ctx.switchToHttp().getRequest<{ headers: Record<string, string | undefined> }>();
+    const req = ctx.switchToHttp().getRequest<{ headers: Record<string, string | undefined>; ip?: string }>();
     const res = ctx
       .switchToHttp()
       .getResponse<{ setHeader: (k: string, v: string) => void }>();
@@ -76,17 +81,24 @@ export class BasicAuthGuard implements CanActivate {
       });
     }
 
+    // A client that guessed wrong too often waits before its next guess is
+    // looked at, right or wrong.
+    const client = req.ip ?? 'unknown';
+    this.gate.assertOpen('admin', client, res);
+
     // Execute both comparisons unconditionally so a wrong username doesn't
     // short-circuit and leak that the username alone was right.
     const userOk = safeCompare(user, adminUser);
     const passOk = safeCompare(pass, adminPassword);
     if (!userOk || !passOk) {
+      this.gate.failed('admin', client);
       res.setHeader('WWW-Authenticate', `Basic realm="${REALM}"`);
       throw new UnauthorizedException({
         error: 'INVALID_CREDENTIALS',
         message: 'Invalid credentials.',
       });
     }
+    this.gate.succeeded('admin', client);
     return true;
   }
 }
