@@ -560,23 +560,19 @@ export class DraftsController {
     const steps = existing.steps as Record<string, string[]>;
 
     // Same-instance promotion: copy the structural payload (ingredients with
-    // their resolved ingredientId, units, quantities) directly from the
-    // first personal source Recipe rather than re-resolving slugs. Avoids
-    // failing on ingredients with null slugs (legacy / USDA imports).
-    if (existing.sourceRecipeIds.length === 0) {
-      throw new ConflictException({
-        error: 'DRAFT_NO_SOURCE_RECIPE',
-        message: 'Draft is not linked to a source recipe — cannot promote.',
-      });
-    }
-    const sourceRecipe = await this.prisma.recipe.findUnique({
-      where: { id: existing.sourceRecipeIds[0]! },
+    // their resolved ingredientId, units, quantities) directly from a personal
+    // source Recipe rather than re-resolving slugs. The draft may stand for
+    // the recipes of several users, all made of the same lines; any of them
+    // that still exists will do.
+    const sourceRecipe = await this.prisma.recipe.findFirst({
+      where: { id: { in: existing.sourceRecipeIds } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       include: { ingredients: { include: { ingredient: true } } },
     });
     if (!sourceRecipe) {
       throw new ConflictException({
         error: 'DRAFT_NO_SOURCE_RECIPE',
-        message: 'Source recipe was deleted — cannot promote.',
+        message: 'No recipe this draft was made from exists any more — cannot promote.',
       });
     }
     // The shared recipe gets the facts of the ingredient lines it is written
@@ -590,14 +586,9 @@ export class DraftsController {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      // `Recipe.fingerprint` is uniquely indexed; the personal source rows
-      // currently hold the same fingerprint as the draft. Clear it on them
-      // before assigning it to the curated row so future dedup hits land
-      // on curated (case 1) instead of the user's old variant.
-      await tx.recipe.updateMany({
-        where: { id: { in: existing.sourceRecipeIds } },
-        data: { fingerprint: null },
-      });
+      // The shared recipe carries the same fingerprint as the personal ones
+      // it was made from: from here on, whoever makes this recipe again is
+      // given the shared one.
       const curated = await tx.recipe.create({
         data: {
           title: titles.en ?? Object.values(titles)[0] ?? existing.slug,

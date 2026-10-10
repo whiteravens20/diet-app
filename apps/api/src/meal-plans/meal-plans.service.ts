@@ -61,12 +61,7 @@ import { INGREDIENT_SWAP, MEAL_SWAP, SWAP_REWRITE } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
-import { DedupService } from '../admin/drafts/dedup.js';
-import {
-  computeFingerprint,
-  FingerprintError,
-  type FingerprintIngredientLookup,
-} from '../admin/drafts/fingerprint.js';
+import { PersonalRecipesService } from '../recipes/personal-recipes.service.js';
 import {
   rewriteSwapModeA,
   rewriteSwapModeB,
@@ -117,7 +112,7 @@ export class MealPlansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiRouterService,
-    private readonly dedup: DedupService,
+    private readonly personalRecipes: PersonalRecipesService,
   ) {}
 
   /** Deterministically generate and persist a meal plan. */
@@ -1096,14 +1091,12 @@ export class MealPlansService {
         message: 'An ingredient of this recipe cannot be converted from the unit it is written in.',
       });
     }
-    const perServing = facts.perServing;
-    const variantAllergens = facts.allergens;
-
     // The substitute was judged as an ingredient; the gate judges what the
     // meal becomes. A recipe can stop fitting a diet through quantities alone:
     // a low-carbohydrate dish with rice in place of chicken is no longer one.
     // What the meal already was by the user's own choice (an off-diet
     // favourite, a recipe of another meal) is not held against the swap.
+    const restrictions = await restrictionsFor(this.prisma, meal.day.plan);
     assertMayEnter(
       {
         id: recipe.id,
@@ -1115,8 +1108,8 @@ export class MealPlansService {
         retiredAt: null,
         ingredients: variantIngredients,
       },
-      // The recipe being replaced is not a candidate, so its avoid mark does not apply to the variant.
-      { ...(await restrictionsFor(this.prisma, meal.day.plan)), avoidedRecipeIds: [] },
+      // The variant is a new recipe: no avoid mark is on it yet.
+      { ...restrictions, avoidedRecipeIds: [] },
       meal.mealType,
       'INVALID_SUBSTITUTION',
       {
@@ -1124,57 +1117,6 @@ export class MealPlansService {
         meal: !recipe.mealTypes.includes(meal.mealType),
       },
     );
-
-    // Fingerprint dedup — see admin/drafts/fingerprint.ts + dedup.ts. The
-    // transaction below holds an advisory lock on the fingerprint so two
-    // racing swaps producing the same variant serialise: the loser hits the
-    // existing draft instead of inserting a duplicate.
-    const fingerprintLookup: FingerprintIngredientLookup = new Map(
-      ingredientRows
-        .filter((i): i is typeof i & { slug: string } => i.slug !== null)
-        .map((i) => [
-          i.slug,
-          {
-            canonicalUnit: i.canonicalUnit,
-            gramsPerPiece: i.gramsPerPiece,
-            density: i.density,
-          },
-        ]),
-    );
-    let fingerprint: string | null;
-    const fingerprintLines = variantIngredients.map((vi) => {
-      const ing = ingredientById.get(vi.ingredientId)!;
-      return { slug: ing.slug, quantity: vi.quantity, unit: vi.unit };
-    });
-    const allSlugsResolved = fingerprintLines.every(
-      (l): l is typeof l & { slug: string } => l.slug !== null,
-    );
-    if (allSlugsResolved) {
-      try {
-        fingerprint = computeFingerprint(
-          {
-            ingredients: fingerprintLines as { slug: string; quantity: number; unit: typeof fingerprintLines[number]['unit'] }[],
-            mealTypes: recipe.mealTypes,
-            dietTags: facts.dietTags,
-            servings: recipe.servings,
-          },
-          fingerprintLookup,
-        );
-      } catch (err) {
-        if (err instanceof FingerprintError) {
-          // Don't block the swap on a fingerprint failure — write the variant
-          // without a fingerprint and skip the dedup path. The user still
-          // gets their swap; we just can't dedup this one.
-          fingerprint = null;
-        } else {
-          throw err;
-        }
-      }
-    } else {
-      // At least one ingredient lacks a slug (legacy or imported row). Skip
-      // dedup; variant still gets written with no fingerprint.
-      fingerprint = null;
-    }
 
     // Build per-locale translation slices for the variant. Mode B (AI
     // sentence rewrite) when the user's AI is available + quota OK; falls
@@ -1187,24 +1129,29 @@ export class MealPlansService {
       ingredientById.get(req.fromIngredientId),
       ingredientById.get(req.toIngredientId),
     );
-    const enSlice = variantTranslations.get('en');
-    const variantTitle = enSlice?.title ?? recipe.title;
-    const variantDescription = enSlice?.description ?? recipe.description;
-    const variantSteps = enSlice?.steps ?? recipe.steps;
+    // The recipe row carries the English text: the variant's, or the source's
+    // where the source has no English translation row.
+    const text = new Map<string, RecipeLocaleSlice>(variantTranslations);
+    if (!text.has('en')) text.set('en', { title: recipe.title, description: recipe.description, steps: recipe.steps });
 
-    const variantId = await this.persistVariantWithDedup({
-      userId,
-      fingerprint,
-      title: variantTitle,
-      description: variantDescription,
-      steps: variantSteps,
-      translations: variantTranslations,
-      sourceRecipe: recipe,
-      variantIngredients,
-      variantAllergens,
-      variantDietTags: facts.dietTags,
-      perServing,
-    });
+    // Stored as the user's own recipe, or recognised as one that exists
+    // already. A shared recipe the profile avoids is not handed back for it.
+    const variantId = await this.personalRecipes.save(
+      {
+        userId,
+        origin: 'user',
+        text,
+        servings: recipe.servings,
+        mealTypes: recipe.mealTypes,
+        prepMinutes: recipe.prepMinutes,
+        cookMinutes: recipe.cookMinutes,
+        difficulty: recipe.difficulty,
+        reuseScore: recipe.reuseScore,
+        ingredients: variantIngredients,
+        facts,
+      },
+      restrictions.avoidedRecipeIds,
+    );
 
     const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
       await tx.plannedMeal.update({
@@ -1321,203 +1268,6 @@ export class MealPlansService {
     const parsed = parseSwapRewritePayload(text);
     if (!parsed) return null;
     return validateModeBOutput(source, parsed) ? parsed : null;
-  }
-
-  /**
-   * Write the variant Recipe (+ RecipeTranslation rows) inside an advisory-
-   * locked transaction so concurrent swaps producing the same fingerprint
-   * serialise. Returns the resolved recipe id — either the existing curated /
-   * user / draft-attached row or a newly created variant.
-   */
-  private async persistVariantWithDedup(input: {
-    userId: string;
-    fingerprint: string | null;
-    title: string;
-    description: string;
-    steps: string[];
-    translations: Map<Locale, RecipeLocaleSlice>;
-    sourceRecipe: {
-      mealTypes: string[];
-      servings: number;
-      prepMinutes: number;
-      cookMinutes: number;
-      difficulty: 'easy' | 'medium' | 'hard';
-      reuseScore: number;
-    };
-    variantIngredients: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
-    variantAllergens: string[];
-    variantDietTags: string[];
-    perServing: { calories: number; protein: number; fat: number; carbs: number };
-  }): Promise<string> {
-    const writeFresh = async (
-      tx:
-        | import('@prisma/client').Prisma.TransactionClient
-        | PrismaService,
-    ): Promise<string> => {
-      const variant = await tx.recipe.create({
-        data: {
-          title: input.title,
-          description: input.description,
-          servings: input.sourceRecipe.servings,
-          mealTypes: input.sourceRecipe.mealTypes,
-          dietTags: input.variantDietTags,
-          steps: input.steps,
-          prepMinutes: input.sourceRecipe.prepMinutes,
-          cookMinutes: input.sourceRecipe.cookMinutes,
-          difficulty: input.sourceRecipe.difficulty,
-          allergens: input.variantAllergens,
-          origin: 'user',
-          createdByUserId: input.userId,
-          fingerprint: input.fingerprint,
-          caloriesPerServing: input.perServing.calories,
-          proteinPerServing: input.perServing.protein,
-          fatPerServing: input.perServing.fat,
-          carbsPerServing: input.perServing.carbs,
-          reuseScore: input.sourceRecipe.reuseScore,
-          ingredients: { create: input.variantIngredients },
-        },
-      });
-      // RecipeTranslation rows for every locale we generated a slice for.
-      for (const [locale, slice] of input.translations) {
-        await tx.recipeTranslation.create({
-          data: {
-            recipeId: variant.id,
-            locale,
-            title: slice.title,
-            description: slice.description,
-            steps: slice.steps,
-            source: 'MANUAL',
-          },
-        });
-      }
-      return variant.id;
-    };
-
-    if (!input.fingerprint) {
-      // No fingerprint available (rare: missing canonical-unit info). Just
-      // write the variant; no dedup possible.
-      return writeFresh(this.prisma);
-    }
-    const fingerprint = input.fingerprint;
-
-    return this.dedup.withFingerprintLock(fingerprint, async (tx) => {
-      // 1. Curated short-circuit.
-      const curated = await this.dedup.findCuratedByFingerprint(tx, fingerprint);
-      if (curated) return curated.id;
-      // 2. This user's own existing variant.
-      const userOwn = await this.dedup.findUserRecipeByFingerprint(
-        tx,
-        fingerprint,
-        input.userId,
-      );
-      if (userOwn) return userOwn.id;
-      // Write the variant first; then either attach to an existing draft or
-      // create a new AI_USER draft.
-      const newRecipeId = await writeFresh(tx);
-      const existingDraft = await this.dedup.findDraftByFingerprint(
-        tx,
-        fingerprint,
-      );
-      if (existingDraft) {
-        await this.dedup.attachRecipeToDraft(tx, existingDraft.id, newRecipeId);
-      } else {
-        await this.createAiUserDraft(tx, {
-          fingerprint,
-          recipeId: newRecipeId,
-          createdByUserId: input.userId,
-          title: input.title,
-          description: input.description,
-          steps: input.steps,
-          translations: input.translations,
-          servings: input.sourceRecipe.servings,
-          mealTypes: input.sourceRecipe.mealTypes,
-          dietTags: input.variantDietTags,
-          prepMinutes: input.sourceRecipe.prepMinutes,
-          cookMinutes: input.sourceRecipe.cookMinutes,
-          difficulty: input.sourceRecipe.difficulty,
-          allergens: input.variantAllergens,
-          ingredients: input.variantIngredients,
-          perServing: input.perServing,
-        });
-      }
-      return newRecipeId;
-    });
-  }
-
-  /**
-   * Insert the AI_USER `RecipeDraft` row that mirrors the just-written
-   * personal variant. Translation polish + curated promotion happen later via
-   * the admin/reviewer surface.
-   */
-  private async createAiUserDraft(
-    tx: import('@prisma/client').Prisma.TransactionClient,
-    input: {
-      fingerprint: string;
-      recipeId: string;
-      createdByUserId: string;
-      title: string;
-      description: string;
-      steps: string[];
-      translations: Map<Locale, RecipeLocaleSlice>;
-      servings: number;
-      mealTypes: string[];
-      dietTags: string[];
-      prepMinutes: number;
-      cookMinutes: number;
-      difficulty: 'easy' | 'medium' | 'hard';
-      allergens: string[];
-      ingredients: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
-      perServing: { calories: number; protein: number; fat: number; carbs: number };
-    },
-  ): Promise<void> {
-    const titles: Record<string, string> = {};
-    const descriptions: Record<string, string> = {};
-    const stepsByLocale: Record<string, string[]> = {};
-    for (const [locale, slice] of input.translations) {
-      titles[locale] = slice.title;
-      descriptions[locale] = slice.description;
-      stepsByLocale[locale] = slice.steps;
-    }
-    // Look up slug for each ingredient in the draft's ingredientsJson — the
-    // curation queue + dedup chain key everything by slug, not by db id.
-    const ingRows = await tx.ingredient.findMany({
-      where: { id: { in: input.ingredients.map((i) => i.ingredientId) } },
-      select: { id: true, slug: true },
-    });
-    const slugById = new Map(ingRows.map((r) => [r.id, r.slug]));
-    await tx.recipeDraft.create({
-      data: {
-        slug: `swap-${input.recipeId.slice(0, 8)}`,
-        titles,
-        descriptions,
-        steps: stepsByLocale,
-        locales: Array.from(input.translations.keys()),
-        servings: input.servings,
-        mealTypes: input.mealTypes,
-        dietTags: input.dietTags,
-        prepMinutes: input.prepMinutes,
-        cookMinutes: input.cookMinutes,
-        difficulty: input.difficulty,
-        complexity: 'medium',
-        caloriesPerServing: input.perServing.calories,
-        proteinPerServing: input.perServing.protein,
-        fatPerServing: input.perServing.fat,
-        carbsPerServing: input.perServing.carbs,
-        allergens: input.allergens,
-        ingredientsJson: input.ingredients.map((i) => ({
-          slug: slugById.get(i.ingredientId) ?? '',
-          quantity: i.quantity,
-          unit: i.unit,
-          note: i.note,
-        })),
-        status: 'PENDING',
-        source: 'AI_USER',
-        batchId: `user-swap-${input.createdByUserId.slice(0, 8)}-${Date.now()}`,
-        fingerprint: input.fingerprint,
-        sourceRecipeIds: [input.recipeId],
-        createdByUserId: input.createdByUserId,
-      },
-    });
   }
 
   /**

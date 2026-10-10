@@ -1,206 +1,86 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import type { ConvertibleIngredient } from '../../engine/units.js';
-import {
-  computeFingerprint,
-  FingerprintError,
-  type FingerprintIngredientLookup,
-} from './fingerprint.js';
+import { computeFingerprint, type FingerprintInput } from './fingerprint.js';
 
-const oliveOil: ConvertibleIngredient = {
-  canonicalUnit: 'g',
-  gramsPerPiece: null,
-  density: 0.92,
-};
-const chicken: ConvertibleIngredient = {
-  canonicalUnit: 'g',
-  gramsPerPiece: null,
-  density: null,
-};
-const egg: ConvertibleIngredient = {
-  canonicalUnit: 'g',
-  gramsPerPiece: 55,
-  density: null,
-};
-
-const lookup: FingerprintIngredientLookup = new Map([
-  ['olive-oil', oliveOil],
-  ['chicken-breast', chicken],
-  ['egg', egg],
-]);
+const recipe = (overrides: Partial<FingerprintInput> = {}): FingerprintInput => ({
+  ingredients: [
+    { slug: 'chicken-breast', quantity: 150, unit: 'g' },
+    { slug: 'white-rice', quantity: 80, unit: 'g' },
+    { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+  ],
+  mealTypes: ['lunch', 'dinner'],
+  servings: 1,
+  ...overrides,
+});
 
 describe('computeFingerprint', () => {
-  it('is order-independent on ingredient lines', () => {
-    const a = computeFingerprint(
-      {
-        ingredients: [
-          { slug: 'chicken-breast', quantity: 200, unit: 'g' },
-          { slug: 'olive-oil', quantity: 10, unit: 'g' },
-        ],
-        mealTypes: ['dinner'],
-        dietTags: ['balanced'],
-        servings: 2,
-      },
-      lookup,
-    );
-    const b = computeFingerprint(
-      {
-        ingredients: [
-          { slug: 'olive-oil', quantity: 10, unit: 'g' },
-          { slug: 'chicken-breast', quantity: 200, unit: 'g' },
-        ],
-        mealTypes: ['dinner'],
-        dietTags: ['balanced'],
-        servings: 2,
-      },
-      lookup,
-    );
-    expect(a).toBe(b);
+  it('has a fixed value for a fixed recipe', () => {
+    // Pinned: stored fingerprints stop matching the moment the canonical form changes.
+    expect(computeFingerprint(recipe())).toBe('47a48136f83b706a9ff3d14369a1a268c4d83318d646126f181445b5ab588fa5');
   });
 
-  it('is order-independent on mealTypes and dietTags', () => {
-    const a = computeFingerprint(
-      {
-        ingredients: [{ slug: 'chicken-breast', quantity: 100, unit: 'g' }],
-        mealTypes: ['lunch', 'dinner'],
-        dietTags: ['balanced', 'high_protein'],
-        servings: 1,
-      },
-      lookup,
-    );
-    const b = computeFingerprint(
-      {
-        ingredients: [{ slug: 'chicken-breast', quantity: 100, unit: 'g' }],
-        mealTypes: ['dinner', 'lunch'],
-        dietTags: ['high_protein', 'balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    expect(a).toBe(b);
+  it('does not depend on the order of the lines or of the meals', () => {
+    const shuffled = recipe({
+      ingredients: [...recipe().ingredients].reverse(),
+      mealTypes: ['dinner', 'lunch'],
+    });
+    expect(computeFingerprint(shuffled)).toBe(computeFingerprint(recipe()));
   });
 
-  it('canonicalises units so equivalent quantities hash identically', () => {
-    // 10 g of olive oil ≡ 10 / 0.92 ml ≈ 10.87 ml. After canonicalising to g,
-    // both inputs round to 10.0 and hash identically.
-    const inGrams = computeFingerprint(
-      {
-        ingredients: [{ slug: 'olive-oil', quantity: 10, unit: 'g' }],
-        mealTypes: ['dinner'],
-        dietTags: ['balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    const inMl = computeFingerprint(
-      {
-        ingredients: [
-          { slug: 'olive-oil', quantity: 10 / 0.92, unit: 'ml' },
-        ],
-        mealTypes: ['dinner'],
-        dietTags: ['balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    expect(inGrams).toBe(inMl);
-  });
-
-  it('canonicalises piece → grams for piece-quantified ingredients', () => {
-    // 3 eggs at 55g/piece ≡ 165g — both representations hash identically
-    // because the helper converts to canonical (g) before hashing.
-    const inPieces = computeFingerprint(
-      {
-        ingredients: [{ slug: 'egg', quantity: 3, unit: 'piece' }],
-        mealTypes: ['breakfast'],
-        dietTags: ['balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    const inGrams = computeFingerprint(
-      {
-        ingredients: [{ slug: 'egg', quantity: 165, unit: 'g' }],
-        mealTypes: ['breakfast'],
-        dietTags: ['balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    expect(inPieces).toBe(inGrams);
-  });
-
-  it('treats trivial float jitter as identical', () => {
-    const a = computeFingerprint(
-      {
-        ingredients: [{ slug: 'chicken-breast', quantity: 200.0, unit: 'g' }],
-        mealTypes: ['dinner'],
-        dietTags: ['balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    const b = computeFingerprint(
-      {
-        ingredients: [
-          { slug: 'chicken-breast', quantity: 200.00000001, unit: 'g' },
-        ],
-        mealTypes: ['dinner'],
-        dietTags: ['balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    expect(a).toBe(b);
-  });
-
-  it('distinguishes recipes with different ingredient sets', () => {
-    const a = computeFingerprint(
-      {
-        ingredients: [{ slug: 'chicken-breast', quantity: 200, unit: 'g' }],
-        mealTypes: ['dinner'],
-        dietTags: ['balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    const b = computeFingerprint(
-      {
-        ingredients: [{ slug: 'olive-oil', quantity: 200, unit: 'g' }],
-        mealTypes: ['dinner'],
-        dietTags: ['balanced'],
-        servings: 1,
-      },
-      lookup,
-    );
-    expect(a).not.toBe(b);
-  });
-
-  it('distinguishes recipes with different servings', () => {
-    const base = {
+  it('counts an ingredient listed twice as the sum, in whichever order', () => {
+    const once = recipe({
       ingredients: [
-        { slug: 'chicken-breast' as const, quantity: 200, unit: 'g' as const },
+        { slug: 'olive-oil', quantity: 15, unit: 'ml' },
+        { slug: 'tomato', quantity: 200, unit: 'g' },
       ],
-      mealTypes: ['dinner'],
-      dietTags: ['balanced'],
-    };
-    const a = computeFingerprint({ ...base, servings: 1 }, lookup);
-    const b = computeFingerprint({ ...base, servings: 2 }, lookup);
-    expect(a).not.toBe(b);
+    });
+    const twice = recipe({
+      ingredients: [
+        { slug: 'olive-oil', quantity: 5, unit: 'ml' },
+        { slug: 'tomato', quantity: 200, unit: 'g' },
+        { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+      ],
+    });
+    const twiceReversed = recipe({ ingredients: [...twice.ingredients].reverse() });
+    expect(computeFingerprint(twice)).toBe(computeFingerprint(once));
+    expect(computeFingerprint(twiceReversed)).toBe(computeFingerprint(once));
   });
 
-  it('throws when the lookup is missing an ingredient slug', () => {
-    expect(() =>
-      computeFingerprint(
-        {
-          ingredients: [{ slug: 'unknown-thing', quantity: 100, unit: 'g' }],
-          mealTypes: ['dinner'],
-          dietTags: ['balanced'],
-          servings: 1,
-        },
-        lookup,
-      ),
-    ).toThrow(FingerprintError);
+  it('ignores a meal named twice', () => {
+    expect(computeFingerprint(recipe({ mealTypes: ['lunch', 'dinner', 'lunch'] }))).toBe(computeFingerprint(recipe()));
+  });
+
+  it('treats the noise of floating-point arithmetic as nothing', () => {
+    const noisy = recipe({
+      ingredients: recipe().ingredients.map((line) => ({ ...line, quantity: line.quantity + 0.00000001 })),
+    });
+    expect(computeFingerprint(noisy)).toBe(computeFingerprint(recipe()));
+  });
+
+  it.each<[string, Partial<FingerprintInput>]>([
+    ['another quantity', { ingredients: [{ slug: 'chicken-breast', quantity: 150.1, unit: 'g' }, ...recipe().ingredients.slice(1)] }],
+    ['another ingredient', { ingredients: [{ slug: 'firm-tofu', quantity: 150, unit: 'g' }, ...recipe().ingredients.slice(1)] }],
+    ['another unit for the same number', { ingredients: [...recipe().ingredients.slice(0, 2), { slug: 'olive-oil', quantity: 10, unit: 'g' }] }],
+    ['one line fewer', { ingredients: recipe().ingredients.slice(0, 2) }],
+    ['another meal', { mealTypes: ['lunch'] }],
+    ['other servings', { servings: 2 }],
+  ])('tells apart a recipe with %s', (_name, change) => {
+    expect(computeFingerprint(recipe(change))).not.toBe(computeFingerprint(recipe()));
+  });
+
+  it('keeps apart the same ingredient in two units', () => {
+    const mixed = recipe({
+      ingredients: [
+        { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+        { slug: 'olive-oil', quantity: 10, unit: 'g' },
+      ],
+    });
+    const merged = recipe({ ingredients: [{ slug: 'olive-oil', quantity: 20, unit: 'ml' }] });
+    expect(computeFingerprint(mixed)).not.toBe(computeFingerprint(merged));
+  });
+
+  it('is 64 hex characters', () => {
+    expect(computeFingerprint(recipe())).toMatch(/^[0-9a-f]{64}$/);
   });
 });

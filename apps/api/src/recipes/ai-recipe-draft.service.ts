@@ -9,9 +9,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import {
-  Allergen,
   type CookingMethod,
   type Complexity,
   type Cuisine,
@@ -29,12 +27,7 @@ import { AiRouterService } from '../ai/ai-router.service.js';
 import { plainLine, readModelObject } from '../ai/model-json.js';
 import { recipeDraft } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { DedupService } from '../admin/drafts/dedup.js';
-import {
-  computeFingerprint,
-  FingerprintError,
-  type FingerprintIngredientLookup,
-} from '../admin/drafts/fingerprint.js';
+import { PersonalRecipesService } from './personal-recipes.service.js';
 import { toRecipeDto } from './recipes.service.js';
 
 const ALLOWED_UNITS = Unit.options as readonly string[];
@@ -70,11 +63,13 @@ interface AiDraftPayload {
 }
 
 /**
- * Drafts a brand-new recipe from a free-form user prompt. AI picks ingredients
- * + writes title/description/steps; the deterministic engine recomputes
- * per-serving nutrition before the row is persisted. The recipe is private to
- * the requester (`origin='ai'` + `createdByUserId`) and lives in the database
- * only: nothing about a user is written to the instance's data files.
+ * Drafts a brand-new recipe from the preferences a user picked. AI picks
+ * ingredients + writes title/description/steps; the deterministic engine
+ * recomputes per-serving nutrition before the row is persisted. The recipe is
+ * private to the requester (`origin='ai'` + `createdByUserId`) and lives in
+ * the database only: nothing about a user is written to the instance's data
+ * files. It is stored, and kept out of the curation queue, the way
+ * `PersonalRecipesService` describes.
  */
 @Injectable()
 export class AiRecipeDraftService {
@@ -83,7 +78,7 @@ export class AiRecipeDraftService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiRouterService,
-    private readonly dedup: DedupService,
+    private readonly personalRecipes: PersonalRecipesService,
   ) {}
 
   async draftFromPrompt(
@@ -273,62 +268,33 @@ export class AiRecipeDraftService {
         message: 'The draft does not fit the diet that was asked for.',
       });
     }
-    const recipeAllergens = facts.allergens;
-    const dietTags = facts.dietTags;
-
-    // Fingerprint — same helper used by the swap path + admin batch generator
-    // so the dedup chain catches duplicates across every on-ramp. When at
-    // least one ingredient is missing a slug (legacy USDA row), we skip
-    // dedup and write a fresh row without a fingerprint.
-    const fingerprintLookup: FingerprintIngredientLookup = new Map(
-      ingredientRows
-        .filter((i): i is typeof i & { slug: string } => i.slug !== null)
-        .map((i) => [
-          i.slug,
-          {
-            canonicalUnit: i.canonicalUnit,
-            gramsPerPiece: i.gramsPerPiece,
-            density: i.density,
-          },
-        ]),
-    );
-    const fingerprintLines = resolved.map((r) => {
-      const ing = ingById.get(r.ingredientId)!;
-      return { slug: ing.slug, quantity: r.quantity, unit: r.unit };
+    // Stored as the user's own recipe, or recognised as one that exists
+    // already: a model that writes the same recipe twice gives the same
+    // recipe. A shared recipe the profile avoids is not handed back for it.
+    const avoided = await this.prisma.favorite.findMany({
+      where: { profileId: profile.id, sentiment: 'avoid' },
+      select: { recipeId: true },
     });
-    const allSlugsResolved = fingerprintLines.every(
-      (l): l is typeof l & { slug: string } => l.slug !== null,
+    const recipeId = await this.personalRecipes.save(
+      {
+        userId,
+        origin: 'ai',
+        text: new Map(
+          payload.locales.map((lc) => [
+            lc,
+            { title: payload.titles[lc], description: payload.descriptions[lc], steps: payload.steps[lc] },
+          ]),
+        ),
+        servings: payload.servings,
+        mealTypes: payload.mealTypes,
+        prepMinutes: payload.prepMinutes,
+        cookMinutes: payload.cookMinutes,
+        difficulty: payload.difficulty,
+        ingredients: resolved,
+        facts,
+      },
+      avoided.map((row) => row.recipeId),
     );
-    let fingerprint: string | null = null;
-    if (allSlugsResolved) {
-      try {
-        fingerprint = computeFingerprint(
-          {
-            ingredients: fingerprintLines as { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece' }[],
-            mealTypes: payload.mealTypes,
-            dietTags,
-            servings: payload.servings,
-          },
-          fingerprintLookup,
-        );
-      } catch (err) {
-        if (err instanceof FingerprintError) {
-          fingerprint = null;
-        } else {
-          throw err;
-        }
-      }
-    }
-
-    const recipeId = await this.persistDraftWithDedup({
-      userId,
-      fingerprint,
-      payload,
-      resolved,
-      recipeAllergens,
-      dietTags,
-      perServing,
-    });
 
     if (req.addToFavorites) {
       await this.prisma.favorite.upsert({
@@ -353,171 +319,6 @@ export class AiRecipeDraftService {
       },
     });
     return { recipe: toRecipeDto(created, locale), aiMeta: meta };
-  }
-
-  /**
-   * Insert the Recipe + translations + (when AI_USER and no curated/personal
-   * match exists) the parallel `RecipeDraft`, all under a fingerprint advisory
-   * lock. Returns the resolved recipe id — either an existing curated /
-   * personal row this user already owns, or the freshly written variant.
-   */
-  private async persistDraftWithDedup(input: {
-    userId: string;
-    fingerprint: string | null;
-    payload: AiDraftPayload;
-    resolved: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
-    recipeAllergens: string[];
-    dietTags: string[];
-    perServing: { calories: number; protein: number; fat: number; carbs: number };
-  }): Promise<string> {
-    const writeFresh = async (
-      tx: Prisma.TransactionClient | PrismaService,
-    ): Promise<string> => {
-      const created = await tx.recipe.create({
-        data: {
-          title: input.payload.titles.en,
-          description: input.payload.descriptions.en,
-          servings: input.payload.servings,
-          mealTypes: input.payload.mealTypes,
-          dietTags: input.dietTags,
-          steps: input.payload.steps.en,
-          prepMinutes: input.payload.prepMinutes,
-          cookMinutes: input.payload.cookMinutes,
-          difficulty: input.payload.difficulty,
-          allergens: input.recipeAllergens as Allergen[],
-          origin: 'ai',
-          createdByUserId: input.userId,
-          fingerprint: input.fingerprint,
-          caloriesPerServing: input.perServing.calories,
-          proteinPerServing: input.perServing.protein,
-          fatPerServing: input.perServing.fat,
-          carbsPerServing: input.perServing.carbs,
-          ingredients: {
-            create: input.resolved.map((r) => ({
-              ingredientId: r.ingredientId,
-              quantity: r.quantity,
-              unit: r.unit,
-              note: r.note,
-            })),
-          },
-        },
-      });
-      for (const lc of input.payload.locales) {
-        await tx.recipeTranslation.create({
-          data: {
-            recipeId: created.id,
-            locale: lc,
-            title: input.payload.titles[lc],
-            description: input.payload.descriptions[lc],
-            steps: input.payload.steps[lc],
-            source: 'MANUAL',
-          },
-        });
-      }
-      return created.id;
-    };
-
-    if (!input.fingerprint) {
-      return writeFresh(this.prisma);
-    }
-    const fingerprint = input.fingerprint;
-
-    return this.dedup.withFingerprintLock(fingerprint, async (tx) => {
-      const curated = await this.dedup.findCuratedByFingerprint(tx, fingerprint);
-      if (curated) return curated.id;
-      const userOwn = await this.dedup.findUserRecipeByFingerprint(
-        tx,
-        fingerprint,
-        input.userId,
-      );
-      if (userOwn) return userOwn.id;
-      const newRecipeId = await writeFresh(tx);
-      const existingDraft = await this.dedup.findDraftByFingerprint(
-        tx,
-        fingerprint,
-      );
-      if (existingDraft) {
-        await this.dedup.attachRecipeToDraft(tx, existingDraft.id, newRecipeId);
-      } else {
-        await this.createAiUserDraft(tx, {
-          fingerprint,
-          recipeId: newRecipeId,
-          createdByUserId: input.userId,
-          payload: input.payload,
-          resolved: input.resolved,
-          recipeAllergens: input.recipeAllergens,
-          dietTags: input.dietTags,
-          perServing: input.perServing,
-        });
-      }
-      return newRecipeId;
-    });
-  }
-
-  /**
-   * Insert the AI_USER `RecipeDraft` mirroring the personal Recipe we just
-   * wrote. Translation polish (per-locale via /review) and optional curated
-   * promotion happen later via the admin/reviewer surface.
-   */
-  private async createAiUserDraft(
-    tx: Prisma.TransactionClient,
-    input: {
-      fingerprint: string;
-      recipeId: string;
-      createdByUserId: string;
-      payload: AiDraftPayload;
-      resolved: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
-      recipeAllergens: string[];
-      dietTags: string[];
-      perServing: { calories: number; protein: number; fat: number; carbs: number };
-    },
-  ): Promise<void> {
-    const ingRows = await tx.ingredient.findMany({
-      where: { id: { in: input.resolved.map((r) => r.ingredientId) } },
-      select: { id: true, slug: true },
-    });
-    const slugById = new Map(ingRows.map((r) => [r.id, r.slug]));
-    const titles: Record<string, string> = {};
-    const descriptions: Record<string, string> = {};
-    const stepsByLocale: Record<string, string[]> = {};
-    for (const lc of input.payload.locales) {
-      titles[lc] = input.payload.titles[lc];
-      descriptions[lc] = input.payload.descriptions[lc];
-      stepsByLocale[lc] = input.payload.steps[lc];
-    }
-    await tx.recipeDraft.create({
-      data: {
-        slug: `ai-draft-${input.recipeId.slice(0, 8)}`,
-        titles,
-        descriptions,
-        steps: stepsByLocale,
-        locales: input.payload.locales,
-        servings: input.payload.servings,
-        mealTypes: input.payload.mealTypes,
-        dietTags: input.dietTags,
-        prepMinutes: input.payload.prepMinutes,
-        cookMinutes: input.payload.cookMinutes,
-        difficulty: input.payload.difficulty,
-        complexity: 'medium',
-        caloriesPerServing: input.perServing.calories,
-        proteinPerServing: input.perServing.protein,
-        fatPerServing: input.perServing.fat,
-        carbsPerServing: input.perServing.carbs,
-        allergens: input.recipeAllergens,
-        ingredientsJson: input.resolved.map((r) => ({
-          slug: slugById.get(r.ingredientId) ?? '',
-          quantity: r.quantity,
-          unit: r.unit,
-          note: r.note,
-        })),
-        status: 'PENDING',
-        source: 'AI_USER',
-        batchId: `user-ai-draft-${input.createdByUserId.slice(0, 8)}-${Date.now()}`,
-        fingerprint: input.fingerprint,
-        sourceRecipeIds: [input.recipeId],
-        createdByUserId: input.createdByUserId,
-      },
-    });
   }
 
   private translationsInclude(locale: Locale) {
