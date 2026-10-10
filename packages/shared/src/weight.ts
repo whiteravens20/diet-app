@@ -7,8 +7,10 @@ import { z } from 'zod';
  *
  * Raw entries land on the client; the dashboard derives the 90-day trend
  * line, the 7-day moving average and the delta against `Profile.weightKg`
- * (the target weight) from these rows. Nothing is precomputed server-side,
- * so an edit / delete is visible immediately.
+ * from these rows. `Profile.weightKg` is the weight the profile registered:
+ * the calorie calculation takes it as the current body weight, and it is not
+ * a target. Nothing is precomputed server-side, so an edit / delete is
+ * visible immediately.
  */
 
 /**

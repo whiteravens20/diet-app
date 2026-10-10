@@ -6,9 +6,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
  * Per-profile weight log. The dashboard chart, 7-day moving average
- * and delta against the profile's target weight are all derived client-side
- * from the rows this service returns, so a corrected entry shows up
- * immediately without a server round-trip beyond the create/delete itself.
+ * and delta against the weight the profile registered (`Profile.weightKg`,
+ * which the calorie calculation takes as the current body weight) are all
+ * derived client-side from the rows this service returns, so a corrected
+ * entry shows up immediately without a server round-trip beyond the
+ * create/delete itself.
  */
 @Injectable()
 export class WeightsService {
@@ -16,8 +18,7 @@ export class WeightsService {
 
   /**
    * List entries for a profile newest-first. `since` lets the dashboard
-   * cap to the 90-day window without pulling years of history; the worker
-   * cron uses the `latest()` helper instead.
+   * cap to the 90-day window without pulling years of history.
    */
   async list(userId: string, profileId: string, since?: Date): Promise<WeightEntry[]> {
     await this.assertProfile(userId, profileId);
