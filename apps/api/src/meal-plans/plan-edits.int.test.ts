@@ -247,7 +247,7 @@ describe('editing a plan', () => {
         toIngredientId: await ingredientId('white-rice'),
       });
 
-      await expect(swap).rejects.toMatchObject({ status: 400, response: { error: 'INVALID_SUBSTITUTION', violations: ['off_diet'] } });
+      await expect(swap).rejects.toMatchObject({ status: 400, response: { error: 'INVALID_SUBSTITUTION', details: { violations: ['off_diet'] } } });
       expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId).toBe(own.id);
     });
 

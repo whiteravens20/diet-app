@@ -155,7 +155,7 @@ export function assertMayEnter(
   throw new BadRequestException({
     error,
     message: `This recipe cannot go into the plan: ${found.map((violation) => REASON[violation]).join('; ')}.`,
-    violations: found,
+    details: { violations: found },
   });
 }
 

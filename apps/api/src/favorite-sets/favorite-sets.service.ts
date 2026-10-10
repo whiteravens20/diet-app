@@ -141,7 +141,7 @@ export class FavoriteSetsService {
         throw new BadRequestException({
           error: 'FAVORITE_SET_NOT_ELIGIBLE',
           message: `Favorite set contains a recipe that cannot go into this plan for ${mealType}: ${recipeId}.`,
-          violations: found,
+          details: { violations: found },
         });
       }
     }
@@ -283,7 +283,7 @@ export class FavoriteSetsService {
         throw new BadRequestException({
           error: 'FAVORITE_SET_NOT_ELIGIBLE',
           message: `Recipe ${recipeId} is not a recipe for ${mealType}.`,
-          violations: ['wrong_meal'],
+          details: { violations: ['wrong_meal'] },
         });
       }
     }

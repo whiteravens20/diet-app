@@ -45,6 +45,28 @@ describe('AllExceptionsFilter', () => {
     expect(body).toEqual({ statusCode: 409, error: 'EMAIL_TAKEN', message: 'Email already registered.' });
   });
 
+  it('passes on the details an error carries under that name, and nothing else it carries', () => {
+    const { body } = answerTo(
+      new BadRequestException({
+        error: 'RECIPE_NOT_ELIGIBLE',
+        message: 'This recipe cannot go into the plan.',
+        details: { violations: ['allergen'] },
+        internal: 'not for the client',
+      }),
+    );
+    expect(body).toEqual({
+      statusCode: 400,
+      error: 'RECIPE_NOT_ELIGIBLE',
+      message: 'This recipe cannot go into the plan.',
+      details: { violations: ['allergen'] },
+    });
+  });
+
+  it.each([['a text'], [['a', 'list']], [null], [42]])('leaves out details that are not an object: %j', (details) => {
+    const { body } = answerTo(new BadRequestException({ error: 'RECIPE_NOT_ELIGIBLE', message: 'No.', details }));
+    expect(body).toEqual({ statusCode: 400, error: 'RECIPE_NOT_ELIGIBLE', message: 'No.' });
+  });
+
   it('keeps the field issues of a validation failure', () => {
     const issues = [{ path: 'email', message: 'Invalid email' }];
     const { body } = answerTo(

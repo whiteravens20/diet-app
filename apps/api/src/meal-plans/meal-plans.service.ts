@@ -401,9 +401,7 @@ export class MealPlansService {
           throw new BadRequestException({
             error: 'LOCKED_RECIPE_INELIGIBLE',
             message: `The recipe locked for ${lock.slot} on ${day.isoDate} cannot go into this plan: it is unavailable, or the profile's diet, allergens, skipped ingredients or avoided recipes rule it out.`,
-            date: day.isoDate,
-            slot: lock.slot,
-            recipeId: lock.recipeId,
+            details: { date: day.isoDate, slot: lock.slot, recipeId: lock.recipeId },
           });
         }
       }

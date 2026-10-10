@@ -12,7 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { FavoriteSetsService } from '../favorite-sets/favorite-sets.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, aUser, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 
@@ -300,14 +300,32 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
     expect(outcome).toMatchObject({
       status: 400,
       error: 'LOCKED_RECIPE_INELIGIBLE',
-      date: LOCKED_DAY,
-      slot: 'dinner',
-      recipeId: locked,
+      details: { date: LOCKED_DAY, slot: 'dinner', recipeId: locked },
+    });
+    // A client is told the same: which day, which meal, which recipe.
+    const res = await t.http().post(`/api/meal-plans/${lockedPlan.id}/regenerate`).set(as(user)).send({});
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      error: 'LOCKED_RECIPE_INELIGIBLE',
+      details: { date: LOCKED_DAY, slot: 'dinner', recipeId: locked },
     });
     const day = await lockedDayOf();
     expect(day.meals.find((m) => m.mealType === 'dinner')!.recipe!.id).toBe(locked);
     // Until something is done about it, the plan says which meal is the problem.
     expect(day.meals.find((m) => m.mealType === 'dinner')!.restrictionConflicts).toEqual(['allergen']);
+  });
+
+  it('tells a client which rule a recipe breaks when it is refused', async () => {
+    const lunch = lockedPlan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
+
+    const res = await t
+      .http()
+      .post('/api/meal-plans/swap-meal')
+      .set(as(user))
+      .send({ planId: lockedPlan.id, plannedMealId: lunch.id, strategy: 'favorite', favoriteRecipeId: locked, allowOffDiet: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toEqual({ violations: ['allergen'] });
   });
 
   it('is dropped when the re-roll is told to, and does not come back', async () => {

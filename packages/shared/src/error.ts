@@ -11,5 +11,12 @@ export const ApiError = z.object({
   message: z.string(),
   /** Optional field-level validation issues. */
   issues: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+  /**
+   * What an error has to say beyond its code, for a client that words the
+   * refusal itself. Which keys there are depends on `error`: the rules a
+   * recipe breaks (`violations`), or the day, meal and recipe of a lock that
+   * no longer holds (`date`, `slot`, `recipeId`).
+   */
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 export type ApiError = z.infer<typeof ApiError>;

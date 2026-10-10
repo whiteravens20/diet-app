@@ -59,6 +59,9 @@ const BY_DATABASE_CODE: Record<string, Answer> = {
   },
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 /** The body parser's own errors carry a `type` and the status the client should get. */
 function bodyParserStatus(exception: unknown): number | null {
   if (typeof exception !== 'object' || exception === null) return null;
@@ -92,6 +95,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         error: generic?.error ?? payload.error ?? exception.name,
         message: generic?.message ?? payload.message ?? exception.message,
         ...(payload.issues ? { issues: payload.issues } : {}),
+        // Only what an error puts under `details` on purpose: nothing else it carries leaves the server.
+        ...(isRecord(payload.details) ? { details: payload.details } : {}),
       });
       return;
     }
