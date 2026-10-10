@@ -53,6 +53,7 @@ import {
 } from '../engine/index.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { readModelReply } from '../ai/model-json.js';
+import { INGREDIENT_SWAP, MEAL_SWAP, SWAP_REWRITE } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
@@ -957,7 +958,7 @@ export class MealPlansService {
         { role: 'system', content: prompt.system },
         { role: 'user', content: prompt.user },
       ],
-      'meal-swap',
+      MEAL_SWAP,
       true,
     );
 
@@ -1344,7 +1345,7 @@ export class MealPlansService {
           { role: 'system', content: system },
           { role: 'user', content: user },
         ],
-        'swap-rewrite',
+        SWAP_REWRITE,
         true,
       );
       text = result.text;
@@ -1652,7 +1653,7 @@ export class MealPlansService {
         { role: 'system', content: prompt.system },
         { role: 'user', content: prompt.user },
       ],
-      'ingredient-swap',
+      INGREDIENT_SWAP,
       true,
     );
 

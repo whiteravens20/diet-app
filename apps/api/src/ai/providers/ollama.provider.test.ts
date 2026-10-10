@@ -32,7 +32,14 @@ const json = (res: ServerResponse, status: number, body: unknown): void => {
 };
 
 const chat = (opts: Partial<CompletionOptions> = {}) =>
-  new OllamaProvider().chat([{ role: 'user', content: 'hello' }], { model: 'test-model', baseUrl, ...opts });
+  new OllamaProvider().chat([{ role: 'user', content: 'hello' }], {
+    model: 'test-model',
+    baseUrl,
+    maxTokens: 300,
+    temperature: 0.2,
+    timeoutMs: 5_000,
+    ...opts,
+  });
 
 async function failure(call: Promise<unknown>): Promise<AiProviderError> {
   try {
@@ -45,20 +52,44 @@ async function failure(call: Promise<unknown>): Promise<AiProviderError> {
 }
 
 describe('OllamaProvider', () => {
-  it('sends the model and the messages and returns the reply with its token counts', async () => {
+  it('sends the model, the messages and the limits, and returns the reply with its token counts', async () => {
     let sent: Record<string, unknown> = {};
     respond = (body, res) => {
       sent = JSON.parse(body) as Record<string, unknown>;
-      json(res, 200, { message: { content: 'hi there' }, prompt_eval_count: 11, eval_count: 3 });
+      json(res, 200, { message: { content: 'hi there' }, prompt_eval_count: 11, eval_count: 3, done_reason: 'stop' });
     };
 
-    await expect(chat()).resolves.toEqual({ text: 'hi there', promptTokens: 11, outputTokens: 3 });
+    await expect(chat()).resolves.toEqual({ text: 'hi there', promptTokens: 11, outputTokens: 3, truncated: false });
     expect(sent).toMatchObject({
       model: 'test-model',
       messages: [{ role: 'user', content: 'hello' }],
       stream: false,
+      options: { temperature: 0.2, num_predict: 300 },
     });
     expect(sent).not.toHaveProperty('format');
+  });
+
+  it('says so when the model stopped at the token limit', async () => {
+    respond = (_body, res) => json(res, 200, { message: { content: '{"recipes":[' }, done_reason: 'length' });
+    await expect(chat()).resolves.toMatchObject({ truncated: true });
+  });
+
+  it('gives up on a model that does not answer in time, and says it timed out', async () => {
+    respond = () => {
+      // Never answers.
+    };
+    const started = performance.now();
+    const slow = await failure(chat({ timeoutMs: 150 }));
+    expect(slow.timedOut).toBe(true);
+    expect(performance.now() - started).toBeLessThan(2_000);
+  });
+
+  it('gives up on a body that stops arriving', async () => {
+    respond = (_body, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.write('{"message":{"content":"half an ans');
+    };
+    expect((await failure(chat({ timeoutMs: 150 }))).timedOut).toBe(true);
   });
 
   it('asks for a JSON object when the caller wants one', async () => {
@@ -68,26 +99,20 @@ describe('OllamaProvider', () => {
       json(res, 200, { message: { content: '{}' } });
     };
 
-    await expect(chat({ json: true })).resolves.toEqual({ text: '{}', promptTokens: 0, outputTokens: 0 });
+    await expect(chat({ json: true })).resolves.toMatchObject({ text: '{}', promptTokens: 0, outputTokens: 0 });
     expect(sent.format).toBe('json');
   });
 
-  it('reports a server error as worth another attempt and a client error as final', async () => {
+  it('reports an error status with what the server said', async () => {
     respond = (_body, res) => json(res, 503, { error: 'model is loading' });
     const loading = await failure(chat());
-    expect(loading.retryable).toBe(true);
     expect(loading.message).toContain('503');
     expect(loading.message).toContain('model is loading');
-
-    respond = (_body, res) => json(res, 404, { error: 'model not found' });
-    const missing = await failure(chat());
-    expect(missing.retryable).toBe(false);
-    expect(missing.timedOut).toBe(false);
+    expect(loading.timedOut).toBe(false);
   });
 
-  it('reports a host that does not answer as worth another attempt', async () => {
+  it('reports a host that refuses the connection as a failure, not as a timeout', async () => {
     const refused = await failure(chat({ baseUrl: 'http://127.0.0.1:1' }));
-    expect(refused.retryable).toBe(true);
     expect(refused.timedOut).toBe(false);
   });
 
@@ -115,7 +140,6 @@ describe('OllamaProvider', () => {
     };
 
     const flood = await failure(chat());
-    expect(flood.retryable).toBe(false);
     expect(flood.timedOut).toBe(false);
     expect(flood.message).toContain('more than');
     // The server was cut off after a few megabytes, not left to fill the memory.

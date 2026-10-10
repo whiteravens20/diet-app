@@ -32,6 +32,7 @@ import {
 import type { Env } from '../config/env.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { readModelObject } from '../ai/model-json.js';
+import { recipeDraft } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DedupService } from '../admin/drafts/dedup.js';
 import {
@@ -181,7 +182,7 @@ export class AiRecipeDraftService {
         { role: 'system', content: prompt.system },
         { role: 'user', content: prompt.user },
       ],
-      'recipe-draft',
+      recipeDraft(targetLocales.length),
       true,
     );
     if (!text) {

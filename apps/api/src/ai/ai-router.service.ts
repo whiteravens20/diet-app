@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AiKeyService } from './ai-key.service.js';
 import { AiQuotaService } from './ai-quota.service.js';
 import { assertAllowedOllamaUrl, parseAllowedHosts } from './ollama-url.js';
+import type { Operation } from './operations.js';
 import { AnthropicProvider } from './providers/anthropic.provider.js';
 import { OllamaProvider } from './providers/ollama.provider.js';
 import { OpenAiProvider } from './providers/openai.provider.js';
@@ -23,6 +24,9 @@ import {
   type AiProviderAdapter,
   type ChatMessage,
 } from './provider.interface.js';
+
+/** A provider is not tried with less time than this left; the request is reported as timed out instead. */
+const SHORTEST_ATTEMPT_MS = 1_000;
 
 /** Result of a routed AI call. `text` is null when every provider failed. */
 export interface RoutedResult {
@@ -54,18 +58,24 @@ export class AiRouterService {
   }
 
   /**
-   * Try each provider in the chain until one succeeds. `operation` tags usage
-   * logs. Empty chain or all-failed → `text: null` (caller falls back to the
-   * deterministic engine — AI is never a hard dependency).
+   * Try each provider in the chain until one succeeds. `operation` sets the
+   * limits of the request and tags usage logs. Empty chain or all-failed →
+   * `text: null` (caller falls back to the deterministic engine — AI is never
+   * a hard dependency).
    *
    * The chain is built from the user's `aiMode`: `none` short-circuits to
    * the fallback, `byok` walks the user's own configs, `admin` borrows the
    * operator's env-configured provider after a quota guard.
+   *
+   * The operation's wait covers the whole chain. Each provider still to be
+   * tried gets an equal share of the time that is left, so a slow first
+   * provider cannot use up the turn of the next, and the request as a whole
+   * never outlasts the wait.
    */
   async chat(
     userId: string,
     messages: ChatMessage[],
-    operation: string,
+    operation: Operation,
     json = false,
   ): Promise<RoutedResult> {
     const mode = await this.loadAiMode(userId);
@@ -90,10 +100,16 @@ export class AiRouterService {
 
     const failoverChain: AiProvider[] = [];
     let anyTimedOut = false;
+    const deadline = Date.now() + operation.timeoutMs;
 
-    for (const cfg of chain) {
+    for (const [index, cfg] of chain.entries()) {
       const adapter = this.adapters[cfg.provider];
       const started = Date.now();
+      const timeoutMs = Math.floor((deadline - started) / (chain.length - index));
+      if (timeoutMs < SHORTEST_ATTEMPT_MS) {
+        anyTimedOut = true;
+        break;
+      }
       try {
         let baseUrl: string | undefined;
         if (cfg.provider === 'ollama') {
@@ -116,8 +132,16 @@ export class AiRouterService {
           apiKey: cfg.apiKey ?? undefined,
           baseUrl,
           json,
+          maxTokens: operation.maxTokens,
+          temperature: operation.temperature,
+          timeoutMs,
         });
-        await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation, result, Date.now() - started, true, false);
+        if (result.truncated) {
+          this.logger.warn(
+            `AI provider ${cfg.provider} cut its answer to ${operation.name} at ${operation.maxTokens} tokens`,
+          );
+        }
+        await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation.name, result, Date.now() - started, true, false);
         return {
           text: result.text,
           meta: {
@@ -134,7 +158,7 @@ export class AiRouterService {
         if (err instanceof AiProviderError && err.timedOut) anyTimedOut = true;
         this.logger.warn(`AI provider ${cfg.provider} failed: ${describe(err)}`);
         failoverChain.push(cfg.provider);
-        await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation, null, Date.now() - started, false, false);
+        await this.log(userId, cfg.provider, cfg.model, cfg.mode, operation.name, null, Date.now() - started, false, false);
       }
     }
 

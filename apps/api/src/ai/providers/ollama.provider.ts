@@ -14,16 +14,11 @@ import {
  * points `OLLAMA_BASE_URL` at a reachable Ollama instance. This is the
  * recommended default for fully self-hosted, key-free deployments.
  *
- * Uses raw `fetch` rather than the `ollama` npm client so we can pass an
- * `AbortSignal` that actually cancels the in-flight request (the npm client's
- * non-streaming path silently drops `signal`). A hard 60s deadline aborts the
- * call if the model is too slow for the prompt (typical when an undersized
- * GPU runs a 9B+ model at ~1 tok/s). Without the abort, Ollama would block
- * until the upstream Next.js rewrite proxy or the browser kill the socket,
- * which surfaces as a bare 500. With it, the router gets a clean timeout
- * and the user sees `AI_PROVIDER_TIMEOUT` instead of "Internal Server Error".
+ * Uses raw `fetch` rather than the `ollama` npm client so the deadline really
+ * cancels the request in flight (the npm client's non-streaming path drops
+ * its `signal`). Without that, a model too slow for the prompt would hold the
+ * request until some proxy in front of the API gave up on it.
  */
-const OLLAMA_DEADLINE_MS = 60_000;
 
 /**
  * The largest response body that is read. An admin batch of recipes is a few
@@ -44,7 +39,7 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
     received += value.byteLength;
     if (received > maxBytes) {
       await reader.cancel();
-      throw new AiProviderError('ollama', `Ollama sent more than ${maxBytes} bytes; the reply was discarded.`, false);
+      throw new AiProviderError('ollama', `Ollama sent more than ${maxBytes} bytes; the reply was discarded.`);
     }
     chunks.push(value);
   }
@@ -55,6 +50,7 @@ interface OllamaChatResponse {
   message?: { content?: string };
   prompt_eval_count?: number;
   eval_count?: number;
+  done_reason?: string;
 }
 
 @Injectable()
@@ -64,7 +60,7 @@ export class OllamaProvider implements AiProviderAdapter {
   async chat(messages: ChatMessage[], opts: CompletionOptions): Promise<CompletionResult> {
     const host = (opts.baseUrl ?? 'http://localhost:11434').replace(/\/$/, '');
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), OLLAMA_DEADLINE_MS);
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
     try {
       const res = await fetch(`${host}/api/chat`, {
         method: 'POST',
@@ -74,7 +70,7 @@ export class OllamaProvider implements AiProviderAdapter {
           messages,
           stream: false,
           ...(opts.json ? { format: 'json' } : {}),
-          options: { temperature: opts.temperature ?? 0.7 },
+          options: { temperature: opts.temperature, num_predict: opts.maxTokens },
         }),
         signal: controller.signal,
       });
@@ -83,7 +79,6 @@ export class OllamaProvider implements AiProviderAdapter {
         throw new AiProviderError(
           'ollama',
           `Ollama HTTP ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`,
-          res.status >= 500,
         );
       }
       const body = JSON.parse(await readCapped(res, MAX_RESPONSE_BYTES)) as OllamaChatResponse;
@@ -91,17 +86,17 @@ export class OllamaProvider implements AiProviderAdapter {
         text: body.message?.content ?? '',
         promptTokens: body.prompt_eval_count ?? 0,
         outputTokens: body.eval_count ?? 0,
+        truncated: body.done_reason === 'length',
       };
     } catch (err) {
       if (err instanceof AiProviderError) throw err;
       const timedOut = controller.signal.aborted;
       const message = timedOut
-        ? `Ollama did not respond within ${OLLAMA_DEADLINE_MS / 1000}s — model may be too slow for this prompt.`
+        ? `Ollama did not answer within ${Math.round(opts.timeoutMs / 1000)} s; the model may be too slow for this prompt.`
         : err instanceof Error
           ? err.message
           : String(err);
-      // Connection failures are retryable (instance may be starting / loading).
-      throw new AiProviderError('ollama', message, true, timedOut);
+      throw new AiProviderError('ollama', message, timedOut);
     } finally {
       clearTimeout(timer);
     }

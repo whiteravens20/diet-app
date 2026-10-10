@@ -30,6 +30,7 @@ import { OllamaProvider } from '../../ai/providers/ollama.provider.js';
 import { OpenAiProvider } from '../../ai/providers/openai.provider.js';
 import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
 import type { AiProviderAdapter } from '../../ai/provider.interface.js';
+import { recipeBatch } from '../../ai/operations.js';
 import { PROVIDER_TUNING } from './ai-helpers.js';
 import {
   MAX_EXISTING_RECIPES_IN_PROMPT,
@@ -181,6 +182,7 @@ export class RecipeGeneratorRunner {
 
       const adapter = this.pickAdapter();
       const tuning = PROVIDER_TUNING[adapter.kind];
+      const limits = recipeBatch(spec.count, targetLocalesWithEn.length, tuning.temperature);
       const promptText = buildRecipeGeneratorPrompt({
         targetLocales: targetLocalesWithEn,
         count: spec.count,
@@ -208,8 +210,10 @@ export class RecipeGeneratorRunner {
               model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
               apiKey: this.adapterKey(adapter),
               baseUrl: this.adapterBaseUrl(adapter),
-              temperature: tuning.temperature,
               json: true,
+              maxTokens: limits.maxTokens,
+              temperature: limits.temperature,
+              timeoutMs: limits.timeoutMs,
             },
           );
           rawText = result.text;

@@ -23,6 +23,7 @@ import { OpenAiProvider } from '../../ai/providers/openai.provider.js';
 import { OpenRouterProvider } from '../../ai/providers/openrouter.provider.js';
 import type { AiProviderAdapter } from '../../ai/provider.interface.js';
 import { PROVIDER_TUNING } from './ai-helpers.js';
+import { ingredientNames } from '../../ai/operations.js';
 import {
   INGREDIENT_NAMER_PROMPT_VERSION,
   buildIngredientNamerPrompt,
@@ -259,6 +260,7 @@ export class IngredientNamerRunner {
     temperature: number,
   ): Promise<Record<string, import('@diet-app/shared').IngredientNameSuggestion> | null> {
     const failures: { key: string; reason: IngredientNamerValidationReason }[] = [];
+    const limits = ingredientNames(Object.keys(source).length, targetLocales.length, temperature);
     for (const attempt of [0, 1, 2]) {
       try {
         const reminder = attempt === 0
@@ -272,8 +274,10 @@ export class IngredientNamerRunner {
             model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
             apiKey: this.adapterKey(adapter),
             baseUrl: this.adapterBaseUrl(adapter),
-            temperature,
             json: true,
+            maxTokens: limits.maxTokens,
+            temperature: limits.temperature,
+            timeoutMs: limits.timeoutMs,
           },
         );
         const v = validateIngredientNamer({

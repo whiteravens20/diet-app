@@ -16,8 +16,8 @@ export class AnthropicProvider implements AiProviderAdapter {
   readonly kind = 'anthropic' as const;
 
   async chat(messages: ChatMessage[], opts: CompletionOptions): Promise<CompletionResult> {
-    if (!opts.apiKey) throw new AiProviderError('anthropic', 'missing API key', false);
-    const client = new Anthropic({ apiKey: opts.apiKey });
+    if (!opts.apiKey) throw new AiProviderError('anthropic', 'missing API key');
+    const client = new Anthropic({ apiKey: opts.apiKey, timeout: opts.timeoutMs, maxRetries: 0 });
 
     // Anthropic takes `system` separately from the message turns.
     const system = messages
@@ -31,8 +31,8 @@ export class AnthropicProvider implements AiProviderAdapter {
     try {
       const res = await client.messages.create({
         model: opts.model,
-        max_tokens: opts.maxTokens ?? 2048,
-        temperature: opts.temperature ?? 0.7,
+        max_tokens: opts.maxTokens,
+        temperature: opts.temperature,
         ...(system ? { system } : {}),
         messages: turns,
       });
@@ -43,13 +43,13 @@ export class AnthropicProvider implements AiProviderAdapter {
         text,
         promptTokens: res.usage.input_tokens,
         outputTokens: res.usage.output_tokens,
+        truncated: res.stop_reason === 'max_tokens',
       };
     } catch (err) {
-      const status = (err as { status?: number }).status;
       throw new AiProviderError(
         'anthropic',
         err instanceof Error ? err.message : String(err),
-        status === 429 || (status !== undefined && status >= 500),
+        err instanceof Anthropic.APIConnectionTimeoutError,
       );
     }
   }
