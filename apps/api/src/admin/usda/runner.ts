@@ -17,7 +17,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/env.js';
 import { resolveDataDir } from '../seed/data-hash.js';
-import { runImport, type ImportProgress, type ImportResult } from './importer.js';
+import { ImportFailure, runImport, type ImportFailureReason, type ImportProgress, type ImportResult } from './importer.js';
 
 export type ImportStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -39,7 +39,12 @@ export interface ImportRunnerState {
   demoKey: boolean;
   /** Populated on `done`. */
   result: ImportResult | null;
+  /** Populated on `error`: what went wrong, for the log and as detail on the panel. */
   error: string | null;
+  /** Populated on `error`: why, so that the panel can say what to do about it. */
+  errorReason: ImportFailureReason | null;
+  /** How long the source asks to wait before the next try, in seconds, when it said so. */
+  retryAfterSeconds: number | null;
 }
 
 @Injectable()
@@ -82,6 +87,8 @@ export class UsdaImportRunner {
       demoKey: apiKey === 'DEMO_KEY',
       result: null,
       error: null,
+      errorReason: null,
+      retryAfterSeconds: null,
     };
 
     void this.run(apiKey, dataTypes);
@@ -127,6 +134,8 @@ export class UsdaImportRunner {
         status: 'error',
         finishedAt: new Date().toISOString(),
         error: message,
+        errorReason: err instanceof ImportFailure ? err.reason : 'failed',
+        retryAfterSeconds: err instanceof ImportFailure ? (err.retryAfterSeconds ?? null) : null,
       };
     }
   }
@@ -146,6 +155,8 @@ export class UsdaImportRunner {
       demoKey: false,
       result: null,
       error: null,
+      errorReason: null,
+      retryAfterSeconds: null,
     };
   }
 }

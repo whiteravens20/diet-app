@@ -13,7 +13,7 @@
  * The output is the same file for the same input (rows are sorted by slug),
  * and it replaces the old one in one step.
  */
-import { renameSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { FdcDataTypes } from '@diet-app/shared';
 import { classify } from './classify.js';
@@ -148,6 +148,34 @@ export interface ImportOptions {
 }
 
 /**
+ * Why a run could not be completed, in terms somebody can act on:
+ *  - `over_limit`   the key has had its requests for now;
+ *  - `key_refused`  the source does not accept the key;
+ *  - `unavailable`  the source fails or cannot be reached;
+ *  - `not_writable` the directory the file goes to cannot be written;
+ *  - `failed`       an answer nobody foresaw.
+ */
+export type ImportFailureReason = 'over_limit' | 'key_refused' | 'unavailable' | 'not_writable' | 'failed';
+
+export class ImportFailure extends Error {
+  constructor(
+    message: string,
+    readonly reason: ImportFailureReason,
+    /** How long the source asks to wait, in seconds, when it said so. */
+    readonly retryAfterSeconds?: number,
+  ) {
+    super(message);
+    this.name = 'ImportFailure';
+  }
+}
+
+function reasonOf(status: number): ImportFailureReason {
+  if (status === 429) return 'over_limit';
+  if (status === 401 || status === 403) return 'key_refused';
+  return status >= 500 ? 'unavailable' : 'failed';
+}
+
+/**
  * The key and the data sets of a run started from the command line, read from
  * the environment the way the API reads its own settings: a variable set to
  * nothing is not set, and a data set the source does not have is refused
@@ -166,8 +194,10 @@ export function settingsFromEnvironment(env: Record<string, string | undefined>)
  * A function that fetches one page of the source's listing. The key travels in
  * a header, so that it is not written into the logs of everything a request
  * passes. A page is tried again when the source is busy or fails, after a wait
- * that doubles or is as long as the source asks; an answer that trying again
- * cannot change ends the run at once.
+ * that doubles or is as long as the source asks. The run ends at once on an
+ * answer that trying again cannot change, and when the source asks for a
+ * longer wait than a minute: an allowance that is used up comes back in
+ * minutes or hours, and asking meanwhile only uses up more of it.
  */
 export function pageFetcher(options: {
   apiKey: string;
@@ -179,31 +209,41 @@ export function pageFetcher(options: {
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   return async (pageNumber) => {
     const url = `${BASE}?dataType=${encodeURIComponent(options.dataTypes)}&pageSize=${PAGE_SIZE}&pageNumber=${pageNumber}&query=*`;
-    let failure = '';
+    let failure = new ImportFailure(`FDC API did not answer on page ${pageNumber}`, 'unavailable');
     for (let attempt = 1; attempt <= TRIES; attempt += 1) {
       let wait = Math.min(LONGEST_WAIT_MS, FIRST_WAIT_MS * 2 ** (attempt - 1));
       try {
         const res = await send(url, { headers: { 'X-Api-Key': options.apiKey }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
         if (res.ok) return (await res.json()) as SourcePage;
-        failure = `FDC API ${res.status} on page ${pageNumber}`;
-        if (res.status !== 429 && res.status < 500) break;
         const asked = Number(res.headers.get('retry-after'));
-        if (asked > 0) wait = Math.min(LONGEST_WAIT_MS, asked * 1000);
+        failure = new ImportFailure(`FDC API ${res.status} on page ${pageNumber}`, reasonOf(res.status), asked > 0 ? asked : undefined);
+        if (res.status !== 429 && res.status < 500) break;
+        if (asked * 1000 > LONGEST_WAIT_MS) break;
+        if (asked > 0) wait = asked * 1000;
       } catch (err) {
-        failure = `FDC API did not answer on page ${pageNumber}: ${err instanceof Error ? err.message : String(err)}`;
+        failure = new ImportFailure(
+          `FDC API did not answer on page ${pageNumber}: ${err instanceof Error ? err.message : String(err)}`,
+          'unavailable',
+        );
       }
       if (attempt < TRIES) await sleep(wait);
     }
-    throw new Error(failure);
+    throw failure;
   };
 }
 
 /**
  * Run the full import. Writes `ingredients.generated.json` to `outDir` and
- * returns counters. Throws on FDC errors; the runner translates that into
- * a user-visible job-status error.
+ * returns counters. Throws an `ImportFailure` that says why when the source or
+ * the directory stands in the way; the runner hands that on to the panel.
  */
 export async function runImport(opts: ImportOptions): Promise<ImportResult> {
+  // Nothing is asked of the source when its answer could not be written down.
+  try {
+    accessSync(opts.outDir, constants.W_OK);
+  } catch {
+    throw new ImportFailure(`Cannot write to ${opts.outDir}`, 'not_writable');
+  }
   const fetchPage = opts.fetchPage ?? pageFetcher({ apiKey: opts.apiKey, dataTypes: opts.dataTypes });
 
   const seen = new Set<string>();
