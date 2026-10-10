@@ -85,6 +85,11 @@ Same first-run rule: populate the DB from `/admin` (or run `npm run db:seed`).
 one entrypoint. For TLS, add a `websecure` entrypoint and a cert resolver. Traefik is
 optional — any reverse proxy works; expose only the proxy port publicly.
 
+A request that asks an AI model can take up to 60 seconds before the API answers (see
+[AI model recommendations](ai-models.md#limits-on-every-request)). Give the proxy a read
+timeout above that — 90 seconds matches the web front-end's own. Traefik has none by
+default; nginx stops at 60 seconds unless `proxy_read_timeout` is raised.
+
 ## Ollama / GPU
 
 ```bash

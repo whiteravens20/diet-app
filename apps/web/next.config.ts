@@ -25,6 +25,13 @@ const config: NextConfig = {
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${API_PROXY_URL}/api/:path*` }];
   },
+  experimental: {
+    // How long the proxy above waits for the API. The API allows itself up to
+    // 60 s for a model to answer; at the default of 30 s the proxy would give
+    // up first and the browser would get a bare 500 in place of the API's own
+    // answer.
+    proxyTimeout: 90_000,
+  },
   // Security headers on every response. See src/lib/security-headers.ts.
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS.map((h) => ({ ...h })) }];
