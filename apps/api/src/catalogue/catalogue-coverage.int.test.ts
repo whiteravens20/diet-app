@@ -4,7 +4,7 @@ import { DietType, MEAL_SLOTS_BY_COUNT, MealType, fitsDiet } from '@diet-app/sha
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPrivateRecipe, aUser } from '../testing/factories.js';
+import { aPrivateRecipe, aProfile, aUser, as } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { CatalogueCoverageService } from './catalogue-coverage.service.js';
 
@@ -80,5 +80,51 @@ describe('what the catalogue can serve', () => {
     expect(after.balanced['3']).toBe(0);
   });
 
+  it('is named when a plan cannot be made: which meal, which diet', async () => {
+    const user = await aUser(t);
+    const profile = await aProfile(t, user, { dietType: 'vegan' });
+    const lunches = await t.prisma.recipe.findMany({ where: { createdByUserId: null, mealTypes: { has: 'lunch' }, dietTags: { has: 'vegan' } }, select: { id: true } });
+    await t.prisma.recipe.updateMany({ where: { id: { in: lunches.map((r) => r.id) } }, data: { retiredAt: new Date() } });
 
+    const res = await t.http().post('/api/meal-plans/generate').set(as(user)).send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
+
+    expect(res.status).toBe(400);
+    // Nothing was ruled out by the profile: the catalogue has no such recipe.
+    expect(res.body).toMatchObject({ error: 'NO_ELIGIBLE_RECIPE', details: { slot: 'lunch', dietType: 'vegan', ruledOut: 0 } });
+    // A day of two meals has no lunch, so fewer meals can help.
+    expect(res.body.message).toBe('There is no recipe for lunch on the vegan diet. Choose another diet or fewer meals a day.');
+  });
+
+  it('does not advise fewer meals a day for a meal that every day has', async () => {
+    const user = await aUser(t);
+    const profile = await aProfile(t, user, { dietType: 'vegan' });
+    const breakfasts = await t.prisma.recipe.findMany({ where: { createdByUserId: null, mealTypes: { has: 'breakfast' }, dietTags: { has: 'vegan' } }, select: { id: true } });
+    await t.prisma.recipe.updateMany({ where: { id: { in: breakfasts.map((r) => r.id) } }, data: { retiredAt: new Date() } });
+
+    const res = await t.http().post('/api/meal-plans/generate').set(as(user)).send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
+
+    expect(res.body).toMatchObject({ error: 'NO_ELIGIBLE_RECIPE', details: { slot: 'breakfast', dietType: 'vegan', ruledOut: 0 } });
+    expect(res.body.message).toBe('There is no recipe for breakfast on the vegan diet. Choose another diet.');
+  });
+
+  it('is told apart from a profile that rules out every recipe there is', async () => {
+    const user = await aUser(t);
+    const lunches = await t.prisma.recipe.findMany({ where: { createdByUserId: null, mealTypes: { has: 'lunch' }, dietTags: { has: 'vegan' } }, select: { allergens: true, ingredients: { select: { ingredientId: true } } } });
+    expect(lunches.length).toBeGreaterThan(0);
+    // Skip one ingredient of every vegan lunch: each is ruled out, none is missing from the catalogue.
+    const skipped = [...new Set(lunches.map((r) => r.ingredients[0]!.ingredientId))];
+    const profile = await aProfile(t, user, {
+      dietType: 'vegan',
+      preferences: { favoriteIngredientIds: [], excludedIngredientIds: skipped, allergens: [], dislikedFoods: [], preferredCuisines: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, inventoryBiasResetEvery: 5 },
+    });
+
+    const res = await t.http().post('/api/meal-plans/generate').set(as(user)).send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
+
+    // Breakfast may share a skipped ingredient: whichever meal runs dry first, it had recipes before the profile's rules.
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('NO_ELIGIBLE_RECIPE');
+    expect(res.body.details.dietType).toBe('vegan');
+    expect(res.body.details.ruledOut).toBeGreaterThan(0);
+    expect(res.body.message).toContain("is ruled out by this profile's allergens, skipped ingredients or avoided recipes");
+  });
 });

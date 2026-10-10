@@ -136,7 +136,15 @@ const SCORE_WEIGHTS = {
 export const SERVING_MIN = 0.5;
 export const SERVING_MAX = 3;
 
-export class OptimizerError extends Error {}
+export class OptimizerError extends Error {
+  constructor(
+    message: string,
+    /** The meal no recipe could fill and the diet it was wanted for, when that is what went wrong. */
+    readonly gap?: { slot: MealType; dietType: DietType },
+  ) {
+    super(message);
+  }
+}
 
 /** Per-slot calorie budgets that sum to the daily target. */
 export function slotBudgets(slots: MealType[], dailyTarget: number): Map<MealType, number> {
@@ -225,7 +233,7 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
       const budget = budgets.get(slot)!;
       const eligibleHere = input.recipes.filter((r) => eligible(r, slot, input.dietType));
       if (eligibleHere.length === 0) {
-        throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`);
+        throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, { slot, dietType: input.dietType });
       }
       // Cook-time budget: prefer recipes within the day's time cap; if that
       // empties the pool, fall back to all eligible (better to exceed the cap

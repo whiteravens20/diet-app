@@ -34,6 +34,7 @@ import {
   type SwapIngredientResponse,
   type SwapMealRequest,
   type SwapPreview,
+  type UnfilledMeal,
 } from '@diet-app/shared';
 import {
   calculateCalories,
@@ -382,7 +383,7 @@ export class MealPlansService {
       seed: number;
     },
   ): Promise<OptimizerResult> {
-    const { optimizerRecipes, requirementsByRecipe } = await this.loadEligibleRecipes(ownerUserId, profile, {
+    const { optimizerRecipes, requirementsByRecipe, beforeProfileRules } = await this.loadEligibleRecipes(ownerUserId, profile, {
       respectExclusions: opts.respectExclusions,
     });
 
@@ -468,13 +469,25 @@ export class MealPlansService {
         seed: opts.seed,
       });
     } catch (err) {
-      // The optimiser throws when a (slot × diet) combination has no eligible
-      // recipe. Surface that as a 400 with the missing slot named, instead of
-      // a generic 500.
+      // The optimiser throws when a meal has no recipe left for the diet.
+      // That is a 400 which names the meal and the diet, and says how many
+      // recipes for the pair the profile's own rules took out: none means
+      // there are none to begin with, and no change to the profile will help.
       if (err instanceof OptimizerError) {
+        const { gap } = err;
+        const ruledOut = gap
+          ? beforeProfileRules.filter((r) => r.mealTypes.includes(gap.slot) && fitsDiet(r.dietTags, gap.dietType)).length
+          : 0;
+        // Fewer meals a day help only with a meal that the shortest day does not have.
+        const fewerMeals = gap && !MEAL_SLOTS_BY_COUNT[2]!.includes(gap.slot) ? ' or fewer meals a day' : '';
         throw new BadRequestException({
           error: 'NO_ELIGIBLE_RECIPE',
-          message: `${err.message}. Try a different diet, fewer meals per day, or relax the allergen/exclusion filters.`,
+          message: !gap
+            ? `${err.message}.`
+            : ruledOut === 0
+              ? `There is no recipe for ${gap.slot} on the ${gap.dietType} diet. Choose another diet${fewerMeals}.`
+              : `Every recipe for ${gap.slot} on the ${gap.dietType} diet (${ruledOut}) is ruled out by this profile's allergens, skipped ingredients or avoided recipes.`,
+          ...(gap ? { details: { ...gap, ruledOut } satisfies UnfilledMeal } : {}),
         });
       }
       throw err;
@@ -1594,6 +1607,8 @@ export class MealPlansService {
      * pantry stock, so treating them as "not covered" is the safe default.
      */
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>;
+    /** Every recipe the user may be given at all, before the profile's allergens, skipped ingredients and avoided recipes took any out. */
+    beforeProfileRules: Array<{ mealTypes: string[]; dietTags: string[] }>;
   }> {
     const allergens = profile.preferences?.allergens ?? [];
     const excluded =
@@ -1651,7 +1666,7 @@ export class MealPlansService {
     const requirementsByRecipe = new Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>();
     for (const r of filteredRecipes) requirementsByRecipe.set(r.id, requirementsPerServing(r));
 
-    return { optimizerRecipes, requirementsByRecipe };
+    return { optimizerRecipes, requirementsByRecipe, beforeProfileRules: recipes };
   }
 
   /**

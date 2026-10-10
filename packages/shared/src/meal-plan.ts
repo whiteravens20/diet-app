@@ -36,6 +36,19 @@ export const DayOverride = z.object({
 });
 export type DayOverride = z.infer<typeof DayOverride>;
 
+/**
+ * What a refusal with the code `NO_ELIGIBLE_RECIPE` carries under `details`:
+ * the meal no recipe was left for, the diet it was wanted for, and how many
+ * recipes for the pair the profile's allergens, skipped ingredients and
+ * avoided recipes ruled out. None ruled out means there are none to begin with.
+ */
+export const UnfilledMeal = z.object({
+  slot: MealType,
+  dietType: DietType,
+  ruledOut: z.number().int().min(0),
+});
+export type UnfilledMeal = z.infer<typeof UnfilledMeal>;
+
 /** Request to generate a meal plan. */
 export const GeneratePlanRequest = z.object({
   profileId: z.string().uuid(),

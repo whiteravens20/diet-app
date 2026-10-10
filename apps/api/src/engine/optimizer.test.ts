@@ -97,10 +97,11 @@ describe('optimisePlan', () => {
     expect(ingredientReuseScore).toBeLessThanOrEqual(1);
   });
 
-  it('throws when a slot has no eligible recipe', () => {
-    expect(() => optimisePlan({ ...baseInput, days: uniformDays(1, ['snack'], 2000) })).toThrow(
-      OptimizerError,
-    );
+  it('throws when a slot has no eligible recipe, and says which meal and diet', () => {
+    const attempt = () => optimisePlan({ ...baseInput, days: uniformDays(1, ['breakfast', 'snack'], 2000) });
+
+    expect(attempt).toThrow(OptimizerError);
+    expect(attempt).toThrow(expect.objectContaining({ gap: { slot: 'snack', dietType: baseInput.dietType } }));
   });
 
   /**
