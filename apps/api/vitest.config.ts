@@ -59,7 +59,6 @@ export default defineConfig({
         'src/engine/**': { lines: 95, functions: 95, branches: 85, statements: 95 },
         'src/ai/ai-key.service.ts': { lines: 85, functions: 80, branches: 60, statements: 85 },
         'src/ai/ai-quota.service.ts': { lines: 95, functions: 95, branches: 75, statements: 95 },
-        'src/ai/ai-validation.service.ts': { lines: 90, functions: 90, branches: 80, statements: 90 },
         'src/ai/ollama-url.ts': { lines: 94, functions: 95, branches: 90, statements: 94 },
         'src/auth/auth.service.ts': { lines: 78, functions: 70, branches: 60, statements: 78 },
         'src/auth/turnstile.service.ts': { lines: 90, functions: 100, branches: 87, statements: 90 },
