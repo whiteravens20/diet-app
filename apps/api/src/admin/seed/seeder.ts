@@ -28,6 +28,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { allergensOf, recipeFacts } from '../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../engine/units.js';
+import { computeFingerprint } from '../drafts/fingerprint.js';
 import { asLocaleMap, en, loadCatalogue, type Catalogue } from './catalogue.js';
 import { resolveDataDir } from './data-hash.js';
 
@@ -119,7 +120,7 @@ export async function updateDatabase(
 
     onProgress({ stage: 'recompute' });
     const recomputed = await recomputeDerivedRecipes(tx);
-    if (recomputed > 0) log(`Recomputed nutrition and allergens of ${recomputed} personal recipe(s).`);
+    if (recomputed > 0) log(`Recomputed what is derived from the ingredients of ${recomputed} recipe(s) outside the seed.`);
 
     const repairedProfiles = await repairDanglingReferences(tx);
     if (repairedProfiles > 0) log(`Removed references to rows that no longer exist from ${repairedProfiles} profile(s).`);
@@ -338,6 +339,9 @@ async function applyRecipes(
       cookMinutes: seed.cookMinutes,
       difficulty: seed.difficulty,
       allergens: recipe.allergens,
+      // What a personal recipe is compared with: one that turns out to be this
+      // recipe is not written a second time.
+      fingerprint: computeFingerprint({ ingredients: recipe.lines, mealTypes: seed.mealTypes, servings: seed.servings }),
       caloriesPerServing: recipe.nutrition.calories,
       proteinPerServing: recipe.nutrition.protein,
       fatPerServing: recipe.nutrition.fat,
@@ -449,14 +453,40 @@ async function retireIngredients(db: Db, catalogue: Catalogue): Promise<{ delete
 
 /**
  * Recipes the seed does not own (personal, AI-drafted, promoted) store their
- * nutrition, allergens and diets too. After the ingredient table changed, bring
- * them back in line with it. Returns how many rows changed.
+ * nutrition, allergens, diets and fingerprint too. After the ingredient table
+ * changed, bring them back in line with it. Returns how many rows changed.
  */
 async function recomputeDerivedRecipes(db: Db): Promise<number> {
   const recipes = await db.recipe.findMany({
     where: { origin: { not: 'seed' } },
     include: { ingredients: { include: { ingredient: true } } },
+    // The order decides which of two identical recipes of one owner keeps the
+    // fingerprint: one that is not deleted, then the older.
+    orderBy: [{ deletedAt: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }, { id: 'asc' }],
   });
+
+  const fingerprints = new Map<string, string | null>();
+  const taken = new Set<string>();
+  for (const recipe of recipes) {
+    const lines = recipe.ingredients.map((line) => ({ slug: line.ingredient.slug, quantity: line.quantity, unit: line.unit }));
+    const named = lines.filter((line): line is typeof line & { slug: string } => line.slug !== null);
+    let fingerprint =
+      lines.length > 0 && named.length === lines.length
+        ? computeFingerprint({ ingredients: named, mealTypes: recipe.mealTypes, servings: recipe.servings })
+        : null;
+    // One owner holds a fingerprint once. A second recipe of theirs with the
+    // same content keeps none: it stays theirs, it is just not recognised.
+    if (fingerprint && recipe.createdByUserId) {
+      const key = `${recipe.createdByUserId}:${fingerprint}`;
+      if (taken.has(key)) fingerprint = null;
+      else taken.add(key);
+    }
+    fingerprints.set(recipe.id, fingerprint);
+  }
+  // Cleared first, so that no row waits for a value another row still holds.
+  const moved = recipes.filter((recipe) => recipe.fingerprint !== null && recipe.fingerprint !== fingerprints.get(recipe.id));
+  await db.recipe.updateMany({ where: { id: { in: moved.map((recipe) => recipe.id) } }, data: { fingerprint: null } });
+
   let changed = 0;
   for (const recipe of recipes) {
     const lines = recipe.ingredients.map((line) => ({
@@ -465,6 +495,7 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
       ingredient: line.ingredient,
     }));
     const servings = Math.max(1, recipe.servings);
+    const fingerprint = fingerprints.get(recipe.id) ?? null;
     let next: Pick<
       typeof recipe,
       'caloriesPerServing' | 'proteinPerServing' | 'fatPerServing' | 'carbsPerServing' | 'allergens' | 'dietTags'
@@ -500,9 +531,10 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
       next.fatPerServing === recipe.fatPerServing &&
       next.carbsPerServing === recipe.carbsPerServing &&
       next.allergens.join() === [...recipe.allergens].sort().join() &&
-      next.dietTags.join() === recipe.dietTags.join();
+      next.dietTags.join() === recipe.dietTags.join() &&
+      fingerprint === recipe.fingerprint;
     if (same) continue;
-    await db.recipe.update({ where: { id: recipe.id }, data: next });
+    await db.recipe.update({ where: { id: recipe.id }, data: { ...next, fingerprint } });
     changed += 1;
   }
   return changed;

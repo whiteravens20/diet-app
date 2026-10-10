@@ -2,6 +2,7 @@
 
 import { AiDraftRecipeRequest, type MealPlan, type Profile } from '@diet-app/shared';
 import { HttpException } from '@nestjs/common';
+import { recipeFacts } from '../engine/recipe-facts.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
@@ -10,10 +11,12 @@ import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/fact
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
+import { PersonalRecipesService } from './personal-recipes.service.js';
 
 let t: TestApp;
 let plans: MealPlansService;
 let drafts: AiRecipeDraftService;
+let personal: PersonalRecipesService;
 
 beforeAll(async () => {
   t = await createTestApp();
@@ -21,6 +24,7 @@ beforeAll(async () => {
   await seedCatalogue(t.prisma);
   plans = t.app.get(MealPlansService);
   drafts = t.app.get(AiRecipeDraftService);
+  personal = t.app.get(PersonalRecipesService);
 });
 
 afterAll(async () => {
@@ -229,5 +233,32 @@ describe('a recipe the shared library already has', () => {
 
     expect(own).not.toBe(shared);
     expect((await t.prisma.recipe.findUniqueOrThrow({ where: { id: own } })).createdByUserId).toBe(other.user.id);
+  });
+
+  it('is a recipe of the catalogue just as well: one made by hand that equals it is not written', async () => {
+    const account = await anAccount();
+    const porridge = await t.prisma.recipe.findUniqueOrThrow({
+      where: { slug: 'milk-porridge' },
+      include: { ingredients: { include: { ingredient: true } } },
+    });
+
+    const id = await personal.save({
+      userId: account.user.id,
+      origin: 'user',
+      text: new Map([['en', { title: 'My porridge', description: 'The same thing.', steps: ['Cook.', 'Eat.'] }]]),
+      servings: porridge.servings,
+      mealTypes: porridge.mealTypes,
+      prepMinutes: 5,
+      cookMinutes: 5,
+      difficulty: 'easy',
+      // The same lines, in another order.
+      ingredients: [...porridge.ingredients]
+        .reverse()
+        .map((line) => ({ ingredientId: line.ingredientId, quantity: line.quantity, unit: line.unit, note: null })),
+      facts: recipeFacts(porridge.ingredients, porridge.servings),
+    });
+
+    expect(id).toBe(porridge.id);
+    expect(await t.prisma.recipe.count({ where: { createdByUserId: account.user.id } })).toBe(0);
   });
 });

@@ -251,6 +251,77 @@ describe('updating the curated database', () => {
     });
   });
 
+  describe('the fingerprint a recipe is recognised by', () => {
+    /** A personal recipe of 100 g of rice, as rows written before fingerprints took their present form: without one. */
+    const riceOf = (userId: string, data: { createdAt?: Date; deletedAt?: Date } = {}) =>
+      idOf('white-rice').then((rice) =>
+        t.prisma.recipe.create({
+          data: {
+            title: 'Rice',
+            description: '',
+            servings: 1,
+            mealTypes: ['lunch'],
+            prepMinutes: 1,
+            cookMinutes: 10,
+            origin: 'user',
+            createdByUserId: userId,
+            ingredients: { create: [{ ingredientId: rice, quantity: 100, unit: 'g' }] },
+            ...data,
+          },
+        }),
+      );
+    const fingerprintOf = async (id: string) => (await t.prisma.recipe.findUniqueOrThrow({ where: { id } })).fingerprint;
+
+    it('is given to every recipe of the data, and no two of them share one', async () => {
+      const seeded = await t.prisma.recipe.findMany({ where: { origin: 'seed' }, select: { fingerprint: true } });
+
+      expect(seeded.length).toBeGreaterThan(10);
+      for (const row of seeded) expect(row.fingerprint).toMatch(/^[0-9a-f]{64}$/);
+      expect(new Set(seeded.map((row) => row.fingerprint)).size).toBe(seeded.length);
+    });
+
+    it('is filled in on the recipes of users that have none, the same for the same recipe', async () => {
+      const [first, second] = [await aUser(t), await aUser(t)];
+      const one = await riceOf(first.id);
+      const two = await riceOf(second.id);
+      expect(one.fingerprint).toBeNull();
+
+      await updateDatabase(t.prisma, catalogueDirectory(), quiet);
+
+      expect(await fingerprintOf(one.id)).toMatch(/^[0-9a-f]{64}$/);
+      expect(await fingerprintOf(two.id)).toBe(await fingerprintOf(one.id));
+    });
+
+    it('goes to one of two identical recipes of one user: the one that is not deleted, then the older', async () => {
+      const user = await aUser(t);
+      const deleted = await riceOf(user.id, { createdAt: new Date('2026-01-01'), deletedAt: new Date('2026-02-01') });
+      const older = await riceOf(user.id, { createdAt: new Date('2026-03-01') });
+      const newer = await riceOf(user.id, { createdAt: new Date('2026-04-01') });
+
+      await updateDatabase(t.prisma, catalogueDirectory(), quiet);
+      // A second update moves nothing.
+      await updateDatabase(t.prisma, catalogueDirectory(), quiet);
+
+      expect(await fingerprintOf(older.id)).toMatch(/^[0-9a-f]{64}$/);
+      expect(await fingerprintOf(newer.id)).toBeNull();
+      expect(await fingerprintOf(deleted.id)).toBeNull();
+    });
+
+    it('is left empty on a recipe with an ingredient that has no slug', async () => {
+      const user = await aUser(t);
+      const recipe = await riceOf(user.id);
+      // Kept out of the update's reach: an ingredient of the data cannot lose its slug.
+      const unnamed = await t.prisma.ingredient.create({
+        data: { name: 'Home-made stock', category: 'other', canonicalUnit: 'ml', caloriesPer100: 5, proteinPer100: 1, fatPer100: 0, carbsPer100: 0, density: 1 },
+      });
+      await t.prisma.recipeIngredient.create({ data: { recipeId: recipe.id, ingredientId: unnamed.id, quantity: 100, unit: 'ml' } });
+
+      await updateDatabase(t.prisma, catalogueDirectory(), quiet);
+
+      expect(await fingerprintOf(recipe.id)).toBeNull();
+    });
+  });
+
   it('changes nothing when a data file is malformed, and names the file', async () => {
     const data = editableData();
     data.edit<Row>('recipes.json', (rows) => rows.slice(0, 3));
