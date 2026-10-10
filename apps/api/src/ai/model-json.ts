@@ -43,6 +43,27 @@ export function readModelObject(
   }
 }
 
+/**
+ * A string a model wrote, as one line without control characters. Null when
+ * the value is not a string or nothing is left of it.
+ */
+export function plainLine(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  // eslint-disable-next-line no-control-regex -- control characters are what is being removed
+  const line = value.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
+  return line === '' ? null : line;
+}
+
+/**
+ * Text a model wrote for the user, made fit to show: one plain line of at most
+ * `max` characters, cut with a mark when it was longer.
+ */
+export function modelText(value: unknown, max: number): string | null {
+  const line = plainLine(value);
+  if (line === null) return null;
+  return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
+}
+
 /** The object a reply holds, checked against the shape the prompt asked for. */
 export function readModelReply<T>(
   reply: string,

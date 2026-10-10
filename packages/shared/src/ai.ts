@@ -54,10 +54,6 @@ export const AiProviderConfig = z.object({
 export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
 
 /**
- * Diagnostic envelope attached to AI-assisted responses so the UI can show how
- * a result was produced and which validations the engine applied afterward.
- */
-/**
  * Why the deterministic engine had to take over. Populated only when
  * `usedDeterministicFallback === true`. The UI maps these codes to a
  * localised "AI unavailable" toast/badge so the user knows the result came
@@ -79,6 +75,10 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  *                           an actionable "your model is too slow, try a
  *                           smaller model or a cloud provider" hint instead
  *                           of a generic "didn't respond".
+ * - `invalid_output`      — a provider answered, but not with something the
+ *                           application could use (no JSON, the wrong shape,
+ *                           an id that was not on offer). `provider` and
+ *                           `model` name who answered.
  */
 export const AiFallbackReason = z.enum([
   'quota_exhausted',
@@ -86,22 +86,30 @@ export const AiFallbackReason = z.enum([
   'no_provider',
   'all_providers_failed',
   'provider_timeout',
+  'invalid_output',
 ]);
 export type AiFallbackReason = z.infer<typeof AiFallbackReason>;
 
+/**
+ * How an AI-assisted result was produced: who answered, and whether the model
+ * or the engine made the choice. Attached to every such response so the UI can
+ * say so.
+ */
 export const AiGenerationMeta = z.object({
-  /** Provider that ultimately served the request, or null in fallback mode. */
+  /** The provider that answered, or null when none did. */
   provider: AiProvider.nullable(),
   model: z.string().nullable(),
   /** Ordered list of providers that failed before this one succeeded. */
   failoverChain: z.array(AiProvider),
-  /** True when no provider was usable and the deterministic engine was used. */
+  /** True when the deterministic engine made the choice, not a model. */
   usedDeterministicFallback: z.boolean(),
-  /** Why fallback happened. Null when `usedDeterministicFallback === false`. */
+  /** Why the engine decided. Null when `usedDeterministicFallback === false`. */
   fallbackReason: AiFallbackReason.nullable(),
-  /** Ingredients the validation layer rejected or remapped. */
-  rejectedIngredients: z.array(z.string()),
-  remappedIngredients: z.array(z.object({ from: z.string(), to: z.string() })),
+  /**
+   * The model's own one-sentence explanation of its choice, as plain text.
+   * Null when the engine decided or the model gave none.
+   */
+  reason: z.string().max(200).nullable(),
 });
 export type AiGenerationMeta = z.infer<typeof AiGenerationMeta>;
 

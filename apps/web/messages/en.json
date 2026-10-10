@@ -54,7 +54,8 @@
     "instance_quota_exhausted": "This instance's shared AI requests for the month are used up — falling back to the rule-based engine.",
     "no_provider": "No AI provider is configured for your account — falling back to the rule-based engine.",
     "all_providers_failed": "AI provider didn't respond — falling back to the rule-based engine.",
-    "provider_timeout": "AI provider was too slow — try a smaller model or a cloud provider. Falling back to the rule-based engine."
+    "provider_timeout": "AI provider was too slow — try a smaller model or a cloud provider. Falling back to the rule-based engine.",
+    "invalid_output": "The AI's answer could not be used — the rule-based engine picked instead."
   },
   "disclaimers": {
     "aiPlans": "AI helps draft plans and pick swaps — and it can get things wrong. Review every plan, recipe and swap against your own dietary needs and health before you rely on it.",

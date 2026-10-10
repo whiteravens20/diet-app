@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { MAX_MODEL_REPLY_CHARS, readModelObject, readModelReply } from './model-json.js';
+import { MAX_MODEL_REPLY_CHARS, modelText, readModelObject, readModelReply } from './model-json.js';
 
 describe('readModelObject', () => {
   it.each([
@@ -55,6 +55,32 @@ describe('readModelReply', () => {
   it('reports an unreadable reply before it looks at the shape', () => {
     expect(readModelReply('no', Pick)).toEqual({ ok: false, problem: 'no_json_object' });
     expect(readModelReply('x'.repeat(MAX_MODEL_REPLY_CHARS + 1), Pick)).toEqual({ ok: false, problem: 'too_long' });
+  });
+});
+
+describe('modelText', () => {
+  it('keeps an ordinary sentence as it is', () => {
+    expect(modelText('Closest to your calorie budget.', 200)).toBe('Closest to your calorie budget.');
+  });
+
+  it('folds line breaks, tabs and control characters into single spaces', () => {
+    expect(modelText('  one\n\ntwo\tthree\u0000\u0007four\u0085five  ', 200)).toBe('one two three four five');
+  });
+
+  it('cuts a long text to the limit and marks the cut', () => {
+    const cut = modelText('word '.repeat(100), 50)!;
+    expect(cut).toHaveLength(50);
+    expect(cut.endsWith('…')).toBe(true);
+    // A cut that lands on a space does not leave it before the mark.
+    expect(modelText('word '.repeat(100), 6)).toBe('word…');
+  });
+
+  it.each([[undefined], [null], [42], [{ text: 'nested' }], [['list']], [''], ['  \n\t ']])('has nothing to show for %j', (value) => {
+    expect(modelText(value, 200)).toBeNull();
+  });
+
+  it('leaves markup as the text it is, for the client to show literally', () => {
+    expect(modelText('<b>bold</b> & <script>alert(1)</script>', 200)).toBe('<b>bold</b> & <script>alert(1)</script>');
   });
 });
 

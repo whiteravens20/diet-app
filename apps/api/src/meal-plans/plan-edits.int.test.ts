@@ -1,11 +1,18 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { AiSwapMealRequest, SwapMealRequest, type MealPlan } from '@diet-app/shared';
+import {
+  AiSuggestIngredientRequest,
+  AiSwapMealRequest,
+  SwapMealRequest,
+  type Locale,
+  type MealPlan,
+} from '@diet-app/shared';
 import { HttpException } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
+import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 
@@ -155,8 +162,11 @@ describe('editing a plan', () => {
       await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'admin' } });
     });
 
-    const aiSwap = (plannedMealId: string) =>
-      plans.aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId }));
+    const aiSwap = (plannedMealId: string, locale: Locale = 'en') =>
+      plans.aiSwapMeal(user.id, locale, AiSwapMealRequest.parse({ planId: plan.id, plannedMealId }));
+
+    /** The first candidate the prompt offers, as a model that follows the prompt would pick it. */
+    const firstOffered = (request: ModelRequest): string => /id=([0-9a-f-]{36})/.exec(request.prompt)![1]!;
 
     it('returns the rebalance summary together with the swapped plan', async () => {
       const meal = plan.days[0]!.meals[0]!;
@@ -183,6 +193,146 @@ describe('editing a plan', () => {
       expect(performance.now() - started).toBeLessThan(3_000);
       // The answer was unusable, so the engine picked: the user still gets a swap.
       expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
+    });
+
+    it("makes the model's pick and passes on its reason", async () => {
+      const meal = plan.days[0]!.meals[0]!;
+      let picked = '';
+      t.model.reply({
+        text: (request) => {
+          picked = firstOffered(request);
+          return JSON.stringify({ recipeId: picked, reason: 'Closest to the calorie budget of the slot.' });
+        },
+      });
+
+      const result = await aiSwap(meal.id);
+
+      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).toBe(picked);
+      expect(result.aiMeta).toMatchObject({
+        provider: 'ollama',
+        model: 'test-model',
+        usedDeterministicFallback: false,
+        fallbackReason: null,
+        reason: 'Closest to the calorie budget of the slot.',
+      });
+    });
+
+    it('passes on a reason as one plain line of at most 200 characters, whatever the model wrote', async () => {
+      const meal = plan.days[0]!.meals[0]!;
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify({ recipeId: firstOffered(request), reason: `Line one.\n\u0007Line two. ${'very '.repeat(80)}long.` }),
+      });
+
+      const { reason } = (await aiSwap(meal.id)).aiMeta;
+
+      expect(reason).toMatch(/^Line one\. Line two\. very /);
+      expect(reason!.length).toBeLessThanOrEqual(200);
+      expect(reason!.endsWith('…')).toBe(true);
+    });
+
+    it('takes a pick that comes without a reason, or with one that is not text', async () => {
+      const meal = plan.days[0]!.meals[0]!;
+      t.model.reply({ text: (request) => JSON.stringify({ recipeId: firstOffered(request), reason: { why: 'nested' } }) });
+
+      const result = await aiSwap(meal.id);
+
+      expect(result.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: null });
+    });
+
+    it.each([
+      ['named a recipe that was not on offer', '{"recipeId":"not-on-the-list","reason":"It sounded nice."}'],
+      ['answered in prose', 'I would go with the porridge.'],
+      ['answered with the wrong shape', '{"recipe":"oat-porridge"}'],
+    ])('says that the engine picked when the model %s', async (_name, text) => {
+      const meal = plan.days[0]!.meals[0]!;
+      t.model.reply({ text });
+
+      const result = await aiSwap(meal.id);
+
+      // The user still gets a swap, and is not told that the model chose it.
+      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
+      expect(result.aiMeta).toMatchObject({
+        provider: 'ollama',
+        usedDeterministicFallback: true,
+        fallbackReason: 'invalid_output',
+        reason: null,
+      });
+    });
+
+    it('says that the engine picked, and names no provider, when the provider failed', async () => {
+      const meal = plan.days[0]!.meals[0]!;
+      t.model.reply({ status: 500, text: 'out of memory' });
+
+      const result = await aiSwap(meal.id);
+
+      expect(result.aiMeta).toMatchObject({
+        provider: null,
+        usedDeterministicFallback: true,
+        fallbackReason: 'all_providers_failed',
+        failoverChain: ['ollama'],
+        reason: null,
+      });
+    });
+
+    it("asks for the reason in the user's language", async () => {
+      const meal = plan.days[0]!.meals[0]!;
+
+      await aiSwap(meal.id, 'pl');
+
+      expect(t.model.requests[0]!.prompt).toContain('write it in Polish');
+      expect(t.model.requests[0]!.prompt).toContain('"reason"');
+    });
+
+    describe('suggesting a substitute for an ingredient', () => {
+      /** A planned meal and one of its ingredients that the catalogue has substitutes for. */
+      async function aLineWithSubstitutes(): Promise<{ plannedMealId: string; fromIngredientId: string }> {
+        for (const meal of plan.days.flatMap((day) => day.meals)) {
+          for (const line of meal.recipe?.ingredients ?? []) {
+            const ingredient = await t.prisma.ingredient.findUniqueOrThrow({ where: { id: line.ingredientId } });
+            if (['grains', 'vegetables', 'legumes'].includes(ingredient.category)) {
+              return { plannedMealId: meal.id, fromIngredientId: line.ingredientId };
+            }
+          }
+        }
+        throw new Error('the fixture plan has no ingredient with a substitute');
+      }
+
+      const suggest = async () =>
+        plans.aiSuggestIngredient(
+          user.id,
+          'en',
+          AiSuggestIngredientRequest.parse({ planId: plan.id, ...(await aLineWithSubstitutes()) }),
+        );
+
+      it("returns the model's pick with its reason", async () => {
+        let picked = '';
+        t.model.reply({
+          text: (request) => {
+            picked = firstOffered(request);
+            return JSON.stringify({ ingredientId: picked, reason: 'The closest in texture.' });
+          },
+        });
+
+        const result = await suggest();
+
+        expect(result.toIngredient.id).toBe(picked);
+        expect(result.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: 'The closest in texture.' });
+      });
+
+      it('says that the engine picked when the model named an ingredient that was not on offer', async () => {
+        t.model.reply({ text: '{"ingredientId":"not-on-the-list"}' });
+
+        const result = await suggest();
+
+        expect(result.toIngredient.id).toBeTruthy();
+        expect(result.aiMeta).toMatchObject({
+          provider: 'ollama',
+          usedDeterministicFallback: true,
+          fallbackReason: 'invalid_output',
+          reason: null,
+        });
+      });
     });
 
     it('does not write a pick the model returned after the plan changed', async () => {

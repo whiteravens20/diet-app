@@ -51,8 +51,8 @@ import {
   type OptimizerResult,
   type RebalanceMeal,
 } from '../engine/index.js';
-import { AiRouterService } from '../ai/ai-router.service.js';
-import { readModelReply } from '../ai/model-json.js';
+import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js';
+import { modelText, readModelReply } from '../ai/model-json.js';
 import { INGREDIENT_SWAP, MEAL_SWAP, SWAP_REWRITE } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
@@ -74,9 +74,16 @@ import { writePlan } from './plan-write.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
-// What each prompt asks the model to answer with.
-const RecipePick = z.object({ recipeId: z.string().min(1) });
-const IngredientPick = z.object({ ingredientId: z.string().min(1) });
+// What each prompt asks the model to answer with. A reason is welcome and
+// never required: a pick without one is still a pick.
+const RecipePick = z.object({ recipeId: z.string().min(1), reason: z.unknown() });
+const IngredientPick = z.object({ ingredientId: z.string().min(1), reason: z.unknown() });
+
+/** The longest explanation of a pick that is passed on to the user. */
+const MAX_REASON_CHARS = 200;
+
+/** The language a model is asked to write in, by locale. */
+const LANGUAGE: Record<Locale, string> = { en: 'English', pl: 'Polish' };
 const SwapRewrite = z.object({
   description: z.string().trim().min(1),
   steps: z.array(z.string().trim().min(1)),
@@ -860,8 +867,8 @@ export class MealPlansService {
    * unavailable (quota / no provider / total provider failure) OR the model
    * returns an id that isn't in the pool, the engine falls back to the same
    * hash-indexed pick the random strategy uses — so the user always gets a
-   * swap. The `aiMeta.fallbackReason` field tells the UI whether to surface
-   * the localised "AI didn't run" toast.
+   * swap. `aiMeta` says which of the two happened: the engine's pick with the
+   * reason AI did not decide, or the model's pick with its own reason for it.
    */
   async aiSwapMeal(
     userId: string,
@@ -951,6 +958,7 @@ export class MealPlansService {
       currentKcal: Math.round(current.caloriesPerServing),
       candidates: pool,
       hint: req.hint,
+      locale,
     });
     const { text, meta } = await this.ai.chat(
       userId,
@@ -967,13 +975,12 @@ export class MealPlansService {
       return pool[idx]!.id;
     };
 
-    let replacementId: string;
-    if (text) {
-      const aiPick = parseAiRecipePick(text);
-      replacementId = aiPick && pool.some((c) => c.id === aiPick) ? aiPick : fallbackPick();
-    } else {
-      replacementId = fallbackPick();
-    }
+    // Only one of the candidates counts as a pick. When the model answered with
+    // anything else the engine picks, and the response says that it did.
+    const offered = text === null ? null : parseAiRecipePick(text);
+    const pick = offered && pool.some((c) => c.id === offered.id) ? offered : null;
+    const replacementId = pick?.id ?? fallbackPick();
+    const aiMeta = pick ? { ...meta, reason: pick.reason } : text === null ? meta : withUnusableAnswer(meta);
 
     const nextHistory =
       freshCandidates.length > 0 ? appendUnique(prevHistory, currentRecipeId) : [currentRecipeId];
@@ -992,7 +999,7 @@ export class MealPlansService {
       return this.rebalanceDayInternal(meal.dayId, tx);
     });
     const result = await this.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
-    return { ...result, aiMeta: meta };
+    return { ...result, aiMeta };
   }
 
   /**
@@ -1325,7 +1332,7 @@ export class MealPlansService {
       'Rewrite so the prose matches the new ingredient, keeping the technique ' +
       'verbs, every quantity, and every other ingredient unchanged. ' +
       'You must return EXACTLY the same number of steps. ' +
-      `Write entirely in ${locale === 'pl' ? 'Polish' : 'English'}; do not switch language. ` +
+      `Write entirely in ${LANGUAGE[locale]}; do not switch language. ` +
       'Never invent calories, weights, temperatures, or times. ' +
       'Respond with valid JSON exactly matching this shape — no prose, no ' +
       'markdown fences, no extra keys:\n' +
@@ -1646,6 +1653,7 @@ export class MealPlansService {
       currentKcalPer100: Math.round(from.caloriesPer100),
       candidates: pool,
       hint: req.hint,
+      locale,
     });
     const { text, meta } = await this.ai.chat(
       userId,
@@ -1662,20 +1670,17 @@ export class MealPlansService {
       return pool[idx]!.id;
     };
 
-    let toIngredientId: string;
-    if (text) {
-      const aiPick = parseAiIngredientPick(text);
-      toIngredientId = aiPick && pool.some((c) => c.id === aiPick) ? aiPick : fallbackPick();
-    } else {
-      toIngredientId = fallbackPick();
-    }
+    const offered = text === null ? null : parseAiIngredientPick(text);
+    const pick = offered && pool.some((c) => c.id === offered.id) ? offered : null;
+    const toIngredientId = pick?.id ?? fallbackPick();
+    const aiMeta = pick ? { ...meta, reason: pick.reason } : text === null ? meta : withUnusableAnswer(meta);
 
     const locales = locale === 'en' ? ['en'] : [locale, 'en'];
     const toIngredient = await this.prisma.ingredient.findUniqueOrThrow({
       where: { id: toIngredientId },
       include: { translations: { where: { locale: { in: locales } } } },
     });
-    return { toIngredient: toIngredientDto(toIngredient, locale), aiMeta: meta };
+    return { toIngredient: toIngredientDto(toIngredient, locale), aiMeta };
   }
 
   // ── internals ───────────────────────────────────────────────────────────────
@@ -2452,6 +2457,7 @@ function buildSwapPrompt(input: {
   currentKcal: number;
   candidates: SwapPromptCandidate[];
   hint?: string;
+  locale: Locale;
 }): { system: string; user: string } {
   const lines = input.candidates.map((c) => {
     const mains = c.ingredients
@@ -2465,8 +2471,10 @@ function buildSwapPrompt(input: {
     'You rank meal-swap candidates for a deterministic meal-planning app. ' +
     'You never invent ingredients or calories — your only job is to pick the ' +
     'best id from the list provided. ' +
-    'Respond with valid JSON exactly matching {"recipeId":"<id>"} — no prose, ' +
-    'no markdown, no other keys.';
+    'Respond with valid JSON exactly matching ' +
+    '{"recipeId":"<id>","reason":"<one short sentence>"} — no prose, no ' +
+    'markdown, no other keys. The reason tells the person who will eat the ' +
+    `meal why you picked it; write it in ${LANGUAGE[input.locale]}.`;
 
   const user = [
     `Slot: ${input.slot}`,
@@ -2491,13 +2499,13 @@ function buildSwapPrompt(input: {
 }
 
 /**
- * Pull a `recipeId` string out of the model's response. Tolerates a stray
- * markdown fence or surrounding prose — returns null if no usable id is
- * present, so the service can fall back deterministically.
+ * The recipe the model picked and why, as far as its answer says. Null when
+ * the answer holds no id, so the service can fall back deterministically.
  */
-function parseAiRecipePick(text: string): string | null {
+function parseAiRecipePick(text: string): { id: string; reason: string | null } | null {
   const reply = readModelReply(text, RecipePick);
-  return reply.ok ? reply.value.recipeId : null;
+  if (!reply.ok) return null;
+  return { id: reply.value.recipeId, reason: modelText(reply.value.reason, MAX_REASON_CHARS) };
 }
 
 interface IngredientSwapPromptCandidate {
@@ -2520,6 +2528,7 @@ function buildIngredientSwapPrompt(input: {
   currentKcalPer100: number;
   candidates: IngredientSwapPromptCandidate[];
   hint?: string;
+  locale: Locale;
 }): { system: string; user: string } {
   const lines = input.candidates.map(
     (c) =>
@@ -2530,8 +2539,10 @@ function buildIngredientSwapPrompt(input: {
     'You rank ingredient-swap candidates for a deterministic meal-planning app. ' +
     'You never invent ingredients or macros — your only job is to pick the best ' +
     'id from the list provided. ' +
-    'Respond with valid JSON exactly matching {"ingredientId":"<id>"} — no prose, ' +
-    'no markdown, no other keys.';
+    'Respond with valid JSON exactly matching ' +
+    '{"ingredientId":"<id>","reason":"<one short sentence>"} — no prose, no ' +
+    'markdown, no other keys. The reason tells the cook why you picked it; ' +
+    `write it in ${LANGUAGE[input.locale]}.`;
 
   const user = [
     `Category: ${input.currentCategory}`,
@@ -2555,13 +2566,13 @@ function buildIngredientSwapPrompt(input: {
 }
 
 /**
- * Pull an `ingredientId` string out of the model's response. Tolerates a stray
- * markdown fence or surrounding prose — returns null if no usable id is
- * present, so the service can fall back deterministically.
+ * The ingredient the model picked and why, as far as its answer says. Null
+ * when the answer holds no id, so the service can fall back deterministically.
  */
-function parseAiIngredientPick(text: string): string | null {
+function parseAiIngredientPick(text: string): { id: string; reason: string | null } | null {
   const reply = readModelReply(text, IngredientPick);
-  return reply.ok ? reply.value.ingredientId : null;
+  if (!reply.ok) return null;
+  return { id: reply.value.ingredientId, reason: modelText(reply.value.reason, MAX_REASON_CHARS) };
 }
 
 // ── Rebalance helpers ───────────────────────────────────────────────────

@@ -158,8 +158,7 @@ export class AiRouterService {
             failoverChain,
             usedDeterministicFallback: false,
             fallbackReason: null,
-            rejectedIngredients: [],
-            remappedIngredients: [],
+            reason: null,
           },
         };
       } catch (err) {
@@ -202,6 +201,14 @@ function describe(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/**
+ * The metadata of a call whose answer could not be used, so that the engine
+ * decided instead. The provider and model stay named: they are who answered.
+ */
+export function withUnusableAnswer(meta: AiGenerationMeta): AiGenerationMeta {
+  return { ...meta, usedDeterministicFallback: true, fallbackReason: 'invalid_output', reason: null };
+}
+
 /** Build the soft-fallback result the router returns when AI is unavailable. */
 function fallback(
   reason: AiFallbackReason,
@@ -215,8 +222,7 @@ function fallback(
       failoverChain,
       usedDeterministicFallback: true,
       fallbackReason: reason,
-      rejectedIngredients: [],
-      remappedIngredients: [],
+      reason: null,
     },
   };
 }
