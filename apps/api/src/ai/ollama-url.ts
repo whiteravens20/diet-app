@@ -16,13 +16,16 @@
  *                  a user's own publicly-reachable Ollama works while the server
  *                  still cannot be steered onto the operator's internal network.
  *
- * The operator's own `OLLAMA_BASE_URL` host is always trusted under every policy.
+ * Under `allowlist` and `public` a user may name the operator's own
+ * `OLLAMA_BASE_URL` host; calls made that way are the operator's to pay for
+ * and count against the monthly allowance like any other.
  *
- * NOTE: `public` mode classifies by URL host literal/shape. A public DNS name
- * that resolves to a private IP (DNS rebinding) is not caught here — closing
- * that requires resolve-and-pin at dial time. Tracked in the accepted-risk
- * register; `allowlist` (the default) is not affected.
+ * A URL only names a host. Under `public` the name is checked here by its
+ * shape, and the addresses it resolves to are checked again when the
+ * connection is made (see `ollama-http.ts`), so a public name that points at
+ * an internal address is refused as well.
  */
+import { BlockList, isIP } from 'node:net';
 import type { OllamaUserPolicy } from '@diet-app/shared';
 
 export type { OllamaUserPolicy };
@@ -41,10 +44,19 @@ export class OllamaUrlError extends Error {
 
 export interface OllamaGuardOptions {
   policy: OllamaUserPolicy;
-  /** The operator-configured default — its host is always trusted. */
+  /** The operator-configured default. */
   defaultBaseUrl: string;
   /** `OLLAMA_ALLOWED_HOSTS` entries (host or host:port). Only used in `allowlist`. */
   allowedHosts: string[];
+}
+
+/** An address a user supplied, and the terms on which it may be dialled. */
+export interface OllamaTarget {
+  url: URL;
+  /** The operator's own instance: calls to it are the operator's to pay for. */
+  operatorHost: boolean;
+  /** Connect only if every address the host resolves to is a public one. */
+  publicOnly: boolean;
 }
 
 interface Allowlist {
@@ -72,69 +84,99 @@ function buildAllowlist(allowedHosts: string[]): Allowlist {
   return { hostsWithPort, bareHosts };
 }
 
-/** Host of the operator default, lower-cased, or '' if unparseable. */
-function defaultHost(defaultBaseUrl: string): string {
+/**
+ * The host of a URL as it is compared: lower case, and without the trailing
+ * dot of a fully qualified name, which names the same host (`postgres.` is
+ * `postgres`).
+ */
+function hostnameOf(url: URL): string {
+  return url.hostname.toLowerCase().replace(/\.$/, '');
+}
+
+/** Host and port as an allowlist entry writes them: the port only when it is not the default. */
+function hostWithPortOf(url: URL): string {
+  return url.port ? `${hostnameOf(url)}:${url.port}` : hostnameOf(url);
+}
+
+/** Host and the port a connection would go to. */
+function endpointOf(url: URL): string {
+  return `${hostnameOf(url)}:${url.port || (url.protocol === 'https:' ? '443' : '80')}`;
+}
+
+/** True when `rawUrl` names the host and port of the operator's own Ollama. */
+export function isOperatorOllama(rawUrl: string, defaultBaseUrl: string): boolean {
   try {
-    return new URL(defaultBaseUrl).host.toLowerCase();
+    return endpointOf(new URL(rawUrl)) === endpointOf(new URL(defaultBaseUrl));
   } catch {
-    return '';
+    return false;
   }
 }
 
-function isPrivateIpv4(ip: string): boolean {
-  const o = ip.split('.').map((p) => Number(p));
-  if (o.length !== 4 || o.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
-    return true; // malformed → deny (treat as internal)
-  }
-  const [a, b] = o;
-  if (a === 0 || a === 10 || a === 127) return true; // this-network, private, loopback
-  if (a === 169 && b === 254) return true; // link-local incl. cloud metadata
-  if (a === 172 && b >= 16 && b <= 31) return true; // private
-  if (a === 192 && b === 168) return true; // private
-  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64/10
-  return false;
+/** Every range that is not a public unicast address. */
+const NOT_PUBLIC = new BlockList();
+for (const [network, prefix] of [
+  ['0.0.0.0', 8], // this network
+  ['10.0.0.0', 8], // private
+  ['100.64.0.0', 10], // carrier-grade NAT
+  ['127.0.0.0', 8], // loopback
+  ['169.254.0.0', 16], // link-local, including cloud metadata
+  ['172.16.0.0', 12], // private
+  ['192.0.0.0', 24], // protocol assignments
+  ['192.168.0.0', 16], // private
+  ['198.18.0.0', 15], // benchmarking
+  ['224.0.0.0', 4], // multicast
+  ['240.0.0.0', 4], // reserved, including broadcast
+] as const) {
+  NOT_PUBLIC.addSubnet(network, prefix, 'ipv4');
+}
+for (const [network, prefix] of [
+  // Unspecified, loopback and IPv4-compatible addresses. The forms that carry
+  // an IPv4 address inside an IPv6 one are refused whole: nobody's Ollama is
+  // reached through them, and each is a way to spell an internal address.
+  ['::', 96],
+  ['::ffff:0:0:0', 96], // IPv4-translated
+  ['64:ff9b::', 96], // NAT64
+  ['64:ff9b:1::', 48], // local-use NAT64
+  ['100::', 64], // discard
+  ['2001::', 32], // Teredo
+  ['2002::', 16], // 6to4
+  ['fc00::', 7], // unique local
+  ['fe80::', 10], // link-local
+  ['fec0::', 10], // site-local
+  ['ff00::', 8], // multicast
+] as const) {
+  NOT_PUBLIC.addSubnet(network, prefix, 'ipv6');
 }
 
-function isPrivateIpv6(ip: string): boolean {
-  const h = ip.toLowerCase();
-  if (h === '::1' || h === '::') return true; // loopback / unspecified
-  if (h.startsWith('fe80')) return true; // link-local
-  if (h.startsWith('fc') || h.startsWith('fd')) return true; // unique-local fc00::/7
-  // IPv4-mapped, dotted form: ::ffff:10.0.0.1
-  const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(h);
-  if (dotted) return isPrivateIpv4(dotted[1]);
-  // IPv4-mapped, hex form (URL normalises ::ffff:10.0.0.1 → ::ffff:a00:1).
-  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h);
-  if (hex) {
-    const hi = Number.parseInt(hex[1], 16);
-    const lo = Number.parseInt(hex[2], 16);
-    const v4 = `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
-    return isPrivateIpv4(v4);
-  }
-  return false;
+/**
+ * True for an IP address that is public. An IPv4-mapped IPv6 address
+ * (`::ffff:10.0.0.1`) is judged by the IPv4 address it carries.
+ */
+export function isPublicAddress(address: string): boolean {
+  const family = isIP(address);
+  if (family === 0) return false;
+  return !NOT_PUBLIC.check(address, family === 4 ? 'ipv4' : 'ipv6');
 }
 
 /** True for hosts that should never be reachable in `public` mode. */
 function isInternalHost(hostname: string): boolean {
-  const h = hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+  const h = hostname.replace(/^\[/, '').replace(/\]$/, '');
+  if (isIP(h) !== 0) return !isPublicAddress(h);
   if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) {
     return true;
   }
-  const isIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(h);
-  const isIpv6 = h.includes(':');
   // A single-label hostname (no dot) is a container / service name on an
   // internal network (e.g. `ollama`, `postgres`) — deny in public mode.
-  if (!isIpv4 && !isIpv6 && !h.includes('.')) return true;
-  if (isIpv4) return isPrivateIpv4(h);
-  if (isIpv6) return isPrivateIpv6(h);
-  return false;
+  return !h.includes('.');
 }
 
 /**
  * Validate a user-supplied Ollama base URL against the operator policy.
- * Returns the parsed URL on success; throws {@link OllamaUrlError} otherwise.
+ * Returns where and how it may be dialled; throws {@link OllamaUrlError}
+ * otherwise. The operator's own configuration is not a user's and does not
+ * pass through here.
  */
-export function assertAllowedOllamaUrl(rawUrl: string, opts: OllamaGuardOptions): URL {
+export function assertAllowedOllamaUrl(rawUrl: string, opts: OllamaGuardOptions): OllamaTarget {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -145,35 +187,34 @@ export function assertAllowedOllamaUrl(rawUrl: string, opts: OllamaGuardOptions)
     throw new OllamaUrlError(`unsupported protocol "${url.protocol}" — use http(s)`);
   }
 
-  const hostWithPort = url.host.toLowerCase();
-  const hostname = url.hostname.toLowerCase();
+  if (opts.policy === 'off') {
+    throw new OllamaUrlError(
+      'User-configured Ollama is disabled on this instance.',
+      'OLLAMA_USER_DISABLED',
+    );
+  }
+  if (isOperatorOllama(rawUrl, opts.defaultBaseUrl)) {
+    return { url, operatorHost: true, publicOnly: false };
+  }
 
-  // The operator's own configured Ollama is trusted under every policy.
-  if (hostWithPort === defaultHost(opts.defaultBaseUrl)) return url;
-
-  switch (opts.policy) {
-    case 'off':
+  const hostname = hostnameOf(url);
+  if (opts.policy === 'public') {
+    if (isInternalHost(hostname)) {
       throw new OllamaUrlError(
-        'User-configured Ollama is disabled on this instance.',
-        'OLLAMA_USER_DISABLED',
-      );
-    case 'public':
-      if (isInternalHost(hostname)) {
-        throw new OllamaUrlError(
-          `Ollama host "${url.host}" is an internal/private address and is not allowed.`,
-        );
-      }
-      return url;
-    case 'allowlist':
-    default: {
-      const allow = buildAllowlist(opts.allowedHosts);
-      if (allow.hostsWithPort.has(hostWithPort) || allow.bareHosts.has(hostname)) return url;
-      throw new OllamaUrlError(
-        `Ollama host "${url.host}" is not allowed. It must match OLLAMA_BASE_URL ` +
-          'or an entry in OLLAMA_ALLOWED_HOSTS.',
+        `Ollama host "${url.host}" is an internal/private address and is not allowed.`,
       );
     }
+    return { url, operatorHost: false, publicOnly: true };
   }
+
+  const allow = buildAllowlist(opts.allowedHosts);
+  if (allow.hostsWithPort.has(hostWithPortOf(url)) || allow.bareHosts.has(hostname)) {
+    return { url, operatorHost: false, publicOnly: false };
+  }
+  throw new OllamaUrlError(
+    `Ollama host "${url.host}" is not allowed. It must match OLLAMA_BASE_URL ` +
+      'or an entry in OLLAMA_ALLOWED_HOSTS.',
+  );
 }
 
 /** Parse the comma-separated `OLLAMA_ALLOWED_HOSTS` env value into a list. */

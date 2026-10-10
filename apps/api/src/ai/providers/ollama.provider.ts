@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable } from '@nestjs/common';
+import { ollamaRequest, OllamaRequestError } from '../ollama-http.js';
 import {
   AiProviderError,
   type AiProviderAdapter,
@@ -14,10 +15,10 @@ import {
  * points `OLLAMA_BASE_URL` at a reachable Ollama instance. This is the
  * recommended default for fully self-hosted, key-free deployments.
  *
- * Uses raw `fetch` rather than the `ollama` npm client so the deadline really
- * cancels the request in flight (the npm client's non-streaming path drops
- * its `signal`). Without that, a model too slow for the prompt would hold the
- * request until some proxy in front of the API gave up on it.
+ * The request goes through `ollamaRequest`, not the `ollama` npm client: the
+ * address may be a user's, and the deadline has to cancel the request in
+ * flight. Without that, a model too slow for the prompt would hold the request
+ * until some proxy in front of the API gave up on it.
  */
 
 /**
@@ -26,25 +27,6 @@ import {
  * and the body is not buffered beyond this.
  */
 const MAX_RESPONSE_BYTES = 2_000_000;
-
-/** The response body as text, or an error once it grows past `maxBytes`. */
-async function readCapped(res: Response, maxBytes: number): Promise<string> {
-  if (!res.body) return '';
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    received += value.byteLength;
-    if (received > maxBytes) {
-      await reader.cancel();
-      throw new AiProviderError('ollama', `Ollama sent more than ${maxBytes} bytes; the reply was discarded.`);
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString('utf8');
-}
 
 interface OllamaChatResponse {
   message?: { content?: string };
@@ -59,29 +41,27 @@ export class OllamaProvider implements AiProviderAdapter {
 
   async chat(messages: ChatMessage[], opts: CompletionOptions): Promise<CompletionResult> {
     const host = (opts.baseUrl ?? 'http://localhost:11434').replace(/\/$/, '');
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
     try {
-      const res = await fetch(`${host}/api/chat`, {
+      const res = await ollamaRequest(`${host}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           model: opts.model,
           messages,
           stream: false,
           ...(opts.json ? { format: 'json' } : {}),
           options: { temperature: opts.temperature, num_predict: opts.maxTokens },
-        }),
-        signal: controller.signal,
+        },
+        timeoutMs: opts.timeoutMs,
+        maxBytes: MAX_RESPONSE_BYTES,
+        publicOnly: opts.publicOnly ?? false,
       });
-      if (!res.ok) {
-        const detail = await res.text().catch(() => '');
+      if (res.status < 200 || res.status >= 300) {
         throw new AiProviderError(
           'ollama',
-          `Ollama HTTP ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`,
+          `Ollama HTTP ${res.status} ${res.statusText}${res.text ? `: ${res.text.slice(0, 200)}` : ''}`,
         );
       }
-      const body = JSON.parse(await readCapped(res, MAX_RESPONSE_BYTES)) as OllamaChatResponse;
+      const body = JSON.parse(res.text) as OllamaChatResponse;
       return {
         text: body.message?.content ?? '',
         promptTokens: body.prompt_eval_count ?? 0,
@@ -90,15 +70,13 @@ export class OllamaProvider implements AiProviderAdapter {
       };
     } catch (err) {
       if (err instanceof AiProviderError) throw err;
-      const timedOut = controller.signal.aborted;
+      const timedOut = err instanceof OllamaRequestError && err.failure === 'timeout';
       const message = timedOut
         ? `Ollama did not answer within ${Math.round(opts.timeoutMs / 1000)} s; the model may be too slow for this prompt.`
         : err instanceof Error
           ? err.message
           : String(err);
       throw new AiProviderError('ollama', message, timedOut);
-    } finally {
-      clearTimeout(timer);
     }
   }
 }

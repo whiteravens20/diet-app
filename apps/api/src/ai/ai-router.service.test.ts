@@ -49,6 +49,8 @@ function setup(input: {
       priority,
       apiKey: 'key',
       baseUrl: null,
+      // Unless a test says otherwise, an entry is the user's own in both senses.
+      owner: entry.mode === 'admin' ? 'operator' : 'user',
       mode: 'byok',
       ...entry,
     }),
@@ -298,6 +300,44 @@ describe('AiRouterService.chat', () => {
       expect(result.text).toBe('from the next provider');
       expect(result.meta.failoverChain).toEqual(['ollama']);
       expect(calls.map((c) => c.provider)).toEqual(['openai']);
+    });
+
+    it('carries on to the provider that only a public address may be dialled, under the policy that says so', async () => {
+      const { router, calls } = setup({
+        chain: [{ provider: 'ollama', baseUrl: 'https://ollama.example.org' }],
+        behaviour: { ollama: async () => answer('far away') },
+        env: { OLLAMA_USER_POLICY: 'public' },
+      });
+
+      await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(calls[0]!.opts).toMatchObject({ baseUrl: 'https://ollama.example.org', publicOnly: true });
+    });
+
+    it("skips a user's entry altogether when users may not configure Ollama", async () => {
+      const { router, calls } = setup({
+        chain: [{ provider: 'ollama', baseUrl: 'http://ollama:11434', mode: 'admin', owner: 'user' }],
+        env: { OLLAMA_USER_POLICY: 'off' },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.text).toBeNull();
+      expect(calls).toHaveLength(0);
+    });
+
+    it("does not hold the operator's own instance to the rules for users", async () => {
+      const { router, calls } = setup({
+        mode: 'admin',
+        chain: [{ provider: 'ollama', mode: 'admin', baseUrl: 'http://10.0.0.5:11434', apiKey: null }],
+        behaviour: { ollama: async () => answer('from the rack') },
+        env: { OLLAMA_USER_POLICY: 'off' },
+      });
+
+      const result = await router.chat('user-1', MESSAGES, OPERATION);
+
+      expect(result.text).toBe('from the rack');
+      expect(calls[0]!.opts).toMatchObject({ baseUrl: 'http://10.0.0.5:11434', publicOnly: false });
     });
 
     it('falls back to the address the operator configured when the row has none', async () => {

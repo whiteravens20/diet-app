@@ -4,11 +4,15 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AiTestConnectionRequest, AiTestConnectionResponse } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
+import { ollamaRequest } from './ollama-http.js';
 import { assertAllowedOllamaUrl, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
 
 /** Hard ceiling on a single provider probe — a slow/hostile endpoint must not
  *  hold a request slot open for the OS TCP timeout. */
 const PROBE_TIMEOUT_MS = 10_000;
+
+/** A list of models is a few kilobytes; a host that sends more is not an Ollama server. */
+const PROBE_MAX_BYTES = 1_000_000;
 
 /**
  * Test-connection probe behind `POST /ai/test`.
@@ -73,28 +77,40 @@ export class AiTestService {
 
   private async testOllama(baseUrl: string | undefined): Promise<AiTestConnectionResponse> {
     const defaultBaseUrl = this.config.get('OLLAMA_BASE_URL', { infer: true });
-    const root = baseUrl ?? defaultBaseUrl;
-    if (!root) return { ok: false, models: [], error: 'OLLAMA_BASE_URL not configured.' };
-    // Guard the user-supplied host against SSRF before any outbound request.
-    try {
-      assertAllowedOllamaUrl(root, {
-        policy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
-        defaultBaseUrl,
-        allowedHosts: parseAllowedHosts(
-          this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true }),
-        ),
-      });
-    } catch (err) {
-      if (err instanceof OllamaUrlError) return { ok: false, models: [], error: err.message };
-      throw err;
+    // With no address given, the probe is of the operator's own instance.
+    let publicOnly = false;
+    if (baseUrl !== undefined) {
+      // Guard the user-supplied host against SSRF before any outbound request.
+      try {
+        publicOnly = assertAllowedOllamaUrl(baseUrl, {
+          policy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
+          defaultBaseUrl,
+          allowedHosts: parseAllowedHosts(
+            this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true }),
+          ),
+        }).publicOnly;
+      } catch (err) {
+        if (err instanceof OllamaUrlError) return { ok: false, models: [], error: err.message };
+        throw err;
+      }
     }
-    const res = await fetch(`${root.replace(/\/$/, '')}/api/tags`, {
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    const root = baseUrl ?? defaultBaseUrl;
+    const res = await ollamaRequest(`${root.replace(/\/$/, '')}/api/tags`, {
+      method: 'GET',
+      timeoutMs: PROBE_TIMEOUT_MS,
+      maxBytes: PROBE_MAX_BYTES,
+      publicOnly,
     });
-    if (!res.ok) {
+    if (res.status < 200 || res.status >= 300) {
       return { ok: false, models: [], error: `HTTP ${res.status} ${res.statusText}` };
     }
-    const body = (await res.json()) as { models?: Array<{ name?: string }> };
+    let body: { models?: Array<{ name?: string }> };
+    try {
+      body = JSON.parse(res.text) as { models?: Array<{ name?: string }> };
+    } catch {
+      // What the host sent is not repeated: it is not ours to show.
+      return { ok: false, models: [], error: 'The host answered, but not as an Ollama server.' };
+    }
     const models = (body.models ?? [])
       .map((m) => m.name)
       .filter((name): name is string => typeof name === 'string')

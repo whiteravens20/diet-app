@@ -16,6 +16,8 @@ export interface ResolvedProviderConfig {
   apiKey: string | null;
   /** Per-config base URL — Ollama only. Null for other providers. */
   baseUrl: string | null;
+  /** Who set the entry up. An address in a user's entry is checked before it is dialled. */
+  owner: 'operator' | 'user';
   /** Routing mode that produced this entry — surfaced in AiUsageLog.mode. */
   mode: 'admin' | 'byok';
 }
@@ -116,7 +118,7 @@ export class AiKeyService {
   }
 
   /**
-   * F10-aware failover chain for a user.
+   * The failover chain for a user.
    *
    * The chain depends on the user's `aiMode`:
    * - `none`  → empty chain; caller falls back to the deterministic engine.
@@ -143,6 +145,7 @@ export class AiKeyService {
         priority: r.priority,
         apiKey: r.encryptedKey ? decrypt(r.encryptedKey, this.encKey) : null,
         baseUrl: r.baseUrl,
+        owner: 'user' as const,
         mode: 'byok' as const,
       }));
     }
@@ -170,6 +173,7 @@ export class AiKeyService {
         priority: 0,
         apiKey: apiKey ?? null,
         baseUrl,
+        owner: 'operator',
         mode: 'admin',
       },
     ];

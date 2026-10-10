@@ -22,6 +22,11 @@ export interface CompletionOptions {
   apiKey?: string;
   /** Where the Ollama instance is. */
   baseUrl?: string;
+  /**
+   * Connect to the Ollama instance only if its address is a public one. Set
+   * for an address a user supplied under a policy that admits any public host.
+   */
+  publicOnly?: boolean;
   /** Request a JSON object response when the provider supports it. */
   json?: boolean;
   /** The most output tokens the provider may bill for the answer. */

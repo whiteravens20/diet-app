@@ -230,7 +230,13 @@ describe('AiKeyService.resolveChain', () => {
     const service = makeService(makePrisma(), config);
     const chain = await service.resolveChain('user-1', 'admin');
     expect(chain).toEqual([
-      expect.objectContaining({ provider: 'openai', model: 'gpt-4o-mini', apiKey: 'sk-admin', mode: 'admin' }),
+      expect.objectContaining({
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        apiKey: 'sk-admin',
+        owner: 'operator',
+        mode: 'admin',
+      }),
     ]);
   });
 

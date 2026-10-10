@@ -116,6 +116,34 @@ describe('OllamaProvider', () => {
     expect(refused.timedOut).toBe(false);
   });
 
+  it('does not follow a redirect to wherever a server points', async () => {
+    let asked = 0;
+    respond = (_body, res) => {
+      asked += 1;
+      res.writeHead(307, { Location: `${baseUrl}/somewhere-else` });
+      res.end();
+    };
+
+    const redirected = await failure(chat());
+
+    expect(redirected.message).toContain('307');
+    expect(asked).toBe(1);
+  });
+
+  it('refuses a name that resolves to an internal address when only a public one may be dialled', async () => {
+    let asked = 0;
+    respond = (_body, res) => {
+      asked += 1;
+      json(res, 200, { message: { content: 'reached' } });
+    };
+
+    const refused = await failure(chat({ baseUrl: baseUrl.replace('127.0.0.1', 'localhost'), publicOnly: true }));
+
+    expect(refused.message).toContain('public address');
+    expect(refused.timedOut).toBe(false);
+    expect(asked).toBe(0);
+  });
+
   it('gives up on a body that is not JSON', async () => {
     respond = (_body, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
