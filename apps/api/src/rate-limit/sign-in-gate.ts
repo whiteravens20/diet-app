@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { isIP } from 'node:net';
 
 /** The wrong sign-in in a row after which a client has to wait. */
 const ATTEMPTS_BEFORE_WAIT = 5;
@@ -17,6 +18,14 @@ interface Attempts {
   lastFailure: number;
   blockedUntil: number;
 }
+
+/**
+ * A client as the gate remembers and logs it: its address. Where a proxy that
+ * is set up wrongly lets something else arrive in its place, that is one
+ * client called `unknown`, not a text of any length kept in memory and
+ * written into the log.
+ */
+const named = (client: string): string => (isIP(client) ? client : 'unknown');
 
 /**
  * Slows down guessing at a password that has no account behind it to count
@@ -48,7 +57,7 @@ export class SignInGate {
    * while it waits, a right guess is worth as little as a wrong one.
    */
   assertOpen(door: string, client: string, res?: { setHeader(name: string, value: string): void }): void {
-    const entry = this.clients.get(`${door}:${client}`);
+    const entry = this.clients.get(`${door}:${named(client)}`);
     if (!entry) return;
     const wait = entry.blockedUntil - this.now();
     if (wait <= 0) return;
@@ -64,7 +73,8 @@ export class SignInGate {
   failed(door: string, client: string): void {
     const now = this.now();
     this.forgetOld(now);
-    const key = `${door}:${client}`;
+    const name = named(client);
+    const key = `${door}:${name}`;
     const entry = this.clients.get(key) ?? { failures: 0, lastFailure: now, blockedUntil: 0 };
     entry.failures += 1;
     entry.lastFailure = now;
@@ -74,12 +84,12 @@ export class SignInGate {
     this.clients.delete(key);
     this.clients.set(key, entry);
     const wait = beyond >= 0 ? `; next attempt in ${Math.ceil((entry.blockedUntil - now) / 1000)} s` : '';
-    this.logger.warn(`failed ${door} sign-in from ${client} (${entry.failures} in a row${wait})`);
+    this.logger.warn(`failed ${door} sign-in from ${name} (${entry.failures} in a row${wait})`);
   }
 
   /** A correct sign-in: the client starts from nothing. */
   succeeded(door: string, client: string): void {
-    this.clients.delete(`${door}:${client}`);
+    this.clients.delete(`${door}:${named(client)}`);
   }
 
   private forgetOld(now: number): void {

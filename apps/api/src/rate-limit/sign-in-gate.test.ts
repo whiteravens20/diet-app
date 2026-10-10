@@ -104,13 +104,23 @@ describe('the gate that slows down wrong sign-ins', () => {
     expect(logged[4]).toBe('failed admin sign-in from 203.0.113.7 (5 in a row; next attempt in 30 s)');
   });
 
+  it('counts what is not an address as one client, and keeps none of it', () => {
+    for (const client of ['x'.repeat(5000), 'made up', '203.0.113.7, 198.51.100.1', '', 'unknown']) gate.failed('admin', client);
+
+    expect(wait('admin', 'made up again')).toBe(30);
+    expect(wait('admin', '203.0.113.7')).toBe(0);
+    expect(logged).toHaveLength(5);
+    expect(logged.every((line) => line.startsWith('failed admin sign-in from unknown ('))).toBe(true);
+  });
+
   it('keeps no more clients in memory than its bound', () => {
-    for (let i = 0; i < 10_050; i += 1) gate.failed('admin', `client-${i}`);
+    const address = (i: number): string => `10.${(i >> 16) & 255}.${(i >> 8) & 255}.${i & 255}`;
+    for (let i = 0; i < 10_050; i += 1) gate.failed('admin', address(i));
 
     // The earliest were dropped to make room.
-    fail(4, 'admin', 'client-0');
-    expect(wait('admin', 'client-0')).toBe(0);
-    fail(1, 'admin', 'client-0');
-    expect(wait('admin', 'client-0')).toBe(30);
+    fail(4, 'admin', address(0));
+    expect(wait('admin', address(0))).toBe(0);
+    fail(1, 'admin', address(0));
+    expect(wait('admin', address(0))).toBe(30);
   });
 });
