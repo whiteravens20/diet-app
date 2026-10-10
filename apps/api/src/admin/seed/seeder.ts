@@ -26,7 +26,8 @@
  * recipes never carry hand-authored values.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { nutritionFor, toCanonical, UnitConversionError } from '../../engine/units.js';
+import { allergensOf, recipeFacts } from '../../engine/recipe-facts.js';
+import { UnitConversionError } from '../../engine/units.js';
 import { asLocaleMap, en, loadCatalogue, type Catalogue } from './catalogue.js';
 import { resolveDataDir } from './data-hash.js';
 
@@ -332,7 +333,7 @@ async function applyRecipes(
       steps: en(seed.steps),
       servings: seed.servings,
       mealTypes: seed.mealTypes,
-      dietTags: seed.dietTags,
+      dietTags: recipe.dietTags,
       prepMinutes: seed.prepMinutes,
       cookMinutes: seed.cookMinutes,
       difficulty: seed.difficulty,
@@ -447,9 +448,9 @@ async function retireIngredients(db: Db, catalogue: Catalogue): Promise<{ delete
 }
 
 /**
- * Recipes the seed does not own (personal, AI-drafted, promoted) store derived
- * nutrition and allergens too. After the ingredient table changed, bring them
- * back in line with it. Returns how many rows changed.
+ * Recipes the seed does not own (personal, AI-drafted, promoted) store their
+ * nutrition, allergens and diets too. After the ingredient table changed, bring
+ * them back in line with it. Returns how many rows changed.
  */
 async function recomputeDerivedRecipes(db: Db): Promise<number> {
   const recipes = await db.recipe.findMany({
@@ -458,43 +459,48 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
   });
   let changed = 0;
   for (const recipe of recipes) {
-    const total = { calories: 0, protein: 0, fat: 0, carbs: 0 };
-    const allergens = new Set<string>();
-    let convertible = true;
-    for (const line of recipe.ingredients) {
-      try {
-        const n = nutritionFor(toCanonical(line.quantity, line.unit, line.ingredient), {
-          calories: line.ingredient.caloriesPer100,
-          protein: line.ingredient.proteinPer100,
-          fat: line.ingredient.fatPer100,
-          carbs: line.ingredient.carbsPer100,
-        });
-        total.calories += n.calories;
-        total.protein += n.protein;
-        total.fat += n.fat;
-        total.carbs += n.carbs;
-      } catch (err) {
-        if (!(err instanceof UnitConversionError)) throw err;
-        convertible = false;
-      }
-      line.ingredient.allergens.forEach((a) => allergens.add(a));
-    }
-    // A line that can no longer be converted leaves the stored numbers alone:
-    // a partial sum would be worse than the last complete one.
+    const lines = recipe.ingredients.map((line) => ({
+      quantity: line.quantity,
+      unit: line.unit,
+      ingredient: line.ingredient,
+    }));
     const servings = Math.max(1, recipe.servings);
-    const next = {
-      caloriesPerServing: convertible ? Math.round(total.calories / servings) : recipe.caloriesPerServing,
-      proteinPerServing: convertible ? Math.round(total.protein / servings) : recipe.proteinPerServing,
-      fatPerServing: convertible ? Math.round(total.fat / servings) : recipe.fatPerServing,
-      carbsPerServing: convertible ? Math.round(total.carbs / servings) : recipe.carbsPerServing,
-      allergens: [...allergens].sort(),
-    };
+    let next: Pick<
+      typeof recipe,
+      'caloriesPerServing' | 'proteinPerServing' | 'fatPerServing' | 'carbsPerServing' | 'allergens' | 'dietTags'
+    >;
+    try {
+      const facts = recipeFacts(lines, servings);
+      next = {
+        caloriesPerServing: facts.perServing.calories,
+        proteinPerServing: facts.perServing.protein,
+        fatPerServing: facts.perServing.fat,
+        carbsPerServing: facts.perServing.carbs,
+        allergens: facts.allergens,
+        dietTags: facts.dietTags,
+      };
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      // A line that can no longer be converted leaves the stored numbers alone:
+      // a partial sum would be worse than the last complete one. The allergens
+      // do not depend on quantities and are still brought up to date; a recipe
+      // whose numbers cannot be worked out qualifies for no diet.
+      next = {
+        caloriesPerServing: recipe.caloriesPerServing,
+        proteinPerServing: recipe.proteinPerServing,
+        fatPerServing: recipe.fatPerServing,
+        carbsPerServing: recipe.carbsPerServing,
+        allergens: allergensOf(lines),
+        dietTags: [],
+      };
+    }
     const same =
       next.caloriesPerServing === recipe.caloriesPerServing &&
       next.proteinPerServing === recipe.proteinPerServing &&
       next.fatPerServing === recipe.fatPerServing &&
       next.carbsPerServing === recipe.carbsPerServing &&
-      next.allergens.join() === [...recipe.allergens].sort().join();
+      next.allergens.join() === [...recipe.allergens].sort().join() &&
+      next.dietTags.join() === recipe.dietTags.join();
     if (same) continue;
     await db.recipe.update({ where: { id: recipe.id }, data: next });
     changed += 1;

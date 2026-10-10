@@ -90,12 +90,6 @@ const label = (slug: string): string => {
 
 const bySlug = new Map(INGREDIENTS.map((i) => [i.slug, i]));
 
-/** The diets every ingredient of a recipe is compatible with. */
-function dietsOf(recipe: FixtureRecipe): string[] {
-  const [first, ...rest] = recipe.lines.map(([slug]) => bySlug.get(slug)!.diets);
-  return first!.filter((diet) => rest.every((diets) => diets.includes(diet)));
-}
-
 let directory: string | undefined;
 
 /** Write the catalogue as seed files, once per process, and return their directory. */
@@ -127,7 +121,6 @@ export function catalogueDirectory(): string {
       description: { en: `${label(r.slug)} for one.`, pl: `${label(r.slug)} dla jednej osoby.` },
       servings: 1,
       mealTypes: r.mealTypes,
-      dietTags: dietsOf(r),
       prepMinutes: 10,
       cookMinutes: 10,
       difficulty: 'easy',

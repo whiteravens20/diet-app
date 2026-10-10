@@ -9,9 +9,9 @@
  * seeder can load, and a broken file stops an update while the database is
  * still untouched.
  */
-import { Allergen, DietType, MealType, ProductCategory, Unit } from '@diet-app/shared';
+import { Allergen, DietType, MealType, ProductCategory, Unit, type RecipeDietTag } from '@diet-app/shared';
 import { z } from 'zod';
-import { nutritionFor, toCanonical } from '../../engine/units.js';
+import { recipeFacts, type FactsLine } from '../../engine/recipe-facts.js';
 import { IngredientOverrideFile } from '../drafts/ship/ingredient-overrides.writer.js';
 import { hashSeedInputs, readSeedInputs, resolveDataDir, type DataState } from './data-hash.js';
 
@@ -53,7 +53,6 @@ const RecipeSeed = z.object({
   description: localisedString,
   servings: z.number().int().min(1),
   mealTypes: z.array(MealType).min(1),
-  dietTags: z.array(DietType),
   prepMinutes: z.number().int().min(0),
   cookMinutes: z.number().int().min(0),
   difficulty: z.enum(['easy', 'medium', 'hard']),
@@ -94,6 +93,8 @@ export interface CatalogueRecipe {
   /** Per serving, computed from the ingredient table: never authored. */
   nutrition: { calories: number; protein: number; fat: number; carbs: number };
   allergens: string[];
+  /** The diets the recipe qualifies for, worked out from its ingredients. */
+  dietTags: RecipeDietTag[];
 }
 
 export interface Catalogue {
@@ -244,9 +245,8 @@ export function readCatalogue(dir: string = resolveDataDir()): {
       recipeSlugs.set(slug, file);
       recipeTitles.set(title.toLowerCase(), file);
 
-      const total = { calories: 0, protein: 0, fat: 0, carbs: 0 };
-      const allergens = new Set<string>();
       const lines: CatalogueRecipe['lines'] = [];
+      const factLines: FactsLine[] = [];
       seed.ingredients.forEach((line, j) => {
         const ref = line.slug ?? line.name!;
         const ingredient = find(ref);
@@ -255,41 +255,35 @@ export function readCatalogue(dir: string = resolveDataDir()): {
           problems.push({ file, path, message: `unknown ingredient "${ref}"` });
           return;
         }
-        try {
-          const canonical = toCanonical(line.quantity, line.unit, {
-            canonicalUnit: ingredient.canonicalUnit,
+        const factLine: FactsLine = {
+          quantity: line.quantity,
+          unit: line.unit,
+          ingredient: {
+            ...ingredient,
             gramsPerPiece: ingredient.gramsPerPiece ?? null,
             density: ingredient.density ?? null,
-          });
-          const n = nutritionFor(canonical, {
-            calories: ingredient.caloriesPer100,
-            protein: ingredient.proteinPer100,
-            fat: ingredient.fatPer100,
-            carbs: ingredient.carbsPer100,
-          });
-          total.calories += n.calories;
-          total.protein += n.protein;
-          total.fat += n.fat;
-          total.carbs += n.carbs;
+          },
+        };
+        try {
+          // Checked line by line, so that a unit that cannot be converted is
+          // reported where it is written.
+          recipeFacts([factLine], 1);
         } catch (err) {
           problems.push({ file, path, message: `"${ref}" in ${line.unit}: ${(err as Error).message}` });
           return;
         }
-        ingredient.allergens.forEach((a) => allergens.add(a));
+        factLines.push(factLine);
         lines.push({ slug: ingredient.slug, quantity: line.quantity, unit: line.unit, ...(line.note ? { note: line.note } : {}) });
       });
 
+      const facts = recipeFacts(factLines, seed.servings);
       recipes.push({
         slug,
         seed,
         lines,
-        nutrition: {
-          calories: Math.round(total.calories / seed.servings),
-          protein: Math.round(total.protein / seed.servings),
-          fat: Math.round(total.fat / seed.servings),
-          carbs: Math.round(total.carbs / seed.servings),
-        },
-        allergens: [...allergens],
+        nutrition: facts.perServing,
+        allergens: facts.allergens,
+        dietTags: facts.dietTags,
       });
     });
   }

@@ -9,6 +9,7 @@
  */
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DietType, MealType, fitsDiet } from '@diet-app/shared';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
 
 const dataDir = join(dirname(fileURLToPath(import.meta.url)), '../../../data');
@@ -29,4 +30,16 @@ console.log(
     `  substitutions:  ${catalogue.substitutions.length}\n` +
     `  name overrides: ${Object.keys(catalogue.overrides).length}`,
 );
+// How many recipes each diet can draw on for each meal. The diets are worked
+// out from the ingredients, so this is what a plan really has to choose from.
+const slots = MealType.options;
+console.log(`\n  recipes per diet and meal\n  ${''.padEnd(14)}${slots.map((slot) => slot.padStart(17)).join('')}`);
+for (const diet of DietType.options) {
+  if (diet === 'custom') continue;
+  const counts = slots.map(
+    (slot) => catalogue.recipes.filter((r) => r.seed.mealTypes.includes(slot) && fitsDiet(r.dietTags, diet)).length,
+  );
+  console.log(`  ${diet.padEnd(14)}${counts.map((count) => String(count).padStart(17)).join('')}`);
+}
+
 console.log('\n✓ Curated data is valid.');

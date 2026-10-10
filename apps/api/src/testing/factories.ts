@@ -78,7 +78,7 @@ export async function aPrivateRecipe(
       description: 'Only its owner may see this.',
       servings: 1,
       mealTypes: overrides.mealTypes ?? ['lunch'],
-      dietTags: ['balanced'],
+      dietTags: ['vegetarian', 'vegan'],
       steps: ['Cook the rice.', 'Serve.'],
       prepMinutes: 5,
       cookMinutes: 15,

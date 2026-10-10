@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { catalogueDirectory, seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase } from '../../testing/database.js';
-import { aPlan, aProfile, aUser } from '../../testing/factories.js';
+import { aPlan, aPrivateRecipe, aProfile, aUser } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
 import { CatalogueError } from './catalogue.js';
 import { updateDatabase } from './seeder.js';
@@ -191,6 +191,64 @@ describe('updating the curated database', () => {
     });
     expect(withBroccoli.length).toBeGreaterThan(0);
     expect(withBroccoli.every((r) => r.allergens.includes('sesame'))).toBe(true);
+  });
+
+  describe('the diets a recipe qualifies for', () => {
+    const tagsOf = async (slug: string) => (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).dietTags;
+
+    it('are worked out from its ingredients, whatever the data file claims', async () => {
+      const data = editableData();
+      // Oats and whole milk, declared vegan and ketogenic.
+      data.edit<Row>('recipes.json', (rows) =>
+        rows.map((row) => (row.slug === 'milk-porridge' ? { ...row, dietTags: ['vegan', 'keto'] } : row)),
+      );
+
+      await updateDatabase(t.prisma, data.dir, quiet);
+
+      expect(await tagsOf('milk-porridge')).toEqual(['vegetarian']);
+      expect(await tagsOf('tofu-scramble')).toEqual(expect.arrayContaining(['vegetarian', 'vegan']));
+      expect(await tagsOf('chicken-rice-broccoli')).not.toEqual(expect.arrayContaining(['vegetarian']));
+    });
+
+    it('follow a correction of an ingredient: a recipe stops being vegan when its ingredient does', async () => {
+      expect(await tagsOf('tofu-scramble')).toContain('vegan');
+      const data = editableData();
+      data.edit<Row>('ingredients.json', (rows) =>
+        rows.map((row) => (row.slug === 'firm-tofu' ? { ...row, dietCompatibility: ['balanced', 'vegetarian'] } : row)),
+      );
+
+      await updateDatabase(t.prisma, data.dir, quiet);
+
+      expect(await tagsOf('tofu-scramble')).not.toContain('vegan');
+      expect(await tagsOf('tofu-scramble')).toContain('vegetarian');
+    });
+
+    it("are corrected on a user's own recipe too", async () => {
+      const user = await aUser(t);
+      const own = await aPrivateRecipe(t, user);
+      await t.prisma.recipe.update({ where: { id: own.id }, data: { dietTags: ['keto', 'balanced'] } });
+
+      await updateDatabase(t.prisma, catalogueDirectory(), quiet);
+
+      // Rice alone: plants, and nearly all of its energy from carbohydrate.
+      expect((await t.prisma.recipe.findUniqueOrThrow({ where: { id: own.id } })).dietTags).toEqual(['vegetarian', 'vegan']);
+    });
+
+    it('keep a vegan plan free of anything that is not vegan', async () => {
+      const user = await aUser(t);
+      const profile = await aProfile(t, user, { dietType: 'vegan' });
+
+      const plan = await aPlan(t, user, profile);
+
+      const planned = [...new Set(plan.days.flatMap((day) => day.meals.map((meal) => meal.recipe!.id)))];
+      const lines = await t.prisma.recipeIngredient.findMany({
+        where: { recipeId: { in: planned } },
+        include: { ingredient: true, recipe: true },
+      });
+      expect(lines.length).toBeGreaterThan(0);
+      const notVegan = lines.filter((line) => !line.ingredient.dietCompatibility.includes('vegan'));
+      expect(notVegan.map((line) => `${line.recipe.slug}: ${line.ingredient.slug}`)).toEqual([]);
+    });
   });
 
   it('changes nothing when a data file is malformed, and names the file', async () => {

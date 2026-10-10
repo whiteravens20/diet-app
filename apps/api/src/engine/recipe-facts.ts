@@ -48,13 +48,17 @@ const KCAL_PER_GRAM_OF_CARBOHYDRATE = 4;
 /** The diets a recipe qualifies for only when every one of its ingredients does. */
 const BY_INGREDIENT: readonly RecipeDietTag[] = ['vegetarian', 'vegan', 'mediterranean'];
 
+/** The allergens of every ingredient, each once, in a fixed order. */
+export function allergensOf(lines: readonly Pick<FactsLine, 'ingredient'>[]): string[] {
+  return [...new Set(lines.flatMap((line) => line.ingredient.allergens))].sort();
+}
+
 /**
  * The facts of a recipe. Throws `UnitConversionError` when a line is written
  * in a unit its ingredient cannot be converted from.
  */
 export function recipeFacts(lines: readonly FactsLine[], servings: number): RecipeFacts {
   const total = { calories: 0, protein: 0, fat: 0, carbs: 0 };
-  const allergens = new Set<string>();
   for (const { quantity, unit, ingredient } of lines) {
     const n = nutritionFor(toCanonical(quantity, unit, ingredient), {
       calories: ingredient.caloriesPer100,
@@ -66,7 +70,6 @@ export function recipeFacts(lines: readonly FactsLine[], servings: number): Reci
     total.protein += n.protein;
     total.fat += n.fat;
     total.carbs += n.carbs;
-    for (const allergen of ingredient.allergens) allergens.add(allergen);
   }
 
   const dietTags: RecipeDietTag[] = [];
@@ -88,7 +91,7 @@ export function recipeFacts(lines: readonly FactsLine[], servings: number): Reci
       fat: perServing(total.fat),
       carbs: perServing(total.carbs),
     },
-    allergens: [...allergens].sort(),
+    allergens: allergensOf(lines),
     dietTags,
   };
 }
