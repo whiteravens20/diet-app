@@ -35,7 +35,7 @@ const SOURCE = /^(apps|packages)\/[^/]+\/src\/.*\.tsx?$/;
 const TEST = /\.test\.tsx?$/;
 
 const RULES = [
-  { name: 'feature number', pattern: /(?<![\w-])F\d{1,3}(?:\.\d+)?(?:\([a-z]\))?(?![\w-])/ },
+  { name: 'feature number', pattern: /(?<![\w-])F\d{1,3}(?:\.\d+)?(?:\([a-z]\))?(?!\w)/ },
   { name: 'phase label', pattern: /\b(?:Phase|Faza) [A-Z0-9]{1,2}\b/ },
   { name: 'work-item id', pattern: /\b(?:WI|WP)-[A-Z]?\d+\b/ },
   {

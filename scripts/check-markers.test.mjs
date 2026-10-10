@@ -24,6 +24,7 @@ test('rejects feature numbers in comments, test names and prose', () => {
     ' * F15.1 anti-monotony rotation.',
     '/** F22(b) add a custom meal. */',
     '## Admin (F16)',
+    ' * F10-aware failover chain for a user.',
   ]) {
     assert.deepEqual(check('docs/ops/deployment.md', line), ['feature number'], line);
   }
