@@ -338,24 +338,20 @@ export class MealPlansService {
       respectExclusions: opts.respectExclusions,
     });
 
-    // Validate locked slots against the eligible recipe set. (Slot-membership
-    // was already checked when the day list was resolved.)
+    // A lock pins a recipe to a slot, and a pinned recipe passes the same gate
+    // as any other: it has to be among the recipes this profile may be given,
+    // for that meal, on this diet.
     const recipeById = new Map(optimizerRecipes.map((r) => [r.id, r]));
     for (const day of opts.days) {
       for (const lock of day.lockedSlots ?? []) {
         const recipe = recipeById.get(lock.recipeId);
-        if (!recipe) {
-          throw new NotFoundException({
-            error: 'LOCKED_RECIPE_NOT_FOUND',
-            message: `Locked recipe not found or not eligible: ${lock.recipeId}`,
-          });
-        }
-        const eligibleForSlot =
-          recipe.mealTypes.includes(lock.slot) && fitsDiet(recipe.dietTags, opts.dietType);
-        if (!eligibleForSlot) {
+        if (!recipe || !recipe.mealTypes.includes(lock.slot) || !fitsDiet(recipe.dietTags, opts.dietType)) {
           throw new BadRequestException({
             error: 'LOCKED_RECIPE_INELIGIBLE',
-            message: `Locked recipe ${lock.recipeId} is not valid for ${lock.slot} on this diet.`,
+            message: `The recipe locked for ${lock.slot} on ${day.isoDate} cannot go into this plan: it is unavailable, or the profile's diet, allergens, skipped ingredients or avoided recipes rule it out.`,
+            date: day.isoDate,
+            slot: lock.slot,
+            recipeId: lock.recipeId,
           });
         }
       }
@@ -1899,13 +1895,17 @@ export class MealPlansService {
         },
       },
     });
+    // A favourite is a recipe the profile has an opinion on: "avoid" keeps it
+    // out of every plan, anything else makes the optimiser lean towards it.
     const favorites = await this.prisma.favorite.findMany({
       where: { profileId: profile.id },
-      select: { recipeId: true },
+      select: { recipeId: true, sentiment: true },
     });
-    const favoriteIds = new Set(favorites.map((f) => f.recipeId));
+    const avoidedIds = new Set(favorites.filter((f) => f.sentiment === 'avoid').map((f) => f.recipeId));
+    const favoriteIds = new Set(favorites.filter((f) => f.sentiment !== 'avoid').map((f) => f.recipeId));
 
     const filteredRecipes = recipes
+      .filter((r) => !avoidedIds.has(r.id))
       .filter((r) => !r.allergens.some((a) => allergens.includes(a)))
       .filter((r) => !r.ingredients.some((i) => excluded.has(i.ingredientId)));
 
