@@ -3,17 +3,16 @@
 import type { Locale } from '@diet-app/shared';
 
 /**
- * Per-locale clone rewriter for `applyIngredientSwap`. The plan in §I.5 gives
- * us two modes:
+ * Per-locale clone rewriter for `applyIngredientSwap`. It has two modes:
  *
  *  - **Mode A (default, no-AI):** localized string substitution. Replace the
  *    OLD ingredient's translated name with the NEW one's translated name in
  *    each translation row, then rewrite the title via the locale-specific
  *    `variantTitle` template. Free, deterministic, works without a provider.
- *  - **Mode B:** sentence-level AI rewrite — only sentences mentioning the
- *    old ingredient get sent to the model. Implemented as swap rewrite mode B.
+ *  - **Mode B:** the model rewords the description and the steps around the
+ *    new ingredient; the title still comes from the template.
  *
- * This file owns Mode A. The variantTitle template is hardcoded per locale on
+ * The variantTitle template is hardcoded per locale on
  * the backend because (a) next-intl runs on the web, not here, and (b)
  * keeping the template typed against the `Locale` enum makes adding a new
  * locale a typecheck error if the template is forgotten.
@@ -76,45 +75,43 @@ export interface SwapRewriteBInput extends SwapRewriteInput {
 export async function rewriteSwapModeB(
   input: SwapRewriteBInput,
 ): Promise<Map<Locale, RecipeLocaleSlice>> {
+  // Every locale falls back to the template on its own: a rewrite the
+  // validator rejects, or one that never arrives, leaves the others standing.
+  const templated = (locale: Locale, slice: RecipeLocaleSlice): RecipeLocaleSlice | undefined =>
+    rewriteSwapModeA({
+      source: new Map([[locale, slice]]),
+      oldName: input.oldName,
+      newName: input.newName,
+    }).get(locale);
+
+  // The locales are rewritten side by side, so the wait for the model does not
+  // grow with the number of languages a recipe is written in.
+  const rewritten = await Promise.all(
+    [...input.source].map(async ([locale, slice]): Promise<[Locale, RecipeLocaleSlice | undefined]> => {
+      const oldName = input.oldName.get(locale);
+      const newName = input.newName.get(locale);
+      if (!oldName || !newName) return [locale, templated(locale, slice)];
+      const aiOut = await input.rewrite(locale, {
+        description: slice.description,
+        steps: slice.steps,
+        oldName,
+        newName,
+      });
+      if (!aiOut) return [locale, templated(locale, slice)];
+      return [
+        locale,
+        {
+          title: VARIANT_TITLE[locale](slice.title, newName),
+          description: aiOut.description,
+          steps: aiOut.steps,
+        },
+      ];
+    }),
+  );
+
   const out = new Map<Locale, RecipeLocaleSlice>();
-  for (const [locale, slice] of input.source) {
-    const oldName = input.oldName.get(locale);
-    const newName = input.newName.get(locale);
-    if (!oldName || !newName) {
-      // Fall through to Mode A for this locale; the title still gets the
-      // template treatment.
-      const fallback = rewriteSwapModeA({
-        source: new Map([[locale, slice]]),
-        oldName: input.oldName,
-        newName: input.newName,
-      });
-      const f = fallback.get(locale);
-      if (f) out.set(locale, f);
-      continue;
-    }
-    const aiOut = await input.rewrite(locale, {
-      description: slice.description,
-      steps: slice.steps,
-      oldName,
-      newName,
-    });
-    if (aiOut) {
-      out.set(locale, {
-        title: VARIANT_TITLE[locale](slice.title, newName),
-        description: aiOut.description,
-        steps: aiOut.steps,
-      });
-    } else {
-      // Validator rejected the AI output (or AI was unavailable). Fall back
-      // to Mode A for this locale only — other locales' AI rewrites stand.
-      const fallback = rewriteSwapModeA({
-        source: new Map([[locale, slice]]),
-        oldName: new Map([[locale, oldName]]),
-        newName: new Map([[locale, newName]]),
-      });
-      const f = fallback.get(locale);
-      if (f) out.set(locale, f);
-    }
+  for (const [locale, slice] of rewritten) {
+    if (slice) out.set(locale, slice);
   }
   return out;
 }
