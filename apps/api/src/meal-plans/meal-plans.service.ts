@@ -35,12 +35,12 @@ import {
   calculateCalories,
   dayTypeCalorieTarget,
   fitServings,
-  nutritionFor,
   optimisePlan,
   OptimizerError,
   rebalanceDay,
   rebalanceWeek,
   recipeCoverage,
+  recipeFacts,
   slotBudgets,
   substituteIngredient,
   toCanonical,
@@ -51,6 +51,7 @@ import {
   type OptimizerRecipe,
   type OptimizerResult,
   type RebalanceMeal,
+  type RecipeFacts,
 } from '../engine/index.js';
 import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js';
 import { modelText, readModelReply } from '../ai/model-json.js';
@@ -1120,54 +1121,28 @@ export class MealPlansService {
       };
     });
 
-    // Recompute per-serving nutrition from the canonical DB — the engine, not
-    // the user, owns nutrition numbers.
-    const totals = variantIngredients.reduce(
-      (acc, ri) => {
-        const ing = ingredientById.get(ri.ingredientId);
-        if (!ing) return acc;
-        const engineIng: EngineIngredient = {
-          id: ing.id,
-          name: ing.name,
-          category: ing.category,
-          canonicalUnit: ing.canonicalUnit,
-          gramsPerPiece: ing.gramsPerPiece,
-          density: ing.density,
-          caloriesPer100: ing.caloriesPer100,
-          proteinPer100: ing.proteinPer100,
-          fatPer100: ing.fatPer100,
-          carbsPer100: ing.carbsPer100,
-          allergens: ing.allergens as EngineIngredient['allergens'],
-          dietCompatibility: ing.dietCompatibility as EngineIngredient['dietCompatibility'],
-        };
-        const canonical = toCanonical(ri.quantity, ri.unit, engineIng);
-        const n = nutritionFor(canonical, {
-          calories: ing.caloriesPer100,
-          protein: ing.proteinPer100,
-          fat: ing.fatPer100,
-          carbs: ing.carbsPer100,
-        });
-        return {
-          calories: acc.calories + n.calories,
-          protein: acc.protein + n.protein,
-          fat: acc.fat + n.fat,
-          carbs: acc.carbs + n.carbs,
-        };
-      },
-      { calories: 0, protein: 0, fat: 0, carbs: 0 },
-    );
-    const perServing = {
-      calories: Math.round(totals.calories / recipe.servings),
-      protein: Math.round(totals.protein / recipe.servings),
-      fat: Math.round(totals.fat / recipe.servings),
-      carbs: Math.round(totals.carbs / recipe.servings),
-    };
-
-    const variantAllergens = Array.from(
-      new Set(
-        variantIngredients.flatMap((ri) => ingredientById.get(ri.ingredientId)?.allergens ?? []),
-      ),
-    );
+    // The variant's nutrition, allergens and diets follow from its own
+    // ingredients: the one swapped out may have been the only source of an
+    // allergen, and the one swapped in may not suit a diet the source did.
+    let facts: RecipeFacts;
+    try {
+      facts = recipeFacts(
+        variantIngredients.map((line) => ({
+          quantity: line.quantity,
+          unit: line.unit,
+          ingredient: ingredientById.get(line.ingredientId)!,
+        })),
+        recipe.servings,
+      );
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      throw new BadRequestException({
+        error: 'UNIT_CONVERSION_FAILED',
+        message: 'An ingredient of this recipe cannot be converted from the unit it is written in.',
+      });
+    }
+    const perServing = facts.perServing;
+    const variantAllergens = facts.allergens;
 
     // Fingerprint dedup — see admin/drafts/fingerprint.ts + dedup.ts. The
     // transaction below holds an advisory lock on the fingerprint so two
@@ -1199,7 +1174,7 @@ export class MealPlansService {
           {
             ingredients: fingerprintLines as { slug: string; quantity: number; unit: typeof fingerprintLines[number]['unit'] }[],
             mealTypes: recipe.mealTypes,
-            dietTags: recipe.dietTags,
+            dietTags: facts.dietTags,
             servings: recipe.servings,
           },
           fingerprintLookup,
@@ -1246,6 +1221,7 @@ export class MealPlansService {
       sourceRecipe: recipe,
       variantIngredients,
       variantAllergens,
+      variantDietTags: facts.dietTags,
       perServing,
     });
 
@@ -1381,7 +1357,6 @@ export class MealPlansService {
     translations: Map<Locale, RecipeLocaleSlice>;
     sourceRecipe: {
       mealTypes: string[];
-      dietTags: string[];
       servings: number;
       prepMinutes: number;
       cookMinutes: number;
@@ -1390,6 +1365,7 @@ export class MealPlansService {
     };
     variantIngredients: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
     variantAllergens: string[];
+    variantDietTags: string[];
     perServing: { calories: number; protein: number; fat: number; carbs: number };
   }): Promise<string> {
     const writeFresh = async (
@@ -1403,7 +1379,7 @@ export class MealPlansService {
           description: input.description,
           servings: input.sourceRecipe.servings,
           mealTypes: input.sourceRecipe.mealTypes,
-          dietTags: input.sourceRecipe.dietTags,
+          dietTags: input.variantDietTags,
           steps: input.steps,
           prepMinutes: input.sourceRecipe.prepMinutes,
           cookMinutes: input.sourceRecipe.cookMinutes,
@@ -1474,7 +1450,7 @@ export class MealPlansService {
           translations: input.translations,
           servings: input.sourceRecipe.servings,
           mealTypes: input.sourceRecipe.mealTypes,
-          dietTags: input.sourceRecipe.dietTags,
+          dietTags: input.variantDietTags,
           prepMinutes: input.sourceRecipe.prepMinutes,
           cookMinutes: input.sourceRecipe.cookMinutes,
           difficulty: input.sourceRecipe.difficulty,

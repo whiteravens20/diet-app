@@ -157,6 +157,76 @@ describe('editing a plan', () => {
     expect(await t.prisma.mealPlan.count({ where: { id: plan.id } })).toBe(0);
   });
 
+  describe('substituting an ingredient of a planned meal', () => {
+    const ingredientId = async (slug: string) => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+
+    /** Put the fixture recipe `slug` into the first lunch of the plan and return that meal's id. */
+    async function planned(slug: string): Promise<string> {
+      const meal = plan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
+      const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug } });
+      await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: recipe.id } });
+      return meal.id;
+    }
+
+    async function substitute(plannedMealId: string, from: string, to: string) {
+      const result = await plans.applyIngredientSwap(user.id, 'en', {
+        planId: plan.id,
+        plannedMealId,
+        fromIngredientId: await ingredientId(from),
+        toIngredientId: await ingredientId(to),
+      });
+      const meal = result.plan.days[0]!.meals.find((m) => m.id === plannedMealId)!;
+      return t.prisma.recipe.findUniqueOrThrow({ where: { id: meal.recipe!.id }, include: { ingredients: true } });
+    }
+
+    it('gives the variant the diets of its own ingredients, not those of the recipe it came from', async () => {
+      const source = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
+      expect(source.dietTags).toEqual(expect.arrayContaining(['vegetarian', 'vegan']));
+
+      const variant = await substitute(await planned('tofu-rice-bowl'), 'firm-tofu', 'chicken-breast');
+
+      expect(variant.id).not.toBe(source.id);
+      expect(variant.createdByUserId).toBe(user.id);
+      // Chicken in place of tofu: no longer for vegetarians, and the soy is gone.
+      expect(variant.dietTags).not.toContain('vegan');
+      expect(variant.dietTags).not.toContain('vegetarian');
+      expect(variant.allergens).not.toContain('soy');
+      expect(source.allergens).toContain('soy');
+    });
+
+    it('lets a variant gain a diet its source did not have', async () => {
+      const source = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'chicken-rice-broccoli' } });
+      expect(source.dietTags).not.toContain('vegan');
+
+      const variant = await substitute(await planned('chicken-rice-broccoli'), 'chicken-breast', 'firm-tofu');
+
+      expect(variant.dietTags).toEqual(expect.arrayContaining(['vegetarian', 'vegan']));
+      expect(variant.allergens).toContain('soy');
+    });
+
+    it('never offers a variant with meat to a vegan plan of the same account', async () => {
+      const variant = await substitute(await planned('tofu-rice-bowl'), 'firm-tofu', 'chicken-breast');
+      const veganProfile = await aProfile(t, user, { name: 'Vegan', dietType: 'vegan' });
+
+      const veganPlan = await aPlan(t, user, veganProfile, { durationDays: 14 });
+
+      const plannedIds = veganPlan.days.flatMap((day) => day.meals.map((meal) => meal.recipe!.id));
+      expect(plannedIds).not.toContain(variant.id);
+    });
+
+    it('stores the nutrition the engine works out for the variant', async () => {
+      const variant = await substitute(await planned('tofu-rice-bowl'), 'firm-tofu', 'chicken-breast');
+      const lines = await t.prisma.recipeIngredient.findMany({
+        where: { recipeId: variant.id },
+        include: { ingredient: true },
+      });
+
+      // Every fixture ingredient here is weighed in grams or measured in millilitres of its own unit.
+      const kcal = lines.reduce((sum, line) => sum + (line.quantity * line.ingredient.caloriesPer100) / 100, 0);
+      expect(variant.caloriesPerServing).toBe(Math.round(kcal / variant.servings));
+    });
+  });
+
   describe('with a model behind the swap', () => {
     beforeEach(async () => {
       await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'admin' } });
