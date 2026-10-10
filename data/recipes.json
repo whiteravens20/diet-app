@@ -522,5 +522,127 @@
       "en": ["Lightly mash the chickpeas.", "Stir in olive oil.", "Top with diced tomato."],
       "pl": ["Lekko rozgnieć ciecierzycę.", "Wmieszaj oliwę.", "Posyp pokrojonym pomidorem."]
     }
+  },
+  {
+    "slug": "tofu-scramble-on-whole-grain-toast",
+    "title": { "en": "Tofu scramble on whole-grain toast", "pl": "Tofucznica na pełnoziarnistym toście" },
+    "description": {
+      "en": "Crumbled tofu fried with onion, spinach and tomato, served on toast.",
+      "pl": "Pokruszone tofu smażone z cebulą, szpinakiem i pomidorem, podane na toście."
+    },
+    "servings": 1,
+    "mealTypes": ["breakfast"],
+    "prepMinutes": 8,
+    "cookMinutes": 8,
+    "difficulty": "easy",
+    "ingredients": [
+      { "slug": "tofu", "quantity": 200, "unit": "g" },
+      { "slug": "spinach", "quantity": 60, "unit": "g" },
+      { "slug": "tomato", "quantity": 1, "unit": "piece" },
+      { "slug": "onion", "quantity": 40, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 10, "unit": "ml" },
+      { "slug": "whole-grain-bread", "quantity": 2, "unit": "piece" }
+    ],
+    "steps": {
+      "en": [
+        "Dice the onion and the tomato; crumble the tofu with a fork.",
+        "Heat the olive oil in a pan and soften the onion for 2 minutes.",
+        "Add the tofu and fry for 4 minutes, stirring.",
+        "Stir in the spinach and the tomato and cook until the spinach wilts.",
+        "Toast the bread and serve the scramble on top."
+      ],
+      "pl": [
+        "Pokrój cebulę i pomidora w kostkę; rozkrusz tofu widelcem.",
+        "Rozgrzej oliwę na patelni i zeszklij cebulę przez 2 minuty.",
+        "Dodaj tofu i smaż 4 minuty, mieszając.",
+        "Dodaj szpinak i pomidora i smaż, aż szpinak zwiędnie.",
+        "Opiecz chleb i podaj na nim tofucznicę."
+      ]
+    }
+  },
+  {
+    "slug": "peanut-butter-banana-toast",
+    "title": { "en": "Peanut butter and banana toast", "pl": "Tost z masłem orzechowym i bananem" },
+    "description": {
+      "en": "Whole-grain toast with peanut butter, sliced banana and chia seeds.",
+      "pl": "Pełnoziarnisty tost z masłem orzechowym, plasterkami banana i nasionami chia."
+    },
+    "servings": 1,
+    "mealTypes": ["breakfast", "second_breakfast"],
+    "prepMinutes": 5,
+    "cookMinutes": 2,
+    "difficulty": "easy",
+    "ingredients": [
+      { "slug": "whole-grain-bread", "quantity": 2, "unit": "piece" },
+      { "slug": "peanut-butter", "quantity": 30, "unit": "g" },
+      { "slug": "banana", "quantity": 1, "unit": "piece" },
+      { "slug": "chia-seeds", "quantity": 10, "unit": "g" }
+    ],
+    "steps": {
+      "en": ["Toast the bread.", "Spread it with peanut butter.", "Top with sliced banana and sprinkle with chia seeds."],
+      "pl": ["Opiecz chleb.", "Posmaruj go masłem orzechowym.", "Ułóż plasterki banana i posyp nasionami chia."]
+    }
+  },
+  {
+    "slug": "oatmeal-with-apple-and-walnuts",
+    "title": { "en": "Oatmeal with apple and walnuts", "pl": "Owsianka z jabłkiem i orzechami włoskimi" },
+    "description": {
+      "en": "Oats cooked in water with grated apple, topped with walnuts and chia seeds.",
+      "pl": "Płatki owsiane gotowane na wodzie z tartym jabłkiem, posypane orzechami włoskimi i nasionami chia."
+    },
+    "servings": 1,
+    "mealTypes": ["breakfast"],
+    "prepMinutes": 5,
+    "cookMinutes": 6,
+    "difficulty": "easy",
+    "ingredients": [
+      { "slug": "rolled-oats", "quantity": 60, "unit": "g" },
+      { "slug": "apple", "quantity": 1, "unit": "piece" },
+      { "slug": "walnuts", "quantity": 20, "unit": "g" },
+      { "slug": "chia-seeds", "quantity": 5, "unit": "g" }
+    ],
+    "steps": {
+      "en": [
+        "Grate half of the apple and dice the rest.",
+        "Simmer the oats in water for about 5 minutes, stirring, then stir in the grated apple.",
+        "Top with the diced apple, chopped walnuts and chia seeds."
+      ],
+      "pl": [
+        "Zetrzyj połowę jabłka, resztę pokrój w kostkę.",
+        "Gotuj płatki na wodzie około 5 minut, mieszając, po czym wmieszaj starte jabłko.",
+        "Posyp pokrojonym jabłkiem, posiekanymi orzechami i nasionami chia."
+      ]
+    }
+  },
+  {
+    "slug": "boiled-eggs-with-feta-and-cucumber",
+    "title": { "en": "Boiled eggs with feta and cucumber", "pl": "Jajka na twardo z fetą i ogórkiem" },
+    "description": {
+      "en": "Two hard-boiled eggs with feta, cucumber and a drizzle of olive oil.",
+      "pl": "Dwa jajka na twardo z fetą, ogórkiem i odrobiną oliwy."
+    },
+    "servings": 1,
+    "mealTypes": ["second_breakfast", "snack"],
+    "prepMinutes": 5,
+    "cookMinutes": 9,
+    "difficulty": "easy",
+    "ingredients": [
+      { "slug": "large-egg", "quantity": 2, "unit": "piece" },
+      { "slug": "feta-cheese", "quantity": 40, "unit": "g" },
+      { "slug": "cucumber", "quantity": 100, "unit": "g" },
+      { "slug": "olive-oil", "quantity": 5, "unit": "ml" }
+    ],
+    "steps": {
+      "en": [
+        "Boil the eggs for 9 minutes, cool them under cold water and peel.",
+        "Slice the cucumber and crumble the feta.",
+        "Halve the eggs, arrange everything on a plate and drizzle with olive oil."
+      ],
+      "pl": [
+        "Gotuj jajka 9 minut, schłodź w zimnej wodzie i obierz.",
+        "Pokrój ogórka w plasterki i pokrusz fetę.",
+        "Przekrój jajka na pół, ułóż wszystko na talerzu i skrop oliwą."
+      ]
+    }
   }
 ]
