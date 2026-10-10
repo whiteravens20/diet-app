@@ -33,6 +33,10 @@ import { WeightsModule } from './weights/weights.module.js';
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
+      // Only what validation let through is handed out. Without this a setting
+      // that validation dropped, a blank one above all, is read from the
+      // process environment after all, as an empty string.
+      skipProcessEnv: true,
       // Repo-root .env for local runs; containers inject the env directly.
       envFilePath: ['../../.env', '.env'],
       ignoreEnvFile: IGNORE_ENV_FILES,
