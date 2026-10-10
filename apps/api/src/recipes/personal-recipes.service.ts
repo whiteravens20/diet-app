@@ -1,6 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ForbiddenException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, type Difficulty, type Unit } from '@prisma/client';
 import { computeFingerprint } from '../admin/drafts/fingerprint.js';
 import type { RecipeFacts } from '../engine/recipe-facts.js';
@@ -59,8 +66,9 @@ const lock = (tx: Prisma.TransactionClient, key: string): Promise<number> =>
  * them cannot both take the last place the account has; then the saves of one
  * recipe take turns, so two requests for it cannot both write it.
  *
- * A personal recipe reaches the curation queue in one way only: a second user
- * comes to own the same recipe, which is the sign that it may be worth sharing.
+ * A personal recipe reaches the curation queue in two ways only: its owner
+ * submits it, or a second user comes to own the same recipe, which is the
+ * sign that it may be worth sharing.
  */
 @Injectable()
 export class PersonalRecipesService {
@@ -116,6 +124,28 @@ export class PersonalRecipesService {
       });
       if (others.length > 0) await this.mirror(tx, id, fingerprint, [id, ...others.map((other) => other.id)]);
       return id;
+    });
+  }
+
+  /** Put the user's own recipe before the curators, as a candidate for the shared library. */
+  async submit(userId: string, recipeId: string): Promise<void> {
+    const recipe = await this.prisma.recipe.findUnique({
+      where: { id: recipeId },
+      select: { id: true, createdByUserId: true, deletedAt: true, fingerprint: true },
+    });
+    if (!recipe || recipe.deletedAt || recipe.createdByUserId !== userId) {
+      throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+    }
+    if (!recipe.fingerprint) {
+      throw new ConflictException({
+        error: 'RECIPE_NOT_SUBMITTABLE',
+        message: 'This recipe uses an ingredient outside the curated catalogue and cannot be submitted.',
+      });
+    }
+    const fingerprint = recipe.fingerprint;
+    await this.prisma.$transaction(async (tx) => {
+      await lock(tx, fingerprint);
+      await this.mirror(tx, recipe.id, fingerprint, [recipe.id]);
     });
   }
 

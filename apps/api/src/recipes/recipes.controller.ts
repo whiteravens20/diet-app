@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AiDraftRecipeRequest, type Locale } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
@@ -8,6 +8,7 @@ import { RequestLocale } from '../common/request-locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
+import { PersonalRecipesService } from './personal-recipes.service.js';
 import { RecipesService } from './recipes.service.js';
 
 @Controller('recipes')
@@ -16,6 +17,7 @@ export class RecipesController {
   constructor(
     private readonly recipes: RecipesService,
     private readonly draft: AiRecipeDraftService,
+    private readonly personal: PersonalRecipesService,
   ) {}
 
   /**
@@ -85,6 +87,18 @@ export class RecipesController {
   @Get(':id')
   get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id') id: string) {
     return this.recipes.get(user.id, locale, id);
+  }
+
+  /**
+   * Put a recipe of one's own before the curators, as a candidate for the
+   * library everyone shares. They see what the recipe says and is made of,
+   * not who sent it. Repeating the request changes nothing.
+   */
+  @Post(':id/submit')
+  @HttpCode(204)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  submit(@CurrentUser() user: RequestUser, @Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.personal.submit(user.id, id);
   }
 
   /**

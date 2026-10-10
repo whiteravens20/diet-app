@@ -276,6 +276,7 @@
     "AI_DRAFT_OFF_DIET": "Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie.",
     "AI_DRAFT_DAILY_LIMIT": "AI napisało już dla Ciebie tyle przepisów, ile może w ciągu jednego dnia. Spróbuj ponownie jutro.",
     "PERSONAL_RECIPE_LIMIT": "Masz już tyle własnych przepisów, ile mieści jedno konto. Usuń te, których już nie używasz.",
+    "RECIPE_NOT_SUBMITTABLE": "Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki.",
     "AI_DRAFT_UNKNOWN_INGREDIENT": "AI zaproponowało składnik, którego nie było na liście — spróbuj ponownie.",
     "NO_ELIGIBLE_INGREDIENTS": "Żadne składniki nie pasują do diety i alergenów profilu.",
     "OUT_OF_COMPLEXITY_BAND": "Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas.",
@@ -912,6 +913,10 @@
     "delete": "Usuń",
     "deleteConfirm": "Usunąć ten przepis? Przeszłe zaplanowane posiłki pozostaną, ale przepis zniknie z biblioteki i przyszłych planów.",
     "deleteSuccess": "Przepis usunięty.",
+    "submit": "Zgłoś do wspólnej biblioteki",
+    "submitConfirm": "Zgłosić ten przepis do biblioteki, z której korzystają wszyscy? Kuratorzy zobaczą jego treść i składniki, ale nie to, kto go wysłał. Jeśli go przyjmą, stanie się przepisem biblioteki.",
+    "submitDone": "Wysłano do kuratorów.",
+    "submitFailed": "Nie udało się wysłać przepisu.",
     "variantTitle": "{base} (z {replacement})",
     "pagination": {
       "label": "Strony przepisów",

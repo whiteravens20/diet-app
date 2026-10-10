@@ -56,7 +56,7 @@ Two rules apply to every variable:
 | `TURNSTILE_ENABLED` | `false` | Enable Cloudflare Turnstile. |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | — | Required only when enabled. |
 | `RATE_LIMIT_WINDOW` | `60` | Rate-limit window (seconds), applies to every endpoint. |
-| `RATE_LIMIT_MAX` | `120` | Requests/window/IP, global default. AI + plan-generation routes carry fixed tighter per-route limits (recipe draft 10, plan (re)generate 20, AI swap 30, ingredient swap 30, provider test 20/min) that are not operator-tunable. |
+| `RATE_LIMIT_MAX` | `120` | Requests/window/IP, global default. AI + plan-generation routes carry fixed tighter per-route limits (recipe draft 10, recipe submission 10, plan (re)generate 20, AI swap 30, ingredient swap 30, provider test 20/min) that are not operator-tunable. |
 
 ## Email (optional)
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | — | SMTP for mail. Unset → no mail is sent and the web app does not offer password reset. A reset requested straight from the API is logged outside production and dropped in production. |

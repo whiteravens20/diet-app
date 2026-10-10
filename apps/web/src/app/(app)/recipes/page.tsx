@@ -3,12 +3,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Trash2 } from 'lucide-react';
+import { Send, Sparkles, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { RecipeDietTag, type Profile, type RecipeSearchPage, type SessionUser } from '@diet-app/shared';
-import { api } from '@/lib/api';
+import { api, ApiClientError } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -94,6 +94,14 @@ export default function RecipesPage() {
       queryClient.invalidateQueries({ queryKey: ['recipes:mine'] });
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
     },
+  });
+
+  // What came of suggesting a recipe of one's own for the shared library.
+  const [submitted, setSubmitted] = useState<{ ok: boolean; text: string } | null>(null);
+  const submitRecipe = useMutation({
+    mutationFn: (id: string) => api.post<void>(`/recipes/${id}/submit`),
+    onSuccess: () => setSubmitted({ ok: true, text: t('submitDone') }),
+    onError: (e) => setSubmitted({ ok: false, text: e instanceof ApiClientError ? e.message : t('submitFailed') }),
   });
 
   const profiles = useQuery({
@@ -265,6 +273,19 @@ export default function RecipesPage() {
         )}
       </div>
 
+      {tab === 'mine' && submitted && (
+        <p
+          role="status"
+          className={
+            submitted.ok
+              ? 'rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary'
+              : 'rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive'
+          }
+        >
+          {submitted.text}
+        </p>
+      )}
+
       {recipes.isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -308,6 +329,25 @@ export default function RecipesPage() {
                     </div>
                   </Card>
                 </Link>
+                {tab === 'mine' && (
+                  <button
+                    type="button"
+                    title={t('submit')}
+                    aria-label={t('submit')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (typeof window !== 'undefined' && !window.confirm(t('submitConfirm'))) {
+                        return;
+                      }
+                      setSubmitted(null);
+                      submitRecipe.mutate(r.id);
+                    }}
+                    disabled={submitRecipe.isPending}
+                    className="absolute right-9 top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100"
+                  >
+                    <Send size={14} aria-hidden />
+                  </button>
+                )}
                 {tab === 'mine' && (
                   <button
                     type="button"

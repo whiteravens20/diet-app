@@ -300,3 +300,63 @@ describe('the number of recipes an account may hold', () => {
     expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId).toBe(bowl.id);
   });
 });
+
+describe("submitting a recipe of one's own", () => {
+  it('puts it before the curators, once', async () => {
+    const account = await anAccount();
+    const variant = await tofuForChicken(account);
+
+    await personal.submit(account.user.id, variant);
+    await personal.submit(account.user.id, variant);
+
+    const queue = await t.prisma.recipeDraft.findMany();
+    expect(queue).toHaveLength(1);
+    expect(queue[0]!.sourceRecipeIds).toEqual([variant]);
+    expect((queue[0]!.titles as Record<string, string>).en).toBeTruthy();
+  });
+
+  it("is refused for another user's recipe as if it did not exist", async () => {
+    const [owner, other] = [await anAccount(), await anAccount()];
+    const variant = await tofuForChicken(owner);
+
+    await expect(personal.submit(other.user.id, variant)).rejects.toMatchObject({ status: 404 });
+    expect(await t.prisma.recipeDraft.count()).toBe(0);
+  });
+
+  it('is a request of its own, which may be repeated', async () => {
+    const [owner, other] = [await anAccount(), await anAccount()];
+    const variant = await tofuForChicken(owner);
+    const path = `/api/recipes/${variant}/submit`;
+
+    await t.http().post(path).set(as(owner.user)).expect(204);
+    await t.http().post(path).set(as(owner.user)).expect(204);
+    expect(await t.prisma.recipeDraft.count()).toBe(1);
+
+    const refused = await t.http().post(path).set(as(other.user)).expect(404);
+    expect(refused.body.error).toBe('RECIPE_NOT_FOUND');
+    await t.http().post('/api/recipes/not-an-id/submit').set(as(owner.user)).expect(400);
+    await t.http().post(path).expect(401);
+  });
+
+  it('is refused for a deleted recipe, and for a recipe of the library', async () => {
+    const owner = await anAccount();
+    const variant = await tofuForChicken(owner);
+    await t.http().delete(`/api/recipes/${variant}`).set(as(owner.user)).expect(204);
+    const library = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'milk-porridge' } });
+
+    await t.http().post(`/api/recipes/${variant}/submit`).set(as(owner.user)).expect(404);
+    await t.http().post(`/api/recipes/${library.id}/submit`).set(as(owner.user)).expect(404);
+    expect(await t.prisma.recipeDraft.count()).toBe(0);
+  });
+
+  it('is refused for a recipe with an ingredient the catalogue does not name', async () => {
+    const owner = await anAccount();
+    const unnamed = await t.prisma.recipe.create({
+      data: { title: 'Mine', description: '', servings: 1, prepMinutes: 1, cookMinutes: 1, origin: 'user', createdByUserId: owner.user.id },
+    });
+
+    const refused = await t.http().post(`/api/recipes/${unnamed.id}/submit`).set(as(owner.user)).expect(409);
+
+    expect(refused.body.error).toBe('RECIPE_NOT_SUBMITTABLE');
+  });
+});

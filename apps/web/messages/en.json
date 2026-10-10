@@ -276,6 +276,7 @@
     "AI_DRAFT_OFF_DIET": "The AI's recipe does not fit the diet you asked for — try again.",
     "AI_DRAFT_DAILY_LIMIT": "AI has written as many recipes for you as it may in one day. Try again tomorrow.",
     "PERSONAL_RECIPE_LIMIT": "You have as many recipes of your own as an account can hold. Delete some you no longer use.",
+    "RECIPE_NOT_SUBMITTABLE": "This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library.",
     "AI_DRAFT_UNKNOWN_INGREDIENT": "AI proposed an ingredient it was not offered — try again.",
     "NO_ELIGIBLE_INGREDIENTS": "No ingredients match your diet and allergen settings.",
     "OUT_OF_COMPLEXITY_BAND": "Recipe is outside every complexity band — adjust ingredients, steps, or time.",
@@ -912,6 +913,10 @@
     "delete": "Delete",
     "deleteConfirm": "Delete this recipe? Past planned meals stay intact — but it won't appear in your library or new plans.",
     "deleteSuccess": "Recipe deleted.",
+    "submit": "Suggest for the shared library",
+    "submitConfirm": "Suggest this recipe for the library everyone uses? The curators will see its text and ingredients, not who sent it. If they accept it, it becomes a recipe of the library.",
+    "submitDone": "Sent to the curators.",
+    "submitFailed": "Could not send the recipe.",
     "variantTitle": "{base} (with {replacement})",
     "pagination": {
       "label": "Recipe pages",
