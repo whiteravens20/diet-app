@@ -173,4 +173,37 @@ export function intendedPantryEffect(row: ShoppingRowState): number {
   return clean(surplus - row.alreadyHaveQuantity);
 }
 
+/**
+ * What the user holds for the row that the pantry does not show: ticked, all
+ * of the need that was met (from the pantry or the shop); unticked, only what
+ * was bought, since nothing has left the pantry yet.
+ */
+export function heldForPlan(row: ShoppingRowState): number {
+  const purchased = row.purchasedQuantity ?? 0;
+  if (!row.checked) return Math.max(0, clean(purchased - row.alreadyHaveQuantity));
+  return Math.max(0, Math.min(row.purchasedQuantity ?? row.totalQuantity, row.totalQuantity));
+}
+
+/**
+ * The effect on the pantry a row should end with when its list is removed.
+ * `share` is the part of what the row holds for the plan that is still in the
+ * kitchen: 1 returns all of it (the list is replaced by another that will
+ * count it again), 0 returns nothing (its days are over and the food eaten).
+ */
+export function pantryEffectOnRemoval(row: ShoppingRowState, share: number): number {
+  return clean(intendedPantryEffect(row) + Math.min(1, Math.max(0, share)) * heldForPlan(row));
+}
+
+/**
+ * The share of a list's days that are still ahead on `today`, today included:
+ * 1 for a list that has not started, 0 for one that is over.
+ */
+export function shareAhead(fromDate: Date, toDate: Date, today: Date): number {
+  const day = (date: Date): number => Math.floor(date.getTime() / 86_400_000);
+  const days = day(toDate) - day(fromDate) + 1;
+  if (days <= 0) return 0;
+  const ahead = day(toDate) - Math.max(day(fromDate), day(today)) + 1;
+  return Math.min(1, Math.max(0, ahead / days));
+}
+
 const clean = (n: number): number => Math.round(n * 1e6) / 1e6;

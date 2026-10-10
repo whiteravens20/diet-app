@@ -8,7 +8,10 @@ import {
   aggregateShoppingList,
   editRow,
   groupByAisle,
+  heldForPlan,
   intendedPantryEffect,
+  pantryEffectOnRemoval,
+  shareAhead,
   toBuyQuantity,
 } from './shopping.js';
 
@@ -278,5 +281,61 @@ describe('what a row means for the pantry', () => {
 
   it('still takes the part at home when the row is closed at less than the need', () => {
     expect(intendedPantryEffect(row({ purchasedQuantity: 450, checked: true }))).toBe(-200);
+  });
+});
+
+describe('what the user holds for the plan outside the pantry', () => {
+  it('is what was bought, for a row that is not ticked', () => {
+    expect(heldForPlan(row())).toBe(0);
+    expect(heldForPlan(row({ purchasedQuantity: 500 }))).toBe(300);
+    expect(heldForPlan(row({ alreadyHaveQuantity: 0, purchasedQuantity: null }))).toBe(0);
+  });
+
+  it('is the need that was met, for a ticked row: the part taken from the pantry included', () => {
+    expect(heldForPlan(row({ purchasedQuantity: 700, checked: true }))).toBe(700);
+    expect(heldForPlan(row({ purchasedQuantity: 900, checked: true }))).toBe(700);
+    expect(heldForPlan(row({ purchasedQuantity: 450, checked: true }))).toBe(450);
+  });
+});
+
+describe('removing a list', () => {
+  it('returns everything obtained for a row when all of it is still in the kitchen', () => {
+    // Ticked: 200 g came from the pantry, 500 g from the shop. All 700 g go to the pantry: 500 g more than it began with.
+    expect(pantryEffectOnRemoval(row({ purchasedQuantity: 700, checked: true }), 1)).toBe(500);
+    // With a surplus of 100 g, which is in the pantry already.
+    expect(pantryEffectOnRemoval(row({ purchasedQuantity: 800, checked: true }), 1)).toBe(600);
+    // Not ticked: the 300 g that were bought.
+    expect(pantryEffectOnRemoval(row({ purchasedQuantity: 500 }), 1)).toBe(300);
+    // Never touched: nothing.
+    expect(pantryEffectOnRemoval(row(), 1)).toBe(0);
+  });
+
+  it('leaves the pantry as the row left it when the days of the list are over', () => {
+    expect(pantryEffectOnRemoval(row({ purchasedQuantity: 700, checked: true }), 0)).toBe(-200);
+    expect(pantryEffectOnRemoval(row({ purchasedQuantity: 800, checked: true }), 0)).toBe(-100);
+    expect(pantryEffectOnRemoval(row({ purchasedQuantity: 500 }), 0)).toBe(0);
+  });
+
+  it('returns the share that belongs to the days still ahead', () => {
+    expect(pantryEffectOnRemoval(row({ purchasedQuantity: 700, checked: true }), 0.5)).toBe(150);
+  });
+});
+
+describe('the share of a list that is still ahead', () => {
+  const date = (iso: string) => new Date(iso);
+
+  it.each([
+    ['2026-10-01', 1],
+    ['2026-10-05', 1],
+    ['2026-10-06', 6 / 7],
+    ['2026-10-11', 1 / 7],
+    ['2026-10-12', 0],
+    ['2026-12-01', 0],
+  ])('on %s, of a list for 5 to 11 October: %s', (today, share) => {
+    expect(shareAhead(date('2026-10-05'), date('2026-10-11'), date(today))).toBeCloseTo(share, 10);
+  });
+
+  it('is nothing for a range that ends before it starts', () => {
+    expect(shareAhead(date('2026-10-11'), date('2026-10-05'), date('2026-10-01'))).toBe(0);
   });
 });

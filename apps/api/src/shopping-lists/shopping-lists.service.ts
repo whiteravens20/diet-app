@@ -1,8 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
+  MAX_LISTS_PER_PLAN,
   type DisplayUnit,
   type GenerateShoppingListRequest,
   type Locale,
@@ -17,8 +18,10 @@ import {
   groupByAisle,
   intendedPantryEffect,
   isCounted,
+  pantryEffectOnRemoval,
   pantryStock,
   quantityToClaim,
+  shareAhead,
   toBuyQuantity,
   UnitConversionError,
   type PlanIngredientLine,
@@ -77,7 +80,13 @@ interface StoredList {
 export class ShoppingListsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Aggregate every ingredient across the selected plan range into a list. */
+  /**
+   * Aggregate every ingredient across the selected plan range into a list.
+   *
+   * A day belongs to one list: lists of the plan whose dates overlap the new
+   * one are replaced by it. What was obtained for them goes into the pantry
+   * first, so the new list finds it there and asks only for what is missing.
+   */
   async generate(userId: string, locale: Locale, req: GenerateShoppingListRequest): Promise<ShoppingList> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: req.planId },
@@ -89,14 +98,36 @@ export class ShoppingListsService {
     }
     const profileId = plan.profile.id;
 
-    const from = req.fromDate ? new Date(req.fromDate) : plan.days[0]?.date ?? plan.startDate;
-    const to = req.toDate ? new Date(req.toDate) : plan.days.at(-1)?.date ?? plan.startDate;
+    const first = plan.days[0]?.date ?? plan.startDate;
+    const last = plan.days.at(-1)?.date ?? plan.startDate;
+    const from = req.fromDate ? new Date(req.fromDate) : first;
+    const to = req.toDate ? new Date(req.toDate) : last;
+    if (from > to || from < first || to > last) {
+      throw new BadRequestException({
+        error: 'SHOPPING_RANGE_OUTSIDE_PLAN',
+        message: `The dates must lie within the plan: ${isoDate(first)} to ${isoDate(last)}.`,
+      });
+    }
 
     const listId = await this.prisma.$transaction(async (tx) => {
       // One list of a profile at a time: each counts on what the others left.
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`shopping:${profileId}`}, 0))`);
       // The menu must not change between reading it and writing the list.
       await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${plan.id} FOR UPDATE`);
+
+      const overlapping = await tx.shoppingList.findMany({
+        where: { planId: plan.id, fromDate: { lte: to }, toDate: { gte: from } },
+        select: { id: true },
+      });
+      await releaseLists(tx, profileId, overlapping.map((list) => list.id), () => 1);
+      await tx.shoppingList.deleteMany({ where: { id: { in: overlapping.map((list) => list.id) } } });
+
+      if ((await tx.shoppingList.count({ where: { planId: plan.id } })) >= MAX_LISTS_PER_PLAN) {
+        throw new ConflictException({
+          error: 'SHOPPING_LIST_LIMIT',
+          message: `A plan has at most ${MAX_LISTS_PER_PLAN} shopping lists. Delete one first.`,
+        });
+      }
 
       const needs = await planNeeds(tx, plan.id, from, to);
       const items = needs.groups.flatMap((group) => group.items);
@@ -163,14 +194,16 @@ export class ShoppingListsService {
   }
 
   /**
-   * Delete a list the user owns. Every row first undoes what it did to the
-   * pantry, as if it had been unticked: what it took comes back, what it put
-   * in is taken out again.
+   * Delete a list the user owns. What was obtained for the days still ahead
+   * goes into the pantry, because it is in the kitchen; what was obtained for
+   * days already past is taken as eaten. A list that is over is therefore
+   * removed without a trace, and one deleted before cooking gives everything
+   * back.
    */
-  async remove(userId: string, listId: string): Promise<void> {
+  async remove(userId: string, listId: string, today: Date = new Date()): Promise<void> {
     const list = await this.loadOwned(userId, listId);
     await this.prisma.$transaction(async (tx) => {
-      await releaseLists(tx, list.plan.profile.id, [listId]);
+      await releaseLists(tx, list.plan.profile.id, [listId], (dates) => shareAhead(dates.fromDate, dates.toDate, today));
       await tx.shoppingList.deleteMany({ where: { id: listId } });
     }, TRANSACTION);
   }
@@ -384,14 +417,33 @@ async function settleRow(tx: Tx, profileId: string, item: StoredItem, effect: nu
 }
 
 /**
- * Undo what the rows of lists that are about to be removed did to the pantry.
- * The lists themselves are left for the caller to delete, in the same
- * transaction.
+ * Settle the rows of lists that are about to be removed: for each, `share`
+ * says how much of what its rows hold for the plan is still in the kitchen
+ * and goes into the pantry (see `pantryEffectOnRemoval`). The lists
+ * themselves are left for the caller to delete, in the same transaction.
  */
-async function releaseLists(tx: Tx, profileId: string, listIds: readonly string[]): Promise<void> {
+export async function releaseLists(
+  tx: Tx,
+  profileId: string,
+  listIds: readonly string[],
+  share: (list: { fromDate: Date; toDate: Date }) => number,
+): Promise<void> {
   if (listIds.length === 0) return;
   // Rows first, then the pantry: the order every writer takes its locks in.
   await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "ShoppingListItem" WHERE "listId" IN (${Prisma.join(listIds)}) ORDER BY "id" FOR UPDATE`);
-  const items = await tx.shoppingListItem.findMany({ where: { listId: { in: [...listIds] } }, orderBy: { ingredientId: 'asc' } });
-  for (const item of items) await settleRow(tx, profileId, item, 0);
+  const lists = await tx.shoppingList.findMany({ where: { id: { in: [...listIds] } }, include: { items: true } });
+  const rows = lists.flatMap((list) => list.items.map((item) => ({ item, share: share(list) })));
+  rows.sort((a, b) => (a.item.ingredientId === b.item.ingredientId ? 0 : a.item.ingredientId < b.item.ingredientId ? -1 : 1));
+  for (const { item, share: part } of rows) {
+    await settleRow(tx, profileId, item, pantryEffectOnRemoval(item, part));
+  }
+}
+
+/**
+ * Settle every list of a plan that is about to be deleted, by the rule of
+ * `ShoppingListsService.remove`. The plan's deletion then removes the lists.
+ */
+export async function releasePlanLists(tx: Tx, planId: string, profileId: string, today: Date = new Date()): Promise<void> {
+  const lists = await tx.shoppingList.findMany({ where: { planId }, select: { id: true } });
+  await releaseLists(tx, profileId, lists.map((list) => list.id), (dates) => shareAhead(dates.fromDate, dates.toDate, today));
 }

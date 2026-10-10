@@ -1,9 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { MAX_QUANTITY, type MealPlan, type Profile, type ShoppingList } from '@diet-app/shared';
+import { MAX_LISTS_PER_PLAN, MAX_QUANTITY, type MealPlan, type Profile, type ShoppingList } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { netEffect, pantryStock } from '../engine/pantry.js';
 import { readMoves } from '../inventory/pantry-store.js';
+import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
@@ -16,9 +17,14 @@ const PORRIDGE = 'milk-porridge'; // 60 g oats, 250 ml milk
 const TOFU_BOWL = 'tofu-rice-bowl'; // 180 g tofu, 80 g rice, 100 g broccoli, 5 ml oil
 const CHICKEN_RICE = 'chicken-rice-broccoli'; // 150 g chicken, 80 g rice, 150 g broccoli, 10 ml oil
 
+/** Long before the plans below begin, and long after they end. */
+const BEFORE = new Date('2025-12-01');
+const AFTER = new Date('2026-03-01');
+
 describe('shopping lists and the pantry', () => {
   let t: TestApp;
   let lists: ShoppingListsService;
+  let plans: MealPlansService;
   let user: TestUser;
   let profile: Profile;
   let plan: MealPlan;
@@ -26,6 +32,7 @@ describe('shopping lists and the pantry', () => {
   beforeAll(async () => {
     t = await createTestApp();
     lists = t.app.get(ShoppingListsService);
+    plans = t.app.get(MealPlansService);
     await resetDatabase(t.prisma);
     await seedCatalogue(t.prisma);
   });
@@ -348,6 +355,177 @@ describe('shopping lists and the pantry', () => {
     });
   });
 
+  describe('removing a list', () => {
+    beforeEach(async () => {
+      await menu(0, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+      await stock('white-rice', 100, 'g');
+    });
+
+    /** A list whose rice row is ticked with 500 g: 100 g from the pantry, 400 g bought, 340 g beyond the need. */
+    async function shopped(): Promise<ShoppingList> {
+      const list = await listFor(0);
+      await edit(list, 'White rice', { purchasedQuantity: 500 });
+      await edit(list, 'Broccoli', { purchasedQuantity: 100 });
+      expect(await pantry('white-rice')).toEqual(['340 g']);
+      return list;
+    }
+
+    it('before its days puts everything obtained for it into the pantry: it is in the kitchen', async () => {
+      const list = await shopped();
+
+      await lists.remove(user.id, list.id, BEFORE);
+
+      // The 100 g it began with and the 400 g that were bought.
+      expect(await pantry('white-rice')).toEqual(['500 g']);
+      // Bought but never ticked.
+      expect(await pantry('broccoli')).toEqual(['100 g']);
+      expect(await t.prisma.shoppingList.count()).toBe(0);
+    });
+
+    it('after its days leaves the pantry as it is: the food was eaten', async () => {
+      const list = await shopped();
+
+      await lists.remove(user.id, list.id, AFTER);
+
+      expect(await pantry('white-rice')).toEqual(['340 g']);
+      expect(await pantry('broccoli')).toEqual([]);
+    });
+
+    it('part-way through returns the share of the days still ahead', async () => {
+      await menu(1, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+      const list = await listFor(0, 1);
+      await edit(list, 'White rice', { purchasedQuantity: 320 });
+      // All 320 g are needed: 100 g left the pantry, nothing was put in.
+      expect(await pantry('white-rice')).toEqual([]);
+
+      // On the second of its two days: half is eaten.
+      await lists.remove(user.id, list.id, new Date(date(1)));
+
+      expect(await pantry('white-rice')).toEqual(['160 g']);
+    });
+
+    it('that nobody touched changes nothing', async () => {
+      const list = await listFor(0);
+
+      await lists.remove(user.id, list.id, BEFORE);
+
+      expect(await pantry('white-rice')).toEqual(['100 g']);
+    });
+
+    it('over HTTP answers 204 and then 404', async () => {
+      const list = await listFor(0);
+
+      await t.http().delete(`/api/shopping-lists/${list.id}`).set(as(user)).expect(204);
+      await t.http().get(`/api/shopping-lists/${list.id}`).set(as(user)).expect(404);
+    });
+
+    it('happens with its plan, by the same rule', async () => {
+      // This plan lies in the past, so its food counts as eaten.
+      await shopped();
+      await plans.remove(user.id, plan.id);
+      expect(await pantry('white-rice')).toEqual(['340 g']);
+      expect(await t.prisma.shoppingList.count()).toBe(0);
+
+      // One that has not begun gives everything back.
+      await t.prisma.inventoryItem.deleteMany({ where: { profileId: profile.id } });
+      await stock('white-rice', 100, 'g');
+      const future = await aPlan(t, user, profile, { startDate: '2031-01-06' });
+      const made = await lists.generate(user.id, 'en', { planId: future.id });
+      const rice = rowOf(made, 'White rice');
+      await lists.updateItem(user.id, 'en', made.id, rice.id, { purchasedQuantity: rice.totalQuantity + 50 });
+      const before = pantryStock(await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }), await ingredient('white-rice')).quantity;
+
+      await plans.remove(user.id, future.id);
+
+      const after = pantryStock(await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }), await ingredient('white-rice')).quantity;
+      // Everything obtained: what the pantry held to begin with plus all that was bought.
+      expect(after).toBe(100 + (rice.totalQuantity + 50 - rice.alreadyHaveQuantity));
+      expect(after).toBeGreaterThan(before);
+    });
+  });
+
+  describe('making a list for days that already have one', () => {
+    beforeEach(async () => {
+      await menu(0, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+      await menu(1, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+    });
+
+    it('replaces it, and counts what was obtained for it', async () => {
+      const first = await listFor(0);
+      await edit(first, 'White rice', { purchasedQuantity: 160 });
+      expect(await pantry('white-rice')).toEqual([]);
+
+      const second = await listFor(0);
+
+      expect(await t.prisma.shoppingList.count({ where: { planId: plan.id } })).toBe(1);
+      expect(second.id).not.toBe(first.id);
+      // The 160 g bought for the first list are what the second finds at home.
+      expect(rowOf(second, 'White rice')).toMatchObject({ alreadyHaveQuantity: 160, toBuyQuantity: 0, checked: true });
+      expect(await pantry('white-rice')).toEqual([]);
+    });
+
+    it('replaces every list it overlaps, and leaves the others', async () => {
+      await menu(2, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]);
+      const dayOne = await listFor(0);
+      const dayThree = await listFor(2);
+      await edit(dayOne, 'White rice', { purchasedQuantity: 160 });
+
+      const both = await listFor(0, 1);
+
+      const left = await lists.listForPlan(user.id, 'en', plan.id);
+      expect(left.map((list) => list.id).sort()).toEqual([both.id, dayThree.id].sort());
+      // Two days need 320 g; the 160 g bought for day one are counted.
+      expect(rowOf(both, 'White rice')).toMatchObject({ totalQuantity: 320, alreadyHaveQuantity: 160, toBuyQuantity: 160 });
+    });
+  });
+
+  describe('the dates of a list', () => {
+    it('default to the whole plan', async () => {
+      const list = await lists.generate(user.id, 'en', { planId: plan.id });
+
+      expect(list).toMatchObject({ fromDate: date(0), toDate: date(13) });
+    });
+
+    it.each([
+      ['end before they begin', () => ({ fromDate: date(3), toDate: date(1) })],
+      ['begin before the plan does', () => ({ fromDate: '2025-12-30', toDate: date(1) })],
+      ['end after the plan does', () => ({ fromDate: date(1), toDate: '2026-03-01' })],
+      ['lie outside the plan altogether', () => ({ fromDate: '2027-01-01', toDate: '2027-01-07' })],
+    ])('are refused when they %s, and no list is stored', async (_name, range) => {
+      const res = await t.http().post('/api/shopping-lists/generate').set(as(user)).send({ planId: plan.id, ...range() });
+
+      expect(res.status).toBe(400);
+      expect(await t.prisma.shoppingList.count()).toBe(0);
+    });
+
+    it('name the plan they must lie within', async () => {
+      const res = await t
+        .http()
+        .post('/api/shopping-lists/generate')
+        .set(as(user))
+        .send({ planId: plan.id, fromDate: '2027-01-01', toDate: '2027-01-07' })
+        .expect(400);
+
+      expect(res.body.error).toBe('SHOPPING_RANGE_OUTSIDE_PLAN');
+    });
+  });
+
+  it('a plan holds a limited number of lists', async () => {
+    for (let day = 0; day < MAX_LISTS_PER_PLAN; day += 1) await listFor(day);
+
+    const res = await t
+      .http()
+      .post('/api/shopping-lists/generate')
+      .set(as(user))
+      .send({ planId: plan.id, fromDate: date(MAX_LISTS_PER_PLAN), toDate: date(MAX_LISTS_PER_PLAN) });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('SHOPPING_LIST_LIMIT');
+    // Replacing one of them is not one more.
+    expect((await listFor(0)).fromDate).toBe(date(0));
+    expect(await t.prisma.shoppingList.count({ where: { planId: plan.id } })).toBe(MAX_LISTS_PER_PLAN);
+  });
+
   it("another user's plan and lists are out of reach", async () => {
     const list = await listFor(0);
     const other = await aUser(t);
@@ -443,6 +621,33 @@ describe('shopping lists and the pantry', () => {
 
         expect(await pantry('large-egg'), `seed ${seed}`).toEqual(initial);
         expect((await books()).ledgers).toBe(0);
+      }
+    });
+
+    it('returns to the pantry it began with when both lists are removed before their days, having only been ticked', async () => {
+      for (let seed = 201; seed <= 208; seed += 1) {
+        const random = seeded(seed);
+        const { first, second, initial } = await setUp(random);
+        for (let step = 0; step < 6; step += 1) {
+          const list = random() < 0.5 ? first : second;
+          await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, { checked: random() < 0.6 });
+        }
+        // What a ticked row holds beyond its claim was bought: that part is new.
+        const egg = await ingredient('large-egg');
+        const bought = (await t.prisma.shoppingListItem.findMany({ where: { ingredientId: egg.id } })).reduce(
+          (sum, item) => sum + (item.checked ? Math.max(0, (item.purchasedQuantity ?? 0) - item.alreadyHaveQuantity) : 0),
+          0,
+        );
+
+        await lists.remove(user.id, first.id, BEFORE);
+        await lists.remove(user.id, second.id, BEFORE);
+
+        const end = await books();
+        const began = pantryStock(
+          initial.map((text) => ({ quantity: Number(text.split(' ')[0]), unit: text.split(' ')[1] as 'g' | 'piece', bestBefore: null })),
+          egg,
+        ).quantity;
+        expect(end.inPantry, `seed ${seed}`).toBeCloseTo(began + bought * 55, 3);
       }
     });
   });

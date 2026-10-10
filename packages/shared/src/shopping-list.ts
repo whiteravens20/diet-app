@@ -3,13 +3,21 @@
 import { z } from 'zod';
 import { DisplayUnit, MAX_QUANTITY, ProductCategory, Unit } from './enums.js';
 
+/** The most shopping lists one plan may have at a time. */
+export const MAX_LISTS_PER_PLAN = 10;
+
 /** Request to build a shopping list from a plan or a date range within it. */
-export const GenerateShoppingListRequest = z.object({
-  planId: z.string().uuid(),
-  /** Optional inclusive sub-range; omitted = whole plan. */
-  fromDate: z.string().date().optional(),
-  toDate: z.string().date().optional(),
-});
+export const GenerateShoppingListRequest = z
+  .object({
+    planId: z.string().uuid(),
+    /** Optional inclusive sub-range; omitted = whole plan. */
+    fromDate: z.string().date().optional(),
+    toDate: z.string().date().optional(),
+  })
+  .refine((request) => !request.fromDate || !request.toDate || request.fromDate <= request.toDate, {
+    message: 'fromDate must not be after toDate.',
+    path: ['toDate'],
+  });
 export type GenerateShoppingListRequest = z.infer<typeof GenerateShoppingListRequest>;
 
 /**

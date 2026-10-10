@@ -70,6 +70,7 @@ import {
   validateModeBOutput,
   type RecipeLocaleSlice,
 } from './swap-rewrite.js';
+import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { writePlan } from './plan-write.js';
 import {
   assertMayEnter,
@@ -311,7 +312,17 @@ export class MealPlansService {
     if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
-    await this.prisma.mealPlan.delete({ where: { id: planId } });
+    const profileId = plan.profile.id;
+    // The plan takes its shopping lists with it. What was obtained for the
+    // days still ahead is in the kitchen and goes into the pantry first, by
+    // the rule a list deleted on its own follows.
+    await this.prisma.$transaction(
+      async (tx) => {
+        await releasePlanLists(tx, planId, profileId);
+        await tx.mealPlan.deleteMany({ where: { id: planId } });
+      },
+      { timeout: 30_000, maxWait: 10_000 },
+    );
   }
 
   /** Daily calorie target for a profile (a manual override wins, see the engine). */
