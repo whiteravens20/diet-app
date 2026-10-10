@@ -11,8 +11,8 @@ import { adminApi, type UsdaImportRunnerState } from '@/lib/admin-api';
 
 /**
  * Fetching foods from USDA FoodData Central into the instance's data
- * directory: start a run, follow it, and read what it kept and what it left
- * out.
+ * directory: start a run, follow it, and read what it kept, what it left out
+ * and, when it failed, what to do about it.
  */
 export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unknown> }) {
   const t = useTranslations('admin.usda');
@@ -64,6 +64,24 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
       startPolling();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  /** A failed run in words that say what to do; the source's own wording follows as detail. */
+  function failureText(failed: UsdaImportRunnerState): string {
+    switch (failed.errorReason) {
+      case 'over_limit':
+        return failed.retryAfterSeconds
+          ? t('overLimitWait', { minutes: Math.ceil(failed.retryAfterSeconds / 60) })
+          : t('overLimit');
+      case 'key_refused':
+        return t('keyRefused');
+      case 'unavailable':
+        return t('unavailable');
+      case 'not_writable':
+        return t('notWritable');
+      default:
+        return t('failed', { error: failed.error ?? '' });
     }
   }
 
@@ -147,9 +165,12 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
         )}
 
         {run?.status === 'error' && (
-          <p className="text-xs text-destructive">
-            {t('failed', { error: run.error ?? '' })}
-          </p>
+          <div className="text-xs">
+            <p className="text-destructive">{failureText(run)}</p>
+            {run.errorReason && run.errorReason !== 'failed' && run.error && (
+              <p className="mt-0.5 text-muted-foreground">{run.error}</p>
+            )}
+          </div>
         )}
 
         {error && <p className="text-xs text-destructive">{error}</p>}

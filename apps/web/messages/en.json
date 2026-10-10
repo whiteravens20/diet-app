@@ -432,7 +432,12 @@
       "progress": "Page {page}/{total} · {kept} kept",
       "doneSummary": "Done. Wrote {kept} ingredients · {skipped} listed twice · excluded {excluded} by category.",
       "refusedSummary": "{count, plural, one {# food was} other {# foods were}} left out: the source's record lacks a macronutrient, or its figures contradict each other. They are not stored as zero.",
-      "failed": "Import failed: {error}"
+      "failed": "Import failed: {error}",
+      "overLimit": "The food database takes no more requests for this key right now. Try again later, or set FDC_API_KEY in .env: a free key of your own allows far more.",
+      "overLimitWait": "The food database takes no more requests for this key right now. Try again in about {minutes, plural, one {# minute} other {# minutes}}, or set FDC_API_KEY in .env: a free key of your own allows far more.",
+      "keyRefused": "The food database refused the key. Check FDC_API_KEY in .env, then restart the API.",
+      "unavailable": "The food database failed or did not answer. Nothing was changed; try again later.",
+      "notWritable": "The API cannot write to its data directory, so it asked nothing of the food database. In the stack built from source that directory is data/ in the repository: make it writable for the user the container runs as (chown 1000 data), then run the import again."
     },
     "curation": {
       "title": "Curation queue",

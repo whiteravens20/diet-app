@@ -160,7 +160,12 @@ export interface UsdaImportRunnerState {
     dataTypes: string;
     demoKey: boolean;
   } | null;
+  /** What went wrong, in the API's words: detail under the explanation. */
   error: string | null;
+  /** Why a run failed; `failed` is anything nobody foresaw. */
+  errorReason: 'over_limit' | 'key_refused' | 'unavailable' | 'not_writable' | 'failed' | null;
+  /** How long the source asks to wait before the next try, in seconds, when it said so. */
+  retryAfterSeconds: number | null;
 }
 
 // ── Curation queue (drafts) ───────────────────────────────────────────────────
