@@ -10,9 +10,10 @@
  * macronutrients in `nutrients.ts`. A food whose record is incomplete is left
  * out and reported: a row with a made-up zero is worse than no row.
  *
- * The output is the same file for the same input (rows are sorted by slug).
+ * The output is the same file for the same input (rows are sorted by slug),
+ * and it replaces the old one in one step.
  */
-import { writeFileSync } from 'node:fs';
+import { renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { classify } from './classify.js';
 import { macrosOf, type SourceNutrient } from './nutrients.js';
@@ -101,6 +102,11 @@ interface SourcePage {
 
 const BASE = 'https://api.nal.usda.gov/fdc/v1/foods/search';
 const PAGE_SIZE = 200;
+/** How long one request may take, how often a page is tried, and the waits in between. */
+const REQUEST_TIMEOUT_MS = 30_000;
+const TRIES = 4;
+const FIRST_WAIT_MS = 2000;
+const LONGEST_WAIT_MS = 60_000;
 /** The refusals a run lists by name; the count is always complete. */
 const LISTED_REFUSALS = 100;
 
@@ -140,19 +146,40 @@ export interface ImportOptions {
   fetchPage?: (page: number) => Promise<SourcePage>;
 }
 
-async function defaultFetchPage(
-  apiKey: string,
-  dataTypes: string,
-  pageNumber: number,
-): Promise<SourcePage> {
-  const url =
-    `${BASE}?api_key=${apiKey}` +
-    `&dataType=${encodeURIComponent(dataTypes)}` +
-    `&pageSize=${PAGE_SIZE}&pageNumber=${pageNumber}` +
-    `&query=*`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`FDC API ${res.status} on page ${pageNumber}`);
-  return (await res.json()) as SourcePage;
+/**
+ * A function that fetches one page of the source's listing. The key travels in
+ * a header, so that it is not written into the logs of everything a request
+ * passes. A page is tried again when the source is busy or fails, after a wait
+ * that doubles or is as long as the source asks; an answer that trying again
+ * cannot change ends the run at once.
+ */
+export function pageFetcher(options: {
+  apiKey: string;
+  dataTypes: string;
+  fetch?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+}): (pageNumber: number) => Promise<SourcePage> {
+  const send = options.fetch ?? fetch;
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  return async (pageNumber) => {
+    const url = `${BASE}?dataType=${encodeURIComponent(options.dataTypes)}&pageSize=${PAGE_SIZE}&pageNumber=${pageNumber}&query=*`;
+    let failure = '';
+    for (let attempt = 1; attempt <= TRIES; attempt += 1) {
+      let wait = Math.min(LONGEST_WAIT_MS, FIRST_WAIT_MS * 2 ** (attempt - 1));
+      try {
+        const res = await send(url, { headers: { 'X-Api-Key': options.apiKey }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+        if (res.ok) return (await res.json()) as SourcePage;
+        failure = `FDC API ${res.status} on page ${pageNumber}`;
+        if (res.status !== 429 && res.status < 500) break;
+        const asked = Number(res.headers.get('retry-after'));
+        if (asked > 0) wait = Math.min(LONGEST_WAIT_MS, asked * 1000);
+      } catch (err) {
+        failure = `FDC API did not answer on page ${pageNumber}: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      if (attempt < TRIES) await sleep(wait);
+    }
+    throw new Error(failure);
+  };
 }
 
 /**
@@ -161,8 +188,7 @@ async function defaultFetchPage(
  * a user-visible job-status error.
  */
 export async function runImport(opts: ImportOptions): Promise<ImportResult> {
-  const fetchPage =
-    opts.fetchPage ?? ((p: number) => defaultFetchPage(opts.apiKey, opts.dataTypes, p));
+  const fetchPage = opts.fetchPage ?? pageFetcher({ apiKey: opts.apiKey, dataTypes: opts.dataTypes });
 
   const seen = new Set<string>();
   const ingredients: { slug: string }[] = [];
@@ -221,8 +247,12 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
 
   ingredients.sort((a, b) => a.slug.localeCompare(b.slug));
 
+  // Written beside the old file and moved over it: a run that dies half-way
+  // leaves the old file whole.
   const outFile = join(opts.outDir, 'ingredients.generated.json');
-  writeFileSync(outFile, `${JSON.stringify(ingredients, null, 2)}\n`);
+  const draft = `${outFile}.${process.pid}.tmp`;
+  writeFileSync(draft, `${JSON.stringify(ingredients, null, 2)}\n`);
+  renameSync(draft, outFile);
 
   return {
     kept,

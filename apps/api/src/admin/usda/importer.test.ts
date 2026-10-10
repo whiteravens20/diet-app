@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { runImport, type SourceFood } from './importer.js';
+import { pageFetcher, runImport, type SourceFood } from './importer.js';
 
 /** Real records of the source, cut down to what the importer reads. */
 const foods = JSON.parse(readFileSync(join(__dirname, 'fixtures/fdc-foods.json'), 'utf8')) as SourceFood[];
@@ -78,5 +78,83 @@ describe('importing foods', () => {
 
     expect(result.refused).toBe(150);
     expect(result.refusals).toHaveLength(100);
+  });
+});
+
+describe('asking the source for a page', () => {
+  const answer = (status: number, body: unknown = {}, headers: Record<string, string> = {}) =>
+    new Response(JSON.stringify(body), { status, headers });
+  const page = { totalHits: 0, totalPages: 1, currentPage: 1, foods: [] };
+
+  function fetcher(answers: Response[]) {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const waits: number[] = [];
+    const fetchPage = pageFetcher({
+      apiKey: 'a-secret-key',
+      dataTypes: 'Foundation,SR Legacy',
+      fetch: (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return Promise.resolve(answers.shift() ?? answer(500));
+      },
+      sleep: (ms) => {
+        waits.push(ms);
+        return Promise.resolve();
+      },
+    });
+    return { fetchPage, calls, waits };
+  }
+
+  it('sends the key in a header, not in the address, and gives the request a time limit', async () => {
+    const { fetchPage, calls } = fetcher([answer(200, page)]);
+
+    await fetchPage(3);
+
+    expect(calls[0]!.url).not.toContain('a-secret-key');
+    expect(calls[0]!.url).toContain('pageNumber=3');
+    expect(calls[0]!.url).toContain('dataType=Foundation%2CSR%20Legacy');
+    expect(new Headers(calls[0]!.init.headers).get('x-api-key')).toBe('a-secret-key');
+    expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('tries again when the source is busy or fails, waiting longer each time', async () => {
+    const { fetchPage, calls, waits } = fetcher([answer(429), answer(503), answer(200, page)]);
+
+    await expect(fetchPage(1)).resolves.toEqual(page);
+    expect(calls).toHaveLength(3);
+    expect(waits).toEqual([2000, 4000]);
+  });
+
+  it('waits as long as the source asks, up to a minute', async () => {
+    const { fetchPage, waits } = fetcher([answer(429, {}, { 'retry-after': '7' }), answer(429, {}, { 'retry-after': '3600' }), answer(200, page)]);
+
+    await fetchPage(1);
+
+    expect(waits).toEqual([7000, 60_000]);
+  });
+
+  it('gives up after four tries, and at once on an answer that trying again cannot change', async () => {
+    const busy = fetcher([answer(500), answer(500), answer(500), answer(500), answer(200, page)]);
+    await expect(busy.fetchPage(2)).rejects.toThrow('FDC API 500 on page 2');
+    expect(busy.calls).toHaveLength(4);
+
+    const refused = fetcher([answer(403), answer(200, page)]);
+    await expect(refused.fetchPage(1)).rejects.toThrow('FDC API 403 on page 1');
+    expect(refused.calls).toHaveLength(1);
+  });
+
+  it('tries again when the request itself fails', async () => {
+    const calls: number[] = [];
+    const fetchPage = pageFetcher({
+      apiKey: 'k',
+      dataTypes: 'Foundation',
+      fetch: () => {
+        calls.push(1);
+        return calls.length < 3 ? Promise.reject(new Error('socket hang up')) : Promise.resolve(answer(200, page));
+      },
+      sleep: () => Promise.resolve(),
+    });
+
+    await expect(fetchPage(1)).resolves.toEqual(page);
+    expect(calls).toHaveLength(3);
   });
 });
