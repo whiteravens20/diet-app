@@ -687,6 +687,7 @@
     "errGenerate": "Nie udało się wygenerować planu.",
     "errRecalculate": "Nie udało się przeliczyć planu.",
     "errChangeDay": "Nie udało się zmienić dnia.",
+    "dropLockAndRetry": "Usuń to przypięcie i spróbuj ponownie",
     "errSwap": "Nie udało się zamienić posiłku.",
     "errAiSwap": "Nie udało się dokonać zamiany przez AI.",
     "aiReason": "AI: {reason}",

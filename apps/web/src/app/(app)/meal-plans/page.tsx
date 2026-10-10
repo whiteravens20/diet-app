@@ -129,18 +129,28 @@ function MealPlansContent() {
     onError: fail(t('errGenerate')),
   });
 
-  const regenerate = useMutation({
-    mutationFn: (planId: string) => api.post<MealPlan>(`/meal-plans/${planId}/regenerate`),
-    onSuccess: invalidate,
-    onError: fail(t('errRecalculate')),
+  // A re-roll that was refused because a locked recipe may no longer go into
+  // the plan. The user can repeat it with that lock dropped.
+  const [staleLock, setStaleLock] = useState<{ planId: string; dayId?: string } | null>(null);
+  const reroll = (fallback: string) => ({
+    mutationFn: (v: { planId: string; dayId?: string; dropIneligibleLocks?: boolean }) =>
+      api.post<MealPlan>(
+        v.dayId ? `/meal-plans/${v.planId}/days/${v.dayId}/regenerate` : `/meal-plans/${v.planId}/regenerate`,
+        v.dropIneligibleLocks ? { dropIneligibleLocks: true } : undefined,
+      ),
+    onSuccess: () => {
+      setStaleLock(null);
+      invalidate();
+    },
+    onError: (e: unknown, v: { planId: string; dayId?: string }) => {
+      setStaleLock(
+        e instanceof ApiClientError && e.code === 'LOCKED_RECIPE_INELIGIBLE' ? { planId: v.planId, dayId: v.dayId } : null,
+      );
+      fail(fallback)(e);
+    },
   });
-
-  const regenerateDay = useMutation({
-    mutationFn: (v: { planId: string; dayId: string }) =>
-      api.post<MealPlan>(`/meal-plans/${v.planId}/days/${v.dayId}/regenerate`),
-    onSuccess: invalidate,
-    onError: fail(t('errChangeDay')),
-  });
+  const regenerate = useMutation(reroll(t('errRecalculate')));
+  const regenerateDay = useMutation(reroll(t('errChangeDay')));
 
   // Rebalance toast: surfaced after any edit that changed a day's totals.
   const [rebalanceToast, setRebalanceToast] = useState<{
@@ -373,6 +383,20 @@ function MealPlansContent() {
       </Card>
 
       {error && <p className="max-w-2xl text-sm text-destructive">{error}</p>}
+      {staleLock && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => {
+            setError(null);
+            (staleLock.dayId ? regenerateDay : regenerate).mutate({ ...staleLock, dropIneligibleLocks: true });
+          }}
+        >
+          {t('dropLockAndRetry')}
+        </Button>
+      )}
       {notice && (
         <p
           className="max-w-2xl rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
@@ -464,7 +488,7 @@ function MealPlansContent() {
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
               onRegenerate={() => {
                 setError(null);
-                regenerate.mutate(plan.id);
+                regenerate.mutate({ planId: plan.id });
               }}
               onDelete={() => {
                 setError(null);
