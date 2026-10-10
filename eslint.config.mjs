@@ -31,6 +31,12 @@ export default tseslint.config(
           message:
             'Resolve configuration through ConfigService / config/env.ts, not process.env directly.',
         },
+        {
+          // Which diets a recipe qualifies for follows from its ingredients.
+          selector: "Property[key.name='dietTags'] > ArrayExpression[elements.length>0]",
+          message:
+            'Diet tags are worked out by recipeFacts() from the ingredients; they are never written by hand.',
+        },
       ],
     },
   },
