@@ -71,7 +71,7 @@ INSTANCE_DATA_DIR=instance-data
 SHIP_UPSTREAM_ENABLED=false
 ```
 
-Mount `./instance-data` as a Docker volume on `api` and `worker`.
+Mount `./instance-data` as a Docker volume on `api` (the Compose files do).
 Approved rows hit the DB on every ship; the sidecar JSON accumulates
 in the volume. **Back up that volume the way you back up Postgres** —
 that single dir is enough to rebuild your custom catalogue on a fresh
