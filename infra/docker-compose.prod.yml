@@ -152,6 +152,9 @@ services:
       # private-repo-backed storage, override the volume in
       # docker-compose.override.yml with a host bind-mount pointing at
       # your private repo's working tree.
+      # Only this service mounts it: Docker fills a new volume from the image
+      # when a container first uses it, and two containers created at the same
+      # moment on one new volume make the first start fail.
       - instance-data:/app/instance-data
       # No `ports:` block — the API is reached by `web` over the internal Docker
       # network at `http://api:4000`, never from the public internet. If you
@@ -195,7 +198,6 @@ services:
       data-init: { condition: service_completed_successfully }
     volumes:
       - app-data:/app/data
-      - instance-data:/app/instance-data
 
   web:
     image: ghcr.io/whiteravens20/diet-app:${IMAGE_TAG:-latest}

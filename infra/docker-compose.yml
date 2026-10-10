@@ -106,6 +106,9 @@ services:
       # node-owned and the volume inherits it, so the runtime `node` user can
       # write. To pull a copy onto the host, use the zip download in the admin
       # UI or `docker run --rm -v diet-app_instance-data:/d alpine tar -C /d -cf - .`.
+      # Only this service mounts it: Docker fills a new volume from the image
+      # when a container first uses it, and two containers created at the same
+      # moment on one new volume make the first start fail.
       - instance-data:/app/instance-data
     ports:
       - '${API_PORT:-4000}:4000'
@@ -133,7 +136,6 @@ services:
       db-init: { condition: service_completed_successfully }
     volumes:
       - ../data:/app/data
-      - instance-data:/app/instance-data
 
   web:
     <<: *app-image
