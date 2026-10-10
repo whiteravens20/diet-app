@@ -9,9 +9,6 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { Prisma } from '@prisma/client';
 import {
   Allergen,
@@ -26,10 +23,8 @@ import {
   type AiDraftRecipeResponse,
   type AiFallbackReason,
   type Locale,
-  type Recipe,
 } from '@diet-app/shared';
 import { recipeFacts, UnitConversionError, type RecipeFacts } from '../engine/index.js';
-import type { Env } from '../config/env.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
 import { plainLine, readModelObject } from '../ai/model-json.js';
 import { recipeDraft } from '../ai/operations.js';
@@ -78,9 +73,8 @@ interface AiDraftPayload {
  * Drafts a brand-new recipe from a free-form user prompt. AI picks ingredients
  * + writes title/description/steps; the deterministic engine recomputes
  * per-serving nutrition before the row is persisted. The recipe is private to
- * the requester (`origin='ai'` + `createdByUserId`); on creation we also drop
- * a sidecar JSON in `INSTANCE_DATA_DIR/user-recipes/<userId>/<recipeId>.json`
- * so the operator's volume-backup picks it up alongside other curated data.
+ * the requester (`origin='ai'` + `createdByUserId`) and lives in the database
+ * only: nothing about a user is written to the instance's data files.
  */
 @Injectable()
 export class AiRecipeDraftService {
@@ -89,7 +83,6 @@ export class AiRecipeDraftService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiRouterService,
-    private readonly config: ConfigService<Env, true>,
     private readonly dedup: DedupService,
   ) {}
 
@@ -359,10 +352,7 @@ export class AiRecipeDraftService {
         ...this.translationsInclude(locale),
       },
     });
-    const recipe = toRecipeDto(created, locale);
-    this.writeSidecar(userId, recipe, { request: req, aiMeta: meta });
-
-    return { recipe, aiMeta: meta };
+    return { recipe: toRecipeDto(created, locale), aiMeta: meta };
   }
 
   /**
@@ -533,41 +523,6 @@ export class AiRecipeDraftService {
   private translationsInclude(locale: Locale) {
     const locales = locale === 'en' ? ['en'] : [locale, 'en'];
     return { translations: { where: { locale: { in: locales } } } } as const;
-  }
-
-  /**
-   * Drop a sidecar JSON under `INSTANCE_DATA_DIR/user-recipes/<userId>/<id>.json`
-   * so the operator's volume-backup captures user-authored AI recipes alongside
-   * the rest of the curated data. Best-effort — a sidecar failure must not roll
-   * back the DB write.
-   */
-  private writeSidecar(
-    userId: string,
-    recipe: Recipe,
-    extra: { request: AiDraftRecipeRequest; aiMeta: AiDraftRecipeResponse['aiMeta'] },
-  ): void {
-    try {
-      const raw = this.config.get('INSTANCE_DATA_DIR', { infer: true }) ?? 'instance-data';
-      const root = isAbsolute(raw) ? raw : resolve(process.cwd(), raw);
-      const path = join(root, 'user-recipes', userId, `${recipe.id}.json`);
-      mkdirSync(dirname(path), { recursive: true });
-      writeFileSync(
-        path,
-        JSON.stringify(
-          {
-            ...recipe,
-            draftedAt: new Date().toISOString(),
-            request: extra.request,
-            aiMeta: extra.aiMeta,
-          },
-          null,
-          2,
-        ),
-        'utf8',
-      );
-    } catch (err) {
-      this.logger.warn(`Sidecar write failed for ${recipe.id}: ${(err as Error).message}`);
-    }
   }
 }
 
