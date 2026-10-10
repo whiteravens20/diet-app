@@ -8,10 +8,11 @@
  * prefer the CLI over the admin UI.
  *
  * Usage:
- *   FDC_API_KEY=<key> npm run import:usda      # api.data.gov/signup; 1000 req/hr
+ *   FDC_API_KEY=<key> npm run import:usda      # a free key from api.data.gov/signup;
  *                                              # Foundation only (~340 foods).
- *   npm run import:usda                        # DEMO_KEY + Foundation only
- *                                              # (fits in 30 req/hr quota).
+ *   npm run import:usda                        # the public DEMO_KEY, which allows
+ *                                              # a few requests an hour: Foundation
+ *                                              # at most.
  *
  * `FDC_DATA_TYPES` can include `SR Legacy` to pull the ~7 k legacy corpus, but
  * the result is dominated by brand SKUs and cut-specific entries that pollute
@@ -26,7 +27,7 @@ const outDir = join(dirname(fileURLToPath(import.meta.url)), '../../../data');
 async function main(): Promise<void> {
   const { apiKey, dataTypes } = settingsFromEnvironment(process.env);
   if (apiKey === 'DEMO_KEY') {
-    console.warn('⚠ Using DEMO_KEY (30 req/hr). Set FDC_API_KEY for a real key.');
+    console.warn('⚠ Using the public DEMO_KEY, which allows only a few requests an hour. Set FDC_API_KEY for a key of your own.');
   }
   console.log(`Bulk-importing ${dataTypes} from USDA FDC at 200/page…`);
 
