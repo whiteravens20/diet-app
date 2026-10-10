@@ -61,6 +61,14 @@ admin panel:
    include `SR Legacy` for the full ~7 k corpus, but see
    [data/README.md](../../data/README.md#choosing-fdc_data_types) for why that
    is rarely worth it.
+   **Run import** on the admin panel does the same from inside the API
+   container, which writes into `data/` on the host as user 1000. Where the
+   repository belongs to another user (root on a server, for example), give
+   that user the directory first: `chown 1000 data`. The panel says so when it
+   cannot write, and asks nothing of the food database until it can. Without
+   `FDC_API_KEY` the import uses the public demonstration key, which allows
+   only a few requests an hour; when that is used up the panel says when to
+   try again.
 3. Click **Update Database**. Subsequent edits or re-imports show
    "update available" via a sha256 of `data/*.json` stored in `SeedMeta`.
 
