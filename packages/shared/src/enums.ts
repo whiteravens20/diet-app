@@ -29,6 +29,20 @@ export const DietType = z.enum([
 ]);
 export type DietType = z.infer<typeof DietType>;
 
+/**
+ * The diets a recipe has to qualify for. A recipe's `dietTags` hold the ones it
+ * does, and they are worked out from its ingredients, never written by hand.
+ * The remaining diets (balanced, high-protein, custom) take any recipe: they
+ * are a matter of how a day is put together, not of what a single recipe is.
+ */
+export const RecipeDietTag = z.enum(['vegetarian', 'vegan', 'mediterranean', 'low_carb', 'keto']);
+export type RecipeDietTag = z.infer<typeof RecipeDietTag>;
+
+/** True when a recipe with these tags may be planned for someone on `diet`. */
+export function fitsDiet(dietTags: readonly string[], diet: DietType): boolean {
+  return !RecipeDietTag.safeParse(diet).success || dietTags.includes(diet);
+}
+
 /** Weekly fat-loss target in kg. Drives the daily calorie deficit. */
 export const WeeklyLossTarget = z.enum(['0.25', '0.5', '0.75', '1.0']);
 export type WeeklyLossTarget = z.infer<typeof WeeklyLossTarget>;

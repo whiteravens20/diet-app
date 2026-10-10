@@ -6,6 +6,7 @@
  */
 export * from './nutrition.js';
 export * from './units.js';
+export * from './recipe-facts.js';
 export * from './substitution.js';
 export * from './shopping.js';
 export * from './optimizer.js';
