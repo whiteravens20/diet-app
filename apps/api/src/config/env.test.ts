@@ -134,6 +134,17 @@ describe('the shipped .env.example', () => {
   });
 });
 
+describe('the data sets the food import reads', () => {
+  it('are taken as a list, each of the two the importer knows', () => {
+    expect(validateEnv(valid({ FDC_DATA_TYPES: 'Foundation, SR Legacy' })).FDC_DATA_TYPES).toBe('Foundation,SR Legacy');
+    expect(validateEnv(valid()).FDC_DATA_TYPES).toBe('Foundation');
+  });
+
+  it('are refused at start-up when one is not a data set the importer knows', () => {
+    expect(() => validateEnv(valid({ FDC_DATA_TYPES: 'Foundation,Branded' }))).toThrow(/FDC_DATA_TYPES/);
+  });
+});
+
 describe('describePosture', () => {
   const env = () => validateEnv(valid({ APP_URL: 'https://diet.example.org', ADMIN_PASSWORD: 'a-real-admin-password', TRUST_PROXY: '1' }));
 

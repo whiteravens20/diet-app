@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { DietType, MEAL_SLOTS_BY_COUNT, ProfileInput, RecipeDietTag, RegisterRequest, fitsDiet } from './index.js';
+import { DietType, FdcDataTypes, MEAL_SLOTS_BY_COUNT, ProfileInput, RecipeDietTag, RegisterRequest, fitsDiet } from './index.js';
 
 describe('fitsDiet', () => {
   it.each(RecipeDietTag.options)('admits a recipe to a %s plan only when it carries that tag', (diet) => {
@@ -19,6 +19,24 @@ describe('fitsDiet', () => {
     const needsTag = DietType.options.filter((diet) => !fitsDiet([], diet));
     expect([...needsTag].sort()).toEqual([...RecipeDietTag.options].sort());
   });
+});
+
+describe('the data sets of the food database an import may name', () => {
+  it.each([
+    ['Foundation', 'Foundation'],
+    ['Foundation,SR Legacy', 'Foundation,SR Legacy'],
+    [' SR Legacy , Foundation ', 'SR Legacy,Foundation'],
+    [['Foundation', 'SR Legacy'], 'Foundation,SR Legacy'],
+  ])('takes %j', (given, parsed) => {
+    expect(FdcDataTypes.parse(given)).toBe(parsed);
+  });
+
+  it.each(['', ' , ', 'Branded', 'Foundation,Branded', 'Foundation,Foundation', 'foundation', ['Foundation', 'Survey (FNDDS)'], 42])(
+    'refuses %j',
+    (given) => {
+      expect(FdcDataTypes.safeParse(given).success).toBe(false);
+    },
+  );
 });
 
 describe('API contract schemas', () => {

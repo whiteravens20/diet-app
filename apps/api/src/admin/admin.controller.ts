@@ -16,7 +16,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { FdcDataTypes } from '@diet-app/shared';
 import type { Request } from 'express';
+import { z } from 'zod';
+import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
@@ -179,8 +182,10 @@ export class AdminController {
   @Post('db/import-usda')
   @HttpCode(202)
   @UseGuards(BasicAuthGuard)
-  startUsdaImport(@Query('dataTypes') dataTypes: string | undefined): ImportRunnerState {
-    const started = this.importer.start(dataTypes);
+  startUsdaImport(
+    @Query(new ZodValidationPipe(z.object({ dataTypes: FdcDataTypes.optional() }))) query: { dataTypes?: string },
+  ): ImportRunnerState {
+    const started = this.importer.start(query.dataTypes);
     if (!started) {
       throw new ConflictException({
         error: 'IMPORT_IN_PROGRESS',

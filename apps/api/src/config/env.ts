@@ -8,6 +8,7 @@
  * optional keys as `KEY=`, and such a line must mean "use the default", never
  * "the value is an empty string".
  */
+import { FdcDataTypes } from '@diet-app/shared';
 import { z } from 'zod';
 import { describeTrustProxy, parseTrustProxy } from './trust-proxy.js';
 
@@ -75,7 +76,7 @@ export const envSchema = z.object({
   // USDA FoodData Central importer (admin-triggered). `DEMO_KEY` is FDC's public
   // rate-limited key; operators set a real key for bulk imports.
   FDC_API_KEY: z.string().default('DEMO_KEY'),
-  FDC_DATA_TYPES: z.string().default('Foundation'),
+  FDC_DATA_TYPES: FdcDataTypes.default('Foundation'),
 
   // Override the curated `data/` directory location (tests / non-standard
   // layouts). Read by the non-DI CLI path helper `admin/seed/data-hash.ts`.

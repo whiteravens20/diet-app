@@ -117,6 +117,29 @@ export const Allergen = z.enum([
 ]);
 export type Allergen = z.infer<typeof Allergen>;
 
+/** The data sets of USDA FoodData Central the importer can read. */
+export const FdcDataType = z.enum(['Foundation', 'SR Legacy']);
+export type FdcDataType = z.infer<typeof FdcDataType>;
+
+/**
+ * One or more of them, each named once, given as a comma-separated list or as
+ * a list. Parsed to the comma-separated form the source's own API takes.
+ */
+export const FdcDataTypes = z
+  .union([z.string(), z.array(z.string())])
+  .transform((value) =>
+    (Array.isArray(value) ? value : value.split(','))
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0),
+  )
+  .pipe(
+    z
+      .array(FdcDataType)
+      .min(1)
+      .refine((list) => new Set(list).size === list.length, { message: 'A data set is named twice.' }),
+  )
+  .transform((list) => list.join(','));
+
 /** Supported AI providers. */
 export const AiProvider = z.enum(['openai', 'anthropic', 'openrouter', 'ollama']);
 export type AiProvider = z.infer<typeof AiProvider>;
