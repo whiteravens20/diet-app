@@ -751,12 +751,12 @@ function PlanCard({
                             </button>
                           )}
                           {isCustom && (
-                            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
                               {t('customChip')}
                             </span>
                           )}
                           {m.dietOverride && (
-                            <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                            <span className="ml-2 whitespace-nowrap rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
                               {t('dietOverrideChip')}
                             </span>
                           )}
@@ -765,13 +765,13 @@ function PlanCard({
                             <span
                               key={conflict}
                               title={t(`conflictHint.${conflict}`)}
-                              className="ml-2 rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
+                              className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
                             >
                               {t(`conflictChip.${conflict}`)}
                             </span>
                           ))}
                           {m.quantityScale !== 1 && (
-                            <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
                               {t('autoBalancedChip', { scale: m.quantityScale.toFixed(2) })}
                             </span>
                           )}
