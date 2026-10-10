@@ -16,10 +16,19 @@ import {
   DeleteAccountRequest,
   UpdateUserSettings,
 } from '@diet-app/shared';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { UsersService } from './users.service.js';
+
+/**
+ * Five a minute for each of the three routes that check the current password
+ * (changing it, changing the address, deleting the account), counted against
+ * the signed-in user: a stolen access token is no way to guess at the
+ * password, and nobody keeps the password check busy with their own token.
+ */
+const PASSWORD_CHECK = { default: { limit: 5, ttl: 60_000 } };
 
 @Controller('users/me')
 @UseGuards(JwtAuthGuard)
@@ -41,6 +50,7 @@ export class UsersController {
 
   @Post('password')
   @HttpCode(204)
+  @Throttle(PASSWORD_CHECK)
   async changePassword(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(ChangePasswordRequest)) dto: ChangePasswordRequest,
@@ -50,6 +60,7 @@ export class UsersController {
 
   @Post('email')
   @HttpCode(202)
+  @Throttle(PASSWORD_CHECK)
   async requestEmailChange(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(ChangeEmailRequest)) dto: ChangeEmailRequest,
@@ -65,6 +76,7 @@ export class UsersController {
 
   @Delete()
   @HttpCode(204)
+  @Throttle(PASSWORD_CHECK)
   async deleteAccount(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(DeleteAccountRequest)) dto: DeleteAccountRequest,

@@ -108,6 +108,26 @@ when told to, because without a proxy in front anybody can write that header the
 Never set `TRUST_PROXY` on an instance whose web or API port is reachable directly: a
 visitor could then claim any address, and with it somebody else's allowance.
 
+### Rate limits
+
+Every route is limited, and a request is counted against the most specific thing that
+is known about its sender:
+
+| Request | Counted against | Limit |
+|---|---|---|
+| With a valid sign-in | The user | `RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW` and route; less on AI routes |
+| Sign-in | The account being signed in to | 10 a minute |
+| Password-reset request | The address the reset is for | 5 in 15 minutes |
+| Token refresh, sign-out, links from mails | The token presented | 10 a minute |
+| Changing the password or address, deleting the account | The user | 5 a minute each |
+| Creating an account, everything else without a sign-in | The client's address | 10 a minute for sign-up, otherwise `RATE_LIMIT_MAX` |
+| Health and public configuration | Not limited | |
+
+So wrong passwords for one account slow down that account's sign-in and nobody else's,
+whether or not `TRUST_PROXY` is set. What is counted against the address is only as good
+as the address: without `TRUST_PROXY` it is one allowance for the whole instance, and
+sign-ups, for example, stop for everybody once ten were tried in a minute.
+
 ## Ollama / GPU
 
 ```bash

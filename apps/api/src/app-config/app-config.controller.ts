@@ -2,6 +2,7 @@
 
 import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { PublicConfig } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
@@ -14,7 +15,12 @@ import { PACKAGE_VERSION } from './package-version.js';
  * render Turnstile + the site key, whether email flows are available) and what
  * the operator publishes about the instance. Mirrors the unauthenticated
  * HealthController.
+ *
+ * Not limited: it reads nothing but the process's own settings, every page
+ * needs it before anybody is signed in, and visitors behind one proxy would
+ * otherwise use up one another's allowance for it.
  */
+@SkipThrottle()
 @Controller('config')
 export class AppConfigController {
   constructor(

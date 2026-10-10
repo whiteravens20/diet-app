@@ -3,7 +3,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AdminModule } from './admin/admin.module.js';
 import { DraftsModule } from './admin/drafts/drafts.module.js';
 import { AiModule } from './ai/ai.module.js';
@@ -19,6 +19,7 @@ import { InventoryModule } from './inventory/inventory.module.js';
 import { MealPlansModule } from './meal-plans/meal-plans.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { ClientThrottlerGuard } from './rate-limit/client-throttler.guard.js';
 import { ProfilesModule } from './profiles/profiles.module.js';
 import { RecipesModule } from './recipes/recipes.module.js';
 import { ReviewModule } from './review/review.module.js';
@@ -36,6 +37,7 @@ import { WeightsModule } from './weights/weights.module.js';
       ignoreEnvFile: IGNORE_ENV_FILES,
     }),
     // Global rate limiting — active regardless of whether Turnstile is enabled.
+    // Whom a request is counted against: see ClientThrottlerGuard.
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
@@ -68,6 +70,6 @@ import { WeightsModule } from './weights/weights.module.js';
     WeightsModule,
     NotificationsModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: ClientThrottlerGuard }],
 })
 export class AppModule {}
