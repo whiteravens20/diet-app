@@ -43,6 +43,8 @@ async function bootstrap(): Promise<void> {
     SMTP_HOST: config.get('SMTP_HOST', { infer: true }),
     SMTP_PORT: config.get('SMTP_PORT', { infer: true }),
     AI_DEFAULT_PROVIDER: config.get('AI_DEFAULT_PROVIDER', { infer: true }),
+    AI_ADMIN_USER_MONTHLY_LIMIT: config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true }),
+    AI_ADMIN_INSTANCE_MONTHLY_LIMIT: config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true }),
     SWAGGER_ENABLED: config.get('SWAGGER_ENABLED', { infer: true }),
   });
   for (const line of posture) {

@@ -38,10 +38,13 @@ const COUNTED = Prisma.sql`
 
 type Db = Pick<Prisma.TransactionClient, '$queryRaw'>;
 
+const ofUser = (userId: string | null): Prisma.Sql =>
+  userId === null ? Prisma.empty : Prisma.sql`AND "userId" = ${userId}`;
+
 /**
- * The log of calls to AI providers, and the monthly allowance of a user on the
- * operator's provider, which is counted from it. Calls on a user's own
- * provider are logged but never limited.
+ * The log of calls to AI providers, and the two monthly allowances on the
+ * operator's provider that are counted from it: one per user, one for all
+ * users together. Calls on a user's own provider are logged but never limited.
  *
  * **Time source.** All rolling-window arithmetic uses the database's `NOW()`
  * rather than JS `Date.now()`. The api container's wall clock is allowed to
@@ -76,6 +79,11 @@ export class AiQuotaService {
     return this.config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true });
   }
 
+  /** Monthly call limit of the operator's provider for all users together. */
+  instanceLimit(): number {
+    return this.config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true });
+  }
+
   /**
    * Snapshot the user's quota — what the app-shell chip and Settings card
    * render. `limit` is the operator's env-configured monthly cap and is
@@ -87,6 +95,7 @@ export class AiQuotaService {
    */
   async status(userId: string, mode: AiMode): Promise<AiQuotaStatus> {
     const used = await this.countUsed(this.prisma, userId);
+    const instanceLimitReached = (await this.countUsed(this.prisma, null)) >= this.instanceLimit();
     const adminProviderConfigured = this.isAdminProviderConfigured();
     const limit = this.monthlyLimit();
     if (mode !== 'admin') {
@@ -96,6 +105,7 @@ export class AiQuotaService {
         used,
         remaining: null,
         resetAt: null,
+        instanceLimitReached,
         adminProviderConfigured,
       };
     }
@@ -103,8 +113,10 @@ export class AiQuotaService {
       mode,
       limit,
       used,
-      remaining: Math.max(0, limit - used),
-      resetAt: await this.oldestCountedAt(userId),
+      remaining: instanceLimitReached ? 0 : Math.max(0, limit - used),
+      // While the instance is full, a place comes free when its oldest call ages out.
+      resetAt: await this.oldestCountedAt(instanceLimitReached ? null : userId),
+      instanceLimitReached,
       adminProviderConfigured,
     };
   }
@@ -112,8 +124,9 @@ export class AiQuotaService {
   /**
    * Record that a provider is about to be asked, and return the row to settle
    * when it answers. For the operator's provider this is also where the
-   * allowance is enforced: the count and the new row are written under one
-   * lock, so calls started at the same moment cannot all take the last place.
+   * allowances are enforced, the user's and the instance's: the counts and
+   * the new row are written under one lock, so calls started at the same
+   * moment cannot all take the last place.
    */
   async begin(userId: string, call: UsageCall): Promise<{ id: string } | { refused: AiFallbackReason }> {
     const data = { userId, ...call, outcome: 'PENDING' as const };
@@ -126,6 +139,9 @@ export class AiQuotaService {
       if (limit === 0 || (await this.countUsed(tx, userId)) >= limit) {
         return { refused: 'quota_exhausted' as const };
       }
+      if ((await this.countUsed(tx, null)) >= this.instanceLimit()) {
+        return { refused: 'instance_quota_exhausted' as const };
+      }
       return tx.aiUsageLog.create({ data, select: { id: true } });
     });
   }
@@ -135,20 +151,21 @@ export class AiQuotaService {
     await this.prisma.aiUsageLog.update({ where: { id }, data: result });
   }
 
-  private async countUsed(db: Db, userId: string): Promise<number> {
+  /** Counted calls of one user, or of the whole instance when `userId` is null. */
+  private async countUsed(db: Db, userId: string | null): Promise<number> {
     const rows = await db.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
       SELECT COUNT(*)::bigint AS count
       FROM "AiUsageLog"
-      WHERE "userId" = ${userId} AND ${COUNTED}
+      WHERE ${COUNTED} ${ofUser(userId)}
     `);
     return Number(rows[0]?.count ?? 0n);
   }
 
-  private async oldestCountedAt(userId: string): Promise<string | null> {
+  private async oldestCountedAt(userId: string | null): Promise<string | null> {
     const rows = await this.prisma.$queryRaw<Array<{ resetAt: Date | null }>>(Prisma.sql`
       SELECT MIN("createdAt") + INTERVAL '30 days' AS "resetAt"
       FROM "AiUsageLog"
-      WHERE "userId" = ${userId} AND ${COUNTED}
+      WHERE ${COUNTED} ${ofUser(userId)}
     `);
     const resetAt = rows[0]?.resetAt;
     return resetAt ? resetAt.toISOString() : null;

@@ -64,6 +64,9 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  * from the engine and not from a model.
  *
  * - `quota_exhausted`     — `aiMode='admin'` user hit the monthly quota.
+ * - `instance_quota_exhausted` — the operator's provider has served as many
+ *                           calls as the instance allows in a month; it is
+ *                           closed to every user until calls age out.
  * - `no_provider`         — `aiMode='none'`, or `byok` with no enabled
  *                           config, or `admin` with no configured admin
  *                           default (the operator didn't set
@@ -79,6 +82,7 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  */
 export const AiFallbackReason = z.enum([
   'quota_exhausted',
+  'instance_quota_exhausted',
   'no_provider',
   'all_providers_failed',
   'provider_timeout',
@@ -117,14 +121,24 @@ export const AiQuotaStatus = z.object({
   limit: z.number().int().nonnegative(),
   /** Calls in the trailing 30-day window. Only meaningful for `admin`. */
   used: z.number().int().nonnegative(),
-  /** `limit - used`, clamped at 0. `null` when no quota applies to the caller. */
+  /**
+   * Calls the caller can still make: `limit - used`, clamped at 0, and 0 while
+   * `instanceLimitReached`. `null` when no quota applies to the caller.
+   */
   remaining: z.number().int().nonnegative().nullable(),
   /**
-   * ISO timestamp of when the oldest counted call drops out of the rolling
-   * window — i.e. when `used` will decrement by at least one. Null when
-   * `used === 0` or quota does not apply.
+   * ISO timestamp of when a place comes free again: the oldest call counted
+   * against the limit that binds (the caller's own, or the instance's while
+   * `instanceLimitReached`) drops out of the rolling window. Null when nothing
+   * is counted or quota does not apply.
    */
   resetAt: z.string().datetime().nullable(),
+  /**
+   * True when all users together have used what the instance allows on the
+   * operator's provider (`AI_ADMIN_INSTANCE_MONTHLY_LIMIT`), whatever is left
+   * of the caller's own allowance.
+   */
+  instanceLimitReached: z.boolean(),
   /** Whether `AI_DEFAULT_PROVIDER` is set (gates the `admin` mode option). */
   adminProviderConfigured: z.boolean(),
 });

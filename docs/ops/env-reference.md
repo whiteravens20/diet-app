@@ -44,6 +44,7 @@ Two rules apply to every variable:
 | `OLLAMA_USER_POLICY` | `allowlist` | Whether a user may point their own Ollama configuration at a host: `off` (never), `allowlist` (only the host of `OLLAMA_BASE_URL` and `OLLAMA_ALLOWED_HOSTS`), `public` (any host that is not internal, private or loopback). |
 | `OLLAMA_ALLOWED_HOSTS` | — | Comma-separated `host` or `host:port` entries added to the allowlist. |
 | `AI_ADMIN_USER_MONTHLY_LIMIT` | `40` | AI calls per user in a rolling 30 days when the operator's provider is used. Only calls the provider completed are counted: an error, a refused connection or a timeout costs the user nothing. `0` denies that mode. Users with their own key are not counted. |
+| `AI_ADMIN_INSTANCE_MONTHLY_LIMIT` | `1000` | AI calls of all users together on the operator's provider in a rolling 30 days. This is the number that bounds the operator's bill, however many accounts are registered; once it is reached the provider is closed to everyone until calls age out, and users are told so. Counted like the per-user limit. |
 | `FDC_API_KEY` | `DEMO_KEY` | USDA importer key — see [ops/deployment.md](deployment.md). |
 | `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC dataTypes. Default ≈ 340 clean generic foods. Adding `SR Legacy` swells the corpus to ~7 k, but most additions are brand SKUs or hyper-specific cuts that pollute template-generated recipes — see [data/README.md](../../data/README.md#choosing-fdc_data_types). |
 

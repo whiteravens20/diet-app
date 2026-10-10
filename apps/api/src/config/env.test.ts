@@ -141,6 +141,13 @@ describe('describePosture', () => {
     expect(describePosture(env()).filter((line) => line.startsWith('!'))).toEqual([]);
   });
 
+  it('states both limits on the operator\'s AI provider when there is one', () => {
+    expect(describePosture(env())).toContain('operator AI provider: none');
+    expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai' })).toContain(
+      'operator AI provider: openai, at most 40 calls per user and 1000 for the whole instance in 30 days',
+    );
+  });
+
   it('warns about a public origin that is not https and about Swagger in production', () => {
     const lines = describePosture({ ...env(), APP_URL: 'http://192.0.2.10:3000', SWAGGER_ENABLED: true });
     expect(lines.filter((line) => line.startsWith('!'))).toHaveLength(2);

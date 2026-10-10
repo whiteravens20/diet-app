@@ -51,6 +51,9 @@ export const envSchema = z.object({
   // 'byok' and 'none' users do not consume this. Set to 0 to deny the admin
   // mode entirely without unsetting AI_DEFAULT_PROVIDER.
   AI_ADMIN_USER_MONTHLY_LIMIT: z.coerce.number().int().min(0).max(1_000_000).default(40),
+  // The same window for all users together: the one number that bounds what
+  // the operator's provider can be asked for, however many accounts exist.
+  AI_ADMIN_INSTANCE_MONTHLY_LIMIT: z.coerce.number().int().min(0).max(100_000_000).default(1000),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
@@ -243,7 +246,15 @@ export function validateEnv(raw: Record<string, unknown>): Env {
 export function describePosture(
   env: Pick<
     Env,
-    'NODE_ENV' | 'APP_URL' | 'ADMIN_PASSWORD' | 'SMTP_HOST' | 'SMTP_PORT' | 'AI_DEFAULT_PROVIDER' | 'SWAGGER_ENABLED'
+    | 'NODE_ENV'
+    | 'APP_URL'
+    | 'ADMIN_PASSWORD'
+    | 'SMTP_HOST'
+    | 'SMTP_PORT'
+    | 'AI_DEFAULT_PROVIDER'
+    | 'AI_ADMIN_USER_MONTHLY_LIMIT'
+    | 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT'
+    | 'SWAGGER_ENABLED'
   >,
 ): string[] {
   const https = env.APP_URL.startsWith('https://');
@@ -254,7 +265,9 @@ export function describePosture(
       : `! public origin ${env.APP_URL} is not https: session cookies travel unprotected outside a trusted network`,
     isAdminEnabled(env) ? 'admin panel: enabled' : 'admin panel: disabled (ADMIN_PASSWORD not set)',
     env.SMTP_HOST ? `mail: ${env.SMTP_HOST}:${env.SMTP_PORT}` : 'mail: not configured (accounts are verified on sign-up, no password reset)',
-    env.AI_DEFAULT_PROVIDER ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}` : 'operator AI provider: none',
+    env.AI_DEFAULT_PROVIDER
+      ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days`
+      : 'operator AI provider: none',
     env.SWAGGER_ENABLED && env.NODE_ENV === 'production'
       ? '! API documentation is served at /api/docs on a production instance'
       : `API documentation: ${env.SWAGGER_ENABLED ? 'served at /api/docs' : 'off'}`,
