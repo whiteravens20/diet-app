@@ -3,9 +3,9 @@
 Practical guidance for picking provider + model combinations that work for
 this app's AI surfaces. The deterministic engine owns every quantitative
 claim — the AI's job is structure, names, and prose. The hard requirements
-are JSON-shape compliance, latency under the 60s per-provider deadline (see
-[apps/api/src/ai/providers/ollama.provider.ts](../../apps/api/src/ai/providers/ollama.provider.ts)),
-and reasonable Polish when a non-`en` locale is in scope.
+are JSON-shape compliance, an answer inside the wait of the request (see
+[Limits on every request](#limits-on-every-request)), and reasonable Polish
+when a non-`en` locale is in scope.
 
 The recommendations below are opinionated and grounded in the actual prompt
 sizes and JSON shapes this codebase produces. They are not a survey of "good
@@ -34,6 +34,43 @@ or aggressively-quantised models fail this consistently; the
 `AI_DRAFT_INVALID` toast traces back to this almost every time. The post-fix
 WARN log in [ai-recipe-draft.service.ts:209](../../apps/api/src/recipes/ai-recipe-draft.service.ts#L209)
 prints the model's raw response so you can diagnose without guessing.
+
+---
+
+## Limits on every request
+
+Every request to a model carries three limits, set per kind of request in
+[apps/api/src/ai/operations.ts](../../apps/api/src/ai/operations.ts). No request
+runs on a provider's defaults.
+
+| Request | Wait | Output cap | Temperature |
+|---|---|---|---|
+| AI meal swap, AI ingredient suggestion | 60 s | 400 tokens | 0.2 |
+| Recipe draft from prompt | 60 s | 1,800 tokens for one language, 1,200 more for each further one | 0.7 |
+| Swap rewrite | 20 s per language, all languages at once | 3,000 tokens | 0.3 |
+| Admin recipe batch | 180 s per call | about 1,100 tokens per recipe in one language, 700 more for each further one | 0.2 |
+| Admin ingredient names | 180 s per call | about 80 tokens per name in one language | 0.2 |
+
+- **The wait covers the whole failover chain.** With one provider it gets the
+  full wait. With several, each provider still to be tried gets an equal share
+  of what is left: a chain of a local model and a cloud model gives the local
+  one 30 seconds, and the cloud one everything that remains. A provider that
+  fails at once (a wrong key, a refused connection) costs the next one nothing.
+- **A provider is called once.** The API does not let the provider libraries
+  retry on their own; trying the next provider is the router's decision.
+- **A wait that runs out is reported as such.** The user sees that the model
+  was too slow, and the engine's own pick is used where there is one.
+- **An answer that reaches its cap is treated as cut off.** The caps are about
+  twice a typical answer. Admin runs ask again and show `answer-cut-off`.
+  Models that think before they answer spend the cap on thinking: use one that
+  does not for swaps, or expect the engine's pick.
+- **Admin batches are split into calls.** A run of 25 recipes in two languages
+  is nine calls of three recipes or fewer; each call sees what the earlier ones
+  wrote, so the run does not repeat itself. A rejected call fails only its own
+  recipes.
+
+The web front-end and any reverse proxy in front of it must wait longer than
+the API does; see [Reverse proxy](deployment.md#reverse-proxy).
 
 ---
 
@@ -68,7 +105,7 @@ paid model for large batches.
 
 "Real" means **≥12 GB VRAM** so a 14B Q4 model fits entirely on the GPU.
 Anything less and you are partial-offloading, which collapses to <5 tok/s
-and trips the 60s per-provider deadline on the recipe-draft prompt.
+and runs out of the 60-second wait on the recipe-draft prompt.
 
 | Class | Model | Fits in | Notes |
 |---|---|---|---|
@@ -85,9 +122,9 @@ via `AI_DEFAULT_MODEL` for admin-mode.
 
 Honest answer: this tier is **not viable for recipe drafting or the admin
 recipe batch generator**. The combination of strict JSON and 2-locale output
-needs a model that simply does not run fast enough on CPU/iGPU to clear the
-60s deadline. Use cloud for those surfaces and reserve local Ollama for the
-lighter ones.
+needs a model that simply does not run fast enough on CPU/iGPU to answer
+inside the 60-second wait. Use cloud for those surfaces and reserve local
+Ollama for the lighter ones.
 
 | Surface | Viable model on CPU/iGPU | Notes |
 |---|---|---|
@@ -121,10 +158,10 @@ WARN lines showing prose preambles or missing locale keys.
   with operator polish in /admin/curation"; ≥24B is "ships unedited". The
   reviewer interface is the right surface for polishing low-end output rather
   than jumping to a bigger model.
-- **Temperature.** Drafting paths run at `temperature: 0.7` for variety;
-  translation runs at `0.2` for fidelity. Don't raise translation
-  temperature — it produces "creative" mistranslations that pass the
-  validator.
+- **Temperature.** A recipe draft runs at `0.7` for variety; picking from a
+  list, naming and translation run at `0.2` for fidelity. Don't raise the
+  translation temperature — it produces "creative" mistranslations that pass
+  the validator.
 
 ---
 
@@ -140,8 +177,9 @@ WARN lines showing prose preambles or missing locale keys.
 
 The router's failover means you can chain providers — e.g. a free
 OpenRouter primary with local Ollama secondary. When the primary times out
-or rate-limits, the request silently rolls to the next without bothering
-the user.
+or rate-limits, the request moves on to the next one; the providers of a
+chain share the wait of the request, as described under
+[Limits on every request](#limits-on-every-request).
 
 ---
 
