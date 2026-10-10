@@ -6,6 +6,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { InjectThrottlerOptions, InjectThrottlerStorage, ThrottlerGuard, type ThrottlerModuleOptions, type ThrottlerStorage } from '@nestjs/throttler';
 import type { Env } from '../config/env.js';
+import { countedAddress } from './client-address.js';
 
 /**
  * The limiter in front of every route, and whom it counts a request against.
@@ -43,7 +44,7 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
 
   protected override async getTracker(req: Record<string, unknown>): Promise<string> {
     const user = this.signedInUser(req);
-    return user ? `user:${user}` : `addr:${await super.getTracker(req)}`;
+    return user ? `user:${user}` : `addr:${countedAddress(req.ip)}`;
   }
 
   /**

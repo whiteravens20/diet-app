@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { isIP } from 'node:net';
+import { countedAddress } from './client-address.js';
 
 /** The wrong sign-in in a row after which a client has to wait. */
 const ATTEMPTS_BEFORE_WAIT = 5;
@@ -20,14 +20,6 @@ interface Attempts {
 }
 
 /**
- * A client as the gate remembers and logs it: its address. Where a proxy that
- * is set up wrongly lets something else arrive in its place, that is one
- * client called `unknown`, not a text of any length kept in memory and
- * written into the log.
- */
-const named = (client: string): string => (isIP(client) ? client : 'unknown');
-
-/**
  * Slows down guessing at a password that has no account behind it to count
  * attempts against: the administrator's and the reviewers'.
  *
@@ -37,9 +29,11 @@ const named = (client: string): string => (isIP(client) ? client : 'unknown');
  * Every failure is logged with the client's address, so that an operator sees
  * an attack in the log.
  *
- * A client is its address. Behind the web server with `TRUST_PROXY` off that
- * is one address for everybody: guessing then also keeps the real
- * administrator waiting. The log says so, and the remedy is `TRUST_PROXY`.
+ * A client is its address as every limit counts it (`countedAddress`): an
+ * IPv6 network is one client, and so is everything that is not an address.
+ * Behind the web server with `TRUST_PROXY` off that is one address for
+ * everybody: guessing then also keeps the real administrator waiting. The log
+ * says so, and the remedy is `TRUST_PROXY`.
  *
  * Counts live in this process: an instance with several API processes allows
  * as many times the attempts, and a restart forgets them.
@@ -57,7 +51,7 @@ export class SignInGate {
    * while it waits, a right guess is worth as little as a wrong one.
    */
   assertOpen(door: string, client: string, res?: { setHeader(name: string, value: string): void }): void {
-    const entry = this.clients.get(`${door}:${named(client)}`);
+    const entry = this.clients.get(`${door}:${countedAddress(client)}`);
     if (!entry) return;
     const wait = entry.blockedUntil - this.now();
     if (wait <= 0) return;
@@ -73,7 +67,7 @@ export class SignInGate {
   failed(door: string, client: string): void {
     const now = this.now();
     this.forgetOld(now);
-    const name = named(client);
+    const name = countedAddress(client);
     const key = `${door}:${name}`;
     const entry = this.clients.get(key) ?? { failures: 0, lastFailure: now, blockedUntil: 0 };
     entry.failures += 1;
@@ -89,7 +83,7 @@ export class SignInGate {
 
   /** A correct sign-in: the client starts from nothing. */
   succeeded(door: string, client: string): void {
-    this.clients.delete(`${door}:${named(client)}`);
+    this.clients.delete(`${door}:${countedAddress(client)}`);
   }
 
   private forgetOld(now: number): void {

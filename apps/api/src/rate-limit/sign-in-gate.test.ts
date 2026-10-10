@@ -113,6 +113,14 @@ describe('the gate that slows down wrong sign-ins', () => {
     expect(logged.every((line) => line.startsWith('failed admin sign-in from unknown ('))).toBe(true);
   });
 
+  it('takes every address of one IPv6 network for the one client it is', () => {
+    for (let i = 1; i <= 5; i += 1) gate.failed('admin', `2001:db8:1:2::${i}`);
+
+    expect(wait('admin', '2001:db8:1:2:aaaa:bbbb:cccc:dddd')).toBe(30);
+    expect(wait('admin', '2001:db8:1:3::1')).toBe(0);
+    expect(logged[4]).toBe('failed admin sign-in from 2001:db8:1:2::/64 (5 in a row; next attempt in 30 s)');
+  });
+
   it('keeps no more clients in memory than its bound', () => {
     const address = (i: number): string => `10.${(i >> 16) & 255}.${(i >> 8) & 255}.${i & 255}`;
     for (let i = 0; i < 10_050; i += 1) gate.failed('admin', address(i));

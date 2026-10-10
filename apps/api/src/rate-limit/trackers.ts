@@ -2,6 +2,7 @@
 
 import { createHash } from 'node:crypto';
 import type { ThrottlerGetTrackerFunction } from '@nestjs/throttler';
+import { countedAddress } from './client-address.js';
 
 /**
  * Whom a route that tries a credential counts a request against: the identity
@@ -16,7 +17,7 @@ import type { ThrottlerGetTrackerFunction } from '@nestjs/throttler';
 const digest = (kind: string, value: string): string => `${kind}:${createHash('sha256').update(value).digest('hex')}`;
 
 /** The client's address, for a request that names nothing to count against. */
-const byAddress = (req: Record<string, unknown>): string => `addr:${String(req.ip ?? '')}`;
+const byAddress = (req: Record<string, unknown>): string => `addr:${countedAddress(req.ip)}`;
 
 /** A text field of the request body, or null when it is not there. */
 function field(req: Record<string, unknown>, name: string): string | null {
