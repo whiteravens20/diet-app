@@ -124,9 +124,10 @@ export class AdminController {
   @Get('stats')
   @UseGuards(BasicAuthGuard)
   async stats(): Promise<AdminStatsDto> {
+    // The catalogue as plans see it: no recipe a user made for themselves, nothing an update retired.
     const [ingredients, recipes, substitutions, meta] = await Promise.all([
-      this.prisma.ingredient.count(),
-      this.prisma.recipe.count(),
+      this.prisma.ingredient.count({ where: { retiredAt: null } }),
+      this.prisma.recipe.count({ where: { createdByUserId: null, retiredAt: null } }),
       this.prisma.substitutionRule.count(),
       this.prisma.seedMeta.findUnique({ where: { key: 'data' } }),
     ]);
