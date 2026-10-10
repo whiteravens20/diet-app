@@ -177,7 +177,6 @@ export async function shipRecipesUpstream(
       description: descriptions,
       servings: d.servings,
       mealTypes: d.mealTypes as ShippedRecipe['mealTypes'],
-      dietTags: d.dietTags as ShippedRecipe['dietTags'],
       prepMinutes: d.prepMinutes,
       cookMinutes: d.cookMinutes,
       difficulty: d.difficulty,

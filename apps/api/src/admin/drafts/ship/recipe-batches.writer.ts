@@ -23,18 +23,18 @@ import {
   LocaleStringsMap,
   RecipeDraftIngredientLine,
 } from '@diet-app/shared';
-import { Unit as UnitSchema, MealType as MealTypeSchema, DietType as DietTypeSchema } from '@diet-app/shared';
+import { Unit as UnitSchema, MealType as MealTypeSchema } from '@diet-app/shared';
 
 /** One recipe row as written to `data/recipes/<batchId>.json`. Matches the
  *  shape `data/recipes.json` already uses so the seeder can load both
- *  without a branch. */
+ *  without a branch. Like that file it holds no nutrition, allergens or
+ *  diets: the loader works those out from the ingredients. */
 export const ShippedRecipe = z.object({
   slug: z.string(),
   title: LocaleStringMap,
   description: LocaleStringMap,
   servings: z.number().int().positive(),
   mealTypes: z.array(MealTypeSchema),
-  dietTags: z.array(DietTypeSchema),
   prepMinutes: z.number().int().nonnegative(),
   cookMinutes: z.number().int().nonnegative(),
   difficulty: Difficulty,

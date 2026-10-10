@@ -257,7 +257,6 @@ export interface RecipeDraftPatch {
   steps?: Record<string, string[]>;
   servings?: number;
   mealTypes?: string[];
-  dietTags?: string[];
   prepMinutes?: number;
   cookMinutes?: number;
   difficulty?: 'easy' | 'medium' | 'hard';

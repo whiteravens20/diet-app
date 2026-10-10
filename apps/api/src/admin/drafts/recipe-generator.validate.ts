@@ -10,11 +10,11 @@
  *   - Strict JSON shape parsing — every locale in `targetLocales` must be
  *     present in titles / descriptions / steps. Missing locale rejected.
  *   - Slug resolution against the injected catalogue (`resolveSlug`).
- *   - Diet-tag vs ingredient `dietCompatibility` cross-check.
- *   - Allergen autodetection: union of ingredient allergens is stored,
- *     not the AI's claim.
- *   - Engine-recomputed nutrition. The draft stores engine values; AI is
- *     never trusted for numbers.
+ *   - Nutrition, allergens and diets worked out by the engine from the
+ *     ingredients (`recipeFacts`). The draft stores those; what the AI
+ *     claims about any of them is not stored.
+ *   - A recipe that does not qualify for a diet the run asked for is
+ *     rejected.
  *   - 5%-delta sanity: if AI volunteered nutrition values and they diverge
  *     from engine values by > 5 %, reject — the AI is probably lying
  *     about portion sizes.
@@ -25,13 +25,13 @@
  * the catalogue without a live DB.
  */
 import { MAX_BATCH_REPLY_CHARS, readModelObject } from '../../ai/model-json.js';
-import { nutritionFor, toCanonical } from '../../engine/units.js';
+import { recipeFacts } from '../../engine/recipe-facts.js';
 import {
   classifyComplexity,
   type ComplexityBand,
   COMPLEXITY_BANDS,
 } from './recipe-generator.complexity.js';
-import type { Complexity } from '@diet-app/shared';
+import { fitsDiet, type Complexity, type DietType } from '@diet-app/shared';
 
 export type RecipeValidationReason =
   | 'malformed-json'
@@ -115,6 +115,8 @@ export interface ValidateRecipeBatchOptions {
    *  existing.ingredientSlugs) > `duplicateThreshold` (default 0.75). */
   existingRecipes?: { slug: string; ingredientSlugs: string[] }[];
   duplicateThreshold?: number;
+  /** The diets the run was asked for: a recipe that does not qualify is rejected. */
+  requiredDiets?: DietType[];
 }
 
 /** Jaccard similarity of two slug sets. 1.0 = identical, 0 = disjoint. */
@@ -135,11 +137,6 @@ const LLM_YAP_PATTERNS = [
   /^here (is|are)\b/i,
 ];
 
-/** Diet tags that act as ingredient exclusions — if a recipe carries the tag,
- *  every ingredient must list it in `dietCompatibility`. Style/target tags
- *  like `high_protein`, `balanced`, `mediterranean` are not cross-checked. */
-const RESTRICTIVE_DIET_TAGS = new Set(['vegan', 'vegetarian', 'keto', 'low_carb']);
-
 type Raw = Record<string, unknown>;
 
 export function validateRecipeBatch(
@@ -148,6 +145,7 @@ export function validateRecipeBatch(
   const { targetLocales, rawOutput, resolveSlug } = opts;
   const tolerance = opts.nutritionDeltaTolerance ?? 0.05;
   const duplicateThreshold = opts.duplicateThreshold ?? 0.75;
+  const requiredDiets = opts.requiredDiets ?? [];
   const existingRecipes = opts.existingRecipes ?? [];
 
   const reply = readModelObject(rawOutput, MAX_BATCH_REPLY_CHARS);
@@ -217,7 +215,6 @@ export function validateRecipeBatch(
     const mealTypes = expectStringArray(raw.mealTypes);
     if (mealTypes === null || mealTypes.length === 0)
       return missing(rowKey, 'mealTypes');
-    const dietTags = expectStringArray(raw.dietTags) ?? [];
 
     const rawIngredients = Array.isArray(raw.ingredients) ? raw.ingredients : null;
     if (!rawIngredients || rawIngredients.length === 0)
@@ -271,23 +268,33 @@ export function validateRecipeBatch(
       };
     }
 
-    // Diet honesty — only *restrictive* diets are cross-checked. A vegan
-    // recipe cannot contain a non-vegan ingredient; a keto recipe cannot
-    // contain a carb-heavy slug. But `high_protein`, `balanced`, and
-    // `mediterranean` are recipe-level *style* tags (high-protein recipes
-    // routinely include olive oil; mediterranean recipes include lemon),
-    // so they are not per-ingredient guarantees.
-    for (const tag of dietTags) {
-      if (!RESTRICTIVE_DIET_TAGS.has(tag)) continue;
-      for (let li = 0; li < ingredients.length; li += 1) {
-        if (!resolved[li].dietCompatibility.includes(tag)) {
-          return {
-            ok: false,
-            reason: 'diet-conflict',
-            key: `${rowKey}.${ingredients[li].slug}`,
-            details: `dietTag=${tag}`,
-          };
-        }
+    // Nutrition, allergens and diets are worked out by the engine from the
+    // ingredient table. A line is checked on its own first, so that a unit
+    // that cannot be converted is reported where it is written.
+    const factLines = ingredients.map((line, li) => ({ quantity: line.quantity, unit: line.unit, ingredient: resolved[li]! }));
+    for (const [li, line] of factLines.entries()) {
+      try {
+        recipeFacts([line], 1);
+      } catch (err) {
+        return {
+          ok: false,
+          reason: 'unit-conversion-failed',
+          key: `${rowKey}.${ingredients[li]!.slug}`,
+          details: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }
+    const facts = recipeFacts(factLines, servings);
+
+    // A run that was asked for a diet keeps only recipes that qualify for it.
+    for (const diet of requiredDiets) {
+      if (!fitsDiet(facts.dietTags, diet)) {
+        return {
+          ok: false,
+          reason: 'diet-conflict',
+          key: rowKey,
+          details: `asked for ${diet}, qualifies for [${facts.dietTags.join(', ')}]`,
+        };
       }
     }
 
@@ -318,51 +325,11 @@ export function validateRecipeBatch(
       };
     }
 
-    // Allergen autodetection: union of ingredient allergens, sorted so
-    // diffs are stable.
-    const allergens = new Set<string>();
-    for (const r of resolved) for (const a of r.allergens) allergens.add(a);
-    const allergenList = [...allergens].sort();
-
-    // Engine recompute.
-    let calories = 0;
-    let protein = 0;
-    let fat = 0;
-    let carbs = 0;
-    for (let li = 0; li < ingredients.length; li += 1) {
-      const line = ingredients[li];
-      const r = resolved[li];
-      let canonical: number;
-      try {
-        canonical = toCanonical(line.quantity, line.unit, {
-          canonicalUnit: r.canonicalUnit,
-          gramsPerPiece: r.gramsPerPiece,
-          density: r.density,
-        });
-      } catch (err) {
-        return {
-          ok: false,
-          reason: 'unit-conversion-failed',
-          key: `${rowKey}.${line.slug}`,
-          details: err instanceof Error ? err.message : String(err),
-        };
-      }
-      const n = nutritionFor(canonical, {
-        calories: r.caloriesPer100,
-        protein: r.proteinPer100,
-        fat: r.fatPer100,
-        carbs: r.carbsPer100,
-      });
-      calories += n.calories;
-      protein += n.protein;
-      fat += n.fat;
-      carbs += n.carbs;
-    }
     const engine = {
-      caloriesPerServing: Math.round(calories / servings),
-      proteinPerServing: Math.round(protein / servings),
-      fatPerServing: Math.round(fat / servings),
-      carbsPerServing: Math.round(carbs / servings),
+      caloriesPerServing: facts.perServing.calories,
+      proteinPerServing: facts.perServing.protein,
+      fatPerServing: facts.perServing.fat,
+      carbsPerServing: facts.perServing.carbs,
     };
 
     // 5%-delta check. Only runs when the AI volunteered numbers — most
@@ -388,14 +355,14 @@ export function validateRecipeBatch(
       steps,
       servings,
       mealTypes,
-      dietTags,
+      dietTags: facts.dietTags,
       prepMinutes,
       cookMinutes,
       difficulty,
       complexity,
       ingredients,
       ...engine,
-      allergens: allergenList,
+      allergens: facts.allergens,
     });
   }
 

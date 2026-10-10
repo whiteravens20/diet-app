@@ -318,6 +318,7 @@ export class RecipeGeneratorRunner {
         rawOutput: result.text,
         resolveSlug: opts.resolveSlug,
         existingRecipes,
+        requiredDiets: spec.dietTags,
       });
       if (validation.ok) return { candidates: validation.candidates, failure: null };
 

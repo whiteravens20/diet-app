@@ -35,7 +35,7 @@
  */
 import { existsSync, mkdirSync } from 'node:fs';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
-import { nutritionFor, toCanonical } from '../../../engine/units.js';
+import { recipeFacts } from '../../../engine/recipe-facts.js';
 import {
   IngredientOverrideEntry,
   ingredientOverridesPath,
@@ -116,6 +116,7 @@ export async function shipRecipesLocal(
           fatPer100: true,
           carbsPer100: true,
           allergens: true,
+          dietCompatibility: true,
         },
       });
       const bySlug = new Map(ingredients.map((i) => [i.slug!, i]));
@@ -128,45 +129,20 @@ export async function shipRecipesLocal(
         continue;
       }
 
-      // Engine recompute. If macros drifted > 1 kcal since draft creation
-      // (catalogue edit), refuse to ship — operator should re-review.
-      let calories = 0;
-      let protein = 0;
-      let fat = 0;
-      let carbs = 0;
-      const allergens = new Set<string>();
-      const recipeIngredientCreate: {
-        ingredientId: string;
-        quantity: number;
-        unit: 'g' | 'ml' | 'piece';
-        note: string | null;
-      }[] = [];
-      for (const line of ingredientLines) {
-        const ing = bySlug.get(line.slug)!;
-        const canonical = toCanonical(line.quantity, line.unit, {
-          canonicalUnit: ing.canonicalUnit,
-          gramsPerPiece: ing.gramsPerPiece,
-          density: ing.density,
-        });
-        const n = nutritionFor(canonical, {
-          calories: ing.caloriesPer100,
-          protein: ing.proteinPer100,
-          fat: ing.fatPer100,
-          carbs: ing.carbsPer100,
-        });
-        calories += n.calories;
-        protein += n.protein;
-        fat += n.fat;
-        carbs += n.carbs;
-        for (const a of ing.allergens) allergens.add(a);
-        recipeIngredientCreate.push({
-          ingredientId: ing.id,
-          quantity: line.quantity,
-          unit: line.unit,
-          note: line.note ?? null,
-        });
-      }
-      const engineKcal = Math.round(calories / d.servings);
+      // The facts are worked out again from today's ingredient table. If the
+      // calories moved by more than 1 kcal since the draft was made (the
+      // catalogue was edited), refuse to ship: the operator should look again.
+      const recipeIngredientCreate = ingredientLines.map((line) => ({
+        ingredientId: bySlug.get(line.slug)!.id,
+        quantity: line.quantity,
+        unit: line.unit,
+        note: line.note ?? null,
+      }));
+      const facts = recipeFacts(
+        ingredientLines.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: bySlug.get(line.slug)! })),
+        d.servings,
+      );
+      const engineKcal = facts.perServing.calories;
       if (Math.abs(engineKcal - d.caloriesPerServing) > 1) {
         skipped.push({
           draftId: d.id,
@@ -188,15 +164,15 @@ export async function shipRecipesLocal(
         steps: enSteps,
         servings: d.servings,
         mealTypes: d.mealTypes,
-        dietTags: d.dietTags,
+        dietTags: facts.dietTags,
         prepMinutes: d.prepMinutes,
         cookMinutes: d.cookMinutes,
         difficulty: d.difficulty,
-        allergens: [...allergens].sort(),
+        allergens: facts.allergens,
         caloriesPerServing: engineKcal,
-        proteinPerServing: Math.round(protein / d.servings),
-        fatPerServing: Math.round(fat / d.servings),
-        carbsPerServing: Math.round(carbs / d.servings),
+        proteinPerServing: facts.perServing.protein,
+        fatPerServing: facts.perServing.fat,
+        carbsPerServing: facts.perServing.carbs,
       };
 
       const existing = await prisma.recipe.findFirst({ where: { slug: d.slug } });
@@ -253,7 +229,6 @@ export async function shipRecipesLocal(
         description: descriptions,
         servings: d.servings,
         mealTypes: d.mealTypes as ShippedRecipe['mealTypes'],
-        dietTags: d.dietTags as ShippedRecipe['dietTags'],
         prepMinutes: d.prepMinutes,
         cookMinutes: d.cookMinutes,
         difficulty: d.difficulty,

@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import type { Locale, MealType, DietType, Complexity } from '@diet-app/shared';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v1';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v2';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -91,7 +91,6 @@ interface FewShotRecipe {
   steps: Record<string, string[]>;
   servings: number;
   mealTypes: string[];
-  dietTags: string[];
   prepMinutes: number;
   cookMinutes: number;
   difficulty: 'easy' | 'medium' | 'hard';
@@ -196,7 +195,7 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
   const constraints: string[] = [];
   if (input.dietTags && input.dietTags.length > 0) {
     constraints.push(
-      `- Diet tags every recipe MUST satisfy: ${input.dietTags.join(', ')}. Every ingredient picked must have at least one matching dietCompatibility value.`,
+      `- Diets every recipe MUST qualify for: ${input.dietTags.join(', ')}. For vegetarian, vegan and mediterranean, every ingredient must list the diet in its diets column. For low_carb at most 26 % of the recipe's calories may come from carbohydrate, for keto at most 10 %: build those recipes around protein, fat and low-carbohydrate vegetables. The validator works this out from your ingredient list and rejects a recipe that misses.`,
     );
   }
   if (input.mealTypes && input.mealTypes.length > 0) {
@@ -278,19 +277,18 @@ single violation, so be precise:
    string fractions. Decimals are fine.
 4. Every recipe MUST include EVERY structural field: \`slug\`, \`titles\`,
    \`descriptions\`, \`steps\`, \`servings\`, \`mealTypes\` (non-empty array),
-   \`dietTags\` (array, may be empty), \`prepMinutes\`, \`cookMinutes\`,
-   \`difficulty\` (exactly \`"easy"\`, \`"medium"\`, or \`"hard"\`), and
-   \`ingredients\`. Skipping \`difficulty\` is the most common rejection —
-   always emit it.
+   \`prepMinutes\`, \`cookMinutes\`, \`difficulty\` (exactly \`"easy"\`,
+   \`"medium"\`, or \`"hard"\`), and \`ingredients\`. Skipping \`difficulty\` is
+   the most common rejection — always emit it.
 5. Mix sensible, recognisable home cooking. Avoid contrived combinations
    (no "cucumber baked with coconut oil"). Cuisine inspirations are fine
    (Italian, Polish, Mediterranean, Asian-fusion, etc.) — pick coherent
    flavour profiles.
 6. NEVER author nutrition, calorie, or macro values yourself. They are
    recomputed deterministically from your ingredient list by the engine.
-7. Diet tag honesty: if you tag a recipe \`vegan\`, every ingredient's
-   dietCompatibility column must include \`vegan\`. Same for vegetarian,
-   keto, etc. The validator rejects mismatches.
+7. Do NOT label a recipe with diets or allergens. Which diets a recipe
+   suits, and which allergens it contains, is worked out from its
+   ingredients.
 8. Servings: pick the natural family-meal serving size (usually 1–4).
    Larger only when the recipe genuinely scales that way (stews, bakes).
 9. Steps are imperative-form sentences. Number is implicit — do NOT
@@ -320,7 +318,6 @@ ${localeStepsHints}
       },
       "servings": 2,
       "mealTypes": ["lunch"],
-      "dietTags": ["balanced"],
       "prepMinutes": 15,
       "cookMinutes": 25,
       "difficulty": "medium",

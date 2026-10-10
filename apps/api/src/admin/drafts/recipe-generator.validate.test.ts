@@ -122,7 +122,6 @@ function recipeShell(overrides: Record<string, unknown> = {}): Record<string, un
     },
     servings: 2,
     mealTypes: ['lunch'],
-    dietTags: ['balanced'],
     prepMinutes: 10,
     cookMinutes: 25,
     difficulty: 'medium',
@@ -209,26 +208,74 @@ describe('validateRecipeBatch', () => {
     }
   });
 
-  it('accepts high_protein dietTag even when olive-oil lacks high_protein in dietCompatibility', () => {
-    // high_protein is a recipe-style tag, not a per-ingredient guarantee —
-    // olive oil legitimately appears in high-protein recipes. Regression
-    // guard for the post-Phase-D live-test fix.
-    const r = validateRecipeBatch({
-      targetLocales: ['en', 'pl'],
-      rawOutput: wrap([recipeShell({ dietTags: ['high_protein'] })]),
-      resolveSlug,
-    });
-    expect(r.ok).toBe(true);
-  });
+  describe('the diets of a recipe', () => {
+    const vegan = {
+      ingredients: [
+        { slug: 'white-rice', quantity: 160, unit: 'g' },
+        { slug: 'spinach', quantity: 120, unit: 'g' },
+        { slug: 'peanut-butter', quantity: 30, unit: 'g' },
+        { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+        { slug: 'garlic', quantity: 2, unit: 'piece' },
+        { slug: 'lemon', quantity: 1, unit: 'piece' },
+      ],
+    };
 
-  it('rejects when dietTags claim vegan but chicken is in the list', () => {
-    const r = validateRecipeBatch({
-      targetLocales: ['en', 'pl'],
-      rawOutput: wrap([recipeShell({ dietTags: ['vegan'] })]),
-      resolveSlug,
+    it('are worked out from its ingredients, whatever the model claims', () => {
+      const r = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell({ dietTags: ['vegan', 'keto', 'high_protein'] })]),
+        resolveSlug,
+      });
+      if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+      // Chicken, rice and vegetables: every ingredient is mediterranean, the
+      // chicken is not vegetarian, and a quarter of the energy comes from
+      // carbohydrate: low, but far from ketogenic.
+      expect(r.candidates[0].dietTags).toEqual(['mediterranean', 'low_carb']);
     });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe('diet-conflict');
+
+    it('include vegan and vegetarian when every ingredient is', () => {
+      const r = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell(vegan)]),
+        resolveSlug,
+      });
+      if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+      expect(r.candidates[0].dietTags).toEqual(expect.arrayContaining(['vegetarian', 'vegan']));
+    });
+
+    it('reject a recipe that does not qualify for a diet the run asked for', () => {
+      const r = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell({ dietTags: ['vegan'] })]),
+        resolveSlug,
+        requiredDiets: ['vegan'],
+      });
+      expect(r.ok).toBe(false);
+      if (!r.ok) {
+        expect(r.reason).toBe('diet-conflict');
+        expect(r.details).toContain('asked for vegan');
+      }
+    });
+
+    it('let a recipe through that qualifies for every diet the run asked for', () => {
+      const r = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell(vegan)]),
+        resolveSlug,
+        requiredDiets: ['vegan', 'vegetarian'],
+      });
+      expect(r.ok).toBe(true);
+    });
+
+    it('do not narrow a run asked for a diet that takes any recipe', () => {
+      const r = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell()]),
+        resolveSlug,
+        requiredDiets: ['high_protein', 'balanced'],
+      });
+      expect(r.ok).toBe(true);
+    });
   });
 
   it('auto-detects allergens from ingredients (peanut → peanuts)', () => {
@@ -244,7 +291,6 @@ describe('validateRecipeBatch', () => {
             { slug: 'olive-oil', quantity: 10, unit: 'ml' },
             { slug: 'garlic', quantity: 2, unit: 'piece' },
           ],
-          dietTags: ['balanced'],
         }),
       ]),
       resolveSlug,
@@ -385,7 +431,6 @@ describe('validateRecipeBatch', () => {
           },
           prepMinutes: 5,
           cookMinutes: 15,
-          dietTags: ['balanced'],
         }),
       ]),
       resolveSlug,
@@ -439,7 +484,6 @@ describe('validateRecipeBatch', () => {
           },
           prepMinutes: 5,
           cookMinutes: 20,
-          dietTags: ['high_protein'],
         }),
       ]),
       resolveSlug,

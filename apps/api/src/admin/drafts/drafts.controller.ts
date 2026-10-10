@@ -57,7 +57,8 @@ import {
   RecipeGeneratorRunner,
   type RecipeRunnerState,
 } from './recipe-generator.runner.js';
-import { nutritionFor, toCanonical } from '../../engine/units.js';
+import { recipeFacts, type RecipeFacts } from '../../engine/recipe-facts.js';
+import { UnitConversionError } from '../../engine/units.js';
 import { classifyComplexity } from './recipe-generator.complexity.js';
 import {
   shipIngredientNamesLocal,
@@ -446,7 +447,7 @@ export class DraftsController {
         steps: merged.steps,
         servings: merged.servings,
         mealTypes: merged.mealTypes,
-        dietTags: merged.dietTags,
+        dietTags: recompute.dietTags,
         prepMinutes: merged.prepMinutes,
         cookMinutes: merged.cookMinutes,
         difficulty: merged.difficulty,
@@ -470,7 +471,7 @@ export class DraftsController {
           steps: merged.steps,
           servings: merged.servings,
           mealTypes: merged.mealTypes,
-          dietTags: merged.dietTags,
+          dietTags: recompute.dietTags,
           prepMinutes: merged.prepMinutes,
           cookMinutes: merged.cookMinutes,
           difficulty: merged.difficulty,
@@ -570,13 +571,22 @@ export class DraftsController {
     }
     const sourceRecipe = await this.prisma.recipe.findUnique({
       where: { id: existing.sourceRecipeIds[0]! },
-      include: { ingredients: true },
+      include: { ingredients: { include: { ingredient: true } } },
     });
     if (!sourceRecipe) {
       throw new ConflictException({
         error: 'DRAFT_NO_SOURCE_RECIPE',
         message: 'Source recipe was deleted — cannot promote.',
       });
+    }
+    // The shared recipe gets the facts of the ingredient lines it is written
+    // with, worked out now, not the numbers the draft was stored with.
+    let facts: RecipeFacts;
+    try {
+      facts = recipeFacts(sourceRecipe.ingredients, existing.servings);
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      throw new BadRequestException({ error: 'UNIT_CONVERSION_FAILED', message: err.message });
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -594,19 +604,19 @@ export class DraftsController {
           description: descriptions.en ?? Object.values(descriptions)[0] ?? '',
           servings: existing.servings,
           mealTypes: existing.mealTypes,
-          dietTags: existing.dietTags,
+          dietTags: facts.dietTags,
           steps: steps.en ?? Object.values(steps)[0] ?? [],
           prepMinutes: existing.prepMinutes,
           cookMinutes: existing.cookMinutes,
           difficulty: existing.difficulty,
-          allergens: existing.allergens,
+          allergens: facts.allergens,
           origin: 'curated',
           createdByUserId: null,
           fingerprint: existing.fingerprint,
-          caloriesPerServing: existing.caloriesPerServing,
-          proteinPerServing: existing.proteinPerServing,
-          fatPerServing: existing.fatPerServing,
-          carbsPerServing: existing.carbsPerServing,
+          caloriesPerServing: facts.perServing.calories,
+          proteinPerServing: facts.perServing.protein,
+          fatPerServing: facts.perServing.fat,
+          carbsPerServing: facts.perServing.carbs,
           ingredients: {
             create: sourceRecipe.ingredients.map((line) => ({
               ingredientId: line.ingredientId,
@@ -1050,6 +1060,7 @@ export class DraftsController {
     fatPerServing: number;
     carbsPerServing: number;
     allergens: string[];
+    dietTags: string[];
   }> {
     const slugs = [...new Set(merged.ingredients.map((i) => i.slug))];
     const rows = await this.prisma.ingredient.findMany({
@@ -1064,16 +1075,12 @@ export class DraftsController {
         fatPer100: true,
         carbsPer100: true,
         allergens: true,
+        dietCompatibility: true,
       },
     });
     const bySlug = new Map(rows.map((r) => [r.slug!, r]));
 
-    let calories = 0;
-    let protein = 0;
-    let fat = 0;
-    let carbs = 0;
-    const allergens = new Set<string>();
-    for (const line of merged.ingredients) {
+    const lines = merged.ingredients.map((line) => {
       const row = bySlug.get(line.slug);
       if (!row) {
         throw new BadRequestException({
@@ -1081,30 +1088,14 @@ export class DraftsController {
           message: `ingredient slug "${line.slug}" not found in the curated catalogue`,
         });
       }
-      let canonical: number;
-      try {
-        canonical = toCanonical(line.quantity, line.unit, {
-          canonicalUnit: row.canonicalUnit,
-          gramsPerPiece: row.gramsPerPiece,
-          density: row.density,
-        });
-      } catch (err) {
-        throw new BadRequestException({
-          error: 'UNIT_CONVERSION_FAILED',
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-      const n = nutritionFor(canonical, {
-        calories: row.caloriesPer100,
-        protein: row.proteinPer100,
-        fat: row.fatPer100,
-        carbs: row.carbsPer100,
-      });
-      calories += n.calories;
-      protein += n.protein;
-      fat += n.fat;
-      carbs += n.carbs;
-      for (const a of row.allergens) allergens.add(a);
+      return { quantity: line.quantity, unit: line.unit, ingredient: row };
+    });
+    let facts: RecipeFacts;
+    try {
+      facts = recipeFacts(lines, merged.servings);
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      throw new BadRequestException({ error: 'UNIT_CONVERSION_FAILED', message: err.message });
     }
 
     const stepCount =
@@ -1126,11 +1117,12 @@ export class DraftsController {
 
     return {
       complexity,
-      caloriesPerServing: Math.round(calories / merged.servings),
-      proteinPerServing: Math.round(protein / merged.servings),
-      fatPerServing: Math.round(fat / merged.servings),
-      carbsPerServing: Math.round(carbs / merged.servings),
-      allergens: [...allergens].sort(),
+      caloriesPerServing: facts.perServing.calories,
+      proteinPerServing: facts.perServing.protein,
+      fatPerServing: facts.perServing.fat,
+      carbsPerServing: facts.perServing.carbs,
+      allergens: facts.allergens,
+      dietTags: facts.dietTags,
     };
   }
 
@@ -1328,7 +1320,6 @@ interface MergedRecipeDraft {
   steps: Record<string, string[]>;
   servings: number;
   mealTypes: string[];
-  dietTags: string[];
   prepMinutes: number;
   cookMinutes: number;
   difficulty: 'easy' | 'medium' | 'hard';
@@ -1338,7 +1329,7 @@ interface MergedRecipeDraft {
 /**
  * True when the patch touches any non-translation field. AI_USER drafts only
  * accept `titles` / `descriptions` / `steps` per locale — anything else
- * (ingredients, quantities, servings, mealTypes, dietTags, prep/cook times,
+ * (ingredients, quantities, servings, mealTypes, prep/cook times,
  * difficulty) is forbidden because it would invalidate the personal Recipe
  * rows attached via `sourceRecipeIds`.
  */
@@ -1346,7 +1337,6 @@ function hasStructuralEdit(patch: import('@diet-app/shared').RecipeDraftPatch): 
   return (
     patch.servings != null ||
     patch.mealTypes != null ||
-    patch.dietTags != null ||
     patch.prepMinutes != null ||
     patch.cookMinutes != null ||
     patch.difficulty != null ||
@@ -1364,7 +1354,6 @@ function mergeRecipeDraft(
     steps: patch.steps ?? (existing.steps as Record<string, string[]>),
     servings: patch.servings ?? existing.servings,
     mealTypes: patch.mealTypes ?? (existing.mealTypes as string[]),
-    dietTags: patch.dietTags ?? (existing.dietTags as string[]),
     prepMinutes: patch.prepMinutes ?? existing.prepMinutes,
     cookMinutes: patch.cookMinutes ?? existing.cookMinutes,
     difficulty: patch.difficulty ?? existing.difficulty,

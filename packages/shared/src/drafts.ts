@@ -250,7 +250,6 @@ export const RecipeDraftPatch = z.object({
   steps: LocaleStringsMap.optional(),
   servings: z.number().int().min(1).optional(),
   mealTypes: z.array(MealType).optional(),
-  dietTags: z.array(DietType).optional(),
   prepMinutes: z.number().int().min(0).optional(),
   cookMinutes: z.number().int().min(0).optional(),
   difficulty: Difficulty.optional(),
