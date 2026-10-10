@@ -3,7 +3,9 @@
 import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { PublicConfig } from '@diet-app/shared';
+import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
+import { depthByMealCount } from '../engine/coverage.js';
 import { MailService } from '../mail/mail.service.js';
 import { TurnstileService } from '../auth/turnstile.service.js';
 import { PACKAGE_VERSION } from './package-version.js';
@@ -11,9 +13,10 @@ import { PACKAGE_VERSION } from './package-version.js';
 /**
  * Public, unauthenticated runtime configuration for the web app. Exposes only
  * non-secret operator choices the front-end needs before sign-in (whether to
- * render Turnstile + the site key, whether email flows are available) and what
- * the operator publishes about the instance. Mirrors the unauthenticated
- * HealthController, and is limited like it and every other route.
+ * render Turnstile + the site key, whether email flows are available), what
+ * the operator publishes about the instance, and which diets the catalogue has
+ * recipes for. Mirrors the unauthenticated HealthController, and is limited
+ * like it and every other route.
  */
 @Controller('config')
 export class AppConfigController {
@@ -21,10 +24,11 @@ export class AppConfigController {
     private readonly config: ConfigService<Env, true>,
     private readonly turnstile: TurnstileService,
     private readonly mail: MailService,
+    private readonly coverage: CatalogueCoverageService,
   ) {}
 
   @Get()
-  get(): PublicConfig {
+  async get(): Promise<PublicConfig> {
     return {
       turnstile: {
         enabled: this.turnstile.enabled,
@@ -39,6 +43,7 @@ export class AppConfigController {
         operatorContact: this.config.get('OPERATOR_CONTACT', { infer: true }) ?? null,
         version: this.config.get('APP_VERSION', { infer: true }) ?? PACKAGE_VERSION,
       },
+      catalogue: { depth: depthByMealCount(await this.coverage.recent()) },
     };
   }
 }

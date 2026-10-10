@@ -4,21 +4,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
-import type { PublicConfig } from '@diet-app/shared';
+import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../messages/en.json';
 import { AuthForm } from './auth-form';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 function renderLogin(emailEnabled: boolean) {
-  const config: PublicConfig = {
-    turnstile: { enabled: false, siteKey: null },
-    email: { enabled: emailEnabled },
-    ai: { ollamaUserPolicy: 'off' },
-    instance: { supportUrl: null, operatorContact: null, version: '0.0.0' },
-  };
   const client = new QueryClient();
-  client.setQueryData(['config'], config);
+  client.setQueryData(['config'], aPublicConfig({ email: { enabled: emailEnabled } }));
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>

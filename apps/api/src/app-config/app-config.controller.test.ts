@@ -5,7 +5,9 @@ import { resolve } from 'node:path';
 import type { ConfigService } from '@nestjs/config';
 import { describe, expect, it } from 'vitest';
 import type { TurnstileService } from '../auth/turnstile.service.js';
+import type { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
+import { recipesPerDietAndMeal } from '../engine/coverage.js';
 import type { MailService } from '../mail/mail.service.js';
 import { AppConfigController } from './app-config.controller.js';
 
@@ -15,6 +17,7 @@ function configOf(env: Partial<Env>) {
     config,
     { enabled: false } as TurnstileService,
     { enabled: true } as MailService,
+    { recent: () => Promise.resolve(recipesPerDietAndMeal([])) } as CatalogueCoverageService,
   );
   return controller.get();
 }
@@ -24,16 +27,16 @@ const packageVersion = (
 ).version;
 
 describe('GET /api/config', () => {
-  it('publishes nothing about the operator unless they set it, and the package version', () => {
-    expect(configOf({ OLLAMA_USER_POLICY: 'allowlist' }).instance).toEqual({
+  it('publishes nothing about the operator unless they set it, and the package version', async () => {
+    expect((await configOf({ OLLAMA_USER_POLICY: 'allowlist' })).instance).toEqual({
       supportUrl: null,
       operatorContact: null,
       version: packageVersion,
     });
   });
 
-  it('publishes what the operator set', () => {
-    const { instance } = configOf({
+  it('publishes what the operator set', async () => {
+    const { instance } = await configOf({
       OLLAMA_USER_POLICY: 'off',
       SUPPORT_URL: 'https://example.org/support',
       OPERATOR_CONTACT: 'ops@example.org',
@@ -46,8 +49,8 @@ describe('GET /api/config', () => {
     });
   });
 
-  it('never carries a secret', () => {
-    const body = JSON.stringify(configOf({ TURNSTILE_SECRET_KEY: 'turnstile-secret', JWT_ACCESS_SECRET: 'jwt-secret' }));
+  it('never carries a secret', async () => {
+    const body = JSON.stringify(await configOf({ TURNSTILE_SECRET_KEY: 'turnstile-secret', JWT_ACCESS_SECRET: 'jwt-secret' }));
     expect(body).not.toContain('turnstile-secret');
     expect(body).not.toContain('jwt-secret');
   });

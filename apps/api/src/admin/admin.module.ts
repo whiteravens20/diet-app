@@ -2,6 +2,7 @@
 
 import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module.js';
+import { CatalogueModule } from '../catalogue/catalogue.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AdminController } from './admin.controller.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
@@ -14,7 +15,7 @@ import { UsdaImportRunner } from './usda/runner.js';
  * by `BasicAuthGuard`.
  */
 @Module({
-  imports: [PrismaModule, AiModule],
+  imports: [PrismaModule, AiModule, CatalogueModule],
   controllers: [AdminController],
   providers: [BasicAuthGuard, SeedRunner, UsdaImportRunner],
 })

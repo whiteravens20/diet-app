@@ -5,6 +5,7 @@ import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it } from 'vitest';
 import type { PublicConfig } from '@diet-app/shared';
+import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../messages/en.json';
 import { Footer } from './footer';
 import { OperatorContact } from './operator-contact';
@@ -12,15 +13,7 @@ import { OperatorContact } from './operator-contact';
 /** Render with the public configuration already loaded, or still loading when `instance` is omitted. */
 function renderWith(ui: React.ReactNode, instance?: PublicConfig['instance']) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } });
-  if (instance) {
-    const config: PublicConfig = {
-      turnstile: { enabled: false, siteKey: null },
-      email: { enabled: false },
-      ai: { ollamaUserPolicy: 'off' },
-      instance,
-    };
-    client.setQueryData(['config'], config);
-  }
+  if (instance) client.setQueryData(['config'], aPublicConfig({ instance }));
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>{ui}</QueryClientProvider>

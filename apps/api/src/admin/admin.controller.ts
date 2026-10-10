@@ -19,10 +19,12 @@ import { ConfigService } from '@nestjs/config';
 import { FdcDataTypes } from '@diet-app/shared';
 import type { Request } from 'express';
 import { z } from 'zod';
+import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
+import type { CoverageMatrix } from '../engine/coverage.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
 import { computeDataState, resolveDataDir } from './seed/data-hash.js';
 import { SeedRunner, type RunnerState } from './seed/runner.js';
@@ -36,6 +38,8 @@ interface AdminStatusDto {
 
 interface AdminStatsDto {
   counts: { ingredients: number; recipes: number; substitutions: number };
+  /** How many recipes each diet has for each meal. */
+  coverage: CoverageMatrix;
   seed: {
     lastSeededAt: string | null;
     storedHash: string | null;
@@ -81,6 +85,7 @@ export class AdminController {
     private readonly prisma: PrismaService,
     private readonly runner: SeedRunner,
     private readonly importer: UsdaImportRunner,
+    private readonly coverage: CatalogueCoverageService,
   ) {}
 
   // Public probe so the /admin UI can render a useful "set ADMIN_PASSWORD"
@@ -128,15 +133,17 @@ export class AdminController {
   @UseGuards(BasicAuthGuard)
   async stats(): Promise<AdminStatsDto> {
     // The catalogue as plans see it: no recipe a user made for themselves, nothing an update retired.
-    const [ingredients, recipes, substitutions, meta] = await Promise.all([
+    const [ingredients, recipes, substitutions, meta, coverage] = await Promise.all([
       this.prisma.ingredient.count({ where: { retiredAt: null } }),
       this.prisma.recipe.count({ where: { createdByUserId: null, retiredAt: null } }),
       this.prisma.substitutionRule.count(),
       this.prisma.seedMeta.findUnique({ where: { key: 'data' } }),
+      this.coverage.count(),
     ]);
     const state = computeDataState(resolveDataDir());
     return {
       counts: { ingredients, recipes, substitutions },
+      coverage,
       seed: {
         lastSeededAt: meta?.seededAt.toISOString() ?? null,
         storedHash: meta?.hash ?? null,

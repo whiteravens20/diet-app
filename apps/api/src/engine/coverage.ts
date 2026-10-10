@@ -8,7 +8,7 @@
  *
  * Pure, and the same rule (`fitsDiet`) as the planner's own pool.
  */
-import { DietType, MEAL_SLOTS_BY_COUNT, MealType, fitsDiet } from '@diet-app/shared';
+import { DietType, MEAL_SLOTS_BY_COUNT, MealType, fitsDiet, type CatalogueDepth, type MealCountKey } from '@diet-app/shared';
 
 /**
  * The fewest recipes the shipped catalogue may have for any diet and meal.
@@ -20,8 +20,6 @@ export const COVERAGE_FLOOR = 1;
 export const COVERAGE_TARGET = 6;
 
 export type CoverageMatrix = Record<DietType, Record<MealType, number>>;
-/** For each diet and number of meals a day: the recipes its thinnest meal can choose from. */
-export type CoverageDepth = Record<DietType, Record<number, number>>;
 
 export function recipesPerDietAndMeal(
   recipes: readonly { dietTags: readonly string[]; mealTypes: readonly string[] }[],
@@ -37,12 +35,13 @@ export function recipesPerDietAndMeal(
   return matrix;
 }
 
-export function depthByMealCount(matrix: CoverageMatrix): CoverageDepth {
-  const depth = {} as CoverageDepth;
+/** For each diet and number of meals a day: the recipes its thinnest meal can choose from. */
+export function depthByMealCount(matrix: CoverageMatrix): CatalogueDepth {
+  const depth = {} as CatalogueDepth;
   for (const diet of DietType.options) {
     depth[diet] = Object.fromEntries(
       Object.entries(MEAL_SLOTS_BY_COUNT).map(([count, meals]) => [count, Math.min(...meals.map((meal) => matrix[diet][meal]))]),
-    );
+    ) as Record<MealCountKey, number>;
   }
   return depth;
 }

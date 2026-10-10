@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
+import { DietType } from './enums.js';
 
 /**
  * Whether — and how — a user may point a bring-your-own Ollama config at a host
@@ -17,13 +18,34 @@ export const OllamaUserPolicy = z.enum(['off', 'allowlist', 'public']);
 export type OllamaUserPolicy = z.infer<typeof OllamaUserPolicy>;
 
 /**
+ * The recipes a meal needs before a week of it stays inside the default limit
+ * on repeats: the same recipe at most three times in seven days. With fewer, a
+ * plan is still made and repeats a dish more often than a profile asks.
+ */
+export const VARIETY_DEPTH = 3;
+
+/** A number of meals a day, as the key of an object. */
+export const MealCountKey = z.enum(['2', '3', '4', '5']);
+export type MealCountKey = z.infer<typeof MealCountKey>;
+
+/**
+ * For every diet and number of meals a day: how many shared recipes the
+ * thinnest of those meals has to choose from. Zero means no plan can be made
+ * for the pair from the catalogue alone; under `VARIETY_DEPTH` a plan repeats
+ * itself.
+ */
+export const CatalogueDepth = z.record(DietType, z.record(MealCountKey, z.number().int().min(0)));
+export type CatalogueDepth = z.infer<typeof CatalogueDepth>;
+
+/**
  * Public, unauthenticated runtime configuration the web app needs before a user
  * is signed in. Served by `GET /api/config`. Deliberately exposes only
  * non-secret operator choices so the front-end can self-configure at runtime
  * (no `NEXT_PUBLIC_*` rebuild): whether to render the Turnstile widget and which
  * site key to use, whether email-driven flows (verification, email change) are
- * available, whether users may bring their own Ollama host, and what the
- * operator publishes about the instance.
+ * available, whether users may bring their own Ollama host, what the
+ * operator publishes about the instance, and which diets the recipe catalogue
+ * can serve.
  */
 export const PublicConfig = z.object({
   turnstile: z.object({
@@ -43,6 +65,9 @@ export const PublicConfig = z.object({
     operatorContact: z.string().nullable(),
     /** The running version: the package version unless the operator set another label. */
     version: z.string(),
+  }),
+  catalogue: z.object({
+    depth: CatalogueDepth,
   }),
 });
 export type PublicConfig = z.infer<typeof PublicConfig>;

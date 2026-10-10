@@ -24,6 +24,7 @@ export default defineConfig({
       // Exclude generated/Next-runtime and pure type modules from the denominator.
       exclude: [
         'src/**/*.test.{ts,tsx}',
+        'src/testing/**',
         'src/**/*.d.ts',
         'src/app/**/{layout,loading,error,not-found,template,default,manifest}.{ts,tsx}',
         'src/i18n/**',
