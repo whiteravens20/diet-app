@@ -125,7 +125,11 @@ export function AiRecipeDraftModal({
       onCreated(res.recipe.id);
       onClose();
     },
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('failed')),
+    onError: (e) => {
+      // A failed attempt may still have used a request, or met the limit.
+      qc.invalidateQueries({ queryKey: ['ai-quota'] });
+      setError(e instanceof ApiClientError ? e.message : t('failed'));
+    },
   });
 
   const favouritesCount = profile.preferences?.favoriteIngredientIds?.length ?? 0;
