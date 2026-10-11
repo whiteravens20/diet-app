@@ -881,6 +881,8 @@
     "rebalanceTitle": "Zaktualizowano makro dnia",
     "rebalanceSummary": "{before} → {after} kcal · przeliczono posiłki: {count}.",
     "rebalanceBestEffort": "Dzień nadal przekracza cel — rozważ edycję.",
+    "rebalanceLeftOver": "Tydzień nadal ma {kcal} kcal nadwyżki: pozostałe dni nie mają już zapasu w granicach własnych celów.",
+    "rebalanceLeftUnder": "W tygodniu nadal brakuje {kcal} kcal: pozostałe dni nie mają już zapasu w granicach własnych celów.",
     "daySkipped": "Pominięty",
     "dayBelowFloor": "Cel tego dnia jest niższy niż najniższy, jaki wylicza plan.",
     "rebalanceUndo": "Cofnij ostatnie przeliczenie",

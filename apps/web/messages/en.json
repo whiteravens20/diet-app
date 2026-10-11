@@ -881,6 +881,8 @@
     "rebalanceTitle": "Day macros updated",
     "rebalanceSummary": "{before} → {after} kcal · {count} meal(s) rescaled.",
     "rebalanceBestEffort": "Day still over target — consider editing.",
+    "rebalanceLeftOver": "The week is still {kcal} kcal over: the other days have no more room inside their own targets.",
+    "rebalanceLeftUnder": "The week is still {kcal} kcal short: the other days have no more room inside their own targets.",
     "daySkipped": "Skipped",
     "dayBelowFloor": "The target of this day is under the lowest a calculated plan goes.",
     "rebalanceUndo": "Undo last rebalance",

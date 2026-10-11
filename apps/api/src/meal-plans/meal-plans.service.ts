@@ -855,7 +855,7 @@ export class MealPlansService {
 
     if (req.scope === 'week') {
       const summary = await writePlan(this.prisma, planId, revision, (tx) =>
-        this.rebalanceWeekInternal(planId, tx),
+        this.rebalanceWeekInternal(planId, tx, req.date ?? isoDate(new Date())),
       );
       return this.buildRebalanceResult(userId, locale, planId, 'week', summary);
     }
@@ -1499,6 +1499,7 @@ export class MealPlansService {
   private async rebalanceWeekInternal(
     planId: string,
     tx: Prisma.TransactionClient,
+    from: string,
   ): Promise<RebalanceSummary | null> {
     const plan = await tx.mealPlan.findUnique({
       where: { id: planId },
@@ -1510,15 +1511,19 @@ export class MealPlansService {
       },
     });
     if (!plan) return null;
-    const dayRows = plan.days.map((d) => ({ target: d.calorieTarget, rows: d.meals.map(toRebalanceRow) }));
+    // From the day asked for to the end of its week of the plan. What lies
+    // before it is done with, and is not changed after the fact.
+    const first = plan.days.findIndex((d) => isoDate(d.date) >= from);
+    const days = first === -1 ? [] : plan.days.slice(first, (Math.floor(first / 7) + 1) * 7);
+    const dayRows = days.map((d) => ({ target: d.calorieTarget, rows: d.meals.map(toRebalanceRow) }));
     const allRows = dayRows.flatMap((d) => d.rows);
     const macrosBefore = rowsMacros(allRows, (r) => r.quantityScale);
-    const { scales, feasibility } = rebalanceWeek(
+    const { scales, feasibility, unabsorbed } = rebalanceWeek(
       dayRows.map((d) => ({ target: d.target, meals: d.rows.map(toEngineMeal) })),
     );
     const changes = await this.persistScales(allRows, scales, tx);
     const macrosAfter = rowsMacros(allRows, (r) => scales.get(r.id) ?? r.quantityScale);
-    return { feasibility, changes, macrosBefore, macrosAfter };
+    return { feasibility, changes, macrosBefore, macrosAfter, unabsorbedKcal: Math.round(unabsorbed) };
   }
 
   /** Persist only the meals whose quantity scale actually changed. */
@@ -1586,6 +1591,7 @@ export class MealPlansService {
             scope,
             feasibility: summary.feasibility,
             changes: summary.changes,
+            unabsorbedKcal: summary.unabsorbedKcal ?? 0,
             macrosBefore: summary.macrosBefore,
             macrosAfter: summary.macrosAfter,
           }
@@ -2343,6 +2349,8 @@ interface RebalanceSummary {
   changes: RebalanceChange[];
   macrosBefore: MacroQuad;
   macrosAfter: MacroQuad;
+  /** What a week is still off by after its rebalance; a day's rebalance leaves it out. */
+  unabsorbedKcal?: number;
 }
 
 /** Prisma select for the per-serving macros the rebalancer reads off a recipe. */

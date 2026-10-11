@@ -113,26 +113,70 @@ export function rebalanceDay(
 
 export interface RebalanceWeekDay {
   target: number;
+  /** The day's meals; none for a day the user skips. */
   meals: RebalanceMeal[];
 }
 
+export interface WeekRebalanceResult extends RebalanceResult {
+  /**
+   * The kcal the week is still off by after everything that can move has
+   * moved: positive when more was eaten than the targets allow, negative when
+   * less. Zero when the other days took it all.
+   */
+  unabsorbed: number;
+}
+
 /**
- * Week-aware rebalance: share the surplus/deficit proportionally across every
- * unlocked meal in the plan week by solving against the week's *total* target.
- * Each day still has its own target, so feasibility is `in-window` only when
- * every day lands inside its own window. Untouched when all days already do.
+ * Rebalance the days of a week together, in two steps.
+ *
+ *  1. A day that is outside its window is brought back with its own meals,
+ *     as `rebalanceDay` would. A day inside its window is not touched.
+ *  2. What such a day could not absorb itself (its meals were eaten, or would
+ *     go under the smallest serving) is spread over the other days, each of
+ *     which gives in proportion to the room it has inside its own window. So
+ *     no day that was inside its window is taken out of it.
+ *
+ * A day without meals is one the user skips: it is neither a target to fill
+ * nor a day to test. `in-window` says that every day with meals ended inside
+ * its own window; `unabsorbed` is what the week could not make up for.
  */
 export function rebalanceWeek(
   days: RebalanceWeekDay[],
   tolerance: number = REBALANCE_TOLERANCE,
-): RebalanceResult {
-  const allMeals = days.flatMap((d) => d.meals);
-  const current = new Map(allMeals.map((m) => [m.id, m.quantityScale]));
-  const allInWindow = days.every((d) => within(totalKcal(d.meals, current), d.target, tolerance));
-  if (allInWindow) return { scales: current, feasibility: 'in-window' };
+): WeekRebalanceResult {
+  const live = days.filter((d) => d.meals.length > 0);
+  const scales = new Map(live.flatMap((d) => d.meals).map((m) => [m.id, m.quantityScale]));
+  const total = (d: RebalanceWeekDay) => totalKcal(d.meals, scales);
+  const inside = (d: RebalanceWeekDay) => within(total(d), d.target, tolerance);
+  /** Solve one day against `target` with the scales it has now, and keep the result. */
+  const settle = (d: RebalanceWeekDay, target: number): void => {
+    const now = d.meals.map((m) => ({ ...m, quantityScale: scales.get(m.id)! }));
+    for (const [id, scale] of solve(now, target)) scales.set(id, scale);
+  };
 
-  const weekTarget = days.reduce((s, d) => s + d.target, 0);
-  const scales = solve(allMeals, weekTarget);
-  const feasible = days.every((d) => within(totalKcal(d.meals, scales), d.target, tolerance));
-  return { scales, feasibility: feasible ? 'in-window' : 'best-effort' };
+  if (live.every(inside)) return { scales, feasibility: 'in-window', unabsorbed: 0 };
+
+  const outside = live.filter((d) => !inside(d));
+  for (const d of outside) settle(d, d.target);
+
+  // What the days that are still outside could not make up for themselves.
+  const stillOutside = outside.filter((d) => !inside(d));
+  let left = stillOutside.reduce((sum, d) => sum + (total(d) - d.target), 0);
+  if (stillOutside.length > 0 && Math.abs(left) > 1e-9) {
+    const over = left > 0;
+    // The room a day has: how far it can move towards the edge of its own window.
+    const givers = live
+      .filter((d) => !stillOutside.includes(d) && d.meals.some((m) => !m.locked && m.calories > 0 && m.servings > 0))
+      .map((d) => ({ day: d, room: over ? total(d) - d.target * (1 - tolerance) : d.target * (1 + tolerance) - total(d) }))
+      .filter((giver) => giver.room > 1e-9);
+    const room = givers.reduce((sum, giver) => sum + giver.room, 0);
+    const taken = Math.min(Math.abs(left), room);
+    for (const { day, room: own } of givers) {
+      const before = total(day);
+      settle(day, before - (over ? 1 : -1) * taken * (own / room));
+      left -= before - total(day);
+    }
+  }
+
+  return { scales, feasibility: live.every(inside) ? 'in-window' : 'best-effort', unabsorbed: Math.abs(left) < 1e-6 ? 0 : left };
 }

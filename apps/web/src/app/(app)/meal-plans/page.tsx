@@ -1020,6 +1020,11 @@ function RebalanceToast({
       {rebalance.feasibility === 'best-effort' && (
         <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{t('rebalanceBestEffort')}</p>
       )}
+      {rebalance.unabsorbedKcal !== 0 && (
+        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+          {t(rebalance.unabsorbedKcal > 0 ? 'rebalanceLeftOver' : 'rebalanceLeftUnder', { kcal: Math.abs(rebalance.unabsorbedKcal) })}
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onUndo} disabled={busy}>
           {t('rebalanceUndo')}

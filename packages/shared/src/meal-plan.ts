@@ -320,14 +320,18 @@ export const AddCustomMealRequest = z.object({
 export type AddCustomMealRequest = z.infer<typeof AddCustomMealRequest>;
 
 /**
- * Explicit rebalance trigger. `day` rebalances the single date; `week`
- * shares the surplus/deficit across the plan week. `restore` is the undo path:
+ * Explicit rebalance trigger. `day` rebalances the single date. `week` takes
+ * the days from `date` (today when it is left out) to the end of that week of
+ * the plan, a plan's weeks being counted from its first day: each day that is
+ * outside its window is brought back with its own meals, and what it cannot
+ * absorb is spread over the others inside their own windows. Days before
+ * `date` and skipped days are not touched. `restore` is the undo path:
  * when present the service writes those exact scales verbatim and skips the
  * solver (the toast's "Undo last rebalance" sends the pre-edit `before` map).
  */
 export const RebalanceRequest = z.object({
   scope: z.enum(['day', 'week']),
-  /** Required for `day` scope; for `week` it selects which week to rebalance. */
+  /** Required for `day`. For `week` the first day that may change; today when left out. */
   date: z.string().date().optional(),
   restore: z
     .array(z.object({ mealId: z.string().uuid(), scale: z.number().min(0) }))
@@ -360,6 +364,8 @@ export const RebalanceResult = z.object({
       scope: z.enum(['day', 'week']),
       feasibility: z.enum(['in-window', 'best-effort']),
       changes: z.array(RebalanceChange),
+      /** For `week`: the kcal the days still are off by together after the rebalance; zero when the other days took it all, and for `day`. */
+      unabsorbedKcal: z.number(),
       macrosBefore: Nutrition,
       macrosAfter: Nutrition,
     })
