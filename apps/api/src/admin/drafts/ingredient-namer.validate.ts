@@ -18,8 +18,10 @@
  */
 import { MAX_BATCH_REPLY_CHARS, readModelObject } from '../../ai/model-json.js';
 import type { IngredientNameSuggestion } from '@diet-app/shared';
+import { checkIngredientName, type RecipeRule } from '../../recipes/recipe-rules.js';
 
 export type IngredientNamerValidationReason =
+  | RecipeRule
   | 'malformed-json'
   | 'missing-keys'
   | 'extra-keys'
@@ -147,10 +149,13 @@ export function validateIngredientNamer(
       if (Object.keys(cleanStorage).length === 0) cleanStorage = undefined;
     }
 
-    sanitised[slug] = {
-      name: cleanName,
-      ...(cleanStorage ? { storageHint: cleanStorage } : {}),
-    };
+    // What every name is held to, whoever wrote it: plain text of a length.
+    const checked = checkIngredientName({ name: cleanName, storageHint: cleanStorage }, targetLocales);
+    if (!checked.ok) {
+      const first = checked.problems[0]!;
+      return { ok: false, reason: first.rule, key: `${slug}.${first.path}` };
+    }
+    sanitised[slug] = checked.suggestion;
   }
 
   return { ok: true, suggestions: sanitised };

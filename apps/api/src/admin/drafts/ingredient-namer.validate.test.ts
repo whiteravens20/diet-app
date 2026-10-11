@@ -175,4 +175,32 @@ describe('validateIngredientNamer', () => {
       expect(result.suggestions['pears-bartlett'].storageHint).toBeUndefined();
     }
   });
+
+  describe('the rules every name is held to', () => {
+    const answered = (beef: Record<string, unknown>) =>
+      validateIngredientNamer({ source, targetLocales, rawOutput: happy({ 'beef-tenderloin': beef, 'pears-bartlett': { name: { pl: 'Gruszki bartlett' } } }) });
+
+    it('refuse markup in a name or a storage hint', () => {
+      expect(answered({ name: { pl: '<b>Polędwica wołowa</b>' } })).toEqual({ ok: false, reason: 'markup', key: 'beef-tenderloin.name.pl' });
+      expect(answered({ name: { pl: 'Polędwica wołowa' }, storageHint: { pl: 'W lodówce, <i>szczelnie</i>' } })).toEqual({
+        ok: false,
+        reason: 'markup',
+        key: 'beef-tenderloin.storageHint.pl',
+      });
+    });
+
+    it('refuse a hidden character that reorders what is read', () => {
+      expect(answered({ name: { pl: 'Polędwica \u202eawołow' } })).toMatchObject({ ok: false, reason: 'markup' });
+    });
+
+    it('refuse a storage hint longer than a hint', () => {
+      expect(answered({ name: { pl: 'Polędwica wołowa' }, storageHint: { pl: 'x'.repeat(301) } })).toEqual({ ok: false, reason: 'text-too-long', key: 'beef-tenderloin.storageHint.pl' });
+    });
+
+    it('keep a name as one plain line', () => {
+      const result = answered({ name: { pl: ' Polędwica\n wołowa ' } });
+
+      expect(result.ok && result.suggestions['beef-tenderloin']).toEqual({ name: { pl: 'Polędwica wołowa' } });
+    });
+  });
 });
