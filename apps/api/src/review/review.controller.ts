@@ -59,7 +59,8 @@ import type { z } from 'zod';
 import { DraftService, type Actor, type Page } from '../admin/drafts/draft.service.js';
 import { toIngredientNameReviewSlice, toRecipeReviewSlice } from '../admin/drafts/drafts.mapper.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
-import { verifyPassword } from '../common/password-hash.js';
+import { assertFromTheApplication } from '../auth/session-cookies.js';
+import { Passwords } from '../common/passwords.js';
 import { readCookie } from '../common/cookies.js';
 import type { Env } from '../config/env.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
@@ -81,6 +82,7 @@ export class ReviewController {
     private readonly settings: InstanceSettingsService,
     private readonly gate: SignInGate,
     private readonly drafts: DraftService,
+    private readonly passwords: Passwords,
   ) {}
 
   // ── Auth ────────────────────────────────────────────────────────────────────
@@ -118,8 +120,10 @@ export class ReviewController {
       });
     }
 
-    const { reviewerEnabled, reviewerPasswordHash } =
-      await this.settings.readReviewerCredentials();
+    const appUrl = this.config.get('APP_URL', { infer: true });
+    // A page of another site cannot sign a visitor in to a session of its choosing.
+    assertFromTheApplication(req.headers.origin, appUrl);
+    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } = await this.settings.readReviewerCredentials();
     if (!reviewerEnabled || reviewerPasswordHash === null) {
       throw new UnauthorizedException({
         error: 'REVIEWER_DISABLED',
@@ -128,7 +132,7 @@ export class ReviewController {
     }
     const client = req.ip ?? 'unknown';
     this.gate.assertOpen('reviewer', client, res);
-    const ok = await verifyPassword(parsed.data.password, reviewerPasswordHash);
+    const ok = await this.passwords.matches(parsed.data.password, reviewerPasswordHash);
     if (!ok) {
       this.gate.failed('reviewer', client);
       throw new UnauthorizedException({
@@ -141,8 +145,8 @@ export class ReviewController {
     const secret = resolveReviewerSecret(this.config);
     const { token, maxAgeSeconds } = signReviewerCookie(this.jwt, secret, {
       label: parsed.data.label,
+      epoch: reviewerSessionEpoch,
     });
-    const appUrl = this.config.get('APP_URL', { infer: true });
     res.setHeader(
       'Set-Cookie',
       buildReviewerSetCookie({
@@ -174,8 +178,7 @@ export class ReviewController {
    *  unauthenticated probe doesn't need to be a special case. */
   @Get('session')
   async session(@Req() req: Request): Promise<{ session: ReviewerSessionDto | null }> {
-    const { reviewerEnabled, reviewerPasswordHash } =
-      await this.settings.readReviewerCredentials();
+    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } = await this.settings.readReviewerCredentials();
     if (!reviewerEnabled || reviewerPasswordHash === null) {
       return { session: null };
     }
@@ -186,7 +189,7 @@ export class ReviewController {
     );
     if (!token) return { session: null };
     const secret = resolveReviewerSecret(this.config);
-    const parsedSession = verifyReviewerCookie(this.jwt, secret, token);
+    const parsedSession = verifyReviewerCookie(this.jwt, secret, token, reviewerSessionEpoch);
     return { session: parsedSession };
   }
 

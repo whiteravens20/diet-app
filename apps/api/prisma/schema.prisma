@@ -973,8 +973,12 @@ model IngredientNameDraftLocaleReview {
 model InstanceSettings {
   id                   String   @id @default("singleton")
   reviewerEnabled      Boolean  @default(false)
-  // bcrypt hash; cleared (null) when the operator clears the password.
+  // Hashed as the passwords of accounts are; null when the operator cleared it.
   reviewerPasswordHash String?
+  // Raised when the password changes and when the panel is closed. A
+  // reviewer's session says which epoch it is of, and one of an earlier
+  // epoch is no session: it ends then, and does not come back.
+  reviewerSessionEpoch Int      @default(0)
   updatedAt            DateTime @updatedAt
 }
 

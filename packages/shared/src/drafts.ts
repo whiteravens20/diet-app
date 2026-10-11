@@ -357,8 +357,10 @@ export type InstanceSettingsDto = z.infer<typeof InstanceSettingsDto>;
 export const InstanceSettingsPatchBody = z
   .object({
     reviewerEnabled: z.boolean().optional(),
-    // Empty string clears the existing hash; `undefined` means "no change".
-    reviewerPassword: z.string().max(200).optional(),
+    // Twelve characters at least, as for an account. An empty string takes
+    // the password away, which closes the reviewers' door; leaving the field
+    // out leaves the password as it is.
+    reviewerPassword: z.union([z.literal(''), z.string().min(12).max(200)]).optional(),
   })
   .strict();
 export type InstanceSettingsPatchBody = z.infer<typeof InstanceSettingsPatchBody>;

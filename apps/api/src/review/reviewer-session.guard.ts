@@ -5,11 +5,12 @@
  *
  * Refuses entry unless:
  *   1. `InstanceSettings.reviewerEnabled = true` (re-read every request, so
- *      flipping the admin toggle revokes every active session instantly —
- *      no token rotation needed).
+ *      closing the panel shuts every session out at once).
  *   2. A `reviewerPasswordHash` is configured.
  *   3. The `reviewer_session` cookie carries a valid token of a reviewer
- *      session, signed with the reviewer key.
+ *      session, signed with the reviewer key, of the epoch the settings
+ *      are in: a changed password or a closed panel ended the ones before.
+ *   4. A request that changes something comes from the application's pages.
  *
  * On success attaches `req.reviewer = { label, locale }` so controllers can
  * scope every operation to the cookie's locale.
@@ -24,6 +25,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
+import { assertFromTheApplication } from '../auth/session-cookies.js';
 import { readCookie } from '../common/cookies.js';
 import type { Env } from '../config/env.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
@@ -47,8 +49,7 @@ export class ReviewerSessionGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    const { reviewerEnabled, reviewerPasswordHash } =
-      await this.settings.readReviewerCredentials();
+    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } = await this.settings.readReviewerCredentials();
     if (!reviewerEnabled || reviewerPasswordHash === null) {
       throw new ForbiddenException({
         error: 'REVIEWER_DISABLED',
@@ -70,12 +71,16 @@ export class ReviewerSessionGuard implements CanActivate {
     }
 
     const secret = resolveReviewerSecret(this.config);
-    const session = verifyReviewerCookie(this.jwt, secret, token);
+    const session = verifyReviewerCookie(this.jwt, secret, token, reviewerSessionEpoch);
     if (!session) {
       throw new UnauthorizedException({
         error: 'INVALID_REVIEWER_SESSION',
         message: 'Reviewer session is invalid or expired.',
       });
+    }
+    // A request that changes something has to come from the application's own pages.
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      assertFromTheApplication(req.headers['origin'] as string | undefined, this.config.get('APP_URL', { infer: true }));
     }
 
     req.reviewer = session;

@@ -72,7 +72,7 @@ export function ReviewerConfigCard() {
       setPasswordInput('');
     } catch (err) {
       if (err instanceof AdminApiError && err.status === 400) {
-        setError(t('passwordTooLong'));
+        setError(t('passwordLength'));
       } else {
         setError(err instanceof Error ? err.message : t('passwordSaveFailed'));
       }
@@ -165,9 +165,14 @@ export function ReviewerConfigCard() {
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder={t('passwordPlaceholder')}
+                  minLength={12}
                   maxLength={200}
+                  aria-describedby="reviewer-password-hint"
                 />
               </Field>
+              <p id="reviewer-password-hint" className="text-xs text-muted-foreground">
+                {t('passwordHint')}
+              </p>
               <div className="flex items-center gap-2">
                 <Button
                   type="submit"

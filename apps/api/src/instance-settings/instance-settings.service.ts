@@ -7,9 +7,8 @@
  * operator can flip it from the panel without restarting the API.
  */
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { hashPassword } from '../common/password-hash.js';
-import type { Env } from '../config/env.js';
+import type { Prisma } from '@prisma/client';
+import { Passwords } from '../common/passwords.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const SINGLETON_ID = 'singleton';
@@ -34,7 +33,7 @@ export interface InstanceSettingsPatch {
 export class InstanceSettingsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService<Env, true>,
+    private readonly passwords: Passwords,
   ) {}
 
   /** Returns the current settings; creates the singleton row lazily. */
@@ -58,6 +57,8 @@ export class InstanceSettingsService {
   async readReviewerCredentials(): Promise<{
     reviewerEnabled: boolean;
     reviewerPasswordHash: string | null;
+    /** The epoch a reviewer's session has to be of to count. */
+    reviewerSessionEpoch: number;
   }> {
     const row = await this.prisma.instanceSettings.upsert({
       where: { id: SINGLETON_ID },
@@ -67,32 +68,32 @@ export class InstanceSettingsService {
     return {
       reviewerEnabled: row.reviewerEnabled,
       reviewerPasswordHash: row.reviewerPasswordHash,
+      reviewerSessionEpoch: row.reviewerSessionEpoch,
     };
   }
 
+  /**
+   * Change the reviewer settings. A changed or cleared password, and closing
+   * the panel, end every reviewer session there is: the epoch moves on, and
+   * a session of an earlier one is none. Opening the panel again brings
+   * nothing back.
+   */
   async patch(patch: InstanceSettingsPatch): Promise<InstanceSettingsState> {
-    const data: {
-      reviewerEnabled?: boolean;
-      reviewerPasswordHash?: string | null;
-    } = {};
+    const before = await this.readReviewerCredentials();
+    const data: Prisma.InstanceSettingsUpdateInput = {};
+    let endsSessions = false;
 
     if (patch.reviewerEnabled !== undefined) {
       data.reviewerEnabled = patch.reviewerEnabled;
+      endsSessions ||= before.reviewerEnabled && !patch.reviewerEnabled;
     }
     if (patch.reviewerPassword !== undefined) {
-      if (patch.reviewerPassword === '') {
-        data.reviewerPasswordHash = null;
-      } else {
-        const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
-        data.reviewerPasswordHash = await hashPassword(patch.reviewerPassword, rounds);
-      }
+      data.reviewerPasswordHash = patch.reviewerPassword === '' ? null : await this.passwords.hash(patch.reviewerPassword);
+      endsSessions = true;
     }
+    if (endsSessions) data.reviewerSessionEpoch = { increment: 1 };
 
-    const row = await this.prisma.instanceSettings.upsert({
-      where: { id: SINGLETON_ID },
-      create: { id: SINGLETON_ID, ...data },
-      update: data,
-    });
+    const row = await this.prisma.instanceSettings.update({ where: { id: SINGLETON_ID }, data });
     return {
       reviewerEnabled: row.reviewerEnabled,
       reviewerPasswordSet: row.reviewerPasswordHash !== null,

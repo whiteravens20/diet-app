@@ -155,14 +155,6 @@ describe('AuthService.login', () => {
     expect(res.tokens.refreshToken).toBeTypeOf('string');
     expect(deps.prisma.refreshToken.create).toHaveBeenCalledTimes(1);
   });
-
-  // Regression: the miss path must run a *real* bcrypt compare so its timing
-  // matches a wrong-password hit — otherwise login is an account-enumeration
-  // timing oracle. A valid dummy hash at the configured cost is the guarantee;
-  // the prior malformed constant let bcrypt.compare fail-fast (~0ms). We assert
-  // the dummy is a well-formed bcrypt hash at the configured rounds rather than
-  // wall-clock timing (which is flaky in CI).
-
 });
 
 describe('AuthService.verifyEmail', () => {

@@ -77,7 +77,7 @@ describe('settings left blank in the environment', () => {
   it('let a reviewer sign in, with a cookie signed by a key of its own', async () => {
     await t.http().patch('/api/admin/instance-settings').set(basic).send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' }).expect(200);
 
-    const res = await t.http().post('/api/review/auth').send({ password: 'Reviewers-Passw0rd', label: 'pl reviewer' });
+    const res = await t.http().post('/api/review/auth').set({ Origin: 'http://localhost:3000' }).send({ password: 'Reviewers-Passw0rd', label: 'pl reviewer' });
 
     expect(res.status).toBe(204);
     const cookie = /reviewer_session=([^;]+)/.exec(String(res.headers['set-cookie']))![1]!;

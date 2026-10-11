@@ -222,7 +222,7 @@ describe('rate limits behind a proxy that is not trusted', () => {
       const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
       await t.http().patch('/api/admin/instance-settings').set(basic).send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' }).expect(200);
       const gate = t.app.get(SignInGate);
-      const signIn = (password: string) => t.http().post('/api/review/auth').send({ password, label: 'pl reviewer' });
+      const signIn = (password: string) => t.http().post('/api/review/auth').set({ Origin: 'http://localhost:3000' }).send({ password, label: 'pl reviewer' });
 
       const counted = vi.spyOn(gate, 'failed');
 

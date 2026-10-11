@@ -143,10 +143,17 @@ export const asAdmin = { Authorization: `Basic ${Buffer.from('admin:integration-
  * asked for over HTTP, so that a file with many tests does not meet the limit
  * on reviewer sign-ins.
  */
-export async function aReviewer(t: TestApp, label = 'pl reviewer'): Promise<{ Cookie: string }> {
-  await t.app.get(InstanceSettingsService).patch({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' });
-  const { token } = signReviewerCookie(t.app.get(JwtService, { strict: false }), resolveReviewerSecret(t.app.get(ConfigService)), { label });
-  return { Cookie: `${REVIEWER_COOKIE_NAME}=${token}` };
+export async function aReviewer(t: TestApp, label = 'pl reviewer'): Promise<{ Cookie: string; Origin: string }> {
+  const settings = t.app.get(InstanceSettingsService);
+  await settings.patch({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' });
+  return aReviewerSession(t, label);
+}
+
+/** The headers of a reviewer's session under the settings as they are now: the cookie, and where the request comes from. */
+export async function aReviewerSession(t: TestApp, label = 'pl reviewer'): Promise<{ Cookie: string; Origin: string }> {
+  const { reviewerSessionEpoch } = await t.app.get(InstanceSettingsService).readReviewerCredentials();
+  const { token } = signReviewerCookie(t.app.get(JwtService, { strict: false }), resolveReviewerSecret(t.app.get(ConfigService)), { label, epoch: reviewerSessionEpoch });
+  return { Cookie: `${REVIEWER_COOKIE_NAME}=${token}`, Origin: t.app.get(ConfigService).get('APP_URL') };
 }
 
 /**
