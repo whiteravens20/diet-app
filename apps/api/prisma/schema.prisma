@@ -801,7 +801,8 @@ model AiProviderConfig {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  @@index([userId])
+  // One configuration of a provider for an account: saving it again changes it.
+  @@unique([userId, provider])
 }
 
 // How a call to a provider ended. A row starts as PENDING, before the provider

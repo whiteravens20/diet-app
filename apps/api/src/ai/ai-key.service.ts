@@ -56,10 +56,13 @@ export class AiKeyService {
     return rows.map((r) => this.toDto(r));
   }
 
+  /**
+   * Save an account's configuration of a provider: the first time it is
+   * made, afterwards changed. An account has one for each provider, which the
+   * database holds to, so two saves that arrive together leave one row. A key
+   * that is left out stays as it is.
+   */
   async upsert(userId: string, input: AiProviderConfigInput): Promise<AiProviderConfig> {
-    const existing = await this.prisma.aiProviderConfig.findFirst({
-      where: { userId, provider: input.provider },
-    });
     const encryptedKey = input.apiKey ? sealKey(input.apiKey, this.encKey, userId) : undefined;
 
     const baseUrl = input.provider === 'ollama' ? input.baseUrl ?? null : null;
@@ -81,28 +84,12 @@ export class AiKeyService {
         throw err;
       }
     }
-    const row = existing
-      ? await this.prisma.aiProviderConfig.update({
-          where: { id: existing.id },
-          data: {
-            model: input.model,
-            priority: input.priority,
-            enabled: input.enabled,
-            baseUrl,
-            ...(encryptedKey !== undefined ? { encryptedKey } : {}),
-          },
-        })
-      : await this.prisma.aiProviderConfig.create({
-          data: {
-            userId,
-            provider: input.provider,
-            model: input.model,
-            priority: input.priority,
-            enabled: input.enabled,
-            encryptedKey,
-            baseUrl,
-          },
-        });
+    const settings = { model: input.model, priority: input.priority, enabled: input.enabled, baseUrl };
+    const row = await this.prisma.aiProviderConfig.upsert({
+      where: { userId_provider: { userId, provider: input.provider } },
+      create: { userId, provider: input.provider, ...settings, encryptedKey },
+      update: { ...settings, ...(encryptedKey !== undefined ? { encryptedKey } : {}) },
+    });
     return this.toDto(row);
   }
 

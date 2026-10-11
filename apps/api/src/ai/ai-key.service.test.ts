@@ -37,15 +37,11 @@ const withoutUndefined = (data: Record<string, unknown>): Record<string, unknown
 function makePrisma(overrides: Record<string, unknown> = {}) {
   return {
     aiProviderConfig: {
-      findFirst: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn().mockResolvedValue(null),
-      // As the database answers: a column that was not written is null.
-      create: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'cfg-1', isAdminDefault: false, encryptedKey: null, ...withoutUndefined(args.data) }),
-      ),
-      update: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'cfg-1', isAdminDefault: false, encryptedKey: null, ...withoutUndefined(args.data) }),
+      // As the database answers for an account that had no row for the provider: a column that was not written is null.
+      upsert: vi.fn().mockImplementation((args: { create: Record<string, unknown> }) =>
+        Promise.resolve({ id: 'cfg-1', isAdminDefault: false, encryptedKey: null, ...withoutUndefined(args.create) }),
       ),
       delete: vi.fn().mockResolvedValue({}),
       count: vi.fn().mockResolvedValue(0),
@@ -91,7 +87,7 @@ describe('AiKeyService.upsert', () => {
     expect(dto).not.toHaveProperty('encryptedKey');
     expect(dto.hasKey).toBe(true);
 
-    const created = prisma.aiProviderConfig.create.mock.calls[0][0].data;
+    const created = prisma.aiProviderConfig.upsert.mock.calls[0][0].create;
     expect(created.encryptedKey).toBeTypeOf('string');
     expect(created.encryptedKey).not.toContain('sk-secret-123');
     // Round-trips back to the original under the configured key.
@@ -110,8 +106,8 @@ describe('AiKeyService.upsert', () => {
       priority: 0,
       enabled: true,
     } as never);
-    expect(prisma.aiProviderConfig.create).toHaveBeenCalled();
-    expect(prisma.aiProviderConfig.create.mock.calls[0][0].data.baseUrl).toBe('http://ollama:11434');
+    expect(prisma.aiProviderConfig.upsert).toHaveBeenCalled();
+    expect(prisma.aiProviderConfig.upsert.mock.calls[0][0].create.baseUrl).toBe('http://ollama:11434');
   });
 
   it('rejects an internal Ollama baseUrl under the default allowlist policy (SSRF)', async () => {
@@ -127,7 +123,7 @@ describe('AiKeyService.upsert', () => {
     ).rejects.toMatchObject({
       response: expect.objectContaining({ error: 'OLLAMA_HOST_NOT_ALLOWED' }),
     });
-    expect(prisma.aiProviderConfig.create).not.toHaveBeenCalled();
+    expect(prisma.aiProviderConfig.upsert).not.toHaveBeenCalled();
   });
 
   it('rejects any user Ollama baseUrl when policy is off', async () => {
@@ -154,7 +150,7 @@ describe('AiKeyService.upsert', () => {
       priority: 0,
       enabled: true,
     } as never);
-    expect(prisma.aiProviderConfig.create).toHaveBeenCalled();
+    expect(prisma.aiProviderConfig.upsert).toHaveBeenCalled();
   });
 
   it('still blocks internal hosts even when policy is public', async () => {
@@ -180,7 +176,7 @@ describe('AiKeyService.upsert', () => {
       priority: 0,
       enabled: true,
     } as never);
-    expect(prisma.aiProviderConfig.create.mock.calls[0][0].data.baseUrl).toBeNull();
+    expect(prisma.aiProviderConfig.upsert.mock.calls[0][0].create.baseUrl).toBeNull();
   });
 });
 
