@@ -81,11 +81,11 @@ describe('putting one ingredient of a planned meal in the place of another', () 
     });
 
     it('gives no more than three times what leaves, and says that what a serving holds moves', async () => {
-      // 10 ml of oil hold the energy of 239 g of broccoli.
+      // 10 ml of oil hold the energy of 239 g of broccoli, and weigh 9.2 g.
       const shown = await preview('olive-oil', 'broccoli');
 
       expect(shown.sizing).toBe('capped');
-      expect(shown.to.quantity / dinner.servings).toBeCloseTo(30, 5);
+      expect(shown.to.quantity / dinner.servings).toBeCloseTo(27.6, 5);
       // The recipe has broccoli already: its line takes the amount on.
       expect(shown.merged).toBe(true);
       expect(shown.moved).toEqual(['calories', 'fat']);
@@ -258,7 +258,7 @@ describe('putting one ingredient of a planned meal in the place of another', () 
 
       expect((await apply('olive-oil', 'broccoli', { acceptChange: true })).status).toBe(201);
       // One line of broccoli, the old amount and the substitute together; no oil.
-      expect(await linesNow()).toEqual({ 'chicken-breast': [150], 'white-rice': [80], broccoli: [180] });
+      expect(await linesNow()).toEqual({ 'chicken-breast': [150], 'white-rice': [80], broccoli: [177.6] });
     });
 
     it('is refused for a substitute the profile rules out, whatever the request accepts', async () => {

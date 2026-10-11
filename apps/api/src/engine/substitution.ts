@@ -29,9 +29,27 @@ export const MAX_SUBSTITUTE_RATIO = 3;
 /**
  * How the amount of a substitute was decided: as much as holds the same
  * `energy`; `capped` at three times the amount it replaces; or the same
- * amount (`mass`), where one of the two holds no energy to go by.
+ * amount (`mass`), where one of the two holds no energy to go by. Between a
+ * liquid and something weighed, the same amount is what weighs the same.
  */
 export type SubstituteSizing = 'energy' | 'capped' | 'mass';
+
+type Sized = Pick<EngineIngredient, 'caloriesPer100' | 'canonicalUnit' | 'density' | 'gramsPerPiece'>;
+
+/** What `amount` of an ingredient, in its own unit, weighs in grams. */
+function weightOf(amount: number, { canonicalUnit, density, gramsPerPiece }: Sized): number {
+  // A millilitre is taken for a gram, and a piece for a gram, where the
+  // catalogue does not say what they weigh: this sizes a substitute, and a
+  // rough amount serves better than none.
+  if (canonicalUnit === 'ml') return amount * (density && density > 0 ? density : 1);
+  if (canonicalUnit === 'piece') return amount * (gramsPerPiece && gramsPerPiece > 0 ? gramsPerPiece : 1);
+  return amount;
+}
+
+/** The same amount of `to` as `amount` of `from`: the same number in one unit, what weighs the same between two. */
+function sameAmount(from: Sized, to: Sized, amount: number): number {
+  return from.canonicalUnit === to.canonicalUnit ? amount : amount * (weightOf(1, from) / weightOf(1, to));
+}
 
 /**
  * How much of `to` takes the place of `amount` of `from`, each in its own unit
@@ -39,14 +57,12 @@ export type SubstituteSizing = 'energy' | 'capped' | 'mass';
  * more than three times what it replaces: energy is not all that a spoonful
  * of oil and a pan of spinach differ in.
  */
-export function substituteAmount(
-  from: Pick<EngineIngredient, 'caloriesPer100'>,
-  to: Pick<EngineIngredient, 'caloriesPer100'>,
-  amount: number,
-): { amount: number; sizing: SubstituteSizing } {
-  if (from.caloriesPer100 <= 0 || to.caloriesPer100 <= 0) return { amount, sizing: 'mass' };
+export function substituteAmount(from: Sized, to: Sized, amount: number): { amount: number; sizing: SubstituteSizing } {
+  const same = sameAmount(from, to, amount);
+  if (from.caloriesPer100 <= 0 || to.caloriesPer100 <= 0) return { amount: same, sizing: 'mass' };
+  // Energy is counted per hundred of each one's own unit: nothing is converted to match it.
   const matching = (amount * from.caloriesPer100) / to.caloriesPer100;
-  const most = amount * MAX_SUBSTITUTE_RATIO;
+  const most = same * MAX_SUBSTITUTE_RATIO;
   return matching > most ? { amount: most, sizing: 'capped' } : { amount: matching, sizing: 'energy' };
 }
 

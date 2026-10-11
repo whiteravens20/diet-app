@@ -21,9 +21,10 @@ const ingredient = (id: string, per100: [kcal: number, protein: number, fat: num
 
 const rice = ingredient('rice', [130, 2.7, 0.3, 28]);
 const pasta = ingredient('pasta', [158, 5.8, 0.9, 31]);
-const oil = ingredient('olive-oil', [813, 0, 92, 0], { canonicalUnit: 'ml' });
+const oil = ingredient('olive-oil', [813, 0, 92, 0], { canonicalUnit: 'ml', density: 0.91 });
 const spinach = ingredient('spinach', [23, 2.9, 0.4, 3.6]);
-const water = ingredient('water', [0, 0, 0, 0], { canonicalUnit: 'ml' });
+const water = ingredient('water', [0, 0, 0, 0], { canonicalUnit: 'ml', density: 1 });
+const salt = ingredient('salt', [0, 0, 0, 0]);
 
 describe('how much of a substitute takes the place of an ingredient', () => {
   it('is as much as holds the same energy', () => {
@@ -36,11 +37,11 @@ describe('how much of a substitute takes the place of an ingredient', () => {
   });
 
   it('is never more than three times what it replaces', () => {
-    // 20 ml of oil hold the energy of 707 g of spinach.
+    // 20 ml of oil hold the energy of 707 g of spinach, and weigh 18.2 g.
     const { amount, sizing } = substituteAmount(oil, spinach, 20);
 
     expect(MAX_SUBSTITUTE_RATIO).toBe(3);
-    expect(amount).toBe(60);
+    expect(amount).toBeCloseTo(54.6);
     expect(sizing).toBe('capped');
     // Exactly three times is no cap.
     expect(substituteAmount(ingredient('a', [300, 0, 0, 0]), ingredient('b', [100, 0, 0, 0]), 50)).toEqual({ amount: 150, sizing: 'energy' });
@@ -52,6 +53,21 @@ describe('how much of a substitute takes the place of an ingredient', () => {
 
   it('is the same amount where the substitute holds no energy', () => {
     expect(substituteAmount(oil, water, 20)).toEqual({ amount: 20, sizing: 'mass' });
+  });
+
+  it('takes the same amount of a liquid and of something weighed to be what weighs the same', () => {
+    // 20 ml of oil weigh 18.2 g; 10 g of salt weigh what 10.99 ml of oil do.
+    expect(substituteAmount(oil, salt, 20).amount).toBeCloseTo(18.2);
+    expect(substituteAmount(salt, oil, 10).amount).toBeCloseTo(10.99, 2);
+    // Energy is counted per hundred of each one's own unit, so nothing is converted to match it.
+    expect(substituteAmount(oil, ingredient('butter', [717, 0.9, 81, 0.1]), 20)).toEqual({ amount: (20 * 813) / 717, sizing: 'energy' });
+  });
+
+  it('takes a millilitre for a gram where the catalogue does not say what a liquid weighs', () => {
+    const stock = ingredient('stock', [0, 0, 0, 0], { canonicalUnit: 'ml' });
+
+    expect(substituteAmount(stock, salt, 250)).toEqual({ amount: 250, sizing: 'mass' });
+    expect(substituteAmount(salt, stock, 5)).toEqual({ amount: 5, sizing: 'mass' });
   });
 });
 
