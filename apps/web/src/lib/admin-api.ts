@@ -6,7 +6,7 @@
  * live in sessionStorage so they vanish when the tab closes; never persisted
  * across browser sessions.
  */
-import type { DietType, MealType } from '@diet-app/shared';
+import type { DietType, DraftRunNote, MealType } from '@diet-app/shared';
 import { retryAfterOf } from './api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -225,6 +225,10 @@ export interface DraftRunnerState {
   model: string | null;
   batchId: string | null;
   error: string | null;
+  /** In the run's scope, and left out because there was nothing to do for them. */
+  skipped: number;
+  /** Why the run had nothing to do or ended early, when that is no failure. */
+  note: DraftRunNote | null;
   configured: boolean;
 }
 

@@ -520,6 +520,11 @@
       "scopeLabel": "Catalogue",
       "scopeCurated": "Curated only (recommended)",
       "scopeAll": "All (curated + USDA)",
+      "runNotes": {
+        "nothing-imported": "Nothing to name: the catalogue has no imported ingredients.",
+        "not-imported": "{skipped, plural, one {Nothing to name: the ingredient given is not an imported one.} other {Nothing to name: none of the # ingredients given is an imported one.}} Only imported ingredients get their names from a run.",
+        "all-have-drafts": "{skipped, plural, one {Nothing to name: the one imported ingredient already has a draft.} other {Nothing to name: all # imported ingredients already have a draft.}}"
+      },
       "rejectReasonLabel": "Last batch rejected: {reason} ({key})",
       "rejectReasonHint": "The validator rejected the model's output on every retry. Common causes: unknown-slug (model invented a slug), invalid-unit (used tbsp/cup), missing-field (skipped difficulty). Try a different model, or fewer recipes per batch.",
       "shipHeader": "Ship approved",

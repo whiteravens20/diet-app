@@ -14,7 +14,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
-import { NON_CANONICAL_LOCALES, type Locale } from '@diet-app/shared';
+import { NON_CANONICAL_LOCALES, type DraftRunNote, type Locale } from '@diet-app/shared';
 import type { Env } from '../../config/env.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AnthropicProvider } from '../../ai/providers/anthropic.provider.js';
@@ -50,6 +50,10 @@ export interface IngredientNamerRunnerState {
   /** Set when a run kicks off so the UI can deep-link to the new drafts. */
   batchId: string | null;
   error: string | null;
+  /** Ingredients of the run's scope that it had nothing to do for. */
+  skipped: number;
+  /** Why the run named nothing, when that is no failure. */
+  note: DraftRunNote | null;
 }
 
 export interface IngredientNamerStartSpec {
@@ -117,6 +121,8 @@ export class IngredientNamerRunner {
       model,
       batchId,
       error: null,
+      skipped: 0,
+      note: null,
     };
     void this.run(spec, batchId);
     return true;
@@ -129,8 +135,8 @@ export class IngredientNamerRunner {
           ? spec.targetLocales
           : [...NON_CANONICAL_LOCALES];
 
-      const targets = await this.collectTargets(spec);
-      this.state = { ...this.state, total: targets.length };
+      const { targets, skipped, note } = await this.collectTargets(spec);
+      this.state = { ...this.state, total: targets.length, skipped, note };
       if (targets.length === 0) {
         this.finish(null);
         return;
@@ -166,13 +172,16 @@ export class IngredientNamerRunner {
     }
   }
 
-  /** USDA-tagged ingredients whose latest draft is missing or stale (prompt
-   *  version mismatch). When `scope === 'specific-slugs'` we honour the
-   *  explicit list verbatim and ignore the prompt-version filter — the
-   *  operator's intent is "redo these regardless". */
+  /**
+   * The ingredients a run names: imported ones, which arrive with the names
+   * of their source. With `specific-slugs` those among the slugs named, even
+   * when they have a draft already: the operator asked for them again.
+   * Otherwise every imported ingredient that has no draft of this prompt's
+   * version. A run that is left with nothing says which of these it was.
+   */
   private async collectTargets(
     spec: IngredientNamerStartSpec,
-  ): Promise<{ id: string; slug: string; rawDescription: string }[]> {
+  ): Promise<{ targets: { id: string; slug: string; rawDescription: string }[]; skipped: number; note: DraftRunNote | null }> {
     const ingredients = await this.prisma.ingredient.findMany({
       where: {
         tags: { has: 'usda-imported' },
@@ -185,11 +194,15 @@ export class IngredientNamerRunner {
       select: { id: true, slug: true, name: true },
     });
 
+    const imported = ingredients
+      .filter((i): i is { id: string; slug: string; name: string } => i.slug !== null)
+      .map((i) => ({ id: i.id, slug: i.slug, rawDescription: i.name }));
     if (spec.scope === 'specific-slugs') {
-      return ingredients
-        .filter((i): i is { id: string; slug: string; name: string } => i.slug !== null)
-        .map((i) => ({ id: i.id, slug: i.slug, rawDescription: i.name }));
+      const asked = new Set(spec.slugs ?? []).size;
+      const skipped = asked - imported.length;
+      return { targets: imported, skipped, note: imported.length === 0 ? 'not-imported' : null };
     }
+    if (imported.length === 0) return { targets: [], skipped: 0, note: 'nothing-imported' };
 
     // Skip slugs that already have a PENDING/APPROVED/SHIPPED draft from the
     // current prompt version. REJECTED rows are retried on the next run —
@@ -202,10 +215,8 @@ export class IngredientNamerRunner {
       select: { ingredientSlug: true },
     });
     const skip = new Set(existing.map((d) => d.ingredientSlug));
-    return ingredients
-      .filter((i): i is { id: string; slug: string; name: string } => i.slug !== null)
-      .filter((i) => !skip.has(i.slug))
-      .map((i) => ({ id: i.id, slug: i.slug, rawDescription: i.name }));
+    const targets = imported.filter((i) => !skip.has(i.slug));
+    return { targets, skipped: imported.length - targets.length, note: targets.length === 0 ? 'all-have-drafts' : null };
   }
 
   private async processBatch(
@@ -393,6 +404,8 @@ export class IngredientNamerRunner {
       model: null,
       batchId: null,
       error: null,
+      skipped: 0,
+      note: null,
     };
   }
 }

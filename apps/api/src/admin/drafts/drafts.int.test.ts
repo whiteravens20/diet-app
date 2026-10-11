@@ -460,5 +460,42 @@ describe('the curation queue', () => {
       expect(refused.status).toBe(400);
       expect(refused.body.error).toBe('INVALID_SPEC');
     });
+
+    describe('that has nothing to do', () => {
+      const start = (spec: Record<string, unknown>) => t.http().post('/api/admin/drafts/ingredient-names/generate').set(asAdmin).send({ targetLocales: ['pl'], ...spec }).expect(202);
+      /** The state of the run once it has ended. */
+      const ended = async () => {
+        for (let waited = 0; waited < 200; waited += 1) {
+          const state = (await t.http().get('/api/admin/drafts/ingredient-names/generate/status').set(asAdmin).expect(200)).body;
+          if (state.status !== 'running') return state;
+          await new Promise((tick) => setTimeout(tick, 25));
+        }
+        throw new Error('the run did not end');
+      };
+      const imported = (slug: string, tags: string[]) => t.prisma.ingredient.update({ where: { slug }, data: { tags } });
+
+      it('says so when the catalogue has no imported ingredient to name', async () => {
+        await start({ scope: 'all-usda-missing' });
+
+        expect(await ended()).toMatchObject({ status: 'done', error: null, total: 0, written: 0, skipped: 0, note: 'nothing-imported' });
+      });
+
+      it('says that the ingredients it was given are not imported ones, and how many it left out', async () => {
+        await start({ scope: 'specific-slugs', slugs: ['banana', 'salmon', 'no-such-ingredient'] });
+
+        expect(await ended()).toMatchObject({ status: 'done', error: null, total: 0, skipped: 3, note: 'not-imported' });
+      });
+
+      it('says that every imported ingredient has a draft already', async () => {
+        await imported('salmon', ['usda-imported']);
+        await anIngredientNameDraft(t, { ingredientSlug: 'salmon', generatorPrompt: 'ingredient-namer.v1' });
+
+        await start({ scope: 'all-usda-missing' });
+        const state = await ended();
+        await imported('salmon', []);
+
+        expect(state).toMatchObject({ status: 'done', error: null, total: 0, skipped: 1, note: 'all-have-drafts' });
+      });
+    });
   });
 });

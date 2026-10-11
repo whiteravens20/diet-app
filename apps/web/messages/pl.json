@@ -520,6 +520,11 @@
       "scopeLabel": "Katalog",
       "scopeCurated": "Tylko wyselekcjonowane (zalecane)",
       "scopeAll": "Wszystkie (wyselekcjonowane + USDA)",
+      "runNotes": {
+        "nothing-imported": "Nie ma czego nazywać: katalog nie zawiera zaimportowanych składników.",
+        "not-imported": "{skipped, plural, one {Nie ma czego nazywać: podany składnik nie jest zaimportowany.} few {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.} many {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.} other {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.}} Tylko zaimportowane składniki dostają nazwy z uruchomienia.",
+        "all-have-drafts": "{skipped, plural, one {Nie ma czego nazywać: jedyny zaimportowany składnik ma już szkic.} few {Nie ma czego nazywać: wszystkie # zaimportowane składniki mają już szkic.} many {Nie ma czego nazywać: wszystkie # zaimportowanych składników ma już szkic.} other {Nie ma czego nazywać: wszystkie # zaimportowanego składnika mają już szkic.}}"
+      },
       "rejectReasonLabel": "Ostatni przebieg odrzucony: {reason} ({key})",
       "rejectReasonHint": "Walidator odrzucił odpowiedź modelu przy każdej próbie. Częste przyczyny: unknown-slug (model wymyślił slug), invalid-unit (użył tbsp/cup), missing-field (pominął difficulty). Spróbuj innego modelu lub mniejszej liczby przepisów.",
       "shipHeader": "Wyślij zatwierdzone",

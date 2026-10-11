@@ -152,6 +152,17 @@ export type IngredientNameGenerateSpec = z.infer<typeof IngredientNameGenerateSp
 export const DraftRunnerStatus = z.enum(['idle', 'running', 'done', 'error']);
 export type DraftRunnerStatus = z.infer<typeof DraftRunnerStatus>;
 
+/**
+ * Why a run had nothing to do, when that is no failure:
+ *
+ *  - `nothing-imported`: the catalogue has no imported ingredient to name;
+ *  - `not-imported`: none of the ingredients named is an imported one, and
+ *    only those get their names from a run;
+ *  - `all-have-drafts`: every imported ingredient already has a draft.
+ */
+export const DraftRunNote = z.enum(['nothing-imported', 'not-imported', 'all-have-drafts']);
+export type DraftRunNote = z.infer<typeof DraftRunNote>;
+
 export const DraftRunnerState = z.object({
   status: DraftRunnerStatus,
   startedAt: z.string().nullable(),
@@ -170,6 +181,9 @@ export const DraftRunnerState = z.object({
    *  directly to the new drafts. */
   batchId: z.string().nullable(),
   error: z.string().nullable(),
+  /** In the run's scope, and left out because there was nothing to do for them. */
+  skipped: z.number().int().nonnegative(),
+  note: DraftRunNote.nullable(),
   /** Whether the admin-default provider env vars are set. The UI disables
    *  the Generate button when false. */
   configured: z.boolean(),

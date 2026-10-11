@@ -633,44 +633,11 @@ export class DraftsController {
   }
 
   private namerRunnerState(): DraftRunnerState {
-    const state = this.namer.getState();
-    return {
-      status: state.status,
-      startedAt: state.startedAt,
-      finishedAt: state.finishedAt,
-      processed: state.processed,
-      total: state.total,
-      failed: state.failed,
-      written: state.written,
-      provider: state.provider,
-      model: state.model,
-      batchId: state.batchId,
-      error: state.error,
-      configured: this.namer.isConfigured(),
-    };
+    return { ...this.namer.getState(), configured: this.namer.isConfigured() };
   }
 
   private recipeRunnerState(): RecipeRunnerStateDto {
-    const state = this.recipeGen.getState();
-    return {
-      status: state.status,
-      startedAt: state.startedAt,
-      finishedAt: state.finishedAt,
-      processed: state.processed,
-      total: state.total,
-      failed: state.failed,
-      written: state.written,
-      provider: state.provider,
-      model: state.model,
-      batchId: state.batchId,
-      error: state.error,
-      configured: this.recipeGen.isConfigured(),
-      complexityCounts: state.complexityCounts,
-      mixDrift: state.mixDrift,
-      lastRejectReason: state.lastRejectReason,
-      lastRejectKey: state.lastRejectKey,
-      lastRejectHead: state.lastRejectHead,
-    };
+    return { ...this.recipeGen.getState(), configured: this.recipeGen.isConfigured() };
   }
 }
 

@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto';
 import {
   NON_CANONICAL_LOCALES,
   type Complexity,
+  type DraftRunNote,
   type Locale,
   type RecipeGenerateSpec,
 } from '@diet-app/shared';
@@ -73,6 +74,10 @@ export interface RecipeRunnerState {
   model: string | null;
   batchId: string | null;
   error: string | null;
+  /** Always zero: a run of recipes leaves nothing of its scope out. */
+  skipped: number;
+  /** Why the run ended before its count, when that is no failure. */
+  note: DraftRunNote | null;
   /** Realised complexity counts in the run. Surfaced beside the progress bar
    *  so the operator can see the batch skew live. */
   complexityCounts: Record<Complexity, number>;
@@ -148,6 +153,8 @@ export class RecipeGeneratorRunner {
       model,
       batchId,
       error: null,
+      skipped: 0,
+      note: null,
       complexityCounts: { simple: 0, medium: 0, complex: 0 },
       mixDrift: false,
       lastRejectReason: null,
@@ -599,6 +606,8 @@ export class RecipeGeneratorRunner {
       model: null,
       batchId: null,
       error: null,
+      skipped: 0,
+      note: null,
       complexityCounts: { simple: 0, medium: 0, complex: 0 },
       mixDrift: false,
       lastRejectReason: null,

@@ -228,6 +228,9 @@ function IngredientPanel() {
             {t('lastRun', { written: runner.written, failed: runner.failed })}
           </span>
         )}
+        {!running && runner?.note && (
+          <span className="text-xs text-muted-foreground">{t(`runNotes.${runner.note}`, { skipped: runner.skipped })}</span>
+        )}
         {runner?.provider && runner.model && (
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             {t('providerChip', { provider: runner.provider, model: runner.model })}
