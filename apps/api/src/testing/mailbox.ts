@@ -19,12 +19,16 @@ export const MAIL_ON = { SMTP_HOST: 'smtp.example.test', SMTP_FROM: 'Diet App <n
  */
 export function aMailbox(t: TestApp): {
   sent: SentMail[];
-  /** The mails sent to `address`, oldest first. */
-  to(address: string): SentMail[];
+  /** Wait until everything the application handed over has gone out or failed. */
+  settled(): Promise<void>;
+  /** The mails sent to `address`, oldest first, once everything handed over has gone out. */
+  to(address: string): Promise<SentMail[]>;
   /** The token of the link in the last mail sent to `address`. */
-  tokenFor(address: string): string;
+  tokenFor(address: string): Promise<string>;
   /** A transport that fails every send, as a mail server that is down would. */
   failing(): void;
+  /** A transport that takes mail and keeps it until the function returned is called. */
+  holding(): () => void;
   working(): void;
 } {
   const sent: SentMail[] = [];
@@ -32,17 +36,30 @@ export function aMailbox(t: TestApp): {
   const working = { sendMail: async (message: SentMail) => void sent.push({ to: message.to, subject: message.subject, text: message.text }) };
   const failing = { sendMail: () => Promise.reject(new Error('connect ECONNREFUSED smtp.example.test:587')) };
   mail.transport = working as unknown as Transporter;
-  const to = (address: string): SentMail[] => sent.filter((message) => message.to === address);
+  const to = async (address: string): Promise<SentMail[]> => {
+    await mail.idle();
+    return sent.filter((message) => message.to === address);
+  };
   return {
     sent,
+    settled: () => mail.idle(),
     to,
-    tokenFor(address) {
-      const last = to(address).at(-1);
+    async tokenFor(address) {
+      const last = (await to(address)).at(-1);
       const token = last && /[?&]token=([0-9a-f]+)/.exec(last.text)?.[1];
       if (!token) throw new Error(`no mail with a link was sent to ${address}`);
       return token;
     },
     failing: () => void (mail.transport = failing as unknown as Transporter),
+    holding() {
+      let release: () => void = () => undefined;
+      const held = new Promise<void>((resolve) => (release = resolve));
+      mail.transport = { sendMail: async (message: SentMail) => held.then(() => working.sendMail(message)) } as unknown as Transporter;
+      return () => {
+        release();
+        mail.transport = working as unknown as Transporter;
+      };
+    },
     working: () => void (mail.transport = working as unknown as Transporter),
   };
 }

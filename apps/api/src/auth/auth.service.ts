@@ -99,7 +99,7 @@ export class AuthService {
       data: { userId, tokenHash: sha256(raw), expiresAt: new Date(Date.now() + 3_600_000) },
     });
     const link = `${this.config.get('APP_URL', { infer: true })}/verify-email?token=${raw}`;
-    await this.mail.sendEmailVerification(email, link, locale);
+    this.mail.sendEmailVerification(email, link, locale);
   }
 
   async login(dto: LoginRequest): Promise<AuthResponse> {
@@ -140,10 +140,19 @@ export class AuthService {
       .catch(() => undefined);
   }
 
-  /** Always returns 200 — never reveals whether the email exists. */
+  /**
+   * Never reveals whether the address has an account: not by what it
+   * answers, and not by how long it takes. Whether there is an account is
+   * looked up after the answer, with everything that follows from it.
+   */
   async requestPasswordReset(dto: PasswordResetRequest): Promise<void> {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
+    this.mail.later('password reset', () => this.sendResetLink(email));
+  }
+
+  /** Make a reset link for the account of `email`, if there is one, and mail it. */
+  private async sendResetLink(email: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });
     if (!user) return;
 
@@ -162,7 +171,7 @@ export class AuthService {
     const link = `${this.config.get('APP_URL', { infer: true })}/reset-password?token=${raw}`;
     // Emails the link when SMTP is configured. Without SMTP, MailService logs
     // it outside production only. Use the user's stored locale.
-    await this.mail.sendPasswordReset(email, link, Locale.parse(user.locale));
+    this.mail.sendPasswordReset(email, link, Locale.parse(user.locale));
   }
 
   /** Confirms an email address from a verification link. */

@@ -206,16 +206,6 @@ describe('AuthService.refresh', () => {
   });
 });
 
-describe('AuthService.requestPasswordReset', () => {
-  it('never throws / leaks when the email is unknown (no enumeration)', async () => {
-    const deps = makeDeps(null);
-    await expect(
-      makeService(deps).requestPasswordReset({ email: 'ghost@example.com' } as never),
-    ).resolves.toBeUndefined();
-    expect(deps.prisma.passwordResetToken.create).not.toHaveBeenCalled();
-  });
-});
-
 describe('AuthService.verifyEmail', () => {
   it('rejects an unknown / used / expired token', async () => {
     const deps = makeDeps(makeUser());

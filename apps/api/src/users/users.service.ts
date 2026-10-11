@@ -124,14 +124,8 @@ export class UsersService {
       await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
       await retirePendingLinks(tx, userId);
     });
-    // Best-effort "your password was changed" notice. Never let a mail hiccup
-    // fail the password change itself.
     if (this.mail.enabled) {
-      try {
-        await this.mail.sendPasswordChangedNotice(this.emails.open(user.emailEncrypted, user.id), Locale.parse(user.locale));
-      } catch {
-        // swallow — the password was already rotated successfully.
-      }
+      this.mail.sendPasswordChangedNotice(this.emails.open(user.emailEncrypted, user.id), Locale.parse(user.locale));
     }
   }
 
@@ -182,7 +176,7 @@ export class UsersService {
       }),
     ]);
     const link = `${this.config.get('APP_URL', { infer: true })}/confirm-email-change?token=${raw}`;
-    await this.mail.sendEmailChange(newEmail, link, Locale.parse(user.locale));
+    this.mail.sendEmailChange(newEmail, link, Locale.parse(user.locale));
   }
 
   /** Re-sends the verification email for a logged-in, still-unverified user. */

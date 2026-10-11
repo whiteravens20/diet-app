@@ -26,6 +26,7 @@ describe('the address of an account, as the database holds it', () => {
   });
 
   beforeEach(async () => {
+    await mailbox.settled();
     await resetDatabase(t.prisma);
     user = await aUser(t);
   });
@@ -73,7 +74,7 @@ describe('the address of an account, as the database holds it', () => {
     });
 
     it('becomes the address of the account when the link is followed', async () => {
-      await t.http().post('/api/auth/confirm-email-change').send({ token: mailbox.tokenFor(NEW) }).expect(204);
+      await t.http().post('/api/auth/confirm-email-change').send({ token: await mailbox.tokenFor(NEW) }).expect(204);
 
       expect(emails.open(await stored(user.id), user.id)).toBe(NEW);
       const again = await t.http().post('/api/auth/login').send({ email: NEW, password: user.password }).expect(200);

@@ -29,6 +29,8 @@ describe('the links an account is sent by mail', () => {
   });
 
   beforeEach(async () => {
+    // Nothing of the test before is still on its way when the tables are emptied.
+    await mailbox.settled();
     await resetDatabase(t.prisma);
     mailbox.sent.length = 0;
     user = await aUser(t);
@@ -172,7 +174,7 @@ describe('the links an account is sent by mail', () => {
 
   describe('a link to confirm the address of a new account', () => {
     it('confirms it once', async () => {
-      const link = mailbox.tokenFor(user.email);
+      const link = await mailbox.tokenFor(user.email);
 
       await auth.verifyEmail(link);
 
@@ -181,7 +183,7 @@ describe('the links an account is sent by mail', () => {
     });
 
     it('is for the address it was sent to: it confirms nothing once the account has moved', async () => {
-      const link = mailbox.tokenFor(user.email);
+      const link = await mailbox.tokenFor(user.email);
 
       await auth.confirmEmailChange(await aChangeLink('moved@example.test'));
 
@@ -202,6 +204,7 @@ describe('the links an account is sent by mail', () => {
 
       // A reset asked for in lower case reaches the account registered in mixed case.
       await auth.requestPasswordReset({ email: 'spelled.out@EXAMPLE.test' });
+      await mailbox.settled();
       expect(await t.prisma.passwordResetToken.count({ where: { userId: user.id } })).toBe(1);
 
       // The account's own address in another case is no new address, and somebody else's is taken.

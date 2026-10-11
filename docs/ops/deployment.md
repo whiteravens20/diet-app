@@ -226,7 +226,19 @@ SMTP_PORT=587                 # 465 = implicit TLS; 587/25 = STARTTLS
 SMTP_USER=...
 SMTP_PASSWORD=...
 SMTP_FROM=no-reply@your-domain
+SMTP_REQUIRE_TLS=true         # false only for a relay on a trusted path
 ```
+
+The connection to the mail server is encrypted before the password or a mail goes over
+it: from the first byte on port 465, by STARTTLS on 587 and 25. A server that does not
+offer STARTTLS is not used. `SMTP_REQUIRE_TLS=false` allows an unencrypted connection,
+for a relay on the same host or network; the start-up log warns about it.
+
+A mail never holds up or fails the request that causes it. It is handed over and goes
+out after the request was answered; the API gives up on a mail server that does not
+answer within about ten seconds. A mail that could not be sent is written to the API log
+(`… mail was not sent: …`, without the address) and is not tried again: the user asks
+for the link again. One address is sent at most 10 mails a day, whoever causes them.
 
 Behaviour switches on whether SMTP is configured:
 

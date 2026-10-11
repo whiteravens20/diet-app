@@ -62,6 +62,7 @@ Two rules apply to every variable:
 ## Email (optional)
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | — | SMTP for mail. Unset → no mail is sent and the web app does not offer password reset. A reset requested straight from the API is logged outside production and dropped in production. |
 | `SMTP_FROM` | `no-reply@diet-app.local` | From address. |
+| `SMTP_REQUIRE_TLS` | `true` | On port 587 or 25 the connection must be upgraded with STARTTLS before the password or a mail goes over it; a server that does not offer it is not used, and the log says so. `false` only where the path to the mail server is trusted (a relay on the same host or network): the start-up log then warns. Port 465 is encrypted from the first byte either way. |
 
 ## Curation queue shipping
 See [curation-shipping.md](curation-shipping.md) for the three ship modes.

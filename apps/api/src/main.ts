@@ -42,6 +42,7 @@ async function bootstrap(): Promise<void> {
     ADMIN_PASSWORD: config.get('ADMIN_PASSWORD', { infer: true }),
     SMTP_HOST: config.get('SMTP_HOST', { infer: true }),
     SMTP_PORT: config.get('SMTP_PORT', { infer: true }),
+    SMTP_REQUIRE_TLS: config.get('SMTP_REQUIRE_TLS', { infer: true }),
     AI_DEFAULT_PROVIDER: config.get('AI_DEFAULT_PROVIDER', { infer: true }),
     AI_ADMIN_USER_MONTHLY_LIMIT: config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true }),
     AI_ADMIN_INSTANCE_MONTHLY_LIMIT: config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true }),

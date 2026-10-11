@@ -110,6 +110,13 @@ export const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().default('no-reply@diet-app.local'),
+  // On a port that begins in the clear, the connection must be upgraded with
+  // STARTTLS before the password or a mail goes over it. Off only where the
+  // path to the mail server is trusted: a relay on the same host or network.
+  SMTP_REQUIRE_TLS: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
 
   // Admin panel. Fail-closed: when ADMIN_PASSWORD is empty or left at
   // the placeholder, every /api/admin/* route returns 403 — no JWT, no user.
@@ -260,6 +267,7 @@ export function describePosture(
     | 'ADMIN_PASSWORD'
     | 'SMTP_HOST'
     | 'SMTP_PORT'
+    | 'SMTP_REQUIRE_TLS'
     | 'AI_DEFAULT_PROVIDER'
     | 'AI_ADMIN_USER_MONTHLY_LIMIT'
     | 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT'
@@ -278,7 +286,11 @@ export function describePosture(
       : env.ADMIN_PASSWORD.length < ADMIN_PASSWORD_ADVISED_LENGTH
         ? `! admin panel: enabled with a password shorter than ${ADMIN_PASSWORD_ADVISED_LENGTH} characters; it guards the AI keys and the catalogue`
         : 'admin panel: enabled',
-    env.SMTP_HOST ? `mail: ${env.SMTP_HOST}:${env.SMTP_PORT}` : 'mail: not configured (accounts are verified on sign-up, no password reset)',
+    !env.SMTP_HOST
+      ? 'mail: not configured (accounts are verified on sign-up, no password reset)'
+      : env.SMTP_PORT === 465 || env.SMTP_REQUIRE_TLS
+        ? `mail: ${env.SMTP_HOST}:${env.SMTP_PORT}, encrypted`
+        : `! mail: ${env.SMTP_HOST}:${env.SMTP_PORT} without TLS (SMTP_REQUIRE_TLS=false): the mail password and every reset link cross that path in the clear`,
     env.AI_DEFAULT_PROVIDER
       ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days`
       : 'operator AI provider: none',
