@@ -37,6 +37,12 @@ export interface OptimizerRecipe {
   fatPerServing: number;
   carbsPerServing: number;
   ingredientIds: string[];
+  /**
+   * What one serving takes of each ingredient, in the ingredient's own unit
+   * (grams or millilitres). Left out: the limit on one ingredient in seven
+   * days does not see the recipe.
+   */
+  amounts?: ReadonlyMap<string, number>;
   difficulty: 'easy' | 'medium' | 'hard';
   isFavorite: boolean;
   /** Total prep + cook minutes — used by the per-day cook-time budget. */
@@ -72,6 +78,8 @@ export interface KeptMeal {
   /** Left out for a meal of the user's own, which is no recipe. */
   recipeId?: string;
   calories: number;
+  /** How many servings of the recipe the meal is; one when left out. */
+  servings?: number;
 }
 
 export interface OptimizerInput {
@@ -107,6 +115,11 @@ export interface OptimizerInput {
    */
   maxRepeatsPerRecipe?: number;
   /**
+   * The most of one ingredient, in its own unit (grams or millilitres), that
+   * the meals of any seven days may hold together. Omitted: no such limit.
+   */
+  maxIngredientPerWeek?: number;
+  /**
    * The limits that may give way when no recipe is left for a meal inside
    * them. `all` (the default) lets any of them. A limit that may give way
    * does so before one that may not; a plan in which one that may not had to
@@ -120,7 +133,8 @@ export interface OptimizerInput {
 /**
  * A limit that can give way, in the order in which they do: the most a recipe
  * appears in the plan first, then the day's cooking time, then a recipe twice
- * on one day, then days in a row, and the limit for seven days last.
+ * on one day, then days in a row, then the times a recipe is eaten in seven
+ * days, and the most of one ingredient in seven days last.
  */
 export const RELAXATION_ORDER = PLAN_RELAXATIONS;
 export type Relaxation = PlanRelaxation;
@@ -239,6 +253,12 @@ interface Use {
   recipeId: string;
 }
 
+/** How much of one ingredient the meals of a day hold. */
+interface Held {
+  day: number;
+  amount: number;
+}
+
 /**
  * Generate a plan. Throws `OptimizerError` when a meal has no recipe for the
  * diet at all (`gap`), or when the plan could only be filled by letting
@@ -288,14 +308,21 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
   const planIngredients = new Set<string>(); // ingredients already "purchased"
   const uses: Use[] = [];
   const useCount = new Map<string, number>();
-  const place = (day: number, recipeId: string): void => {
+  const held = new Map<string, Held[]>(); // ingredientId → what the meals placed so far hold of it
+  const place = (day: number, recipeId: string, servings: number): void => {
     uses.push({ day, recipeId });
     useCount.set(recipeId, (useCount.get(recipeId) ?? 0) + 1);
-    recipeById.get(recipeId)?.ingredientIds.forEach((id) => planIngredients.add(id));
+    const recipe = recipeById.get(recipeId);
+    recipe?.ingredientIds.forEach((id) => planIngredients.add(id));
+    for (const [ingredientId, perServing] of recipe?.amounts ?? []) {
+      const entries = held.get(ingredientId) ?? [];
+      entries.push({ day, amount: perServing * servings });
+      held.set(ingredientId, entries);
+    }
   };
   // What stays in the plan is in it from the start, whichever day it is on.
   input.days.forEach((spec, day) => {
-    for (const meal of spec.kept ?? []) if (meal.recipeId !== undefined) place(day, meal.recipeId);
+    for (const meal of spec.kept ?? []) if (meal.recipeId !== undefined) place(day, meal.recipeId, meal.servings ?? 1);
   });
   // Without a limit of the caller's a recipe may fill a week.
   const limits = {
@@ -303,6 +330,7 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
     perWeek: input.maxTimesPerWeekSameMeal ?? 7,
     perPlan: input.maxRepeatsPerRecipe,
     twiceADay: input.mealPrepFriendly,
+    perIngredient: input.maxIngredientPerWeek,
   };
 
   // The recipes of a meal are looked up once, however many days ask for them.
@@ -349,7 +377,7 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
           throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, { slot, dietType: input.dietType });
         }
         if (candidates.length === 1) report.singleCandidate.push({ dayIndex: day, slot });
-        const pool = withinLimits(candidates, { day, uses, useCount, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
+        const pool = withinLimits(candidates, { day, budget, uses, useCount, held, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
         // Of the recipes the limits leave, one that stays far under the budget
         // even at the largest serving is left out, unless nothing else is there.
         const reaching = pool.recipes.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
@@ -370,7 +398,7 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
       const servings = fitServings(recipe.caloriesPerServing, budget);
       assignments.push({ dayIndex: day, slot, recipeId: recipe.id, servings });
       left -= recipe.caloriesPerServing * servings;
-      place(day, recipe.id);
+      place(day, recipe.id, servings);
     }
   }
 
@@ -383,7 +411,16 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
 /** The limits a recipe would break if it were placed at this meal. */
 function broken(
   recipe: OptimizerRecipe,
-  at: { day: number; uses: readonly Use[]; useCount: ReadonlyMap<string, number>; limits: { consecutive: number; perWeek: number; perPlan?: number; twiceADay: boolean }; cookTimeBudget?: number },
+  at: {
+    day: number;
+    /** What the meal has to spend: it decides the servings, and with them how much of each ingredient the meal holds. */
+    budget: number;
+    uses: readonly Use[];
+    useCount: ReadonlyMap<string, number>;
+    held: ReadonlyMap<string, readonly Held[]>;
+    limits: { consecutive: number; perWeek: number; perPlan?: number; twiceADay: boolean; perIngredient?: number };
+    cookTimeBudget?: number;
+  },
 ): Relaxation[] {
   const { day, uses, limits } = at;
   const mine = uses.filter((use) => use.recipeId === recipe.id);
@@ -398,11 +435,21 @@ function broken(
   for (let d = day + 1; on(d); d++) streak += 1;
   if (streak > limits.consecutive) out.push('consecutive_days');
   // Every seven days that hold this one, over all meals.
-  for (let first = day - 6; first <= day; first++) {
-    if (mine.filter((use) => use.day >= first && use.day <= first + 6).length + 1 > limits.perWeek) {
-      out.push('weekly_cap');
-      break;
-    }
+  const sevenDays = Array.from({ length: 7 }, (_, i) => day - 6 + i);
+  if (sevenDays.some((first) => mine.filter((use) => use.day >= first && use.day <= first + 6).length + 1 > limits.perWeek)) {
+    out.push('weekly_cap');
+  }
+  // The same seven days, for each ingredient of the recipe: what the meals in them hold of it, and this meal on top.
+  const { perIngredient } = limits;
+  if (perIngredient !== undefined && recipe.amounts) {
+    const servings = fitServings(recipe.caloriesPerServing, at.budget);
+    const over = [...recipe.amounts].some(([ingredientId, perServing]) => {
+      const entries = at.held.get(ingredientId) ?? [];
+      return sevenDays.some(
+        (first) => entries.reduce((sum, entry) => (entry.day >= first && entry.day <= first + 6 ? sum + entry.amount : sum), 0) + perServing * servings > perIngredient,
+      );
+    });
+    if (over) out.push('ingredient_cap');
   }
   return out;
 }

@@ -860,7 +860,8 @@
       "cook_time": "czas gotowania w danym dniu",
       "same_day": "ten sam przepis raz dziennie",
       "consecutive_days": "dni z rzędu z tym samym przepisem",
-      "weekly_cap": "liczba razy w tygodniu dla jednego przepisu"
+      "weekly_cap": "liczba razy w tygodniu dla jednego przepisu",
+      "ingredient_cap": "największa ilość jednego składnika w tygodniu"
     },
     "outsideLimitChip": "Poza limitem",
     "outsideLimitHint": "Dla tego posiłku nie było już przepisu mieszczącego się w limicie: {limits}.",

@@ -860,7 +860,8 @@
       "cook_time": "cooking time of the day",
       "same_day": "a recipe once a day",
       "consecutive_days": "days in a row with one recipe",
-      "weekly_cap": "times a week for one recipe"
+      "weekly_cap": "times a week for one recipe",
+      "ingredient_cap": "the most of one ingredient in a week"
     },
     "outsideLimitChip": "Outside a limit",
     "outsideLimitHint": "No recipe was left for this meal inside: {limits}.",
