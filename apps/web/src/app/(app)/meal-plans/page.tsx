@@ -696,30 +696,35 @@ function PlanCard({
             <div key={day.id}>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium">{day.date}</span>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={
-                      Math.abs(day.calorieDelta) <= 50
-                        ? 'text-sm text-muted-foreground'
-                        : 'text-sm text-destructive'
-                    }
-                  >
-                    {t('calorieLine', {
-                      kcal: day.dayNutrition.calories,
-                      target: day.calorieTarget,
-                      delta: day.calorieDelta >= 0 ? `+${day.calorieDelta}` : String(day.calorieDelta),
-                    })}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onRegenerateDay(day.id)}
-                    disabled={busy}
-                  >
-                    {t('changeDay')}
-                  </Button>
-                </div>
+                {day.skipped ? (
+                  // A day the user skips is no shortfall, and there is nothing in it to change.
+                  <span className="text-sm text-muted-foreground">{t('daySkipped')}</span>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={
+                        Math.abs(day.calorieDelta) <= 50
+                          ? 'text-sm text-muted-foreground'
+                          : 'text-sm text-destructive'
+                      }
+                    >
+                      {t('calorieLine', {
+                        kcal: day.dayNutrition.calories,
+                        target: day.calorieTarget,
+                        delta: day.calorieDelta >= 0 ? `+${day.calorieDelta}` : String(day.calorieDelta),
+                      })}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onRegenerateDay(day.id)}
+                      disabled={busy}
+                    >
+                      {t('changeDay')}
+                    </Button>
+                  </div>
+                )}
               </div>
               <ul className="mt-1 space-y-1 text-sm">
                 {day.meals.map((m) => {

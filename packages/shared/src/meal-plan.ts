@@ -166,8 +166,10 @@ export const MealPlanDay = z.object({
   meals: z.array(PlannedMeal),
   dayNutrition: Nutrition, // sum of meal nutrition
   calorieTarget: z.number(),
-  /** Signed delta vs. target — positive means over budget. */
+  /** Signed delta vs. target — positive means over budget. Zero for a skipped day. */
   calorieDelta: z.number(),
+  /** The user skips this day: it has no meals, is no shortfall, and is left out of the plan's averages. */
+  skipped: z.boolean(),
   /** Advanced per-day overrides, or null for a basic-flow day. */
   overrides: MealPlanDayOverrides.nullable(),
 });
@@ -181,7 +183,7 @@ export const MealPlan = z.object({
   durationDays: z.number().int(),
   dietType: DietType,
   days: z.array(MealPlanDay),
-  /** Plan-wide averages and the optimiser's reuse score (0-1). */
+  /** Averages over the days that are not skipped, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
   targetMacros: Macros,
   ingredientReuseScore: z.number().min(0).max(1),

@@ -881,6 +881,7 @@
     "rebalanceTitle": "Zaktualizowano makro dnia",
     "rebalanceSummary": "{before} → {after} kcal · przeliczono posiłki: {count}.",
     "rebalanceBestEffort": "Dzień nadal przekracza cel — rozważ edycję.",
+    "daySkipped": "Pominięty",
     "rebalanceUndo": "Cofnij ostatnie przeliczenie",
     "rebalanceWeek": "Przelicz resztę tygodnia",
     "rebalanceDismiss": "Zamknij",

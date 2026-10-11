@@ -1868,21 +1868,27 @@ export class MealPlansService {
         };
       });
       const dayNutrition = sumNutrition(meals.map((m) => m.nutrition));
+      const overrides = parseDayOverrides(day.overrides);
+      // A day the user skips has no meals: that is no shortfall.
+      const skipped = overrides?.skip === true && meals.length === 0;
       return {
         id: day.id,
         date: isoDate(day.date),
         meals,
         dayNutrition,
         calorieTarget: day.calorieTarget,
-        calorieDelta: dayNutrition.calories - day.calorieTarget,
-        overrides: parseDayOverrides(day.overrides),
+        calorieDelta: skipped ? 0 : dayNutrition.calories - day.calorieTarget,
+        skipped,
+        overrides,
       };
     });
 
-    const avg = days.length
+    // What a day of this plan holds on average: a skipped day is no day of eating.
+    const eaten = days.filter((d) => !d.skipped);
+    const avg = eaten.length
       ? scaleNutrition(
-          sumNutrition(days.map((d) => d.dayNutrition)),
-          1 / days.length,
+          sumNutrition(eaten.map((d) => d.dayNutrition)),
+          1 / eaten.length,
         )
       : { calories: 0, protein: 0, fat: 0, carbs: 0 };
 
