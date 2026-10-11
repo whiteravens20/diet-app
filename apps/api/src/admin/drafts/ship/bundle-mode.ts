@@ -25,11 +25,9 @@
  */
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
-import {
-  IngredientOverrideEntry,
-  type IngredientOverrideFile,
-} from './ingredient-overrides.writer.js';
+import type { IngredientOverrideFile } from './ingredient-overrides.writer.js';
 import { type ShippedRecipe } from './recipe-batches.writer.js';
+import { shippableIngredientName, shippableRecipe, sortForShipping } from './shippable.js';
 
 export interface BundleShipRequest {
   kind: 'recipe' | 'ingredient-name';
@@ -54,7 +52,10 @@ export interface BundleShipResult {
   downloadUrl: string;
   token: string;
   expiresAt: string;
+  /** The drafts the bundle holds. */
   draftIds: string[];
+  /** Approved drafts left out because they do not pass the rules of every recipe, with the reason. */
+  skipped: { draftId: string; reason: string }[];
 }
 
 const TTL_MS = 10 * 60 * 1000;
@@ -92,28 +93,20 @@ export async function shipRecipesBundle(
   if (drafts.length === 0) {
     throw new Error('NO_APPROVED_DRAFTS');
   }
-  const recipes: ShippedRecipe[] = drafts.map((d) => ({
-    slug: d.slug,
-    title: d.titles as Record<string, string>,
-    description: d.descriptions as Record<string, string>,
-    servings: d.servings,
-    mealTypes: d.mealTypes as ShippedRecipe['mealTypes'],
-    prepMinutes: d.prepMinutes,
-    cookMinutes: d.cookMinutes,
-    difficulty: d.difficulty,
-    ingredients: (d.ingredientsJson ?? []) as ShippedRecipe['ingredients'],
-    steps: d.steps as Record<string, string[]>,
-  }));
+  const { shipping, skipped } = sortForShipping(drafts, shippableRecipe);
+  if (shipping.length === 0) {
+    throw new Error('NO_VALID_DRAFTS');
+  }
 
   const batchId = `bundle-${new Date().toISOString().replace(/[:.]/g, '-')}`;
   const payload: BundlePayload = {
     kind: 'recipe',
     batchId,
     generatedAt: new Date().toISOString(),
-    draftIds: drafts.map((d) => d.id),
-    recipes,
+    draftIds: shipping.map((entry) => entry.draft.id),
+    recipes: shipping.map((entry) => entry.content),
   };
-  return stashAndUrl(payload, secret, appUrl);
+  return { ...stashAndUrl(payload, secret, appUrl), skipped };
 }
 
 export async function shipIngredientNamesBundle(
@@ -135,27 +128,21 @@ export async function shipIngredientNamesBundle(
   if (drafts.length === 0) {
     throw new Error('NO_APPROVED_DRAFTS');
   }
-  const overrides: IngredientOverrideFile = {};
-  const validDraftIds: string[] = [];
-  for (const d of drafts) {
-    const parsed = IngredientOverrideEntry.safeParse(d.suggestions);
-    if (parsed.success) {
-      overrides[d.ingredientSlug] = parsed.data;
-      validDraftIds.push(d.id);
-    }
-  }
-  if (Object.keys(overrides).length === 0) {
+  const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName);
+  if (shipping.length === 0) {
     throw new Error('NO_VALID_DRAFTS');
   }
+  const overrides: IngredientOverrideFile = {};
+  for (const entry of shipping) overrides[entry.draft.ingredientSlug] = entry.content;
   const batchId = `bundle-${new Date().toISOString().replace(/[:.]/g, '-')}`;
   const payload: BundlePayload = {
     kind: 'ingredient-name',
     batchId,
     generatedAt: new Date().toISOString(),
-    draftIds: validDraftIds,
+    draftIds: shipping.map((entry) => entry.draft.id),
     ingredientOverrides: overrides,
   };
-  return stashAndUrl(payload, secret, appUrl);
+  return { ...stashAndUrl(payload, secret, appUrl), skipped };
 }
 
 /** Flips the draft rows to SHIPPED after the operator confirms they've
@@ -185,7 +172,7 @@ function stashAndUrl(
   payload: BundlePayload,
   secret: string,
   appUrl: string,
-): BundleShipResult {
+): Omit<BundleShipResult, 'skipped'> {
   pruneExpired();
   const payloadId = randomBytes(16).toString('hex');
   const expiresAtMs = Date.now() + TTL_MS;

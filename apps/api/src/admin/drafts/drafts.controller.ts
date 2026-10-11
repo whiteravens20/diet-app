@@ -50,7 +50,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Env } from '../../config/env.js';
 import { deriveKey } from '../../common/crypto.js';
 import { BasicAuthGuard } from '../basic-auth.guard.js';
-import { DraftService, type Actor, type Page } from './draft.service.js';
+import { DraftService, invalid, type Actor, type Page } from './draft.service.js';
 import { toIngredientNameDraftDto, toRecipeDraftDto } from './drafts.mapper.js';
 import {
   IngredientNamerRunner,
@@ -61,6 +61,7 @@ import {
   type RecipeRunnerState,
 } from './recipe-generator.runner.js';
 import { recipeFacts, type RecipeFacts } from '../../engine/recipe-facts.js';
+import { checkRecipeText } from '../../recipes/recipe-rules.js';
 import { UnitConversionError } from '../../engine/units.js';
 import {
   shipIngredientNamesLocal,
@@ -361,9 +362,11 @@ export class DraftsController {
       });
     }
 
-    const titles = existing.titles as Record<string, string>;
-    const descriptions = existing.descriptions as Record<string, string>;
-    const steps = existing.steps as Record<string, string[]>;
+    // The text that goes into the shared library is held to the rules of
+    // every recipe, and goes in as the plain lines the check returns.
+    const text = checkRecipeText({ titles: existing.titles, descriptions: existing.descriptions, steps: existing.steps }, existing.locales);
+    if (!text.ok) throw invalid(text.problems);
+    const { titles, descriptions, steps } = text.text;
 
     // Same-instance promotion: copy the structural payload (ingredients with
     // their resolved ingredientId, units, quantities) directly from a personal

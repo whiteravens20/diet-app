@@ -32,7 +32,6 @@ import type { PrismaService } from '../../../prisma/prisma.service.js';
 import {
   ingredientOverridesPath,
   mergeIngredientOverrides,
-  IngredientOverrideEntry,
   type IngredientOverrideFile,
 } from './ingredient-overrides.writer.js';
 import {
@@ -41,6 +40,7 @@ import {
   type ShippedRecipe,
 } from './recipe-batches.writer.js';
 import { buildCurrentIngredientOverrides } from './current-overrides.js';
+import { shippableIngredientName, shippableRecipe, sortForShipping } from './shippable.js';
 
 export interface UpstreamShipConfig {
   enabled: boolean;
@@ -164,26 +164,13 @@ export async function shipRecipesUpstream(
     throw new UpstreamShipError('NO_APPROVED_DRAFTS', 'no approved recipe drafts to ship');
   }
 
-  const skipped: { draftId: string; reason: string }[] = [];
-  const rows: ShippedRecipe[] = [];
-  for (const d of drafts) {
-    const titles = (d.titles ?? {}) as Record<string, string>;
-    const descriptions = (d.descriptions ?? {}) as Record<string, string>;
-    const stepsByLocale = (d.steps ?? {}) as Record<string, string[]>;
-    const ingredients = (d.ingredientsJson ?? []) as ShippedRecipe['ingredients'];
-    rows.push({
-      slug: d.slug,
-      title: titles,
-      description: descriptions,
-      servings: d.servings,
-      mealTypes: d.mealTypes as ShippedRecipe['mealTypes'],
-      prepMinutes: d.prepMinutes,
-      cookMinutes: d.cookMinutes,
-      difficulty: d.difficulty,
-      ingredients,
-      steps: stepsByLocale,
-    });
+  // Held to the rules of every recipe once more; what does not pass stays in the queue.
+  const { shipping, skipped } = sortForShipping(drafts, shippableRecipe);
+  if (shipping.length === 0) {
+    throw new UpstreamShipError('NO_VALID_DRAFTS', 'no approved recipe draft passes the rules for a recipe');
   }
+  const rows: ShippedRecipe[] = shipping.map((entry) => entry.content);
+  const shippedIds = shipping.map((entry) => entry.draft.id);
 
   const shortBatch = drafts[0].batchId.slice(0, 14);
   const branch = `drafts/recipes/${shortBatch}-${Date.now().toString(36)}`;
@@ -199,11 +186,11 @@ export async function shipRecipesUpstream(
   });
 
   await prisma.recipeDraft.updateMany({
-    where: { id: { in: drafts.map((d) => d.id) } },
+    where: { id: { in: shippedIds } },
     data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: prUrl },
   });
 
-  return { prUrl, branch, shippedDraftIds: drafts.map((d) => d.id), skipped };
+  return { prUrl, branch, shippedDraftIds: shippedIds, skipped };
 }
 
 export async function shipIngredientNamesUpstream(
@@ -228,22 +215,13 @@ export async function shipIngredientNamesUpstream(
     );
   }
 
-  const skipped: { draftId: string; reason: string }[] = [];
+  // Only the names of a draft's own languages ship, and only plain ones.
+  const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName);
+  if (shipping.length === 0) {
+    throw new UpstreamShipError('NO_VALID_DRAFTS', 'no approved ingredient-name draft passes the rules for a name');
+  }
   const additions: IngredientOverrideFile = {};
-  for (const d of drafts) {
-    const parsed = IngredientOverrideEntry.safeParse(d.suggestions);
-    if (!parsed.success) {
-      skipped.push({ draftId: d.id, reason: 'suggestions-shape-invalid' });
-      continue;
-    }
-    additions[d.ingredientSlug] = parsed.data;
-  }
-  if (Object.keys(additions).length === 0) {
-    throw new UpstreamShipError(
-      'NO_VALID_DRAFTS',
-      'every approved ingredient-name draft failed shape validation',
-    );
-  }
+  for (const entry of shipping) additions[entry.draft.ingredientSlug] = entry.content;
 
   const shortBatch = drafts[0].batchId.slice(0, 14);
   const branch = `drafts/ingredient-names/${shortBatch}-${Date.now().toString(36)}`;

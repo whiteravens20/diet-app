@@ -75,7 +75,8 @@ function notFound(): NotFoundException {
   return new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
 }
 
-function invalid(problems: RecipeProblem[]): BadRequestException {
+/** The refusal of content that breaks the rules of every recipe: each problem by its place and its rule. */
+export function invalid(problems: RecipeProblem[]): BadRequestException {
   return new BadRequestException({
     error: 'DRAFT_INVALID',
     message: `The draft would break ${problems.length === 1 ? 'a rule' : `${problems.length} rules`}: ${problems.map((problem) => problem.message).join('; ')}.`,

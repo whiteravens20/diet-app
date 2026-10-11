@@ -37,7 +37,6 @@ import { existsSync, mkdirSync } from 'node:fs';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import { recipeFacts } from '../../../engine/recipe-facts.js';
 import {
-  IngredientOverrideEntry,
   ingredientOverridesPath,
   mergeIngredientOverrides,
   type IngredientOverrideFile,
@@ -48,6 +47,7 @@ import {
   writeRecipeBatch,
   type ShippedRecipe,
 } from './recipe-batches.writer.js';
+import { shippableIngredientName, shippableRecipe } from './shippable.js';
 
 export interface LocalShipRequest {
   kind: 'recipe' | 'ingredient-name';
@@ -96,12 +96,15 @@ export async function shipRecipesLocal(
 
   for (const d of drafts) {
     try {
-      const ingredientLines = (d.ingredientsJson ?? []) as {
-        slug: string;
-        quantity: number;
-        unit: 'g' | 'ml' | 'piece';
-        note?: string | null;
-      }[];
+      // Held to the rules of every recipe once more: a draft approved before
+      // a rule existed does not ship until it is edited.
+      const shippable = shippableRecipe(d);
+      if (!shippable.ok) {
+        skipped.push({ draftId: d.id, reason: shippable.reason });
+        continue;
+      }
+      const row = shippable.content;
+      const ingredientLines = row.ingredients;
       const slugs = ingredientLines.map((l) => l.slug);
       const ingredients = await prisma.ingredient.findMany({
         where: { slug: { in: slugs } },
@@ -151,9 +154,9 @@ export async function shipRecipesLocal(
         continue;
       }
 
-      const titles = (d.titles ?? {}) as Record<string, string>;
-      const descriptions = (d.descriptions ?? {}) as Record<string, string>;
-      const stepsByLocale = (d.steps ?? {}) as Record<string, string[]>;
+      const titles: Record<string, string> = row.title;
+      const descriptions: Record<string, string> = row.description;
+      const stepsByLocale: Record<string, string[]> = row.steps;
       const enTitle = titles.en ?? d.slug;
       const enDesc = descriptions.en ?? '';
       const enSteps = stepsByLocale.en ?? [];
@@ -223,23 +226,7 @@ export async function shipRecipesLocal(
       });
       shipped.push(d.id);
 
-      sidecarRows.push({
-        slug: d.slug,
-        title: titles,
-        description: descriptions,
-        servings: d.servings,
-        mealTypes: d.mealTypes as ShippedRecipe['mealTypes'],
-        prepMinutes: d.prepMinutes,
-        cookMinutes: d.cookMinutes,
-        difficulty: d.difficulty,
-        ingredients: ingredientLines.map((l) => ({
-          slug: l.slug,
-          quantity: l.quantity,
-          unit: l.unit,
-          note: l.note ?? null,
-        })),
-        steps: stepsByLocale,
-      });
+      sidecarRows.push(row);
     } catch (err) {
       skipped.push({
         draftId: d.id,
@@ -290,11 +277,14 @@ export async function shipIngredientNamesLocal(
 
   for (const d of drafts) {
     try {
-      const parsed = IngredientOverrideEntry.safeParse(d.suggestions);
-      if (!parsed.success) {
-        skipped.push({ draftId: d.id, reason: 'suggestions-shape-invalid' });
+      // Only the names of the draft's own languages ship: the others were
+      // never before a reviewer.
+      const shippable = shippableIngredientName(d);
+      if (!shippable.ok) {
+        skipped.push({ draftId: d.id, reason: shippable.reason });
         continue;
       }
+      const entry = shippable.content;
       const target = await prisma.ingredient.findFirst({
         where: { slug: d.ingredientSlug },
         select: { id: true },
@@ -304,8 +294,8 @@ export async function shipIngredientNamesLocal(
         continue;
       }
 
-      const storageHintMap = (parsed.data.storageHint ?? {}) as Record<string, string>;
-      for (const [locale, name] of Object.entries(parsed.data.name as Record<string, string>)) {
+      const storageHintMap = (entry.storageHint ?? {}) as Record<string, string>;
+      for (const [locale, name] of Object.entries(entry.name as Record<string, string>)) {
         const storageHint = storageHintMap[locale] ?? null;
         await prisma.ingredientTranslation.upsert({
           where: { ingredientId_locale: { ingredientId: target.id, locale } },
@@ -319,7 +309,7 @@ export async function shipIngredientNamesLocal(
         data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: null },
       });
       shipped.push(d.id);
-      additions[d.ingredientSlug] = parsed.data;
+      additions[d.ingredientSlug] = entry;
     } catch (err) {
       skipped.push({
         draftId: d.id,
