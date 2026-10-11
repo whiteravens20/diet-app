@@ -276,6 +276,10 @@ describe('drafting a recipe with a model', () => {
       ['has a single step', (r) => JSON.stringify(draft(r, { steps: ['Just eat it.'] }))],
       ['has no ingredients', (r) => JSON.stringify(draft(r, { ingredients: [] }))],
       ['names a unit that does not exist', (r) => JSON.stringify(draft(r)).replaceAll('"unit":"g"', '"unit":"cup"')],
+      ['has markup in its title', (r) => JSON.stringify(draft(r, { title: 'Bowl <img src=x onerror=alert(1)>' }))],
+      ['has markup in a step', (r) => JSON.stringify(draft(r, { steps: ['Chop.', '<script>alert(1)</script>'] }))],
+      ['has a hidden character that turns its title around', (r) => JSON.stringify(draft(r, { title: 'Bowl \u202elwob' }))],
+      ['is for five hundred servings', (r) => JSON.stringify(draft(r, { servings: 500 }))],
     ])('refuses a draft that %s, and stores nothing', async (_name, text) => {
       t.model.reply({ text });
 
@@ -316,6 +320,43 @@ describe('drafting a recipe with a model', () => {
       t.model.reply({ text: (request) => JSON.stringify(withQuantity(request, 0.5)) });
 
       expect(await refusal(ask())).toMatchObject({ status: 400, error: 'AI_DRAFT_OFF_TARGET' });
+    });
+
+    it('takes a pot for six with more of an ingredient than one serving could hold', async () => {
+      // 3 kg of one thing is 500 g a head: a line is judged by the serving, not by the pot.
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify(
+            draft(request, {
+              servings: 6,
+              ingredients: offered(request)
+                .slice(0, 3)
+                .map((slug, index) => ({ slug, quantity: index === 0 ? 3000 : 300, unit: 'g', note: null })),
+            }),
+          ),
+      });
+
+      const { recipe } = await ask();
+
+      expect(recipe.servings).toBe(6);
+      expect(recipe.ingredients[0]!.quantity).toBe(3000);
+    });
+
+    it('drops a note that holds markup, and keeps the recipe', async () => {
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify(
+            draft(request, {
+              ingredients: offered(request)
+                .slice(0, 3)
+                .map((slug, index) => ({ slug, quantity: 100, unit: 'g', note: index === 0 ? '<b>diced</b>' : 'diced' })),
+            }),
+          ),
+      });
+
+      const { recipe } = await ask();
+
+      expect(recipe.ingredients.map((line) => line.note)).toEqual([null, 'diced', 'diced']);
     });
 
     it('folds line breaks in the text into spaces and drops a note that is too long', async () => {

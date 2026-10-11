@@ -16,7 +16,6 @@ import {
   type DietType,
   fitsDiet,
   MealType,
-  Unit,
   type AiDraftRecipeRequest,
   type AiDraftRecipeResponse,
   type AiFallbackReason,
@@ -24,45 +23,15 @@ import {
 } from '@diet-app/shared';
 import { recipeFacts, UnitConversionError, type RecipeFacts } from '../engine/index.js';
 import { AiRouterService } from '../ai/ai-router.service.js';
-import { plainLine, readModelObject } from '../ai/model-json.js';
+import { readModelObject } from '../ai/model-json.js';
 import { recipeDraft } from '../ai/operations.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { draftCatalogue } from './draft-catalogue.js';
 import { PersonalRecipesService } from './personal-recipes.service.js';
+import { checkRecipe, type CheckedRecipe } from './recipe-rules.js';
 import { toRecipeDto } from './recipes.service.js';
 
-const ALLOWED_UNITS = Unit.options as readonly string[];
 const ALLOWED_MEALS = MealType.options as readonly string[];
-const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
-type Difficulty = (typeof ALLOWED_DIFFICULTIES)[number];
-
-interface AiDraftLine {
-  /** What the model wrote to name the ingredient: its slug, as asked. */
-  slug: string;
-  quantity: number;
-  unit: 'g' | 'ml' | 'piece';
-  note: string | null;
-}
-
-/**
- * Locale-keyed slice of the AI's response. Always has `en` (canonical); other
- * locales are populated when the prompt asked for them. The DB row's `title` /
- * `description` / `steps` are written from the `en` slot; `RecipeTranslation`
- * rows are written for every locale present.
- */
-interface AiDraftPayload {
-  titles: Record<Locale, string>;
-  descriptions: Record<Locale, string>;
-  steps: Record<Locale, string[]>;
-  servings: number;
-  mealTypes: MealType[];
-  prepMinutes: number;
-  cookMinutes: number;
-  difficulty: Difficulty;
-  ingredients: AiDraftLine[];
-  /** Locales the AI returned content for — always includes 'en'. */
-  locales: Locale[];
-}
 
 /**
  * Drafts a brand-new recipe from the preferences a user picked. AI picks
@@ -190,22 +159,7 @@ export class AiRecipeDraftService {
     // of them and not with others.
     if (!text) throw draftUnavailable(meta.fallbackReason);
 
-    const payload = parseDraftPayload(text, targetLocales);
-    if (!payload) {
-      // Log the raw response so the operator can see what the model produced
-      // — small Ollama models often return free-text or break the locale-keyed
-      // shape, and the user-facing "malformed draft" toast is too opaque to
-      // diagnose without this.
-      this.logger.warn(
-        `AI_DRAFT_INVALID (provider=${meta.provider ?? '?'}, model=${meta.model ?? '?'}): ${text.slice(0, 500).replace(/\s+/g, ' ')}`,
-      );
-      throw new BadRequestException({
-        error: 'AI_DRAFT_INVALID',
-        message: 'AI returned a malformed draft.',
-      });
-    }
-
-    // Resolve the model's picks among the ingredients it was offered, and
+    // The model's picks are resolved among the ingredients it was offered, and
     // only among those: that is what keeps an allergen, an excluded ingredient
     // or one outside the diet out of the draft. A model that wrote the name
     // where the slug was asked for is still understood. Anything else rejects
@@ -215,24 +169,35 @@ export class AiRecipeDraftService {
       offered.set(ingredient.name.toLowerCase(), ingredient);
       offered.set(ingredient.slug, ingredient);
     }
-    const resolved: { ingredientId: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[] = [];
-    for (const line of payload.ingredients) {
-      const hit = offered.get(line.slug.trim().toLowerCase());
-      if (!hit) {
-        // The name goes to the log, not to the client: it is the model's text.
-        this.logger.warn(`AI_DRAFT_UNKNOWN_INGREDIENT: ${line.slug.slice(0, 80)}`);
-        throw new BadRequestException({
-          error: 'AI_DRAFT_UNKNOWN_INGREDIENT',
-          message: 'The draft uses an ingredient that was not on offer.',
-        });
-      }
-      resolved.push({
-        ingredientId: hit.id,
-        quantity: line.quantity,
-        unit: line.unit,
-        note: line.note,
+    const draft = readDraft(text, targetLocales, (written) => offered.get(written.trim().toLowerCase())?.slug ?? null);
+    if ('unknownIngredient' in draft) {
+      // The name goes to the log, not to the client: it is the model's text.
+      this.logger.warn(`AI_DRAFT_UNKNOWN_INGREDIENT: ${draft.unknownIngredient.slice(0, 80)}`);
+      throw new BadRequestException({
+        error: 'AI_DRAFT_UNKNOWN_INGREDIENT',
+        message: 'The draft uses an ingredient that was not on offer.',
       });
     }
+    if ('problem' in draft) {
+      // Log what was wrong and the raw response so the operator can see what
+      // the model produced — small Ollama models often return free-text or
+      // break the locale-keyed shape, and the user-facing "malformed draft"
+      // toast is too opaque to diagnose without this.
+      this.logger.warn(
+        `AI_DRAFT_INVALID (provider=${meta.provider ?? '?'}, model=${meta.model ?? '?'}): ${draft.problem}: ${text.slice(0, 500).replace(/\s+/g, ' ')}`,
+      );
+      throw new BadRequestException({
+        error: 'AI_DRAFT_INVALID',
+        message: 'AI returned a malformed draft.',
+      });
+    }
+    const payload = draft.recipe;
+    const resolved = payload.ingredients.map((line) => ({
+      ingredientId: offered.get(line.slug)!.id,
+      quantity: line.quantity,
+      unit: line.unit,
+      note: line.note,
+    }));
 
     // Re-fetch full ingredient rows so the engine can recompute nutrition.
     const ingredientRows = await this.prisma.ingredient.findMany({
@@ -298,9 +263,9 @@ export class AiRecipeDraftService {
         userId,
         origin: 'ai',
         text: new Map(
-          payload.locales.map((lc) => [
+          targetLocales.map((lc) => [
             lc,
-            { title: payload.titles[lc], description: payload.descriptions[lc], steps: payload.steps[lc] },
+            { title: payload.titles[lc]!, description: payload.descriptions[lc]!, steps: payload.steps[lc]! },
           ]),
         ),
         servings: payload.servings,
@@ -451,12 +416,6 @@ function buildDraftPrompt(input: {
   return { system, user };
 }
 
-/**
- * What a drafted recipe may hold. Text beyond these lengths is not a recipe
- * card, and a quantity beyond these is not an ingredient of one serving.
- */
-const TEXT_LIMITS = { title: 120, description: 600, step: 300, steps: 25, note: 120, slug: 120 } as const;
-const MAX_QUANTITY = { g: 2_000, ml: 2_000, piece: 50 } as const;
 /** The calories of anything that can be called a serving of a meal. */
 const SERVING_KCAL = { min: 30, max: 2_500 } as const;
 
@@ -496,131 +455,57 @@ function draftUnavailable(reason: AiFallbackReason | null): HttpException {
 }
 
 /**
- * Parse + lightly validate the model's response. Returns null when the shape
- * isn't usable — the caller throws so the user sees a clear error rather than
- * a half-broken recipe.
+ * The recipe in a model's answer, held to the rules of every recipe. The model
+ * is met half-way first: an answer in one language may use plain fields, a
+ * whole number may come with a fraction, a meal the planner does not know is
+ * left out, an ingredient may be called by its name, and a note the rules
+ * refuse is dropped. What is left has to pass like any other recipe, and has
+ * to be more than a single step.
  */
-function parseDraftPayload(text: string, targetLocales: Locale[]): AiDraftPayload | null {
+function readDraft(
+  text: string,
+  locales: Locale[],
+  slugOf: (written: string) => string | null,
+): { recipe: CheckedRecipe } | { unknownIngredient: string } | { problem: string } {
   const reply = readModelObject(text);
-  return reply.ok ? normalise(reply.value, targetLocales) : null;
-}
+  if (!reply.ok) return { problem: 'no JSON object' };
+  const o = reply.value;
 
-function normalise(o: Record<string, unknown>, targetLocales: Locale[]): AiDraftPayload | null {
-
-  const multi = targetLocales.length > 1;
-  const titles: Record<Locale, string> = {} as Record<Locale, string>;
-  const descriptions: Record<Locale, string> = {} as Record<Locale, string>;
-  const stepsByLocale: Record<Locale, string[]> = {} as Record<Locale, string[]>;
-
-  if (multi) {
-    // Locale-keyed maps required for every target locale; missing or empty
-    // locale rejects the entire payload.
-    const titlesRaw = o.titles as Record<string, unknown> | undefined;
-    const descsRaw = o.descriptions as Record<string, unknown> | undefined;
-    const stepsRaw = o.steps as Record<string, unknown> | undefined;
-    if (!titlesRaw || !descsRaw || !stepsRaw) return null;
-    for (const lc of targetLocales) {
-      const t = textField(titlesRaw[lc], TEXT_LIMITS.title);
-      const d = textField(descsRaw[lc], TEXT_LIMITS.description);
-      const s = stepsField(stepsRaw[lc]);
-      if (!t || !d || !s) return null;
-      titles[lc] = t;
-      descriptions[lc] = d;
-      stepsByLocale[lc] = s;
+  const lines: unknown[] = [];
+  for (const line of Array.isArray(o.ingredients) ? o.ingredients : []) {
+    if (!isRecord(line) || typeof line.slug !== 'string') {
+      lines.push(line);
+      continue;
     }
-  } else {
-    // Legacy single-string shape — only EN. Fold into the locale-keyed
-    // payload so downstream code is uniform.
-    const title = textField(o.title, TEXT_LIMITS.title);
-    const description = textField(o.description, TEXT_LIMITS.description);
-    const steps = stepsField(o.steps);
-    if (!title || !description || !steps) return null;
-    titles.en = title;
-    descriptions.en = description;
-    stepsByLocale.en = steps;
+    const slug = slugOf(line.slug);
+    if (slug === null) return { unknownIngredient: line.slug };
+    lines.push({ ...line, slug });
   }
 
-  const servings = intField(o.servings, 1, 12);
-  const prepMinutes = intField(o.prepMinutes, 0, 480);
-  const cookMinutes = intField(o.cookMinutes, 0, 480);
-  if (servings == null || prepMinutes == null || cookMinutes == null) return null;
-
-  const difficulty = ALLOWED_DIFFICULTIES.includes(o.difficulty as Difficulty)
-    ? (o.difficulty as Difficulty)
-    : null;
-  if (!difficulty) return null;
-
-  const mealTypes = arrField(o.mealTypes, (v) => (ALLOWED_MEALS.includes(v) ? (v as MealType) : null));
-  if (mealTypes.length === 0) return null;
-
-  if (!Array.isArray(o.ingredients) || o.ingredients.length === 0 || o.ingredients.length > 20) {
-    return null;
-  }
-  const ingredients: AiDraftLine[] = [];
-  for (const line of o.ingredients) {
-    if (!line || typeof line !== 'object') return null;
-    const l = line as Record<string, unknown>;
-    const slug = textField(l.slug, TEXT_LIMITS.slug);
-    const unit = typeof l.unit === 'string' && ALLOWED_UNITS.includes(l.unit) ? (l.unit as 'g' | 'ml' | 'piece') : null;
-    if (!slug || unit == null) return null;
-    // `1e400` is valid JSON and reads as Infinity; a serving has a ceiling.
-    const quantity = l.quantity;
-    if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0 || quantity > MAX_QUANTITY[unit]) {
-      return null;
-    }
-    // A note is optional, so one that is too long is dropped, not fatal.
-    const note = textField(l.note, TEXT_LIMITS.note);
-    ingredients.push({ slug, quantity, unit, note });
-  }
-
-  return {
-    titles,
-    descriptions,
-    steps: stepsByLocale,
-    servings,
-    mealTypes,
-    prepMinutes,
-    cookMinutes,
-    difficulty,
-    ingredients,
-    locales: targetLocales,
+  const only = locales.length === 1 ? locales[0]! : null;
+  const whole = (value: unknown): unknown => (typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : value);
+  const candidate: Record<string, unknown> = {
+    titles: only ? { [only]: o.title } : o.titles,
+    descriptions: only ? { [only]: o.description } : o.descriptions,
+    steps: only ? { [only]: o.steps } : o.steps,
+    servings: whole(o.servings),
+    prepMinutes: whole(o.prepMinutes),
+    cookMinutes: whole(o.cookMinutes),
+    difficulty: o.difficulty,
+    mealTypes: Array.isArray(o.mealTypes) ? o.mealTypes.filter((meal) => ALLOWED_MEALS.includes(meal as string)) : o.mealTypes,
+    ingredients: lines,
   };
-}
 
-/** A text field as one plain line, or null when it is missing or longer than `max`. */
-function textField(v: unknown, max: number): string | null {
-  const line = plainLine(v);
-  return line !== null && line.length <= max ? line : null;
-}
-
-/** The steps of one language, or null when their number or the length of one is out of bounds. */
-function stepsField(v: unknown): string[] | null {
-  if (!Array.isArray(v) || v.length > TEXT_LIMITS.steps) return null;
-  const steps: string[] = [];
-  for (const raw of v) {
-    // An empty entry is skipped; one that is too long spoils the recipe.
-    if (plainLine(raw) === null) continue;
-    const step = textField(raw, TEXT_LIMITS.step);
-    if (step === null) return null;
-    steps.push(step);
+  let checked = checkRecipe(candidate, locales);
+  if (!checked.ok && checked.problems.every((problem) => problem.path.endsWith('.note'))) {
+    // A note is optional: one the rules refuse is left out, and the recipe stays.
+    const refused = new Set(checked.problems.map((problem) => problem.path));
+    candidate.ingredients = lines.map((line, index) => (refused.has(`ingredients[${index}].note`) && isRecord(line) ? { ...line, note: null } : line));
+    checked = checkRecipe(candidate, locales);
   }
-  return steps.length >= 2 ? steps : null;
+  if (!checked.ok) return { problem: checked.problems.map((problem) => `${problem.path}: ${problem.rule}`).join(', ') };
+  if (Object.values(checked.recipe.steps).some((steps) => steps.length < 2)) return { problem: 'a single step' };
+  return { recipe: checked.recipe };
 }
 
-function intField(v: unknown, min: number, max: number): number | null {
-  if (typeof v !== 'number' || !Number.isFinite(v)) return null;
-  const i = Math.round(v);
-  return i >= min && i <= max ? i : null;
-}
-
-function arrField<T>(v: unknown, map: (s: string) => T | null): T[] {
-  if (!Array.isArray(v)) return [];
-  const out: T[] = [];
-  for (const x of v) {
-    if (typeof x !== 'string') continue;
-    const m = map(x);
-    if (m != null) out.push(m);
-  }
-  return out;
-}
-
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
