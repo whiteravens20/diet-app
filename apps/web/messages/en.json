@@ -535,6 +535,7 @@
       "shipPullExplainToken": "Enter a public or private repo (owner/repo or owner/repo@branch) or the full address of the file. Pull fetches its data/ingredient-overrides.json and stores the names here as approved by people. Only public addresses are fetched from, unless the host is named in OVERRIDES_PULL_ALLOWED_HOSTS. A PAT is configured, so private GitHub repos work too.",
       "shipPullSuccess": "Pulled {applied} of {total} override(s) into this instance.",
       "shipPullSkipped": "Skipped {count} unknown slug(s) this instance has no ingredient for: {slugs}…",
+      "shipPullRefused": "{count, plural, one {# entry was refused because it breaks a rule for names:} other {# entries were refused because they break a rule for names:}}",
       "shipUpstreamDisabledInfo": "Push to a repo (upstream PR) is off. To enable it, set SHIP_UPSTREAM_ENABLED=true in .env along with SHIP_UPSTREAM_GH_TOKEN and SHIP_UPSTREAM_REMOTE pointing at your own repo, then restart.",
       "shipUpstreamCanonicalWarning": "Push to a repo is disabled: SHIP_UPSTREAM_REMOTE ({remote}) resolves to the canonical whiteravens20/diet-app repo, which is not allowed. Point it at your own repo or mirror and restart.",
       "shipUpstreamUnavailable": "Push to a repo is unavailable ({reason}). Check the SHIP_UPSTREAM_* settings in .env.",

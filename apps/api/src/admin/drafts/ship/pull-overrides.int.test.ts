@@ -81,12 +81,30 @@ describe('pulling the names of ingredients from an address', () => {
   });
 
   it('fetches from a host the operator named, and stores the names as approved by people', async () => {
-    named.respond = json({ 'chicken-breast': { name: { pl: 'Filet z kurczaka' }, storageHint: { pl: 'W lodówce.' } }, 'no-such-ingredient': { name: { pl: 'Nic' } } });
+    named.respond = json({ 'chicken-breast': { name: { pl: ' Filet  z kurczaka ' }, storageHint: { pl: 'W lodówce.' } }, 'no-such-ingredient': { name: { pl: 'Nic' } } });
 
     const res = await pull(`http://127.0.0.1:${named.port}/overrides.json`).expect(201);
 
-    expect(res.body).toMatchObject({ total: 2, applied: 1, rowsWritten: 1, skippedSlugs: ['no-such-ingredient'] });
+    expect(res.body).toMatchObject({ total: 2, applied: 1, rowsWritten: 1, skippedSlugs: ['no-such-ingredient'], refused: [] });
+    // Stored as a plain line, like a name that ships from the queue.
     expect(await manual()).toEqual([{ locale: 'pl', name: 'Filet z kurczaka' }]);
+  });
+
+  it('refuses an entry that breaks a rule for names, stores the rest, and says which', async () => {
+    named.respond = json({
+      salmon: { name: { pl: '<img src=x onerror=alert(1)>' } },
+      banana: { name: { pl: 'B'.repeat(121) } },
+      tomato: { name: { pl: 'Pomidor malinowy' } },
+    });
+
+    const res = await pull(`http://127.0.0.1:${named.port}/overrides.json`).expect(201);
+
+    expect(res.body.applied).toBe(1);
+    expect(res.body.refused).toEqual([
+      { slug: 'salmon', reason: 'invalid-draft: name.pl: markup' },
+      { slug: 'banana', reason: 'invalid-draft: name.pl: text-too-long' },
+    ]);
+    expect(await manual()).toEqual([{ locale: 'pl', name: 'Pomidor malinowy' }]);
   });
 
   it('does not follow a redirect to wherever it points', async () => {

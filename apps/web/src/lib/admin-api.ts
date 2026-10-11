@@ -559,6 +559,8 @@ export interface CurrentOverridesPullResponse {
   applied: number;
   rowsWritten: number;
   skippedSlugs: string[];
+  /** Entries that break a rule for names, with the reason as a skipped draft carries one. */
+  refused: { slug: string; reason: string }[];
   total: number;
 }
 

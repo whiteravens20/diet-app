@@ -1329,6 +1329,7 @@ function LocaleReviewMatrix({
 
 function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | Promise<void> }) {
   const t = useTranslations('admin.curation');
+  const skipReasonText = useSkipReasonText();
   const [config, setConfig] = useState<ShipConfigDto | null>(null);
   const [busyMode, setBusyMode] = useState<ShipMode | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1585,6 +1586,18 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
                     slugs: pullResult.skippedSlugs.slice(0, 8).join(', '),
                   })}
                 </p>
+              )}
+              {pullResult.refused.length > 0 && (
+                <div className="mt-1 text-amber-600 dark:text-amber-400">
+                  <p>{t('shipPullRefused', { count: pullResult.refused.length })}</p>
+                  <ul className="list-disc pl-4">
+                    {pullResult.refused.slice(0, 8).map((entry) => (
+                      <li key={entry.slug}>
+                        <span className="font-mono">{entry.slug}</span> — {skipReasonText(entry.reason)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           )}

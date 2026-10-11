@@ -3,8 +3,9 @@
 /**
  * Pulling the names of ingredients from a repository: the reverse of shipping
  * them. The administrator names a source in the panel; its
- * `ingredient-overrides.json` is fetched, and every entry is stored as a name
- * approved by people, as a local ship stores one.
+ * `ingredient-overrides.json` is fetched, and every entry that passes the
+ * rules for names is stored as a name approved by people, as a local ship
+ * stores one.
  *
  * A source is one of:
  *   - `owner/repo` or `owner/repo@branch`: `data/ingredient-overrides.json`
@@ -17,12 +18,15 @@
  * named the host in the settings; no redirect is followed; a file that is too
  * large is not read. The token is sent to GitHub's hosts and to no other.
  *
- * An entry for an ingredient this instance does not have is skipped and
- * reported; it does not stop the rest.
+ * What the file holds is no more trusted than what a model writes: an entry
+ * that breaks a rule for names is refused and reported, an entry for an
+ * ingredient this instance does not have is skipped and reported, and neither
+ * stops the rest.
  */
 import { outboundRequest, OutboundRequestError, type Resolver } from '../../../common/outbound-http.js';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import { IngredientOverrideFile } from './ingredient-overrides.writer.js';
+import { shippableIngredientName } from './shippable.js';
 
 const OVERRIDES_PATH = 'data/ingredient-overrides.json';
 /** Longest wait for the file, and the largest file that is read: many times what the names of a full catalogue take. */
@@ -58,6 +62,8 @@ export interface PullOverridesResult {
   rowsWritten: number;
   /** Slugs in the file that this instance has no ingredient for. */
   skippedSlugs: string[];
+  /** Entries that break a rule for names, each with the reason. Nothing of them was stored. */
+  refused: { slug: string; reason: string }[];
   /** Total slugs in the fetched file. */
   total: number;
 }
@@ -186,36 +192,53 @@ export async function fetchOverrides(
   return { file: parsed.data, resolvedUrl: resolved.url };
 }
 
-/** Apply a parsed override file to the live DB as MANUAL translations. Mirrors
- *  the local-mode ship's per-locale upsert; unknown slugs are skipped. */
+/**
+ * Store the names of an override file as names approved by people: all of
+ * them, or none when the database refuses one.
+ *
+ * Each entry is held to the rules for names in the languages it carries. One
+ * that breaks a rule is refused, one for an ingredient this instance does not
+ * have is skipped, and both are reported.
+ */
 export async function applyOverridesToDb(
   prisma: PrismaService,
   file: IngredientOverrideFile,
-): Promise<{ applied: number; rowsWritten: number; skippedSlugs: string[] }> {
+): Promise<{ applied: number; rowsWritten: number; skippedSlugs: string[]; refused: { slug: string; reason: string }[] }> {
   const skippedSlugs: string[] = [];
+  const refused: { slug: string; reason: string }[] = [];
   let applied = 0;
   let rowsWritten = 0;
 
-  for (const [slug, entry] of Object.entries(file)) {
-    const target = await prisma.ingredient.findFirst({ where: { slug }, select: { id: true } });
-    if (!target) {
-      skippedSlugs.push(slug);
-      continue;
-    }
-    const storageHintMap = (entry.storageHint ?? {}) as Record<string, string>;
-    for (const [locale, name] of Object.entries(entry.name as Record<string, string>)) {
-      const storageHint = storageHintMap[locale] ?? null;
-      await prisma.ingredientTranslation.upsert({
-        where: { ingredientId_locale: { ingredientId: target.id, locale } },
-        create: { ingredientId: target.id, locale, name, storageHint, source: 'MANUAL' },
-        update: { name, storageHint, source: 'MANUAL' },
-      });
-      rowsWritten += 1;
-    }
-    applied += 1;
-  }
+  await prisma.$transaction(
+    async (tx) => {
+      for (const [slug, entry] of Object.entries(file)) {
+        const checked = shippableIngredientName({ suggestions: entry, locales: Object.keys(entry.name) });
+        if (!checked.ok) {
+          refused.push({ slug, reason: checked.reason });
+          continue;
+        }
+        const target = await tx.ingredient.findFirst({ where: { slug }, select: { id: true } });
+        if (!target) {
+          skippedSlugs.push(slug);
+          continue;
+        }
+        const hints: Record<string, string> = checked.content.storageHint ?? {};
+        for (const [locale, name] of Object.entries(checked.content.name)) {
+          const storageHint = hints[locale] ?? null;
+          await tx.ingredientTranslation.upsert({
+            where: { ingredientId_locale: { ingredientId: target.id, locale } },
+            create: { ingredientId: target.id, locale, name, storageHint, source: 'MANUAL' },
+            update: { name, storageHint, source: 'MANUAL' },
+          });
+          rowsWritten += 1;
+        }
+        applied += 1;
+      }
+    },
+    { timeout: 120_000 },
+  );
 
-  return { applied, rowsWritten, skippedSlugs };
+  return { applied, rowsWritten, skippedSlugs, refused };
 }
 
 /** The whole pull: fetch the file of `source`, store what passes, and say what happened to each entry. */
