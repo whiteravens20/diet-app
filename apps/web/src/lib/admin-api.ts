@@ -176,9 +176,16 @@ export interface UsdaImportRunnerState {
 export interface DraftLocaleReview {
   locale: string;
   action: 'APPROVE' | 'REJECT';
+  /** Who wrote it; null on a review from before the role was recorded. */
+  byRole: 'ADMIN' | 'REVIEWER' | null;
   reviewedByLabel: string;
   reason: string | null;
   reviewedAt: string;
+}
+
+/** A review that a later review of the same language, or an edit of the draft, took the place of. */
+export interface DraftPastReview extends DraftLocaleReview {
+  supersededAt: string;
 }
 
 export interface IngredientNameSuggestionMap {
@@ -203,6 +210,7 @@ export interface IngredientNameDraft {
   createdAt: string;
   updatedAt: string;
   localeReviews: DraftLocaleReview[];
+  pastReviews: DraftPastReview[];
 }
 
 export interface DraftRunnerState {
@@ -270,6 +278,7 @@ export interface RecipeDraft {
   createdAt: string;
   updatedAt: string;
   localeReviews: DraftLocaleReview[];
+  pastReviews: DraftPastReview[];
 }
 
 export interface RecipeGenerateSpec {

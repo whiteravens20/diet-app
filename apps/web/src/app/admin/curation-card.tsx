@@ -37,6 +37,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   adminApi,
+  type DraftLocaleReview,
+  type DraftPastReview,
   type DraftRunnerState,
   type IngredientNameDraft,
   type IngredientNameSuggestionMap,
@@ -634,6 +636,7 @@ function IngredientDraftRow({
       <LocaleReviewMatrix
         expectedLocales={draft.locales}
         localeReviews={draft.localeReviews}
+        pastReviews={draft.pastReviews}
         status={draft.status}
         shippedPRUrl={draft.shippedPRUrl}
       />
@@ -918,6 +921,7 @@ function RecipeDraftRow({
           <LocaleReviewMatrix
             expectedLocales={draft.locales}
             localeReviews={draft.localeReviews}
+            pastReviews={draft.pastReviews}
             status={draft.status}
             shippedPRUrl={draft.shippedPRUrl}
           />
@@ -1139,13 +1143,7 @@ function RecipeEditor({
 }
 
 type DraftStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-type LocaleReviewRow = {
-  locale: string;
-  action: 'APPROVE' | 'REJECT';
-  reviewedByLabel: string;
-  reason: string | null;
-  reviewedAt: string;
-};
+type LocaleReviewRow = DraftLocaleReview;
 
 /**
  * Per-locale review matrix — one chip per locale expected on the draft,
@@ -1160,12 +1158,15 @@ type LocaleReviewRow = {
 function LocaleReviewMatrix({
   expectedLocales,
   localeReviews,
+  pastReviews = [],
   status,
   shippedPRUrl,
   compact = false,
 }: {
   expectedLocales: string[];
   localeReviews: LocaleReviewRow[];
+  /** What was decided before: reviews a later review or an edit took the place of. */
+  pastReviews?: DraftPastReview[];
   status: DraftStatus;
   shippedPRUrl?: string | null;
   compact?: boolean;
@@ -1275,6 +1276,25 @@ function LocaleReviewMatrix({
               {t('matrixRejectedReason', { locale: r.locale.toUpperCase(), reason: r.reason! })}
             </p>
           ))}
+
+      {!compact && pastReviews.length > 0 && (
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">{t('pastReviews', { count: pastReviews.length })}</summary>
+          <ul className="mt-1 space-y-0.5">
+            {pastReviews.map((r) => (
+              <li key={`${r.locale}-${r.reviewedAt}-${r.supersededAt}`}>
+                {t(r.action === 'APPROVE' ? 'pastApproved' : 'pastRejected', {
+                  locale: r.locale.toUpperCase(),
+                  label: r.reviewedByLabel,
+                  role: r.byRole ?? 'unknown',
+                  when: new Date(r.reviewedAt).toLocaleString(),
+                })}
+                {r.reason ? ` — ${r.reason}` : ''}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
