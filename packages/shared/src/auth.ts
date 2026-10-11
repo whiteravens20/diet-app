@@ -86,6 +86,20 @@ export const AuthUser = z.object({
 });
 export type AuthUser = z.infer<typeof AuthUser>;
 
+/** A session of an account, as the account sees it in the list of its sessions. */
+export const AccountSession = z.object({
+  /** The `sessionId` of the answers that belong to it. */
+  id: z.string().uuid(),
+  /** What it was opened from, as far as the request said ("Firefox on Linux"); null when it said nothing usable. */
+  label: z.string().nullable(),
+  startedAt: z.string().datetime(),
+  /** When it last got a new access token. */
+  lastUsedAt: z.string().datetime(),
+  /** When it ends, however often it is used. Unused for long enough, it ends sooner. */
+  endsAt: z.string().datetime(),
+});
+export type AccountSession = z.infer<typeof AccountSession>;
+
 export const AuthResponse = z.object({
   user: AuthUser,
   tokens: AuthTokens,

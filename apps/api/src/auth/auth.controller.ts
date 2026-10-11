@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
   ConfirmEmailChangeRequest,
@@ -16,6 +16,7 @@ import { RequestLocale } from '../common/request-locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { byAccount, byAccountAndAddress, byToken, TriesCredential } from '../rate-limit/trackers.js';
 import { AuthService } from './auth.service.js';
+import { sessionLabel } from './session-label.js';
 import { SessionsService } from './sessions.service.js';
 
 const MINUTE = 60_000;
@@ -43,8 +44,9 @@ export class AuthController {
   register(
     @Body(new ZodValidationPipe(RegisterRequest)) dto: RegisterRequest,
     @RequestLocale() locale: Locale,
+    @Headers('user-agent') userAgent?: string,
   ) {
-    return this.auth.register(dto, locale);
+    return this.auth.register(dto, locale, sessionLabel(userAgent));
   }
 
   // Ten tries in a quarter of an hour at one account from one address: whoever
@@ -56,8 +58,8 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: QUARTER_HOUR } })
   @TriesCredential({ by: byAccountAndAddress, limit: 10, ttl: QUARTER_HOUR }, { by: byAccount, limit: 50, ttl: QUARTER_HOUR })
-  login(@Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest) {
-    return this.auth.login(dto);
+  login(@Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest, @Headers('user-agent') userAgent?: string) {
+    return this.auth.login(dto, sessionLabel(userAgent));
   }
 
   // Thirty a minute for one sender: many people behind one address refresh

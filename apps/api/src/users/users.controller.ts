@@ -6,6 +6,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Param,
   Patch,
   Post,
   UseGuards,
@@ -20,6 +21,7 @@ import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { SessionsService } from '../auth/sessions.service.js';
 import { UsersService } from './users.service.js';
 
 /**
@@ -33,11 +35,33 @@ const PASSWORD_CHECK = { default: { limit: 5, ttl: 60_000 } };
 @Controller('users/me')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly sessions: SessionsService,
+  ) {}
 
   @Get()
   getMe(@CurrentUser() user: RequestUser) {
     return this.users.getMe(user.id);
+  }
+
+  /** The sessions of the account that are open: where it is signed in. */
+  @Get('sessions')
+  listSessions(@CurrentUser() user: RequestUser) {
+    return this.sessions.list(user.id);
+  }
+
+  /** Sign out everywhere, this session included. */
+  @Delete('sessions')
+  @HttpCode(204)
+  async endSessions(@CurrentUser() user: RequestUser) {
+    await this.sessions.endAll(user.id);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(204)
+  async endSession(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    await this.sessions.endOne(user.id, id);
   }
 
   @Patch()

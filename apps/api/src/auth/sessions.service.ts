@@ -1,10 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { AuthResponse } from '@diet-app/shared';
+import type { AccountSession, AuthResponse } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
@@ -105,6 +105,40 @@ export class SessionsService {
   async end(refreshToken: string): Promise<void> {
     const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(refreshToken) }, select: { familyId: true } });
     if (stored) await this.endFamily(stored.familyId);
+  }
+
+  /** The sessions of an account that are open, the one used last first. */
+  async list(userId: string): Promise<AccountSession[]> {
+    const now = new Date();
+    // The token of a session that has not been used yet is where the session stands.
+    const open = await this.prisma.refreshToken.findMany({
+      where: { userId, rotatedAt: null, revokedAt: null, expiresAt: { gt: now }, familyExpiresAt: { gt: now } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const began = await this.prisma.refreshToken.groupBy({
+      by: ['familyId'],
+      where: { familyId: { in: open.map((token) => token.familyId) } },
+      _min: { createdAt: true },
+    });
+    const startOf = new Map(began.map((family) => [family.familyId, family._min.createdAt]));
+    return open.map((token) => ({
+      id: token.familyId,
+      label: token.label,
+      startedAt: (startOf.get(token.familyId) ?? token.createdAt).toISOString(),
+      lastUsedAt: token.createdAt.toISOString(),
+      endsAt: token.familyExpiresAt.toISOString(),
+    }));
+  }
+
+  /** End one session of an account. */
+  async endOne(userId: string, sessionId: string): Promise<void> {
+    const ended = await this.prisma.refreshToken.updateMany({ where: { userId, familyId: sessionId, revokedAt: null }, data: { revokedAt: new Date() } });
+    if (ended.count === 0) throw new NotFoundException({ error: 'SESSION_NOT_FOUND', message: 'That session is not open.' });
+  }
+
+  /** End every session of an account: it is signed out everywhere. */
+  async endAll(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
   }
 
   private async endFamily(familyId: string): Promise<void> {

@@ -65,7 +65,7 @@ export class AuthService {
     );
   }
 
-  async register(dto: RegisterRequest, locale: Locale = 'en'): Promise<AuthResponse> {
+  async register(dto: RegisterRequest, locale: Locale = 'en', openedFrom: string | null = null): Promise<AuthResponse> {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
     const emailIndex = this.emails.indexOf(email);
@@ -95,7 +95,7 @@ export class AuthService {
       // unique index decides, and the one that loses gets the usual answer.
       .catch(rethrowAsEmailTaken);
     if (this.mail.enabled) await this.sendVerificationEmail(user.id, email, locale);
-    return this.sessions.open(user, email);
+    return this.sessions.open(user, email, openedFrom);
   }
 
   /**
@@ -155,7 +155,7 @@ export class AuthService {
     return createHmac('sha256', Buffer.from(this.linkKey, 'hex')).update(`email-verification:${id}`).digest('hex');
   }
 
-  async login(dto: LoginRequest): Promise<AuthResponse> {
+  async login(dto: LoginRequest, openedFrom: string | null = null): Promise<AuthResponse> {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
     const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });
@@ -170,7 +170,7 @@ export class AuthService {
         message: 'Email or password is incorrect.',
       });
     }
-    return this.sessions.open(user, email);
+    return this.sessions.open(user, email, openedFrom);
   }
 
   /**
