@@ -330,14 +330,17 @@ function pickBest(candidates: OptimizerRecipe[], ctx: PickContext): OptimizerRec
   return best!;
 }
 
-/** Deterministic pseudo-random offset in [0, 0.12) from (recipeId, seed). */
+/** Deterministic pseudo-random offset in [0, 0.12) from (recipeId, seed), all in 32-bit integers. */
 export function seededJitter(recipeId: string, seed: number): number {
-  let h = seed * 2654435761;
-  for (let i = 0; i < recipeId.length; i++) {
-    h = (h ^ recipeId.charCodeAt(i)) * 16777619;
-    h >>>= 0;
-  }
-  return (h % 1000) / 1000 / 8.333; // → [0, 0.12)
+  let h = (seed | 0) ^ 0x9e3779b9;
+  for (let i = 0; i < recipeId.length; i++) h = Math.imul(h ^ recipeId.charCodeAt(i), 0x01000193);
+  // The finishing steps of a 32-bit mix: every bit of the seed and of the id reaches every bit of the result.
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return ((h >>> 0) / 0x1_0000_0000) * 0.12;
 }
 
 /** Multi-factor score in [0, 1]. */
