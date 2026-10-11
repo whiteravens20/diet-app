@@ -59,6 +59,27 @@ export const PLAN_RELAXATIONS = ['variety_floor', 'cook_time', 'same_day', 'cons
 export const PlanRelaxation = z.enum(PLAN_RELAXATIONS);
 export type PlanRelaxation = z.infer<typeof PlanRelaxation>;
 
+/** A meal that is outside limits of its plan, and which. */
+export const RelaxedMeal = z.object({
+  date: z.string().date(),
+  slot: MealType,
+  gaveWay: z.array(PlanRelaxation).min(1),
+});
+export type RelaxedMeal = z.infer<typeof RelaxedMeal>;
+
+/**
+ * What a refusal with the code `PLAN_NEEDS_RELAXATION` carries under
+ * `details`: the plan cannot be filled inside its limits. `meals` are the
+ * meals that would be outside one if every limit were let give way, and
+ * `needs` the limits that would, in the order they do. Sending the request
+ * again with `needs` in `allowRelaxations` lets them.
+ */
+export const RelaxationNeeded = z.object({
+  needs: z.array(PlanRelaxation).min(1),
+  meals: z.array(RelaxedMeal).min(1),
+});
+export type RelaxationNeeded = z.infer<typeof RelaxationNeeded>;
+
 /** Request to generate a meal plan. */
 export const GeneratePlanRequest = z.object({
   profileId: z.string().uuid(),
@@ -87,6 +108,12 @@ export const GeneratePlanRequest = z.object({
    * whole plan window. Omitted = no floor.
    */
   maxRepeatsPerRecipe: z.number().int().min(1).max(28).optional(),
+  /**
+   * The limits that may give way when a meal cannot be filled inside them.
+   * None by default: the plan is then refused with 422
+   * `PLAN_NEEDS_RELAXATION`, which names what would have to.
+   */
+  allowRelaxations: z.array(PlanRelaxation).default([]),
   /** Per-day advanced overrides (sparse — untouched days are omitted). */
   dayOverrides: z.array(DayOverride).optional(),
 });
@@ -107,6 +134,8 @@ export const PlanOptions = z.object({
   respectFavorites: z.boolean(),
   respectInventory: z.boolean(),
   maxRepeatsPerRecipe: z.number().int().nullable(),
+  /** The limits that may give way when the plan is made again. */
+  allowRelaxations: z.array(PlanRelaxation),
 });
 export type PlanOptions = z.infer<typeof PlanOptions>;
 
@@ -174,6 +203,11 @@ export const RegenerateRequest = z
      * with `LOCKED_RECIPE_INELIGIBLE`.
      */
     dropIneligibleLocks: z.boolean().default(false),
+    /**
+     * The limits that may give way this time. Left out: those the plan may
+     * let give way already. For a whole plan they are kept with it.
+     */
+    allowRelaxations: z.array(PlanRelaxation).optional(),
   })
   .default({ dropIneligibleLocks: false });
 export type RegenerateRequest = z.infer<typeof RegenerateRequest>;

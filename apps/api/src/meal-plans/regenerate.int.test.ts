@@ -127,6 +127,7 @@ describe('regenerating a plan', () => {
         respectFavorites: false,
         respectInventory: false,
         maxRepeatsPerRecipe: 3,
+        allowRelaxations: [],
       });
       expect(await shown(left)).toEqual({
         dietType: null,
@@ -137,6 +138,7 @@ describe('regenerating a plan', () => {
         respectFavorites: true,
         respectInventory: true,
         maxRepeatsPerRecipe: null,
+        allowRelaxations: [],
       });
       expect((await t.app.get(MealPlansService).regenerate(user.id, 'en', asked.id)).options).toEqual(asked.options);
     });

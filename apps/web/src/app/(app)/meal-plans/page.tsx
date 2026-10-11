@@ -9,6 +9,8 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { CalendarRange, Sparkles, UserRound } from 'lucide-react';
 import {
   MEAL_SLOTS_BY_COUNT,
+  PLAN_RELAXATIONS,
+  RelaxationNeeded,
   UnfilledMeal,
   fitsDiet,
   type AddCustomMealRequest,
@@ -16,6 +18,7 @@ import {
   type GeneratePlanRequest,
   type MealPlan,
   type PlannedIngredient,
+  type PlanRelaxation,
   type Profile,
   type RebalanceResult,
   type SessionUser,
@@ -44,6 +47,25 @@ import {
 } from './advanced-options';
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+/** How many of the meals that stand in the way of a plan are named one by one. */
+const MEALS_NAMED = 6;
+
+/** What a generate request sends: the fields with a default may be left out. */
+type GenerateBody = Omit<GeneratePlanRequest, 'allowRelaxations'> & { allowRelaxations?: PlanRelaxation[] };
+
+/** A re-roll of a plan, or of one of its days. */
+interface Reroll {
+  planId: string;
+  dayId?: string;
+  dropIneligibleLocks?: boolean;
+  /** Left out: the limits the plan may let give way already. */
+  allowRelaxations?: PlanRelaxation[];
+}
+
+/** `more` added to `allowed`, in the order limits give way. */
+const withMore = (allowed: readonly PlanRelaxation[], more: readonly PlanRelaxation[]): PlanRelaxation[] =>
+  PLAN_RELAXATIONS.filter((kind) => allowed.includes(kind) || more.includes(kind));
 
 function MealPlansContent() {
   const t = useTranslations('mealPlans');
@@ -136,33 +158,56 @@ function MealPlansContent() {
     return t('noRecipeInCatalogue', { ...named, advice: MEAL_SLOTS_BY_COUNT[2]!.includes(slot) ? 'diet' : 'fewer' });
   };
 
+  // A plan that could only be filled outside its limits: what stands in the
+  // way, and the request that is sent again once the user lets it give way.
+  const [inTheWay, setInTheWay] = useState<
+    { needed: RelaxationNeeded; allowed: PlanRelaxation[] } & ({ generate: GenerateBody } | { reroll: Reroll }) | null
+  >(null);
+  const relaxationNeeded = (e: unknown): RelaxationNeeded | null => {
+    if (!(e instanceof ApiClientError) || e.code !== 'PLAN_NEEDS_RELAXATION') return null;
+    const needed = RelaxationNeeded.safeParse(e.details);
+    return needed.success ? needed.data : null;
+  };
+  const limitNames = (kinds: readonly PlanRelaxation[]) => kinds.map((kind) => t(`limit.${kind}`)).join(', ');
+
   const generate = useMutation({
-    mutationFn: (body: GeneratePlanRequest) => api.post<MealPlan>('/meal-plans/generate', body),
+    mutationFn: (body: GenerateBody) => api.post<MealPlan>('/meal-plans/generate', body),
     onSuccess: (plan) => {
+      setInTheWay(null);
       invalidate();
       setOpenPlan(plan.id);
     },
-    onError: fail(t('errGenerate')),
+    onError: (e: unknown, body: GenerateBody) => {
+      const needed = relaxationNeeded(e);
+      setInTheWay(needed ? { needed, allowed: body.allowRelaxations ?? [], generate: body } : null);
+      if (!needed) fail(t('errGenerate'))(e);
+    },
   });
 
   // A re-roll that was refused because a locked recipe may no longer go into
   // the plan. The user can repeat it with that lock dropped.
   const [staleLock, setStaleLock] = useState<{ planId: string; dayId?: string } | null>(null);
   const reroll = (fallback: string) => ({
-    mutationFn: (v: { planId: string; dayId?: string; dropIneligibleLocks?: boolean }) =>
+    mutationFn: (v: Reroll) =>
       api.post<MealPlan>(
         v.dayId ? `/meal-plans/${v.planId}/days/${v.dayId}/regenerate` : `/meal-plans/${v.planId}/regenerate`,
-        v.dropIneligibleLocks ? { dropIneligibleLocks: true } : undefined,
+        v.dropIneligibleLocks || v.allowRelaxations
+          ? { ...(v.dropIneligibleLocks ? { dropIneligibleLocks: true } : {}), ...(v.allowRelaxations ? { allowRelaxations: v.allowRelaxations } : {}) }
+          : undefined,
       ),
     onSuccess: () => {
       setStaleLock(null);
+      setInTheWay(null);
       invalidate();
     },
-    onError: (e: unknown, v: { planId: string; dayId?: string }) => {
+    onError: (e: unknown, v: Reroll) => {
       setStaleLock(
         e instanceof ApiClientError && e.code === 'LOCKED_RECIPE_INELIGIBLE' ? { planId: v.planId, dayId: v.dayId } : null,
       );
-      fail(fallback)(e);
+      const needed = relaxationNeeded(e);
+      const kept = (plans.data ?? []).find((plan) => plan.id === v.planId)?.options.allowRelaxations ?? [];
+      setInTheWay(needed ? { needed, allowed: v.allowRelaxations ?? kept, reroll: v } : null);
+      if (!needed) fail(fallback)(e);
     },
   });
   const regenerate = useMutation(reroll(t('errRecalculate')));
@@ -280,6 +325,7 @@ function MealPlansContent() {
     if (!activeId) return;
     const f = new FormData(event.currentTarget);
     const dates = planDates(startDate, durationDays);
+    setInTheWay(null);
     generate.mutate({
       profileId: activeId,
       startDate,
@@ -414,6 +460,48 @@ function MealPlansContent() {
           {t('dropLockAndRetry')}
         </Button>
       )}
+      {inTheWay && (
+        <div
+          className="max-w-2xl space-y-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+          role="alert"
+        >
+          <p>{t('limitsInTheWay', { count: inTheWay.needed.meals.length, limits: limitNames(inTheWay.needed.needs) })}</p>
+          <ul className="list-disc pl-5 text-xs">
+            {inTheWay.needed.meals.slice(0, MEALS_NAMED).map((meal) => (
+              <li key={`${meal.date} ${meal.slot}`}>
+                {meal.date} · {tMeal(meal.slot)}: {limitNames(meal.gaveWay)}
+              </li>
+            ))}
+            {inTheWay.needed.meals.length > MEALS_NAMED && (
+              <li>{t('limitsInTheWayMore', { count: inTheWay.needed.meals.length - MEALS_NAMED })}</li>
+            )}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy || generate.isPending}
+              onClick={() => {
+                const allowRelaxations = withMore(inTheWay.allowed, inTheWay.needed.needs);
+                setError(null);
+                if ('generate' in inTheWay) {
+                  // The form says from here on what the plan was let do.
+                  setAdvanced((value) => ({ ...value, mayGiveWay: allowRelaxations }));
+                  generate.mutate({ ...inTheWay.generate, allowRelaxations });
+                } else {
+                  (inTheWay.reroll.dayId ? regenerateDay : regenerate).mutate({ ...inTheWay.reroll, allowRelaxations });
+                }
+              }}
+            >
+              {t('letGiveWay', { count: inTheWay.needed.needs.length })}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setInTheWay(null)}>
+              {tCommon('cancel')}
+            </Button>
+          </div>
+        </div>
+      )}
       {notice && (
         <p
           className="max-w-2xl rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
@@ -503,10 +591,11 @@ function MealPlansContent() {
               busy={busy}
               dietLabel={tDiet(plan.dietType)}
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
-              onRegenerate={() => {
+              onRegenerate={(allowRelaxations) => {
                 setError(null);
-                regenerate.mutate({ planId: plan.id });
+                regenerate.mutate({ planId: plan.id, allowRelaxations });
               }}
+              limitNames={limitNames}
               onDelete={() => {
                 setError(null);
                 if (window.confirm(t('deleteConfirm'))) {
@@ -611,6 +700,7 @@ function PlanCard({
   tMeal,
   onToggle,
   onRegenerate,
+  limitNames,
   onDelete,
   onRegenerateDay,
   onSwapMeal,
@@ -628,7 +718,9 @@ function PlanCard({
   favorites: FavoriteOption[];
   tMeal: ReturnType<typeof useTranslations<'enums.mealType'>>;
   onToggle: () => void;
-  onRegenerate: () => void;
+  /** Make the plan again; with a list, letting those limits give way and no others. */
+  onRegenerate: (allowRelaxations?: PlanRelaxation[]) => void;
+  limitNames: (kinds: readonly PlanRelaxation[]) => string;
   onDelete: () => void;
   onRegenerateDay: (dayId: string) => void;
   onSwapMeal: (plannedMealId: string) => void;
@@ -672,7 +764,7 @@ function PlanCard({
         </button>
         <div className="flex shrink-0 gap-2">
           <ApplyFavoriteSetButton plan={plan} profileId={plan.profileId} disabled={busy} />
-          <Button type="button" variant="outline" size="sm" onClick={onRegenerate} disabled={busy}>
+          <Button type="button" variant="outline" size="sm" onClick={() => onRegenerate()} disabled={busy}>
             {t('recalculate')}
           </Button>
           <Button
@@ -692,6 +784,14 @@ function PlanCard({
       </div>
       {open && (
         <CardContent className="space-y-4 border-t border-border pt-4">
+          {plan.options.allowRelaxations.length > 0 && (
+            <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {t('planMayGiveWay', { limits: limitNames(plan.options.allowRelaxations) })}
+              <Button type="button" variant="ghost" size="sm" onClick={() => onRegenerate([])} disabled={busy}>
+                {t('holdLimits')}
+              </Button>
+            </p>
+          )}
           {plan.days.map((day) => (
             <div key={day.id}>
               <div className="flex items-center justify-between gap-2">

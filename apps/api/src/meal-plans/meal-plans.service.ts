@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
@@ -28,10 +29,12 @@ import {
   type MealPlanDay,
   type MealType,
   type PlannedMeal,
+  type PlanRelaxation,
   type RebalanceChange,
   type RebalanceRequest,
   type RebalanceResult,
   type RegenerateRequest,
+  type RelaxationNeeded,
   type SwapIngredientRequest,
   type SwapIngredientResponse,
   type SwapMealRequest,
@@ -136,6 +139,7 @@ export class MealPlansService {
       respectFavorites: req.respectFavorites,
       respectInventory: req.respectInventory,
       maxRepeatsPerRecipe: req.maxRepeatsPerRecipe ?? null,
+      allowRelaxations: req.allowRelaxations,
     };
     const base = this.planBase(profile, req.calorieTargetOverride);
     const baseCalorieTarget = base.target;
@@ -163,6 +167,7 @@ export class MealPlansService {
       respectFavorites: req.respectFavorites,
       respectInventory: req.respectInventory,
       maxRepeatsPerRecipe: req.maxRepeatsPerRecipe,
+      allowRelaxations: req.allowRelaxations,
       seed,
     });
 
@@ -208,6 +213,7 @@ export class MealPlansService {
     // with what each day carries of its own (meal count, calorie target,
     // locks, skip, cooking time, use-up-by).
     const made = PlanOptions.parse(existing.options);
+    const allowRelaxations = options.allowRelaxations ?? made.allowRelaxations;
     const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
     const baseCalorieTarget = base.target;
     const dietType = made.dietType ?? profile.dietType;
@@ -238,6 +244,7 @@ export class MealPlansService {
       respectFavorites: made.respectFavorites,
       respectInventory: made.respectInventory,
       maxRepeatsPerRecipe: made.maxRepeatsPerRecipe ?? undefined,
+      allowRelaxations,
       dropIneligibleLocks: options.dropIneligibleLocks,
       seed,
     });
@@ -250,6 +257,8 @@ export class MealPlansService {
           calorieTarget: baseCalorieTarget,
           dietType,
           reuseScore: result.ingredientReuseScore,
+          // The limits the plan was made with this time are the ones it is made with from here on.
+          options: { ...made, allowRelaxations },
           seed,
           days: { create: buildDays(resolvedDays, result.assignments) },
         },
@@ -311,6 +320,8 @@ export class MealPlansService {
       respectFavorites: made.respectFavorites,
       respectInventory: made.respectInventory,
       maxRepeatsPerRecipe: made.maxRepeatsPerRecipe ?? undefined,
+      // What is let give way for one day is let for this once: the plan keeps its own.
+      allowRelaxations: options.allowRelaxations ?? made.allowRelaxations,
       dropIneligibleLocks: options.dropIneligibleLocks,
       seed: newSeed(),
     });
@@ -418,6 +429,8 @@ export class MealPlansService {
       respectInventory?: boolean;
       /** Variety floor — max total uses of any recipe across the window. */
       maxRepeatsPerRecipe?: number;
+      /** The limits that may give way when a meal cannot be filled inside them. */
+      allowRelaxations: readonly PlanRelaxation[];
       /**
        * Take a lock that may not enter the plan out of the day, and out of the
        * overrides stored with it, instead of refusing.
@@ -497,6 +510,7 @@ export class MealPlansService {
       skip: d.skip,
     }));
 
+    const dates = opts.days.map((d) => d.isoDate);
     try {
       return optimisePlan({
         recipes: optimizerRecipes,
@@ -509,13 +523,28 @@ export class MealPlansService {
         maxConsecutiveDaysSameMeal,
         maxTimesPerWeekSameMeal,
         maxRepeatsPerRecipe: opts.maxRepeatsPerRecipe,
+        allowRelaxations: new Set(opts.allowRelaxations),
         seed: opts.seed,
       });
     } catch (err) {
-      // The optimiser throws when a meal has no recipe left for the diet.
-      // That is a 400 which names the meal and the diet, and says how many
-      // recipes for the pair the profile's own rules took out: none means
-      // there are none to begin with, and no change to the profile will help.
+      // The plan could be filled only by letting limits give way that may
+      // not: a 422 that names the limits and the meals, so that the user can
+      // ask again and let them.
+      if (err instanceof OptimizerError && err.blocked) {
+        const { needs, meals } = err.blocked;
+        throw new UnprocessableEntityException({
+          error: 'PLAN_NEEDS_RELAXATION',
+          message: `The plan cannot be filled inside its limits: ${meals.length} of its meals would be outside one. These would have to give way: ${needs.join(', ')}.`,
+          details: {
+            needs,
+            meals: meals.map((meal) => ({ date: dates[meal.dayIndex]!, slot: meal.slot, gaveWay: meal.gaveWay })),
+          } satisfies RelaxationNeeded,
+        });
+      }
+      // A meal with no recipe left for the diet is a 400 which names the meal
+      // and the diet, and says how many recipes for the pair the profile's own
+      // rules took out: none means there are none to begin with, and no change
+      // to the profile will help.
       if (err instanceof OptimizerError) {
         const { gap } = err;
         const ruledOut = gap

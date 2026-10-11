@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CatalogueDepth, Profile, UnfilledMeal } from '@diet-app/shared';
+import type { CatalogueDepth, MealPlan, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { aDepth, aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
@@ -43,10 +43,87 @@ const profile: Profile = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
-/** The page of somebody with that one profile and no plan yet, on an instance whose catalogue has `depth`. */
-async function renderPage(depth: CatalogueDepth = aDepth(9)) {
+const nothing = { calories: 0, protein: 0, fat: 0, carbs: 0 };
+
+/** A plan of one day with one breakfast, made inside its limits unless `over` says otherwise. */
+const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
+  id: '11111111-1111-4111-8111-111111111111',
+  profileId: profile.id,
+  startDate: '2026-01-05',
+  durationDays: 1,
+  dietType: 'vegan',
+  days: [
+    {
+      id: '22222222-2222-4222-8222-222222222222',
+      date: '2026-01-05',
+      meals: [
+        {
+          id: '33333333-3333-4333-8333-333333333333',
+          mealType: 'breakfast',
+          recipe: {
+            id: '44444444-4444-4444-8444-444444444444',
+            title: 'Oat porridge',
+            description: 'Porridge for one.',
+            servings: 1,
+            mealTypes: ['breakfast'],
+            dietTags: ['vegan'],
+            ingredients: [
+              { ingredientId: '55555555-5555-4555-8555-555555555555', name: 'Rolled oats', quantity: 60, unit: 'g', display: { quantity: 60, unit: 'g' }, note: null },
+            ],
+            steps: ['Cook the oats.'],
+            prepMinutes: 5,
+            cookMinutes: 10,
+            difficulty: 'easy',
+            allergens: [],
+            nutritionPerServing: { calories: 230, protein: 8, fat: 4, carbs: 40 },
+            reuseScore: 0,
+            origin: 'seed',
+          },
+          ingredients: [],
+          source: 'CATALOGUE',
+          customName: null,
+          servings: 1,
+          quantityScale: 1,
+          eatenAt: null,
+          dietOverride: false,
+          restrictionConflicts: [],
+          nutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
+        },
+      ],
+      dayNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
+      calorieTarget: 2000,
+      calorieDelta: -1770,
+      skipped: false,
+      belowSafetyFloor: false,
+      overrides: null,
+    },
+  ],
+  averageDailyNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
+  targetMacros: nothing,
+  ingredientReuseScore: 0,
+  generationMode: 'deterministic',
+  options: {
+    dietType: null,
+    mealCount: null,
+    calorieTargetOverride: null,
+    mealPrepFriendly: false,
+    respectExclusions: true,
+    respectFavorites: true,
+    respectInventory: true,
+    maxRepeatsPerRecipe: null,
+    allowRelaxations: [],
+  },
+  revision: 0,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  ...over,
+});
+
+/** The page of somebody with that one profile and `plans`, on an instance whose catalogue has `depth`. */
+async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] = []) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
-    Promise.resolve((path === '/profiles' ? [profile] : path === '/users/me' ? { aiMode: 'none' } : []) as never),
+    Promise.resolve(
+      (path === '/profiles' ? [profile] : path === '/users/me' ? { aiMode: 'none' } : path.startsWith('/meal-plans') ? plans : []) as never,
+    ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['config'], aPublicConfig({ catalogue: { depth } }));
@@ -132,5 +209,96 @@ describe('the plan page, where the catalogue is short of recipes', () => {
     await userEvent.click(generate);
 
     expect(await screen.findByText(messages.errors.NO_ELIGIBLE_RECIPE)).toBeInTheDocument();
+  });
+});
+
+describe('the plan page, where a plan does not fit inside its limits', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const refusal = (details?: RelaxationNeeded) => new ApiClientError(422, 'PLAN_NEEDS_RELAXATION', 'the text of the API', undefined, undefined, details);
+  const oneBreakfast: RelaxationNeeded = { needs: ['weekly_cap'], meals: [{ date: '2026-01-10', slot: 'breakfast', gaveWay: ['weekly_cap'] }] };
+  const aRushedDay: RelaxationNeeded = {
+    needs: ['cook_time'],
+    meals: [
+      { date: '2026-01-06', slot: 'breakfast', gaveWay: ['cook_time'] },
+      { date: '2026-01-06', slot: 'dinner', gaveWay: ['cook_time'] },
+    ],
+  };
+  const lettingGiveWay = (count: 1 | 2) => screen.findByRole('button', { name: count === 1 ? 'Make the plan and let this limit give way' : 'Make the plan and let these limits give way' });
+
+  it('says which limits stand in the way and for which meals, and asks again with them once the user lets them give way', async () => {
+    const generate = await renderPage();
+    const post = vi.spyOn(api, 'post').mockRejectedValueOnce(refusal(oneBreakfast)).mockRejectedValueOnce(refusal(aRushedDay)).mockResolvedValue(aPlan() as never);
+    await userEvent.click(generate);
+
+    const notice = await screen.findByRole('alert');
+    expect(notice.textContent).toContain('This plan cannot be filled inside its limits. One meal would go outside: times a week for one recipe.');
+    expect(notice.textContent).toContain('2026-01-10 · Breakfast: times a week for one recipe');
+    expect((post.mock.calls[0]![1] as { allowRelaxations?: string[] }).allowRelaxations).toBeUndefined();
+
+    await userEvent.click(await lettingGiveWay(1));
+    // The second attempt needs another limit: what was let before stays let.
+    expect((await screen.findByRole('alert')).textContent).toContain('2 meals would go outside: cooking time of the day.');
+    expect(post.mock.calls[1]![1]).toMatchObject({ allowRelaxations: ['weekly_cap'] });
+
+    await userEvent.click(await lettingGiveWay(1));
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(post.mock.calls[2]![1]).toMatchObject({ allowRelaxations: ['cook_time', 'weekly_cap'] });
+  });
+
+  it('lets the user drop the request instead', async () => {
+    const generate = await renderPage();
+    const post = vi.spyOn(api, 'post').mockRejectedValue(refusal(oneBreakfast));
+    await userEvent.click(generate);
+
+    await userEvent.click(await screen.findByRole('button', { name: messages.common.cancel }));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks the same of a plan that is made again, on top of what the plan may let give way already', async () => {
+    const plan = aPlan({ options: { ...aPlan().options, allowRelaxations: ['variety_floor'] } });
+    await renderPage(aDepth(9), [plan]);
+    const post = vi.spyOn(api, 'post').mockRejectedValueOnce(refusal(oneBreakfast)).mockResolvedValue(plan as never);
+
+    await userEvent.click(await screen.findByRole('button', { name: messages.mealPlans.recalculate }));
+    await userEvent.click(await lettingGiveWay(1));
+
+    expect(post.mock.calls[0]).toEqual([`/meal-plans/${plan.id}/regenerate`, undefined]);
+    expect(post.mock.calls[1]).toEqual([`/meal-plans/${plan.id}/regenerate`, { allowRelaxations: ['variety_floor', 'weekly_cap'] }]);
+  });
+
+  it('falls back on the general text for a refusal without details', async () => {
+    const generate = await renderPage();
+    vi.spyOn(api, 'post').mockRejectedValue(refusal());
+    await userEvent.click(generate);
+
+    expect(await screen.findByText(messages.errors.PLAN_NEEDS_RELAXATION)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('the plan page, on a plan that may go outside its limits', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const open = async (plan: MealPlan) => {
+    await renderPage(aDepth(9), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+  };
+
+  it('names the limits a plan may go outside, and makes it again inside every limit when asked', async () => {
+    const plan = aPlan({ options: { ...aPlan().options, allowRelaxations: ['cook_time', 'weekly_cap'] } });
+    await open(plan);
+    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
+
+    expect(screen.getByText('This plan may go outside: cooking time of the day, times a week for one recipe.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.holdLimits }));
+
+    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, { allowRelaxations: [] });
   });
 });

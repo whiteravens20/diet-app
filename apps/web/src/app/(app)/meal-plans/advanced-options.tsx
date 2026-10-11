@@ -3,7 +3,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { MEAL_SLOTS_BY_COUNT, type DayOverride, type MealType } from '@diet-app/shared';
+import { MEAL_SLOTS_BY_COUNT, PLAN_RELAXATIONS, type DayOverride, type MealType, type PlanRelaxation } from '@diet-app/shared';
 
 /** A favourite recipe usable as a lock target. */
 export interface LockableRecipe {
@@ -25,6 +25,8 @@ export interface DayDraft {
 
 export interface AdvancedValue {
   maxRepeats?: number;
+  /** The limits that may give way when no recipe is left inside them. */
+  mayGiveWay?: PlanRelaxation[];
   days: Record<string, DayDraft>;
 }
 
@@ -41,11 +43,11 @@ export function planDates(startDate: string, durationDays: number): string[] {
   });
 }
 
-/** Collapse the form draft into the request's `maxRepeatsPerRecipe` + `dayOverrides`. */
+/** Collapse the form draft into the request's `maxRepeatsPerRecipe`, `allowRelaxations` and `dayOverrides`. */
 export function buildAdvancedRequest(
   value: AdvancedValue,
   dates: string[],
-): { maxRepeatsPerRecipe?: number; dayOverrides?: DayOverride[] } {
+): { maxRepeatsPerRecipe?: number; allowRelaxations?: PlanRelaxation[]; dayOverrides?: DayOverride[] } {
   const dayOverrides: DayOverride[] = [];
   for (const date of dates) {
     const d = value.days[date];
@@ -65,6 +67,7 @@ export function buildAdvancedRequest(
   }
   return {
     maxRepeatsPerRecipe: value.maxRepeats || undefined,
+    allowRelaxations: value.mayGiveWay?.length ? value.mayGiveWay : undefined,
     dayOverrides: dayOverrides.length > 0 ? dayOverrides : undefined,
   };
 }
@@ -86,6 +89,7 @@ export function AdvancedOptions({
   onChange: (next: AdvancedValue) => void;
 }) {
   const t = useTranslations('mealPlans.advanced');
+  const tLimit = useTranslations('mealPlans.limit');
   const tMeal = useTranslations('enums.mealType');
 
   const patchDay = (date: string, patch: Partial<DayDraft>) =>
@@ -129,6 +133,29 @@ export function AdvancedOptions({
           />
           <p className="mt-1 text-xs text-muted-foreground">{t('varietyFloorHint')}</p>
         </div>
+
+        <fieldset>
+          <legend className="text-sm font-medium">{t('mayGiveWay')}</legend>
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            {PLAN_RELAXATIONS.map((kind) => (
+              <label key={kind} className="flex items-center gap-1 text-xs">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={value.mayGiveWay?.includes(kind) ?? false}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      mayGiveWay: PLAN_RELAXATIONS.filter((other) => (other === kind ? e.target.checked : value.mayGiveWay?.includes(other))),
+                    })
+                  }
+                />
+                {tLimit(kind)}
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{t('mayGiveWayHint')}</p>
+        </fieldset>
 
         <fieldset>
           <legend className="mb-2 text-sm font-medium">{t('perDay')}</legend>
