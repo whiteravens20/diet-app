@@ -29,6 +29,17 @@ and fails when a diet has fewer for a meal than the floor in
 to rise with the catalogue). It also refuses two recipes of the same making: the
 same ingredients and amounts, for the same meals and servings, under two names.
 
+Every diet aims at a split of a day's energy between protein, fat and
+carbohydrate, and the planner chooses recipes for it. How near a plan comes
+depends on what there is to choose from, so the lint also prints, for each diet,
+that split and what a week's plan reaches with the recipes here, and warns when
+the two are more than ten points of energy apart: such a diet needs recipes
+nearer its split, and no setting makes up for them. The weight the planner gives
+the split was chosen with
+[`apps/api/scripts/tune-macro-weight.ts`](../apps/api/scripts/tune-macro-weight.ts),
+which prints what each weight does to the plans of every diet; run it again when
+the catalogue has grown.
+
 The recipe library is the union of `data/recipes.json` (hand-curated anchors) and
 `data/recipes/*.json` (curation-queue batches approved in-app and shipped).
 
