@@ -56,6 +56,21 @@ export function waitOf(status: number, retryAfterSeconds: number | undefined): {
     : { unit: 'seconds', count: Math.ceil(retryAfterSeconds) };
 }
 
+/**
+ * The refusals that are about the access token: it ran out, or the server no
+ * longer takes its session for open. Any other 401 is about what the request
+ * said (a wrong current password, a wrong code), and asking again with a new
+ * token would only try the same thing a second time.
+ */
+const ACCESS_TOKEN_REFUSALS = new Set(['UNAUTHORIZED', 'INVALID_ACCESS_TOKEN']);
+
+interface Refusal {
+  error?: string;
+  message?: string;
+  issues?: ApiErrorIssue[];
+  details?: Record<string, unknown>;
+}
+
 /** `Retry-After` in seconds, as the API writes it; a date or nothing at all is no number. */
 export function retryAfterOf(res: Response): number | undefined {
   const seconds = Number(res.headers.get('retry-after'));
@@ -98,17 +113,14 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     );
   }
 
-  if (res.status === 401 && retry && session.exists()) {
+  const body: Refusal = res.ok ? {} : ((await res.json().catch(() => ({}))) as Refusal);
+
+  // A refusal that does not say what it is about is taken to be about the token.
+  if (res.status === 401 && retry && session.exists() && (body.error === undefined || ACCESS_TOKEN_REFUSALS.has(body.error))) {
     if (await session.refresh()) return request<T>(path, init, false);
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as {
-      error?: string;
-      message?: string;
-      issues?: ApiErrorIssue[];
-      details?: Record<string, unknown>;
-    };
     // A validation failure carries per-field issues — surface those instead of
     // the generic envelope message.
     const message =

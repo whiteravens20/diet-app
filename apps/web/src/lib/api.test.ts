@@ -94,6 +94,30 @@ describe('a request of the web application', () => {
     expect(session.leave).toHaveBeenCalled();
   });
 
+  it('does not send a request again that was refused for what it said, such as a wrong password', async () => {
+    const { api, session } = await aPage(true);
+    session.begin(aSession as never);
+    fetchMock.mockResolvedValueOnce(json(401, { error: 'INVALID_PASSWORD', message: 'Current password is incorrect.' }));
+
+    await expect(api.post('/users/me/password', { currentPassword: 'wrong', newPassword: 'whatever' })).rejects.toMatchObject({ status: 401, code: 'INVALID_PASSWORD' });
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(['/api/users/me/password']);
+    expect(session.leave).not.toHaveBeenCalled();
+  });
+
+  it('gets the next token when the server no longer takes the session of the old one for open', async () => {
+    const { api, session } = await aPage(true);
+    session.begin(aSession as never);
+    fetchMock
+      .mockResolvedValueOnce(json(401, { error: 'INVALID_ACCESS_TOKEN' }))
+      .mockResolvedValueOnce(json(200, aSession))
+      .mockResolvedValueOnce(json(200, { ok: true }));
+
+    expect(await api.get('/profiles')).toEqual({ ok: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it('signs in as a browser: it asks for its refresh token in a cookie', async () => {
     const { api, COOKIE_SESSION } = await aPage(false);
     fetchMock.mockResolvedValue(json(200, aSession));
