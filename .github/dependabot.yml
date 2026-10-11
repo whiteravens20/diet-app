@@ -59,6 +59,11 @@ updates:
       # Remove this once eslint-config-next supports ESLint 10.
       - dependency-name: "eslint"
         versions: ["10.x"]
+      # The types of Node follow the Node the image runs: with those of a later
+      # major, code that needs a later Node would pass the type check. They move
+      # by hand, together with the base image and `node-version` in the workflows.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # Both Dockerfiles pin node by version and digest. A new minor or patch moves
   # the two together; a rebuild of the same version moves the digest alone.
