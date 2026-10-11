@@ -64,17 +64,19 @@ describe('rewriteSwapModeA', () => {
       });
 
     // The lentils were swapped for kidney beans before; now the kidney beans go.
-    const again = swap(['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (z Fasola czerwona)'], ['Kidney beans', 'Fasola czerwona'], ['Black beans', 'Fasola czarna']);
+    const again = swap(['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (zamiennik: Fasola czerwona)'], ['Kidney beans', 'Fasola czerwona'], ['Black beans', 'Fasola czarna']);
     expect(again.get(en)!.title).toBe('Lentil soup (with Black beans)');
-    expect(again.get(pl)!.title).toBe('Zupa z soczewicy (z Fasola czarna)');
+    expect(again.get(pl)!.title).toBe('Zupa z soczewicy (zamiennik: Fasola czarna)');
 
     // Another ingredient of the same recipe: the earlier swap is still true and stays.
-    const other = swap(['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (z Fasola czerwona)'], ['Carrot', 'Marchew'], ['Parsnip', 'Pasternak']);
+    const other = swap(['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (zamiennik: Fasola czerwona)'], ['Carrot', 'Marchew'], ['Parsnip', 'Pasternak']);
     expect(other.get(en)!.title).toBe('Lentil soup (with Kidney beans) (with Parsnip)');
+    expect(other.get(pl)!.title).toBe('Zupa z soczewicy (zamiennik: Fasola czerwona) (zamiennik: Pasternak)');
 
     // And an earlier one of two is found wherever it stands.
-    const first = swap(['Lentil soup (with Kidney beans) (with Parsnip)', 'Zupa (z Fasola czerwona) (z Pasternak)'], ['Kidney beans', 'Fasola czerwona'], ['Chickpeas', 'Ciecierzyca']);
+    const first = swap(['Lentil soup (with Kidney beans) (with Parsnip)', 'Zupa (zamiennik: Fasola czerwona) (zamiennik: Pasternak)'], ['Kidney beans', 'Fasola czerwona'], ['Chickpeas', 'Ciecierzyca']);
     expect(first.get(en)!.title).toBe('Lentil soup (with Chickpeas) (with Parsnip)');
+    expect(first.get(pl)!.title).toBe('Zupa (zamiennik: Ciecierzyca) (zamiennik: Pasternak)');
   });
 
   it('substitutes per locale and rewrites the title via the template', () => {
@@ -121,7 +123,7 @@ describe('rewriteSwapModeA', () => {
     // "kurczaka") collapse to the bare new ingredient name — readable, no
     // longer leaves stale references in the prose.
     expect(out.get(pl)).toEqual({
-      title: 'Curry z kurczaka (z tofu)',
+      title: 'Curry z kurczaka (zamiennik: tofu)',
       description: 'Pikantne curry z tofu.',
       steps: ['Obsmaż tofu.', 'Dodaj mleko kokosowe.'],
     });
@@ -356,7 +358,7 @@ describe('rewriteSwapModeB', () => {
 
     expect(asked).toEqual([pl]);
     expect(out.get(pl)).toEqual({
-      title: 'Ryż z brokułem (z pomidor)',
+      title: 'Ryż z brokułem (zamiennik: pomidor)',
       description: 'Ryż, a do niego pomidor.',
       steps: ['Pokrój pomidora.', 'Podaj.'],
     });

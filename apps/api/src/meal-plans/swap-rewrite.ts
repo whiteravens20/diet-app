@@ -37,11 +37,13 @@ export interface SwapRewriteInput {
 /**
  * Variant-title templates, one per locale. Adding a new locale to the
  * `Locale` enum surfaces here as a TS error so the template can't be
- * forgotten.
+ * forgotten. A template takes the ingredient's name as the catalogue has it,
+ * so it is worded to need no other form of it: Polish "z" would ask for the
+ * instrumental case, which nothing here can make.
  */
 const VARIANT_TITLE: Record<Locale, (base: string, replacement: string) => string> = {
   en: (base, replacement) => `${base} (with ${replacement})`,
-  pl: (base, replacement) => `${base} (z ${replacement})`,
+  pl: (base, replacement) => `${base} (zamiennik: ${replacement})`,
 };
 
 /**

@@ -82,7 +82,7 @@ describe('the text of a recipe after an ingredient swap', () => {
     expect(text.pl!.steps).toEqual(['Połącz: tofu twarde, ryż biały, pomidor, oliwa z oliwek.']);
     // The title names the substitute as the catalogue writes it.
     expect(text.en!.title).toBe('Tofu rice bowl (with Tomato)');
-    expect(text.pl!.title).toBe('Tofu rice bowl (pl) (z Pomidor)');
+    expect(text.pl!.title).toBe('Tofu rice bowl (pl) (zamiennik: Pomidor)');
     expect(everyWord(text)).not.toContain('broccoli');
     expect(everyWord(text)).not.toContain('brokuł');
 
@@ -135,7 +135,7 @@ describe('the text of a recipe after an ingredient swap', () => {
 
       expect(t.model.requests).toHaveLength(1);
       expect(t.model.requests[0]!.prompt).toContain('Polish');
-      expect(text.pl).toEqual({ title: 'Tofu rice bowl (pl) (z Pomidor)', ...polish });
+      expect(text.pl).toEqual({ title: 'Tofu rice bowl (pl) (zamiennik: Pomidor)', ...polish });
       expect(text.en!.steps).toEqual(['Combine firm tofu, white rice, tomato, olive oil.']);
       expect(answer.aiMeta).toMatchObject({ provider: 'ollama', usedDeterministicFallback: false, fallbackReason: null });
       // One call was made and paid for, not one for each language.
