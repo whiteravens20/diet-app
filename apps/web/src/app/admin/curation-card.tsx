@@ -1668,6 +1668,18 @@ function ShipSuccess({
         </button>
       </div>
       <p>{t('shipBundleHint', { expiresAt: result.expiresAt })}</p>
+      {result.skipped.length > 0 && (
+        <div className="text-amber-600 dark:text-amber-400">
+          <p>{t('shipBundleSkipped', { count: result.skipped.length })}</p>
+          <ul className="list-disc pl-4">
+            {result.skipped.map((s) => (
+              <li key={s.draftId}>
+                {s.draftId.slice(0, 8)} — {s.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         <a
           href={result.downloadUrl}

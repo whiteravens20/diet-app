@@ -548,6 +548,7 @@
       "shipBundleHint": "Token wygasa {expiresAt}. Pobranie jest oddzielone od „oznacz jako wysłane” — przypadkowe kliknięcie da się cofnąć.",
       "shipBundleDownload": "Pobierz",
       "shipBundleMarkShipped": "Zacommitowałem — oznacz jako wysłane",
+      "shipBundleSkipped": "{count, plural, one {Pominięto # zatwierdzony szkic, bo łamie} few {Pominięto # zatwierdzone szkice, bo łamią} many {Pominięto # zatwierdzonych szkiców, bo łamią} other {Pominięto # zatwierdzonego szkicu, bo łamie}} regułę:",
       "shipDismiss": "Zamknij"
     },
     "connection": {

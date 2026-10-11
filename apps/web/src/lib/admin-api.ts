@@ -582,4 +582,6 @@ export type ShipResponse =
       token: string;
       expiresAt: string;
       draftIds: string[];
+      /** Approved drafts the bundle leaves out because they break a rule, with the reason. */
+      skipped: { draftId: string; reason: string }[];
     };
