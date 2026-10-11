@@ -101,6 +101,9 @@ function makeService(deps: ReturnType<typeof makeDeps>) {
     makeSessions(deps),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     new Passwords(makeConfig() as any),
+    // An account without a second factor: signing in with one is tested against the database.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
+    { isOn: vi.fn().mockResolvedValue(false) } as any,
   );
 }
 

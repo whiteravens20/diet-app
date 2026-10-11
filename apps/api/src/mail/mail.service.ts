@@ -14,7 +14,11 @@ import {
   emailVerificationEmail,
   passwordChangedEmail,
   passwordResetEmail,
+  recoveryCodeUsedEmail,
   type RenderedEmail,
+  secondFactorFailedEmail,
+  secondFactorOffEmail,
+  secondFactorOnEmail,
 } from './mail-templates.js';
 
 /** How many mails one address is sent in a day, whoever asks for them. */
@@ -112,6 +116,23 @@ export class MailService implements OnApplicationShutdown {
   /** To the address an account had: it is `newAddress` now. */
   sendEmailChangedNotice(to: string, newAddress: string, locale: Locale): void {
     this.send(to, emailChangedEmail[locale]({ newAddress }), 'address-changed notice');
+  }
+
+  sendSecondFactorOnNotice(to: string, locale: Locale): void {
+    this.send(to, secondFactorOnEmail[locale]({}), 'second-factor-on notice');
+  }
+
+  /** `by`: the holder of the account switched it off, or the operator did for them. */
+  sendSecondFactorOffNotice(to: string, by: 'holder' | 'operator', locale: Locale): void {
+    this.send(to, secondFactorOffEmail[locale]({ by }), 'second-factor-off notice');
+  }
+
+  sendRecoveryCodeUsedNotice(to: string, left: number, locale: Locale): void {
+    this.send(to, recoveryCodeUsedEmail[locale]({ left }), 'recovery-code-used notice');
+  }
+
+  sendSecondFactorFailedNotice(to: string, locale: Locale): void {
+    this.send(to, secondFactorFailedEmail[locale]({}), 'wrong-codes notice');
   }
 
   /**

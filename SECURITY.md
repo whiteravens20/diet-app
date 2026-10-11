@@ -23,6 +23,11 @@ What the code guarantees today, and what it deliberately does not protect agains
 - [x] Refresh tokens stored hashed and revocable — rotated on use, revoked on logout and on password reset
 - [x] Password-reset, e-mail-verification and e-mail-change tokens are single-use, time-limited and stored hashed
 - [x] A password-reset link is never written to the log in production; without SMTP it is logged outside production only
+- [x] Optional two-step sign-in for accounts and for the administrator: a code from an authenticator app (RFC 6238) after the password. The secret is encrypted at rest and bound to its owner, and a code is accepted once
+- [x] Wrong codes are counted with the account, wherever they come from and across restarts: after five in a row the next one waits, half a minute at first and twice as long after each further one, up to a day. Codes for one account are looked at one after another, so sending many at once is no way around the count
+- [x] Ten single-use recovery codes per account, kept as keyed hashes; a password reset by mail does not remove the second step
+- [x] A session of an account with two-step sign-in counts only if it passed the second step; switching it on ends every session that did not
+- [x] The account is told by mail when two-step sign-in is switched on or off, when a recovery code is used, and when somebody who knows the password gets the code wrong five times in a row
 - [x] Reviewer sessions use their own signed cookie (`httpOnly`, `SameSite=Strict`, `Secure` behind HTTPS); a reviewer token is rejected as a user access token, and an access token as a reviewer session
 
 ### Data at Rest

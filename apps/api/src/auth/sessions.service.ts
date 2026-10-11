@@ -4,6 +4,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { ConflictException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import type { Prisma } from '@prisma/client';
 import type { AccountSession, AuthResponse } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -59,24 +60,32 @@ export class SessionsService {
     private readonly emails: AccountEmail,
   ) {}
 
-  /** Open a session for an account that has just proved who it is. */
-  async open(user: SessionAccount, email: string, label: string | null = null): Promise<OpenedSession> {
+  /**
+   * Open a session for an account that has just proved who it is.
+   * `secondFactor` says that it did so with the second step as well: the
+   * session of an account that has a second factor counts only then.
+   */
+  async open(user: SessionAccount, email: string, label: string | null = null, { secondFactor = false } = {}): Promise<OpenedSession> {
     const now = Date.now();
     const familyId = randomUUID();
     const familyExpiresAt = new Date(now + this.config.get('JWT_SESSION_TTL', { infer: true }) * 1000);
     const refreshToken = newToken();
     const expiresAt = this.tokenExpiry(now, familyExpiresAt);
     await this.prisma.refreshToken.create({
-      data: { userId: user.id, tokenHash: sha256(refreshToken), familyId, familyExpiresAt, label, expiresAt },
+      data: { userId: user.id, tokenHash: sha256(refreshToken), familyId, familyExpiresAt, label, expiresAt, secondFactorAt: secondFactor ? new Date(now) : null },
     });
     return this.answer(user, email, { refreshToken, expiresAt, now }, familyId);
   }
 
   /** Exchange a refresh token for the next pair of its session. */
   async refresh(refreshToken: string): Promise<OpenedSession> {
-    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(refreshToken) }, include: { user: true } });
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: sha256(refreshToken) },
+      include: { user: { include: { secondFactor: { select: { id: true } } } } },
+    });
     const now = Date.now();
     if (!stored || stored.revokedAt || stored.expiresAt.getTime() < now || stored.familyExpiresAt.getTime() < now) throw refused();
+    if (stored.user.secondFactor && !stored.secondFactorAt) throw refused();
     if (stored.rotatedAt) {
       if (now - stored.rotatedAt.getTime() <= JUST_USED_MS) throw justRefreshed();
       await this.endFamily(stored.familyId);
@@ -97,6 +106,7 @@ export class SessionsService {
           familyId: stored.familyId,
           familyExpiresAt: stored.familyExpiresAt,
           label: stored.label,
+          secondFactorAt: stored.secondFactorAt,
           expiresAt,
         },
       });
@@ -122,10 +132,14 @@ export class SessionsService {
    * no longer: signing out, a new password, or a refresh token that turned up
    * twice ends what the access tokens of that session can do at once, and an
    * account that was deleted has no session.
+   *
+   * Where the account has a second factor, the session must have passed it:
+   * one that began with the password alone is no session of that account,
+   * however it came to be.
    */
   async isOpen(userId: string, sessionId: string): Promise<boolean> {
     const token = await this.prisma.refreshToken.findFirst({
-      where: { familyId: sessionId, userId, revokedAt: null, familyExpiresAt: { gt: new Date() } },
+      where: { familyId: sessionId, userId, revokedAt: null, familyExpiresAt: { gt: new Date() }, ...PASSED_THE_SECOND_STEP },
       select: { id: true },
     });
     return token !== null;
@@ -136,7 +150,7 @@ export class SessionsService {
     const now = new Date();
     // The token of a session that has not been used yet is where the session stands.
     const open = await this.prisma.refreshToken.findMany({
-      where: { userId, rotatedAt: null, revokedAt: null, expiresAt: { gt: now }, familyExpiresAt: { gt: now } },
+      where: { userId, rotatedAt: null, revokedAt: null, expiresAt: { gt: now }, familyExpiresAt: { gt: now }, ...PASSED_THE_SECOND_STEP },
       orderBy: { createdAt: 'desc' },
     });
     const began = await this.prisma.refreshToken.groupBy({
@@ -218,6 +232,9 @@ export class SessionsService {
     };
   }
 }
+
+/** For a query of tokens: of an account without a second factor, or of a session that passed it. */
+const PASSED_THE_SECOND_STEP = { OR: [{ secondFactorAt: { not: null } }, { user: { secondFactor: { is: null } } }] } satisfies Prisma.RefreshTokenWhereInput;
 
 const newToken = (): string => randomBytes(48).toString('hex');
 

@@ -46,6 +46,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // outlives either by up to a quarter of an hour, and until then would go
     // on working after a sign-out, and write for nobody after a deletion.
     if (!(await this.sessions.isOpen(payload.sub, payload.sid))) throw refused();
-    return { id: payload.sub };
+    return { id: payload.sub, sessionId: payload.sid };
   }
 }

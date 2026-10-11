@@ -86,13 +86,17 @@ describe('deleting an account', () => {
     await t.prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash: `${name}-reset`, expiresAt: hour } });
     await t.prisma.emailVerificationToken.create({ data: { userId: user.id, tokenHash: `${name}-verify`, expiresAt: hour } });
     await t.prisma.emailChangeToken.create({ data: { userId: user.id, tokenHash: `${name}-change`, newEmailEncrypted: 'x', newEmailIndex: `${name}-index`, expiresAt: hour } });
+    // A second factor with a recovery code and a sign-in that waits for its code; the session the account holds has passed it.
+    const factor = await t.prisma.secondFactor.create({ data: { userId: user.id, secretEncrypted: 'x', lastStep: 0, recoveryCodes: { create: [{ codeHash: `${name}-recovery` }] } } });
+    await t.prisma.signInChallenge.create({ data: { userId: user.id, tokenHash: `${name}-challenge`, expiresAt: hour } });
+    await t.prisma.refreshToken.updateMany({ where: { userId: user.id }, data: { secondFactorAt: new Date() } });
 
     const plans = await t.prisma.mealPlan.findMany({ where: { profileId: { in: [first.id, second.id] } }, select: { id: true, days: { select: { id: true } } } });
     return {
       user,
       profiles: [first, second],
       plan,
-      ids: [user.id, first.id, second.id, variant.id, submitted.id, sharedMaking.id, ...plans.flatMap((p) => [p.id, ...p.days.map((day) => day.id)])],
+      ids: [user.id, first.id, second.id, variant.id, submitted.id, sharedMaking.id, factor.id, ...plans.flatMap((p) => [p.id, ...p.days.map((day) => day.id)])],
       recipes: { variant: variant.id, submitted: submitted.id, sharedMaking: sharedMaking.id },
     };
   }
@@ -131,7 +135,7 @@ describe('deleting an account', () => {
   it('starts from an account that is all over the database', async () => {
     const places = await standsIn(leaving.ids);
 
-    for (const place of ['User.id', 'Profile.userId', 'MealPlan.profileId', 'MealPlanDay.planId', 'ShoppingList.planId', 'Favorite.profileId', 'FavoriteSet.slots', 'InventoryItem.profileId', 'Recipe.createdByUserId', 'RecipeDraft.sourceRecipeIds', 'AiProviderConfig.userId', 'AiUsageLog.userId', 'RefreshToken.userId', 'Notification.payload', 'WeightEntry.profileId']) {
+    for (const place of ['User.id', 'Profile.userId', 'MealPlan.profileId', 'MealPlanDay.planId', 'ShoppingList.planId', 'Favorite.profileId', 'FavoriteSet.slots', 'InventoryItem.profileId', 'Recipe.createdByUserId', 'RecipeDraft.sourceRecipeIds', 'AiProviderConfig.userId', 'AiUsageLog.userId', 'RefreshToken.userId', 'Notification.payload', 'WeightEntry.profileId', 'SecondFactor.userId', 'RecoveryCode.secondFactorId', 'SignInChallenge.userId']) {
       expect(places, place).toContain(place);
     }
   });

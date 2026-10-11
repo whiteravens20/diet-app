@@ -118,6 +118,19 @@ describe('a request of the web application', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it('sends what a removal has to say with it', async () => {
+    const { api } = await aPage(false);
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await api.delete('/users/me/second-factor', { currentPassword: 'secret', code: '123456' });
+    await api.delete('/users/me/sessions');
+
+    expect(fetchMock.mock.calls.map((call) => [(call[1] as RequestInit).method, (call[1] as RequestInit).body])).toEqual([
+      ['DELETE', JSON.stringify({ currentPassword: 'secret', code: '123456' })],
+      ['DELETE', undefined],
+    ]);
+  });
+
   it('signs in as a browser: it asks for its refresh token in a cookie', async () => {
     const { api, COOKIE_SESSION } = await aPage(false);
     fetchMock.mockResolvedValue(json(200, aSession));

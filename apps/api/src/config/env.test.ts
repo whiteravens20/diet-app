@@ -186,6 +186,16 @@ describe('describePosture', () => {
     expect(lines.join('\n')).not.toMatch(/\b8 characters/);
   });
 
+  it('warns while the switch that removes the administrator\'s second factor is left on', () => {
+    expect(env().ADMIN_SECOND_FACTOR_RESET).toBe(false);
+
+    const lines = describePosture({ ...env(), ADMIN_SECOND_FACTOR_RESET: true });
+
+    expect(lines.filter((line) => line.startsWith('!'))).toEqual([
+      '! admin panel: the second factor is removed at every start and none can be set up (ADMIN_SECOND_FACTOR_RESET=true); switch it off once the panel is open again',
+    ]);
+  });
+
   it('says nothing about an admin password of the advised length', () => {
     const lines = describePosture({ ...env(), ADMIN_PASSWORD: 'a'.repeat(16) });
 

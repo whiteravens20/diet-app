@@ -188,6 +188,36 @@ Checking a password costs about a fifth of a second of processor time by design.
 checks run beside the request handling, not in it, and at most 64 wait at once; beyond
 that a request is answered `503 SERVER_BUSY`.
 
+## Two-step sign-in
+
+An account can add a second step to signing in, under **Settings**: a six-digit code
+from an authenticator app (any app that follows RFC 6238: SHA-1, six digits, thirty
+seconds). The administrator can do the same for the panel, on the admin page. Nothing
+has to be configured for it.
+
+- **The clock of the server has to be right.** A code is good for about a minute around
+  the moment the app shows it. Keep the host on NTP.
+- **Wrong codes are counted with the account**, in the database: after five in a row the
+  next code waits 30 seconds before it is looked at, then twice as long after every
+  further wrong one, up to a day. The count holds across addresses, API processes and
+  restarts. Each wrong code is logged as `wrong code for the second factor of <account id>`.
+  A recovery code is looked at all the same, so the holder is not kept out by somebody
+  else's guessing.
+- **An account that lost the app** signs in with one of the ten recovery codes it was
+  shown when it switched the second step on. A password reset by mail does not remove
+  the second step.
+- **An account that lost the app and the recovery codes** turns to you. On the admin
+  page, **Two-step sign-in of an account** switches it off for the account of an e-mail
+  address; the account then signs in with its password alone and is told so by mail.
+  Make sure the person who asks is the holder: afterwards whoever knows the password
+  gets in.
+- **An administrator who lost the app**: set `ADMIN_SECOND_FACTOR_RESET=true` and restart
+  the API. The administrator's second step is removed at start-up and the panel opens
+  with the password alone. Set it back to `false` and restart once more: while it is on,
+  no second step can be set up, and the start-up log says so.
+- The secrets of the apps are encrypted with `DATA_ENCRYPTION_SECRET`, like the e-mail
+  addresses. A database restored under another secret cannot check a code.
+
 ## Ollama / GPU
 
 ```bash

@@ -52,6 +52,7 @@ Two rules apply to every variable:
 ## Admin
 | `ADMIN_USER` | `admin` | The user name the administrator signs in with at `/admin`. |
 | `ADMIN_PASSWORD` | `` *(empty)* | Required to enable the panel. Empty or `CHANGE_ME_IMMEDIATELY` → every admin route returns 403 (fail-closed). In production it has to be at least 12 characters long, or the API does not start; under 16 the start-up log advises a longer one. It is given once, at sign-in, for a session cookie of eight hours; changing it or `ADMIN_USER` ends the sessions there are. |
+| `ADMIN_SECOND_FACTOR_RESET` | `false` | For an administrator who lost the authenticator app. While `true`, the administrator's second factor is removed when the API starts, the panel opens with the password alone, and no second factor can be set up. Set it, restart the API, sign in, set it back to `false` and restart again. The start-up log warns for as long as it is on. The second factors of accounts are not touched. |
 
 ## Anti-abuse
 | `TURNSTILE_ENABLED` | `false` | Enable Cloudflare Turnstile. |

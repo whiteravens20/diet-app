@@ -25,12 +25,12 @@ import { SessionsService } from '../auth/sessions.service.js';
 import { UsersService } from './users.service.js';
 
 /**
- * Five a minute for each of the three routes that check the current password
- * (changing it, changing the address, deleting the account), counted against
- * the signed-in user: a stolen access token is no way to guess at the
+ * Five a minute for each of the routes that check the current password
+ * (changing it, changing the address, deleting the account, and what is done
+ * about the second factor), counted against the signed-in user: a stolen access token is no way to guess at the
  * password, and nobody keeps the password check busy with their own token.
  */
-const PASSWORD_CHECK = { default: { limit: 5, ttl: 60_000 } };
+export const PASSWORD_CHECK = { default: { limit: 5, ttl: 60_000 } };
 
 @Controller('users/me')
 @UseGuards(JwtAuthGuard)

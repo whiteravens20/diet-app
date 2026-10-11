@@ -91,11 +91,42 @@ describe('the administrator\'s requests', () => {
     expect(refused).toMatchObject({ status: 401, code: 'INVALID_ADMIN_SESSION' });
   });
 
+  it('give the code of the second step with the password, where there is one to give', async () => {
+    const { adminApi, fetchMock } = await aPage();
+    fetchMock.mockImplementation(() => Promise.resolve(answered(204)));
+
+    await adminApi.signIn('admin', 'a-long-admin-password', '123456');
+    await adminApi.signIn('admin', 'a-long-admin-password', '');
+
+    expect(fetchMock.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string))).toEqual([
+      { user: 'admin', password: 'a-long-admin-password', code: '123456' },
+      { user: 'admin', password: 'a-long-admin-password' },
+    ]);
+  });
+
+  it('set the second step up and take it away, for the administrator and for an account', async () => {
+    const { adminApi, fetchMock } = await aPage();
+    const setup = { secret: 'KEY', uri: 'otpauth://totp/x', enrolment: 'sealed', expiresIn: 900 };
+    fetchMock.mockResolvedValueOnce(answered(200, setup)).mockImplementation(() => Promise.resolve(answered(204)));
+
+    expect(await adminApi.proposeSecondFactor('a-long-admin-password')).toEqual(setup);
+    await adminApi.beginSecondFactor('sealed', '123456');
+    await adminApi.endSecondFactor('a-long-admin-password', '654321');
+    await adminApi.removeAccountSecondFactor('holder@example.test');
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [`${(init as RequestInit).method} ${url as string}`, JSON.parse((init as RequestInit).body as string)])).toEqual([
+      ['POST /api/admin/session/second-factor/setup', { password: 'a-long-admin-password' }],
+      ['POST /api/admin/session/second-factor', { enrolment: 'sealed', code: '123456' }],
+      ['DELETE /api/admin/session/second-factor', { password: 'a-long-admin-password', code: '654321' }],
+      ['DELETE /api/admin/accounts/second-factor', { email: 'holder@example.test' }],
+    ]);
+  });
+
   it('ask whether this browser is signed in, and end the session here or everywhere', async () => {
     const { adminApi, fetchMock } = await aPage();
-    fetchMock.mockResolvedValueOnce(answered(200, { enabled: true, signedIn: false })).mockImplementation(() => Promise.resolve(answered(204)));
+    fetchMock.mockResolvedValueOnce(answered(200, { enabled: true, signedIn: false, secondFactor: false })).mockImplementation(() => Promise.resolve(answered(204)));
 
-    expect(await adminApi.session()).toEqual({ enabled: true, signedIn: false });
+    expect(await adminApi.session()).toEqual({ enabled: true, signedIn: false, secondFactor: false });
     await adminApi.signOut();
     await adminApi.endAllSessions();
 

@@ -13,6 +13,7 @@ import {
   PasswordResetRequest,
   RefreshRequest,
   RegisterRequest,
+  SecondFactorSignInRequest,
   VerifyEmailRequest,
 } from '@diet-app/shared';
 import { readCookie } from '../common/cookies.js';
@@ -86,7 +87,23 @@ export class AuthController {
   @Throttle({ default: { limit: 30, ttl: QUARTER_HOUR } })
   @TriesCredential({ by: byAccountAndAddress, limit: 10, ttl: QUARTER_HOUR }, { by: byAccount, limit: 50, ttl: QUARTER_HOUR })
   async login(@Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.begun(req, res, await this.auth.login(dto, sessionLabel(req.headers['user-agent'])));
+    const answer = await this.auth.login(dto, sessionLabel(req.headers['user-agent']));
+    // An account with a second factor has no session yet: its second step is still to come.
+    return 'secondFactor' in answer ? answer : this.begun(req, res, answer);
+  }
+
+  // The second step of signing in, for whoever got a challenge for the right
+  // password. Ten tries at one challenge; how many wrong codes an account
+  // may be given is counted with the account, wherever they come from.
+  @Post('login/second-factor')
+  @HttpCode(200)
+  @TriesCredential({ by: byToken('challenge'), limit: 10, ttl: 5 * MINUTE })
+  async finishLogin(
+    @Body(new ZodValidationPipe(SecondFactorSignInRequest)) dto: SecondFactorSignInRequest,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.begun(req, res, await this.auth.finishLogin(dto, sessionLabel(req.headers['user-agent'])));
   }
 
   // Thirty a minute for one sender: many people behind one address refresh

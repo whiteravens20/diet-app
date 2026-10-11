@@ -2,9 +2,12 @@
 
 import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module.js';
+import { AuthModule } from '../auth/auth.module.js';
 import { CatalogueModule } from '../catalogue/catalogue.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { AdminAccountsController } from './admin-accounts.controller.js';
 import { AdminController } from './admin.controller.js';
+import { AdminSecondFactorReset } from './admin-second-factor-reset.js';
 import { AdminSessionController } from './admin-session.controller.js';
 import { AdminSessionGuard } from './admin-session.guard.js';
 import { SeedRunner } from './seed/runner.js';
@@ -16,8 +19,8 @@ import { UsdaImportRunner } from './usda/runner.js';
  * cookie (`AdminSessionController`), which `AdminSessionGuard` asks for.
  */
 @Module({
-  imports: [PrismaModule, AiModule, CatalogueModule],
-  controllers: [AdminController, AdminSessionController],
-  providers: [AdminSessionGuard, SeedRunner, UsdaImportRunner],
+  imports: [PrismaModule, AiModule, AuthModule, CatalogueModule],
+  controllers: [AdminController, AdminAccountsController, AdminSessionController],
+  providers: [AdminSecondFactorReset, AdminSessionGuard, SeedRunner, UsdaImportRunner],
 })
 export class AdminModule {}

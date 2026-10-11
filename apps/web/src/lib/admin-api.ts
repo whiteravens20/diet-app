@@ -6,7 +6,7 @@
  * session is a cookie the API set, which no script reads: the page holds no
  * credentials, and nothing here keeps a password.
  */
-import type { AdminSessionState, DietType, DraftRunNote, MealType } from '@diet-app/shared';
+import type { AdminSessionState, DietType, DraftRunNote, MealType, SecondFactorSetup } from '@diet-app/shared';
 import { retryAfterOf } from './api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -334,8 +334,15 @@ export const adminApi = {
   status: () => adminFetch<AdminStatus>('/status'),
   /** Whether there is a panel, and whether this browser is signed in to it. */
   session: () => adminFetch<AdminSessionState>('/session'),
-  /** Give the instance's user and password once, for the session. */
-  signIn: (user: string, password: string) => adminFetch<void>('/session', { method: 'POST', body: JSON.stringify({ user, password }) }),
+  /** Give the instance's user and password once, for the session, with a code where the administrator has a second factor. */
+  signIn: (user: string, password: string, code?: string) => adminFetch<void>('/session', { method: 'POST', body: JSON.stringify({ user, password, ...(code ? { code } : {}) }) }),
+  /** A secret to set an authenticator app up with, for the password. */
+  proposeSecondFactor: (password: string) => adminFetch<SecondFactorSetup>('/session/second-factor/setup', { method: 'POST', body: JSON.stringify({ password }) }),
+  /** The first code from the app: signing in takes one from now on. */
+  beginSecondFactor: (enrolment: string, code: string) => adminFetch<void>('/session/second-factor', { method: 'POST', body: JSON.stringify({ enrolment, code }) }),
+  endSecondFactor: (password: string, code: string) => adminFetch<void>('/session/second-factor', { method: 'DELETE', body: JSON.stringify({ password, code }) }),
+  /** Take the second factor off the account of an address, for a holder who lost it. */
+  removeAccountSecondFactor: (email: string) => adminFetch<void>('/accounts/second-factor', { method: 'DELETE', body: JSON.stringify({ email }) }),
   signOut: () => adminFetch<void>('/session', { method: 'DELETE' }),
   /** End every admin session there is, this one too. */
   endAllSessions: () => adminFetch<void>('/session/end-all', { method: 'POST' }),

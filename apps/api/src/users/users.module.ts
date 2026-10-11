@@ -3,12 +3,13 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { MailModule } from '../mail/mail.module.js';
+import { SecondFactorController } from './second-factor.controller.js';
 import { UsersController } from './users.controller.js';
 import { UsersService } from './users.service.js';
 
 @Module({
   imports: [AuthModule, MailModule],
-  controllers: [UsersController],
+  controllers: [UsersController, SecondFactorController],
   providers: [UsersService],
   exports: [UsersService],
 })

@@ -20,6 +20,7 @@ import {
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { session as browserSession } from '@/lib/session';
+import { SecondFactorCard } from './second-factor-card';
 import { SessionsCard } from './sessions-card';
 import { useConfig } from '@/lib/use-config';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,7 @@ export default function SettingsPage() {
       <AiAssistantCard me={me} tErrors={tErrors} />
       <AiProvidersCard tErrors={tErrors} />
       <PasswordCard onChanged={() => router.push('/login')} />
+      <SecondFactorCard />
       <SessionsCard onSignedOut={() => router.push('/login')} />
       <EmailCard me={me} />
       <DangerZoneCard

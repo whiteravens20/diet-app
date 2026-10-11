@@ -55,6 +55,8 @@ model User {
   aiConfigs          AiProviderConfig[]
   aiUsageLogs        AiUsageLog[]
   recipes            Recipe[]
+  secondFactor       SecondFactor?
+  signInChallenges   SignInChallenge[]
 }
 
 // One refresh token of a session. A session is the chain of tokens that
@@ -75,10 +77,58 @@ model RefreshToken {
   expiresAt       DateTime
   rotatedAt       DateTime?
   revokedAt       DateTime?
+  // When the session passed the second step of signing in. Null for a
+  // session of an account that had no second factor when it began.
+  secondFactorAt  DateTime?
   createdAt       DateTime  @default(now())
 
   @@index([userId])
   @@index([familyId])
+}
+
+// The second step of signing in: the secret an authenticator app makes its
+// codes from. One for each account that set it up, and one for the
+// administrator, which belongs to no account and has the id "administrator".
+model SecondFactor {
+  id              String         @id @default(uuid())
+  user            User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String?        @unique
+  // AES-256-GCM, sealed for whose it is. See apps/api/src/common/crypto.ts.
+  secretEncrypted String
+  // The time step of the code accepted last: a code is good once.
+  lastStep        Int
+  // Wrong codes in a row, and until when the next one is not looked at.
+  failures        Int            @default(0)
+  blockedUntil    DateTime?
+  createdAt       DateTime       @default(now())
+  recoveryCodes   RecoveryCode[]
+}
+
+// A code that stands in for the authenticator app, once. Kept as a keyed
+// hash that is bound to the second factor it belongs to.
+model RecoveryCode {
+  id             String       @id @default(uuid())
+  secondFactor   SecondFactor @relation(fields: [secondFactorId], references: [id], onDelete: Cascade)
+  secondFactorId String
+  codeHash       String
+  usedAt         DateTime?
+
+  @@index([secondFactorId])
+}
+
+// What an account with a second factor holds between its password and its
+// code: proof that the password was right, good for one sign-in and a few
+// minutes. Kept as a hash.
+model SignInChallenge {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model PasswordResetToken {

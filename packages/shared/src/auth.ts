@@ -119,19 +119,127 @@ export const AuthResponse = z.object({
 });
 export type AuthResponse = z.infer<typeof AuthResponse>;
 
-/** What the administrator signs in with: the two values of the instance's environment. */
+/**
+ * A code of the second step of signing in: the six digits an authenticator
+ * app shows, or, where the account has them, a recovery code in their place.
+ * Spaces and dashes in it do not count.
+ */
+const secondFactorCode = z.string().trim().min(6).max(40);
+
+/** The six digits an authenticator app shows, and nothing in their place. */
+const appCode = z.string().trim().min(6).max(12);
+
+/**
+ * What signing in answers for an account with a second factor: the password
+ * was right, and the second step is still to come.
+ */
+export const SecondFactorChallenge = z.object({
+  secondFactor: z.object({
+    /** Goes back with the code. Good for one sign-in, and for `expiresIn` seconds. */
+    challenge: z.string(),
+    expiresIn: z.number(),
+  }),
+});
+export type SecondFactorChallenge = z.infer<typeof SecondFactorChallenge>;
+
+/** What `POST /auth/login` answers: a session, or the challenge of the second step. */
+export const LoginResponse = z.union([AuthResponse, SecondFactorChallenge]);
+export type LoginResponse = z.infer<typeof LoginResponse>;
+
+/** The second step of signing in: the challenge of the first, and a code. */
+export const SecondFactorSignInRequest = z.object({
+  challenge: z.string().min(1).max(200),
+  code: secondFactorCode,
+});
+export type SecondFactorSignInRequest = z.infer<typeof SecondFactorSignInRequest>;
+
+/** Whether an account signs in with a second factor, and how many recovery codes it has left. */
+export const SecondFactorState = z.object({
+  enabled: z.boolean(),
+  since: z.string().datetime().nullable(),
+  recoveryCodesLeft: z.number().int(),
+});
+export type SecondFactorState = z.infer<typeof SecondFactorState>;
+
+/** Asks for a secret to set an authenticator app up with. */
+export const SecondFactorSetupRequest = z.object({
+  currentPassword: z.string().min(1).max(128),
+});
+export type SecondFactorSetupRequest = z.infer<typeof SecondFactorSetupRequest>;
+
+/** A secret for an authenticator app. It counts for nothing until a code made from it has come back. */
+export const SecondFactorSetup = z.object({
+  /** For typing into the app, where a camera is no help. */
+  secret: z.string(),
+  /** For the QR code the app scans. */
+  uri: z.string(),
+  /** Goes back with the first code, within `expiresIn` seconds. */
+  enrolment: z.string(),
+  expiresIn: z.number(),
+});
+export type SecondFactorSetup = z.infer<typeof SecondFactorSetup>;
+
+/** The first code of an authenticator app that was just set up: from then on signing in takes one. */
+export const SecondFactorConfirmRequest = z.object({
+  enrolment: z.string().min(1).max(2000),
+  code: appCode,
+});
+export type SecondFactorConfirmRequest = z.infer<typeof SecondFactorConfirmRequest>;
+
+/** The recovery codes of an account. Shown this once: what they are is not kept. */
+export const RecoveryCodes = z.object({
+  recoveryCodes: z.array(z.string()),
+});
+export type RecoveryCodes = z.infer<typeof RecoveryCodes>;
+
+/**
+ * For what only the holder of an account and of its second factor may do:
+ * switch the factor off, or replace the recovery codes.
+ */
+export const SecondFactorProofRequest = z.object({
+  currentPassword: z.string().min(1).max(128),
+  code: secondFactorCode,
+});
+export type SecondFactorProofRequest = z.infer<typeof SecondFactorProofRequest>;
+
+/**
+ * What the administrator signs in with: the two values of the instance's
+ * environment, and a code where the administrator has a second factor.
+ */
 export const AdminSignInRequest = z
   .object({
     user: z.string().min(1).max(200),
     password: z.string().min(1).max(200),
+    code: appCode.optional(),
   })
   .strict();
 export type AdminSignInRequest = z.infer<typeof AdminSignInRequest>;
 
-/** What the admin pages ask first: whether there is a panel at all, and whether this browser is signed in to it. */
+/**
+ * What the admin pages ask first: whether there is a panel at all, whether
+ * this browser is signed in to it, and whether signing in takes a code.
+ */
 export const AdminSessionState = z.object({
   enabled: z.boolean(),
   signedIn: z.boolean(),
+  secondFactor: z.boolean(),
 });
 export type AdminSessionState = z.infer<typeof AdminSessionState>;
+
+/** The administrator asks for a secret to set an authenticator app up with. */
+export const AdminSecondFactorSetupRequest = z.object({ password: z.string().min(1).max(200) }).strict();
+export type AdminSecondFactorSetupRequest = z.infer<typeof AdminSecondFactorSetupRequest>;
+
+/** The administrator switches the second factor off. */
+export const AdminSecondFactorOffRequest = z
+  .object({
+    password: z.string().min(1).max(200),
+    code: appCode,
+  })
+  .strict();
+export type AdminSecondFactorOffRequest = z.infer<typeof AdminSecondFactorOffRequest>;
+
+/** The administrator takes the second factor off an account whose holder lost it. */
+export const AccountSecondFactorRemoval = z.object({ email: z.string().email() }).strict();
+export type AccountSecondFactorRemoval = z.infer<typeof AccountSecondFactorRemoval>;
 

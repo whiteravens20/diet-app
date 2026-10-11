@@ -174,3 +174,83 @@ export const emailChangedEmail: Builder<{ newAddress: string }> = {
   }),
 };
 
+/** Two paragraphs, as text and as HTML. */
+function notice(subject: string, first: string, second: string): RenderedEmail {
+  return { subject, text: `${first}\n\n${second}`, html: shell([first, second]) };
+}
+
+/** To an account that now signs in with a code from an authenticator app as well. */
+export const secondFactorOnEmail: Builder<Record<string, never>> = {
+  en: () =>
+    notice(
+      'Two-step sign-in was switched on for your Diet App account',
+      'Two-step sign-in was just switched on for your Diet App account: signing in now takes your password and a code from your authenticator app. Every other session was signed out.',
+      "If this wasn't you, contact your instance operator: somebody who knows your password has set it up with an app of their own.",
+    ),
+  pl: () =>
+    notice(
+      'Logowanie dwuetapowe w Diet App zostało włączone',
+      'Na Twoim koncie w Diet App właśnie włączono logowanie dwuetapowe: do zalogowania potrzebne jest teraz hasło i kod z aplikacji uwierzytelniającej. Wszystkie pozostałe sesje zostały wylogowane.',
+      'Jeśli to nie Ty, skontaktuj się z operatorem instancji: ktoś, kto zna Twoje hasło, podłączył własną aplikację.',
+    ),
+};
+
+/** To an account that signs in with its password alone again. `by` says who switched the second step off. */
+export const secondFactorOffEmail: Builder<{ by: 'holder' | 'operator' }> = {
+  en: ({ by }) =>
+    by === 'holder'
+      ? notice(
+          'Two-step sign-in was switched off for your Diet App account',
+          'Two-step sign-in was just switched off for your Diet App account: signing in takes only your password again.',
+          "If this wasn't you, change your password now and switch two-step sign-in on again.",
+        )
+      : notice(
+          'Two-step sign-in was switched off for your Diet App account',
+          'The operator of your instance switched two-step sign-in off for your Diet App account: signing in takes only your password again.',
+          'If you did not ask for this, change your password now, switch two-step sign-in on again and contact your instance operator.',
+        ),
+  pl: ({ by }) =>
+    by === 'holder'
+      ? notice(
+          'Logowanie dwuetapowe w Diet App zostało wyłączone',
+          'Na Twoim koncie w Diet App właśnie wyłączono logowanie dwuetapowe: do zalogowania znów wystarcza samo hasło.',
+          'Jeśli to nie Ty, zmień teraz hasło i włącz logowanie dwuetapowe ponownie.',
+        )
+      : notice(
+          'Logowanie dwuetapowe w Diet App zostało wyłączone',
+          'Operator instancji wyłączył logowanie dwuetapowe na Twoim koncie w Diet App: do zalogowania znów wystarcza samo hasło.',
+          'Jeśli to nie na Twoją prośbę, zmień teraz hasło, włącz logowanie dwuetapowe ponownie i skontaktuj się z operatorem instancji.',
+        ),
+};
+
+/** To an account one of whose recovery codes was used. `left` is how many it still has. */
+export const recoveryCodeUsedEmail: Builder<{ left: number }> = {
+  en: ({ left }) =>
+    notice(
+      'A recovery code of your Diet App account was used',
+      `A recovery code was just used in the place of a code from your authenticator app. Recovery codes left: ${left}.`,
+      "If this wasn't you, change your password now and make new recovery codes in the settings.",
+    ),
+  pl: ({ left }) =>
+    notice(
+      'Użyto kodu zapasowego Twojego konta w Diet App',
+      `Właśnie użyto kodu zapasowego zamiast kodu z aplikacji uwierzytelniającej. Pozostałe kody zapasowe: ${left}.`,
+      'Jeśli to nie Ty, zmień teraz hasło i wygeneruj nowe kody zapasowe w ustawieniach.',
+    ),
+};
+
+/** To an account whose password was right and whose code was then wrong so often that codes have to wait. */
+export const secondFactorFailedEmail: Builder<Record<string, never>> = {
+  en: () =>
+    notice(
+      'Wrong sign-in codes were entered for your Diet App account',
+      'Someone entered the password of your Diet App account and then got the code of the second step wrong five times in a row. A code now has to wait before it is looked at.',
+      "If this was you, there is nothing to do: wait, or use a recovery code. If it wasn't, somebody knows your password: change it now.",
+    ),
+  pl: () =>
+    notice(
+      'Błędne kody logowania do Twojego konta w Diet App',
+      'Ktoś podał hasło do Twojego konta w Diet App, a potem pięć razy z rzędu wpisał błędny kod drugiego etapu. Przed kolejną próbą trzeba teraz odczekać.',
+      'Jeśli to Ty, nie musisz nic robić: odczekaj albo użyj kodu zapasowego. Jeśli nie, ktoś zna Twoje hasło: zmień je teraz.',
+    ),
+};

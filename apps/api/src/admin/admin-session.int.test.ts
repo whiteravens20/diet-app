@@ -64,7 +64,7 @@ describe('the administrator\'s way in', () => {
       expect((await signIn(CREDENTIALS, headers).expect(403)).body.error).toBe('ORIGIN_NOT_ALLOWED');
     });
 
-    it('takes nothing but the two fields', async () => {
+    it('takes nothing but its own fields', async () => {
       await signIn({ ...CREDENTIALS, remember: true }).expect(400);
       await signIn({ user: 'admin' }).expect(400);
     });
@@ -118,9 +118,9 @@ describe('the administrator\'s way in', () => {
     const state = (cookie?: string) => (cookie ? t.http().get('/api/admin/session').set('Cookie', cookie) : t.http().get('/api/admin/session'));
 
     it('is told to the admin pages: whether there is a panel, and whether this browser is in', async () => {
-      expect((await state().expect(200)).body).toEqual({ enabled: true, signedIn: false });
-      expect((await state(asAdmin.Cookie).expect(200)).body).toEqual({ enabled: true, signedIn: true });
-      expect((await state(signedWith({ ADMIN_PASSWORD: 'the-password-of-before' })).expect(200)).body).toEqual({ enabled: true, signedIn: false });
+      expect((await state().expect(200)).body).toEqual({ enabled: true, signedIn: false, secondFactor: false });
+      expect((await state(asAdmin.Cookie).expect(200)).body).toEqual({ enabled: true, signedIn: true, secondFactor: false });
+      expect((await state(signedWith({ ADMIN_PASSWORD: 'the-password-of-before' })).expect(200)).body).toEqual({ enabled: true, signedIn: false, secondFactor: false });
     });
 
     it('is signed out of by taking the cookie away', async () => {

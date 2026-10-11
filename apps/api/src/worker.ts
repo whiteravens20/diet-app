@@ -5,6 +5,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AiKeyService } from './ai/ai-key.service.js';
 import { AppModule } from './app.module.js';
+import { AccountSecondFactor } from './auth/account-second-factor.service.js';
 import { AddressResealService } from './auth/address-reseal.service.js';
 import { pruneLinks } from './auth/one-time-links.js';
 import { SessionsService } from './auth/sessions.service.js';
@@ -27,6 +28,7 @@ async function bootstrap(): Promise<void> {
   const addresses = app.get(AddressResealService);
   const providerKeys = app.get(AiKeyService);
   const sessions = app.get(SessionsService);
+  const secondFactor = app.get(AccountSecondFactor);
   const prisma = app.get(PrismaService);
   const logger = new Logger('Worker');
 
@@ -47,8 +49,8 @@ async function bootstrap(): Promise<void> {
       'removal of ended sessions and of links that can no longer be followed',
       async () => {
         const tokens = await sessions.prune();
-        const links = await pruneLinks(prisma);
-        if (tokens + links > 0) logger.log(`Removed ${tokens} token(s) of ended sessions and ${links} used or expired link(s).`);
+        const links = (await pruneLinks(prisma)) + (await secondFactor.prune());
+        if (tokens + links > 0) logger.log(`Removed ${tokens} token(s) of ended sessions and ${links} used or expired link(s) and sign-in challenge(s).`);
       },
     ],
     // What was encrypted before a value was sealed for its account. Each run

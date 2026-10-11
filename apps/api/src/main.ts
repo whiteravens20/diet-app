@@ -40,6 +40,7 @@ async function bootstrap(): Promise<void> {
     NODE_ENV: config.get('NODE_ENV', { infer: true }),
     APP_URL: config.get('APP_URL', { infer: true }),
     ADMIN_PASSWORD: config.get('ADMIN_PASSWORD', { infer: true }),
+    ADMIN_SECOND_FACTOR_RESET: config.get('ADMIN_SECOND_FACTOR_RESET', { infer: true }),
     SMTP_HOST: config.get('SMTP_HOST', { infer: true }),
     SMTP_PORT: config.get('SMTP_PORT', { infer: true }),
     SMTP_REQUIRE_TLS: config.get('SMTP_REQUIRE_TLS', { infer: true }),

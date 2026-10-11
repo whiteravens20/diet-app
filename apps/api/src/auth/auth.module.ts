@@ -5,17 +5,19 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MailModule } from '../mail/mail.module.js';
 import { AccountEmail } from './account-email.js';
+import { AccountSecondFactor } from './account-second-factor.service.js';
 import { AddressResealService } from './address-reseal.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './jwt.strategy.js';
+import { SecondFactors } from './second-factors.js';
 import { SessionsService } from './sessions.service.js';
 import { TurnstileService } from './turnstile.service.js';
 
 @Module({
   imports: [PassportModule, JwtModule.register({}), MailModule],
   controllers: [AuthController],
-  providers: [AuthService, AccountEmail, AddressResealService, SessionsService, JwtStrategy, TurnstileService],
-  exports: [AuthService, AccountEmail, AddressResealService, SessionsService],
+  providers: [AuthService, AccountEmail, AccountSecondFactor, AddressResealService, SecondFactors, SessionsService, JwtStrategy, TurnstileService],
+  exports: [AuthService, AccountEmail, AccountSecondFactor, AddressResealService, SecondFactors, SessionsService],
 })
 export class AuthModule {}

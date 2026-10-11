@@ -15,6 +15,8 @@ import type {
   PasswordResetConfirm,
   PasswordResetRequest,
   RegisterRequest,
+  SecondFactorChallenge,
+  SecondFactorSignInRequest,
 } from '@diet-app/shared';
 import { Locale } from '@diet-app/shared';
 import { deriveKey } from '../common/crypto.js';
@@ -24,6 +26,7 @@ import type { Env } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
+import { AccountSecondFactor } from './account-second-factor.service.js';
 import { retirePendingLinks } from './one-time-links.js';
 import { type OpenedSession, SessionsService } from './sessions.service.js';
 import { TurnstileService } from './turnstile.service.js';
@@ -45,6 +48,7 @@ export class AuthService {
     private readonly emails: AccountEmail,
     private readonly sessions: SessionsService,
     private readonly passwords: Passwords,
+    private readonly secondFactor: AccountSecondFactor,
   ) {
     this.linkKey = deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'verification-link');
   }
@@ -138,7 +142,11 @@ export class AuthService {
     return createHmac('sha256', Buffer.from(this.linkKey, 'hex')).update(`email-verification:${id}`).digest('hex');
   }
 
-  async login(dto: LoginRequest, openedFrom: string | null = null): Promise<OpenedSession> {
+  /**
+   * The password of an account: for a session, or, where the account has a
+   * second factor, for the challenge of the second step.
+   */
+  async login(dto: LoginRequest, openedFrom: string | null = null): Promise<OpenedSession | SecondFactorChallenge> {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
     const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });
@@ -150,7 +158,14 @@ export class AuthService {
         message: 'Email or password is incorrect.',
       });
     }
+    if (await this.secondFactor.isOn(user.id)) return this.secondFactor.challenge(user.id);
     return this.sessions.open(user, email, openedFrom);
+  }
+
+  /** The second step: a code for the challenge the password was answered with. */
+  async finishLogin(dto: SecondFactorSignInRequest, openedFrom: string | null = null): Promise<OpenedSession> {
+    const user = await this.secondFactor.answer(dto);
+    return this.sessions.open(user, this.emails.open(user.emailEncrypted, user.id), openedFrom, { secondFactor: true });
   }
 
   /**

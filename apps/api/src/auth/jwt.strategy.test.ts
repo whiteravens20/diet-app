@@ -18,10 +18,10 @@ function makeStrategy(open: string[] = ['user-1/session-1']) {
 }
 
 describe('JwtStrategy.validate', () => {
-  it('takes the account a token names, and nothing else from it', async () => {
+  it('takes the account and the session a token names, and nothing else from it', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a payload with more than a token should hold
     const user = await makeStrategy().strategy.validate({ sub: 'user-1', sid: 'session-1', email: 'a@b.com', role: 'admin' } as any);
-    expect(user).toEqual({ id: 'user-1' });
+    expect(user).toEqual({ id: 'user-1', sessionId: 'session-1' });
   });
 
   it('rejects a token whose session is not open: ended, or of an account that is gone', async () => {

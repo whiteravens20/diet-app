@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { waitOf } from '@/lib/api';
+import { AccountSecondFactorCard } from './account-second-factor-card';
+import { AdminSecondFactorCard } from './admin-second-factor-card';
 import { ConnectionCard } from './connection-card';
 import { CoverageCard } from './coverage-card';
 import { CurationCard } from './curation-card';
@@ -44,6 +46,8 @@ export function AdminPanel() {
   const [status, setStatus] = useState<AdminStatus | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+  // Whether signing in takes a code from an authenticator app as well.
+  const [needsCode, setNeedsCode] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [unreachableDetail, setUnreachableDetail] = useState<string | null>(null);
   const [progress, setProgress] = useState<DbUpdateState | null>(null);
@@ -123,7 +127,9 @@ export function AdminPanel() {
         return;
       }
       // Whether this browser holds an administrator's session, as far as the API says.
-      if ((await adminApi.session()).signedIn) {
+      const session = await adminApi.session();
+      setNeedsCode(session.secondFactor);
+      if (session.signedIn) {
         await loadStats();
       } else {
         setView('login');
@@ -164,15 +170,24 @@ export function AdminPanel() {
     event.preventDefault();
     setLoginError(null);
     const form = new FormData(event.currentTarget);
-    // The two values are given once, for a session; the page keeps neither.
-    const failure = await adminApi.signIn(String(form.get('user')), String(form.get('password'))).then(loadStats, (err: unknown) => err);
+    // The values are given once, for a session; the page keeps none of them.
+    const code = form.get('code');
+    const failure = await adminApi
+      .signIn(String(form.get('user')), String(form.get('password')), code ? String(code) : undefined)
+      .then(loadStats, (err: unknown) => err);
     if (failure === null) return;
-    // Held up after wrong passwords: say for how long.
+    // Held up after wrong passwords or wrong codes: say for how long.
     const wait = failure instanceof AdminApiError ? waitOf(failure.status, failure.retryAfterSeconds) : null;
     if (wait) {
       setLoginError(tAuth(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait));
     } else if (failure instanceof AdminApiError && failure.status === 401) {
-      setLoginError(t('invalidCreds'));
+      // A second factor that was set up since this page was loaded: the form then shows its field.
+      const takesCode = await adminApi.session().then(
+        (session) => session.secondFactor,
+        () => needsCode,
+      );
+      setNeedsCode(takesCode);
+      setLoginError(t(takesCode ? 'invalidCredsOrCode' : 'invalidCreds'));
     } else {
       setLoginError(failure instanceof Error ? failure.message : t('loadStatsFailed'));
     }
@@ -183,6 +198,11 @@ export function AdminPanel() {
     await end().catch(() => undefined);
     setStats(null);
     setView('login');
+    // What signing in takes now, for the form.
+    await adminApi.session().then(
+      (session) => setNeedsCode(session.secondFactor),
+      () => undefined,
+    );
   }
 
   async function onUpdate(): Promise<void> {
@@ -263,6 +283,11 @@ export function AdminPanel() {
             <Field label={t('adminPassword')}>
               <Input name="password" type="password" required autoComplete="current-password" />
             </Field>
+            {needsCode && (
+              <Field label={t('code')}>
+                <Input name="code" required inputMode="numeric" autoComplete="one-time-code" maxLength={12} />
+              </Field>
+            )}
             {loginError && <p className="text-sm text-destructive">{loginError}</p>}
             <Button type="submit" className="w-full">
               {t('signIn')}
@@ -378,6 +403,10 @@ export function AdminPanel() {
       <CurationCard />
 
       <ReviewerConfigCard />
+
+      <AdminSecondFactorCard on={needsCode} onChanged={setNeedsCode} />
+
+      <AccountSecondFactorCard />
 
       <ConnectionCard />
     </div>

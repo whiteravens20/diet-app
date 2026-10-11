@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { AuthResponse } from '@diet-app/shared';
+import type { AuthResponse, LoginResponse } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
   const tRules = useTranslations('auth.passwordRules');
+  const tSecond = useTranslations('secondFactor');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const config = useConfig();
@@ -29,6 +30,22 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   // Bumped to force a fresh Turnstile challenge after a failed submit.
   const [widgetKey, setWidgetKey] = useState(0);
   const needsToken = Boolean(turnstile?.enabled && turnstile.siteKey);
+  // What an account with two-step sign-in got for its password: the form then asks for the code.
+  const [challenge, setChallenge] = useState<string | null>(null);
+
+  /** What went wrong, in words: a translated message for the error's code, else the server's English text, else the catch-all. */
+  function worded(err: unknown): string {
+    if (!(err instanceof ApiClientError)) return tErrors('GENERIC');
+    const wait = waitOf(err.status, err.retryAfterSeconds);
+    return wait ? t(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait) : tErrors.has(err.code) ? tErrors(err.code) : err.message;
+  }
+
+  /** A Turnstile token is good for one request: the next one needs a new challenge. */
+  function renewToken() {
+    if (!needsToken) return;
+    setToken(null);
+    setWidgetKey((k) => k + 1);
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,29 +59,78 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       ...(needsToken ? { turnstileToken: token ?? undefined } : {}),
     };
     try {
-      session.begin(await api.post<AuthResponse>(`/auth/${mode}`, body, COOKIE_SESSION));
+      const answer = await api.post<LoginResponse>(`/auth/${mode}`, body, COOKIE_SESSION);
+      if ('secondFactor' in answer) {
+        setChallenge(answer.secondFactor.challenge);
+        return;
+      }
+      session.begin(answer);
       router.push('/dashboard');
     } catch (err) {
-      // Prefer a translated error-code message; fall back to the server's
-      // English text, then the generic catch-all.
-      if (err instanceof ApiClientError) {
-        const wait = waitOf(err.status, err.retryAfterSeconds);
-        setError(wait ? t(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait) : tErrors.has(err.code) ? tErrors(err.code) : err.message);
-      } else {
-        setError(tErrors('GENERIC'));
-      }
-      // The just-used token is single-shot — reset the challenge for a retry.
-      if (needsToken) {
-        setToken(null);
-        setWidgetKey((k) => k + 1);
-      }
+      setError(worded(err));
+      renewToken();
     } finally {
       setLoading(false);
     }
   }
 
+  async function onCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
+    const code = String(new FormData(event.currentTarget).get('code'));
+    try {
+      session.begin(await api.post<AuthResponse>('/auth/login/second-factor', { challenge, code }, COOKIE_SESSION));
+      router.push('/dashboard');
+    } catch (err) {
+      setError(worded(err));
+      // A sign-in that took too long begins again, with the password.
+      if (err instanceof ApiClientError && err.code === 'INVALID_SIGN_IN_CHALLENGE') backToPassword(false);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function backToPassword(clear = true) {
+    setChallenge(null);
+    if (clear) setError(null);
+    renewToken();
+  }
+
+  if (challenge) {
+    return (
+      // A form of its own: without the key its field would be the email field of the form before, with the address still in it.
+      <Card key="second-step" className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-xl">{tSecond('title')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onCode} className="space-y-4">
+            <p className="text-sm text-muted-foreground">{tSecond('signInBody')}</p>
+            <Field label={tSecond('codeOrRecovery')}>
+              <Input name="code" required autoFocus autoComplete="one-time-code" maxLength={40} />
+            </Field>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? t('submitting') : t('signInButton')}
+            </Button>
+          </form>
+          <p className="mt-4 text-center text-sm">
+            <button type="button" className="text-muted-foreground hover:underline" onClick={() => backToPassword()}>
+              {tSecond('signInBack')}
+            </button>
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="w-full max-w-sm">
+    <Card key="first-step" className="w-full max-w-sm">
       <CardHeader>
         <CardTitle className="text-xl">
           {mode === 'login' ? t('welcomeBack') : t('createAccount')}

@@ -125,6 +125,13 @@ export const envSchema = z.object({
   // the placeholder, every /api/admin/* route returns 403 — no JWT, no user.
   ADMIN_USER: z.string().default('admin'),
   ADMIN_PASSWORD: z.string().default(''),
+  // For an administrator who lost the authenticator app: while this is on,
+  // the administrator's second factor is removed when the API starts, and
+  // none can be set up. Off again once the panel is open.
+  ADMIN_SECOND_FACTOR_RESET: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 
   // How approved drafts leave the curation queue. `local` makes them rows of
   // this instance and copies them to INSTANCE_DATA_DIR, which a restore reads
@@ -276,6 +283,7 @@ export function describePosture(
     | 'NODE_ENV'
     | 'APP_URL'
     | 'ADMIN_PASSWORD'
+    | 'ADMIN_SECOND_FACTOR_RESET'
     | 'SMTP_HOST'
     | 'SMTP_PORT'
     | 'SMTP_REQUIRE_TLS'
@@ -297,6 +305,9 @@ export function describePosture(
       : env.ADMIN_PASSWORD.length < ADMIN_PASSWORD_ADVISED_LENGTH
         ? `! admin panel: enabled with a password shorter than ${ADMIN_PASSWORD_ADVISED_LENGTH} characters; it guards the AI keys and the catalogue`
         : 'admin panel: enabled',
+    ...(env.ADMIN_SECOND_FACTOR_RESET
+      ? ['! admin panel: the second factor is removed at every start and none can be set up (ADMIN_SECOND_FACTOR_RESET=true); switch it off once the panel is open again']
+      : []),
     !env.SMTP_HOST
       ? 'mail: not configured (accounts are verified on sign-up, no password reset)'
       : env.SMTP_PORT === 465 || env.SMTP_REQUIRE_TLS
