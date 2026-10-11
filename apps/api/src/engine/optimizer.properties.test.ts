@@ -331,6 +331,79 @@ describe('the limits of a plan', () => {
   });
 });
 
+describe('meals that are in the plan already and stay', () => {
+  const lunch = (kept?: string): OptimizerInput['days'][number] =>
+    kept ? { mealSlots: [], dailyCalorieTarget: 700, kept: [{ recipeId: kept, calories: 700 }] } : { mealSlots: ['lunch'], dailyCalorieTarget: 700 };
+  const lunches = ['a', 'b', 'c'].map((id) => dish(id, ['lunch'], 700));
+  const strict = (over: Partial<OptimizerInput>) => plan({ recipes: lunches, allowRelaxations: new Set(), ...over });
+
+  it('are not chosen again: only the meals to fill are in the answer', () => {
+    const result = optimisePlan(strict({ days: [lunch('a'), lunch(), lunch('b')] }));
+
+    expect(result.assignments.map((a) => [a.dayIndex, a.slot])).toEqual([[1, 'lunch']]);
+  });
+
+  it('count for the days in a row, on the days before and on the days after', () => {
+    // Twice running before the open day, and twice running after it: a third day in a row either way is one too many.
+    const days = [lunch(), lunch('a'), lunch('a'), lunch(), lunch('b'), lunch('b'), lunch()];
+
+    for (let seed = 1; seed <= 30; seed += 1) {
+      const result = optimisePlan(strict({ days, maxConsecutiveDaysSameMeal: 2, seed }));
+      expect(result.assignments.find((a) => a.dayIndex === 3)!.recipeId, `seed ${seed}`).toBe('c');
+    }
+  });
+
+  it('count for the limit of seven days in every seven days that hold the day', () => {
+    // The fourth day is open. One dish is eaten the day before and the day after it, another on the sixth
+    // day and the ninth: either would be eaten a third time within seven days. The other days hold dishes of their own.
+    const days = ['x0', 'x1', 'a', undefined, 'a', 'c', 'x6', 'x7', 'c', 'x9'].map((kept) => lunch(kept));
+
+    for (let seed = 1; seed <= 30; seed += 1) {
+      const result = optimisePlan(strict({ days, maxTimesPerWeekSameMeal: 2, maxConsecutiveDaysSameMeal: 7, seed }));
+      expect(result.assignments.map((a) => a.recipeId), `seed ${seed}`).toEqual(['b']);
+    }
+    // Where the only dish is eaten on the two days that follow, the plan is refused for the open day.
+    const onlyOne = strict({ recipes: lunches.slice(0, 1), days: [lunch(), lunch('a'), lunch('a')], maxTimesPerWeekSameMeal: 2, maxConsecutiveDaysSameMeal: 7 });
+    expect(() => optimisePlan(onlyOne)).toThrow(OptimizerError);
+  });
+
+  it('count for the most times a recipe appears in the plan, and for once a day', () => {
+    const everyMeal: MealType[] = ['breakfast', 'lunch', 'dinner'];
+    const dishes = ['a', 'b', 'c'].map((id) => dish(id, everyMeal, 600));
+
+    for (let seed = 1; seed <= 20; seed += 1) {
+      // One of the three is on the plate already today: the two meals to fill take the other two.
+      const sameDay = optimisePlan(plan({ recipes: dishes, days: [{ mealSlots: ['lunch', 'dinner'], dailyCalorieTarget: 1800, kept: [{ recipeId: 'a', calories: 600 }] }], allowRelaxations: new Set(), seed }));
+      expect(sameDay.assignments.map((a) => a.recipeId).sort(), `seed ${seed}`).toEqual(['b', 'c']);
+
+      // Each may appear once in the plan, and two already do.
+      const once = optimisePlan(strict({ days: [lunch('a'), lunch(), lunch('b')], maxRepeatsPerRecipe: 1, seed }));
+      expect(once.assignments[0]!.recipeId, `seed ${seed}`).toBe('c');
+    }
+  });
+
+  it('take what they hold from the day before the other meals are budgeted', () => {
+    // A breakfast of 1200 kcal was eaten: lunch and dinner share the 800 that are left.
+    const days = [{ mealSlots: ['lunch' as const, 'dinner' as const], dailyCalorieTarget: 2000, kept: [{ recipeId: 'eaten', calories: 1200 }] }];
+
+    for (let seed = 1; seed <= 25; seed += 1) {
+      const result = optimisePlan(plan({ days, seed }));
+      const filled = result.assignments.reduce((sum, a) => sum + CATALOGUE.find((r) => r.id === a.recipeId)!.caloriesPerServing * a.servings, 0);
+      expect(Math.abs(1200 + filled - 2000), `seed ${seed}: ${filled} kcal in the two meals`).toBeLessThanOrEqual(200);
+    }
+  });
+
+  it('count in the reuse of ingredients, as recipes of the plan', () => {
+    const shared = [dish('a', ['lunch'], 700, { ingredientIds: ['rice', 'beans'] }), dish('b', ['lunch'], 700, { ingredientIds: ['rice', 'lentils'] })];
+
+    const result = optimisePlan(plan({ recipes: shared, days: [lunch('a'), lunch()], maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set() }));
+
+    // Rice is in both recipes of the plan, beans and lentils in one each.
+    expect(result.assignments[0]!.recipeId).toBe('b');
+    expect(result.ingredientReuseScore).toBeCloseTo(1 / 3);
+  });
+});
+
 describe('the seed of a plan', () => {
   it('gives each recipe an offset under 0.12 that is the same for the same seed', () => {
     for (const seed of [0, 1, 7, 2 ** 31 - 1, 2 ** 32 - 1, 123456789]) {

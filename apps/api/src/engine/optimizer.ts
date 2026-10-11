@@ -59,6 +59,19 @@ export interface OptimizerDay {
   inventoryCoverage?: ReadonlyMap<string, number>;
   /** Produce no meals for this day. */
   skip?: boolean;
+  /**
+   * Meals that are on this day already and stay there. They are not chosen
+   * again: `mealSlots` names the meals to fill. They count for the limits of
+   * the plan, on the days before them and after, and what they hold is taken
+   * from the day's target before the meals to fill are budgeted.
+   */
+  kept?: KeptMeal[];
+}
+
+export interface KeptMeal {
+  /** Left out for a meal of the user's own, which is no recipe. */
+  recipeId?: string;
+  calories: number;
 }
 
 export interface OptimizerInput {
@@ -257,12 +270,14 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
     const needs = RELAXATION_ORDER.filter((kind) => !mayGiveWay(kind) && refused.some((entry) => entry.gaveWay.includes(kind)));
     throw new OptimizerError(`limits that may not give way would have to: ${needs.join(', ')}`, undefined, { meals: refused, needs });
   }
-  return { assignments: best.assignments, ingredientReuseScore: reuseScore(best.assignments, input.recipes), report: best.report };
+  return { assignments: best.assignments, ingredientReuseScore: reuseScore(best.uses, input.recipes), report: best.report };
 }
 
 interface Filled {
   assignments: OptimizerAssignment[];
   report: OptimizerReport;
+  /** Every meal of the plan that holds a recipe: those that stay and those the run placed. */
+  uses: readonly Use[];
 }
 
 /** One run over the plan, with the draws of `seed`: every meal filled, whatever had to give way for it. */
@@ -271,9 +286,17 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
   const assignments: OptimizerAssignment[] = [];
   const report: OptimizerReport = { relaxations: [], singleCandidate: [] };
   const planIngredients = new Set<string>(); // ingredients already "purchased"
-  const recentUse = new Map<string, number>(); // recipeId → last dayIndex used
   const uses: Use[] = [];
   const useCount = new Map<string, number>();
+  const place = (day: number, recipeId: string): void => {
+    uses.push({ day, recipeId });
+    useCount.set(recipeId, (useCount.get(recipeId) ?? 0) + 1);
+    recipeById.get(recipeId)?.ingredientIds.forEach((id) => planIngredients.add(id));
+  };
+  // What stays in the plan is in it from the start, whichever day it is on.
+  input.days.forEach((spec, day) => {
+    for (const meal of spec.kept ?? []) if (meal.recipeId !== undefined) place(day, meal.recipeId);
+  });
   // Without a limit of the caller's a recipe may fill a week.
   const limits = {
     consecutive: input.maxConsecutiveDaysSameMeal ?? 7,
@@ -308,7 +331,7 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
       ...open.filter((slot) => slot === 'snack'),
     ];
 
-    let left = spec.dailyCalorieTarget;
+    let left = spec.dailyCalorieTarget - (spec.kept ?? []).reduce((sum, meal) => sum + meal.calories, 0);
     for (const [index, slot] of order.entries()) {
       // What is left of the day, shared among the meals still to come by their weights.
       const toCome = order.slice(index);
@@ -334,7 +357,7 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
           budget,
           day,
           planIngredients,
-          recentUse,
+          uses,
           mealPrepFriendly: input.mealPrepFriendly,
           favoriteIngredientIds: input.favoriteIngredientIds,
           inventoryCoverage: coverage,
@@ -347,17 +370,14 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
       const servings = fitServings(recipe.caloriesPerServing, budget);
       assignments.push({ dayIndex: day, slot, recipeId: recipe.id, servings });
       left -= recipe.caloriesPerServing * servings;
-      uses.push({ day, recipeId: recipe.id });
-      useCount.set(recipe.id, (useCount.get(recipe.id) ?? 0) + 1);
-      recentUse.set(recipe.id, day);
-      recipe.ingredientIds.forEach((id) => planIngredients.add(id));
+      place(day, recipe.id);
     }
   }
 
   // In the order of the day's meals, whatever order they were filled in.
   const position = (a: OptimizerAssignment) => input.days[a.dayIndex]!.mealSlots.indexOf(a.slot);
   assignments.sort((a, b) => a.dayIndex - b.dayIndex || position(a) - position(b));
-  return { assignments, report };
+  return { assignments, report, uses };
 }
 
 /** The limits a recipe would break if it were placed at this meal. */
@@ -370,13 +390,20 @@ function broken(
   const out: Relaxation[] = [];
   if (limits.perPlan !== undefined && (at.useCount.get(recipe.id) ?? 0) >= limits.perPlan) out.push('variety_floor');
   if (at.cookTimeBudget != null && recipe.totalMinutes > at.cookTimeBudget) out.push('cook_time');
-  if (!limits.twiceADay && mine.some((use) => use.day === day)) out.push('same_day');
-  // The days in a row that end yesterday, on each of which the recipe was eaten at some meal.
-  let streak = 0;
-  for (let d = day - 1; d >= 0 && mine.some((use) => use.day === d); d--) streak += 1;
-  if (streak + 1 > limits.consecutive) out.push('consecutive_days');
-  // Seven days that end today, over all meals.
-  if (mine.filter((use) => use.day >= day - 6).length + 1 > limits.perWeek) out.push('weekly_cap');
+  const on = (d: number): boolean => mine.some((use) => use.day === d);
+  if (!limits.twiceADay && on(day)) out.push('same_day');
+  // The days in a row around this one, before it and after, on each of which the recipe is eaten at some meal.
+  let streak = 1;
+  for (let d = day - 1; on(d); d--) streak += 1;
+  for (let d = day + 1; on(d); d++) streak += 1;
+  if (streak > limits.consecutive) out.push('consecutive_days');
+  // Every seven days that hold this one, over all meals.
+  for (let first = day - 6; first <= day; first++) {
+    if (mine.filter((use) => use.day >= first && use.day <= first + 6).length + 1 > limits.perWeek) {
+      out.push('weekly_cap');
+      break;
+    }
+  }
   return out;
 }
 
@@ -416,7 +443,8 @@ interface PickContext {
   budget: number;
   day: number;
   planIngredients: Set<string>;
-  recentUse: Map<string, number>;
+  /** The meals of the plan so far: those that stay and those already placed. */
+  uses: readonly Use[];
   mealPrepFriendly: boolean;
   favoriteIngredientIds?: ReadonlySet<string>;
   inventoryCoverage?: ReadonlyMap<string, number>;
@@ -470,16 +498,17 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   // shopping list, so its reuse score should not reward re-picking it. Without
   // this, the first pick at a slot dominates the whole plan because all its
   // ingredients are in `planIngredients` thanks to itself → reuse = 1.0.
+  const mine = ctx.uses.filter((use) => use.recipeId === recipe.id);
   const reuse =
-    recipe.ingredientIds.length === 0 || ctx.recentUse.has(recipe.id)
+    recipe.ingredientIds.length === 0 || mine.length > 0
       ? 0
       : recipe.ingredientIds.filter((id) => ctx.planIngredients.has(id)).length /
         recipe.ingredientIds.length;
 
-  // A recipe used recently is discouraged, the more the more recently; the
-  // limits above are what forbids.
-  const lastUsed = ctx.recentUse.get(recipe.id);
-  const variety = lastUsed === undefined ? 1 : 1 - 1 / (ctx.day - lastUsed + 1);
+  // A recipe eaten on a day near this one is discouraged, the more the nearer,
+  // whether that day is before or after; the limits above are what forbids.
+  const nearest = Math.min(...mine.map((use) => Math.abs(ctx.day - use.day)));
+  const variety = mine.length === 0 ? 1 : 1 - 1 / (nearest + 1);
 
   const favorite = recipe.isFavorite ? 1 : 0;
 
@@ -560,7 +589,7 @@ export function recipeCoverage(
  * the same things again, which is no reuse.
  */
 export function reuseScore(
-  assignments: OptimizerAssignment[],
+  assignments: readonly { recipeId: string }[],
   recipes: OptimizerRecipe[],
 ): number {
   const byId = new Map(recipes.map((r) => [r.id, r]));
