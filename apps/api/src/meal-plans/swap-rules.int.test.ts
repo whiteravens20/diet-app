@@ -15,6 +15,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 let t: TestApp;
 let plans: MealPlansService;
@@ -292,7 +293,7 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
   };
 
   it('stops a re-roll, naming the day and the meal, and leaves the plan as it was', async () => {
-    const outcome = await plans.regenerate(user.id, 'en', lockedPlan.id).then(
+    const outcome = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', lockedPlan.id).then(
       () => null,
       (err: HttpException) => ({ status: err.getStatus(), ...(err.getResponse() as Record<string, unknown>) }),
     );
@@ -329,13 +330,13 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
   });
 
   it('is dropped when the re-roll is told to, and does not come back', async () => {
-    await plans.regenerate(user.id, 'en', lockedPlan.id, { dropIneligibleLocks: true });
+    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', lockedPlan.id, { dropIneligibleLocks: true });
 
     const day = await lockedDayOf();
     expect(day.meals.find((m) => m.mealType === 'dinner')!.recipe!.id).not.toBe(locked);
     expect(day.overrides?.lockedSlots ?? []).toEqual([]);
     // The next ordinary re-roll has nothing left to trip over.
-    await plans.regenerate(user.id, 'en', lockedPlan.id);
+    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', lockedPlan.id);
     const all = (await plans.get(user.id, 'en', lockedPlan.id)).days.flatMap((d) => d.meals);
     expect(all.some((m) => m.recipe?.allergens.includes('peanuts'))).toBe(false);
   });
@@ -343,16 +344,16 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
   it('is dropped the same way when only its day is re-rolled', async () => {
     const dayId = (await lockedDayOf()).id;
 
-    expect(await refusal(plans.regenerateDay(user.id, 'en', lockedPlan.id, dayId))).toEqual({
+    expect(await refusal(t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', lockedPlan.id, dayId))).toEqual({
       status: 400,
       error: 'LOCKED_RECIPE_INELIGIBLE',
     });
-    await plans.regenerateDay(user.id, 'en', lockedPlan.id, dayId, { dropIneligibleLocks: true });
+    await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', lockedPlan.id, dayId, { dropIneligibleLocks: true });
 
     const day = await lockedDayOf();
     expect(day.meals.find((m) => m.mealType === 'dinner')!.recipe!.id).not.toBe(locked);
     expect(day.overrides?.lockedSlots ?? []).toEqual([]);
-    await plans.regenerateDay(user.id, 'en', lockedPlan.id, dayId);
+    await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', lockedPlan.id, dayId);
   });
 
   it('keeps a lock that is still fine through a re-roll that drops the others', async () => {
@@ -364,7 +365,7 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
       ],
     });
 
-    await plans.regenerate(user.id, 'en', twoLocks.id, { dropIneligibleLocks: true });
+    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', twoLocks.id, { dropIneligibleLocks: true });
 
     const day = (await plans.get(user.id, 'en', twoLocks.id)).days.find((d) => d.date.slice(0, 10) === '2026-04-07')!;
     expect(day.meals.find((m) => m.mealType === 'lunch')!.recipe!.id).toBe(fine);

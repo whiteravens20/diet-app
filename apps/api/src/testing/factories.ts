@@ -13,7 +13,7 @@ import { GeneratePlanRequest, ProfileInput, type MealPlan, type Profile } from '
 import { AuthService } from '../auth/auth.service.js';
 import { recipeFacts } from '../engine/recipe-facts.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
-import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { PlanGenerationService } from '../meal-plans/plan-generation.service.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { REVIEWER_COOKIE_NAME, resolveReviewerSecret, signReviewerCookie } from '../review/session.js';
 import type { TestApp } from './test-app.js';
@@ -63,7 +63,7 @@ export function aPlan(
     durationDays: 7,
     ...overrides,
   });
-  return t.app.get(MealPlansService).generate(user.id, 'en', request);
+  return t.app.get(PlanGenerationService).generate(user.id, 'en', request);
 }
 
 /** Run `n` calls of `fn` at the same time and report how each ended. */

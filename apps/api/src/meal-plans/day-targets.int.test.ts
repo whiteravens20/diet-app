@@ -6,7 +6,7 @@ import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 describe('the calorie target of a profile, and of the days of its plans', () => {
   let t: TestApp;
@@ -58,7 +58,7 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
       const plan = await aPlan(t, user, await onTheFloor(), threeKinds);
       expect(targets(plan)).toEqual([1200, 1200, 1380]);
 
-      expect(targets(await t.app.get(MealPlansService).regenerate(user.id, 'en', plan.id))).toEqual([1200, 1200, 1380]);
+      expect(targets(await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id))).toEqual([1200, 1200, 1380]);
     });
 
     it('is followed by a rest day when they typed a target for the plan, down to the least a target may be and no further', async () => {

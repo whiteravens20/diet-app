@@ -30,11 +30,15 @@ import { RequestLocale } from '../common/request-locale.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 @Controller('meal-plans')
 @UseGuards(JwtAuthGuard)
 export class MealPlansController {
-  constructor(private readonly plans: MealPlansService) {}
+  constructor(
+    private readonly plans: MealPlansService,
+    private readonly generation: PlanGenerationService,
+  ) {}
 
   @Get()
   list(
@@ -61,7 +65,7 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(GeneratePlanRequest)) dto: GeneratePlanRequest,
   ) {
-    return this.plans.generate(user.id, locale, dto);
+    return this.generation.generate(user.id, locale, dto);
   }
 
   /** Re-run the optimiser for a whole plan, in place. */
@@ -73,7 +77,7 @@ export class MealPlansController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(RegenerateRequest)) options: RegenerateRequest,
   ) {
-    return this.plans.regenerate(user.id, locale, id, options);
+    return this.generation.regenerate(user.id, locale, id, options);
   }
 
   /** Re-roll the meals of a single day. */
@@ -86,7 +90,7 @@ export class MealPlansController {
     @Param('dayId') dayId: string,
     @Body(new ZodValidationPipe(RegenerateRequest)) options: RegenerateRequest,
   ) {
-    return this.plans.regenerateDay(user.id, locale, id, dayId, options);
+    return this.generation.regenerateDay(user.id, locale, id, dayId, options);
   }
 
   @Delete(':id')

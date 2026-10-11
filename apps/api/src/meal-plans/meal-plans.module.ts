@@ -6,11 +6,12 @@ import { PersonalRecipesModule } from '../recipes/personal-recipes.module.js';
 import { RecipesModule } from '../recipes/recipes.module.js';
 import { MealPlansController } from './meal-plans.controller.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 @Module({
   imports: [RecipesModule, AiModule, PersonalRecipesModule],
   controllers: [MealPlansController],
-  providers: [MealPlansService],
-  exports: [MealPlansService],
+  providers: [MealPlansService, PlanGenerationService],
+  exports: [MealPlansService, PlanGenerationService],
 })
 export class MealPlansModule {}

@@ -14,6 +14,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 /** One kind of restriction a profile can set, and a recipe of the fixture that breaks it. */
 interface Kind {
@@ -148,13 +149,13 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
   });
 
   it('stays without it when it is generated again', async () => {
-    await plans.regenerate(user.id, 'en', plan.id);
+    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id);
     expect(await intruders()).toEqual([]);
   });
 
   it('stays without it when one day is changed', async () => {
     for (const day of plan.days.slice(0, 3)) {
-      await plans.regenerateDay(user.id, 'en', plan.id, day.id);
+      await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', plan.id, day.id);
     }
     expect(await intruders()).toEqual([]);
   });

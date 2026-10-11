@@ -9,6 +9,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, race } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 describe('regenerating a plan', () => {
   let t: TestApp;
@@ -31,7 +32,7 @@ describe('regenerating a plan', () => {
     const user = await aUser(t);
     const plan = await aPlan(t, user, await aProfile(t, user), { durationDays: 14 });
 
-    const regenerated = await t.app.get(MealPlansService).regenerate(user.id, 'en', plan.id);
+    const regenerated = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id);
 
     expect(regenerated.days.map((day) => day.date)).toEqual(plan.days.map((day) => day.date));
     expect(await t.prisma.mealPlanDay.count({ where: { planId: plan.id } })).toBe(14);
@@ -40,11 +41,10 @@ describe('regenerating a plan', () => {
   it('advances the revision by one for each change', async () => {
     const user = await aUser(t);
     const plan = await aPlan(t, user, await aProfile(t, user));
-    const plans = t.app.get(MealPlansService);
     expect(plan.revision).toBe(0);
 
-    const once = await plans.regenerate(user.id, 'en', plan.id);
-    const twice = await plans.regenerateDay(user.id, 'en', plan.id, once.days[0]!.id);
+    const once = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id);
+    const twice = await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', plan.id, once.days[0]!.id);
 
     expect(once.revision).toBe(1);
     expect(twice.revision).toBe(2);
@@ -56,7 +56,7 @@ describe('regenerating a plan', () => {
     const plans = t.app.get(MealPlansService);
 
     for (let round = 0; round < 3; round += 1) {
-      const results = await race(2, () => plans.regenerate(user.id, 'en', plan.id));
+      const results = await race(2, () => t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id));
 
       // One request wins. The other is told the plan changed; it never writes.
       expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
@@ -69,10 +69,9 @@ describe('regenerating a plan', () => {
   it('keeps one meal per slot when two re-rolls of a day overlap', async () => {
     const user = await aUser(t);
     const plan = await aPlan(t, user, await aProfile(t, user));
-    const plans = t.app.get(MealPlansService);
     const day = plan.days[2]!;
 
-    const results = await race(2, () => plans.regenerateDay(user.id, 'en', plan.id, day.id));
+    const results = await race(2, () => t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', plan.id, day.id));
 
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(refusals(results)).toEqual(['PLAN_CHANGED']);
@@ -85,7 +84,7 @@ describe('regenerating a plan', () => {
     const plan = await aPlan(t, user, await aProfile(t, user));
 
     const results = await race(2, () =>
-      t.app.get(MealPlansService).regenerate(user.id, 'en', plan.id),
+      t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id),
     );
     const refused = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
 
@@ -140,7 +139,7 @@ describe('regenerating a plan', () => {
         maxRepeatsPerRecipe: null,
         allowRelaxations: [],
       });
-      expect((await t.app.get(MealPlansService).regenerate(user.id, 'en', asked.id)).options).toEqual(asked.options);
+      expect((await t.app.get(PlanGenerationService).regenerate(user.id, 'en', asked.id)).options).toEqual(asked.options);
     });
 
     it('keeps a target that was typed for the plan', async () => {
@@ -148,7 +147,7 @@ describe('regenerating a plan', () => {
       const plan = await aPlan(t, user, await aProfile(t, user), { durationDays: 3, calorieTargetOverride: 1800 });
       expect(targets(plan)).toEqual([1800, 1800, 1800]);
 
-      expect(targets(await t.app.get(MealPlansService).regenerate(user.id, 'en', plan.id))).toEqual([1800, 1800, 1800]);
+      expect(targets(await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id))).toEqual([1800, 1800, 1800]);
     });
 
     it('keeps the diet it was asked for, and follows the profile where the diet was left to the profile', async () => {
@@ -157,10 +156,9 @@ describe('regenerating a plan', () => {
       const asked = await aPlan(t, user, profile, { dietType: 'vegan' });
       const left = await aPlan(t, user, profile, { startDate: '2026-02-02' });
       await save(user.id, profile, { dietType: 'vegetarian' });
-      const plans = t.app.get(MealPlansService);
 
-      const askedAgain = await plans.regenerate(user.id, 'en', asked.id);
-      const leftAgain = await plans.regenerate(user.id, 'en', left.id);
+      const askedAgain = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', asked.id);
+      const leftAgain = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', left.id);
 
       expect(askedAgain.dietType).toBe('vegan');
       for (const day of askedAgain.days) for (const meal of day.meals) expect(meal.recipe!.dietTags).toContain('vegan');
@@ -176,8 +174,8 @@ describe('regenerating a plan', () => {
       const soup = AddCustomMealRequest.parse({ name: 'Soup', mealType: 'lunch', nutrition: { calories: 300, protein: 10, fat: 10, carbs: 40 } });
       expect(catalogueMeals((await plans.addCustomMeal(user.id, 'en', plan.id, '2026-01-06', soup)).plan)).toEqual([5, 0]);
 
-      expect(catalogueMeals(await plans.regenerateDay(user.id, 'en', plan.id, plan.days[1]!.id))).toEqual([5, 5]);
-      expect(catalogueMeals(await plans.regenerate(user.id, 'en', plan.id))).toEqual([5, 5]);
+      expect(catalogueMeals(await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', plan.id, plan.days[1]!.id))).toEqual([5, 5]);
+      expect(catalogueMeals(await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id))).toEqual([5, 5]);
     });
 
     it('goes on leaving the skipped ingredients aside, when it is made again and when a meal of it is changed', async () => {
@@ -195,9 +193,9 @@ describe('regenerating a plan', () => {
       // The meal holds what the profile skips because the plan was asked to: that is no conflict.
       expect(mealOf(plan, 0, 'breakfast')).toMatchObject({ recipe: { id: porridge }, restrictionConflicts: [] });
 
-      const again = await plans.regenerate(user.id, 'en', plan.id);
+      const again = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id);
       expect(mealOf(again, 0, 'breakfast')).toMatchObject({ recipe: { id: porridge }, restrictionConflicts: [] });
-      const oneDay = await plans.regenerateDay(user.id, 'en', plan.id, again.days[0]!.id);
+      const oneDay = await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', plan.id, again.days[0]!.id);
       expect(mealOf(oneDay, 0, 'breakfast').recipe!.id).toBe(porridge);
 
       const toast = await recipeId('peanut-butter-toast');
@@ -219,7 +217,7 @@ describe('regenerating a plan', () => {
       };
       expect(most(plan)).toBeLessThanOrEqual(2);
 
-      expect(most(await t.app.get(MealPlansService).regenerate(user.id, 'en', plan.id))).toBeLessThanOrEqual(2);
+      expect(most(await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id))).toBeLessThanOrEqual(2);
     });
 
     it('draws each generation with a value of its own, and keeps the value', async () => {
@@ -228,7 +226,7 @@ describe('regenerating a plan', () => {
       const seed = async () => (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } })).seed;
       const first = await seed();
 
-      await t.app.get(MealPlansService).regenerate(user.id, 'en', plan.id);
+      await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id);
 
       expect(Number.isInteger(first)).toBe(true);
       expect(await seed()).not.toBe(first);

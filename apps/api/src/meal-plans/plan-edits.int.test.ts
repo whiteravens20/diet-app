@@ -15,6 +15,7 @@ import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/fact
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 /** How each request ended: `ok`, or the error code it was refused with. */
 function outcomes(results: PromiseSettledResult<unknown>[]): string[] {
@@ -115,7 +116,7 @@ describe('editing a plan', () => {
 
     const results = await Promise.allSettled([
       plans.addCustomMeal(user.id, 'en', plan.id, date, customMeal),
-      plans.regenerate(user.id, 'en', plan.id),
+      t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id),
     ]);
 
     expect(outcomes(results)).toEqual(['PLAN_CHANGED', 'ok']);
@@ -473,7 +474,7 @@ describe('editing a plan', () => {
       const pending = aiSwap(meal.id);
       // The model is still "thinking": change the plan underneath it.
       await new Promise((done) => setTimeout(done, 150));
-      const regenerated = await plans.regenerate(user.id, 'en', plan.id);
+      const regenerated = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id);
 
       await expect(pending).rejects.toMatchObject({ response: { error: 'PLAN_CHANGED' } });
       const after = await plans.get(user.id, 'en', plan.id);
