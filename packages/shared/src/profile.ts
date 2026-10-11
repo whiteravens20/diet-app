@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { ActivityLevel, Allergen, DietType, MealType, Sex, WeeklyLossTarget } from './enums.js';
+import { MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
 
 /** A single account may hold at most this many profiles. */
@@ -53,7 +54,7 @@ export const ProfileInput = z.object({
   dietType: DietType.default('balanced'),
   weeklyLossTarget: WeeklyLossTarget.nullable().default('0.5'),
   /** Manual kcal target; when set it overrides the calculated value. */
-  manualCalorieTarget: z.number().int().min(800).max(6000).nullable().default(null),
+  manualCalorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable().default(null),
   /** Default meal count (2-5) for new plans. */
   mealCount: z.number().int().min(2).max(5).default(3),
   /** How often the background worker should nudge to log a weight. */

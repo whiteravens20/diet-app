@@ -38,7 +38,8 @@ import {
 } from '@diet-app/shared';
 import {
   calculateCalories,
-  dayTypeCalorieTarget,
+  effectiveDayTarget,
+  safetyFloor,
   fitServings,
   optimisePlan,
   OptimizerError,
@@ -122,7 +123,8 @@ export class MealPlansService {
   /** Deterministically generate and persist a meal plan. */
   async generate(userId: string, locale: Locale, req: GeneratePlanRequest): Promise<MealPlan> {
     const profile = await this.loadProfile(userId, req.profileId);
-    const baseCalorieTarget = req.calorieTargetOverride ?? this.calorieTargetFor(profile);
+    const base = this.planBase(profile, req.calorieTargetOverride);
+    const baseCalorieTarget = base.target;
     const dietType = req.dietType ?? profile.dietType;
     const baseMealCount = req.mealCount ?? profile.mealCount;
 
@@ -134,7 +136,7 @@ export class MealPlansService {
       startDate: start,
       durationDays: req.durationDays,
       defaultMealCount: baseMealCount,
-      defaultCalorieTarget: baseCalorieTarget,
+      base,
       dayOverrides: req.dayOverrides,
     });
 
@@ -190,7 +192,8 @@ export class MealPlansService {
     // Picks up profile changes (calorie target, diet) for non-overridden days,
     // while re-applying each day's persisted overrides (meal count, per-day
     // calorie target, locks, skip, cook-time budget, use-up-by).
-    const baseCalorieTarget = this.calorieTargetFor(profile);
+    const base = this.planBase(profile);
+    const baseCalorieTarget = base.target;
     const resolvedDays: ResolvedDay[] = existing.days.map((day) => {
       const o = parseDayOverrides(day.overrides);
       // Custom meals don't define a slot count — count catalogue meals only.
@@ -200,7 +203,7 @@ export class MealPlansService {
         date: day.date,
         isoDate: isoDate(day.date),
         mealSlots: MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!,
-        calorieTarget: o?.calorieTarget ?? dayTypeCalorieTarget(baseCalorieTarget, o?.dayType),
+        calorieTarget: dayTarget(base, o),
         cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
         lockedSlots: o?.lockedSlots?.map((l) => ({ slot: l.mealType, recipeId: l.recipeId })),
         useUpBy: o?.useUpBy ?? false,
@@ -327,11 +330,15 @@ export class MealPlansService {
     );
   }
 
-  /** Daily calorie target for a profile (a manual override wins, see the engine). */
-  private calorieTargetFor(
+  /**
+   * The base target of a plan for this profile, and how it came about. A
+   * target typed for the plan stands in for the one typed on the profile.
+   */
+  private planBase(
     profile: Omit<CalorieEngineInput, 'weeklyLossTarget'> & { weeklyLossTarget: string | null },
-  ): number {
-    return calculateCalories({
+    typedForThePlan?: number,
+  ): PlanBase {
+    const calories = calculateCalories({
       age: profile.age,
       sex: profile.sex,
       heightCm: profile.heightCm,
@@ -339,8 +346,9 @@ export class MealPlansService {
       activityLevel: profile.activityLevel,
       dietType: profile.dietType,
       weeklyLossTarget: profile.weeklyLossTarget as WeeklyTarget,
-      manualCalorieTarget: profile.manualCalorieTarget,
-    }).dailyTarget;
+      manualCalorieTarget: typedForThePlan ?? profile.manualCalorieTarget,
+    });
+    return { target: calories.dailyTarget, calculated: calories.source === 'calculated', floor: safetyFloor(profile.sex) };
   }
 
   /**
@@ -2005,11 +2013,33 @@ function buildOverridesJson(o: DayOverride | undefined): DayOverridesJson | null
  * sparse `dayOverrides` over the plan defaults. Validates that override dates fall
  * inside the plan range and that each locked slot belongs to its day's slot set.
  */
+/**
+ * The base target of a plan and how it came about: what the target of each
+ * of its days is decided from.
+ */
+interface PlanBase {
+  target: number;
+  /** Worked out by the engine, not typed by somebody. */
+  calculated: boolean;
+  floor: number;
+}
+
+/** The target of one day of a plan: its own when the user set one, else the base shaped by the kind of day. */
+function dayTarget(base: PlanBase, day?: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null): number {
+  return effectiveDayTarget({
+    base: base.target,
+    baseIsCalculated: base.calculated,
+    floor: base.floor,
+    dayType: day?.dayType,
+    ownTarget: day?.calorieTarget,
+  }).target;
+}
+
 function resolvePlanDays(input: {
   startDate: Date;
   durationDays: number;
   defaultMealCount: number;
-  defaultCalorieTarget: number;
+  base: PlanBase;
   dayOverrides?: DayOverride[];
 }): ResolvedDay[] {
   const dates = Array.from({ length: input.durationDays }, (_, i) => addDays(input.startDate, i));
@@ -2045,10 +2075,7 @@ function resolvePlanDays(input: {
       date,
       isoDate: iso,
       mealSlots,
-      // An explicit per-day calorie override wins; otherwise a rest/training tag
-      // shifts the base target (training surplus / rest deficit). Plain days use
-      // the base unchanged.
-      calorieTarget: o?.calorieTarget ?? dayTypeCalorieTarget(input.defaultCalorieTarget, o?.dayType),
+      calorieTarget: dayTarget(input.base, o),
       cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
       lockedSlots,
       useUpBy: o?.useUpBy ?? false,

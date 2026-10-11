@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { AiGenerationMeta } from './ai.js';
 import { DietType, DisplayAmount, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
-import { Macros, Nutrition } from './nutrition.js';
+import { MAX_CALORIE_TARGET, MIN_CALORIE_TARGET, Macros, Nutrition } from './nutrition.js';
 import { Recipe } from './recipe.js';
 
 /**
@@ -22,7 +22,7 @@ export const DayOverride = z.object({
   /** Skip the day entirely — no meals generated, excluded from the shopping list. */
   skip: z.boolean().optional(),
   /** Override the daily calorie target for this day (refeed / rest periodisation). */
-  calorieTarget: z.number().int().min(800).max(6000).optional(),
+  calorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).optional(),
   /** Semantic tag so a calorie override carries intent (read by the rebalancer and stats). */
   dayType: z.enum(['normal', 'rest', 'training']).optional(),
   /** Hard cap on a recipe's prep+cook minutes for this day (busy weekdays). */
@@ -57,7 +57,7 @@ export const GeneratePlanRequest = z.object({
   dietType: DietType.optional(), // defaults to the profile diet type
   mealCount: z.number().int().min(2).max(5).optional(),
   /** Override the profile's calorie target for this plan only. */
-  calorieTargetOverride: z.number().int().min(800).max(6000).optional(),
+  calorieTargetOverride: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).optional(),
   /** Bias the optimiser toward batch-cookable, ingredient-reusing plans. */
   mealPrepFriendly: z.boolean().default(false),
   /** Honour the profile's avoid-list (excludedIngredientIds + allergens). */

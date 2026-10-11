@@ -16,6 +16,10 @@ export const Nutrition = Macros.extend({
 });
 export type Nutrition = z.infer<typeof Nutrition>;
 
+/** The least and the most a calorie target somebody types may be, for a profile, a plan or a day. */
+export const MIN_CALORIE_TARGET = 800;
+export const MAX_CALORIE_TARGET = 6000;
+
 /**
  * Result of the deterministic calorie engine. Every field is reproducible from
  * profile inputs; `source` tags whether the daily target was derived or

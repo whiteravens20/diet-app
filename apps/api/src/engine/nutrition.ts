@@ -7,7 +7,7 @@
  * profile inputs alone — no randomness, no AI, no I/O: every calorie and macro
  * calculation is deterministic.
  */
-import type { ActivityLevel, CalorieCalculation, DietType, Macros, Sex } from '@diet-app/shared';
+import { MIN_CALORIE_TARGET, type ActivityLevel, type CalorieCalculation, type DietType, type Macros, type Sex } from '@diet-app/shared';
 
 /** Mifflin-St Jeor activity multipliers (BMR → TDEE / maintenance). */
 const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
@@ -72,8 +72,8 @@ export function deficitForWeeklyTarget(target: CalorieEngineInput['weeklyLossTar
   return round((Number(target) * KCAL_PER_KG_FAT) / 7);
 }
 
-/** Minimum safe daily calories — clamps aggressive deficits. */
-function safetyFloor(sex: Sex | null): number {
+/** The lowest a calculated target goes. */
+export function safetyFloor(sex: Sex | null): number {
   return sex === 'male' ? 1500 : 1200;
 }
 
@@ -132,21 +132,40 @@ function round(n: number): number {
 /**
  * Periodisation factors: a training day runs a surplus and a rest day a
  * deficit relative to the plan's base target, so tagging a day actually shapes
- * its calories. Defaults are ±15%; a user-supplied per-day calorie override
- * always wins over these (handled by the caller).
+ * its calories. Defaults are ±15%.
  */
 export const TRAINING_DAY_FACTOR = 1.15;
 export const REST_DAY_FACTOR = 0.85;
 
+/** The kind of day a plan day is: it shapes the day's target. */
+export type DayType = 'normal' | 'rest' | 'training';
+
 /**
- * Resolve a day's calorie target from its base target and semantic day type.
- * `training` adds the surplus, `rest` applies the deficit; anything else (incl.
- * `normal`/undefined) returns the base unchanged. Result rounded to a tidy 10.
+ * The calorie target of one day of a plan. The one place where it is decided.
+ *
+ *  - A target the user set for that day is taken as it is.
+ *  - Otherwise the plan's base is shaped by the kind of day and rounded to
+ *    ten. When the base was calculated, a rest day does not take it under the
+ *    floor (nor under the base itself, where that is under the floor already).
+ *    When somebody typed the base, the day follows it down, but never under
+ *    the least a typed target may be.
+ *
+ * `belowFloor` says that a target somebody typed, for the plan or for the
+ * day, has put the day under the floor.
  */
-export function dayTypeCalorieTarget(
-  baseTarget: number,
-  dayType: 'normal' | 'rest' | 'training' | undefined,
-): number {
-  const factor = dayType === 'training' ? TRAINING_DAY_FACTOR : dayType === 'rest' ? REST_DAY_FACTOR : 1;
-  return Math.round((baseTarget * factor) / 10) * 10;
+export function effectiveDayTarget(day: {
+  base: number;
+  /** Whether the engine calculated the base, or somebody typed it (on the profile or for the plan). */
+  baseIsCalculated: boolean;
+  floor: number;
+  dayType?: DayType;
+  /** The target the user set for this day. */
+  ownTarget?: number | null;
+}): { target: number; belowFloor: boolean } {
+  if (day.ownTarget !== undefined && day.ownTarget !== null) return { target: day.ownTarget, belowFloor: day.ownTarget < day.floor };
+  const factor = day.dayType === 'training' ? TRAINING_DAY_FACTOR : day.dayType === 'rest' ? REST_DAY_FACTOR : 1;
+  const shaped = Math.round((day.base * factor) / 10) * 10;
+  const least = day.baseIsCalculated ? Math.min(day.floor, day.base) : MIN_CALORIE_TARGET;
+  const target = Math.max(shaped, least);
+  return { target, belowFloor: !day.baseIsCalculated && target < day.floor };
 }
