@@ -492,6 +492,7 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(source ? { source } : {}),
     }),
+  restoreInstanceData: () => adminFetch<RestoreResponse>('/drafts/ship/restore', { method: 'POST' }),
 
   // What the API sees of the connection this request arrived on.
   connection: () => adminFetch<AdminConnection>('/connection'),
@@ -533,7 +534,23 @@ export interface ShipConfigDto {
     bundle: { available: true };
   };
   pull: { available: true; defaultSource: string; tokenSet: boolean };
+  instanceData: InstanceDataState;
   approvedCounts: { recipe: number; ingredientName: number };
+}
+
+/** The instance's own data directory: what local ships copied there, and whether the API can still write to it. */
+export interface InstanceDataState {
+  writable: boolean;
+  recipeFiles: number;
+  recipes: number;
+  names: number;
+}
+
+/** What a restore from the instance's data directory did. Reasons read as a skipped draft's do. */
+export interface RestoreResponse {
+  recipes: { added: number; rewritten: number; skipped: { file: string; slug: string; reason: string }[] };
+  names: { applied: number; skippedSlugs: string[]; refused: { slug: string; reason: string }[] };
+  unreadable: { file: string; reason: string }[];
 }
 
 export interface ShipRequest {

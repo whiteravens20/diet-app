@@ -26,6 +26,7 @@ import {
   DownloadCloud,
   ExternalLink,
   GitPullRequest,
+  History,
   Loader2,
   Send,
   ServerCog,
@@ -52,6 +53,8 @@ import {
   type ShipConfigDto,
   type ShipKind,
   type ShipMode,
+  type InstanceDataState,
+  type RestoreResponse,
   type ShipResponse,
   type ShipSkipped,
 } from '@/lib/admin-api';
@@ -1617,6 +1620,8 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
         </div>
       )}
 
+      <InstanceData state={config.instanceData} disabled={currentDisabled} onRestored={async () => { await refresh(); await onShipped(); }} />
+
       {error && (
         <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
           {error}
@@ -1628,6 +1633,96 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
           onMarkShipped={onMarkShipped}
           onDismiss={() => setSuccess(null)}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The instance's own data directory: what local ships copied there, a warning
+ * when the API cannot write to it, and the restore that reads the files back.
+ */
+function InstanceData({ state, disabled, onRestored }: { state: InstanceDataState; disabled: boolean; onRestored: () => void | Promise<void> }) {
+  const t = useTranslations('admin.curation');
+  const reasonText = useSkipReasonText();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<RestoreResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const restore = async () => {
+    if (!window.confirm(t('restoreConfirm'))) return;
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    try {
+      setResult(await adminApi.restoreInstanceData());
+      await onRestored();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const nothingToRestore = state.recipes === 0 && state.names === 0;
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('instanceDataHeader')}</span>
+        <span className="text-xs">{t('instanceDataState', { recipes: state.recipes, files: state.recipeFiles, names: state.names })}</span>
+        <Button size="sm" variant="outline" disabled={disabled || busy || nothingToRestore} onClick={restore} className="gap-2">
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+          {t('restoreButton')}
+        </Button>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{t('instanceDataExplain')}</p>
+      {!state.writable && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{t('instanceDataNotWritable')}</p>}
+      {error && <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">{error}</p>}
+      {result && (
+        <div className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-xs">
+          <p>{t('restoreDone', { added: result.recipes.added, rewritten: result.recipes.rewritten, names: result.names.applied })}</p>
+          {result.recipes.skipped.length > 0 && (
+            <div className="mt-1 text-amber-600 dark:text-amber-400">
+              <p>{t('restoreSkipped', { count: result.recipes.skipped.length })}</p>
+              <ul className="list-disc pl-4">
+                {result.recipes.skipped.map((entry, index) => (
+                  <li key={`${entry.file}:${index}`}>
+                    <span className="font-mono">{entry.slug}</span> ({entry.file}) — {reasonText(entry.reason)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {result.names.skippedSlugs.length > 0 && (
+            <p className="mt-1 text-amber-600 dark:text-amber-400">
+              {t('shipPullSkipped', { count: result.names.skippedSlugs.length, slugs: result.names.skippedSlugs.slice(0, 8).join(', ') })}
+            </p>
+          )}
+          {result.names.refused.length > 0 && (
+            <div className="mt-1 text-amber-600 dark:text-amber-400">
+              <p>{t('shipPullRefused', { count: result.names.refused.length })}</p>
+              <ul className="list-disc pl-4">
+                {result.names.refused.slice(0, 8).map((entry) => (
+                  <li key={entry.slug}>
+                    <span className="font-mono">{entry.slug}</span> — {reasonText(entry.reason)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {result.unreadable.length > 0 && (
+            <div className="mt-1 text-amber-600 dark:text-amber-400">
+              <p>{t('restoreUnreadable', { count: result.unreadable.length })}</p>
+              <ul className="list-disc pl-4">
+                {result.unreadable.map((entry) => (
+                  <li key={entry.file}>
+                    <span className="font-mono">{entry.file}</span> — {t.has(`restoreUnreadableReasons.${entry.reason}`) ? t(`restoreUnreadableReasons.${entry.reason}`) : entry.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

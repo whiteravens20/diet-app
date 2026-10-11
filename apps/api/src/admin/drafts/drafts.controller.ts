@@ -83,6 +83,7 @@ import {
   type PullOverridesResult,
   type PullPolicy,
 } from './ship/pull-overrides.js';
+import { instanceDataState, restoreInstanceData, type InstanceDataState, type RestoreResult } from './ship/restore.js';
 import {
   markBundleShipped,
   shipIngredientNamesBundle,
@@ -141,6 +142,8 @@ interface ShipConfigDto {
     bundle: { available: true };
   };
   pull: { available: true; defaultSource: string; tokenSet: boolean };
+  /** The instance's own data directory: what a local ship has copied there, and whether it still can. */
+  instanceData: InstanceDataState;
   approvedCounts: { recipe: number; ingredientName: number };
 }
 
@@ -400,6 +403,7 @@ export class DraftsController {
         defaultSource: this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }),
         tokenSet: this.pullToken() !== null,
       },
+      instanceData: instanceDataState(this.resolveInstanceDataDir()),
       approvedCounts: { recipe: recipeCount, ingredientName: ingredientCount },
     };
   }
@@ -546,6 +550,17 @@ export class DraftsController {
     const preset = this.config.get('OVERRIDES_PULL_SOURCE', { infer: true });
     const presetHost = /^https?:\/\//i.test(preset) && URL.canParse(preset) ? [new URL(preset).host] : [];
     return { token: this.pullToken(), allowedHosts: [...listed, ...presetHost] };
+  }
+
+  /**
+   * Read back into the database what local ships copied to the instance's
+   * data directory: the way to carry an instance's own recipes and names to a
+   * new server. Repeatable; see `ship/restore.ts`.
+   */
+  @Post('ship/restore')
+  @HttpCode(200)
+  restoreFromInstanceData(): Promise<RestoreResult> {
+    return restoreInstanceData(this.prisma, this.resolveInstanceDataDir());
   }
 
   @Post('ship/mark-shipped')

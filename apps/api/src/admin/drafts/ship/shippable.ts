@@ -8,7 +8,7 @@
  * draft that was stored before a rule existed, or was changed behind the
  * queue's back, stays where it is and the reason is reported.
  */
-import { checkIngredientName, checkRecipe, type RecipeProblem } from '../../../recipes/recipe-rules.js';
+import { checkIngredientName, checkRecipe, type CheckedRecipe, type RecipeProblem } from '../../../recipes/recipe-rules.js';
 import type { IngredientOverrideEntry } from './ingredient-overrides.writer.js';
 import type { ShippedRecipe } from './recipe-batches.writer.js';
 
@@ -39,6 +39,22 @@ export interface Skipped {
 
 const reasonOf = (problems: RecipeProblem[]): string => `invalid-draft: ${problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`;
 
+/** A checked recipe in the shape of the catalogue's data files. */
+function inDataShape(recipe: CheckedRecipe): ShippedRecipe {
+  return {
+    slug: recipe.slug!,
+    title: recipe.titles,
+    description: recipe.descriptions,
+    servings: recipe.servings,
+    mealTypes: recipe.mealTypes,
+    prepMinutes: recipe.prepMinutes,
+    cookMinutes: recipe.cookMinutes,
+    difficulty: recipe.difficulty,
+    ingredients: recipe.ingredients,
+    steps: recipe.steps,
+  };
+}
+
 /** The recipe a draft ships as, or why it does not ship. */
 export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRecipe> {
   const checked = checkRecipe(
@@ -57,22 +73,25 @@ export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRec
     draft.locales,
   );
   if (!checked.ok) return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
-  const recipe = checked.recipe;
-  return {
-    ok: true,
-    content: {
-      slug: recipe.slug!,
-      title: recipe.titles,
-      description: recipe.descriptions,
-      servings: recipe.servings,
-      mealTypes: recipe.mealTypes,
-      prepMinutes: recipe.prepMinutes,
-      cookMinutes: recipe.cookMinutes,
-      difficulty: recipe.difficulty,
-      ingredients: recipe.ingredients,
-      steps: recipe.steps,
-    },
-  };
+  return { ok: true, content: inDataShape(checked.recipe) };
+}
+
+/**
+ * The recipe a row of a batch file is, or why it is none. The row is what a
+ * ship wrote, read back from a file anybody may have edited since: it is in
+ * the languages its title is in, and it is held to the rules as a draft is.
+ */
+export function recipeOfBatchRow(row: unknown): Shippable<ShippedRecipe> {
+  const fields: Record<string, unknown> = typeof row === 'object' && row !== null && !Array.isArray(row) ? (row as Record<string, unknown>) : {};
+  const title = fields.title;
+  const locales = typeof title === 'object' && title !== null && !Array.isArray(title) ? Object.keys(title) : [];
+  const checked = checkRecipe({ ...fields, titles: title, descriptions: fields.description }, locales.includes('en') ? locales : ['en', ...locales]);
+  if (!checked.ok) return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
+  if (checked.recipe.slug === null) {
+    const problems: RecipeProblem[] = [{ path: 'slug', rule: 'missing-field', message: 'slug is missing' }];
+    return { ok: false, reason: reasonOf(problems), problems };
+  }
+  return { ok: true, content: inDataShape(checked.recipe) };
 }
 
 /** The names a draft ships, for its own languages and no other, or why it does not ship. */

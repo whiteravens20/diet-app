@@ -34,6 +34,15 @@ import { resolveDataDir } from './data-hash.js';
 
 type Db = Prisma.TransactionClient;
 
+/**
+ * Hold the catalogue until the transaction ends. An update of the catalogue
+ * and a restore of the instance's own files each take this, so that the one
+ * does not read what the other has half written.
+ */
+export async function holdCatalogue(tx: Db): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('catalogue-update'))`;
+}
+
 const ALLERGENS = [
   ['gluten', 'Gluten'],
   ['dairy', 'Dairy'],
@@ -108,7 +117,7 @@ export async function updateDatabase(
 
   return prisma.$transaction(async (tx) => {
     // One catalogue update at a time, across every API process.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('catalogue-update'))`;
+    await holdCatalogue(tx);
 
     const counts = await applyCatalogue(tx, catalogue, log, onProgress);
 
