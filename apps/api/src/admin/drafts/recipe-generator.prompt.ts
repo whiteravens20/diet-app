@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import type { Locale, MealType, DietType, Complexity } from '@diet-app/shared';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v2';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v3';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -64,24 +64,25 @@ export interface RecipeGeneratorPromptInput {
   avoidSlugs?: string[];
   preferSlugs?: string[];
   catalogue: CatalogueRow[];
-  /** Existing recipes (live + pending drafts) the model should not duplicate.
-   *  Rendered as a slug + EN title + ingredient slug set list. The validator
-   *  enforces the rule via Jaccard similarity > 0.75 → reject. */
+  /** The recipes the model should not repeat: those of the shared library and
+   *  the drafts that wait in the queue, newest first. The validator holds the
+   *  answer to all of them; the prompt shows the first few. */
   existingRecipes?: ExistingRecipeSummary[];
 }
 
-/** Compact view of a recipe already in the instance, used for the prompt's
- *  "Avoid duplicating" section and the validator's Jaccard check. */
+/**
+ * A recipe that already exists, as the prompt and the validator see it: its
+ * slug and the slugs of its ingredients. Nothing else of it goes into a
+ * prompt: a title or a step is text somebody wrote (a user's draft, a model's
+ * answer), and text in a prompt is read as instructions.
+ */
 export interface ExistingRecipeSummary {
   slug: string;
-  titleEn: string;
   ingredientSlugs: string[];
 }
 
-/** Cap so the prompt doesn't grow unbounded once the library is large. The
- *  selection prefers the most recently created rows (the runner sorts before
- *  trimming), so the model sees what's freshly drafted alongside the canonical
- *  baseline. */
+/** How many existing recipes a prompt shows, so that it does not grow with
+ *  the library. They are the newest; the validator checks against all. */
 export const MAX_EXISTING_RECIPES_IN_PROMPT = 60;
 
 interface FewShotRecipe {
@@ -156,18 +157,19 @@ function renderCatalogue(catalogue: CatalogueRow[]): string {
 function renderExistingRecipes(existing: ExistingRecipeSummary[] | undefined): string {
   if (!existing || existing.length === 0) return '';
   const trimmed = existing.slice(0, MAX_EXISTING_RECIPES_IN_PROMPT);
-  const lines = trimmed.map(
-    (r) => `- ${r.slug} — "${r.titleEn}" — ingredients: ${r.ingredientSlugs.join(', ')}`,
-  );
+  // Data, not prose: one JSON object a line, made of slugs alone.
+  const lines = trimmed.map((r) => JSON.stringify({ slug: r.slug, ingredients: r.ingredientSlugs }));
   const suffix =
     existing.length > trimmed.length
       ? `\n(+ ${existing.length - trimmed.length} more not shown)`
       : '';
-  return `Existing recipes already in the library — DO NOT duplicate them.
-You may share individual ingredients (yogurt + apples vs yogurt + bananas is
-fine), but a recipe whose entire ingredient set substantially overlaps an
-existing one (≥ 75 % Jaccard similarity) will be REJECTED. Pick distinct
-flavour profiles, swap a hero protein/veg, or shift cuisine.
+  return `Recipes that already exist, one JSON object a line: a slug and the slugs
+of its ingredients. DO NOT duplicate them. You may share individual
+ingredients (yogurt + apples vs yogurt + bananas is fine), but a recipe whose
+entire ingredient set substantially overlaps an existing one (≥ 75 % Jaccard
+similarity) will be REJECTED. Pick distinct flavour profiles, swap a hero
+protein/veg, or shift cuisine. A slug listed here is taken: give every recipe
+a slug and a title that no other recipe has.
 ${lines.join('\n')}${suffix}
 
 `;

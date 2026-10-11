@@ -34,7 +34,6 @@ import type { AiProviderAdapter, CompletionResult } from '../../ai/provider.inte
 import { recipeBatch, recipesPerCall } from '../../ai/operations.js';
 import { PROVIDER_TUNING } from './ai-helpers.js';
 import {
-  MAX_EXISTING_RECIPES_IN_PROMPT,
   RECIPE_GENERATOR_PROMPT_VERSION,
   buildRecipeGeneratorPrompt,
   type CatalogueRow,
@@ -226,13 +225,7 @@ export class RecipeGeneratorRunner {
           failed: this.state.failed + missing,
         };
         // The calls still to come must not repeat what this one wrote.
-        existingRecipes.unshift(
-          ...accepted.map((c) => ({
-            slug: c.slug,
-            titleEn: c.titles.en ?? c.slug,
-            ingredientSlugs: c.ingredients.map((i) => i.slug),
-          })),
-        );
+        existingRecipes.unshift(...accepted.map((c) => ({ slug: c.slug, ingredientSlugs: c.ingredients.map((i) => i.slug) })));
         if (tuning.interBatchDelayMs > 0 && index < calls.length - 1 && !this.cancelRequested) {
           await new Promise((waited) => setTimeout(waited, tuning.interBatchDelayMs));
         }
@@ -282,7 +275,7 @@ export class RecipeGeneratorRunner {
       if (this.cancelRequested) break;
       const reminder = attempt === 0
         ? ''
-        : '\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.';
+        : `\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.`;
       let result: CompletionResult;
       try {
         result = await adapter.chat([{ role: 'user', content: promptText + reminder }], {
@@ -393,58 +386,37 @@ export class RecipeGeneratorRunner {
     return rows;
   }
 
-  /** Load existing recipes (live + pending drafts) for dedup. Returns a
-   *  capped, newest-first list so the prompt stays bounded as the library
-   *  grows. The validator uses the same list for the Jaccard check, so the
-   *  model sees every recipe it's being held to. */
+  /**
+   * What a new recipe must differ from: the recipes of the shared library and
+   * the drafts that wait in the queue, newest first.
+   */
   private async loadExistingRecipes(): Promise<ExistingRecipeSummary[]> {
-    const cap = MAX_EXISTING_RECIPES_IN_PROMPT;
-    const live = await this.prisma.recipe.findMany({
-      where: { slug: { not: null } },
+    const library = await this.prisma.recipe.findMany({
+      where: { slug: { not: null }, createdByUserId: null, retiredAt: null },
       orderBy: { createdAt: 'desc' },
-      take: cap,
-      select: {
-        slug: true,
-        title: true,
-        ingredients: { select: { ingredient: { select: { slug: true } } } },
-      },
+      select: { slug: true, ingredients: { select: { ingredient: { select: { slug: true } } } } },
     });
-    const pending = await this.prisma.recipeDraft.findMany({
+    const queue = await this.prisma.recipeDraft.findMany({
       where: { status: { in: ['PENDING', 'APPROVED'] } },
       orderBy: { createdAt: 'desc' },
-      take: cap,
-      select: {
-        slug: true,
-        titles: true,
-        ingredientsJson: true,
-      },
+      select: { slug: true, ingredientsJson: true },
     });
-    const out: ExistingRecipeSummary[] = [];
-    for (const r of live) {
-      if (!r.slug) continue;
-      const slugs = r.ingredients
-        .map((ri) => ri.ingredient?.slug)
-        .filter((s): s is string => Boolean(s));
-      if (slugs.length === 0) continue;
-      out.push({ slug: r.slug, titleEn: r.title, ingredientSlugs: slugs });
+
+    const recipes: ExistingRecipeSummary[] = [];
+    const seen = new Set<string>();
+    for (const recipe of library) {
+      seen.add(recipe.slug!);
+      const slugs = recipe.ingredients.map((line) => line.ingredient.slug).filter((slug): slug is string => slug !== null);
+      if (slugs.length > 0) recipes.push({ slug: recipe.slug!, ingredientSlugs: slugs });
     }
-    const seen = new Set(out.map((r) => r.slug));
-    for (const d of pending) {
-      if (seen.has(d.slug)) continue;
-      const titles = (d.titles ?? {}) as Record<string, string>;
-      const lines = (d.ingredientsJson ?? []) as { slug?: unknown }[];
-      const slugs = lines
-        .map((l) => (typeof l?.slug === 'string' ? l.slug : null))
-        .filter((s): s is string => Boolean(s));
-      if (slugs.length === 0) continue;
-      out.push({
-        slug: d.slug,
-        titleEn: typeof titles.en === 'string' ? titles.en : d.slug,
-        ingredientSlugs: slugs,
-      });
-      seen.add(d.slug);
+    for (const draft of queue) {
+      if (seen.has(draft.slug)) continue;
+      seen.add(draft.slug);
+      const lines = Array.isArray(draft.ingredientsJson) ? (draft.ingredientsJson as { slug?: unknown }[]) : [];
+      const slugs = lines.map((line) => line?.slug).filter((slug): slug is string => typeof slug === 'string');
+      if (slugs.length > 0) recipes.push({ slug: draft.slug, ingredientSlugs: slugs });
     }
-    return out.slice(0, cap);
+    return recipes;
   }
 
   /** Trim per-100 macros to one decimal to keep the prompt compact. */
