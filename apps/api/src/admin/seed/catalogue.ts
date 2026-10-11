@@ -12,6 +12,7 @@
 import { Allergen, DietType, MealType, NaturalUnit, ProductCategory, Unit, type RecipeDietTag } from '@diet-app/shared';
 import { z } from 'zod';
 import { recipeFacts, type FactsLine } from '../../engine/recipe-facts.js';
+import { computeFingerprint } from '../drafts/fingerprint.js';
 import { IngredientOverrideFile } from '../drafts/ship/ingredient-overrides.writer.js';
 import { hashSeedInputs, readSeedInputs, resolveDataDir, type DataState } from './data-hash.js';
 
@@ -244,6 +245,7 @@ export function readCatalogue(dir: string = resolveDataDir()): {
   const recipes: CatalogueRecipe[] = [];
   const recipeSlugs = new Map<string, string>();
   const recipeTitles = new Map<string, string>();
+  const recipeMakings = new Map<string, { slug: string; file: string }>();
   for (const { file, seeds } of recipeFiles) {
     seeds.forEach((seed, i) => {
       const title = en(seed.title);
@@ -285,6 +287,20 @@ export function readCatalogue(dir: string = resolveDataDir()): {
         factLines.push(factLine);
         lines.push({ slug: ingredient.slug, quantity: line.quantity, unit: line.unit, ...(line.note ? { note: line.note } : {}) });
       });
+
+      // One dish under two names would be planned as two, and a recipe a user
+      // writes is recognised as only one of them.
+      if (lines.length === seed.ingredients.length) {
+        const making = computeFingerprint({ ingredients: lines, mealTypes: seed.mealTypes, servings: seed.servings });
+        const first = recipeMakings.get(making);
+        if (first) {
+          problems.push({
+            file,
+            path: `[${i}]`,
+            message: `recipe "${slug}" is made of the same as "${first.slug}" in ${first.file}: same ingredients and amounts, meals and servings`,
+          });
+        } else recipeMakings.set(making, { slug, file });
+      }
 
       const facts = recipeFacts(factLines, seed.servings);
       recipes.push({

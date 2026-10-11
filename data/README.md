@@ -23,7 +23,11 @@ A recipe is vegetarian, vegan or mediterranean when every one of its ingredients
 lists that diet; it is low-carb when at most 26 % of its energy comes from
 carbohydrate, and keto when at most 10 % does. Balanced and high-protein plans take
 any recipe. A `dietTags` or `allergens` key written into a recipe is ignored.
-`npm run data:lint` prints how many recipes each diet can draw on for each meal.
+`npm run data:lint` prints how many recipes each diet can draw on for each meal,
+and fails when a diet has fewer for a meal than the floor in
+[`apps/api/src/engine/coverage.ts`](../apps/api/src/engine/coverage.ts) (1 today,
+to rise with the catalogue). It also refuses two recipes of the same making: the
+same ingredients and amounts, for the same meals and servings, under two names.
 
 The recipe library is the union of `data/recipes.json` (hand-curated anchors) and
 `data/recipes/*.json` (curation-queue batches approved in-app and shipped).
