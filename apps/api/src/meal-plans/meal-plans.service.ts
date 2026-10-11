@@ -476,12 +476,13 @@ export class MealPlansService {
       opts.respectFavorites === false
         ? undefined
         : new Set(profile.preferences?.favoriteIngredientIds ?? []);
-    const inventoryCoverage = await this.resolveInventoryBias(
+    const pantry = await this.resolveInventoryBias(
       profile.id,
       opts.respectInventory !== false,
       optimizerRecipes,
       requirementsByRecipe,
     );
+    const inventoryCoverage = pantry.coverage;
 
     // Use-up-by: build a per-date coverage map for each flagged day, scored
     // only against stock expiring by that date. Falls back to the plan-level map.
@@ -534,6 +535,10 @@ export class MealPlansService {
         allowRelaxations: new Set(opts.allowRelaxations),
         seed: opts.seed,
       });
+      // A plan that was refused is no round of the rotation: the count moves once the plan is filled.
+      if (pantry.streak !== undefined) {
+        await this.prisma.profile.update({ where: { id: profile.id }, data: { inventoryBiasStreak: pantry.streak } });
+      }
       return {
         assignments: result.assignments,
         ingredientReuseScore: result.ingredientReuseScore,
@@ -1773,25 +1778,26 @@ export class MealPlansService {
   }
 
   /**
-   * Build the per-recipe coverage map the optimiser scores against.
-   * Returns undefined when the toggle is off, the pantry is empty, or no
-   * candidate recipe touches anything in the pantry — callers leave the
-   * pool ordering / scoring untouched.
+   * Build the per-recipe coverage map the optimiser scores against. There is
+   * no `coverage` when the toggle is off, the pantry is empty, or no candidate
+   * recipe touches anything in the pantry — callers leave the pool ordering /
+   * scoring untouched.
    *
    * Anti-monotony rotation: after `inventoryBiasResetEvery` consecutive
    * plan-level generations actually applied a bias, this round drops it and
    * resets the streak — keeps a leftover-heavy month from locking the user
-   * into one recipe corridor. The counter only moves on plan-level paths
-   * (this method is unused by swap, which uses `recipeCoverageMap` directly).
-   * Threshold `0` disables the reset entirely.
+   * into one recipe corridor. `streak` is what the profile's count becomes
+   * once the plan is filled; the caller writes it then. It only moves on
+   * plan-level paths (this method is unused by swap, which uses
+   * `recipeCoverageMap` directly). Threshold `0` disables the reset entirely.
    */
   private async resolveInventoryBias(
     profileId: string,
     respectInventory: boolean,
     optimizerRecipes: OptimizerRecipe[],
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
-  ): Promise<Map<string, number> | undefined> {
-    if (!respectInventory) return undefined;
+  ): Promise<{ coverage?: Map<string, number>; streak?: number }> {
+    if (!respectInventory) return {};
 
     const profile = await this.prisma.profile.findUnique({
       where: { id: profileId },
@@ -1804,16 +1810,10 @@ export class MealPlansService {
     const currentStreak = profile?.inventoryBiasStreak ?? 0;
     // Anti-monotony cool-down: if the streak has reached the threshold, skip
     // the bias for THIS round and reset. `threshold === 0` opts out entirely.
-    if (threshold > 0 && currentStreak >= threshold) {
-      await this.prisma.profile.update({
-        where: { id: profileId },
-        data: { inventoryBiasStreak: 0 },
-      });
-      return undefined;
-    }
+    if (threshold > 0 && currentStreak >= threshold) return { streak: 0 };
 
     const stock = await stockByIngredient(this.prisma, profileId);
-    if (stock.size === 0) return undefined;
+    if (stock.size === 0) return {};
 
     const coverage = new Map<string, number>();
     for (const r of optimizerRecipes) {
@@ -1821,17 +1821,11 @@ export class MealPlansService {
       const score = recipeCoverage(reqs, stock);
       if (score > 0) coverage.set(r.id, score);
     }
-    if (coverage.size === 0) return undefined;
+    if (coverage.size === 0) return {};
 
-    // Bias actually applied — bump the counter so the next round inches
-    // closer to the reset. Threshold 0 disables the bookkeeping too.
-    if (threshold > 0) {
-      await this.prisma.profile.update({
-        where: { id: profileId },
-        data: { inventoryBiasStreak: currentStreak + 1 },
-      });
-    }
-    return coverage;
+    // Bias actually applied — the next round inches closer to the reset.
+    // Threshold 0 disables the bookkeeping too.
+    return { coverage, streak: threshold > 0 ? currentStreak + 1 : undefined };
   }
 
   /**

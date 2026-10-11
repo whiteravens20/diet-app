@@ -168,6 +168,14 @@ describe('the limits of a plan', () => {
       expect(await streak()).toBe(1);
     });
 
+    it('does not count a plan that was refused', async () => {
+      await generate(sixBreakfasts).expect(422);
+      expect(await streak()).toBe(0);
+
+      await generate({ ...sixBreakfasts, allowRelaxations: ['variety_floor'] }).expect(201);
+      expect(await streak()).toBe(1);
+    });
+
     it('says that the pantry did not count in the round that leaves it out', async () => {
       await t.prisma.profile.update({ where: { id: profile.id }, data: { inventoryBiasStreak: 5 } });
 
