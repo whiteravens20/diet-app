@@ -24,7 +24,8 @@ The companion Android app lives in a separate repository:
 ## Features
 
 - **Profiles & calorie engine** — Mifflin-St Jeor BMR, activity multipliers, weekly
-  weight-loss targets (0.25–1.0 kg/wk) converted to a daily deficit, manual override.
+  weight-loss targets (0.25–1.0 kg/wk) converted to a daily deficit of at most a quarter
+  of maintenance, a floor no calculated target goes under, manual override.
 - **Meal planning** — multi-day plans honouring calorie/macro targets and diet type, with
   an optimiser that maximises ingredient reuse and minimises waste.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
