@@ -1,7 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable } from '@nestjs/common';
-import { recipesPerDietAndMeal, type CoverageMatrix } from '../engine/coverage.js';
+import type { DietType, MealType } from '@diet-app/shared';
+import { macroReachByDiet, recipesPerDietAndMeal, type CoverageMatrix, type MacroReach } from '../engine/coverage.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** How long a count is handed out again before the recipes are read anew. */
@@ -28,6 +29,26 @@ export class CatalogueCoverageService {
     const matrix = recipesPerDietAndMeal(recipes);
     this.kept = { at: Date.now(), matrix };
     return matrix;
+  }
+
+  /** What the plans of each diet reach of the diet's split, with the recipes any user's plan may draw on. */
+  async macroReach(): Promise<Record<DietType, MacroReach | null>> {
+    const recipes = await this.prisma.recipe.findMany({
+      where: { createdByUserId: null, retiredAt: null, deletedAt: null },
+      select: {
+        id: true,
+        mealTypes: true,
+        dietTags: true,
+        caloriesPerServing: true,
+        proteinPerServing: true,
+        fatPerServing: true,
+        carbsPerServing: true,
+        ingredients: { select: { ingredientId: true } },
+      },
+    });
+    return macroReachByDiet(
+      recipes.map(({ ingredients, mealTypes, ...recipe }) => ({ ...recipe, mealTypes: mealTypes as MealType[], ingredientIds: ingredients.map((line) => line.ingredientId) })),
+    );
   }
 
   /**

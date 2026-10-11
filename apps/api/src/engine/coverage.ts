@@ -8,7 +8,9 @@
  *
  * Pure, and the same rule (`fitsDiet`) as the planner's own pool.
  */
-import { DietType, MEAL_SLOTS_BY_COUNT, MealType, fitsDiet, type CatalogueDepth, type MealCountKey } from '@diet-app/shared';
+import { DietType, MEAL_SLOTS_BY_COUNT, MealType, fitsDiet, type CatalogueDepth, type Macros, type MealCountKey } from '@diet-app/shared';
+import { energyShares, macroSplitOf, splitDistance } from './nutrition.js';
+import { OptimizerError, optimisePlan, uniformDays, type OptimizerRecipe } from './optimizer.js';
 
 /**
  * The fewest recipes the shipped catalogue may have for any diet and meal.
@@ -56,4 +58,74 @@ export function thinnestCell(matrix: CoverageMatrix): { diet: DietType; meal: Me
     }
   }
   return thinnest!;
+}
+
+/**
+ * The average day of a diet's plans is this far from the diet's split, or
+ * further: the catalogue does not let a plan be what the diet promises.
+ */
+export const MACRO_OUT_OF_REACH = 0.1;
+
+/** What the plans of a diet reach: the shares of the average day's energy, and how far that is from the diet's split. */
+export interface MacroReach extends Macros {
+  distance: number;
+}
+
+/** What the measure reads of a recipe; the ingredients, where they are known, let it lean on reuse as a plan does. */
+export type ReachRecipe = Pick<OptimizerRecipe, 'id' | 'mealTypes' | 'dietTags' | 'caloriesPerServing' | 'proteinPerServing' | 'fatPerServing' | 'carbsPerServing'> &
+  Partial<Pick<OptimizerRecipe, 'ingredientIds'>>;
+
+/** The weeks a reach is measured on: as many draws, of this many days at this target. */
+const REACH = { draws: 5, days: 7, target: 2000 } as const;
+
+/**
+ * What the plans of each diet reach of the diet's split, with these recipes:
+ * the average day of weeks of three meals, made by the optimiser within the
+ * limits of a new profile, which it lets give way where the catalogue leaves
+ * no other choice. Null for a diet no such plan can be made for.
+ */
+export function macroReachByDiet(known: readonly ReachRecipe[]): Record<DietType, MacroReach | null> {
+  const recipes: OptimizerRecipe[] = known.map((recipe) => ({ ingredientIds: [], difficulty: 'easy', isFavorite: false, totalMinutes: 0, ...recipe }));
+  const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
+  const reach = {} as Record<DietType, MacroReach | null>;
+  for (const diet of DietType.options) {
+    const split = macroSplitOf(diet);
+    const sum = { protein: 0, fat: 0, carbs: 0, distance: 0 };
+    let days = 0;
+    try {
+      for (let seed = 1; seed <= REACH.draws; seed += 1) {
+        const { assignments } = optimisePlan({
+          recipes,
+          days: uniformDays(REACH.days, MEAL_SLOTS_BY_COUNT[3]!, REACH.target),
+          macroSplit: split,
+          dietType: diet,
+          mealPrepFriendly: false,
+          maxConsecutiveDaysSameMeal: 2,
+          maxTimesPerWeekSameMeal: 3,
+          seed,
+        });
+        for (let day = 0; day < REACH.days; day += 1) {
+          const held = { protein: 0, fat: 0, carbs: 0 };
+          for (const placed of assignments.filter((a) => a.dayIndex === day)) {
+            const recipe = byId.get(placed.recipeId)!;
+            held.protein += recipe.proteinPerServing * placed.servings;
+            held.fat += recipe.fatPerServing * placed.servings;
+            held.carbs += recipe.carbsPerServing * placed.servings;
+          }
+          const shares = energyShares(held);
+          if (!shares) continue;
+          days += 1;
+          sum.protein += shares.protein;
+          sum.fat += shares.fat;
+          sum.carbs += shares.carbs;
+          sum.distance += splitDistance(shares, split);
+        }
+      }
+    } catch (err) {
+      if (!(err instanceof OptimizerError)) throw err;
+      days = 0; // No recipe for one of the meals on this diet.
+    }
+    reach[diet] = days === 0 ? null : { protein: sum.protein / days, fat: sum.fat / days, carbs: sum.carbs / days, distance: sum.distance / days };
+  }
+  return reach;
 }

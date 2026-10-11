@@ -16,7 +16,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FdcDataTypes } from '@diet-app/shared';
+import { DietType, FdcDataTypes, type Macros } from '@diet-app/shared';
 import type { Request } from 'express';
 import { z } from 'zod';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
@@ -24,7 +24,8 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
-import { COVERAGE_TARGET, type CoverageMatrix } from '../engine/coverage.js';
+import { COVERAGE_TARGET, MACRO_OUT_OF_REACH, type CoverageMatrix, type MacroReach } from '../engine/coverage.js';
+import { macroSplitOf } from '../engine/nutrition.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
 import { computeDataState, resolveDataDir } from './seed/data-hash.js';
 import { SeedRunner, type RunnerState } from './seed/runner.js';
@@ -42,6 +43,13 @@ interface AdminStatsDto {
   coverage: CoverageMatrix;
   /** How many a release needs for each: what a recipe run that fills the catalogue writes towards. */
   coverageTarget: number;
+  /**
+   * For each diet, what its plans aim at and what they reach with the recipes
+   * there are, as shares of a day's energy; `reached` is null where no plan
+   * can be made, and `distance` the share of the energy that is on the wrong
+   * side. A diet further than `outOfReach` needs recipes that fit it.
+   */
+  macros: { outOfReach: number; diets: Record<DietType, { target: Macros; reached: MacroReach | null }> };
   seed: {
     lastSeededAt: string | null;
     storedHash: string | null;
@@ -135,18 +143,23 @@ export class AdminController {
   @UseGuards(BasicAuthGuard)
   async stats(): Promise<AdminStatsDto> {
     // The catalogue as plans see it: no recipe a user made for themselves, nothing an update retired.
-    const [ingredients, recipes, substitutions, meta, coverage] = await Promise.all([
+    const [ingredients, recipes, substitutions, meta, coverage, reach] = await Promise.all([
       this.prisma.ingredient.count({ where: { retiredAt: null } }),
       this.prisma.recipe.count({ where: { createdByUserId: null, retiredAt: null } }),
       this.prisma.substitutionRule.count(),
       this.prisma.seedMeta.findUnique({ where: { key: 'data' } }),
       this.coverage.count(),
+      this.coverage.macroReach(),
     ]);
     const state = computeDataState(resolveDataDir());
     return {
       counts: { ingredients, recipes, substitutions },
       coverage,
       coverageTarget: COVERAGE_TARGET,
+      macros: {
+        outOfReach: MACRO_OUT_OF_REACH,
+        diets: Object.fromEntries(DietType.options.map((diet) => [diet, { target: macroSplitOf(diet), reached: reach[diet] }])) as AdminStatsDto['macros']['diets'],
+      },
       seed: {
         lastSeededAt: meta?.seededAt.toISOString() ?? null,
         storedHash: meta?.hash ?? null,

@@ -356,7 +356,7 @@ export function AdminPanel() {
         </CardContent>
       </Card>
 
-      <CoverageCard coverage={stats.coverage} target={stats.coverageTarget} />
+      <CoverageCard coverage={stats.coverage} target={stats.coverageTarget} macros={stats.macros} />
 
       <UsdaImportCard onFinished={loadStats} />
 

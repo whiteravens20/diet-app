@@ -11,7 +11,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DietType, MealType } from '@diet-app/shared';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
-import { COVERAGE_FLOOR, COVERAGE_TARGET, recipesPerDietAndMeal } from '../src/engine/coverage.js';
+import { COVERAGE_FLOOR, COVERAGE_TARGET, MACRO_OUT_OF_REACH, macroReachByDiet, recipesPerDietAndMeal } from '../src/engine/coverage.js';
+import { macroSplitOf } from '../src/engine/nutrition.js';
 
 const dataDir = join(dirname(fileURLToPath(import.meta.url)), '../../../data');
 
@@ -51,5 +52,32 @@ if (thin.length > 0) {
 }
 const short = diets.reduce((sum, diet) => sum + slots.filter((slot) => coverage[diet][slot] < COVERAGE_TARGET).length, 0);
 console.log(`\n  every pair has at least ${COVERAGE_FLOOR}; ${short} of ${diets.length * slots.length} are still under the ${COVERAGE_TARGET} a release needs`);
+
+// What a week's plan for each diet holds of protein, fat and carbohydrate,
+// against what the diet aims at. Where the two are far apart no setting will
+// bring a plan to its diet: the catalogue needs recipes that fit it.
+const reach = macroReachByDiet(
+  catalogue.recipes.map((recipe) => ({
+    id: recipe.slug,
+    mealTypes: recipe.seed.mealTypes,
+    dietTags: recipe.dietTags,
+    caloriesPerServing: recipe.nutrition.calories,
+    proteinPerServing: recipe.nutrition.protein,
+    fatPerServing: recipe.nutrition.fat,
+    carbsPerServing: recipe.nutrition.carbs,
+    ingredientIds: recipe.lines.map((line) => line.slug),
+  })),
+);
+const shares = (of: { protein: number; fat: number; carbs: number }) => [of.protein, of.fat, of.carbs].map((share) => String(Math.round(share * 100)).padStart(3)).join(' /');
+console.log(`\n  protein / fat / carbohydrate, % of a day's energy\n  ${''.padEnd(14)}${'aims at'.padStart(15)}${'plans reach'.padStart(17)}`);
+for (const diet of diets) {
+  const reached = reach[diet];
+  const far = reached && reached.distance > MACRO_OUT_OF_REACH ? `   ${Math.round(reached.distance * 100)} points off` : '';
+  console.log(`  ${diet.padEnd(14)}${shares(macroSplitOf(diet)).padStart(15)}${(reached ? shares(reached) : 'no plan').padStart(17)}${far}`);
+}
+const outOfReach = diets.filter((diet) => (reach[diet]?.distance ?? 0) > MACRO_OUT_OF_REACH);
+if (outOfReach.length > 0) {
+  console.warn(`\n! ${outOfReach.length} diet(s) are more than ${MACRO_OUT_OF_REACH * 100} points of energy from what they aim at: ${outOfReach.join(', ')}. They need recipes nearer their split.`);
+}
 
 console.log('\n✓ Curated data is valid.');

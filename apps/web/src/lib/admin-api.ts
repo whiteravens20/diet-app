@@ -98,12 +98,29 @@ export interface AdminConnection {
   overTrusted: boolean;
 }
 
+/** Shares of a day's energy, adding up to one. */
+export interface MacroShares {
+  protein: number;
+  fat: number;
+  carbs: number;
+}
+
 export interface AdminStats {
   counts: { ingredients: number; recipes: number; substitutions: number };
   /** How many recipes each diet has for each meal. */
   coverage: Record<DietType, Record<MealType, number>>;
   /** How many a release needs for each. */
   coverageTarget: number;
+  /**
+   * For each diet, what its plans aim at and what they reach with the recipes
+   * there are, as shares of a day's energy; `reached` is null where no plan
+   * can be made. A diet whose `distance` is over `outOfReach` needs recipes
+   * that fit it.
+   */
+  macros: {
+    outOfReach: number;
+    diets: Record<DietType, { target: MacroShares; reached: (MacroShares & { distance: number }) | null }>;
+  };
   seed: {
     lastSeededAt: string | null;
     storedHash: string | null;

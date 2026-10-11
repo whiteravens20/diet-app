@@ -55,6 +55,21 @@ describe('what the catalogue can serve', () => {
     expect(coverageTarget).toBe(COVERAGE_TARGET);
   });
 
+  it('tells the administrator what each diet aims at and what its plans reach, as shares of a day\'s energy', async () => {
+    const { macros } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
+
+    expect(macros.outOfReach).toBe(0.1);
+    expect(macros.diets.high_protein.target).toEqual({ protein: 0.4, fat: 0.3, carbs: 0.3 });
+    // The catalogue has what a balanced plan needs, and too little that is rich in protein for a high-protein one.
+    const { balanced, high_protein: highProtein } = macros.diets;
+    expect(balanced.reached.protein + balanced.reached.fat + balanced.reached.carbs).toBeCloseTo(1);
+    expect(balanced.reached.distance).toBeLessThan(0.1);
+    expect(highProtein.reached.protein).toBeGreaterThan(balanced.reached.protein);
+    expect(highProtein.reached.distance).toBeGreaterThan(0.1);
+    // No plan can be made where a meal of the day has no recipe for the diet.
+    expect(macros.diets.keto.reached).toBeNull();
+  });
+
   it('leaves out what a user made for themselves', async () => {
     const before = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body.coverage;
     await aPrivateRecipe(t, await aUser(t), { mealTypes: ['lunch'] });

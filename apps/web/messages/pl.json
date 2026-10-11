@@ -425,7 +425,13 @@
       "title": "Przepisy według diety i posiłku",
       "explain": "Z ilu przepisów plan może wybierać. Gdy nie ma żadnego, dla tej diety z tym posiłkiem nie da się ułożyć planu; gdy jest ich mniej niż {enough}, tydzień powtarza to samo danie częściej, niż domyślnie pozwala profil.",
       "diet": "Dieta",
-      "gap": "{below, plural, =0 {Każda dieta ma co najmniej {target} przepisów na każdy posiłek.} one {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.} few {# z {pairs} par dieta–posiłek mają mniej niż {target} przepisów.} many {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.} other {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.}} Uruchomienie przepisów z opcją „Uzupełnij braki katalogu” pisze najpierw dla najpustszej pary."
+      "gap": "{below, plural, =0 {Każda dieta ma co najmniej {target} przepisów na każdy posiłek.} one {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.} few {# z {pairs} par dieta–posiłek mają mniej niż {target} przepisów.} many {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.} other {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.}} Uruchomienie przepisów z opcją „Uzupełnij braki katalogu” pisze najpierw dla najpustszej pary.",
+      "macrosTitle": "Białko, tłuszcz i węglowodany",
+      "macrosExplain": "Do czego dąży każda dieta i co zawiera tygodniowy plan dla niej przy obecnych przepisach, w procentach energii dnia. Dieta, która odbiega o więcej niż {points} punktów, potrzebuje przepisów bliższych jej proporcjom: żadne ustawienie nie doprowadzi tam planu.",
+      "macrosTarget": "Cel",
+      "macrosReached": "Plany osiągają",
+      "macrosNoPlan": "nie da się ułożyć planu",
+      "macrosOff": "{points, plural, one {# punkt różnicy} few {# punkty różnicy} many {# punktów różnicy} other {# punktu różnicy}}"
     },
     "usda": {
       "title": "Importer USDA",
