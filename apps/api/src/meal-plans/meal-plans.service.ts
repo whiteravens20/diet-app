@@ -39,7 +39,6 @@ import {
 import {
   calculateCalories,
   effectiveDayTarget,
-  safetyFloor,
   fitServings,
   optimisePlan,
   OptimizerError,
@@ -348,7 +347,7 @@ export class MealPlansService {
       weeklyLossTarget: profile.weeklyLossTarget as WeeklyTarget,
       manualCalorieTarget: typedForThePlan ?? profile.manualCalorieTarget,
     });
-    return { target: calories.dailyTarget, calculated: calories.source === 'calculated', floor: safetyFloor(profile.sex) };
+    return { target: calories.dailyTarget, calculated: calories.source === 'calculated', floor: calories.safetyFloor };
   }
 
   /**

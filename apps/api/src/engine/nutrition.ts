@@ -50,6 +50,9 @@ export interface CalorieEngineInput {
   manualCalorieTarget: number | null;
 }
 
+/** The most of maintenance a pace of loss may take away each day. */
+export const MAX_DEFICIT_SHARE = 0.25;
+
 /**
  * Basal Metabolic Rate via Mifflin-St Jeor.
  * Sex offset: +5 male, -161 female. When sex is unknown we use the midpoint
@@ -88,39 +91,56 @@ export function macrosForCalories(calories: number, dietType: DietType): Macros 
 }
 
 /**
- * Full deterministic calorie calculation. A manual override always wins and is
- * tagged as such; otherwise the target is maintenance minus the weekly-target
- * deficit, clamped to the safety floor.
+ * The calorie target of a profile, with everything a client needs to explain
+ * it.
+ *
+ * A calculated target is maintenance less the deficit of the chosen pace.
+ * The deficit is at most a quarter of maintenance; the target is never under
+ * the floor, and never above maintenance: where maintenance itself is under
+ * the floor, no loss is planned. A target somebody typed is taken as it is,
+ * and flagged when it is under the floor or under the basal rate.
  */
 export function calculateCalories(input: CalorieEngineInput): CalorieCalculation {
   const bmr = calculateBmr(input);
   const maintenance = calculateMaintenance(bmr, input.activityLevel);
-  const dailyDeficit = deficitForWeeklyTarget(input.weeklyLossTarget);
+  const requestedDeficit = deficitForWeeklyTarget(input.weeklyLossTarget);
+  const floor = safetyFloor(input.sex);
+  const manual = input.manualCalorieTarget;
+  const source: CalorieCalculation['source'] = manual === null ? 'calculated' : 'manual_override';
 
   let dailyTarget: number;
-  let source: CalorieCalculation['source'];
+  let deficitCapped = false;
   let safetyFloorApplied = false;
-
-  if (input.manualCalorieTarget !== null) {
-    dailyTarget = input.manualCalorieTarget;
-    source = 'manual_override';
+  let maintenanceUnderFloor = false;
+  if (manual !== null) {
+    dailyTarget = manual;
   } else {
-    const floor = safetyFloor(input.sex);
-    const raw = maintenance - dailyDeficit;
-    dailyTarget = Math.max(raw, floor);
-    safetyFloorApplied = raw < floor;
-    source = 'calculated';
+    const most = round(maintenance * MAX_DEFICIT_SHARE);
+    deficitCapped = requestedDeficit > most;
+    const paced = maintenance - Math.min(requestedDeficit, most);
+    maintenanceUnderFloor = maintenance < floor;
+    safetyFloorApplied = !maintenanceUnderFloor && paced < floor;
+    dailyTarget = maintenanceUnderFloor ? maintenance : Math.max(paced, floor);
   }
+  dailyTarget = round(dailyTarget);
 
   return {
     bmr,
     maintenance,
     weeklyLossTarget: input.weeklyLossTarget,
-    dailyDeficit,
-    dailyTarget: round(dailyTarget),
+    requestedDeficit,
+    dailyDeficit: maintenance - dailyTarget,
+    dailyTarget,
     targetMacros: macrosForCalories(dailyTarget, input.dietType),
     source,
+    safetyFloor: floor,
+    deficitCapped,
     safetyFloorApplied,
+    maintenanceUnderFloor,
+    warnings: [
+      ...(source === 'manual_override' && dailyTarget < floor ? (['below_floor'] as const) : []),
+      ...(dailyTarget < bmr ? (['below_bmr'] as const) : []),
+    ],
   };
 }
 

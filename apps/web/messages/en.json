@@ -1225,6 +1225,7 @@
     "dailyTarget": "Daily target",
     "maintenance": "Maintenance",
     "dailyDeficit": "Daily deficit",
+    "dailySurplus": "Daily surplus",
     "mealsPerDay": "Meals / day",
     "manualHint": "Manually set",
     "calculatedHint": "Calculated",
@@ -1232,7 +1233,14 @@
     "kcal": "kcal",
     "protein": "Protein",
     "fat": "Fat",
-    "carbs": "Carbs"
+    "carbs": "Carbs",
+    "notices": {
+      "maintenanceUnderFloor": "Your maintenance is under {floor} kcal, the lowest a calculated plan goes, so no loss is planned: the target is your maintenance.",
+      "safetyFloorApplied": "The target was raised to {floor} kcal, the lowest a calculated plan goes. The deficit that leaves is {deficit} kcal a day.",
+      "deficitCapped": "The pace you chose asks for {requested} kcal a day less. That is more than a quarter of your maintenance, so the plan takes {deficit}.",
+      "below_floor": "The target you typed is under {floor} kcal, the lowest a calculated plan would go.",
+      "below_bmr": "The target you typed is under what your body uses at rest ({bmr} kcal)."
+    }
   },
   "enums": {
     "dietType": {

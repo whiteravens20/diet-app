@@ -69,8 +69,8 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
         <StatCard
           index={2}
           icon={Wheat}
-          label={t('dailyDeficit')}
-          value={c ? `${c.dailyDeficit} ${kcal}` : '—'}
+          label={c && c.dailyDeficit < 0 ? t('dailySurplus') : t('dailyDeficit')}
+          value={c ? `${Math.abs(c.dailyDeficit)} ${kcal}` : '—'}
         />
         <StatCard
           index={3}
@@ -79,6 +79,8 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
           value={String(profile.mealCount)}
         />
       </div>
+
+      {c && <TargetNotices calories={c} />}
 
       <Card>
         <CardHeader>
@@ -108,5 +110,34 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
 
       <FavoriteSetsCard profileId={profile.id} />
     </section>
+  );
+}
+
+/**
+ * What stands behind a calorie target that is not simply maintenance less the
+ * chosen pace: a pace that was slowed, a floor, and a target somebody typed
+ * that is very low.
+ */
+export function TargetNotices({ calories: c }: { calories: CalorieCalculation }) {
+  const t = useTranslations('profileSummary.notices');
+  const notices: { key: string; text: string; strong: boolean }[] = [];
+  const say = (key: string, strong = false) =>
+    notices.push({ key, strong, text: t(key, { floor: c.safetyFloor, requested: c.requestedDeficit, deficit: c.dailyDeficit, bmr: c.bmr, maintenance: c.maintenance }) });
+
+  if (c.maintenanceUnderFloor) say('maintenanceUnderFloor');
+  if (c.safetyFloorApplied) say('safetyFloorApplied');
+  // Under the floor the pace is not what set the target: the floor did.
+  if (c.deficitCapped && !c.safetyFloorApplied && !c.maintenanceUnderFloor) say('deficitCapped');
+  if (c.warnings.includes('below_floor')) say('below_floor', true);
+  if (c.warnings.includes('below_bmr') && c.source === 'manual_override') say('below_bmr');
+  if (notices.length === 0) return null;
+  return (
+    <ul className="space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm">
+      {notices.map((notice) => (
+        <li key={notice.key} className={notice.strong ? 'font-medium' : 'text-muted-foreground'}>
+          {notice.text}
+        </li>
+      ))}
+    </ul>
   );
 }

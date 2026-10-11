@@ -1225,6 +1225,7 @@
     "dailyTarget": "Cel dzienny",
     "maintenance": "Zapotrzebowanie",
     "dailyDeficit": "Deficyt dzienny",
+    "dailySurplus": "Dzienna nadwyżka",
     "mealsPerDay": "Posiłków dziennie",
     "manualHint": "Ustawione ręcznie",
     "calculatedHint": "Wyliczone",
@@ -1232,7 +1233,14 @@
     "kcal": "kcal",
     "protein": "Białko",
     "fat": "Tłuszcz",
-    "carbs": "Węglowodany"
+    "carbs": "Węglowodany",
+    "notices": {
+      "maintenanceUnderFloor": "Twoje zapotrzebowanie jest niższe niż {floor} kcal, czyli najniższy cel, jaki wylicza plan, więc redukcja nie jest planowana: celem jest Twoje zapotrzebowanie.",
+      "safetyFloorApplied": "Cel podniesiono do {floor} kcal, czyli najniższego, jaki wylicza plan. Deficyt, który z tego wynika, to {deficit} kcal dziennie.",
+      "deficitCapped": "Wybrane tempo wymaga {requested} kcal dziennie mniej. To więcej niż jedna czwarta Twojego zapotrzebowania, więc plan odejmuje {deficit}.",
+      "below_floor": "Wpisany cel jest niższy niż {floor} kcal, czyli najniższy, jaki wyliczyłby plan.",
+      "below_bmr": "Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku ({bmr} kcal)."
+    }
   },
   "enums": {
     "dietType": {

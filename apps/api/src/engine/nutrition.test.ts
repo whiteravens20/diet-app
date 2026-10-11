@@ -8,6 +8,7 @@ import {
   deficitForWeeklyTarget,
   effectiveDayTarget,
   macrosForCalories,
+  type CalorieEngineInput,
 } from './nutrition.js';
 
 describe('the target of one day', () => {
@@ -94,40 +95,68 @@ describe('macrosForCalories', () => {
 });
 
 describe('calculateCalories', () => {
-  const base = {
+  const person = (over: Partial<CalorieEngineInput> = {}): CalorieEngineInput => ({
     age: 30,
-    sex: 'male' as const,
+    sex: 'male',
     heightCm: 180,
     weightKg: 80,
-    activityLevel: 'moderate' as const,
-    dietType: 'balanced' as const,
-  };
-
-  it('derives the target as maintenance minus the deficit', () => {
-    const r = calculateCalories({ ...base, weeklyLossTarget: '0.5', manualCalorieTarget: null });
-    expect(r.maintenance).toBe(2759);
-    expect(r.dailyDeficit).toBe(550);
-    expect(r.dailyTarget).toBe(2209);
-    expect(r.source).toBe('calculated');
-    expect(r.safetyFloorApplied).toBe(false);
+    activityLevel: 'moderate',
+    dietType: 'balanced',
+    weeklyLossTarget: '0.5',
+    manualCalorieTarget: null,
+    ...over,
   });
 
-  it('clamps to the safety floor for aggressive deficits', () => {
-    const r = calculateCalories({
-      ...base,
-      sex: 'female',
-      weightKg: 50,
-      activityLevel: 'sedentary',
-      weeklyLossTarget: '1.0',
-      manualCalorieTarget: null,
+  it('derives the target as maintenance minus the deficit of the pace', () => {
+    const r = calculateCalories(person());
+
+    expect(r).toMatchObject({
+      maintenance: 2759,
+      requestedDeficit: 550,
+      dailyDeficit: 550,
+      dailyTarget: 2209,
+      source: 'calculated',
+      safetyFloor: 1500,
+      deficitCapped: false,
+      safetyFloorApplied: false,
+      maintenanceUnderFloor: false,
+      warnings: [],
     });
-    expect(r.dailyTarget).toBe(1200);
-    expect(r.safetyFloorApplied).toBe(true);
   });
 
-  it('honours a manual override verbatim', () => {
-    const r = calculateCalories({ ...base, weeklyLossTarget: '0.5', manualCalorieTarget: 1800 });
-    expect(r.dailyTarget).toBe(1800);
-    expect(r.source).toBe('manual_override');
+  it('slows a pace that asks for more than a quarter of maintenance, and says so', () => {
+    // 190 cm, 113 kg, sedentary, sex not given: BMR 2090, maintenance 2508. A kilogram a week asks for 1100.
+    const r = calculateCalories(person({ sex: null, heightCm: 190, weightKg: 113, activityLevel: 'sedentary', weeklyLossTarget: '1.0' }));
+
+    expect(r).toMatchObject({ maintenance: 2508, requestedDeficit: 1100, dailyDeficit: 627, dailyTarget: 1881, deficitCapped: true, safetyFloorApplied: false });
+    // Without the limit the target would have been 56 % of maintenance.
+    expect(r.dailyTarget / r.maintenance).toBeCloseTo(0.75, 2);
+  });
+
+  it('never goes under the floor, and the deficit it reports is the real one', () => {
+    // BMR 1239, maintenance 1487; a quarter of it would leave 1115.
+    const r = calculateCalories(person({ sex: 'female', heightCm: 160, weightKg: 55, activityLevel: 'sedentary', weeklyLossTarget: '1.0' }));
+
+    expect(r).toMatchObject({ maintenance: 1487, dailyTarget: 1200, dailyDeficit: 287, requestedDeficit: 1100, safetyFloor: 1200, safetyFloorApplied: true, deficitCapped: true, maintenanceUnderFloor: false });
+  });
+
+  it('never goes above maintenance: where maintenance is under the floor, no loss is planned', () => {
+    // BMR 827, maintenance 992.
+    for (const weeklyLossTarget of [null, '0.25', '0.5'] as const) {
+      const r = calculateCalories(person({ age: 80, sex: 'female', heightCm: 150, weightKg: 45, activityLevel: 'sedentary', weeklyLossTarget }));
+
+      expect(r).toMatchObject({ maintenance: 992, dailyTarget: 992, dailyDeficit: 0, maintenanceUnderFloor: true, safetyFloorApplied: false });
+    }
+  });
+
+  it('honours a target somebody typed, and says how far it is from maintenance', () => {
+    expect(calculateCalories(person({ manualCalorieTarget: 1800 }))).toMatchObject({ dailyTarget: 1800, source: 'manual_override', dailyDeficit: 959, warnings: [] });
+    expect(calculateCalories(person({ manualCalorieTarget: 3000 })).dailyDeficit).toBe(-241);
+  });
+
+  it('flags a typed target under the floor or under what the body uses at rest', () => {
+    // BMR 1780, floor 1500.
+    expect(calculateCalories(person({ manualCalorieTarget: 1600 })).warnings).toEqual(['below_bmr']);
+    expect(calculateCalories(person({ manualCalorieTarget: 900 })).warnings).toEqual(['below_floor', 'below_bmr']);
   });
 });
