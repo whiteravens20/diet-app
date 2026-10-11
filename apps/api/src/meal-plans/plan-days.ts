@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-/** What a day of a plan carries of its own, as it is kept with the day and read back. */
+/** What a day of a plan and its meals carry of their own, as it is kept with them and read back. */
 import type { MealType } from '@diet-app/shared';
 
 /**
@@ -32,4 +32,16 @@ export function parseDayOverrides(raw: unknown): DayOverridesJson | null {
 /** The date of a day, as the API writes dates. */
 export function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/** Read frozen, user-entered macros off a custom meal row (defaults to zero). */
+export function customMacros(raw: unknown): { calories: number; protein: number; fat: number; carbs: number } {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  return {
+    calories: num(o.calories),
+    protein: num(o.protein),
+    fat: num(o.fat),
+    carbs: num(o.carbs),
+  };
 }

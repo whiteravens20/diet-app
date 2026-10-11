@@ -230,6 +230,8 @@
     "INVALID_LOCKED_SLOT": "A locked meal doesn't fit the meals chosen for that day.",
     "LOCKED_RECIPE_INELIGIBLE": "A locked recipe can't go into this plan: it is unavailable, or the profile's diet, allergens, skipped ingredients or avoided recipes rule it out.",
     "PLAN_NEEDS_RELAXATION": "The plan cannot be filled inside its limits. Let the limits that stand in the way give way, or change what the plan is asked for.",
+    "RANGE_OUTSIDE_PLAN": "Those days are not days of this plan, or the first is after the last.",
+    "NOTHING_TO_REGENERATE": "Every one of those days is before today. Days in the past are made again only when you say so.",
     "CUSTOM_MEAL_INVALID_MACROS": "Custom meal macros must be non-negative numbers.",
     "OFF_DIET_FAVORITE_NOT_ALLOWED": "That favourite can't go into this slot: it doesn't fit the meal or the diet, or the profile's allergens, skipped ingredients or avoid mark rule it out.",
     "CUSTOM_MEAL_NOT_SWAPPABLE": "Custom meals can't be swapped or have ingredients substituted.",

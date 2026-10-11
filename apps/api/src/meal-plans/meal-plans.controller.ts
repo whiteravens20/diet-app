@@ -20,6 +20,7 @@ import {
   GeneratePlanRequest,
   type Locale,
   RebalanceRequest,
+  RegenerateDayRequest,
   RegenerateRequest,
   SetMealEatenRequest,
   SwapIngredientRequest,
@@ -68,7 +69,7 @@ export class MealPlansController {
     return this.generation.generate(user.id, locale, dto);
   }
 
-  /** Re-run the optimiser for a whole plan, in place. */
+  /** Make a plan again, or the days of it that the request names. */
   @Post(':id/regenerate')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   regenerate(
@@ -88,7 +89,7 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Param('id') id: string,
     @Param('dayId') dayId: string,
-    @Body(new ZodValidationPipe(RegenerateRequest)) options: RegenerateRequest,
+    @Body(new ZodValidationPipe(RegenerateDayRequest)) options: RegenerateDayRequest,
   ) {
     return this.generation.regenerateDay(user.id, locale, id, dayId, options);
   }

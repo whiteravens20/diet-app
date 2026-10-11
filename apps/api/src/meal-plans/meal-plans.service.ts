@@ -62,7 +62,7 @@ import {
 } from './swap-rewrite.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { shownReport } from './generation-report.js';
-import { isoDate, parseDayOverrides } from './plan-days.js';
+import { customMacros, isoDate, parseDayOverrides } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { writePlan } from './plan-write.js';
 import {
@@ -1689,18 +1689,6 @@ function rowsMacros(rows: RebalanceRow[], scaleOf: (r: RebalanceRow) => number):
     },
     { calories: 0, protein: 0, fat: 0, carbs: 0 },
   );
-}
-
-/** Read frozen, user-entered macros off a custom meal row (defaults to zero). */
-function customMacros(raw: unknown): { calories: number; protein: number; fat: number; carbs: number } {
-  const o = (raw ?? {}) as Record<string, unknown>;
-  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
-  return {
-    calories: num(o.calories),
-    protein: num(o.protein),
-    fat: num(o.fat),
-    carbs: num(o.carbs),
-  };
 }
 
 function sumNutrition(items: { calories: number; protein: number; fat: number; carbs: number }[]) {

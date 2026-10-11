@@ -208,22 +208,48 @@ export const PlannedMeal = z.object({
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
 
-/** Options of a re-roll, of a whole plan or of one of its days. */
-export const RegenerateRequest = z
-  .object({
-    /**
-     * Drop a lock whose recipe may no longer go into the plan (it was deleted,
-     * or the profile has since ruled it out) instead of refusing the re-roll
-     * with `LOCKED_RECIPE_INELIGIBLE`.
-     */
-    dropIneligibleLocks: z.boolean().default(false),
-    /**
-     * The limits that may give way this time. Left out: those the plan may
-     * let give way already. For a whole plan they are kept with it.
-     */
-    allowRelaxations: z.array(PlanRelaxation).optional(),
-  })
-  .default({ dropIneligibleLocks: false });
+/** What a re-roll may be told, whether of a plan, of a part of it or of one day. */
+const RerollOptions = z.object({
+  /** Make days before today again as well. They are left as they are otherwise. */
+  includePast: z.boolean().default(false),
+  /** Replace the meals marked as eaten. Otherwise they stay, and the rest of their day is filled around them. */
+  replaceEaten: z.boolean().default(false),
+  /** Replace the user's own meals. Otherwise they stay, and what they hold is counted in their day. */
+  replaceCustom: z.boolean().default(false),
+  /**
+   * Drop a lock whose recipe may no longer go into the plan (it was deleted,
+   * or the profile has since ruled it out) instead of refusing the re-roll
+   * with `LOCKED_RECIPE_INELIGIBLE`.
+   */
+  dropIneligibleLocks: z.boolean().default(false),
+  /**
+   * The limits that may give way this time. Left out: those the plan may
+   * let give way already. They are kept with the plan when the whole of it is
+   * made again.
+   */
+  allowRelaxations: z.array(PlanRelaxation).optional(),
+});
+
+/** Options of a re-roll of one day of a plan. */
+export const RegenerateDayRequest = RerollOptions.prefault({});
+export type RegenerateDayRequest = z.infer<typeof RegenerateDayRequest>;
+
+/**
+ * Options of a re-roll of a plan. Without `from` and `to` the plan is made
+ * again as it was asked for, with the profile as it is now. With either, the
+ * days from `from` (the plan's first when left out) to `to` (its last) get
+ * other meals and the plan stays what it is: its diet and the targets of its
+ * days. Either way the meals that stay, and the days that are not made again,
+ * count for the limits of the plan.
+ *
+ * 400 `RANGE_OUTSIDE_PLAN` when a date is no day of the plan or `from` is
+ * after `to`; 409 `NOTHING_TO_REGENERATE` when every day asked for is before
+ * today and `includePast` is not set.
+ */
+export const RegenerateRequest = RerollOptions.extend({
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
+}).prefault({});
 export type RegenerateRequest = z.infer<typeof RegenerateRequest>;
 
 /**

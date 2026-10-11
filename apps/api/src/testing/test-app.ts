@@ -16,6 +16,9 @@ import { catalogueDirectory } from './catalogue.js';
 import { testDatabaseUrl } from './database.js';
 import { startFakeModel, type FakeModel } from './fake-model.js';
 
+/** The date the application under test takes for today, unless a test sets another. */
+export const TEST_TODAY = '2026-01-01';
+
 export interface TestApp {
   readonly app: INestApplication;
   readonly prisma: PrismaService;
@@ -71,10 +74,15 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
   const { AppModule } = await import('../app.module.js');
   const { configureApp } = await import('../app.setup.js');
   const { PrismaService: Prisma } = await import('../prisma/prisma.service.js');
+  const { PlanGenerationService } = await import('../meal-plans/plan-generation.service.js');
 
   const app = await NestFactory.create(AppModule, { logger: process.env.TEST_LOG ? ['error', 'warn'] : false });
   configureApp(app);
   await app.init();
+  // The plans of the tests start on fixed days of January 2026. For the
+  // application under test it is the first of that month, so those days are
+  // ahead of it; a test about days that have passed sets another date.
+  app.get(PlanGenerationService).today = () => TEST_TODAY;
 
   return {
     app,

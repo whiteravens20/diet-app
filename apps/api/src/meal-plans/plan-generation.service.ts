@@ -1,19 +1,27 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import {
   fitsDiet,
   MEAL_SLOTS_BY_COUNT,
   PlanOptions,
+  RegenerateDayRequest,
+  RegenerateRequest,
   type DayOverride,
   type GeneratePlanRequest,
   type Locale,
   type MealPlan,
   type MealType,
   type PlanRelaxation,
-  type RegenerateRequest,
   type RelaxationNeeded,
   type UnfilledMeal,
 } from '@diet-app/shared';
@@ -25,6 +33,7 @@ import {
   recipeCoverage,
   requirementsPerServing,
   type CalorieEngineInput,
+  type KeptMeal,
   type OptimizerDay,
   type OptimizerRecipe,
   type OptimizerResult,
@@ -33,7 +42,7 @@ import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-sto
 import { PrismaService } from '../prisma/prisma.service.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { MealPlansService } from './meal-plans.service.js';
-import { isoDate, parseDayOverrides, type DayOverridesJson } from './plan-days.js';
+import { customMacros, isoDate, parseDayOverrides, type DayOverridesJson } from './plan-days.js';
 import { writePlan } from './plan-write.js';
 
 /**
@@ -112,56 +121,121 @@ export class PlanGenerationService {
     return this.plans.get(userId, locale, plan.id);
   }
 
-  /**
-   * Re-run the optimiser for an existing plan, in place. Picks up any profile
-   * changes (calorie target, diet type) and yields a fresh set of meals.
-   */
-  async regenerate(
+  /** Today's date, as the API writes dates; replaceable in a test. */
+  today: () => string = () => isoDate(new Date());
+
+  /** Make a plan again, or the days of it that the request names. */
+  async regenerate(userId: string, locale: Locale, planId: string, request: RegenerateRequest = RegenerateRequest.parse({})): Promise<MealPlan> {
+    const { from, to, ...options } = request;
+    await this.reroll(userId, planId, { from, to }, options);
+    return this.plans.get(userId, locale, planId);
+  }
+
+  /** Give one day of a plan other meals. */
+  async regenerateDay(
     userId: string,
     locale: Locale,
     planId: string,
-    options: RegenerateRequest = { dropIneligibleLocks: false },
+    dayId: string,
+    options: RegenerateDayRequest = RegenerateDayRequest.parse({}),
   ): Promise<MealPlan> {
-    const existing = await this.prisma.mealPlan.findUnique({
+    const day = await this.prisma.mealPlanDay.findUnique({ where: { id: dayId }, select: { planId: true, date: true } });
+    if (!day || day.planId !== planId) {
+      throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
+    }
+    const date = isoDate(day.date);
+    await this.reroll(userId, planId, { from: date, to: date }, options);
+    return this.plans.get(userId, locale, planId);
+  }
+
+  /**
+   * Fill days of a plan again: all of them, or those from `range.from` to
+   * `range.to`. Days before today, meals marked as eaten and the user's own
+   * meals stay unless the options say otherwise, and whatever stays counts for
+   * the limits of the plan and for what its day has left.
+   *
+   * Without a range the plan is made again: as it was asked for, with the
+   * profile as it is now for what was left to the profile, and with what each
+   * day carries of its own. With one, the plan stays what it is.
+   */
+  private async reroll(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest): Promise<void> {
+    const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
-      include: { profile: true, days: { include: { meals: true }, orderBy: { date: 'asc' } } },
+      include: {
+        profile: true,
+        days: { orderBy: { date: 'asc' }, include: { meals: { include: { recipe: { select: { caloriesPerServing: true } } } } } },
+      },
     });
-    if (!existing?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    if (existing.profile.userId !== userId) {
+    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (plan.profile.userId !== userId) {
       throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
 
-    const profile = await this.plans.loadProfile(userId, existing.profileId);
-    // The plan is made again as it was made: with what was asked for then,
-    // with the profile as it is now for what was left to the profile, and
-    // with what each day carries of its own (meal count, calorie target,
-    // locks, skip, cooking time, use-up-by).
-    const made = PlanOptions.parse(existing.options);
+    const dates = plan.days.map((day) => isoDate(day.date));
+    const whole = range.from === undefined && range.to === undefined;
+    const first = range.from ?? dates[0]!;
+    const last = range.to ?? dates.at(-1)!;
+    // Dates in this form sort as text.
+    if (!dates.includes(first) || !dates.includes(last) || first > last) {
+      throw new BadRequestException({
+        error: 'RANGE_OUTSIDE_PLAN',
+        message: `The days from ${first} to ${last} are not days of this plan, in that order.`,
+      });
+    }
+    const today = this.today();
+    const again = (date: string): boolean => date >= first && date <= last && (options.includePast || date >= today);
+    if (!dates.some(again)) {
+      throw new ConflictException({
+        error: 'NOTHING_TO_REGENERATE',
+        message: 'Every day asked for is before today. Days in the past are made again only when the request says so.',
+      });
+    }
+
+    const profile = await this.plans.loadProfile(userId, plan.profileId);
+    const made = PlanOptions.parse(plan.options);
     const allowRelaxations = options.allowRelaxations ?? made.allowRelaxations;
     const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
-    const baseCalorieTarget = base.target;
-    const dietType = made.dietType ?? profile.dietType;
-    const resolvedDays: ResolvedDay[] = existing.days.map((day) => {
+    const dietType = whole ? (made.dietType ?? profile.dietType) : plan.dietType;
+
+    /** The days that are filled again, by their place in the plan, with the meals that stay on them. */
+    const filled: { dayIndex: number; dayId: string; staying: string[] }[] = [];
+    const days = plan.days.map((day, dayIndex): ResolvedDay => {
+      const iso = dates[dayIndex]!;
       const o = parseDayOverrides(day.overrides);
-      // Custom meals don't define a slot count — count catalogue meals only.
-      const catalogueCount = day.meals.filter((m) => m.source === 'CATALOGUE').length;
+      const kept = (meal: (typeof day.meals)[number]): KeptMeal => ({
+        recipeId: meal.recipeId ?? undefined,
+        calories: (meal.recipe?.caloriesPerServing ?? customMacros(meal.customMacros).calories) * meal.servings * meal.quantityScale,
+      });
+      if (!again(iso)) {
+        return { date: day.date, isoDate: iso, mealSlots: [], calorieTarget: day.calorieTarget, useUpBy: false, skip: false, overrides: o, kept: day.meals.map(kept) };
+      }
+
+      const staying = day.meals.filter(
+        (meal) => (meal.eatenAt !== null && !options.replaceEaten) || (meal.source === 'USER_CUSTOM' && !options.replaceCustom),
+      );
+      filled.push({ dayIndex, dayId: day.id, staying: staying.map((meal) => meal.id) });
+      // A meal of the catalogue that stays holds its place among the day's meals; one of the user's own is beside them.
+      const held = new Set(staying.filter((meal) => meal.source === 'CATALOGUE').map((meal) => meal.mealType));
+      // A day's own meals of the catalogue say how many it has, where neither the day nor the plan was asked for a number.
+      const catalogueCount = day.meals.filter((meal) => meal.source === 'CATALOGUE').length;
       const mealCount = o?.mealCount ?? made.mealCount ?? (catalogueCount || profile.mealCount);
       return {
         date: day.date,
-        isoDate: isoDate(day.date),
-        mealSlots: MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!,
-        calorieTarget: dayTarget(base, o),
+        isoDate: iso,
+        mealSlots: (MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!).filter((slot) => !held.has(slot)),
+        calorieTarget: whole ? dayTarget(base, o) : day.calorieTarget,
         cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
-        lockedSlots: o?.lockedSlots?.map((l) => ({ slot: l.mealType, recipeId: l.recipeId })),
+        lockedSlots: o?.lockedSlots?.filter((lock) => !held.has(lock.mealType)).map((lock) => ({ slot: lock.mealType, recipeId: lock.recipeId })),
         useUpBy: o?.useUpBy ?? false,
         skip: o?.skip ?? false,
         overrides: o,
+        kept: staying.map(kept),
       };
     });
 
     const seed = newSeed();
     const result = await this.optimiseFor(userId, profile, {
-      days: resolvedDays,
+      days,
       dietType,
       mealPrepFriendly: made.mealPrepFriendly,
       respectExclusions: made.respectExclusions,
@@ -173,105 +247,38 @@ export class PlanGenerationService {
       seed,
     });
 
-    await writePlan(this.prisma, planId, existing.revision, async (tx) => {
-      await tx.mealPlanDay.deleteMany({ where: { planId } });
+    // What the report said of the days filled again gives place to what this
+    // run found. A plan from before reports were kept gets one when the whole
+    // of it is made again; whether the pantry counted is said of a whole plan.
+    const before = StoredReport.nullable().parse(plan.report ?? null);
+    const merged = before ? withDaysAgain(before, result.report, filled.map(({ dayIndex }) => dates[dayIndex]!)) : null;
+    const report = whole ? { ...(merged ?? result.report), pantryBiasApplied: result.report.pantryBiasApplied } : merged;
+
+    await writePlan(this.prisma, planId, plan.revision, async (tx) => {
+      for (const { dayIndex, dayId, staying } of filled) {
+        const day = days[dayIndex]!;
+        await tx.mealPlanDay.update({
+          where: { id: dayId },
+          // A lock that was dropped leaves the stored overrides of the day as well.
+          data: { calorieTarget: day.calorieTarget, overrides: day.overrides ? (day.overrides as Prisma.InputJsonValue) : Prisma.JsonNull },
+        });
+        await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
+        await tx.plannedMeal.createMany({
+          data: result.assignments
+            .filter((placed) => placed.dayIndex === dayIndex)
+            .map((placed) => ({ dayId, recipeId: placed.recipeId, mealType: placed.slot, servings: placed.servings })),
+        });
+      }
       await tx.mealPlan.update({
         where: { id: planId },
         data: {
-          calorieTarget: baseCalorieTarget,
-          dietType,
           reuseScore: result.ingredientReuseScore,
-          // The limits the plan was made with this time are the ones it is made with from here on.
-          options: { ...made, allowRelaxations },
-          seed,
-          report: result.report,
-          days: { create: buildDays(resolvedDays, result.assignments) },
+          ...(report ? { report } : {}),
+          // A plan that was made again is what it was made with this time.
+          ...(whole ? { calorieTarget: base.target, dietType, options: { ...made, allowRelaxations }, seed } : {}),
         },
       });
     });
-    return this.plans.get(userId, locale, planId);
-  }
-
-  /** Re-roll the meals of a single day, leaving the rest of the plan untouched. */
-  async regenerateDay(
-    userId: string,
-    locale: Locale,
-    planId: string,
-    dayId: string,
-    options: RegenerateRequest = { dropIneligibleLocks: false },
-  ): Promise<MealPlan> {
-    const day = await this.prisma.mealPlanDay.findUnique({
-      where: { id: dayId },
-      include: { plan: { include: { profile: true } }, meals: true },
-    });
-    if (!day?.plan?.profile || day.planId !== planId) {
-      throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
-    }
-    if (day.plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
-    }
-
-    const profile = await this.plans.loadProfile(userId, day.plan.profileId);
-    const o = parseDayOverrides(day.overrides);
-
-    // A skipped day re-rolls to nothing — clear its meals and return.
-    if (o?.skip) {
-      await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
-        await tx.plannedMeal.deleteMany({ where: { dayId } });
-      });
-      return this.plans.get(userId, locale, planId);
-    }
-
-    const made = PlanOptions.parse(day.plan.options);
-    const catalogueCount = day.meals.filter((m) => m.source === 'CATALOGUE').length;
-    const mealCount = o?.mealCount ?? made.mealCount ?? (catalogueCount || profile.mealCount);
-    const resolved: ResolvedDay = {
-      date: day.date,
-      isoDate: isoDate(day.date),
-      mealSlots: MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!,
-      calorieTarget: day.calorieTarget,
-      cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
-      lockedSlots: o?.lockedSlots?.map((l) => ({ slot: l.mealType, recipeId: l.recipeId })),
-      useUpBy: o?.useUpBy ?? false,
-      skip: false,
-      overrides: o,
-    };
-
-    const result = await this.optimiseFor(userId, profile, {
-      days: [resolved],
-      dietType: day.plan.dietType,
-      mealPrepFriendly: made.mealPrepFriendly,
-      respectExclusions: made.respectExclusions,
-      respectFavorites: made.respectFavorites,
-      respectInventory: made.respectInventory,
-      maxRepeatsPerRecipe: made.maxRepeatsPerRecipe ?? undefined,
-      // What is let give way for one day is let for this once: the plan keeps its own.
-      allowRelaxations: options.allowRelaxations ?? made.allowRelaxations,
-      dropIneligibleLocks: options.dropIneligibleLocks,
-      seed: newSeed(),
-    });
-    const kept = StoredReport.nullable().parse(day.plan.report ?? null);
-
-    await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
-      // A lock that was dropped leaves the stored overrides of the day as well.
-      if (options.dropIneligibleLocks) {
-        await tx.mealPlanDay.update({
-          where: { id: dayId },
-          data: { overrides: resolved.overrides ? (resolved.overrides as Prisma.InputJsonValue) : Prisma.JsonNull },
-        });
-      }
-      await tx.plannedMeal.deleteMany({ where: { dayId } });
-      await tx.plannedMeal.createMany({
-        data: result.assignments
-          .filter((a) => a.dayIndex === 0)
-          .map((a) => ({ dayId, recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
-      });
-      // A plan from before reports were kept has none to bring up to date.
-      if (kept) {
-        await tx.mealPlan.update({ where: { id: planId }, data: { report: withDaysAgain(kept, result.report, [resolved.isoDate]) } });
-      }
-    });
-    return this.plans.get(userId, locale, planId);
   }
 
   /**
@@ -416,6 +423,7 @@ export class PlanGenerationService {
       lockedSlots: d.lockedSlots,
       inventoryCoverage: d.useUpBy ? expiringByDate.get(d.isoDate) : undefined,
       skip: d.skip,
+      kept: d.kept,
     }));
 
     const dates = opts.days.map((d) => d.isoDate);
@@ -661,6 +669,8 @@ interface ResolvedDay {
   skip: boolean;
   /** The JSON to persist on the day row (null = basic-flow day). */
   overrides: DayOverridesJson | null;
+  /** Meals that are on the day and stay there. */
+  kept?: KeptMeal[];
 }
 
 /** Collapse a request `DayOverride` into the persisted JSON (only set keys). */
