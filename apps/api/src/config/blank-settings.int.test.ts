@@ -84,7 +84,7 @@ describe('settings left blank in the environment', () => {
     const jwt = t.app.get(JwtService, { strict: false });
     const config = t.app.get(ConfigService);
     const own = deriveKey(config.get('DATA_ENCRYPTION_SECRET'), 'reviewer-session');
-    expect(jwt.verify(decodeURIComponent(cookie), { secret: own })).toMatchObject({ kind: 'reviewer', label: 'pl reviewer' });
+    expect(jwt.verify(decodeURIComponent(cookie), { secret: own })).toMatchObject({ aud: 'diet-app/reviewer', label: 'pl reviewer' });
     // Never the key of users' access tokens.
     expect(() => jwt.verify(decodeURIComponent(cookie), { secret: config.get('JWT_ACCESS_SECRET') })).toThrow();
   });

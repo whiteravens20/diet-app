@@ -19,14 +19,16 @@ What the code guarantees today, and what it deliberately does not protect agains
 - [x] Passwords hashed with bcrypt (cost configurable, 12 by default) after an HMAC-SHA256 pepper
 - [x] Login runs the hash comparison for an unknown account too, so response time does not reveal whether an e-mail is registered
 - [x] Short-lived JWT access tokens (15 minutes by default) and rotating refresh tokens
+- [x] An access token holds the account's id and nothing else about the account; every signed token is made with one fixed algorithm and says what it is for, and a reader asks for both
 - [x] Refresh tokens stored hashed and revocable — rotated on use, revoked on logout and on password reset
 - [x] Password-reset, e-mail-verification and e-mail-change tokens are single-use, time-limited and stored hashed
 - [x] A password-reset link is never written to the log in production; without SMTP it is logged outside production only
-- [x] Reviewer sessions use their own signed cookie (`httpOnly`, `SameSite=Lax`, `Secure` behind HTTPS); a reviewer token is rejected as a user access token
+- [x] Reviewer sessions use their own signed cookie (`httpOnly`, `SameSite=Lax`, `Secure` behind HTTPS); a reviewer token is rejected as a user access token, and an access token as a reviewer session
 
 ### Data at Rest
 
 - [x] E-mail addresses encrypted with AES-256-GCM; lookups go through a keyed HMAC-SHA256 blind index, never the plaintext
+- [x] A stored ciphertext is bound to the account it belongs to and to the kind of value it is: copied into another row or another column it does not open. The authentication tag has one fixed length
 - [x] Per-user AI provider keys encrypted with AES-256-GCM under `AI_KEY_ENCRYPTION_SECRET`, which lives in the environment, never in the database
 - [x] Provider keys decrypted in-process at call time only — never logged, never returned to the client
 - [x] Independent keys for encryption, blind indexing and the password pepper, derived with HKDF from one configured secret

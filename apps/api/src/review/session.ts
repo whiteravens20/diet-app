@@ -3,16 +3,17 @@
 /**
  * Reviewer-session cookie helpers.
  *
- * The cookie carries a signed JWT with `{ kind: 'reviewer', label, locale }`,
- * 7-day TTL, httpOnly + sameSite=lax. We reuse the existing JWT_ACCESS_SECRET
- * so no new secret needs to be configured; reviewer JWTs and user JWTs are
- * distinguished by the `kind` claim.
+ * The cookie carries a signed token with the reviewer's label, 7-day TTL,
+ * httpOnly + sameSite=lax. It is signed with a key of its own and made for
+ * the reviewer panel (its audience says so): it is no access token of an
+ * account, and an access token is no reviewer session.
  *
  * Cookies are parsed inline from the `Cookie` header to avoid pulling in
  * `cookie-parser` for this single cookie name.
  */
 import type { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
+import { REVIEWER_AUDIENCE, TOKEN_ALGORITHM } from '../auth/token-kinds.js';
 import { deriveKey } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
 
@@ -35,7 +36,6 @@ export function resolveReviewerSecret(config: ConfigService<Env, true>): string 
 export const REVIEWER_COOKIE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface ReviewerClaims {
-  kind: 'reviewer';
   label: string;
   iat: number;
   exp: number;
@@ -53,8 +53,8 @@ export function signReviewerCookie(
   payload: { label: string },
 ): { token: string; maxAgeSeconds: number } {
   const token = jwt.sign(
-    { kind: 'reviewer', label: payload.label },
-    { secret, expiresIn: REVIEWER_COOKIE_TTL_SECONDS },
+    { label: payload.label },
+    { secret, expiresIn: REVIEWER_COOKIE_TTL_SECONDS, algorithm: TOKEN_ALGORITHM, audience: REVIEWER_AUDIENCE },
   );
   return { token, maxAgeSeconds: REVIEWER_COOKIE_TTL_SECONDS };
 }
@@ -65,8 +65,8 @@ export function verifyReviewerCookie(
   token: string,
 ): ReviewerSession | null {
   try {
-    const claims = jwt.verify<ReviewerClaims>(token, { secret });
-    if (claims.kind !== 'reviewer') return null;
+    const claims = jwt.verify<ReviewerClaims>(token, { secret, algorithms: [TOKEN_ALGORITHM], audience: REVIEWER_AUDIENCE });
+    if (typeof claims.label !== 'string') return null;
     return {
       label: claims.label,
       issuedAt: new Date(claims.iat * 1000).toISOString(),

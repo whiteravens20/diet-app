@@ -1,11 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Unit tests for JwtStrategy.validate — the token-shape gate that decides who
- * becomes `request.user`. The security-critical case: a reviewer-session JWT
- * (signed with the same secret, `kind: 'reviewer'`, no `sub`) must NOT
- * authenticate as a user, or a `where: { userId: undefined }` query would leak
- * every user's rows.
+ * Unit tests for JwtStrategy.validate: who becomes `request.user` once a
+ * token's signature, algorithm, audience and expiry were accepted (those are
+ * tested with real tokens in `access-token.int.test.ts`).
  */
 import { UnauthorizedException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
@@ -18,28 +16,18 @@ function makeStrategy() {
 }
 
 describe('JwtStrategy.validate', () => {
-  it('accepts a genuine user access token', () => {
-    const user = makeStrategy().validate({ sub: 'user-1', email: 'a@b.com', role: 'user' });
-    expect(user).toEqual({ id: 'user-1', email: 'a@b.com', role: 'user' });
-  });
-
-  it('rejects a reviewer-session token replayed as a Bearer token', () => {
-    expect(() =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- reviewer-shaped payload
-      makeStrategy().validate({ kind: 'reviewer', label: 'translator' } as any),
-    ).toThrow(UnauthorizedException);
+  it('takes the account a token names, and nothing else from it', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a payload with more than a token should hold
+    const user = makeStrategy().validate({ sub: 'user-1', email: 'a@b.com', role: 'admin' } as any);
+    expect(user).toEqual({ id: 'user-1' });
   });
 
   it('rejects any token missing a sub', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- malformed payload
-    expect(() => makeStrategy().validate({ email: 'a@b.com', role: 'user' } as any)).toThrow(
-      UnauthorizedException,
-    );
+    expect(() => makeStrategy().validate({ label: 'translator' } as any)).toThrow(UnauthorizedException);
   });
 
   it('rejects an empty-string sub', () => {
-    expect(() => makeStrategy().validate({ sub: '', email: 'a@b.com', role: 'user' })).toThrow(
-      UnauthorizedException,
-    );
+    expect(() => makeStrategy().validate({ sub: '' })).toThrow(UnauthorizedException);
   });
 });

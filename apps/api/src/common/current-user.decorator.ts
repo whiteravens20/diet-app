@@ -5,8 +5,6 @@ import { type ExecutionContext, createParamDecorator } from '@nestjs/common';
 /** The authenticated principal attached to the request by JwtStrategy. */
 export interface RequestUser {
   id: string;
-  email: string;
-  role: 'user' | 'admin';
 }
 
 /** Injects the authenticated user: `@CurrentUser() user: RequestUser`. */

@@ -6,16 +6,17 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { RequestUser } from '../common/current-user.decorator.js';
 import type { Env } from '../config/env.js';
+import { ACCOUNT_AUDIENCE, TOKEN_ALGORITHM } from './token-kinds.js';
 
 interface AccessTokenPayload {
   sub: string;
-  email: string;
-  role: 'user' | 'admin';
-  /** Present only on non-user tokens (e.g. the reviewer-session cookie). */
-  kind?: string;
 }
 
-/** Validates the Bearer access token and exposes the principal as `request.user`. */
+/**
+ * Validates the Bearer access token and exposes the principal as
+ * `request.user`. Only a token signed in the one way access tokens are, and
+ * made for an account calling the API, gets as far as `validate`.
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(config: ConfigService<Env, true>) {
@@ -23,25 +24,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: config.get('JWT_ACCESS_SECRET', { infer: true }),
+      algorithms: [TOKEN_ALGORITHM],
+      audience: ACCOUNT_AUDIENCE,
     });
   }
 
   validate(payload: AccessTokenPayload): RequestUser {
-    // Only a genuine user access token may authenticate here. The reviewer-
-    // session cookie is a JWT too; it is signed with its own key and carries
-    // `kind: 'reviewer'` and no `sub`. Should the two keys ever be configured
-    // to the same value, without this guard such a token
-    // would pass signature + expiry checks and `validate` would return
-    // `{ id: undefined }` — authenticating as a phantom user. A downstream
-    // `where: { userId: undefined }` then matches *every* row (Prisma treats
-    // `undefined` as "no filter"), leaking all users' data. Reject anything
-    // that isn't a plain, `sub`-bearing user token.
-    if (payload.kind !== undefined || typeof payload.sub !== 'string' || payload.sub.length === 0) {
+    // A token that names nobody must not authenticate: `{ id: undefined }`
+    // would be a phantom user, and a `where: { userId: undefined }` further
+    // on matches every row (Prisma takes `undefined` for "no filter").
+    if (typeof payload.sub !== 'string' || payload.sub.length === 0) {
       throw new UnauthorizedException({
         error: 'INVALID_ACCESS_TOKEN',
         message: 'Invalid access token.',
       });
     }
-    return { id: payload.sub, email: payload.email, role: payload.role };
+    return { id: payload.sub };
   }
 }

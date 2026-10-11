@@ -24,6 +24,7 @@ import type { Env } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
+import { ACCOUNT_AUDIENCE, TOKEN_ALGORITHM } from './token-kinds.js';
 import { TurnstileService } from './turnstile.service.js';
 
 @Injectable()
@@ -256,9 +257,11 @@ export class AuthService {
     const accessTtl = this.config.get('JWT_ACCESS_TTL', { infer: true });
     const refreshTtl = this.config.get('JWT_REFRESH_TTL', { infer: true });
 
+    // Whose it is, and nothing else: whatever a client shows of the account
+    // comes from the API, not from inside a token.
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id, email, role: user.role },
-      { secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }), expiresIn: accessTtl },
+      { sub: user.id },
+      { secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }), expiresIn: accessTtl, algorithm: TOKEN_ALGORITHM, audience: ACCOUNT_AUDIENCE },
     );
     const refreshToken = randomBytes(48).toString('hex');
     await this.prisma.refreshToken.create({

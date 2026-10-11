@@ -8,8 +8,8 @@
  *      flipping the admin toggle revokes every active session instantly —
  *      no token rotation needed).
  *   2. A `reviewerPasswordHash` is configured.
- *   3. The `reviewer_session` cookie carries a valid JWT signed by
- *      JWT_ACCESS_SECRET with `kind: 'reviewer'`.
+ *   3. The `reviewer_session` cookie carries a valid token of a reviewer
+ *      session, signed with the reviewer key.
  *
  * On success attaches `req.reviewer = { label, locale }` so controllers can
  * scope every operation to the cookie's locale.
