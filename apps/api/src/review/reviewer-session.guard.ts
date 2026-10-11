@@ -24,11 +24,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
+import { readCookie } from '../common/cookies.js';
 import type { Env } from '../config/env.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
 import {
   REVIEWER_COOKIE_NAME,
-  readCookie,
   resolveReviewerSecret,
   verifyReviewerCookie,
   type ReviewerSession,

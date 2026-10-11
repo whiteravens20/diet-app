@@ -7,9 +7,6 @@
  * httpOnly + sameSite=lax. It is signed with a key of its own and made for
  * the reviewer panel (its audience says so): it is no access token of an
  * account, and an access token is no reviewer session.
- *
- * Cookies are parsed inline from the `Cookie` header to avoid pulling in
- * `cookie-parser` for this single cookie name.
  */
 import type { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
@@ -74,32 +71,6 @@ export function verifyReviewerCookie(
   } catch {
     return null;
   }
-}
-
-/**
- * Minimal `Cookie:` header parser — handles `a=1; b=2; reviewer_session=...`
- * and percent-decodes the value. Avoids the `cookie-parser` middleware
- * dependency for a single named cookie.
- */
-export function readCookie(
-  cookieHeader: string | undefined,
-  name: string,
-): string | undefined {
-  if (!cookieHeader) return undefined;
-  const parts = cookieHeader.split(';');
-  for (const part of parts) {
-    const eq = part.indexOf('=');
-    if (eq === -1) continue;
-    const k = part.slice(0, eq).trim();
-    if (k !== name) continue;
-    const v = part.slice(eq + 1).trim();
-    try {
-      return decodeURIComponent(v);
-    } catch {
-      return v;
-    }
-  }
-  return undefined;
 }
 
 /**

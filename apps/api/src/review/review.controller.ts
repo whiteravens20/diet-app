@@ -60,6 +60,7 @@ import { DraftService, type Actor, type Page } from '../admin/drafts/draft.servi
 import { toIngredientNameReviewSlice, toRecipeReviewSlice } from '../admin/drafts/drafts.mapper.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { verifyPassword } from '../common/password-hash.js';
+import { readCookie } from '../common/cookies.js';
 import type { Env } from '../config/env.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
 import { SignInGate } from '../rate-limit/sign-in-gate.js';
@@ -67,7 +68,6 @@ import { ReviewerSessionGuard, type ReviewerRequest } from './reviewer-session.g
 import {
   REVIEWER_COOKIE_NAME,
   buildReviewerSetCookie,
-  readCookie,
   resolveReviewerSecret,
   signReviewerCookie,
   verifyReviewerCookie,
