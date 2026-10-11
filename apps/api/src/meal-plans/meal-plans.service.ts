@@ -7,12 +7,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
   fitsDiet,
   Locale as LocaleEnum,
   MEAL_SLOTS_BY_COUNT,
+  PlanOptions,
   type AddCustomMealRequest,
   type AiGenerationMeta,
   type AiSuggestIngredientRequest,
@@ -123,6 +125,18 @@ export class MealPlansService {
   /** Deterministically generate and persist a meal plan. */
   async generate(userId: string, locale: Locale, req: GeneratePlanRequest): Promise<MealPlan> {
     const profile = await this.loadProfile(userId, req.profileId);
+    // What was asked for stays with the plan; what was left to the profile is
+    // kept as left to the profile.
+    const options: PlanOptions = {
+      dietType: req.dietType ?? null,
+      mealCount: req.mealCount ?? null,
+      calorieTargetOverride: req.calorieTargetOverride ?? null,
+      mealPrepFriendly: req.mealPrepFriendly,
+      respectExclusions: req.respectExclusions,
+      respectFavorites: req.respectFavorites,
+      respectInventory: req.respectInventory,
+      maxRepeatsPerRecipe: req.maxRepeatsPerRecipe ?? null,
+    };
     const base = this.planBase(profile, req.calorieTargetOverride);
     const baseCalorieTarget = base.target;
     const dietType = req.dietType ?? profile.dietType;
@@ -140,8 +154,7 @@ export class MealPlansService {
       dayOverrides: req.dayOverrides,
     });
 
-    // Deterministic seed: count of existing plans → "regenerate" yields variety.
-    const seed = await this.prisma.mealPlan.count({ where: { profileId: profile.id } });
+    const seed = newSeed();
     const result = await this.optimiseFor(userId, profile, {
       days: resolvedDays,
       dietType,
@@ -162,7 +175,8 @@ export class MealPlansService {
         calorieTarget: baseCalorieTarget,
         generationMode: 'deterministic',
         reuseScore: result.ingredientReuseScore,
-        maxRepeatsPerRecipe: req.maxRepeatsPerRecipe ?? null,
+        options,
+        seed,
         days: { create: buildDays(resolvedDays, result.assignments) },
       },
     });
@@ -189,16 +203,19 @@ export class MealPlansService {
     }
 
     const profile = await this.loadProfile(userId, existing.profileId);
-    // Picks up profile changes (calorie target, diet) for non-overridden days,
-    // while re-applying each day's persisted overrides (meal count, per-day
-    // calorie target, locks, skip, cook-time budget, use-up-by).
-    const base = this.planBase(profile);
+    // The plan is made again as it was made: with what was asked for then,
+    // with the profile as it is now for what was left to the profile, and
+    // with what each day carries of its own (meal count, calorie target,
+    // locks, skip, cooking time, use-up-by).
+    const made = PlanOptions.parse(existing.options);
+    const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
     const baseCalorieTarget = base.target;
+    const dietType = made.dietType ?? profile.dietType;
     const resolvedDays: ResolvedDay[] = existing.days.map((day) => {
       const o = parseDayOverrides(day.overrides);
       // Custom meals don't define a slot count — count catalogue meals only.
       const catalogueCount = day.meals.filter((m) => m.source === 'CATALOGUE').length;
-      const mealCount = o?.mealCount ?? (catalogueCount || profile.mealCount);
+      const mealCount = o?.mealCount ?? made.mealCount ?? (catalogueCount || profile.mealCount);
       return {
         date: day.date,
         isoDate: isoDate(day.date),
@@ -212,13 +229,17 @@ export class MealPlansService {
       };
     });
 
+    const seed = newSeed();
     const result = await this.optimiseFor(userId, profile, {
       days: resolvedDays,
-      dietType: profile.dietType,
-      mealPrepFriendly: false,
-      maxRepeatsPerRecipe: existing.maxRepeatsPerRecipe ?? undefined,
+      dietType,
+      mealPrepFriendly: made.mealPrepFriendly,
+      respectExclusions: made.respectExclusions,
+      respectFavorites: made.respectFavorites,
+      respectInventory: made.respectInventory,
+      maxRepeatsPerRecipe: made.maxRepeatsPerRecipe ?? undefined,
       dropIneligibleLocks: options.dropIneligibleLocks,
-      seed: Date.now(),
+      seed,
     });
 
     await writePlan(this.prisma, planId, existing.revision, async (tx) => {
@@ -227,8 +248,9 @@ export class MealPlansService {
         where: { id: planId },
         data: {
           calorieTarget: baseCalorieTarget,
-          dietType: profile.dietType,
+          dietType,
           reuseScore: result.ingredientReuseScore,
+          seed,
           days: { create: buildDays(resolvedDays, result.assignments) },
         },
       });
@@ -266,8 +288,9 @@ export class MealPlansService {
       return this.get(userId, locale, planId);
     }
 
+    const made = PlanOptions.parse(day.plan.options);
     const catalogueCount = day.meals.filter((m) => m.source === 'CATALOGUE').length;
-    const mealCount = o?.mealCount ?? (catalogueCount || profile.mealCount);
+    const mealCount = o?.mealCount ?? made.mealCount ?? (catalogueCount || profile.mealCount);
     const resolved: ResolvedDay = {
       date: day.date,
       isoDate: isoDate(day.date),
@@ -283,10 +306,13 @@ export class MealPlansService {
     const result = await this.optimiseFor(userId, profile, {
       days: [resolved],
       dietType: day.plan.dietType,
-      mealPrepFriendly: false,
-      maxRepeatsPerRecipe: day.plan.maxRepeatsPerRecipe ?? undefined,
+      mealPrepFriendly: made.mealPrepFriendly,
+      respectExclusions: made.respectExclusions,
+      respectFavorites: made.respectFavorites,
+      respectInventory: made.respectInventory,
+      maxRepeatsPerRecipe: made.maxRepeatsPerRecipe ?? undefined,
       dropIneligibleLocks: options.dropIneligibleLocks,
-      seed: Date.now(),
+      seed: newSeed(),
     });
 
     await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
@@ -1912,6 +1938,7 @@ export class MealPlansService {
       targetMacros: { protein: 0, fat: 0, carbs: 0 },
       ingredientReuseScore: plan.reuseScore,
       generationMode: plan.generationMode,
+      options: PlanOptions.parse(plan.options),
       revision: plan.revision,
       createdAt: plan.createdAt.toISOString(),
     };
@@ -1928,6 +1955,7 @@ interface PlanWithRelations {
   dietType: MealPlan['dietType'];
   reuseScore: number;
   generationMode: 'deterministic' | 'ai_assisted';
+  options: unknown;
   revision: number;
   createdAt: Date;
   /** Whose plan it is: the floor a day's target is compared with follows from it. */
@@ -2046,6 +2074,11 @@ function buildOverridesJson(o: DayOverride | undefined): DayOverridesJson | null
  * sparse `dayOverrides` over the plan defaults. Validates that override dates fall
  * inside the plan range and that each locked slot belongs to its day's slot set.
  */
+/** A random value for one generation: any 32-bit integer, which is what the column holds. */
+function newSeed(): number {
+  return randomInt(-(2 ** 31), 2 ** 31);
+}
+
 /**
  * The base target of a plan and how it came about: what the target of each
  * of its days is decided from.

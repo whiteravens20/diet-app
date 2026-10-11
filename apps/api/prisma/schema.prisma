@@ -498,10 +498,11 @@ model MealPlan {
   calorieTarget  Int
   generationMode GenerationMode @default(deterministic)
   reuseScore     Float          @default(0)
-  // Variety floor: max total times any one recipe may appear across the
-  // whole plan window. Null = no floor. Persisted so
-  // `regenerate` re-applies the same constraint.
-  maxRepeatsPerRecipe Int?
+  // What the plan was asked for (`PlanOptions` of the shared contract): what
+  // making it again, and changing a meal of it, goes by.
+  options        Json
+  // The random value the choices of its last generation were drawn with.
+  seed           Int
   // Counts the changes made to the plan. A change is written only if the
   // revision is still the one it was computed from, so two requests that
   // overlap cannot both rewrite the plan.

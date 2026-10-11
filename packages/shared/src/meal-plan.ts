@@ -74,8 +74,7 @@ export const GeneratePlanRequest = z.object({
   respectInventory: z.boolean().default(true),
   /**
    * Variety floor: max total times any one recipe may appear across the
-   * whole plan window. Omitted = no floor. Persisted on the plan so
-   * `regenerate` re-applies it.
+   * whole plan window. Omitted = no floor.
    */
   maxRepeatsPerRecipe: z.number().int().min(1).max(28).optional(),
   /** Per-day advanced overrides (sparse — untouched days are omitted). */
@@ -83,7 +82,24 @@ export const GeneratePlanRequest = z.object({
 });
 export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
 
-/** A single scheduled meal within a plan day. */
+/**
+ * What a plan was asked for, kept with it so that making it again, or changing
+ * a meal of it, asks for the same. `dietType`, `mealCount` and
+ * `calorieTargetOverride` are null when the request left them to the profile:
+ * the plan then follows the profile as it is when the plan is made again.
+ */
+export const PlanOptions = z.object({
+  dietType: DietType.nullable(),
+  mealCount: z.number().int().min(2).max(5).nullable(),
+  calorieTargetOverride: z.number().int().nullable(),
+  mealPrepFriendly: z.boolean(),
+  respectExclusions: z.boolean(),
+  respectFavorites: z.boolean(),
+  respectInventory: z.boolean(),
+  maxRepeatsPerRecipe: z.number().int().nullable(),
+});
+export type PlanOptions = z.infer<typeof PlanOptions>;
+
 /**
  * One ingredient of a planned meal, in the amount this meal uses: the recipe's
  * line scaled by the meal's servings and by the rebalancer's multiplier.
@@ -100,6 +116,7 @@ export const PlannedIngredient = z.object({
 });
 export type PlannedIngredient = z.infer<typeof PlannedIngredient>;
 
+/** A single scheduled meal within a plan day. */
 export const PlannedMeal = z.object({
   id: z.string().uuid(),
   mealType: MealType,
@@ -191,6 +208,8 @@ export const MealPlan = z.object({
   ingredientReuseScore: z.number().min(0).max(1),
   /** `deterministic` = engine only; `ai_assisted` = AI-drafted + validated. */
   generationMode: z.enum(['deterministic', 'ai_assisted']),
+  /** What the plan was asked for. */
+  options: PlanOptions,
   /**
    * How many times the plan has been changed. A change computed from an older
    * revision is refused with `PLAN_CHANGED`, so a client that sees that code

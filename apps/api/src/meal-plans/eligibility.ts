@@ -12,7 +12,7 @@
  */
 import { BadRequestException } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { fitsDiet, type DietType } from '@diet-app/shared';
+import { fitsDiet, PlanOptions, type DietType } from '@diet-app/shared';
 import { recipesForDiet } from '../recipes/diet-where.js';
 
 /** What a profile's plan must never contain, and whose recipes it may use. */
@@ -105,12 +105,17 @@ export function poolWhere(
   };
 }
 
-/** The restrictions of a plan, read from its profile as the profile is now. */
+/**
+ * The restrictions of a plan, read from its profile as the profile is now. A
+ * plan that was asked to leave the skipped ingredients aside goes on doing so;
+ * allergens and avoided recipes hold for every plan.
+ */
 export async function restrictionsFor(
   db: Pick<PrismaClient, 'favorite'>,
   plan: {
     dietType: string;
     profileId: string;
+    options: unknown;
     profile: {
       userId: string;
       preferences: { allergens: string[]; excludedIngredientIds: string[] } | null;
@@ -121,11 +126,12 @@ export async function restrictionsFor(
     where: { profileId: plan.profileId, sentiment: 'avoid' },
     select: { recipeId: true },
   });
+  const { respectExclusions } = PlanOptions.parse(plan.options);
   return {
     userId: plan.profile.userId,
     diet: plan.dietType as DietType,
     allergens: plan.profile.preferences?.allergens ?? [],
-    excludedIngredientIds: plan.profile.preferences?.excludedIngredientIds ?? [],
+    excludedIngredientIds: respectExclusions ? (plan.profile.preferences?.excludedIngredientIds ?? []) : [],
     avoidedRecipeIds: avoided.map((row) => row.recipeId),
   };
 }
