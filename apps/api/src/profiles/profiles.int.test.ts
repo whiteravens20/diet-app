@@ -1,10 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { Profile } from '@diet-app/shared';
+import { MAX_PROFILES_PER_ACCOUNT, type Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 describe('changing a profile', () => {
@@ -134,5 +134,18 @@ describe('changing a profile', () => {
 
       expect(changed.preferences).toMatchObject({ allergens: ['soy'], favoriteIngredientIds: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3 });
     });
+  });
+
+  it('is one of as many as an account may have, however many more are asked for together', async () => {
+    const another = { name: 'Another', age: 30, sex: 'male', heightCm: 180, weightKg: 80 };
+
+    const answers = await race(MAX_PROFILES_PER_ACCOUNT + 3, () => t.http().post('/api/profiles').set(as(user)).send(another));
+
+    const made = answers.flatMap((answer) => (answer.status === 'fulfilled' ? [answer.value] : []));
+    expect(made).toHaveLength(MAX_PROFILES_PER_ACCOUNT + 3);
+    // The account has one already.
+    expect(made.filter((answer) => answer.status === 201)).toHaveLength(MAX_PROFILES_PER_ACCOUNT - 1);
+    expect(new Set(made.filter((answer) => answer.status !== 201).map((answer) => `${answer.status} ${answer.body.error}`))).toEqual(new Set(['409 PROFILE_LIMIT_REACHED']));
+    expect(await t.prisma.profile.count({ where: { userId: user.id } })).toBe(MAX_PROFILES_PER_ACCOUNT);
   });
 });

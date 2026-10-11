@@ -17,6 +17,7 @@ import {
   riskOfLosingWeight,
   WeightReminderCadence,
 } from '@diet-app/shared';
+import { holdAccount } from '../common/hold.js';
 import { calculateCalories } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -52,31 +53,34 @@ export class ProfilesService {
   }
 
   async create(userId: string, input: ProfileInput): Promise<Profile> {
-    const count = await this.prisma.profile.count({ where: { userId } });
-    if (count >= MAX_PROFILES_PER_ACCOUNT) {
-      throw new ConflictException({
-        error: 'PROFILE_LIMIT_REACHED',
-        message: `An account can have at most ${MAX_PROFILES_PER_ACCOUNT} profiles. Delete one to add another.`,
+    const row = await this.prisma.$transaction(async (tx) => {
+      await holdAccount(tx, userId);
+      const count = await tx.profile.count({ where: { userId } });
+      if (count >= MAX_PROFILES_PER_ACCOUNT) {
+        throw new ConflictException({
+          error: 'PROFILE_LIMIT_REACHED',
+          message: `An account can have at most ${MAX_PROFILES_PER_ACCOUNT} profiles. Delete one to add another.`,
+        });
+      }
+      return tx.profile.create({
+        data: {
+          userId,
+          name: input.name,
+          age: input.age,
+          sex: input.sex,
+          heightCm: input.heightCm,
+          weightKg: input.weightKg,
+          activityLevel: input.activityLevel,
+          dietType: input.dietType,
+          weeklyLossTarget: input.weeklyLossTarget,
+          manualCalorieTarget: input.manualCalorieTarget,
+          riskAcknowledgedAt: acknowledgedAt(input, null),
+          mealCount: input.mealCount,
+          weightReminderCadence: input.weightReminderCadence,
+          preferences: { create: input.preferences },
+        },
+        include: { preferences: true },
       });
-    }
-    const row = await this.prisma.profile.create({
-      data: {
-        userId,
-        name: input.name,
-        age: input.age,
-        sex: input.sex,
-        heightCm: input.heightCm,
-        weightKg: input.weightKg,
-        activityLevel: input.activityLevel,
-        dietType: input.dietType,
-        weeklyLossTarget: input.weeklyLossTarget,
-        manualCalorieTarget: input.manualCalorieTarget,
-        riskAcknowledgedAt: acknowledgedAt(input, null),
-        mealCount: input.mealCount,
-        weightReminderCadence: input.weightReminderCadence,
-        preferences: { create: input.preferences },
-      },
-      include: { preferences: true },
     });
     return this.toDto(row);
   }

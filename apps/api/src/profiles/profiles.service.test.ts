@@ -35,7 +35,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
 }
 
 function makePrisma(row = makeRow(), count = 0) {
-  return {
+  const prisma = {
     profile: {
       findMany: vi.fn().mockResolvedValue([row]),
       findUnique: vi.fn().mockResolvedValue(row),
@@ -44,7 +44,11 @@ function makePrisma(row = makeRow(), count = 0) {
       update: vi.fn().mockResolvedValue(row),
       delete: vi.fn().mockResolvedValue(row),
     },
+    $queryRaw: vi.fn().mockResolvedValue([]),
+    // A transaction sees the same tables as the client it was begun on.
+    $transaction: vi.fn().mockImplementation((work: (tx: unknown) => unknown) => work(prisma)),
   };
+  return prisma;
 }
 
 function makeService(prisma: ReturnType<typeof makePrisma>) {
