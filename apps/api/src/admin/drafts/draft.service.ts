@@ -72,6 +72,9 @@ export interface Page<T> {
 
 const WITH_REVIEWS = { localeReviews: true } as const;
 
+/** One ingredient line of a draft, as the engine reads it. */
+type RecipeLine = { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece' };
+
 function notFound(): NotFoundException {
   return new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
 }
@@ -237,7 +240,9 @@ export class DraftService {
    * whole. With `dryRun` the result is returned and nothing is stored.
    *
    * A draft that stands for recipes users made takes changes to its text
-   * only: its ingredients are theirs, and it is recognised by them.
+   * only: its ingredients are theirs, and it is recognised by them. For such
+   * a draft the figures are worked out again all the same, so that it can be
+   * approved with what the catalogue says today.
    */
   editRecipe(id: string, patch: RecipeDraftPatch, by: Actor, options: { dryRun?: boolean } = {}): Promise<RecipeDraftRow> {
     return this.prisma.$transaction(async (tx) => {
@@ -260,7 +265,7 @@ export class DraftService {
         // rows, with the figures the engine gave them.
         const checked = checkRecipeText(text, draft.locales);
         if (!checked.ok) throw invalid(checked.problems);
-        data = checked.text;
+        data = { ...checked.text, ...(await this.factsOf(tx, draft.ingredientsJson as RecipeLine[], draft.servings)) };
       } else {
         const checked = checkRecipe(
           {
@@ -416,12 +421,25 @@ export class DraftService {
   }
 
   /** What the engine makes of a recipe's ingredients, and the band of generated recipes it falls into. */
-  private async derive(
-    tx: Tx,
-    recipe: { ingredients: { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece' }[]; servings: number; steps: Record<string, string[]>; prepMinutes: number; cookMinutes: number },
-  ) {
+  private async derive(tx: Tx, recipe: { ingredients: RecipeLine[]; servings: number; steps: Record<string, string[]>; prepMinutes: number; cookMinutes: number }) {
+    const facts = await this.factsOf(tx, recipe.ingredients, recipe.servings);
+
+    const stepCount = recipe.steps.en?.length ?? Object.values(recipe.steps)[0]?.length ?? 0;
+    const totalMinutes = recipe.prepMinutes + recipe.cookMinutes;
+    const complexity = classifyComplexity({ ingredientCount: recipe.ingredients.length, stepCount, totalMinutes });
+    if (complexity === null) {
+      throw new BadRequestException({
+        error: 'OUT_OF_COMPLEXITY_BAND',
+        message: `recipe is outside every complexity band (ingredients=${recipe.ingredients.length}, steps=${stepCount}, minutes=${totalMinutes})`,
+      });
+    }
+    return { complexity, ...facts };
+  }
+
+  /** The figures of a draft: what the engine makes of its ingredients with today's ingredient table. */
+  private async factsOf(tx: Tx, ingredients: RecipeLine[], servings: number) {
     const rows = await tx.ingredient.findMany({
-      where: { slug: { in: [...new Set(recipe.ingredients.map((line) => line.slug))] } },
+      where: { slug: { in: [...new Set(ingredients.map((line) => line.slug))] } },
       select: {
         slug: true,
         canonicalUnit: true,
@@ -436,7 +454,7 @@ export class DraftService {
       },
     });
     const bySlug = new Map(rows.map((row) => [row.slug!, row]));
-    const lines = recipe.ingredients.map((line) => {
+    const lines = ingredients.map((line) => {
       const ingredient = bySlug.get(line.slug);
       if (!ingredient) {
         throw new BadRequestException({ error: 'UNKNOWN_SLUG', message: `ingredient slug "${line.slug}" not found in the curated catalogue` });
@@ -445,23 +463,12 @@ export class DraftService {
     });
     let facts: RecipeFacts;
     try {
-      facts = recipeFacts(lines, recipe.servings);
+      facts = recipeFacts(lines, servings);
     } catch (err) {
       if (!(err instanceof UnitConversionError)) throw err;
       throw new BadRequestException({ error: 'UNIT_CONVERSION_FAILED', message: err.message });
     }
-
-    const stepCount = recipe.steps.en?.length ?? Object.values(recipe.steps)[0]?.length ?? 0;
-    const totalMinutes = recipe.prepMinutes + recipe.cookMinutes;
-    const complexity = classifyComplexity({ ingredientCount: recipe.ingredients.length, stepCount, totalMinutes });
-    if (complexity === null) {
-      throw new BadRequestException({
-        error: 'OUT_OF_COMPLEXITY_BAND',
-        message: `recipe is outside every complexity band (ingredients=${recipe.ingredients.length}, steps=${stepCount}, minutes=${totalMinutes})`,
-      });
-    }
     return {
-      complexity,
       dietTags: facts.dietTags,
       allergens: facts.allergens,
       caloriesPerServing: facts.perServing.calories,

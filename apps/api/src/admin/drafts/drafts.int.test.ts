@@ -237,6 +237,16 @@ describe('the curation queue', () => {
       expect(refused.body.error).toBe('DRAFT_STRUCTURAL_EDIT_FORBIDDEN');
     });
 
+    it('of the text of a recipe users made has the engine work its figures out again', async () => {
+      // Stored with figures the catalogue no longer gives it.
+      const draft = await aRecipeDraft(t, { source: 'AI_USER', caloriesPerServing: 5, allergens: ['dairy'] });
+      const figures = await aRecipeDraft(t);
+
+      const edited = await admin.edit(draft.id, { titles: { pl: 'Owsianka domowa' } }).expect(200);
+
+      expect(edited.body).toMatchObject({ caloriesPerServing: figures.caloriesPerServing, allergens: figures.allergens, status: 'PENDING' });
+    });
+
     it('of the name of an ingredient keeps only the languages the draft is in, and wants each of them', async () => {
       const draft = await anIngredientNameDraft(t);
 
