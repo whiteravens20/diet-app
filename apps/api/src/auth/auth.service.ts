@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
-  AuthResponse,
   LoginRequest,
   PasswordResetConfirm,
   PasswordResetRequest,
@@ -26,7 +25,7 @@ import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
 import { retirePendingLinks } from './one-time-links.js';
-import { SessionsService } from './sessions.service.js';
+import { type OpenedSession, SessionsService } from './sessions.service.js';
 import { TurnstileService } from './turnstile.service.js';
 
 /** An account may ask for its verification mail again this long after the last one went out. */
@@ -65,7 +64,7 @@ export class AuthService {
     );
   }
 
-  async register(dto: RegisterRequest, locale: Locale = 'en', openedFrom: string | null = null): Promise<AuthResponse> {
+  async register(dto: RegisterRequest, locale: Locale = 'en', openedFrom: string | null = null): Promise<OpenedSession> {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
     const emailIndex = this.emails.indexOf(email);
@@ -155,7 +154,7 @@ export class AuthService {
     return createHmac('sha256', Buffer.from(this.linkKey, 'hex')).update(`email-verification:${id}`).digest('hex');
   }
 
-  async login(dto: LoginRequest, openedFrom: string | null = null): Promise<AuthResponse> {
+  async login(dto: LoginRequest, openedFrom: string | null = null): Promise<OpenedSession> {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
     const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });

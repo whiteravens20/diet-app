@@ -19,6 +19,13 @@ export interface SessionAccount {
 }
 
 /**
+ * A session as this service hands it out: always with its refresh token.
+ * Whether that reaches the client in the answer or in a cookie is for
+ * whoever answers the request to say.
+ */
+export type OpenedSession = AuthResponse & { tokens: { refreshToken: string } };
+
+/**
  * For this long after a refresh token was used, presenting it again is taken
  * for a second request of the same client (two tabs waking up together) and
  * not for a copy of it.
@@ -53,19 +60,20 @@ export class SessionsService {
   ) {}
 
   /** Open a session for an account that has just proved who it is. */
-  async open(user: SessionAccount, email: string, label: string | null = null): Promise<AuthResponse> {
+  async open(user: SessionAccount, email: string, label: string | null = null): Promise<OpenedSession> {
     const now = Date.now();
     const familyId = randomUUID();
     const familyExpiresAt = new Date(now + this.config.get('JWT_SESSION_TTL', { infer: true }) * 1000);
     const refreshToken = newToken();
+    const expiresAt = this.tokenExpiry(now, familyExpiresAt);
     await this.prisma.refreshToken.create({
-      data: { userId: user.id, tokenHash: sha256(refreshToken), familyId, familyExpiresAt, label, expiresAt: this.tokenExpiry(now, familyExpiresAt) },
+      data: { userId: user.id, tokenHash: sha256(refreshToken), familyId, familyExpiresAt, label, expiresAt },
     });
-    return this.answer(user, email, refreshToken, familyId);
+    return this.answer(user, email, { refreshToken, expiresAt, now }, familyId);
   }
 
   /** Exchange a refresh token for the next pair of its session. */
-  async refresh(refreshToken: string): Promise<AuthResponse> {
+  async refresh(refreshToken: string): Promise<OpenedSession> {
     const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(refreshToken) }, include: { user: true } });
     const now = Date.now();
     if (!stored || stored.revokedAt || stored.expiresAt.getTime() < now || stored.familyExpiresAt.getTime() < now) throw refused();
@@ -77,6 +85,7 @@ export class SessionsService {
     }
 
     const next = newToken();
+    const expiresAt = this.tokenExpiry(now, stored.familyExpiresAt);
     const claimed = await this.prisma.$transaction(async (tx) => {
       // Only one request gets to use a token, however many present it together.
       const claim = await tx.refreshToken.updateMany({ where: { id: stored.id, rotatedAt: null, revokedAt: null }, data: { rotatedAt: new Date(now) } });
@@ -88,7 +97,7 @@ export class SessionsService {
           familyId: stored.familyId,
           familyExpiresAt: stored.familyExpiresAt,
           label: stored.label,
-          expiresAt: this.tokenExpiry(now, stored.familyExpiresAt),
+          expiresAt,
         },
       });
       return true;
@@ -98,7 +107,7 @@ export class SessionsService {
       const again = await this.prisma.refreshToken.findUnique({ where: { id: stored.id }, select: { revokedAt: true } });
       throw again?.revokedAt ? refused() : justRefreshed();
     }
-    return this.answer(stored.user, this.emails.open(stored.user.emailEncrypted, stored.user.id), next, stored.familyId);
+    return this.answer(stored.user, this.emails.open(stored.user.emailEncrypted, stored.user.id), { refreshToken: next, expiresAt, now }, stored.familyId);
   }
 
   /** End the session a refresh token belongs to, with every token it ever had. */
@@ -151,7 +160,12 @@ export class SessionsService {
     return new Date(Math.min(unused, familyExpiresAt.getTime()));
   }
 
-  private async answer(user: SessionAccount, email: string, refreshToken: string, sessionId: string): Promise<AuthResponse> {
+  private async answer(
+    user: SessionAccount,
+    email: string,
+    refresh: { refreshToken: string; expiresAt: Date; now: number },
+    sessionId: string,
+  ): Promise<OpenedSession> {
     const accessTtl = this.config.get('JWT_ACCESS_TTL', { infer: true });
     // Whose it is, and nothing else: whatever a client shows of the account
     // comes from the API, not from inside a token.
@@ -167,7 +181,7 @@ export class SessionsService {
         role: user.role,
         emailVerified: user.emailVerified,
       },
-      tokens: { accessToken, refreshToken, expiresIn: accessTtl },
+      tokens: { accessToken, refreshToken: refresh.refreshToken, expiresIn: accessTtl, refreshExpiresIn: Math.round((refresh.expiresAt.getTime() - refresh.now) / 1000) },
       sessionId,
     };
   }

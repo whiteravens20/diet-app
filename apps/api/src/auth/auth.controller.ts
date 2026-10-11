@@ -1,8 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpException, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import {
+  type AuthResponse,
   ConfirmEmailChangeRequest,
   type Locale,
   LoginRequest,
@@ -12,10 +15,13 @@ import {
   RegisterRequest,
   VerifyEmailRequest,
 } from '@diet-app/shared';
+import { readCookie } from '../common/cookies.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
-import { byAccount, byAccountAndAddress, byToken, TriesCredential } from '../rate-limit/trackers.js';
+import type { Env } from '../config/env.js';
+import { byAccount, byAccountAndAddress, byRefreshToken, byToken, TriesCredential } from '../rate-limit/trackers.js';
 import { AuthService } from './auth.service.js';
+import { asksForCookies, assertFromTheApplication, noSessionCookies, REFRESH_COOKIE, sessionCookies, withoutRefreshToken } from './session-cookies.js';
 import { sessionLabel } from './session-label.js';
 import { SessionsService } from './sessions.service.js';
 
@@ -35,18 +41,39 @@ const QUARTER_HOUR = 15 * MINUTE;
 @Controller('auth')
 @Throttle({ default: { limit: 10, ttl: MINUTE } })
 export class AuthController {
+  private readonly appUrl: string;
+
   constructor(
     private readonly auth: AuthService,
     private readonly sessions: SessionsService,
-  ) {}
+    config: ConfigService<Env, true>,
+  ) {
+    this.appUrl = config.get('APP_URL', { infer: true });
+  }
+
+  /** Hand a new session to the client in the way it asked for: in cookies to a browser, in the answer to any other. */
+  private begun(req: Request, res: Response, answer: AuthResponse): AuthResponse {
+    if (!asksForCookies(req.headers)) return answer;
+    res.setHeader('Set-Cookie', sessionCookies(answer.tokens, this.appUrl));
+    return withoutRefreshToken(answer);
+  }
+
+  /** The refresh token of a browser's session, from its cookie, for a request that comes from the application's own pages. */
+  private cookieOf(req: Request): string {
+    const token = readCookie(req.headers.cookie, REFRESH_COOKIE);
+    if (!token) throw new UnauthorizedException({ error: 'INVALID_REFRESH', message: 'Refresh token rejected.' });
+    assertFromTheApplication(req.headers.origin, this.appUrl);
+    return token;
+  }
 
   @Post('register')
-  register(
+  async register(
     @Body(new ZodValidationPipe(RegisterRequest)) dto: RegisterRequest,
     @RequestLocale() locale: Locale,
-    @Headers('user-agent') userAgent?: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.auth.register(dto, locale, sessionLabel(userAgent));
+    return this.begun(req, res, await this.auth.register(dto, locale, sessionLabel(req.headers['user-agent'])));
   }
 
   // Ten tries in a quarter of an hour at one account from one address: whoever
@@ -58,8 +85,8 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: QUARTER_HOUR } })
   @TriesCredential({ by: byAccountAndAddress, limit: 10, ttl: QUARTER_HOUR }, { by: byAccount, limit: 50, ttl: QUARTER_HOUR })
-  login(@Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest, @Headers('user-agent') userAgent?: string) {
-    return this.auth.login(dto, sessionLabel(userAgent));
+  async login(@Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.begun(req, res, await this.auth.login(dto, sessionLabel(req.headers['user-agent'])));
   }
 
   // Thirty a minute for one sender: many people behind one address refresh
@@ -67,17 +94,32 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: MINUTE } })
-  @TriesCredential({ by: byToken('refreshToken'), limit: 10, ttl: MINUTE })
-  refresh(@Body(new ZodValidationPipe(RefreshRequest)) dto: RefreshRequest) {
-    return this.sessions.refresh(dto.refreshToken);
+  @TriesCredential({ by: byRefreshToken, limit: 10, ttl: MINUTE })
+  async refresh(@Body(new ZodValidationPipe(RefreshRequest.prefault({}))) dto: RefreshRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    // A client that keeps its own tokens sends one, and gets the next in the answer.
+    if (dto.refreshToken) return this.sessions.refresh(dto.refreshToken);
+
+    const token = this.cookieOf(req);
+    try {
+      const answer = await this.sessions.refresh(token);
+      res.setHeader('Set-Cookie', sessionCookies(answer.tokens, this.appUrl));
+      return withoutRefreshToken(answer);
+    } catch (err) {
+      // A session that has ended leaves no cookies behind; one that another tab just refreshed keeps the ones that tab was given.
+      if (err instanceof HttpException && err.getStatus() === 401) res.setHeader('Set-Cookie', noSessionCookies(this.appUrl));
+      throw err;
+    }
   }
 
   @Post('logout')
   @HttpCode(204)
   @Throttle({ default: { limit: 30, ttl: MINUTE } })
-  @TriesCredential({ by: byToken('refreshToken'), limit: 10, ttl: MINUTE })
-  async logout(@Body(new ZodValidationPipe(RefreshRequest)) dto: RefreshRequest) {
-    await this.sessions.end(dto.refreshToken);
+  @TriesCredential({ by: byRefreshToken, limit: 10, ttl: MINUTE })
+  async logout(@Body(new ZodValidationPipe(RefreshRequest.prefault({}))) dto: RefreshRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    if (dto.refreshToken) return this.sessions.end(dto.refreshToken);
+
+    await this.sessions.end(this.cookieOf(req));
+    res.setHeader('Set-Cookie', noSessionCookies(this.appUrl));
   }
 
   // Every accepted request sends a mail: five in a quarter of an hour for one

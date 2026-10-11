@@ -211,6 +211,7 @@
     "INVALID_REFRESH": "Your session expired. Please sign in again.",
     "SESSION_JUST_REFRESHED": "Your session was refreshed in another tab a moment ago. Try again.",
     "SESSION_NOT_FOUND": "That session is no longer open.",
+    "ORIGIN_NOT_ALLOWED": "This request has to come from the application itself. Reload the page and try again.",
     "INVALID_RESET_TOKEN": "This reset link is invalid or has expired.",
     "TURNSTILE_FAILED": "Anti-abuse check failed. Please try again.",
     "USER_NOT_FOUND": "Account not found.",

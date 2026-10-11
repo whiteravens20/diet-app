@@ -21,9 +21,9 @@ export const tokenStore = {
   get refresh(): string | null {
     return typeof window === 'undefined' ? null : localStorage.getItem(REFRESH_KEY);
   },
-  set(tokens: { accessToken: string; refreshToken: string }): void {
+  set(tokens: { accessToken: string; refreshToken?: string }): void {
     localStorage.setItem(ACCESS_KEY, tokens.accessToken);
-    localStorage.setItem(REFRESH_KEY, tokens.refreshToken);
+    if (tokens.refreshToken) localStorage.setItem(REFRESH_KEY, tokens.refreshToken);
   },
   clear(): void {
     localStorage.removeItem(ACCESS_KEY);

@@ -211,6 +211,7 @@
     "INVALID_REFRESH": "Sesja wygasła. Zaloguj się ponownie.",
     "SESSION_JUST_REFRESHED": "Sesja została przed chwilą odświeżona w innej karcie. Spróbuj ponownie.",
     "SESSION_NOT_FOUND": "Ta sesja nie jest już otwarta.",
+    "ORIGIN_NOT_ALLOWED": "To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie.",
     "INVALID_RESET_TOKEN": "Ten link do resetu jest nieprawidłowy lub wygasł.",
     "TURNSTILE_FAILED": "Weryfikacja antynadużyciowa nie powiodła się.",
     "USER_NOT_FOUND": "Nie znaleziono konta.",

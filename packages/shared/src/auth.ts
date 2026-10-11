@@ -52,8 +52,12 @@ export const PasswordResetConfirm = z.object({
 });
 export type PasswordResetConfirm = z.infer<typeof PasswordResetConfirm>;
 
+/**
+ * A client that keeps its own tokens sends the refresh token here. A browser
+ * sends nothing: its token is in a cookie the API set.
+ */
 export const RefreshRequest = z.object({
-  refreshToken: z.string().min(1),
+  refreshToken: z.string().min(1).optional(),
 });
 export type RefreshRequest = z.infer<typeof RefreshRequest>;
 
@@ -72,8 +76,15 @@ export type ConfirmEmailChangeRequest = z.infer<typeof ConfirmEmailChangeRequest
 /** Token pair returned by login / register / refresh. */
 export const AuthTokens = z.object({
   accessToken: z.string(),
-  refreshToken: z.string(),
+  /**
+   * Absent for a browser that asked for a cookie session (the request header
+   * `X-Session-Transport: cookie`): its refresh token is in an HttpOnly cookie
+   * and never in an answer.
+   */
+  refreshToken: z.string().optional(),
   expiresIn: z.number(), // access-token TTL, seconds
+  /** How long the refresh token is good for if it is not used, in seconds. */
+  refreshExpiresIn: z.number(),
 });
 export type AuthTokens = z.infer<typeof AuthTokens>;
 

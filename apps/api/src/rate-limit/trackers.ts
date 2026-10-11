@@ -3,6 +3,8 @@
 import { createHash } from 'node:crypto';
 import { SetMetadata } from '@nestjs/common';
 import type { ThrottlerGetTrackerFunction } from '@nestjs/throttler';
+import { REFRESH_COOKIE } from '../auth/session-cookies.js';
+import { readCookie } from '../common/cookies.js';
 import { countedAddress } from './client-address.js';
 
 /**
@@ -64,8 +66,17 @@ export const byAccount: ThrottlerGetTrackerFunction = (req) => digest('account',
 export const byAccountAndAddress: ThrottlerGetTrackerFunction = (req) =>
   digest('account+address', `${account(req)}\n${countedAddress(req.ip)}`);
 
-/** The token a request presents: a refresh token, or one from a link in a mail. */
+/** The token a request presents in its body: one from a link in a mail. */
 export const byToken =
   (name: string): ThrottlerGetTrackerFunction =>
   (req) =>
     digest('token', field(req, name));
+
+/**
+ * The refresh token a request presents: in its body, or for a browser in its
+ * cookie. Without the cookie every browser would be counted as one.
+ */
+export const byRefreshToken: ThrottlerGetTrackerFunction = (req) => {
+  const headers = req.headers as Record<string, string | undefined> | undefined;
+  return digest('token', field(req, 'refreshToken') || (readCookie(headers?.cookie, REFRESH_COOKIE) ?? ''));
+};
