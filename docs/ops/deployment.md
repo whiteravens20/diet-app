@@ -182,11 +182,31 @@ before its next attempt is looked at, then twice as long after every further fai
 to 15 minutes. Each failure is logged as `failed admin sign-in from <address>`. Without
 `TRUST_PROXY` an attacker's failures also make the real administrator wait: one more
 reason to set it. These counts, like the limits above, are kept in the memory of each
-API process.
+API process: see [More than one API process](#more-than-one-api-process).
 
 Checking a password costs about a fifth of a second of processor time by design. The
 checks run beside the request handling, not in it, and at most 64 wait at once; beyond
 that a request is answered `503 SERVER_BUSY`.
+
+### How much an account may hold
+
+What a user can pile up is limited as well, so that no answer of the API grows without
+end. The limits are part of the application, not settings.
+
+| What | The most |
+|---|---|
+| Profiles of an account | 2 |
+| Recipes a profile has marked | 500 |
+| Favorite sets of a profile | 50 |
+| Rows in the pantry of a profile | 1000 |
+| Shopping lists of a plan | 10 |
+| AI provider configurations of an account | One for each provider |
+
+A request that would go over one is answered `409` with a code that says which. Longer
+lists come a page at a time (recipes, plans, the drafts of the admin panel), and three
+show only their newest entries: the 1000 newest weights of a profile, the 50 newest unread
+notifications, and the 50 sessions of an account that were used last. Signing out
+everywhere ends the sessions the list does not show, too.
 
 ## Two-step sign-in
 
@@ -283,6 +303,67 @@ Changing the account email is the one action gated entirely on SMTP. All confirm
 links expire after 1 hour and work once. A link to reset the password or to confirm a new
 address also stops working when another one is asked for, and when the account's password
 or address changes in the meantime.
+
+## The worker
+
+The worker is the same image started as `node apps/api/dist/worker.js`. It serves no
+requests and opens no port, and needs the same database and the same secrets as the API.
+Once when it starts and every hour after that it:
+
+- reminds the profiles that are due to log a weight;
+- removes notifications nobody will look at again: read more than 60 days ago, or unread
+  for a year;
+- removes personal recipes that were deleted, once nothing uses them any more;
+- removes the tokens of sessions that have ended, and links and sign-in challenges that
+  were used or have expired;
+- seals stored addresses and provider keys for the account each belongs to, which finds
+  something to do only after a database from before that was done has been restored.
+
+A job that fails is logged as `<job> failed: <reason>`, does not keep the others from
+running, and is tried again an hour later.
+
+One worker is enough, and a second one does no harm. Each job holds a lock of the
+database's for as long as it runs, so a second worker, or an old one that is still up
+while a new one starts, leaves a job to whoever is at it and logs `running elsewhere,
+left alone this time`. The lock belongs to a transaction that stays open, and idle, while
+the job runs: a database with `idle_in_transaction_session_timeout` set ends a job that
+takes longer than that.
+
+## More than one API process
+
+What an instance has to remember is in the database, so several processes of the API can
+serve it behind one proxy: the accounts and their sessions, the administrator's and the
+reviewers' sign-in, the plans, and where the administrator's background jobs stand (the
+catalogue update, the food import, the two generators of drafts). Whichever process is
+asked about a job answers the same, and one of them runs it. A job whose process died is
+shown as failed three quarters of a minute later and can be started again.
+
+Three things are kept in the memory of each process, and so count once for each:
+
+| What | With N processes |
+|---|---|
+| The [rate limits](#rate-limits), and the waits after wrong administrator and reviewer passwords | A client whose requests are spread over the processes is allowed up to N times as much |
+| The 10 mails a day one address is sent | Up to N times as many |
+| The 64 password checks that may wait at once | 64 for each process |
+
+A process that restarts begins its counts anew.
+
+Where that matters, limit requests in the proxy as well, per client address: it is the one
+place every request passes (`rateLimit` in Traefik, `limit_req` in nginx, `rate_limit` in
+Caddy). The routes that try a credential come first: `/api/auth/login`,
+`/api/auth/login/second-factor`, `/api/auth/register`, `/api/auth/password-reset/request`,
+`/api/admin/session` and `/api/review/auth`. Or have the proxy send each client address to
+the same process every time, which leaves a client facing the counts of one process.
+
+Two more things differ from one process:
+
+- `TRUST_PROXY` counts the proxies between the client and the API. A balancer in front of
+  the proxy is one more.
+- The data directories are read and written by whichever process handles the request:
+  what the local ship mode copies to `INSTANCE_DATA_DIR`, and what a food import leaves in
+  `SEED_DATA_DIR`. Give every process the same volume for them.
+
+The worker is not multiplied with the API: see [The worker](#the-worker).
 
 ## Production notes
 
