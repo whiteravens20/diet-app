@@ -2,8 +2,6 @@
 
 import {
   AiSuggestIngredientRequest,
-  AiSwapMealRequest,
-  SwapMealRequest,
   type MealPlan,
   type Profile,
 } from '@diet-app/shared';
@@ -12,11 +10,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { FavoriteSetsService } from '../favorite-sets/favorite-sets.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { anAiSwap, aPlan, aProfile, as, aSwap, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
-import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 let t: TestApp;
@@ -61,7 +58,7 @@ async function refusal(call: Promise<unknown>): Promise<{ status: number; error:
 const recipeId = async (slug: string): Promise<string> => (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).id;
 const mealRow = (id: string) => t.prisma.plannedMeal.findUniqueOrThrow({ where: { id } });
 const randomSwap = (plannedMealId: string) =>
-  t.app.get(MealSwapService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId, strategy: 'random' }));
+  aSwap(t, user, { planId: plan.id, plannedMealId, strategy: 'random' });
 
 describe('a meal that was eaten', () => {
   it('cannot be swapped, re-picked by a model or have an ingredient substituted, and stays as it was', async () => {
@@ -73,7 +70,7 @@ describe('a meal that was eaten', () => {
     const eaten = { status: 409, error: 'MEAL_EATEN' };
     expect(await refusal(randomSwap(meal.id))).toEqual(eaten);
     expect(
-      await refusal(t.app.get(MealSwapService).aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }))),
+      await refusal(anAiSwap(t, user, { planId: plan.id, plannedMealId: meal.id })),
     ).toEqual(eaten);
     expect(
       await refusal(
@@ -146,7 +143,7 @@ describe('a custom meal', () => {
     const refused = { status: 400, error: 'CUSTOM_MEAL_NOT_SWAPPABLE' };
     expect(await refusal(randomSwap(custom.id))).toEqual(refused);
     expect(
-      await refusal(t.app.get(MealSwapService).aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: custom.id }))),
+      await refusal(anAiSwap(t, user, { planId: plan.id, plannedMealId: custom.id })),
     ).toEqual(refused);
     expect((await mealRow(custom.id)).customName).toBe("Mum's lasagne");
   });
@@ -207,7 +204,7 @@ describe('a plan on a custom diet', () => {
     await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'admin' } });
     const meal = plan.days[0]!.meals[0]!;
 
-    const swapped = await t.app.get(MealSwapService).aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }));
+    const swapped = await anAiSwap(t, user, { planId: plan.id, plannedMealId: meal.id });
     expect(swapped.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
 
     // Any ingredient of a category with more than one member has a substitute on offer.
@@ -322,14 +319,15 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
   it('tells a client which rule a recipe breaks when it is refused', async () => {
     const lunch = lockedPlan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
 
-    const res = await t
-      .http()
-      .post('/api/meal-plans/swap-meal')
-      .set(as(user))
-      .send({ planId: lockedPlan.id, plannedMealId: lunch.id, strategy: 'favorite', favoriteRecipeId: locked, allowOffDiet: true });
+    const asked = { planId: lockedPlan.id, plannedMealId: lunch.id, strategy: 'favorite', allowOffDiet: true };
+    const offer = await t.http().post('/api/meal-plans/swap-meal/preview').set(as(user)).send({ ...asked, favoriteRecipeId: locked });
+    // And a client that sends the recipe without having been offered it is told the same.
+    const taken = await t.http().post('/api/meal-plans/swap-meal').set(as(user)).send({ ...asked, recipeId: locked, revision: lockedPlan.revision });
 
-    expect(res.status).toBe(400);
-    expect(res.body.details).toEqual({ violations: ['allergen'] });
+    for (const res of [offer, taken]) {
+      expect(res.status).toBe(400);
+      expect(res.body.details).toEqual({ violations: ['allergen'] });
+    }
   });
 
   it('is dropped when the re-roll is told to, and does not come back', async () => {

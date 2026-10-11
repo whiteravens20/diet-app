@@ -1,12 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { PLAN_RELAXATIONS, ProfileInput, SwapMealRequest, type MealPlan, type Profile } from '@diet-app/shared';
+import { PLAN_RELAXATIONS, ProfileInput, type MealPlan, type Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, as, aSwap, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { MealSwapService } from './meal-swap.service.js';
 
 describe('the limits of a plan', () => {
   let t: TestApp;
@@ -131,7 +130,7 @@ describe('the limits of a plan', () => {
     const made: MealPlan = (await generate({ ...sixBreakfasts, allowRelaxations: ['variety_floor'] }).expect(201)).body;
     const sixth = made.days[5]!.meals.find((meal) => meal.mealType === 'breakfast')!;
 
-    const swapped = await t.app.get(MealSwapService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: made.id, plannedMealId: sixth.id, strategy: 'random' }));
+    const swapped = await aSwap(t, user, { planId: made.id, plannedMealId: sixth.id, strategy: 'random' });
 
     expect(swapped.plan.report).toEqual({ relaxations: [], singleCandidate: [], pantry: 'empty' });
   });

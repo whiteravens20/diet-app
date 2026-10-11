@@ -1,15 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { HttpException } from '@nestjs/common';
-import { AddCustomMealRequest, ProfileInput, SwapMealRequest, type MealPlan, type Profile } from '@diet-app/shared';
+import { AddCustomMealRequest, ProfileInput, type MealPlan, type Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, aUser, as, race } from '../testing/factories.js';
+import { aPlan, aProfile, as, aSwap, aUser, race } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
-import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 describe('regenerating a plan', () => {
@@ -199,11 +198,7 @@ describe('regenerating a plan', () => {
       expect(mealOf(oneDay, 0, 'breakfast').recipe!.id).toBe(porridge);
 
       const toast = await recipeId('peanut-butter-toast');
-      const swapped = await t.app.get(MealSwapService).swapMeal(
-        user.id,
-        'en',
-        SwapMealRequest.parse({ planId: plan.id, plannedMealId: mealOf(oneDay, 1, 'breakfast').id, strategy: 'favorite', favoriteRecipeId: toast }),
-      );
+      const swapped = await aSwap(t, user, { planId: plan.id, plannedMealId: mealOf(oneDay, 1, 'breakfast').id, strategy: 'favorite', favoriteRecipeId: toast });
       expect(mealOf(swapped.plan, 1, 'breakfast')).toMatchObject({ recipe: { id: toast }, restrictionConflicts: [] });
     });
 

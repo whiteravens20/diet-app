@@ -9,10 +9,21 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Prisma } from '@prisma/client';
-import { GeneratePlanRequest, ProfileInput, type MealPlan, type Profile } from '@diet-app/shared';
+import {
+  AiSwapMealRequest,
+  GeneratePlanRequest,
+  ProfileInput,
+  SwapMealRequest,
+  type AiGenerationMeta,
+  type Locale,
+  type MealPlan,
+  type Profile,
+  type RebalanceResult,
+} from '@diet-app/shared';
 import { AuthService } from '../auth/auth.service.js';
 import { recipeFacts } from '../engine/recipe-facts.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
+import { MealSwapService } from '../meal-plans/meal-swap.service.js';
 import { PlanGenerationService } from '../meal-plans/plan-generation.service.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { REVIEWER_COOKIE_NAME, resolveReviewerSecret, signReviewerCookie } from '../review/session.js';
@@ -64,6 +75,28 @@ export function aPlan(
     ...overrides,
   });
   return t.app.get(PlanGenerationService).generate(user.id, 'en', request);
+}
+
+/** Ask for a recipe in the place of a meal and take what is offered: a swap as a user makes one. */
+export async function aSwap(t: TestApp, user: TestUser, request: Parameters<typeof SwapMealRequest.parse>[0] & { planId: string; plannedMealId: string }): Promise<RebalanceResult> {
+  const swaps = t.app.get(MealSwapService);
+  const asked = SwapMealRequest.parse(request);
+  const offer = await swaps.preview(user.id, 'en', asked);
+  return swaps.apply(user.id, 'en', { planId: asked.planId, plannedMealId: asked.plannedMealId, recipeId: offer.recipe.id, revision: offer.revision, strategy: asked.strategy, allowOffDiet: asked.allowOffDiet });
+}
+
+/** The same with a model asked which recipe to take; `aiMeta` is what the offer said of the pick. */
+export async function anAiSwap(
+  t: TestApp,
+  user: TestUser,
+  request: Parameters<typeof AiSwapMealRequest.parse>[0] & { planId: string; plannedMealId: string },
+  locale: Locale = 'en',
+): Promise<RebalanceResult & { aiMeta: AiGenerationMeta }> {
+  const swaps = t.app.get(MealSwapService);
+  const asked = AiSwapMealRequest.parse(request);
+  const offer = await swaps.previewWithAi(user.id, locale, asked);
+  const made = await swaps.apply(user.id, locale, { planId: asked.planId, plannedMealId: asked.plannedMealId, recipeId: offer.recipe.id, revision: offer.revision, strategy: 'random', allowOffDiet: false });
+  return { ...made, aiMeta: offer.aiMeta };
 }
 
 /** Run `n` calls of `fn` at the same time and report how each ended. */

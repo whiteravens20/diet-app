@@ -17,6 +17,7 @@ import {
   AddCustomMealRequest,
   AiSuggestIngredientRequest,
   AiSwapMealRequest,
+  ApplyMealSwapRequest,
   GeneratePlanRequest,
   type Locale,
   RebalanceRequest,
@@ -104,13 +105,24 @@ export class MealPlansController {
     await this.plans.remove(user.id, id);
   }
 
-  @Post('swap-meal')
-  swapMeal(
+  /** A recipe to put in the place of a planned meal, with what the swap would do. Nothing is written. */
+  @Post('swap-meal/preview')
+  previewSwap(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapMealRequest)) dto: SwapMealRequest,
   ) {
-    return this.swaps.swapMeal(user.id, locale, dto);
+    return this.swaps.preview(user.id, locale, dto);
+  }
+
+  /** Make a swap that was offered, on the plan as it was when the offer was made. */
+  @Post('swap-meal')
+  applySwap(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Body(new ZodValidationPipe(ApplyMealSwapRequest)) dto: ApplyMealSwapRequest,
+  ) {
+    return this.swaps.apply(user.id, locale, dto);
   }
 
   /** Add a user-authored custom meal to a day. */
@@ -151,18 +163,17 @@ export class MealPlansController {
   }
 
   /**
-   * AI-ranked meal swap. The deterministic engine builds the candidate
-   * pool; AI picks one. The response carries `aiMeta.fallbackReason` so the UI
-   * can surface a localised toast when AI was unavailable.
+   * The same offer, with a model asked which of the recipes the engine puts
+   * before it to take. `aiMeta` says who picked; nothing is written.
    */
-  @Post('ai-swap-meal')
+  @Post('ai-swap-meal/preview')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  aiSwapMeal(
+  previewAiSwap(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(AiSwapMealRequest)) dto: AiSwapMealRequest,
   ) {
-    return this.swaps.aiSwapMeal(user.id, locale, dto);
+    return this.swaps.previewWithAi(user.id, locale, dto);
   }
 
   /**

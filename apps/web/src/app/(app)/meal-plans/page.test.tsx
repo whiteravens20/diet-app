@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CatalogueDepth, MealPlan, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
+import type { CatalogueDepth, MealPlan, MealSwapPreview, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { aDepth, aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
@@ -424,5 +424,96 @@ describe('the plan page, when a plan is made again', () => {
       [`/meal-plans/${plan.id}/days/${plan.days[1]!.id}/regenerate`, undefined],
       [`/meal-plans/${plan.id}/regenerate`, undefined],
     ]);
+  });
+});
+
+describe('the plan page, when another recipe is asked for in the place of a meal', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const plan = aPlan();
+  const breakfast = plan.days[0]!.meals[0]!;
+  /** An offer of `title` for the breakfast of the plan: a little more energy than the porridge. */
+  const anOffer = (id: string, title: string): MealSwapPreview => ({
+    recipe: { ...breakfast.recipe!, id, title },
+    servings: 1.5,
+    before: breakfast.nutrition,
+    after: { calories: 240, protein: 14, fat: 9, carbs: 26 },
+    dayBefore: plan.days[0]!.dayNutrition,
+    dayAfter: { calories: 240, protein: 14, fat: 9, carbs: 26 },
+    calorieTarget: 2000,
+    revision: 0,
+  });
+  const scramble = anOffer('66666666-6666-4666-8666-666666666666', 'Tofu scramble');
+  const toast = anOffer('77777777-7777-4777-8777-777777777777', 'Tomato toast');
+  const open = async () => {
+    await renderPage(aDepth(9), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+  };
+  const theOffer = () => screen.findByRole('group', { name: messages.mealPlans.offerTitle });
+
+  it('shows the recipe that is offered with what the swap would do, and makes the swap when the user takes it', async () => {
+    await open();
+    const post = vi.spyOn(api, 'post').mockResolvedValueOnce(scramble as never).mockResolvedValue({ plan, rebalance: null } as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.swap }));
+
+    const offered = await theOffer();
+    expect(offered.textContent).toContain('Instead: Tofu scramble, 1.5 servings: 240 kcal in place of 230.');
+    expect(offered.textContent).toContain('Protein 14 g · fat 9 g · carbohydrate 26 g');
+    expect(offered.textContent).toContain('The day would hold 240 of 2000 kcal before its other meals are balanced around this one.');
+    expect(post.mock.calls[0]).toEqual([
+      '/meal-plans/swap-meal/preview',
+      { planId: plan.id, plannedMealId: breakfast.id, strategy: 'random', respectInventory: true, allowOffDiet: false, skip: [] },
+    ]);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerTake }));
+
+    expect(post.mock.calls[1]).toEqual([
+      '/meal-plans/swap-meal',
+      { planId: plan.id, plannedMealId: breakfast.id, recipeId: scramble.recipe.id, revision: 0, strategy: 'random', allowOffDiet: false },
+    ]);
+    await vi.waitFor(() => expect(screen.queryByRole('group', { name: messages.mealPlans.offerTitle })).toBeNull());
+  });
+
+  it('asks for another recipe, naming the ones it was offered already', async () => {
+    await open();
+    const post = vi.spyOn(api, 'post').mockResolvedValueOnce(scramble as never).mockResolvedValueOnce(toast as never).mockResolvedValue(scramble as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.swap }));
+    await theOffer();
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerAnother }));
+
+    await vi.waitFor(async () => expect((await theOffer()).textContent).toContain('Tomato toast'));
+    expect(post.mock.calls[1]![1]).toMatchObject({ skip: [scramble.recipe.id] });
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerAnother }));
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(3));
+    expect(post.mock.calls[2]![1]).toMatchObject({ skip: [scramble.recipe.id, toast.recipe.id] });
+  });
+
+  it('writes nothing when the user turns the offer down', async () => {
+    await open();
+    const post = vi.spyOn(api, 'post').mockResolvedValue(scramble as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.swap }));
+    await theOffer();
+    await userEvent.click(screen.getByRole('button', { name: messages.common.cancel }));
+
+    expect(screen.queryByRole('group', { name: messages.mealPlans.offerTitle })).toBeNull();
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops the offer and says so when the plan changed before it was taken', async () => {
+    await open();
+    vi.spyOn(api, 'post').mockResolvedValueOnce(scramble as never).mockRejectedValue(new ApiClientError(409, 'PLAN_CHANGED', 'the text of the API'));
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.swap }));
+    await theOffer();
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerTake }));
+
+    expect(await screen.findByText(messages.errors.PLAN_CHANGED)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: messages.mealPlans.offerTitle })).toBeNull();
   });
 });

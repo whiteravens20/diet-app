@@ -13,9 +13,10 @@ import {
   RelaxationNeeded,
   UnfilledMeal,
   type AddCustomMealRequest,
-  type AiSwapMealResponse,
+  type AiMealSwapPreview,
   type GeneratePlanRequest,
   type MealPlan,
+  type MealSwapPreview,
   type PlanRelaxation,
   type Profile,
   type RebalanceResult,
@@ -32,7 +33,7 @@ import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { SupplyNote } from '@/components/supply-note';
 import { IMAGERY } from '@/lib/imagery';
-import { PlanCard } from './plan-card';
+import { PlanCard, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
 import {
   AdvancedOptions,
@@ -61,6 +62,9 @@ interface Reroll {
   /** Left out: the limits the plan may let give way already. */
   allowRelaxations?: PlanRelaxation[];
 }
+
+/** What comes back when a recipe is asked for in the place of a meal; a model that was asked leaves `aiMeta`. */
+type Offered = MealSwapPreview & Partial<Pick<AiMealSwapPreview, 'aiMeta'>>;
 
 /** What a re-roll sends: nothing at all when it asks for nothing of its own. */
 function rerollBody(v: Reroll): Record<string, unknown> | undefined {
@@ -235,25 +239,65 @@ function MealPlansContent() {
     }
   };
 
-  const swapMeal = useMutation({
-    mutationFn: (v: {
-      planId: string;
-      plannedMealId: string;
-      strategy: 'random' | 'favorite' | 'favorite_ingredients';
-      favoriteRecipeId?: string;
-      allowOffDiet?: boolean;
-    }) =>
-      api.post<RebalanceResult>('/meal-plans/swap-meal', {
-        planId: v.planId,
-        plannedMealId: v.plannedMealId,
-        strategy: v.strategy,
-        respectInventory: swapWithPantry,
-        allowOffDiet: v.allowOffDiet ?? false,
-        ...(v.favoriteRecipeId ? { favoriteRecipeId: v.favoriteRecipeId } : {}),
-      }),
-    onSuccess: (res, v) => showRebalance(v.planId, res),
-    onError: fail(t('errSwap')),
+  // A recipe that was offered in the place of a meal, with what the swap
+  // would do: nothing is written until the user takes it.
+  const [offer, setOffer] = useState<SwapOffer | null>(null);
+  const offerSwap = useMutation({
+    mutationFn: (v: SwapAsk & { seen: string[] }) =>
+      v.strategy === 'ai'
+        ? api.post<Offered>('/meal-plans/ai-swap-meal/preview', { planId: v.planId, plannedMealId: v.plannedMealId, respectInventory: swapWithPantry, skip: v.seen })
+        : api.post<Offered>('/meal-plans/swap-meal/preview', {
+            planId: v.planId,
+            plannedMealId: v.plannedMealId,
+            strategy: v.strategy,
+            respectInventory: swapWithPantry,
+            allowOffDiet: v.allowOffDiet ?? false,
+            ...(v.favoriteRecipeId ? { favoriteRecipeId: v.favoriteRecipeId } : {}),
+            skip: v.seen,
+          }),
+    onSuccess: (preview, { seen, ...asked }) => {
+      setOffer({ asked, preview, seen: [...seen, preview.recipe.id] });
+      if (preview.aiMeta) {
+        // A model was asked: that counts against the allowance whoever picked in the end.
+        qc.invalidateQueries({ queryKey: ['ai-quota'] });
+        setNotice(preview.aiMeta.fallbackReason ? tFallback(preview.aiMeta.fallbackReason) : null);
+        setAiReason(preview.aiMeta.reason);
+      }
+    },
+    onError: (e: unknown, v) => {
+      setOffer(null);
+      fail(t(v.strategy === 'ai' ? 'errAiSwap' : 'errSwap'))(e);
+    },
   });
+  const takeOffer = useMutation({
+    mutationFn: ({ asked, preview }: SwapOffer) =>
+      api.post<RebalanceResult>('/meal-plans/swap-meal', {
+        planId: asked.planId,
+        plannedMealId: asked.plannedMealId,
+        recipeId: preview.recipe.id,
+        revision: preview.revision,
+        // What a model picked is held to what the engine's own pick is.
+        strategy: asked.strategy === 'ai' ? 'random' : asked.strategy,
+        allowOffDiet: asked.allowOffDiet ?? false,
+      }),
+    onSuccess: (res, { asked }) => {
+      setOffer(null);
+      showRebalance(asked.planId, res);
+    },
+    onError: (e: unknown) => {
+      // The offer was for the plan as it was: it does not outlive a refusal.
+      setOffer(null);
+      fail(t('errSwap'))(e);
+    },
+  });
+  const askFor = (asked: SwapAsk, seen: string[] = []) => {
+    setError(null);
+    if (asked.strategy === 'ai') {
+      setNotice(null);
+      setAiReason(null);
+    }
+    offerSwap.mutate({ ...asked, seen });
+  };
 
   const addCustomMeal = useMutation({
     mutationFn: (v: { planId: string; date: string; body: AddCustomMealRequest }) =>
@@ -296,23 +340,6 @@ function MealPlansContent() {
     onError: fail(t('errRebalance')),
   });
 
-  // AI-ranked swap. The server always applies a swap (engine fallback if AI is
-  // unavailable), so we always invalidate; the optional `fallbackReason` drives
-  // a localised info banner so the user knows when AI didn't actually run.
-  const aiSwapMeal = useMutation({
-    mutationFn: (v: { planId: string; plannedMealId: string; hint?: string }) =>
-      api.post<AiSwapMealResponse>('/meal-plans/ai-swap-meal', { ...v, respectInventory: swapWithPantry }),
-    onSuccess: (res, v) => {
-      showRebalance(v.planId, res);
-      // Bust the chip's quota query — successful admin calls decrement remaining.
-      qc.invalidateQueries({ queryKey: ['ai-quota'] });
-      const reason = res.aiMeta.fallbackReason;
-      setNotice(reason ? tFallback(reason) : null);
-      setAiReason(res.aiMeta.reason);
-    },
-    onError: fail(t('errAiSwap')),
-  });
-
   const remove = useMutation({
     mutationFn: (planId: string) => api.delete<void>(`/meal-plans/${planId}`),
     onSuccess: invalidate,
@@ -322,8 +349,8 @@ function MealPlansContent() {
   const busy =
     regenerate.isPending ||
     regenerateDay.isPending ||
-    swapMeal.isPending ||
-    aiSwapMeal.isPending ||
+    offerSwap.isPending ||
+    takeOffer.isPending ||
     addCustomMeal.isPending ||
     toggleEaten.isPending ||
     rebalance.isPending ||
@@ -620,38 +647,16 @@ function MealPlansContent() {
                 setError(null);
                 regenerateDay.mutate({ planId: plan.id, dayId });
               }}
-              onSwapMeal={(plannedMealId) => {
-                setError(null);
-                swapMeal.mutate({ planId: plan.id, plannedMealId, strategy: 'random' });
-              }}
-              onSwapByFavorites={(plannedMealId) => {
-                setError(null);
-                swapMeal.mutate({
-                  planId: plan.id,
-                  plannedMealId,
-                  strategy: 'favorite_ingredients',
-                });
-              }}
-              onSwapToFavorite={(plannedMealId, favoriteRecipeId, allowOffDiet) => {
-                setError(null);
-                swapMeal.mutate({
-                  planId: plan.id,
-                  plannedMealId,
-                  strategy: 'favorite',
-                  favoriteRecipeId,
-                  allowOffDiet,
-                });
-              }}
-              onAiSwapMeal={
-                aiEnabled
-                  ? (plannedMealId) => {
-                      setError(null);
-                      setNotice(null);
-                      setAiReason(null);
-                      aiSwapMeal.mutate({ planId: plan.id, plannedMealId });
-                    }
-                  : undefined
+              onSwapMeal={(plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'random' })}
+              onSwapByFavorites={(plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'favorite_ingredients' })}
+              onSwapToFavorite={(plannedMealId, favoriteRecipeId, allowOffDiet) =>
+                askFor({ planId: plan.id, plannedMealId, strategy: 'favorite', favoriteRecipeId, allowOffDiet })
               }
+              onAiSwapMeal={aiEnabled ? (plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'ai' }) : undefined}
+              offer={offer?.asked.planId === plan.id ? offer : null}
+              onTakeOffer={() => offer && takeOffer.mutate(offer)}
+              onAnotherOffer={() => offer && askFor(offer.asked, offer.seen)}
+              onCancelOffer={() => setOffer(null)}
               onToggleEaten={(mealId, eaten) => {
                 setError(null);
                 toggleEaten.mutate({ planId: plan.id, mealId, eaten });

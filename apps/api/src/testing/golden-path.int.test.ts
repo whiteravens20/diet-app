@@ -62,11 +62,13 @@ describe('a new account, from sign-up to deletion', () => {
     }
 
     const first = plan.days[0]!.meals[0]!;
+    const asked = { planId: plan.id, plannedMealId: first.id, strategy: 'random' };
+    const offer = await t.http().post('/api/meal-plans/swap-meal/preview').set(auth).send(asked).expect(201);
     const swapped = await t
       .http()
       .post('/api/meal-plans/swap-meal')
       .set(auth)
-      .send({ planId: plan.id, plannedMealId: first.id, strategy: 'random' })
+      .send({ ...asked, recipeId: offer.body.recipe.id, revision: offer.body.revision })
       .expect(201);
     const replaced = (swapped.body as RebalanceResult).plan.days[0]!.meals.find((meal) => meal.id === first.id)!;
     expect(replaced.recipe!.id).not.toBe(first.recipe!.id);

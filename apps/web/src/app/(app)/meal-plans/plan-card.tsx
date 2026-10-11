@@ -9,6 +9,7 @@ import {
   fitsDiet,
   type AddCustomMealRequest,
   type MealPlan,
+  type MealSwapPreview,
   type PantryUse,
   type PlannedIngredient,
   type PlanRelaxation,
@@ -28,6 +29,22 @@ interface FavoriteOption {
 type PlannedMealView = MealPlan['days'][number]['meals'][number];
 /** A catalogue meal, narrowed so its recipe is guaranteed present. */
 type CatalogueMeal = PlannedMealView & { recipe: NonNullable<PlannedMealView['recipe']> };
+
+/** What was asked for in the place of a meal: a strategy of the engine's, or a model's pick. */
+export interface SwapAsk {
+  planId: string;
+  plannedMealId: string;
+  strategy: 'random' | 'favorite' | 'favorite_ingredients' | 'ai';
+  favoriteRecipeId?: string;
+  allowOffDiet?: boolean;
+}
+
+/** A recipe that was offered for a meal, with what the swap would do, and the recipes this sitting has offered for it. */
+export interface SwapOffer {
+  asked: SwapAsk;
+  preview: MealSwapPreview;
+  seen: string[];
+}
 
 const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' | 'pantryUnused'>> = {
   counted: 'pantryCounted',
@@ -53,6 +70,10 @@ export function PlanCard({
   onSwapByFavorites,
   onSwapToFavorite,
   onAiSwapMeal,
+  offer,
+  onTakeOffer,
+  onAnotherOffer,
+  onCancelOffer,
   onToggleEaten,
   onIngredientSwapped,
   onAddCustomMeal,
@@ -76,6 +97,11 @@ export function PlanCard({
   onSwapToFavorite: (plannedMealId: string, recipeId: string, allowOffDiet: boolean) => void;
   /** Undefined when the user has `aiMode='none'` — the button is hidden. */
   onAiSwapMeal?: (plannedMealId: string) => void;
+  /** The recipe that is on offer for one of this plan's meals, if any. */
+  offer: SwapOffer | null;
+  onTakeOffer: () => void;
+  onAnotherOffer: () => void;
+  onCancelOffer: () => void;
   onToggleEaten: (mealId: string, eaten: boolean) => void;
   onIngredientSwapped: (result: SwapIngredientResponse) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
@@ -376,6 +402,37 @@ export function PlanCard({
                           )}
                         </span>
                       </div>
+                      {offer?.asked.plannedMealId === m.id && (
+                        <div className="ml-4 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs" role="group" aria-label={t('offerTitle')}>
+                          <p>
+                            {t.rich('offerLine', {
+                              title: offer.preview.recipe.title,
+                              servings: offer.preview.servings,
+                              after: offer.preview.after.calories,
+                              before: offer.preview.before.calories,
+                              strong: (chunks) => <span className="font-medium">{chunks}</span>,
+                            })}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {t('offerMacros', { protein: offer.preview.after.protein, fat: offer.preview.after.fat, carbs: offer.preview.after.carbs })}
+                          </p>
+                          <p className="text-muted-foreground">{t('offerDay', { kcal: offer.preview.dayAfter.calories, target: offer.preview.calorieTarget })}</p>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button type="button" size="sm" onClick={onTakeOffer} disabled={busy}>
+                              {t('offerTake')}
+                            </Button>
+                            {/* A favourite picked by hand is the one the user asked for: there is no other to offer. */}
+                            {offer.asked.strategy !== 'favorite' && (
+                              <Button type="button" size="sm" variant="outline" onClick={onAnotherOffer} disabled={busy}>
+                                {t('offerAnother')}
+                              </Button>
+                            )}
+                            <Button type="button" size="sm" variant="ghost" onClick={onCancelOffer}>
+                              {tCommon('cancel')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       {/* Per-meal macros sit below the title as plain text — the
                           modal opened from the recipe title carries the full
                           ingredient list scaled for this meal. */}

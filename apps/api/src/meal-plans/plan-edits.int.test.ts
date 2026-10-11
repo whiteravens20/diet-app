@@ -2,8 +2,6 @@
 
 import {
   AiSuggestIngredientRequest,
-  AiSwapMealRequest,
-  SwapMealRequest,
   type Locale,
   type MealPlan,
 } from '@diet-app/shared';
@@ -11,12 +9,11 @@ import { HttpException } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
+import { anAiSwap, aPlan, aProfile, as, aSwap, aUser, race, type TestUser } from '../testing/factories.js';
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
-import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 /** How each request ended: `ok`, or the error code it was refused with. */
@@ -57,7 +54,7 @@ describe('editing a plan', () => {
   });
 
   const swap = (plannedMealId: string) =>
-    t.app.get(MealSwapService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId, strategy: 'random' }));
+    aSwap(t, user, { planId: plan.id, plannedMealId, strategy: 'random' });
 
   it('lets one of two overlapping swaps of a meal through', async () => {
     const meal = plan.days[0]!.meals[0]!;
@@ -275,7 +272,7 @@ describe('editing a plan', () => {
     });
 
     const aiSwap = (plannedMealId: string, locale: Locale = 'en') =>
-      t.app.get(MealSwapService).aiSwapMeal(user.id, locale, AiSwapMealRequest.parse({ planId: plan.id, plannedMealId }));
+      anAiSwap(t, user, { planId: plan.id, plannedMealId }, locale);
 
     /** The first candidate the prompt offers, as a model that follows the prompt would pick it. */
     const firstOffered = (request: ModelRequest): string => /id=([0-9a-f-]{36})/.exec(request.prompt)![1]!;
@@ -399,14 +396,21 @@ describe('editing a plan', () => {
       // As after a change of the instance's encryption secret.
       await t.prisma.aiProviderConfig.updateMany({ data: { encryptedKey: '00:00:00' } });
 
-      const res = await t
+      const offer = await t
         .http()
-        .post('/api/meal-plans/ai-swap-meal')
+        .post('/api/meal-plans/ai-swap-meal/preview')
         .set(as(user))
         .send({ planId: plan.id, plannedMealId: meal.id })
         .expect(201);
 
-      expect(res.body.aiMeta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'key_unreadable' });
+      // The engine offers a recipe all the same, and it can be taken.
+      expect(offer.body.aiMeta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'key_unreadable' });
+      await t
+        .http()
+        .post('/api/meal-plans/swap-meal')
+        .set(as(user))
+        .send({ planId: plan.id, plannedMealId: meal.id, recipeId: offer.body.recipe.id, revision: offer.body.revision, strategy: 'random' })
+        .expect(201);
       const providers = await t.http().get('/api/ai/providers').set(as(user)).expect(200);
       expect(providers.body).toEqual([expect.objectContaining({ provider: 'openai', hasKey: true, keyUnreadable: true })]);
     });

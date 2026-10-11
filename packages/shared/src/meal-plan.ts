@@ -319,33 +319,41 @@ export const MealPlan = z.object({
 });
 export type MealPlan = z.infer<typeof MealPlan>;
 
-/** Request to swap a planned meal for an alternative. */
+/**
+ * Which recipe to offer in the place of a planned meal. Nothing is written:
+ * the answer is a `MealSwapPreview`, and `ApplyMealSwapRequest` makes the swap.
+ */
 export const SwapMealRequest = z.object({
   planId: z.string().uuid(),
   plannedMealId: z.string().uuid(),
   /**
-   * `random` — any recipe from the same diet+slot.
-   * `favorite` — caller picks one of the profile's favourited recipes (id below).
-   * `favorite_ingredients` — random pick biased to recipes that use the profile's
-   *   favourite ingredients (highest overlap wins, ties broken deterministically).
+   * `random` — any recipe for the meal and the plan's diet.
+   * `favorite` — one of the profile's favourites, which the caller names (id below).
+   * `favorite_ingredients` — of those recipes, the ones that use the most of
+   *   the profile's favourite ingredients.
+   * The first and the last offer only recipes that hold, at their best
+   * serving, within 15 % of the energy the meal holds now.
    */
   strategy: z.enum(['random', 'favorite', 'favorite_ingredients']),
   favoriteRecipeId: z.string().uuid().optional(),
-  /** Bias the swap candidate pool toward recipes the pantry covers. */
+  /** Offer first what the pantry covers. */
   respectInventory: z.boolean().default(true),
   /**
-   * "show all my favourites": drop the diet-type filter on the candidate
-   * pool. Allergens + meal-type stay enforced. The resulting meal is flagged
-   * `dietOverride` so the dashboard on-diet stat stays honest.
+   * "show all my favourites": the diet of the plan is no bar, and for a
+   * favourite picked by hand neither is the meal it is for. Allergens,
+   * skipped ingredients and the avoid mark hold. The meal is then flagged
+   * `dietOverride`.
    */
   allowOffDiet: z.boolean().default(false),
+  /** Recipes offered for this meal already in this sitting: the next offer is none of them while another is left. */
+  skip: z.array(z.string().uuid()).max(100).default([]),
 });
 export type SwapMealRequest = z.infer<typeof SwapMealRequest>;
 
 /**
- * Request to AI-rank a meal swap. Body-only; URL carries `planId` and
- * `plannedMealId`. The engine builds the candidate set deterministically and
- * AI picks one — never the other way around (nutrition is never invented).
+ * Ask a model which recipe to offer in the place of a planned meal. The engine
+ * decides what the model may choose from, never the other way round; nothing
+ * is written.
  */
 export const AiSwapMealRequest = z.object({
   planId: z.string().uuid(),
@@ -356,10 +364,53 @@ export const AiSwapMealRequest = z.object({
    * Capped to keep the prompt cost predictable.
    */
   hint: z.string().trim().max(200).optional(),
-  /** Bias the AI-ranked candidate pool toward pantry-covering recipes. */
+  /** Put before the model first what the pantry covers. */
   respectInventory: z.boolean().default(true),
+  /** Recipes offered for this meal already in this sitting. */
+  skip: z.array(z.string().uuid()).max(100).default([]),
 });
 export type AiSwapMealRequest = z.infer<typeof AiSwapMealRequest>;
+
+/**
+ * A recipe offered in the place of a planned meal, and what the swap would do,
+ * before anything is written.
+ */
+export const MealSwapPreview = z.object({
+  recipe: Recipe,
+  /** How many servings of it the meal would be: as many as come nearest to what the meal holds now. */
+  servings: z.number(),
+  /** What the meal holds now, and what it would hold. */
+  before: Nutrition,
+  after: Nutrition,
+  /** What the day holds now and what it would hold, before its other meals are balanced around the new one. */
+  dayBefore: Nutrition,
+  dayAfter: Nutrition,
+  /** What the day aims at. */
+  calorieTarget: z.number(),
+  /** The revision of the plan the offer was made from: sent back to make the swap. */
+  revision: z.number().int().min(0),
+});
+export type MealSwapPreview = z.infer<typeof MealSwapPreview>;
+
+/** An offer a model was asked for: `aiMeta` says who picked, or why the engine did. */
+export const AiMealSwapPreview = MealSwapPreview.extend({ aiMeta: AiGenerationMeta });
+export type AiMealSwapPreview = z.infer<typeof AiMealSwapPreview>;
+
+/**
+ * Make a swap that was offered: the recipe of a `MealSwapPreview`, on the plan
+ * as it was then. A plan that changed since answers 409 `PLAN_CHANGED`. The
+ * recipe is judged again before it is written.
+ */
+export const ApplyMealSwapRequest = z.object({
+  planId: z.string().uuid(),
+  plannedMealId: z.string().uuid(),
+  recipeId: z.string().uuid(),
+  revision: z.number().int().min(0),
+  /** How the offer was asked for; `random` for one a model picked. A `favorite` is not held to the energy of the meal it replaces. */
+  strategy: z.enum(['random', 'favorite', 'favorite_ingredients']),
+  allowOffDiet: z.boolean().default(false),
+});
+export type ApplyMealSwapRequest = z.infer<typeof ApplyMealSwapRequest>;
 
 /** Request to substitute one ingredient inside a planned recipe. */
 export const SwapIngredientRequest = z.object({
@@ -535,13 +586,6 @@ export const RebalanceResult = z.object({
     .nullable(),
 });
 export type RebalanceResult = z.infer<typeof RebalanceResult>;
-
-/**
- * Response envelope: the updated plan plus the AI meta so the UI can render the
- * ✨ badge on success or the localised fallback toast on `aiMeta.fallbackReason`.
- */
-export const AiSwapMealResponse = RebalanceResult.extend({ aiMeta: AiGenerationMeta });
-export type AiSwapMealResponse = z.infer<typeof AiSwapMealResponse>;
 
 /**
  * The result of applying an ingredient substitution. `aiMeta` is null unless
