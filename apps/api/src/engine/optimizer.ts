@@ -13,6 +13,16 @@
  * next. A recipe costs nothing while its meal is inside a tenth of the
  * budget, and more the further outside it is: a dish is not trimmed to hit a
  * number. The snack is placed last and takes what the day has left.
+ *
+ * How a plan stays varied. Limits that hold across the whole plan: a recipe
+ * is used at most so many days in a row and so many times in any seven days,
+ * counted over all meals; not twice on one day unless the plan is for
+ * cooking ahead; at most so many times in the plan; within the day's cooking
+ * time. When no recipe is left for a meal inside the limits, one limit after
+ * another gives way in a fixed order, if the caller allows it; what gave way
+ * is reported, and the recipe used least so far is preferred. When it may
+ * not give way, the plan is not made and the caller is told what stood in
+ * the way.
  */
 import { fitsDiet, type DietType, type Macros, type MealType, type Unit } from '@diet-app/shared';
 import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
@@ -34,15 +44,14 @@ export interface OptimizerRecipe {
 }
 
 /**
- * Per-day descriptor. The optimiser fills each day independently against
- * its own slot set + calorie target, while cross-day state (ingredient reuse,
- * recent-use variety, per-slot caps, the variety floor) accumulates across the
- * whole window. A day with `skip` produces no meals.
+ * What one day asks for: its meals and its calorie target, and what the user
+ * set for it. Ingredient reuse, variety and the limits are counted across all
+ * days of the plan. A day with `skip` gets no meals.
  */
 export interface OptimizerDay {
   mealSlots: MealType[];
   dailyCalorieTarget: number;
-  /** Hard cap on a recipe's prep+cook minutes for this day. */
+  /** The most minutes of preparing and cooking a recipe of this day may take. */
   cookTimeBudgetMinutes?: number;
   /** Recipes pinned to slots before the greedy fill (the rest fills around them). */
   lockedSlots?: Array<{ slot: MealType; recipeId: string }>;
@@ -73,23 +82,41 @@ export interface OptimizerInput {
    */
   inventoryCoverage?: ReadonlyMap<string, number>;
   /**
-   * Hard caps that exclude a candidate from a slot when it would repeat too
-   * often. Resolved upstream from the profile's preferences (and, when the
-   * caller sets `mealPrepFriendly`, relaxed). Falsy / omitted falls back to
-   * generous defaults so existing callers behave the same as before this
-   * feature landed.
+   * The most days in a row, and the most times in any seven days, that one
+   * recipe is eaten, at whichever meal. Omitted: seven of each, which is no
+   * limit within a week.
    */
   maxConsecutiveDaysSameMeal?: number;
   maxTimesPerWeekSameMeal?: number;
   /**
-   * Variety floor: the maximum number of times any one recipe may appear
-   * across the entire plan window (all days, all slots). Omitted = no floor.
-   * A recipe at the cap is excluded from further slots; if that would empty a
-   * slot's pool the cap is relaxed for that slot (better to repeat than fail).
+   * The most times one recipe may appear in the whole plan, over all days and
+   * meals. Omitted: no such limit.
    */
   maxRepeatsPerRecipe?: number;
+  /**
+   * The limits that may give way when no recipe is left for a meal inside
+   * them. `all` (the default) lets any of them; an empty set lets none, and
+   * the plan is refused instead, with what stood in the way.
+   */
+  allowRelaxations?: ReadonlySet<Relaxation> | 'all';
   /** Changes the deterministic tie-break order so "regenerate" yields a new plan. */
   seed: number;
+}
+
+/**
+ * A limit that can give way, in the order in which they do: the most a recipe
+ * appears in the plan first, then the day's cooking time, then a recipe twice
+ * on one day, then days in a row, and the limit for seven days last.
+ */
+export const RELAXATION_ORDER = ['variety_floor', 'cook_time', 'same_day', 'consecutive_days', 'weekly_cap'] as const;
+export type Relaxation = (typeof RELAXATION_ORDER)[number];
+
+/** What a run had to do to fill the plan, for whoever made it to read. */
+export interface OptimizerReport {
+  /** Meals for which a limit gave way, and which. */
+  relaxations: { dayIndex: number; slot: MealType; gaveWay: Relaxation[] }[];
+  /** Meals for which the diet and the meal left one recipe to choose from. */
+  singleCandidate: { dayIndex: number; slot: MealType }[];
 }
 
 /** Build a uniform per-day descriptor list (the basic, no-overrides flow). */
@@ -110,8 +137,9 @@ export interface OptimizerAssignment {
 
 export interface OptimizerResult {
   assignments: OptimizerAssignment[];
-  /** 0-1 — share of ingredients reused across more than one recipe in the plan. */
+  /** 0-1 — share of ingredients that more than one recipe of the plan uses. */
   ingredientReuseScore: number;
+  report: OptimizerReport;
 }
 
 /** Fraction of daily calories nominally allocated to each meal slot. */
@@ -145,6 +173,8 @@ export class OptimizerError extends Error {
     message: string,
     /** The meal no recipe could fill and the diet it was wanted for, when that is what went wrong. */
     readonly gap?: { slot: MealType; dietType: DietType },
+    /** The meal that could only be filled by letting limits give way that may not, and which. */
+    readonly blocked?: { dayIndex: number; slot: MealType; needs: Relaxation[] },
   ) {
     super(message);
   }
@@ -177,41 +207,35 @@ function eligible(recipe: OptimizerRecipe, slot: MealType, dietType: DietType): 
   return recipe.mealTypes.includes(slot) && fitsDiet(recipe.dietTags, dietType);
 }
 
+/** One meal that was placed: what the limits across the plan are counted from. */
+interface Use {
+  day: number;
+  recipeId: string;
+}
+
 /**
- * Generate a plan. Throws OptimizerError if a slot has no eligible recipe —
- * callers fall back to the deterministic template engine or surface the gap.
+ * Generate a plan. Throws `OptimizerError` when a meal has no recipe for the
+ * diet at all (`gap`), or only by letting a limit give way that may not
+ * (`blocked`).
  */
 export function optimisePlan(input: OptimizerInput): OptimizerResult {
   const recipeById = new Map(input.recipes.map((r) => [r.id, r]));
   const assignments: OptimizerAssignment[] = [];
+  const report: OptimizerReport = { relaxations: [], singleCandidate: [] };
   const planIngredients = new Set<string>(); // ingredients already "purchased"
   const recentUse = new Map<string, number>(); // recipeId → last dayIndex used
-  // Per-slot history of (day, recipeId) for the rolling-window and
-  // consecutive-day caps. Keyed by slot so the same recipe can be eligible
-  // in different slots without contention.
-  const slotHistory = new Map<MealType, Array<{ day: number; recipeId: string }>>();
-  // Variety floor: total uses of a recipe across the whole window.
-  const recipeUseCount = new Map<string, number>();
-  // Generous defaults preserve pre-cap behaviour for any caller that doesn't
-  // pass the new fields.
-  const maxConsecutive = input.maxConsecutiveDaysSameMeal ?? 7;
-  const maxPerWeek = input.maxTimesPerWeekSameMeal ?? 7;
-  const maxRepeats = input.maxRepeatsPerRecipe;
-
-  /** Record an assignment against every cross-day accumulator. */
-  const place = (day: number, slot: MealType, recipe: OptimizerRecipe, budget: number) => {
-    assignments.push({
-      dayIndex: day,
-      slot,
-      recipeId: recipe.id,
-      servings: fitServings(recipe.caloriesPerServing, budget),
-    });
-    recentUse.set(recipe.id, day);
-    recipeUseCount.set(recipe.id, (recipeUseCount.get(recipe.id) ?? 0) + 1);
-    recipe.ingredientIds.forEach((id) => planIngredients.add(id));
-    const history = slotHistory.get(slot) ?? [];
-    history.push({ day, recipeId: recipe.id });
-    slotHistory.set(slot, history);
+  const uses: Use[] = [];
+  const useCount = new Map<string, number>();
+  // Without a limit of the caller's a recipe may fill a week.
+  const limits = {
+    consecutive: input.maxConsecutiveDaysSameMeal ?? 7,
+    perWeek: input.maxTimesPerWeekSameMeal ?? 7,
+    perPlan: input.maxRepeatsPerRecipe,
+    twiceADay: input.mealPrepFriendly,
+  };
+  const mayGiveWay = (kind: Relaxation): boolean => {
+    const allowed = input.allowRelaxations ?? 'all';
+    return allowed === 'all' || allowed.has(kind);
   };
 
   // The recipes of a meal are looked up once, however many days ask for them.
@@ -257,20 +281,13 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
         if (candidates.length === 0) {
           throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, { slot, dietType: input.dietType });
         }
+        if (candidates.length === 1) report.singleCandidate.push({ dayIndex: day, slot });
         // A recipe that stays far under the budget even at the largest serving
         // is left out, unless nothing else is there.
         const reaching = candidates.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
-        const eligibleHere = reaching.length > 0 ? reaching : candidates;
-        const budgetMinutes = spec.cookTimeBudgetMinutes;
-        const timeFiltered = budgetMinutes == null ? eligibleHere : eligibleHere.filter((r) => r.totalMinutes <= budgetMinutes);
-        const timePool = timeFiltered.length > 0 ? timeFiltered : eligibleHere;
-        const history = slotHistory.get(slot) ?? [];
-        const allowed = timePool.filter(
-          (r) =>
-            allowedByCaps(r.id, day, history, maxConsecutive, maxPerWeek) &&
-            (maxRepeats === undefined || (recipeUseCount.get(r.id) ?? 0) < maxRepeats),
-        );
-        recipe = pickBest(allowed.length > 0 ? allowed : timePool, {
+        const pool = withinLimits(reaching.length > 0 ? reaching : candidates, { day, slot, uses, useCount, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
+        if (pool.gaveWay.length > 0) report.relaxations.push({ dayIndex: day, slot, gaveWay: pool.gaveWay });
+        recipe = pickBest(pool.recipes, {
           budget,
           day,
           planIngredients,
@@ -282,45 +299,70 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
         });
       }
 
-      place(day, slot, recipe, budget);
-      left -= recipe.caloriesPerServing * fitServings(recipe.caloriesPerServing, budget);
+      const servings = fitServings(recipe.caloriesPerServing, budget);
+      assignments.push({ dayIndex: day, slot, recipeId: recipe.id, servings });
+      left -= recipe.caloriesPerServing * servings;
+      uses.push({ day, recipeId: recipe.id });
+      useCount.set(recipe.id, (useCount.get(recipe.id) ?? 0) + 1);
+      recentUse.set(recipe.id, day);
+      recipe.ingredientIds.forEach((id) => planIngredients.add(id));
     }
   }
 
   // In the order of the day's meals, whatever order they were filled in.
   const position = (a: OptimizerAssignment) => input.days[a.dayIndex]!.mealSlots.indexOf(a.slot);
   assignments.sort((a, b) => a.dayIndex - b.dayIndex || position(a) - position(b));
-  return { assignments, ingredientReuseScore: reuseScore(assignments, input.recipes) };
+  return { assignments, ingredientReuseScore: reuseScore(assignments, input.recipes), report };
+}
+
+/** The limits a recipe would break if it were placed at this meal. */
+function broken(
+  recipe: OptimizerRecipe,
+  at: { day: number; uses: readonly Use[]; useCount: ReadonlyMap<string, number>; limits: { consecutive: number; perWeek: number; perPlan?: number; twiceADay: boolean }; cookTimeBudget?: number },
+): Relaxation[] {
+  const { day, uses, limits } = at;
+  const mine = uses.filter((use) => use.recipeId === recipe.id);
+  const out: Relaxation[] = [];
+  if (limits.perPlan !== undefined && (at.useCount.get(recipe.id) ?? 0) >= limits.perPlan) out.push('variety_floor');
+  if (at.cookTimeBudget != null && recipe.totalMinutes > at.cookTimeBudget) out.push('cook_time');
+  if (!limits.twiceADay && mine.some((use) => use.day === day)) out.push('same_day');
+  // The days in a row that end yesterday, on each of which the recipe was eaten at some meal.
+  let streak = 0;
+  for (let d = day - 1; d >= 0 && mine.some((use) => use.day === d); d--) streak += 1;
+  if (streak + 1 > limits.consecutive) out.push('consecutive_days');
+  // Seven days that end today, over all meals.
+  if (mine.filter((use) => use.day >= day - 6).length + 1 > limits.perWeek) out.push('weekly_cap');
+  return out;
 }
 
 /**
- * Returns false when picking `recipeId` for `day` would breach either of the
- * per-slot caps (consecutive-day or rolling-week). Keeps the optimiser greedy
- * but prevents one recipe from monopolising a slot for the whole plan.
+ * The recipes that may fill a meal: those inside every limit, or, when there
+ * are none, those that are inside once the fewest limits have given way, in
+ * the fixed order. Of recipes let in that way, only the least used so far.
  */
-function allowedByCaps(
-  recipeId: string,
-  day: number,
-  history: ReadonlyArray<{ day: number; recipeId: string }>,
-  maxConsecutive: number,
-  maxPerWeek: number,
-): boolean {
-  // Consecutive-day check: count back from yesterday until the streak breaks.
-  let streak = 0;
-  for (let d = day - 1; d >= 0; d--) {
-    const entry = history.find((h) => h.day === d);
-    if (!entry) break;
-    if (entry.recipeId !== recipeId) break;
-    streak += 1;
+function withinLimits(
+  candidates: OptimizerRecipe[],
+  at: Parameters<typeof broken>[1] & { slot: MealType; mayGiveWay: (kind: Relaxation) => boolean },
+): { recipes: OptimizerRecipe[]; gaveWay: Relaxation[] } {
+  const breaks = new Map(candidates.map((recipe) => [recipe.id, broken(recipe, at)]));
+  const inside = candidates.filter((recipe) => breaks.get(recipe.id)!.length === 0);
+  if (inside.length > 0) return { recipes: inside, gaveWay: [] };
+
+  for (let step = 1; step <= RELAXATION_ORDER.length; step += 1) {
+    const given = RELAXATION_ORDER.slice(0, step);
+    const let_in = candidates.filter((recipe) => breaks.get(recipe.id)!.every((kind) => given.includes(kind)));
+    if (let_in.length === 0) continue;
+    const fewest = Math.min(...let_in.map((recipe) => at.useCount.get(recipe.id) ?? 0));
+    const recipes = let_in.filter((recipe) => (at.useCount.get(recipe.id) ?? 0) === fewest);
+    const gaveWay = RELAXATION_ORDER.filter((kind) => recipes.some((recipe) => breaks.get(recipe.id)!.includes(kind)));
+    const refused = gaveWay.filter((kind) => !at.mayGiveWay(kind));
+    if (refused.length > 0) {
+      throw new OptimizerError(`no recipe for ${at.slot} on day ${at.day + 1} inside the limits`, undefined, { dayIndex: at.day, slot: at.slot, needs: gaveWay });
+    }
+    return { recipes, gaveWay };
   }
-  if (streak + 1 > maxConsecutive) return false;
-
-  // Rolling 7-day window check, inclusive of the day we're about to fill.
-  const windowStart = day - 6;
-  const recent = history.filter((h) => h.day >= windowStart && h.recipeId === recipeId).length;
-  if (recent + 1 > maxPerWeek) return false;
-
-  return true;
+  // Unreachable: with every limit given way, every candidate is let in.
+  return { recipes: candidates, gaveWay: [...RELAXATION_ORDER] };
 }
 
 interface PickContext {
@@ -377,7 +419,6 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   const servings = fitServings(recipe.caloriesPerServing, ctx.budget);
   const fit = calorieFit(recipe.caloriesPerServing * servings, ctx.budget);
 
-
   // A recipe that's already been picked contributes nothing new to the
   // shopping list, so its reuse score should not reward re-picking it. Without
   // this, the first pick at a slot dominates the whole plan because all its
@@ -388,9 +429,8 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
       : recipe.ingredientIds.filter((id) => ctx.planIngredients.has(id)).length /
         recipe.ingredientIds.length;
 
-  // Asymptotic recovery rather than a hard cap at day 3 — a recipe used
-  // recently is still discouraged for longer plans, but never disqualified
-  // by score alone (the hard cap above handles the must-not-repeat case).
+  // A recipe used recently is discouraged, the more the more recently; the
+  // limits above are what forbids.
   const lastUsed = ctx.recentUse.get(recipe.id);
   const variety = lastUsed === undefined ? 1 : 1 - 1 / (ctx.day - lastUsed + 1);
 
