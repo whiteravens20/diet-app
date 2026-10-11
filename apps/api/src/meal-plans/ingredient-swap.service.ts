@@ -158,12 +158,13 @@ export class IngredientSwapService {
 
   /**
    * The catalogue's own suggestions for a planned meal: for each ingredient
-   * of its recipe that has substitution rules, the substitute that may come
-   * into this plan and moves a serving least. No model is asked.
+   * of its recipe that has substitution rules (or for the `only` one asked
+   * about), the substitute that may come into this plan and moves a serving
+   * least. No model is asked.
    */
-  async suggestions(userId: string, locale: Locale, planId: string, plannedMealId: string): Promise<SubstituteSuggestion[]> {
+  async suggestions(userId: string, locale: Locale, planId: string, plannedMealId: string, only?: string): Promise<SubstituteSuggestion[]> {
     const subject = await this.subject(userId, planId, plannedMealId);
-    const sources = [...new Set(subject.recipe.ingredients.map((line) => line.ingredientId))];
+    const sources = [...new Set(subject.recipe.ingredients.map((line) => line.ingredientId))].filter((source) => only === undefined || source === only);
     const rules = await this.prisma.substitutionRule.findMany({
       where: { fromIngredientId: { in: sources }, toIngredient: { retiredAt: null } },
       include: { toIngredient: { include: { translations: true } } },
@@ -428,7 +429,9 @@ export class IngredientSwapService {
   /**
    * AI-rank a replacement ingredient for a planned-meal line. The engine builds
    * the candidate pool (same category, diet/allergen-safe, excluding what's
-   * already in the recipe); AI picks one id. The UI then runs the existing
+   * already in the recipe); AI picks one id. Where it names none of them, the
+   * catalogue's own suggestion for the ingredient stands in, and a pick by
+   * position where the catalogue has none. The UI then runs the existing
    * preview/apply pipeline so nutrition is recomputed deterministically.
    */
   async aiSuggestIngredient(
@@ -492,8 +495,7 @@ export class IngredientSwapService {
       });
     }
     // Surface pantry-friendly substitutes first. The AI sees them at the
-    // top of the list AND the deterministic fallback (hashIndex on pool
-    // order) prefers them.
+    // top of the list, and so does the pick by position below.
     const pantryHits = await this.ingredientPantryHit(
       meal.day.plan.profileId,
       pool.map((c) => c.id),
@@ -526,14 +528,14 @@ export class IngredientSwapService {
       true,
     );
 
-    const fallbackPick = (): string => {
-      const idx = pickIndex(`${req.plannedMealId}:${req.fromIngredientId}`, pool.length);
-      return pool[idx]!.id;
+    const withoutModel = async (): Promise<string> => {
+      const [suggested] = await this.suggestions(userId, locale, req.planId, req.plannedMealId, req.fromIngredientId);
+      return suggested?.to.id ?? pool[pickIndex(`${req.plannedMealId}:${req.fromIngredientId}`, pool.length)]!.id;
     };
 
     const offered = text === null ? null : parseAiIngredientPick(text);
     const pick = offered && pool.some((c) => c.id === offered.id) ? offered : null;
-    const toIngredientId = pick?.id ?? fallbackPick();
+    const toIngredientId = pick?.id ?? (await withoutModel());
     const aiMeta = pick ? { ...meta, reason: pick.reason } : text === null ? meta : withUnusableAnswer(meta);
 
     const locales = locale === 'en' ? ['en'] : [locale, 'en'];

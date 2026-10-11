@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { MealPlan, PlannedMeal, SubstituteSuggestion, SwapPreview } from '@diet-app/shared';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -178,6 +178,51 @@ describe('putting one ingredient of a planned meal in the place of another', () 
       } finally {
         await t.prisma.ingredient.delete({ where: { id: turkey.id } });
       }
+    });
+
+    describe('where a model was asked for a substitute and named none', () => {
+      /** Another meat, so that the model has something to choose from for the chicken. */
+      let turkeyId: string;
+      const askedForChicken = async () =>
+        (await t.http().post('/api/meal-plans/swap-ingredient/ai-suggest').set(as(user)).send({ planId: plan.id, plannedMealId: dinner.id, fromIngredientId: await id('chicken-breast') }).expect(201)).body;
+
+      beforeEach(async () => {
+        t.model.reset();
+        t.model.reply({ text: 'no idea' });
+        await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'admin' } });
+        const turkey = await t.prisma.ingredient.create({
+          data: { slug: 'turkey-breast', name: 'Turkey breast', category: 'meat', canonicalUnit: 'g', caloriesPer100: 118, proteinPer100: 23, fatPer100: 2.4, carbsPer100: 0, dietCompatibility: ['balanced'] },
+        });
+        turkeyId = turkey.id;
+      });
+
+      afterEach(async () => {
+        await t.prisma.ingredient.delete({ where: { id: turkeyId } });
+      });
+
+      it('is what is suggested in the model\'s place', async () => {
+        const answer = await askedForChicken();
+
+        expect(answer.toIngredient).toMatchObject({ id: await id('firm-tofu'), name: 'Firm tofu' });
+        expect(answer.aiMeta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'invalid_output' });
+      });
+
+      it('gives way to an ingredient of the same kind where the profile rules out what the rules name', async () => {
+        const profile = await t.prisma.profile.findFirstOrThrow({ where: { userId: user.id } });
+        await t.prisma.profilePreference.update({ where: { profileId: profile.id }, data: { allergens: ['soy'] } });
+
+        expect((await askedForChicken()).toIngredient.id).toBe(turkeyId);
+      });
+
+      it('is not asked where the model names one of what it was shown', async () => {
+        t.model.reset();
+        t.model.reply({ text: JSON.stringify({ ingredientId: turkeyId, reason: 'Leaner.' }) });
+
+        const answer = await askedForChicken();
+
+        expect(answer.toIngredient.id).toBe(turkeyId);
+        expect(answer.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: 'Leaner.' });
+      });
     });
   });
 
