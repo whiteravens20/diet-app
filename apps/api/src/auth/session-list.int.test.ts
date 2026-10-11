@@ -46,8 +46,8 @@ describe('the sessions of an account, as the account sees them', () => {
     const list = await listed();
 
     expect(list.map((session) => [session.id, session.label])).toEqual([
-      [phone.sessionId, 'Safari on iOS'],
-      [laptop.sessionId, 'Firefox on Linux'],
+      [phone.sessionId, 'Safari · iOS'],
+      [laptop.sessionId, 'Firefox · Linux'],
       // The one the account was made with, by a client that did not say what it is.
       [expect.any(String), null],
     ]);
@@ -116,6 +116,6 @@ describe('the sessions of an account, as the account sees them', () => {
     const made = (await t.http().post('/api/auth/register').set('User-Agent', FIREFOX).send({ email: 'named@example.test', password: 'Brand-New-Passw0rd', displayName: 'Named' }).expect(201)).body as AuthResponse;
 
     const list = (await t.http().get('/api/users/me/sessions').set({ Authorization: `Bearer ${made.tokens.accessToken}` }).expect(200)).body as AccountSession[];
-    expect(list).toMatchObject([{ id: made.sessionId, label: 'Firefox on Linux' }]);
+    expect(list).toMatchObject([{ id: made.sessionId, label: 'Firefox · Linux' }]);
   });
 });

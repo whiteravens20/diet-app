@@ -101,7 +101,7 @@ export type AuthUser = z.infer<typeof AuthUser>;
 export const AccountSession = z.object({
   /** The `sessionId` of the answers that belong to it. */
   id: z.string().uuid(),
-  /** What it was opened from, as far as the request said ("Firefox on Linux"); null when it said nothing usable. */
+  /** What it was opened from, as far as the request said ("Firefox · Linux"); null when it said nothing usable. */
   label: z.string().nullable(),
   startedAt: z.string().datetime(),
   /** When it last got a new access token. */

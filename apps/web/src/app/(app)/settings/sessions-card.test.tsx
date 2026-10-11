@@ -23,7 +23,7 @@ const aSession = (id: string, label: string | null): AccountSession => ({
 });
 
 /** The card for an account signed in from this browser, a phone and something that did not say what it is. */
-function shown(list: AccountSession[] = [aSession(HERE, 'Firefox on Linux'), aSession(PHONE, 'Safari on iOS'), aSession(OTHER, null)]) {
+function shown(list: AccountSession[] = [aSession(HERE, 'Firefox · Linux'), aSession(PHONE, 'Safari · iOS'), aSession(OTHER, null)]) {
   vi.spyOn(browserSession, 'id', 'get').mockReturnValue(HERE);
   const forget = vi.spyOn(browserSession, 'forget').mockImplementation(() => undefined);
   const get = vi.spyOn(api, 'get').mockResolvedValue(list as never);
@@ -49,10 +49,10 @@ describe('the list of where an account is signed in', () => {
 
     const rows = await screen.findAllByRole('listitem');
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]!).getByText('Firefox on Linux')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('Firefox · Linux')).toBeInTheDocument();
     expect(within(rows[0]!).getByText(messages.settings.sessionCurrent)).toBeInTheDocument();
     // Read out as two things, not as one word.
-    expect(rows[0]!.querySelector('p')!.textContent).toBe(`Firefox on Linux ${messages.settings.sessionCurrent}`);
+    expect(rows[0]!.querySelector('p')!.textContent).toBe(`Firefox · Linux ${messages.settings.sessionCurrent}`);
     expect(within(rows[1]!).queryByText(messages.settings.sessionCurrent)).toBeNull();
     expect(within(rows[2]!).getByText(messages.settings.sessionUnknown)).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Signed in Jan 5, 2026, 8:00 AM · last active Jan 6, 2026, 9:30 AM')).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe('the list of where an account is signed in', () => {
   it('signs out another session and stays, with the list read again', async () => {
     const { get, remove, forget, onSignedOut } = shown();
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Sign out Safari on iOS' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sign out Safari · iOS' }));
 
     expect(remove).toHaveBeenCalledWith(`/users/me/sessions/${PHONE}`);
     await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2));
@@ -72,7 +72,7 @@ describe('the list of where an account is signed in', () => {
   it('leaves the page when the session of this browser is the one signed out', async () => {
     const { forget, onSignedOut } = shown();
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Sign out Firefox on Linux' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sign out Firefox · Linux' }));
 
     await vi.waitFor(() => expect(onSignedOut).toHaveBeenCalledTimes(1));
     expect(forget).toHaveBeenCalledTimes(1);
@@ -92,7 +92,7 @@ describe('the list of where an account is signed in', () => {
     const { get, remove } = shown();
     remove.mockRejectedValueOnce(new ApiClientError(404, 'SESSION_NOT_FOUND', 'That session is not open.'));
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Sign out Safari on iOS' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sign out Safari · iOS' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.SESSION_NOT_FOUND);
     await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2));

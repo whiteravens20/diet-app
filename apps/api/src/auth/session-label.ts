@@ -3,7 +3,8 @@
 /**
  * What a session is called where an account looks at its sessions: the
  * browser and the system it was opened from, as far as the request said
- * ("Firefox on Linux"). Only these two names are kept of the User-Agent
+ * ("Firefox · Linux": two names and no word between them, so that the label
+ * reads the same in every language). Only these two names are kept of the User-Agent
  * header: the rest of it tells one visitor from another, and nothing here
  * needs that.
  */
@@ -11,7 +12,7 @@ export function sessionLabel(userAgent: string | undefined): string | null {
   if (!userAgent) return null;
   const system = SYSTEMS.find(([pattern]) => pattern.test(userAgent))?.[1] ?? null;
   const browser = BROWSERS.find(([pattern]) => pattern.test(userAgent))?.[1] ?? clientName(userAgent);
-  if (browser && system) return `${browser} on ${system}`;
+  if (browser && system) return `${browser} · ${system}`;
   return browser ?? system;
 }
 
