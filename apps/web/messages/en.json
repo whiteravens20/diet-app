@@ -548,7 +548,7 @@
       "shipBundleHint": "Token expires {expiresAt}. Download is separate from \"mark shipped\" so an accidental click is recoverable.",
       "shipBundleDownload": "Download",
       "shipBundleMarkShipped": "I committed this — mark shipped",
-      "shipBundleSkipped": "{count, plural, one {# approved draft was} other {# approved drafts were}} left out because they break a rule:",
+      "shipBundleSkipped": "{count, plural, one {# approved draft was left out because it breaks a rule:} other {# approved drafts were left out because they break a rule:}}",
       "shipDismiss": "Dismiss"
     },
     "connection": {
