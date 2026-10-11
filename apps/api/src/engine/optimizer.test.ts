@@ -44,7 +44,6 @@ const baseInput: OptimizerInput = {
     recipe('d2', ['dinner'], 550),
   ],
   days: uniformDays(3, ['breakfast', 'lunch', 'dinner'], 2000),
-  targetMacros: { protein: 120, fat: 60, carbs: 220 },
   dietType: 'balanced',
   mealPrepFriendly: false,
   seed: 1,

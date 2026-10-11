@@ -30,6 +30,7 @@ import {
 import {
   calculateCalories,
   effectiveDayTarget,
+  macroSplitOf,
   optimisePlan,
   OptimizerError,
   recipeCoverage,
@@ -165,7 +166,10 @@ export class PlanGenerationService {
       where: { id: planId },
       include: {
         profile: true,
-        days: { orderBy: { date: 'asc' }, include: { meals: { include: { recipe: { select: { caloriesPerServing: true } } } } } },
+        days: {
+          orderBy: { date: 'asc' },
+          include: { meals: { include: { recipe: { select: { caloriesPerServing: true, proteinPerServing: true, fatPerServing: true, carbsPerServing: true } } } } },
+        },
       },
     });
     if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
@@ -204,11 +208,20 @@ export class PlanGenerationService {
     const days = plan.days.map((day, dayIndex): ResolvedDay => {
       const iso = dates[dayIndex]!;
       const o = parseDayOverrides(day.overrides);
-      const kept = (meal: (typeof day.meals)[number]): KeptMeal => ({
-        recipeId: meal.recipeId ?? undefined,
-        calories: (meal.recipe?.caloriesPerServing ?? customMacros(meal.customMacros).calories) * meal.servings * meal.quantityScale,
-        servings: meal.servings * meal.quantityScale,
-      });
+      const kept = (meal: (typeof day.meals)[number]): KeptMeal => {
+        // A meal of the user's own holds what the user said it holds; one of the catalogue what its recipe does.
+        const own = customMacros(meal.customMacros);
+        const perServing = meal.recipe
+          ? { calories: meal.recipe.caloriesPerServing, protein: meal.recipe.proteinPerServing, fat: meal.recipe.fatPerServing, carbs: meal.recipe.carbsPerServing }
+          : own;
+        const servings = meal.servings * meal.quantityScale;
+        return {
+          recipeId: meal.recipeId ?? undefined,
+          calories: perServing.calories * servings,
+          servings,
+          macros: { protein: perServing.protein * servings, fat: perServing.fat * servings, carbs: perServing.carbs * servings },
+        };
+      };
       if (!again(iso)) {
         return { date: day.date, isoDate: iso, mealSlots: [], calorieTarget: day.calorieTarget, useUpBy: false, skip: false, overrides: o, kept: day.meals.map(kept) };
       }
@@ -435,7 +448,7 @@ export class PlanGenerationService {
       const result = optimisePlan({
         recipes: optimizerRecipes,
         days,
-        targetMacros: { protein: 0, fat: 0, carbs: 0 },
+        macroSplit: macroSplitOf(opts.dietType),
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
         favoriteIngredientIds,

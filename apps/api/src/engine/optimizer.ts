@@ -25,6 +25,7 @@
  * the way.
  */
 import { fitsDiet, PLAN_RELAXATIONS, type DietType, type Macros, type MealType, type PlanRelaxation, type Unit } from '@diet-app/shared';
+import { energyShares, splitDistance } from './nutrition.js';
 import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
 
 export interface OptimizerRecipe {
@@ -80,13 +81,20 @@ export interface KeptMeal {
   calories: number;
   /** How many servings of the recipe the meal is; one when left out. */
   servings?: number;
+  /** The protein, fat and carbohydrate the meal holds, in grams; left out when that is not known. */
+  macros?: Macros;
 }
 
 export interface OptimizerInput {
   recipes: OptimizerRecipe[];
   /** One descriptor per day (length = plan duration). See {@link OptimizerDay}. */
   days: OptimizerDay[];
-  targetMacros: Macros;
+  /**
+   * The split of a day's energy between protein, fat and carbohydrate that
+   * the plan aims at, as shares that add up to one. Omitted: the split plays
+   * no part in the choice of recipes.
+   */
+  macroSplit?: Macros;
   dietType: DietType;
   mealPrepFriendly: boolean;
   /**
@@ -186,8 +194,13 @@ const SLOT_WEIGHT: Record<MealType, number> = {
   snack: 0.1,
 };
 
-const SCORE_WEIGHTS = {
+export const SCORE_WEIGHTS = {
   calorieFit: 0.45,
+  // How near the day comes to the split it aims at. Chosen with
+  // `scripts/tune-macro-weight.ts`: the least weight at which the days of a
+  // plan stop getting nearer their split, so that it costs variety no more
+  // than it has to.
+  macroFit: 0.6,
   reuse: 0.25,
   variety: 0.15,
   favorite: 0.1,
@@ -198,7 +211,11 @@ const SCORE_WEIGHTS = {
   // reset triggers.
   inventoryCoverage: 0.1,
   complexity: 0.05,
-} as const;
+};
+export type ScoreWeights = typeof SCORE_WEIGHTS;
+
+/** A day that is this far from its split, or further, gets nothing for it. */
+const MACRO_REACH = 0.5;
 
 export const SERVING_MIN = 0.5;
 export const SERVING_MAX = 3;
@@ -271,16 +288,16 @@ interface Held {
  * fewest meals are outside a limit, counting first the limits that may not
  * give way.
  */
-export function optimisePlan(input: OptimizerInput): OptimizerResult {
+export function optimisePlan(input: OptimizerInput, weights: ScoreWeights = SCORE_WEIGHTS): OptimizerResult {
   const mayGiveWay = (kind: Relaxation): boolean => {
     const allowed = input.allowRelaxations ?? 'all';
     return allowed === 'all' || allowed.has(kind);
   };
   const refusedIn = (run: Filled): RelaxedSlot[] => run.report.relaxations.filter((entry) => !entry.gaveWay.every(mayGiveWay));
 
-  let best = fill(input, input.seed, mayGiveWay);
+  let best = fill(input, input.seed, mayGiveWay, weights);
   for (let attempt = 1; attempt < ATTEMPTS && best.report.relaxations.length > 0; attempt += 1) {
-    const other = fill(input, input.seed + attempt, mayGiveWay);
+    const other = fill(input, input.seed + attempt, mayGiveWay, weights);
     const fewer = refusedIn(other).length - refusedIn(best).length || other.report.relaxations.length - best.report.relaxations.length;
     if (fewer < 0) best = other;
   }
@@ -301,7 +318,7 @@ interface Filled {
 }
 
 /** One run over the plan, with the draws of `seed`: every meal filled, whatever had to give way for it. */
-function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation) => boolean): Filled {
+function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation) => boolean, weights: ScoreWeights): Filled {
   const recipeById = new Map(input.recipes.map((r) => [r.id, r]));
   const assignments: OptimizerAssignment[] = [];
   const report: OptimizerReport = { relaxations: [], singleCandidate: [] };
@@ -360,6 +377,14 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
     ];
 
     let left = spec.dailyCalorieTarget - (spec.kept ?? []).reduce((sum, meal) => sum + meal.calories, 0);
+    // What the day holds so far of protein, fat and carbohydrate, in grams.
+    const dayMacros: Macros = { protein: 0, fat: 0, carbs: 0 };
+    const hold = (macros: Macros, servings: number): void => {
+      dayMacros.protein += macros.protein * servings;
+      dayMacros.fat += macros.fat * servings;
+      dayMacros.carbs += macros.carbs * servings;
+    };
+    for (const meal of spec.kept ?? []) if (meal.macros) hold(meal.macros, 1);
     for (const [index, slot] of order.entries()) {
       // What is left of the day, shared among the meals still to come by their weights.
       const toCome = order.slice(index);
@@ -386,6 +411,9 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
           day,
           planIngredients,
           uses,
+          dayMacros,
+          macroSplit: input.macroSplit,
+          weights,
           mealPrepFriendly: input.mealPrepFriendly,
           favoriteIngredientIds: input.favoriteIngredientIds,
           inventoryCoverage: coverage,
@@ -398,6 +426,7 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
       const servings = fitServings(recipe.caloriesPerServing, budget);
       assignments.push({ dayIndex: day, slot, recipeId: recipe.id, servings });
       left -= recipe.caloriesPerServing * servings;
+      hold({ protein: recipe.proteinPerServing, fat: recipe.fatPerServing, carbs: recipe.carbsPerServing }, servings);
       place(day, recipe.id, servings);
     }
   }
@@ -491,6 +520,10 @@ interface PickContext {
   planIngredients: Set<string>;
   /** The meals of the plan so far: those that stay and those already placed. */
   uses: readonly Use[];
+  /** What the meals of the day hold so far, in grams. */
+  dayMacros: Macros;
+  macroSplit?: Macros;
+  weights: ScoreWeights;
   mealPrepFriendly: boolean;
   favoriteIngredientIds?: ReadonlySet<string>;
   inventoryCoverage?: ReadonlyMap<string, number>;
@@ -570,15 +603,33 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   // Pantry coverage. Pre-computed by the caller; omitted/empty map → 0.
   const inventoryCoverage = ctx.inventoryCoverage?.get(recipe.id) ?? 0;
 
+  const { weights } = ctx;
   return (
-    SCORE_WEIGHTS.calorieFit * fit +
-    SCORE_WEIGHTS.reuse * reuse +
-    SCORE_WEIGHTS.variety * variety +
-    SCORE_WEIGHTS.favorite * favorite +
-    SCORE_WEIGHTS.favoriteIngredient * favoriteIngredient +
-    SCORE_WEIGHTS.inventoryCoverage * inventoryCoverage -
-    SCORE_WEIGHTS.complexity * complexityPenalty
+    weights.calorieFit * fit +
+    weights.macroFit * macroFit(recipe, servings, ctx) +
+    weights.reuse * reuse +
+    weights.variety * variety +
+    weights.favorite * favorite +
+    weights.favoriteIngredient * favoriteIngredient +
+    weights.inventoryCoverage * inventoryCoverage -
+    weights.complexity * complexityPenalty
   );
+}
+
+/**
+ * How near the day would be to the split it aims at with this meal on it,
+ * from 1 (on it) down to 0 (`MACRO_REACH` away or further). It looks at the
+ * day so far and the meal together, so a meal can make up for the ones before
+ * it. Nothing where the plan aims at no split.
+ */
+function macroFit(recipe: OptimizerRecipe, servings: number, ctx: Pick<PickContext, 'dayMacros' | 'macroSplit'>): number {
+  if (!ctx.macroSplit) return 0;
+  const shares = energyShares({
+    protein: ctx.dayMacros.protein + recipe.proteinPerServing * servings,
+    fat: ctx.dayMacros.fat + recipe.fatPerServing * servings,
+    carbs: ctx.dayMacros.carbs + recipe.carbsPerServing * servings,
+  });
+  return shares ? 1 - Math.min(1, splitDistance(shares, ctx.macroSplit) / MACRO_REACH) : 0;
 }
 
 /**

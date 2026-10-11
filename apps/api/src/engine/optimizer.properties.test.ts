@@ -7,6 +7,7 @@
  */
 import type { MealType } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
+import { energyShares, splitDistance } from './nutrition.js';
 import {
   OptimizerError,
   calorieFit,
@@ -54,7 +55,6 @@ const MEALS: Record<number, MealType[]> = {
 const plan = (over: Partial<OptimizerInput> = {}): OptimizerInput => ({
   recipes: CATALOGUE,
   days: uniformDays(14, MEALS[3]!, 2000),
-  targetMacros: { protein: 120, fat: 60, carbs: 220 },
   dietType: 'balanced',
   mealPrepFriendly: false,
   seed: 1,
@@ -479,6 +479,98 @@ describe('the most of one ingredient in seven days', () => {
     const result = optimisePlan(plan({ recipes: unknown, days: uniformDays(7, ['lunch'], 700), maxIngredientPerWeek: 1, allowRelaxations: new Set(), maxConsecutiveDaysSameMeal: 7, maxTimesPerWeekSameMeal: 7 }));
 
     expect(result.assignments).toHaveLength(7);
+  });
+});
+
+describe('the split of a day between protein, fat and carbohydrate', () => {
+  /** A dish of `kcal` whose energy is split as `shares` says (protein, fat, carbohydrate). */
+  const split = (id: string, mealTypes: MealType[], kcal: number, [protein, fat, carbs]: [number, number, number]): OptimizerRecipe =>
+    dish(id, mealTypes, kcal, { proteinPerServing: (kcal * protein) / 4, fatPerServing: (kcal * fat) / 9, carbsPerServing: (kcal * carbs) / 4 });
+  const KINDS: Record<string, [number, number, number]> = {
+    lean: [0.45, 0.3, 0.25],
+    even: [0.25, 0.3, 0.45],
+    starchy: [0.12, 0.23, 0.65],
+    rich: [0.2, 0.62, 0.18],
+  };
+  /** Enough dishes of each kind for every meal that a week could be made of one kind within the limits, or of any mix. */
+  const VARIED: OptimizerRecipe[] = Object.entries(KINDS).flatMap(([kind, shares]) => [
+    ...[380, 420, 460, 500].map((kcal, i) => split(`${kind}-breakfast-${i}`, ['breakfast'], kcal, shares)),
+    ...[190, 220, 250, 280].map((kcal, i) => split(`${kind}-small-${i}`, ['second_breakfast', 'snack'], kcal, shares)),
+    ...[520, 560, 600, 640, 680, 720].map((kcal, i) => split(`${kind}-main-${i}`, ['lunch', 'dinner'], kcal, shares)),
+  ]);
+  const byId = new Map(VARIED.map((recipe) => [recipe.id, recipe]));
+  /** How far each day of the plan is from `target`, as shares of its energy. */
+  const distances = (result: OptimizerResult, days: number, target: { protein: number; fat: number; carbs: number }): number[] =>
+    Array.from({ length: days }, (_, day) => {
+      const total = { protein: 0, fat: 0, carbs: 0 };
+      for (const placed of result.assignments.filter((a) => a.dayIndex === day)) {
+        const recipe = byId.get(placed.recipeId)!;
+        total.protein += recipe.proteinPerServing * placed.servings;
+        total.fat += recipe.fatPerServing * placed.servings;
+        total.carbs += recipe.carbsPerServing * placed.servings;
+      }
+      return splitDistance(energyShares(total)!, target);
+    });
+  const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+  const week = (over: Partial<OptimizerInput> = {}) =>
+    plan({ recipes: VARIED, days: uniformDays(7, MEALS[4]!, 2000), maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, allowRelaxations: new Set(), ...over });
+
+  const TARGETS = {
+    'high in protein': { protein: 0.4, fat: 0.3, carbs: 0.3 },
+    'even': { protein: 0.25, fat: 0.3, carbs: 0.45 },
+    'high in fat': { protein: 0.25, fat: 0.6, carbs: 0.15 },
+  };
+
+  it.each(Object.entries(TARGETS))('is brought near a target that is %s, where a plan that is asked for none is far from it', (_name, macroSplit) => {
+    const asked: number[] = [];
+    const left: number[] = [];
+    for (let seed = 1; seed <= 20; seed += 1) {
+      asked.push(...distances(optimisePlan(week({ seed, macroSplit })), 7, macroSplit));
+      left.push(...distances(optimisePlan(week({ seed })), 7, macroSplit));
+    }
+
+    // A tenth of a day's energy on the wrong side at most, on the average day; no day by more than a fifth.
+    expect(mean(asked)).toBeLessThan(0.1);
+    expect(Math.max(...asked)).toBeLessThan(0.2);
+    expect(mean(asked)).toBeLessThan(mean(left) - 0.03);
+  });
+
+  it('keeps every day inside a tenth of its target all the same', () => {
+    for (const macroSplit of Object.values(TARGETS)) {
+      for (const meals of [3, 4, 5]) {
+        for (let seed = 1; seed <= 15; seed += 1) {
+          const result = optimisePlan(week({ days: uniformDays(7, MEALS[meals]!, 2100), seed, macroSplit }));
+          for (let day = 0; day < 7; day += 1) {
+            const kcal = result.assignments.filter((a) => a.dayIndex === day).reduce((sum, a) => sum + byId.get(a.recipeId)!.caloriesPerServing * a.servings, 0);
+            expect(Math.abs(kcal - 2100) / 2100, `${meals} meals, seed ${seed}, day ${day + 1}: ${kcal} kcal`).toBeLessThanOrEqual(0.1);
+          }
+        }
+      }
+    }
+  });
+
+  it('counts what the meals that stay on a day hold', () => {
+    // A breakfast of 600 kcal that is nearly all carbohydrate stays on the day. Where the plan knows what it
+    // holds, lunch and dinner make up for it; where it does not, they are chosen for themselves.
+    const breakfast = { protein: 9, fat: 7, carbs: 125 };
+    const macroSplit = TARGETS['high in protein'];
+    const dayFromTarget = (known: boolean): number => {
+      const far: number[] = [];
+      for (let seed = 1; seed <= 20; seed += 1) {
+        const days = [{ mealSlots: ['lunch' as const, 'dinner' as const], dailyCalorieTarget: 2000, kept: [{ recipeId: 'eaten', calories: 600, ...(known ? { macros: breakfast } : {}) }] }];
+        const total = { ...breakfast };
+        for (const placed of optimisePlan(plan({ recipes: VARIED, days, seed, macroSplit })).assignments) {
+          const recipe = byId.get(placed.recipeId)!;
+          total.protein += recipe.proteinPerServing * placed.servings;
+          total.fat += recipe.fatPerServing * placed.servings;
+          total.carbs += recipe.carbsPerServing * placed.servings;
+        }
+        far.push(splitDistance(energyShares(total)!, macroSplit));
+      }
+      return mean(far);
+    };
+
+    expect(dayFromTarget(true)).toBeLessThan(dayFromTarget(false) - 0.02);
   });
 });
 

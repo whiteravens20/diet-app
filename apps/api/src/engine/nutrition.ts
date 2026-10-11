@@ -82,6 +82,25 @@ export function safetyFloor(sex: Sex | null): number {
   return sex === 'male' ? 1500 : 1200;
 }
 
+/** The split of a day's energy that a diet aims at, as shares that add up to one. */
+export function macroSplitOf(dietType: DietType): Macros {
+  return MACRO_SPLIT[dietType];
+}
+
+/** The share of their energy that protein, fat and carbohydrate each carry; null when they hold none. */
+export function energyShares(grams: Macros): Macros | null {
+  const protein = grams.protein * KCAL_PER_GRAM.protein;
+  const fat = grams.fat * KCAL_PER_GRAM.fat;
+  const carbs = grams.carbs * KCAL_PER_GRAM.carbs;
+  const total = protein + fat + carbs;
+  return total > 0 ? { protein: protein / total, fat: fat / total, carbs: carbs / total } : null;
+}
+
+/** How far one split is from another: the share of the energy that would have to move, from 0 to 1. */
+export function splitDistance(a: Macros, b: Macros): number {
+  return (Math.abs(a.protein - b.protein) + Math.abs(a.fat - b.fat) + Math.abs(a.carbs - b.carbs)) / 2;
+}
+
 /** Split a calorie target into target macros (grams) for a diet type. */
 export function macrosForCalories(calories: number, dietType: DietType): Macros {
   const split = MACRO_SPLIT[dietType];

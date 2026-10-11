@@ -7,7 +7,10 @@ import {
   calculateMaintenance,
   deficitForWeeklyTarget,
   effectiveDayTarget,
+  energyShares,
+  macroSplitOf,
   macrosForCalories,
+  splitDistance,
   type CalorieEngineInput,
 } from './nutrition.js';
 
@@ -207,5 +210,36 @@ describe('calculateCalories', () => {
     it('names both when both are true', () => {
       expect(calculateCalories(minor({ weightKg: 45, weeklyLossTarget: null })).warnings).toEqual(['minor', 'underweight']);
     });
+  });
+});
+
+describe('the split of energy between protein, fat and carbohydrate', () => {
+  it('is what each carries of the energy the three hold: four, nine and four kilocalories a gram', () => {
+    // 50 g of protein, 20 g of fat and 55 g of carbohydrate: 200, 180 and 220 kcal of 600.
+    const shares = energyShares({ protein: 50, fat: 20, carbs: 55 })!;
+
+    expect(shares.protein).toBeCloseTo(200 / 600);
+    expect(shares.fat).toBeCloseTo(180 / 600);
+    expect(shares.carbs).toBeCloseTo(220 / 600);
+  });
+
+  it('is not there for nothing at all', () => {
+    expect(energyShares({ protein: 0, fat: 0, carbs: 0 })).toBeNull();
+  });
+
+  it('is as far from another as the share of energy that would have to move', () => {
+    const balanced = macroSplitOf('balanced');
+
+    expect(splitDistance(balanced, balanced)).toBe(0);
+    // 15 points from carbohydrate to protein.
+    expect(splitDistance(balanced, macroSplitOf('high_protein'))).toBeCloseTo(0.15);
+    expect(splitDistance({ protein: 1, fat: 0, carbs: 0 }, { protein: 0, fat: 1, carbs: 0 })).toBe(1);
+  });
+
+  it('is given for every diet, and adds up to the whole', () => {
+    for (const diet of ['balanced', 'high_protein', 'low_carb', 'vegetarian', 'vegan', 'keto', 'mediterranean', 'custom'] as const) {
+      const { protein, fat, carbs } = macroSplitOf(diet);
+      expect(protein + fat + carbs).toBeCloseTo(1);
+    }
   });
 });
