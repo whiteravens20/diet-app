@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { RECIPE_LIMITS } from '@diet-app/shared';
-import { checkIngredientName, checkRecipe, type RecipeProblem } from './recipe-rules.js';
+import { checkIngredientName, checkRecipe, checkRecipeText, type RecipeProblem } from './recipe-rules.js';
 
 /** A recipe every rule lets through, in two languages. */
 const recipe = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -216,6 +216,21 @@ describe('what a recipe may hold', () => {
     const [problem] = problemsOf(recipe({ titles: { en: 'a'.repeat(200), pl: 'Owsianka' } }));
 
     expect(problem).toEqual({ path: 'titles.en', rule: 'text-too-long', message: `titles.en is longer than ${RECIPE_LIMITS.title} characters` });
+  });
+});
+
+describe('the text of one language of a recipe', () => {
+  it('is checked on its own, whatever else the recipe holds', () => {
+    // Somebody who edits Polish is not answerable for the servings or for the English.
+    const result = checkRecipeText({ titles: { en: '<b>Bowl</b>', pl: ' Owsianka ' }, descriptions: { pl: 'Płatki.' }, steps: { pl: ['Wymieszaj.', ''] }, servings: 500 }, ['pl']);
+
+    expect(result).toEqual({ ok: true, text: { titles: { pl: 'Owsianka' }, descriptions: { pl: 'Płatki.' }, steps: { pl: ['Wymieszaj.'] } } });
+  });
+
+  it('names what is wrong with it', () => {
+    const result = checkRecipeText({ titles: { pl: 'a'.repeat(121) }, descriptions: {}, steps: { pl: ['<svg>'] } }, ['pl']);
+
+    expect(result.ok ? [] : result.problems.map((p) => `${p.path}: ${p.rule}`)).toEqual(['titles.pl: text-too-long', 'descriptions.pl: missing-locale', 'steps.pl[0]: markup']);
   });
 });
 

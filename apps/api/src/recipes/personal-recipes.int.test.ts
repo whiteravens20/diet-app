@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, aUser, as, asAdmin, race, type TestUser } from '../testing/factories.js';
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
@@ -313,6 +313,21 @@ describe("submitting a recipe of one's own", () => {
     expect(queue).toHaveLength(1);
     expect(queue[0]!.sourceRecipeIds).toEqual([variant]);
     expect((queue[0]!.titles as Record<string, string>).en).toBeTruthy();
+  });
+
+  it('can be done again after the curators deleted the draft', async () => {
+    const account = await anAccount();
+    const variant = await tofuForChicken(account);
+    await personal.submit(account.user.id, variant);
+    const [first] = await t.prisma.recipeDraft.findMany();
+
+    await t.http().delete(`/api/admin/drafts/recipes/${first!.id}`).set(asAdmin).expect(204);
+    await personal.submit(account.user.id, variant);
+
+    const queue = await t.prisma.recipeDraft.findMany();
+    expect(queue).toHaveLength(1);
+    expect(queue[0]!.id).not.toBe(first!.id);
+    expect(queue[0]!.sourceRecipeIds).toEqual([variant]);
   });
 
   it("is refused for another user's recipe as if it did not exist", async () => {

@@ -14,7 +14,6 @@ import {
   ConflictException,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   HttpCode,
   InternalServerErrorException,
@@ -32,23 +31,27 @@ import { resolve as resolvePath } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
+  IngredientNameDraftListQuery,
   IngredientNameGenerateSpec,
   IngredientNameSuggestion,
   Locale as LocaleSchema,
+  RecipeDraftListQuery,
   RecipeDraftPatch,
   RecipeGenerateSpec,
-  type Complexity,
+  TargetLocale,
   type DraftRunnerState,
   type IngredientNameDraft,
   type RecipeDraft,
-  type RecipeDraftIngredientLine,
+  type ReviewAction,
 } from '@diet-app/shared';
 import { z } from 'zod';
+import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Env } from '../../config/env.js';
 import { deriveKey } from '../../common/crypto.js';
 import { BasicAuthGuard } from '../basic-auth.guard.js';
-import { deriveDraftStatus } from './derive-status.js';
+import { DraftService, type Actor, type Page } from './draft.service.js';
+import { toIngredientNameDraftDto, toRecipeDraftDto } from './drafts.mapper.js';
 import {
   IngredientNamerRunner,
   type IngredientNamerStartSpec,
@@ -59,7 +62,6 @@ import {
 } from './recipe-generator.runner.js';
 import { recipeFacts, type RecipeFacts } from '../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../engine/units.js';
-import { classifyComplexity } from './recipe-generator.complexity.js';
 import {
   shipIngredientNamesLocal,
   shipRecipesLocal,
@@ -89,6 +91,16 @@ import {
   shipRecipesBundle,
   type BundleShipResult,
 } from './ship/bundle-mode.js';
+
+/** The administrator acting on a draft; a review carries the name they gave instead of this one. */
+const ADMIN: Actor = { role: 'ADMIN', label: 'admin' };
+
+/** `body` checked against `schema`, or a 400 under the code this route has always answered with. */
+function bodyOf<T>(schema: z.ZodType<T>, body: unknown, code: string): T {
+  const result = schema.safeParse(body);
+  if (!result.success) throw new BadRequestException({ error: code, message: result.error.message });
+  return result.data;
+}
 
 const ApproveRejectBody = z.object({
   reviewedByLabel: z.string().min(1).max(80),
@@ -147,6 +159,7 @@ export class DraftsController {
     private readonly config: ConfigService<Env, true>,
     private readonly namer: IngredientNamerRunner,
     private readonly recipeGen: RecipeGeneratorRunner,
+    private readonly drafts: DraftService,
   ) {}
 
   // ── Ingredient-name generation ──────────────────────────────────────────────
@@ -201,107 +214,39 @@ export class DraftsController {
 
   @Get('ingredient-names')
   async listIngredientNameDrafts(
-    @Query('status') status: string | undefined,
-    @Query('batchId') batchId: string | undefined,
-    @Query('page') pageRaw: string | undefined,
-    @Query('pageSize') pageSizeRaw: string | undefined,
-  ): Promise<{ items: IngredientNameDraft[]; total: number; page: number; pageSize: number }> {
-    const page = Math.max(1, Number.parseInt(pageRaw ?? '1', 10) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number.parseInt(pageSizeRaw ?? '25', 10) || 25));
-    const where = {
-      ...(status ? { status: status as 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED' } : {}),
-      ...(batchId ? { batchId } : {}),
-    };
-    const [items, total] = await Promise.all([
-      this.prisma.ingredientNameDraft.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: { localeReviews: true },
-      }),
-      this.prisma.ingredientNameDraft.count({ where }),
-    ]);
-    return {
-      items: items.map(toIngredientNameDraftDto),
-      total,
-      page,
-      pageSize,
-    };
+    @Query(new ZodValidationPipe(IngredientNameDraftListQuery)) query: IngredientNameDraftListQuery,
+  ): Promise<Page<IngredientNameDraft>> {
+    const found = await this.drafts.listIngredientNames(query);
+    return { ...found, items: found.items.map(toIngredientNameDraftDto) };
   }
 
   @Get('ingredient-names/:id')
-  async getIngredientNameDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ): Promise<IngredientNameDraft> {
-    const row = await this.prisma.ingredientNameDraft.findUnique({
-      where: { id },
-      include: { localeReviews: true },
-    });
-    if (!row) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-    return toIngredientNameDraftDto(row);
+  async getIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string): Promise<IngredientNameDraft> {
+    return toIngredientNameDraftDto(await this.drafts.ingredientName(id));
   }
 
   // ── Edit / approve / reject / delete (ingredient names) ────────────────────
 
   @Patch('ingredient-names/:id')
-  async patchIngredientNameDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() body: unknown,
-  ): Promise<IngredientNameDraft> {
-    const parsed = PatchSuggestionsBody.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({ error: 'INVALID_PATCH', message: parsed.error.message });
-    }
-    // Any edit invalidates partial reviews.
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.ingredientNameDraft.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-      await tx.ingredientNameDraftLocaleReview.deleteMany({ where: { draftId: id } });
-      return tx.ingredientNameDraft.update({
-        where: { id },
-        data: {
-          suggestions: parsed.data.suggestions,
-          status: 'PENDING',
-        },
-        include: { localeReviews: true },
-      });
-    });
-    return toIngredientNameDraftDto(updated);
+  async patchIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: unknown): Promise<IngredientNameDraft> {
+    const { suggestions } = bodyOf(PatchSuggestionsBody, body, 'INVALID_PATCH');
+    return toIngredientNameDraftDto(await this.drafts.editIngredientName(id, suggestions, ADMIN));
   }
 
   @Post('ingredient-names/:id/approve')
-  async approveIngredientNameDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') locale: string,
-    @Body() body: unknown,
-  ): Promise<IngredientNameDraft> {
-    return this.upsertIngredientReview(id, locale, body, 'APPROVE');
+  approveIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<IngredientNameDraft> {
+    return this.reviewIngredientName(id, locale, body, 'APPROVE');
   }
 
   @Post('ingredient-names/:id/reject')
-  async rejectIngredientNameDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') locale: string,
-    @Body() body: unknown,
-  ): Promise<IngredientNameDraft> {
-    return this.upsertIngredientReview(id, locale, body, 'REJECT');
+  rejectIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<IngredientNameDraft> {
+    return this.reviewIngredientName(id, locale, body, 'REJECT');
   }
 
   @Delete('ingredient-names/:id')
   @HttpCode(204)
-  async deleteIngredientNameDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ): Promise<void> {
-    const existing = await this.prisma.ingredientNameDraft.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-    if (existing.status === 'SHIPPED') {
-      throw new ConflictException({
-        error: 'DRAFT_SHIPPED',
-        message: 'Shipped drafts cannot be deleted — the row has already been written to data/*.json.',
-      });
-    }
-    await this.prisma.ingredientNameDraft.delete({ where: { id } });
+  deleteIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.drafts.deleteIngredientName(id, ADMIN);
   }
 
   // ── Recipe generation ──────────────────────────────────────────────────────
@@ -343,185 +288,46 @@ export class DraftsController {
   // ── Recipe list + read ─────────────────────────────────────────────────────
 
   @Get('recipes')
-  async listRecipeDrafts(
-    @Query('status') status: string | undefined,
-    @Query('batchId') batchId: string | undefined,
-    @Query('complexity') complexity: string | undefined,
-    @Query('page') pageRaw: string | undefined,
-    @Query('pageSize') pageSizeRaw: string | undefined,
-  ): Promise<{ items: RecipeDraft[]; total: number; page: number; pageSize: number }> {
-    const page = Math.max(1, Number.parseInt(pageRaw ?? '1', 10) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number.parseInt(pageSizeRaw ?? '25', 10) || 25));
-    const where = {
-      ...(status ? { status: status as 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED' } : {}),
-      ...(batchId ? { batchId } : {}),
-      ...(complexity ? { complexity } : {}),
-    };
-    const [items, total] = await Promise.all([
-      this.prisma.recipeDraft.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: { localeReviews: true },
-      }),
-      this.prisma.recipeDraft.count({ where }),
-    ]);
-    return {
-      items: items.map(toRecipeDraftDto),
-      total,
-      page,
-      pageSize,
-    };
+  async listRecipeDrafts(@Query(new ZodValidationPipe(RecipeDraftListQuery)) query: RecipeDraftListQuery): Promise<Page<RecipeDraft>> {
+    const found = await this.drafts.listRecipes(query);
+    return { ...found, items: found.items.map(toRecipeDraftDto) };
   }
 
   @Get('recipes/:id')
-  async getRecipeDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ): Promise<RecipeDraft> {
-    const row = await this.prisma.recipeDraft.findUnique({
-      where: { id },
-      include: { localeReviews: true },
-    });
-    if (!row) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-    return toRecipeDraftDto(row);
+  async getRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string): Promise<RecipeDraft> {
+    return toRecipeDraftDto(await this.drafts.recipe(id));
   }
 
   // ── Recipe edit / approve / reject / delete ─────────────────────────────────
 
   /**
-   * Patch a recipe draft. `?dryRun=true` returns the recomputed shape without
-   * persisting — the inline editor uses it for live nutrition feedback. A
-   * persisted patch re-runs the engine recompute, re-tags complexity, and
-   * wipes existing localeReviews: an edit invalidates partial reviews.
+   * Patch a recipe draft. `?dryRun=true` returns the result without storing
+   * it — the inline editor uses it for live nutrition feedback.
    */
   @Patch('recipes/:id')
   async patchRecipeDraft(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
-    @Query('dryRun') dryRunRaw: string | undefined,
+    @Query('dryRun') dryRun: string | undefined,
   ): Promise<RecipeDraft> {
-    const parsed = RecipeDraftPatch.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_PATCH',
-        message: parsed.error.message,
-      });
-    }
-    const dryRun = dryRunRaw === 'true' || dryRunRaw === '1';
-
-    const existing = await this.prisma.recipeDraft.findUnique({
-      where: { id },
-      include: { localeReviews: true },
-    });
-    if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-    if (existing.status === 'SHIPPED') {
-      throw new ConflictException({
-        error: 'DRAFT_SHIPPED',
-        message: 'Shipped drafts cannot be edited.',
-      });
-    }
-
-    // AI_USER drafts (personal recipes mirrored into the queue by the user's
-    // /recipes/ai-draft or applyIngredientSwap path) accept TRANSLATION-only
-    // edits — `titles`, `descriptions`, `steps`. Structural edits would
-    // break the dedup invariant (the fingerprint is over the ingredient set)
-    // and undermine the personal Recipe's nutrition recompute. Admins who
-    // need to restructure must promote first, then edit the curated row via
-    // the existing admin path.
-    if (existing.source === 'AI_USER' && hasStructuralEdit(parsed.data)) {
-      throw new ForbiddenException({
-        error: 'DRAFT_STRUCTURAL_EDIT_FORBIDDEN',
-        message: 'User-drafted recipes: translation edits only.',
-      });
-    }
-
-    const merged = mergeRecipeDraft(existing, parsed.data);
-    const recompute = await this.recomputeRecipe(merged);
-
-    if (dryRun) {
-      return toRecipeDraftDto({
-        ...existing,
-        titles: merged.titles,
-        descriptions: merged.descriptions,
-        steps: merged.steps,
-        servings: merged.servings,
-        mealTypes: merged.mealTypes,
-        dietTags: recompute.dietTags,
-        prepMinutes: merged.prepMinutes,
-        cookMinutes: merged.cookMinutes,
-        difficulty: merged.difficulty,
-        ingredientsJson: merged.ingredients as unknown as object,
-        complexity: recompute.complexity,
-        caloriesPerServing: recompute.caloriesPerServing,
-        proteinPerServing: recompute.proteinPerServing,
-        fatPerServing: recompute.fatPerServing,
-        carbsPerServing: recompute.carbsPerServing,
-        allergens: recompute.allergens,
-      });
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      await tx.recipeDraftLocaleReview.deleteMany({ where: { draftId: id } });
-      return tx.recipeDraft.update({
-        where: { id },
-        data: {
-          titles: merged.titles,
-          descriptions: merged.descriptions,
-          steps: merged.steps,
-          servings: merged.servings,
-          mealTypes: merged.mealTypes,
-          dietTags: recompute.dietTags,
-          prepMinutes: merged.prepMinutes,
-          cookMinutes: merged.cookMinutes,
-          difficulty: merged.difficulty,
-          ingredientsJson: merged.ingredients as unknown as object,
-          complexity: recompute.complexity,
-          caloriesPerServing: recompute.caloriesPerServing,
-          proteinPerServing: recompute.proteinPerServing,
-          fatPerServing: recompute.fatPerServing,
-          carbsPerServing: recompute.carbsPerServing,
-          allergens: recompute.allergens,
-          status: 'PENDING',
-        },
-        include: { localeReviews: true },
-      });
-    });
-    return toRecipeDraftDto(updated);
+    const patch = bodyOf(RecipeDraftPatch, body, 'INVALID_PATCH');
+    return toRecipeDraftDto(await this.drafts.editRecipe(id, patch, ADMIN, { dryRun: dryRun === 'true' || dryRun === '1' }));
   }
 
   @Post('recipes/:id/approve')
-  async approveRecipeDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') locale: string,
-    @Body() body: unknown,
-  ): Promise<RecipeDraft> {
-    return this.upsertRecipeReview(id, locale, body, 'APPROVE');
+  approveRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<RecipeDraft> {
+    return this.reviewRecipe(id, locale, body, 'APPROVE');
   }
 
   @Post('recipes/:id/reject')
-  async rejectRecipeDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') locale: string,
-    @Body() body: unknown,
-  ): Promise<RecipeDraft> {
-    return this.upsertRecipeReview(id, locale, body, 'REJECT');
+  rejectRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<RecipeDraft> {
+    return this.reviewRecipe(id, locale, body, 'REJECT');
   }
 
   @Delete('recipes/:id')
   @HttpCode(204)
-  async deleteRecipeDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ): Promise<void> {
-    const existing = await this.prisma.recipeDraft.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-    if (existing.status === 'SHIPPED') {
-      throw new ConflictException({
-        error: 'DRAFT_SHIPPED',
-        message: 'Shipped recipe drafts cannot be deleted.',
-      });
-    }
-    await this.prisma.recipeDraft.delete({ where: { id } });
+  deleteRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.drafts.deleteRecipe(id, ADMIN);
   }
 
   /**
@@ -899,222 +705,24 @@ export class DraftsController {
     return deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'bundle-download');
   }
 
-  private async upsertIngredientReview(
-    id: string,
-    localeRaw: string,
-    body: unknown,
-    action: 'APPROVE' | 'REJECT',
-  ): Promise<IngredientNameDraft> {
-    const localeParse = LocaleSchema.safeParse(localeRaw);
-    if (!localeParse.success || localeRaw === 'en') {
-      throw new BadRequestException({
-        error: 'INVALID_LOCALE',
-        message: `locale must be a supported non-canonical Locale, got "${localeRaw}"`,
-      });
+  /** The administrator reviews the languages reviewers review: the name of an ingredient has no English. */
+  private async reviewIngredientName(id: string, locale: string, body: unknown, action: ReviewAction): Promise<IngredientNameDraft> {
+    const target = TargetLocale.safeParse(locale);
+    if (!target.success) {
+      throw new BadRequestException({ error: 'INVALID_LOCALE', message: `locale must be a supported non-canonical Locale, got "${locale}"` });
     }
-    const bodyParse = ApproveRejectBody.safeParse(body);
-    if (!bodyParse.success) {
-      throw new BadRequestException({
-        error: 'INVALID_REVIEW',
-        message: bodyParse.error.message,
-      });
-    }
-    const locale = localeParse.data;
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.ingredientNameDraft.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-      if (existing.status === 'SHIPPED') {
-        throw new ConflictException({
-          error: 'DRAFT_SHIPPED',
-          message: 'Shipped drafts cannot be re-reviewed.',
-        });
-      }
-      if (!existing.locales.includes(locale)) {
-        throw new BadRequestException({
-          error: 'LOCALE_NOT_IN_DRAFT',
-          message: `Draft was not generated for locale "${locale}".`,
-        });
-      }
-
-      await tx.ingredientNameDraftLocaleReview.upsert({
-        where: { draftId_locale: { draftId: id, locale } },
-        create: {
-          draftId: id,
-          locale,
-          action,
-          reviewedByLabel: bodyParse.data.reviewedByLabel,
-          reason: bodyParse.data.reason ?? null,
-        },
-        update: {
-          action,
-          reviewedByLabel: bodyParse.data.reviewedByLabel,
-          reason: bodyParse.data.reason ?? null,
-          reviewedAt: new Date(),
-        },
-      });
-
-      const reviews = await tx.ingredientNameDraftLocaleReview.findMany({
-        where: { draftId: id },
-      });
-      const status = deriveDraftStatus(existing.locales, reviews);
-
-      return tx.ingredientNameDraft.update({
-        where: { id },
-        data: { status },
-        include: { localeReviews: true },
-      });
-    });
-
-    return toIngredientNameDraftDto(updated);
+    const { reviewedByLabel, reason } = bodyOf(ApproveRejectBody, body, 'INVALID_REVIEW');
+    return toIngredientNameDraftDto(await this.drafts.reviewIngredientName(id, { locale: target.data, action, reason }, { ...ADMIN, label: reviewedByLabel }));
   }
 
-  private async upsertRecipeReview(
-    id: string,
-    localeRaw: string,
-    body: unknown,
-    action: 'APPROVE' | 'REJECT',
-  ): Promise<RecipeDraft> {
-    // EN is canonical and always part of the draft; reviewers approve EN too
-    // for traceability (the admin acts as the EN reviewer in practice — Phase
-    // H gates non-`en` to the reviewer cookie). Allow any supported locale.
-    const localeParse = LocaleSchema.safeParse(localeRaw);
-    if (!localeParse.success) {
-      throw new BadRequestException({
-        error: 'INVALID_LOCALE',
-        message: `locale must be a supported Locale, got "${localeRaw}"`,
-      });
+  /** The administrator reviews any language of a recipe, and is the one who reviews English. */
+  private async reviewRecipe(id: string, locale: string, body: unknown, action: ReviewAction): Promise<RecipeDraft> {
+    const target = LocaleSchema.safeParse(locale);
+    if (!target.success) {
+      throw new BadRequestException({ error: 'INVALID_LOCALE', message: `locale must be a supported Locale, got "${locale}"` });
     }
-    const bodyParse = ApproveRejectBody.safeParse(body);
-    if (!bodyParse.success) {
-      throw new BadRequestException({
-        error: 'INVALID_REVIEW',
-        message: bodyParse.error.message,
-      });
-    }
-    const locale = localeParse.data;
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.recipeDraft.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-      if (existing.status === 'SHIPPED') {
-        throw new ConflictException({
-          error: 'DRAFT_SHIPPED',
-          message: 'Shipped drafts cannot be re-reviewed.',
-        });
-      }
-      if (!existing.locales.includes(locale)) {
-        throw new BadRequestException({
-          error: 'LOCALE_NOT_IN_DRAFT',
-          message: `Draft was not generated for locale "${locale}".`,
-        });
-      }
-
-      await tx.recipeDraftLocaleReview.upsert({
-        where: { draftId_locale: { draftId: id, locale } },
-        create: {
-          draftId: id,
-          locale,
-          action,
-          reviewedByLabel: bodyParse.data.reviewedByLabel,
-          reason: bodyParse.data.reason ?? null,
-        },
-        update: {
-          action,
-          reviewedByLabel: bodyParse.data.reviewedByLabel,
-          reason: bodyParse.data.reason ?? null,
-          reviewedAt: new Date(),
-        },
-      });
-
-      const reviews = await tx.recipeDraftLocaleReview.findMany({
-        where: { draftId: id },
-      });
-      const status = deriveDraftStatus(existing.locales, reviews);
-
-      return tx.recipeDraft.update({
-        where: { id },
-        data: { status },
-        include: { localeReviews: true },
-      });
-    });
-
-    return toRecipeDraftDto(updated);
-  }
-
-  private async recomputeRecipe(
-    merged: ReturnType<typeof mergeRecipeDraft>,
-  ): Promise<{
-    complexity: Complexity;
-    caloriesPerServing: number;
-    proteinPerServing: number;
-    fatPerServing: number;
-    carbsPerServing: number;
-    allergens: string[];
-    dietTags: string[];
-  }> {
-    const slugs = [...new Set(merged.ingredients.map((i) => i.slug))];
-    const rows = await this.prisma.ingredient.findMany({
-      where: { slug: { in: slugs } },
-      select: {
-        slug: true,
-        canonicalUnit: true,
-        gramsPerPiece: true,
-        density: true,
-        caloriesPer100: true,
-        proteinPer100: true,
-        fatPer100: true,
-        carbsPer100: true,
-        allergens: true,
-        dietCompatibility: true,
-      },
-    });
-    const bySlug = new Map(rows.map((r) => [r.slug!, r]));
-
-    const lines = merged.ingredients.map((line) => {
-      const row = bySlug.get(line.slug);
-      if (!row) {
-        throw new BadRequestException({
-          error: 'UNKNOWN_SLUG',
-          message: `ingredient slug "${line.slug}" not found in the curated catalogue`,
-        });
-      }
-      return { quantity: line.quantity, unit: line.unit, ingredient: row };
-    });
-    let facts: RecipeFacts;
-    try {
-      facts = recipeFacts(lines, merged.servings);
-    } catch (err) {
-      if (!(err instanceof UnitConversionError)) throw err;
-      throw new BadRequestException({ error: 'UNIT_CONVERSION_FAILED', message: err.message });
-    }
-
-    const stepCount =
-      (merged.steps as Record<string, string[]>).en?.length ??
-      Object.values(merged.steps as Record<string, string[]>)[0]?.length ??
-      0;
-    const totalMinutes = merged.prepMinutes + merged.cookMinutes;
-    const complexity = classifyComplexity({
-      ingredientCount: merged.ingredients.length,
-      stepCount,
-      totalMinutes,
-    });
-    if (complexity === null) {
-      throw new BadRequestException({
-        error: 'OUT_OF_COMPLEXITY_BAND',
-        message: `recipe is outside every complexity band (ingredients=${merged.ingredients.length}, steps=${stepCount}, minutes=${totalMinutes})`,
-      });
-    }
-
-    return {
-      complexity,
-      caloriesPerServing: facts.perServing.calories,
-      proteinPerServing: facts.perServing.protein,
-      fatPerServing: facts.perServing.fat,
-      carbsPerServing: facts.perServing.carbs,
-      allergens: facts.allergens,
-      dietTags: facts.dietTags,
-    };
+    const { reviewedByLabel, reason } = bodyOf(ApproveRejectBody, body, 'INVALID_REVIEW');
+    return toRecipeDraftDto(await this.drafts.reviewRecipe(id, { locale: target.data, action, reason }, { ...ADMIN, label: reviewedByLabel }));
   }
 
   private namerRunnerState(): DraftRunnerState {
@@ -1165,191 +773,4 @@ export interface RecipeRunnerStateDto extends DraftRunnerState {
   lastRejectReason: string | null;
   lastRejectKey: string | null;
   lastRejectHead: string | null;
-}
-
-
-interface RawRecipeDraft {
-  id: string;
-  slug: string;
-  titles: unknown;
-  descriptions: unknown;
-  steps: unknown;
-  locales: string[];
-  servings: number;
-  mealTypes: string[];
-  dietTags: string[];
-  prepMinutes: number;
-  cookMinutes: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  complexity: string;
-  caloriesPerServing: number;
-  proteinPerServing: number;
-  fatPerServing: number;
-  carbsPerServing: number;
-  allergens: string[];
-  ingredientsJson: unknown;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'MANUAL' | 'AI_USER';
-  batchId: string;
-  modelUsed: string | null;
-  generatorPrompt: string | null;
-  generationSpec: unknown;
-  provenanceUrl: string | null;
-  provenanceLicense: string | null;
-  shippedPRUrl: string | null;
-  shippedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  localeReviews: {
-    locale: string;
-    action: string;
-    reviewedByLabel: string;
-    reason: string | null;
-    reviewedAt: Date;
-  }[];
-}
-
-function toRecipeDraftDto(row: RawRecipeDraft): RecipeDraft {
-  return {
-    id: row.id,
-    slug: row.slug,
-    titles: row.titles as RecipeDraft['titles'],
-    descriptions: row.descriptions as RecipeDraft['descriptions'],
-    steps: row.steps as RecipeDraft['steps'],
-    locales: row.locales as RecipeDraft['locales'],
-    servings: row.servings,
-    mealTypes: row.mealTypes as RecipeDraft['mealTypes'],
-    dietTags: row.dietTags as RecipeDraft['dietTags'],
-    prepMinutes: row.prepMinutes,
-    cookMinutes: row.cookMinutes,
-    difficulty: row.difficulty,
-    complexity: row.complexity as RecipeDraft['complexity'],
-    caloriesPerServing: row.caloriesPerServing,
-    proteinPerServing: row.proteinPerServing,
-    fatPerServing: row.fatPerServing,
-    carbsPerServing: row.carbsPerServing,
-    allergens: row.allergens,
-    ingredients: row.ingredientsJson as RecipeDraftIngredientLine[],
-    status: row.status,
-    source: row.source,
-    batchId: row.batchId,
-    modelUsed: row.modelUsed,
-    generatorPrompt: row.generatorPrompt,
-    generationSpec: row.generationSpec ?? null,
-    provenanceUrl: row.provenanceUrl,
-    provenanceLicense: row.provenanceLicense,
-    shippedPRUrl: row.shippedPRUrl,
-    shippedAt: row.shippedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    localeReviews: row.localeReviews.map((r) => ({
-      locale: r.locale as RecipeDraft['localeReviews'][number]['locale'],
-      action: r.action as 'APPROVE' | 'REJECT',
-      reviewedByLabel: r.reviewedByLabel,
-      reason: r.reason,
-      reviewedAt: r.reviewedAt.toISOString(),
-    })),
-  };
-}
-
-interface RawIngredientNameDraft {
-  id: string;
-  ingredientId: string | null;
-  ingredientSlug: string;
-  rawDescription: string;
-  suggestions: unknown;
-  locales: string[];
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'MANUAL' | 'AI_USER';
-  batchId: string;
-  modelUsed: string | null;
-  generatorPrompt: string | null;
-  shippedPRUrl: string | null;
-  shippedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  localeReviews: {
-    locale: string;
-    action: string;
-    reviewedByLabel: string;
-    reason: string | null;
-    reviewedAt: Date;
-  }[];
-}
-
-function toIngredientNameDraftDto(row: RawIngredientNameDraft): IngredientNameDraft {
-  const suggestions = row.suggestions as IngredientNameSuggestion;
-  return {
-    id: row.id,
-    ingredientId: row.ingredientId,
-    ingredientSlug: row.ingredientSlug,
-    rawDescription: row.rawDescription,
-    suggestions,
-    locales: row.locales as IngredientNameDraft['locales'],
-    status: row.status,
-    source: row.source,
-    batchId: row.batchId,
-    modelUsed: row.modelUsed,
-    generatorPrompt: row.generatorPrompt,
-    shippedPRUrl: row.shippedPRUrl,
-    shippedAt: row.shippedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    localeReviews: row.localeReviews.map((r) => ({
-      locale: r.locale as IngredientNameDraft['localeReviews'][number]['locale'],
-      action: r.action as 'APPROVE' | 'REJECT',
-      reviewedByLabel: r.reviewedByLabel,
-      reason: r.reason,
-      reviewedAt: r.reviewedAt.toISOString(),
-    })),
-  };
-}
-
-interface MergedRecipeDraft {
-  titles: Record<string, string>;
-  descriptions: Record<string, string>;
-  steps: Record<string, string[]>;
-  servings: number;
-  mealTypes: string[];
-  prepMinutes: number;
-  cookMinutes: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  ingredients: RecipeDraftIngredientLine[];
-}
-
-/**
- * True when the patch touches any non-translation field. AI_USER drafts only
- * accept `titles` / `descriptions` / `steps` per locale — anything else
- * (ingredients, quantities, servings, mealTypes, prep/cook times,
- * difficulty) is forbidden because it would invalidate the personal Recipe
- * rows attached via `sourceRecipeIds`.
- */
-function hasStructuralEdit(patch: import('@diet-app/shared').RecipeDraftPatch): boolean {
-  return (
-    patch.servings != null ||
-    patch.mealTypes != null ||
-    patch.prepMinutes != null ||
-    patch.cookMinutes != null ||
-    patch.difficulty != null ||
-    patch.ingredients != null
-  );
-}
-
-function mergeRecipeDraft(
-  existing: RawRecipeDraft,
-  patch: import('@diet-app/shared').RecipeDraftPatch,
-): MergedRecipeDraft {
-  return {
-    titles: patch.titles ?? (existing.titles as Record<string, string>),
-    descriptions: patch.descriptions ?? (existing.descriptions as Record<string, string>),
-    steps: patch.steps ?? (existing.steps as Record<string, string[]>),
-    servings: patch.servings ?? existing.servings,
-    mealTypes: patch.mealTypes ?? (existing.mealTypes as string[]),
-    prepMinutes: patch.prepMinutes ?? existing.prepMinutes,
-    cookMinutes: patch.cookMinutes ?? existing.cookMinutes,
-    difficulty: patch.difficulty ?? existing.difficulty,
-    ingredients:
-      patch.ingredients ??
-      (existing.ingredientsJson as RecipeDraftIngredientLine[]),
-  };
 }

@@ -258,6 +258,8 @@
     "NAMER_IN_PROGRESS": "An ingredient-namer run is already in progress.",
     "DRAFT_NOT_FOUND": "Draft not found.",
     "DRAFT_SHIPPED": "This draft has already shipped and can't be changed.",
+    "DRAFT_INVALID": "The draft would break the rules for recipe text and quantities. Nothing was saved.",
+    "DRAFT_REJECTED": "This draft was rejected. Only the administrator can reopen it.",
     "DRAFT_STRUCTURAL_EDIT_FORBIDDEN": "User-drafted recipes accept translation edits only — promote first to restructure.",
     "DRAFT_NOT_PROMOTABLE": "Only user-drafted (AI_USER) recipes can be promoted to curated.",
     "DRAFT_NOT_APPROVED": "Draft must be approved in every locale before it can be promoted.",

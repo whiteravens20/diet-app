@@ -17,17 +17,16 @@
  * EN is the canonical authoring language; reviewer endpoints reject it on
  * sight (validating EN against itself is meaningless).
  *
- * PATCH invalidation: editing any translatable field wipes every locale's
- * review row and resets `status = PENDING`, as the admin PATCH does.
+ * What a reviewer may read, edit and review, and what an edit does to the
+ * reviews a draft had, is decided in `DraftService`, the same for these routes
+ * as for the administrator's.
  */
 import {
   BadRequestException,
   Body,
-  ConflictException,
   Controller,
   Get,
   HttpCode,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -44,21 +43,25 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
   IngredientNameReviewPatchBody,
-  Locale as LocaleSchema,
   NON_CANONICAL_LOCALES,
   RecipeReviewPatchBody,
+  ReviewQueueQuery,
   ReviewerLoginBody,
   ReviewerReasonBody,
+  TargetLocale,
   type IngredientNameReviewSlice,
   type Locale,
   type RecipeReviewSlice,
+  type ReviewAction,
   type ReviewerSessionDto,
 } from '@diet-app/shared';
+import type { z } from 'zod';
+import { DraftService, type Actor, type Page } from '../admin/drafts/draft.service.js';
+import { toIngredientNameReviewSlice, toRecipeReviewSlice } from '../admin/drafts/drafts.mapper.js';
+import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { verifyPassword } from '../common/password-hash.js';
 import type { Env } from '../config/env.js';
-import { deriveDraftStatus } from '../admin/drafts/derive-status.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
 import { SignInGate } from '../rate-limit/sign-in-gate.js';
 import { ReviewerSessionGuard, type ReviewerRequest } from './reviewer-session.guard.js';
 import {
@@ -70,16 +73,14 @@ import {
   verifyReviewerCookie,
 } from './session.js';
 
-const CANONICAL_LOCALE: Locale = 'en';
-
 @Controller('review')
 export class ReviewController {
   constructor(
     private readonly config: ConfigService<Env, true>,
     private readonly jwt: JwtService,
-    private readonly prisma: PrismaService,
     private readonly settings: InstanceSettingsService,
     private readonly gate: SignInGate,
+    private readonly drafts: DraftService,
   ) {}
 
   // ── Auth ────────────────────────────────────────────────────────────────────
@@ -193,49 +194,9 @@ export class ReviewController {
 
   @Get('drafts/recipes')
   @UseGuards(ReviewerSessionGuard)
-  async listRecipeSlices(
-    @Req() req: ReviewerRequest,
-    @Query('locale') localeRaw: string | undefined,
-    @Query('includeReviewed') includeReviewedRaw: string | undefined,
-    @Query('page') pageRaw: string | undefined,
-    @Query('pageSize') pageSizeRaw: string | undefined,
-  ): Promise<{ items: RecipeReviewSlice[]; total: number; page: number; pageSize: number }> {
-    requireReviewer(req);
-    const locale = parseTargetLocale(localeRaw);
-    const page = Math.max(1, Number.parseInt(pageRaw ?? '1', 10) || 1);
-    const pageSize = Math.min(
-      100,
-      Math.max(1, Number.parseInt(pageSizeRaw ?? '25', 10) || 25),
-    );
-    const includeReviewed = includeReviewedRaw === 'true';
-
-    // Filter "already approved for this locale" in the query so `total` and the
-    // returned page stay consistent — an in-memory post-filter made `total`
-    // count rows the page omitted, breaking pagination.
-    const where = {
-      status: { in: ['PENDING', 'APPROVED'] as ('PENDING' | 'APPROVED')[] },
-      locales: { has: locale },
-      ...(includeReviewed
-        ? {}
-        : { localeReviews: { none: { locale, action: 'APPROVE' as const } } }),
-    };
-    const [items, total] = await Promise.all([
-      this.prisma.recipeDraft.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: { localeReviews: true },
-      }),
-      this.prisma.recipeDraft.count({ where }),
-    ]);
-
-    return {
-      items: items.map((row) => toRecipeReviewSlice(row, locale)),
-      total,
-      page,
-      pageSize,
-    };
+  async listRecipeSlices(@Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery): Promise<Page<RecipeReviewSlice>> {
+    const found = await this.drafts.recipesWaitingFor(query);
+    return { ...found, items: found.items.map((row) => toRecipeReviewSlice(row, query.locale)) };
   }
 
   @Get('drafts/recipes/:id')
@@ -245,20 +206,8 @@ export class ReviewController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Query('locale') localeRaw: string | undefined,
   ): Promise<RecipeReviewSlice> {
-    requireReviewer(req);
     const locale = parseTargetLocale(localeRaw);
-    const row = await this.prisma.recipeDraft.findUnique({
-      where: { id },
-      include: { localeReviews: true },
-    });
-    if (!row) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-    if (!row.locales.includes(locale)) {
-      throw new BadRequestException({
-        error: 'LOCALE_NOT_IN_DRAFT',
-        message: `Draft was not generated for locale "${locale}".`,
-      });
-    }
-    return toRecipeReviewSlice(row, locale);
+    return toRecipeReviewSlice(await this.drafts.recipeFor(id, locale, reviewerOf(req)), locale);
   }
 
   @Patch('drafts/recipes/:id')
@@ -269,62 +218,9 @@ export class ReviewController {
     @Query('locale') localeRaw: string | undefined,
     @Body() body: unknown,
   ): Promise<RecipeReviewSlice> {
-    requireReviewer(req);
     const locale = parseTargetLocale(localeRaw);
-    const parsed = RecipeReviewPatchBody.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_REVIEW_PATCH',
-        message: parsed.error.message,
-      });
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.recipeDraft.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-      if (existing.status === 'SHIPPED') {
-        throw new ConflictException({
-          error: 'DRAFT_SHIPPED',
-          message: 'Shipped drafts cannot be edited.',
-        });
-      }
-      if (!existing.locales.includes(locale)) {
-        throw new BadRequestException({
-          error: 'LOCALE_NOT_IN_DRAFT',
-          message: `Draft was not generated for locale "${locale}".`,
-        });
-      }
-
-      const data: {
-        titles?: Record<string, string>;
-        descriptions?: Record<string, string>;
-        steps?: Record<string, string[]>;
-      } = {};
-      if (parsed.data.title !== undefined) {
-        const titles = parseLocaleMap(existing.titles);
-        titles[locale] = parsed.data.title;
-        data.titles = titles;
-      }
-      if (parsed.data.description !== undefined) {
-        const descriptions = parseLocaleMap(existing.descriptions);
-        descriptions[locale] = parsed.data.description;
-        data.descriptions = descriptions;
-      }
-      if (parsed.data.steps !== undefined) {
-        const steps = parseLocaleStringsMap(existing.steps);
-        steps[locale] = parsed.data.steps;
-        data.steps = steps;
-      }
-
-      // Any edit invalidates partial reviews.
-      await tx.recipeDraftLocaleReview.deleteMany({ where: { draftId: id } });
-      return tx.recipeDraft.update({
-        where: { id },
-        data: { ...data, status: 'PENDING' as const },
-        include: { localeReviews: true },
-      });
-    });
-    return toRecipeReviewSlice(updated, locale);
+    const patch = bodyOf(RecipeReviewPatchBody, body, 'INVALID_REVIEW_PATCH');
+    return toRecipeReviewSlice(await this.drafts.editRecipeText(id, locale, patch, reviewerOf(req)), locale);
   }
 
   @Post('drafts/recipes/:id/approve')
@@ -335,7 +231,7 @@ export class ReviewController {
     @Query('locale') localeRaw: string | undefined,
     @Body() body: unknown,
   ): Promise<RecipeReviewSlice> {
-    return this.recordRecipeReview(req, id, localeRaw, body, 'APPROVE');
+    return this.reviewRecipe(req, id, localeRaw, body, 'APPROVE');
   }
 
   @Post('drafts/recipes/:id/reject')
@@ -346,121 +242,22 @@ export class ReviewController {
     @Query('locale') localeRaw: string | undefined,
     @Body() body: unknown,
   ): Promise<RecipeReviewSlice> {
-    return this.recordRecipeReview(req, id, localeRaw, body, 'REJECT');
+    return this.reviewRecipe(req, id, localeRaw, body, 'REJECT');
   }
 
-  private async recordRecipeReview(
-    req: ReviewerRequest,
-    id: string,
-    localeRaw: string | undefined,
-    body: unknown,
-    action: 'APPROVE' | 'REJECT',
-  ): Promise<RecipeReviewSlice> {
-    const reviewer = requireReviewer(req);
+  private async reviewRecipe(req: ReviewerRequest, id: string, localeRaw: string | undefined, body: unknown, action: ReviewAction): Promise<RecipeReviewSlice> {
     const locale = parseTargetLocale(localeRaw);
-    const parsed = ReviewerReasonBody.safeParse(body ?? {});
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_REVIEW',
-        message: parsed.error.message,
-      });
-    }
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.recipeDraft.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-      if (existing.status === 'SHIPPED') {
-        throw new ConflictException({
-          error: 'DRAFT_SHIPPED',
-          message: 'Shipped drafts cannot be re-reviewed.',
-        });
-      }
-      if (!existing.locales.includes(locale)) {
-        throw new BadRequestException({
-          error: 'LOCALE_NOT_IN_DRAFT',
-          message: `Draft was not generated for locale "${locale}".`,
-        });
-      }
-
-      await tx.recipeDraftLocaleReview.upsert({
-        where: { draftId_locale: { draftId: id, locale } },
-        create: {
-          draftId: id,
-          locale,
-          action,
-          reviewedByLabel: reviewer.label,
-          reason: parsed.data.reason ?? null,
-        },
-        update: {
-          action,
-          reviewedByLabel: reviewer.label,
-          reason: parsed.data.reason ?? null,
-          reviewedAt: new Date(),
-        },
-      });
-
-      const reviews = await tx.recipeDraftLocaleReview.findMany({ where: { draftId: id } });
-      const status = deriveDraftStatus(existing.locales, reviews);
-
-      return tx.recipeDraft.update({
-        where: { id },
-        data: { status },
-        include: { localeReviews: true },
-      });
-    });
-    return toRecipeReviewSlice(updated, locale);
+    const { reason } = bodyOf(ReviewerReasonBody, body ?? {}, 'INVALID_REVIEW');
+    return toRecipeReviewSlice(await this.drafts.reviewRecipe(id, { locale, action, reason }, reviewerOf(req)), locale);
   }
 
   // ── Ingredient-name drafts (guarded) ───────────────────────────────────────
 
   @Get('drafts/ingredient-names')
   @UseGuards(ReviewerSessionGuard)
-  async listIngredientNameSlices(
-    @Req() req: ReviewerRequest,
-    @Query('locale') localeRaw: string | undefined,
-    @Query('includeReviewed') includeReviewedRaw: string | undefined,
-    @Query('page') pageRaw: string | undefined,
-    @Query('pageSize') pageSizeRaw: string | undefined,
-  ): Promise<{
-    items: IngredientNameReviewSlice[];
-    total: number;
-    page: number;
-    pageSize: number;
-  }> {
-    requireReviewer(req);
-    const locale = parseTargetLocale(localeRaw);
-    const page = Math.max(1, Number.parseInt(pageRaw ?? '1', 10) || 1);
-    const pageSize = Math.min(
-      100,
-      Math.max(1, Number.parseInt(pageSizeRaw ?? '25', 10) || 25),
-    );
-    const includeReviewed = includeReviewedRaw === 'true';
-
-    // See listRecipeSlices — query-level filter keeps `total` and the page in
-    // sync so pagination doesn't advance into empty pages.
-    const where = {
-      status: { in: ['PENDING', 'APPROVED'] as ('PENDING' | 'APPROVED')[] },
-      locales: { has: locale },
-      ...(includeReviewed
-        ? {}
-        : { localeReviews: { none: { locale, action: 'APPROVE' as const } } }),
-    };
-    const [items, total] = await Promise.all([
-      this.prisma.ingredientNameDraft.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: { localeReviews: true },
-      }),
-      this.prisma.ingredientNameDraft.count({ where }),
-    ]);
-
-    return {
-      items: items.map((row) => toIngredientNameReviewSlice(row, locale)),
-      total,
-      page,
-      pageSize,
-    };
+  async listIngredientNameSlices(@Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery): Promise<Page<IngredientNameReviewSlice>> {
+    const found = await this.drafts.ingredientNamesWaitingFor(query);
+    return { ...found, items: found.items.map((row) => toIngredientNameReviewSlice(row, query.locale)) };
   }
 
   @Get('drafts/ingredient-names/:id')
@@ -470,20 +267,8 @@ export class ReviewController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Query('locale') localeRaw: string | undefined,
   ): Promise<IngredientNameReviewSlice> {
-    requireReviewer(req);
     const locale = parseTargetLocale(localeRaw);
-    const row = await this.prisma.ingredientNameDraft.findUnique({
-      where: { id },
-      include: { localeReviews: true },
-    });
-    if (!row) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-    if (!row.locales.includes(locale)) {
-      throw new BadRequestException({
-        error: 'LOCALE_NOT_IN_DRAFT',
-        message: `Draft was not generated for locale "${locale}".`,
-      });
-    }
-    return toIngredientNameReviewSlice(row, locale);
+    return toIngredientNameReviewSlice(await this.drafts.ingredientNameFor(id, locale, reviewerOf(req)), locale);
   }
 
   @Patch('drafts/ingredient-names/:id')
@@ -494,61 +279,9 @@ export class ReviewController {
     @Query('locale') localeRaw: string | undefined,
     @Body() body: unknown,
   ): Promise<IngredientNameReviewSlice> {
-    requireReviewer(req);
     const locale = parseTargetLocale(localeRaw);
-    const parsed = IngredientNameReviewPatchBody.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_REVIEW_PATCH',
-        message: parsed.error.message,
-      });
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.ingredientNameDraft.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-      if (existing.status === 'SHIPPED') {
-        throw new ConflictException({
-          error: 'DRAFT_SHIPPED',
-          message: 'Shipped drafts cannot be edited.',
-        });
-      }
-      if (!existing.locales.includes(locale)) {
-        throw new BadRequestException({
-          error: 'LOCALE_NOT_IN_DRAFT',
-          message: `Draft was not generated for locale "${locale}".`,
-        });
-      }
-
-      const suggestions = (existing.suggestions as {
-        name: Record<string, string>;
-        storageHint?: Record<string, string>;
-      }) ?? { name: {} };
-      const name = { ...(suggestions.name ?? {}) };
-      const storageHint = { ...(suggestions.storageHint ?? {}) };
-      if (parsed.data.name !== undefined) {
-        name[locale] = parsed.data.name;
-      }
-      if (parsed.data.storageHint !== undefined) {
-        if (parsed.data.storageHint.length === 0) {
-          delete storageHint[locale];
-        } else {
-          storageHint[locale] = parsed.data.storageHint;
-        }
-      }
-      const nextSuggestions: { name: Record<string, string>; storageHint?: Record<string, string> } = {
-        name,
-      };
-      if (Object.keys(storageHint).length > 0) nextSuggestions.storageHint = storageHint;
-
-      await tx.ingredientNameDraftLocaleReview.deleteMany({ where: { draftId: id } });
-      return tx.ingredientNameDraft.update({
-        where: { id },
-        data: { suggestions: nextSuggestions, status: 'PENDING' },
-        include: { localeReviews: true },
-      });
-    });
-    return toIngredientNameReviewSlice(updated, locale);
+    const patch = bodyOf(IngredientNameReviewPatchBody, body, 'INVALID_REVIEW_PATCH');
+    return toIngredientNameReviewSlice(await this.drafts.editIngredientNameText(id, locale, patch, reviewerOf(req)), locale);
   }
 
   @Post('drafts/ingredient-names/:id/approve')
@@ -559,7 +292,7 @@ export class ReviewController {
     @Query('locale') localeRaw: string | undefined,
     @Body() body: unknown,
   ): Promise<IngredientNameReviewSlice> {
-    return this.recordIngredientNameReview(req, id, localeRaw, body, 'APPROVE');
+    return this.reviewIngredientName(req, id, localeRaw, body, 'APPROVE');
   }
 
   @Post('drafts/ingredient-names/:id/reject')
@@ -570,76 +303,26 @@ export class ReviewController {
     @Query('locale') localeRaw: string | undefined,
     @Body() body: unknown,
   ): Promise<IngredientNameReviewSlice> {
-    return this.recordIngredientNameReview(req, id, localeRaw, body, 'REJECT');
+    return this.reviewIngredientName(req, id, localeRaw, body, 'REJECT');
   }
 
-  private async recordIngredientNameReview(
+  private async reviewIngredientName(
     req: ReviewerRequest,
     id: string,
     localeRaw: string | undefined,
     body: unknown,
-    action: 'APPROVE' | 'REJECT',
+    action: ReviewAction,
   ): Promise<IngredientNameReviewSlice> {
-    const reviewer = requireReviewer(req);
     const locale = parseTargetLocale(localeRaw);
-    const parsed = ReviewerReasonBody.safeParse(body ?? {});
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_REVIEW',
-        message: parsed.error.message,
-      });
-    }
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.ingredientNameDraft.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
-      if (existing.status === 'SHIPPED') {
-        throw new ConflictException({
-          error: 'DRAFT_SHIPPED',
-          message: 'Shipped drafts cannot be re-reviewed.',
-        });
-      }
-      if (!existing.locales.includes(locale)) {
-        throw new BadRequestException({
-          error: 'LOCALE_NOT_IN_DRAFT',
-          message: `Draft was not generated for locale "${locale}".`,
-        });
-      }
-
-      await tx.ingredientNameDraftLocaleReview.upsert({
-        where: { draftId_locale: { draftId: id, locale } },
-        create: {
-          draftId: id,
-          locale,
-          action,
-          reviewedByLabel: reviewer.label,
-          reason: parsed.data.reason ?? null,
-        },
-        update: {
-          action,
-          reviewedByLabel: reviewer.label,
-          reason: parsed.data.reason ?? null,
-          reviewedAt: new Date(),
-        },
-      });
-
-      const reviews = await tx.ingredientNameDraftLocaleReview.findMany({
-        where: { draftId: id },
-      });
-      const status = deriveDraftStatus(existing.locales, reviews);
-
-      return tx.ingredientNameDraft.update({
-        where: { id },
-        data: { status },
-        include: { localeReviews: true },
-      });
-    });
-    return toIngredientNameReviewSlice(updated, locale);
+    const { reason } = bodyOf(ReviewerReasonBody, body ?? {}, 'INVALID_REVIEW');
+    return toIngredientNameReviewSlice(await this.drafts.reviewIngredientName(id, { locale, action, reason }, reviewerOf(req)), locale);
   }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function requireReviewer(req: ReviewerRequest): { label: string } {
+/** The reviewer the guard let in, as the one who acts on a draft. */
+function reviewerOf(req: ReviewerRequest): Actor {
   if (!req.reviewer) {
     // Guard should have set this; defensive only.
     throw new UnauthorizedException({
@@ -647,145 +330,25 @@ function requireReviewer(req: ReviewerRequest): { label: string } {
       message: 'No reviewer session present.',
     });
   }
-  return { label: req.reviewer.label };
+  return { role: 'REVIEWER', label: req.reviewer.label };
+}
+
+/** `body` checked against `schema`, or a 400 under the code this route has always answered with. */
+function bodyOf<T>(schema: z.ZodType<T>, body: unknown, code: string): T {
+  const result = schema.safeParse(body);
+  if (!result.success) throw new BadRequestException({ error: code, message: result.error.message });
+  return result.data;
 }
 
 /** Validates the `?locale=` query argument: must be a supported Locale and
  *  must not be `en` (EN is the canonical authoring language). */
-function parseTargetLocale(raw: string | undefined): Locale {
-  const parsed = LocaleSchema.safeParse(raw);
-  if (!parsed.success || parsed.data === CANONICAL_LOCALE) {
+function parseTargetLocale(raw: string | undefined): TargetLocale {
+  const parsed = TargetLocale.safeParse(raw);
+  if (!parsed.success) {
     throw new BadRequestException({
       error: 'INVALID_LOCALE',
       message: `locale must be a non-canonical Locale (got "${raw ?? ''}").`,
     });
   }
   return parsed.data;
-}
-
-function parseLocaleMap(raw: unknown): Record<string, string> {
-  if (raw && typeof raw === 'object') {
-    return { ...(raw as Record<string, string>) };
-  }
-  return {};
-}
-
-function parseLocaleStringsMap(raw: unknown): Record<string, string[]> {
-  if (raw && typeof raw === 'object') {
-    const out: Record<string, string[]> = {};
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      if (Array.isArray(v)) out[k] = v.map(String);
-    }
-    return out;
-  }
-  return {};
-}
-
-interface RawRecipeDraftRow {
-  id: string;
-  slug: string;
-  titles: unknown;
-  descriptions: unknown;
-  steps: unknown;
-  locales: string[];
-  servings: number;
-  mealTypes: string[];
-  dietTags: string[];
-  prepMinutes: number;
-  cookMinutes: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  complexity: string;
-  caloriesPerServing: number;
-  proteinPerServing: number;
-  fatPerServing: number;
-  carbsPerServing: number;
-  allergens: string[];
-  ingredientsJson: unknown;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  batchId: string;
-  modelUsed: string | null;
-  localeReviews: { locale: string; action: string }[];
-}
-
-function toRecipeReviewSlice(
-  row: RawRecipeDraftRow,
-  locale: Locale,
-): RecipeReviewSlice {
-  const titles = parseLocaleMap(row.titles);
-  const descriptions = parseLocaleMap(row.descriptions);
-  const steps = parseLocaleStringsMap(row.steps);
-  const reviewed = row.localeReviews.find((r) => r.locale === locale);
-  return {
-    id: row.id,
-    slug: row.slug,
-    locale,
-    title: titles[locale] ?? '',
-    titleSource: titles[CANONICAL_LOCALE] ?? '',
-    description: descriptions[locale] ?? '',
-    descriptionSource: descriptions[CANONICAL_LOCALE] ?? '',
-    steps: steps[locale] ?? [],
-    stepsSource: steps[CANONICAL_LOCALE] ?? [],
-    servings: row.servings,
-    mealTypes: row.mealTypes as RecipeReviewSlice['mealTypes'],
-    dietTags: row.dietTags as RecipeReviewSlice['dietTags'],
-    prepMinutes: row.prepMinutes,
-    cookMinutes: row.cookMinutes,
-    difficulty: row.difficulty,
-    complexity: row.complexity as RecipeReviewSlice['complexity'],
-    caloriesPerServing: row.caloriesPerServing,
-    proteinPerServing: row.proteinPerServing,
-    fatPerServing: row.fatPerServing,
-    carbsPerServing: row.carbsPerServing,
-    allergens: row.allergens,
-    ingredients: row.ingredientsJson as RecipeReviewSlice['ingredients'],
-    batchId: row.batchId,
-    modelUsed: row.modelUsed,
-    status: row.status,
-    alreadyReviewed: reviewed !== undefined,
-    alreadyReviewedAction:
-      reviewed && (reviewed.action === 'APPROVE' || reviewed.action === 'REJECT')
-        ? reviewed.action
-        : null,
-  };
-}
-
-interface RawIngredientNameDraftRow {
-  id: string;
-  ingredientSlug: string;
-  rawDescription: string;
-  suggestions: unknown;
-  locales: string[];
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  batchId: string;
-  modelUsed: string | null;
-  localeReviews: { locale: string; action: string }[];
-}
-
-function toIngredientNameReviewSlice(
-  row: RawIngredientNameDraftRow,
-  locale: Locale,
-): IngredientNameReviewSlice {
-  const suggestions = (row.suggestions ?? {}) as {
-    name?: Record<string, string>;
-    storageHint?: Record<string, string>;
-  };
-  const reviewed = row.localeReviews.find((r) => r.locale === locale);
-  return {
-    id: row.id,
-    ingredientSlug: row.ingredientSlug,
-    rawDescription: row.rawDescription,
-    locale,
-    name: suggestions.name?.[locale] ?? '',
-    nameSource: suggestions.name?.[CANONICAL_LOCALE] ?? '',
-    storageHint: suggestions.storageHint?.[locale] ?? null,
-    storageHintSource: suggestions.storageHint?.[CANONICAL_LOCALE] ?? null,
-    batchId: row.batchId,
-    modelUsed: row.modelUsed,
-    status: row.status,
-    alreadyReviewed: reviewed !== undefined,
-    alreadyReviewedAction:
-      reviewed && (reviewed.action === 'APPROVE' || reviewed.action === 'REJECT')
-        ? reviewed.action
-        : null,
-  };
 }

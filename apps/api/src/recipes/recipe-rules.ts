@@ -129,20 +129,14 @@ function problemList(): { problems: RecipeProblem[]; add: (path: string, rule: R
   return { problems, add: (path, rule, max) => problems.push({ path, rule, message: sentence(path, rule, max) }) };
 }
 
-/**
- * Check what a recipe holds. `locales` are the languages the recipe is in:
- * each needs a title, a description and steps, and text in any other language
- * is left out. Every problem is named, not only the first.
- */
-export function checkRecipe(input: Record<string, unknown>, locales: readonly string[]): RecipeCheck {
-  const { problems, add } = problemList();
+export interface RecipeText {
+  titles: Record<string, string>;
+  descriptions: Record<string, string>;
+  steps: Record<string, string[]>;
+}
 
-  let slug: string | null = null;
-  if (input.slug !== undefined && input.slug !== null) {
-    if (typeof input.slug === 'string' && input.slug.length <= RECIPE_LIMITS.slug && SLUG.test(input.slug)) slug = input.slug;
-    else add('slug', 'invalid-slug');
-  }
-
+/** The title, description and steps of each of `locales`, cleaned; what is wrong goes to `add`. */
+function textOf(input: Record<string, unknown>, locales: readonly string[], add: (path: string, rule: RecipeRule, max?: number) => void): RecipeText {
   const textsOf = (field: 'titles' | 'descriptions', max: number): Record<string, string> => {
     const source = isObject(input[field]) ? input[field] : {};
     const out: Record<string, string> = {};
@@ -177,6 +171,34 @@ export function checkRecipe(input: Record<string, unknown>, locales: readonly st
     else if (kept.length > RECIPE_LIMITS.steps) add(`steps.${locale}`, 'too-many-steps');
     else steps[locale] = kept;
   }
+  return { titles, descriptions, steps };
+}
+
+/**
+ * Check the text of a recipe in `locales` and nothing else of it: what
+ * somebody who edits one language is answerable for.
+ */
+export function checkRecipeText(input: Record<string, unknown>, locales: readonly string[]): { ok: true; text: RecipeText } | { ok: false; problems: RecipeProblem[] } {
+  const { problems, add } = problemList();
+  const text = textOf(input, locales, add);
+  return problems.length > 0 ? { ok: false, problems } : { ok: true, text };
+}
+
+/**
+ * Check what a recipe holds. `locales` are the languages the recipe is in:
+ * each needs a title, a description and steps, and text in any other language
+ * is left out. Every problem is named, not only the first.
+ */
+export function checkRecipe(input: Record<string, unknown>, locales: readonly string[]): RecipeCheck {
+  const { problems, add } = problemList();
+
+  let slug: string | null = null;
+  if (input.slug !== undefined && input.slug !== null) {
+    if (typeof input.slug === 'string' && input.slug.length <= RECIPE_LIMITS.slug && SLUG.test(input.slug)) slug = input.slug;
+    else add('slug', 'invalid-slug');
+  }
+
+  const { titles, descriptions, steps } = textOf(input, locales, add);
 
   const whole = (field: 'servings' | 'prepMinutes' | 'cookMinutes', min: number, max: number, rule: RecipeRule): number | null => {
     const value = input[field];

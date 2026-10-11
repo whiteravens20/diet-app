@@ -841,23 +841,36 @@ model RecipeDraft {
   @@index([source])
 }
 
+// Who wrote a review: the administrator, or a reviewer signed in with the
+// shared reviewer password.
+enum ReviewerRole {
+  ADMIN
+  REVIEWER
+}
+
 model RecipeDraftLocaleReview {
-  id              String      @id @default(uuid())
-  draft           RecipeDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  id              String        @id @default(uuid())
+  draft           RecipeDraft   @relation(fields: [draftId], references: [id], onDelete: Cascade)
   draftId         String
   // ISO 639-1; constrained to the Locale enum at the API layer.
   locale          String
   // 'APPROVE' | 'REJECT' — constrained at the API layer.
   action          String
-  // Free-text label captured from the reviewer's session cookie at review
-  // time (e.g. "Anna", "PL-reviewer-1"). Audit only.
+  // Null on a row written before the role was recorded.
+  byRole          ReviewerRole?
+  // The name the reviewer signed in with, or the one the administrator gave
+  // (e.g. "Anna", "PL-reviewer-1").
   reviewedByLabel String
   reason          String?
-  reviewedAt      DateTime    @default(now())
+  reviewedAt      DateTime      @default(now())
+  // Set when a later review of the same language, or an edit of the draft,
+  // took this row's place. The review a language has now is the row where
+  // this is null; the others are the record of what was decided before, and
+  // are never deleted while the draft exists. One current row per language is
+  // kept by the lock every writer takes on the draft, not by an index.
+  supersededAt    DateTime?
 
-  // One current review per (draft, locale); upsert on re-review.
-  @@unique([draftId, locale])
-  @@index([draftId])
+  @@index([draftId, locale])
 }
 
 model IngredientNameDraft {
@@ -891,18 +904,20 @@ model IngredientNameDraft {
   @@index([ingredientSlug])
 }
 
+// The same record as RecipeDraftLocaleReview, for the name of an ingredient.
 model IngredientNameDraftLocaleReview {
   id              String              @id @default(uuid())
   draft           IngredientNameDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
   draftId         String
   locale          String
   action          String
+  byRole          ReviewerRole?
   reviewedByLabel String
   reason          String?
   reviewedAt      DateTime            @default(now())
+  supersededAt    DateTime?
 
-  @@unique([draftId, locale])
-  @@index([draftId])
+  @@index([draftId, locale])
 }
 
 // Singleton runtime configuration owned by the operator and managed from

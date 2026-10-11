@@ -258,6 +258,8 @@
     "NAMER_IN_PROGRESS": "Generowanie nazw składników już trwa.",
     "DRAFT_NOT_FOUND": "Nie znaleziono propozycji.",
     "DRAFT_SHIPPED": "Ta propozycja została już wysłana i nie może być zmieniana.",
+    "DRAFT_INVALID": "Szkic złamałby zasady dotyczące tekstu i ilości w przepisie. Nic nie zostało zapisane.",
+    "DRAFT_REJECTED": "Ten szkic został odrzucony. Ponownie otworzyć może go tylko administrator.",
     "DRAFT_STRUCTURAL_EDIT_FORBIDDEN": "Przepisy użytkowników przyjmują tylko edycje tłumaczeń — najpierw promuj, aby zmieniać strukturę.",
     "DRAFT_NOT_PROMOTABLE": "Tylko przepisy oznaczone jako AI_USER mogą zostać promowane do biblioteki.",
     "DRAFT_NOT_APPROVED": "Propozycja musi być zatwierdzona w każdym języku, zanim zostanie promowana.",

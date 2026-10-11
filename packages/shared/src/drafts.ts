@@ -32,15 +32,62 @@ export type DraftKind = z.infer<typeof DraftKind>;
 export const ReviewAction = z.enum(['APPROVE', 'REJECT']);
 export type ReviewAction = z.infer<typeof ReviewAction>;
 
-/** Per-locale review row (audit). Mirrors the *LocaleReview Prisma rows. */
+/** Who reviews: the administrator, or a reviewer signed in with the reviewers' password. */
+export const ReviewerRole = z.enum(['ADMIN', 'REVIEWER']);
+export type ReviewerRole = z.infer<typeof ReviewerRole>;
+
+/** A language a draft is written in and reviewed for besides the canonical one. */
+export const TargetLocale = Locale.exclude(['en']);
+export type TargetLocale = z.infer<typeof TargetLocale>;
+
+/** The review a language of a draft has now. */
 export const LocaleReview = z.object({
   locale: Locale,
   action: ReviewAction,
+  /** Null on a review written before the role was recorded. */
+  byRole: ReviewerRole.nullable(),
+  /** The name the reviewer signed in with, or the one the administrator gave. */
   reviewedByLabel: z.string(),
   reason: z.string().nullable(),
   reviewedAt: z.string(),
 });
 export type LocaleReview = z.infer<typeof LocaleReview>;
+
+/**
+ * A review that no longer counts: a later review of the same language, or an
+ * edit of the draft, took its place at `supersededAt`. Kept as the record of
+ * what was decided.
+ */
+export const PastReview = LocaleReview.extend({ supersededAt: z.string() });
+export type PastReview = z.infer<typeof PastReview>;
+
+const page = z.coerce.number().int().min(1).max(100_000).default(1);
+const pageSize = z.coerce.number().int().min(1).max(100).default(25);
+
+/** The administrator's list of ingredient-name drafts: its filters and its page. */
+export const IngredientNameDraftListQuery = z.object({
+  status: DraftStatus.optional(),
+  batchId: z.string().min(1).max(120).optional(),
+  page,
+  pageSize,
+});
+export type IngredientNameDraftListQuery = z.infer<typeof IngredientNameDraftListQuery>;
+
+/** The administrator's list of recipe drafts. */
+export const RecipeDraftListQuery = IngredientNameDraftListQuery.extend({ complexity: Complexity.optional() });
+export type RecipeDraftListQuery = z.infer<typeof RecipeDraftListQuery>;
+
+/** What waits for a reviewer in one language; with `includeReviewed`, also what that language already approved. */
+export const ReviewQueueQuery = z.object({
+  locale: TargetLocale,
+  includeReviewed: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => value === 'true'),
+  page,
+  pageSize,
+});
+export type ReviewQueueQuery = z.infer<typeof ReviewQueueQuery>;
 
 /**
  * Locale-keyed map of strings — e.g. `{ en: "Beef tenderloin",
@@ -81,6 +128,7 @@ export const IngredientNameDraft = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   localeReviews: z.array(LocaleReview),
+  pastReviews: z.array(PastReview),
 });
 export type IngredientNameDraft = z.infer<typeof IngredientNameDraft>;
 
@@ -88,12 +136,14 @@ export type IngredientNameDraft = z.infer<typeof IngredientNameDraft>;
  * Spec passed to `POST /api/admin/drafts/ingredient-names/generate`. `scope`
  * picks the parent set; `targetLocales` controls which locale keys the AI
  * must return — defaults to every non-canonical locale (`pl` today) so that
- * extending the `Locale` enum auto-extends draft coverage.
+ * extending the `Locale` enum auto-extends draft coverage. English is not
+ * among them: the source's own name is the English one, and a draft made for
+ * English could be approved by nobody.
  */
 export const IngredientNameGenerateSpec = z.object({
   scope: z.enum(['all-usda-missing', 'specific-slugs']),
   slugs: z.array(z.string()).optional(),
-  targetLocales: z.array(Locale).min(1).optional(),
+  targetLocales: z.array(TargetLocale).min(1).optional(),
 });
 export type IngredientNameGenerateSpec = z.infer<typeof IngredientNameGenerateSpec>;
 
@@ -191,6 +241,7 @@ export const RecipeDraft = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   localeReviews: z.array(LocaleReview),
+  pastReviews: z.array(PastReview),
 });
 export type RecipeDraft = z.infer<typeof RecipeDraft>;
 
@@ -240,10 +291,11 @@ export const RecipeGenerateSpec = z.object({
 });
 export type RecipeGenerateSpec = z.infer<typeof RecipeGenerateSpec>;
 
-/** PATCH body for a recipe draft. All fields optional; the controller merges
- *  into the existing row and re-runs the validator + engine recompute. The
- *  `?dryRun=true` query flag returns the recomputed shape without persisting,
- *  which the inline editor uses for live nutrition feedback. */
+/** PATCH body for a recipe draft. All fields optional; what is sent is merged
+ *  into the draft, text language by language, and the whole is held to the
+ *  rules of every recipe (`RECIPE_LIMITS`) before the engine works its figures
+ *  out again. The `?dryRun=true` query flag returns the result without
+ *  storing it, which the inline editor uses for live nutrition feedback. */
 export const RecipeDraftPatch = z.object({
   titles: LocaleStringMap.optional(),
   descriptions: LocaleStringMap.optional(),
@@ -357,23 +409,25 @@ export const IngredientNameReviewSlice = z.object({
 export type IngredientNameReviewSlice = z.infer<typeof IngredientNameReviewSlice>;
 
 /**
- * Reviewer PATCH bodies — scoped to the reviewer's `cookie.locale`. The
- * controller writes only the cookie locale into the JSON columns; cross-locale
- * edits are structurally impossible.
+ * Reviewer PATCH bodies — scoped to the language of the request. Only that
+ * language's text is written; an edit across languages is structurally
+ * impossible. How long a text may be, and that it is plain text, is decided by
+ * the rules of every recipe (`RECIPE_LIMITS`, `INGREDIENT_NAME_LIMITS`), which
+ * answer with the field and the rule; the bounds here only keep nonsense out.
  */
 export const RecipeReviewPatchBody = z
   .object({
-    title: z.string().min(1).max(200).optional(),
-    description: z.string().min(1).max(2000).optional(),
-    steps: z.array(z.string().min(1).max(2000)).min(1).optional(),
+    title: z.string().min(1).max(2000).optional(),
+    description: z.string().min(1).max(10_000).optional(),
+    steps: z.array(z.string().max(5000)).min(1).max(100).optional(),
   })
   .strict();
 export type RecipeReviewPatchBody = z.infer<typeof RecipeReviewPatchBody>;
 
 export const IngredientNameReviewPatchBody = z
   .object({
-    name: z.string().min(1).max(200).optional(),
-    storageHint: z.string().max(500).optional(),
+    name: z.string().min(1).max(2000).optional(),
+    storageHint: z.string().max(5000).optional(),
   })
   .strict();
 export type IngredientNameReviewPatchBody = z.infer<typeof IngredientNameReviewPatchBody>;

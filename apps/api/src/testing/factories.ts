@@ -6,10 +6,16 @@
  * not run into the per-route request limits; the behaviour under test goes over
  * HTTP.
  */
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import type { Prisma } from '@prisma/client';
 import { GeneratePlanRequest, ProfileInput, type MealPlan, type Profile } from '@diet-app/shared';
 import { AuthService } from '../auth/auth.service.js';
+import { recipeFacts } from '../engine/recipe-facts.js';
+import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
+import { REVIEWER_COOKIE_NAME, resolveReviewerSecret, signReviewerCookie } from '../review/session.js';
 import type { TestApp } from './test-app.js';
 
 export interface TestUser {
@@ -92,5 +98,75 @@ export async function aPrivateRecipe(
       ingredients: { create: [{ ingredientId: ingredient.id, quantity: 100, unit: 'g' }] },
     },
     select: { id: true, title: true },
+  });
+}
+
+/** The header of the administrator the test application is set up with. */
+export const asAdmin = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+
+/**
+ * A reviewer who is signed in: the reviewer interface is switched on and the
+ * header carries a session under `label`. The session is signed here, not
+ * asked for over HTTP, so that a file with many tests does not meet the limit
+ * on reviewer sign-ins.
+ */
+export async function aReviewer(t: TestApp, label = 'pl reviewer'): Promise<{ Cookie: string }> {
+  await t.app.get(InstanceSettingsService).patch({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' });
+  const { token } = signReviewerCookie(t.app.get(JwtService, { strict: false }), resolveReviewerSecret(t.app.get(ConfigService)), { label });
+  return { Cookie: `${REVIEWER_COOKIE_NAME}=${token}` };
+}
+
+/**
+ * A recipe draft as a batch run leaves one in the queue: English and Polish,
+ * three ingredients of the test catalogue, the engine's own figures, pending.
+ */
+export async function aRecipeDraft(t: TestApp, overrides: Partial<Prisma.RecipeDraftUncheckedCreateInput> = {}) {
+  sequence += 1;
+  const lines = [
+    { slug: 'rolled-oats', quantity: 60, unit: 'g' as const, note: null },
+    { slug: 'oat-drink', quantity: 200, unit: 'ml' as const, note: null },
+    { slug: 'banana', quantity: 120, unit: 'g' as const, note: null },
+  ];
+  const rows = await t.prisma.ingredient.findMany({ where: { slug: { in: lines.map((line) => line.slug) } } });
+  const facts = recipeFacts(lines.map((line) => ({ ...line, ingredient: rows.find((row) => row.slug === line.slug)! })), 1);
+  return t.prisma.recipeDraft.create({
+    data: {
+      slug: `draft-dish-${sequence}`,
+      titles: { en: 'Oat bowl', pl: 'Owsianka' },
+      descriptions: { en: 'Oats with a banana.', pl: 'Płatki z bananem.' },
+      steps: { en: ['Warm the drink.', 'Stir in the oats and the banana.'], pl: ['Podgrzej napój.', 'Wmieszaj płatki i banana.'] },
+      locales: ['en', 'pl'],
+      servings: 1,
+      mealTypes: ['breakfast'],
+      dietTags: facts.dietTags,
+      prepMinutes: 5,
+      cookMinutes: 5,
+      difficulty: 'easy',
+      complexity: 'simple',
+      caloriesPerServing: facts.perServing.calories,
+      proteinPerServing: facts.perServing.protein,
+      fatPerServing: facts.perServing.fat,
+      carbsPerServing: facts.perServing.carbs,
+      allergens: facts.allergens,
+      ingredientsJson: lines,
+      batchId: 'test-batch',
+      ...overrides,
+    },
+    include: { localeReviews: true },
+  });
+}
+
+/** A draft of a Polish name for an ingredient of the test catalogue, pending. */
+export function anIngredientNameDraft(t: TestApp, overrides: Partial<Prisma.IngredientNameDraftUncheckedCreateInput> = {}) {
+  return t.prisma.ingredientNameDraft.create({
+    data: {
+      ingredientSlug: 'chicken-breast',
+      rawDescription: 'Chicken, broilers or fryers, breast, meat only, raw',
+      suggestions: { name: { pl: 'Pierś z kurczaka' } },
+      locales: ['pl'],
+      batchId: 'test-batch',
+      ...overrides,
+    },
+    include: { localeReviews: true },
   });
 }
