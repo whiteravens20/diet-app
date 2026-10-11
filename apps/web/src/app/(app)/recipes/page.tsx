@@ -3,7 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Send, Sparkles, Trash2 } from 'lucide-react';
+import { Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
@@ -16,6 +16,7 @@ import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DraftButton } from './draft-button';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
@@ -49,7 +50,6 @@ export default function RecipesPage() {
     queryKey: ['session'],
     queryFn: () => api.get<SessionUser>('/users/me'),
   });
-  const aiEnabled = session.data?.aiMode && session.data.aiMode !== 'none';
 
   // Reset to page 1 whenever the filter set changes — React's "adjusting
   // state on prop change during render" pattern (preferred over useEffect
@@ -140,18 +140,7 @@ export default function RecipesPage() {
   return (
     <div className="space-y-6">
       <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')}>
-        {aiEnabled && activeProfile && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setDraftOpen(true)}
-            className="text-primary"
-          >
-            <Sparkles size={14} aria-hidden />
-            <span className="ml-1">{t('aiDraft')}</span>
-          </Button>
-        )}
+        {session.data && activeProfile && <DraftButton aiEnabled={session.data.aiMode !== 'none'} onOpen={() => setDraftOpen(true)} />}
       </PageBanner>
 
       <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-sm">

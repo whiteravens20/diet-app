@@ -1115,6 +1115,7 @@
     "noneAtAll": "Brak przepisów.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
     "aiDraft": "Zaproponuj z AI",
+    "aiDraftOff": "Włącz AI w Ustawieniach, aby tworzyć szkice przepisów.",
     "tabs": {
       "library": "Biblioteka",
       "mine": "Moje przepisy"

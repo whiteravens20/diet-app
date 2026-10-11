@@ -1115,6 +1115,7 @@
     "noneAtAll": "No recipes.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
     "aiDraft": "Draft with AI",
+    "aiDraftOff": "Turn on AI in Settings to draft recipes.",
     "tabs": {
       "library": "Library",
       "mine": "My recipes"
