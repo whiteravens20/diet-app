@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PlannedIngredient, SwapPreview } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import messages from '../../messages/en.json';
+import polish from '../../messages/pl.json';
 import { IngredientSubstituteModal } from './ingredient-substitute-modal';
 
 const taken = (ingredientId: string, name: string, quantity: number): PlannedIngredient => ({ ingredientId, name, quantity, unit: 'g', display: { quantity, unit: 'g' }, note: null });
@@ -32,24 +33,25 @@ const aPreview = (over: Partial<SwapPreview> = {}): SwapPreview => ({
 });
 
 /** The modal with the rice picked and chickpeas chosen in its place, the API answering `preview`. */
-async function substituting(preview: SwapPreview) {
+async function substituting(preview: SwapPreview, locale: 'en' | 'pl' = 'en') {
+  const texts = locale === 'en' ? messages : polish;
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve((path === '/users/me' ? { aiMode: 'none' } : path.startsWith('/ingredients') ? [{ id: chickpeas.ingredientId, name: chickpeas.name }] : []) as never),
   );
   const post = vi.spyOn(api, 'post').mockImplementation((path: string) => Promise.resolve((path.endsWith('/preview') ? preview : { plan: {}, rebalance: null, aiMeta: null }) as never));
   const onApplied = vi.fn();
   render(
-    <NextIntlClientProvider locale="en" messages={messages}>
+    <NextIntlClientProvider locale={locale} messages={texts}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <IngredientSubstituteModal meal={meal} planId="55555555-5555-4555-8555-555555555555" onClose={() => undefined} onApplied={onApplied} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
   await userEvent.click(screen.getByRole('button', { name: /White rice/ }));
-  await userEvent.type(screen.getByPlaceholderText(messages.pickers.ingredientSearch), 'chick');
+  await userEvent.type(screen.getByPlaceholderText(texts.pickers.ingredientSearch), 'chick');
   await userEvent.click(await screen.findByRole('button', { name: 'Chickpeas' }));
-  await screen.findByText(messages.swap.stepDelta);
-  return { post, onApplied, applyButton: () => screen.getByRole('button', { name: messages.swap.apply }) };
+  const delta = (await screen.findByText(texts.swap.stepDelta)).closest('section')!;
+  return { post, onApplied, delta, applyButton: () => screen.getByRole('button', { name: texts.swap.apply }) };
 }
 
 describe('the substitution of an ingredient, before it is made', () => {
@@ -62,6 +64,20 @@ describe('the substitution of an ingredient, before it is made', () => {
 
     expect(await screen.findByText('265 g Chickpeas in place of 120 g White rice: as much as holds the same energy.')).toBeInTheDocument();
     expect(applyButton()).toBeEnabled();
+  });
+
+  it('names the ingredient a substitute is looked for', async () => {
+    await substituting(aPreview());
+
+    expect(screen.getByText((_, element) => element?.tagName === 'P' && element.textContent === '2. Replace White rice with…')).toBeInTheDocument();
+  });
+
+  it.each(['energy', 'capped', 'mass'] as const)('says it in Polish with both names and both amounts as they stand (%s)', async (sizing) => {
+    const { delta } = await substituting(aPreview({ sizing }), 'pl');
+
+    const sentence = [...delta.querySelectorAll('p')].find((line) => line.textContent!.includes('White rice'))!.textContent!;
+    for (const part of ['White rice', '120 g', 'Chickpeas', '265 g']) expect(sentence).toContain(part);
+    expect(sentence).not.toMatch(/[{}]|swap\.sizing/);
   });
 
   it.each([

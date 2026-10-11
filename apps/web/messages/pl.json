@@ -1263,7 +1263,7 @@
   "swap": {
     "title": "Zamień składnik",
     "stepPick": "1. Który składnik?",
-    "stepReplace": "2. Zamień {name} na…",
+    "stepReplace": "2. <strong>{name}</strong>: wybierz zamiennik",
     "catalogueSuggests": "Katalog podpowiada:",
     "stepDelta": "3. Co to zmienia w tym posiłku",
     "computing": "Liczenie…",
@@ -1271,9 +1271,9 @@
     "applyFailed": "Nie udało się zastosować zamiany.",
     "invalid": "Ta zamiana narusza ograniczenia profilu — nie można jej zastosować.",
     "sizing": {
-      "energy": "{to} zamiast {from}: tyle, ile ma tę samą energię.",
-      "capped": "{to} zamiast {from}: zamiennika jest najwyżej trzy razy tyle, więc posiłek ma mniej energii.",
-      "mass": "{to} zamiast {from}: ta sama ilość, bo jeden z nich nie ma energii, według której można by przeliczyć."
+      "energy": "{fromName} ({fromAmount}) → {toName} ({toAmount}): tyle, ile ma tę samą energię.",
+      "capped": "{fromName} ({fromAmount}) → {toName} ({toAmount}): zamiennika jest najwyżej trzy razy tyle, więc posiłek ma mniej energii.",
+      "mass": "{fromName} ({fromAmount}) → {toName} ({toAmount}): ta sama ilość, bo jeden z nich nie ma energii, według której można by przeliczyć."
     },
     "merged": "Przepis ma już składnik {name}: jego ilość rośnie i nie powstaje druga pozycja.",
     "violation": {

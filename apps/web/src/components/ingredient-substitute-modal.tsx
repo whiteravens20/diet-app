@@ -223,7 +223,8 @@ export function IngredientSubstituteModal({
             <section>
               <p className="mb-1 text-sm font-medium">
                 {t.rich('stepReplace', {
-                  name: () => <span className="text-primary">{fromLine.name}</span>,
+                  name: fromLine.name,
+                  strong: (chunks) => <span className="text-primary">{chunks}</span>,
                 })}
               </p>
               <div className="flex gap-2">
@@ -331,8 +332,10 @@ export function IngredientSubstituteModal({
                 <>
                   <p className="text-xs text-muted-foreground">
                     {t(`sizing.${preview.data.sizing}`, {
-                      from: `${amount(preview.data.from.display.quantity, preview.data.from.display.unit)} ${preview.data.from.name}`,
-                      to: `${amount(preview.data.to.display.quantity, preview.data.to.display.unit)} ${preview.data.to.name}`,
+                      fromAmount: amount(preview.data.from.display.quantity, preview.data.from.display.unit),
+                      fromName: preview.data.from.name,
+                      toAmount: amount(preview.data.to.display.quantity, preview.data.to.display.unit),
+                      toName: preview.data.to.name,
                     })}
                   </p>
                   {preview.data.merged && <p className="mt-1 text-xs text-muted-foreground">{t('merged', { name: preview.data.to.name })}</p>}

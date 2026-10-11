@@ -1263,7 +1263,7 @@
   "swap": {
     "title": "Substitute an ingredient",
     "stepPick": "1. Which ingredient?",
-    "stepReplace": "2. Replace {name} with…",
+    "stepReplace": "2. Replace <strong>{name}</strong> with…",
     "catalogueSuggests": "The catalogue suggests:",
     "stepDelta": "3. What it does to this meal",
     "computing": "Computing…",
@@ -1271,9 +1271,9 @@
     "applyFailed": "Could not apply the substitution.",
     "invalid": "This substitution violates the profile's constraints — cannot apply.",
     "sizing": {
-      "energy": "{to} in place of {from}: as much as holds the same energy.",
-      "capped": "{to} in place of {from}: three times as much is the most a substitute is given, so the meal holds less energy.",
-      "mass": "{to} in place of {from}: the same amount, as one of the two holds no energy to go by."
+      "energy": "{toAmount} {toName} in place of {fromAmount} {fromName}: as much as holds the same energy.",
+      "capped": "{toAmount} {toName} in place of {fromAmount} {fromName}: three times as much is the most a substitute is given, so the meal holds less energy.",
+      "mass": "{toAmount} {toName} in place of {fromAmount} {fromName}: the same amount, as one of the two holds no energy to go by."
     },
     "merged": "The recipe has {name} already: its amount grows, and no second line is written.",
     "violation": {
