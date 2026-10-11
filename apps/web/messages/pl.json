@@ -882,6 +882,7 @@
     "rebalanceSummary": "{before} → {after} kcal · przeliczono posiłki: {count}.",
     "rebalanceBestEffort": "Dzień nadal przekracza cel — rozważ edycję.",
     "daySkipped": "Pominięty",
+    "dayBelowFloor": "Cel tego dnia jest niższy niż najniższy, jaki wylicza plan.",
     "rebalanceUndo": "Cofnij ostatnie przeliczenie",
     "rebalanceWeek": "Przelicz resztę tygodnia",
     "rebalanceDismiss": "Zamknij",

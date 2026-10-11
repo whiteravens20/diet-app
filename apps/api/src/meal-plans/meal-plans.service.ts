@@ -39,6 +39,7 @@ import {
 import {
   calculateCalories,
   effectiveDayTarget,
+  safetyFloor,
   fitServings,
   optimisePlan,
   OptimizerError,
@@ -1806,6 +1807,7 @@ export class MealPlansService {
   }
 
   private toDto(plan: PlanWithRelations, locale: Locale, restrictions: Restrictions): MealPlan {
+    const floor = safetyFloor(plan.profile?.sex ?? null);
     const days: MealPlanDay[] = plan.days.map((day) => {
       // Sort meals into canonical eating order — Prisma's row order is
       // undefined and shifts after updates, which would look like other meals
@@ -1879,6 +1881,7 @@ export class MealPlansService {
         calorieTarget: day.calorieTarget,
         calorieDelta: skipped ? 0 : dayNutrition.calories - day.calorieTarget,
         skipped,
+        belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,
       };
     });
@@ -1921,6 +1924,8 @@ interface PlanWithRelations {
   generationMode: 'deterministic' | 'ai_assisted';
   revision: number;
   createdAt: Date;
+  /** Whose plan it is: the floor a day's target is compared with follows from it. */
+  profile: { sex: 'male' | 'female' | null } | null;
   days: {
     id: string;
     date: Date;

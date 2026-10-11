@@ -882,6 +882,7 @@
     "rebalanceSummary": "{before} → {after} kcal · {count} meal(s) rescaled.",
     "rebalanceBestEffort": "Day still over target — consider editing.",
     "daySkipped": "Skipped",
+    "dayBelowFloor": "The target of this day is under the lowest a calculated plan goes.",
     "rebalanceUndo": "Undo last rebalance",
     "rebalanceWeek": "Rebalance the rest of the week",
     "rebalanceDismiss": "Dismiss",

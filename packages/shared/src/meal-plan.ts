@@ -170,6 +170,8 @@ export const MealPlanDay = z.object({
   calorieDelta: z.number(),
   /** The user skips this day: it has no meals, is no shortfall, and is left out of the plan's averages. */
   skipped: z.boolean(),
+  /** A target somebody typed, for the plan or for this day, has put the day under the lowest a calculated plan goes. */
+  belowSafetyFloor: z.boolean(),
   /** Advanced per-day overrides, or null for a basic-flow day. */
   overrides: MealPlanDayOverrides.nullable(),
 });

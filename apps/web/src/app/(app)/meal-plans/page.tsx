@@ -726,6 +726,7 @@ function PlanCard({
                   </div>
                 )}
               </div>
+              {day.belowSafetyFloor && <p className="text-xs text-amber-700 dark:text-amber-400">{t('dayBelowFloor')}</p>}
               <ul className="mt-1 space-y-1 text-sm">
                 {day.meals.map((m) => {
                   const eaten = m.eatenAt !== null;
