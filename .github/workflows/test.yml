@@ -96,8 +96,15 @@ jobs:
             if curl -fsS -o /dev/null http://localhost:4100/api/health \
               && curl -fsS -o /dev/null http://localhost:3000/api/health \
               && curl -fsS -o /dev/null http://localhost:3000/ \
-              && [ "$(health api)" = healthy ] && [ "$(health web)" = healthy ]; then
+              && [ "$(health api)" = healthy ] && [ "$(health web)" = healthy ] \
+              && docker compose --env-file .env -f infra/docker-compose.yml logs --no-color worker | grep -q 'Worker started'; then
               echo "Up and healthy after $attempt attempt(s)."
+              # The worker has no health check: it runs its jobs once when it
+              # starts, and one that fails says so in its log.
+              if docker compose --env-file .env -f infra/docker-compose.yml logs --no-color worker | grep ' failed: '; then
+                echo "::error::A job of the worker failed at its first run."
+                exit 1
+              fi
               exit 0
             fi
             sleep 3
