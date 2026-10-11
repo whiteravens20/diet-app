@@ -23,7 +23,7 @@ What the code guarantees today, and what it deliberately does not protect agains
 - [x] Refresh tokens stored hashed and revocable — rotated on use, revoked on logout and on password reset
 - [x] Password-reset, e-mail-verification and e-mail-change tokens are single-use, time-limited and stored hashed
 - [x] A password-reset link is never written to the log in production; without SMTP it is logged outside production only
-- [x] Reviewer sessions use their own signed cookie (`httpOnly`, `SameSite=Lax`, `Secure` behind HTTPS); a reviewer token is rejected as a user access token, and an access token as a reviewer session
+- [x] Reviewer sessions use their own signed cookie (`httpOnly`, `SameSite=Strict`, `Secure` behind HTTPS); a reviewer token is rejected as a user access token, and an access token as a reviewer session
 
 ### Data at Rest
 
