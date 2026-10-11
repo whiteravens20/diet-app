@@ -51,6 +51,7 @@ export function IngredientSubstituteModal({
 }) {
   const qc = useQueryClient();
   const t = useTranslations('swap');
+  const tErrors = useTranslations('errors');
   const tCommon = useTranslations('common');
   const tPickers = useTranslations('pickers');
   const tProf = useTranslations('profileSummary');
@@ -68,6 +69,10 @@ export function IngredientSubstituteModal({
   const [aiPick, setAiPick] = useState<Ingredient | null>(null);
   // Off unless the user asks: a rewording costs one of their AI requests.
   const [rewriteWithAi, setRewriteWithAi] = useState(false);
+  // A substitution that moves what a serving holds by more than a tenth is made only when the user says so.
+  const [acceptChange, setAcceptChange] = useState(false);
+  // What the API refused with, in the reader's language where the code is known.
+  const worded = (e: unknown, fallback: string) => (e instanceof ApiClientError ? (tErrors.has(e.code) ? tErrors(e.code) : e.message) : fallback);
 
   const session = useQuery({
     queryKey: ['session'],
@@ -107,8 +112,7 @@ export function IngredientSubstituteModal({
       setNotice(reason ? tFallback(reason) : null);
       setAiReason(res.aiMeta.reason);
     },
-    onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : t('aiSuggestFailed')),
+    onError: (e) => setError(worded(e, t('aiSuggestFailed'))),
   });
 
   // Delta preview — run when the user has both ends picked.
@@ -121,6 +125,7 @@ export function IngredientSubstituteModal({
         fromIngredientId: fromId!,
         toIngredientId: toId!,
         rewriteWithAi: false,
+        acceptChange: false,
       } satisfies SwapIngredientRequest),
     enabled: Boolean(fromId && toId),
   });
@@ -133,6 +138,7 @@ export function IngredientSubstituteModal({
         fromIngredientId: fromId!,
         toIngredientId: toId!,
         rewriteWithAi: Boolean(aiEnabled) && rewriteWithAi,
+        acceptChange,
       } satisfies SwapIngredientRequest),
     onSuccess: (result) => {
       // Refresh whichever plan list is currently rendered so the meal card
@@ -142,8 +148,7 @@ export function IngredientSubstituteModal({
       onApplied(result);
       onClose();
     },
-    onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : t('applyFailed')),
+    onError: (e) => setError(worded(e, t('applyFailed'))),
   });
 
   // The replacement ingredient name (for the preview header).
@@ -186,6 +191,7 @@ export function IngredientSubstituteModal({
                       }`}
                       onClick={() => {
                         setFromId(i.ingredientId);
+                        setAcceptChange(false);
                         setToId(null);
                         setSearch('');
                         setError(null);
@@ -274,7 +280,10 @@ export function IngredientSubstituteModal({
                         className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-muted ${
                           c.id === toId ? 'bg-muted/60' : ''
                         }`}
-                        onClick={() => setToId(c.id)}
+                        onClick={() => {
+                          setToId(c.id);
+                          setAcceptChange(false);
+                        }}
                       >
                         <span>{c.name}</span>
                         {aiPick?.id === c.id && (
@@ -295,16 +304,16 @@ export function IngredientSubstituteModal({
               {preview.isLoading && (
                 <p className="text-xs text-muted-foreground">{t('computing')}</p>
               )}
-              {preview.error && (
-                <p className="text-xs text-destructive">
-                  {preview.error instanceof ApiClientError
-                    ? preview.error.message
-                    : t('previewFailed')}
-                </p>
-              )}
+              {preview.error && <p className="text-xs text-destructive">{worded(preview.error, t('previewFailed'))}</p>}
               {preview.data && (
                 <>
-                  <p className="text-xs text-muted-foreground">{preview.data.explanation}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(`sizing.${preview.data.sizing}`, {
+                      from: `${amount(preview.data.from.display.quantity, preview.data.from.display.unit)} ${preview.data.from.name}`,
+                      to: `${amount(preview.data.to.display.quantity, preview.data.to.display.unit)} ${preview.data.to.name}`,
+                    })}
+                  </p>
+                  {preview.data.merged && <p className="mt-1 text-xs text-muted-foreground">{t('merged', { name: preview.data.to.name })}</p>}
                   <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
                     <Delta label={tProf('kcal')} before={preview.data.before.calories} after={preview.data.after.calories} />
                     <Delta label={tProf('protein').toLowerCase()} before={preview.data.before.protein} after={preview.data.after.protein} suffix=" g" />
@@ -312,7 +321,23 @@ export function IngredientSubstituteModal({
                     <Delta label={tProf('carbs').toLowerCase()} before={preview.data.before.carbs} after={preview.data.after.carbs} suffix=" g" />
                   </dl>
                   {!preview.data.valid && (
-                    <p className="mt-2 text-xs text-destructive">{t('invalid')}</p>
+                    <div className="mt-2 text-xs text-destructive" role="alert">
+                      <p>{t('invalid')}</p>
+                      <ul className="list-disc pl-5">
+                        {preview.data.violations.map((violation) => (
+                          <li key={violation}>{t(`violation.${violation}`)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {preview.data.valid && preview.data.moved.length > 0 && (
+                    <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                      <p>{t('moved', { what: preview.data.moved.map((key) => t(`movedName.${key}`)).join(', ') })}</p>
+                      <label className="mt-1 flex items-center gap-2">
+                        <input type="checkbox" checked={acceptChange} onChange={(e) => setAcceptChange(e.target.checked)} />
+                        {t('acceptChange')}
+                      </label>
+                    </div>
                   )}
                 </>
               )}
@@ -336,6 +361,7 @@ export function IngredientSubstituteModal({
                   type="button"
                   disabled={
                     !preview.data?.valid ||
+                    (preview.data.moved.length > 0 && !acceptChange) ||
                     apply.isPending ||
                     !toIngredient
                   }

@@ -1,27 +1,32 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { z } from 'zod';
 import {
   fitsDiet,
   Locale as LocaleEnum,
+  SubstitutionViolation,
   type AiGenerationMeta,
   type AiSuggestIngredientRequest,
   type AiSuggestIngredientResponse,
   type Locale,
+  type Nutrition,
+  type PlannedIngredient,
   type SwapIngredientRequest,
   type SwapIngredientResponse,
   type SwapPreview,
+  type Unit,
 } from '@diet-app/shared';
 import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js';
 import { modelText, readModelReply } from '../ai/model-json.js';
 import { INGREDIENT_SWAP, SWAP_REWRITE } from '../ai/operations.js';
-import { recipeFacts, substituteIngredient, UnitConversionError, type EngineIngredient, type RecipeFacts } from '../engine/index.js';
+import { movedBy, recipeFacts, substituteAmount, toCanonical, UnitConversionError, type RecipeFacts } from '../engine/index.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PersonalRecipesService } from '../recipes/personal-recipes.service.js';
-import { assertMayEnter, pickIndex, restrictionsFor } from './eligibility.js';
+import { toPlannedIngredients } from '../recipes/recipes.service.js';
+import { assertMayEnter, pickIndex, restrictionsFor, violations } from './eligibility.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { writePlan } from './plan-write.js';
 import { rewriteSwapModeA, rewriteSwapModeB, validateModeBOutput, type RecipeLocaleSlice } from './swap-rewrite.js';
@@ -49,166 +54,61 @@ export class IngredientSwapService {
     private readonly plans: MealPlansService,
   ) {}
 
-  /**
-   * Preview an ingredient substitution inside a planned meal's recipe. Returns
-   * the calorie/macro delta; the caller confirms before persisting a variant.
-   */
-  async previewIngredientSwap(userId: string, req: SwapIngredientRequest): Promise<SwapPreview> {
-    const meal = await this.plans.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    const mealRecipeId = swappableRecipeOf(meal);
-    const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: mealRecipeId },
-      include: { ingredients: true },
+  /** What a substitution would do to the meal, for the user to decide on. Nothing is written. */
+  async previewIngredientSwap(userId: string, locale: Locale, req: SwapIngredientRequest): Promise<SwapPreview> {
+    const s = await this.substitution(userId, req);
+    // The servings of the recipe that are on the plate.
+    const portion = s.meal.servings * s.meal.quantityScale;
+    const held = (perServing: Nutrition): Nutrition => ({
+      calories: Math.round(perServing.calories * portion),
+      protein: Math.round(perServing.protein * portion),
+      fat: Math.round(perServing.fat * portion),
+      carbs: Math.round(perServing.carbs * portion),
     });
-    const line = recipe.ingredients.find((i) => i.ingredientId === req.fromIngredientId);
-    if (!line) throw new NotFoundException({ error: 'INGREDIENT_NOT_IN_RECIPE', message: 'Ingredient not in recipe.' });
-
-    const [from, to] = await Promise.all([
-      this.loadEngineIngredient(req.fromIngredientId),
-      this.loadEngineIngredient(req.toIngredientId),
-    ]);
-    const prefs = meal.day.plan.profile.preferences;
-
-    const r = substituteIngredient(from, to, line.quantity, line.unit, {
-      dietType: meal.day.plan.dietType,
-      allergens: (prefs?.allergens ?? []) as EngineIngredient['allergens'],
-      excludedIngredientIds: prefs?.excludedIngredientIds ?? [],
-    });
-
+    const before = held(s.before);
+    const after = held(s.facts.perServing);
+    const taken = (ingredient: typeof s.from, amount: number): PlannedIngredient =>
+      toPlannedIngredients(
+        [{ ingredientId: ingredient.id, quantity: amount, unit: ingredient.canonicalUnit, note: null, ingredient }],
+        portion / s.recipe.servings,
+        locale,
+      )[0]!;
     return {
-      before: r.before,
-      after: r.after,
-      calorieDelta: r.calorieDelta,
-      macroDelta: r.macroDelta,
-      adjustedQuantity: r.adjustedQuantity,
-      explanation: r.explanation,
-      valid: r.valid,
+      before,
+      after,
+      calorieDelta: after.calories - before.calories,
+      macroDelta: { protein: after.protein - before.protein, fat: after.fat - before.fat, carbs: after.carbs - before.carbs },
+      from: taken(s.from, s.amountLeaving),
+      to: taken(s.to, s.amountComing),
+      sizing: s.sizing,
+      merged: s.merged,
+      violations: s.violations,
+      moved: s.moved,
+      valid: s.violations.length === 0,
     };
   }
 
   /**
-   * Persist an ingredient substitution. The original recipe stays canonical —
-   * we clone it as a private `user`-origin variant with the new line in place,
-   * recompute per-serving nutrition deterministically, and repoint the planned
-   * meal at the clone. Servings are kept; the substitute is calorie-scaled.
+   * Make an ingredient substitution. The recipe of the catalogue stays as it
+   * is: the meal gets a recipe of the user's own with the substitute in it,
+   * whose figures follow from its ingredients.
    */
-  async applyIngredientSwap(
-    userId: string,
-    locale: Locale,
-    req: SwapIngredientRequest,
-  ): Promise<SwapIngredientResponse> {
-    const meal = await this.plans.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    const mealRecipeId = swappableRecipeOf(meal);
-    const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: mealRecipeId },
-      include: {
-        ingredients: { include: { ingredient: true } },
-        translations: true,
-      },
-    });
-    const line = recipe.ingredients.find((i) => i.ingredientId === req.fromIngredientId);
-    if (!line) {
-      throw new NotFoundException({
-        error: 'INGREDIENT_NOT_IN_RECIPE',
-        message: 'Ingredient not in recipe.',
+  async applyIngredientSwap(userId: string, locale: Locale, req: SwapIngredientRequest): Promise<SwapIngredientResponse> {
+    const s = await this.substitution(userId, req);
+    const { meal, recipe, facts, lines, restrictions } = s;
+    // The gate refuses in its own words what the preview listed.
+    assertMayEnter(s.candidate, { ...restrictions, avoidedRecipeIds: [] }, meal.mealType, 'INVALID_SUBSTITUTION', s.waived);
+    if (s.moved.length > 0 && !req.acceptChange) {
+      throw new UnprocessableEntityException({
+        error: 'SUBSTITUTION_MOVES_NUTRITION',
+        message: `This substitution moves what a serving holds by more than a tenth: ${s.moved.join(', ')}. It is made when the request accepts the change.`,
+        details: { moved: s.moved },
       });
     }
-
-    const [from, to] = await Promise.all([
-      this.loadEngineIngredient(req.fromIngredientId),
-      this.loadEngineIngredient(req.toIngredientId),
-    ]);
-    const prefs = meal.day.plan.profile.preferences;
-    const sub = substituteIngredient(from, to, line.quantity, line.unit, {
-      dietType: meal.day.plan.dietType,
-      allergens: (prefs?.allergens ?? []) as EngineIngredient['allergens'],
-      excludedIngredientIds: prefs?.excludedIngredientIds ?? [],
-    });
-    if (!sub.valid) {
-      throw new BadRequestException({
-        error: 'INVALID_SUBSTITUTION',
-        message: sub.explanation,
-      });
-    }
-
-    // Build the variant's ingredient lines + load full ingredient rows: those
-    // of the variant for its nutrition, and the one swapped out as well, whose
-    // names the text of the variant is searched for.
-    const ingredientRows = await this.prisma.ingredient.findMany({
-      where: { id: { in: [...recipe.ingredients.map((i) => i.ingredientId), req.toIngredientId] } },
-      include: { translations: true },
-    });
-    const ingredientById = new Map(ingredientRows.map((i) => [i.id, i]));
-
-    const variantIngredients = recipe.ingredients.map((i) => {
-      if (i.ingredientId !== req.fromIngredientId) {
-        return { ingredientId: i.ingredientId, quantity: i.quantity, unit: i.unit, note: i.note };
-      }
-      return {
-        ingredientId: req.toIngredientId,
-        quantity: sub.adjustedQuantity,
-        unit: sub.adjustedUnit,
-        note: i.note,
-      };
-    });
-
-    // The variant's nutrition, allergens and diets follow from its own
-    // ingredients: the one swapped out may have been the only source of an
-    // allergen, and the one swapped in may not suit a diet the source did.
-    let facts: RecipeFacts;
-    try {
-      facts = recipeFacts(
-        variantIngredients.map((line) => ({
-          quantity: line.quantity,
-          unit: line.unit,
-          ingredient: ingredientById.get(line.ingredientId)!,
-        })),
-        recipe.servings,
-      );
-    } catch (err) {
-      if (!(err instanceof UnitConversionError)) throw err;
-      throw new BadRequestException({
-        error: 'UNIT_CONVERSION_FAILED',
-        message: 'An ingredient of this recipe cannot be converted from the unit it is written in.',
-      });
-    }
-    // The substitute was judged as an ingredient; the gate judges what the
-    // meal becomes. A recipe can stop fitting a diet through quantities alone:
-    // a low-carbohydrate dish with rice in place of chicken is no longer one.
-    // What the meal already was by the user's own choice (an off-diet
-    // favourite, a recipe of another meal) is not held against the swap.
-    const restrictions = await restrictionsFor(this.prisma, meal.day.plan);
-    assertMayEnter(
-      {
-        id: recipe.id,
-        mealTypes: recipe.mealTypes,
-        dietTags: facts.dietTags,
-        allergens: facts.allergens,
-        createdByUserId: userId,
-        deletedAt: null,
-        retiredAt: null,
-        ingredients: variantIngredients,
-      },
-      // The variant is a new recipe: no avoid mark is on it yet.
-      { ...restrictions, avoidedRecipeIds: [] },
-      meal.mealType,
-      'INVALID_SUBSTITUTION',
-      {
-        diet: !fitsDiet(recipe.dietTags, meal.day.plan.dietType),
-        meal: !recipe.mealTypes.includes(meal.mealType),
-      },
-    );
 
     // The text of the variant: the substitute's name in place of the old one,
     // by plain replacement, or reworded by a model when the user asked for it.
-    const variant = await this.buildVariantTranslations(
-      userId,
-      locale,
-      recipe,
-      ingredientById.get(req.fromIngredientId)!,
-      ingredientById.get(req.toIngredientId)!,
-      req.rewriteWithAi,
-    );
+    const variant = await this.buildVariantTranslations(userId, locale, recipe, s.from, s.to, req.rewriteWithAi);
 
     // Stored as the user's own recipe, or recognised as one that exists
     // already. A shared recipe the profile avoids is not handed back for it.
@@ -224,7 +124,7 @@ export class IngredientSwapService {
         cookMinutes: recipe.cookMinutes,
         difficulty: recipe.difficulty,
         reuseScore: recipe.reuseScore,
-        ingredients: variantIngredients,
+        ingredients: lines,
         facts,
       },
       restrictions.avoidedRecipeIds,
@@ -242,6 +142,129 @@ export class IngredientSwapService {
     return {
       ...(await this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary)),
       aiMeta: variant.aiMeta,
+    };
+  }
+
+  /**
+   * What a substitution would make of a meal's recipe: its lines, what a
+   * serving of it holds, and what stands in its way. The preview shows this
+   * and the apply writes it, so the two cannot say different things.
+   *
+   * Every line the recipe has of the ingredient leaves, and one line of the
+   * substitute stands for them all; where the recipe has the substitute
+   * already, its line takes the amount on.
+   */
+  private async substitution(userId: string, req: SwapIngredientRequest) {
+    const meal = await this.plans.loadPlannedMeal(userId, req.planId, req.plannedMealId);
+    const recipeId = swappableRecipeOf(meal);
+    if (req.fromIngredientId === req.toIngredientId) {
+      throw new BadRequestException({ error: 'SAME_INGREDIENT', message: 'An ingredient cannot take its own place.' });
+    }
+    const recipe = await this.prisma.recipe.findUniqueOrThrow({
+      where: { id: recipeId },
+      include: { ingredients: { include: { ingredient: { include: { translations: true } } } }, translations: true },
+    });
+    const leaving = recipe.ingredients.filter((line) => line.ingredientId === req.fromIngredientId);
+    if (leaving.length === 0) {
+      throw new NotFoundException({ error: 'INGREDIENT_NOT_IN_RECIPE', message: 'Ingredient not in recipe.' });
+    }
+    const there = recipe.ingredients.filter((line) => line.ingredientId === req.toIngredientId);
+    const from = leaving[0]!.ingredient;
+    const to =
+      there[0]?.ingredient ??
+      (await this.prisma.ingredient.findFirst({ where: { id: req.toIngredientId, retiredAt: null }, include: { translations: true } }));
+    if (!to) throw new NotFoundException({ error: 'INGREDIENT_NOT_FOUND', message: 'Ingredient not found.' });
+
+    const unconvertible = (err: unknown): never => {
+      if (!(err instanceof UnitConversionError)) throw err;
+      throw new BadRequestException({
+        error: 'UNIT_CONVERSION_FAILED',
+        message: 'An ingredient of this recipe cannot be converted from the unit it is written in.',
+      });
+    };
+    let amountLeaving = 0;
+    let amountThere = 0;
+    try {
+      for (const line of leaving) amountLeaving += toCanonical(line.quantity, line.unit, from);
+      for (const line of there) amountThere += toCanonical(line.quantity, line.unit, to);
+    } catch (err) {
+      unconvertible(err);
+    }
+    const { amount: amountComing, sizing } = substituteAmount(from, to, amountLeaving);
+    const merged = there.length > 0;
+    const substitute = {
+      ingredientId: to.id,
+      quantity: Math.round((amountThere + amountComing) * 10) / 10,
+      unit: to.canonicalUnit,
+      note: (merged ? there[0]! : leaving[0]!).note,
+    };
+
+    // The substitute stands where the recipe already had it, or else where the first line of the ingredient that leaves stood.
+    const lines: { ingredientId: string; quantity: number; unit: Unit; note: string | null }[] = [];
+    let placed = false;
+    for (const line of recipe.ingredients) {
+      const leaves = line.ingredientId === from.id;
+      const isSubstitute = line.ingredientId === to.id;
+      if (merged ? isSubstitute : leaves) {
+        if (!placed) lines.push(substitute);
+        placed = true;
+      } else if (!leaves) {
+        lines.push({ ingredientId: line.ingredientId, quantity: line.quantity, unit: line.unit, note: line.note });
+      }
+    }
+
+    // The variant's nutrition, allergens and diets follow from its own
+    // ingredients: the one that left may have been the only source of an
+    // allergen, and the one that came may not suit a diet the recipe did.
+    const ingredientOf = new Map([...recipe.ingredients.map((line) => [line.ingredientId, line.ingredient] as const), [to.id, to] as const]);
+    let facts: RecipeFacts;
+    try {
+      facts = recipeFacts(
+        lines.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: ingredientOf.get(line.ingredientId)! })),
+        recipe.servings,
+      );
+    } catch (err) {
+      return unconvertible(err);
+    }
+    const before: Nutrition = { calories: recipe.caloriesPerServing, protein: recipe.proteinPerServing, fat: recipe.fatPerServing, carbs: recipe.carbsPerServing };
+
+    // The gate judges what the meal becomes. A recipe can stop fitting a diet
+    // through quantities alone: a low-carbohydrate dish with rice in place of
+    // chicken is no longer one. What the meal already was by the user's own
+    // choice (an off-diet favourite, a recipe of another meal) is not held
+    // against the substitution, and the variant is a new recipe: no avoid
+    // mark is on it yet.
+    const restrictions = await restrictionsFor(this.prisma, meal.day.plan);
+    const candidate = {
+      id: recipe.id,
+      mealTypes: recipe.mealTypes,
+      dietTags: facts.dietTags,
+      allergens: facts.allergens,
+      createdByUserId: userId,
+      deletedAt: null,
+      retiredAt: null,
+      ingredients: lines,
+    };
+    const waived = { diet: !fitsDiet(recipe.dietTags, meal.day.plan.dietType), meal: !recipe.mealTypes.includes(meal.mealType) };
+    const found = violations(candidate, { ...restrictions, avoidedRecipeIds: [] }, meal.mealType, waived);
+
+    return {
+      meal,
+      recipe,
+      from,
+      to,
+      amountLeaving,
+      amountComing,
+      sizing,
+      merged,
+      lines,
+      facts,
+      before,
+      moved: movedBy(before, facts.perServing),
+      violations: SubstitutionViolation.options.filter((violation) => found.includes(violation)),
+      candidate,
+      waived,
+      restrictions,
     };
   }
 
@@ -468,25 +491,6 @@ export class IngredientSwapService {
   }
 
   // ── internals ───────────────────────────────────────────────────────────────
-
-  private async loadEngineIngredient(id: string): Promise<EngineIngredient> {
-    const i = await this.prisma.ingredient.findUnique({ where: { id } });
-    if (!i) throw new NotFoundException({ error: 'INGREDIENT_NOT_FOUND', message: 'Ingredient not found.' });
-    return {
-      id: i.id,
-      name: i.name,
-      category: i.category,
-      canonicalUnit: i.canonicalUnit,
-      gramsPerPiece: i.gramsPerPiece,
-      density: i.density,
-      caloriesPer100: i.caloriesPer100,
-      proteinPer100: i.proteinPer100,
-      fatPer100: i.fatPer100,
-      carbsPer100: i.carbsPer100,
-      allergens: i.allergens as EngineIngredient['allergens'],
-      dietCompatibility: i.dietCompatibility as EngineIngredient['dietCompatibility'],
-    };
-  }
 
   /**
    * Which of the given ingredients the pantry holds any of. Used by the AI

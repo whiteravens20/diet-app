@@ -1,15 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Deterministic ingredient substitution.
- *
- * Replaces one ingredient with another while holding calories as constant as
- * possible, then reports the macro delta. Honours allergen / exclusion / diet
- * constraints — an invalid swap is returned with `valid: false`, never applied
- * silently.
+ * Deterministic ingredient substitution: how much of one ingredient takes the
+ * place of another, and what the substitution does to a serving. Whether the
+ * substitute may enter the plan at all is the plan's gate to say
+ * (`meal-plans/eligibility.ts`), which judges the recipe the substitution
+ * makes.
  */
-import type { Allergen, DietType, Macros, Nutrition, ProductCategory, Unit } from '@diet-app/shared';
-import { nutritionFor, toCanonical, type ConvertibleIngredient } from './units.js';
+import type { Allergen, DietType, Nutrition, ProductCategory, Unit } from '@diet-app/shared';
+import type { ConvertibleIngredient } from './units.js';
 
 export interface EngineIngredient extends ConvertibleIngredient {
   id: string;
@@ -24,104 +23,50 @@ export interface EngineIngredient extends ConvertibleIngredient {
   dietCompatibility: DietType[];
 }
 
-export interface SubstitutionConstraints {
-  dietType: DietType;
-  allergens: Allergen[];
-  excludedIngredientIds: string[];
-}
-
-export interface SubstitutionResult {
-  before: Nutrition;
-  after: Nutrition;
-  calorieDelta: number;
-  macroDelta: Macros;
-  /** Quantity of the replacement, in its own canonical unit. */
-  adjustedQuantity: number;
-  adjustedUnit: Unit;
-  explanation: string;
-  valid: boolean;
-}
-
-function per100(i: EngineIngredient) {
-  return {
-    calories: i.caloriesPer100,
-    protein: i.proteinPer100,
-    fat: i.fatPer100,
-    carbs: i.carbsPer100,
-  };
-}
+/** The most of a substitute, as a multiple of the amount it takes the place of. */
+export const MAX_SUBSTITUTE_RATIO = 3;
 
 /**
- * Substitute `from` → `to` for a recipe line of `quantity`/`unit`.
- * The replacement quantity is scaled so calories match the original; when the
- * replacement has zero calories the original mass is kept unchanged.
+ * How the amount of a substitute was decided: as much as holds the same
+ * `energy`; `capped` at three times the amount it replaces; or the same
+ * amount (`mass`), where one of the two holds no energy to go by.
  */
-export function substituteIngredient(
-  from: EngineIngredient,
-  to: EngineIngredient,
-  quantity: number,
-  unit: Unit,
-  constraints: SubstitutionConstraints,
-): SubstitutionResult {
-  const fromCanonical = toCanonical(quantity, unit, from);
-  const before = withCalories(nutritionFor(fromCanonical, per100(from)));
+export type SubstituteSizing = 'energy' | 'capped' | 'mass';
 
-  // Scale the replacement to match the original calories.
-  const toCanonicalQty =
-    to.caloriesPer100 > 0
-      ? (before.calories / to.caloriesPer100) * 100
-      : fromCanonical;
-  const after = withCalories(nutritionFor(toCanonicalQty, per100(to)));
-
-  const violations = constraintViolations(to, constraints);
-  const valid = violations.length === 0;
-
-  return {
-    before,
-    after,
-    calorieDelta: round(after.calories - before.calories),
-    macroDelta: {
-      protein: round(after.protein - before.protein),
-      fat: round(after.fat - before.fat),
-      carbs: round(after.carbs - before.carbs),
-    },
-    adjustedQuantity: round1(toCanonicalQty),
-    adjustedUnit: to.canonicalUnit,
-    explanation: valid
-      ? `${round1(toCanonicalQty)} ${to.canonicalUnit} of ${to.name} matches the ` +
-        `${before.calories} kcal of ${quantity} ${unit} ${from.name}.`
-      : `Cannot substitute with ${to.name}: ${violations.join('; ')}.`,
-    valid,
-  };
+/**
+ * How much of `to` takes the place of `amount` of `from`, each in its own unit
+ * (grams or millilitres). It is as much as holds the same energy, and never
+ * more than three times what it replaces: energy is not all that a spoonful
+ * of oil and a pan of spinach differ in.
+ */
+export function substituteAmount(
+  from: Pick<EngineIngredient, 'caloriesPer100'>,
+  to: Pick<EngineIngredient, 'caloriesPer100'>,
+  amount: number,
+): { amount: number; sizing: SubstituteSizing } {
+  if (from.caloriesPer100 <= 0 || to.caloriesPer100 <= 0) return { amount, sizing: 'mass' };
+  const matching = (amount * from.caloriesPer100) / to.caloriesPer100;
+  const most = amount * MAX_SUBSTITUTE_RATIO;
+  return matching > most ? { amount: most, sizing: 'capped' } : { amount: matching, sizing: 'energy' };
 }
 
-/** Collect every reason a candidate ingredient is disallowed. */
-export function constraintViolations(
-  candidate: EngineIngredient,
-  c: SubstitutionConstraints,
-): string[] {
-  const reasons: string[] = [];
-  const clashing = candidate.allergens.filter((a) => c.allergens.includes(a));
-  if (clashing.length) reasons.push(`contains allergen(s) ${clashing.join(', ')}`);
-  if (c.excludedIngredientIds.includes(candidate.id)) reasons.push('ingredient is excluded');
-  if (
-    c.dietType !== 'custom' &&
-    candidate.dietCompatibility.length > 0 &&
-    !candidate.dietCompatibility.includes(c.dietType)
-  ) {
-    reasons.push(`not compatible with ${c.dietType} diet`);
-  }
-  return reasons;
-}
+/** A substitution may move what a serving holds by this share without being asked about. */
+export const SUBSTITUTION_TOLERANCE = 0.1;
 
-function withCalories(m: { calories: number; protein: number; fat: number; carbs: number }): Nutrition {
-  return {
-    calories: round(m.calories),
-    protein: round(m.protein),
-    fat: round(m.fat),
-    carbs: round(m.carbs),
-  };
-}
+/** A change that is no more than this is no move, whatever share of the serving it is. */
+const TOO_LITTLE_TO_COUNT: Nutrition = { calories: 10, protein: 2, fat: 2, carbs: 2 };
 
-const round = (n: number): number => Math.round(n);
-const round1 = (n: number): number => Math.round(n * 10) / 10;
+export type NutritionKey = keyof Nutrition;
+const KEYS: readonly NutritionKey[] = ['calories', 'protein', 'fat', 'carbs'];
+
+/**
+ * What of a serving a substitution moves by more than a tenth: its energy, or
+ * its protein, fat or carbohydrate. A change of a gram or two is not counted,
+ * so that a recipe with next to none of something is not held to a tenth of it.
+ */
+export function movedBy(before: Nutrition, after: Nutrition): NutritionKey[] {
+  return KEYS.filter((key) => {
+    const change = Math.abs(after[key] - before[key]);
+    return change > TOO_LITTLE_TO_COUNT[key] && change > before[key] * SUBSTITUTION_TOLERANCE;
+  });
+}

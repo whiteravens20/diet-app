@@ -180,9 +180,10 @@ export class MealPlansController {
   @Post('swap-ingredient/preview')
   previewIngredientSwap(
     @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
   ) {
-    return this.ingredients.previewIngredientSwap(user.id, dto);
+    return this.ingredients.previewIngredientSwap(user.id, locale, dto);
   }
 
   /** Apply a substitution: clone the recipe with the swap baked in, repoint the meal. */

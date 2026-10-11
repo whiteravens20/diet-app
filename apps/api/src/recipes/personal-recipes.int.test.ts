@@ -54,6 +54,7 @@ async function tofuForChicken(account: Account): Promise<string> {
     plannedMealId: meal.id,
     fromIngredientId: await ingredientId('firm-tofu'),
     toIngredientId: await ingredientId('chicken-breast'),
+    acceptChange: true,
   });
   return (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId!;
 }
@@ -182,6 +183,7 @@ describe('one user who makes the same recipe again', () => {
         plannedMealId,
         fromIngredientId: await ingredientId('firm-tofu'),
         toIngredientId: await ingredientId('chicken-breast'),
+        acceptChange: true,
       });
 
     const results = await race(2, (index) => swap(index === 0 ? first.id : second.id));
@@ -293,6 +295,7 @@ describe('the number of recipes an account may hold', () => {
       plannedMealId: meal.id,
       fromIngredientId: await ingredientId('firm-tofu'),
       toIngredientId: await ingredientId('chickpeas'),
+      acceptChange: true,
     });
     await expect(full).rejects.toMatchObject({ status: 403, response: { error: 'PERSONAL_RECIPE_LIMIT' } });
     expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId).toBe(bowl.id);

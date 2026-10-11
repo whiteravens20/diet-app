@@ -224,6 +224,8 @@
     "INGREDIENT_NOT_FOUND": "Ingredient not found.",
     "INGREDIENT_NOT_IN_RECIPE": "This ingredient is not part of the recipe.",
     "INVALID_SUBSTITUTION": "This substitution isn't valid.",
+    "SAME_INGREDIENT": "An ingredient cannot take its own place. Choose another one.",
+    "SUBSTITUTION_MOVES_NUTRITION": "This substitution changes what a serving holds by more than a tenth. Confirm that you want it all the same.",
     "NO_ALTERNATIVE": "No alternative recipe found.",
     "NO_ELIGIBLE_RECIPE": "No recipe matches the current constraints.",
     "OVERRIDE_DATE_OUT_OF_RANGE": "An advanced day option falls outside the plan's date range.",
@@ -1255,11 +1257,30 @@
     "title": "Substitute an ingredient",
     "stepPick": "1. Which ingredient?",
     "stepReplace": "2. Replace {name} with…",
-    "stepDelta": "3. Delta vs. the original",
+    "stepDelta": "3. What it does to this meal",
     "computing": "Computing…",
     "previewFailed": "Could not preview.",
     "applyFailed": "Could not apply the substitution.",
     "invalid": "This substitution violates the profile's constraints — cannot apply.",
+    "sizing": {
+      "energy": "{to} in place of {from}: as much as holds the same energy.",
+      "capped": "{to} in place of {from}: three times as much is the most a substitute is given, so the meal holds less energy.",
+      "mass": "{to} in place of {from}: the same amount, as one of the two holds no energy to go by."
+    },
+    "merged": "The recipe has {name} already: its amount grows, and no second line is written.",
+    "violation": {
+      "off_diet": "With it the recipe no longer fits the diet of the plan.",
+      "allergen": "It holds an allergen the profile avoids.",
+      "excluded_ingredient": "The profile skips this ingredient."
+    },
+    "moved": "This changes what a serving holds by more than a tenth: {what}.",
+    "movedName": {
+      "calories": "energy",
+      "protein": "protein",
+      "fat": "fat",
+      "carbs": "carbohydrate"
+    },
+    "acceptChange": "Make the substitution all the same",
     "apply": "Apply substitution",
     "applying": "Applying…",
     "aiSuggest": "Suggest",

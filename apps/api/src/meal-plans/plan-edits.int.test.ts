@@ -176,6 +176,7 @@ describe('editing a plan', () => {
         plannedMealId,
         fromIngredientId: await ingredientId(from),
         toIngredientId: await ingredientId(to),
+        acceptChange: true,
       });
       const meal = result.plan.days[0]!.meals.find((m) => m.id === plannedMealId)!;
       return t.prisma.recipe.findUniqueOrThrow({ where: { id: meal.recipe!.id }, include: { ingredients: true } });
@@ -247,6 +248,7 @@ describe('editing a plan', () => {
         plannedMealId: meal.id,
         fromIngredientId: chicken,
         toIngredientId: await ingredientId('white-rice'),
+        acceptChange: true,
       });
 
       await expect(swap).rejects.toMatchObject({ status: 400, response: { error: 'INVALID_SUBSTITUTION', details: { violations: ['off_diet'] } } });

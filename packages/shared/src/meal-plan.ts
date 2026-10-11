@@ -374,6 +374,13 @@ export const SwapIngredientRequest = z.object({
    * the text, as it does in every other language either way.
    */
   rewriteWithAi: z.boolean().default(false),
+  /**
+   * Make the substitution although it moves what a serving of the recipe
+   * holds, its energy or its protein, fat or carbohydrate, by more than a
+   * tenth. Without it such a substitution is refused with 422
+   * `SUBSTITUTION_MOVES_NUTRITION`, whose `details.moved` names what moves.
+   */
+  acceptChange: z.boolean().default(false),
 });
 export type SwapIngredientRequest = z.infer<typeof SwapIngredientRequest>;
 
@@ -406,16 +413,41 @@ export const AiSuggestIngredientResponse = z.object({
 });
 export type AiSuggestIngredientResponse = z.infer<typeof AiSuggestIngredientResponse>;
 
-/** The before/after delta surfaced to the user before confirming a swap. */
+/** Why a substitution may not be made: what the recipe it would leave may not be, for this plan's profile. */
+export const SubstitutionViolation = z.enum(['off_diet', 'allergen', 'excluded_ingredient']);
+export type SubstitutionViolation = z.infer<typeof SubstitutionViolation>;
+
+/** What of a serving a substitution moves by more than a tenth. */
+export const MovedNutrient = z.enum(['calories', 'protein', 'fat', 'carbs']);
+export type MovedNutrient = z.infer<typeof MovedNutrient>;
+
+/**
+ * What a substitution would do to the meal it is made in, before anything is
+ * written. Every figure is for the meal as it is planned, the portion on the
+ * plate, not for the recipe as it is written.
+ */
 export const SwapPreview = z.object({
   before: Nutrition,
   after: Nutrition,
   calorieDelta: z.number(),
   macroDelta: Macros,
-  /** Adjusted quantity of the replacement ingredient, canonical units. */
-  adjustedQuantity: z.number().optional(),
-  explanation: z.string(),
-  /** False if the swap would violate diet/allergen constraints. */
+  /** What the meal takes of the ingredient that leaves, all its lines together. */
+  from: PlannedIngredient,
+  /** What it would take of the one that comes in its place. */
+  to: PlannedIngredient,
+  /**
+   * How the amount of the substitute was decided: as much as holds the same
+   * `energy`; `capped` at three times the amount it replaces; or the same
+   * amount (`mass`), where one of the two holds no energy to go by.
+   */
+  sizing: z.enum(['energy', 'capped', 'mass']),
+  /** The recipe has the substitute already: its amount grows, and no second line is written. */
+  merged: z.boolean(),
+  /** Why the substitution may not be made; empty when it may. */
+  violations: z.array(SubstitutionViolation),
+  /** What of a serving moves by more than a tenth: applying then needs `acceptChange`. */
+  moved: z.array(MovedNutrient),
+  /** No violation stands in the way. */
   valid: z.boolean(),
 });
 export type SwapPreview = z.infer<typeof SwapPreview>;

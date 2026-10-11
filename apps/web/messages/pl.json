@@ -224,6 +224,8 @@
     "INGREDIENT_NOT_FOUND": "Nie znaleziono składnika.",
     "INGREDIENT_NOT_IN_RECIPE": "Ten składnik nie należy do przepisu.",
     "INVALID_SUBSTITUTION": "Ta zamiana jest nieprawidłowa.",
+    "SAME_INGREDIENT": "Składnik nie może zastąpić samego siebie. Wybierz inny.",
+    "SUBSTITUTION_MOVES_NUTRITION": "Ta zamiana zmienia wartości porcji o więcej niż jedną dziesiątą. Potwierdź, że mimo to chcesz ją wykonać.",
     "NO_ALTERNATIVE": "Nie znaleziono alternatywnego przepisu.",
     "NO_ELIGIBLE_RECIPE": "Żaden przepis nie spełnia obecnych ograniczeń.",
     "OVERRIDE_DATE_OUT_OF_RANGE": "Ustawienie dnia wykracza poza zakres dat planu.",
@@ -1255,11 +1257,30 @@
     "title": "Zamień składnik",
     "stepPick": "1. Który składnik?",
     "stepReplace": "2. Zamień {name} na…",
-    "stepDelta": "3. Różnica względem oryginału",
+    "stepDelta": "3. Co to zmienia w tym posiłku",
     "computing": "Liczenie…",
     "previewFailed": "Nie udało się wczytać podglądu.",
     "applyFailed": "Nie udało się zastosować zamiany.",
     "invalid": "Ta zamiana narusza ograniczenia profilu — nie można jej zastosować.",
+    "sizing": {
+      "energy": "{to} zamiast {from}: tyle, ile ma tę samą energię.",
+      "capped": "{to} zamiast {from}: zamiennika jest najwyżej trzy razy tyle, więc posiłek ma mniej energii.",
+      "mass": "{to} zamiast {from}: ta sama ilość, bo jeden z nich nie ma energii, według której można by przeliczyć."
+    },
+    "merged": "Przepis ma już składnik {name}: jego ilość rośnie i nie powstaje druga pozycja.",
+    "violation": {
+      "off_diet": "Z nim przepis przestaje pasować do diety planu.",
+      "allergen": "Zawiera alergen, którego profil unika.",
+      "excluded_ingredient": "Profil pomija ten składnik."
+    },
+    "moved": "To zmienia wartości porcji o więcej niż jedną dziesiątą: {what}.",
+    "movedName": {
+      "calories": "energia",
+      "protein": "białko",
+      "fat": "tłuszcz",
+      "carbs": "węglowodany"
+    },
+    "acceptChange": "Mimo to wykonaj zamianę",
     "apply": "Zastosuj zamianę",
     "applying": "Stosowanie…",
     "aiSuggest": "Zasugeruj",

@@ -90,6 +90,7 @@ describe('a meal that was eaten', () => {
           plannedMealId: meal.id,
           fromIngredientId: line.ingredientId,
           toIngredientId: line.ingredientId,
+          acceptChange: true,
         }),
       ),
     ).toEqual(eaten);
