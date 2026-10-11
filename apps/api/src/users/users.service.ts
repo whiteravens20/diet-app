@@ -176,7 +176,10 @@ export class UsersService {
       }),
     ]);
     const link = `${this.config.get('APP_URL', { infer: true })}/confirm-email-change?token=${raw}`;
-    this.mail.sendEmailChange(newEmail, link, Locale.parse(user.locale));
+    const locale = Locale.parse(user.locale);
+    this.mail.sendEmailChange(newEmail, link, locale);
+    // The address the account has is told: its holder may not be who asked.
+    this.mail.sendEmailChangeRequestedNotice(this.emails.open(user.emailEncrypted, user.id), newEmail, locale);
   }
 
   /** Re-sends the verification email for a logged-in, still-unverified user. */

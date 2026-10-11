@@ -8,7 +8,9 @@ import nodemailer, { type Transporter } from 'nodemailer';
 import type { SMTPTransportOptions } from 'nodemailer/lib/smtp-transport';
 import type { Env } from '../config/env.js';
 import {
+  emailChangedEmail,
   emailChangeEmail,
+  emailChangeRequestedEmail,
   emailVerificationEmail,
   passwordChangedEmail,
   passwordResetEmail,
@@ -100,6 +102,16 @@ export class MailService implements OnApplicationShutdown {
 
   sendPasswordChangedNotice(to: string, locale: Locale): void {
     this.send(to, passwordChangedEmail[locale]({}), 'password-changed notice');
+  }
+
+  /** To the address an account has: a change to `newAddress` was asked for. */
+  sendEmailChangeRequestedNotice(to: string, newAddress: string, locale: Locale): void {
+    this.send(to, emailChangeRequestedEmail[locale]({ newAddress }), 'address-change-requested notice');
+  }
+
+  /** To the address an account had: it is `newAddress` now. */
+  sendEmailChangedNotice(to: string, newAddress: string, locale: Locale): void {
+    this.send(to, emailChangedEmail[locale]({ newAddress }), 'address-changed notice');
   }
 
   /**

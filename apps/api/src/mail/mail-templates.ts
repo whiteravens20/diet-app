@@ -123,3 +123,54 @@ export const passwordChangedEmail: Builder<Record<string, never>> = {
     ]),
   }),
 };
+
+/**
+ * Enough of an address to know it by, for a notice that goes to another
+ * address: the first character and the domain. Whoever reads the old mailbox
+ * of an account need not learn where the account moved to.
+ */
+export function partOf(address: string): string {
+  const at = address.lastIndexOf('@');
+  return `${address.slice(0, 1)}•••${address.slice(at)}`;
+}
+
+/** To the address an account has, when a change to another one was asked for. `newAddress` is shown in part. */
+export const emailChangeRequestedEmail: Builder<{ newAddress: string }> = {
+  en: ({ newAddress }) => ({
+    subject: 'A change of your Diet App email address was requested',
+    text: `Someone signed in to your Diet App account asked to change its email address to ${partOf(newAddress)}. The address changes only when the link sent to that address is followed.\n\nIf this was you, there is nothing to do here. If it wasn't, change your password now: that also cancels the request.`,
+    html: shell([
+      `Someone signed in to your Diet App account asked to change its email address to ${partOf(newAddress)}. The address changes only when the link sent to that address is followed.`,
+      "If this was you, there is nothing to do here. If it wasn't, change your password now: that also cancels the request.",
+    ]),
+  }),
+  pl: ({ newAddress }) => ({
+    subject: 'Poproszono o zmianę adresu e-mail w Diet App',
+    text: `Ktoś zalogowany na Twoje konto w Diet App poprosił o zmianę adresu e-mail na ${partOf(newAddress)}. Adres zmieni się dopiero po otwarciu linku wysłanego na ten adres.\n\nJeśli to Ty, nie musisz nic robić. Jeśli nie, zmień teraz hasło: to także anuluje tę prośbę.`,
+    html: shell([
+      `Ktoś zalogowany na Twoje konto w Diet App poprosił o zmianę adresu e-mail na ${partOf(newAddress)}. Adres zmieni się dopiero po otwarciu linku wysłanego na ten adres.`,
+      'Jeśli to Ty, nie musisz nic robić. Jeśli nie, zmień teraz hasło: to także anuluje tę prośbę.',
+    ]),
+  }),
+};
+
+/** To the address an account had, once it has another. `newAddress` is shown in part. */
+export const emailChangedEmail: Builder<{ newAddress: string }> = {
+  en: ({ newAddress }) => ({
+    subject: 'Your Diet App email address was changed',
+    text: `The email address of your Diet App account was changed to ${partOf(newAddress)}. This address no longer signs in, and every session was signed out.\n\nIf this wasn't you, contact your instance operator.`,
+    html: shell([
+      `The email address of your Diet App account was changed to ${partOf(newAddress)}. This address no longer signs in, and every session was signed out.`,
+      "If this wasn't you, contact your instance operator.",
+    ]),
+  }),
+  pl: ({ newAddress }) => ({
+    subject: 'Adres e-mail w Diet App został zmieniony',
+    text: `Adres e-mail Twojego konta w Diet App został zmieniony na ${partOf(newAddress)}. Tym adresem nie można się już zalogować, a wszystkie sesje zostały wylogowane.\n\nJeśli to nie Ty, skontaktuj się z operatorem instancji.`,
+    html: shell([
+      `Adres e-mail Twojego konta w Diet App został zmieniony na ${partOf(newAddress)}. Tym adresem nie można się już zalogować, a wszystkie sesje zostały wylogowane.`,
+      'Jeśli to nie Ty, skontaktuj się z operatorem instancji.',
+    ]),
+  }),
+};
+

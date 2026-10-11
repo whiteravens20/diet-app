@@ -245,12 +245,14 @@ Behaviour switches on whether SMTP is configured:
 | Action | SMTP configured | SMTP blank |
 |---|---|---|
 | Register | account starts **unverified** + a confirmation email is sent | account is **auto-verified** at creation (nothing to verify against) |
-| Forgot password | reset link is **emailed** | **not available** — the sign-in page has no link and the reset page says so. A request sent straight to the API is still accepted: outside production its link is **logged to the api stdout**, in production nothing is logged |
+| Forgot password | reset link is **emailed**; a "password changed" **notice email** once a new password was set from it | **not available** — the sign-in page has no link and the reset page says so. A request sent straight to the API is still accepted: outside production its link is **logged to the api stdout**, in production nothing is logged |
 | Change password (in Settings) | applies immediately + a "password changed" **notice email** | applies immediately, no email |
-| **Change email** (in Settings) | confirmation link emailed to the **new** address; change lands on confirm | **not available** — the option is hidden |
+| **Change email** (in Settings) | confirmation link emailed to the **new** address; change lands on confirm. The address the account has is told when the change is asked for and when it has happened, with the new address shown in part (`m•••@example.com`) | **not available** — the option is hidden |
 
 Changing the account email is the one action gated entirely on SMTP. All confirmation
-links expire after 1 hour.
+links expire after 1 hour and work once. A link to reset the password or to confirm a new
+address also stops working when another one is asked for, and when the account's password
+or address changes in the meantime.
 
 ## Production notes
 

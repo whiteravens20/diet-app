@@ -209,6 +209,8 @@ export class AuthService {
     if (!token || token.usedAt || token.expiresAt < new Date()) throw invalid();
     const clash = await this.prisma.user.findUnique({ where: { emailIndex: token.newEmailIndex } });
     if (clash && clash.id !== token.userId) throw emailTaken();
+    const account = await this.prisma.user.findUniqueOrThrow({ where: { id: token.userId }, select: { emailEncrypted: true, locale: true } });
+    const newEmail = this.emails.openPending(token.newEmailEncrypted, token.userId);
     await this.prisma
       .$transaction(async (tx) => {
         if (!(await usedNow(tx.emailChangeToken, token.id))) throw invalid();
@@ -216,7 +218,7 @@ export class AuthService {
           where: { id: token.userId },
           data: {
             // Sealed anew: as the address of the account, no longer as one it asked for.
-            emailEncrypted: this.emails.seal(this.emails.openPending(token.newEmailEncrypted, token.userId), token.userId),
+            emailEncrypted: this.emails.seal(newEmail, token.userId),
             emailIndex: token.newEmailIndex,
             emailVerified: true,
           },
@@ -226,6 +228,8 @@ export class AuthService {
       })
       // Someone registered the address after the check above.
       .catch(rethrowAsEmailTaken);
+    // The address the account had is told that it has another.
+    this.mail.sendEmailChangedNotice(this.emails.open(account.emailEncrypted, token.userId), newEmail, Locale.parse(account.locale));
   }
 
   async confirmPasswordReset(dto: PasswordResetConfirm): Promise<void> {
@@ -243,6 +247,9 @@ export class AuthService {
       await tx.refreshToken.updateMany({ where: { userId: token.userId, revokedAt: null }, data: { revokedAt: new Date() } });
       await retirePendingLinks(tx, token.userId);
     });
+    // As after a change by its holder: the account is told that its password is another now.
+    const account = await this.prisma.user.findUnique({ where: { id: token.userId }, select: { emailEncrypted: true, locale: true } });
+    if (account) this.mail.sendPasswordChangedNotice(this.emails.open(account.emailEncrypted, token.userId), Locale.parse(account.locale));
   }
 
   /** Peppers the password with an app-only key, then bcrypt-hashes it. */
