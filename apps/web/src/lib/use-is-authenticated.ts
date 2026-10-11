@@ -2,28 +2,15 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { tokenStore } from './api';
+import { useSyncExternalStore } from 'react';
+import { session } from './session';
 
 /**
- * Cheap "do we have an access token?" check. Avoids a network probe; the
- * Settings page already gates on real auth via a server-side mechanism.
- * Reactive via a `storage` event listener so logout in another tab flips
- * the caller back to anonymous behaviour.
+ * Whether the browser holds a session, without asking the server: by the
+ * marker cookie the API sets beside the refresh token. It follows a sign-in
+ * and a sign-out, in this tab and in the others. The server's render knows of
+ * no session, and the first client render agrees with it.
  */
 export function useIsAuthenticated(): boolean {
-  const [authed, setAuthed] = useState(false);
-  const mounted = useRef(false);
-  // Mount gate: tokenStore only works on the client, so the first client
-  // render has to match the SSR'd output (assumed-anonymous) before this
-  // resolves the real value. Same shape as ThemeToggle's hydration gate.
-  useEffect(() => {
-    mounted.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount gate; reads the client-only token store after the SSR'd render
-    setAuthed(Boolean(tokenStore.access));
-    const onStorage = () => mounted.current && setAuthed(Boolean(tokenStore.access));
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-  return authed;
+  return useSyncExternalStore(session.subscribe, session.exists, () => false);
 }

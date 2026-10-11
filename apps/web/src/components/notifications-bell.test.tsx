@@ -7,7 +7,7 @@ import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import messages from '../../messages/en.json';
-import { api, tokenStore } from '@/lib/api';
+import { api } from '@/lib/api';
 import { NotificationsBell } from './notifications-bell';
 
 function tree() {
@@ -27,17 +27,17 @@ describe('NotificationsBell', () => {
     act(() => root?.unmount());
     root = undefined;
     document.body.innerHTML = '';
-    tokenStore.clear();
+    document.cookie = 'diet_session=; Max-Age=0; Path=/';
     vi.restoreAllMocks();
   });
 
   it('hydrates without a mismatch when a session is stored', async () => {
     vi.spyOn(api, 'get').mockResolvedValue([]);
-    // The server has no token store to read, so it renders the signed-out markup.
+    // The server knows of no session, so it renders the signed-out markup.
     const container = document.createElement('div');
     container.innerHTML = renderToString(tree());
     document.body.append(container);
-    tokenStore.set({ accessToken: 'access', refreshToken: 'refresh' });
+    document.cookie = 'diet_session=1; Path=/';
 
     const onRecoverableError = vi.fn();
     await act(async () => {

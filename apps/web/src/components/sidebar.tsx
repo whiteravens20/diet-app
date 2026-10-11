@@ -15,7 +15,7 @@ import {
   Soup,
   UserRound,
 } from 'lucide-react';
-import { api, tokenStore } from '@/lib/api';
+import { session } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -40,10 +40,7 @@ export function Sidebar() {
   const tCommon = useTranslations('common');
 
   async function logout() {
-    if (tokenStore.refresh) {
-      await api.post('/auth/logout', { refreshToken: tokenStore.refresh }).catch(() => undefined);
-    }
-    tokenStore.clear();
+    await session.signOut();
     router.push('/login');
   }
 

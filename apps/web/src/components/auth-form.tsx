@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { TurnstileWidget } from '@/components/turnstile-widget';
-import { api, ApiClientError, waitOf, tokenStore } from '@/lib/api';
+import { api, ApiClientError, COOKIE_SESSION, waitOf } from '@/lib/api';
+import { session } from '@/lib/session';
 import { useConfig } from '@/lib/use-config';
 
 /** Shared login / registration form. */
@@ -41,8 +42,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       ...(needsToken ? { turnstileToken: token ?? undefined } : {}),
     };
     try {
-      const res = await api.post<AuthResponse>(`/auth/${mode}`, body);
-      tokenStore.set(res.tokens);
+      session.begin(await api.post<AuthResponse>(`/auth/${mode}`, body, COOKIE_SESSION));
       router.push('/dashboard');
     } catch (err) {
       // Prefer a translated error-code message; fall back to the server's

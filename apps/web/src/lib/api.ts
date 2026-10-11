@@ -2,34 +2,22 @@
 
 /**
  * Typed API client. Every payload is a type from `@diet-app/shared`, so the
- * client and server cannot drift. Tokens live in localStorage; a 401 triggers a
- * one-shot refresh.
+ * client and server cannot drift. The access token comes from the browser's
+ * session (`session.ts`): a page that was just loaded gets one before its
+ * first request, and a 401 gets the next one, once.
  */
-import type { AuthResponse } from '@diet-app/shared';
+import { session } from './session';
 
 // Empty by default: requests go to a relative `/api/*` path on the web app's
 // own origin, which Next.js proxies to the backend (see next.config.ts). Set
 // NEXT_PUBLIC_API_URL only to bypass the proxy and call the API cross-origin.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
-const ACCESS_KEY = 'diet-app.access';
-const REFRESH_KEY = 'diet-app.refresh';
 
-export const tokenStore = {
-  get access(): string | null {
-    return typeof window === 'undefined' ? null : localStorage.getItem(ACCESS_KEY);
-  },
-  get refresh(): string | null {
-    return typeof window === 'undefined' ? null : localStorage.getItem(REFRESH_KEY);
-  },
-  set(tokens: { accessToken: string; refreshToken?: string }): void {
-    localStorage.setItem(ACCESS_KEY, tokens.accessToken);
-    if (tokens.refreshToken) localStorage.setItem(REFRESH_KEY, tokens.refreshToken);
-  },
-  clear(): void {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-  },
-};
+/**
+ * Sent with a sign-in and a registration: this client is a browser, and
+ * wants its refresh token in a cookie no script can read, not in the answer.
+ */
+export const COOKIE_SESSION = { 'x-session-transport': 'cookie' };
 
 export interface ApiErrorIssue {
   path: string;
@@ -90,12 +78,17 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   // Tell the API which locale to serve translated text in. The API resolves
   // this header in `RequestLocale` decorator; absent/unsupported → 'en'.
   if (!headers.has('accept-language')) headers.set('accept-language', currentLocale());
-  const access = tokenStore.access;
+  // A page that was just loaded holds no access token yet: where the browser
+  // has a session, it gets one first.
+  if (!session.accessToken && session.exists()) await session.refresh();
+  const access = session.accessToken;
   if (access) headers.set('authorization', `Bearer ${access}`);
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api${path}`, { ...init, headers });
+    // The cookies of the session go with requests to the application's own
+    // address by themselves; an API at another address has to be told.
+    res = await fetch(`${API_URL}/api${path}`, { ...init, headers, credentials: API_URL ? 'include' : 'same-origin' });
   } catch {
     // fetch only rejects on a network-level failure (server down, DNS, CORS).
     throw new ApiClientError(
@@ -105,9 +98,8 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     );
   }
 
-  if (res.status === 401 && retry && tokenStore.refresh) {
-    const refreshed = await tryRefresh();
-    if (refreshed) return request<T>(path, init, false);
+  if (res.status === 401 && retry && session.exists()) {
+    if (await session.refresh()) return request<T>(path, init, false);
   }
 
   if (!res.ok) {
@@ -137,52 +129,10 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   return JSON.parse(text) as T;
 }
 
-// Singleton in-flight refresh. Without this, a page that mounts and fires N
-// parallel queries against an expired access token would call /auth/refresh N
-// times; the first call rotates the refresh token (server-side revoke), and
-// the rest race against a now-revoked token and fail → tokens cleared → the
-// user gets booted mid-session even though their refresh was still valid.
-let inFlightRefresh: Promise<boolean> | null = null;
-
-async function tryRefresh(): Promise<boolean> {
-  if (inFlightRefresh) return inFlightRefresh;
-  inFlightRefresh = (async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ refreshToken: tokenStore.refresh }),
-      });
-      if (!res.ok) {
-        // Only a refused token ends the session. "Too many requests" or a
-        // server that is down says nothing about the token: it is kept, and
-        // the next request tries again.
-        if (res.status !== 401) return false;
-        tokenStore.clear();
-        // Hard-nav to /login so every in-memory query state is dropped — half-
-        // refreshed React Query caches would otherwise show "Unauthorized"
-        // toasts on screens the user can no longer access.
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          window.location.replace('/login');
-        }
-        return false;
-      }
-      const data = (await res.json()) as AuthResponse;
-      tokenStore.set(data.tokens);
-      return true;
-    } catch {
-      return false;
-    } finally {
-      inFlightRefresh = null;
-    }
-  })();
-  return inFlightRefresh;
-}
-
 export const api = {
   get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
+    request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined, headers }),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>

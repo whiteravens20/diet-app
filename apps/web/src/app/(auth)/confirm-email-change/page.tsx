@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { api, tokenStore } from '@/lib/api';
+import { api } from '@/lib/api';
+import { session } from '@/lib/session';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Status = 'pending' | 'success' | 'failed' | 'missing';
@@ -29,7 +30,8 @@ function ConfirmEmailChangeInner() {
     api
       .post('/auth/confirm-email-change', { token })
       .then(() => {
-        tokenStore.clear();
+        // Every session of the account ended with the change.
+        session.forget();
         setStatus('success');
       })
       .catch(() => setStatus('failed'));

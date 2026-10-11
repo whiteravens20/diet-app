@@ -18,7 +18,8 @@ import {
   type SessionUser,
   type Theme,
 } from '@diet-app/shared';
-import { api, ApiClientError, tokenStore } from '@/lib/api';
+import { api, ApiClientError } from '@/lib/api';
+import { session as browserSession } from '@/lib/session';
 import { useConfig } from '@/lib/use-config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,7 +66,7 @@ export default function SettingsPage() {
       <DangerZoneCard
         me={me}
         onDeleted={() => {
-          tokenStore.clear();
+          browserSession.forget();
           router.push('/');
         }}
       />
@@ -747,7 +748,7 @@ function PasswordCard({ onChanged }: { onChanged: () => void }) {
     onSuccess: () => {
       setDone(true);
       // Server invalidated active sessions; clear local + send to login.
-      tokenStore.clear();
+      browserSession.forget();
       window.setTimeout(onChanged, 1200);
     },
     onError: (err) =>
@@ -972,7 +973,7 @@ function DangerZoneCard({ me, onDeleted }: { me: SessionUser; onDeleted: () => v
         method: 'DELETE',
         headers: {
           'content-type': 'application/json',
-          authorization: `Bearer ${tokenStore.access ?? ''}`,
+          authorization: `Bearer ${browserSession.accessToken ?? ''}`,
         },
         body: JSON.stringify({ currentPassword: password }),
       });
