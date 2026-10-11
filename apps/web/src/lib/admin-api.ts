@@ -295,6 +295,8 @@ export interface RecipeGenerateSpec {
 }
 
 export interface RecipeDraftPatch {
+  /** Sent alone, it leaves the reviews standing. */
+  slug?: string;
   titles?: Record<string, string>;
   descriptions?: Record<string, string>;
   steps?: Record<string, string[]>;

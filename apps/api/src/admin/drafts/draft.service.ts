@@ -43,7 +43,7 @@ import type {
 import { recipeFacts, type RecipeFacts } from '../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../engine/units.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { checkIngredientName, checkRecipe, checkRecipeText, type RecipeProblem } from '../../recipes/recipe-rules.js';
+import { checkIngredientName, checkRecipe, checkRecipeSlug, checkRecipeText, type RecipeProblem } from '../../recipes/recipe-rules.js';
 import { deriveDraftStatus } from './derive-status.js';
 import { lockIngredientNameDraft, lockRecipeDraft } from './draft-lock.js';
 import { localeMap, localeStepsMap, type IngredientNameDraftRow, type RecipeDraftRow } from './drafts.mapper.js';
@@ -240,9 +240,12 @@ export class DraftService {
    * whole. With `dryRun` the result is returned and nothing is stored.
    *
    * A draft that stands for recipes users made takes changes to its text
-   * only: its ingredients are theirs, and it is recognised by them. For such
-   * a draft the figures are worked out again all the same, so that it can be
-   * approved with what the catalogue says today.
+   * and its slug only: its ingredients are theirs, and it is recognised by
+   * them. For such a draft the figures are worked out again all the same, so
+   * that it can be approved with what the catalogue says today.
+   *
+   * A patch that changes the slug and nothing else leaves the reviews
+   * standing: the slug is no part of what a reviewer approved.
    */
   editRecipe(id: string, patch: RecipeDraftPatch, by: Actor, options: { dryRun?: boolean } = {}): Promise<RecipeDraftRow> {
     return this.prisma.$transaction(async (tx) => {
@@ -252,6 +255,17 @@ export class DraftService {
       const fromUsers = draft.source === 'AI_USER';
       if (fromUsers && isStructural(patch)) {
         throw new ForbiddenException({ error: 'DRAFT_STRUCTURAL_EDIT_FORBIDDEN', message: 'User-drafted recipes: translation edits only.' });
+      }
+
+      const { slug: renamed, ...changes } = patch;
+      let slug = draft.slug;
+      if (renamed !== undefined) {
+        const checked = checkRecipeSlug(renamed);
+        if (!checked.ok) throw invalid(checked.problems);
+        slug = checked.slug;
+      }
+      if (renamed !== undefined && Object.values(changes).every((value) => value === undefined)) {
+        return options.dryRun ? { ...draft, slug } : tx.recipeDraft.update({ where: { id }, data: { slug }, include: WITH_REVIEWS });
       }
 
       const text = {
@@ -265,7 +279,7 @@ export class DraftService {
         // rows, with the figures the engine gave them.
         const checked = checkRecipeText(text, draft.locales);
         if (!checked.ok) throw invalid(checked.problems);
-        data = { ...checked.text, ...(await this.factsOf(tx, draft.ingredientsJson as RecipeLine[], draft.servings)) };
+        data = { ...checked.text, slug, ...(await this.factsOf(tx, draft.ingredientsJson as RecipeLine[], draft.servings)) };
       } else {
         const checked = checkRecipe(
           {
@@ -282,6 +296,7 @@ export class DraftService {
         if (!checked.ok) throw invalid(checked.problems);
         const recipe = checked.recipe;
         data = {
+          slug,
           titles: recipe.titles,
           descriptions: recipe.descriptions,
           steps: recipe.steps,

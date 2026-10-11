@@ -295,8 +295,13 @@ export type RecipeGenerateSpec = z.infer<typeof RecipeGenerateSpec>;
  *  into the draft, text language by language, and the whole is held to the
  *  rules of every recipe (`RECIPE_LIMITS`) before the engine works its figures
  *  out again. The `?dryRun=true` query flag returns the result without
- *  storing it, which the inline editor uses for live nutrition feedback. */
+ *  storing it, which the inline editor uses for live nutrition feedback.
+ *
+ *  A change sends the draft back to be reviewed, except a change of the slug
+ *  alone: the slug names the recipe in the data and is no part of what a
+ *  reviewer approved. */
 export const RecipeDraftPatch = z.object({
+  slug: z.string().optional(),
   titles: LocaleStringMap.optional(),
   descriptions: LocaleStringMap.optional(),
   steps: LocaleStringsMap.optional(),

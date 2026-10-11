@@ -184,6 +184,14 @@ export function checkRecipeText(input: Record<string, unknown>, locales: readonl
   return problems.length > 0 ? { ok: false, problems } : { ok: true, text };
 }
 
+/** Check a recipe's slug and nothing else of it. */
+export function checkRecipeSlug(slug: unknown): { ok: true; slug: string } | { ok: false; problems: RecipeProblem[] } {
+  const { problems, add } = problemList();
+  if (typeof slug === 'string' && slug.length <= RECIPE_LIMITS.slug && SLUG.test(slug)) return { ok: true, slug };
+  add('slug', 'invalid-slug');
+  return { ok: false, problems };
+}
+
 /**
  * Check what a recipe holds. `locales` are the languages the recipe is in:
  * each needs a title, a description and steps, and text in any other language

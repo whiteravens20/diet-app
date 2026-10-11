@@ -247,6 +247,37 @@ describe('the curation queue', () => {
       expect(edited.body).toMatchObject({ caloriesPerServing: figures.caloriesPerServing, allergens: figures.allergens, status: 'PENDING' });
     });
 
+    it('of the slug alone leaves the reviews standing: reviewers answer for the text', async () => {
+      const draft = await aRecipeDraft(t);
+      await admin.review('recipes', draft.id, 'approve', 'en').expect(201);
+      await asReviewer.review('recipes', draft.id, 'approve').expect(201);
+
+      const renamed = await admin.edit(draft.id, { slug: 'oat-bowl-with-banana' }).expect(200);
+
+      expect(renamed.body).toMatchObject({ slug: 'oat-bowl-with-banana', status: 'APPROVED' });
+      expect(renamed.body.localeReviews).toHaveLength(2);
+      expect((await recipeRow(draft.id)).slug).toBe('oat-bowl-with-banana');
+    });
+
+    it('of the slug works for a recipe users made, and with other changes sends the draft back to review', async () => {
+      const fromUsers = await aRecipeDraft(t, { source: 'AI_USER', status: 'APPROVED' });
+      const generated = await aRecipeDraft(t, { status: 'APPROVED' });
+
+      expect((await admin.edit(fromUsers.id, { slug: 'home-oats' }).expect(200)).body).toMatchObject({ slug: 'home-oats', status: 'APPROVED' });
+      expect((await admin.edit(generated.id, { slug: 'oats-for-two', servings: 2 }).expect(200)).body).toMatchObject({ slug: 'oats-for-two', servings: 2, status: 'PENDING' });
+    });
+
+    it('of the slug to something that is no slug is refused', async () => {
+      const draft = await aRecipeDraft(t);
+
+      for (const slug of ['Oat Bowl', '../recipes', 'oat--bowl', '', 'a'.repeat(81)]) {
+        const res = await admin.edit(draft.id, { slug });
+        expect([slug, res.status, res.body.error]).toEqual([slug, 400, 'DRAFT_INVALID']);
+        expect(res.body.details.problems).toEqual([expect.objectContaining({ path: 'slug', rule: 'invalid-slug' })]);
+      }
+      expect((await recipeRow(draft.id)).slug).toBe(draft.slug);
+    });
+
     it('of the name of an ingredient keeps only the languages the draft is in, and wants each of them', async () => {
       const draft = await anIngredientNameDraft(t);
 

@@ -844,6 +844,12 @@ function RecipeDraftRow({
     if (!window.confirm(t('promoteConfirm'))) return;
     void handle(() => adminApi.promoteRecipeDraft(draft.id));
   };
+  // The slug alone: the reviews stand, since no reviewer approved a slug.
+  const onChangeSlug = () => {
+    const slug = window.prompt(t('slugPrompt'), draft.slug)?.trim();
+    if (!slug || slug === draft.slug) return;
+    void handle(() => adminApi.patchRecipeDraft(draft.id, { slug }, false));
+  };
 
   // AI_USER drafts mirror personal Recipe rows owned by the user. Editing
   // structural fields would invalidate the fingerprint + the linked Recipe's
@@ -901,6 +907,7 @@ function RecipeDraftRow({
         {draft.allergens.length > 0 && (
           <span>{t('allergensLabel', { list: draft.allergens.join(', ') })}</span>
         )}
+        <span className="font-mono">{t('slugStrip', { slug: draft.slug })}</span>
       </div>
 
       {expanded && (
@@ -982,6 +989,14 @@ function RecipeDraftRow({
                     {t('promoteButton')}
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={working || draft.status === 'SHIPPED'}
+                  onClick={onChangeSlug}
+                >
+                  {t('changeSlug')}
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
