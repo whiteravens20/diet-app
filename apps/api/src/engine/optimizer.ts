@@ -3,12 +3,16 @@
 /**
  * Deterministic meal-plan optimiser.
  *
- * Greedy slot-filling with a multi-factor scoring function, followed by one
- * local-search refinement pass. Given the same inputs it always produces the
- * same plan — "regenerate" varies the plan by passing a different `seed`.
+ * A plan is filled day by day, and a day meal by meal. For each meal the
+ * recipes that may go there are scored, and the best one is placed. Given the
+ * same input the result is the same plan; another `seed` gives another.
  *
- * Scoring balances:
- *   calorie fit · ingredient reuse · variety · preference · complexity.
+ * How a day keeps to its target. A meal has a budget: its share of what is
+ * still left of the day. After every meal that is placed, the meals still to
+ * come share what is left, so one meal that runs over is made up for by the
+ * next. A recipe costs nothing while its meal is inside a tenth of the
+ * budget, and more the further outside it is: a dish is not trimmed to hit a
+ * number. The snack is placed last and takes what the day has left.
  */
 import { fitsDiet, type DietType, type Macros, type MealType, type Unit } from '@diet-app/shared';
 import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
@@ -146,6 +150,11 @@ export class OptimizerError extends Error {
   }
 }
 
+/** A meal inside this share of its budget, either way, costs nothing. */
+export const CALORIE_WINDOW = 0.1;
+/** A recipe that cannot reach this share of a meal's budget at the largest serving is no candidate for it. */
+const MIN_REACH = 0.7;
+
 /** Per-slot calorie budgets that sum to the daily target. */
 export function slotBudgets(slots: MealType[], dailyTarget: number): Map<MealType, number> {
   const totalWeight = slots.reduce((s, slot) => s + SLOT_WEIGHT[slot], 0);
@@ -205,72 +214,82 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
     slotHistory.set(slot, history);
   };
 
+  // The recipes of a meal are looked up once, however many days ask for them.
+  const eligibleBySlot = new Map<MealType, OptimizerRecipe[]>();
+  const eligibleFor = (slot: MealType): OptimizerRecipe[] => {
+    let found = eligibleBySlot.get(slot);
+    if (!found) {
+      found = input.recipes.filter((r) => eligible(r, slot, input.dietType));
+      eligibleBySlot.set(slot, found);
+    }
+    return found;
+  };
+
   for (let day = 0; day < input.days.length; day++) {
     const spec = input.days[day]!;
     if (spec.skip) continue;
 
-    const budgets = slotBudgets(spec.mealSlots, spec.dailyCalorieTarget);
     const coverage = spec.inventoryCoverage ?? input.inventoryCoverage;
-    const lockedBySlot = new Map(
-      (spec.lockedSlots ?? []).map((l) => [l.slot, l.recipeId] as const),
-    );
+    const lockedBySlot = new Map((spec.lockedSlots ?? []).map((l) => [l.slot, l.recipeId] as const));
+    // Locked meals first, so that the rest of the day is planned around them;
+    // the snack last, so that it takes what the day has left.
+    const open = spec.mealSlots.filter((slot) => !lockedBySlot.has(slot));
+    const order = [
+      ...spec.mealSlots.filter((slot) => lockedBySlot.has(slot)),
+      ...open.filter((slot) => slot !== 'snack'),
+      ...open.filter((slot) => slot === 'snack'),
+    ];
 
-    // Locked slots are placed first so the day's remaining slots optimise
-    // around them (their ingredients seed the reuse score, their use counts
-    // toward the variety floor and per-slot caps).
-    for (const slot of spec.mealSlots) {
+    let left = spec.dailyCalorieTarget;
+    for (const [index, slot] of order.entries()) {
+      // What is left of the day, shared among the meals still to come by their weights.
+      const toCome = order.slice(index);
+      const budget = Math.max(0, left) * (SLOT_WEIGHT[slot] / toCome.reduce((sum, other) => sum + SLOT_WEIGHT[other], 0));
+
+      let recipe: OptimizerRecipe;
       const lockedId = lockedBySlot.get(slot);
-      if (lockedId === undefined) continue;
-      const locked = recipeById.get(lockedId);
-      if (!locked) {
-        throw new OptimizerError(`locked recipe ${lockedId} not in candidate set`);
+      if (lockedId !== undefined) {
+        const locked = recipeById.get(lockedId);
+        if (!locked) throw new OptimizerError(`locked recipe ${lockedId} not in candidate set`);
+        recipe = locked;
+      } else {
+        const candidates = eligibleFor(slot);
+        if (candidates.length === 0) {
+          throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, { slot, dietType: input.dietType });
+        }
+        // A recipe that stays far under the budget even at the largest serving
+        // is left out, unless nothing else is there.
+        const reaching = candidates.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
+        const eligibleHere = reaching.length > 0 ? reaching : candidates;
+        const budgetMinutes = spec.cookTimeBudgetMinutes;
+        const timeFiltered = budgetMinutes == null ? eligibleHere : eligibleHere.filter((r) => r.totalMinutes <= budgetMinutes);
+        const timePool = timeFiltered.length > 0 ? timeFiltered : eligibleHere;
+        const history = slotHistory.get(slot) ?? [];
+        const allowed = timePool.filter(
+          (r) =>
+            allowedByCaps(r.id, day, history, maxConsecutive, maxPerWeek) &&
+            (maxRepeats === undefined || (recipeUseCount.get(r.id) ?? 0) < maxRepeats),
+        );
+        recipe = pickBest(allowed.length > 0 ? allowed : timePool, {
+          budget,
+          day,
+          planIngredients,
+          recentUse,
+          mealPrepFriendly: input.mealPrepFriendly,
+          favoriteIngredientIds: input.favoriteIngredientIds,
+          inventoryCoverage: coverage,
+          seed: input.seed,
+        });
       }
-      place(day, slot, locked, budgets.get(slot)!);
-    }
 
-    for (const slot of spec.mealSlots) {
-      if (lockedBySlot.has(slot)) continue;
-      const budget = budgets.get(slot)!;
-      const eligibleHere = input.recipes.filter((r) => eligible(r, slot, input.dietType));
-      if (eligibleHere.length === 0) {
-        throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, { slot, dietType: input.dietType });
-      }
-      // Cook-time budget: prefer recipes within the day's time cap; if that
-      // empties the pool, fall back to all eligible (better to exceed the cap
-      // than fail generation entirely — same philosophy as the variety caps).
-      const budgetMinutes = spec.cookTimeBudgetMinutes;
-      const timeFiltered =
-        budgetMinutes == null
-          ? eligibleHere
-          : eligibleHere.filter((r) => r.totalMinutes <= budgetMinutes);
-      const timePool = timeFiltered.length > 0 ? timeFiltered : eligibleHere;
-
-      const history = slotHistory.get(slot) ?? [];
-      // Apply the per-slot caps + the cross-window variety floor to narrow the
-      // pool. If the constraints wipe everything out, fall back to the
-      // time pool rather than throw.
-      const allowed = timePool.filter(
-        (r) =>
-          allowedByCaps(r.id, day, history, maxConsecutive, maxPerWeek) &&
-          (maxRepeats === undefined || (recipeUseCount.get(r.id) ?? 0) < maxRepeats),
-      );
-      const pool = allowed.length > 0 ? allowed : timePool;
-
-      const best = pickBest(pool, {
-        budget,
-        day,
-        planIngredients,
-        recentUse,
-        mealPrepFriendly: input.mealPrepFriendly,
-        favoriteIngredientIds: input.favoriteIngredientIds,
-        inventoryCoverage: coverage,
-        seed: input.seed,
-      });
-
-      place(day, slot, best, budget);
+      place(day, slot, recipe, budget);
+      left -= recipe.caloriesPerServing * fitServings(recipe.caloriesPerServing, budget);
     }
   }
 
+  // In the order of the day's meals, whatever order they were filled in.
+  const position = (a: OptimizerAssignment) => input.days[a.dayIndex]!.mealSlots.indexOf(a.slot);
+  assignments.sort((a, b) => a.dayIndex - b.dayIndex || position(a) - position(b));
   return { assignments, ingredientReuseScore: reuseScore(assignments, input.recipes) };
 }
 
@@ -343,11 +362,21 @@ export function seededJitter(recipeId: string, seed: number): number {
   return ((h >>> 0) / 0x1_0000_0000) * 0.12;
 }
 
+/**
+ * How well a meal of `calories` fits its budget, from 1 (inside the window:
+ * no cost at all) down to 0 (as far off as the budget is large).
+ */
+export function calorieFit(calories: number, budget: number): number {
+  if (budget <= 0) return 0;
+  const off = Math.abs(calories - budget) / budget;
+  return 1 - Math.min(1, Math.max(0, off - CALORIE_WINDOW) / (1 - CALORIE_WINDOW));
+}
+
 /** Multi-factor score in [0, 1]. */
 export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   const servings = fitServings(recipe.caloriesPerServing, ctx.budget);
-  const cals = recipe.caloriesPerServing * servings;
-  const calorieFit = 1 - Math.min(1, Math.abs(cals - ctx.budget) / ctx.budget);
+  const fit = calorieFit(recipe.caloriesPerServing * servings, ctx.budget);
+
 
   // A recipe that's already been picked contributes nothing new to the
   // shopping list, so its reuse score should not reward re-picking it. Without
@@ -380,7 +409,7 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   const inventoryCoverage = ctx.inventoryCoverage?.get(recipe.id) ?? 0;
 
   return (
-    SCORE_WEIGHTS.calorieFit * calorieFit +
+    SCORE_WEIGHTS.calorieFit * fit +
     SCORE_WEIGHTS.reuse * reuse +
     SCORE_WEIGHTS.variety * variety +
     SCORE_WEIGHTS.favorite * favorite +
