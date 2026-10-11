@@ -11,12 +11,25 @@ import {
   MAX_PROFILES_PER_ACCOUNT,
   type Profile,
   type ProfileInput,
+  riskOfLosingWeight,
   WeightReminderCadence,
 } from '@diet-app/shared';
 import { calculateCalories } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
+
+/**
+ * When the risk of losing weight counts as acknowledged, after this save.
+ * Only somebody under 18 or underweight has anything to acknowledge: for
+ * anybody else the time is cleared. Sent as true it is set (and an earlier
+ * time kept), sent as false it is withdrawn, not sent it stays as it was.
+ */
+function acknowledgedAt(input: ProfileInput, before: Date | null): Date | null {
+  if (riskOfLosingWeight(input).length === 0) return null;
+  if (input.acknowledgeRisk === undefined) return before;
+  return input.acknowledgeRisk ? (before ?? new Date()) : null;
+}
 
 @Injectable()
 export class ProfilesService {
@@ -55,6 +68,7 @@ export class ProfilesService {
         dietType: input.dietType,
         weeklyLossTarget: input.weeklyLossTarget,
         manualCalorieTarget: input.manualCalorieTarget,
+        riskAcknowledgedAt: acknowledgedAt(input, null),
         mealCount: input.mealCount,
         weightReminderCadence: input.weightReminderCadence,
         preferences: { create: input.preferences },
@@ -65,7 +79,7 @@ export class ProfilesService {
   }
 
   async update(userId: string, id: string, input: ProfileInput): Promise<Profile> {
-    await this.load(userId, id);
+    const before = await this.load(userId, id);
     const row = await this.prisma.profile.update({
       where: { id },
       data: {
@@ -78,6 +92,7 @@ export class ProfilesService {
         dietType: input.dietType,
         weeklyLossTarget: input.weeklyLossTarget,
         manualCalorieTarget: input.manualCalorieTarget,
+        riskAcknowledgedAt: acknowledgedAt(input, before.riskAcknowledgedAt),
         mealCount: input.mealCount,
         weightReminderCadence: input.weightReminderCadence,
         preferences: { upsert: { create: input.preferences, update: input.preferences } },
@@ -104,6 +119,7 @@ export class ProfilesService {
       dietType: p.dietType,
       weeklyLossTarget: p.weeklyLossTarget as WeeklyTarget,
       manualCalorieTarget: p.manualCalorieTarget,
+      riskAcknowledged: p.riskAcknowledgedAt !== null,
     });
   }
 
@@ -129,6 +145,7 @@ export class ProfilesService {
     dietType: Profile['dietType'];
     weeklyLossTarget: string | null;
     manualCalorieTarget: number | null;
+    riskAcknowledgedAt: Date | null;
     mealCount: number;
     weightReminderCadence: string;
     createdAt: Date;
@@ -156,6 +173,7 @@ export class ProfilesService {
       dietType: row.dietType,
       weeklyLossTarget: row.weeklyLossTarget as WeeklyTarget,
       manualCalorieTarget: row.manualCalorieTarget,
+      riskAcknowledgedAt: row.riskAcknowledgedAt?.toISOString() ?? null,
       mealCount: row.mealCount,
       weightReminderCadence: WeightReminderCadence.parse(row.weightReminderCadence),
       preferences: {

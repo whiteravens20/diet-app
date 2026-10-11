@@ -23,12 +23,30 @@ export const MAX_CALORIE_TARGET = 6000;
 /**
  * What a client should tell the user about a calorie target:
  *
+ *  - `minor`: under 18. The equation behind the figures is one for adults,
+ *    so they are an approximation, and losing weight is a matter for a doctor;
+ *  - `underweight`: a body-mass index under 18.5;
  *  - `below_floor`: a target somebody typed is under the lowest a calculated
  *    one goes;
  *  - `below_bmr`: the target is under what the body uses at rest.
  */
-export const CalorieWarning = z.enum(['below_floor', 'below_bmr']);
+export const CalorieWarning = z.enum(['minor', 'underweight', 'below_floor', 'below_bmr']);
 export type CalorieWarning = z.infer<typeof CalorieWarning>;
+
+/** Under this age the equation behind the figures is an approximation, and a loss goal needs the user's word. */
+export const ADULT_AGE = 18;
+/** A body-mass index under this is underweight. */
+export const UNDERWEIGHT_BMI = 18.5;
+
+/**
+ * Why losing weight is a risk for this body: under 18, underweight, both or
+ * neither. Somebody for whom it is has to say they understand before a loss
+ * goal is planned.
+ */
+export function riskOfLosingWeight(body: { age: number; heightCm: number; weightKg: number }): ('minor' | 'underweight')[] {
+  const bmi = body.weightKg / (body.heightCm / 100) ** 2;
+  return [...(body.age < ADULT_AGE ? (['minor'] as const) : []), ...(bmi < UNDERWEIGHT_BMI ? (['underweight'] as const) : [])];
+}
 
 /**
  * Result of the deterministic calorie engine. Every field is reproducible from
@@ -54,6 +72,12 @@ export const CalorieCalculation = z.object({
   safetyFloorApplied: z.boolean(),
   /** Maintenance itself is under the floor: no loss is planned, the target is maintenance. */
   maintenanceUnderFloor: z.boolean(),
+  /**
+   * The profile asks to lose weight, is under 18 or underweight, and has not
+   * said it understands the risk: the target is held at maintenance until it
+   * does (`acknowledgeRisk` on the profile).
+   */
+  goalHeld: z.boolean(),
   warnings: z.array(CalorieWarning),
 });
 export type CalorieCalculation = z.infer<typeof CalorieCalculation>;

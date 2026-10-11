@@ -115,8 +115,8 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
 
 /**
  * What stands behind a calorie target that is not simply maintenance less the
- * chosen pace: a pace that was slowed, a floor, and a target somebody typed
- * that is very low.
+ * chosen pace: a goal that is held, a pace that was slowed, a floor, and the
+ * warnings for somebody under 18 or underweight.
  */
 export function TargetNotices({ calories: c }: { calories: CalorieCalculation }) {
   const t = useTranslations('profileSummary.notices');
@@ -124,10 +124,12 @@ export function TargetNotices({ calories: c }: { calories: CalorieCalculation })
   const say = (key: string, strong = false) =>
     notices.push({ key, strong, text: t(key, { floor: c.safetyFloor, requested: c.requestedDeficit, deficit: c.dailyDeficit, bmr: c.bmr, maintenance: c.maintenance }) });
 
+  if (c.goalHeld) say('goalHeld', true);
+  for (const warning of c.warnings) if (warning === 'minor' || warning === 'underweight') say(warning, true);
   if (c.maintenanceUnderFloor) say('maintenanceUnderFloor');
   if (c.safetyFloorApplied) say('safetyFloorApplied');
   // Under the floor the pace is not what set the target: the floor did.
-  if (c.deficitCapped && !c.safetyFloorApplied && !c.maintenanceUnderFloor) say('deficitCapped');
+  if (c.deficitCapped && !c.safetyFloorApplied && !c.maintenanceUnderFloor && !c.goalHeld) say('deficitCapped');
   if (c.warnings.includes('below_floor')) say('below_floor', true);
   if (c.warnings.includes('below_bmr') && c.source === 'manual_override') say('below_bmr');
   if (notices.length === 0) return null;

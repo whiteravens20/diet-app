@@ -24,6 +24,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     dietType: 'balanced' as const,
     weeklyLossTarget: '0.5',
     manualCalorieTarget: null,
+    riskAcknowledgedAt: null,
     mealCount: 3,
     weightReminderCadence: 'weekly',
     createdAt: new Date('2026-01-01'),

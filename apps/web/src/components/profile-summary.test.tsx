@@ -21,6 +21,7 @@ const plain: CalorieCalculation = {
   deficitCapped: false,
   safetyFloorApplied: false,
   maintenanceUnderFloor: false,
+  goalHeld: false,
   warnings: [],
 };
 
@@ -57,8 +58,17 @@ describe('what a user is told about their calorie target', () => {
     expect(told({ ...plain, safetyFloor: 1200, maintenance: 992, dailyTarget: 992, dailyDeficit: 0, maintenanceUnderFloor: true })[0]).toMatch(/^Your maintenance is under 1200 kcal/);
   });
 
+  it('is that the goal is on hold and why, for somebody under 18 who has not acknowledged the risk', () => {
+    const lines = told({ ...plain, goalHeld: true, dailyDeficit: 0, dailyTarget: 2759, requestedDeficit: 1100, deficitCapped: true, warnings: ['minor'] });
+
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^Your goal to lose weight is on hold/);
+    expect(lines[1]).toMatch(/^You are under 18\./);
+  });
+
   it('is said in Polish to a Polish reader', () => {
-    expect(told({ ...plain, source: 'manual_override', dailyTarget: 900, warnings: ['below_floor', 'below_bmr'] }, 'pl')).toEqual([
+    expect(told({ ...plain, source: 'manual_override', dailyTarget: 900, warnings: ['underweight', 'below_floor', 'below_bmr'] }, 'pl')).toEqual([
+      'Twój wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może Ci zaszkodzić.',
       'Wpisany cel jest niższy niż 1500 kcal, czyli najniższy, jaki wyliczyłby plan.',
       'Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku (1780 kcal).',
     ]);

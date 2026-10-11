@@ -6,7 +6,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import {
+  MAX_CALORIE_TARGET,
   MAX_PROFILES_PER_ACCOUNT,
+  MIN_CALORIE_TARGET,
+  riskOfLosingWeight,
   type DietType,
   type Profile,
   type ProfileInput,
@@ -22,6 +25,27 @@ import { IngredientPicker } from '@/components/ingredient-picker';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SupplyNote } from '@/components/supply-note';
+
+type Risk = ReturnType<typeof riskOfLosingWeight>[number];
+
+/** The risk a loss goal carries for a body, or none when no loss is asked for. */
+function riskOf(body: { age: number; heightCm: number; weightKg: number; weeklyLossTarget: string | null; manualCalorieTarget: number | null }): Risk[] {
+  const asksForLoss = body.weeklyLossTarget !== null || body.manualCalorieTarget !== null;
+  if (!asksForLoss || !(body.age > 0 && body.heightCm > 0 && body.weightKg > 0)) return [];
+  return riskOfLosingWeight(body);
+}
+
+/** The same, for what the form holds at this moment. */
+function riskIn(form: HTMLFormElement): Risk[] {
+  const f = new FormData(form);
+  return riskOf({
+    age: Number(f.get('age')),
+    heightCm: Number(f.get('heightCm')),
+    weightKg: Number(f.get('weightKg')),
+    weeklyLossTarget: String(f.get('weeklyLossTarget') ?? '') || null,
+    manualCalorieTarget: f.get('manualCalorieTarget') ? Number(f.get('manualCalorieTarget')) : null,
+  });
+}
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
@@ -55,6 +79,11 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   // null = the form creates a new profile; a Profile = the form edits it.
   const [editing, setEditing] = useState<Profile | null>(null);
+  // Why losing weight is a risk for the body the form describes, when it asks
+  // for a loss: as typed, or as saved while nothing was typed yet.
+  const [typedRisk, setTypedRisk] = useState<{ form: string; reasons: Risk[] } | null>(null);
+  const formKey = editing?.id ?? 'new';
+  const risk = typedRisk?.form === formKey ? typedRisk.reasons : editing ? riskOf(editing) : [];
   // Creation is opt-in: the form stays hidden until the user clicks "Add".
   const [creating, setCreating] = useState(false);
 
@@ -129,6 +158,8 @@ export default function ProfilePage() {
       manualCalorieTarget: f.get('manualCalorieTarget')
         ? Number(f.get('manualCalorieTarget'))
         : null,
+      // Sent only by a form that showed the warning: ticked is yes, not ticked takes the word back.
+      ...(risk.length > 0 ? { acknowledgeRisk: f.get('acknowledgeRisk') === 'on' } : {}),
       mealCount: Number(f.get('mealCount')),
       weightReminderCadence:
         (f.get('weightReminderCadence') as WeightReminderCadence) ?? 'weekly',
@@ -253,6 +284,7 @@ export default function ProfilePage() {
             <form
               key={editing?.id ?? 'new'}
               onSubmit={onSubmit}
+              onChange={(event) => setTypedRisk({ form: formKey, reasons: riskIn(event.currentTarget) })}
               className="grid gap-4 sm:grid-cols-2"
             >
               <Field label={t('name')}>
@@ -326,12 +358,24 @@ export default function ProfilePage() {
                 <Input
                   name="manualCalorieTarget"
                   type="number"
-                  min={800}
-                  max={6000}
+                  min={MIN_CALORIE_TARGET}
+                  max={MAX_CALORIE_TARGET}
                   placeholder={t('auto')}
                   defaultValue={editing?.manualCalorieTarget ?? ''}
                 />
               </Field>
+              {risk.length > 0 && (
+                <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm sm:col-span-2">
+                  {risk.map((reason) => (
+                    <p key={reason}>{t(`risk.${reason}`)}</p>
+                  ))}
+                  <p className="text-muted-foreground">{t('risk.held')}</p>
+                  <label className="flex items-start gap-2 font-medium">
+                    <input type="checkbox" name="acknowledgeRisk" className="mt-1" defaultChecked={editing?.riskAcknowledgedAt != null} />
+                    {t('risk.acknowledge')}
+                  </label>
+                </div>
+              )}
               <Field
                 label={t('weightReminderCadence')}
                 hint={t('weightReminderCadenceHint')}

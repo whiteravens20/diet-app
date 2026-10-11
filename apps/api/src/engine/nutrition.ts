@@ -7,7 +7,7 @@
  * profile inputs alone — no randomness, no AI, no I/O: every calorie and macro
  * calculation is deterministic.
  */
-import { MIN_CALORIE_TARGET, type ActivityLevel, type CalorieCalculation, type DietType, type Macros, type Sex } from '@diet-app/shared';
+import { MIN_CALORIE_TARGET, riskOfLosingWeight, type ActivityLevel, type CalorieCalculation, type DietType, type Macros, type Sex } from '@diet-app/shared';
 
 /** Mifflin-St Jeor activity multipliers (BMR → TDEE / maintenance). */
 const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
@@ -48,6 +48,8 @@ export interface CalorieEngineInput {
   dietType: DietType;
   weeklyLossTarget: '0.25' | '0.5' | '0.75' | '1.0' | null;
   manualCalorieTarget: number | null;
+  /** Whether a profile that is under 18 or underweight has said it understands the risk of losing weight. */
+  riskAcknowledged: boolean;
 }
 
 /** The most of maintenance a pace of loss may take away each day. */
@@ -99,6 +101,10 @@ export function macrosForCalories(calories: number, dietType: DietType): Macros 
  * the floor, and never above maintenance: where maintenance itself is under
  * the floor, no loss is planned. A target somebody typed is taken as it is,
  * and flagged when it is under the floor or under the basal rate.
+ *
+ * Somebody under 18 or underweight who asks to lose weight (by a pace, or by
+ * a typed target under maintenance) is planned maintenance until they have
+ * said they understand the risk.
  */
 export function calculateCalories(input: CalorieEngineInput): CalorieCalculation {
   const bmr = calculateBmr(input);
@@ -108,11 +114,17 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
   const manual = input.manualCalorieTarget;
   const source: CalorieCalculation['source'] = manual === null ? 'calculated' : 'manual_override';
 
+  const atRisk = riskOfLosingWeight(input);
+  const asksForLoss = manual === null ? requestedDeficit > 0 : manual < maintenance;
+  const goalHeld = atRisk.length > 0 && asksForLoss && !input.riskAcknowledged;
+
   let dailyTarget: number;
   let deficitCapped = false;
   let safetyFloorApplied = false;
   let maintenanceUnderFloor = false;
-  if (manual !== null) {
+  if (goalHeld) {
+    dailyTarget = maintenance;
+  } else if (manual !== null) {
     dailyTarget = manual;
   } else {
     const most = round(maintenance * MAX_DEFICIT_SHARE);
@@ -137,7 +149,9 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     deficitCapped,
     safetyFloorApplied,
     maintenanceUnderFloor,
+    goalHeld,
     warnings: [
+      ...atRisk,
       ...(source === 'manual_override' && dailyTarget < floor ? (['below_floor'] as const) : []),
       ...(dailyTarget < bmr ? (['below_bmr'] as const) : []),
     ],
@@ -163,7 +177,8 @@ export type DayType = 'normal' | 'rest' | 'training';
 /**
  * The calorie target of one day of a plan. The one place where it is decided.
  *
- *  - A target the user set for that day is taken as it is.
+ *  - A target the user set for that day is taken as it is, unless the
+ *    profile's loss goal is held and the target is under maintenance.
  *  - Otherwise the plan's base is shaped by the kind of day and rounded to
  *    ten. When the base was calculated, a rest day does not take it under the
  *    floor (nor under the base itself, where that is under the floor already).
@@ -181,8 +196,12 @@ export function effectiveDayTarget(day: {
   dayType?: DayType;
   /** The target the user set for this day. */
   ownTarget?: number | null;
+  /** Maintenance, for a profile whose loss goal is held: a day's own target under it is not taken. */
+  holdUnder?: number | null;
 }): { target: number; belowFloor: boolean } {
-  if (day.ownTarget !== undefined && day.ownTarget !== null) return { target: day.ownTarget, belowFloor: day.ownTarget < day.floor };
+  const own = day.ownTarget ?? null;
+  const held = own !== null && day.holdUnder != null && own < day.holdUnder;
+  if (own !== null && !held) return { target: own, belowFloor: own < day.floor };
   const factor = day.dayType === 'training' ? TRAINING_DAY_FACTOR : day.dayType === 'rest' ? REST_DAY_FACTOR : 1;
   const shaped = Math.round((day.base * factor) / 10) * 10;
   const least = day.baseIsCalculated ? Math.min(day.floor, day.base) : MIN_CALORIE_TARGET;

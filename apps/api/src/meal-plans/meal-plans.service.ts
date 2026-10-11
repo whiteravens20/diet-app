@@ -334,9 +334,10 @@ export class MealPlansService {
    * target typed for the plan stands in for the one typed on the profile.
    */
   private planBase(
-    profile: Omit<CalorieEngineInput, 'weeklyLossTarget'> & { weeklyLossTarget: string | null },
+    profile: Omit<CalorieEngineInput, 'weeklyLossTarget' | 'riskAcknowledged'> & { weeklyLossTarget: string | null; riskAcknowledgedAt: Date | null },
     typedForThePlan?: number,
   ): PlanBase {
+    const riskAcknowledged = profile.riskAcknowledgedAt !== null;
     const calories = calculateCalories({
       age: profile.age,
       sex: profile.sex,
@@ -346,8 +347,16 @@ export class MealPlansService {
       dietType: profile.dietType,
       weeklyLossTarget: profile.weeklyLossTarget as WeeklyTarget,
       manualCalorieTarget: typedForThePlan ?? profile.manualCalorieTarget,
+      riskAcknowledged,
     });
-    return { target: calories.dailyTarget, calculated: calories.source === 'calculated', floor: calories.safetyFloor };
+    const atRisk = calories.warnings.includes('minor') || calories.warnings.includes('underweight');
+    return {
+      target: calories.dailyTarget,
+      // A goal that is held is planned as maintenance, which the engine worked out.
+      calculated: calories.source === 'calculated' || calories.goalHeld,
+      floor: calories.safetyFloor,
+      holdUnder: atRisk && !riskAcknowledged ? calories.maintenance : null,
+    };
   }
 
   /**
@@ -2021,6 +2030,8 @@ interface PlanBase {
   /** Worked out by the engine, not typed by somebody. */
   calculated: boolean;
   floor: number;
+  /** Maintenance, when the profile's loss goal is held: no day goes under it by a target of its own. */
+  holdUnder: number | null;
 }
 
 /** The target of one day of a plan: its own when the user set one, else the base shaped by the kind of day. */
@@ -2031,6 +2042,7 @@ function dayTarget(base: PlanBase, day?: { calorieTarget?: number; dayType?: 'no
     floor: base.floor,
     dayType: day?.dayType,
     ownTarget: day?.calorieTarget,
+    holdUnder: base.holdUnder,
   }).target;
 }
 

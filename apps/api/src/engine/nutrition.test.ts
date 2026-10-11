@@ -44,6 +44,12 @@ describe('the target of one day', () => {
     expect(day({ ownTarget: 900, dayType: 'training' })).toEqual({ target: 900, belowFloor: true });
     expect(day({ ownTarget: 2600, dayType: 'rest' })).toEqual({ target: 2600, belowFloor: false });
   });
+
+  it('does not take a day\'s own target under maintenance while the profile\'s loss goal is held', () => {
+    expect(day({ ownTarget: 900, holdUnder: 2000 })).toEqual({ target: 2000, belowFloor: false });
+    expect(day({ ownTarget: 2300, holdUnder: 2000 }).target).toBe(2300);
+    expect(day({ ownTarget: 900, holdUnder: null }).target).toBe(900);
+  });
 });
 
 describe('calculateBmr (Mifflin-St Jeor)', () => {
@@ -104,6 +110,7 @@ describe('calculateCalories', () => {
     dietType: 'balanced',
     weeklyLossTarget: '0.5',
     manualCalorieTarget: null,
+    riskAcknowledged: false,
     ...over,
   });
 
@@ -120,6 +127,7 @@ describe('calculateCalories', () => {
       deficitCapped: false,
       safetyFloorApplied: false,
       maintenanceUnderFloor: false,
+      goalHeld: false,
       warnings: [],
     });
   });
@@ -158,5 +166,46 @@ describe('calculateCalories', () => {
     // BMR 1780, floor 1500.
     expect(calculateCalories(person({ manualCalorieTarget: 1600 })).warnings).toEqual(['below_bmr']);
     expect(calculateCalories(person({ manualCalorieTarget: 900 })).warnings).toEqual(['below_floor', 'below_bmr']);
+  });
+
+  describe('for somebody under 18 or underweight', () => {
+    // 16 years, 165 cm, 55 kg: BMI 20.2. 25 years, 170 cm, 50 kg: BMI 17.3.
+    const minor = (over: Partial<CalorieEngineInput> = {}) => person({ age: 16, sex: 'female', heightCm: 165, weightKg: 55, weeklyLossTarget: '1.0', ...over });
+    const underweight = (over: Partial<CalorieEngineInput> = {}) => person({ age: 25, sex: 'female', heightCm: 170, weightKg: 50, weeklyLossTarget: '0.5', ...over });
+
+    it('warns, and holds a loss goal at maintenance until the risk is acknowledged', () => {
+      for (const [input, warning] of [[minor(), 'minor'], [underweight(), 'underweight']] as const) {
+        const r = calculateCalories(input);
+
+        expect(r).toMatchObject({ goalHeld: true, dailyTarget: r.maintenance, dailyDeficit: 0, warnings: [warning] });
+        expect(r.requestedDeficit).toBeGreaterThan(0);
+      }
+    });
+
+    it('applies the goal once it is acknowledged, and still warns', () => {
+      const r = calculateCalories(minor({ riskAcknowledged: true }));
+
+      expect(r.goalHeld).toBe(false);
+      expect(r.dailyTarget).toBeLessThan(r.maintenance);
+      expect(r.dailyTarget).toBeGreaterThanOrEqual(r.safetyFloor);
+      expect(r.warnings).toContain('minor');
+    });
+
+    it('holds a typed target under maintenance the same way, and leaves one at or above it alone', () => {
+      const held = calculateCalories(underweight({ manualCalorieTarget: 1200 }));
+      expect(held).toMatchObject({ goalHeld: true, dailyTarget: held.maintenance, source: 'manual_override' });
+
+      const maintenance = held.maintenance;
+      expect(calculateCalories(underweight({ manualCalorieTarget: maintenance + 200 }))).toMatchObject({ goalHeld: false, dailyTarget: maintenance + 200 });
+      expect(calculateCalories(underweight({ manualCalorieTarget: 1200, riskAcknowledged: true }))).toMatchObject({ goalHeld: false, dailyTarget: 1200 });
+    });
+
+    it('holds nothing where no loss is asked for', () => {
+      expect(calculateCalories(minor({ weeklyLossTarget: null }))).toMatchObject({ goalHeld: false, warnings: ['minor'] });
+    });
+
+    it('names both when both are true', () => {
+      expect(calculateCalories(minor({ weightKg: 45, weeklyLossTarget: null })).warnings).toEqual(['minor', 'underweight']);
+    });
   });
 });

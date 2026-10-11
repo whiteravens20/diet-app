@@ -153,6 +153,10 @@ model Profile {
   weeklyLossTarget    String?
   // When set, overrides the calculated daily calorie target.
   manualCalorieTarget Int?
+  // When a profile that is under 18 or underweight said it understands the
+  // risk of losing weight. Until then its loss goal is planned as
+  // maintenance. Cleared when the profile is no longer either.
+  riskAcknowledgedAt  DateTime?
   mealCount           Int           @default(3)
   // Transient counter — incremented on every plan-level generation that
   // actually applied the inventory bias. Reset to 0 when it reaches

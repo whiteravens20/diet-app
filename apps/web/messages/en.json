@@ -1191,7 +1191,13 @@
     "favouritesLabel": "Favourite ingredients",
     "favouritesHint": "The planner leans toward recipes using these.",
     "avoidLabel": "Avoid ingredients",
-    "avoidHint": "The planner skips recipes that contain these."
+    "avoidHint": "The planner skips recipes that contain these.",
+    "risk": {
+      "minor": "Under 18 the figures of this application are an approximation, and losing weight is something to do with a doctor.",
+      "underweight": "With this height and weight the body-mass index is under 18.5, which is underweight. Losing more weight can harm you.",
+      "held": "Until the box below is ticked, the goal is saved but plans follow maintenance.",
+      "acknowledge": "I understand the risk and want plans made for this goal."
+    }
   },
   "pickers": {
     "ingredientSearch": "Search ingredients…",
@@ -1235,6 +1241,9 @@
     "fat": "Fat",
     "carbs": "Carbs",
     "notices": {
+      "goalHeld": "Your goal to lose weight is on hold: plans follow your maintenance until you confirm on your profile that you understand the risk.",
+      "minor": "You are under 18. These figures come from an equation for adults and are an approximation for you; losing weight at your age is something to do with a doctor.",
+      "underweight": "Your body-mass index is under 18.5, which is underweight. Losing more weight can harm you.",
       "maintenanceUnderFloor": "Your maintenance is under {floor} kcal, the lowest a calculated plan goes, so no loss is planned: the target is your maintenance.",
       "safetyFloorApplied": "The target was raised to {floor} kcal, the lowest a calculated plan goes. The deficit that leaves is {deficit} kcal a day.",
       "deficitCapped": "The pace you chose asks for {requested} kcal a day less. That is more than a quarter of your maintenance, so the plan takes {deficit}.",

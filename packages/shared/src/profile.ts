@@ -55,6 +55,12 @@ export const ProfileInput = z.object({
   weeklyLossTarget: WeeklyLossTarget.nullable().default('0.5'),
   /** Manual kcal target; when set it overrides the calculated value. */
   manualCalorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable().default(null),
+  /**
+   * Sent as true by somebody under 18 or underweight who asks to lose weight
+   * and has read the warning. Without it the goal is stored but planned as
+   * maintenance (`CalorieCalculation.goalHeld`). Nothing for anybody else.
+   */
+  acknowledgeRisk: z.boolean().optional(),
   /** Default meal count (2-5) for new plans. */
   mealCount: z.number().int().min(2).max(5).default(3),
   /** How often the background worker should nudge to log a weight. */
@@ -73,9 +79,11 @@ export const ProfileInput = z.object({
 export type ProfileInput = z.infer<typeof ProfileInput>;
 
 /** Persisted profile as returned by the API. */
-export const Profile = ProfileInput.extend({
+export const Profile = ProfileInput.omit({ acknowledgeRisk: true }).extend({
   id: z.string().uuid(),
   userId: z.string().uuid(),
+  /** When the risk of losing weight was acknowledged, for a profile that needs it. */
+  riskAcknowledgedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

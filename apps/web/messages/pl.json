@@ -1191,7 +1191,13 @@
     "favouritesLabel": "Ulubione składniki",
     "favouritesHint": "Planer preferuje przepisy z tymi składnikami.",
     "avoidLabel": "Unikane składniki",
-    "avoidHint": "Planer pomija przepisy zawierające te składniki."
+    "avoidHint": "Planer pomija przepisy zawierające te składniki.",
+    "risk": {
+      "minor": "Poniżej 18 lat wartości w tej aplikacji są przybliżeniem, a odchudzanie to sprawa do omówienia z lekarzem.",
+      "underweight": "Przy takim wzroście i masie wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może zaszkodzić.",
+      "held": "Dopóki pole poniżej nie jest zaznaczone, cel jest zapisany, ale plany trzymają się zapotrzebowania.",
+      "acknowledge": "Rozumiem ryzyko i chcę, aby plany były układane pod ten cel."
+    }
   },
   "pickers": {
     "ingredientSearch": "Szukaj składników…",
@@ -1235,6 +1241,9 @@
     "fat": "Tłuszcz",
     "carbs": "Węglowodany",
     "notices": {
+      "goalHeld": "Twój cel redukcji jest wstrzymany: plany trzymają się zapotrzebowania, dopóki w profilu nie potwierdzisz, że rozumiesz ryzyko.",
+      "minor": "Masz mniej niż 18 lat. Te wartości pochodzą ze wzoru dla dorosłych i są dla Ciebie przybliżeniem; odchudzanie w tym wieku to sprawa do omówienia z lekarzem.",
+      "underweight": "Twój wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może Ci zaszkodzić.",
       "maintenanceUnderFloor": "Twoje zapotrzebowanie jest niższe niż {floor} kcal, czyli najniższy cel, jaki wylicza plan, więc redukcja nie jest planowana: celem jest Twoje zapotrzebowanie.",
       "safetyFloorApplied": "Cel podniesiono do {floor} kcal, czyli najniższego, jaki wylicza plan. Deficyt, który z tego wynika, to {deficit} kcal dziennie.",
       "deficitCapped": "Wybrane tempo wymaga {requested} kcal dziennie mniej. To więcej niż jedna czwarta Twojego zapotrzebowania, więc plan odejmuje {deficit}.",
