@@ -21,6 +21,8 @@ import { isPublicAddress } from './public-address.js';
 
 export interface OutboundRequest {
   method: 'GET' | 'POST';
+  /** Sent with the request, in addition to those a body needs. */
+  headers?: Record<string, string>;
   /** Sent as JSON. */
   body?: unknown;
   timeoutMs: number;
@@ -117,7 +119,7 @@ export function outboundRequest(
         // One connection per request: nothing is reused from an earlier call
         // that was made on other terms.
         agent: false,
-        headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+        headers: { ...req.headers, ...(body === undefined ? {} : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }) },
         ...(req.publicOnly ? { lookup: publicLookup(resolve) } : {}),
       },
       (res) => {

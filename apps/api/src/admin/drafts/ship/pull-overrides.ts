@@ -1,29 +1,44 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * "Pull ingredient overrides from a repo" — the reverse of the local ship.
+ * Pulling the names of ingredients from a repository: the reverse of shipping
+ * them. The administrator names a source in the panel; its
+ * `ingredient-overrides.json` is fetched, and every entry is stored as a name
+ * approved by people, as a local ship stores one.
  *
- * Fetches an `ingredient-overrides.json` from a repo the operator names in the
- * admin panel, validates its shape, and applies every row to the live DB as
- * `source = 'MANUAL'` `IngredientTranslation` rows (the same write the
- * local-mode ship uses). Unknown slugs (ingredients this instance doesn't
- * have) are skipped and reported, never fatal.
+ * A source is one of:
+ *   - `owner/repo` or `owner/repo@branch`: `data/ingredient-overrides.json`
+ *     of that GitHub repository, read through the contents API. Public
+ *     repositories need nothing; a private one needs a token in the settings.
+ *   - a full `http(s)` address of the file, on any host.
  *
- * Source forms accepted:
- *   - `owner/repo` or `owner/repo@branch` — resolved against the GitHub
- *     contents API (`data/ingredient-overrides.json`). Works for public repos
- *     anonymously and for private repos when a PAT is configured in env.
- *   - a full `http(s)` raw URL — fetched directly (e.g. a gitea/gitlab raw
- *     link). The PAT is only ever attached to GitHub hosts, so it can't leak
- *     to an arbitrary server.
+ * The address comes from the panel, so the file is fetched with the care of
+ * `common/outbound-http.ts`: only from a public address, unless the operator
+ * named the host in the settings; no redirect is followed; a file that is too
+ * large is not read. The token is sent to GitHub's hosts and to no other.
  *
- * Container-friendly: a plain HTTP fetch, no git working tree needed, so it
- * runs inside the Docker image (unlike upstream-PR push).
+ * An entry for an ingredient this instance does not have is skipped and
+ * reported; it does not stop the rest.
  */
+import { outboundRequest, OutboundRequestError, type Resolver } from '../../../common/outbound-http.js';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import { IngredientOverrideFile } from './ingredient-overrides.writer.js';
 
 const OVERRIDES_PATH = 'data/ingredient-overrides.json';
+/** Longest wait for the file, and the largest file that is read: many times what the names of a full catalogue take. */
+const PULL_TIMEOUT_MS = 15_000;
+const PULL_MAX_BYTES = 2_000_000;
+
+/** What the settings say about pulling. */
+export interface PullPolicy {
+  /** Sent to GitHub's hosts only. */
+  token: string | null;
+  /**
+   * Hosts the operator named, as `host` or `host:port`. A source on one of
+   * them is fetched even from an address that is not public.
+   */
+  allowedHosts: readonly string[];
+}
 
 export class PullOverridesError extends Error {
   constructor(
@@ -87,11 +102,21 @@ export function resolvePullSource(source: string): ResolvedSource {
   );
 }
 
-/** Fetch + parse + validate the override file for `source`. The PAT is sent
- *  only to GitHub hosts. */
+/** True when the operator named the host of `url` in the settings. */
+function operatorNamed(url: URL, allowedHosts: readonly string[]): boolean {
+  const hostname = url.hostname.toLowerCase().replace(/\.$/, '');
+  const withPort = url.port ? `${hostname}:${url.port}` : hostname;
+  return allowedHosts.some((entry) => {
+    const named = entry.trim().toLowerCase();
+    return named === hostname || named === withPort;
+  });
+}
+
+/** Fetch the override file of `source` and check its shape. */
 export async function fetchOverrides(
   source: string,
-  token: string | null,
+  policy: PullPolicy,
+  resolve?: Resolver,
 ): Promise<{ file: IngredientOverrideFile; resolvedUrl: string }> {
   const resolved = resolvePullSource(source);
   const headers: Record<string, string> = {
@@ -99,12 +124,28 @@ export async function fetchOverrides(
     accept: resolved.api ? 'application/vnd.github.raw' : 'application/json',
   };
   if (resolved.api) headers['x-github-api-version'] = '2022-11-28';
-  if (resolved.github && token) headers.authorization = `Bearer ${token}`;
+  if (resolved.github && policy.token) headers.authorization = `Bearer ${policy.token}`;
 
-  let res: Response;
+  let res: Awaited<ReturnType<typeof outboundRequest>>;
   try {
-    res = await fetch(resolved.url, { headers, signal: AbortSignal.timeout(15_000) });
+    res = await outboundRequest(
+      resolved.url,
+      {
+        method: 'GET',
+        headers,
+        timeoutMs: PULL_TIMEOUT_MS,
+        maxBytes: PULL_MAX_BYTES,
+        publicOnly: !operatorNamed(new URL(resolved.url), policy.allowedHosts),
+      },
+      resolve,
+    );
   } catch (err) {
+    if (err instanceof OutboundRequestError && err.failure === 'address_not_public') {
+      throw new PullOverridesError(
+        'PULL_ADDRESS_NOT_PUBLIC',
+        `${resolved.url} is not at a public address. A source inside your own network is fetched only when its host is named in OVERRIDES_PULL_ALLOWED_HOSTS.`,
+      );
+    }
     throw new PullOverridesError(
       'PULL_FETCH_FAILED',
       `could not fetch ${resolved.url}: ${err instanceof Error ? err.message : String(err)}`,
@@ -117,7 +158,10 @@ export async function fetchOverrides(
         '(private repos need OVERRIDES_PULL_TOKEN set).',
     );
   }
-  if (!res.ok) {
+  if (res.status >= 300 && res.status < 400) {
+    throw new PullOverridesError('PULL_FETCH_FAILED', `${resolved.url} answered with a redirect (HTTP ${res.status}), which is not followed: name the address of the file itself`);
+  }
+  if (res.status < 200 || res.status >= 300) {
     throw new PullOverridesError(
       'PULL_FETCH_FAILED',
       `fetching ${resolved.url} returned HTTP ${res.status}`,
@@ -125,7 +169,7 @@ export async function fetchOverrides(
   }
   let raw: unknown;
   try {
-    raw = await res.json();
+    raw = JSON.parse(res.text);
   } catch {
     throw new PullOverridesError(
       'PULL_SHAPE_INVALID',
@@ -174,14 +218,13 @@ export async function applyOverridesToDb(
   return { applied, rowsWritten, skippedSlugs };
 }
 
-/** Full pull: fetch from `source`, apply to DB, return a summary. */
+/** The whole pull: fetch the file of `source`, store what passes, and say what happened to each entry. */
 export async function pullOverrides(
   prisma: PrismaService,
   source: string,
-  token: string | null,
+  policy: PullPolicy,
+  resolve?: Resolver,
 ): Promise<PullOverridesResult> {
-  const { file, resolvedUrl } = await fetchOverrides(source, token);
-  const total = Object.keys(file).length;
-  const { applied, rowsWritten, skippedSlugs } = await applyOverridesToDb(prisma, file);
-  return { source, resolvedUrl, applied, rowsWritten, skippedSlugs, total };
+  const { file, resolvedUrl } = await fetchOverrides(source, policy, resolve);
+  return { source, resolvedUrl, total: Object.keys(file).length, ...(await applyOverridesToDb(prisma, file)) };
 }

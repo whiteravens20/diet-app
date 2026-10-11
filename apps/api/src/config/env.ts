@@ -146,6 +146,10 @@ export const envSchema = z.object({
   // PAT for pulling from a PRIVATE repo. Only ever sent to GitHub hosts. Falls
   // back to SHIP_UPSTREAM_GH_TOKEN when unset.
   OVERRIDES_PULL_TOKEN: z.string().optional(),
+  // Hosts a pull may fetch from even when their address is not public, as
+  // `host` or `host:port`, comma-separated: a Gitea on the operator's own
+  // network. Any other source must be at a public address.
+  OVERRIDES_PULL_ALLOWED_HOSTS: z.string().optional(),
 });
 
 /** Sentinel password meaning "admin panel disabled". */

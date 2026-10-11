@@ -81,6 +81,7 @@ import {
   pullOverrides,
   PullOverridesError,
   type PullOverridesResult,
+  type PullPolicy,
 } from './ship/pull-overrides.js';
 import {
   markBundleShipped,
@@ -513,7 +514,7 @@ export class DraftsController {
       this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }) ??
       'whiteravens20/diet-app';
     try {
-      return await pullOverrides(this.prisma, source, this.pullToken());
+      return await pullOverrides(this.prisma, source, this.pullPolicy());
     } catch (err) {
       if (err instanceof PullOverridesError) {
         throw new ConflictException({ error: err.code, message: err.message });
@@ -530,6 +531,21 @@ export class DraftsController {
       this.config.get('SHIP_UPSTREAM_GH_TOKEN', { infer: true }) ??
       null
     );
+  }
+
+  /**
+   * The terms of a pull: the token, and the hosts that are fetched from
+   * wherever they are. Those are the hosts the operator listed, and the host
+   * of the default source when the operator set that to an address.
+   */
+  private pullPolicy(): PullPolicy {
+    const listed = (this.config.get('OVERRIDES_PULL_ALLOWED_HOSTS', { infer: true }) ?? '')
+      .split(',')
+      .map((host) => host.trim())
+      .filter((host) => host.length > 0);
+    const preset = this.config.get('OVERRIDES_PULL_SOURCE', { infer: true });
+    const presetHost = /^https?:\/\//i.test(preset) && URL.canParse(preset) ? [new URL(preset).host] : [];
+    return { token: this.pullToken(), allowedHosts: [...listed, ...presetHost] };
   }
 
   @Post('ship/mark-shipped')

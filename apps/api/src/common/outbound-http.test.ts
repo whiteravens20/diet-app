@@ -75,6 +75,21 @@ describe('outboundRequest', () => {
     expect(seen).toBe('/api/chat {"model":"m"}');
   });
 
+  it('sends the headers it is given', async () => {
+    let seen: string | undefined;
+    server.once('request', (req) => {
+      seen = req.headers['x-asked-by'] as string | undefined;
+    });
+    respond = (_path, _body, res) => {
+      res.writeHead(200);
+      res.end('ok');
+    };
+
+    await outboundRequest(`http://127.0.0.1:${port}/`, request({ headers: { 'x-asked-by': 'a test' } }));
+
+    expect(seen).toBe('a test');
+  });
+
   it('returns an error status as it is, for the caller to judge', async () => {
     respond = (_path, _body, res) => {
       res.writeHead(404, 'Not Found');

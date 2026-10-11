@@ -75,6 +75,7 @@ See [curation-shipping.md](curation-shipping.md) for the three ship modes.
 | `SHIP_UPSTREAM_GIT_AUTHOR_NAME` / `SHIP_UPSTREAM_GIT_AUTHOR_EMAIL` | — | Author of the commits a ship creates. |
 | `OVERRIDES_PULL_SOURCE` | `whiteravens20/diet-app` | Default repository (`owner/repo[@branch]`) or raw URL the admin panel pulls ingredient name overrides from. |
 | `OVERRIDES_PULL_TOKEN` | `SHIP_UPSTREAM_GH_TOKEN` | Token for pulling from a private GitHub repository. Sent to GitHub hosts only. |
+| `OVERRIDES_PULL_ALLOWED_HOSTS` | — | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public, such as a Gitea on your own network. Every other source must be at a public address; a redirect is never followed. |
 
 ## What the instance publishes
 Served by `GET /api/config` and read by the web app at run time.
