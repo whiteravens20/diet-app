@@ -192,7 +192,7 @@ export class UsersService {
         message: 'This email address is already verified.',
       });
     }
-    await this.auth.sendVerificationEmail(userId, this.emails.open(user.emailEncrypted, user.id), Locale.parse(user.locale));
+    await this.auth.resendVerificationEmail(userId, this.emails.open(user.emailEncrypted, user.id), Locale.parse(user.locale));
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {

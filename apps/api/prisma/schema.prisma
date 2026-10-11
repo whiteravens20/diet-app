@@ -85,13 +85,16 @@ model PasswordResetToken {
 // owns the address. Only created when SMTP is configured; otherwise accounts
 // are auto-verified at creation.
 model EmailVerificationToken {
-  id        String    @id @default(uuid())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  tokenHash String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(uuid())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  // When a mail with this link last went out: the same link is sent again
+  // while it is valid, and not more often than every two minutes.
+  lastSentAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([userId])
 }

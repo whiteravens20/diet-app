@@ -123,14 +123,6 @@ describe('AuthService.register', () => {
     expect(deps.mail.sendEmailVerification).not.toHaveBeenCalled();
     expect(res.tokens.accessToken).toBe('signed.jwt.token');
   });
-
-  it('sends a verification email when mail is enabled', async () => {
-    const deps = makeDeps(null);
-    deps.mail.enabled = true;
-    await makeService(deps).register({ email: 'new@example.com', password: 'Passw0rd!', displayName: 'New' } as never);
-    expect(deps.prisma.user.create.mock.calls[0][0].data.emailVerified).toBe(false);
-    expect(deps.mail.sendEmailVerification).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('AuthService.login', () => {

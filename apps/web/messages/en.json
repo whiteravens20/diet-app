@@ -329,7 +329,8 @@
     "INVALID_VERIFICATION_TOKEN": "This confirmation link is invalid or has expired.",
     "EMAIL_CHANGE_REQUIRES_SMTP": "Changing your email isn't available on this instance — the operator hasn't configured email.",
     "INVALID_EMAIL_CHANGE_TOKEN": "This email-change link is invalid or has expired.",
-    "EMAIL_ALREADY_VERIFIED": "This email address is already verified."
+    "EMAIL_ALREADY_VERIFIED": "This email address is already verified.",
+    "VERIFICATION_SENT_RECENTLY": "A verification mail was sent a moment ago. Look for it, or ask again in a couple of minutes."
   },
   "notifications": {
     "label": "Notifications",

@@ -1,9 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -28,9 +30,15 @@ import { retirePendingLinks } from './one-time-links.js';
 import { ACCOUNT_AUDIENCE, TOKEN_ALGORITHM } from './token-kinds.js';
 import { TurnstileService } from './turnstile.service.js';
 
+/** An account may ask for its verification mail again this long after the last one went out. */
+const VERIFICATION_RESEND_WAIT_MS = 2 * 60_000;
+/** A link with less time left than this is not sent again: a new one is made. */
+const VERIFICATION_LINK_WORTH_SENDING_MS = 10 * 60_000;
+
 @Injectable()
 export class AuthService {
   private readonly pepperKey: string;
+  private readonly linkKey: string;
   /**
    * A *valid* bcrypt hash at the configured cost, computed once at startup, so
    * the login "no such user" path spends the same time as a real password
@@ -49,7 +57,9 @@ export class AuthService {
     private readonly mail: MailService,
     private readonly emails: AccountEmail,
   ) {
-    this.pepperKey = deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'password-pepper');
+    const master = this.config.get('DATA_ENCRYPTION_SECRET', { infer: true });
+    this.pepperKey = deriveKey(master, 'password-pepper');
+    this.linkKey = deriveKey(master, 'verification-link');
     this.dummyHash = hashPasswordAtStartup(
       'uniform-timing-placeholder',
       this.config.get('PASSWORD_HASH_ROUNDS', { infer: true }),
@@ -90,16 +100,60 @@ export class AuthService {
   }
 
   /**
-   * Issues a fresh verification token and emails the confirm link. Public so
-   * the logged-in "resend verification" flow in UsersService can reuse it.
+   * Mails the link that confirms the address of an account. While the link
+   * the account was sent before is good for a while yet, the same one goes
+   * out again: every mail the account holds then leads to the same place,
+   * and asking again leaves no pile of valid links behind. Otherwise a new
+   * link is made, and the ones before stop working.
    */
   async sendVerificationEmail(userId: string, email: string, locale: Locale): Promise<void> {
-    const raw = randomBytes(32).toString('hex');
-    await this.prisma.emailVerificationToken.create({
-      data: { userId, tokenHash: sha256(raw), expiresAt: new Date(Date.now() + 3_600_000) },
-    });
-    const link = `${this.config.get('APP_URL', { infer: true })}/verify-email?token=${raw}`;
+    const now = Date.now();
+    const latest = await this.prisma.emailVerificationToken.findFirst({ where: { userId, usedAt: null }, orderBy: { createdAt: 'desc' } });
+    // A link made before links could be sent again holds a token nobody can work out from the row.
+    const sameAgain = latest && latest.expiresAt.getTime() - now > VERIFICATION_LINK_WORTH_SENDING_MS && sha256(this.verificationToken(latest.id)) === latest.tokenHash;
+    let id: string;
+    if (sameAgain) {
+      id = latest.id;
+      await this.prisma.emailVerificationToken.update({ where: { id }, data: { lastSentAt: new Date(now) } });
+    } else {
+      id = randomUUID();
+      await this.prisma.$transaction([
+        this.prisma.emailVerificationToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date(now) } }),
+        this.prisma.emailVerificationToken.create({
+          data: { id, userId, tokenHash: sha256(this.verificationToken(id)), expiresAt: new Date(now + 3_600_000) },
+        }),
+      ]);
+    }
+    const link = `${this.config.get('APP_URL', { infer: true })}/verify-email?token=${this.verificationToken(id)}`;
     this.mail.sendEmailVerification(email, link, locale);
+  }
+
+  /**
+   * The same for an account that asks for the mail again: not within two
+   * minutes of the last one. The mail may be on its way, and an account that
+   * was registered with somebody else's address is no way to fill their
+   * mailbox.
+   */
+  async resendVerificationEmail(userId: string, email: string, locale: Locale): Promise<void> {
+    const latest = await this.prisma.emailVerificationToken.findFirst({ where: { userId, usedAt: null }, orderBy: { lastSentAt: 'desc' } });
+    const wait = latest ? latest.lastSentAt.getTime() + VERIFICATION_RESEND_WAIT_MS - Date.now() : 0;
+    if (wait > 0) {
+      const seconds = Math.ceil(wait / 1000);
+      throw new HttpException(
+        { error: 'VERIFICATION_SENT_RECENTLY', message: `A verification mail was sent a moment ago. Ask again in ${seconds} seconds.`, retryAfterSeconds: seconds },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    await this.sendVerificationEmail(userId, email, locale);
+  }
+
+  /**
+   * The token of a verification link, worked out from the id of its row with
+   * a key of the application's. The row holds only its hash, as for every
+   * link, and the same link can still be sent a second time.
+   */
+  private verificationToken(id: string): string {
+    return createHmac('sha256', Buffer.from(this.linkKey, 'hex')).update(`email-verification:${id}`).digest('hex');
   }
 
   async login(dto: LoginRequest): Promise<AuthResponse> {

@@ -329,7 +329,8 @@
     "INVALID_VERIFICATION_TOKEN": "Ten link potwierdzający jest nieprawidłowy lub wygasł.",
     "EMAIL_CHANGE_REQUIRES_SMTP": "Zmiana adresu e-mail nie jest dostępna na tej instancji — operator nie skonfigurował poczty.",
     "INVALID_EMAIL_CHANGE_TOKEN": "Ten link zmiany adresu e-mail jest nieprawidłowy lub wygasł.",
-    "EMAIL_ALREADY_VERIFIED": "Ten adres e-mail jest już potwierdzony."
+    "EMAIL_ALREADY_VERIFIED": "Ten adres e-mail jest już potwierdzony.",
+    "VERIFICATION_SENT_RECENTLY": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
   },
   "notifications": {
     "label": "Powiadomienia",

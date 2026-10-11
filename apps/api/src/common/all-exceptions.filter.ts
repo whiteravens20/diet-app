@@ -90,6 +90,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
           : { message: String(body) };
       const coded = typeof payload.error === 'string' && STABLE_CODE.test(payload.error);
       const generic = coded ? undefined : BY_STATUS[status];
+      // A refusal that knows how long it lasts says so where clients look for it.
+      if (typeof payload.retryAfterSeconds === 'number' && payload.retryAfterSeconds > 0) {
+        res.setHeader('Retry-After', String(Math.ceil(payload.retryAfterSeconds)));
+      }
       res.status(status).json({
         statusCode: status,
         error: generic?.error ?? payload.error ?? exception.name,

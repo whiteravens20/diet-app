@@ -28,7 +28,7 @@ const config = {
 // Mail off by default — the password/settings/delete paths under test don't
 // depend on delivery, and `enabled: false` skips the notice email.
 const mail = { enabled: false, sendPasswordChangedNotice: vi.fn() };
-const auth = { sendVerificationEmail: vi.fn() };
+const auth = { resendVerificationEmail: vi.fn() };
 
 function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
   return {
