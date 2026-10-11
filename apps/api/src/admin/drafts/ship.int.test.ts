@@ -129,6 +129,8 @@ describe('shipping approved drafts', () => {
       const curated = await t.prisma.recipe.findFirstOrThrow({ where: { origin: 'curated' }, include: { translations: true } });
       expect(curated.title).toBe('Rice bowl');
       expect(curated.translations.map((row) => row.title).sort()).toEqual(['Miska ryżu', 'Rice bowl']);
+      // Approved by people in the queue: not text from the data files, which an update would rewrite.
+      expect(curated.translations.map((row) => row.source)).toEqual(['MANUAL', 'MANUAL']);
     });
   });
 });

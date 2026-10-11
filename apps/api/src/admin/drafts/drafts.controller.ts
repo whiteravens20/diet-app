@@ -435,7 +435,9 @@ export class DraftsController {
             title: titles[lc] ?? titles.en ?? existing.slug,
             description: descriptions[lc] ?? descriptions.en ?? '',
             steps: steps[lc] ?? steps.en ?? [],
-            source: 'CURATED_JSON',
+            // Approved by people in the queue. Not `CURATED_JSON`: that is
+            // text from the data files, which an update rewrites.
+            source: 'MANUAL',
           },
         });
       }
