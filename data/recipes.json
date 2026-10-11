@@ -351,7 +351,7 @@
       "pl": "Bogata w białko zimna sałatka z czarnej fasoli, komosy ryżowej i papryki."
     },
     "servings": 2,
-    "mealTypes": ["lunch"],
+    "mealTypes": ["lunch", "dinner"],
     "prepMinutes": 12,
     "cookMinutes": 15,
     "difficulty": "easy",
@@ -383,7 +383,7 @@
       "pl": "Pieczony w piekarniku łosoś z pieczonymi ziemniakami i brokułami na parze."
     },
     "servings": 2,
-    "mealTypes": ["dinner"],
+    "mealTypes": ["lunch", "dinner"],
     "prepMinutes": 10,
     "cookMinutes": 30,
     "difficulty": "medium",
