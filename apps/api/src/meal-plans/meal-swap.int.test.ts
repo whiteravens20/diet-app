@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { MealPlan, MealSwapPreview, PlannedMeal } from '@diet-app/shared';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -128,6 +128,21 @@ describe('putting another recipe in the place of a planned meal', () => {
       const byHand: MealSwapPreview = (await offer({ strategy: 'favorite', favoriteRecipeId: await recipeId('egg-fried-rice') }).expect(201)).body;
       expect(byHand.servings).toBe(0.5);
       expect(byHand.after.calories).toBeGreaterThan(byHand.before.calories * 1.15);
+    });
+
+    it('says that the plan changed where the plan went while the offer was being made', async () => {
+      // The meal is there when the swap looks it up, and gone with its day when the plan is read for the offer.
+      const plans = t.app.get(MealPlansService);
+      const read = plans.get.bind(plans);
+      const spy = vi.spyOn(plans, 'get').mockImplementationOnce(async (...args) => {
+        await t.prisma.mealPlanDay.deleteMany({ where: { planId: plan.id } });
+        return read(...args);
+      });
+      try {
+        expect((await offer().expect(409)).body.error).toBe('PLAN_CHANGED');
+      } finally {
+        spy.mockRestore();
+      }
     });
 
     it('is refused for a favourite the profile rules out, with the rule', async () => {

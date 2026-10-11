@@ -305,12 +305,14 @@ export class MealSwapService {
     ]);
     // The offer is for the plan as it was read. Where the plan changed in the
     // meantime, which a model's answer gives it time to, the offer would be
-    // for a meal that may be gone.
-    if (plan.revision !== meal.day.plan.revision) {
+    // for a meal that may be gone. A plan that is being deleted can be read
+    // with its days already gone: that is a changed plan too.
+    const day = plan.days.find((candidate) => candidate.id === meal.dayId);
+    const planned = day?.meals.find((candidate) => candidate.id === meal.id);
+    if (plan.revision !== meal.day.plan.revision || !day || !planned) {
       throw new ConflictException({ error: 'PLAN_CHANGED', message: 'The plan changed while this request was running. Reload it and try again.' });
     }
-    const day = plan.days.find((candidate) => candidate.id === meal.dayId)!;
-    const before = day.meals.find((candidate) => candidate.id === meal.id)!.nutrition;
+    const before = planned.nutrition;
     const recipe = toRecipeDto(row, locale);
     const servings = fitServings(replacement.caloriesPerServing, held);
     const perServing = recipe.nutritionPerServing;
