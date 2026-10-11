@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AiTestConnectionRequest, AiTestConnectionResponse } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
-import { ollamaRequest } from './ollama-http.js';
+import { outboundRequest } from '../common/outbound-http.js';
 import { assertAllowedOllamaUrl, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
 
 /** Hard ceiling on a single provider probe — a slow/hostile endpoint must not
@@ -95,7 +95,7 @@ export class AiTestService {
       }
     }
     const root = baseUrl ?? defaultBaseUrl;
-    const res = await ollamaRequest(`${root.replace(/\/$/, '')}/api/tags`, {
+    const res = await outboundRequest(`${root.replace(/\/$/, '')}/api/tags`, {
       method: 'GET',
       timeoutMs: PROBE_TIMEOUT_MS,
       maxBytes: PROBE_MAX_BYTES,

@@ -22,11 +22,12 @@
  *
  * A URL only names a host. Under `public` the name is checked here by its
  * shape, and the addresses it resolves to are checked again when the
- * connection is made (see `ollama-http.ts`), so a public name that points at
- * an internal address is refused as well.
+ * connection is made (see `common/outbound-http.ts`), so a public name that
+ * points at an internal address is refused as well.
  */
-import { BlockList, isIP } from 'node:net';
+import { isIP } from 'node:net';
 import type { OllamaUserPolicy } from '@diet-app/shared';
+import { isPublicAddress } from '../common/public-address.js';
 
 export type { OllamaUserPolicy };
 
@@ -110,52 +111,6 @@ export function isOperatorOllama(rawUrl: string, defaultBaseUrl: string): boolea
   } catch {
     return false;
   }
-}
-
-/** Every range that is not a public unicast address. */
-const NOT_PUBLIC = new BlockList();
-for (const [network, prefix] of [
-  ['0.0.0.0', 8], // this network
-  ['10.0.0.0', 8], // private
-  ['100.64.0.0', 10], // carrier-grade NAT
-  ['127.0.0.0', 8], // loopback
-  ['169.254.0.0', 16], // link-local, including cloud metadata
-  ['172.16.0.0', 12], // private
-  ['192.0.0.0', 24], // protocol assignments
-  ['192.168.0.0', 16], // private
-  ['198.18.0.0', 15], // benchmarking
-  ['224.0.0.0', 4], // multicast
-  ['240.0.0.0', 4], // reserved, including broadcast
-] as const) {
-  NOT_PUBLIC.addSubnet(network, prefix, 'ipv4');
-}
-for (const [network, prefix] of [
-  // Unspecified, loopback and IPv4-compatible addresses. The forms that carry
-  // an IPv4 address inside an IPv6 one are refused whole: nobody's Ollama is
-  // reached through them, and each is a way to spell an internal address.
-  ['::', 96],
-  ['::ffff:0:0:0', 96], // IPv4-translated
-  ['64:ff9b::', 96], // NAT64
-  ['64:ff9b:1::', 48], // local-use NAT64
-  ['100::', 64], // discard
-  ['2001::', 32], // Teredo
-  ['2002::', 16], // 6to4
-  ['fc00::', 7], // unique local
-  ['fe80::', 10], // link-local
-  ['fec0::', 10], // site-local
-  ['ff00::', 8], // multicast
-] as const) {
-  NOT_PUBLIC.addSubnet(network, prefix, 'ipv6');
-}
-
-/**
- * True for an IP address that is public. An IPv4-mapped IPv6 address
- * (`::ffff:10.0.0.1`) is judged by the IPv4 address it carries.
- */
-export function isPublicAddress(address: string): boolean {
-  const family = isIP(address);
-  if (family === 0) return false;
-  return !NOT_PUBLIC.check(address, family === 4 ? 'ipv4' : 'ipv6');
 }
 
 /** True for hosts that should never be reachable in `public` mode. */

@@ -3,7 +3,7 @@
 import { createServer, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ollamaRequest, OllamaRequestError, type OllamaRequest, type Resolver } from './ollama-http.js';
+import { outboundRequest, OutboundRequestError, type OutboundRequest, type Resolver } from './outbound-http.js';
 
 /** What the stub server does with the next request; each test sets it. */
 let respond: (path: string, body: string, res: ServerResponse) => void;
@@ -27,7 +27,7 @@ afterAll(async () => {
   await new Promise((closed) => server.close(closed));
 });
 
-const request = (overrides: Partial<OllamaRequest> = {}): OllamaRequest => ({
+const request = (overrides: Partial<OutboundRequest> = {}): OutboundRequest => ({
   method: 'GET',
   timeoutMs: 3_000,
   maxBytes: 10_000,
@@ -50,17 +50,17 @@ const resolver =
     );
   };
 
-async function failure(call: Promise<unknown>): Promise<OllamaRequestError> {
+async function failure(call: Promise<unknown>): Promise<OutboundRequestError> {
   try {
     await call;
   } catch (err) {
-    expect(err).toBeInstanceOf(OllamaRequestError);
-    return err as OllamaRequestError;
+    expect(err).toBeInstanceOf(OutboundRequestError);
+    return err as OutboundRequestError;
   }
   throw new Error('the request was expected to fail');
 }
 
-describe('ollamaRequest', () => {
+describe('outboundRequest', () => {
   it('sends a JSON body and returns the status and the text of the answer', async () => {
     let seen = '';
     respond = (path, body, res) => {
@@ -69,7 +69,7 @@ describe('ollamaRequest', () => {
       res.end('{"ok":true}');
     };
 
-    const res = await ollamaRequest(`http://127.0.0.1:${port}/api/chat`, request({ method: 'POST', body: { model: 'm' } }));
+    const res = await outboundRequest(`http://127.0.0.1:${port}/api/chat`, request({ method: 'POST', body: { model: 'm' } }));
 
     expect(res).toMatchObject({ status: 200, text: '{"ok":true}' });
     expect(seen).toBe('/api/chat {"model":"m"}');
@@ -80,7 +80,7 @@ describe('ollamaRequest', () => {
       res.writeHead(404, 'Not Found');
       res.end('no such model');
     };
-    await expect(ollamaRequest(`http://127.0.0.1:${port}/api/tags`, request())).resolves.toMatchObject({
+    await expect(outboundRequest(`http://127.0.0.1:${port}/api/tags`, request())).resolves.toMatchObject({
       status: 404,
       statusText: 'Not Found',
       text: 'no such model',
@@ -99,7 +99,7 @@ describe('ollamaRequest', () => {
     };
     hits = 0;
 
-    const res = await ollamaRequest(`http://127.0.0.1:${port}/api/tags`, request());
+    const res = await outboundRequest(`http://127.0.0.1:${port}/api/tags`, request());
 
     expect(res.status).toBe(307);
     expect(res.text).toBe('');
@@ -117,7 +117,7 @@ describe('ollamaRequest', () => {
       more();
     };
 
-    const flood = await failure(ollamaRequest(`http://127.0.0.1:${port}/`, request({ maxBytes: 10_000 })));
+    const flood = await failure(outboundRequest(`http://127.0.0.1:${port}/`, request({ maxBytes: 10_000 })));
 
     expect(flood.failure).toBe('too_large');
   });
@@ -126,17 +126,17 @@ describe('ollamaRequest', () => {
     respond = () => {
       // Never answers.
     };
-    expect((await failure(ollamaRequest(`http://127.0.0.1:${port}/`, request({ timeoutMs: 150 })))).failure).toBe('timeout');
+    expect((await failure(outboundRequest(`http://127.0.0.1:${port}/`, request({ timeoutMs: 150 })))).failure).toBe('timeout');
 
     respond = (_path, _body, res) => {
       res.writeHead(200);
       res.write('half an ans');
     };
-    expect((await failure(ollamaRequest(`http://127.0.0.1:${port}/`, request({ timeoutMs: 150 })))).failure).toBe('timeout');
+    expect((await failure(outboundRequest(`http://127.0.0.1:${port}/`, request({ timeoutMs: 150 })))).failure).toBe('timeout');
   });
 
   it('reports a host that cannot be reached as a network failure', async () => {
-    expect((await failure(ollamaRequest('http://127.0.0.1:1/', request()))).failure).toBe('network');
+    expect((await failure(outboundRequest('http://127.0.0.1:1/', request()))).failure).toBe('network');
   });
 
   describe('when only a public address may be dialled', () => {
@@ -152,11 +152,11 @@ describe('ollamaRequest', () => {
         res.writeHead(200);
         res.end('reached');
       };
-      const open = await ollamaRequest(`http://localhost:${port}/`, request({ publicOnly: false }));
+      const open = await outboundRequest(`http://localhost:${port}/`, request({ publicOnly: false }));
       expect(open.text).toBe('reached');
 
       hits = 0;
-      const refused = await failure(ollamaRequest(`http://localhost:${port}/`, request({ publicOnly: true })));
+      const refused = await failure(outboundRequest(`http://localhost:${port}/`, request({ publicOnly: true })));
       expect(refused.failure).toBe('address_not_public');
       expect(hits).toBe(0);
     });
@@ -171,7 +171,7 @@ describe('ollamaRequest', () => {
         hits = 0;
 
         const refused = await failure(
-          ollamaRequest(`http://${name}:${port}/api/tags`, request({ publicOnly: true }), names),
+          outboundRequest(`http://${name}:${port}/api/tags`, request({ publicOnly: true }), names),
         );
 
         expect(refused.failure).toBe('address_not_public');
@@ -181,7 +181,7 @@ describe('ollamaRequest', () => {
 
     it('reports a name that does not resolve as a network failure', async () => {
       const unknown = await failure(
-        ollamaRequest(`http://no-such-host.example:${port}/`, request({ publicOnly: true }), names),
+        outboundRequest(`http://no-such-host.example:${port}/`, request({ publicOnly: true }), names),
       );
       expect(unknown.failure).toBe('network');
     });

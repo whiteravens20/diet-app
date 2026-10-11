@@ -1,23 +1,23 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * The one way this application talks to an Ollama server.
+ * A request to a server whose address did not come from the operator: a
+ * user's own model server, or a source the administrator names in the panel.
  *
- * An Ollama address can come from a user, so the request is made with care:
- * it never follows a redirect (a server that answers 3xx is not followed to
- * wherever it points), it stops reading a body that grows past a limit, it
- * gives up after a deadline, and when the caller asks for it, it connects
- * only to public addresses. That last check happens on the addresses the
- * name resolves to at the moment of connecting, and the connection goes to
- * the address that was checked, so a name cannot pass as public and then
- * resolve to something internal.
+ * Such a request is made with care. It never follows a redirect (a server
+ * that answers 3xx is not followed to wherever it points), it stops reading a
+ * body that grows past a limit, it gives up after a deadline, and when the
+ * caller asks for it, it connects only to public addresses. That check
+ * happens on the addresses the name resolves to at the moment of connecting,
+ * and the connection goes to the address that was checked, so a name cannot
+ * pass as public and then resolve to something internal.
  */
 import { lookup as dnsLookup, type LookupAddress, type LookupOptions } from 'node:dns';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
-import { isPublicAddress } from './ollama-url.js';
+import { isPublicAddress } from './public-address.js';
 
-export interface OllamaRequest {
+export interface OutboundRequest {
   method: 'GET' | 'POST';
   /** Sent as JSON. */
   body?: unknown;
@@ -28,21 +28,21 @@ export interface OllamaRequest {
   publicOnly: boolean;
 }
 
-export interface OllamaResponse {
+export interface OutboundResponse {
   status: number;
   statusText: string;
   text: string;
 }
 
-export type OllamaFailure = 'timeout' | 'too_large' | 'address_not_public' | 'network';
+export type OutboundFailure = 'timeout' | 'too_large' | 'address_not_public' | 'network';
 
-export class OllamaRequestError extends Error {
+export class OutboundRequestError extends Error {
   constructor(
-    readonly failure: OllamaFailure,
+    readonly failure: OutboundFailure,
     message: string,
   ) {
     super(message);
-    this.name = 'OllamaRequestError';
+    this.name = 'OutboundRequestError';
   }
 }
 
@@ -71,7 +71,7 @@ function publicLookup(resolve: Resolver) {
       const internal = addresses.find((entry) => !isPublicAddress(entry.address));
       if (internal || addresses.length === 0) {
         return callback(
-          new OllamaRequestError('address_not_public', `${hostname} does not resolve to a public address.`),
+          new OutboundRequestError('address_not_public', `${hostname} does not resolve to a public address.`),
           [],
         );
       }
@@ -81,22 +81,22 @@ function publicLookup(resolve: Resolver) {
   };
 }
 
-export function ollamaRequest(
+export function outboundRequest(
   url: string,
-  req: OllamaRequest,
+  req: OutboundRequest,
   resolve: Resolver = dnsLookup as Resolver,
-): Promise<OllamaResponse> {
+): Promise<OutboundResponse> {
   return new Promise((done, fail) => {
     const target = new URL(url);
     const body = req.body === undefined ? undefined : JSON.stringify(req.body);
     const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
 
     let settled = false;
-    const finish = (outcome: OllamaResponse | OllamaRequestError): void => {
+    const finish = (outcome: OutboundResponse | OutboundRequestError): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      if (outcome instanceof OllamaRequestError) fail(outcome);
+      if (outcome instanceof OutboundRequestError) fail(outcome);
       else done(outcome);
     };
 
@@ -117,7 +117,7 @@ export function ollamaRequest(
           received += chunk.byteLength;
           if (received > req.maxBytes) {
             request.destroy();
-            finish(new OllamaRequestError('too_large', `The server sent more than ${req.maxBytes} bytes; the reply was discarded.`));
+            finish(new OutboundRequestError('too_large', `The server sent more than ${req.maxBytes} bytes; the reply was discarded.`));
             return;
           }
           chunks.push(chunk);
@@ -129,17 +129,17 @@ export function ollamaRequest(
             text: Buffer.concat(chunks).toString('utf8'),
           });
         });
-        res.on('error', (err) => finish(new OllamaRequestError('network', err.message)));
+        res.on('error', (err) => finish(new OutboundRequestError('network', err.message)));
       },
     );
 
     const timer = setTimeout(() => {
       request.destroy();
-      finish(new OllamaRequestError('timeout', `No answer within ${Math.round(req.timeoutMs / 1000)} s.`));
+      finish(new OutboundRequestError('timeout', `No answer within ${Math.round(req.timeoutMs / 1000)} s.`));
     }, req.timeoutMs);
 
     request.on('error', (err) => {
-      finish(err instanceof OllamaRequestError ? err : new OllamaRequestError('network', err.message));
+      finish(err instanceof OutboundRequestError ? err : new OutboundRequestError('network', err.message));
     });
     request.end(body);
   });

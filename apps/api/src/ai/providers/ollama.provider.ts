@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable } from '@nestjs/common';
-import { ollamaRequest, OllamaRequestError } from '../ollama-http.js';
+import { outboundRequest, OutboundRequestError } from '../../common/outbound-http.js';
 import {
   AiProviderError,
   type AiProviderAdapter,
@@ -15,7 +15,7 @@ import {
  * points `OLLAMA_BASE_URL` at a reachable Ollama instance. This is the
  * recommended default for fully self-hosted, key-free deployments.
  *
- * The request goes through `ollamaRequest`, not the `ollama` npm client: the
+ * The request goes through `outboundRequest`, not the `ollama` npm client: the
  * address may be a user's, and the deadline has to cancel the request in
  * flight. Without that, a model too slow for the prompt would hold the request
  * until some proxy in front of the API gave up on it.
@@ -42,7 +42,7 @@ export class OllamaProvider implements AiProviderAdapter {
   async chat(messages: ChatMessage[], opts: CompletionOptions): Promise<CompletionResult> {
     const host = (opts.baseUrl ?? 'http://localhost:11434').replace(/\/$/, '');
     try {
-      const res = await ollamaRequest(`${host}/api/chat`, {
+      const res = await outboundRequest(`${host}/api/chat`, {
         method: 'POST',
         body: {
           model: opts.model,
@@ -70,7 +70,7 @@ export class OllamaProvider implements AiProviderAdapter {
       };
     } catch (err) {
       if (err instanceof AiProviderError) throw err;
-      const timedOut = err instanceof OllamaRequestError && err.failure === 'timeout';
+      const timedOut = err instanceof OutboundRequestError && err.failure === 'timeout';
       const message = timedOut
         ? `Ollama did not answer within ${Math.round(opts.timeoutMs / 1000)} s; the model may be too slow for this prompt.`
         : err instanceof Error
