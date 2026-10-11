@@ -268,6 +268,8 @@ export class AiRecipeDraftService {
             { title: payload.titles[lc]!, description: payload.descriptions[lc]!, steps: payload.steps[lc]! },
           ]),
         ),
+        // Every word of it is the model's.
+        modelWrote: new Set(targetLocales),
         servings: payload.servings,
         mealTypes: payload.mealTypes,
         prepMinutes: payload.prepMinutes,

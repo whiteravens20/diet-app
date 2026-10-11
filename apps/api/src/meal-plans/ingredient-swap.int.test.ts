@@ -93,6 +93,19 @@ describe('the text of a recipe after an ingredient swap', () => {
     expect(answer.aiMeta).toBeNull();
   });
 
+  /** Who wrote the text of the recipe the meal holds now, language by language. */
+  const writers = async (): Promise<Record<string, string>> => {
+    const { recipeId } = await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: mealId } });
+    const rows = await t.prisma.recipeTranslation.findMany({ where: { recipeId: recipeId! }, select: { locale: true, source: true } });
+    return Object.fromEntries(rows.map((row) => [row.locale, row.source]));
+  };
+
+  it('stores the plain replacement as text no model wrote', async () => {
+    await broccoliForTomato();
+
+    expect(await writers()).toEqual({ en: 'MANUAL', pl: 'MANUAL' });
+  });
+
   it('answers without AI metadata over HTTP unless a rewording was asked for', async () => {
     const res = await t
       .http()
@@ -129,6 +142,23 @@ describe('the text of a recipe after an ingredient swap', () => {
       expect(answer.aiMeta).toMatchObject({ provider: 'ollama', usedDeterministicFallback: false, fallbackReason: null });
       // One call was made and paid for, not one for each language.
       expect(await t.prisma.aiUsageLog.count({ where: { userId: user.id, operation: 'swap-rewrite' } })).toBe(1);
+    });
+
+    it('stores what the model wrote as a model\'s text, and the other language as not', async () => {
+      t.model.reply({ match: REWORDING, text: JSON.stringify(polish), times: 5 });
+
+      await broccoliForTomato({ locale: 'pl', rewriteWithAi: true });
+
+      // What the decision on translations promises: model text can be told apart, and removed, by its source.
+      expect(await writers()).toEqual({ en: 'MANUAL', pl: 'AI' });
+    });
+
+    it('stores nothing as a model\'s text when the rewording was not usable', async () => {
+      t.model.reply({ match: REWORDING, text: 'I would rather not.', times: 5 });
+
+      await broccoliForTomato({ locale: 'pl', rewriteWithAi: true });
+
+      expect(await writers()).toEqual({ en: 'MANUAL', pl: 'MANUAL' });
     });
 
     it('rewords the English text for a request in English', async () => {

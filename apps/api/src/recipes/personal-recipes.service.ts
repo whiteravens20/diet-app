@@ -38,6 +38,12 @@ export interface PersonalRecipe {
   origin: 'user' | 'ai';
   /** The text by locale; `en` is required and is what the recipe row itself carries. */
   text: ReadonlyMap<string, RecipeText>;
+  /**
+   * The languages whose text a model wrote. Their rows are stored as a model's
+   * (`AI`), so that such text can be told apart and removed by its source;
+   * every other language is stored as text no model wrote.
+   */
+  modelWrote?: ReadonlySet<string>;
   servings: number;
   mealTypes: string[];
   prepMinutes: number;
@@ -267,7 +273,11 @@ export class PersonalRecipesService {
         reuseScore: recipe.reuseScore ?? 0,
         ingredients: { create: recipe.ingredients },
         translations: {
-          create: [...recipe.text].map(([locale, text]) => ({ locale, ...text, source: 'MANUAL' as const })),
+          create: [...recipe.text].map(([locale, text]) => ({
+            locale,
+            ...text,
+            source: recipe.modelWrote?.has(locale) ? ('AI' as const) : ('MANUAL' as const),
+          })),
         },
       },
       select: { id: true },

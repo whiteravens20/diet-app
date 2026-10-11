@@ -111,6 +111,28 @@ describe('drafting a recipe with a model', () => {
     expect([...recipe.allergens].sort()).toEqual([...new Set(rows.flatMap((row) => row.allergens))].sort());
   });
 
+  it('stores the text as a model\'s, in every language it was written in', async () => {
+    t.model.reply({
+      text: (request) => {
+        const one = draft(request);
+        return JSON.stringify({
+          ...one,
+          titles: { en: one.title, pl: 'Miska ze skryptu' },
+          descriptions: { en: one.description, pl: 'Szybka miska z trzech rzeczy z szafki.' },
+          steps: { en: one.steps, pl: ['Przygotuj składniki.', 'Ugotuj wszystko razem i podaj.'] },
+        });
+      },
+    });
+
+    const { recipe } = await ask({}, 'pl');
+
+    const rows = await t.prisma.recipeTranslation.findMany({ where: { recipeId: recipe.id }, select: { locale: true, source: true } });
+    expect(Object.fromEntries(rows.map((row) => [row.locale, row.source]))).toEqual({ en: 'AI', pl: 'AI' });
+    // Removing model text by its source, as the decision on translations describes, leaves the recipe readable.
+    await t.prisma.recipeTranslation.deleteMany({ where: { source: 'AI' } });
+    expect((await t.prisma.recipe.findUniqueOrThrow({ where: { id: recipe.id } })).title).toBe('Scripted bowl');
+  });
+
   it('asks for more output when the recipe is written in two languages', async () => {
     t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
     await ask();

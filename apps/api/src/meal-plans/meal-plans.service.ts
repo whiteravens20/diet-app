@@ -1147,6 +1147,7 @@ export class MealPlansService {
         userId,
         origin: 'user',
         text: variant.text,
+        modelWrote: variant.modelWrote,
         servings: recipe.servings,
         mealTypes: recipe.mealTypes,
         prepMinutes: recipe.prepMinutes,
@@ -1188,7 +1189,7 @@ export class MealPlansService {
     oldIngredient: { name: string; translations: { locale: string; name: string }[] },
     newIngredient: { name: string; translations: { locale: string; name: string }[] },
     rewriteWithAi: boolean,
-  ): Promise<{ text: Map<Locale, RecipeLocaleSlice>; aiMeta: AiGenerationMeta | null }> {
+  ): Promise<{ text: Map<Locale, RecipeLocaleSlice>; aiMeta: AiGenerationMeta | null; modelWrote: Set<Locale> }> {
     const localeOptions = LocaleEnum.options;
     // The recipe row itself holds the English text; a translation row for `en` wins over it.
     const sourceSlices = new Map<Locale, RecipeLocaleSlice>([
@@ -1210,22 +1211,25 @@ export class MealPlansService {
 
     // A model rewords the text only when the user asked for it in this
     // request: it costs them a call and time they did not otherwise spend.
-    if (!rewriteWithAi) return { text: rewriteSwapModeA(input), aiMeta: null };
+    if (!rewriteWithAi) return { text: rewriteSwapModeA(input), aiMeta: null, modelWrote: new Set() };
 
     // One call, for the language the user reads the recipe in: their own, or
     // English when the recipe is not written in it. Where the model delivers
     // nothing usable the plain replacement stands, and the answer says why.
     let aiMeta: AiGenerationMeta | null = null;
+    // The languages a model's rewording went into: stored as a model's text.
+    const modelWrote = new Set<Locale>();
     const text = await rewriteSwapModeB({
       ...input,
       locale: sourceSlices.has(locale) ? locale : 'en',
       rewrite: async (rewritten, slice) => {
         const answer = await this.aiRewriteSwapSentences(userId, rewritten, slice);
         aiMeta = answer.aiMeta;
+        if (answer.text) modelWrote.add(rewritten);
         return answer.text;
       },
     });
-    return { text, aiMeta };
+    return { text, aiMeta, modelWrote };
   }
 
   /**
