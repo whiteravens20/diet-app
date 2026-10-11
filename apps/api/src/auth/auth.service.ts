@@ -10,7 +10,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import type {
   AuthResponse,
   LoginRequest,
@@ -27,7 +26,7 @@ import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
 import { retirePendingLinks } from './one-time-links.js';
-import { ACCOUNT_AUDIENCE, TOKEN_ALGORITHM } from './token-kinds.js';
+import { SessionsService } from './sessions.service.js';
 import { TurnstileService } from './turnstile.service.js';
 
 /** An account may ask for its verification mail again this long after the last one went out. */
@@ -51,11 +50,11 @@ export class AuthService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly jwt: JwtService,
     private readonly config: ConfigService<Env, true>,
     private readonly turnstile: TurnstileService,
     private readonly mail: MailService,
     private readonly emails: AccountEmail,
+    private readonly sessions: SessionsService,
   ) {
     const master = this.config.get('DATA_ENCRYPTION_SECRET', { infer: true });
     this.pepperKey = deriveKey(master, 'password-pepper');
@@ -96,7 +95,7 @@ export class AuthService {
       // unique index decides, and the one that loses gets the usual answer.
       .catch(rethrowAsEmailTaken);
     if (this.mail.enabled) await this.sendVerificationEmail(user.id, email, locale);
-    return this.issueTokens(user, email);
+    return this.sessions.open(user, email);
   }
 
   /**
@@ -171,27 +170,7 @@ export class AuthService {
         message: 'Email or password is incorrect.',
       });
     }
-    return this.issueTokens(user, email);
-  }
-
-  async refresh(refreshToken: string): Promise<AuthResponse> {
-    const tokenHash = sha256(refreshToken);
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash },
-      include: { user: true },
-    });
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-      throw new UnauthorizedException({ error: 'INVALID_REFRESH', message: 'Refresh token rejected.' });
-    }
-    // Rotate: revoke the used token, issue a fresh pair.
-    await this.prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
-    return this.issueTokens(stored.user, this.emails.open(stored.user.emailEncrypted, stored.user.id));
-  }
-
-  async logout(refreshToken: string): Promise<void> {
-    await this.prisma.refreshToken
-      .updateMany({ where: { tokenHash: sha256(refreshToken) }, data: { revokedAt: new Date() } })
-      .catch(() => undefined);
+    return this.sessions.open(user, email);
   }
 
   /**
@@ -315,40 +294,6 @@ export class AuthService {
     if (!(await this.turnstile.verify(token))) {
       throw new BadRequestException({ error: 'TURNSTILE_FAILED', message: 'Anti-abuse check failed.' });
     }
-  }
-
-  private async issueTokens(
-    user: { id: string; displayName: string; role: 'user' | 'admin'; emailVerified: boolean },
-    email: string,
-  ): Promise<AuthResponse> {
-    const accessTtl = this.config.get('JWT_ACCESS_TTL', { infer: true });
-    const refreshTtl = this.config.get('JWT_REFRESH_TTL', { infer: true });
-
-    // Whose it is, and nothing else: whatever a client shows of the account
-    // comes from the API, not from inside a token.
-    const accessToken = await this.jwt.signAsync(
-      { sub: user.id },
-      { secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }), expiresIn: accessTtl, algorithm: TOKEN_ALGORITHM, audience: ACCOUNT_AUDIENCE },
-    );
-    const refreshToken = randomBytes(48).toString('hex');
-    await this.prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: sha256(refreshToken),
-        expiresAt: new Date(Date.now() + refreshTtl * 1000),
-      },
-    });
-
-    return {
-      user: {
-        id: user.id,
-        email,
-        displayName: user.displayName,
-        role: user.role,
-        emailVerified: user.emailVerified,
-      },
-      tokens: { accessToken, refreshToken, expiresIn: accessTtl },
-    };
   }
 }
 

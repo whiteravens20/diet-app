@@ -16,6 +16,7 @@ import { RequestLocale } from '../common/request-locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { byAccount, byAccountAndAddress, byToken, TriesCredential } from '../rate-limit/trackers.js';
 import { AuthService } from './auth.service.js';
+import { SessionsService } from './sessions.service.js';
 
 const MINUTE = 60_000;
 const QUARTER_HOUR = 15 * MINUTE;
@@ -33,7 +34,10 @@ const QUARTER_HOUR = 15 * MINUTE;
 @Controller('auth')
 @Throttle({ default: { limit: 10, ttl: MINUTE } })
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly sessions: SessionsService,
+  ) {}
 
   @Post('register')
   register(
@@ -63,7 +67,7 @@ export class AuthController {
   @Throttle({ default: { limit: 30, ttl: MINUTE } })
   @TriesCredential({ by: byToken('refreshToken'), limit: 10, ttl: MINUTE })
   refresh(@Body(new ZodValidationPipe(RefreshRequest)) dto: RefreshRequest) {
-    return this.auth.refresh(dto.refreshToken);
+    return this.sessions.refresh(dto.refreshToken);
   }
 
   @Post('logout')
@@ -71,7 +75,7 @@ export class AuthController {
   @Throttle({ default: { limit: 30, ttl: MINUTE } })
   @TriesCredential({ by: byToken('refreshToken'), limit: 10, ttl: MINUTE })
   async logout(@Body(new ZodValidationPipe(RefreshRequest)) dto: RefreshRequest) {
-    await this.auth.logout(dto.refreshToken);
+    await this.sessions.end(dto.refreshToken);
   }
 
   // Every accepted request sends a mail: five in a quarter of an hour for one

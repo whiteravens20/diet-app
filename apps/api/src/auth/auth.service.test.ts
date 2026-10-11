@@ -13,6 +13,7 @@ import * as bcrypt from 'bcrypt';
 import { describe, expect, it, vi } from 'vitest';
 import { AccountEmail } from './account-email.js';
 import { AuthService } from './auth.service.js';
+import { SessionsService } from './sessions.service.js';
 import { deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
 
 const MASTER = 'c'.repeat(64);
@@ -79,12 +80,15 @@ function makeDeps(user: ReturnType<typeof makeUser> | null) {
   return { prisma, jwt, turnstile, mail };
 }
 
+function makeSessions(deps: ReturnType<typeof makeDeps>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
+  return new SessionsService(deps.prisma as any, deps.jwt as any, makeConfig() as any, new AccountEmail(makeConfig() as any));
+}
+
 function makeService(deps: ReturnType<typeof makeDeps>) {
   return new AuthService(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     deps.prisma as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
-    deps.jwt as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     makeConfig() as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
@@ -93,6 +97,7 @@ function makeService(deps: ReturnType<typeof makeDeps>) {
     deps.mail as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     new AccountEmail(makeConfig() as any),
+    makeSessions(deps),
   );
 }
 
@@ -165,7 +170,7 @@ describe('AuthService.login', () => {
 describe('AuthService.refresh', () => {
   it('rejects an unknown refresh token', async () => {
     const deps = makeDeps(makeUser());
-    await expect(makeService(deps).refresh('bogus')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(makeSessions(deps).refresh('bogus')).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('rejects a revoked token', async () => {
@@ -176,7 +181,7 @@ describe('AuthService.refresh', () => {
       expiresAt: new Date(Date.now() + 100000),
       user: makeUser(),
     });
-    await expect(makeService(deps).refresh('tok')).rejects.toMatchObject({
+    await expect(makeSessions(deps).refresh('tok')).rejects.toMatchObject({
       response: expect.objectContaining({ error: 'INVALID_REFRESH' }),
     });
   });
@@ -189,7 +194,7 @@ describe('AuthService.refresh', () => {
       expiresAt: new Date(Date.now() + 100000),
       user: makeUser(),
     });
-    const res = await makeService(deps).refresh('tok');
+    const res = await makeSessions(deps).refresh('tok');
     expect(deps.prisma.refreshToken.update).toHaveBeenCalledWith({
       where: { id: 'rt-1' },
       data: { revokedAt: expect.any(Date) },

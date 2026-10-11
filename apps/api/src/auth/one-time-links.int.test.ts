@@ -7,12 +7,14 @@ import { aMailbox, MAIL_ON } from '../testing/mailbox.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { UsersService } from '../users/users.service.js';
 import { AuthService } from './auth.service.js';
+import { SessionsService } from './sessions.service.js';
 
 const NEW_PASSWORD = 'Another-Passw0rd-1';
 
 describe('the links an account is sent by mail', () => {
   let t: TestApp;
   let auth: AuthService;
+  let sessions: SessionsService;
   let users: UsersService;
   let mailbox: ReturnType<typeof aMailbox>;
   let user: TestUser;
@@ -20,6 +22,7 @@ describe('the links an account is sent by mail', () => {
   beforeAll(async () => {
     t = await createTestApp(MAIL_ON);
     auth = t.app.get(AuthService);
+    sessions = t.app.get(SessionsService);
     users = t.app.get(UsersService);
     mailbox = aMailbox(t);
   });
@@ -58,7 +61,7 @@ describe('the links an account is sent by mail', () => {
     it('set by the owner of the account, ends every session of it and is the only one that signs in', async () => {
       await users.changePassword(user.id, { currentPassword: user.password, newPassword: NEW_PASSWORD });
 
-      await expect(auth.refresh(user.refreshToken)).rejects.toMatchObject(refusedAs('INVALID_REFRESH'));
+      await expect(sessions.refresh(user.refreshToken)).rejects.toMatchObject(refusedAs('INVALID_REFRESH'));
       expect(await signsInWith(user.email, NEW_PASSWORD)).toBe(true);
       expect(await signsInWith(user.email, user.password)).toBe(false);
     });
@@ -66,7 +69,7 @@ describe('the links an account is sent by mail', () => {
     it('set from a link, does the same', async () => {
       await reset(await aResetLink());
 
-      await expect(auth.refresh(user.refreshToken)).rejects.toMatchObject(refusedAs('INVALID_REFRESH'));
+      await expect(sessions.refresh(user.refreshToken)).rejects.toMatchObject(refusedAs('INVALID_REFRESH'));
       expect(await signsInWith(user.email, user.password)).toBe(false);
     });
 
@@ -74,7 +77,7 @@ describe('the links an account is sent by mail', () => {
       await expect(users.changePassword(user.id, { currentPassword: 'Not-The-Passw0rd', newPassword: NEW_PASSWORD })).rejects.toMatchObject(refusedAs('INVALID_PASSWORD'));
 
       expect(await signsInWith(user.email, user.password)).toBe(true);
-      await expect(auth.refresh(user.refreshToken)).resolves.toBeDefined();
+      await expect(sessions.refresh(user.refreshToken)).resolves.toBeDefined();
     });
   });
 

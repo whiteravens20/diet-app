@@ -9,12 +9,13 @@ import { AddressResealService } from './address-reseal.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './jwt.strategy.js';
+import { SessionsService } from './sessions.service.js';
 import { TurnstileService } from './turnstile.service.js';
 
 @Module({
   imports: [PassportModule, JwtModule.register({}), MailModule],
   controllers: [AuthController],
-  providers: [AuthService, AccountEmail, AddressResealService, JwtStrategy, TurnstileService],
-  exports: [AuthService, AccountEmail, AddressResealService],
+  providers: [AuthService, AccountEmail, AddressResealService, SessionsService, JwtStrategy, TurnstileService],
+  exports: [AuthService, AccountEmail, AddressResealService, SessionsService],
 })
 export class AuthModule {}
