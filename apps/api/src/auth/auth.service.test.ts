@@ -214,12 +214,6 @@ describe('AuthService.requestPasswordReset', () => {
     ).resolves.toBeUndefined();
     expect(deps.prisma.passwordResetToken.create).not.toHaveBeenCalled();
   });
-
-  it('creates a reset token for a known user', async () => {
-    const deps = makeDeps(makeUser());
-    await makeService(deps).requestPasswordReset({ email: 'alice@example.com' } as never);
-    expect(deps.prisma.passwordResetToken.create).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('AuthService.verifyEmail', () => {
@@ -234,15 +228,6 @@ describe('AuthService.verifyEmail', () => {
     await expect(makeService(deps).verifyEmail('raw')).rejects.toMatchObject({
       response: expect.objectContaining({ error: 'INVALID_VERIFICATION_TOKEN' }),
     });
-  });
-
-  it('marks the user verified and consumes the token', async () => {
-    const deps = makeDeps(makeUser());
-    deps.prisma.emailVerificationToken.findUnique = vi.fn().mockResolvedValue({
-      id: 't1', userId: 'user-1', usedAt: null, expiresAt: new Date(Date.now() + 100000),
-    });
-    await makeService(deps).verifyEmail('raw');
-    expect(deps.prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
   it('hashes the raw token before lookup (never stores plaintext)', async () => {

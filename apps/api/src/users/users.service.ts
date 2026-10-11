@@ -22,6 +22,7 @@ import type { Env } from '../config/env.js';
 import { carryUsageOfAccount } from '../ai/ai-quota.service.js';
 import { AccountEmail } from '../auth/account-email.js';
 import { AuthService } from '../auth/auth.service.js';
+import { retirePendingLinks } from '../auth/one-time-links.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { removePersonalRecipesOf } from '../recipes/personal-recipes.service.js';
@@ -116,15 +117,13 @@ export class UsersService {
       pepperPassword(dto.newPassword, this.pepperKey),
       rounds,
     );
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
       // Invalidate every active session so the rotation actually forces a re-login
       // everywhere the credentials might be cached.
-      this.prisma.refreshToken.updateMany({
-        where: { userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
+      await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await retirePendingLinks(tx, userId);
+    });
     // Best-effort "your password was changed" notice. Never let a mail hiccup
     // fail the password change itself.
     if (this.mail.enabled) {
@@ -169,15 +168,19 @@ export class UsersService {
     if (clash) throw new BadRequestException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' });
 
     const raw = randomBytes(32).toString('hex');
-    await this.prisma.emailChangeToken.create({
-      data: {
-        userId,
-        newEmailEncrypted: this.emails.sealPending(newEmail, userId),
-        newEmailIndex,
-        tokenHash: createHash('sha256').update(raw).digest('hex'),
-        expiresAt: new Date(Date.now() + 3_600_000),
-      },
-    });
+    await this.prisma.$transaction([
+      // One link at a time: asking again makes the earlier one stop working.
+      this.prisma.emailChangeToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } }),
+      this.prisma.emailChangeToken.create({
+        data: {
+          userId,
+          newEmailEncrypted: this.emails.sealPending(newEmail, userId),
+          newEmailIndex,
+          tokenHash: createHash('sha256').update(raw).digest('hex'),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+      }),
+    ]);
     const link = `${this.config.get('APP_URL', { infer: true })}/confirm-email-change?token=${raw}`;
     await this.mail.sendEmailChange(newEmail, link, Locale.parse(user.locale));
   }

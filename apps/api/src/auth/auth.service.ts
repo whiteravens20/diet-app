@@ -24,6 +24,7 @@ import type { Env } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
+import { retirePendingLinks } from './one-time-links.js';
 import { ACCOUNT_AUDIENCE, TOKEN_ALGORITHM } from './token-kinds.js';
 import { TurnstileService } from './turnstile.service.js';
 
@@ -147,13 +148,17 @@ export class AuthService {
     if (!user) return;
 
     const raw = randomBytes(32).toString('hex');
-    await this.prisma.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: sha256(raw),
-        expiresAt: new Date(Date.now() + 3_600_000), // 1 hour
-      },
-    });
+    await this.prisma.$transaction([
+      // One link at a time: asking again makes the earlier one stop working.
+      this.prisma.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: sha256(raw),
+          expiresAt: new Date(Date.now() + 3_600_000), // 1 hour
+        },
+      }),
+    ]);
     const link = `${this.config.get('APP_URL', { infer: true })}/reset-password?token=${raw}`;
     // Emails the link when SMTP is configured. Without SMTP, MailService logs
     // it outside production only. Use the user's stored locale.
@@ -165,19 +170,16 @@ export class AuthService {
     const token = await this.prisma.emailVerificationToken.findUnique({
       where: { tokenHash: sha256(rawToken) },
     });
-    if (!token || token.usedAt || token.expiresAt < new Date()) {
-      throw new BadRequestException({
+    const invalid = () =>
+      new BadRequestException({
         error: 'INVALID_VERIFICATION_TOKEN',
         message: 'Verification link is invalid or expired.',
       });
-    }
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: token.userId }, data: { emailVerified: true } }),
-      this.prisma.emailVerificationToken.update({
-        where: { id: token.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
+    if (!token || token.usedAt || token.expiresAt < new Date()) throw invalid();
+    await this.prisma.$transaction(async (tx) => {
+      if (!(await usedNow(tx.emailVerificationToken, token.id))) throw invalid();
+      await tx.user.update({ where: { id: token.userId }, data: { emailVerified: true } });
+    });
   }
 
   /**
@@ -190,17 +192,18 @@ export class AuthService {
     const token = await this.prisma.emailChangeToken.findUnique({
       where: { tokenHash: sha256(rawToken) },
     });
-    if (!token || token.usedAt || token.expiresAt < new Date()) {
-      throw new BadRequestException({
+    const invalid = () =>
+      new BadRequestException({
         error: 'INVALID_EMAIL_CHANGE_TOKEN',
         message: 'Email-change link is invalid or expired.',
       });
-    }
+    if (!token || token.usedAt || token.expiresAt < new Date()) throw invalid();
     const clash = await this.prisma.user.findUnique({ where: { emailIndex: token.newEmailIndex } });
     if (clash && clash.id !== token.userId) throw emailTaken();
     await this.prisma
-      .$transaction([
-        this.prisma.user.update({
+      .$transaction(async (tx) => {
+        if (!(await usedNow(tx.emailChangeToken, token.id))) throw invalid();
+        await tx.user.update({
           where: { id: token.userId },
           data: {
             // Sealed anew: as the address of the account, no longer as one it asked for.
@@ -208,13 +211,10 @@ export class AuthService {
             emailIndex: token.newEmailIndex,
             emailVerified: true,
           },
-        }),
-        this.prisma.emailChangeToken.update({ where: { id: token.id }, data: { usedAt: new Date() } }),
-        this.prisma.refreshToken.updateMany({
-          where: { userId: token.userId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        }),
-      ])
+        });
+        await tx.refreshToken.updateMany({ where: { userId: token.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+        await retirePendingLinks(tx, token.userId, { addressToo: true });
+      })
       // Someone registered the address after the check above.
       .catch(rethrowAsEmailTaken);
   }
@@ -223,20 +223,17 @@ export class AuthService {
     const token = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash: sha256(dto.token) },
     });
-    if (!token || token.usedAt || token.expiresAt < new Date()) {
-      throw new BadRequestException({ error: 'INVALID_RESET_TOKEN', message: 'Reset link is invalid or expired.' });
-    }
+    const invalid = () => new BadRequestException({ error: 'INVALID_RESET_TOKEN', message: 'Reset link is invalid or expired.' });
+    if (!token || token.usedAt || token.expiresAt < new Date()) throw invalid();
     const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
     const passwordHash = await this.hashPassword(dto.password, rounds);
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: token.userId }, data: { passwordHash } }),
-      this.prisma.passwordResetToken.update({ where: { id: token.id }, data: { usedAt: new Date() } }),
+    await this.prisma.$transaction(async (tx) => {
+      if (!(await usedNow(tx.passwordResetToken, token.id))) throw invalid();
+      await tx.user.update({ where: { id: token.userId }, data: { passwordHash } });
       // Invalidate every active session.
-      this.prisma.refreshToken.updateMany({
-        where: { userId: token.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
+      await tx.refreshToken.updateMany({ where: { userId: token.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await retirePendingLinks(tx, token.userId);
+    });
   }
 
   /** Peppers the password with an app-only key, then bcrypt-hashes it. */
@@ -283,6 +280,19 @@ export class AuthService {
       tokens: { accessToken, refreshToken, expiresIn: accessTtl },
     };
   }
+}
+
+/**
+ * Use a link, for the one request that may: true when this call marked it
+ * used, false when another had by then. Two requests that follow one link at
+ * the same moment both find it unused when they look it up; only one of them
+ * gets to mark it.
+ */
+async function usedNow(
+  links: { updateMany(args: { where: { id: string; usedAt: null }; data: { usedAt: Date } }): Promise<{ count: number }> },
+  id: string,
+): Promise<boolean> {
+  return (await links.updateMany({ where: { id, usedAt: null }, data: { usedAt: new Date() } })).count === 1;
 }
 
 function emailTaken(): ConflictException {

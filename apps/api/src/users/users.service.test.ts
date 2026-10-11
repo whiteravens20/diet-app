@@ -132,22 +132,7 @@ describe('UsersService', () => {
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
-    it('rotates the password and invalidates active refresh tokens', async () => {
-      await service.changePassword('user-1', {
-        currentPassword: 'CorrectHorse1',
-        newPassword: 'BrandNewPass1',
-      });
-      expect(prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'user-1' },
-          data: expect.objectContaining({ passwordHash: expect.any(String) }),
-        }),
-      );
-      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1', revokedAt: null },
-        data: { revokedAt: expect.any(Date) },
-      });
-    });
+    // What a change of password does is tested on a real database, in auth/one-time-links.int.test.ts.
   });
 
   describe('deleteAccount', () => {
