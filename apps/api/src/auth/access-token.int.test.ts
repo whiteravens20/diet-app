@@ -62,6 +62,16 @@ describe('an access token', () => {
 
     await me(token).expect(401);
   });
+
+  it('is refused once its account is gone, though it has not run out', async () => {
+    const gone = await aUser(t);
+    await me(gone.accessToken).expect(200);
+    await t.prisma.user.delete({ where: { id: gone.id } });
+
+    expect((await me(gone.accessToken).expect(401)).body.error).toBe('INVALID_ACCESS_TOKEN');
+    // A write would otherwise be made for an account that does not exist.
+    await t.http().post('/api/profiles').set({ Authorization: `Bearer ${gone.accessToken}` }).send({ name: 'Ghost', age: 30, sex: 'male', heightCm: 180, weightKg: 80, activityLevel: 'moderate', weeklyLossTarget: null }).expect(401);
+  });
 });
 
 describe('the token of a reviewer session', () => {
