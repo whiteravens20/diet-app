@@ -438,15 +438,19 @@ export function recipeCoverage(
   return Math.min(1, covered / required);
 }
 
-/** Share of plan ingredients that appear in more than one assigned recipe. */
+/**
+ * The share of the plan's ingredients that more than one of its recipes uses.
+ * A recipe that is eaten on several days is one recipe: eating it again buys
+ * the same things again, which is no reuse.
+ */
 export function reuseScore(
   assignments: OptimizerAssignment[],
   recipes: OptimizerRecipe[],
 ): number {
   const byId = new Map(recipes.map((r) => [r.id, r]));
   const counts = new Map<string, number>();
-  for (const a of assignments) {
-    for (const ing of byId.get(a.recipeId)?.ingredientIds ?? []) {
+  for (const recipeId of new Set(assignments.map((a) => a.recipeId))) {
+    for (const ing of byId.get(recipeId)?.ingredientIds ?? []) {
       counts.set(ing, (counts.get(ing) ?? 0) + 1);
     }
   }

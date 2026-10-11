@@ -4,6 +4,7 @@
 import type { MealType } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  reuseScore,
   seededJitter,
   type OptimizerRecipe,
 } from './optimizer.js';
@@ -52,5 +53,19 @@ describe('the seed of a plan', () => {
     expect(new Set([1, 2, 3, 4, 5, 6, 7, 8].map(order)).size).toBe(8);
     // Seeds that differ only in their high bits give different offsets: none of the seed is lost.
     expect(seededJitter('main-3', 1)).not.toBe(seededJitter('main-3', 1 + 2 ** 31));
+  });
+});
+
+describe('the reuse of ingredients in a plan', () => {
+  const eggs = dish('eggs', ['breakfast'], 400, { ingredientIds: ['egg', 'butter'] });
+  const omelette = dish('omelette', ['lunch'], 600, { ingredientIds: ['egg', 'cheese'] });
+  const at = (dayIndex: number, recipeId: string) => ({ dayIndex, slot: 'breakfast' as const, recipeId, servings: 1 });
+
+  it('is the share of ingredients that more than one recipe uses', () => {
+    expect(reuseScore([at(0, 'eggs'), at(0, 'omelette')], [eggs, omelette])).toBeCloseTo(1 / 3, 6);
+  });
+
+  it('does not count a recipe that is eaten again as reuse', () => {
+    expect(reuseScore([at(0, 'eggs'), at(1, 'eggs'), at(2, 'eggs')], [eggs, omelette])).toBe(0);
   });
 });
