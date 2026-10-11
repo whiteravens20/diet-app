@@ -1,31 +1,24 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Upstream-PR ship runner — maintainer-only path that lands approved drafts
- * in the canonical repo via a gh-CLI pull request.
+ * Shipping as a pull request: approved drafts are written into a checkout of
+ * a repository, committed on a branch of their own, pushed, and offered as a
+ * pull request through the `gh` tool.
  *
- * STRICT RULES:
- *   - Off by default (`SHIP_UPSTREAM_ENABLED=false`).
- *   - The UI hides this mode unless the env flag is on AND `gh` is on PATH
- *     AND a token is configured. The controller refuses to dispatch the run
- *     when any precondition is missing — fail-closed, no silent surprises.
- *   - Self-hoster instances should NEVER flip the env flag on. The
- *     canonical baseline lives under maintainer review; an open public
- *     instance pushing PRs upstream is a vandalism vector.
+ * The mode is off unless `SHIP_UPSTREAM_ENABLED` is set, and it refuses when
+ * no token is configured, when `gh` is missing, when no checkout is found, or
+ * when the remote is this project's own repository: text a model wrote is
+ * never pushed there. Each refusal has a code of its own, and the panel is
+ * told the same code when it asks which modes are on offer.
  *
- * Per plan §E:
- *   1. Find the repo root (walk up from `process.cwd()` until `.git`).
- *   2. Check out `drafts/<kind>/<short-batch-id>` from
- *      `SHIP_UPSTREAM_BASE_BRANCH`.
- *   3. Run writers (`recipe-batches.writer.ts` for recipes, the merge writer
- *      for ingredient overrides).
- *   4. `git add` specific paths only — never `-A`.
- *   5. `git commit` honouring hooks (no `--no-verify`).
- *   6. `git push -u <remote> <branch>`.
- *   7. `gh pr create --title --body --base <base>`.
- *   8. Only on success: flip drafts to SHIPPED + shippedPRUrl.
+ * One run:
+ *   1. check out `drafts/<kind>/<batch>-<stamp>` from the base branch of the remote,
+ *   2. write the batch file, or merge the names into the override file,
+ *   3. `git add` that one file, commit it (hooks run) and push the branch,
+ *   4. `gh pr create` against the base branch,
+ *   5. and only then mark the drafts shipped, with the pull request's address.
  */
-import { spawnSync, type SpawnSyncOptions } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
@@ -34,11 +27,7 @@ import {
   mergeIngredientOverrides,
   type IngredientOverrideFile,
 } from './ingredient-overrides.writer.js';
-import {
-  recipeBatchFilePath,
-  writeRecipeBatch,
-  type ShippedRecipe,
-} from './recipe-batches.writer.js';
+import { writeRecipeBatch, type ShippedRecipe } from './recipe-batches.writer.js';
 import { buildCurrentIngredientOverrides } from './current-overrides.js';
 import { shippableIngredientName, shippableRecipe, sortForShipping } from './shippable.js';
 
@@ -63,15 +52,29 @@ export function isCanonicalRemoteUrl(url: string): boolean {
   return CANONICAL_REMOTE_PATTERNS.some((p) => p.test(url.trim()));
 }
 
+/**
+ * Runs `git` or `gh` and reports how it ended. Everything this mode does
+ * outside the process goes through one of these, so that a test can hand in a
+ * stand-in and no test starts either tool or reaches a remote.
+ */
+export type CommandRunner = (
+  command: 'git' | 'gh',
+  args: string[],
+  options: { cwd?: string; env?: NodeJS.ProcessEnv },
+) => { status: number | null; stdout: string; stderr: string };
+
+/** The runner outside tests: starts the tool and waits for it. */
+export const runCommand: CommandRunner = (command, args, options) => {
+  const result = spawnSync(command, args, { ...options, encoding: 'utf8' });
+  return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+};
+
 /** Resolve the URL `git remote get-url <remote>` returns. Null when git is
  *  unavailable, the repo isn't a working tree, or the remote is unknown. */
-export function resolveRemoteUrl(repoRoot: string, remote: string): string | null {
-  const r = spawnSync('git', ['remote', 'get-url', remote], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
+export function resolveRemoteUrl(repoRoot: string, remote: string, run: CommandRunner = runCommand): string | null {
+  const r = run('git', ['remote', 'get-url', remote], { cwd: repoRoot });
   if (r.status !== 0) return null;
-  const url = (r.stdout || '').trim();
+  const url = r.stdout.trim();
   return url.length > 0 ? url : null;
 }
 
@@ -84,6 +87,8 @@ export interface UpstreamShipRequest {
    *  working tree). */
   repoRoot: string;
   config: UpstreamShipConfig;
+  /** What runs `git` and `gh`; the real tools unless a test hands in a stand-in. */
+  run?: CommandRunner;
 }
 
 export interface UpstreamShipResult {
@@ -104,17 +109,8 @@ export class UpstreamShipError extends Error {
 
 /** True iff the gh CLI binary resolves on PATH. Used by the controller's
  *  /config endpoint so the UI can hide the option when gh isn't installed. */
-export function ghAvailable(): boolean {
-  const r = spawnSync('gh', ['--version'], { encoding: 'utf8' });
-  return r.status === 0;
-}
-
-/** True iff every precondition for upstream-pr mode is satisfied. The
- *  controller surfaces this in the /config endpoint. */
-export function upstreamReady(config: UpstreamShipConfig): boolean {
-  if (!config.enabled) return false;
-  if (!config.ghToken) return false;
-  return ghAvailable();
+export function ghAvailable(run: CommandRunner = runCommand): boolean {
+  return run('gh', ['--version'], {}).status === 0;
 }
 
 /** Returns a precondition error code if the runtime + repo state would
@@ -123,12 +119,15 @@ export function upstreamReady(config: UpstreamShipConfig): boolean {
 export function upstreamBlockedReason(
   config: UpstreamShipConfig,
   repoRoot: string | null,
+  run: CommandRunner = runCommand,
 ): string | null {
+  // What the settings alone decide comes first: a mode that is switched off
+  // says so without looking for a tool or a repository.
   if (!config.enabled) return 'SHIP_UPSTREAM_DISABLED';
   if (!config.ghToken) return 'SHIP_UPSTREAM_NO_TOKEN';
-  if (!ghAvailable()) return 'GH_MODE_UNAVAILABLE';
+  if (!ghAvailable(run)) return 'GH_MODE_UNAVAILABLE';
   if (!repoRoot) return 'SHIP_REPO_ROOT_NOT_FOUND';
-  const url = resolveRemoteUrl(repoRoot, config.remote);
+  const url = resolveRemoteUrl(repoRoot, config.remote, run);
   if (url && isCanonicalRemoteUrl(url)) {
     return 'SHIP_UPSTREAM_BLOCKED_CANONICAL';
   }
@@ -152,7 +151,8 @@ export async function shipRecipesUpstream(
   prisma: PrismaService,
   request: UpstreamShipRequest & { kind: 'recipe' },
 ): Promise<UpstreamShipResult> {
-  guardPreconditions(request.config, request.repoRoot);
+  const run = request.run ?? runCommand;
+  guardPreconditions(request.config, request.repoRoot, run);
   const where = {
     status: 'APPROVED' as const,
     ...(request.batchIds && request.batchIds.length > 0
@@ -175,15 +175,12 @@ export async function shipRecipesUpstream(
   const shortBatch = drafts[0].batchId.slice(0, 14);
   const branch = `drafts/recipes/${shortBatch}-${Date.now().toString(36)}`;
 
-  await prepareBranch(request.repoRoot, request.config, branch);
+  await prepareBranch(request.repoRoot, request.config, branch, run);
   const filePath = writeRecipeBatch(request.dataDir, branch.replace(/[/]/g, '-'), rows).path;
   const commitMsg = `drafts: recipes batch ${shortBatch} (${rows.length} rows)`;
-  await commitAndPush(request.repoRoot, request.config, branch, [filePath], commitMsg);
+  await commitAndPush(request.repoRoot, request.config, branch, [filePath], commitMsg, run);
 
-  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, {
-    title: commitMsg,
-    body: buildRecipePrBody(drafts, rows.length),
-  });
+  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildRecipePrBody(drafts, rows.length) }, run);
 
   await prisma.recipeDraft.updateMany({
     where: { id: { in: shippedIds } },
@@ -197,7 +194,8 @@ export async function shipIngredientNamesUpstream(
   prisma: PrismaService,
   request: UpstreamShipRequest & { kind: 'ingredient-name' },
 ): Promise<UpstreamShipResult> {
-  guardPreconditions(request.config, request.repoRoot);
+  const run = request.run ?? runCommand;
+  guardPreconditions(request.config, request.repoRoot, run);
   const where = {
     status: 'APPROVED' as const,
     ...(request.batchIds && request.batchIds.length > 0
@@ -226,17 +224,14 @@ export async function shipIngredientNamesUpstream(
   const shortBatch = drafts[0].batchId.slice(0, 14);
   const branch = `drafts/ingredient-names/${shortBatch}-${Date.now().toString(36)}`;
 
-  await prepareBranch(request.repoRoot, request.config, branch);
+  await prepareBranch(request.repoRoot, request.config, branch, run);
   const path = ingredientOverridesPath(request.dataDir);
   if (!existsSync(dirname(path))) mkdirSync(dirname(path), { recursive: true });
   mergeIngredientOverrides(path, additions);
   const commitMsg = `drafts: ingredient-names batch ${shortBatch} (${Object.keys(additions).length} rows)`;
-  await commitAndPush(request.repoRoot, request.config, branch, [path], commitMsg);
+  await commitAndPush(request.repoRoot, request.config, branch, [path], commitMsg, run);
 
-  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, {
-    title: commitMsg,
-    body: buildIngredientPrBody(drafts, Object.keys(additions).length),
-  });
+  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildIngredientPrBody(drafts, Object.keys(additions).length) }, run);
 
   await prisma.ingredientNameDraft.updateMany({
     where: { id: { in: drafts.filter((d) => additions[d.ingredientSlug]).map((d) => d.id) } },
@@ -266,9 +261,10 @@ export interface CurrentOverridesPushResult {
  *  doesn't have are preserved. Touches no draft rows. */
 export async function pushCurrentOverridesUpstream(
   prisma: PrismaService,
-  request: { dataDir: string; repoRoot: string; config: UpstreamShipConfig },
+  request: { dataDir: string; repoRoot: string; config: UpstreamShipConfig; run?: CommandRunner },
 ): Promise<CurrentOverridesPushResult> {
-  guardPreconditions(request.config, request.repoRoot);
+  const run = request.run ?? runCommand;
+  guardPreconditions(request.config, request.repoRoot, run);
   const file = await buildCurrentIngredientOverrides(prisma);
   const rowCount = Object.keys(file).length;
   if (rowCount === 0) {
@@ -279,24 +275,21 @@ export async function pushCurrentOverridesUpstream(
   }
 
   const branch = `overrides/sync-${Date.now().toString(36)}`;
-  await prepareBranch(request.repoRoot, request.config, branch);
+  await prepareBranch(request.repoRoot, request.config, branch, run);
   const path = ingredientOverridesPath(request.dataDir);
   if (!existsSync(dirname(path))) mkdirSync(dirname(path), { recursive: true });
   mergeIngredientOverrides(path, file);
   const commitMsg = `data: sync ingredient overrides (${rowCount} rows)`;
-  await commitAndPush(request.repoRoot, request.config, branch, [path], commitMsg);
+  await commitAndPush(request.repoRoot, request.config, branch, [path], commitMsg, run);
 
-  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, {
-    title: commitMsg,
-    body: buildCurrentOverridesPrBody(Object.keys(file)),
-  });
+  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildCurrentOverridesPrBody(Object.keys(file)) }, run);
 
   return { prUrl, branch, rowCount };
 }
 
 // ── git plumbing ────────────────────────────────────────────────────────────
 
-function guardPreconditions(config: UpstreamShipConfig, repoRoot: string): void {
+function guardPreconditions(config: UpstreamShipConfig, repoRoot: string, run: CommandRunner): void {
   if (!config.enabled) {
     throw new UpstreamShipError(
       'SHIP_UPSTREAM_DISABLED',
@@ -309,13 +302,13 @@ function guardPreconditions(config: UpstreamShipConfig, repoRoot: string): void 
       'SHIP_UPSTREAM_GH_TOKEN is missing',
     );
   }
-  if (!ghAvailable()) {
+  if (!ghAvailable(run)) {
     throw new UpstreamShipError(
       'GH_MODE_UNAVAILABLE',
       '`gh` CLI not found on PATH',
     );
   }
-  const url = resolveRemoteUrl(repoRoot, config.remote);
+  const url = resolveRemoteUrl(repoRoot, config.remote, run);
   if (url && isCanonicalRemoteUrl(url)) {
     throw new UpstreamShipError(
       'SHIP_UPSTREAM_BLOCKED_CANONICAL',
@@ -327,13 +320,9 @@ function guardPreconditions(config: UpstreamShipConfig, repoRoot: string): void 
   }
 }
 
-async function prepareBranch(
-  repoRoot: string,
-  config: UpstreamShipConfig,
-  branch: string,
-): Promise<void> {
-  run(repoRoot, ['fetch', config.remote, config.baseBranch]);
-  run(repoRoot, ['checkout', '-B', branch, `${config.remote}/${config.baseBranch}`]);
+async function prepareBranch(repoRoot: string, config: UpstreamShipConfig, branch: string, run: CommandRunner): Promise<void> {
+  git(run, repoRoot, ['fetch', config.remote, config.baseBranch]);
+  git(run, repoRoot, ['checkout', '-B', branch, `${config.remote}/${config.baseBranch}`]);
 }
 
 async function commitAndPush(
@@ -342,9 +331,10 @@ async function commitAndPush(
   branch: string,
   paths: string[],
   commitMessage: string,
+  run: CommandRunner,
 ): Promise<void> {
   for (const p of paths) {
-    run(repoRoot, ['add', '--', p]);
+    git(run, repoRoot, ['add', '--', p]);
   }
   const commitEnv: NodeJS.ProcessEnv = {};
   if (config.authorName) commitEnv.GIT_AUTHOR_NAME = config.authorName;
@@ -352,8 +342,8 @@ async function commitAndPush(
   if (config.authorName) commitEnv.GIT_COMMITTER_NAME = config.authorName;
   if (config.authorEmail) commitEnv.GIT_COMMITTER_EMAIL = config.authorEmail;
   // eslint-disable-next-line no-restricted-syntax -- subprocess plumbing: git needs the inherited PATH/HOME; we layer the commit identity on top
-  run(repoRoot, ['commit', '-m', commitMessage], { env: { ...process.env, ...commitEnv } });
-  run(repoRoot, ['push', '-u', config.remote, branch]);
+  git(run, repoRoot, ['commit', '-m', commitMessage], { ...process.env, ...commitEnv });
+  git(run, repoRoot, ['push', '-u', config.remote, branch]);
 }
 
 async function createPullRequest(
@@ -361,22 +351,20 @@ async function createPullRequest(
   config: UpstreamShipConfig,
   branch: string,
   pr: { title: string; body: string },
+  run: CommandRunner,
 ): Promise<string> {
+  // The token reaches `gh` through its environment, never on the command line.
   // eslint-disable-next-line no-restricted-syntax -- subprocess plumbing: gh needs the inherited PATH/HOME; we layer GH_TOKEN on top
   const env: NodeJS.ProcessEnv = { ...process.env };
   if (config.ghToken) env.GH_TOKEN = config.ghToken;
-  const result = spawnSync(
-    'gh',
-    ['pr', 'create', '--title', pr.title, '--body', pr.body, '--base', config.baseBranch, '--head', branch],
-    { cwd: repoRoot, env, encoding: 'utf8' },
-  );
+  const result = run('gh', ['pr', 'create', '--title', pr.title, '--body', pr.body, '--base', config.baseBranch, '--head', branch], { cwd: repoRoot, env });
   if (result.status !== 0) {
     throw new UpstreamShipError(
       'GH_PR_CREATE_FAILED',
       `gh pr create failed: ${result.stderr || result.stdout}`,
     );
   }
-  const url = (result.stdout || '').trim().split('\n').pop() ?? '';
+  const url = result.stdout.trim().split('\n').pop() ?? '';
   if (!/^https?:\/\//.test(url)) {
     throw new UpstreamShipError(
       'GH_PR_CREATE_FAILED',
@@ -386,8 +374,9 @@ async function createPullRequest(
   return url;
 }
 
-function run(cwd: string, args: string[], opts: SpawnSyncOptions = {}): void {
-  const r = spawnSync('git', args, { cwd, encoding: 'utf8', ...opts });
+/** Run one git command in `cwd`; a command that fails ends the ship and is named. */
+function git(run: CommandRunner, cwd: string, args: string[], env?: NodeJS.ProcessEnv): void {
+  const r = run('git', args, { cwd, ...(env ? { env } : {}) });
   if (r.status !== 0) {
     throw new UpstreamShipError(
       'GIT_FAILED',
@@ -447,6 +436,3 @@ function buildCurrentOverridesPrBody(slugs: string[]): string {
     ...more,
   ].join('\n');
 }
-
-// Re-export for the controller success payload.
-export { recipeBatchFilePath };
