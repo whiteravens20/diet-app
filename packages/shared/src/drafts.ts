@@ -73,8 +73,8 @@ export const IngredientNameDraftListQuery = z.object({
 });
 export type IngredientNameDraftListQuery = z.infer<typeof IngredientNameDraftListQuery>;
 
-/** The administrator's list of recipe drafts. */
-export const RecipeDraftListQuery = IngredientNameDraftListQuery.extend({ complexity: Complexity.optional() });
+/** The administrator's list of recipe drafts. `source` narrows it to where the drafts came from: `AI_USER` are the ones users sent. */
+export const RecipeDraftListQuery = IngredientNameDraftListQuery.extend({ complexity: Complexity.optional(), source: DraftSource.optional() });
 export type RecipeDraftListQuery = z.infer<typeof RecipeDraftListQuery>;
 
 /** What waits for a reviewer in one language; with `includeReviewed`, also what that language already approved. */

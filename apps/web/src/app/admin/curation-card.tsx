@@ -272,6 +272,10 @@ function IngredientPanel() {
 
 // ── Recipe pipeline ─────────────────────────────────────────────────────────
 
+/** Where the drafts of the list came from: all of them, those users sent, or those a batch run wrote. */
+type SourceFilter = 'ALL' | 'AI_USER' | 'AI';
+const SOURCE_FILTERS: readonly SourceFilter[] = ['ALL', 'AI_USER', 'AI'];
+
 function RecipePanel() {
   const t = useTranslations('admin.curation');
   const tDiet = useTranslations('enums.dietType');
@@ -280,6 +284,8 @@ function RecipePanel() {
   const [runner, setRunner] = useState<RecipeRunnerState | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('ALL');
+  const [rejected, setRejected] = useState<{ rejected: number; skipped: number } | null>(null);
   const [data, setData] = useState<PagedDrafts<RecipeDraft> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [genCount, setGenCount] = useState(5);
@@ -291,6 +297,7 @@ function RecipePanel() {
     try {
       const res = await adminApi.listRecipeDrafts({
         status: statusFilter === 'ALL' ? undefined : statusFilter,
+        source: sourceFilter === 'ALL' ? undefined : sourceFilter,
         page,
         pageSize: PAGE_SIZE,
       });
@@ -299,7 +306,7 @@ function RecipePanel() {
     } catch (err) {
       setError(errorText(err, String(err)));
     }
-  }, [page, statusFilter, errorText]);
+  }, [page, statusFilter, sourceFilter, errorText]);
 
   const loadRunner = useCallback(async () => {
     try {
@@ -347,6 +354,22 @@ function RecipePanel() {
       setRunner(state);
       if (state.status === 'running') startPolling();
       void loadDrafts();
+    } catch (err) {
+      setError(errorText(err, String(err)));
+    }
+  };
+
+  /** The drafts on this page that can still be rejected. */
+  const open = (data?.items ?? []).filter((draft) => draft.status === 'PENDING' || draft.status === 'APPROVED');
+  // What users sent and nobody will ship, rejected in one go with one reason.
+  const onRejectShown = async () => {
+    const label = window.prompt(t('reviewLabelPrompt'));
+    if (!label) return;
+    const reason = window.prompt(t('rejectReasonPrompt')) ?? undefined;
+    try {
+      const res = await adminApi.rejectRecipeDrafts(open.map((draft) => draft.id), label, reason);
+      setRejected({ rejected: res.rejected.length, skipped: res.skipped.length });
+      await loadDrafts();
     } catch (err) {
       setError(errorText(err, String(err)));
     }
@@ -467,6 +490,28 @@ function RecipePanel() {
         status={statusFilter}
         onStatusChange={(s) => { setStatusFilter(s); setPage(1); }}
       />
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-muted-foreground">{t('filterSource')}:</span>
+        {SOURCE_FILTERS.map((source) => (
+          <button
+            key={source}
+            onClick={() => { setSourceFilter(source); setPage(1); setRejected(null); }}
+            className={
+              source === sourceFilter
+                ? 'rounded-full bg-primary px-2 py-0.5 text-primary-foreground'
+                : 'rounded-full border border-border px-2 py-0.5 hover:bg-muted'
+            }
+          >
+            {t(`source_${source}`)}
+          </button>
+        ))}
+        {sourceFilter === 'AI_USER' && open.length > 0 && (
+          <Button size="sm" variant="outline" onClick={onRejectShown}>
+            {t('rejectShown', { count: open.length })}
+          </Button>
+        )}
+        {rejected && <span className="text-muted-foreground">{t('rejectShownDone', rejected)}</span>}
+      </div>
 
       {data === null ? (
         <p className="text-sm text-muted-foreground">…</p>

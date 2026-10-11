@@ -415,6 +415,8 @@ export const adminApi = {
     status?: string;
     batchId?: string;
     complexity?: string;
+    /** Where the drafts came from: `AI_USER` are the ones users sent. */
+    source?: string;
     page?: number;
     pageSize?: number;
   } = {}) => {
@@ -422,6 +424,7 @@ export const adminApi = {
     if (params.status) q.set('status', params.status);
     if (params.batchId) q.set('batchId', params.batchId);
     if (params.complexity) q.set('complexity', params.complexity);
+    if (params.source) q.set('source', params.source);
     if (params.page) q.set('page', String(params.page));
     if (params.pageSize) q.set('pageSize', String(params.pageSize));
     const qs = q.toString();
@@ -448,6 +451,12 @@ export const adminApi = {
     ),
   deleteRecipeDraft: (id: string) =>
     adminFetch<void>(`/drafts/recipes/${id}`, { method: 'DELETE' }),
+  /** Reject up to a hundred recipe drafts with one reason; answers which were rejected and which were left as they were. */
+  rejectRecipeDrafts: (ids: string[], reviewedByLabel: string, reason?: string) =>
+    adminFetch<{ rejected: string[]; skipped: { id: string; error: string }[] }>('/drafts/recipes/reject', {
+      method: 'POST',
+      body: JSON.stringify({ ids, reviewedByLabel, ...(reason ? { reason } : {}) }),
+    }),
   promoteRecipeDraft: (id: string) =>
     adminFetch<RecipeDraft>(`/drafts/recipes/${id}/promote`, { method: 'POST' }),
 

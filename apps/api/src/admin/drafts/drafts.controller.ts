@@ -107,6 +107,12 @@ const ApproveRejectBody = z.object({
   reason: z.string().max(500).optional(),
 });
 
+const BulkRejectBody = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(100),
+  reviewedByLabel: z.string().min(1).max(80),
+  reason: z.string().max(500).optional(),
+});
+
 const PatchSuggestionsBody = z.object({
   suggestions: IngredientNameSuggestion,
 });
@@ -321,6 +327,19 @@ export class DraftsController {
   @Post('recipes/:id/approve')
   approveRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<RecipeDraft> {
     return this.reviewRecipe(id, locale, body, 'APPROVE');
+  }
+
+  /**
+   * Reject up to a hundred recipe drafts with one reason: what the queue is
+   * cleared with when users sent what nobody will ship. Answers which were
+   * rejected and which were left out, each with the refusal a single
+   * rejection would have got.
+   */
+  @Post('recipes/reject')
+  @HttpCode(200)
+  rejectRecipeDrafts(@Body() body: unknown): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
+    const { ids, reviewedByLabel, reason } = bodyOf(BulkRejectBody, body, 'INVALID_REVIEW');
+    return this.drafts.rejectRecipes(ids, reason, { ...ADMIN, label: reviewedByLabel });
   }
 
   @Post('recipes/:id/reject')

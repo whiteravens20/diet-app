@@ -410,6 +410,51 @@ describe('the curation queue', () => {
     });
   });
 
+  describe('rejecting several recipe drafts at once', () => {
+    const reject = (body: Record<string, unknown>) => t.http().post('/api/admin/drafts/recipes/reject').set(asAdmin).send(body);
+
+    it('rejects each as a single rejection would, with the one reason, and names what it left out', async () => {
+      const first = await aRecipeDraft(t, { source: 'AI_USER' });
+      const second = await aRecipeDraft(t, { source: 'AI_USER', status: 'APPROVED' });
+      const shipped = await aRecipeDraft(t, { status: 'SHIPPED' });
+      const gone = '00000000-0000-4000-8000-000000000000';
+
+      const res = await reject({ ids: [first.id, second.id, shipped.id, gone, first.id], reviewedByLabel: 'Pavlo', reason: 'Not for the shared library.' }).expect(200);
+
+      expect(res.body).toEqual({
+        rejected: [first.id, second.id],
+        skipped: [
+          { id: shipped.id, error: 'DRAFT_SHIPPED' },
+          { id: gone, error: 'DRAFT_NOT_FOUND' },
+        ],
+      });
+      expect((await recipeRow(first.id)).status).toBe('REJECTED');
+      expect((await recipeRow(second.id)).status).toBe('REJECTED');
+      expect((await recipeRow(shipped.id)).status).toBe('SHIPPED');
+      expect(await reviewsOf(first.id)).toEqual([expect.objectContaining({ locale: 'en', action: 'REJECT', byRole: 'ADMIN', reviewedByLabel: 'Pavlo', reason: 'Not for the shared library.', supersededAt: null })]);
+    });
+
+    it('wants between one and a hundred drafts, and a name for who rejects', async () => {
+      const draft = await aRecipeDraft(t);
+      const tooMany = Array.from({ length: 101 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`);
+
+      for (const body of [{ ids: [], reviewedByLabel: 'Pavlo' }, { ids: tooMany, reviewedByLabel: 'Pavlo' }, { ids: [draft.id] }, { ids: ['not-an-id'], reviewedByLabel: 'Pavlo' }]) {
+        const res = await reject(body);
+        expect([res.status, res.body.error]).toEqual([400, 'INVALID_REVIEW']);
+      }
+      expect((await recipeRow(draft.id)).status).toBe('PENDING');
+    });
+
+    it('is the administrator\'s: a reviewer has no such route', async () => {
+      const draft = await aRecipeDraft(t);
+
+      const res = await t.http().post('/api/review/drafts/recipes/reject').set(reviewer).send({ ids: [draft.id], reviewedByLabel: 'Anna' });
+
+      expect(res.status).toBe(404);
+      expect((await recipeRow(draft.id)).status).toBe('PENDING');
+    });
+  });
+
   describe('the lists', () => {
     it('take a status, a batch and a complexity, each checked', async () => {
       await aRecipeDraft(t);
@@ -423,13 +468,24 @@ describe('the curation queue', () => {
       expect((await list('?page=2&pageSize=1').expect(200)).body).toMatchObject({ total: 2, page: 2, pageSize: 1, items: [expect.anything()] });
     });
 
-    it.each(['?status=pending', '?status=FOO', '?batchId=a&batchId=b', '?complexity=hardest', '?page=0', '?pageSize=1000', '?page=one'])(
+    it('of recipes take where a draft came from: those users sent can be seen apart', async () => {
+      await aRecipeDraft(t);
+      const fromUsers = await aRecipeDraft(t, { source: 'AI_USER' });
+
+      const list = (query: string) => t.http().get(`/api/admin/drafts/recipes${query}`).set(asAdmin);
+
+      expect((await list('?source=AI_USER').expect(200)).body.items.map((draft: { id: string }) => draft.id)).toEqual([fromUsers.id]);
+      expect((await list('?source=AI').expect(200)).body.total).toBe(1);
+      expect((await list('').expect(200)).body.total).toBe(2);
+    });
+
+    it.each(['?status=pending', '?status=FOO', '?batchId=a&batchId=b', '?complexity=hardest', '?source=users', '?page=0', '?pageSize=1000', '?page=one'])(
       'answer %s with what is wrong, not with a failure of the server',
       async (query) => {
         const recipes = await t.http().get(`/api/admin/drafts/recipes${query}`).set(asAdmin);
         expect([recipes.status, recipes.body.error]).toEqual([400, 'VALIDATION_FAILED']);
 
-        if (!query.includes('complexity')) {
+        if (!query.includes('complexity') && !query.includes('source')) {
           const names = await t.http().get(`/api/admin/drafts/ingredient-names${query}`).set(asAdmin);
           expect([names.status, names.body.error]).toEqual([400, 'VALIDATION_FAILED']);
         }

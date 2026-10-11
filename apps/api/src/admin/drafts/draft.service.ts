@@ -26,7 +26,7 @@
  * other's review, and there is one current review per language without an
  * index to say so.
  */
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import type { DraftStatus, Prisma } from '@prisma/client';
 import type {
   IngredientNameDraftListQuery,
@@ -123,7 +123,7 @@ export class DraftService {
   // ── Reading ────────────────────────────────────────────────────────────────
 
   async listRecipes(query: RecipeDraftListQuery): Promise<Page<RecipeDraftRow>> {
-    const where = { status: query.status, batchId: query.batchId, complexity: query.complexity };
+    const where = { status: query.status, batchId: query.batchId, complexity: query.complexity, source: query.source };
     const [items, total] = await Promise.all([
       this.prisma.recipeDraft.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize, include: WITH_REVIEWS }),
       this.prisma.recipeDraft.count({ where }),
@@ -230,6 +230,29 @@ export class DraftService {
       const current = await tx.ingredientNameDraftLocaleReview.findMany({ where: { draftId: id, supersededAt: null } });
       return tx.ingredientNameDraft.update({ where: { id }, data: { status: deriveDraftStatus(draft.locales, current) }, include: WITH_REVIEWS });
     });
+  }
+
+  /**
+   * The administrator rejects several recipe drafts at once, with one reason.
+   * Each is rejected on its own, as a single rejection is, so one that has
+   * shipped or is gone in the meantime is left out and named, and the others
+   * are rejected all the same.
+   */
+  async rejectRecipes(ids: readonly string[], reason: string | undefined, by: Actor): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
+    const rejected: string[] = [];
+    const skipped: { id: string; error: string }[] = [];
+    for (const id of new Set(ids)) {
+      try {
+        // English is the language every recipe draft has, and the administrator's to review.
+        await this.reviewRecipe(id, { locale: 'en', action: 'REJECT', reason }, by);
+        rejected.push(id);
+      } catch (err) {
+        if (!(err instanceof HttpException)) throw err;
+        const body = err.getResponse();
+        skipped.push({ id, error: typeof body === 'object' && body !== null && 'error' in body ? String(body.error) : err.message });
+      }
+    }
+    return { rejected, skipped };
   }
 
   // ── Edits ──────────────────────────────────────────────────────────────────
