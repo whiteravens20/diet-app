@@ -548,14 +548,17 @@ function IngredientDraftRow({
     draft.suggestions,
   );
 
-  const handle = async (fn: () => Promise<unknown>) => {
+  /** Run a change to the draft; true when it went through. */
+  const handle = async (fn: () => Promise<unknown>): Promise<boolean> => {
     setWorking(true);
     setError(null);
     try {
       await fn();
       onChanged();
+      return true;
     } catch (err) {
       setError(errorText(err, String(err)));
+      return false;
     } finally {
       setWorking(false);
     }
@@ -580,9 +583,10 @@ function IngredientDraftRow({
   };
 
   const onSave = () => {
-    void handle(() => adminApi.patchIngredientNameDraft(draft.id, draftSuggestions)).then(() =>
-      setEditing(false),
-    );
+    // A refused edit stays in the form: what was typed is not thrown away.
+    void handle(() => adminApi.patchIngredientNameDraft(draft.id, draftSuggestions)).then((saved) => {
+      if (saved) setEditing(false);
+    });
   };
 
   const onCancelEdit = () => {
@@ -743,14 +747,17 @@ function RecipeDraftRow({
   // else the text of the refusal's code.
   const messageFor = (err: unknown): string => errorText(err, String(err));
 
-  const handle = async (fn: () => Promise<unknown>) => {
+  /** Run a change to the draft; true when it went through. */
+  const handle = async (fn: () => Promise<unknown>): Promise<boolean> => {
     setWorking(true);
     setError(null);
     try {
       await fn();
       onChanged();
+      return true;
     } catch (err) {
       setError(messageFor(err));
+      return false;
     } finally {
       setWorking(false);
     }
@@ -795,7 +802,9 @@ function RecipeDraftRow({
   };
 
   const onSave = () => {
-    void handle(() => adminApi.patchRecipeDraft(draft.id, buildPatch(), false)).then(() => {
+    // A refused edit stays in the form: what was typed is not thrown away.
+    void handle(() => adminApi.patchRecipeDraft(draft.id, buildPatch(), false)).then((saved) => {
+      if (!saved) return;
       setEditing(false);
       setPreview(null);
     });
