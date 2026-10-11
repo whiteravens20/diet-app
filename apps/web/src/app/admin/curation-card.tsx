@@ -119,6 +119,7 @@ function KindTabs({ kind, onChange }: { kind: Kind; onChange: (k: Kind) => void 
 
 function IngredientPanel() {
   const t = useTranslations('admin.curation');
+  const errorText = useDraftErrorText();
   const [runner, setRunner] = useState<DraftRunnerState | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
@@ -136,9 +137,9 @@ function IngredientPanel() {
       setData(res);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, errorText]);
 
   const loadRunner = useCallback(async () => {
     try {
@@ -146,10 +147,10 @@ function IngredientPanel() {
       setRunner(state);
       return state;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
       return null;
     }
-  }, []);
+  }, [errorText]);
 
   useEffect(() => {
     void (async () => { await loadRunner(); })();
@@ -184,7 +185,7 @@ function IngredientPanel() {
       if (state.status === 'running') startPolling();
       void loadDrafts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     }
   };
 
@@ -193,7 +194,7 @@ function IngredientPanel() {
       const state = await adminApi.stopIngredientNamer();
       setRunner(state);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     }
   };
 
@@ -269,6 +270,7 @@ function IngredientPanel() {
 
 function RecipePanel() {
   const t = useTranslations('admin.curation');
+  const errorText = useDraftErrorText();
   const [runner, setRunner] = useState<RecipeRunnerState | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
@@ -288,9 +290,9 @@ function RecipePanel() {
       setData(res);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, errorText]);
 
   const loadRunner = useCallback(async () => {
     try {
@@ -298,10 +300,10 @@ function RecipePanel() {
       setRunner(state);
       return state;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
       return null;
     }
-  }, []);
+  }, [errorText]);
 
   useEffect(() => {
     void (async () => { await loadRunner(); })();
@@ -338,7 +340,7 @@ function RecipePanel() {
       if (state.status === 'running') startPolling();
       void loadDrafts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     }
   };
 
@@ -347,7 +349,7 @@ function RecipePanel() {
       const state = await adminApi.stopRecipeGenerator();
       setRunner(state);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     }
   };
 
@@ -1332,6 +1334,7 @@ function LocaleReviewMatrix({
 
 function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | Promise<void> }) {
   const t = useTranslations('admin.curation');
+  const errorText = useDraftErrorText();
   const skipReasonText = useSkipReasonText();
   const [config, setConfig] = useState<ShipConfigDto | null>(null);
   const [busyMode, setBusyMode] = useState<ShipMode | null>(null);
@@ -1348,9 +1351,9 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
       setConfig(c);
       setPullSource((prev) => prev || c.pull.defaultSource);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     }
-  }, []);
+  }, [errorText]);
 
   useEffect(() => {
     void (async () => { await refresh(); })();
@@ -1371,7 +1374,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
       await refresh();
       await onShipped();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     } finally {
       setBusyMode(null);
     }
@@ -1384,7 +1387,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
       await refresh();
       await onShipped();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     }
   };
 
@@ -1394,7 +1397,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
     try {
       await adminApi.downloadCurrentOverrides();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     } finally {
       setCurrentBusy(null);
     }
@@ -1408,7 +1411,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
       const res = await adminApi.pushCurrentOverrides();
       setCurrentPushUrl(res.prUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     } finally {
       setCurrentBusy(null);
     }
@@ -1423,7 +1426,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
       setPullResult(res);
       await onShipped();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     } finally {
       setCurrentBusy(null);
     }
@@ -1644,6 +1647,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
  */
 function InstanceData({ state, disabled, onRestored }: { state: InstanceDataState; disabled: boolean; onRestored: () => void | Promise<void> }) {
   const t = useTranslations('admin.curation');
+  const errorText = useDraftErrorText();
   const reasonText = useSkipReasonText();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RestoreResponse | null>(null);
@@ -1658,7 +1662,7 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
       setResult(await adminApi.restoreInstanceData());
       await onRestored();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     } finally {
       setBusy(false);
     }
