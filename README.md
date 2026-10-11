@@ -154,7 +154,7 @@ The CLI alternative is `npm run db:seed`. See
 - [docs/ops/deployment.md](docs/ops/deployment.md) — Docker, self-hosting, Ollama
 - [docs/ops/env-reference.md](docs/ops/env-reference.md) — every environment variable
 - [docs/ops/ai-models.md](docs/ops/ai-models.md) — model recommendations by surface and hardware tier
-- [docs/ops/curation-shipping.md](docs/ops/curation-shipping.md) — curation queue ship modes, backup, migration
+- [docs/ops/curation-shipping.md](docs/ops/curation-shipping.md) — how approved drafts ship, backing up what an instance added, moving to a new server
 
 The product specification and the architecture and design documents are not
 published while the project is in development; they join the repository with

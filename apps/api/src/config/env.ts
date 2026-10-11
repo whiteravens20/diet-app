@@ -116,17 +116,13 @@ export const envSchema = z.object({
   ADMIN_USER: z.string().default('admin'),
   ADMIN_PASSWORD: z.string().default(''),
 
-  // Curation-queue ship mechanism.
-  //
-  // Three ship modes are exposed by the curation queue: `local` (writes to
-  // live DB tables with source=MANUAL + a gitignored sidecar file in
-  // INSTANCE_DATA_DIR), `upstream-pr` (opens a gh-CLI PR — admin-controlled,
-  // OFF by default), and `zip` (download a bundle behind a one-shot signed
-  // token).
-  //
-  // `local` always available; `zip` always available; `upstream-pr` only
-  // shown in the admin UI when SHIP_UPSTREAM_ENABLED=true AND a token + the
-  // `gh` binary on PATH are present at runtime.
+  // How approved drafts leave the curation queue. `local` makes them rows of
+  // this instance and copies them to INSTANCE_DATA_DIR, which a restore reads
+  // back; `bundle` hands the administrator a file; `upstream-pr` commits the
+  // file in the git checkout the API runs from and opens a pull request.
+  // `local` and `bundle` are always on offer; `upstream-pr` only when it is
+  // switched on, a token is set, the `gh` tool is installed and a checkout
+  // is found.
   INSTANCE_DATA_DIR: z.string().default('instance-data'),
   SHIP_UPSTREAM_ENABLED: boolFromString,
   SHIP_UPSTREAM_REMOTE: z.string().default('origin'),

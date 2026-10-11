@@ -151,7 +151,8 @@ services:
       # operator-controlled backups. Named volume by default — for
       # private-repo-backed storage, override the volume in
       # docker-compose.override.yml with a host bind-mount pointing at
-      # your private repo's working tree.
+      # your private repo's working tree, writable by user 1000: the admin
+      # panel warns while the API cannot write there.
       # Only this service mounts it: Docker fills a new volume from the image
       # when a container first uses it, and two containers created at the same
       # moment on one new volume make the first start fail.

@@ -95,13 +95,13 @@ services:
       # survives container recreates and is visible to the host (and to
       # the worker, which shares the same mount).
       - ../data:/app/data
-      # Curation-queue sidecar files. The local-mode ship runner
-      # writes approved AI-drafted recipes / ingredient overrides here as
-      # operator-controlled backups. A named volume (not a host bind-mount) so
-      # Docker manages ownership: the image creates /app/instance-data
-      # node-owned and the volume inherits it, so the runtime `node` user can
-      # write. To pull a copy onto the host, use the zip download in the admin
-      # UI or `docker run --rm -v diet-app_instance-data:/d alpine tar -C /d -cf - .`.
+      # What this instance added to its catalogue: a ship into the instance
+      # copies the recipes and names it shipped here, and the admin panel can
+      # restore from these files on a new server. A named volume (not a host
+      # bind-mount) so Docker manages ownership: the image creates
+      # /app/instance-data node-owned and the volume inherits it, so the
+      # runtime `node` user can write. To copy it onto the host:
+      # `docker run --rm -v diet-app_instance-data:/d alpine tar -C /d -cf - .`.
       # Only this service mounts it: Docker fills a new volume from the image
       # when a container first uses it, and two containers created at the same
       # moment on one new volume make the first start fail.

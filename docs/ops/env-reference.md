@@ -68,7 +68,7 @@ See [curation-shipping.md](curation-shipping.md) for the three ship modes.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `INSTANCE_DATA_DIR` | `instance-data` | Where the local ship mode writes its backup of approved drafts. Private to the instance. |
+| `INSTANCE_DATA_DIR` | `instance-data` | Where the local ship mode copies what it shipped, and what a restore in the admin panel reads back. Private to the instance; keep it on a volume. |
 | `SHIP_UPSTREAM_ENABLED` | `false` | Offer the "open a pull request" ship mode. Also needs a token and the `gh` binary. |
 | `SHIP_UPSTREAM_REMOTE` / `SHIP_UPSTREAM_BASE_BRANCH` | `origin` / `main` | The git remote and branch a ship opens its pull request against. |
 | `SHIP_UPSTREAM_GH_TOKEN` | — | Token the `gh` CLI uses to push and open the pull request. |
