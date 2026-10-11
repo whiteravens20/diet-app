@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AdminModule } from './admin/admin.module.js';
@@ -10,7 +10,8 @@ import { AiModule } from './ai/ai.module.js';
 import { AppConfigModule } from './app-config/app-config.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { PasswordsModule } from './common/passwords.js';
-import { IGNORE_ENV_FILES, validateEnv, type Env } from './config/env.js';
+import { Configuration } from './config/configuration.js';
+import type { Env } from './config/env.js';
 import { FavoriteSetsModule } from './favorite-sets/favorite-sets.module.js';
 import { FavoritesModule } from './favorites/favorites.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -31,17 +32,7 @@ import { WeightsModule } from './weights/weights.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      validate: validateEnv,
-      // Only what validation let through is handed out. Without this a setting
-      // that validation dropped, a blank one above all, is read from the
-      // process environment after all, as an empty string.
-      skipProcessEnv: true,
-      // Repo-root .env for local runs; containers inject the env directly.
-      envFilePath: ['../../.env', '.env'],
-      ignoreEnvFile: IGNORE_ENV_FILES,
-    }),
+    Configuration,
     // Global rate limiting — active regardless of whether Turnstile is enabled.
     // Whom a request is counted against: see ClientThrottlerGuard.
     ThrottlerModule.forRootAsync({
