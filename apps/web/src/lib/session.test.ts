@@ -77,7 +77,8 @@ describe('the session of the browser', () => {
       expect(await session.refresh()).toBe(true);
 
       expect(session.accessToken).toBe('access-2');
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/refresh', { method: 'POST', credentials: 'same-origin' });
+      // Finished by the browser even if the page goes away: its answer holds the next cookie.
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/refresh', { method: 'POST', credentials: 'same-origin', keepalive: true });
     });
 
     it('asks once, however many requests of the page want a token at the same moment', async () => {
@@ -98,6 +99,24 @@ describe('the session of the browser', () => {
 
       expect(session.accessToken).toBe('access-3');
       expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('gives up for now when the cookie stays used up, without ending the session: the next request tries again', async () => {
+      vi.useFakeTimers();
+      try {
+        const session = await aPage(true);
+        fetchMock.mockImplementation(() => Promise.resolve(answered(409, { error: 'SESSION_JUST_REFRESHED' })));
+
+        const result = session.refresh();
+        await vi.runAllTimersAsync();
+
+        expect(await result).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(session.exists()).toBe(true);
+        expect(session.leave).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('ends the session here and in the other tabs when the server refuses it, and leaves the page', async () => {
@@ -185,7 +204,7 @@ describe('the session of the browser', () => {
     await session.signOut();
     await aMoment();
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', credentials: 'same-origin', keepalive: true });
     expect(session.accessToken).toBeNull();
     expect(session.exists()).toBe(false);
     expect(other.heard).toContainEqual({ type: 'signed-out' });

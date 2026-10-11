@@ -64,14 +64,27 @@ function adopt(answer: AuthResponse): void {
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** One request for the next access token. True when the session goes on with a token to use. */
+/**
+ * A request that acts on the session cookie. It is finished by the browser
+ * even when the page that sent it is gone (`keepalive`): the answer to a
+ * refresh holds the next cookie, and a page that is loaded again in that
+ * moment would otherwise go on with a cookie the server has used up, and
+ * lose the session.
+ */
+const onTheCookie = (path: string): Promise<Response> =>
+  fetch(`${API_URL}/api/auth/${path}`, { method: 'POST', credentials: API_URL ? 'include' : 'same-origin', keepalive: true });
+
+/** How long to wait before asking again after another request used the cookie: its answer is still on its way. */
+const AFTER_ANOTHER_REQUEST_MS = [300, 700, 1500];
+
+/** One turn at getting the next access token. True when the session goes on with a token to use. */
 async function refreshOnce(before: string | null): Promise<boolean> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt <= AFTER_ANOTHER_REQUEST_MS.length; attempt += 1) {
     // Another tab refreshed while this one waited its turn, and said so.
     if (accessToken && accessToken !== before) return true;
     let res: Response;
     try {
-      res = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: API_URL ? 'include' : 'same-origin' });
+      res = await onTheCookie('refresh');
     } catch {
       return false;
     }
@@ -79,10 +92,11 @@ async function refreshOnce(before: string | null): Promise<boolean> {
       adopt((await res.json()) as AuthResponse);
       return true;
     }
-    // Another request of this browser used the cookie a moment ago: what it
-    // was given is on its way here, or the cookie is the new one by now.
-    if (res.status === 409) {
-      await wait(300);
+    // Another request of this browser used the cookie a moment ago: a tab, or
+    // the page this one was before it was loaded again. What that request
+    // was given is on its way: to this page from the tab, or into the cookie.
+    if (res.status === 409 && attempt < AFTER_ANOTHER_REQUEST_MS.length) {
+      await wait(AFTER_ANOTHER_REQUEST_MS[attempt]!);
       continue;
     }
     // Only a refused session ends it. "Too many requests" or a server that
@@ -141,7 +155,7 @@ export const session = {
 
   /** Sign out: the session ends on the server, here and in the other tabs. */
   async signOut(): Promise<void> {
-    await fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: API_URL ? 'include' : 'same-origin' }).catch(() => undefined);
+    await onTheCookie('logout').catch(() => undefined);
     session.forget();
   },
 
