@@ -1257,6 +1257,7 @@
     "title": "Substitute an ingredient",
     "stepPick": "1. Which ingredient?",
     "stepReplace": "2. Replace {name} with…",
+    "catalogueSuggests": "The catalogue suggests:",
     "stepDelta": "3. What it does to this meal",
     "computing": "Computing…",
     "previewFailed": "Could not preview.",

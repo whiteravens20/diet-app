@@ -413,6 +413,19 @@ export const AiSuggestIngredientResponse = z.object({
 });
 export type AiSuggestIngredientResponse = z.infer<typeof AiSuggestIngredientResponse>;
 
+/**
+ * A substitute the catalogue's own rules name for an ingredient of a planned
+ * meal: the one of them that may come into this plan and changes a serving
+ * least. `moved` says what of a serving it would move by more than a tenth all
+ * the same.
+ */
+export const SubstituteSuggestion = z.object({
+  fromIngredientId: z.string().uuid(),
+  to: Ingredient,
+  moved: z.array(z.enum(['calories', 'protein', 'fat', 'carbs'])),
+});
+export type SubstituteSuggestion = z.infer<typeof SubstituteSuggestion>;
+
 /** Why a substitution may not be made: what the recipe it would leave may not be, for this plan's profile. */
 export const SubstitutionViolation = z.enum(['off_diet', 'allergen', 'excluded_ingredient']);
 export type SubstitutionViolation = z.infer<typeof SubstitutionViolation>;

@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { MealPlan, PlannedMeal, SwapPreview } from '@diet-app/shared';
+import type { MealPlan, PlannedMeal, SubstituteSuggestion, SwapPreview } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -120,6 +120,47 @@ describe('putting one ingredient of a planned meal in the place of another', () 
 
       expect((await t.app.get(MealPlansService).get(user.id, 'en', plan.id)).revision).toBe(plan.revision);
       expect(await linesNow()).toEqual({ 'chicken-breast': [150], 'white-rice': [80], broccoli: [150], 'olive-oil': [10] });
+    });
+  });
+
+  describe('what the catalogue suggests', () => {
+    const suggested = async (locale = 'en'): Promise<SubstituteSuggestion[]> =>
+      (await t.http().get(`/api/meal-plans/${plan.id}/meals/${dinner.id}/substitutes`).set(as(user)).set('Accept-Language', locale).expect(200)).body;
+
+    it('is the substitute its rules name for an ingredient of the meal, with what it would move', async () => {
+      // The catalogue has one rule for an ingredient of this dinner: tofu for chicken.
+      const suggestions = await suggested();
+
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0]).toMatchObject({ fromIngredientId: await id('chicken-breast'), to: { id: await id('firm-tofu'), name: 'Firm tofu' }, moved: ['protein', 'fat'] });
+      expect((await suggested('pl'))[0]!.to.name).toBe('Tofu twarde');
+    });
+
+    it('is what the preview of that substitution says', async () => {
+      const [suggestion] = await suggested();
+
+      const shown = await preview('chicken-breast', 'firm-tofu');
+
+      expect(shown.moved).toEqual(suggestion!.moved);
+      expect(shown.valid).toBe(true);
+    });
+
+    it('leaves out a substitute the profile rules out', async () => {
+      const profile = await t.prisma.profile.findFirstOrThrow({ where: { userId: user.id } });
+      await t.prisma.profilePreference.update({ where: { profileId: profile.id }, data: { allergens: ['soy'] } });
+
+      expect(await suggested()).toEqual([]);
+    });
+
+    it('is, of several the rules name, the one that changes a serving least', async () => {
+      // Turkey is nearly what chicken is; tofu has less protein and more fat.
+      const turkey = await t.prisma.ingredient.create({ data: { slug: 'turkey-breast', name: 'Turkey breast', category: 'meat', canonicalUnit: 'g', caloriesPer100: 118, proteinPer100: 23, fatPer100: 2.4, carbsPer100: 0 } });
+      await t.prisma.substitutionRule.create({ data: { fromIngredientId: await id('chicken-breast'), toIngredientId: turkey.id } });
+      try {
+        expect(await suggested()).toMatchObject([{ to: { name: 'Turkey breast' }, moved: [] }]);
+      } finally {
+        await t.prisma.ingredient.delete({ where: { id: turkey.id } });
+      }
     });
   });
 

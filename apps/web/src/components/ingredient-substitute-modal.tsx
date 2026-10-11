@@ -11,6 +11,7 @@ import type {
   Ingredient,
   PlannedIngredient,
   SessionUser,
+  SubstituteSuggestion,
   SwapIngredientRequest,
   SwapIngredientResponse,
   SwapPreview,
@@ -82,6 +83,13 @@ export function IngredientSubstituteModal({
 
   const fromLine = meal.ingredients.find((i) => i.ingredientId === fromId) ?? null;
 
+  // What the catalogue's own rules name for the ingredients of this meal: no model is asked.
+  const suggestions = useQuery({
+    queryKey: ['substitutes', planId, meal.id],
+    queryFn: () => api.get<SubstituteSuggestion[]>(`/meal-plans/${planId}/meals/${meal.id}/substitutes`),
+  });
+  const suggestion = (suggestions.data ?? []).find((s) => s.fromIngredientId === fromId) ?? null;
+
   // Replacement candidates — only fire once the user has typed something.
   const results = useQuery({
     queryKey: ['ingredients-search', search],
@@ -91,11 +99,10 @@ export function IngredientSubstituteModal({
   const searchCandidates = (results.data ?? [])
     .filter((i) => i.id !== fromId)
     .slice(0, 20);
-  // Show the AI pick alongside searched results so the user sees what was
-  // suggested and can still browse alternatives.
-  const candidates = aiPick && !searchCandidates.some((c) => c.id === aiPick.id)
-    ? [aiPick, ...searchCandidates]
-    : searchCandidates;
+  // What was suggested, by the catalogue or by a model, stands above what the
+  // search found, so the user sees it and can still look for something else.
+  const picks = [suggestion?.to, aiPick].filter((pick): pick is Ingredient => Boolean(pick) && pick!.id !== fromId);
+  const candidates = [...picks.filter((pick, i) => picks.findIndex((other) => other.id === pick.id) === i), ...searchCandidates.filter((c) => !picks.some((pick) => pick.id === c.id))];
 
   const aiSuggest = useMutation({
     mutationFn: () =>
@@ -266,7 +273,22 @@ export function IngredientSubstituteModal({
                   {t('aiReason', { reason: aiReason })}
                 </p>
               )}
-              {(search.trim().length >= 2 || aiPick) && (
+              {suggestion && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t('catalogueSuggests')}{' '}
+                  <button
+                    type="button"
+                    className="font-medium text-primary hover:underline"
+                    onClick={() => {
+                      setToId(suggestion.to.id);
+                      setAcceptChange(false);
+                    }}
+                  >
+                    {suggestion.to.name}
+                  </button>
+                </p>
+              )}
+              {(search.trim().length >= 2 || picks.length > 0) && (
                 <ul className="mt-1 max-h-48 overflow-y-auto rounded-md border border-border">
                   {candidates.length === 0 && !results.isLoading && (
                     <li className="px-3 py-2 text-xs text-muted-foreground">

@@ -177,6 +177,12 @@ export class MealPlansController {
     return this.ingredients.aiSuggestIngredient(user.id, locale, dto);
   }
 
+  /** The substitutes the catalogue's own rules name for the ingredients of a planned meal. */
+  @Get(':id/meals/:mealId/substitutes')
+  substitutes(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id') id: string, @Param('mealId') mealId: string) {
+    return this.ingredients.suggestions(user.id, locale, id, mealId);
+  }
+
   @Post('swap-ingredient/preview')
   previewIngredientSwap(
     @CurrentUser() user: RequestUser,

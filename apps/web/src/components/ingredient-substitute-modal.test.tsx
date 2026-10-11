@@ -110,6 +110,29 @@ describe('the substitution of an ingredient, before it is made', () => {
     expect(applyButton()).toBeDisabled();
   });
 
+  it('offers what the catalogue itself suggests for the ingredient, without a search, and previews it when it is chosen', async () => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve(
+        (path === '/users/me' ? { aiMode: 'none' } : path.endsWith('/substitutes') ? [{ fromIngredientId: rice.ingredientId, to: { id: chickpeas.ingredientId, name: 'Chickpeas' }, moved: [] }] : []) as never,
+      ),
+    );
+    const post = vi.spyOn(api, 'post').mockResolvedValue(aPreview() as never);
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <IngredientSubstituteModal meal={meal} planId="55555555-5555-4555-8555-555555555555" onClose={() => undefined} onApplied={() => undefined} />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /White rice/ }));
+
+    expect(await screen.findByText(messages.swap.catalogueSuggests, { exact: false })).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Chickpeas' })[0]!);
+
+    expect(await screen.findByText('265 g Chickpeas in place of 120 g White rice: as much as holds the same energy.')).toBeInTheDocument();
+    expect(post).toHaveBeenCalledWith('/meal-plans/swap-ingredient/preview', expect.objectContaining({ toIngredientId: chickpeas.ingredientId }));
+  });
+
   it('words a refusal of the API by its code', async () => {
     const { post, applyButton } = await substituting(aPreview());
     post.mockRejectedValueOnce(new ApiClientError(422, 'SUBSTITUTION_MOVES_NUTRITION', 'the text of the API'));

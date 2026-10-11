@@ -1257,6 +1257,7 @@
     "title": "Zamień składnik",
     "stepPick": "1. Który składnik?",
     "stepReplace": "2. Zamień {name} na…",
+    "catalogueSuggests": "Katalog podpowiada:",
     "stepDelta": "3. Co to zmienia w tym posiłku",
     "computing": "Liczenie…",
     "previewFailed": "Nie udało się wczytać podglądu.",

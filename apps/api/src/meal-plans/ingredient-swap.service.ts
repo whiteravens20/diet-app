@@ -10,8 +10,10 @@ import {
   type AiSuggestIngredientRequest,
   type AiSuggestIngredientResponse,
   type Locale,
+  type MovedNutrient,
   type Nutrition,
   type PlannedIngredient,
+  type SubstituteSuggestion,
   type SwapIngredientRequest,
   type SwapIngredientResponse,
   type SwapPreview,
@@ -20,7 +22,16 @@ import {
 import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js';
 import { modelText, readModelReply } from '../ai/model-json.js';
 import { INGREDIENT_SWAP, SWAP_REWRITE } from '../ai/operations.js';
-import { movedBy, recipeFacts, substituteAmount, toCanonical, UnitConversionError, type RecipeFacts } from '../engine/index.js';
+import {
+  energyShares,
+  movedBy,
+  recipeFacts,
+  splitDistance,
+  substituteAmount,
+  toCanonical,
+  UnitConversionError,
+  type RecipeFacts,
+} from '../engine/index.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -146,50 +157,99 @@ export class IngredientSwapService {
   }
 
   /**
+   * The catalogue's own suggestions for a planned meal: for each ingredient
+   * of its recipe that has substitution rules, the substitute that may come
+   * into this plan and moves a serving least. No model is asked.
+   */
+  async suggestions(userId: string, locale: Locale, planId: string, plannedMealId: string): Promise<SubstituteSuggestion[]> {
+    const subject = await this.subject(userId, planId, plannedMealId);
+    const sources = [...new Set(subject.recipe.ingredients.map((line) => line.ingredientId))];
+    const rules = await this.prisma.substitutionRule.findMany({
+      where: { fromIngredientId: { in: sources }, toIngredient: { retiredAt: null } },
+      include: { toIngredient: { include: { translations: true } } },
+    });
+
+    const suggestions: SubstituteSuggestion[] = [];
+    for (const fromIngredientId of sources) {
+      let best: { to: (typeof rules)[number]['toIngredient']; moved: MovedNutrient[]; far: number } | null = null;
+      for (const rule of rules.filter((candidate) => candidate.fromIngredientId === fromIngredientId)) {
+        let worked;
+        try {
+          worked = this.workOut(subject, fromIngredientId, rule.toIngredient);
+        } catch (err) {
+          if (!(err instanceof UnitConversionError)) throw err;
+          continue; // A substitute whose unit cannot be converted is no suggestion.
+        }
+        if (worked.violations.length > 0) continue;
+        // How far the substitute takes a serving from what it holds now, as shares of its energy.
+        const before = energyShares(worked.before);
+        const after = energyShares(worked.facts.perServing);
+        const far = before && after ? splitDistance(before, after) : 1;
+        const better = !best || worked.moved.length < best.moved.length || (worked.moved.length === best.moved.length && far < best.far);
+        if (better) best = { to: rule.toIngredient, moved: worked.moved, far };
+      }
+      if (best) suggestions.push({ fromIngredientId, to: toIngredientDto(best.to, locale), moved: best.moved });
+    }
+    return suggestions;
+  }
+
+  /** The planned meal a substitution is made in: its recipe with every line, and what its plan's profile rules out. */
+  private async subject(userId: string, planId: string, plannedMealId: string) {
+    const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
+    const recipe = await this.prisma.recipe.findUniqueOrThrow({
+      where: { id: swappableRecipeOf(meal) },
+      include: { ingredients: { include: { ingredient: { include: { translations: true } } } }, translations: true },
+    });
+    return { userId, meal, recipe, restrictions: await restrictionsFor(this.prisma, meal.day.plan) };
+  }
+
+  /**
    * What a substitution would make of a meal's recipe: its lines, what a
    * serving of it holds, and what stands in its way. The preview shows this
    * and the apply writes it, so the two cannot say different things.
-   *
-   * Every line the recipe has of the ingredient leaves, and one line of the
-   * substitute stands for them all; where the recipe has the substitute
-   * already, its line takes the amount on.
    */
   private async substitution(userId: string, req: SwapIngredientRequest) {
-    const meal = await this.plans.loadPlannedMeal(userId, req.planId, req.plannedMealId);
-    const recipeId = swappableRecipeOf(meal);
+    const subject = await this.subject(userId, req.planId, req.plannedMealId);
     if (req.fromIngredientId === req.toIngredientId) {
       throw new BadRequestException({ error: 'SAME_INGREDIENT', message: 'An ingredient cannot take its own place.' });
     }
-    const recipe = await this.prisma.recipe.findUniqueOrThrow({
-      where: { id: recipeId },
-      include: { ingredients: { include: { ingredient: { include: { translations: true } } } }, translations: true },
-    });
-    const leaving = recipe.ingredients.filter((line) => line.ingredientId === req.fromIngredientId);
-    if (leaving.length === 0) {
+    if (!subject.recipe.ingredients.some((line) => line.ingredientId === req.fromIngredientId)) {
       throw new NotFoundException({ error: 'INGREDIENT_NOT_IN_RECIPE', message: 'Ingredient not in recipe.' });
     }
-    const there = recipe.ingredients.filter((line) => line.ingredientId === req.toIngredientId);
-    const from = leaving[0]!.ingredient;
     const to =
-      there[0]?.ingredient ??
+      subject.recipe.ingredients.find((line) => line.ingredientId === req.toIngredientId)?.ingredient ??
       (await this.prisma.ingredient.findFirst({ where: { id: req.toIngredientId, retiredAt: null }, include: { translations: true } }));
     if (!to) throw new NotFoundException({ error: 'INGREDIENT_NOT_FOUND', message: 'Ingredient not found.' });
-
-    const unconvertible = (err: unknown): never => {
+    try {
+      return this.workOut(subject, req.fromIngredientId, to);
+    } catch (err) {
       if (!(err instanceof UnitConversionError)) throw err;
       throw new BadRequestException({
         error: 'UNIT_CONVERSION_FAILED',
         message: 'An ingredient of this recipe cannot be converted from the unit it is written in.',
       });
-    };
+    }
+  }
+
+  /**
+   * The recipe a substitution leaves. Every line the recipe has of the
+   * ingredient leaves, and one line of the substitute stands for them all;
+   * where the recipe has the substitute already, its line takes the amount
+   * on. Throws `UnitConversionError` for a line that cannot be converted.
+   */
+  private workOut(
+    { userId, meal, recipe, restrictions }: Awaited<ReturnType<IngredientSwapService['subject']>>,
+    fromIngredientId: string,
+    to: (typeof recipe.ingredients)[number]['ingredient'],
+  ) {
+    const leaving = recipe.ingredients.filter((line) => line.ingredientId === fromIngredientId);
+    const there = recipe.ingredients.filter((line) => line.ingredientId === to.id);
+    const from = leaving[0]!.ingredient;
+
     let amountLeaving = 0;
     let amountThere = 0;
-    try {
-      for (const line of leaving) amountLeaving += toCanonical(line.quantity, line.unit, from);
-      for (const line of there) amountThere += toCanonical(line.quantity, line.unit, to);
-    } catch (err) {
-      unconvertible(err);
-    }
+    for (const line of leaving) amountLeaving += toCanonical(line.quantity, line.unit, from);
+    for (const line of there) amountThere += toCanonical(line.quantity, line.unit, to);
     const { amount: amountComing, sizing } = substituteAmount(from, to, amountLeaving);
     const merged = there.length > 0;
     const substitute = {
@@ -217,15 +277,10 @@ export class IngredientSwapService {
     // ingredients: the one that left may have been the only source of an
     // allergen, and the one that came may not suit a diet the recipe did.
     const ingredientOf = new Map([...recipe.ingredients.map((line) => [line.ingredientId, line.ingredient] as const), [to.id, to] as const]);
-    let facts: RecipeFacts;
-    try {
-      facts = recipeFacts(
-        lines.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: ingredientOf.get(line.ingredientId)! })),
-        recipe.servings,
-      );
-    } catch (err) {
-      return unconvertible(err);
-    }
+    const facts: RecipeFacts = recipeFacts(
+      lines.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: ingredientOf.get(line.ingredientId)! })),
+      recipe.servings,
+    );
     const before: Nutrition = { calories: recipe.caloriesPerServing, protein: recipe.proteinPerServing, fat: recipe.fatPerServing, carbs: recipe.carbsPerServing };
 
     // The gate judges what the meal becomes. A recipe can stop fitting a diet
@@ -234,7 +289,6 @@ export class IngredientSwapService {
     // choice (an off-diet favourite, a recipe of another meal) is not held
     // against the substitution, and the variant is a new recipe: no avoid
     // mark is on it yet.
-    const restrictions = await restrictionsFor(this.prisma, meal.day.plan);
     const candidate = {
       id: recipe.id,
       mealTypes: recipe.mealTypes,
