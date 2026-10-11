@@ -62,9 +62,12 @@ export function decrypt(ciphertext: string, keyHex: string, context: string): st
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }
 
+/** What every value in the form `encrypt` writes begins with; a query can tell the two forms apart by it. */
+export const CURRENT_FORM_PREFIX = `${VERSION}:`;
+
 /** True for a value in the form `encrypt` writes: one that is not has no context bound to it yet. */
 export function inCurrentForm(ciphertext: string): boolean {
-  return ciphertext.startsWith(`${VERSION}:`);
+  return ciphertext.startsWith(CURRENT_FORM_PREFIX);
 }
 
 /**

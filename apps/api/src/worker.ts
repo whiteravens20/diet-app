@@ -3,7 +3,9 @@
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { AiKeyService } from './ai/ai-key.service.js';
 import { AppModule } from './app.module.js';
+import { AddressResealService } from './auth/address-reseal.service.js';
 import { WeightReminderService } from './notifications/weight-reminder.service.js';
 import { PersonalRecipesService } from './recipes/personal-recipes.service.js';
 
@@ -19,6 +21,8 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(AppModule);
   const weightReminders = app.get(WeightReminderService);
   const personalRecipes = app.get(PersonalRecipesService);
+  const addresses = app.get(AddressResealService);
+  const providerKeys = app.get(AiKeyService);
   const logger = new Logger('Worker');
 
   // Hourly granularity is enough for both. The reminder scan debounces
@@ -32,6 +36,24 @@ async function bootstrap(): Promise<void> {
       async () => {
         const removed = await personalRecipes.collectDeleted();
         if (removed > 0) logger.log(`Removed ${removed} deleted personal recipe(s) that nothing uses any more.`);
+      },
+    ],
+    // What was encrypted before a value was sealed for its account. Each run
+    // after the first finds nothing to do, unless a database from before was
+    // restored in the meantime.
+    [
+      'sealing of stored addresses for their accounts',
+      async () => {
+        const { sealed, unreadable } = await addresses.run();
+        if (sealed > 0) logger.log(`Sealed ${sealed} stored address(es) for the account each belongs to.`);
+        if (unreadable > 0) logger.warn(`${unreadable} stored address(es) cannot be read with DATA_ENCRYPTION_SECRET as it is set: those accounts cannot be shown or mailed.`);
+      },
+    ],
+    [
+      'sealing of stored provider keys for their accounts',
+      async () => {
+        const { sealed } = await providerKeys.resealKeys();
+        if (sealed > 0) logger.log(`Sealed ${sealed} stored provider key(s) for the account each belongs to.`);
       },
     ],
   ];
