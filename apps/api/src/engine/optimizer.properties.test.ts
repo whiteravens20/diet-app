@@ -256,24 +256,33 @@ describe('the limits of a plan', () => {
     expect(result.report.relaxations).toEqual([{ dayIndex: 1, slot: 'lunch', gaveWay: ['consecutive_days'] }]);
   });
 
-  it('say of a meal the limits its own recipe is outside, not those of the others it was chosen from', () => {
+  it('take, of the recipes outside the limits, one that is outside fewer, and say of the meal the limits of its own recipe', () => {
     // Two dishes for three meals of one day, one of them over the cooking time. By the last meal both
-    // were eaten today, so both are let in together, the slow one outside one limit more.
+    // were eaten today: the quick one is outside one limit, the slow one outside that and another.
     const meals: MealType[] = ['lunch', 'dinner', 'snack'];
     const dishes = [dish('quick', meals, 600), dish('slow', meals, 600, { totalMinutes: 90 })];
     const days = [{ mealSlots: meals, dailyCalorieTarget: 1800, cookTimeBudgetMinutes: 30 }];
-    const picked = new Set<string>();
 
     for (let seed = 1; seed <= 40; seed += 1) {
       const result = optimisePlan(plan({ recipes: dishes, days, seed }));
-      const last = result.assignments.find((a) => a.slot === 'snack')!;
-      picked.add(last.recipeId);
-      expect(result.report.relaxations.find((entry) => entry.slot === 'snack')!.gaveWay, `seed ${seed}, ${last.recipeId}`).toEqual(
-        last.recipeId === 'quick' ? ['same_day'] : ['cook_time', 'same_day'],
-      );
+      expect(result.assignments.find((a) => a.slot === 'snack')!.recipeId, `seed ${seed}`).toBe('quick');
+      expect(result.report.relaxations.find((entry) => entry.slot === 'snack')!.gaveWay, `seed ${seed}`).toEqual(['same_day']);
     }
-    // Both happen, or the test says nothing about the dish with fewer limits against it.
-    expect([...picked].sort()).toEqual(['quick', 'slow']);
+  });
+
+  it('take a recipe outside any number of earlier limits before one outside a later limit', () => {
+    // On the second day the slow dish is over the cooking time and at its most for the plan; the quick one would be eaten two days running.
+    const lunches = [dish('slow', ['lunch'], 700, { totalMinutes: 90 }), dish('quick', ['lunch'], 700)];
+    const days = [
+      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'slow' }] },
+      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'quick' }] },
+      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
+    ];
+
+    const result = optimisePlan(plan({ recipes: lunches, days, maxRepeatsPerRecipe: 1, maxConsecutiveDaysSameMeal: 1 }));
+
+    expect(result.assignments[2]!.recipeId).toBe('slow');
+    expect(result.report.relaxations).toEqual([{ dayIndex: 2, slot: 'lunch', gaveWay: ['variety_floor', 'cook_time'] }]);
   });
 
   it('prefer the recipe used least so far when a limit gives way', () => {

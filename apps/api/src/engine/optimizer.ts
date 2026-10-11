@@ -409,10 +409,12 @@ function broken(
 
 /**
  * The recipes that may fill a meal: those inside every limit, or, when there
- * are none, those that are inside once the fewest limits have given way, in
- * the fixed order. Limits that may give way do so before any that may not. Of
- * recipes let in that way, only the least used so far. `outside` says which
- * limits a recipe is outside.
+ * are none, those that are outside the least. Limits are weighed in the fixed
+ * order: a recipe outside a later limit is worse than one outside any number
+ * of earlier ones, and of two that differ only in earlier limits the one
+ * outside fewer is better. Limits that may give way do so before any that may
+ * not. Of the recipes that are equally far outside, only the least used so
+ * far. `outside` says which limits a recipe is outside.
  */
 function withinLimits(
   candidates: OptimizerRecipe[],
@@ -425,13 +427,10 @@ function withinLimits(
 
   const permitted = candidates.filter((recipe) => outside(recipe).every(at.mayGiveWay));
   const pool = permitted.length > 0 ? permitted : candidates;
-  // With every limit given way the whole pool is let in, so a step is found.
-  for (let step = 1; step < RELAXATION_ORDER.length; step += 1) {
-    const given = RELAXATION_ORDER.slice(0, step);
-    const letIn = pool.filter((recipe) => outside(recipe).every((kind) => given.includes(kind)));
-    if (letIn.length > 0) return { recipes: leastUsed(letIn, at.useCount), outside };
-  }
-  return { recipes: leastUsed(pool, at.useCount), outside };
+  // One bit for each limit, the later the limit the higher the bit: the smaller number is the less far outside.
+  const weight = (recipe: OptimizerRecipe): number => outside(recipe).reduce((bits, kind) => bits | (1 << RELAXATION_ORDER.indexOf(kind)), 0);
+  const least = Math.min(...pool.map(weight));
+  return { recipes: leastUsed(pool.filter((recipe) => weight(recipe) === least), at.useCount), outside };
 }
 
 function leastUsed(recipes: OptimizerRecipe[], useCount: ReadonlyMap<string, number>): OptimizerRecipe[] {
