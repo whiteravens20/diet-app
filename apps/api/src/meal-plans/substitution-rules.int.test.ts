@@ -102,6 +102,23 @@ describe('putting one ingredient of a planned meal in the place of another', () 
       expect(shown.valid).toBe(false);
     });
 
+    it('takes an ingredient that lists no diet for one that suits none of the diets decided by ingredients', async () => {
+      // Nobody has said what diets it suits: a vegetarian plan cannot take it, a balanced one can.
+      const unknown = await t.prisma.ingredient.create({ data: { slug: 'mystery-grain', name: 'Mystery grain', category: 'grains', canonicalUnit: 'g', caloriesPer100: 350, proteinPer100: 8, fatPer100: 1, carbsPer100: 76 } });
+      try {
+        expect((await preview('white-rice', 'mystery-grain')).violations).toEqual([]);
+
+        await t.prisma.mealPlan.update({ where: { id: plan.id }, data: { dietType: 'vegetarian' } });
+        // The dinner has chicken in it, which the plan's new diet would not have let in: only what the substitute adds is held against it.
+        const tofu = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
+        await t.prisma.plannedMeal.update({ where: { id: dinner.id }, data: { recipeId: tofu.id } });
+        expect(await preview('white-rice', 'mystery-grain')).toMatchObject({ violations: ['off_diet'], valid: false });
+      } finally {
+        await t.prisma.plannedMeal.deleteMany({ where: { id: dinner.id } });
+        await t.prisma.ingredient.delete({ where: { id: unknown.id } });
+      }
+    });
+
     it('takes the same amount where one of the two holds no energy', async () => {
       const water = await t.prisma.ingredient.create({ data: { slug: 'still-water', name: 'Still water', category: 'beverages', canonicalUnit: 'ml', caloriesPer100: 0, proteinPer100: 0, fatPer100: 0, carbsPer100: 0 } });
       try {
