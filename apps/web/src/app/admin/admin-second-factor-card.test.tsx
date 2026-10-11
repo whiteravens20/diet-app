@@ -31,7 +31,7 @@ describe('two-step sign-in to the admin panel', () => {
     await userEvent.type(screen.getByLabelText(a.adminPassword), 'a-long-admin-password');
     await userEvent.click(screen.getByRole('button', { name: m.continue }));
     expect(await screen.findByTitle(m.qrLabel)).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText(m.code), '123456');
+    await userEvent.type(screen.getByLabelText(m.code, { exact: false }), '123456');
     await userEvent.click(screen.getByRole('button', { name: m.switchOn }));
 
     expect(propose).toHaveBeenCalledWith('a-long-admin-password');
@@ -49,7 +49,7 @@ describe('two-step sign-in to the admin panel', () => {
     expect(screen.getByText(a.secondFactorLost)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: m.switchOff }));
     await userEvent.type(screen.getByLabelText(a.adminPassword), 'a-long-admin-password');
-    await userEvent.type(screen.getByLabelText(m.code), '654321');
+    await userEvent.type(screen.getByLabelText(m.code, { exact: false }), '654321');
     await userEvent.click(screen.getByRole('button', { name: m.switchOff }));
 
     expect(end).toHaveBeenCalledWith('a-long-admin-password', '654321');

@@ -59,7 +59,7 @@ describe('two-step sign-in in the settings of an account', () => {
     expect(screen.getByTestId('authenticator-key')).toHaveTextContent('GEZD GNBV GY3T QOJQ GEZD GNBV GY3T QOJQ');
     expect(post).toHaveBeenLastCalledWith('/users/me/second-factor/setup', { currentPassword: 'a-password' });
 
-    await userEvent.type(screen.getByLabelText(m.code), '123456');
+    await userEvent.type(screen.getByLabelText(m.code, { exact: false }), '123456');
     await userEvent.click(screen.getByRole('button', { name: m.switchOn }));
 
     expect(post).toHaveBeenLastCalledWith('/users/me/second-factor', { enrolment: 'sealed', code: '123456' });
@@ -74,7 +74,7 @@ describe('two-step sign-in in the settings of an account', () => {
     await userEvent.type(screen.getByLabelText(m.password), 'a-password');
     await userEvent.click(screen.getByRole('button', { name: m.continue }));
     expect(client.getQueryState(['sessions'])?.isInvalidated).toBe(false);
-    await userEvent.type(await screen.findByLabelText(m.code), '123456');
+    await userEvent.type(await screen.findByLabelText(m.code, { exact: false }), '123456');
     await userEvent.click(screen.getByRole('button', { name: m.switchOn }));
     await screen.findByText(m.onNow);
 
@@ -89,7 +89,7 @@ describe('two-step sign-in in the settings of an account', () => {
     await userEvent.click(await screen.findByRole('button', { name: m.setUp }));
     await userEvent.type(screen.getByLabelText(m.password), 'a-password');
     await userEvent.click(screen.getByRole('button', { name: m.continue }));
-    await userEvent.type(await screen.findByLabelText(m.code), '123456');
+    await userEvent.type(await screen.findByLabelText(m.code, { exact: false }), '123456');
     await userEvent.click(screen.getByRole('button', { name: m.switchOn }));
 
     const list = await screen.findByRole('list', { name: m.recoveryTitle });
@@ -115,7 +115,7 @@ describe('two-step sign-in in the settings of an account', () => {
 
     post.mockResolvedValueOnce(SETUP as never).mockRejectedValueOnce(new ApiClientError(401, 'INVALID_SECOND_FACTOR_CODE', 'That code is not right.'));
     await userEvent.click(screen.getByRole('button', { name: m.continue }));
-    await userEvent.type(await screen.findByLabelText(m.code), '000000');
+    await userEvent.type(await screen.findByLabelText(m.code, { exact: false }), '000000');
     await userEvent.click(screen.getByRole('button', { name: m.switchOn }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.INVALID_SECOND_FACTOR_CODE);
@@ -129,7 +129,7 @@ describe('two-step sign-in in the settings of an account', () => {
     await userEvent.click(await screen.findByRole('button', { name: m.setUp }));
     await userEvent.type(screen.getByLabelText(m.password), 'a-password');
     await userEvent.click(screen.getByRole('button', { name: m.continue }));
-    await userEvent.type(await screen.findByLabelText(m.code), '123456');
+    await userEvent.type(await screen.findByLabelText(m.code, { exact: false }), '123456');
     await userEvent.click(screen.getByRole('button', { name: m.switchOn }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.SECOND_FACTOR_SETUP_EXPIRED);

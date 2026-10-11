@@ -162,10 +162,9 @@ export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChange
         {step.at === 'scan' && (
           <form onSubmit={(event) => onFirstCode(event, step.setup)} className="max-w-sm space-y-3">
             <AuthenticatorSetup setup={step.setup} />
-            <Field label={tSecond('code')}>
+            <Field label={tSecond('code')} hint={tSecond('codeHint')}>
               <Input name="code" required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={12} />
             </Field>
-            <p className="-mt-2 text-xs text-muted-foreground">{tSecond('codeHint')}</p>
             {problem}
             <div className="flex gap-2">
               <Button type="submit" disabled={busy}>

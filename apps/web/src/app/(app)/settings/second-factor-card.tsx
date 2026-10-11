@@ -190,10 +190,9 @@ export function SecondFactorCard() {
         {step.at === 'scan' && (
           <form onSubmit={(event) => onFirstCode(event, step.setup)} className="max-w-sm space-y-3">
             <AuthenticatorSetup setup={step.setup} />
-            <Field label={t('code')}>
+            <Field label={t('code')} hint={t('codeHint')}>
               <Input name="code" required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={12} />
             </Field>
-            <p className="-mt-2 text-xs text-muted-foreground">{t('codeHint')}</p>
             {problem}
             <div className="flex gap-2">
               <Button type="submit" disabled={busy}>
