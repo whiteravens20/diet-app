@@ -16,7 +16,7 @@ import {
   Delete,
   Get,
   HttpCode,
-  NotFoundException,
+  Logger,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -58,12 +58,11 @@ import {
   RecipeGeneratorRunner,
   type RecipeRunnerState,
 } from './recipe-generator.runner.js';
-import { recipeFacts, type RecipeFacts } from '../../engine/recipe-facts.js';
-import { checkRecipeText } from '../../recipes/recipe-rules.js';
-import { UnitConversionError } from '../../engine/units.js';
 import {
   shipIngredientNamesLocal,
+  shipRecipeDraftLocal,
   shipRecipesLocal,
+  writeRecipeSidecar,
   type LocalShipResult,
 } from './ship/local-mode.js';
 import {
@@ -152,6 +151,8 @@ type ShipResponseDto =
 @Controller('admin/drafts')
 @UseGuards(BasicAuthGuard)
 export class DraftsController {
+  private readonly logger = new Logger(DraftsController.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
@@ -329,126 +330,43 @@ export class DraftsController {
   }
 
   /**
-   * Promote an APPROVED AI_USER draft to a curated `Recipe`. Creates a new
-   * Recipe row with `origin: 'curated'`, copies the polished `RecipeTranslation`
-   * rows from the draft (per-locale `titles` / `descriptions` / `steps`),
-   * sets `RecipeDraft.promotedRecipeId`, marks the draft `SHIPPED`. Personal
-   * Recipe rows in `sourceRecipeIds` are intentionally left untouched — their
-   * planned meals stay reproducible. Future fingerprint matches resolve to
-   * the new curated row.
+   * Promote a recipe users made to the shared library: the one draft is
+   * shipped into this instance, on the terms of every local ship, and written
+   * to the instance's data directory. The personal recipes it stands for are
+   * left as they are; whoever makes the recipe again is given the shared one.
    */
   @Post('recipes/:id/promote')
   async promoteRecipeDraft(
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<RecipeDraft> {
-    const existing = await this.prisma.recipeDraft.findUnique({
-      where: { id },
-      include: { localeReviews: true },
-    });
-    if (!existing) throw new NotFoundException({ error: 'DRAFT_NOT_FOUND' });
+    const existing = await this.drafts.recipe(id);
     if (existing.source !== 'AI_USER') {
       throw new BadRequestException({
         error: 'DRAFT_NOT_PROMOTABLE',
         message: 'Only AI_USER drafts can be promoted.',
       });
     }
-    if (existing.status !== 'APPROVED') {
-      throw new ConflictException({
+    const notApproved = () =>
+      new ConflictException({
         error: 'DRAFT_NOT_APPROVED',
         message: 'Draft must be approved in every locale before it can be promoted.',
       });
-    }
+    if (existing.status !== 'APPROVED') throw notApproved();
 
-    // The text that goes into the shared library is held to the rules of
-    // every recipe, and goes in as the plain lines the check returns.
-    const text = checkRecipeText({ titles: existing.titles, descriptions: existing.descriptions, steps: existing.steps }, existing.locales);
-    if (!text.ok) throw invalid(text.problems);
-    const { titles, descriptions, steps } = text.text;
-
-    // Same-instance promotion: copy the structural payload (ingredients with
-    // their resolved ingredientId, units, quantities) directly from a personal
-    // source Recipe rather than re-resolving slugs. The draft may stand for
-    // the recipes of several users, all made of the same lines; any of them
-    // that still exists will do.
-    const sourceRecipe = await this.prisma.recipe.findFirst({
-      where: { id: { in: existing.sourceRecipeIds } },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      include: { ingredients: { include: { ingredient: true } } },
-    });
-    if (!sourceRecipe) {
+    const outcome = await shipRecipeDraftLocal(this.prisma, id);
+    if (!outcome.ok) {
+      if (outcome.problems) throw invalid(outcome.problems);
+      // Reviewed, edited or promoted by someone else a moment ago.
+      if (outcome.reason.startsWith('not-approved')) throw notApproved();
       throw new ConflictException({
-        error: 'DRAFT_NO_SOURCE_RECIPE',
-        message: 'No recipe this draft was made from exists any more — cannot promote.',
+        error: 'DRAFT_NOT_SHIPPABLE',
+        message: `The draft cannot go into the library: ${outcome.reason}.`,
+        details: { reason: outcome.reason },
       });
     }
-    // The shared recipe gets the facts of the ingredient lines it is written
-    // with, worked out now, not the numbers the draft was stored with.
-    let facts: RecipeFacts;
-    try {
-      facts = recipeFacts(sourceRecipe.ingredients, existing.servings);
-    } catch (err) {
-      if (!(err instanceof UnitConversionError)) throw err;
-      throw new BadRequestException({ error: 'UNIT_CONVERSION_FAILED', message: err.message });
-    }
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      // The shared recipe carries the same fingerprint as the personal ones
-      // it was made from: from here on, whoever makes this recipe again is
-      // given the shared one.
-      const curated = await tx.recipe.create({
-        data: {
-          title: titles.en ?? Object.values(titles)[0] ?? existing.slug,
-          description: descriptions.en ?? Object.values(descriptions)[0] ?? '',
-          servings: existing.servings,
-          mealTypes: existing.mealTypes,
-          dietTags: facts.dietTags,
-          steps: steps.en ?? Object.values(steps)[0] ?? [],
-          prepMinutes: existing.prepMinutes,
-          cookMinutes: existing.cookMinutes,
-          difficulty: existing.difficulty,
-          allergens: facts.allergens,
-          origin: 'curated',
-          createdByUserId: null,
-          fingerprint: existing.fingerprint,
-          caloriesPerServing: facts.perServing.calories,
-          proteinPerServing: facts.perServing.protein,
-          fatPerServing: facts.perServing.fat,
-          carbsPerServing: facts.perServing.carbs,
-          ingredients: {
-            create: sourceRecipe.ingredients.map((line) => ({
-              ingredientId: line.ingredientId,
-              quantity: line.quantity,
-              unit: line.unit,
-              note: line.note,
-            })),
-          },
-        },
-      });
-      for (const lc of existing.locales) {
-        await tx.recipeTranslation.create({
-          data: {
-            recipeId: curated.id,
-            locale: lc,
-            title: titles[lc] ?? titles.en ?? existing.slug,
-            description: descriptions[lc] ?? descriptions.en ?? '',
-            steps: steps[lc] ?? steps.en ?? [],
-            // Approved by people in the queue. Not `CURATED_JSON`: that is
-            // text from the data files, which an update rewrites.
-            source: 'MANUAL',
-          },
-        });
-      }
-      return tx.recipeDraft.update({
-        where: { id },
-        data: {
-          promotedRecipeId: curated.id,
-          status: 'SHIPPED',
-          shippedAt: new Date(),
-        },
-        include: { localeReviews: true },
-      });
-    });
-    return toRecipeDraftDto(updated);
+    const { sidecarError } = writeRecipeSidecar(this.resolveInstanceDataDir(), [outcome.content]);
+    if (sidecarError) this.logger.warn(`Promoted ${outcome.content.slug}, but its copy in the instance's data directory was not written: ${sidecarError}`);
+    return toRecipeDraftDto(outcome.draft);
   }
 
   // ── Ship ───────────────────────────────────────────────────────────────────

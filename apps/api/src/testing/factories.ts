@@ -118,15 +118,19 @@ export async function aReviewer(t: TestApp, label = 'pl reviewer'): Promise<{ Co
 
 /**
  * A recipe draft as a batch run leaves one in the queue: English and Polish,
- * three ingredients of the test catalogue, the engine's own figures, pending.
+ * three ingredients of the test catalogue unless `lines` names others, the
+ * engine's own figures for them, pending.
  */
-export async function aRecipeDraft(t: TestApp, overrides: Partial<Prisma.RecipeDraftUncheckedCreateInput> = {}) {
+export async function aRecipeDraft(
+  t: TestApp,
+  overrides: Partial<Prisma.RecipeDraftUncheckedCreateInput> = {},
+  lines: { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[] = [
+    { slug: 'rolled-oats', quantity: 60, unit: 'g', note: null },
+    { slug: 'oat-drink', quantity: 200, unit: 'ml', note: null },
+    { slug: 'banana', quantity: 120, unit: 'g', note: null },
+  ],
+) {
   sequence += 1;
-  const lines = [
-    { slug: 'rolled-oats', quantity: 60, unit: 'g' as const, note: null },
-    { slug: 'oat-drink', quantity: 200, unit: 'ml' as const, note: null },
-    { slug: 'banana', quantity: 120, unit: 'g' as const, note: null },
-  ];
   const rows = await t.prisma.ingredient.findMany({ where: { slug: { in: lines.map((line) => line.slug) } } });
   const facts = recipeFacts(lines.map((line) => ({ ...line, ingredient: rows.find((row) => row.slug === line.slug)! })), 1);
   return t.prisma.recipeDraft.create({

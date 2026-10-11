@@ -18,8 +18,9 @@
  */
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import type { IngredientOverrideFile } from './ingredient-overrides.writer.js';
+import { sortRecipesForFile } from './library.js';
 import type { ShippedRecipe } from './recipe-batches.writer.js';
-import { shippableIngredientName, shippableRecipe, sortForShipping } from './shippable.js';
+import { shippableIngredientName, sortForShipping, type Skipped } from './shippable.js';
 
 export interface BundleShipRequest {
   kind: 'recipe' | 'ingredient-name';
@@ -31,8 +32,8 @@ export interface BundleShipResult {
   batchId: string;
   /** The drafts the bundle holds. */
   draftIds: string[];
-  /** Approved drafts left out because they do not pass the rules of every recipe, with the reason. */
-  skipped: { draftId: string; reason: string }[];
+  /** Approved drafts left out, each with the reason. */
+  skipped: Skipped[];
   /** The name to save the file under. */
   fileName: string;
   /** What the file holds. */
@@ -49,7 +50,7 @@ const newBatchId = (): string => `bundle-${new Date().toISOString().replace(/[:.
 export async function shipRecipesBundle(prisma: PrismaService, request: BundleShipRequest & { kind: 'recipe' }): Promise<BundleShipResult> {
   const drafts = await prisma.recipeDraft.findMany({ where: approved(request), orderBy: { createdAt: 'asc' } });
   if (drafts.length === 0) throw new Error('NO_APPROVED_DRAFTS');
-  const { shipping, skipped } = sortForShipping(drafts, shippableRecipe);
+  const { shipping, skipped } = await sortRecipesForFile(prisma, drafts);
   if (shipping.length === 0) throw new Error('NO_VALID_DRAFTS');
 
   const batchId = newBatchId();
@@ -69,7 +70,7 @@ export async function shipIngredientNamesBundle(
 ): Promise<BundleShipResult> {
   const drafts = await prisma.ingredientNameDraft.findMany({ where: approved(request), orderBy: { createdAt: 'asc' } });
   if (drafts.length === 0) throw new Error('NO_APPROVED_DRAFTS');
-  const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName);
+  const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName, (draft) => draft.ingredientSlug);
   if (shipping.length === 0) throw new Error('NO_VALID_DRAFTS');
 
   const content: IngredientOverrideFile = {};
@@ -86,7 +87,9 @@ export async function shipIngredientNamesBundle(
 
 /**
  * Mark drafts as shipped once the operator has committed the bundle they
- * were in. Only approved drafts change.
+ * were in. Only approved drafts change: the status is part of the update's
+ * own condition, so a draft that an edit sent back to review in the meantime
+ * stays where the edit left it.
  */
 export async function markBundleShipped(
   prisma: PrismaService,

@@ -27,7 +27,15 @@ export interface RecipeDraftContent {
   ingredientsJson: unknown;
 }
 
-export type Shippable<T> = { ok: true; content: T } | { ok: false; reason: string };
+export type Shippable<T> = { ok: true; content: T } | { ok: false; reason: string; problems: RecipeProblem[] };
+
+/** A draft that did not ship: which one, and why, as `<rule>` or `<rule>: <detail>`. */
+export interface Skipped {
+  draftId: string;
+  /** The draft's slug, or the slug of the ingredient it names. */
+  slug: string;
+  reason: string;
+}
 
 const reasonOf = (problems: RecipeProblem[]): string => `invalid-draft: ${problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`;
 
@@ -48,7 +56,7 @@ export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRec
     },
     draft.locales,
   );
-  if (!checked.ok) return { ok: false, reason: reasonOf(checked.problems) };
+  if (!checked.ok) return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
   const recipe = checked.recipe;
   return {
     ok: true,
@@ -71,20 +79,21 @@ export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRec
 export function shippableIngredientName(draft: { suggestions: unknown; locales: string[] }): Shippable<IngredientOverrideEntry> {
   const suggestions = typeof draft.suggestions === 'object' && draft.suggestions !== null ? (draft.suggestions as Record<string, unknown>) : {};
   const checked = checkIngredientName(suggestions, draft.locales);
-  return checked.ok ? { ok: true, content: checked.suggestion } : { ok: false, reason: reasonOf(checked.problems) };
+  return checked.ok ? { ok: true, content: checked.suggestion } : { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
 }
 
 /** Split `drafts` into what ships and what is held back, in their order. */
 export function sortForShipping<D extends { id: string }, T>(
   drafts: readonly D[],
   shippable: (draft: D) => Shippable<T>,
-): { shipping: { draft: D; content: T }[]; skipped: { draftId: string; reason: string }[] } {
+  slugOf: (draft: D) => string,
+): { shipping: { draft: D; content: T }[]; skipped: Skipped[] } {
   const shipping: { draft: D; content: T }[] = [];
-  const skipped: { draftId: string; reason: string }[] = [];
+  const skipped: Skipped[] = [];
   for (const draft of drafts) {
     const result = shippable(draft);
     if (result.ok) shipping.push({ draft, content: result.content });
-    else skipped.push({ draftId: draft.id, reason: result.reason });
+    else skipped.push({ draftId: draft.id, slug: slugOf(draft), reason: result.reason });
   }
   return { shipping, skipped };
 }

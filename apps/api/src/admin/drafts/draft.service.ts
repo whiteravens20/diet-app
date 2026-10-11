@@ -45,6 +45,7 @@ import { UnitConversionError } from '../../engine/units.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { checkIngredientName, checkRecipe, checkRecipeText, type RecipeProblem } from '../../recipes/recipe-rules.js';
 import { deriveDraftStatus } from './derive-status.js';
+import { lockIngredientNameDraft, lockRecipeDraft } from './draft-lock.js';
 import { localeMap, localeStepsMap, type IngredientNameDraftRow, type RecipeDraftRow } from './drafts.mapper.js';
 import { classifyComplexity } from './recipe-generator.complexity.js';
 
@@ -401,14 +402,14 @@ export class DraftService {
 
   /** The draft, with its row locked until the transaction ends. */
   private async lockRecipe(tx: Tx, id: string): Promise<RecipeDraftRow> {
-    await tx.$queryRaw`SELECT 1 FROM "RecipeDraft" WHERE "id" = ${id} FOR UPDATE`;
+    await lockRecipeDraft(tx, id);
     const draft = await tx.recipeDraft.findUnique({ where: { id }, include: WITH_REVIEWS });
     if (!draft) throw notFound();
     return draft;
   }
 
   private async lockIngredientName(tx: Tx, id: string): Promise<IngredientNameDraftRow> {
-    await tx.$queryRaw`SELECT 1 FROM "IngredientNameDraft" WHERE "id" = ${id} FOR UPDATE`;
+    await lockIngredientNameDraft(tx, id);
     const draft = await tx.ingredientNameDraft.findUnique({ where: { id }, include: WITH_REVIEWS });
     if (!draft) throw notFound();
     return draft;

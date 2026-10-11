@@ -372,14 +372,18 @@ model SubstitutionRule {
 
 // ── Recipes ───────────────────────────────────────────────────────────────────
 
+// Where a recipe came from. `seed` and `curated` recipes are shared, `ai` and
+// `user` recipes belong to the user who made them.
 enum RecipeOrigin {
+  // From the catalogue's data files; an update of the catalogue rewrites it.
   seed
+  // A personal recipe a model wrote for its owner.
   ai
+  // A personal recipe its owner made, by hand or by swapping an ingredient.
   user
-  // Promoted from an AI_USER draft by an admin. A shared recipe like a `seed`
-  // one: a personal recipe that turns out to be it is not written. It ships
-  // into data/recipes/promoted.json so the next re-seed turns it into a
-  // regular seed row deterministically.
+  // Approved in this instance's curation queue and shipped into its own
+  // library, whether a batch run or a user wrote it. An update of the
+  // catalogue leaves it alone; the instance's data directory holds its copy.
   curated
 }
 
@@ -755,8 +759,9 @@ model AiUsageLog {
 
 // ── Curation queue (drafts) ───────────────────────────────────────────────────
 
-// AI proposes, human approves, PR ships. Drafts never reach the live Recipe /
-// Ingredient tables.
+// A model or a user proposes, people approve, and what is approved ships: into
+// this instance's own tables, into a file, or into a pull request. A draft is
+// no recipe: nothing plans with it until it has shipped.
 
 enum DraftStatus {
   PENDING
@@ -779,8 +784,8 @@ model RecipeDraft {
   id                 String      @id @default(uuid())
   slug               String
   // Locale-keyed JSON: { "en": "Chicken curry", "pl": "Curry z kurczaka" }.
-  // Matches data/recipes.json shape; on ship the seeder splits per-locale
-  // into RecipeTranslation rows.
+  // The shape data/recipes.json has; a ship writes one RecipeTranslation row
+  // per language.
   titles             Json
   descriptions       Json
   // Same locale keys; values are string[]: { "en": ["Step 1"], "pl": ["Krok 1"] }.
@@ -795,8 +800,8 @@ model RecipeDraft {
   prepMinutes        Int
   cookMinutes        Int
   difficulty         Difficulty  @default(easy)
-  // 'simple' | 'medium' | 'complex' — auto-tagged from ingredient/step/time
-  // bands by the validator. See plan §D8.
+  // 'simple' | 'medium' | 'complex': the band the count of ingredients and
+  // steps and the total time put the recipe in.
   complexity         String      @default("medium")
   // Engine-recomputed values — never the AI's. See engine/units.ts +
   // engine/nutrition.ts.
@@ -807,9 +812,9 @@ model RecipeDraft {
   allergens          String[]    @default([])
   // [{ slug, quantity, unit, note? }]
   ingredientsJson    Json
-  // Derived from localeReviews: APPROVED iff every locale in `locales[]`
-  // has an APPROVE row; REJECTED if any has a REJECT; PENDING otherwise;
-  // SHIPPED set only by the ship runner.
+  // Derived from the reviews that count now: APPROVED iff every locale in
+  // `locales[]` has an APPROVE row; REJECTED if any has a REJECT; PENDING
+  // otherwise. SHIPPED is set by a ship only.
   status             DraftStatus @default(PENDING)
   source             DraftSource @default(AI)
   batchId            String
@@ -829,7 +834,8 @@ model RecipeDraft {
   // or those of the users who each made the same recipe. The draft itself
   // names no user.
   sourceRecipeIds    String[]    @default([])
-  // Set when an admin promotes an AI_USER draft to a curated Recipe.
+  // The recipe of the shared library this draft became, when it shipped into
+  // this instance's own tables.
   promotedRecipeId   String?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt

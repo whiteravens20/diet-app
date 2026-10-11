@@ -57,7 +57,7 @@ describe('a recipe draft that is about to ship', () => {
     ['a slug that would leave the data directory', { slug: '../../etc/passwd' }, 'invalid-draft: slug: invalid-slug'],
     ['servings and a meal nobody could plan', { servings: 500, mealTypes: ['brunch'] }, 'invalid-draft: servings: servings-out-of-range; mealTypes[0]: invalid-meal-type'],
   ])('does not ship with %s, and says why', (_what, over, reason) => {
-    expect(shippableRecipe(draft(over))).toEqual({ ok: false, reason });
+    expect(shippableRecipe(draft(over))).toMatchObject({ ok: false, reason });
   });
 });
 
@@ -70,10 +70,10 @@ describe('an ingredient-name draft that is about to ship', () => {
   });
 
   it('does not ship without a name, with markup, or when what is stored is no suggestion at all', () => {
-    expect(shippableIngredientName({ suggestions: { name: {} }, locales: ['pl'] })).toEqual({ ok: false, reason: 'invalid-draft: name.pl: missing-locale' });
-    expect(shippableIngredientName({ suggestions: { name: { pl: '<b>x</b>' } }, locales: ['pl'] })).toEqual({ ok: false, reason: 'invalid-draft: name.pl: markup' });
-    expect(shippableIngredientName({ suggestions: 'Polędwica', locales: ['pl'] })).toEqual({ ok: false, reason: 'invalid-draft: name.pl: missing-locale' });
-    expect(shippableIngredientName({ suggestions: null, locales: ['pl'] })).toEqual({ ok: false, reason: 'invalid-draft: name.pl: missing-locale' });
+    expect(shippableIngredientName({ suggestions: { name: {} }, locales: ['pl'] })).toMatchObject({ ok: false, reason: 'invalid-draft: name.pl: missing-locale' });
+    expect(shippableIngredientName({ suggestions: { name: { pl: '<b>x</b>' } }, locales: ['pl'] })).toMatchObject({ ok: false, reason: 'invalid-draft: name.pl: markup' });
+    expect(shippableIngredientName({ suggestions: 'Polędwica', locales: ['pl'] })).toMatchObject({ ok: false, reason: 'invalid-draft: name.pl: missing-locale' });
+    expect(shippableIngredientName({ suggestions: null, locales: ['pl'] })).toMatchObject({ ok: false, reason: 'invalid-draft: name.pl: missing-locale' });
   });
 });
 
@@ -85,12 +85,12 @@ describe('sorting drafts for shipping', () => {
       { id: 'c', ...draft({ slug: 'another-bowl' }) },
     ];
 
-    const { shipping, skipped } = sortForShipping(drafts, shippableRecipe);
+    const { shipping, skipped } = sortForShipping(drafts, shippableRecipe, (draft) => draft.slug);
 
     expect(shipping.map((entry) => [entry.draft.id, entry.content.slug])).toEqual([
       ['a', 'oat-bowl'],
       ['c', 'another-bowl'],
     ]);
-    expect(skipped).toEqual([{ draftId: 'b', reason: 'invalid-draft: servings: servings-out-of-range' }]);
+    expect(skipped).toEqual([{ draftId: 'b', slug: 'oat-bowl', reason: 'invalid-draft: servings: servings-out-of-range' }]);
   });
 });

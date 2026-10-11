@@ -148,8 +148,23 @@ describe('shipping as a pull request', () => {
     const result = await shipRecipesUpstream(t.prisma, { kind: 'recipe', ...request(run) });
 
     expect(result.shippedDraftIds).toEqual([sound.id]);
-    expect(result.skipped).toEqual([{ draftId: old.id, reason: 'invalid-draft: titles.en: markup' }]);
+    expect(result.skipped).toEqual([{ draftId: old.id, slug: old.slug, reason: 'invalid-draft: titles.en: markup' }]);
     expect((await t.prisma.recipeDraft.findUniqueOrThrow({ where: { id: old.id } })).status).toBe('APPROVED');
+  });
+
+  it('holds back a draft that would take the place of a recipe of the catalogue, and one that repeats another of the batch', async () => {
+    const taking = await aRecipeDraft(t, { status: 'APPROVED', slug: 'milk-porridge', titles: { en: 'Another porridge', pl: 'Inna owsianka' } });
+    const first = await aRecipeDraft(t, { status: 'APPROVED' });
+    const repeat = await aRecipeDraft(t, { status: 'APPROVED', titles: { en: 'Oats again', pl: 'Znowu owsianka' } });
+    const { run } = standIn();
+
+    const result = await shipRecipesUpstream(t.prisma, { kind: 'recipe', ...request(run) });
+
+    expect(result.shippedDraftIds).toEqual([first.id]);
+    expect(result.skipped).toEqual([
+      { draftId: taking.id, slug: 'milk-porridge', reason: 'slug-taken: milk-porridge' },
+      { draftId: repeat.id, slug: repeat.slug, reason: `same-making-as: ${first.slug}` },
+    ]);
   });
 
   it('pushes nothing when every approved draft breaks the rules', async () => {

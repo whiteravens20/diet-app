@@ -258,11 +258,7 @@ describe('generating recipe drafts', () => {
       t.model.reply({ text: author().answer(), times: 10 });
       await run({ count: 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE });
       const draft = await t.prisma.recipeDraft.findFirstOrThrow();
-      // A draft approved with tags nobody derived, as one from an earlier version would be.
-      await t.prisma.recipeDraft.update({
-        where: { id: draft.id },
-        data: { status: 'APPROVED', dietTags: ['vegan', 'keto', 'balanced'] },
-      });
+      await t.prisma.recipeDraft.update({ where: { id: draft.id }, data: { status: 'APPROVED' } });
       const instanceDataDir = mkdtempSync(join(tmpdir(), 'diet-app-ship-'));
 
       const result = await shipRecipesLocal(t.prisma, { kind: 'recipe', instanceDataDir });
@@ -279,6 +275,19 @@ describe('generating recipe drafts', () => {
       expect(shipped[0]).toMatchObject({ slug: draft.slug });
       expect(shipped[0]).not.toHaveProperty('dietTags');
       expect(shipped[0]).not.toHaveProperty('allergens');
+    });
+
+    it('hold a draft back that was approved with tags the engine does not give it', async () => {
+      t.model.reply({ text: author().answer(), times: 10 });
+      await run({ count: 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE });
+      const draft = await t.prisma.recipeDraft.findFirstOrThrow();
+      // Tags nobody derived, as a draft from an earlier version would carry.
+      await t.prisma.recipeDraft.update({ where: { id: draft.id }, data: { status: 'APPROVED', dietTags: [...draft.dietTags, 'balanced'] } });
+
+      const result = await shipRecipesLocal(t.prisma, { kind: 'recipe', instanceDataDir: mkdtempSync(join(tmpdir(), 'diet-app-ship-')) });
+
+      expect(result.shippedDraftIds).toEqual([]);
+      expect(result.skipped).toEqual([{ draftId: draft.id, slug: draft.slug, reason: 'facts-moved-since-review: diets -balanced' }]);
     });
   });
 

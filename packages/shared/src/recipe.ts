@@ -76,10 +76,10 @@ export const Recipe = z.object({
   /** 0-1 score: how reusable this recipe's ingredients are across a plan. */
   reuseScore: z.number().min(0).max(1),
   /**
-   * `seed` = curated baseline from data/recipes.json; `ai` = AI-drafted then
-   * validated; `user` = user-created (incl. ingredient-swap variants);
-   * `curated` = promoted from an AI_USER draft, ships into data/recipes/
-   * promoted.json so the next re-seed makes it permanent.
+   * Where the recipe came from. Shared with everybody: `seed`, from the
+   * catalogue's data files, and `curated`, approved in this instance's
+   * curation queue. The user's own: `ai`, written for them by a model, and
+   * `user`, made by them, by hand or by swapping an ingredient.
    */
   origin: z.enum(['seed', 'ai', 'user', 'curated']),
 });

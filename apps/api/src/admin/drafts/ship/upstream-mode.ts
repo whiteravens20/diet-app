@@ -29,7 +29,8 @@ import {
 } from './ingredient-overrides.writer.js';
 import { writeRecipeBatch, type ShippedRecipe } from './recipe-batches.writer.js';
 import { buildCurrentIngredientOverrides } from './current-overrides.js';
-import { shippableIngredientName, shippableRecipe, sortForShipping } from './shippable.js';
+import { sortRecipesForFile } from './library.js';
+import { shippableIngredientName, sortForShipping, type Skipped } from './shippable.js';
 
 export interface UpstreamShipConfig {
   enabled: boolean;
@@ -96,7 +97,7 @@ export interface UpstreamShipResult {
   prUrl: string;
   branch: string;
   shippedDraftIds: string[];
-  skipped: { draftId: string; reason: string }[];
+  skipped: Skipped[];
 }
 
 export class UpstreamShipError extends Error {
@@ -165,8 +166,8 @@ export async function shipRecipesUpstream(
     throw new UpstreamShipError('NO_APPROVED_DRAFTS', 'no approved recipe drafts to ship');
   }
 
-  // Held to the rules of every recipe once more; what does not pass stays in the queue.
-  const { shipping, skipped } = sortForShipping(drafts, shippableRecipe);
+  // Held to the terms of a recipe that ships into this instance; what does not pass stays in the queue.
+  const { shipping, skipped } = await sortRecipesForFile(prisma, drafts);
   if (shipping.length === 0) {
     throw new UpstreamShipError('NO_VALID_DRAFTS', 'no approved recipe draft passes the rules for a recipe');
   }
@@ -215,7 +216,7 @@ export async function shipIngredientNamesUpstream(
   }
 
   // Only the names of a draft's own languages ship, and only plain ones.
-  const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName);
+  const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName, (draft) => draft.ingredientSlug);
   if (shipping.length === 0) {
     throw new UpstreamShipError('NO_VALID_DRAFTS', 'no approved ingredient-name draft passes the rules for a name');
   }
