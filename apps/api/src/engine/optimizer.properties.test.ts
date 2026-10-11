@@ -237,6 +237,16 @@ describe('the limits of a plan', () => {
     }
   });
 
+  it('take a dish that cannot reach its share before a limit gives way', () => {
+    // The small dish stays far under the budget at its largest serving; the big one may be eaten once.
+    const lunches = [dish('big', ['lunch'], 700), dish('small', ['lunch'], 150)];
+
+    const result = optimisePlan(plan({ recipes: lunches, days: uniformDays(2, ['lunch'], 700), maxRepeatsPerRecipe: 1, allowRelaxations: new Set() }));
+
+    expect(result.assignments.map((a) => a.recipeId)).toEqual(['big', 'small']);
+    expect(result.report.relaxations).toEqual([]);
+  });
+
   it('report the meals that had one recipe to choose from', () => {
     const recipes = [dish('only-breakfast', ['breakfast'], 500), ...CATALOGUE.filter((r) => !r.mealTypes.includes('breakfast'))];
 

@@ -282,12 +282,12 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
           throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, { slot, dietType: input.dietType });
         }
         if (candidates.length === 1) report.singleCandidate.push({ dayIndex: day, slot });
-        // A recipe that stays far under the budget even at the largest serving
-        // is left out, unless nothing else is there.
-        const reaching = candidates.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
-        const pool = withinLimits(reaching.length > 0 ? reaching : candidates, { day, slot, uses, useCount, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
+        const pool = withinLimits(candidates, { day, slot, uses, useCount, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
         if (pool.gaveWay.length > 0) report.relaxations.push({ dayIndex: day, slot, gaveWay: pool.gaveWay });
-        recipe = pickBest(pool.recipes, {
+        // Of the recipes the limits leave, one that stays far under the budget
+        // even at the largest serving is left out, unless nothing else is there.
+        const reaching = pool.recipes.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
+        recipe = pickBest(reaching.length > 0 ? reaching : pool.recipes, {
           budget,
           day,
           planIngredients,
