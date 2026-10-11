@@ -16,7 +16,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  InternalServerErrorException,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -513,22 +512,7 @@ export class DraftsController {
     }
 
     if (mode === 'upstream-pr') {
-      const config = this.readUpstreamConfig();
-      const repoRoot = findRepoRoot(process.cwd());
-      if (!repoRoot) {
-        throw new InternalServerErrorException({
-          error: 'SHIP_REPO_ROOT_NOT_FOUND',
-          message: 'Could not find git repo root.',
-        });
-      }
-      const blocked = upstreamBlockedReason(config, repoRoot);
-      if (blocked) {
-        throw new ConflictException({
-          error: blocked,
-          message: `Upstream-PR mode refused: ${blocked}.`,
-        });
-      }
-      const dataDir = resolvePath(repoRoot, 'data');
+      const { config, repoRoot, dataDir } = this.upstreamTarget();
       try {
         const result =
           kind === 'recipe'
@@ -581,22 +565,7 @@ export class DraftsController {
    *  to draft status. */
   @Post('ship/current-overrides/push')
   async pushCurrentOverrides(): Promise<CurrentOverridesPushResult> {
-    const config = this.readUpstreamConfig();
-    const repoRoot = findRepoRoot(process.cwd());
-    if (!repoRoot) {
-      throw new InternalServerErrorException({
-        error: 'SHIP_REPO_ROOT_NOT_FOUND',
-        message: 'Could not find git repo root.',
-      });
-    }
-    const blocked = upstreamBlockedReason(config, repoRoot);
-    if (blocked) {
-      throw new ConflictException({
-        error: blocked,
-        message: `Upstream push refused: ${blocked}.`,
-      });
-    }
-    const dataDir = resolvePath(repoRoot, 'data');
+    const { config, repoRoot, dataDir } = this.upstreamTarget();
     try {
       return await pushCurrentOverridesUpstream(this.prisma, { dataDir, repoRoot, config });
     } catch (err) {
@@ -658,6 +627,22 @@ export class DraftsController {
   }
 
   // ── Internals ───────────────────────────────────────────────────────────────
+
+  /**
+   * Where a pull-request ship would write and push, or the refusal that
+   * stands in its way: what the settings decide first, then the tool, then
+   * the checkout and its remote.
+   */
+  private upstreamTarget(): { config: UpstreamShipConfig; repoRoot: string; dataDir: string } {
+    const config = this.readUpstreamConfig();
+    const repoRoot = findRepoRoot(process.cwd());
+    const blocked = upstreamBlockedReason(config, repoRoot);
+    if (blocked !== null || repoRoot === null) {
+      const code = blocked ?? 'SHIP_REPO_ROOT_NOT_FOUND';
+      throw new ConflictException({ error: code, message: `Shipping as a pull request is refused: ${code}.` });
+    }
+    return { config, repoRoot, dataDir: resolvePath(repoRoot, 'data') };
+  }
 
   private readUpstreamConfig(): UpstreamShipConfig {
     return {
