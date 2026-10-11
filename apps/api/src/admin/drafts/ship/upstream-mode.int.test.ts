@@ -200,7 +200,10 @@ describe('shipping as a pull request', () => {
     await aRecipeDraft(t, { status: 'APPROVED', servings: 500 });
     const { run, calls } = standIn();
 
-    await expect(shipRecipesUpstream(t.prisma, { kind: 'recipe', ...request(run) })).rejects.toMatchObject({ code: 'NO_VALID_DRAFTS' });
+    await expect(shipRecipesUpstream(t.prisma, { kind: 'recipe', ...request(run) })).rejects.toMatchObject({
+      code: 'NO_VALID_DRAFTS',
+      details: { skipped: [expect.objectContaining({ reason: 'invalid-draft: servings: servings-out-of-range' })] },
+    });
     expect(lines(calls).filter((line) => /push|commit|pr create/.test(line))).toEqual([]);
   });
 

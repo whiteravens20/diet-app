@@ -220,12 +220,20 @@ describe('shipping approved drafts', () => {
       ]);
     });
 
-    it('is not made of nothing', async () => {
-      await anOldDraft();
+    it('is not made of nothing, and says of each approved draft why it was left out', async () => {
+      const old = await anOldDraft();
+      const moved = await aRecipeDraft(t, { status: 'APPROVED', caloriesPerServing: 1 });
 
       const res = await ship('recipe', 'bundle');
 
       expect([res.status, res.body.error]).toEqual([409, 'NO_VALID_DRAFTS']);
+      expect(res.body.details.skipped).toEqual([
+        { draftId: old.id, slug: old.slug, reason: 'invalid-draft: titles.en: markup' },
+        { draftId: moved.id, slug: moved.slug, reason: expect.stringMatching(/^facts-moved-since-review: calories 1 → \d+$/) },
+      ]);
+      expect((await ship('recipe', 'bundle').then(async (answer) => answer)).body.details.skipped).toHaveLength(2);
+      await t.prisma.recipeDraft.deleteMany();
+      expect((await ship('recipe', 'bundle')).body).toMatchObject({ error: 'NO_APPROVED_DRAFTS' });
     });
 
     it('holds the names of the languages a draft was reviewed in only', async () => {

@@ -37,6 +37,13 @@ export interface Skipped {
   reason: string;
 }
 
+/** No approved draft may ship: each of them was held back, and here is why. */
+export class NothingShips extends Error {
+  constructor(readonly skipped: Skipped[]) {
+    super('NO_VALID_DRAFTS');
+  }
+}
+
 const reasonOf = (problems: RecipeProblem[]): string => `invalid-draft: ${problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`;
 
 /** A checked recipe in the shape of the catalogue's data files. */

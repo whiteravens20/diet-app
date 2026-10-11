@@ -83,6 +83,7 @@ import {
   type PullOverridesResult,
   type PullPolicy,
 } from './ship/pull-overrides.js';
+import { NothingShips } from './ship/shippable.js';
 import { instanceDataState, restoreInstanceData, type InstanceDataState, type RestoreResult } from './ship/restore.js';
 import {
   markBundleShipped,
@@ -450,7 +451,7 @@ export class DraftsController {
         return { mode: 'upstream-pr', ...result };
       } catch (err) {
         if (err instanceof UpstreamShipError) {
-          throw new ConflictException({ error: err.code, message: err.message });
+          throw new ConflictException({ error: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) });
         }
         throw err;
       }
@@ -461,9 +462,11 @@ export class DraftsController {
       const result = kind === 'recipe' ? await shipRecipesBundle(this.prisma, { kind, batchIds }) : await shipIngredientNamesBundle(this.prisma, { kind, batchIds });
       return { mode: 'bundle', ...result };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message === 'NO_APPROVED_DRAFTS' || message === 'NO_VALID_DRAFTS') {
-        throw new ConflictException({ error: message, message });
+      if (err instanceof NothingShips) {
+        throw new ConflictException({ error: 'NO_VALID_DRAFTS', message: 'None of the approved drafts can ship as they are.', details: { skipped: err.skipped } });
+      }
+      if (err instanceof Error && err.message === 'NO_APPROVED_DRAFTS') {
+        throw new ConflictException({ error: 'NO_APPROVED_DRAFTS', message: 'There are no approved drafts to ship.' });
       }
       throw err;
     }

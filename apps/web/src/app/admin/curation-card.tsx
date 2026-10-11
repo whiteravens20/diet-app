@@ -38,6 +38,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   adminApi,
+  AdminApiError,
   saveJsonFile,
   type DraftLocaleReview,
   type DraftPastReview,
@@ -1340,6 +1341,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
   const [busyMode, setBusyMode] = useState<ShipMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ShipResponse | null>(null);
+  const [heldBack, setHeldBack] = useState<ShipSkipped[]>([]);
   const [currentBusy, setCurrentBusy] = useState<'download' | 'push' | 'pull' | null>(null);
   const [currentPushUrl, setCurrentPushUrl] = useState<string | null>(null);
   const [pullResult, setPullResult] = useState<CurrentOverridesPullResponse | null>(null);
@@ -1367,6 +1369,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
   const run = async (mode: ShipMode) => {
     setBusyMode(mode);
     setError(null);
+    setHeldBack([]);
     setSuccess(null);
     try {
       const res = await adminApi.ship({ kind, mode });
@@ -1375,6 +1378,9 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
       await onShipped();
     } catch (err) {
       setError(errorText(err, String(err)));
+      // A ship that ships nothing names the drafts it held back.
+      const skipped = err instanceof AdminApiError ? err.details?.skipped : undefined;
+      if (Array.isArray(skipped)) setHeldBack(skipped as ShipSkipped[]);
     } finally {
       setBusyMode(null);
     }
@@ -1630,6 +1636,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
           {error}
         </p>
       )}
+      {error && <div className="text-xs"><SkippedDrafts skipped={heldBack} heading="shipSkipped" /></div>}
       {success && (
         <ShipSuccess
           result={success}

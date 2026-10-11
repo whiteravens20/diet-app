@@ -104,6 +104,8 @@ export class UpstreamShipError extends Error {
   constructor(
     public readonly code: string,
     message: string,
+    /** What a client is told besides the code: the drafts that were held back, when none could ship. */
+    public readonly details?: { skipped: Skipped[] },
   ) {
     super(message);
   }
@@ -169,7 +171,7 @@ export async function shipRecipesUpstream(
   // Held to the terms of a recipe that ships into this instance; what does not pass stays in the queue.
   const { shipping, skipped } = await sortRecipesForFile(prisma, drafts);
   if (shipping.length === 0) {
-    throw new UpstreamShipError('NO_VALID_DRAFTS', 'no approved recipe draft passes the rules for a recipe');
+    throw new UpstreamShipError('NO_VALID_DRAFTS', 'None of the approved recipe drafts can ship as they are.', { skipped });
   }
   const rows: ShippedRecipe[] = shipping.map((entry) => entry.content);
 
@@ -218,7 +220,7 @@ export async function shipIngredientNamesUpstream(
   // Only the names of a draft's own languages ship, and only plain ones.
   const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName, (draft) => draft.ingredientSlug);
   if (shipping.length === 0) {
-    throw new UpstreamShipError('NO_VALID_DRAFTS', 'no approved ingredient-name draft passes the rules for a name');
+    throw new UpstreamShipError('NO_VALID_DRAFTS', 'None of the approved ingredient-name drafts can ship as they are.', { skipped });
   }
   const additions: IngredientOverrideFile = {};
   for (const entry of shipping) additions[entry.draft.ingredientSlug] = entry.content;
