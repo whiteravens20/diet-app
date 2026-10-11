@@ -179,6 +179,22 @@ describe('outboundRequest', () => {
       },
     );
 
+    it.each(['127.0.0.1', '[::1]', '2130706433', '0x7f000001', '127.1', '[::ffff:127.0.0.1]'])(
+      'refuses the address %s, however it is written, without connecting',
+      async (host) => {
+        respond = (_path, _body, res) => {
+          res.writeHead(200);
+          res.end('reached');
+        };
+        hits = 0;
+
+        const refused = await failure(outboundRequest(`http://${host}:${port}/`, request({ publicOnly: true })));
+
+        expect(refused.failure).toBe('address_not_public');
+        expect(hits).toBe(0);
+      },
+    );
+
     it('reports a name that does not resolve as a network failure', async () => {
       const unknown = await failure(
         outboundRequest(`http://no-such-host.example:${port}/`, request({ publicOnly: true }), names),

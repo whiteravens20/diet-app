@@ -7,14 +7,16 @@
  * Such a request is made with care. It never follows a redirect (a server
  * that answers 3xx is not followed to wherever it points), it stops reading a
  * body that grows past a limit, it gives up after a deadline, and when the
- * caller asks for it, it connects only to public addresses. That check
- * happens on the addresses the name resolves to at the moment of connecting,
- * and the connection goes to the address that was checked, so a name cannot
- * pass as public and then resolve to something internal.
+ * caller asks for it, it connects only to public addresses. An address
+ * written as numbers is checked as written; a name is checked by the
+ * addresses it resolves to at the moment of connecting, and the connection
+ * goes to the address that was checked, so a name cannot pass as public and
+ * then resolve to something internal.
  */
 import { lookup as dnsLookup, type LookupAddress, type LookupOptions } from 'node:dns';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
+import { isIP } from 'node:net';
 import { isPublicAddress } from './public-address.js';
 
 export interface OutboundRequest {
@@ -88,6 +90,14 @@ export function outboundRequest(
 ): Promise<OutboundResponse> {
   return new Promise((done, fail) => {
     const target = new URL(url);
+    // A host written as an address is connected to without being looked up,
+    // so it is judged here. The URL parser has already turned every spelling
+    // of an IPv4 address (decimal, hexadecimal, short) into the dotted one.
+    const literal = target.hostname.replace(/^\[|\]$/g, '');
+    if (req.publicOnly && isIP(literal) !== 0 && !isPublicAddress(literal)) {
+      fail(new OutboundRequestError('address_not_public', `${target.hostname} is not a public address.`));
+      return;
+    }
     const body = req.body === undefined ? undefined : JSON.stringify(req.body);
     const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
 
