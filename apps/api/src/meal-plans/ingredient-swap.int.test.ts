@@ -6,7 +6,7 @@ import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { MealPlansService } from './meal-plans.service.js';
+import { IngredientSwapService } from './ingredient-swap.service.js';
 
 interface Text {
   title: string;
@@ -19,14 +19,12 @@ const REWORDING = 'You polish cooking-recipe prose';
 
 describe('the text of a recipe after an ingredient swap', () => {
   let t: TestApp;
-  let plans: MealPlansService;
   let user: TestUser;
   let plan: MealPlan;
   let mealId: string;
 
   beforeAll(async () => {
     t = await createTestApp();
-    plans = t.app.get(MealPlansService);
     await resetDatabase(t.prisma);
     await seedCatalogue(t.prisma);
   });
@@ -55,7 +53,7 @@ describe('the text of a recipe after an ingredient swap', () => {
   async function broccoliForTomato(
     options: { locale?: Locale; rewriteWithAi?: boolean } = {},
   ): Promise<{ answer: SwapIngredientResponse; text: Record<string, Text> }> {
-    const answer = await plans.applyIngredientSwap(user.id, options.locale ?? 'en', {
+    const answer = await t.app.get(IngredientSwapService).applyIngredientSwap(user.id, options.locale ?? 'en', {
       planId: plan.id,
       plannedMealId: mealId,
       fromIngredientId: await ingredientId('broccoli'),

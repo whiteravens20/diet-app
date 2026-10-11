@@ -14,6 +14,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, race, type TestUser } from '../testing/factories.js';
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
@@ -170,7 +171,7 @@ describe('editing a plan', () => {
     }
 
     async function substitute(plannedMealId: string, from: string, to: string) {
-      const result = await plans.applyIngredientSwap(user.id, 'en', {
+      const result = await t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', {
         planId: plan.id,
         plannedMealId,
         fromIngredientId: await ingredientId(from),
@@ -241,7 +242,7 @@ describe('editing a plan', () => {
       await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: own.id } });
 
       // Rice may appear in a low-carbohydrate recipe; a dish that is mostly rice is not one.
-      const swap = plans.applyIngredientSwap(user.id, 'en', {
+      const swap = t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', {
         planId: plan.id,
         plannedMealId: meal.id,
         fromIngredientId: chicken,
@@ -431,7 +432,7 @@ describe('editing a plan', () => {
       }
 
       const suggest = async () =>
-        plans.aiSuggestIngredient(
+        t.app.get(IngredientSwapService).aiSuggestIngredient(
           user.id,
           'en',
           AiSuggestIngredientRequest.parse({ planId: plan.id, ...(await aLineWithSubstitutes()) }),

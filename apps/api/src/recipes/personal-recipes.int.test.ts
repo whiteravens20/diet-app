@@ -4,7 +4,7 @@ import { AiDraftRecipeRequest, type MealPlan, type Profile } from '@diet-app/sha
 import { HttpException } from '@nestjs/common';
 import { recipeFacts } from '../engine/recipe-facts.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { MealPlansService } from '../meal-plans/meal-plans.service.js';
+import { IngredientSwapService } from '../meal-plans/ingredient-swap.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, asAdmin, race, type TestUser } from '../testing/factories.js';
@@ -14,7 +14,6 @@ import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
 import { MAX_PERSONAL_RECIPES, PersonalRecipesService } from './personal-recipes.service.js';
 
 let t: TestApp;
-let plans: MealPlansService;
 let drafts: AiRecipeDraftService;
 let personal: PersonalRecipesService;
 
@@ -22,7 +21,6 @@ beforeAll(async () => {
   t = await createTestApp();
   await resetDatabase(t.prisma);
   await seedCatalogue(t.prisma);
-  plans = t.app.get(MealPlansService);
   drafts = t.app.get(AiRecipeDraftService);
   personal = t.app.get(PersonalRecipesService);
 });
@@ -51,7 +49,7 @@ async function tofuForChicken(account: Account): Promise<string> {
   const meal = account.plan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
   const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
   await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: bowl.id } });
-  await plans.applyIngredientSwap(account.user.id, 'en', {
+  await t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', {
     planId: account.plan.id,
     plannedMealId: meal.id,
     fromIngredientId: await ingredientId('firm-tofu'),
@@ -179,7 +177,7 @@ describe('one user who makes the same recipe again', () => {
     const first = account.plan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
     await t.prisma.plannedMeal.updateMany({ where: { id: { in: [first.id, second.id] } }, data: { recipeId: bowl.id } });
     const swap = async (plannedMealId: string) =>
-      plans.applyIngredientSwap(account.user.id, 'en', {
+      t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', {
         planId: account.plan.id,
         plannedMealId,
         fromIngredientId: await ingredientId('firm-tofu'),
@@ -290,7 +288,7 @@ describe('the number of recipes an account may hold', () => {
     const meal = account.plan.days[1]!.meals.find((m) => m.mealType === 'lunch')!;
     const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
     await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: bowl.id } });
-    const full = plans.applyIngredientSwap(account.user.id, 'en', {
+    const full = t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', {
       planId: account.plan.id,
       plannedMealId: meal.id,
       fromIngredientId: await ingredientId('firm-tofu'),

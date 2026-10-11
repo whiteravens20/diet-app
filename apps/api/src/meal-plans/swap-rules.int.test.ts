@@ -14,6 +14,7 @@ import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
@@ -75,7 +76,7 @@ describe('a meal that was eaten', () => {
     ).toEqual(eaten);
     expect(
       await refusal(
-        plans.aiSuggestIngredient(
+        t.app.get(IngredientSwapService).aiSuggestIngredient(
           user.id,
           'en',
           AiSuggestIngredientRequest.parse({ planId: plan.id, plannedMealId: meal.id, fromIngredientId: line.ingredientId }),
@@ -84,7 +85,7 @@ describe('a meal that was eaten', () => {
     ).toEqual(eaten);
     expect(
       await refusal(
-        plans.applyIngredientSwap(user.id, 'en', {
+        t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', {
           planId: plan.id,
           plannedMealId: meal.id,
           fromIngredientId: line.ingredientId,
@@ -214,7 +215,7 @@ describe('a plan on a custom diet', () => {
       for (const line of m.recipe?.ingredients ?? []) {
         const ingredient = await t.prisma.ingredient.findUniqueOrThrow({ where: { id: line.ingredientId } });
         if (!['grains', 'vegetables', 'legumes'].includes(ingredient.category)) continue;
-        const result = await plans.aiSuggestIngredient(
+        const result = await t.app.get(IngredientSwapService).aiSuggestIngredient(
           user.id,
           'en',
           AiSuggestIngredientRequest.parse({ planId: plan.id, plannedMealId: m.id, fromIngredientId: line.ingredientId }),

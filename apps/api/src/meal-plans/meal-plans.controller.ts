@@ -30,6 +30,7 @@ import { CurrentUser, type RequestUser } from '../common/current-user.decorator.
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
@@ -39,6 +40,7 @@ export class MealPlansController {
   constructor(
     private readonly plans: MealPlansService,
     private readonly generation: PlanGenerationService,
+    private readonly ingredients: IngredientSwapService,
   ) {}
 
   @Get()
@@ -172,7 +174,7 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(AiSuggestIngredientRequest)) dto: AiSuggestIngredientRequest,
   ) {
-    return this.plans.aiSuggestIngredient(user.id, locale, dto);
+    return this.ingredients.aiSuggestIngredient(user.id, locale, dto);
   }
 
   @Post('swap-ingredient/preview')
@@ -180,7 +182,7 @@ export class MealPlansController {
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
   ) {
-    return this.plans.previewIngredientSwap(user.id, dto);
+    return this.ingredients.previewIngredientSwap(user.id, dto);
   }
 
   /** Apply a substitution: clone the recipe with the swap baked in, repoint the meal. */
@@ -191,6 +193,6 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapIngredientRequest)) dto: SwapIngredientRequest,
   ) {
-    return this.plans.applyIngredientSwap(user.id, locale, dto);
+    return this.ingredients.applyIngredientSwap(user.id, locale, dto);
   }
 }

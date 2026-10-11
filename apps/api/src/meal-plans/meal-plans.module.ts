@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module.js';
 import { PersonalRecipesModule } from '../recipes/personal-recipes.module.js';
 import { RecipesModule } from '../recipes/recipes.module.js';
+import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansController } from './meal-plans.controller.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
@@ -11,7 +12,7 @@ import { PlanGenerationService } from './plan-generation.service.js';
 @Module({
   imports: [RecipesModule, AiModule, PersonalRecipesModule],
   controllers: [MealPlansController],
-  providers: [MealPlansService, PlanGenerationService],
+  providers: [MealPlansService, PlanGenerationService, IngredientSwapService],
   exports: [MealPlansService, PlanGenerationService],
 })
 export class MealPlansModule {}
