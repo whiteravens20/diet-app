@@ -40,7 +40,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     role: 'user' as const,
     emailVerified: true,
     locale: 'en',
-    emailEncrypted: encrypt('alice@example.com', EMAIL_KEY),
+    emailEncrypted: encrypt('alice@example.com', EMAIL_KEY, 'user-email:user-1'),
     passwordHash: bcrypt.hashSync(pepperPassword('CorrectHorse1', PEPPER_KEY), 4),
     ...overrides,
   };

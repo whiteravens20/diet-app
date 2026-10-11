@@ -127,7 +127,7 @@ export class UsersService {
     // fail the password change itself.
     if (this.mail.enabled) {
       try {
-        await this.mail.sendPasswordChangedNotice(this.emails.open(user.emailEncrypted), Locale.parse(user.locale));
+        await this.mail.sendPasswordChangedNotice(this.emails.open(user.emailEncrypted, user.id), Locale.parse(user.locale));
       } catch {
         // swallow — the password was already rotated successfully.
       }
@@ -170,7 +170,7 @@ export class UsersService {
     await this.prisma.emailChangeToken.create({
       data: {
         userId,
-        newEmailEncrypted: this.emails.seal(newEmail),
+        newEmailEncrypted: this.emails.sealPending(newEmail, userId),
         newEmailIndex,
         tokenHash: createHash('sha256').update(raw).digest('hex'),
         expiresAt: new Date(Date.now() + 3_600_000),
@@ -190,7 +190,7 @@ export class UsersService {
         message: 'This email address is already verified.',
       });
     }
-    await this.auth.sendVerificationEmail(userId, this.emails.open(user.emailEncrypted), Locale.parse(user.locale));
+    await this.auth.sendVerificationEmail(userId, this.emails.open(user.emailEncrypted, user.id), Locale.parse(user.locale));
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {
@@ -225,7 +225,7 @@ export class UsersService {
   }): SessionUser {
     return {
       id: user.id,
-      email: this.emails.open(user.emailEncrypted),
+      email: this.emails.open(user.emailEncrypted, user.id),
       displayName: user.displayName,
       role: user.role,
       emailVerified: user.emailVerified,

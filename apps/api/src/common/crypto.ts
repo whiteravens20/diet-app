@@ -14,33 +14,57 @@ import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes } f
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_BYTES = 12;
+const TAG_BYTES = 16;
+const VERSION = 'v2';
 
 /**
- * AES-256-GCM encryption. Ciphertext format: `iv:authTag:data`, all hex.
- * A fresh random IV per call means the same plaintext encrypts differently
- * every time — so an encrypted column cannot be queried by equality (use
- * `blindIndex` for that).
+ * AES-256-GCM encryption for a value that is stored. Written as
+ * `v2:iv:tag:data`, the last three in hex. A fresh random IV per call means
+ * the same plaintext encrypts differently every time, so an encrypted column
+ * cannot be queried by equality (use `blindIndex` for that).
+ *
+ * `context` says what the value is and whose (`user-email:<user id>`). It is
+ * bound into the ciphertext without being stored, and the value opens only
+ * when the same context is given: a ciphertext copied into another row, or
+ * into another column, does not open there.
  */
-export function encrypt(plaintext: string, keyHex: string): string {
-  const key = Buffer.from(keyHex, 'hex');
+export function encrypt(plaintext: string, keyHex: string, context: string): string {
   const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const cipher = createCipheriv(ALGORITHM, Buffer.from(keyHex, 'hex'), iv, { authTagLength: TAG_BYTES });
+  cipher.setAAD(Buffer.from(context, 'utf8'));
   const data = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString('hex')}:${tag.toString('hex')}:${data.toString('hex')}`;
+  return [VERSION, iv.toString('hex'), cipher.getAuthTag().toString('hex'), data.toString('hex')].join(':');
 }
 
-/** Reverses {@link encrypt}. Throws if the ciphertext was tampered with. */
-export function decrypt(ciphertext: string, keyHex: string): string {
-  const [ivHex, tagHex, dataHex] = ciphertext.split(':');
-  if (!ivHex || !tagHex || !dataHex) throw new Error('malformed ciphertext');
-  const key = Buffer.from(keyHex, 'hex');
-  const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(ivHex, 'hex'));
-  decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
-  return Buffer.concat([
-    decipher.update(Buffer.from(dataHex, 'hex')),
-    decipher.final(),
-  ]).toString('utf8');
+/**
+ * Reverses {@link encrypt}. Throws when the value was changed, was written
+ * for another context or under another key, or is not a ciphertext.
+ *
+ * A value of three parts was written before the form had a version, with no
+ * context bound to it: it opens for any context, until `inCurrentForm` values
+ * have taken the place of all of them.
+ */
+export function decrypt(ciphertext: string, keyHex: string, context: string): string {
+  const parts = ciphertext.split(':');
+  const current = parts[0] === VERSION;
+  const [ivHex, tagHex, dataHex] = current ? parts.slice(1) : parts;
+  const iv = Buffer.from(ivHex ?? '', 'hex');
+  const tag = Buffer.from(tagHex ?? '', 'hex');
+  const data = Buffer.from(dataHex ?? '', 'hex');
+  // The tag's length is part of the form: one cut short would still verify,
+  // against far fewer guesses, if the length were left to the stored value.
+  if (parts.length !== (current ? 4 : 3) || iv.length !== IV_BYTES || tag.length !== TAG_BYTES || data.length === 0 || data.length * 2 !== dataHex!.length) {
+    throw new Error('malformed ciphertext');
+  }
+  const decipher = createDecipheriv(ALGORITHM, Buffer.from(keyHex, 'hex'), iv, { authTagLength: TAG_BYTES });
+  if (current) decipher.setAAD(Buffer.from(context, 'utf8'));
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+}
+
+/** True for a value in the form `encrypt` writes: one that is not has no context bound to it yet. */
+export function inCurrentForm(ciphertext: string): boolean {
+  return ciphertext.startsWith(`${VERSION}:`);
 }
 
 /**

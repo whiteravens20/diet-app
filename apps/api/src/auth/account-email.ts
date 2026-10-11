@@ -2,7 +2,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { blindIndex, decrypt, deriveKey, encrypt } from '../common/crypto.js';
+import { blindIndex, decrypt, deriveKey, encrypt, inCurrentForm } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
 
 /**
@@ -32,11 +32,30 @@ export class AccountEmail {
     return blindIndex(address, this.indexKey);
   }
 
-  seal(address: string): string {
-    return encrypt(address, this.key);
+  /** The address of account `userId` as its row holds it. It opens for that account alone. */
+  seal(address: string, userId: string): string {
+    return encrypt(address, this.key, `user-email:${userId}`);
   }
 
-  open(sealed: string): string {
-    return decrypt(sealed, this.key);
+  open(sealed: string, userId: string): string {
+    return decrypt(sealed, this.key, `user-email:${userId}`);
+  }
+
+  /**
+   * An address account `userId` asked to change to, while it waits to be
+   * confirmed. It is another kind of value than the account's own address:
+   * put into the account's row as it is, it would not open.
+   */
+  sealPending(address: string, userId: string): string {
+    return encrypt(address, this.key, `pending-email:${userId}`);
+  }
+
+  openPending(sealed: string, userId: string): string {
+    return decrypt(sealed, this.key, `pending-email:${userId}`);
+  }
+
+  /** True when a stored address is in the form in which it is bound to its account. */
+  isBound(sealed: string): boolean {
+    return inCurrentForm(sealed);
   }
 }

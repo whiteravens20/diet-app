@@ -28,7 +28,8 @@ import {
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private transport: Transporter | null = null;
+  /** What mail goes out through: built from the SMTP settings at the first send. A test puts its own here. */
+  transport: Transporter | null = null;
 
   constructor(private readonly config: ConfigService<Env, true>) {}
 

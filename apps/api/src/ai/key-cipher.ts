@@ -2,7 +2,8 @@
 
 /**
  * How a user's provider key is stored: encrypted under
- * `AI_KEY_ENCRYPTION_SECRET`, with the id of that secret in front.
+ * `AI_KEY_ENCRYPTION_SECRET` for the account it belongs to, with the id of
+ * that secret in front.
  *
  * The id says which secret sealed a key without revealing anything about it.
  * A key sealed under another secret (the operator changed it, or restored a
@@ -11,7 +12,7 @@
  * are opened with the current secret.
  */
 import { createHmac } from 'node:crypto';
-import { decrypt, encrypt } from '../common/crypto.js';
+import { decrypt, encrypt, inCurrentForm } from '../common/crypto.js';
 
 /** Why a stored key could not be opened; for the log, not for the user. */
 export type UnreadableKey = 'sealed under another secret' | 'damaged' | 'damaged, or sealed under another secret';
@@ -23,22 +24,42 @@ function secretId(secretHex: string): string {
   return createHmac('sha256', Buffer.from(secretHex, 'hex')).update('ai-provider-key-id').digest('hex').slice(0, 8);
 }
 
-export function sealKey(plaintext: string, secretHex: string): string {
-  return `${secretId(secretHex)}:${encrypt(plaintext, secretHex)}`;
+/** Whose a key is: an account's, or the instance's where the row belongs to nobody. */
+function contextOf(ownerId: string | null): string {
+  return `ai-provider-key:${ownerId ?? 'instance'}`;
 }
 
-export function openKey(stored: string, secretHex: string): OpenedKey {
-  const parts = stored.split(':');
-  // Four parts carry an id; three were written before there was one.
-  const ciphertext = parts.length === 4 ? parts.slice(1).join(':') : stored;
-  if (parts.length === 4 && parts[0] !== secretId(secretHex)) {
+/** The id in front of a stored key, when it has one, and the ciphertext after it. */
+function partsOf(stored: string): { id: string | null; ciphertext: string } {
+  const cut = stored.indexOf(':');
+  const rest = stored.slice(cut + 1);
+  // An id stands in front of a ciphertext of the current form, or of the three
+  // parts of the earlier one. Three parts alone were written before ids.
+  const hasId = cut > 0 && (inCurrentForm(rest) || rest.split(':').length === 3);
+  return hasId ? { id: stored.slice(0, cut), ciphertext: rest } : { id: null, ciphertext: stored };
+}
+
+export function sealKey(plaintext: string, secretHex: string, ownerId: string | null): string {
+  return `${secretId(secretHex)}:${encrypt(plaintext, secretHex, contextOf(ownerId))}`;
+}
+
+export function openKey(stored: string, secretHex: string, ownerId: string | null): OpenedKey {
+  const { id, ciphertext } = partsOf(stored);
+  if (id !== null && id !== secretId(secretHex)) {
     return { ok: false, why: 'sealed under another secret' };
   }
   try {
-    return { ok: true, key: decrypt(ciphertext, secretHex) };
+    return { ok: true, key: decrypt(ciphertext, secretHex, contextOf(ownerId)) };
   } catch {
-    // With a matching id the secret is right, so the stored value is damaged.
-    // Without an id there is no telling the two apart.
-    return { ok: false, why: parts.length === 4 ? 'damaged' : 'damaged, or sealed under another secret' };
+    // With a matching id the secret is right, so the stored value is damaged
+    // or was sealed for another account. Without an id there is no telling
+    // damage from another secret.
+    return { ok: false, why: id !== null ? 'damaged' : 'damaged, or sealed under another secret' };
   }
+}
+
+/** True for a key stored as `sealKey` stores one now: with the secret's id, bound to its owner. */
+export function isSealedForOwner(stored: string): boolean {
+  const { id, ciphertext } = partsOf(stored);
+  return id !== null && inCurrentForm(ciphertext);
 }

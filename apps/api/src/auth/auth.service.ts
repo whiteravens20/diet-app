@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { randomBytes, createHash } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -64,11 +64,14 @@ export class AuthService {
 
     const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
     const passwordHash = await this.hashPassword(dto.password, rounds);
+    // The id is chosen here: the address is sealed for the account it belongs to.
+    const id = randomUUID();
     const user = await this.prisma.user
       .create({
         data: {
+          id,
           emailIndex,
-          emailEncrypted: this.emails.seal(email),
+          emailEncrypted: this.emails.seal(email, id),
           passwordHash,
           displayName: dto.displayName,
           // With mail configured the address must be confirmed via an emailed
@@ -126,7 +129,7 @@ export class AuthService {
     }
     // Rotate: revoke the used token, issue a fresh pair.
     await this.prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
-    return this.issueTokens(stored.user, this.emails.open(stored.user.emailEncrypted));
+    return this.issueTokens(stored.user, this.emails.open(stored.user.emailEncrypted, stored.user.id));
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -199,7 +202,8 @@ export class AuthService {
         this.prisma.user.update({
           where: { id: token.userId },
           data: {
-            emailEncrypted: token.newEmailEncrypted,
+            // Sealed anew: as the address of the account, no longer as one it asked for.
+            emailEncrypted: this.emails.seal(this.emails.openPending(token.newEmailEncrypted, token.userId), token.userId),
             emailIndex: token.newEmailIndex,
             emailVerified: true,
           },

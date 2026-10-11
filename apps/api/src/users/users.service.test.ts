@@ -33,7 +33,7 @@ const auth = { sendVerificationEmail: vi.fn() };
 function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'user-1',
-    emailEncrypted: encrypt('alice@example.com', EMAIL_KEY),
+    emailEncrypted: encrypt('alice@example.com', EMAIL_KEY, 'user-email:user-1'),
     displayName: 'Alice',
     role: 'user' as const,
     emailVerified: false,

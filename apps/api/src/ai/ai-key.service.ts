@@ -59,7 +59,7 @@ export class AiKeyService {
     const existing = await this.prisma.aiProviderConfig.findFirst({
       where: { userId, provider: input.provider },
     });
-    const encryptedKey = input.apiKey ? sealKey(input.apiKey, this.encKey) : undefined;
+    const encryptedKey = input.apiKey ? sealKey(input.apiKey, this.encKey, userId) : undefined;
 
     const baseUrl = input.provider === 'ollama' ? input.baseUrl ?? null : null;
     // SSRF guard: a persisted Ollama baseUrl is later dialled by the router, so
@@ -152,7 +152,7 @@ export class AiKeyService {
       return rows.map((r) => {
         // A key that cannot be read does not stop the request: the entry is
         // marked, the router passes over it, and the others are still tried.
-        const opened = r.encryptedKey ? openKey(r.encryptedKey, this.encKey) : null;
+        const opened = r.encryptedKey ? openKey(r.encryptedKey, this.encKey, r.userId) : null;
         if (opened && !opened.ok) {
           this.logger.warn(`the ${r.provider} key of user ${userId} cannot be read: ${opened.why}`);
         }
@@ -209,6 +209,7 @@ export class AiKeyService {
     priority: number;
     enabled: boolean;
     isAdminDefault: boolean;
+    userId: string | null;
     encryptedKey: string | null;
     baseUrl: string | null;
   }): AiProviderConfig {
@@ -220,7 +221,7 @@ export class AiKeyService {
       enabled: row.enabled,
       isAdminDefault: row.isAdminDefault,
       hasKey: row.encryptedKey !== null,
-      keyUnreadable: row.encryptedKey !== null && !openKey(row.encryptedKey, this.encKey).ok,
+      keyUnreadable: row.encryptedKey !== null && !openKey(row.encryptedKey, this.encKey, row.userId).ok,
       baseUrl: row.baseUrl,
     };
   }

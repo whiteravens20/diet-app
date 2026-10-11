@@ -10,7 +10,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AiKeyService } from './ai-key.service.js';
-import { encrypt } from '../common/crypto.js';
+import { ciphertextWrittenBefore } from '../testing/old-ciphertext.js';
 import { openKey, sealKey } from './key-cipher.js';
 
 const ENC_KEY = 'b'.repeat(64);
@@ -95,7 +95,9 @@ describe('AiKeyService.upsert', () => {
     expect(created.encryptedKey).toBeTypeOf('string');
     expect(created.encryptedKey).not.toContain('sk-secret-123');
     // Round-trips back to the original under the configured key.
-    expect(openKey(created.encryptedKey as string, ENC_KEY)).toEqual({ ok: true, key: 'sk-secret-123' });
+    expect(openKey(created.encryptedKey as string, ENC_KEY, 'user-1')).toEqual({ ok: true, key: 'sk-secret-123' });
+    // Sealed for the account it belongs to: in another account's row it does not open.
+    expect(openKey(created.encryptedKey as string, ENC_KEY, 'user-2').ok).toBe(false);
     expect(dto.keyUnreadable).toBe(false);
   });
 
@@ -211,12 +213,14 @@ describe('AiKeyService.remove', () => {
 describe('AiKeyService.list', () => {
   it('flags a stored key that can no longer be read, and never returns a key', async () => {
     const prisma = makePrisma();
-    const row = { id: 'cfg', model: 'm', priority: 0, enabled: true, isAdminDefault: false, baseUrl: null };
+    const row = { id: 'cfg', userId: 'user-1', model: 'm', priority: 0, enabled: true, isAdminDefault: false, baseUrl: null };
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
-      { ...row, provider: 'openai', encryptedKey: sealKey('sk-a', ENC_KEY) },
-      { ...row, provider: 'openrouter', encryptedKey: encrypt('sk-b', ENC_KEY) },
-      { ...row, provider: 'anthropic', encryptedKey: sealKey('sk-c', 'c'.repeat(64)) },
+      { ...row, provider: 'openai', encryptedKey: sealKey('sk-a', ENC_KEY, 'user-1') },
+      { ...row, provider: 'openrouter', encryptedKey: ciphertextWrittenBefore('sk-b', ENC_KEY) },
+      { ...row, provider: 'anthropic', encryptedKey: sealKey('sk-c', 'c'.repeat(64), 'user-1') },
       { ...row, provider: 'ollama', encryptedKey: null, baseUrl: 'http://ollama:11434' },
+      // A key copied here from the row of another account.
+      { ...row, provider: 'openai', encryptedKey: sealKey('sk-d', ENC_KEY, 'user-2') },
     ]);
 
     const list = await makeService(prisma).list('user-1');
@@ -227,6 +231,7 @@ describe('AiKeyService.list', () => {
       ['openrouter', true, false],
       ['anthropic', true, true],
       ['ollama', false, false],
+      ['openai', true, true],
     ]);
     expect(JSON.stringify(list)).not.toContain('sk-');
     expect(JSON.stringify(list)).not.toContain('encryptedKey');
@@ -242,7 +247,7 @@ describe('AiKeyService.resolveChain', () => {
   it('byok mode decrypts each enabled config key, ordered by priority', async () => {
     const prisma = makePrisma();
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
-      { provider: 'openai', model: 'gpt-4o', priority: 0, encryptedKey: encrypt('sk-a', ENC_KEY), baseUrl: null },
+      { userId: 'user-1', provider: 'openai', model: 'gpt-4o', priority: 0, encryptedKey: ciphertextWrittenBefore('sk-a', ENC_KEY), baseUrl: null },
     ]);
     const service = makeService(prisma);
     const chain = await service.resolveChain('user-1', 'byok');
@@ -254,9 +259,9 @@ describe('AiKeyService.resolveChain', () => {
   it('byok mode marks an entry whose key cannot be read, instead of failing the whole chain', async () => {
     const prisma = makePrisma();
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
-      { provider: 'openai', model: 'gpt-4o', priority: 0, encryptedKey: sealKey('sk-a', 'c'.repeat(64)), baseUrl: null },
-      { provider: 'anthropic', model: 'claude', priority: 1, encryptedKey: '00:00:00', baseUrl: null },
-      { provider: 'openrouter', model: 'llama', priority: 2, encryptedKey: sealKey('sk-c', ENC_KEY), baseUrl: null },
+      { userId: 'user-1', provider: 'openai', model: 'gpt-4o', priority: 0, encryptedKey: sealKey('sk-a', 'c'.repeat(64), 'user-1'), baseUrl: null },
+      { userId: 'user-1', provider: 'anthropic', model: 'claude', priority: 1, encryptedKey: '00:00:00', baseUrl: null },
+      { userId: 'user-1', provider: 'openrouter', model: 'llama', priority: 2, encryptedKey: sealKey('sk-c', ENC_KEY, 'user-1'), baseUrl: null },
     ]);
     const service = makeService(prisma);
 
