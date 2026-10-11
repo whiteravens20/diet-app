@@ -51,6 +51,8 @@ describe('the list of where an account is signed in', () => {
     expect(rows).toHaveLength(3);
     expect(within(rows[0]!).getByText('Firefox on Linux')).toBeInTheDocument();
     expect(within(rows[0]!).getByText(messages.settings.sessionCurrent)).toBeInTheDocument();
+    // Read out as two things, not as one word.
+    expect(rows[0]!.querySelector('p')!.textContent).toBe(`Firefox on Linux ${messages.settings.sessionCurrent}`);
     expect(within(rows[1]!).queryByText(messages.settings.sessionCurrent)).toBeNull();
     expect(within(rows[2]!).getByText(messages.settings.sessionUnknown)).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Signed in Jan 5, 2026, 8:00 AM · last active Jan 6, 2026, 9:30 AM')).toBeInTheDocument();
