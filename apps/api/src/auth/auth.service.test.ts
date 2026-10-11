@@ -11,6 +11,7 @@ import { BadRequestException, ConflictException, UnauthorizedException } from '@
 import { createHash } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { describe, expect, it, vi } from 'vitest';
+import { AccountEmail } from './account-email.js';
 import { AuthService } from './auth.service.js';
 import { deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
 
@@ -90,6 +91,8 @@ function makeService(deps: ReturnType<typeof makeDeps>) {
     deps.turnstile as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     deps.mail as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
+    new AccountEmail(makeConfig() as any),
   );
 }
 

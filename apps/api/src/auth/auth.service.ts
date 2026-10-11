@@ -17,19 +17,17 @@ import type {
   RegisterRequest,
 } from '@diet-app/shared';
 import { Locale } from '@diet-app/shared';
-import { blindIndex, decrypt, deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
+import { deriveKey, pepperPassword } from '../common/crypto.js';
 import { hashPassword, hashPasswordAtStartup, verifyPassword } from '../common/password-hash.js';
 import { isUniqueViolation } from '../common/prisma-errors.js';
 import type { Env } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { AccountEmail } from './account-email.js';
 import { TurnstileService } from './turnstile.service.js';
 
 @Injectable()
 export class AuthService {
-  // Purpose-specific keys derived from the single DATA_ENCRYPTION_SECRET.
-  private readonly emailKey: string;
-  private readonly emailIndexKey: string;
   private readonly pepperKey: string;
   /**
    * A *valid* bcrypt hash at the configured cost, computed once at startup, so
@@ -47,11 +45,9 @@ export class AuthService {
     private readonly config: ConfigService<Env, true>,
     private readonly turnstile: TurnstileService,
     private readonly mail: MailService,
+    private readonly emails: AccountEmail,
   ) {
-    const master = this.config.get('DATA_ENCRYPTION_SECRET', { infer: true });
-    this.emailKey = deriveKey(master, 'email-encryption');
-    this.emailIndexKey = deriveKey(master, 'email-blind-index');
-    this.pepperKey = deriveKey(master, 'password-pepper');
+    this.pepperKey = deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'password-pepper');
     this.dummyHash = hashPasswordAtStartup(
       'uniform-timing-placeholder',
       this.config.get('PASSWORD_HASH_ROUNDS', { infer: true }),
@@ -60,8 +56,8 @@ export class AuthService {
 
   async register(dto: RegisterRequest, locale: Locale = 'en'): Promise<AuthResponse> {
     await this.assertHuman(dto.turnstileToken);
-    const email = normalizeEmail(dto.email);
-    const emailIndex = blindIndex(email, this.emailIndexKey);
+    const email = this.emails.normalise(dto.email);
+    const emailIndex = this.emails.indexOf(email);
 
     const existing = await this.prisma.user.findUnique({ where: { emailIndex } });
     if (existing) throw emailTaken();
@@ -72,7 +68,7 @@ export class AuthService {
       .create({
         data: {
           emailIndex,
-          emailEncrypted: encrypt(email, this.emailKey),
+          emailEncrypted: this.emails.seal(email),
           passwordHash,
           displayName: dto.displayName,
           // With mail configured the address must be confirmed via an emailed
@@ -103,10 +99,8 @@ export class AuthService {
 
   async login(dto: LoginRequest): Promise<AuthResponse> {
     await this.assertHuman(dto.turnstileToken);
-    const email = normalizeEmail(dto.email);
-    const user = await this.prisma.user.findUnique({
-      where: { emailIndex: blindIndex(email, this.emailIndexKey) },
-    });
+    const email = this.emails.normalise(dto.email);
+    const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });
     // Always run a hash comparison to keep the response time uniform.
     const ok = await verifyPassword(
       pepperPassword(dto.password, this.pepperKey),
@@ -132,7 +126,7 @@ export class AuthService {
     }
     // Rotate: revoke the used token, issue a fresh pair.
     await this.prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
-    return this.issueTokens(stored.user, decrypt(stored.user.emailEncrypted, this.emailKey));
+    return this.issueTokens(stored.user, this.emails.open(stored.user.emailEncrypted));
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -144,10 +138,8 @@ export class AuthService {
   /** Always returns 200 — never reveals whether the email exists. */
   async requestPasswordReset(dto: PasswordResetRequest): Promise<void> {
     await this.assertHuman(dto.turnstileToken);
-    const email = normalizeEmail(dto.email);
-    const user = await this.prisma.user.findUnique({
-      where: { emailIndex: blindIndex(email, this.emailIndexKey) },
-    });
+    const email = this.emails.normalise(dto.email);
+    const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });
     if (!user) return;
 
     const raw = randomBytes(32).toString('hex');
@@ -293,11 +285,6 @@ function emailTaken(): ConflictException {
 /** Turns the unique index refusing an address into the answer a client expects. */
 function rethrowAsEmailTaken(error: unknown): never {
   throw isUniqueViolation(error) ? emailTaken() : error;
-}
-
-/** Lowercased + trimmed, so the blind index is stable regardless of casing. */
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
 }
 
 function sha256(value: string): string {

@@ -16,9 +16,10 @@ import type {
   UpdateUserSettings,
 } from '@diet-app/shared';
 import { AiMode, Locale, Palette, Theme } from '@diet-app/shared';
-import { blindIndex, decrypt, deriveKey, encrypt, pepperPassword } from '../common/crypto.js';
+import { deriveKey, pepperPassword } from '../common/crypto.js';
 import { hashPassword, verifyPassword } from '../common/password-hash.js';
 import type { Env } from '../config/env.js';
+import { AccountEmail } from '../auth/account-email.js';
 import { AuthService } from '../auth/auth.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -32,8 +33,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
  */
 @Injectable()
 export class UsersService {
-  private readonly emailKey: string;
-  private readonly emailIndexKey: string;
   private readonly pepperKey: string;
 
   constructor(
@@ -41,11 +40,9 @@ export class UsersService {
     private readonly config: ConfigService<Env, true>,
     private readonly mail: MailService,
     private readonly auth: AuthService,
+    private readonly emails: AccountEmail,
   ) {
-    const master = this.config.get('DATA_ENCRYPTION_SECRET', { infer: true });
-    this.emailKey = deriveKey(master, 'email-encryption');
-    this.emailIndexKey = deriveKey(master, 'email-blind-index');
-    this.pepperKey = deriveKey(master, 'password-pepper');
+    this.pepperKey = deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'password-pepper');
   }
 
   async getMe(userId: string): Promise<SessionUser> {
@@ -130,10 +127,7 @@ export class UsersService {
     // fail the password change itself.
     if (this.mail.enabled) {
       try {
-        await this.mail.sendPasswordChangedNotice(
-          decrypt(user.emailEncrypted, this.emailKey),
-          Locale.parse(user.locale),
-        );
+        await this.mail.sendPasswordChangedNotice(this.emails.open(user.emailEncrypted), Locale.parse(user.locale));
       } catch {
         // swallow — the password was already rotated successfully.
       }
@@ -165,8 +159,8 @@ export class UsersService {
         message: 'Current password is incorrect.',
       });
     }
-    const newEmail = dto.newEmail.trim().toLowerCase();
-    const newEmailIndex = blindIndex(newEmail, this.emailIndexKey);
+    const newEmail = this.emails.normalise(dto.newEmail);
+    const newEmailIndex = this.emails.indexOf(newEmail);
     // Covers both "already in use by someone else" and "this is already your
     // address" — either way there's nothing to change.
     const clash = await this.prisma.user.findUnique({ where: { emailIndex: newEmailIndex } });
@@ -176,7 +170,7 @@ export class UsersService {
     await this.prisma.emailChangeToken.create({
       data: {
         userId,
-        newEmailEncrypted: encrypt(newEmail, this.emailKey),
+        newEmailEncrypted: this.emails.seal(newEmail),
         newEmailIndex,
         tokenHash: createHash('sha256').update(raw).digest('hex'),
         expiresAt: new Date(Date.now() + 3_600_000),
@@ -196,11 +190,7 @@ export class UsersService {
         message: 'This email address is already verified.',
       });
     }
-    await this.auth.sendVerificationEmail(
-      userId,
-      decrypt(user.emailEncrypted, this.emailKey),
-      Locale.parse(user.locale),
-    );
+    await this.auth.sendVerificationEmail(userId, this.emails.open(user.emailEncrypted), Locale.parse(user.locale));
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {
@@ -235,7 +225,7 @@ export class UsersService {
   }): SessionUser {
     return {
       id: user.id,
-      email: decrypt(user.emailEncrypted, this.emailKey),
+      email: this.emails.open(user.emailEncrypted),
       displayName: user.displayName,
       role: user.role,
       emailVerified: user.emailVerified,
