@@ -35,6 +35,8 @@ export class AdminApiError extends Error {
     public readonly code: string | null = null,
     /** How long the server asks to wait before the next try, in seconds, when it said so. */
     public readonly retryAfterSeconds?: number,
+    /** What the refusal was about, in fields that depend on its code. */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'AdminApiError';
@@ -65,12 +67,13 @@ async function adminFetch<T>(
     throw new AdminApiError(401, 'Invalid admin credentials.');
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+    const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string; details?: Record<string, unknown> };
     throw new AdminApiError(
       res.status,
       body.message ?? body.error ?? res.statusText,
       body.error ?? null,
       retryAfterOf(res),
+      body.details,
     );
   }
   if (res.status === 204) return undefined as T;

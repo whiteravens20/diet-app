@@ -37,7 +37,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   adminApi,
-  AdminApiError,
   type DraftRunnerState,
   type IngredientNameDraft,
   type IngredientNameSuggestionMap,
@@ -52,6 +51,7 @@ import {
   type ShipMode,
   type ShipResponse,
 } from '@/lib/admin-api';
+import { useDraftErrorText } from '@/lib/use-draft-error';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
 type Kind = 'ingredient-names' | 'recipes';
@@ -538,6 +538,7 @@ function IngredientDraftRow({
   onChanged: () => void;
 }) {
   const t = useTranslations('admin.curation');
+  const errorText = useDraftErrorText();
   const [editing, setEditing] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -552,7 +553,7 @@ function IngredientDraftRow({
       await fn();
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err, String(err)));
     } finally {
       setWorking(false);
     }
@@ -704,7 +705,7 @@ function RecipeDraftRow({
   onChanged: () => void;
 }) {
   const t = useTranslations('admin.curation');
-  const tErrors = useTranslations('errors');
+  const errorText = useDraftErrorText();
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [working, setWorking] = useState(false);
@@ -735,14 +736,9 @@ function RecipeDraftRow({
     complexity: string;
   } | null>(null);
 
-  // Prefer the locale-aware errors.<CODE> catalogue over the backend's raw
-  // English message (same pattern as the meal-plans page).
-  const messageFor = (err: unknown): string => {
-    if (err instanceof AdminApiError && err.code && tErrors.has(err.code)) {
-      return tErrors(err.code);
-    }
-    return err instanceof Error ? err.message : String(err);
-  };
+  // What the API refused, in the reader's language: each rule the edit broke,
+  // else the text of the refusal's code.
+  const messageFor = (err: unknown): string => errorText(err, String(err));
 
   const handle = async (fn: () => Promise<unknown>) => {
     setWorking(true);

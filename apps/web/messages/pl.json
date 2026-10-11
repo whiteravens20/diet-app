@@ -645,6 +645,44 @@
       "pl": "Polski"
     }
   },
+  "draftProblems": {
+    "intro": "Nie zapisano.",
+    "line": "{where}: {what}",
+    "field": {
+      "title": "Tytuł ({locale})",
+      "description": "Opis ({locale})",
+      "steps": "Kroki ({locale})",
+      "step": "Krok {n} ({locale})",
+      "ingredients": "Składniki",
+      "ingredient": "Składnik {n}",
+      "ingredientNote": "Uwaga do składnika {n}",
+      "servings": "Porcje",
+      "prepMinutes": "Czas przygotowania",
+      "cookMinutes": "Czas gotowania",
+      "mealTypes": "Posiłki",
+      "difficulty": "Trudność",
+      "slug": "Slug",
+      "name": "Nazwa ({locale})",
+      "storageHint": "Wskazówka przechowywania ({locale})",
+      "other": "Szkic"
+    },
+    "rule": {
+      "missing-field": "brak wartości",
+      "missing-locale": "brak treści",
+      "text-too-long": "ponad {max} znaków",
+      "markup": "dozwolony jest tylko zwykły tekst: bez nawiasów ostrych i ukrytych znaków",
+      "too-many-steps": "ponad {max} kroków",
+      "too-many-ingredients": "ponad {max} pozycji",
+      "invalid-slug": "to nie jest slug",
+      "invalid-quantity": "ilość musi być większa od zera",
+      "quantity-too-large": "więcej, niż mieści jedna porcja",
+      "invalid-unit": "nie ma takiej jednostki",
+      "invalid-difficulty": "nie ma takiego poziomu trudności",
+      "invalid-meal-type": "planer nie zna takiego posiłku",
+      "servings-out-of-range": "liczba całkowita od 1 do {max}",
+      "time-out-of-range": "pełne minuty od 0 do {max}"
+    }
+  },
   "shoppingLists": {
     "title": "Listy zakupów",
     "subhead": "Lista zakupów z planu posiłków — pogrupowana według działów sklepu. Odhaczaj pozycje podczas zakupów; to, co masz w spiżarni, jest już wliczone, a pozycje odznaczają się same, gdy zbierzesz całą wymaganą ilość.",

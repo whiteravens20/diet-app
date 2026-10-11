@@ -645,6 +645,44 @@
       "pl": "Polish"
     }
   },
+  "draftProblems": {
+    "intro": "Not saved.",
+    "line": "{where}: {what}",
+    "field": {
+      "title": "Title ({locale})",
+      "description": "Description ({locale})",
+      "steps": "Steps ({locale})",
+      "step": "Step {n} ({locale})",
+      "ingredients": "Ingredients",
+      "ingredient": "Ingredient {n}",
+      "ingredientNote": "Note of ingredient {n}",
+      "servings": "Servings",
+      "prepMinutes": "Preparation time",
+      "cookMinutes": "Cooking time",
+      "mealTypes": "Meals",
+      "difficulty": "Difficulty",
+      "slug": "Slug",
+      "name": "Name ({locale})",
+      "storageHint": "Storage hint ({locale})",
+      "other": "The draft"
+    },
+    "rule": {
+      "missing-field": "is missing",
+      "missing-locale": "is missing",
+      "text-too-long": "is longer than {max} characters",
+      "markup": "may hold plain text only: no angle brackets and no hidden characters",
+      "too-many-steps": "has more than {max} steps",
+      "too-many-ingredients": "has more than {max} lines",
+      "invalid-slug": "is not a slug",
+      "invalid-quantity": "needs a quantity above zero",
+      "quantity-too-large": "has more than one serving can hold",
+      "invalid-unit": "has a unit there is none of",
+      "invalid-difficulty": "is not one of the three difficulties",
+      "invalid-meal-type": "names a meal the planner does not know",
+      "servings-out-of-range": "must be a whole number from 1 to {max}",
+      "time-out-of-range": "must be a whole number of minutes from 0 to {max}"
+    }
+  },
   "shoppingLists": {
     "title": "Shopping lists",
     "subhead": "Consolidated, aisle-grouped lists generated from a meal plan. Tick items off as you shop — pantry stock is pre-credited and rows auto-check when the quantity is met.",

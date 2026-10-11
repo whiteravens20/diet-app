@@ -26,6 +26,8 @@ export class ReviewApiError extends Error {
     message: string,
     /** How long the server asks to wait before the next try, in seconds, when it said so. */
     public readonly retryAfterSeconds?: number,
+    /** What the refusal was about, in fields that depend on its code. */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ReviewApiError';
@@ -48,12 +50,13 @@ async function reviewFetch<T>(path: string, init: RequestInit = {}): Promise<T> 
     throw new ReviewApiError(0, null, 'Cannot reach the API.');
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+    const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string; details?: Record<string, unknown> };
     throw new ReviewApiError(
       res.status,
       body.error ?? null,
       body.message ?? body.error ?? res.statusText,
       retryAfterOf(res),
+      body.details,
     );
   }
   if (res.status === 204) return undefined as T;

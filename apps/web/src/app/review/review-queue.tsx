@@ -13,6 +13,7 @@ import type {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { reviewApi } from '@/lib/review-api';
+import { useDraftErrorText } from '@/lib/use-draft-error';
 
 interface QueueProps {
   locale: Locale;
@@ -182,6 +183,7 @@ function RecipeReviewCard({
   onReviewed: () => void;
 }) {
   const t = useTranslations('review');
+  const errorText = useDraftErrorText();
   const [title, setTitle] = useState(slice.title);
   const [description, setDescription] = useState(slice.description);
   const [steps, setSteps] = useState<string[]>(slice.steps);
@@ -206,7 +208,7 @@ function RecipeReviewCard({
         steps: stepsChanged(steps, slice.steps) ? steps : undefined,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('saveFailed'));
+      setError(errorText(err, t('saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -220,7 +222,7 @@ function RecipeReviewCard({
       await reviewApi.approveRecipe(locale, slice.id);
       onReviewed();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('approveFailed'));
+      setError(errorText(err, t('approveFailed')));
     } finally {
       setActing(null);
     }
@@ -233,7 +235,7 @@ function RecipeReviewCard({
       await reviewApi.rejectRecipe(locale, slice.id, reason || undefined);
       onReviewed();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('rejectFailed'));
+      setError(errorText(err, t('rejectFailed')));
     } finally {
       setActing(null);
     }
@@ -367,6 +369,7 @@ function IngredientNameReviewCard({
   onReviewed: () => void;
 }) {
   const t = useTranslations('review');
+  const errorText = useDraftErrorText();
   const [name, setName] = useState(slice.name);
   const [storageHint, setStorageHint] = useState(slice.storageHint ?? '');
   const [saving, setSaving] = useState(false);
@@ -385,7 +388,7 @@ function IngredientNameReviewCard({
         storageHint: storageHint !== (slice.storageHint ?? '') ? storageHint : undefined,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('saveFailed'));
+      setError(errorText(err, t('saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -399,7 +402,7 @@ function IngredientNameReviewCard({
       await reviewApi.approveIngredientName(locale, slice.id);
       onReviewed();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('approveFailed'));
+      setError(errorText(err, t('approveFailed')));
     } finally {
       setActing(null);
     }
@@ -412,7 +415,7 @@ function IngredientNameReviewCard({
       await reviewApi.rejectIngredientName(locale, slice.id, reason || undefined);
       onReviewed();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('rejectFailed'));
+      setError(errorText(err, t('rejectFailed')));
     } finally {
       setActing(null);
     }
