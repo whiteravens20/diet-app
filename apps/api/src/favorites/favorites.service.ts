@@ -1,7 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Locale } from '@diet-app/shared';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { MAX_FAVORITES_PER_PROFILE, type Locale } from '@diet-app/shared';
+import { holdProfile } from '../common/hold.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { searchMatch, toRecipeDto } from '../recipes/recipes.service.js';
 
@@ -64,10 +65,18 @@ export class FavoritesService {
   ) {
     await this.assertProfile(userId, profileId);
     await this.assertRecipeVisible(userId, recipeId);
-    return this.prisma.favorite.upsert({
-      where: { profileId_recipeId: { profileId, recipeId } },
-      create: { profileId, recipeId, tags, sentiment },
-      update: { tags, sentiment },
+    const key = { profileId_recipeId: { profileId, recipeId } };
+    return this.prisma.$transaction(async (tx) => {
+      await holdProfile(tx, profileId);
+      // Saying something else about a recipe that is marked already adds nothing. What counts is what the list shows.
+      const marked = await tx.favorite.findUnique({ where: key, select: { id: true } });
+      if (!marked && (await tx.favorite.count({ where: { profileId, recipe: { deletedAt: null } } })) >= MAX_FAVORITES_PER_PROFILE) {
+        throw new ConflictException({
+          error: 'FAVORITE_LIMIT_REACHED',
+          message: `A profile can have at most ${MAX_FAVORITES_PER_PROFILE} marked recipes. Remove a mark to add another.`,
+        });
+      }
+      return tx.favorite.upsert({ where: key, create: { profileId, recipeId, tags, sentiment }, update: { tags, sentiment } });
     });
   }
 

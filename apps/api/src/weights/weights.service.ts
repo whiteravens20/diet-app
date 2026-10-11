@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { WeightEntry, WeightEntryInput } from '@diet-app/shared';
+import { MAX_WEIGHTS_LISTED, type WeightEntry, type WeightEntryInput } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
@@ -17,14 +17,16 @@ export class WeightsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * List entries for a profile newest-first. `since` lets the dashboard
-   * cap to the 90-day window without pulling years of history.
+   * List entries for a profile newest-first, a thousand at most. `since`
+   * lets the dashboard cap to the 90-day window without pulling years of
+   * history.
    */
   async list(userId: string, profileId: string, since?: Date): Promise<WeightEntry[]> {
     await this.assertProfile(userId, profileId);
     const rows = await this.prisma.weightEntry.findMany({
       where: { profileId, ...(since ? { recordedAt: { gte: since } } : {}) },
       orderBy: { recordedAt: 'desc' },
+      take: MAX_WEIGHTS_LISTED,
     });
     return rows.map((r) => this.toDto(r));
   }

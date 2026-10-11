@@ -45,7 +45,10 @@ export type WeightEntryInput = z.infer<typeof WeightEntryInput>;
 export const CreateWeightEntryRequest = WeightEntryInput.extend({ profileId: z.string().uuid() });
 export type CreateWeightEntryRequest = z.infer<typeof CreateWeightEntryRequest>;
 
-/** The weights of a profile, all of them or the ones recorded since a moment. */
+/** The most weights one answer holds: the newest. Logged once a day, that is close to three years. */
+export const MAX_WEIGHTS_LISTED = 1000;
+
+/** The weights of a profile, the newest first: the newest of all, or of the ones recorded since a moment. */
 export const WeightListQuery = z.object({
   profileId: z.string().uuid(),
   since: z.string().datetime().optional(),

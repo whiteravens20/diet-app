@@ -103,6 +103,9 @@ export const AuthUser = z.object({
 });
 export type AuthUser = z.infer<typeof AuthUser>;
 
+/** The most sessions the list of an account's sessions holds: the ones used last. */
+export const MAX_SESSIONS_LISTED = 50;
+
 /** A session of an account, as the account sees it in the list of its sessions. */
 export const AccountSession = z.object({
   /** The `sessionId` of the answers that belong to it. */

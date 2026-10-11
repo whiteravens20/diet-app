@@ -3,6 +3,9 @@
 import { z } from 'zod';
 import { CalendarDay, MealType } from './enums.js';
 
+/** The most favorite sets a profile may have at a time. */
+export const MAX_FAVORITE_SETS_PER_PROFILE = 50;
+
 /**
  * Slot map for a favorite set — one recipe id per meal slot. Sparse on purpose
  * (a "lunch + dinner" set is valid; the apply action only rewrites the slots

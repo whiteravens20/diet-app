@@ -5,7 +5,7 @@ import { ConflictException, Injectable, Logger, NotFoundException, UnauthorizedE
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Prisma } from '@prisma/client';
-import type { AccountSession, AuthResponse } from '@diet-app/shared';
+import { type AccountSession, type AuthResponse, MAX_SESSIONS_LISTED } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
@@ -145,13 +145,14 @@ export class SessionsService {
     return token !== null;
   }
 
-  /** The sessions of an account that are open, the one used last first. */
+  /** The sessions of an account that are open, the one used last first: fifty at most, and signing out everywhere ends the rest as well. */
   async list(userId: string): Promise<AccountSession[]> {
     const now = new Date();
     // The token of a session that has not been used yet is where the session stands.
     const open = await this.prisma.refreshToken.findMany({
       where: { userId, rotatedAt: null, revokedAt: null, expiresAt: { gt: now }, familyExpiresAt: { gt: now }, ...PASSED_THE_SECOND_STEP },
       orderBy: { createdAt: 'desc' },
+      take: MAX_SESSIONS_LISTED,
     });
     const began = await this.prisma.refreshToken.groupBy({
       by: ['familyId'],

@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { CalendarDay, DisplayAmount, MAX_QUANTITY, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 
+/** The most rows the pantry of a profile may hold. */
+export const MAX_PANTRY_ROWS = 1000;
+
 /**
  * A pantry row — what a profile actually has on hand. Quantity is in `unit`.
  * A profile can hold the same ingredient in more than one unit (six eggs as

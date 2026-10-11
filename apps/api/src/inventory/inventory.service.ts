@@ -5,7 +5,7 @@ import type { InventoryItem, Locale, PatchInventoryItem, UpsertInventoryItem } f
 import { convertUnit, displayStock, UnitConversionError } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
-import { assertWithinCeiling, lockPantry } from './pantry-store.js';
+import { assertRoomInPantry, assertWithinCeiling, lockPantry } from './pantry-store.js';
 
 /**
  * Per-profile pantry, as the user keeps it by hand. Mutations are all
@@ -61,6 +61,7 @@ export class InventoryService {
       await lockPantry(tx, profileId, body.ingredientId);
       const existing = await tx.inventoryItem.findUnique({ where: key });
       assertWithinCeiling((existing?.quantity ?? 0) + body.quantity, body.unit);
+      if (!existing) await assertRoomInPantry(tx, profileId);
       return tx.inventoryItem.upsert({
         where: key,
         create: {

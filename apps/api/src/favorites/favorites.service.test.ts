@@ -5,6 +5,7 @@
  * Focus on the per-profile ownership guard and the upsert/remove semantics.
  */
 import { NotFoundException } from '@nestjs/common';
+import { MAX_FAVORITES_PER_PROFILE } from '@diet-app/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // toRecipeDto is exercised by recipes.service tests; here we only need it not to
@@ -17,7 +18,7 @@ vi.mock('../recipes/recipes.service.js', () => ({
 const { FavoritesService } = await import('./favorites.service.js');
 
 function makePrisma(owner: string | null = 'user-1') {
-  return {
+  const prisma = {
     profile: {
       findUnique: vi.fn().mockResolvedValue(owner === null ? null : { userId: owner }),
     },
@@ -25,6 +26,9 @@ function makePrisma(owner: string | null = 'user-1') {
       findMany: vi.fn().mockResolvedValue([
         { id: 'f1', tags: ['quick'], sentiment: 'favorite', recipe: { id: 'r1' } },
       ]),
+      // Default: the recipe is not marked yet, and the profile has room for it.
+      findUnique: vi.fn().mockResolvedValue(null),
+      count: vi.fn().mockResolvedValue(0),
       upsert: vi.fn().mockResolvedValue({ id: 'f1' }),
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
@@ -33,7 +37,11 @@ function makePrisma(owner: string | null = 'user-1') {
     recipe: {
       findFirst: vi.fn().mockResolvedValue({ id: 'r1' }),
     },
+    $queryRaw: vi.fn().mockResolvedValue([]),
+    // A transaction sees the same tables as the client it was begun on.
+    $transaction: vi.fn().mockImplementation((work: (tx: unknown) => unknown) => work(prisma)),
   };
+  return prisma;
 }
 
 function makeService(prisma: ReturnType<typeof makePrisma>) {
@@ -102,6 +110,22 @@ describe('FavoritesService happy paths', () => {
         update: { tags: ['quick'], sentiment: 'often' },
       }),
     );
+  });
+
+  it('refuses a new mark for a profile that has as many as it may', async () => {
+    prisma.favorite.count.mockResolvedValue(MAX_FAVORITES_PER_PROFILE);
+
+    await expect(makeService(prisma).add('user-1', 'p1', 'r1', [], 'favorite')).rejects.toMatchObject({ response: { error: 'FAVORITE_LIMIT_REACHED' } });
+    expect(prisma.favorite.upsert).not.toHaveBeenCalled();
+  });
+
+  it('still takes another word about a recipe that is marked, for a profile that has as many as it may', async () => {
+    prisma.favorite.count.mockResolvedValue(MAX_FAVORITES_PER_PROFILE);
+    prisma.favorite.findUnique.mockResolvedValue({ id: 'f1' });
+
+    await makeService(prisma).add('user-1', 'p1', 'r1', [], 'avoid');
+
+    expect(prisma.favorite.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: { tags: [], sentiment: 'avoid' } }));
   });
 
   it('removes the mark of a recipe', async () => {

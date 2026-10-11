@@ -163,6 +163,9 @@ export const RecipeSearchQuery = PageQuery.extend({
 });
 export type RecipeSearchQuery = z.infer<typeof RecipeSearchQuery>;
 
+/** The most recipes a profile may have marked at a time. */
+export const MAX_FAVORITES_PER_PROFILE = 500;
+
 /** How a profile feels about a recipe it marked. */
 export const FavoriteSentiment = z.enum(['favorite', 'often', 'avoid']);
 export type FavoriteSentiment = z.infer<typeof FavoriteSentiment>;

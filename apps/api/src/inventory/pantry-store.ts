@@ -1,8 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { MAX_QUANTITY, type Unit } from '@diet-app/shared';
+import { MAX_PANTRY_ROWS, MAX_QUANTITY, type Unit } from '@diet-app/shared';
 import { z } from 'zod';
 import { pantryStock, settle, type PantryIngredient, type PantryMove } from '../engine/pantry.js';
 
@@ -21,6 +21,21 @@ import { pantryStock, settle, type PantryIngredient, type PantryMove } from '../
 /** Hold the pantry of one ingredient of one profile until the transaction ends. */
 export function lockPantry(tx: Prisma.TransactionClient, profileId: string, ingredientId: string): Promise<number> {
   return tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`pantry:${profileId}:${ingredientId}`}, 0))`);
+}
+
+/**
+ * Refuse a new row for a pantry that holds as many as a pantry may. Whoever
+ * makes a row asks first. Rows of different ingredients are made without
+ * waiting for each other, so requests that arrive together can pass the most
+ * by as many as they are, and no further: the next one is refused.
+ */
+export async function assertRoomInPantry(tx: Prisma.TransactionClient, profileId: string): Promise<void> {
+  if ((await tx.inventoryItem.count({ where: { profileId } })) >= MAX_PANTRY_ROWS) {
+    throw new ConflictException({
+      error: 'PANTRY_FULL',
+      message: `A pantry holds at most ${MAX_PANTRY_ROWS} rows. Remove one to add another.`,
+    });
+  }
 }
 
 const Moves = z.array(
@@ -66,6 +81,7 @@ export async function settlePantry(
     after.delete(row.unit);
   }
   for (const row of after.values()) {
+    await assertRoomInPantry(tx, profileId);
     await tx.inventoryItem.create({
       data: { profileId, ingredientId: ingredient.id, unit: row.unit, quantity: row.quantity, bestBefore: row.bestBefore },
     });

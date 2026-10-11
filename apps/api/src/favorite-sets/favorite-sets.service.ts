@@ -7,17 +7,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type {
-  ApplyFavoriteSetRequest,
-  CreateFavoriteSetRequest,
-  FavoriteSet,
-  FavoriteSetSlots,
-  Locale,
-  MealPlan,
-  MealType,
-  UpdateFavoriteSetRequest,
+import {
+  type ApplyFavoriteSetRequest,
+  type CreateFavoriteSetRequest,
+  type FavoriteSet,
+  type FavoriteSetSlots,
+  type Locale,
+  MAX_FAVORITE_SETS_PER_PROFILE,
+  type MealPlan,
+  type MealType,
+  type UpdateFavoriteSetRequest,
 } from '@diet-app/shared';
 import { Prisma } from '@prisma/client';
+import { holdProfile } from '../common/hold.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
 import { CANDIDATE, restrictionsFor, violations, type Violation } from '../meal-plans/eligibility.js';
@@ -50,12 +52,15 @@ export class FavoriteSetsService {
   async create(userId: string, dto: CreateFavoriteSetRequest): Promise<FavoriteSet> {
     await this.assertProfile(userId, dto.profileId);
     await this.assertRecipes(userId, dto.slots);
-    const row = await this.prisma.favoriteSet.create({
-      data: {
-        profileId: dto.profileId,
-        label: dto.label,
-        slots: dto.slots,
-      },
+    const row = await this.prisma.$transaction(async (tx) => {
+      await holdProfile(tx, dto.profileId);
+      if ((await tx.favoriteSet.count({ where: { profileId: dto.profileId } })) >= MAX_FAVORITE_SETS_PER_PROFILE) {
+        throw new ConflictException({
+          error: 'FAVORITE_SET_LIMIT_REACHED',
+          message: `A profile can have at most ${MAX_FAVORITE_SETS_PER_PROFILE} favorite sets. Delete one to add another.`,
+        });
+      }
+      return tx.favoriteSet.create({ data: { profileId: dto.profileId, label: dto.label, slots: dto.slots } });
     });
     return toDto(row);
   }
