@@ -172,7 +172,6 @@ export async function shipRecipesUpstream(
     throw new UpstreamShipError('NO_VALID_DRAFTS', 'no approved recipe draft passes the rules for a recipe');
   }
   const rows: ShippedRecipe[] = shipping.map((entry) => entry.content);
-  const shippedIds = shipping.map((entry) => entry.draft.id);
 
   const shortBatch = drafts[0].batchId.slice(0, 14);
   const branch = `drafts/recipes/${shortBatch}-${Date.now().toString(36)}`;
@@ -184,12 +183,13 @@ export async function shipRecipesUpstream(
 
   const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildRecipePrBody(drafts, rows.length) }, run);
 
-  await prisma.recipeDraft.updateMany({
-    where: { id: { in: shippedIds } },
-    data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: prUrl },
-  });
-
-  return { prUrl, branch, shippedDraftIds: shippedIds, skipped };
+  const marked = await markPushed(
+    shipping.map((entry) => entry.draft),
+    (draft) => draft.slug,
+    (where, data) => prisma.recipeDraft.updateMany({ where, data }),
+    prUrl,
+  );
+  return { prUrl, branch, shippedDraftIds: marked.shipped, skipped: [...skipped, ...marked.changed] };
 }
 
 export async function shipIngredientNamesUpstream(
@@ -235,17 +235,13 @@ export async function shipIngredientNamesUpstream(
 
   const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildIngredientPrBody(drafts, Object.keys(additions).length) }, run);
 
-  await prisma.ingredientNameDraft.updateMany({
-    where: { id: { in: drafts.filter((d) => additions[d.ingredientSlug]).map((d) => d.id) } },
-    data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: prUrl },
-  });
-
-  return {
+  const marked = await markPushed(
+    shipping.map((entry) => entry.draft),
+    (draft) => draft.ingredientSlug,
+    (where, data) => prisma.ingredientNameDraft.updateMany({ where, data }),
     prUrl,
-    branch,
-    shippedDraftIds: drafts.filter((d) => additions[d.ingredientSlug]).map((d) => d.id),
-    skipped,
-  };
+  );
+  return { prUrl, branch, shippedDraftIds: marked.shipped, skipped: [...skipped, ...marked.changed] };
 }
 
 export interface CurrentOverridesPushResult {
@@ -287,6 +283,31 @@ export async function pushCurrentOverridesUpstream(
   const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildCurrentOverridesPrBody(Object.keys(file)) }, run);
 
   return { prUrl, branch, rowCount };
+}
+
+/**
+ * Mark as shipped the drafts that are still what was pushed. The branch was
+ * pushed outside any transaction, so a draft may have been edited or reviewed
+ * while it went: such a draft stays in the queue as the edit left it, and is
+ * reported. The condition is part of the update itself.
+ */
+export async function markPushed<D extends { id: string; updatedAt: Date }>(
+  pushed: readonly D[],
+  slugOf: (draft: D) => string,
+  update: (
+    where: { id: string; status: 'APPROVED'; updatedAt: Date },
+    data: { status: 'SHIPPED'; shippedAt: Date; shippedPRUrl: string },
+  ) => Promise<{ count: number }>,
+  prUrl: string,
+): Promise<{ shipped: string[]; changed: Skipped[] }> {
+  const shipped: string[] = [];
+  const changed: Skipped[] = [];
+  for (const draft of pushed) {
+    const { count } = await update({ id: draft.id, status: 'APPROVED', updatedAt: draft.updatedAt }, { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: prUrl });
+    if (count === 1) shipped.push(draft.id);
+    else changed.push({ draftId: draft.id, slug: slugOf(draft), reason: 'changed-while-shipping' });
+  }
+  return { shipped, changed };
 }
 
 // ── git plumbing ────────────────────────────────────────────────────────────

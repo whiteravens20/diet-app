@@ -13,7 +13,7 @@ import { seedCatalogue } from '../../../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../../../testing/database.js';
 import { aRecipeDraft, anIngredientNameDraft, asAdmin } from '../../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../../testing/test-app.js';
-import { shipIngredientNamesUpstream, shipRecipesUpstream, upstreamBlockedReason, type CommandRunner, type UpstreamShipConfig } from './upstream-mode.js';
+import { markPushed, shipIngredientNamesUpstream, shipRecipesUpstream, upstreamBlockedReason, type CommandRunner, type UpstreamShipConfig } from './upstream-mode.js';
 
 const config: UpstreamShipConfig = {
   enabled: true,
@@ -165,6 +165,35 @@ describe('shipping as a pull request', () => {
       { draftId: taking.id, slug: 'milk-porridge', reason: 'slug-taken: milk-porridge' },
       { draftId: repeat.id, slug: repeat.slug, reason: `same-making-as: ${first.slug}` },
     ]);
+  });
+
+  it('does not mark as shipped a draft that changed while the branch was pushed', async () => {
+    const pushed = await aRecipeDraft(t, { status: 'APPROVED' });
+    const edited = await aRecipeDraft(t, { status: 'APPROVED' });
+    // Edited and approved again after it was read for the pull request.
+    await t.prisma.recipeDraft.update({ where: { id: edited.id }, data: { titles: { en: 'Oat bowl, improved', pl: 'Owsianka' } } });
+
+    const marked = await markPushed(
+      [pushed, edited],
+      (draft) => draft.slug,
+      (where, data) => t.prisma.recipeDraft.updateMany({ where, data }),
+      'https://example.test/me/diet-content/pull/7',
+    );
+
+    expect(marked.shipped).toEqual([pushed.id]);
+    expect(marked.changed).toEqual([{ draftId: edited.id, slug: edited.slug, reason: 'changed-while-shipping' }]);
+    expect((await t.prisma.recipeDraft.findUniqueOrThrow({ where: { id: edited.id } })).status).toBe('APPROVED');
+  });
+
+  it('marks only the drafts of an ingredient that shipped, not one of the same ingredient that was held back', async () => {
+    const sound = await anIngredientNameDraft(t, { status: 'APPROVED' });
+    const marked = await anIngredientNameDraft(t, { status: 'APPROVED', suggestions: { name: { pl: '<b>Kurczak</b>' } } });
+    const { run } = standIn();
+
+    const result = await shipIngredientNamesUpstream(t.prisma, { kind: 'ingredient-name', ...request(run) });
+
+    expect(result.shippedDraftIds).toEqual([sound.id]);
+    expect((await t.prisma.ingredientNameDraft.findUniqueOrThrow({ where: { id: marked.id } })).status).toBe('APPROVED');
   });
 
   it('pushes nothing when every approved draft breaks the rules', async () => {
