@@ -53,8 +53,9 @@ import {
   type ShipKind,
   type ShipMode,
   type ShipResponse,
+  type ShipSkipped,
 } from '@/lib/admin-api';
-import { useDraftErrorText } from '@/lib/use-draft-error';
+import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
 type Kind = 'ingredient-names' | 'recipes';
@@ -1619,6 +1620,25 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
   );
 }
 
+/** The approved drafts a ship left where they were, each by its slug, with the reason in words. */
+function SkippedDrafts({ skipped, heading }: { skipped: ShipSkipped[]; heading: 'shipSkipped' | 'shipBundleSkipped' }) {
+  const t = useTranslations('admin.curation');
+  const reasonText = useSkipReasonText();
+  if (skipped.length === 0) return null;
+  return (
+    <div className="mt-1 text-amber-600 dark:text-amber-400">
+      <p>{t(heading, { count: skipped.length })}</p>
+      <ul className="list-disc pl-4">
+        {skipped.map((entry) => (
+          <li key={entry.draftId}>
+            <span className="font-mono">{entry.slug}</span> — {reasonText(entry.reason)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ShipSuccess({
   result,
   onMarkShipped,
@@ -1652,15 +1672,7 @@ function ShipSuccess({
             {t('shipSidecarWarning', { error: result.sidecarError })}
           </p>
         )}
-        {result.skipped.length > 0 && (
-          <ul className="mt-1 list-disc pl-4 text-amber-600 dark:text-amber-400">
-            {result.skipped.map((s) => (
-              <li key={s.draftId}>
-                {s.draftId.slice(0, 8)} — {s.reason}
-              </li>
-            ))}
-          </ul>
-        )}
+        <SkippedDrafts skipped={result.skipped} heading="shipSkipped" />
       </div>
     );
   }
@@ -1678,6 +1690,7 @@ function ShipSuccess({
         <a href={result.prUrl} target="_blank" rel="noreferrer" className="text-primary underline">
           {result.prUrl}
         </a>
+        <SkippedDrafts skipped={result.skipped} heading="shipSkipped" />
       </div>
     );
   }
@@ -1693,18 +1706,7 @@ function ShipSuccess({
         </button>
       </div>
       <p>{t(result.kind === 'recipe' ? 'shipBundleHintRecipes' : 'shipBundleHintNames', { file: result.fileName })}</p>
-      {result.skipped.length > 0 && (
-        <div className="text-amber-600 dark:text-amber-400">
-          <p>{t('shipBundleSkipped', { count: result.skipped.length })}</p>
-          <ul className="list-disc pl-4">
-            {result.skipped.map((s) => (
-              <li key={s.draftId}>
-                {s.draftId.slice(0, 8)} — {s.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <SkippedDrafts skipped={result.skipped} heading="shipBundleSkipped" />
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => saveJsonFile(result.fileName, result.content)} className="gap-2">
           <Download className="h-3.5 w-3.5" />

@@ -7,7 +7,7 @@ import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
 import { AdminApiError } from './admin-api';
 import { ReviewApiError } from './review-api';
-import { useDraftErrorText } from './use-draft-error';
+import { useDraftErrorText, useSkipReasonText } from './use-draft-error';
 
 function Shown({ error }: { error: unknown }) {
   const errorText = useDraftErrorText();
@@ -67,5 +67,58 @@ describe('what an editor is told when a draft edit is refused', () => {
   it('is what the API said when the code has no text here, and the fallback for anything else', () => {
     expect(told(new AdminApiError(500, 'Something the API said.', 'A_CODE_OF_TOMORROW'))).toBe('Something the API said.');
     expect(told('not an error')).toBe('It did not work.');
+  });
+});
+
+function Reason({ reason }: { reason: string }) {
+  const reasonText = useSkipReasonText();
+  return <p>{reasonText(reason)}</p>;
+}
+
+/** What somebody reading `locale` is told about a draft that did not ship for `reason`. */
+function heldBack(reason: string, locale: 'en' | 'pl' = 'en'): string {
+  const { unmount } = render(
+    <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pl}>
+      <Reason reason={reason} />
+    </NextIntlClientProvider>,
+  );
+  const text = screen.getByRole('paragraph').textContent ?? '';
+  unmount();
+  return text;
+}
+
+describe('what the administrator is told about a draft that did not ship', () => {
+  it('is the rule in words, with what it is about', () => {
+    expect(heldBack('slug-taken: milk-porridge')).toBe('another recipe already has the slug milk-porridge; change the slug of the draft');
+    expect(heldBack('title-taken: Oat bowl')).toBe('another recipe of the library is already called “Oat bowl”');
+    expect(heldBack('same-making-as: milk-porridge')).toBe('has the same ingredients, amounts, meals and servings as milk-porridge');
+    expect(heldBack('facts-moved-since-review: calories 100 → 412; allergens +gluten')).toBe(
+      'its figures changed since it was reviewed (calories 100 → 412; allergens +gluten); save it again and have it approved',
+    );
+    expect(heldBack('not-approved: PENDING')).toBe('is not approved any more');
+    expect(heldBack('changed-while-shipping')).toBe('changed while it was being shipped; the pull request holds it as it was');
+  });
+
+  it('names each rule a draft breaks by its field, as a refused edit does', () => {
+    expect(heldBack('invalid-draft: titles.en: markup; servings: servings-out-of-range')).toBe(
+      'breaks a rule for recipes (Title (EN): may hold plain text only: no angle brackets and no hidden characters; Servings: must be a whole number from 1 to 12)',
+    );
+  });
+
+  it('is said in Polish to a Polish reader', () => {
+    expect(heldBack('slug-taken: milk-porridge', 'pl')).toBe('slug milk-porridge ma już inny przepis; zmień slug szkicu');
+    expect(heldBack('draft-gone', 'pl')).toBe('został w międzyczasie usunięty');
+  });
+
+  it('is the reason as the API wrote it when this version has no words for the rule', () => {
+    expect(heldBack('a-rule-of-tomorrow: something')).toBe('a-rule-of-tomorrow: something');
+  });
+
+  it('is what a refused promotion says too', () => {
+    const error = new AdminApiError(409, 'The draft cannot go into the library: same-making-as: milk-porridge.', 'DRAFT_NOT_SHIPPABLE', undefined, {
+      reason: 'same-making-as: milk-porridge',
+    });
+
+    expect(told(error)).toBe('This draft cannot go into the library as it is: has the same ingredients, amounts, meals and servings as milk-porridge');
   });
 });

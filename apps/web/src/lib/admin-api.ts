@@ -562,12 +562,19 @@ export interface CurrentOverridesPullResponse {
   total: number;
 }
 
+/** An approved draft that did not ship: its slug (or its ingredient's), and why, as `<rule>` or `<rule>: <detail>`. */
+export interface ShipSkipped {
+  draftId: string;
+  slug: string;
+  reason: string;
+}
+
 export type ShipResponse =
   | {
       mode: 'local';
       kind: ShipKind;
       shippedDraftIds: string[];
-      skipped: { draftId: string; reason: string }[];
+      skipped: ShipSkipped[];
       sidecarPaths: string[];
       sidecarError?: string;
     }
@@ -576,15 +583,15 @@ export type ShipResponse =
       prUrl: string;
       branch: string;
       shippedDraftIds: string[];
-      skipped: { draftId: string; reason: string }[];
+      skipped: ShipSkipped[];
     }
   | {
       mode: 'bundle';
       kind: ShipKind;
       batchId: string;
       draftIds: string[];
-      /** Approved drafts the bundle leaves out because they break a rule, with the reason. */
-      skipped: { draftId: string; reason: string }[];
+      /** Approved drafts the bundle leaves out, with the reason. */
+      skipped: ShipSkipped[];
       /** The name to save the file under, and what it holds: the shape the data directory takes. */
       fileName: string;
       content: unknown;
