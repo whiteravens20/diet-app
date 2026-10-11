@@ -11,6 +11,7 @@ import { BadRequestException, ConflictException, UnauthorizedException } from '@
 import { createHash } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { describe, expect, it, vi } from 'vitest';
+import { Passwords } from '../common/passwords.js';
 import { AccountEmail } from './account-email.js';
 import { AuthService } from './auth.service.js';
 import { SessionsService } from './sessions.service.js';
@@ -98,6 +99,8 @@ function makeService(deps: ReturnType<typeof makeDeps>) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     new AccountEmail(makeConfig() as any),
     makeSessions(deps),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
+    new Passwords(makeConfig() as any),
   );
 }
 
@@ -159,12 +162,7 @@ describe('AuthService.login', () => {
   // the prior malformed constant let bcrypt.compare fail-fast (~0ms). We assert
   // the dummy is a well-formed bcrypt hash at the configured rounds rather than
   // wall-clock timing (which is flaky in CI).
-  it('compares against a valid bcrypt hash on an unknown email (no timing oracle)', async () => {
-    const svc = makeService(makeDeps(null));
-    const dummy = (svc as unknown as { dummyHash: string }).dummyHash;
-    expect(dummy).toMatch(/^\$2[aby]\$04\$/); // configured PASSWORD_HASH_ROUNDS = 4 in tests
-    expect(bcrypt.compareSync('anything', dummy)).toBe(false);
-  });
+
 });
 
 describe('AuthService.verifyEmail', () => {

@@ -16,8 +16,7 @@ import type {
   UpdateUserSettings,
 } from '@diet-app/shared';
 import { AiMode, Locale, Palette, Theme } from '@diet-app/shared';
-import { deriveKey, pepperPassword } from '../common/crypto.js';
-import { hashPassword, verifyPassword } from '../common/password-hash.js';
+import { Passwords } from '../common/passwords.js';
 import type { Env } from '../config/env.js';
 import { carryUsageOfAccount } from '../ai/ai-quota.service.js';
 import { AccountEmail } from '../auth/account-email.js';
@@ -36,17 +35,14 @@ import { removePersonalRecipesOf } from '../recipes/personal-recipes.service.js'
  */
 @Injectable()
 export class UsersService {
-  private readonly pepperKey: string;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
     private readonly mail: MailService,
     private readonly auth: AuthService,
     private readonly emails: AccountEmail,
-  ) {
-    this.pepperKey = deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'password-pepper');
-  }
+    private readonly passwords: Passwords,
+  ) {}
 
   async getMe(userId: string): Promise<SessionUser> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -102,21 +98,14 @@ export class UsersService {
   async changePassword(userId: string, dto: ChangePasswordRequest): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await verifyPassword(
-      pepperPassword(dto.currentPassword, this.pepperKey),
-      user.passwordHash,
-    );
+    const ok = await this.passwords.matches(dto.currentPassword, user.passwordHash);
     if (!ok) {
       throw new UnauthorizedException({
         error: 'INVALID_PASSWORD',
         message: 'Current password is incorrect.',
       });
     }
-    const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
-    const passwordHash = await hashPassword(
-      pepperPassword(dto.newPassword, this.pepperKey),
-      rounds,
-    );
+    const passwordHash = await this.passwords.hash(dto.newPassword);
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: userId }, data: { passwordHash } });
       // Invalidate every active session so the rotation actually forces a re-login
@@ -144,10 +133,7 @@ export class UsersService {
     }
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await verifyPassword(
-      pepperPassword(dto.currentPassword, this.pepperKey),
-      user.passwordHash,
-    );
+    const ok = await this.passwords.matches(dto.currentPassword, user.passwordHash);
     if (!ok) {
       throw new UnauthorizedException({
         error: 'INVALID_PASSWORD',
@@ -198,10 +184,7 @@ export class UsersService {
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await verifyPassword(
-      pepperPassword(dto.currentPassword, this.pepperKey),
-      user.passwordHash,
-    );
+    const ok = await this.passwords.matches(dto.currentPassword, user.passwordHash);
     if (!ok) {
       throw new UnauthorizedException({
         error: 'INVALID_PASSWORD',

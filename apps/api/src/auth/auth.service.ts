@@ -17,8 +17,8 @@ import type {
   RegisterRequest,
 } from '@diet-app/shared';
 import { Locale } from '@diet-app/shared';
-import { deriveKey, pepperPassword } from '../common/crypto.js';
-import { hashPassword, hashPasswordAtStartup, verifyPassword } from '../common/password-hash.js';
+import { deriveKey } from '../common/crypto.js';
+import { Passwords } from '../common/passwords.js';
 import { isUniqueViolation } from '../common/prisma-errors.js';
 import type { Env } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
@@ -35,17 +35,7 @@ const VERIFICATION_LINK_WORTH_SENDING_MS = 10 * 60_000;
 
 @Injectable()
 export class AuthService {
-  private readonly pepperKey: string;
   private readonly linkKey: string;
-  /**
-   * A *valid* bcrypt hash at the configured cost, computed once at startup, so
-   * the login "no such user" path spends the same time as a real password
-   * compare. A malformed/hardcoded constant lets `bcrypt.compare` fail-fast
-   * (returning in ~0ms instead of ~250ms), which leaks account existence
-   * through a response-timing oracle. Derived from the live rounds so it stays
-   * uniform even if the operator retunes `PASSWORD_HASH_ROUNDS`.
-   */
-  private readonly dummyHash: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -54,14 +44,9 @@ export class AuthService {
     private readonly mail: MailService,
     private readonly emails: AccountEmail,
     private readonly sessions: SessionsService,
+    private readonly passwords: Passwords,
   ) {
-    const master = this.config.get('DATA_ENCRYPTION_SECRET', { infer: true });
-    this.pepperKey = deriveKey(master, 'password-pepper');
-    this.linkKey = deriveKey(master, 'verification-link');
-    this.dummyHash = hashPasswordAtStartup(
-      'uniform-timing-placeholder',
-      this.config.get('PASSWORD_HASH_ROUNDS', { infer: true }),
-    );
+    this.linkKey = deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'verification-link');
   }
 
   async register(dto: RegisterRequest, locale: Locale = 'en', openedFrom: string | null = null): Promise<OpenedSession> {
@@ -72,8 +57,7 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { emailIndex } });
     if (existing) throw emailTaken();
 
-    const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
-    const passwordHash = await this.hashPassword(dto.password, rounds);
+    const passwordHash = await this.passwords.hash(dto.password);
     // The id is chosen here: the address is sealed for the account it belongs to.
     const id = randomUUID();
     const user = await this.prisma.user
@@ -158,11 +142,8 @@ export class AuthService {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
     const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });
-    // Always run a hash comparison to keep the response time uniform.
-    const ok = await verifyPassword(
-      pepperPassword(dto.password, this.pepperKey),
-      user?.passwordHash ?? this.dummyHash,
-    );
+    // The check is made for an account that does not exist too, so that the answer takes as long.
+    const ok = await this.passwords.matches(dto.password, user?.passwordHash);
     if (!user || !ok) {
       throw new UnauthorizedException({
         error: 'INVALID_CREDENTIALS',
@@ -270,8 +251,7 @@ export class AuthService {
     });
     const invalid = () => new BadRequestException({ error: 'INVALID_RESET_TOKEN', message: 'Reset link is invalid or expired.' });
     if (!token || token.usedAt || token.expiresAt < new Date()) throw invalid();
-    const rounds = this.config.get('PASSWORD_HASH_ROUNDS', { infer: true });
-    const passwordHash = await this.hashPassword(dto.password, rounds);
+    const passwordHash = await this.passwords.hash(dto.password);
     await this.prisma.$transaction(async (tx) => {
       if (!(await usedNow(tx.passwordResetToken, token.id))) throw invalid();
       await tx.user.update({ where: { id: token.userId }, data: { passwordHash } });
@@ -282,11 +262,6 @@ export class AuthService {
     // As after a change by its holder: the account is told that its password is another now.
     const account = await this.prisma.user.findUnique({ where: { id: token.userId }, select: { emailEncrypted: true, locale: true } });
     if (account) this.mail.sendPasswordChangedNotice(this.emails.open(account.emailEncrypted, token.userId), Locale.parse(account.locale));
-  }
-
-  /** Peppers the password with an app-only key, then bcrypt-hashes it. */
-  private hashPassword(password: string, rounds: number): Promise<string> {
-    return hashPassword(pepperPassword(password, this.pepperKey), rounds);
   }
 
   private async assertHuman(token: string | undefined): Promise<void> {
