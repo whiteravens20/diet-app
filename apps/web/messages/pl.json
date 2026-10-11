@@ -421,7 +421,8 @@
     "coverage": {
       "title": "Przepisy według diety i posiłku",
       "explain": "Z ilu przepisów plan może wybierać. Gdy nie ma żadnego, dla tej diety z tym posiłkiem nie da się ułożyć planu; gdy jest ich mniej niż {enough}, tydzień powtarza to samo danie częściej, niż domyślnie pozwala profil.",
-      "diet": "Dieta"
+      "diet": "Dieta",
+      "gap": "{below, plural, =0 {Każda dieta ma co najmniej {target} przepisów na każdy posiłek.} one {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.} few {# z {pairs} par dieta–posiłek mają mniej niż {target} przepisów.} many {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.} other {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.}} Uruchomienie przepisów z opcją „Uzupełnij braki katalogu” pisze najpierw dla najpustszej pary."
     },
     "usda": {
       "title": "Importer USDA",
@@ -520,10 +521,14 @@
       "scopeLabel": "Katalog",
       "scopeCurated": "Tylko wyselekcjonowane (zalecane)",
       "scopeAll": "Wszystkie (wyselekcjonowane + USDA)",
+      "fillCoverage": "Uzupełnij braki katalogu",
+      "fillCoverageHint": "Każde wywołanie pisze dla diety i posiłku, które mają najmniej przepisów, licząc szkice w kolejce. Uruchomienie kończy się, gdy żadnej diecie nie brakuje przepisów na żaden posiłek.",
+      "runTarget": "Pisane dla: {diet} · {meal}",
       "runNotes": {
         "nothing-imported": "Nie ma czego nazywać: katalog nie zawiera zaimportowanych składników.",
         "not-imported": "{skipped, plural, one {Nie ma czego nazywać: podany składnik nie jest zaimportowany.} few {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.} many {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.} other {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.}} Tylko zaimportowane składniki dostają nazwy z uruchomienia.",
-        "all-have-drafts": "{skipped, plural, one {Nie ma czego nazywać: jedyny zaimportowany składnik ma już szkic.} few {Nie ma czego nazywać: wszystkie # zaimportowane składniki mają już szkic.} many {Nie ma czego nazywać: wszystkie # zaimportowanych składników ma już szkic.} other {Nie ma czego nazywać: wszystkie # zaimportowanego składnika mają już szkic.}}"
+        "all-have-drafts": "{skipped, plural, one {Nie ma czego nazywać: jedyny zaimportowany składnik ma już szkic.} few {Nie ma czego nazywać: wszystkie # zaimportowane składniki mają już szkic.} many {Nie ma czego nazywać: wszystkie # zaimportowanych składników ma już szkic.} other {Nie ma czego nazywać: wszystkie # zaimportowanego składnika mają już szkic.}}",
+        "coverage-reached": "Nie ma czego pisać: każda dieta ma dość przepisów na każdy posiłek, licząc szkice w kolejce."
       },
       "rejectReasonLabel": "Ostatni przebieg odrzucony: {reason} ({key})",
       "rejectReasonHint": "Walidator odrzucił odpowiedź modelu przy każdej próbie. Częste przyczyny: unknown-slug (model wymyślił slug), invalid-unit (użył tbsp/cup), missing-field (pominął difficulty). Spróbuj innego modelu lub mniejszej liczby przepisów.",

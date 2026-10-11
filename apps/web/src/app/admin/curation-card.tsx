@@ -274,6 +274,8 @@ function IngredientPanel() {
 
 function RecipePanel() {
   const t = useTranslations('admin.curation');
+  const tDiet = useTranslations('enums.dietType');
+  const tMeal = useTranslations('enums.mealType');
   const errorText = useDraftErrorText();
   const [runner, setRunner] = useState<RecipeRunnerState | null>(null);
   const [page, setPage] = useState(1);
@@ -282,6 +284,7 @@ function RecipePanel() {
   const [error, setError] = useState<string | null>(null);
   const [genCount, setGenCount] = useState(5);
   const [scope, setScope] = useState<'curated' | 'all'>('curated');
+  const [fillCoverage, setFillCoverage] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadDrafts = useCallback(async () => {
@@ -339,6 +342,7 @@ function RecipePanel() {
       const state = await adminApi.startRecipeGenerator({
         count: genCount,
         catalogueScope: scope,
+        ...(fillCoverage ? { fillCoverage: true } : {}),
       });
       setRunner(state);
       if (state.status === 'running') startPolling();
@@ -389,6 +393,10 @@ function RecipePanel() {
           <option value="curated">{t('scopeCurated')}</option>
           <option value="all">{t('scopeAll')}</option>
         </select>
+        <label className="flex items-center gap-1.5 text-xs" title={t('fillCoverageHint')}>
+          <input type="checkbox" checked={fillCoverage} onChange={(e) => setFillCoverage(e.target.checked)} disabled={running} />
+          {t('fillCoverage')}
+        </label>
         <Button onClick={onGenerate} disabled={!configured || running} className="gap-2">
           {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {running
@@ -417,6 +425,12 @@ function RecipePanel() {
             {t('providerChip', { provider: runner.provider, model: runner.model })}
           </span>
         )}
+        {runner?.target && (
+          <span className="text-xs text-muted-foreground">
+            {t('runTarget', { diet: tDiet(runner.target.diet), meal: tMeal(runner.target.meal) })}
+          </span>
+        )}
+        {!running && runner?.note && <span className="text-xs text-muted-foreground">{t(`runNotes.${runner.note}`, { skipped: runner.skipped })}</span>}
         {runner?.mixDrift && !running && (
           <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
             {t('mixDriftWarning')}

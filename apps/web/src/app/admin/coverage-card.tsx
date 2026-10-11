@@ -12,8 +12,11 @@ import { cn } from '@/lib/utils';
 const MEALS = MEAL_SLOTS_BY_COUNT[5]!;
 
 /** How many recipes each diet has for each meal; the empty cells and the thin ones stand out. */
-export function CoverageCard({ coverage }: { coverage: AdminStats['coverage'] }) {
+export function CoverageCard({ coverage, target }: { coverage: AdminStats['coverage']; target: number }) {
   const t = useTranslations('admin.coverage');
+  // A diet that takes any recipe has no pair of its own to fill.
+  const pairs = DietType.options.filter((diet) => diet !== 'custom').flatMap((diet) => MEALS.map((meal) => coverage[diet][meal]));
+  const below = pairs.filter((recipes) => recipes < target).length;
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   return (
@@ -63,6 +66,7 @@ export function CoverageCard({ coverage }: { coverage: AdminStats['coverage'] })
             </tbody>
           </table>
         </div>
+        <p className="text-sm text-muted-foreground">{t('gap', { below, pairs: pairs.length, target })}</p>
       </CardContent>
     </Card>
   );

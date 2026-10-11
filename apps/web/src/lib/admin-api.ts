@@ -102,6 +102,8 @@ export interface AdminStats {
   counts: { ingredients: number; recipes: number; substitutions: number };
   /** How many recipes each diet has for each meal. */
   coverage: Record<DietType, Record<MealType, number>>;
+  /** How many a release needs for each. */
+  coverageTarget: number;
   seed: {
     lastSeededAt: string | null;
     storedHash: string | null;
@@ -289,6 +291,8 @@ export interface RecipeGenerateSpec {
   count: number;
   targetLocales?: string[];
   catalogueScope?: 'curated' | 'all';
+  /** Write for the diet and meal with the fewest recipes; `dietTags` and `mealTypes` may not be sent with it. */
+  fillCoverage?: boolean;
   dietTags?: string[];
   mealTypes?: string[];
   cuisine?: string;
@@ -313,6 +317,8 @@ export interface RecipeDraftPatch {
 }
 
 export interface RecipeRunnerState extends DraftRunnerState {
+  /** The diet and the meal the run is writing for, when it chooses them itself. */
+  target: { diet: DietType; meal: MealType } | null;
   complexityCounts: { simple: number; medium: number; complex: number };
   mixDrift: boolean;
   lastRejectReason: string | null;

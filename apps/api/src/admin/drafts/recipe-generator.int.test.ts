@@ -4,7 +4,8 @@ import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { RecipeDraft, RecipeGenerateSpec } from '@diet-app/shared';
+import { DietType, MealType, type RecipeDraft, type RecipeGenerateSpec } from '@diet-app/shared';
+import { COVERAGE_TARGET, recipesPerDietAndMeal } from '../../engine/coverage.js';
 import { recipeBatch, recipesPerCall } from '../../ai/operations.js';
 import { INGREDIENTS, RECIPES, seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase } from '../../testing/database.js';
@@ -204,6 +205,138 @@ describe('generating recipe drafts', () => {
 
       expect(state).toMatchObject({ status: 'done', written: 1 });
       expect(t.model.requests).toHaveLength(2);
+    });
+  });
+
+  describe('a run that fills what the catalogue lacks', () => {
+    /** The pair of diet and meal a prompt asks for. */
+    const askedFor = (request: ModelRequest) => ({
+      diet: /Diets every recipe MUST qualify for: ([a-z_]+)\./.exec(request.prompt)?.[1] ?? null,
+      meal: /Meal types to draw from: ([a-z_]+)\./.exec(request.prompt)![1]!,
+    });
+    /** How many recipes the catalogue and the queue have for each diet and meal. */
+    const counted = async () => {
+      const library = await t.prisma.recipe.findMany({ where: { createdByUserId: null, retiredAt: null }, select: { dietTags: true, mealTypes: true } });
+      const waiting = await t.prisma.recipeDraft.findMany({ where: { status: { in: ['PENDING', 'APPROVED'] } }, select: { dietTags: true, mealTypes: true } });
+      return recipesPerDietAndMeal([...library, ...waiting]);
+    };
+    /** The fewest recipes any pair has, among the diets that need recipes of their own. */
+    const fewest = (matrix: Awaited<ReturnType<typeof counted>>) =>
+      Math.min(...DietType.options.filter((diet) => diet !== 'custom').flatMap((diet) => MealType.options.map((meal) => matrix[diet][meal])));
+    /** What the plates below are made of. */
+    const plateIngredients = ['salmon', 'chicken-breast', 'large-egg', 'firm-tofu', 'olive-oil', 'broccoli', 'tomato'];
+    const diets = new Map<string, string[]>();
+
+    // In the test catalogue nothing is Mediterranean. Here these ingredients
+    // are, so that there is a diet with no recipe which a plate can be written for.
+    beforeAll(async () => {
+      for (const row of await t.prisma.ingredient.findMany({ where: { slug: { in: plateIngredients } } })) {
+        diets.set(row.slug!, row.dietCompatibility);
+        await t.prisma.ingredient.update({ where: { id: row.id }, data: { dietCompatibility: [...row.dietCompatibility, 'mediterranean'] } });
+      }
+    });
+
+    afterAll(async () => {
+      for (const [slug, dietCompatibility] of diets) await t.prisma.ingredient.update({ where: { slug }, data: { dietCompatibility } });
+    });
+
+    /** Plates low in carbohydrate that no recipe of the test catalogue is made of: Mediterranean, low-carb, and no plant diet. */
+    const lowCarb = [
+      ['salmon', 'olive-oil', 'broccoli'],
+      ['chicken-breast', 'olive-oil', 'broccoli'],
+      ['large-egg', 'olive-oil', 'tomato'],
+      ['salmon', 'large-egg', 'tomato'],
+      ['chicken-breast', 'large-egg', 'broccoli'],
+      ['firm-tofu', 'large-egg', 'olive-oil'],
+    ];
+    /** An author that writes for the meal it is asked for, one low-carbohydrate plate after another. */
+    const forTheMealAsked = () => {
+      let written = 0;
+      return (request: ModelRequest): string => {
+        const { meal } = askedFor(request);
+        const recipes = Array.from({ length: Number(/Now write (\d+) recipe\(s\)\./.exec(request.prompt)![1]) }, () => {
+          const plate = lowCarb[written % lowCarb.length]!;
+          written += 1;
+          return {
+            slug: `low-carb-plate-${written}`,
+            titles: { en: `Low-carb plate ${written}` },
+            descriptions: { en: 'A plate with next to no carbohydrate.' },
+            steps: { en: ['Prepare the ingredients.', 'Cook everything together until done.'] },
+            servings: 1,
+            mealTypes: [meal],
+            prepMinutes: 5,
+            cookMinutes: 10,
+            difficulty: 'easy',
+            ingredients: plate.map((slug) => ({ slug, quantity: slug === 'olive-oil' ? 15 : 150, unit: INGREDIENTS.find((i) => i.slug === slug)!.canonicalUnit })),
+          };
+        });
+        return JSON.stringify({ recipes });
+      };
+    };
+
+    it('writes for the diet and meal with the fewest recipes, and counts again before each call', async () => {
+      const before = await counted();
+      const perCall = recipesPerCall(1);
+      t.model.reply({ text: forTheMealAsked(), times: 10 });
+
+      const state = await run({ count: perCall + 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE, fillCoverage: true });
+
+      expect(state).toMatchObject({ status: 'done', error: null, written: perCall + 1, note: null });
+      const [first, second] = t.model.requests.map(askedFor) as { diet: DietType; meal: MealType }[];
+      expect(t.model.requests).toHaveLength(2);
+      expect(before[first!.diet][first!.meal]).toBe(fewest(before));
+      // What the first call wrote counts for its pair, so the second call is for another that is as empty as the first was.
+      expect(second).not.toEqual(first);
+      expect(before[second!.diet][second!.meal]).toBe(fewest(before));
+      const after = await counted();
+      expect(after[first!.diet][first!.meal]).toBe(before[first!.diet][first!.meal] + perCall);
+      expect(state.target).toEqual(second);
+    });
+
+    it('sets a pair aside that yields nothing, and goes on to the next', async () => {
+      // An author that ignores what it is asked for: rice dishes for lunch.
+      t.model.reply({ text: author().answer(), times: 30 });
+
+      const state = await run({ count: recipesPerCall(1) + 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE, fillCoverage: true });
+
+      // Three attempts at the first pair, then the next pair: not the first again.
+      const pairs = [...new Set(t.model.requests.map((request) => JSON.stringify(askedFor(request))))];
+      expect(pairs).toHaveLength(2);
+      expect(state).toMatchObject({ written: 0, note: null, error: 'batch rejected on every retry' });
+    });
+
+    it('asks the model for nothing when every diet has enough for every meal, and says so', async () => {
+      const rice = await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'white-rice' } });
+      // Six recipes that count for every diet and every meal.
+      for (let i = 0; i < COVERAGE_TARGET; i += 1) {
+        await t.prisma.recipe.create({
+          data: {
+            slug: `fills-every-pair-${i}`,
+            title: `Fills every pair ${i}`,
+            description: 'For the count only.',
+            servings: 1,
+            mealTypes: [...MealType.options],
+            dietTags: ['vegetarian', 'vegan', 'mediterranean', 'low_carb', 'keto'],
+            steps: ['Serve.'],
+            prepMinutes: 1,
+            cookMinutes: 0,
+            origin: 'curated',
+            ingredients: { create: [{ ingredientId: rice.id, quantity: 10 + i, unit: 'g' }] },
+          },
+        });
+      }
+
+      const state = await run({ count: 5, targetLocales: ['en'], fillCoverage: true });
+      await t.prisma.recipe.deleteMany({ where: { slug: { startsWith: 'fills-every-pair-' } } });
+
+      expect(state).toMatchObject({ status: 'done', error: null, written: 0, note: 'coverage-reached' });
+      expect(t.model.requests).toHaveLength(0);
+    });
+
+    it('chooses the diet and the meal itself: a run that names them too is refused', async () => {
+      const refused = await t.http().post('/api/admin/drafts/recipes/generate').set(admin).send({ count: 2, fillCoverage: true, mealTypes: ['lunch'] });
+
+      expect([refused.status, refused.body.error]).toEqual([400, 'INVALID_RECIPE_SPEC']);
     });
   });
 

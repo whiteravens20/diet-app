@@ -153,14 +153,16 @@ export const DraftRunnerStatus = z.enum(['idle', 'running', 'done', 'error']);
 export type DraftRunnerStatus = z.infer<typeof DraftRunnerStatus>;
 
 /**
- * Why a run had nothing to do, when that is no failure:
+ * Why a run had nothing to do, or ended before its count, when that is no
+ * failure:
  *
  *  - `nothing-imported`: the catalogue has no imported ingredient to name;
  *  - `not-imported`: none of the ingredients named is an imported one, and
  *    only those get their names from a run;
- *  - `all-have-drafts`: every imported ingredient already has a draft.
+ *  - `all-have-drafts`: every imported ingredient already has a draft;
+ *  - `coverage-reached`: every diet has enough recipes for every meal.
  */
-export const DraftRunNote = z.enum(['nothing-imported', 'not-imported', 'all-have-drafts']);
+export const DraftRunNote = z.enum(['nothing-imported', 'not-imported', 'all-have-drafts', 'coverage-reached']);
 export type DraftRunNote = z.infer<typeof DraftRunNote>;
 
 export const DraftRunnerState = z.object({
@@ -286,9 +288,17 @@ export const CatalogueScope = z.enum(['curated', 'all']);
 export type CatalogueScope = z.infer<typeof CatalogueScope>;
 
 export const RecipeGenerateSpec = z.object({
+  /** How many recipes to write; with `fillCoverage`, how many at most. */
   count: z.number().int().min(1).max(25),
   targetLocales: z.array(Locale).min(1).optional(),
   catalogueScope: CatalogueScope.optional(),
+  /**
+   * Write for the diet and meal that have the fewest recipes, call after
+   * call, and stop when every diet has enough for every meal. The run then
+   * chooses the diet and the meal itself: `dietTags` and `mealTypes` may not
+   * be sent with it.
+   */
+  fillCoverage: z.boolean().optional(),
   dietTags: z.array(DietType).optional(),
   mealTypes: z.array(MealType).optional(),
   cuisine: z.string().min(1).max(80).optional(),
@@ -302,6 +312,9 @@ export const RecipeGenerateSpec = z.object({
   avoidSlugs: z.array(z.string()).optional(),
   preferSlugs: z.array(z.string()).optional(),
   complexityMix: ComplexityMix.optional(),
+}).refine((spec) => !spec.fillCoverage || (spec.dietTags === undefined && spec.mealTypes === undefined), {
+  message: 'fillCoverage chooses the diet and the meal: dietTags and mealTypes may not be sent with it',
+  path: ['fillCoverage'],
 });
 export type RecipeGenerateSpec = z.infer<typeof RecipeGenerateSpec>;
 

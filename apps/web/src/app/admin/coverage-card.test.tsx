@@ -16,7 +16,7 @@ coverage.vegan = { breakfast: 4, second_breakfast: 0, lunch: 2, snack: 3, dinner
 function renderCard() {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <CoverageCard coverage={coverage} />
+      <CoverageCard coverage={coverage} target={6} />
     </NextIntlClientProvider>,
   );
 }
@@ -50,5 +50,12 @@ describe('the administrator\'s table of recipes per diet and meal', () => {
     expect(none!.className).toContain('text-destructive');
     expect(few!.className).toContain('text-amber-600');
     expect(enough!.className).not.toMatch(/text-destructive|text-amber/);
+  });
+
+  it('says how many pairs of diet and meal are short of what a release needs', () => {
+    renderCard();
+
+    // Vegan: 4, 0, 2 and 3 are under six; 7 is not.
+    expect(screen.getByText(/^4 of 35 pairs of diet and meal have fewer than 6 recipes\./)).toBeTruthy();
   });
 });

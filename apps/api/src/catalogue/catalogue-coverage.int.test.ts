@@ -2,6 +2,7 @@
 
 import { DietType, MEAL_SLOTS_BY_COUNT, MealType, fitsDiet } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { COVERAGE_TARGET } from '../engine/coverage.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPrivateRecipe, aProfile, aUser, as } from '../testing/factories.js';
@@ -46,11 +47,12 @@ describe('what the catalogue can serve', () => {
     expect(depth.balanced['3']).toBeGreaterThan(0);
   });
 
-  it('is shown to the administrator meal by meal', async () => {
-    const { coverage } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
+  it('is shown to the administrator meal by meal, with how many a release needs for each', async () => {
+    const { coverage, coverageTarget } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
 
     expect(coverage.vegan.lunch).toBe(await counted('vegan', 'lunch'));
     expect(Object.keys(coverage.balanced).sort()).toEqual([...MealType.options].sort());
+    expect(coverageTarget).toBe(COVERAGE_TARGET);
   });
 
   it('leaves out what a user made for themselves', async () => {

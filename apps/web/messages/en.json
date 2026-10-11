@@ -421,7 +421,8 @@
     "coverage": {
       "title": "Recipes per diet and meal",
       "explain": "How many recipes a plan can choose from. With none, no plan can be made for that diet with that meal; with fewer than {enough}, a week repeats the same dish more often than a profile allows by default.",
-      "diet": "Diet"
+      "diet": "Diet",
+      "gap": "{below, plural, =0 {Every diet has at least {target} recipes for every meal.} one {# of {pairs} pairs of diet and meal has fewer than {target} recipes.} other {# of {pairs} pairs of diet and meal have fewer than {target} recipes.}} A recipe run with \"Fill what the catalogue lacks\" writes for the emptiest pair first."
     },
     "usda": {
       "title": "USDA importer",
@@ -520,10 +521,14 @@
       "scopeLabel": "Catalogue",
       "scopeCurated": "Curated only (recommended)",
       "scopeAll": "All (curated + USDA)",
+      "fillCoverage": "Fill what the catalogue lacks",
+      "fillCoverageHint": "Each call writes for the diet and meal that have the fewest recipes, counting the drafts in the queue. The run stops when no diet is short of recipes for any meal.",
+      "runTarget": "Written for: {diet} · {meal}",
       "runNotes": {
         "nothing-imported": "Nothing to name: the catalogue has no imported ingredients.",
         "not-imported": "{skipped, plural, one {Nothing to name: the ingredient given is not an imported one.} other {Nothing to name: none of the # ingredients given is an imported one.}} Only imported ingredients get their names from a run.",
-        "all-have-drafts": "{skipped, plural, one {Nothing to name: the one imported ingredient already has a draft.} other {Nothing to name: all # imported ingredients already have a draft.}}"
+        "all-have-drafts": "{skipped, plural, one {Nothing to name: the one imported ingredient already has a draft.} other {Nothing to name: all # imported ingredients already have a draft.}}",
+        "coverage-reached": "Nothing to write: every diet has enough recipes for every meal, counting the drafts in the queue."
       },
       "rejectReasonLabel": "Last batch rejected: {reason} ({key})",
       "rejectReasonHint": "The validator rejected the model's output on every retry. Common causes: unknown-slug (model invented a slug), invalid-unit (used tbsp/cup), missing-field (skipped difficulty). Try a different model, or fewer recipes per batch.",

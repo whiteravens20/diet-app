@@ -24,7 +24,7 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
-import type { CoverageMatrix } from '../engine/coverage.js';
+import { COVERAGE_TARGET, type CoverageMatrix } from '../engine/coverage.js';
 import { BasicAuthGuard } from './basic-auth.guard.js';
 import { computeDataState, resolveDataDir } from './seed/data-hash.js';
 import { SeedRunner, type RunnerState } from './seed/runner.js';
@@ -40,6 +40,8 @@ interface AdminStatsDto {
   counts: { ingredients: number; recipes: number; substitutions: number };
   /** How many recipes each diet has for each meal. */
   coverage: CoverageMatrix;
+  /** How many a release needs for each: what a recipe run that fills the catalogue writes towards. */
+  coverageTarget: number;
   seed: {
     lastSeededAt: string | null;
     storedHash: string | null;
@@ -144,6 +146,7 @@ export class AdminController {
     return {
       counts: { ingredients, recipes, substitutions },
       coverage,
+      coverageTarget: COVERAGE_TARGET,
       seed: {
         lastSeededAt: meta?.seededAt.toISOString() ?? null,
         storedHash: meta?.hash ?? null,

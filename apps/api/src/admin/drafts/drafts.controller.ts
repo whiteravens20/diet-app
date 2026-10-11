@@ -642,6 +642,7 @@ export class DraftsController {
 }
 
 export interface RecipeRunnerStateDto extends DraftRunnerState {
+  target: RecipeRunnerState['target'];
   complexityCounts: RecipeRunnerState['complexityCounts'];
   mixDrift: boolean;
   lastRejectReason: string | null;

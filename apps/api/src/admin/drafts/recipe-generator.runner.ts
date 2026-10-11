@@ -19,13 +19,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import {
+  DietType,
+  MealType,
   NON_CANONICAL_LOCALES,
+  RecipeDietTag,
   type Complexity,
   type DraftRunNote,
   type Locale,
   type RecipeGenerateSpec,
 } from '@diet-app/shared';
+import { CatalogueCoverageService } from '../../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../../config/env.js';
+import { COVERAGE_TARGET, recipesPerDietAndMeal } from '../../engine/coverage.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AnthropicProvider } from '../../ai/providers/anthropic.provider.js';
 import { OllamaProvider } from '../../ai/providers/ollama.provider.js';
@@ -78,6 +83,8 @@ export interface RecipeRunnerState {
   skipped: number;
   /** Why the run ended before its count, when that is no failure. */
   note: DraftRunNote | null;
+  /** The diet and the meal the run is writing for, when it chooses them itself. */
+  target: { diet: DietType; meal: MealType } | null;
   /** Realised complexity counts in the run. Surfaced beside the progress bar
    *  so the operator can see the batch skew live. */
   complexityCounts: Record<Complexity, number>;
@@ -103,6 +110,7 @@ export class RecipeGeneratorRunner {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
+    private readonly coverage: CatalogueCoverageService,
     private readonly openai: OpenAiProvider,
     private readonly anthropic: AnthropicProvider,
     private readonly openrouter: OpenRouterProvider,
@@ -155,6 +163,7 @@ export class RecipeGeneratorRunner {
       error: null,
       skipped: 0,
       note: null,
+      target: null,
       complexityCounts: { simple: 0, medium: 0, complex: 0 },
       mixDrift: false,
       lastRejectReason: null,
@@ -200,21 +209,17 @@ export class RecipeGeneratorRunner {
 
       const adapter = this.pickAdapter();
       const tuning = PROVIDER_TUNING[adapter.kind];
-      // One answer holds only a few recipes, so a run is a series of calls.
-      const calls = planCalls(
-        spec.count,
-        recipesPerCall(targetLocalesWithEn.length),
-        spec.complexityMix ?? DEFAULT_COMPLEXITY_MIX,
-      );
+      const perCall = recipesPerCall(targetLocalesWithEn.length);
+      const mix = spec.complexityMix ?? DEFAULT_COMPLEXITY_MIX;
 
-      for (const [index, targets] of calls.entries()) {
-        if (this.cancelRequested) break;
+      /** One call of the run: how many recipes it wrote, or `null` when the provider itself failed and the run is over. */
+      const call = async (targets: Record<Complexity, number>, asking: RecipeGenerateSpec): Promise<number | null> => {
         const asked = targets.simple + targets.medium + targets.complex;
         const answer = await this.askForRecipes({
           adapter,
           temperature: tuning.temperature,
           targets,
-          spec,
+          spec: asking,
           targetLocales: targetLocalesWithEn,
           catalogue,
           resolveSlug,
@@ -223,14 +228,13 @@ export class RecipeGeneratorRunner {
         if (answer.failure) {
           // The provider itself is failing; the calls still to come would too.
           this.finishWithError(`provider call failed: ${answer.failure}`);
-          return;
+          return null;
         }
-        if (this.cancelRequested && answer.candidates.length === 0) break;
         // Never more than was asked for, whatever the model sent.
         const accepted = answer.candidates.slice(0, asked);
         await this.persistCandidates({
           candidates: accepted,
-          spec,
+          spec: asking,
           targetLocales: targetLocalesWithEn,
           batchId,
         });
@@ -246,14 +250,50 @@ export class RecipeGeneratorRunner {
           existing.takenSlugs.add(c.slug);
           existing.takenTitles.add((c.titles.en ?? '').toLowerCase());
         }
-        if (tuning.interBatchDelayMs > 0 && index < calls.length - 1 && !this.cancelRequested) {
-          await new Promise((waited) => setTimeout(waited, tuning.interBatchDelayMs));
+        return accepted.length;
+      };
+      const pause = async (): Promise<void> => {
+        if (tuning.interBatchDelayMs > 0 && !this.cancelRequested) await new Promise((waited) => setTimeout(waited, tuning.interBatchDelayMs));
+      };
+
+      if (spec.fillCoverage) {
+        // Call after call for the diet and meal that have the fewest recipes,
+        // counted anew each time. A pair that yields nothing is left for
+        // another run, so that one hard pair does not use up the whole count.
+        const gaveNothing = new Set<string>();
+        let left = spec.count;
+        while (left > 0 && !this.cancelRequested) {
+          const cell = await this.emptiestCell(gaveNothing);
+          if (cell === null) {
+            if (gaveNothing.size === 0) this.state = { ...this.state, note: 'coverage-reached' };
+            break;
+          }
+          const want = Math.min(perCall, left, COVERAGE_TARGET - cell.recipes);
+          this.state = { ...this.state, target: { diet: cell.diet, meal: cell.meal } };
+          const wrote = await call(planCalls(want, want, mix)[0]!, {
+            ...spec,
+            // A diet every recipe suits asks nothing of the model.
+            dietTags: RecipeDietTag.safeParse(cell.diet).success ? [cell.diet] : undefined,
+            mealTypes: [cell.meal],
+          });
+          if (wrote === null) return;
+          if (wrote === 0) gaveNothing.add(`${cell.diet}:${cell.meal}`);
+          left -= want;
+          if (left > 0) await pause();
+        }
+      } else {
+        // One answer holds only a few recipes, so a run is a series of calls.
+        const calls = planCalls(spec.count, perCall, mix);
+        for (const [index, targets] of calls.entries()) {
+          if (this.cancelRequested) break;
+          if ((await call(targets, spec)) === null) return;
+          if (index < calls.length - 1) await pause();
         }
       }
 
       this.summariseMix(spec, this.state.written);
       if (this.cancelRequested) this.finish('cancelled');
-      else this.finish(this.state.written === 0 ? 'batch rejected on every retry' : null);
+      else this.finish(this.state.written === 0 && this.state.note === null ? 'batch rejected on every retry' : null);
     } catch (err) {
       this.finishWithError(describe(err));
     }
@@ -457,6 +497,31 @@ export class RecipeGeneratorRunner {
     return { recipes, takenSlugs, takenTitles };
   }
 
+  /**
+   * The diet and meal with the fewest recipes, counting the shared library
+   * and the drafts that wait in the queue, or null when every pair has
+   * `COVERAGE_TARGET` (or is one of `setAside`). A diet every recipe suits is
+   * left out when a stricter one is as empty: a recipe written for the
+   * stricter diet fills both.
+   */
+  private async emptiestCell(setAside: ReadonlySet<string>): Promise<{ diet: DietType; meal: MealType; recipes: number } | null> {
+    const library = await this.coverage.count();
+    const waiting = recipesPerDietAndMeal(
+      await this.prisma.recipeDraft.findMany({ where: { status: { in: ['PENDING', 'APPROVED'] } }, select: { dietTags: true, mealTypes: true } }),
+    );
+    let emptiest: { diet: DietType; meal: MealType; recipes: number } | null = null;
+    // The diets that need recipes of their own come first in the order of ties.
+    const diets = [...RecipeDietTag.options, ...DietType.options.filter((diet) => !RecipeDietTag.safeParse(diet).success && diet !== 'custom')];
+    for (const diet of diets) {
+      for (const meal of MealType.options) {
+        if (setAside.has(`${diet}:${meal}`)) continue;
+        const recipes = library[diet][meal] + waiting[diet][meal];
+        if (recipes < COVERAGE_TARGET && (emptiest === null || recipes < emptiest.recipes)) emptiest = { diet, meal, recipes };
+      }
+    }
+    return emptiest;
+  }
+
   /** Trim per-100 macros to one decimal to keep the prompt compact. */
   private catalogueForPrompt(catalogue: CatalogueRow[]): CatalogueRow[] {
     return catalogue.map((c) => ({
@@ -608,6 +673,7 @@ export class RecipeGeneratorRunner {
       error: null,
       skipped: 0,
       note: null,
+      target: null,
       complexityCounts: { simple: 0, medium: 0, complex: 0 },
       mixDrift: false,
       lastRejectReason: null,

@@ -2,6 +2,7 @@
 
 import { Module } from '@nestjs/common';
 import { AiModule } from '../../ai/ai.module.js';
+import { CatalogueModule } from '../../catalogue/catalogue.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { BasicAuthGuard } from '../basic-auth.guard.js';
 import { DraftService } from './draft.service.js';
@@ -17,7 +18,7 @@ import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
  * holds the queue's own rules and is what the reviewers' routes use too.
  */
 @Module({
-  imports: [PrismaModule, AiModule],
+  imports: [PrismaModule, AiModule, CatalogueModule],
   controllers: [DraftsController],
   providers: [BasicAuthGuard, IngredientNamerRunner, RecipeGeneratorRunner, DraftService],
   exports: [DraftService],
