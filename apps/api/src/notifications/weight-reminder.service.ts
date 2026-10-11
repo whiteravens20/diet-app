@@ -13,7 +13,9 @@ import { NotificationsService } from './notifications.service.js';
  * `weekly` fires when ≥7 days old; `off` is skipped. To avoid pestering
  * a stale-by-one-day profile every hour we additionally debounce on
  * `Profile.lastWeightReminderAt` so the reminder fires at most once per
- * cadence window even if the user keeps not logging.
+ * cadence window even if the user keeps not logging. Two scans that run at
+ * once (two workers, or an old and a new one while the instance is updated)
+ * remind a profile once between them.
  */
 @Injectable()
 export class WeightReminderService {
@@ -62,16 +64,34 @@ export class WeightReminderService {
         daysSinceLastEntry: Number.isFinite(daysSinceLastEntry) ? daysSinceLastEntry : 0,
         cadence,
       };
-      await this.notifications.createWeightReminder(p.id, payload);
-      await this.prisma.profile.update({
-        where: { id: p.id },
-        data: { lastWeightReminderAt: now },
-      });
-      emitted += 1;
+      // One profile that fails (deleted since it was read, say) does not keep the rest from being reminded.
+      try {
+        if (await this.remind(p.id, payload, new Date(now.getTime() - cadenceDays * DAY_MS), now)) emitted += 1;
+      } catch (err) {
+        this.logger.warn(`The reminder for profile ${p.id} was not made: ${(err as Error).message}`);
+      }
     }
 
     if (emitted > 0) this.logger.log(`Emitted ${emitted} weight_reminder notification(s)`);
     return emitted;
+  }
+
+  /**
+   * Make the reminder of a profile, if no other scan made it since
+   * `notSince`. The reminder is claimed before it is made, and both happen
+   * or neither: of two scans that find the profile due, one moves the mark,
+   * and the other finds it moved and makes nothing.
+   */
+  private remind(profileId: string, payload: WeightReminderPayload, notSince: Date, now: Date): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.profile.updateMany({
+        where: { id: profileId, OR: [{ lastWeightReminderAt: null }, { lastWeightReminderAt: { lte: notSince } }] },
+        data: { lastWeightReminderAt: now },
+      });
+      if (claimed.count !== 1) return false;
+      await this.notifications.remindOfWeight(tx, profileId, payload, now);
+      return true;
+    });
   }
 }
 

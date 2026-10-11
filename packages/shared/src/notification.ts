@@ -17,6 +17,9 @@ import { z } from 'zod';
  * no DB migration.
  */
 
+/** The most unread notifications one answer holds: the newest. */
+export const MAX_UNREAD_LISTED = 50;
+
 /** Discriminator for `Notification.type`. Extend additively. */
 export const NotificationType = z.enum(['weight_reminder', 'preferences_review']);
 export type NotificationType = z.infer<typeof NotificationType>;
