@@ -1019,6 +1019,19 @@ model IngredientNameDraftLocaleReview {
   @@index([draftId, locale])
 }
 
+// Where a background job of the administrator's stands (an update of the
+// catalogue, an import, a run that writes drafts): read by whichever process
+// of the API is asked, written by the one that runs the job.
+model JobState {
+  name          String   @id
+  state         Json
+  // Moved while the job runs. A job that says it runs and has not moved this
+  // for a while stopped with its process.
+  heartbeatAt   DateTime
+  // Asked of the process that runs the job, in whichever process it was asked.
+  stopRequested Boolean  @default(false)
+}
+
 // Singleton runtime configuration owned by the operator and managed from
 // /admin. Carries the reviewer-interface toggle and its password hash.
 model InstanceSettings {

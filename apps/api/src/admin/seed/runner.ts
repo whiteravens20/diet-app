@@ -1,20 +1,22 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * In-memory job runner for the admin DB updater.
+ * Job runner for the admin DB updater.
  *
  * The seed/update workload takes minutes — far longer than any sensible HTTP
  * proxy idle timeout — so we run it detached in the background and let the
- * admin panel poll {@link SeedRunner.state} every second. Single-flight: a
+ * admin panel poll {@link SeedRunner.getState} every second. Single-flight: a
  * second POST while a job is running returns 409.
  *
- * State lives in-process. An API restart drops it; the next status poll just
- * sees `idle` again. That's acceptable because the job itself is idempotent
- * (the seeder upserts and the prune step is safe to re-run) and the admin
- * panel re-derives "update available" from the on-disk hash, not the runner.
+ * Where the job stands is kept in the database (`JobState`), so every process
+ * of the API answers the same and one of them runs it. A job whose process
+ * died is seen as failed and can be started again: it is idempotent (the
+ * seeder upserts and the prune step is safe to re-run), and the admin panel
+ * re-derives "update available" from the on-disk hash, not from the runner.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { JobState } from '../job-state.js';
 import { resolveDataDir } from './data-hash.js';
 import { updateDatabase, type SeedProgress, type UpdateResult } from './seeder.js';
 
@@ -47,12 +49,23 @@ export interface RunnerState {
 @Injectable()
 export class SeedRunner {
   private readonly logger = new Logger(SeedRunner.name);
-  private state: RunnerState = SeedRunner.idle();
+  private readonly job: JobState<RunnerState>;
 
-  constructor(private readonly prisma: PrismaService) {}
+  /** Where the run stands as this process knows it. What every process is told is `getState`. */
+  private get state(): RunnerState {
+    return this.job.local;
+  }
 
-  getState(): RunnerState {
-    return this.state;
+  private set state(next: RunnerState) {
+    this.job.local = next;
+  }
+
+  constructor(private readonly prisma: PrismaService) {
+    this.job = new JobState(prisma, 'catalogue update', SeedRunner.idle);
+  }
+
+  getState(): Promise<RunnerState> {
+    return this.job.read();
   }
 
   /**
@@ -60,7 +73,7 @@ export class SeedRunner {
    * job is already in flight so the caller can answer 409. The promise we
    * await internally is detached — this method resolves immediately.
    */
-  start(): boolean {
+  async start(): Promise<boolean> {
     if (this.state.status === 'running') return false;
 
     this.state = {
@@ -74,7 +87,8 @@ export class SeedRunner {
       error: null,
     };
 
-    void this.run();
+    if (!(await this.job.begin())) return false;
+    void this.job.during(() => this.run());
     return true;
   }
 

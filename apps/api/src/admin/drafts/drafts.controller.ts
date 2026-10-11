@@ -145,9 +145,9 @@ export class DraftsController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('ingredient-names/generate')
   @HttpCode(202)
-  startNamerRun(@Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec): DraftRunnerState {
+  async startNamerRun(@Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec): Promise<DraftRunnerState> {
     const spec: IngredientNamerStartSpec = { scope: body.scope, slugs: body.slugs, targetLocales: body.targetLocales };
-    const started = this.namer.start(spec);
+    const started = await this.namer.start(spec);
     if (!started) {
       throw new ConflictException({
         error: 'NAMER_IN_PROGRESS',
@@ -158,14 +158,14 @@ export class DraftsController {
   }
 
   @Get('ingredient-names/generate/status')
-  namerStatus(): DraftRunnerState {
+  namerStatus(): Promise<DraftRunnerState> {
     return this.namerRunnerState();
   }
 
   @Post('ingredient-names/generate/stop')
   @HttpCode(202)
-  stopNamer(): DraftRunnerState {
-    this.namer.cancel();
+  async stopNamer(): Promise<DraftRunnerState> {
+    await this.namer.cancel();
     return this.namerRunnerState();
   }
 
@@ -224,8 +224,8 @@ export class DraftsController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('recipes/generate')
   @HttpCode(202)
-  startRecipeRun(@Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec): RecipeRunnerStateDto {
-    const started = this.recipeGen.start(spec);
+  async startRecipeRun(@Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec): Promise<RecipeRunnerStateDto> {
+    const started = await this.recipeGen.start(spec);
     if (!started) {
       throw new ConflictException({
         error: 'RECIPE_GEN_IN_PROGRESS',
@@ -236,14 +236,14 @@ export class DraftsController {
   }
 
   @Get('recipes/generate/status')
-  recipeRunStatus(): RecipeRunnerStateDto {
+  recipeRunStatus(): Promise<RecipeRunnerStateDto> {
     return this.recipeRunnerState();
   }
 
   @Post('recipes/generate/stop')
   @HttpCode(202)
-  stopRecipeRun(): RecipeRunnerStateDto {
-    this.recipeGen.cancel();
+  async stopRecipeRun(): Promise<RecipeRunnerStateDto> {
+    await this.recipeGen.cancel();
     return this.recipeRunnerState();
   }
 
@@ -579,12 +579,12 @@ export class DraftsController {
     return toRecipeDraftDto(await this.drafts.reviewRecipe(id, { locale, action, reason }, { ...ADMIN, label: reviewedByLabel }));
   }
 
-  private namerRunnerState(): DraftRunnerState {
-    return { ...this.namer.getState(), configured: this.namer.isConfigured() };
+  private async namerRunnerState(): Promise<DraftRunnerState> {
+    return { ...(await this.namer.getState()), configured: this.namer.isConfigured() };
   }
 
-  private recipeRunnerState(): RecipeRunnerStateDto {
-    return { ...this.recipeGen.getState(), configured: this.recipeGen.isConfigured() };
+  private async recipeRunnerState(): Promise<RecipeRunnerStateDto> {
+    return { ...(await this.recipeGen.getState()), configured: this.recipeGen.isConfigured() };
   }
 }
 

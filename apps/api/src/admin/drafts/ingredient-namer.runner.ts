@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto';
 import { NON_CANONICAL_LOCALES, type DraftRunNote, type Locale } from '@diet-app/shared';
 import type { Env } from '../../config/env.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { JobState } from '../job-state.js';
 import { AnthropicProvider } from '../../ai/providers/anthropic.provider.js';
 import { OllamaProvider } from '../../ai/providers/ollama.provider.js';
 import { OpenAiProvider } from '../../ai/providers/openai.provider.js';
@@ -65,8 +66,21 @@ export interface IngredientNamerStartSpec {
 @Injectable()
 export class IngredientNamerRunner {
   private readonly logger = new Logger(IngredientNamerRunner.name);
-  private state: IngredientNamerRunnerState = IngredientNamerRunner.idle();
-  private cancelRequested = false;
+  private readonly job: JobState<IngredientNamerRunnerState>;
+
+  /** Where the run stands as this process knows it. What every process is told is `getState`. */
+  private get state(): IngredientNamerRunnerState {
+    return this.job.local;
+  }
+
+  private set state(next: IngredientNamerRunnerState) {
+    this.job.local = next;
+  }
+
+  /** Whether somebody asked the run to stop, in whichever process of the API. */
+  private get cancelRequested(): boolean {
+    return this.job.stopRequested;
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -75,16 +89,17 @@ export class IngredientNamerRunner {
     private readonly anthropic: AnthropicProvider,
     private readonly openrouter: OpenRouterProvider,
     private readonly ollama: OllamaProvider,
-  ) {}
-
-  cancel(): boolean {
-    if (this.state.status !== 'running') return false;
-    this.cancelRequested = true;
-    return true;
+  ) {
+    this.job = new JobState(prisma, 'ingredient names', IngredientNamerRunner.idle);
   }
 
-  getState(): IngredientNamerRunnerState {
-    return this.state;
+  /** Ask the run to stop, wherever it runs. False when none does. */
+  cancel(): Promise<boolean> {
+    return this.job.requestStop();
+  }
+
+  getState(): Promise<IngredientNamerRunnerState> {
+    return this.job.read();
   }
 
   isConfigured(): boolean {
@@ -94,7 +109,7 @@ export class IngredientNamerRunner {
     );
   }
 
-  start(spec: IngredientNamerStartSpec): boolean {
+  async start(spec: IngredientNamerStartSpec): Promise<boolean> {
     if (this.state.status === 'running') return false;
     if (!this.isConfigured()) {
       this.state = {
@@ -103,12 +118,12 @@ export class IngredientNamerRunner {
         finishedAt: new Date().toISOString(),
         error: 'AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL not configured',
       };
+      await this.job.settle();
       return true;
     }
     const provider = this.config.get('AI_DEFAULT_PROVIDER', { infer: true }) ?? null;
     const model = this.config.get('AI_DEFAULT_MODEL', { infer: true }) ?? null;
     const batchId = `ing-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
-    this.cancelRequested = false;
     this.state = {
       status: 'running',
       startedAt: new Date().toISOString(),
@@ -124,7 +139,8 @@ export class IngredientNamerRunner {
       skipped: 0,
       note: null,
     };
-    void this.run(spec, batchId);
+    if (!(await this.job.begin())) return false;
+    void this.job.during(() => this.run(spec, batchId));
     return true;
   }
 

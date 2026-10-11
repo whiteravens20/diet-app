@@ -177,8 +177,8 @@ export class AdminController {
   @Post('db/update')
   @HttpCode(202)
   @UseGuards(AdminSessionGuard)
-  startUpdate(): RunnerState {
-    const started = this.runner.start();
+  async startUpdate(): Promise<RunnerState> {
+    const started = await this.runner.start();
     if (!started) {
       throw new ConflictException({
         error: 'UPDATE_IN_PROGRESS',
@@ -190,7 +190,7 @@ export class AdminController {
 
   @Get('db/update/status')
   @UseGuards(AdminSessionGuard)
-  updateStatus(): RunnerState {
+  updateStatus(): Promise<RunnerState> {
     return this.runner.getState();
   }
 
@@ -204,10 +204,10 @@ export class AdminController {
   @Post('db/import-usda')
   @HttpCode(202)
   @UseGuards(AdminSessionGuard)
-  startUsdaImport(
+  async startUsdaImport(
     @Query(new ZodValidationPipe(UsdaImportQuery)) query: UsdaImportQuery,
-  ): ImportRunnerState {
-    const started = this.importer.start(query.dataTypes);
+  ): Promise<ImportRunnerState> {
+    const started = await this.importer.start(query.dataTypes);
     if (!started) {
       throw new ConflictException({
         error: 'IMPORT_IN_PROGRESS',
@@ -219,7 +219,7 @@ export class AdminController {
 
   @Get('db/import-usda/status')
   @UseGuards(AdminSessionGuard)
-  usdaImportStatus(): ImportRunnerState {
+  usdaImportStatus(): Promise<ImportRunnerState> {
     return this.importer.getState();
   }
 }

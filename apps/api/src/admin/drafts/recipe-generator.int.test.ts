@@ -94,7 +94,7 @@ describe('generating recipe drafts', () => {
 
   async function finished(): Promise<RecipeRunnerState> {
     for (let waited = 0; waited < 200; waited += 1) {
-      const state = runner.getState();
+      const state = await runner.getState();
       if (state.status !== 'running') return state;
       await new Promise((tick) => setTimeout(tick, 25));
     }
@@ -102,7 +102,7 @@ describe('generating recipe drafts', () => {
   }
 
   async function run(spec: RecipeGenerateSpec): Promise<RecipeRunnerState> {
-    expect(runner.start(spec)).toBe(true);
+    expect(await runner.start(spec)).toBe(true);
     return finished();
   }
 

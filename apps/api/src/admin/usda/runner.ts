@@ -9,13 +9,17 @@
  * handler kicks the job off and the admin panel polls
  * `GET /api/admin/db/import-usda/status` for progress.
  *
- * State is in-process; an API restart drops it. That's fine — the importer
- * is idempotent (output file is byte-stable for identical input) and the
- * panel re-derives "import done" from the file's presence on disk.
+ * Where the job stands is kept in the database (`JobState`), so every process
+ * of the API answers the same and one of them runs it. A run whose process
+ * died is seen as failed and can be started again: the importer is idempotent
+ * (output file is byte-stable for identical input) and the panel re-derives
+ * "import done" from the file's presence on disk.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/env.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { JobState } from '../job-state.js';
 import { resolveDataDir } from '../seed/data-hash.js';
 import { ImportFailure, runImport, type ImportFailureReason, type ImportProgress, type ImportResult } from './importer.js';
 
@@ -50,12 +54,26 @@ export interface ImportRunnerState {
 @Injectable()
 export class UsdaImportRunner {
   private readonly logger = new Logger(UsdaImportRunner.name);
-  private state: ImportRunnerState = UsdaImportRunner.idle();
+  private readonly job: JobState<ImportRunnerState>;
 
-  constructor(private readonly config: ConfigService<Env, true>) {}
+  /** Where the run stands as this process knows it. What every process is told is `getState`. */
+  private get state(): ImportRunnerState {
+    return this.job.local;
+  }
 
-  getState(): ImportRunnerState {
-    return this.state;
+  private set state(next: ImportRunnerState) {
+    this.job.local = next;
+  }
+
+  constructor(
+    private readonly config: ConfigService<Env, true>,
+    prisma: PrismaService,
+  ) {
+    this.job = new JobState(prisma, 'food import', UsdaImportRunner.idle);
+  }
+
+  getState(): Promise<ImportRunnerState> {
+    return this.job.read();
   }
 
   /**
@@ -63,7 +81,7 @@ export class UsdaImportRunner {
    * caller can answer 409. `dataTypesOverride` lets the admin panel pick
    * `Foundation` vs `Foundation,SR Legacy` without editing `.env`.
    */
-  start(dataTypesOverride?: string): boolean {
+  async start(dataTypesOverride?: string): Promise<boolean> {
     if (this.state.status === 'running') return false;
 
     const apiKey = this.config.get('FDC_API_KEY', { infer: true }) ?? 'DEMO_KEY';
@@ -91,7 +109,8 @@ export class UsdaImportRunner {
       retryAfterSeconds: null,
     };
 
-    void this.run(apiKey, dataTypes);
+    if (!(await this.job.begin())) return false;
+    void this.job.during(() => this.run(apiKey, dataTypes));
     return true;
   }
 
