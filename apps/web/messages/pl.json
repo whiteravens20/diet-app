@@ -434,7 +434,7 @@
       "refusedSummary": "Pominięto {count, plural, one {# produkt} few {# produkty} many {# produktów} other {# produktu}}: w danych źródła brakuje makroskładnika albo wartości sobie przeczą. Nie są zapisywane jako zero.",
       "failed": "Import nie powiódł się: {error}",
       "overLimit": "Baza danych o żywności nie przyjmuje teraz więcej zapytań dla tego klucza. Spróbuj ponownie później albo ustaw w .env własny, darmowy klucz FDC_API_KEY: pozwala na znacznie więcej.",
-      "overLimitWait": "Baza danych o żywności nie przyjmuje teraz więcej zapytań dla tego klucza. Spróbuj ponownie za około {minutes, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}} albo ustaw w .env własny, darmowy klucz FDC_API_KEY: pozwala na znacznie więcej.",
+      "overLimitWait": "Baza danych o żywności nie przyjmuje teraz więcej zapytań dla tego klucza. Spróbuj ponownie za około {unit, select, hours {{count, plural, one {# godzinę} few {# godziny} many {# godzin} other {# godziny}}} other {{count, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}}} albo ustaw w .env własny, darmowy klucz FDC_API_KEY: pozwala na znacznie więcej.",
       "keyRefused": "Baza danych o żywności odrzuciła klucz. Sprawdź FDC_API_KEY w .env, a potem uruchom API ponownie.",
       "unavailable": "Baza danych o żywności zgłosiła błąd albo nie odpowiedziała. Nic nie zostało zmienione; spróbuj ponownie później.",
       "notWritable": "API nie może zapisywać w swoim katalogu danych, więc o nic nie pytało bazy danych o żywności. W stosie budowanym ze źródeł jest to katalog data/ w repozytorium: nadaj prawo zapisu użytkownikowi, jako który działa kontener (chown 1000 data), i uruchom import ponownie."

@@ -70,10 +70,14 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
   /** A failed run in words that say what to do; the source's own wording follows as detail. */
   function failureText(failed: UsdaImportRunnerState): string {
     switch (failed.errorReason) {
-      case 'over_limit':
-        return failed.retryAfterSeconds
-          ? t('overLimitWait', { minutes: Math.ceil(failed.retryAfterSeconds / 60) })
-          : t('overLimit');
+      case 'over_limit': {
+        const seconds = failed.retryAfterSeconds;
+        if (!seconds) return t('overLimit');
+        // Minutes up to an hour and a half, whole hours beyond: what a key may ask in a day comes back in hours.
+        return seconds > 5400
+          ? t('overLimitWait', { unit: 'hours', count: Math.ceil(seconds / 3600) })
+          : t('overLimitWait', { unit: 'minutes', count: Math.ceil(seconds / 60) });
+      }
       case 'key_refused':
         return t('keyRefused');
       case 'unavailable':

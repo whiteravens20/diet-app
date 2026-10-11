@@ -58,6 +58,19 @@ describe('the food import card', () => {
     expect(screen.getByText('FDC API 429 on page 1')).toBeInTheDocument();
   });
 
+  it('gives a long wait in hours', async () => {
+    // What the source asks once the key has had its requests for the day.
+    await failed('over_limit', { retryAfterSeconds: 17_300 });
+
+    expect(await screen.findByText(/Try again in about 5 hours, or set FDC_API_KEY/)).toBeInTheDocument();
+  });
+
+  it('gives a wait of up to an hour and a half in minutes', async () => {
+    await failed('over_limit', { retryAfterSeconds: 5400 });
+
+    expect(await screen.findByText(/Try again in about 90 minutes, or set FDC_API_KEY/)).toBeInTheDocument();
+  });
+
   it('says to try again later when the source named no wait', async () => {
     await failed('over_limit');
 
