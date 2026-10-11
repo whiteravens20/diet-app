@@ -97,7 +97,9 @@ describe('the sessions of an account, as the account sees them', () => {
   it('can be ended all at once', async () => {
     await t.http().delete('/api/users/me/sessions').set(as(user)).expect(204);
 
-    expect(await listed()).toEqual([]);
+    // The session that asked is ended with the others: its access token opens nothing any more.
+    await t.http().get('/api/users/me/sessions').set(as(user)).expect(401);
+    expect(await sessions.list(user.id)).toEqual([]);
     expect(await works(laptop.tokens.refreshToken)).toBe(false);
     expect(await works(phone.tokens.refreshToken)).toBe(false);
     expect(await works(user.refreshToken)).toBe(false);

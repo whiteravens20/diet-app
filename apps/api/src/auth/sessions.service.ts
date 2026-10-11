@@ -116,6 +116,21 @@ export class SessionsService {
     if (stored) await this.endFamily(stored.familyId);
   }
 
+  /**
+   * Whether a session of an account is open: begun, not ended, and not past
+   * its longest. An access token is good for as long as its session is, and
+   * no longer: signing out, a new password, or a refresh token that turned up
+   * twice ends what the access tokens of that session can do at once, and an
+   * account that was deleted has no session.
+   */
+  async isOpen(userId: string, sessionId: string): Promise<boolean> {
+    const token = await this.prisma.refreshToken.findFirst({
+      where: { familyId: sessionId, userId, revokedAt: null, familyExpiresAt: { gt: new Date() } },
+      select: { id: true },
+    });
+    return token !== null;
+  }
+
   /** The sessions of an account that are open, the one used last first. */
   async list(userId: string): Promise<AccountSession[]> {
     const now = new Date();
@@ -184,10 +199,10 @@ export class SessionsService {
     sessionId: string,
   ): Promise<OpenedSession> {
     const accessTtl = this.config.get('JWT_ACCESS_TTL', { infer: true });
-    // Whose it is, and nothing else: whatever a client shows of the account
-    // comes from the API, not from inside a token.
+    // Whose it is and of which session, and nothing else: whatever a client
+    // shows of the account comes from the API, not from inside a token.
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id },
+      { sub: user.id, sid: sessionId },
       { secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }), expiresIn: accessTtl, algorithm: TOKEN_ALGORITHM, audience: ACCOUNT_AUDIENCE },
     );
     return {

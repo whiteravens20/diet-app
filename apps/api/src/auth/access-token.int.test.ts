@@ -1,11 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { JwtService } from '@nestjs/jwt';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resolveReviewerSecret, signReviewerCookie, verifyReviewerCookie } from '../review/session.js';
 import { resetDatabase } from '../testing/database.js';
 import { aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
+import { AuthService } from './auth.service.js';
+import { SessionsService } from './sessions.service.js';
 import { ConfigService } from '@nestjs/config';
 
 // The key of the test application's access tokens.
@@ -32,11 +34,12 @@ describe('an access token', () => {
 
   const me = (token: string) => t.http().get('/api/users/me').set({ Authorization: `Bearer ${token}` });
 
-  it('says whose it is, what it is for and until when, and nothing else about the account', () => {
+  it('says whose it is, of which session, what it is for and until when, and nothing else about the account', async () => {
     const claims = claimsOf(user.accessToken);
 
-    expect(Object.keys(claims).sort()).toEqual(['aud', 'exp', 'iat', 'sub']);
+    expect(Object.keys(claims).sort()).toEqual(['aud', 'exp', 'iat', 'sid', 'sub']);
     expect(claims.sub).toBe(user.id);
+    expect(claims.sid).toBe((await t.prisma.refreshToken.findFirstOrThrow({ where: { userId: user.id } })).familyId);
     expect(user.accessToken).not.toContain(Buffer.from(user.email).toString('base64url').slice(0, 12));
     expect(JSON.parse(Buffer.from(user.accessToken.split('.')[0]!, 'base64url').toString('utf8'))).toEqual({ alg: 'HS256', typ: 'JWT' });
   });
@@ -52,7 +55,9 @@ describe('an access token', () => {
     ['is signed in another way with the same key', () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS512', audience: claimsOf(user.accessToken).aud as string })],
     ['is not signed at all', () => `${part({ alg: 'none', typ: 'JWT' })}.${part({ sub: user.id, aud: claimsOf(user.accessToken).aud, exp: Math.floor(Date.now() / 1000) + 600 })}.`],
     ['has run out', () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string, expiresIn: -10 })],
-    ['names nobody', () => jwt.sign({}, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string })],
+    ['names nobody', () => jwt.sign({ sid: claimsOf(user.accessToken).sid }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string })],
+    ['names no session', () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string })],
+    ['names a session of another account', () => jwt.sign({ sub: user.id, sid: '00000000-0000-4000-8000-000000000000' }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string })],
   ])('is refused when it %s', async (_name, make) => {
     await me(make()).expect(401);
   });
@@ -61,6 +66,62 @@ describe('an access token', () => {
     const { token } = signReviewerCookie(jwt, ACCESS_SECRET, { label: 'translator' });
 
     await me(token).expect(401);
+  });
+
+  describe('of a session that has ended, though the token itself has not run out', () => {
+    let visitor: TestUser;
+    let sessions: SessionsService;
+
+    beforeEach(async () => {
+      sessions = t.app.get(SessionsService);
+      visitor = await aUser(t);
+      await me(visitor.accessToken).expect(200);
+    });
+
+    it('is refused at once after signing out', async () => {
+      await sessions.end(visitor.refreshToken);
+
+      expect((await me(visitor.accessToken).expect(401)).body.error).toBe('INVALID_ACCESS_TOKEN');
+    });
+
+    it('is refused at once after signing out everywhere, and so is that of every other session', async () => {
+      const other = await t.app.get(AuthService).login({ email: visitor.email, password: visitor.password });
+
+      await t.http().delete('/api/users/me/sessions').set({ Authorization: `Bearer ${visitor.accessToken}` }).expect(204);
+
+      await me(visitor.accessToken).expect(401);
+      await me(other.tokens.accessToken).expect(401);
+    });
+
+    it('is refused once a refresh token of its session was used twice', async () => {
+      const next = await sessions.refresh(visitor.refreshToken);
+      await t.prisma.refreshToken.updateMany({ where: { userId: visitor.id, rotatedAt: { not: null } }, data: { rotatedAt: new Date(Date.now() - 11_000) } });
+      await sessions.refresh(visitor.refreshToken).catch(() => undefined);
+
+      await me(visitor.accessToken).expect(401);
+      await me(next.tokens.accessToken).expect(401);
+    });
+
+    it('is refused once the password of the account was changed', async () => {
+      await t.http().post('/api/users/me/password').set({ Authorization: `Bearer ${visitor.accessToken}` }).send({ currentPassword: visitor.password, newPassword: 'Another-Passw0rd-1' }).expect(204);
+
+      await me(visitor.accessToken).expect(401);
+    });
+
+    it('goes on working while its session does, through every refresh', async () => {
+      const next = await sessions.refresh(visitor.refreshToken);
+
+      await me(visitor.accessToken).expect(200);
+      await me(next.tokens.accessToken).expect(200);
+    });
+
+    it('is no concern of another session of the same account', async () => {
+      const other = await t.app.get(AuthService).login({ email: visitor.email, password: visitor.password });
+
+      await sessions.end(visitor.refreshToken);
+
+      await me(other.tokens.accessToken).expect(200);
+    });
   });
 
   it('is refused once its account is gone, though it has not run out', async () => {
