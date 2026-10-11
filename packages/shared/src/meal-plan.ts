@@ -140,6 +140,20 @@ export const PlanOptions = z.object({
 export type PlanOptions = z.infer<typeof PlanOptions>;
 
 /**
+ * What the generation of a plan had to do to fill it, as far as it still
+ * holds: a meal that was changed since is no longer in it.
+ */
+export const GenerationReport = z.object({
+  /** Meals that are outside a limit, because no recipe was left inside it. */
+  relaxations: z.array(RelaxedMeal),
+  /** Meals for which the diet and the meal left one recipe to choose from. */
+  singleCandidate: z.array(z.object({ date: z.string().date(), slot: MealType })),
+  /** Whether what is in the pantry counted in the choice of recipes. */
+  pantryBiasApplied: z.boolean(),
+});
+export type GenerationReport = z.infer<typeof GenerationReport>;
+
+/**
  * One ingredient of a planned meal, in the amount this meal uses: the recipe's
  * line scaled by the meal's servings and by the rebalancer's multiplier.
  */
@@ -254,6 +268,8 @@ export const MealPlan = z.object({
   generationMode: z.enum(['deterministic', 'ai_assisted']),
   /** What the plan was asked for. */
   options: PlanOptions,
+  /** What its generation had to do; null on a plan made before that was kept. */
+  report: GenerationReport.nullable(),
   /**
    * How many times the plan has been changed. A change computed from an older
    * revision is refused with `PLAN_CHANGED`, so a client that sees that code

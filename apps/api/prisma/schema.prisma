@@ -503,6 +503,11 @@ model MealPlan {
   options        Json
   // The random value the choices of its last generation were drawn with.
   seed           Int
+  // What its generation had to do (`StoredReport` in the plan service): the
+  // limits that gave way and for which recipe, the meals with one recipe to
+  // choose from, whether the pantry counted. Null on a plan made before this
+  // was kept.
+  report         Json?
   // Counts the changes made to the plan. A change is written only if the
   // revision is still the one it was computed from, so two requests that
   // overlap cannot both rewrite the plan.

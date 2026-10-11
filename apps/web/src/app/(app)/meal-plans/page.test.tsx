@@ -113,6 +113,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
     maxRepeatsPerRecipe: null,
     allowRelaxations: [],
   },
+  report: { relaxations: [], singleCandidate: [], pantryBiasApplied: false },
   revision: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   ...over,
@@ -281,7 +282,7 @@ describe('the plan page, where a plan does not fit inside its limits', () => {
   });
 });
 
-describe('the plan page, on a plan that may go outside its limits', () => {
+describe('the plan page, on a plan and how it was made', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -290,6 +291,30 @@ describe('the plan page, on a plan that may go outside its limits', () => {
     await renderPage(aDepth(9), [plan]);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
   };
+
+  it('marks a meal that is outside a limit, and one that was the only recipe to choose from', async () => {
+    await open(
+      aPlan({
+        report: {
+          relaxations: [{ date: '2026-01-05', slot: 'breakfast', gaveWay: ['consecutive_days', 'weekly_cap'] }],
+          singleCandidate: [{ date: '2026-01-05', slot: 'breakfast' }],
+          pantryBiasApplied: true,
+        },
+      }),
+    );
+
+    expect(screen.getByText('Outside a limit')).toHaveAttribute('title', 'No recipe was left for this meal inside: days in a row with one recipe, times a week for one recipe.');
+    expect(screen.getByText('Only recipe')).toBeInTheDocument();
+    expect(screen.getByText(messages.mealPlans.pantryCounted)).toBeInTheDocument();
+  });
+
+  it('says nothing of a meal the report does not speak of, and that the pantry did not count when it did not', async () => {
+    await open(aPlan());
+
+    expect(screen.queryByText('Outside a limit')).toBeNull();
+    expect(screen.queryByText('Only recipe')).toBeNull();
+    expect(screen.getByText(messages.mealPlans.pantryNotCounted)).toBeInTheDocument();
+  });
 
   it('names the limits a plan may go outside, and makes it again inside every limit when asked', async () => {
     const plan = aPlan({ options: { ...aPlan().options, allowRelaxations: ['cook_time', 'weekly_cap'] } });
@@ -300,5 +325,12 @@ describe('the plan page, on a plan that may go outside its limits', () => {
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.holdLimits }));
 
     expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, { allowRelaxations: [] });
+  });
+
+  it('says nothing of how a plan was made when the plan is from before that was kept', async () => {
+    await open(aPlan({ report: null }));
+
+    expect(screen.queryByText(messages.mealPlans.pantryNotCounted)).toBeNull();
+    expect(screen.queryByText(messages.mealPlans.pantryCounted)).toBeNull();
   });
 });

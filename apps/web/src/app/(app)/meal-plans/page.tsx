@@ -784,13 +784,20 @@ function PlanCard({
       </div>
       {open && (
         <CardContent className="space-y-4 border-t border-border pt-4">
-          {plan.options.allowRelaxations.length > 0 && (
-            <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {t('planMayGiveWay', { limits: limitNames(plan.options.allowRelaxations) })}
-              <Button type="button" variant="ghost" size="sm" onClick={() => onRegenerate([])} disabled={busy}>
-                {t('holdLimits')}
-              </Button>
-            </p>
+          {(plan.options.allowRelaxations.length > 0 || (plan.report && plan.options.respectInventory)) && (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              {plan.options.allowRelaxations.length > 0 && (
+                <p className="flex flex-wrap items-center gap-2">
+                  {t('planMayGiveWay', { limits: limitNames(plan.options.allowRelaxations) })}
+                  <Button type="button" variant="ghost" size="sm" onClick={() => onRegenerate([])} disabled={busy}>
+                    {t('holdLimits')}
+                  </Button>
+                </p>
+              )}
+              {plan.report && plan.options.respectInventory && (
+                <p>{t(plan.report.pantryBiasApplied ? 'pantryCounted' : 'pantryNotCounted')}</p>
+              )}
+            </div>
           )}
           {plan.days.map((day) => (
             <div key={day.id}>
@@ -834,6 +841,11 @@ function PlanCard({
                   const title = isCustom ? m.customName ?? t('customMeal') : m.recipe!.title;
                   const favOpen = openFav === m.id;
                   const mealLabel = tMeal.has(m.mealType) ? tMeal(m.mealType) : m.mealType.replace('_', ' ');
+                  // What the generation said of this meal: the report speaks of the recipes it placed.
+                  const said = <T extends { date: string; slot: string }>(entries: T[] | undefined): T | undefined =>
+                    isCustom ? undefined : entries?.find((entry) => entry.date === day.date && entry.slot === m.mealType);
+                  const outside = said(plan.report?.relaxations);
+                  const onlyRecipe = said(plan.report?.singleCandidate);
                   // The picker shows diet-matching, slot-matching favourites
                   // by default; "show all my favourites" drops BOTH the diet and the
                   // meal-time filter (allergens stay enforced server-side), so a
@@ -891,6 +903,19 @@ function PlanCard({
                               {t(`conflictChip.${conflict}`)}
                             </span>
                           ))}
+                          {outside && (
+                            <span
+                              title={t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}
+                              className="ml-2 whitespace-nowrap rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400"
+                            >
+                              {t('outsideLimitChip')}
+                            </span>
+                          )}
+                          {onlyRecipe && (
+                            <span title={t('onlyRecipeHint')} className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              {t('onlyRecipeChip')}
+                            </span>
+                          )}
                           {m.quantityScale !== 1 && (
                             <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
                               {t('autoBalancedChip', { scale: m.quantityScale.toFixed(2) })}

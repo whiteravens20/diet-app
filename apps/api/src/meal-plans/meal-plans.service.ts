@@ -78,6 +78,7 @@ import {
   type RecipeLocaleSlice,
 } from './swap-rewrite.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
+import { reportOf, shownReport, StoredReport, withDaysAgain } from './generation-report.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { writePlan } from './plan-write.js';
 import {
@@ -182,6 +183,7 @@ export class MealPlansService {
         reuseScore: result.ingredientReuseScore,
         options,
         seed,
+        report: result.report,
         days: { create: buildDays(resolvedDays, result.assignments) },
       },
     });
@@ -260,6 +262,7 @@ export class MealPlansService {
           // The limits the plan was made with this time are the ones it is made with from here on.
           options: { ...made, allowRelaxations },
           seed,
+          report: result.report,
           days: { create: buildDays(resolvedDays, result.assignments) },
         },
       });
@@ -325,6 +328,7 @@ export class MealPlansService {
       dropIneligibleLocks: options.dropIneligibleLocks,
       seed: newSeed(),
     });
+    const kept = StoredReport.nullable().parse(day.plan.report ?? null);
 
     await writePlan(this.prisma, planId, day.plan.revision, async (tx) => {
       // A lock that was dropped leaves the stored overrides of the day as well.
@@ -340,6 +344,10 @@ export class MealPlansService {
           .filter((a) => a.dayIndex === 0)
           .map((a) => ({ dayId, recipeId: a.recipeId, mealType: a.slot, servings: a.servings })),
       });
+      // A plan from before reports were kept has none to bring up to date.
+      if (kept) {
+        await tx.mealPlan.update({ where: { id: planId }, data: { report: withDaysAgain(kept, result.report, [resolved.isoDate]) } });
+      }
     });
     return this.get(userId, locale, planId);
   }
@@ -438,7 +446,7 @@ export class MealPlansService {
       dropIneligibleLocks?: boolean;
       seed: number;
     },
-  ): Promise<OptimizerResult> {
+  ): Promise<{ assignments: OptimizerResult['assignments']; ingredientReuseScore: number; report: StoredReport }> {
     const { optimizerRecipes, requirementsByRecipe, beforeProfileRules } = await this.loadEligibleRecipes(ownerUserId, profile, {
       respectExclusions: opts.respectExclusions,
     });
@@ -512,7 +520,7 @@ export class MealPlansService {
 
     const dates = opts.days.map((d) => d.isoDate);
     try {
-      return optimisePlan({
+      const result = optimisePlan({
         recipes: optimizerRecipes,
         days,
         targetMacros: { protein: 0, fat: 0, carbs: 0 },
@@ -526,6 +534,11 @@ export class MealPlansService {
         allowRelaxations: new Set(opts.allowRelaxations),
         seed: opts.seed,
       });
+      return {
+        assignments: result.assignments,
+        ingredientReuseScore: result.ingredientReuseScore,
+        report: reportOf(result, dates, inventoryCoverage !== undefined),
+      };
     } catch (err) {
       // The plan could be filled only by letting limits give way that may
       // not: a 422 that names the limits and the meals, so that the user can
@@ -1968,6 +1981,7 @@ export class MealPlansService {
       ingredientReuseScore: plan.reuseScore,
       generationMode: plan.generationMode,
       options: PlanOptions.parse(plan.options),
+      report: shownReport(plan.report, days),
       revision: plan.revision,
       createdAt: plan.createdAt.toISOString(),
     };
@@ -1985,6 +1999,7 @@ interface PlanWithRelations {
   reuseScore: number;
   generationMode: 'deterministic' | 'ai_assisted';
   options: unknown;
+  report: unknown;
   revision: number;
   createdAt: Date;
   /** Whose plan it is: the floor a day's target is compared with follows from it. */
