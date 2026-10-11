@@ -331,6 +331,7 @@ export class RecipeGeneratorRunner {
         takenSlugs: existing.takenSlugs,
         takenTitles: existing.takenTitles,
         requiredDiets: spec.dietTags,
+        requiredMeals: spec.mealTypes,
       });
       if (validation.ok) return { candidates: validation.candidates, failure: null };
       refused = `\nYour last answer was refused: ${validation.reason}${validation.key ? ` at ${JSON.stringify(validation.key)}` : ''}. Send a corrected answer.`;

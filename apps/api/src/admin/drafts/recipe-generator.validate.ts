@@ -48,6 +48,7 @@ export type RecipeValidationReason =
   | 'duplicate-title-in-batch'
   | 'slug-taken'
   | 'title-taken'
+  | 'meal-not-asked-for'
   | 'ingredient-count-out-of-bands'
   | 'step-count-too-high'
   | 'total-time-too-high'
@@ -124,6 +125,8 @@ export interface ValidateRecipeBatchOptions {
   takenTitles?: ReadonlySet<string>;
   /** The diets the run was asked for: a recipe that does not qualify is rejected. */
   requiredDiets?: DietType[];
+  /** The meals the run was asked for: a recipe that is for none of them is rejected. */
+  requiredMeals?: readonly string[];
 }
 
 /** Jaccard similarity of two slug sets. 1.0 = identical, 0 = disjoint. */
@@ -204,6 +207,11 @@ export function validateRecipeBatch(
       return { ok: false, reason: first.rule, key: `${rowKey}.${first.path}`, details: first.message };
     }
     const { titles, descriptions, steps, servings, prepMinutes, cookMinutes, difficulty, mealTypes, ingredients } = checked.recipe;
+
+    const requiredMeals = opts.requiredMeals ?? [];
+    if (requiredMeals.length > 0 && !mealTypes.some((meal) => requiredMeals.includes(meal))) {
+      return { ok: false, reason: 'meal-not-asked-for', key: slug, details: `asked for ${requiredMeals.join(', ')}` };
+    }
 
     // Nor may two recipes share an English title, however it is cased.
     const titleKey = (titles.en ?? '').toLowerCase();

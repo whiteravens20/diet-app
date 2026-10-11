@@ -415,6 +415,17 @@ describe('validateRecipeBatch', () => {
     if (!r.ok) expect(r.reason).toBe('duplicate-slug-in-batch');
   });
 
+  it('refuses a recipe for a meal that was not asked for, and takes one that names it among others', () => {
+    const forMeals = (mealTypes: string[], requiredMeals: string[]) => {
+      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ mealTypes })]), resolveSlug, requiredMeals });
+      return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+    };
+
+    expect(forMeals(['lunch'], ['breakfast'])).toBe('meal-not-asked-for at chicken-rice-bowl');
+    expect(forMeals(['lunch', 'dinner'], ['dinner'])).toBe('accepted');
+    expect(forMeals(['lunch'], [])).toBe('accepted');
+  });
+
   describe('a slug or a title another recipe has', () => {
     /** A second recipe unlike the first: its own slug and title, other ingredients, quick enough for the simple band. */
     const other = {

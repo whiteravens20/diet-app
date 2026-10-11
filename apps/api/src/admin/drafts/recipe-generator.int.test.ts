@@ -207,6 +207,14 @@ describe('generating recipe drafts', () => {
     });
   });
 
+  it('does not write a recipe for a meal other than the ones it was asked for', async () => {
+    t.model.reply({ text: author().answer(), times: 10 });
+
+    const state = await run({ count: 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE, mealTypes: ['breakfast'] });
+
+    expect(state).toMatchObject({ written: 0, lastRejectReason: 'meal-not-asked-for' });
+  });
+
   it('asks again when an answer was cut off at the token limit, and says why', async () => {
     const model = author();
     t.model.reply({ text: '{"recipes":[{"slug":"half-a-rec', truncated: true });
