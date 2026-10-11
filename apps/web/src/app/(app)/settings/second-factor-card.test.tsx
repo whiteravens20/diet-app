@@ -21,14 +21,17 @@ function shown(state: SecondFactorState, then: SecondFactorState = state) {
   const get = vi.spyOn(api, 'get').mockResolvedValueOnce(state as never).mockResolvedValue(then as never);
   const post = vi.spyOn(api, 'post');
   const remove = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // The list of sessions the settings page shows beside the card, as it was loaded.
+  client.setQueryData(['sessions'], []);
   render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider client={client}>
         <SecondFactorCard />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  return { get, post, remove };
+  return { get, post, remove, client };
 }
 
 describe('two-step sign-in in the settings of an account', () => {
@@ -61,6 +64,21 @@ describe('two-step sign-in in the settings of an account', () => {
 
     expect(post).toHaveBeenLastCalledWith('/users/me/second-factor', { enrolment: 'sealed', code: '123456' });
     expect(await screen.findByText(m.onNow)).toBeInTheDocument();
+  });
+
+  it('has the list of sessions read again once it is on: the other sessions have ended', async () => {
+    const { post, client } = shown(OFF, ON);
+    post.mockResolvedValueOnce(SETUP as never).mockResolvedValueOnce({ recoveryCodes: CODES } as never);
+
+    await userEvent.click(await screen.findByRole('button', { name: m.setUp }));
+    await userEvent.type(screen.getByLabelText(m.password), 'a-password');
+    await userEvent.click(screen.getByRole('button', { name: m.continue }));
+    expect(client.getQueryState(['sessions'])?.isInvalidated).toBe(false);
+    await userEvent.type(await screen.findByLabelText(m.code), '123456');
+    await userEvent.click(screen.getByRole('button', { name: m.switchOn }));
+    await screen.findByText(m.onNow);
+
+    expect(client.getQueryState(['sessions'])?.isInvalidated).toBe(true);
   });
 
   it('shows the ten recovery codes once, and can copy them', async () => {

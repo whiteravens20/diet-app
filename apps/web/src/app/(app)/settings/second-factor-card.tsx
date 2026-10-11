@@ -65,7 +65,10 @@ export function SecondFactorCard() {
     }
   }
 
-  const refresh = (): Promise<void> => queryClient.invalidateQueries({ queryKey: ['second-factor'] });
+  /** What the card shows, and the list of sessions beside it: switching the second step on ends the others. */
+  const refresh = async (): Promise<void> => {
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ['second-factor'] }), queryClient.invalidateQueries({ queryKey: ['sessions'] })]);
+  };
   const field = (event: FormEvent<HTMLFormElement>, name: string): string => String(new FormData(event.currentTarget).get(name) ?? '');
 
   function onPassword(event: FormEvent<HTMLFormElement>): void {
