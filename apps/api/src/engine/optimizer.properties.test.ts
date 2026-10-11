@@ -185,20 +185,45 @@ describe('the limits of a plan', () => {
     expect(ahead.report.relaxations).toEqual([]);
   });
 
-  it('refuse the plan when a limit would have to give way that may not, and say which meal and which limits', () => {
-    // Two dishes for lunch, and a limit of once in the whole plan: the third day has none left.
-    const two = [dish('b', ['breakfast'], 500), dish('l1', ['lunch'], 700), dish('l2', ['lunch'], 720), dish('d', ['dinner'], 600)];
-    const input = plan({ recipes: two, days: uniformDays(3, ['lunch'], 700), maxRepeatsPerRecipe: 1, allowRelaxations: new Set() });
-
-    let refusal: OptimizerError | undefined;
+  /** What a plan was refused with, when limits would have had to give way that may not. */
+  const refusalOf = (input: OptimizerInput): OptimizerError['blocked'] => {
     try {
       optimisePlan(input);
     } catch (err) {
-      refusal = err as OptimizerError;
+      if (err instanceof OptimizerError) return err.blocked;
+      throw err;
     }
+    return undefined;
+  };
 
-    expect(refusal).toBeInstanceOf(OptimizerError);
-    expect(refusal!.blocked).toEqual({ dayIndex: 2, slot: 'lunch', needs: ['variety_floor'] });
+  it('refuse the plan when limits would have to give way that may not, and say at which meals and which limits', () => {
+    // Two dishes for lunch, and a limit of once in the whole plan: the third day and the fourth have none left.
+    const two = [dish('b', ['breakfast'], 500), dish('l1', ['lunch'], 700), dish('l2', ['lunch'], 720), dish('d', ['dinner'], 600)];
+    const input = plan({ recipes: two, days: uniformDays(4, ['lunch'], 700), maxRepeatsPerRecipe: 1, maxConsecutiveDaysSameMeal: 4, allowRelaxations: new Set() });
+
+    expect(refusalOf(input)).toEqual({
+      needs: ['variety_floor'],
+      meals: [
+        { dayIndex: 2, slot: 'lunch', gaveWay: ['variety_floor'] },
+        { dayIndex: 3, slot: 'lunch', gaveWay: ['variety_floor'] },
+      ],
+    });
+    // The same plan is made once that limit may give way.
+    expect(optimisePlan({ ...input, allowRelaxations: new Set(['variety_floor']) }).assignments).toHaveLength(4);
+  });
+
+  it('name, of the limits that gave way at a meal, the ones that may not', () => {
+    // One lunch dish, over the cooking time of every day: on the second day it is also eaten two days running.
+    const days = [
+      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
+      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
+    ];
+    const input = plan({ recipes: [dish('slow', ['lunch'], 700, { totalMinutes: 90 })], days, maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set(['cook_time']) });
+
+    expect(refusalOf(input)).toEqual({
+      needs: ['consecutive_days'],
+      meals: [{ dayIndex: 1, slot: 'lunch', gaveWay: ['cook_time', 'consecutive_days'] }],
+    });
   });
 
   it('let limits give way in one order, the fewest that fill the meal, and say what gave way', () => {
@@ -214,9 +239,41 @@ describe('the limits of a plan', () => {
     // The cooking time gives way before the days in a row do.
     expect(result.assignments.map((a) => a.recipeId)).toEqual(['quick', 'slow']);
     expect(result.report.relaxations).toEqual([{ dayIndex: 1, slot: 'lunch', gaveWay: ['cook_time'] }]);
+    expect(refusalOf(plan({ recipes: lunches, days, maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set() }))?.needs).toEqual(['cook_time']);
+  });
 
-    // Where only the later limit may give way, the plan is refused rather than made in another order.
-    expect(() => optimisePlan(plan({ recipes: lunches, days, maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set(['consecutive_days']) }))).toThrow(OptimizerError);
+  it('let a limit that may give way do so before one that may not, whatever their order', () => {
+    const lunches = [dish('slow', ['lunch'], 700, { totalMinutes: 90 }), dish('quick', ['lunch'], 700)];
+    const days = [
+      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
+      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
+    ];
+
+    // The cooking time is to hold: the quick dish is eaten two days running instead.
+    const result = optimisePlan(plan({ recipes: lunches, days, maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set(['consecutive_days']) }));
+
+    expect(result.assignments.map((a) => a.recipeId)).toEqual(['quick', 'quick']);
+    expect(result.report.relaxations).toEqual([{ dayIndex: 1, slot: 'lunch', gaveWay: ['consecutive_days'] }]);
+  });
+
+  it('say of a meal the limits its own recipe is outside, not those of the others it was chosen from', () => {
+    // Two dishes for three meals of one day, one of them over the cooking time. By the last meal both
+    // were eaten today, so both are let in together, the slow one outside one limit more.
+    const meals: MealType[] = ['lunch', 'dinner', 'snack'];
+    const dishes = [dish('quick', meals, 600), dish('slow', meals, 600, { totalMinutes: 90 })];
+    const days = [{ mealSlots: meals, dailyCalorieTarget: 1800, cookTimeBudgetMinutes: 30 }];
+    const picked = new Set<string>();
+
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const result = optimisePlan(plan({ recipes: dishes, days, seed }));
+      const last = result.assignments.find((a) => a.slot === 'snack')!;
+      picked.add(last.recipeId);
+      expect(result.report.relaxations.find((entry) => entry.slot === 'snack')!.gaveWay, `seed ${seed}, ${last.recipeId}`).toEqual(
+        last.recipeId === 'quick' ? ['same_day'] : ['cook_time', 'same_day'],
+      );
+    }
+    // Both happen, or the test says nothing about the dish with fewer limits against it.
+    expect([...picked].sort()).toEqual(['quick', 'slow']);
   });
 
   it('prefer the recipe used least so far when a limit gives way', () => {

@@ -49,6 +49,16 @@ export const UnfilledMeal = z.object({
 });
 export type UnfilledMeal = z.infer<typeof UnfilledMeal>;
 
+/**
+ * A limit of a plan that can give way when no recipe is left for a meal
+ * inside it, in the order in which they do: the most a recipe appears in the
+ * plan, the day's cooking time, a recipe twice on one day, days in a row, and
+ * the limit for seven days last.
+ */
+export const PLAN_RELAXATIONS = ['variety_floor', 'cook_time', 'same_day', 'consecutive_days', 'weekly_cap'] as const;
+export const PlanRelaxation = z.enum(PLAN_RELAXATIONS);
+export type PlanRelaxation = z.infer<typeof PlanRelaxation>;
+
 /** Request to generate a meal plan. */
 export const GeneratePlanRequest = z.object({
   profileId: z.string().uuid(),

@@ -24,7 +24,7 @@
  * not give way, the plan is not made and the caller is told what stood in
  * the way.
  */
-import { fitsDiet, type DietType, type Macros, type MealType, type Unit } from '@diet-app/shared';
+import { fitsDiet, PLAN_RELAXATIONS, type DietType, type Macros, type MealType, type PlanRelaxation, type Unit } from '@diet-app/shared';
 import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
 
 export interface OptimizerRecipe {
@@ -95,8 +95,9 @@ export interface OptimizerInput {
   maxRepeatsPerRecipe?: number;
   /**
    * The limits that may give way when no recipe is left for a meal inside
-   * them. `all` (the default) lets any of them; an empty set lets none, and
-   * the plan is refused instead, with what stood in the way.
+   * them. `all` (the default) lets any of them. A limit that may give way
+   * does so before one that may not; a plan in which one that may not had to
+   * is refused, with what stood in the way.
    */
   allowRelaxations?: ReadonlySet<Relaxation> | 'all';
   /** Changes the deterministic tie-break order so "regenerate" yields a new plan. */
@@ -108,13 +109,20 @@ export interface OptimizerInput {
  * appears in the plan first, then the day's cooking time, then a recipe twice
  * on one day, then days in a row, and the limit for seven days last.
  */
-export const RELAXATION_ORDER = ['variety_floor', 'cook_time', 'same_day', 'consecutive_days', 'weekly_cap'] as const;
-export type Relaxation = (typeof RELAXATION_ORDER)[number];
+export const RELAXATION_ORDER = PLAN_RELAXATIONS;
+export type Relaxation = PlanRelaxation;
+
+/** A meal whose recipe is outside limits of the plan, and which. */
+export interface RelaxedSlot {
+  dayIndex: number;
+  slot: MealType;
+  gaveWay: Relaxation[];
+}
 
 /** What a run had to do to fill the plan, for whoever made it to read. */
 export interface OptimizerReport {
   /** Meals for which a limit gave way, and which. */
-  relaxations: { dayIndex: number; slot: MealType; gaveWay: Relaxation[] }[];
+  relaxations: RelaxedSlot[];
   /** Meals for which the diet and the meal left one recipe to choose from. */
   singleCandidate: { dayIndex: number; slot: MealType }[];
 }
@@ -173,8 +181,11 @@ export class OptimizerError extends Error {
     message: string,
     /** The meal no recipe could fill and the diet it was wanted for, when that is what went wrong. */
     readonly gap?: { slot: MealType; dietType: DietType },
-    /** The meal that could only be filled by letting limits give way that may not, and which. */
-    readonly blocked?: { dayIndex: number; slot: MealType; needs: Relaxation[] },
+    /**
+     * The meals that could only be filled by letting limits give way that may
+     * not, with everything that gave way at each, and the limits that may not.
+     */
+    readonly blocked?: { meals: RelaxedSlot[]; needs: Relaxation[] },
   ) {
     super(message);
   }
@@ -215,10 +226,33 @@ interface Use {
 
 /**
  * Generate a plan. Throws `OptimizerError` when a meal has no recipe for the
- * diet at all (`gap`), or only by letting a limit give way that may not
- * (`blocked`).
+ * diet at all (`gap`), or when the plan could only be filled by letting
+ * limits give way that may not (`blocked`).
  */
 export function optimisePlan(input: OptimizerInput): OptimizerResult {
+  const mayGiveWay = (kind: Relaxation): boolean => {
+    const allowed = input.allowRelaxations ?? 'all';
+    return allowed === 'all' || allowed.has(kind);
+  };
+  const run = fill(input, mayGiveWay);
+
+  // The plan was filled to the end, so that a refusal can say everything that
+  // stood in the way of it, not only the first meal.
+  const refused = run.report.relaxations.filter((entry) => !entry.gaveWay.every(mayGiveWay));
+  if (refused.length > 0) {
+    const needs = RELAXATION_ORDER.filter((kind) => !mayGiveWay(kind) && refused.some((entry) => entry.gaveWay.includes(kind)));
+    throw new OptimizerError(`limits that may not give way would have to: ${needs.join(', ')}`, undefined, { meals: refused, needs });
+  }
+  return { assignments: run.assignments, ingredientReuseScore: reuseScore(run.assignments, input.recipes), report: run.report };
+}
+
+interface Filled {
+  assignments: OptimizerAssignment[];
+  report: OptimizerReport;
+}
+
+/** One run over the plan: every meal filled, whatever had to give way for it. */
+function fill(input: OptimizerInput, mayGiveWay: (kind: Relaxation) => boolean): Filled {
   const recipeById = new Map(input.recipes.map((r) => [r.id, r]));
   const assignments: OptimizerAssignment[] = [];
   const report: OptimizerReport = { relaxations: [], singleCandidate: [] };
@@ -232,10 +266,6 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
     perWeek: input.maxTimesPerWeekSameMeal ?? 7,
     perPlan: input.maxRepeatsPerRecipe,
     twiceADay: input.mealPrepFriendly,
-  };
-  const mayGiveWay = (kind: Relaxation): boolean => {
-    const allowed = input.allowRelaxations ?? 'all';
-    return allowed === 'all' || allowed.has(kind);
   };
 
   // The recipes of a meal are looked up once, however many days ask for them.
@@ -282,8 +312,7 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
           throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, { slot, dietType: input.dietType });
         }
         if (candidates.length === 1) report.singleCandidate.push({ dayIndex: day, slot });
-        const pool = withinLimits(candidates, { day, slot, uses, useCount, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
-        if (pool.gaveWay.length > 0) report.relaxations.push({ dayIndex: day, slot, gaveWay: pool.gaveWay });
+        const pool = withinLimits(candidates, { day, uses, useCount, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
         // Of the recipes the limits leave, one that stays far under the budget
         // even at the largest serving is left out, unless nothing else is there.
         const reaching = pool.recipes.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
@@ -297,6 +326,8 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
           inventoryCoverage: coverage,
           seed: input.seed,
         });
+        const gaveWay = pool.outside(recipe);
+        if (gaveWay.length > 0) report.relaxations.push({ dayIndex: day, slot, gaveWay });
       }
 
       const servings = fitServings(recipe.caloriesPerServing, budget);
@@ -312,7 +343,7 @@ export function optimisePlan(input: OptimizerInput): OptimizerResult {
   // In the order of the day's meals, whatever order they were filled in.
   const position = (a: OptimizerAssignment) => input.days[a.dayIndex]!.mealSlots.indexOf(a.slot);
   assignments.sort((a, b) => a.dayIndex - b.dayIndex || position(a) - position(b));
-  return { assignments, ingredientReuseScore: reuseScore(assignments, input.recipes), report };
+  return { assignments, report };
 }
 
 /** The limits a recipe would break if it were placed at this meal. */
@@ -338,31 +369,33 @@ function broken(
 /**
  * The recipes that may fill a meal: those inside every limit, or, when there
  * are none, those that are inside once the fewest limits have given way, in
- * the fixed order. Of recipes let in that way, only the least used so far.
+ * the fixed order. Limits that may give way do so before any that may not. Of
+ * recipes let in that way, only the least used so far. `outside` says which
+ * limits a recipe is outside.
  */
 function withinLimits(
   candidates: OptimizerRecipe[],
-  at: Parameters<typeof broken>[1] & { slot: MealType; mayGiveWay: (kind: Relaxation) => boolean },
-): { recipes: OptimizerRecipe[]; gaveWay: Relaxation[] } {
+  at: Parameters<typeof broken>[1] & { mayGiveWay: (kind: Relaxation) => boolean },
+): { recipes: OptimizerRecipe[]; outside: (recipe: OptimizerRecipe) => Relaxation[] } {
   const breaks = new Map(candidates.map((recipe) => [recipe.id, broken(recipe, at)]));
-  const inside = candidates.filter((recipe) => breaks.get(recipe.id)!.length === 0);
-  if (inside.length > 0) return { recipes: inside, gaveWay: [] };
+  const outside = (recipe: OptimizerRecipe): Relaxation[] => breaks.get(recipe.id) ?? [];
+  const inside = candidates.filter((recipe) => outside(recipe).length === 0);
+  if (inside.length > 0) return { recipes: inside, outside };
 
-  for (let step = 1; step <= RELAXATION_ORDER.length; step += 1) {
+  const permitted = candidates.filter((recipe) => outside(recipe).every(at.mayGiveWay));
+  const pool = permitted.length > 0 ? permitted : candidates;
+  // With every limit given way the whole pool is let in, so a step is found.
+  for (let step = 1; step < RELAXATION_ORDER.length; step += 1) {
     const given = RELAXATION_ORDER.slice(0, step);
-    const let_in = candidates.filter((recipe) => breaks.get(recipe.id)!.every((kind) => given.includes(kind)));
-    if (let_in.length === 0) continue;
-    const fewest = Math.min(...let_in.map((recipe) => at.useCount.get(recipe.id) ?? 0));
-    const recipes = let_in.filter((recipe) => (at.useCount.get(recipe.id) ?? 0) === fewest);
-    const gaveWay = RELAXATION_ORDER.filter((kind) => recipes.some((recipe) => breaks.get(recipe.id)!.includes(kind)));
-    const refused = gaveWay.filter((kind) => !at.mayGiveWay(kind));
-    if (refused.length > 0) {
-      throw new OptimizerError(`no recipe for ${at.slot} on day ${at.day + 1} inside the limits`, undefined, { dayIndex: at.day, slot: at.slot, needs: gaveWay });
-    }
-    return { recipes, gaveWay };
+    const letIn = pool.filter((recipe) => outside(recipe).every((kind) => given.includes(kind)));
+    if (letIn.length > 0) return { recipes: leastUsed(letIn, at.useCount), outside };
   }
-  // Unreachable: with every limit given way, every candidate is let in.
-  return { recipes: candidates, gaveWay: [...RELAXATION_ORDER] };
+  return { recipes: leastUsed(pool, at.useCount), outside };
+}
+
+function leastUsed(recipes: OptimizerRecipe[], useCount: ReadonlyMap<string, number>): OptimizerRecipe[] {
+  const fewest = Math.min(...recipes.map((recipe) => useCount.get(recipe.id) ?? 0));
+  return recipes.filter((recipe) => (useCount.get(recipe.id) ?? 0) === fewest);
 }
 
 interface PickContext {
