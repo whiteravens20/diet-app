@@ -36,10 +36,33 @@ const COUNTED = Prisma.sql`
   AND "createdAt" >= NOW() - INTERVAL '30 days'
   AND ("outcome" = 'COMPLETED' OR ("outcome" = 'PENDING' AND "createdAt" >= NOW() - INTERVAL '5 minutes'))`;
 
+/**
+ * Which days of calls made by accounts that were deleted since still count
+ * for the instance: a day counts as long as any of it is inside the thirty
+ * days, since nothing but the day was kept.
+ */
+const CARRIED = Prisma.sql`"day" >= (NOW() - INTERVAL '30 days')::date`;
+
 type Db = Pick<Prisma.TransactionClient, '$queryRaw'>;
 
-const ofUser = (userId: string | null): Prisma.Sql =>
-  userId === null ? Prisma.empty : Prisma.sql`AND "userId" = ${userId}`;
+/**
+ * Before an account is deleted: its rows of the usage log go, and what its
+ * calls count for in the instance's allowance stays, by day and without the
+ * account. Otherwise an account that used up its allowance could be deleted
+ * and made again, and the instance's own limit would never be reached.
+ */
+export async function carryUsageOfAccount(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  await tx.$executeRaw`
+    INSERT INTO "AiUsageOfDeletedAccounts" ("day", "calls")
+    SELECT "createdAt"::date, COUNT(*)
+    FROM "AiUsageLog"
+    WHERE "userId" = ${userId} AND "mode" = 'admin' AND "outcome" = 'COMPLETED' AND "createdAt" >= NOW() - INTERVAL '30 days'
+    GROUP BY 1
+    ON CONFLICT ("day") DO UPDATE SET "calls" = "AiUsageOfDeletedAccounts"."calls" + EXCLUDED."calls"`;
+  await tx.aiUsageLog.deleteMany({ where: { userId } });
+  // Days that count for nothing any more.
+  await tx.$executeRaw`DELETE FROM "AiUsageOfDeletedAccounts" WHERE NOT (${CARRIED})`;
+}
 
 /**
  * The log of calls to AI providers, and the two monthly allowances on the
@@ -146,27 +169,48 @@ export class AiQuotaService {
     });
   }
 
-  /** Record how a call ended. Only a completed one keeps its place in the allowance. */
+  /**
+   * Record how a call ended. Only a completed one keeps its place in the
+   * allowance. The row of a call is gone when its account was deleted while
+   * the provider was answering: there is nothing to record then.
+   */
   async end(id: string, result: UsageResult): Promise<void> {
-    await this.prisma.aiUsageLog.update({ where: { id }, data: result });
+    await this.prisma.aiUsageLog.updateMany({ where: { id }, data: result });
   }
 
-  /** Counted calls of one user, or of the whole instance when `userId` is null. */
+  /** How many calls count against the instance's allowance now. */
+  instanceUsed(): Promise<number> {
+    return this.countUsed(this.prisma, null);
+  }
+
+  /**
+   * Counted calls of one user, or of the whole instance when `userId` is
+   * null: those of the accounts that exist, and those that accounts deleted
+   * since had made.
+   */
   private async countUsed(db: Db, userId: string | null): Promise<number> {
-    const rows = await db.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
-      SELECT COUNT(*)::bigint AS count
-      FROM "AiUsageLog"
-      WHERE ${COUNTED} ${ofUser(userId)}
-    `);
+    const rows = await db.$queryRaw<Array<{ count: bigint }>>(
+      userId === null
+        ? Prisma.sql`
+            SELECT ((SELECT COUNT(*) FROM "AiUsageLog" WHERE ${COUNTED})
+              + (SELECT COALESCE(SUM("calls"), 0) FROM "AiUsageOfDeletedAccounts" WHERE ${CARRIED}))::bigint AS count`
+        : Prisma.sql`SELECT COUNT(*)::bigint AS count FROM "AiUsageLog" WHERE ${COUNTED} AND "userId" = ${userId}`,
+    );
     return Number(rows[0]?.count ?? 0n);
   }
 
+  /** When the oldest counted call stops counting: of one user, or of the instance when `userId` is null. */
   private async oldestCountedAt(userId: string | null): Promise<string | null> {
-    const rows = await this.prisma.$queryRaw<Array<{ resetAt: Date | null }>>(Prisma.sql`
-      SELECT MIN("createdAt") + INTERVAL '30 days' AS "resetAt"
-      FROM "AiUsageLog"
-      WHERE ${COUNTED} ${ofUser(userId)}
-    `);
+    const rows = await this.prisma.$queryRaw<Array<{ resetAt: Date | null }>>(
+      userId === null
+        ? Prisma.sql`
+            SELECT LEAST(
+              (SELECT MIN("createdAt") FROM "AiUsageLog" WHERE ${COUNTED}),
+              -- A day that was kept counts until all of it is outside the thirty days.
+              (SELECT (MIN("day") + 1)::timestamp FROM "AiUsageOfDeletedAccounts" WHERE ${CARRIED})
+            ) + INTERVAL '30 days' AS "resetAt"`
+        : Prisma.sql`SELECT MIN("createdAt") + INTERVAL '30 days' AS "resetAt" FROM "AiUsageLog" WHERE ${COUNTED} AND "userId" = ${userId}`,
+    );
     const resetAt = rows[0]?.resetAt;
     return resetAt ? resetAt.toISOString() : null;
   }

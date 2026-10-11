@@ -100,6 +100,9 @@ export async function resetDatabase(prisma: PrismaClient): Promise<void> {
 
 /** Empty everything users create and keep the catalogue, so a test file seeds it once. */
 export async function resetUserData(prisma: PrismaClient): Promise<void> {
-  await truncateAllExcept(prisma, CATALOGUE_TABLES);
-  await prisma.recipe.deleteMany({ where: { createdByUserId: { not: null } } });
+  // Recipes refer to the account that owns them, so emptying the accounts in
+  // one sweep would take every recipe along, the catalogue's too. Accounts
+  // are deleted row by row instead, and their own recipes go with them.
+  await truncateAllExcept(prisma, [...CATALOGUE_TABLES, 'User']);
+  await prisma.user.deleteMany();
 }

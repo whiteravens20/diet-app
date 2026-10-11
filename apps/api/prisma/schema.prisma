@@ -54,6 +54,7 @@ model User {
   emailChangeTokens  EmailChangeToken[]
   aiConfigs          AiProviderConfig[]
   aiUsageLogs        AiUsageLog[]
+  recipes            Recipe[]
 }
 
 model RefreshToken {
@@ -421,7 +422,9 @@ model Recipe {
   fatPerServing      Float        @default(0)
   carbsPerServing    Float        @default(0)
   reuseScore         Float        @default(0)
-  // Owner is set for `user`-origin recipes; null for seed/ai library recipes.
+  // The account a personal recipe belongs to; null for a recipe of the shared
+  // library. A personal recipe goes with its account.
+  createdBy          User?        @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
   createdByUserId    String?
   // A stable name for what the recipe is made of (see admin/drafts/fingerprint.ts),
   // unique per owner: two users may each own the same recipe, one user owns it
@@ -747,8 +750,11 @@ enum AiCallOutcome {
 
 model AiUsageLog {
   id           String        @id @default(uuid())
-  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userId       String?
+  // A call belongs to the account that made it, and goes with it. What the
+  // calls of a deleted account still count for is kept by day, without the
+  // account, in AiUsageOfDeletedAccounts.
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
   provider     String
   model        String
   operation    String // recipe-draft | meal-swap | ingredient-swap | swap-rewrite
@@ -767,6 +773,15 @@ model AiUsageLog {
   @@index([userId])
   @@index([createdAt])
   @@index([userId, mode, createdAt])
+}
+
+// Completed calls to the operator's provider that accounts made before they
+// were deleted, by the day they were made. The usage log of an account goes
+// with it; what those calls count for in the instance's monthly allowance
+// stays here, with nothing that says whose they were.
+model AiUsageOfDeletedAccounts {
+  day   DateTime @id @db.Date
+  calls Int
 }
 
 // ── Curation queue (drafts) ───────────────────────────────────────────────────

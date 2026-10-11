@@ -348,3 +348,29 @@ export class PersonalRecipesService {
     });
   }
 }
+
+/**
+ * Remove every personal recipe of an account, when the account is deleted.
+ * Its plans, favourites and favourite sets are gone by then: nothing holds
+ * the recipes any more. A draft of the curation queue keeps no pointer to
+ * them, and one that stood for them alone goes with them, unless it shipped:
+ * what shipped is a recipe of the shared library by now, and its draft the
+ * record of where that came from.
+ */
+export async function removePersonalRecipesOf(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  const mine = (await tx.recipe.findMany({ where: { createdByUserId: userId }, select: { id: true } })).map((recipe) => recipe.id);
+  if (mine.length === 0) return;
+  const drafts = await tx.recipeDraft.findMany({
+    where: { sourceRecipeIds: { hasSome: mine } },
+    select: { id: true, status: true, sourceRecipeIds: true },
+  });
+  for (const draft of drafts) {
+    const left = draft.sourceRecipeIds.filter((id) => !mine.includes(id));
+    if (left.length === 0 && draft.status !== 'SHIPPED') {
+      await tx.recipeDraft.delete({ where: { id: draft.id } });
+    } else {
+      await tx.recipeDraft.update({ where: { id: draft.id }, data: { sourceRecipeIds: { set: left } } });
+    }
+  }
+  await tx.recipe.deleteMany({ where: { createdByUserId: userId } });
+}

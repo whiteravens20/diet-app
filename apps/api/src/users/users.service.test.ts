@@ -157,9 +157,6 @@ describe('UsersService', () => {
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
-    it('delegates to prisma.user.delete on success (cascade handled at DB level)', async () => {
-      await service.deleteAccount('user-1', { currentPassword: 'CorrectHorse1' });
-      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } });
-    });
+    // What a deletion removes is tested on a real database, in account-deletion.int.test.ts.
   });
 });

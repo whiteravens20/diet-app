@@ -19,10 +19,12 @@ import { AiMode, Locale, Palette, Theme } from '@diet-app/shared';
 import { deriveKey, pepperPassword } from '../common/crypto.js';
 import { hashPassword, verifyPassword } from '../common/password-hash.js';
 import type { Env } from '../config/env.js';
+import { carryUsageOfAccount } from '../ai/ai-quota.service.js';
 import { AccountEmail } from '../auth/account-email.js';
 import { AuthService } from '../auth/auth.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { removePersonalRecipesOf } from '../recipes/personal-recipes.service.js';
 
 /**
  * `users` covers the account-mutation surface that auth doesn't: reading the
@@ -206,10 +208,25 @@ export class UsersService {
         message: 'Current password is incorrect.',
       });
     }
-    // Cascade-deletes everything user-owned: profiles, plans, favorites,
-    // inventory, refresh tokens, AI configs. AiUsageLog rows are kept
-    // (userId set null) so aggregate instance stats stay intact.
-    await this.prisma.user.delete({ where: { id: userId } });
+    // Everything the account owns goes, in one transaction and in this order:
+    // what holds a recipe before the recipes, and the account last.
+    await this.prisma.$transaction(
+      async (tx) => {
+        const ofTheAccount = { profile: { userId } };
+        // Plans, with their days, meals and shopping lists.
+        await tx.mealPlan.deleteMany({ where: ofTheAccount });
+        await tx.favorite.deleteMany({ where: ofTheAccount });
+        await tx.favoriteSet.deleteMany({ where: ofTheAccount });
+        // Its own recipes, and what the curation queue holds of them.
+        await removePersonalRecipesOf(tx, userId);
+        // The record of its AI calls; what they count for stays, without the account.
+        await carryUsageOfAccount(tx, userId);
+        // With the account itself: its profiles (their weights, notifications,
+        // preferences and pantry), its provider keys and every token of it.
+        await tx.user.delete({ where: { id: userId } });
+      },
+      { timeout: 30_000 },
+    );
   }
 
   private toSessionUser(user: {

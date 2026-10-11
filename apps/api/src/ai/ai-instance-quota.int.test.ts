@@ -83,13 +83,45 @@ describe("the instance's monthly allowance on the operator's provider", () => {
     expect(t.model.requests).toHaveLength(INSTANCE);
   });
 
-  it('still counts the calls of an account that has since been deleted', async () => {
+  it('still counts the calls of an account that has since been deleted, without keeping whose they were', async () => {
     t.model.reply({ text: '{}', times: 10 });
     await ask(first);
     await ask(first);
-    await t.prisma.user.delete({ where: { id: first.id } });
+    await t.http().delete('/api/users/me').set(as(first)).send({ currentPassword: first.password }).expect(204);
 
     expect((await ask(second)).meta.fallbackReason).toBe('instance_quota_exhausted');
+    // The rows of the calls went with the account; the day they were made on is all that is left.
+    expect(await t.prisma.aiUsageLog.count()).toBe(0);
+    expect(await t.prisma.aiUsageOfDeletedAccounts.findMany()).toEqual([{ day: expect.any(Date), calls: 2 }]);
+    // A place comes free when that day is thirty days gone.
+    const status = await quota(second);
+    expect(status).toMatchObject({ instanceLimitReached: true, remaining: 0 });
+    const days = (new Date(status.resetAt!).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(30);
+    expect(days).toBeLessThanOrEqual(31);
+  });
+
+  it('counts the calls of a deleted account by day, however many accounts made them', async () => {
+    t.model.reply({ text: '{}', times: 10 });
+    await ask(first);
+    await t.http().delete('/api/users/me').set(as(first)).send({ currentPassword: first.password }).expect(204);
+    await ask(second);
+    await t.http().delete('/api/users/me').set(as(second)).send({ currentPassword: second.password }).expect(204);
+
+    expect(await t.prisma.aiUsageOfDeletedAccounts.findMany()).toEqual([{ day: expect.any(Date), calls: 2 }]);
+    const third = await aUser(t);
+    await t.prisma.user.update({ where: { id: third.id }, data: { aiMode: 'admin' } });
+    expect((await ask(third)).meta.fallbackReason).toBe('instance_quota_exhausted');
+  });
+
+  it('lets go of a day of a deleted account once it is thirty days gone', async () => {
+    t.model.reply({ text: '{}', times: 10 });
+    await ask(first);
+    await ask(first);
+    await t.http().delete('/api/users/me').set(as(first)).send({ currentPassword: first.password }).expect(204);
+    await t.prisma.$executeRaw`UPDATE "AiUsageOfDeletedAccounts" SET "day" = "day" - 31`;
+
+    expect((await ask(second)).text).toBe('{}');
   });
 
   it('is not used by a provider that fails', async () => {
