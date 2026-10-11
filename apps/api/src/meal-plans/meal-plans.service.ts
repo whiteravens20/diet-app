@@ -844,7 +844,7 @@ export class MealPlansService {
     req: RebalanceRequest,
   ): Promise<RebalanceResult> {
     // Authorise the plan up front, and note the revision the request starts from.
-    const { revision } = await this.get(userId, locale, planId);
+    const { revision } = await this.planOf(userId, planId);
 
     const restore = req.restore;
     if (restore && restore.length > 0) {
@@ -1449,6 +1449,14 @@ export class MealPlansService {
   }
 
   /** Load + authorise a plan day by ISO date. */
+  /** The revision of a plan that is `userId`'s: enough to authorise an edit and to start it. */
+  private async planOf(userId: string, planId: string): Promise<{ revision: number }> {
+    const plan = await this.prisma.mealPlan.findUnique({ where: { id: planId }, select: { revision: true, profile: { select: { userId: true } } } });
+    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (plan.profile.userId !== userId) throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
+    return { revision: plan.revision };
+  }
+
   private async loadDay(userId: string, planId: string, date: string) {
     const day = await this.prisma.mealPlanDay.findFirst({
       where: { planId, date: new Date(date) },
