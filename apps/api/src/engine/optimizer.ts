@@ -195,6 +195,8 @@ export class OptimizerError extends Error {
 export const CALORIE_WINDOW = 0.1;
 /** A recipe that cannot reach this share of a meal's budget at the largest serving is no candidate for it. */
 const MIN_REACH = 0.7;
+/** How many draws a plan is tried with before limits are taken to have to give way. */
+const ATTEMPTS = 12;
 
 /** Per-slot calorie budgets that sum to the daily target. */
 export function slotBudgets(slots: MealType[], dailyTarget: number): Map<MealType, number> {
@@ -228,22 +230,34 @@ interface Use {
  * Generate a plan. Throws `OptimizerError` when a meal has no recipe for the
  * diet at all (`gap`), or when the plan could only be filled by letting
  * limits give way that may not (`blocked`).
+ *
+ * Meals are filled one after another, and what one takes narrows what the
+ * next may: a run can leave a meal without a recipe inside the limits where
+ * other choices would not have. A run in which a limit gave way is therefore
+ * tried again with other draws, and of the runs the one stands in which the
+ * fewest meals are outside a limit, counting first the limits that may not
+ * give way.
  */
 export function optimisePlan(input: OptimizerInput): OptimizerResult {
   const mayGiveWay = (kind: Relaxation): boolean => {
     const allowed = input.allowRelaxations ?? 'all';
     return allowed === 'all' || allowed.has(kind);
   };
-  const run = fill(input, mayGiveWay);
+  const refusedIn = (run: Filled): RelaxedSlot[] => run.report.relaxations.filter((entry) => !entry.gaveWay.every(mayGiveWay));
 
-  // The plan was filled to the end, so that a refusal can say everything that
-  // stood in the way of it, not only the first meal.
-  const refused = run.report.relaxations.filter((entry) => !entry.gaveWay.every(mayGiveWay));
+  let best = fill(input, input.seed, mayGiveWay);
+  for (let attempt = 1; attempt < ATTEMPTS && best.report.relaxations.length > 0; attempt += 1) {
+    const other = fill(input, input.seed + attempt, mayGiveWay);
+    const fewer = refusedIn(other).length - refusedIn(best).length || other.report.relaxations.length - best.report.relaxations.length;
+    if (fewer < 0) best = other;
+  }
+
+  const refused = refusedIn(best);
   if (refused.length > 0) {
     const needs = RELAXATION_ORDER.filter((kind) => !mayGiveWay(kind) && refused.some((entry) => entry.gaveWay.includes(kind)));
     throw new OptimizerError(`limits that may not give way would have to: ${needs.join(', ')}`, undefined, { meals: refused, needs });
   }
-  return { assignments: run.assignments, ingredientReuseScore: reuseScore(run.assignments, input.recipes), report: run.report };
+  return { assignments: best.assignments, ingredientReuseScore: reuseScore(best.assignments, input.recipes), report: best.report };
 }
 
 interface Filled {
@@ -251,8 +265,8 @@ interface Filled {
   report: OptimizerReport;
 }
 
-/** One run over the plan: every meal filled, whatever had to give way for it. */
-function fill(input: OptimizerInput, mayGiveWay: (kind: Relaxation) => boolean): Filled {
+/** One run over the plan, with the draws of `seed`: every meal filled, whatever had to give way for it. */
+function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation) => boolean): Filled {
   const recipeById = new Map(input.recipes.map((r) => [r.id, r]));
   const assignments: OptimizerAssignment[] = [];
   const report: OptimizerReport = { relaxations: [], singleCandidate: [] };
@@ -324,7 +338,7 @@ function fill(input: OptimizerInput, mayGiveWay: (kind: Relaxation) => boolean):
           mealPrepFriendly: input.mealPrepFriendly,
           favoriteIngredientIds: input.favoriteIngredientIds,
           inventoryCoverage: coverage,
-          seed: input.seed,
+          seed,
         });
         const gaveWay = pool.outside(recipe);
         if (gaveWay.length > 0) report.relaxations.push({ dayIndex: day, slot, gaveWay });

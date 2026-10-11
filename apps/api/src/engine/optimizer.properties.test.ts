@@ -304,6 +304,21 @@ describe('the limits of a plan', () => {
     expect(result.report.relaxations).toEqual([]);
   });
 
+  it('find the plan inside the limits where one order of choices would run out of recipes', () => {
+    // A small catalogue: three breakfasts, three dishes for lunch and dinner alike, two for dinner alone.
+    // A week inside the limits exists, and a run that spends the shared dishes on dinners early has no lunch left.
+    const small = [
+      ...[420, 460, 520].map((kcal, i) => dish(`breakfast-${i}`, ['breakfast'], kcal)),
+      ...[540, 600, 660].map((kcal, i) => dish(`shared-${i}`, ['lunch', 'dinner'], kcal)),
+      ...[580, 640].map((kcal, i) => dish(`dinner-${i}`, ['dinner'], kcal)),
+    ];
+
+    for (let seed = 1; seed <= 200; seed += 1) {
+      const input = plan({ recipes: small, days: uniformDays(7, MEALS[3]!, 2000), maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, allowRelaxations: new Set(), seed });
+      expect(refusalOf(input), `seed ${seed}`).toBeUndefined();
+    }
+  });
+
   it('report the meals that had one recipe to choose from', () => {
     const recipes = [dish('only-breakfast', ['breakfast'], 500), ...CATALOGUE.filter((r) => !r.mealTypes.includes('breakfast'))];
 
