@@ -171,5 +171,9 @@ The reverse of shipping names: the panel fetches an
 - **An update of the catalogue leaves what the instance added in place.** It
   rewrites the rows that came from `data/`. Of a recipe shipped locally it only
   works the figures out again, and a name approved by people stays as it is.
+  One case settles itself: when the data starts to use the slug of a recipe
+  the instance added, the same recipe (made the same way) becomes the data's
+  and keeps its id and its approved text; a different one keeps its place in
+  the library and gives the slug up.
 - **Nothing ships twice.** A shipped draft is closed, and a draft whose recipe
   the library already has is held back.

@@ -322,14 +322,26 @@ async function applyRecipes(
   log(`Seeding recipes (nutrition computed from the ingredient table): ${catalogue.anchorRecipes} anchor + ${shipped} shipped…`);
   onProgress({ stage: 'recipes', current: 0, total: catalogue.recipes.length });
 
-  // Only rows the seed owns are matched: a personal or promoted recipe that
-  // happens to share a slug or a title is never overwritten.
+  // Only rows the seed owns are matched: a personal recipe, or one this
+  // instance added, that happens to share a title is never overwritten.
   const existing = await db.recipe.findMany({
     where: { origin: 'seed' },
     select: { id: true, slug: true, title: true },
   });
   const existingBySlug = new Map(existing.filter((row) => row.slug).map((row) => [row.slug!, row.id]));
   const unslugged = new Map(existing.filter((row) => !row.slug).map((row) => [row.title, row.id]));
+
+  // A slug is one recipe's. Where the data now uses a slug that a recipe of
+  // this instance holds, the two are told apart by what they are made of: the
+  // same making is the same recipe, which becomes the data's and keeps its
+  // id; another making keeps its row and gives the slug up.
+  const held = await db.recipe.findMany({
+    where: { slug: { in: catalogue.recipes.map((recipe) => recipe.slug) }, origin: { not: 'seed' } },
+    select: { id: true, slug: true, fingerprint: true, createdByUserId: true },
+  });
+  const heldBySlug = new Map(held.map((row) => [row.slug!, row]));
+  let adopted = 0;
+  let renamed = 0;
 
   let done = 0;
   for (const recipe of catalogue.recipes) {
@@ -366,8 +378,16 @@ async function applyRecipes(
     }));
 
     let id = existingBySlug.get(recipe.slug) ?? unslugged.get(fields.title);
+    const holder = heldBySlug.get(recipe.slug);
+    if (holder && !id && holder.createdByUserId === null && holder.fingerprint === fields.fingerprint) {
+      id = holder.id;
+      adopted += 1;
+    } else if (holder) {
+      await db.recipe.update({ where: { id: holder.id }, data: { slug: null } });
+      renamed += 1;
+    }
     if (id) {
-      await db.recipe.update({ where: { id }, data: { ...fields, ingredients: { deleteMany: {}, create: lines } } });
+      await db.recipe.update({ where: { id }, data: { ...fields, origin: 'seed', ingredients: { deleteMany: {}, create: lines } } });
     } else {
       id = (await db.recipe.create({ data: { ...fields, origin: 'seed', ingredients: { create: lines } } })).id;
     }
@@ -397,6 +417,8 @@ async function applyRecipes(
       onProgress({ stage: 'recipes', current: done, total: catalogue.recipes.length });
     }
   }
+  if (adopted > 0) log(`${adopted} recipe(s) this instance added are in the data now, made the same way: they are the data's from here on.`);
+  if (renamed > 0) log(`${renamed} recipe(s) this instance added gave up a slug the data now uses for another recipe; they stay in the library.`);
 }
 
 /**

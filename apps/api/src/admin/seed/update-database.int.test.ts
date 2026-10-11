@@ -8,6 +8,7 @@ import { catalogueDirectory, seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase } from '../../testing/database.js';
 import { aPlan, aPrivateRecipe, aProfile, aUser } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
+import { computeFingerprint } from '../drafts/fingerprint.js';
 import { CatalogueError } from './catalogue.js';
 import { updateDatabase } from './seeder.js';
 
@@ -319,6 +320,81 @@ describe('updating the curated database', () => {
       await updateDatabase(t.prisma, catalogueDirectory(), quiet);
 
       expect(await fingerprintOf(recipe.id)).toBeNull();
+    });
+  });
+
+  describe('a recipe this instance added, whose slug the data now uses', () => {
+    const lines = [
+      { slug: 'white-rice', quantity: 150, unit: 'g' as const },
+      { slug: 'tomato', quantity: 300, unit: 'g' as const },
+    ];
+    /** A recipe that shipped into this instance: shared, with a Polish text approved by people. */
+    const shipped = async (quantities: [number, number]) => {
+      const made = lines.map((line, i) => ({ ...line, quantity: quantities[i]! }));
+      return t.prisma.recipe.create({
+        data: {
+          slug: 'tomato-rice',
+          title: 'Tomato rice of this instance',
+          description: 'Rice with tomatoes.',
+          servings: 2,
+          mealTypes: ['lunch'],
+          steps: ['Cook.'],
+          prepMinutes: 5,
+          cookMinutes: 20,
+          origin: 'curated',
+          fingerprint: computeFingerprint({ ingredients: made, mealTypes: ['lunch'], servings: 2 }),
+          ingredients: { create: await Promise.all(made.map(async (line) => ({ ingredientId: await idOf(line.slug), quantity: line.quantity, unit: line.unit }))) },
+          translations: { create: [{ locale: 'pl', title: 'Ryż z pomidorami tej instancji', description: 'Ryż z pomidorami.', steps: ['Ugotuj.'], source: 'MANUAL' }] },
+        },
+      });
+    };
+    /** The data with a recipe of that slug, made of 150 g of rice and 300 g of tomato. */
+    const dataWithTomatoRice = () => {
+      const data = editableData();
+      data.edit<Row>('recipes.json', (rows) => [
+        ...rows,
+        {
+          slug: 'tomato-rice',
+          title: { en: 'Tomato rice', pl: 'Ryż z pomidorami' },
+          description: { en: 'Rice with tomatoes.', pl: 'Ryż z pomidorami.' },
+          servings: 2,
+          mealTypes: ['lunch'],
+          prepMinutes: 5,
+          cookMinutes: 20,
+          difficulty: 'easy',
+          ingredients: lines,
+          steps: { en: ['Cook the rice with the tomatoes.'], pl: ['Ugotuj ryż z pomidorami.'] },
+        },
+      ]);
+      return data;
+    };
+
+    it('becomes the recipe of the data when it is made the same way, and keeps its id and its approved text', async () => {
+      const mine = await shipped([150, 300]);
+
+      await updateDatabase(t.prisma, dataWithTomatoRice().dir, quiet);
+
+      const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tomato-rice' }, include: { translations: true } });
+      expect(recipe).toMatchObject({ id: mine.id, origin: 'seed', title: 'Tomato rice' });
+      expect(recipe.translations.map((row) => [row.locale, row.title, row.source]).sort()).toEqual([
+        ['en', 'Tomato rice', 'CURATED_JSON'],
+        ['pl', 'Ryż z pomidorami tej instancji', 'MANUAL'],
+      ]);
+      expect(await t.prisma.recipe.count({ where: { fingerprint: mine.fingerprint } })).toBe(1);
+    });
+
+    it('gives the slug up when the recipe of the data is made differently, and both are in the library', async () => {
+      const mine = await shipped([100, 100]);
+
+      await updateDatabase(t.prisma, dataWithTomatoRice().dir, quiet);
+
+      const fromData = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tomato-rice' } });
+      expect(fromData).toMatchObject({ origin: 'seed', title: 'Tomato rice' });
+      expect(fromData.id).not.toBe(mine.id);
+      expect(await t.prisma.recipe.findUniqueOrThrow({ where: { id: mine.id } })).toMatchObject({ slug: null, origin: 'curated', title: 'Tomato rice of this instance', retiredAt: null });
+      // A second update finds nothing left to settle.
+      await updateDatabase(t.prisma, dataWithTomatoRice().dir, quiet);
+      expect(await t.prisma.recipe.count({ where: { title: { startsWith: 'Tomato rice' } } })).toBe(2);
     });
   });
 
