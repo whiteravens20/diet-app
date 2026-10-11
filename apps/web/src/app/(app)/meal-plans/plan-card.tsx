@@ -9,6 +9,7 @@ import {
   fitsDiet,
   type AddCustomMealRequest,
   type MealPlan,
+  type PantryUse,
   type PlannedIngredient,
   type PlanRelaxation,
   type SwapIngredientResponse,
@@ -27,6 +28,12 @@ interface FavoriteOption {
 type PlannedMealView = MealPlan['days'][number]['meals'][number];
 /** A catalogue meal, narrowed so its recipe is guaranteed present. */
 type CatalogueMeal = PlannedMealView & { recipe: NonNullable<PlannedMealView['recipe']> };
+
+const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' | 'pantryUnused'>> = {
+  counted: 'pantryCounted',
+  left_out: 'pantryLeftOut',
+  unused: 'pantryUnused',
+};
 
 /** One plan: its summary, and when open its days with every change a meal can be given. */
 export function PlanCard({
@@ -90,6 +97,8 @@ export function PlanCard({
   const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[] } | null>(null);
   // The part of the plan to fill again: the whole of it until the user picks days.
   const [part, setPart] = useState<{ from?: string; to?: string }>({});
+  // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
+  const pantryLine = plan.report ? PANTRY_LINE[plan.report.pantry] : undefined;
   const from = part.from ?? plan.days[0]?.date ?? '';
   const to = part.to ?? plan.days.at(-1)?.date ?? '';
   return (
@@ -162,7 +171,7 @@ export function PlanCard({
             )}
             <p>{t('rerollKeeps')}</p>
           </div>
-          {(plan.options.allowRelaxations.length > 0 || (plan.report && plan.options.respectInventory)) && (
+          {(plan.options.allowRelaxations.length > 0 || pantryLine) && (
             <div className="space-y-1 text-xs text-muted-foreground">
               {plan.options.allowRelaxations.length > 0 && (
                 <p className="flex flex-wrap items-center gap-2">
@@ -172,9 +181,7 @@ export function PlanCard({
                   </Button>
                 </p>
               )}
-              {plan.report && plan.options.respectInventory && (
-                <p>{t(plan.report.pantryBiasApplied ? 'pantryCounted' : 'pantryNotCounted')}</p>
-              )}
+              {pantryLine && <p>{t(pantryLine)}</p>}
             </div>
           )}
           {plan.days.map((day) => (

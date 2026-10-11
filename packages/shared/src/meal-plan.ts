@@ -141,6 +141,16 @@ export const PlanOptions = z.object({
 export type PlanOptions = z.infer<typeof PlanOptions>;
 
 /**
+ * What the pantry had to do with the choice of a plan's recipes: `counted`;
+ * `left_out` for variety, in the plan that follows several in a row that
+ * counted it; `unused`, when no recipe the plan could choose uses anything
+ * that is in it; `empty`; `not_asked`, when the plan was asked to leave it
+ * aside.
+ */
+export const PantryUse = z.enum(['counted', 'left_out', 'unused', 'empty', 'not_asked']);
+export type PantryUse = z.infer<typeof PantryUse>;
+
+/**
  * What the generation of a plan had to do to fill it, as far as it still
  * holds: a meal that was changed since is no longer in it.
  */
@@ -149,8 +159,7 @@ export const GenerationReport = z.object({
   relaxations: z.array(RelaxedMeal),
   /** Meals for which the diet and the meal left one recipe to choose from. */
   singleCandidate: z.array(z.object({ date: z.string().date(), slot: MealType })),
-  /** Whether what is in the pantry counted in the choice of recipes. */
-  pantryBiasApplied: z.boolean(),
+  pantry: PantryUse,
 });
 export type GenerationReport = z.infer<typeof GenerationReport>;
 

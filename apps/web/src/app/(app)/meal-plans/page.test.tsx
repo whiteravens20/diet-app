@@ -114,7 +114,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
     maxRepeatsPerRecipe: null,
     allowRelaxations: [],
   },
-  report: { relaxations: [], singleCandidate: [], pantryBiasApplied: false },
+  report: { relaxations: [], singleCandidate: [], pantry: 'empty' },
   revision: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   ...over,
@@ -299,7 +299,7 @@ describe('the plan page, on a plan and how it was made', () => {
         report: {
           relaxations: [{ date: '2026-01-05', slot: 'breakfast', gaveWay: ['consecutive_days', 'weekly_cap'] }],
           singleCandidate: [{ date: '2026-01-05', slot: 'breakfast' }],
-          pantryBiasApplied: true,
+          pantry: 'counted',
         },
       }),
     );
@@ -309,12 +309,21 @@ describe('the plan page, on a plan and how it was made', () => {
     expect(screen.getByText(messages.mealPlans.pantryCounted)).toBeInTheDocument();
   });
 
-  it('says nothing of a meal the report does not speak of, and that the pantry did not count when it did not', async () => {
+  it('says nothing of a meal the report does not speak of, nor of a pantry that is empty', async () => {
     await open(aPlan());
 
     expect(screen.queryByText('Outside a limit')).toBeNull();
     expect(screen.queryByText('Only recipe')).toBeNull();
-    expect(screen.getByText(messages.mealPlans.pantryNotCounted)).toBeInTheDocument();
+    for (const line of [messages.mealPlans.pantryCounted, messages.mealPlans.pantryLeftOut, messages.mealPlans.pantryUnused]) expect(screen.queryByText(line)).toBeNull();
+  });
+
+  it.each([
+    ['left_out', messages.mealPlans.pantryLeftOut],
+    ['unused', messages.mealPlans.pantryUnused],
+  ] as const)('says why the pantry did not count when the reason is %s', async (pantry, line) => {
+    await open(aPlan({ report: { relaxations: [], singleCandidate: [], pantry } }));
+
+    expect(screen.getByText(line)).toBeInTheDocument();
   });
 
   it('names the limits a plan may go outside, and makes it again inside every limit when asked', async () => {
@@ -331,7 +340,6 @@ describe('the plan page, on a plan and how it was made', () => {
   it('says nothing of how a plan was made when the plan is from before that was kept', async () => {
     await open(aPlan({ report: null }));
 
-    expect(screen.queryByText(messages.mealPlans.pantryNotCounted)).toBeNull();
     expect(screen.queryByText(messages.mealPlans.pantryCounted)).toBeNull();
   });
 });

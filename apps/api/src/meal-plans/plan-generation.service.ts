@@ -22,6 +22,7 @@ import {
   type Locale,
   type MealPlan,
   type MealType,
+  type PantryUse,
   type PlanRelaxation,
   type RelaxationNeeded,
   type UnfilledMeal,
@@ -251,10 +252,10 @@ export class PlanGenerationService {
 
     // What the report said of the days filled again gives place to what this
     // run found. A plan from before reports were kept gets one when the whole
-    // of it is made again; whether the pantry counted is said of a whole plan.
+    // of it is made again; what the pantry had to do with it is said of a whole plan.
     const before = StoredReport.nullable().parse(plan.report ?? null);
     const merged = before ? withDaysAgain(before, result.report, filled.map(({ dayIndex }) => dates[dayIndex]!)) : null;
-    const report = whole ? { ...(merged ?? result.report), pantryBiasApplied: result.report.pantryBiasApplied } : merged;
+    const report = whole ? { ...(merged ?? result.report), pantry: result.report.pantry } : merged;
 
     await writePlan(this.prisma, planId, plan.revision, async (tx) => {
       for (const { dayIndex, dayId, staying } of filled) {
@@ -453,7 +454,7 @@ export class PlanGenerationService {
       return {
         assignments: result.assignments,
         ingredientReuseScore: result.ingredientReuseScore,
-        report: reportOf(result, dates, inventoryCoverage !== undefined),
+        report: reportOf(result, dates, pantry.use),
       };
     } catch (err) {
       // The plan could be filled only by letting limits give way that may
@@ -609,26 +610,37 @@ export class PlanGenerationService {
   }
 
   /**
-   * Build the per-recipe coverage map the optimiser scores against. There is
-   * no `coverage` when the toggle is off, the pantry is empty, or no candidate
-   * recipe touches anything in the pantry — callers leave the pool ordering /
-   * scoring untouched.
+   * What the pantry has to do with this plan (`use`), and when it counts the
+   * per-recipe coverage map the optimiser scores against. It does not count
+   * when the plan was asked to leave it aside, when it is empty, and when no
+   * candidate recipe uses anything that is in it.
    *
-   * Anti-monotony rotation: after `inventoryBiasResetEvery` consecutive
-   * plan-level generations actually applied a bias, this round drops it and
-   * resets the streak — keeps a leftover-heavy month from locking the user
-   * into one recipe corridor. `streak` is what the profile's count becomes
-   * once the plan is filled; the caller writes it then. It only moves on
-   * plan-level paths (this method is unused by swap, which uses
-   * `recipeCoverageMap` directly). Threshold `0` disables the reset entirely.
+   * Anti-monotony rotation: after `inventoryBiasResetEvery` consecutive plans
+   * that counted the pantry, the next one that would have leaves it out, so
+   * that a month heavy with leftovers does not keep the user in one corridor
+   * of recipes. `streak` is what the profile's count becomes once the plan is
+   * filled; the caller writes it then. It only moves on plan-level paths (a
+   * swap reads `recipeCoverageMap` directly). Threshold `0` switches the
+   * rotation off.
    */
   private async resolveInventoryBias(
     profileId: string,
     respectInventory: boolean,
     optimizerRecipes: OptimizerRecipe[],
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
-  ): Promise<{ coverage?: Map<string, number>; streak?: number }> {
-    if (!respectInventory) return {};
+  ): Promise<{ use: PantryUse; coverage?: Map<string, number>; streak?: number }> {
+    if (!respectInventory) return { use: 'not_asked' };
+
+    const stock = await stockByIngredient(this.prisma, profileId);
+    if (stock.size === 0) return { use: 'empty' };
+
+    const coverage = new Map<string, number>();
+    for (const r of optimizerRecipes) {
+      const reqs = requirementsByRecipe.get(r.id) ?? [];
+      const score = recipeCoverage(reqs, stock);
+      if (score > 0) coverage.set(r.id, score);
+    }
+    if (coverage.size === 0) return { use: 'unused' };
 
     const profile = await this.prisma.profile.findUnique({
       where: { id: profileId },
@@ -638,25 +650,9 @@ export class PlanGenerationService {
       },
     });
     const threshold = profile?.preferences?.inventoryBiasResetEvery ?? 5;
+    if (threshold === 0) return { use: 'counted', coverage };
     const currentStreak = profile?.inventoryBiasStreak ?? 0;
-    // Anti-monotony cool-down: if the streak has reached the threshold, skip
-    // the bias for THIS round and reset. `threshold === 0` opts out entirely.
-    if (threshold > 0 && currentStreak >= threshold) return { streak: 0 };
-
-    const stock = await stockByIngredient(this.prisma, profileId);
-    if (stock.size === 0) return {};
-
-    const coverage = new Map<string, number>();
-    for (const r of optimizerRecipes) {
-      const reqs = requirementsByRecipe.get(r.id) ?? [];
-      const score = recipeCoverage(reqs, stock);
-      if (score > 0) coverage.set(r.id, score);
-    }
-    if (coverage.size === 0) return {};
-
-    // Bias actually applied — the next round inches closer to the reset.
-    // Threshold 0 disables the bookkeeping too.
-    return { coverage, streak: threshold > 0 ? currentStreak + 1 : undefined };
+    return currentStreak >= threshold ? { use: 'left_out', streak: 0 } : { use: 'counted', coverage, streak: currentStreak + 1 };
   }
 }
 

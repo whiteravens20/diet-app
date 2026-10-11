@@ -53,7 +53,7 @@ describe('the limits of a plan', () => {
     const made: MealPlan = (await generate({ ...sixBreakfasts, allowRelaxations: ['variety_floor'] }).expect(201)).body;
 
     expect(made.options.allowRelaxations).toEqual(['variety_floor']);
-    expect(made.report).toEqual({ relaxations: [theSixth], singleCandidate: [], pantryBiasApplied: false });
+    expect(made.report).toEqual({ relaxations: [theSixth], singleCandidate: [], pantry: 'empty' });
     // The limit gave way where it had to, and nowhere else.
     const breakfasts = made.days.map((day) => day.meals.find((meal) => meal.mealType === 'breakfast')!.recipe!.id);
     expect(new Set(breakfasts.slice(0, 5)).size).toBe(5);
@@ -88,7 +88,7 @@ describe('the limits of a plan', () => {
   it('keeps with the plan what a later regeneration let give way', async () => {
     // Made inside its limits; then the floor is as tight as before, by way of the profile's limit for a week.
     const strict: MealPlan = (await generate({ durationDays: 6, mealCount: 2 }).expect(201)).body;
-    expect(strict.report).toEqual({ relaxations: [], singleCandidate: [], pantryBiasApplied: false });
+    expect(strict.report).toEqual({ relaxations: [], singleCandidate: [], pantry: 'empty' });
     await t.prisma.profilePreference.update({ where: { profileId: profile.id }, data: { maxTimesPerWeekSameMeal: 1 } });
 
     expect((await regenerate(strict).expect(422)).body.details.needs).toEqual(['weekly_cap']);
@@ -133,7 +133,7 @@ describe('the limits of a plan', () => {
 
     const swapped = await t.app.get(MealPlansService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: made.id, plannedMealId: sixth.id, strategy: 'random' }));
 
-    expect(swapped.plan.report).toEqual({ relaxations: [], singleCandidate: [], pantryBiasApplied: false });
+    expect(swapped.plan.report).toEqual({ relaxations: [], singleCandidate: [], pantry: 'empty' });
   });
 
   it('reports the meals for which there was one recipe to choose from', async () => {
@@ -149,7 +149,7 @@ describe('the limits of a plan', () => {
         { date: '2026-01-05', slot: 'second_breakfast' },
         { date: '2026-01-06', slot: 'second_breakfast' },
       ],
-      pantryBiasApplied: false,
+      pantry: 'empty',
     });
   });
 
@@ -208,7 +208,7 @@ describe('the limits of a plan', () => {
     it('says that the pantry counted, and counts the plan as one made with it', async () => {
       const made: MealPlan = (await generate({ durationDays: 2 }).expect(201)).body;
 
-      expect(made.report!.pantryBiasApplied).toBe(true);
+      expect(made.report!.pantry).toBe('counted');
       expect(await streak()).toBe(1);
     });
 
@@ -220,12 +220,26 @@ describe('the limits of a plan', () => {
       expect(await streak()).toBe(1);
     });
 
+    it('says when no recipe uses what is in it, and when the plan was asked to leave it aside', async () => {
+      const pepper = await t.prisma.ingredient.create({ data: { slug: 'pantry-only-pepper', name: 'Pantry-only pepper', category: 'spices', canonicalUnit: 'g', caloriesPer100: 250, proteinPer100: 10, fatPer100: 3, carbsPer100: 60 } });
+      await t.prisma.inventoryItem.deleteMany({ where: { profileId: profile.id } });
+      await t.prisma.inventoryItem.create({ data: { profileId: profile.id, ingredientId: pepper.id, quantity: 50, unit: 'g' } });
+      try {
+        expect(((await generate({ durationDays: 2 }).expect(201)).body as MealPlan).report!.pantry).toBe('unused');
+        expect(((await generate({ durationDays: 2, startDate: '2026-02-02', respectInventory: false }).expect(201)).body as MealPlan).report!.pantry).toBe('not_asked');
+        expect(await streak()).toBe(0);
+      } finally {
+        await t.prisma.inventoryItem.deleteMany({ where: { profileId: profile.id } });
+        await t.prisma.ingredient.delete({ where: { id: pepper.id } });
+      }
+    });
+
     it('says that the pantry did not count in the round that leaves it out', async () => {
       await t.prisma.profile.update({ where: { id: profile.id }, data: { inventoryBiasStreak: 5 } });
 
       const made: MealPlan = (await generate({ durationDays: 2 }).expect(201)).body;
 
-      expect(made.report!.pantryBiasApplied).toBe(false);
+      expect(made.report!.pantry).toBe('left_out');
       expect(await streak()).toBe(0);
     });
   });

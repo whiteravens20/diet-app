@@ -10,7 +10,7 @@
  * changes a meal has to remember the report.
  */
 import { z } from 'zod';
-import { MealType, PlanRelaxation, type GenerationReport, type MealPlanDay } from '@diet-app/shared';
+import { MealType, PantryUse, PlanRelaxation, type GenerationReport, type MealPlanDay } from '@diet-app/shared';
 import type { OptimizerResult } from '../engine/index.js';
 
 const About = { date: z.string().date(), slot: MealType, recipeId: z.string() };
@@ -18,7 +18,7 @@ const About = { date: z.string().date(), slot: MealType, recipeId: z.string() };
 export const StoredReport = z.object({
   relaxations: z.array(z.object({ ...About, gaveWay: z.array(PlanRelaxation).min(1) })),
   singleCandidate: z.array(z.object(About)),
-  pantryBiasApplied: z.boolean(),
+  pantry: PantryUse,
 });
 export type StoredReport = z.infer<typeof StoredReport>;
 
@@ -26,7 +26,7 @@ export type StoredReport = z.infer<typeof StoredReport>;
  * The report of a run in the terms of the plan: `dates` are the dates of the
  * days the run was given, in its order.
  */
-export function reportOf(result: OptimizerResult, dates: readonly string[], pantryBiasApplied: boolean): StoredReport {
+export function reportOf(result: OptimizerResult, dates: readonly string[], pantry: PantryUse): StoredReport {
   const about = (at: { dayIndex: number; slot: MealType }) => ({
     date: dates[at.dayIndex]!,
     slot: at.slot,
@@ -35,21 +35,21 @@ export function reportOf(result: OptimizerResult, dates: readonly string[], pant
   return {
     relaxations: result.report.relaxations.map((at) => ({ ...about(at), gaveWay: at.gaveWay })),
     singleCandidate: result.report.singleCandidate.map(about),
-    pantryBiasApplied,
+    pantry,
   };
 }
 
 /**
  * The report of a plan after some of its days were filled again: what it said
- * of those days gives place to what the run over them found. Whether the
- * pantry counted stays what it was for the plan.
+ * of those days gives place to what the run over them found. What the pantry
+ * had to do with the plan stays what it was when the plan was made.
  */
 export function withDaysAgain(kept: StoredReport, fresh: StoredReport, dates: readonly string[]): StoredReport {
   const ofOtherDays = <T extends { date: string }>(entries: T[]): T[] => entries.filter((entry) => !dates.includes(entry.date));
   return {
     relaxations: [...ofOtherDays(kept.relaxations), ...fresh.relaxations],
     singleCandidate: [...ofOtherDays(kept.singleCandidate), ...fresh.singleCandidate],
-    pantryBiasApplied: kept.pantryBiasApplied,
+    pantry: kept.pantry,
   };
 }
 
@@ -73,6 +73,6 @@ export function shownReport(kept: unknown, days: readonly MealPlanDay[]): Genera
   return {
     relaxations: standing(report.relaxations).map(({ date, slot, gaveWay }) => ({ date, slot, gaveWay })),
     singleCandidate: standing(report.singleCandidate).map(({ date, slot }) => ({ date, slot })),
-    pantryBiasApplied: report.pantryBiasApplied,
+    pantry: report.pantry,
   };
 }
