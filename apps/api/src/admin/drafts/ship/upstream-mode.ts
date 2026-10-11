@@ -47,9 +47,10 @@ const CANONICAL_REMOTE_PATTERNS: RegExp[] = [
   /(^|[/:])whiteravens20\/diet-app(\.git)?$/i,
 ];
 
-/** True iff `url` resolves to the canonical diet-app repo. */
+/** True iff `url` resolves to the canonical diet-app repo. A trailing slash names the same repository. */
 export function isCanonicalRemoteUrl(url: string): boolean {
-  return CANONICAL_REMOTE_PATTERNS.some((p) => p.test(url.trim()));
+  const address = url.trim().replace(/\/+$/, '');
+  return CANONICAL_REMOTE_PATTERNS.some((p) => p.test(address));
 }
 
 /**

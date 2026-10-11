@@ -17,6 +17,9 @@ describe('isCanonicalRemoteUrl', () => {
     'git@github.com:whiteravens20/diet-app',
     'ssh://git@github.com/whiteravens20/diet-app.git',
     'https://github.com/WHITERAVENS20/diet-app.git', // case-insensitive
+    'https://github.com/whiteravens20/diet-app/', // a trailing slash names the same repository
+    'https://github.com/whiteravens20/diet-app.git/',
+    '  git@github.com:whiteravens20/diet-app.git\n',
   ])('rejects canonical remote URL %s', (url) => {
     expect(isCanonicalRemoteUrl(url)).toBe(true);
   });
