@@ -4,7 +4,7 @@ import { PLAN_RELAXATIONS, ProfileInput, type MealPlan, type Profile } from '@di
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPlan, aProfile, as, aSwap, aUser, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, as, aSwap, aUser, race, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 describe('the limits of a plan', () => {
@@ -231,6 +231,25 @@ describe('the limits of a plan', () => {
         await t.prisma.inventoryItem.deleteMany({ where: { profileId: profile.id } });
         await t.prisma.ingredient.delete({ where: { id: pepper.id } });
       }
+    });
+
+    it('counts a plan that is made again, and not a day or a few days of it filled again', async () => {
+      const made: MealPlan = (await generate({ durationDays: 3 }).expect(201)).body;
+      expect(await streak()).toBe(1);
+
+      await t.http().post(`/api/meal-plans/${made.id}/days/${made.days[1]!.id}/regenerate`).set(as(user)).send({ includePast: true }).expect(201);
+      await t.http().post(`/api/meal-plans/${made.id}/regenerate`).set(as(user)).send({ from: made.days[0]!.date, to: made.days[1]!.date, includePast: true }).expect(201);
+      expect(await streak()).toBe(1);
+
+      await t.http().post(`/api/meal-plans/${made.id}/regenerate`).set(as(user)).send({ includePast: true }).expect(201);
+      expect(await streak()).toBe(2);
+    });
+
+    it('loses no step when plans are made at the same moment', async () => {
+      const made = await race(4, (index) => generate({ durationDays: 1, startDate: `2026-03-0${index + 1}` }).then((res) => res.status));
+
+      expect(made.map((result) => (result.status === 'fulfilled' ? result.value : 0))).toEqual([201, 201, 201, 201]);
+      expect(await streak()).toBe(4);
     });
 
     it('says that the pantry did not count in the round that leaves it out', async () => {

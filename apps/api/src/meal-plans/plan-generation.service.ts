@@ -105,20 +105,23 @@ export class PlanGenerationService {
       seed,
     });
 
-    const plan = await this.prisma.mealPlan.create({
-      data: {
-        profileId: profile.id,
-        startDate: start,
-        durationDays: req.durationDays,
-        dietType,
-        calorieTarget: baseCalorieTarget,
-        generationMode: 'deterministic',
-        reuseScore: result.ingredientReuseScore,
-        options,
-        seed,
-        report: result.report,
-        days: { create: buildDays(resolvedDays, result.assignments) },
-      },
+    const plan = await this.prisma.$transaction(async (tx) => {
+      if (result.pantryRound) await tx.profile.update({ where: { id: profile.id }, data: pantryCount(result.pantryRound) });
+      return tx.mealPlan.create({
+        data: {
+          profileId: profile.id,
+          startDate: start,
+          durationDays: req.durationDays,
+          dietType,
+          calorieTarget: baseCalorieTarget,
+          generationMode: 'deterministic',
+          reuseScore: result.ingredientReuseScore,
+          options,
+          seed,
+          report: result.report,
+          days: { create: buildDays(resolvedDays, result.assignments) },
+        },
+      });
     });
     return this.plans.get(userId, locale, plan.id);
   }
@@ -277,6 +280,8 @@ export class PlanGenerationService {
     const report = whole ? { ...(merged ?? result.report), pantry: result.report.pantry } : merged;
 
     await writePlan(this.prisma, planId, plan.revision, async (tx) => {
+      // A plan made again is a round of the pantry's rotation; days of it filled again are not.
+      if (whole && result.pantryRound) await tx.profile.update({ where: { id: plan.profileId }, data: pantryCount(result.pantryRound) });
       for (const { dayIndex, dayId, staying } of filled) {
         const day = days[dayIndex]!;
         await tx.mealPlanDay.update({
@@ -375,7 +380,7 @@ export class PlanGenerationService {
       dropIneligibleLocks?: boolean;
       seed: number;
     },
-  ): Promise<{ assignments: OptimizerResult['assignments']; ingredientReuseScore: number; report: StoredReport }> {
+  ): Promise<{ assignments: OptimizerResult['assignments']; ingredientReuseScore: number; report: StoredReport; pantryRound?: PantryRound }> {
     const { optimizerRecipes, requirementsByRecipe, beforeProfileRules } = await this.loadEligibleRecipes(ownerUserId, profile, {
       respectExclusions: opts.respectExclusions,
     });
@@ -466,14 +471,11 @@ export class PlanGenerationService {
         allowRelaxations: new Set(opts.allowRelaxations),
         seed: opts.seed,
       });
-      // A plan that was refused is no round of the rotation: the count moves once the plan is filled.
-      if (pantry.streak !== undefined) {
-        await this.prisma.profile.update({ where: { id: profile.id }, data: { inventoryBiasStreak: pantry.streak } });
-      }
       return {
         assignments: result.assignments,
         ingredientReuseScore: result.ingredientReuseScore,
         report: reportOf(result, dates, pantry.use),
+        pantryRound: pantry.round,
       };
     } catch (err) {
       // The plan could be filled only by letting limits give way that may
@@ -647,7 +649,7 @@ export class PlanGenerationService {
     respectInventory: boolean,
     optimizerRecipes: OptimizerRecipe[],
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>,
-  ): Promise<{ use: PantryUse; coverage?: Map<string, number>; streak?: number }> {
+  ): Promise<{ use: PantryUse; coverage?: Map<string, number>; round?: PantryRound }> {
     if (!respectInventory) return { use: 'not_asked' };
 
     const stock = await stockByIngredient(this.prisma, profileId);
@@ -671,9 +673,21 @@ export class PlanGenerationService {
     const threshold = profile?.preferences?.inventoryBiasResetEvery ?? 5;
     if (threshold === 0) return { use: 'counted', coverage };
     const currentStreak = profile?.inventoryBiasStreak ?? 0;
-    return currentStreak >= threshold ? { use: 'left_out', streak: 0 } : { use: 'counted', coverage, streak: currentStreak + 1 };
+    return currentStreak >= threshold ? { use: 'left_out', round: 'left_out' } : { use: 'counted', coverage, round: 'counted' };
   }
 }
+
+/**
+ * What a plan made for a profile means for the rotation of its pantry: a
+ * round in which the pantry counted, or the round it was left out, after
+ * which the count begins again. The count is moved by whoever writes the
+ * plan, with the plan: a plan that was refused or not saved is no round, and
+ * neither is a single day filled again.
+ */
+type PantryRound = 'counted' | 'left_out';
+
+/** The move of the count for a round, in a form two plans made at once cannot lose a step of. */
+const pantryCount = (round: PantryRound): Prisma.ProfileUpdateInput => ({ inventoryBiasStreak: round === 'counted' ? { increment: 1 } : 0 });
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
