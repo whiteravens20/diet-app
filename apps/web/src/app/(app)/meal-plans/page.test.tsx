@@ -334,3 +334,87 @@ describe('the plan page, on a plan and how it was made', () => {
     expect(screen.queryByText(messages.mealPlans.pantryCounted)).toBeNull();
   });
 });
+
+describe('the plan page, when a plan is made again', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** A plan of three days, each with the breakfast of the plan above. */
+  const threeDays = (): MealPlan => {
+    const one = aPlan();
+    return {
+      ...one,
+      durationDays: 3,
+      days: ['2026-01-05', '2026-01-06', '2026-01-07'].map((date, i) => ({
+        ...one.days[0]!,
+        id: `2222222${i}-2222-4222-8222-222222222222`,
+        date,
+        meals: one.days[0]!.meals.map((meal) => ({ ...meal, id: `3333333${i}-3333-4333-8333-333333333333` })),
+      })),
+    };
+  };
+  const open = async (plan: MealPlan) => {
+    await renderPage(aDepth(9), [plan]);
+    await userEvent.click(await screen.findByText('3-day plan · Vegan'));
+  };
+  const refusal = (status: number, code: string) => new ApiClientError(status, code, 'the text of the API');
+
+  it('says what stays as it is', async () => {
+    await open(threeDays());
+
+    expect(screen.getByText(messages.mealPlans.rerollKeeps)).toBeInTheDocument();
+  });
+
+  it('asks for the days from one day to another, when the user picks them', async () => {
+    const plan = threeDays();
+    await open(plan);
+    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
+
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.rangeFrom), '2026-01-06');
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculateRange }));
+
+    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/regenerate`, { from: '2026-01-06', to: '2026-01-07' });
+  });
+
+  it('does not offer days in the wrong order', async () => {
+    await open(threeDays());
+
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.rangeFrom), '2026-01-07');
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.rangeTo), '2026-01-05');
+
+    expect(screen.getByRole('button', { name: messages.mealPlans.recalculateRange })).toBeDisabled();
+  });
+
+  it.each([
+    { code: 'NOTHING_TO_REGENERATE', status: 409, button: messages.mealPlans.includePastAndRetry, allowed: { includePast: true } },
+    { code: 'LOCKED_RECIPE_INELIGIBLE', status: 400, button: messages.mealPlans.dropLockAndRetry, allowed: { dropIneligibleLocks: true } },
+  ])('offers to send a request refused with $code again with what would let it through', async ({ code, status, button, allowed }) => {
+    const plan = threeDays();
+    await open(plan);
+    const post = vi.spyOn(api, 'post').mockRejectedValueOnce(refusal(status, code)).mockResolvedValue(plan as never);
+
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.rangeTo), '2026-01-06');
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculateRange }));
+    expect(await screen.findByText(messages.errors[code as 'NOTHING_TO_REGENERATE'])).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: button }));
+
+    // The same days, with that allowed.
+    expect(post.mock.calls[1]).toEqual([`/meal-plans/${plan.id}/regenerate`, { from: '2026-01-05', to: '2026-01-06', ...allowed }]);
+    await vi.waitFor(() => expect(screen.queryByRole('button', { name: button })).toBeNull());
+  });
+
+  it('asks for one day with nothing of its own, and for the whole plan likewise', async () => {
+    const plan = threeDays();
+    await open(plan);
+    const post = vi.spyOn(api, 'post').mockResolvedValue(plan as never);
+
+    await userEvent.click(screen.getAllByRole('button', { name: messages.mealPlans.changeDay })[1]!);
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.recalculate }));
+
+    expect(post.mock.calls).toEqual([
+      [`/meal-plans/${plan.id}/days/${plan.days[1]!.id}/regenerate`, undefined],
+      [`/meal-plans/${plan.id}/regenerate`, undefined],
+    ]);
+  });
+});

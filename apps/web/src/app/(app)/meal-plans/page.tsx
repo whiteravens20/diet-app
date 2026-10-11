@@ -58,10 +58,29 @@ type GenerateBody = Omit<GeneratePlanRequest, 'allowRelaxations'> & { allowRelax
 interface Reroll {
   planId: string;
   dayId?: string;
+  /** The first and the last day to fill again, for a part of the plan. */
+  from?: string;
+  to?: string;
+  includePast?: boolean;
   dropIneligibleLocks?: boolean;
   /** Left out: the limits the plan may let give way already. */
   allowRelaxations?: PlanRelaxation[];
 }
+
+/** What a re-roll sends: nothing at all when it asks for nothing of its own. */
+function rerollBody(v: Reroll): Record<string, unknown> | undefined {
+  const body = {
+    ...(v.from ? { from: v.from } : {}),
+    ...(v.to ? { to: v.to } : {}),
+    ...(v.includePast ? { includePast: true } : {}),
+    ...(v.dropIneligibleLocks ? { dropIneligibleLocks: true } : {}),
+    ...(v.allowRelaxations ? { allowRelaxations: v.allowRelaxations } : {}),
+  };
+  return Object.keys(body).length > 0 ? body : undefined;
+}
+
+/** What the user can allow so that a refused re-roll goes through, by the code of the refusal. */
+const ALLOWS = { LOCKED_RECIPE_INELIGIBLE: 'dropIneligibleLocks', NOTHING_TO_REGENERATE: 'includePast' } as const;
 
 /** `more` added to `allowed`, in the order limits give way. */
 const withMore = (allowed: readonly PlanRelaxation[], more: readonly PlanRelaxation[]): PlanRelaxation[] =>
@@ -184,26 +203,22 @@ function MealPlansContent() {
     },
   });
 
-  // A re-roll that was refused because a locked recipe may no longer go into
-  // the plan. The user can repeat it with that lock dropped.
-  const [staleLock, setStaleLock] = useState<{ planId: string; dayId?: string } | null>(null);
+  // A re-roll that was refused for something the user can allow: a locked
+  // recipe that may no longer go into the plan can be dropped, days that have
+  // passed can be filled again all the same. The same request is then sent
+  // with that allowed.
+  const [refused, setRefused] = useState<{ reroll: Reroll; allow: (typeof ALLOWS)[keyof typeof ALLOWS] } | null>(null);
   const reroll = (fallback: string) => ({
     mutationFn: (v: Reroll) =>
-      api.post<MealPlan>(
-        v.dayId ? `/meal-plans/${v.planId}/days/${v.dayId}/regenerate` : `/meal-plans/${v.planId}/regenerate`,
-        v.dropIneligibleLocks || v.allowRelaxations
-          ? { ...(v.dropIneligibleLocks ? { dropIneligibleLocks: true } : {}), ...(v.allowRelaxations ? { allowRelaxations: v.allowRelaxations } : {}) }
-          : undefined,
-      ),
+      api.post<MealPlan>(v.dayId ? `/meal-plans/${v.planId}/days/${v.dayId}/regenerate` : `/meal-plans/${v.planId}/regenerate`, rerollBody(v)),
     onSuccess: () => {
-      setStaleLock(null);
+      setRefused(null);
       setInTheWay(null);
       invalidate();
     },
     onError: (e: unknown, v: Reroll) => {
-      setStaleLock(
-        e instanceof ApiClientError && e.code === 'LOCKED_RECIPE_INELIGIBLE' ? { planId: v.planId, dayId: v.dayId } : null,
-      );
+      const allow = e instanceof ApiClientError && e.code in ALLOWS ? ALLOWS[e.code as keyof typeof ALLOWS] : null;
+      setRefused(allow && !v[allow] ? { reroll: v, allow } : null);
       const needed = relaxationNeeded(e);
       const kept = (plans.data ?? []).find((plan) => plan.id === v.planId)?.options.allowRelaxations ?? [];
       setInTheWay(needed ? { needed, allowed: v.allowRelaxations ?? kept, reroll: v } : null);
@@ -446,7 +461,7 @@ function MealPlansContent() {
       </Card>
 
       {error && <p className="max-w-2xl text-sm text-destructive">{error}</p>}
-      {staleLock && (
+      {refused && (
         <Button
           type="button"
           size="sm"
@@ -454,10 +469,10 @@ function MealPlansContent() {
           disabled={busy}
           onClick={() => {
             setError(null);
-            (staleLock.dayId ? regenerateDay : regenerate).mutate({ ...staleLock, dropIneligibleLocks: true });
+            (refused.reroll.dayId ? regenerateDay : regenerate).mutate({ ...refused.reroll, [refused.allow]: true });
           }}
         >
-          {t('dropLockAndRetry')}
+          {t(refused.allow === 'includePast' ? 'includePastAndRetry' : 'dropLockAndRetry')}
         </Button>
       )}
       {inTheWay && (
@@ -595,6 +610,10 @@ function MealPlansContent() {
                 setError(null);
                 regenerate.mutate({ planId: plan.id, allowRelaxations });
               }}
+              onRegenerateDays={(from, to) => {
+                setError(null);
+                regenerate.mutate({ planId: plan.id, from, to });
+              }}
               limitNames={limitNames}
               onDelete={() => {
                 setError(null);
@@ -700,6 +719,7 @@ function PlanCard({
   tMeal,
   onToggle,
   onRegenerate,
+  onRegenerateDays,
   limitNames,
   onDelete,
   onRegenerateDay,
@@ -720,6 +740,8 @@ function PlanCard({
   onToggle: () => void;
   /** Make the plan again; with a list, letting those limits give way and no others. */
   onRegenerate: (allowRelaxations?: PlanRelaxation[]) => void;
+  /** Fill the days from one day of the plan to another again. */
+  onRegenerateDays: (from: string, to: string) => void;
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
   onDelete: () => void;
   onRegenerateDay: (dayId: string) => void;
@@ -747,6 +769,10 @@ function PlanCard({
   // ingredient lines of the meal it was opened from, so the modal shows what
   // that meal takes rather than the recipe's own servings.
   const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[] } | null>(null);
+  // The part of the plan to fill again: the whole of it until the user picks days.
+  const [part, setPart] = useState<{ from?: string; to?: string }>({});
+  const from = part.from ?? plan.days[0]?.date ?? '';
+  const to = part.to ?? plan.days.at(-1)?.date ?? '';
   return (
     <Card className="relative w-full max-w-screen-2xl">
       <div className="flex items-center justify-between gap-4 p-4">
@@ -784,6 +810,39 @@ function PlanCard({
       </div>
       {open && (
         <CardContent className="space-y-4 border-t border-border pt-4">
+          <div className="space-y-1 text-xs text-muted-foreground">
+            {plan.days.length > 1 && (
+              <p className="flex flex-wrap items-center gap-2">
+                {t('rangeLabel')}
+                <select
+                  aria-label={t('rangeFrom')}
+                  className="rounded-md border border-input bg-background px-2 py-1"
+                  value={from}
+                  onChange={(e) => setPart({ ...part, from: e.target.value })}
+                >
+                  {plan.days.map((day) => (
+                    <option key={day.id}>{day.date}</option>
+                  ))}
+                </select>
+                {t('rangeUntil')}
+                <select
+                  aria-label={t('rangeTo')}
+                  className="rounded-md border border-input bg-background px-2 py-1"
+                  value={to}
+                  onChange={(e) => setPart({ ...part, to: e.target.value })}
+                >
+                  {plan.days.map((day) => (
+                    <option key={day.id}>{day.date}</option>
+                  ))}
+                </select>
+                {/* Dates in this form sort as text. */}
+                <Button type="button" variant="ghost" size="sm" onClick={() => onRegenerateDays(from, to)} disabled={busy || from > to}>
+                  {t('recalculateRange')}
+                </Button>
+              </p>
+            )}
+            <p>{t('rerollKeeps')}</p>
+          </div>
           {(plan.options.allowRelaxations.length > 0 || (plan.report && plan.options.respectInventory)) && (
             <div className="space-y-1 text-xs text-muted-foreground">
               {plan.options.allowRelaxations.length > 0 && (
