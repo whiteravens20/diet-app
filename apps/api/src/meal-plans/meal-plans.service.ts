@@ -35,6 +35,7 @@ import {
 import {
   safetyFloor,
   fitServings,
+  macrosForCalories,
   rebalanceDay,
   rebalanceWeek,
   recipeCoverage,
@@ -1331,6 +1332,7 @@ export class MealPlansService {
         meals,
         dayNutrition,
         calorieTarget: day.calorieTarget,
+        targetMacros: macrosForCalories(day.calorieTarget, plan.dietType),
         calorieDelta: skipped ? 0 : dayNutrition.calories - day.calorieTarget,
         skipped,
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
@@ -1355,7 +1357,7 @@ export class MealPlansService {
       dietType: plan.dietType,
       days,
       averageDailyNutrition: avg,
-      targetMacros: { protein: 0, fat: 0, carbs: 0 },
+      targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType),
       ingredientReuseScore: plan.reuseScore,
       generationMode: plan.generationMode,
       options: PlanOptions.parse(plan.options),
@@ -1374,6 +1376,7 @@ interface PlanWithRelations {
   startDate: Date;
   durationDays: number;
   dietType: MealPlan['dietType'];
+  calorieTarget: number;
   reuseScore: number;
   generationMode: 'deterministic' | 'ai_assisted';
   options: unknown;

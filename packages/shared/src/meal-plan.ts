@@ -277,6 +277,8 @@ export const MealPlanDay = z.object({
   meals: z.array(PlannedMeal),
   dayNutrition: Nutrition, // sum of meal nutrition
   calorieTarget: z.number(),
+  /** What the day aims at of protein, fat and carbohydrate, in grams: its calorie target split as the plan's diet splits a day. */
+  targetMacros: Macros,
   /** Signed delta vs. target — positive means over budget. Zero for a skipped day. */
   calorieDelta: z.number(),
   /** The user skips this day: it has no meals, is no shortfall, and is left out of the plan's averages. */
@@ -298,6 +300,7 @@ export const MealPlan = z.object({
   days: z.array(MealPlanDay),
   /** Averages over the days that are not skipped, and the optimiser's reuse score (0-1). */
   averageDailyNutrition: Nutrition,
+  /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
   targetMacros: Macros,
   ingredientReuseScore: z.number().min(0).max(1),
   /** `deterministic` = engine only; `ai_assisted` = AI-drafted + validated. */

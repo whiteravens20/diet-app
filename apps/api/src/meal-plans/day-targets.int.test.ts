@@ -128,6 +128,51 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
     });
   });
 
+  describe('the protein, fat and carbohydrate a plan aims at', () => {
+    /** What a plan's days hold of protein, as a share of their energy. */
+    const proteinShare = (plan: { days: { dayNutrition: { protein: number; fat: number; carbs: number } }[] }): number => {
+      const held = plan.days.reduce((sum, day) => ({ protein: sum.protein + day.dayNutrition.protein, energy: sum.energy + 4 * day.dayNutrition.protein + 9 * day.dayNutrition.fat + 4 * day.dayNutrition.carbs }), { protein: 0, energy: 0 });
+      return (4 * held.protein) / held.energy;
+    };
+
+    it('is the split of its diet over the target of the plan, and over the target of each day', async () => {
+      // Two fifths of the energy from protein, three tenths from fat and from carbohydrate.
+      const profile = await aProfile(t, user, { dietType: 'high_protein', manualCalorieTarget: 2000 });
+
+      const plan = await aPlan(t, user, profile, { durationDays: 2, dayOverrides: [{ date: '2026-01-06', calorieTarget: 2400 }] });
+
+      expect(plan.targetMacros).toEqual({ protein: 200, fat: 67, carbs: 150 });
+      expect(plan.days.map((day) => day.targetMacros)).toEqual([
+        { protein: 200, fat: 67, carbs: 150 },
+        { protein: 240, fat: 80, carbs: 180 },
+      ]);
+    });
+
+    it('follows the diet that was asked for the plan, not the profile\'s', async () => {
+      const profile = await aProfile(t, user, { manualCalorieTarget: 2000 });
+
+      const plan = await aPlan(t, user, profile, { durationDays: 1, dietType: 'vegan' });
+
+      // A fifth from protein, 28 hundredths from fat, 52 from carbohydrate.
+      expect(plan.targetMacros).toEqual({ protein: 100, fat: 62, carbs: 260 });
+    });
+
+    it('draws a plan towards it: a high-protein week holds more protein than a balanced one of the same recipes', async () => {
+      const balanced = await aProfile(t, user, { name: 'Even', manualCalorieTarget: 2200 });
+      const highProtein = await aProfile(t, user, { name: 'Lean', dietType: 'high_protein', manualCalorieTarget: 2200 });
+      const shares = { balanced: [] as number[], highProtein: [] as number[] };
+
+      for (let week = 0; week < 6; week += 1) {
+        shares.balanced.push(proteinShare(await aPlan(t, user, balanced, { startDate: '2026-02-02' })));
+        shares.highProtein.push(proteinShare(await aPlan(t, user, highProtein, { startDate: '2026-02-02' })));
+      }
+
+      const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+      // The catalogue of the tests has little that is rich in protein: three or four points more is what it gives.
+      expect(mean(shares.highProtein)).toBeGreaterThan(mean(shares.balanced) + 0.02);
+    });
+  });
+
   it('stores no acknowledgement for somebody who has nothing to acknowledge', async () => {
     const profile = await aProfile(t, user, { acknowledgeRisk: true });
 

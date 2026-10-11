@@ -44,8 +44,6 @@ const profile: Profile = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
-const nothing = { calories: 0, protein: 0, fat: 0, carbs: 0 };
-
 /** A plan of one day with one breakfast, made inside its limits unless `over` says otherwise. */
 const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
   id: '11111111-1111-4111-8111-111111111111',
@@ -93,6 +91,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
       ],
       dayNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
       calorieTarget: 2000,
+      targetMacros: { protein: 100, fat: 62, carbs: 260 },
       calorieDelta: -1770,
       skipped: false,
       belowSafetyFloor: false,
@@ -100,7 +99,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
     },
   ],
   averageDailyNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
-  targetMacros: nothing,
+  targetMacros: { protein: 100, fat: 62, carbs: 260 },
   ingredientReuseScore: 0,
   generationMode: 'deterministic',
   options: {
