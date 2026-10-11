@@ -282,6 +282,96 @@ describe('generating recipe drafts', () => {
     });
   });
 
+  describe('an answer crafted to get something into the queue', () => {
+    /** A recipe the generator accepts, made of ingredients no other recipe combines. */
+    const sound = (over: Record<string, unknown> = {}): Record<string, unknown> => {
+      const triple = unusedTriples[unusedTriples.length - 1]!;
+      return {
+        slug: 'crafted-dish',
+        titles: { en: 'Crafted dish', pl: 'Danie spreparowane' },
+        descriptions: { en: 'A plate written to test the queue.', pl: 'Danie napisane, by sprawdzić kolejkę.' },
+        steps: { en: ['Prepare the ingredients.', 'Cook everything together.'], pl: ['Przygotuj składniki.', 'Ugotuj wszystko razem.'] },
+        servings: 2,
+        mealTypes: ['lunch'],
+        prepMinutes: 5,
+        cookMinutes: 10,
+        difficulty: 'easy',
+        ingredients: triple.map((slug) => ({ slug, quantity: 100, unit: INGREDIENTS.find((i) => i.slug === slug)!.canonicalUnit })),
+        ...over,
+      };
+    };
+    const firstLine = (over: Record<string, unknown>) => {
+      const lines = sound().ingredients as Record<string, unknown>[];
+      return [{ ...lines[0], ...over }, ...lines.slice(1)];
+    };
+    /** Give every call the same answer and report how the run ended. */
+    const answeredWith = async (text: string, spec: Partial<RecipeGenerateSpec> = {}) => {
+      t.model.reply({ text, times: 10 });
+      return run({ count: 1, targetLocales: ['en', 'pl'], complexityMix: ALL_SIMPLE, ...spec });
+    };
+    const batch = (over: Record<string, unknown>) => JSON.stringify({ recipes: [sound(over)] });
+
+    it('is taken when there is nothing wrong with it', async () => {
+      const state = await answeredWith(batch({}));
+
+      expect(state).toMatchObject({ status: 'done', written: 1, failed: 0 });
+    });
+
+    it.each([
+      ['markup in a title', { titles: { en: 'Dish <img src=x onerror=alert(1)>', pl: 'Danie <script>alert(1)</script>' } }, 'markup'],
+      ['markup in a step', { steps: { en: ['<svg onload=alert(1)>', 'Serve.'], pl: ['<svg onload=alert(1)>', 'Podaj.'] } }, 'markup'],
+      ['a description of five thousand characters', { descriptions: { en: 'x'.repeat(5000), pl: 'y'.repeat(5000) } }, 'text-too-long'],
+      ['ten kilograms of one ingredient for two', { ingredients: firstLine({ quantity: 10_000 }) }, 'quantity-too-large'],
+      ['an ingredient the catalogue does not have', { ingredients: firstLine({ slug: 'unicorn-steak' }) }, 'unknown-slug'],
+      ['a negative quantity', { ingredients: firstLine({ quantity: -100 }) }, 'invalid-quantity'],
+      ['no servings', { servings: 0 }, 'servings-out-of-range'],
+      ['five hundred servings', { servings: 500 }, 'servings-out-of-range'],
+      ['a meal the planner does not know', { mealTypes: ['brunch'] }, 'invalid-meal-type'],
+      ['a slug that walks out of the data directory', { slug: '../../etc/passwd' }, 'invalid-slug'],
+    ])('with %s is refused, and nothing is stored', async (_what, over, reason) => {
+      const state = await answeredWith(batch(over));
+
+      expect(state).toMatchObject({ status: 'done', written: 0, failed: 1, lastRejectReason: reason });
+      expect(await t.prisma.recipeDraft.count()).toBe(0);
+    });
+
+    it('with a description of two million characters is discarded before it is read, and the run ends', async () => {
+      const state = await answeredWith(batch({ descriptions: { en: 'x'.repeat(2_000_000), pl: 'y' } }));
+
+      // The provider's adapter takes no answer that large.
+      expect(state).toMatchObject({ status: 'error', written: 0 });
+      expect(await t.prisma.recipeDraft.count()).toBe(0);
+    });
+
+    it('that is not JSON is refused', async () => {
+      const state = await answeredWith('Sure! Here are your recipes: 1. Oat bowl');
+
+      expect(state).toMatchObject({ written: 0, failed: 1, lastRejectReason: 'malformed-json' });
+    });
+
+    it('with a recipe the catalogue already has is refused', async () => {
+      const existing = RECIPES[0]!;
+      const copy = existing.lines.map(([slug, quantity]) => ({ slug, quantity, unit: INGREDIENTS.find((i) => i.slug === slug)!.canonicalUnit }));
+
+      const state = await answeredWith(batch({ ingredients: copy }));
+
+      expect(state).toMatchObject({ written: 0, failed: 1, lastRejectReason: 'duplicate-of-existing' });
+    });
+
+    it('with a recipe that does not qualify for the diet asked for is refused', async () => {
+      const state = await answeredWith(batch({ ingredients: firstLine({ slug: 'chicken-breast' }) }), { dietTags: ['vegan'] });
+
+      expect(state).toMatchObject({ written: 0, failed: 1, lastRejectReason: 'diet-conflict' });
+    });
+
+    it('with line breaks in its text is stored as plain lines', async () => {
+      await answeredWith(batch({ titles: { en: 'Crafted\n dish', pl: 'Danie\tspreparowane' } }));
+
+      const draft = await t.prisma.recipeDraft.findFirstOrThrow();
+      expect(draft.titles).toEqual({ en: 'Crafted dish', pl: 'Danie spreparowane' });
+    });
+  });
+
   it('never writes more recipes than were asked for', async () => {
     const model = author();
     t.model.reply({ text: model.answer(2), times: 10 });

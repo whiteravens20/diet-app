@@ -14,6 +14,31 @@ import {
 } from './enums.js';
 import { Nutrition } from './nutrition.js';
 
+/**
+ * What a recipe may hold, whoever wrote it. The text is plain text: no markup,
+ * one line per field. A quantity has a ceiling for one serving, because beyond
+ * it the line is a mistake, not an ingredient of a meal.
+ */
+export const RECIPE_LIMITS = {
+  /** Characters. */
+  title: 120,
+  description: 600,
+  step: 300,
+  note: 120,
+  slug: 80,
+  /** How many of each a recipe may have. */
+  steps: 25,
+  ingredients: 30,
+  servings: 12,
+  /** Preparing and cooking, each, in minutes. */
+  minutes: 480,
+  /** Of one ingredient in one serving, in the line's own unit. */
+  perServing: { g: 1500, ml: 1500, piece: 20 },
+} as const;
+
+/** What the name of an ingredient and its storage hint may hold, in characters. */
+export const INGREDIENT_NAME_LIMITS = { name: 120, storageHint: 300 } as const;
+
 /** One ingredient line in a recipe, with an exact quantity. */
 export const RecipeIngredient = z.object({
   ingredientId: z.string().uuid(),

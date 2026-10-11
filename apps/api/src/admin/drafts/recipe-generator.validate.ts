@@ -7,8 +7,11 @@
  * reviewer to even see. Every recipe goes through the same gate so the
  * curation queue is never polluted with structurally-broken drafts:
  *
- *   - Strict JSON shape parsing — every locale in `targetLocales` must be
- *     present in titles / descriptions / steps. Missing locale rejected.
+ *   - The rules every recipe has to meet, whoever wrote it (`checkRecipe`):
+ *     plain text of a length, for every language of the run, sane numbers, a
+ *     ceiling on what one serving holds.
+ *   - Two that apply to a model's batch only: an empty step and a step that
+ *     is the model talking are refused, so that the call is made again.
  *   - Slug resolution against the injected catalogue (`resolveSlug`).
  *   - Nutrition, allergens and diets worked out by the engine from the
  *     ingredients (`recipeFacts`). The draft stores those; what the AI
@@ -32,13 +35,13 @@ import {
   COMPLEXITY_BANDS,
 } from './recipe-generator.complexity.js';
 import { fitsDiet, type Complexity, type DietType } from '@diet-app/shared';
+import { checkRecipe, type RecipeRule } from '../../recipes/recipe-rules.js';
 
 export type RecipeValidationReason =
+  | RecipeRule
   | 'malformed-json'
   | 'no-recipes-key'
   | 'empty-batch'
-  | 'missing-field'
-  | 'missing-locale'
   | 'empty-step'
   | 'unknown-slug'
   | 'duplicate-slug-in-batch'
@@ -50,9 +53,6 @@ export type RecipeValidationReason =
   | 'unit-conversion-failed'
   | 'invented-nutrition'
   | 'llm-yap'
-  | 'invalid-quantity'
-  | 'invalid-unit'
-  | 'invalid-difficulty'
   | 'duplicate-of-existing';
 
 export interface ResolvedIngredient {
@@ -139,6 +139,8 @@ const LLM_YAP_PATTERNS = [
 
 type Raw = Record<string, unknown>;
 
+const isRecord = (value: unknown): value is Raw => typeof value === 'object' && value !== null && !Array.isArray(value);
+
 export function validateRecipeBatch(
   opts: ValidateRecipeBatchOptions,
 ): RecipeValidationResult {
@@ -162,11 +164,10 @@ export function validateRecipeBatch(
   const seenSlugs = new Set<string>();
 
   for (let i = 0; i < root.recipes.length; i += 1) {
-    const raw = root.recipes[i] as Raw;
-    const rowKey = (raw.slug as string | undefined) ?? `#${i}`;
-
+    const raw = isRecord(root.recipes[i]) ? root.recipes[i] : {};
     const slug = expectString(raw.slug);
-    if (!slug) return missing(rowKey, 'slug');
+    const rowKey = slug ?? `#${i}`;
+    if (!slug) return { ok: false, reason: 'missing-field', key: `${rowKey}.slug` };
     if (seenSlugs.has(slug)) {
       return {
         ok: false,
@@ -175,76 +176,28 @@ export function validateRecipeBatch(
       };
     }
 
-    const titles = expectLocaleMap(raw.titles, targetLocales);
-    if (titles === null) return { ok: false, reason: 'missing-locale', key: `${rowKey}.titles` };
-    const descriptions = expectLocaleMap(raw.descriptions, targetLocales);
-    if (descriptions === null)
-      return { ok: false, reason: 'missing-locale', key: `${rowKey}.descriptions` };
-    const steps = expectLocaleStepsMap(raw.steps, targetLocales);
-    if (steps === null) return { ok: false, reason: 'missing-locale', key: `${rowKey}.steps` };
-
-    for (const arr of Object.values(steps)) {
-      for (const s of arr) {
-        if (s.trim().length === 0)
-          return { ok: false, reason: 'empty-step', key: `${rowKey}.steps` };
-        if (LLM_YAP_PATTERNS.some((re) => re.test(s)))
-          return { ok: false, reason: 'llm-yap', key: `${rowKey}.steps` };
+    // What a model's batch is held to beyond the rules of any recipe: a step
+    // with nothing in it, or one that is the model talking, means the answer
+    // was written carelessly, and the call is made again.
+    for (const list of Object.values(isRecord(raw.steps) ? raw.steps : {})) {
+      for (const step of Array.isArray(list) ? list : []) {
+        if (typeof step !== 'string') continue;
+        if (step.trim().length === 0) return { ok: false, reason: 'empty-step', key: `${rowKey}.steps` };
+        if (LLM_YAP_PATTERNS.some((re) => re.test(step))) return { ok: false, reason: 'llm-yap', key: `${rowKey}.steps` };
       }
     }
 
-    const servings = expectInt(raw.servings);
-    const prepMinutes = expectInt(raw.prepMinutes);
-    const cookMinutes = expectInt(raw.cookMinutes);
-    if (servings === null || servings < 1)
-      return missing(rowKey, 'servings');
-    if (prepMinutes === null || prepMinutes < 0)
-      return missing(rowKey, 'prepMinutes');
-    if (cookMinutes === null || cookMinutes < 0)
-      return missing(rowKey, 'cookMinutes');
-
-    const difficulty = expectString(raw.difficulty) as 'easy' | 'medium' | 'hard' | null;
-    if (difficulty !== 'easy' && difficulty !== 'medium' && difficulty !== 'hard') {
-      return {
-        ok: false,
-        reason: 'invalid-difficulty',
-        key: `${rowKey}.difficulty`,
-        details: difficulty === null ? 'missing or empty' : `got "${String(raw.difficulty)}"`,
-      };
+    const checked = checkRecipe(raw, targetLocales);
+    if (!checked.ok) {
+      const first = checked.problems[0]!;
+      return { ok: false, reason: first.rule, key: `${rowKey}.${first.path}`, details: first.message };
     }
+    const { titles, descriptions, steps, servings, prepMinutes, cookMinutes, difficulty, mealTypes, ingredients } = checked.recipe;
 
-    const mealTypes = expectStringArray(raw.mealTypes);
-    if (mealTypes === null || mealTypes.length === 0)
-      return missing(rowKey, 'mealTypes');
-
-    const rawIngredients = Array.isArray(raw.ingredients) ? raw.ingredients : null;
-    if (!rawIngredients || rawIngredients.length === 0)
-      return missing(rowKey, 'ingredients');
-
-    const ingredients: RecipeDraftCandidate['ingredients'] = [];
     const resolved: ResolvedIngredient[] = [];
-    for (const line of rawIngredients) {
-      const l = line as Raw;
-      const lSlug = expectString(l.slug);
-      const quantity = typeof l.quantity === 'number' && Number.isFinite(l.quantity) ? l.quantity : null;
-      const unit = expectString(l.unit) as 'g' | 'ml' | 'piece' | null;
-      if (!lSlug)
-        return { ok: false, reason: 'missing-field', key: `${rowKey}.ingredient.slug` };
-      if (quantity === null || quantity <= 0)
-        return { ok: false, reason: 'invalid-quantity', key: `${rowKey}.${lSlug}` };
-      if (unit !== 'g' && unit !== 'ml' && unit !== 'piece')
-        return {
-          ok: false,
-          reason: 'invalid-unit',
-          key: `${rowKey}.${lSlug}.unit`,
-          details: `got "${String(l.unit)}" — must be "g" | "ml" | "piece"`,
-        };
-
-      const res = resolveSlug(lSlug);
-      if (!res)
-        return { ok: false, reason: 'unknown-slug', key: `${rowKey}.${lSlug}` };
-
-      const note = typeof l.note === 'string' && l.note.trim().length > 0 ? l.note.trim() : null;
-      ingredients.push({ slug: lSlug, quantity, unit, note });
+    for (const line of ingredients) {
+      const res = resolveSlug(line.slug);
+      if (!res) return { ok: false, reason: 'unknown-slug', key: `${rowKey}.${line.slug}` };
       resolved.push(res);
     }
 
@@ -385,64 +338,11 @@ function outOfBandReason(
   return 'no-matching-complexity-band';
 }
 
-function missing(rowKey: string, field: string): RecipeValidationFail {
-  return { ok: false, reason: 'missing-field', key: `${rowKey}.${field}` };
-}
-
 function expectString(v: unknown): string | null {
   return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
-}
-
-function expectStringArray(v: unknown): string[] | null {
-  if (!Array.isArray(v)) return null;
-  const out: string[] = [];
-  for (const s of v) {
-    if (typeof s !== 'string') return null;
-    const trimmed = s.trim();
-    if (trimmed.length === 0) return null;
-    out.push(trimmed);
-  }
-  return out;
-}
-
-function expectInt(v: unknown): number | null {
-  return typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v) ? v : null;
 }
 
 function numberOrNull(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
-function expectLocaleMap(v: unknown, locales: string[]): Record<string, string> | null {
-  if (typeof v !== 'object' || v === null) return null;
-  const obj = v as Record<string, unknown>;
-  const out: Record<string, string> = {};
-  for (const locale of locales) {
-    const value = obj[locale];
-    if (typeof value !== 'string') return null;
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return null;
-    out[locale] = trimmed;
-  }
-  return out;
-}
-
-function expectLocaleStepsMap(
-  v: unknown,
-  locales: string[],
-): Record<string, string[]> | null {
-  if (typeof v !== 'object' || v === null) return null;
-  const obj = v as Record<string, unknown>;
-  const out: Record<string, string[]> = {};
-  for (const locale of locales) {
-    const value = obj[locale];
-    if (!Array.isArray(value) || value.length === 0) return null;
-    const cleaned: string[] = [];
-    for (const s of value) {
-      if (typeof s !== 'string') return null;
-      cleaned.push(s);
-    }
-    out[locale] = cleaned;
-  }
-  return out;
-}

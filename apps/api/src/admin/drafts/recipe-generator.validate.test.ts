@@ -352,7 +352,8 @@ describe('validateRecipeBatch', () => {
       resolveSlug,
     });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe('step-count-too-high');
+    // More steps than any recipe may have: the rule for every recipe speaks before the bands do.
+    if (!r.ok) expect(r.reason).toBe('too-many-steps');
   });
 
   it('rejects empty step strings', () => {
@@ -512,6 +513,68 @@ describe('validateRecipeBatch', () => {
       expect(r.reason).toBe('duplicate-of-existing');
       expect(r.details).toContain('first');
     }
+  });
+});
+
+describe('what a batch answer may not put into the queue', () => {
+  const rejected = (overrides: Record<string, unknown>) => {
+    const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell(overrides)]), resolveSlug });
+    return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+  };
+
+  it('markup, in a title, a description, a step or a note', () => {
+    expect(rejected({ titles: { en: 'Dish <img src=x onerror=alert(1)>', pl: 'Danie' } })).toBe('markup at chicken-rice-bowl.titles.en');
+    expect(rejected({ descriptions: { en: 'Fine.', pl: '<script>alert(1)</script>' } })).toBe('markup at chicken-rice-bowl.descriptions.pl');
+    expect(rejected({ steps: { en: ['<svg onload=alert(1)>', 'Serve.'], pl: ['Gotuj.', 'Podawaj.'] } })).toBe('markup at chicken-rice-bowl.steps.en[0]');
+    expect(rejected({ ingredients: [{ slug: 'chicken-breast', quantity: 300, unit: 'g', note: '<b>diced</b>' }] })).toBe('markup at chicken-rice-bowl.ingredients[0].note');
+  });
+
+  it('a hidden character that reorders or splits what is read', () => {
+    expect(rejected({ titles: { en: 'Chicken \u202ebowl', pl: 'Miska' } })).toBe('markup at chicken-rice-bowl.titles.en');
+    expect(rejected({ titles: { en: 'Chicken\u200b bowl', pl: 'Miska' } })).toBe('markup at chicken-rice-bowl.titles.en');
+  });
+
+  it('text longer than a recipe card holds', () => {
+    expect(rejected({ titles: { en: 'a'.repeat(121), pl: 'Miska' } })).toBe('text-too-long at chicken-rice-bowl.titles.en');
+    expect(rejected({ descriptions: { en: 'a'.repeat(601), pl: 'Opis.' } })).toBe('text-too-long at chicken-rice-bowl.descriptions.en');
+    expect(rejected({ steps: { en: ['a'.repeat(301)], pl: ['Krok.'] } })).toBe('text-too-long at chicken-rice-bowl.steps.en[0]');
+  });
+
+  it('more of one ingredient than a serving can hold', () => {
+    expect(rejected({ ingredients: [{ slug: 'white-rice', quantity: 10_000, unit: 'g' }, { slug: 'spinach', quantity: 100, unit: 'g' }, { slug: 'olive-oil', quantity: 10, unit: 'ml' }] })).toBe(
+      'quantity-too-large at chicken-rice-bowl.ingredients[0].quantity',
+    );
+  });
+
+  it('servings or times that are not those of a meal', () => {
+    expect(rejected({ servings: 0 })).toBe('servings-out-of-range at chicken-rice-bowl.servings');
+    expect(rejected({ servings: 500 })).toBe('servings-out-of-range at chicken-rice-bowl.servings');
+    expect(rejected({ cookMinutes: -5 })).toBe('time-out-of-range at chicken-rice-bowl.cookMinutes');
+  });
+
+  it('a meal the planner does not know, a difficulty or a unit there is none of', () => {
+    expect(rejected({ mealTypes: ['brunch'] })).toBe('invalid-meal-type at chicken-rice-bowl.mealTypes[0]');
+    expect(rejected({ difficulty: 'trivial' })).toBe('invalid-difficulty at chicken-rice-bowl.difficulty');
+    expect(rejected({ ingredients: [{ slug: 'white-rice', quantity: 1, unit: 'cup' }] })).toBe('invalid-unit at chicken-rice-bowl.ingredients[0].unit');
+  });
+
+  it('a slug that is not one', () => {
+    const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ slug: '../../etc/passwd' })]), resolveSlug });
+
+    expect(result).toMatchObject({ ok: false, reason: 'invalid-slug' });
+  });
+
+  it('keeps text as one plain line, and text for the languages of the run only', () => {
+    const result = validateRecipeBatch({
+      targetLocales: ['en'],
+      rawOutput: wrap([recipeShell({ titles: { en: ' Chicken\n rice  bowl ', pl: 'Miska', de: 'Schüssel' }, descriptions: { en: 'Lean\tchicken.', pl: 'Kurczak.' } })]),
+      resolveSlug,
+    });
+
+    if (!result.ok) throw new Error(`expected ok, got ${result.reason}`);
+    expect(result.candidates[0]!.titles).toEqual({ en: 'Chicken rice bowl' });
+    expect(result.candidates[0]!.descriptions).toEqual({ en: 'Lean chicken.' });
+    expect(Object.keys(result.candidates[0]!.steps)).toEqual(['en']);
   });
 });
 
