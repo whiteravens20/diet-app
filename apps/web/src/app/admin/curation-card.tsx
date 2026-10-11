@@ -37,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   adminApi,
+  saveJsonFile,
   type DraftLocaleReview,
   type DraftPastReview,
   type DraftRunnerState,
@@ -1676,7 +1677,7 @@ function ShipSuccess({
           {t('shipDismiss')}
         </button>
       </div>
-      <p>{t('shipBundleHint', { expiresAt: result.expiresAt })}</p>
+      <p>{t(result.kind === 'recipe' ? 'shipBundleHintRecipes' : 'shipBundleHintNames', { file: result.fileName })}</p>
       {result.skipped.length > 0 && (
         <div className="text-amber-600 dark:text-amber-400">
           <p>{t('shipBundleSkipped', { count: result.skipped.length })}</p>
@@ -1690,13 +1691,10 @@ function ShipSuccess({
         </div>
       )}
       <div className="flex flex-wrap gap-2">
-        <a
-          href={result.downloadUrl}
-          className="rounded bg-primary px-2 py-1 text-primary-foreground"
-          download
-        >
+        <Button size="sm" onClick={() => saveJsonFile(result.fileName, result.content)} className="gap-2">
+          <Download className="h-3.5 w-3.5" />
           {t('shipBundleDownload')}
-        </a>
+        </Button>
         <Button
           size="sm"
           variant="outline"

@@ -53,12 +53,19 @@ to be safe locally.
   Pointing it at `whiteravens20/diet-app` is reserved for the
   maintainer's clone.
 
-### `zip`
+### `bundle`
 
-- Bundles the approved rows into a one-shot signed download (10-min
-  TTL). Always available, no remote required, no env vars.
-- "Mark shipped" is a separate POST — downloading the zip does not flip
-  rows to `SHIPPED`, so an accidental click is recoverable.
+- Hands the approved rows to the administrator's panel as a file, which the
+  panel saves: for recipes a batch to put into `data/recipes/` under the name
+  it comes with, for ingredient names an `ingredient-overrides.json` to merge
+  into `data/ingredient-overrides.json`. Always available, no remote
+  required, no env vars. Nothing is kept on the server and there is no
+  download link: the file is given to whoever asks with the administrator's
+  credentials.
+- An approved draft that breaks a rule for recipe text or quantities is left
+  out and named with the reason; edit it in the queue and make the bundle again.
+- "Mark shipped" is a separate step: making or saving a bundle does not flip
+  rows to `SHIPPED`, so a download taken by mistake changes nothing.
 
 ## Scenarios
 

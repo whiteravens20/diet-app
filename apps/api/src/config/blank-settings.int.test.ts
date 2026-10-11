@@ -17,7 +17,6 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
  */
 const BLANK = [
   'REVIEWER_SESSION_SECRET',
-  'SHIP_DOWNLOAD_TOKEN_SECRET',
   'TURNSTILE_SITE_KEY',
   'TURNSTILE_SECRET_KEY',
   'SUPPORT_URL',

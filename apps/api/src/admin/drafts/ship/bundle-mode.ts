@@ -1,32 +1,24 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Bundle (download) ship mode — universal fallback when neither local nor
- * upstream-pr fits the operator's workflow.
+ * Bundle ship mode: the approved drafts as a file, for an operator who commits
+ * it to a repository by hand. Always available: it needs no remote and no
+ * setting.
  *
- * The runner serialises the approved drafts into a single JSON envelope
- * matching the on-disk shapes used by `data/recipes/<batchId>.json` and
- * `data/ingredient-overrides.json`, stashes it in memory behind an
- * HMAC-signed one-shot token (10-minute TTL), and returns a download URL.
+ * The answer carries the file itself, in the shape the data directory takes:
+ * for recipes the batch that goes into `data/recipes/` under the name given,
+ * for the names of ingredients the entries to merge into
+ * `data/ingredient-overrides.json`. The administrator's panel asks with the
+ * administrator's credentials and saves what it gets; nothing is kept on the
+ * server, and there is no link that works without credentials.
  *
- * Token format: `<expiresAtMs>.<hex(payloadId)>.<hex(hmacSha256)>` — the
- * payload is held in a Map keyed by `payloadId`. The Map is the source of
- * truth, the signature is the unforgeability guarantee, and TTL is enforced
- * both by the signature claim and by a cleanup pass.
- *
- * Stash is process-local (in-memory) — fine for a single-replica self-hosted
- * instance; multi-replica deployments would back this with Redis. The plan
- * doesn't ask for multi-replica support and the rest of the curation queue
- * (runners with in-memory single-flight state) makes the same assumption.
- *
- * Download is not "mark shipped" — the operator must explicitly POST the
- * mark-shipped action separately. The plan calls for this because download
- * != commitment.
+ * Making a bundle ships nothing. The operator marks the drafts as shipped in
+ * a step of its own, once the file is committed, so that a download taken by
+ * mistake changes nothing.
  */
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import type { IngredientOverrideFile } from './ingredient-overrides.writer.js';
-import { type ShippedRecipe } from './recipe-batches.writer.js';
+import type { ShippedRecipe } from './recipe-batches.writer.js';
 import { shippableIngredientName, shippableRecipe, sortForShipping } from './shippable.js';
 
 export interface BundleShipRequest {
@@ -34,190 +26,76 @@ export interface BundleShipRequest {
   batchIds?: string[];
 }
 
-export interface BundlePayload {
+export interface BundleShipResult {
   kind: 'recipe' | 'ingredient-name';
   batchId: string;
-  generatedAt: string;
-  draftIds: string[];
-  recipes?: ShippedRecipe[];
-  ingredientOverrides?: IngredientOverrideFile;
-}
-
-export interface BundleStashEntry {
-  payload: BundlePayload;
-  expiresAtMs: number;
-}
-
-export interface BundleShipResult {
-  downloadUrl: string;
-  token: string;
-  expiresAt: string;
   /** The drafts the bundle holds. */
   draftIds: string[];
   /** Approved drafts left out because they do not pass the rules of every recipe, with the reason. */
   skipped: { draftId: string; reason: string }[];
+  /** The name to save the file under. */
+  fileName: string;
+  /** What the file holds. */
+  content: ShippedRecipe[] | IngredientOverrideFile;
 }
 
-const TTL_MS = 10 * 60 * 1000;
+const approved = (request: BundleShipRequest) => ({
+  status: 'APPROVED' as const,
+  ...(request.batchIds && request.batchIds.length > 0 ? { batchId: { in: request.batchIds } } : {}),
+});
 
-const stash = new Map<string, BundleStashEntry>();
+const newBatchId = (): string => `bundle-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 
-/** Read a payload by token. Verifies signature + expiry. Returns null when
- *  the token is invalid, expired, or the payload was already consumed. */
-export function consumeBundleToken(token: string, secret: string): BundlePayload | null {
-  const parsed = parseToken(token, secret);
-  if (!parsed) return null;
-  const entry = stash.get(parsed.payloadId);
-  if (!entry) return null;
-  if (entry.expiresAtMs < Date.now()) {
-    stash.delete(parsed.payloadId);
-    return null;
-  }
-  stash.delete(parsed.payloadId);
-  return entry.payload;
-}
-
-export async function shipRecipesBundle(
-  prisma: PrismaService,
-  request: BundleShipRequest & { kind: 'recipe' },
-  secret: string,
-  appUrl: string,
-): Promise<BundleShipResult> {
-  const where = {
-    status: 'APPROVED' as const,
-    ...(request.batchIds && request.batchIds.length > 0
-      ? { batchId: { in: request.batchIds } }
-      : {}),
-  };
-  const drafts = await prisma.recipeDraft.findMany({ where, orderBy: { createdAt: 'asc' } });
-  if (drafts.length === 0) {
-    throw new Error('NO_APPROVED_DRAFTS');
-  }
+export async function shipRecipesBundle(prisma: PrismaService, request: BundleShipRequest & { kind: 'recipe' }): Promise<BundleShipResult> {
+  const drafts = await prisma.recipeDraft.findMany({ where: approved(request), orderBy: { createdAt: 'asc' } });
+  if (drafts.length === 0) throw new Error('NO_APPROVED_DRAFTS');
   const { shipping, skipped } = sortForShipping(drafts, shippableRecipe);
-  if (shipping.length === 0) {
-    throw new Error('NO_VALID_DRAFTS');
-  }
+  if (shipping.length === 0) throw new Error('NO_VALID_DRAFTS');
 
-  const batchId = `bundle-${new Date().toISOString().replace(/[:.]/g, '-')}`;
-  const payload: BundlePayload = {
+  const batchId = newBatchId();
+  return {
     kind: 'recipe',
     batchId,
-    generatedAt: new Date().toISOString(),
     draftIds: shipping.map((entry) => entry.draft.id),
-    recipes: shipping.map((entry) => entry.content),
+    skipped,
+    fileName: `${batchId}.json`,
+    content: shipping.map((entry) => entry.content),
   };
-  return { ...stashAndUrl(payload, secret, appUrl), skipped };
 }
 
 export async function shipIngredientNamesBundle(
   prisma: PrismaService,
   request: BundleShipRequest & { kind: 'ingredient-name' },
-  secret: string,
-  appUrl: string,
 ): Promise<BundleShipResult> {
-  const where = {
-    status: 'APPROVED' as const,
-    ...(request.batchIds && request.batchIds.length > 0
-      ? { batchId: { in: request.batchIds } }
-      : {}),
-  };
-  const drafts = await prisma.ingredientNameDraft.findMany({
-    where,
-    orderBy: { createdAt: 'asc' },
-  });
-  if (drafts.length === 0) {
-    throw new Error('NO_APPROVED_DRAFTS');
-  }
+  const drafts = await prisma.ingredientNameDraft.findMany({ where: approved(request), orderBy: { createdAt: 'asc' } });
+  if (drafts.length === 0) throw new Error('NO_APPROVED_DRAFTS');
   const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName);
-  if (shipping.length === 0) {
-    throw new Error('NO_VALID_DRAFTS');
-  }
-  const overrides: IngredientOverrideFile = {};
-  for (const entry of shipping) overrides[entry.draft.ingredientSlug] = entry.content;
-  const batchId = `bundle-${new Date().toISOString().replace(/[:.]/g, '-')}`;
-  const payload: BundlePayload = {
+  if (shipping.length === 0) throw new Error('NO_VALID_DRAFTS');
+
+  const content: IngredientOverrideFile = {};
+  for (const entry of shipping) content[entry.draft.ingredientSlug] = entry.content;
+  return {
     kind: 'ingredient-name',
-    batchId,
-    generatedAt: new Date().toISOString(),
+    batchId: newBatchId(),
     draftIds: shipping.map((entry) => entry.draft.id),
-    ingredientOverrides: overrides,
+    skipped,
+    fileName: 'ingredient-overrides.json',
+    content,
   };
-  return { ...stashAndUrl(payload, secret, appUrl), skipped };
 }
 
-/** Flips the draft rows to SHIPPED after the operator confirms they've
- *  committed the downloaded bundle. Called from a separate endpoint so
- *  download != commitment, per plan §E. */
+/**
+ * Mark drafts as shipped once the operator has committed the bundle they
+ * were in. Only approved drafts change.
+ */
 export async function markBundleShipped(
   prisma: PrismaService,
   kind: 'recipe' | 'ingredient-name',
   draftIds: string[],
 ): Promise<{ updated: number }> {
   if (draftIds.length === 0) return { updated: 0 };
-  if (kind === 'recipe') {
-    const r = await prisma.recipeDraft.updateMany({
-      where: { id: { in: draftIds }, status: 'APPROVED' },
-      data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: null },
-    });
-    return { updated: r.count };
-  }
-  const r = await prisma.ingredientNameDraft.updateMany({
-    where: { id: { in: draftIds }, status: 'APPROVED' },
-    data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: null },
-  });
-  return { updated: r.count };
-}
-
-function stashAndUrl(
-  payload: BundlePayload,
-  secret: string,
-  appUrl: string,
-): Omit<BundleShipResult, 'skipped'> {
-  pruneExpired();
-  const payloadId = randomBytes(16).toString('hex');
-  const expiresAtMs = Date.now() + TTL_MS;
-  stash.set(payloadId, { payload, expiresAtMs });
-  const token = mintToken(payloadId, expiresAtMs, secret);
-  return {
-    downloadUrl: `${appUrl.replace(/\/$/, '')}/api/admin/drafts/ship/download/${token}`,
-    token,
-    expiresAt: new Date(expiresAtMs).toISOString(),
-    draftIds: payload.draftIds,
-  };
-}
-
-function mintToken(payloadId: string, expiresAtMs: number, secret: string): string {
-  const body = `${expiresAtMs}.${payloadId}`;
-  const sig = createHmac('sha256', secret).update(body).digest('hex');
-  return `${body}.${sig}`;
-}
-
-function parseToken(
-  token: string,
-  secret: string,
-): { payloadId: string; expiresAtMs: number } | null {
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [expStr, payloadId, sigHex] = parts;
-  const expiresAtMs = Number(expStr);
-  if (!Number.isInteger(expiresAtMs) || expiresAtMs <= 0) return null;
-  if (!/^[0-9a-f]+$/i.test(payloadId)) return null;
-  const expected = createHmac('sha256', secret).update(`${expStr}.${payloadId}`).digest('hex');
-  const a = Buffer.from(expected, 'hex');
-  const b = Buffer.from(sigHex, 'hex');
-  if (a.length !== b.length) return null;
-  if (!timingSafeEqual(a, b)) return null;
-  return { payloadId, expiresAtMs };
-}
-
-function pruneExpired(): void {
-  const now = Date.now();
-  for (const [id, entry] of stash) {
-    if (entry.expiresAtMs < now) stash.delete(id);
-  }
-}
-
-/** Test seam — clear the stash between tests. */
-export function __clearBundleStashForTests(): void {
-  stash.clear();
+  const where = { id: { in: draftIds }, status: 'APPROVED' as const };
+  const data = { status: 'SHIPPED' as const, shippedAt: new Date(), shippedPRUrl: null };
+  const result = kind === 'recipe' ? await prisma.recipeDraft.updateMany({ where, data }) : await prisma.ingredientNameDraft.updateMany({ where, data });
+  return { updated: result.count };
 }

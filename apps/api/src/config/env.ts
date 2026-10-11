@@ -134,9 +134,6 @@ export const envSchema = z.object({
   SHIP_UPSTREAM_GH_TOKEN: z.string().optional(),
   SHIP_UPSTREAM_GIT_AUTHOR_NAME: z.string().optional(),
   SHIP_UPSTREAM_GIT_AUTHOR_EMAIL: z.string().optional(),
-  // Signs the bundle-download one-shot tokens. When unset, a key derived from
-  // DATA_ENCRYPTION_SECRET is used.
-  SHIP_DOWNLOAD_TOKEN_SECRET: z.string().optional(),
 
   // "Pull ingredient overrides from a repo" — the reverse of the local ship.
   // The admin panel fetches a repo's `data/ingredient-overrides.json` and
@@ -204,7 +201,6 @@ function secretProblems(env: z.infer<typeof envSchema>): string[] {
   };
   check('JWT_ACCESS_SECRET', env.JWT_ACCESS_SECRET, 32);
   check('REVIEWER_SESSION_SECRET', env.REVIEWER_SESSION_SECRET, 32);
-  check('SHIP_DOWNLOAD_TOKEN_SECRET', env.SHIP_DOWNLOAD_TOKEN_SECRET, 32);
   check('AI_KEY_ENCRYPTION_SECRET', env.AI_KEY_ENCRYPTION_SECRET, 64);
   check('DATA_ENCRYPTION_SECRET', env.DATA_ENCRYPTION_SECRET, 64);
   if (env.AI_KEY_ENCRYPTION_SECRET === env.DATA_ENCRYPTION_SECRET) {

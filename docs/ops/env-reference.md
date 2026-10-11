@@ -11,7 +11,7 @@ Two rules apply to every variable:
   empty string.
 - **Secrets must be secret.** The API refuses to start when `JWT_ACCESS_SECRET`,
   `AI_KEY_ENCRYPTION_SECRET`, `DATA_ENCRYPTION_SECRET` (and the optional
-  `REVIEWER_SESSION_SECRET`, `SHIP_DOWNLOAD_TOKEN_SECRET`) are a template placeholder,
+  `REVIEWER_SESSION_SECRET`) are a template placeholder,
   too short, or made of a few repeated characters, or when two purposes share one value.
 
 ## Core
@@ -73,7 +73,6 @@ See [curation-shipping.md](curation-shipping.md) for the three ship modes.
 | `SHIP_UPSTREAM_REMOTE` / `SHIP_UPSTREAM_BASE_BRANCH` | `origin` / `main` | The git remote and branch a ship opens its pull request against. |
 | `SHIP_UPSTREAM_GH_TOKEN` | — | Token the `gh` CLI uses to push and open the pull request. |
 | `SHIP_UPSTREAM_GIT_AUTHOR_NAME` / `SHIP_UPSTREAM_GIT_AUTHOR_EMAIL` | — | Author of the commits a ship creates. |
-| `SHIP_DOWNLOAD_TOKEN_SECRET` | derived from `DATA_ENCRYPTION_SECRET` | Signs the one-shot link of a bundle download. |
 | `OVERRIDES_PULL_SOURCE` | `whiteravens20/diet-app` | Default repository (`owner/repo[@branch]`) or raw URL the admin panel pulls ingredient name overrides from. |
 | `OVERRIDES_PULL_TOKEN` | `SHIP_UPSTREAM_GH_TOKEN` | Token for pulling from a private GitHub repository. Sent to GitHub hosts only. |
 

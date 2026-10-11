@@ -528,7 +528,7 @@ export interface ShipConfigDto {
       baseBranch: string;
       remote: string;
     };
-    bundle: { available: true; ttlSeconds: number };
+    bundle: { available: true };
   };
   pull: { available: true; defaultSource: string; tokenSet: boolean };
   approvedCounts: { recipe: number; ingredientName: number };
@@ -578,10 +578,24 @@ export type ShipResponse =
     }
   | {
       mode: 'bundle';
-      downloadUrl: string;
-      token: string;
-      expiresAt: string;
+      kind: ShipKind;
+      batchId: string;
       draftIds: string[];
       /** Approved drafts the bundle leaves out because they break a rule, with the reason. */
       skipped: { draftId: string; reason: string }[];
+      /** The name to save the file under, and what it holds: the shape the data directory takes. */
+      fileName: string;
+      content: unknown;
     };
+
+/** Save `content` as a JSON file under `name`. It is made in the page: no server is asked for it. */
+export function saveJsonFile(name: string, content: unknown): void {
+  const url = URL.createObjectURL(new Blob([`${JSON.stringify(content, null, 2)}\n`], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

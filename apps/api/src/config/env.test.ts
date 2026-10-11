@@ -37,8 +37,7 @@ describe('validateEnv', () => {
   it('reads a blank optional key as not set', () => {
     const env = validateEnv(
       valid({
-        REVIEWER_SESSION_SECRET: '',
-        SHIP_DOWNLOAD_TOKEN_SECRET: '   ',
+        REVIEWER_SESSION_SECRET: '   ',
         OVERRIDES_PULL_TOKEN: '',
         FDC_API_KEY: '',
         OLLAMA_BASE_URL: '',
@@ -47,7 +46,6 @@ describe('validateEnv', () => {
       }),
     );
     expect(env.REVIEWER_SESSION_SECRET).toBeUndefined();
-    expect(env.SHIP_DOWNLOAD_TOKEN_SECRET).toBeUndefined();
     expect(env.OVERRIDES_PULL_TOKEN).toBeUndefined();
     expect(env.SMTP_HOST).toBeUndefined();
     expect(env.FDC_API_KEY).toBe('DEMO_KEY');

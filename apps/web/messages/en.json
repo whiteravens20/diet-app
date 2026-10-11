@@ -545,8 +545,9 @@
       "shipSidecarPath": "Sidecar backup: {path}",
       "shipSidecarWarning": "Shipped to the database, but the sidecar backup file couldn't be written ({error}). The drafts are live; fix the instance-data directory permissions if you want the portable copy.",
       "shipBundleReady": "Bundle ready with {count} draft(s).",
-      "shipBundleHint": "Token expires {expiresAt}. Download is separate from \"mark shipped\" so an accidental click is recoverable.",
-      "shipBundleDownload": "Download",
+      "shipBundleHintRecipes": "Save {file}, commit it into data/recipes/ of your repository, then mark the drafts as shipped. Saving alone changes nothing here.",
+      "shipBundleHintNames": "Save {file}, merge it into data/ingredient-overrides.json of your repository, then mark the drafts as shipped. Saving alone changes nothing here.",
+      "shipBundleDownload": "Save the file",
       "shipBundleMarkShipped": "I committed this — mark shipped",
       "shipBundleSkipped": "{count, plural, one {# approved draft was left out because it breaks a rule:} other {# approved drafts were left out because they break a rule:}}",
       "shipDismiss": "Dismiss"

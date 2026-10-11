@@ -545,8 +545,9 @@
       "shipSidecarPath": "Kopia zapasowa sidecar: {path}",
       "shipSidecarWarning": "Wysłano do bazy danych, ale nie udało się zapisać pliku kopii zapasowej sidecar ({error}). Szkice są już aktywne; popraw uprawnienia katalogu instance-data, jeśli chcesz mieć przenośną kopię.",
       "shipBundleReady": "Pakiet z {count} szkicem(-ami) gotowy.",
-      "shipBundleHint": "Token wygasa {expiresAt}. Pobranie jest oddzielone od „oznacz jako wysłane” — przypadkowe kliknięcie da się cofnąć.",
-      "shipBundleDownload": "Pobierz",
+      "shipBundleHintRecipes": "Zapisz {file}, dodaj go do data/recipes/ w swoim repozytorium, a potem oznacz szkice jako wysłane. Samo zapisanie niczego tu nie zmienia.",
+      "shipBundleHintNames": "Zapisz {file}, scal go z data/ingredient-overrides.json w swoim repozytorium, a potem oznacz szkice jako wysłane. Samo zapisanie niczego tu nie zmienia.",
+      "shipBundleDownload": "Zapisz plik",
       "shipBundleMarkShipped": "Zacommitowałem — oznacz jako wysłane",
       "shipBundleSkipped": "{count, plural, one {Pominięto # zatwierdzony szkic, bo łamie regułę:} few {Pominięto # zatwierdzone szkice, bo łamią regułę:} many {Pominięto # zatwierdzonych szkiców, bo łamią regułę:} other {Pominięto # zatwierdzonego szkicu, bo łamie regułę:}}",
       "shipDismiss": "Zamknij"

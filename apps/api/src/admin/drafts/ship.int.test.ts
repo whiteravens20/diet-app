@@ -74,6 +74,26 @@ describe('shipping approved drafts', () => {
   });
 
   describe('as a bundle', () => {
+    it('is the file itself, in the shape the data directory takes, given to whoever asked with the administrator\'s credentials', async () => {
+      const sound = await aRecipeDraft(t, { status: 'APPROVED' });
+
+      const res = await ship('recipe', 'bundle').expect(201);
+
+      expect(res.body).toMatchObject({ mode: 'bundle', kind: 'recipe', draftIds: [sound.id], skipped: [] });
+      expect(res.body.fileName).toMatch(/^bundle-[0-9TZ-]+\.json$/);
+      // What `data/recipes/<name>` holds: the recipes, and nothing about the queue.
+      expect(res.body.content).toEqual([
+        expect.objectContaining({ slug: sound.slug, title: { en: 'Oat bowl', pl: 'Owsianka' }, servings: 1, ingredients: expect.any(Array) }),
+      ]);
+      expect(Object.keys(res.body.content[0]).sort()).toEqual(['cookMinutes', 'description', 'difficulty', 'ingredients', 'mealTypes', 'prepMinutes', 'servings', 'slug', 'steps', 'title']);
+      // Making it ships nothing: that is a step of its own.
+      expect((await t.prisma.recipeDraft.findUniqueOrThrow({ where: { id: sound.id } })).status).toBe('APPROVED');
+      // The link with a one-time token is gone: there is nothing to fetch without credentials.
+      await t.http().get('/api/admin/drafts/ship/download/anything').set(asAdmin).expect(404);
+      expect(res.body).not.toHaveProperty('downloadUrl');
+      expect(res.body).not.toHaveProperty('token');
+    });
+
     it('leaves out what does not pass the rules, and says so', async () => {
       const sound = await aRecipeDraft(t, { status: 'APPROVED' });
       const old = await anOldDraft();
@@ -81,6 +101,7 @@ describe('shipping approved drafts', () => {
       const res = await ship('recipe', 'bundle').expect(201);
 
       expect(res.body.draftIds).toEqual([sound.id]);
+      expect(res.body.content).toHaveLength(1);
       expect(res.body.skipped).toEqual([{ draftId: old.id, reason: 'invalid-draft: titles.en: markup' }]);
     });
 
@@ -96,9 +117,10 @@ describe('shipping approved drafts', () => {
       await anIngredientNameDraft(t, { status: 'APPROVED', suggestions: { name: { pl: 'Filet z kurczaka', en: 'Chicken fillet' } } });
 
       const res = await ship('ingredient-name', 'bundle').expect(201);
-      const bundle = await t.http().get(`/api/admin/drafts/ship/download/${res.body.token}`).set(asAdmin).expect(200);
 
-      expect(JSON.parse(bundle.text).ingredientOverrides).toEqual({ 'chicken-breast': { name: { pl: 'Filet z kurczaka' } } });
+      // What is merged into `data/ingredient-overrides.json`.
+      expect(res.body.fileName).toBe('ingredient-overrides.json');
+      expect(res.body.content).toEqual({ 'chicken-breast': { name: { pl: 'Filet z kurczaka' } } });
     });
   });
 

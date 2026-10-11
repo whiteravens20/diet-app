@@ -48,7 +48,6 @@ import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Env } from '../../config/env.js';
-import { deriveKey } from '../../common/crypto.js';
 import { BasicAuthGuard } from '../basic-auth.guard.js';
 import { DraftService, invalid, type Actor, type Page } from './draft.service.js';
 import { toIngredientNameDraftDto, toRecipeDraftDto } from './drafts.mapper.js';
@@ -86,7 +85,6 @@ import {
   type PullOverridesResult,
 } from './ship/pull-overrides.js';
 import {
-  consumeBundleToken,
   markBundleShipped,
   shipIngredientNamesBundle,
   shipRecipesBundle,
@@ -141,7 +139,7 @@ interface ShipConfigDto {
       baseBranch: string;
       remote: string;
     };
-    bundle: { available: true; ttlSeconds: number };
+    bundle: { available: true };
   };
   pull: { available: true; defaultSource: string; tokenSet: boolean };
   approvedCounts: { recipe: number; ingredientName: number };
@@ -477,7 +475,7 @@ export class DraftsController {
           baseBranch: upstreamConfig.baseBranch,
           remote: upstreamConfig.remote,
         },
-        bundle: { available: true, ttlSeconds: 600 },
+        bundle: { available: true },
       },
       pull: {
         available: true,
@@ -551,14 +549,9 @@ export class DraftsController {
       }
     }
 
-    // bundle
-    const secret = this.bundleSecret();
-    const appUrl = this.config.get('APP_URL', { infer: true }) ?? '';
+    // bundle: the file itself comes back, to whoever asked with the administrator's credentials
     try {
-      const result =
-        kind === 'recipe'
-          ? await shipRecipesBundle(this.prisma, { kind, batchIds }, secret, appUrl)
-          : await shipIngredientNamesBundle(this.prisma, { kind, batchIds }, secret, appUrl);
+      const result = kind === 'recipe' ? await shipRecipesBundle(this.prisma, { kind, batchIds }) : await shipIngredientNamesBundle(this.prisma, { kind, batchIds });
       return { mode: 'bundle', ...result };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -567,28 +560,6 @@ export class DraftsController {
       }
       throw err;
     }
-  }
-
-  @Get('ship/download/:token')
-  async shipDownload(
-    @Param('token') token: string,
-    @Res() res: Response,
-  ): Promise<void> {
-    const secret = this.bundleSecret();
-    const payload = consumeBundleToken(token, secret);
-    if (!payload) {
-      res.status(410).json({
-        error: 'SHIP_BUNDLE_TOKEN_INVALID',
-        message: 'Bundle token expired, invalid, or already consumed.',
-      });
-      return;
-    }
-    const filename = `${payload.kind}-${payload.batchId}.json`;
-    res
-      .status(200)
-      .setHeader('Content-Type', 'application/json; charset=utf-8')
-      .setHeader('Content-Disposition', `attachment; filename="${filename}"`)
-      .send(JSON.stringify(payload, null, 2));
   }
 
   /** Download the full current ingredient-override set, rebuilt from the live
@@ -702,12 +673,6 @@ export class DraftsController {
   private resolveInstanceDataDir(): string {
     const raw = this.config.get('INSTANCE_DATA_DIR', { infer: true }) ?? 'instance-data';
     return resolvePath(process.cwd(), raw);
-  }
-
-  private bundleSecret(): string {
-    const explicit = this.config.get('SHIP_DOWNLOAD_TOKEN_SECRET', { infer: true });
-    if (explicit && explicit.length > 0) return explicit;
-    return deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'bundle-download');
   }
 
   /** The administrator reviews the languages reviewers review: the name of an ingredient has no English. */
