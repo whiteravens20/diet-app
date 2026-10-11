@@ -209,6 +209,7 @@
     "INVALID_CREDENTIALS": "Nieprawidłowy e-mail lub hasło.",
     "INVALID_ACCESS_TOKEN": "Sesja jest nieprawidłowa. Zaloguj się ponownie.",
     "INVALID_REFRESH": "Sesja wygasła. Zaloguj się ponownie.",
+    "SESSION_JUST_REFRESHED": "Sesja została przed chwilą odświeżona w innej karcie. Spróbuj ponownie.",
     "INVALID_RESET_TOKEN": "Ten link do resetu jest nieprawidłowy lub wygasł.",
     "TURNSTILE_FAILED": "Weryfikacja antynadużyciowa nie powiodła się.",
     "USER_NOT_FOUND": "Nie znaleziono konta.",

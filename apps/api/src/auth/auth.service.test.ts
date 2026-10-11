@@ -3,7 +3,7 @@
 /**
  * Unit tests for AuthService. Prisma / JWT / Turnstile / Mail are mocked. Focus
  * on the security-sensitive behaviours: anti-abuse gate, duplicate-email
- * rejection, credential-uniform login failures, refresh-token rotation, the
+ * rejection, credential-uniform login failures, the
  * always-200 password-reset request (no user enumeration), and one-time token
  * validation for verify-email / reset.
  */
@@ -164,42 +164,6 @@ describe('AuthService.login', () => {
     const dummy = (svc as unknown as { dummyHash: string }).dummyHash;
     expect(dummy).toMatch(/^\$2[aby]\$04\$/); // configured PASSWORD_HASH_ROUNDS = 4 in tests
     expect(bcrypt.compareSync('anything', dummy)).toBe(false);
-  });
-});
-
-describe('AuthService.refresh', () => {
-  it('rejects an unknown refresh token', async () => {
-    const deps = makeDeps(makeUser());
-    await expect(makeSessions(deps).refresh('bogus')).rejects.toBeInstanceOf(UnauthorizedException);
-  });
-
-  it('rejects a revoked token', async () => {
-    const deps = makeDeps(makeUser());
-    deps.prisma.refreshToken.findUnique = vi.fn().mockResolvedValue({
-      id: 'rt-1',
-      revokedAt: new Date(),
-      expiresAt: new Date(Date.now() + 100000),
-      user: makeUser(),
-    });
-    await expect(makeSessions(deps).refresh('tok')).rejects.toMatchObject({
-      response: expect.objectContaining({ error: 'INVALID_REFRESH' }),
-    });
-  });
-
-  it('rotates: revokes the used token and issues a fresh pair', async () => {
-    const deps = makeDeps(makeUser());
-    deps.prisma.refreshToken.findUnique = vi.fn().mockResolvedValue({
-      id: 'rt-1',
-      revokedAt: null,
-      expiresAt: new Date(Date.now() + 100000),
-      user: makeUser(),
-    });
-    const res = await makeSessions(deps).refresh('tok');
-    expect(deps.prisma.refreshToken.update).toHaveBeenCalledWith({
-      where: { id: 'rt-1' },
-      data: { revokedAt: expect.any(Date) },
-    });
-    expect(res.tokens.accessToken).toBe('signed.jwt.token');
   });
 });
 

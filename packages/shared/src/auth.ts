@@ -89,5 +89,7 @@ export type AuthUser = z.infer<typeof AuthUser>;
 export const AuthResponse = z.object({
   user: AuthUser,
   tokens: AuthTokens,
+  /** The session these tokens belong to: the same from sign-in to sign-out, through every refresh. */
+  sessionId: z.string().uuid(),
 });
 export type AuthResponse = z.infer<typeof AuthResponse>;

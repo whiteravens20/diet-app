@@ -39,6 +39,9 @@ export const envSchema = z.object({
   // refresh token between an hour and a year.
   JWT_ACCESS_TTL: z.coerce.number().int().min(60).max(86_400).default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().min(3_600).max(31_536_000).default(2_592_000),
+  // The longest a session lasts, however often it is used: after it the
+  // account signs in again. Ninety days.
+  JWT_SESSION_TTL: z.coerce.number().int().min(3_600).max(63_072_000).default(7_776_000),
   PASSWORD_HASH_ROUNDS: z.coerce.number().int().min(8).max(15).default(12),
 
   // 64 hex chars = 32 bytes for AES-256-GCM.

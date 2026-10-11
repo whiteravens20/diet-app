@@ -30,7 +30,8 @@ Two rules apply to every variable:
 
 ## Auth
 | `JWT_ACCESS_SECRET` | — | Signs user access tokens. 32+ random characters (`openssl rand -hex 32`); the API refuses to start on a blank, short or template value. |
-| `JWT_ACCESS_TTL` / `JWT_REFRESH_TTL` | `900` / `2592000` | Token lifetimes (seconds). |
+| `JWT_ACCESS_TTL` / `JWT_REFRESH_TTL` | `900` / `2592000` | Token lifetimes (seconds). A session that is not used for `JWT_REFRESH_TTL` ends. |
+| `JWT_SESSION_TTL` | `7776000` | The longest a session lasts, however often it is used (seconds; 90 days). After it the account signs in again. |
 | `PASSWORD_HASH_ROUNDS` | `12` | bcrypt cost factor (8–15). |
 | `DATA_ENCRYPTION_SECRET` | — | **64 hex chars.** Master secret: encrypts stored e-mail addresses and peppers password hashes. Changing it makes existing accounts unreadable: set it once and back it up with the database. |
 | `REVIEWER_SESSION_SECRET` | derived from `DATA_ENCRYPTION_SECRET` | Signs the translation-reviewer cookie. Set a value of its own to rotate reviewer sessions separately. |

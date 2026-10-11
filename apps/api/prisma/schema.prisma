@@ -57,16 +57,28 @@ model User {
   recipes            Recipe[]
 }
 
+// One refresh token of a session. A session is the chain of tokens that
+// follow one another from a sign-in: they share `familyId`, which is the id
+// of the session. A token is used once (`rotatedAt`) and the next takes its
+// place; the used ones stay for as long as the session does, so that a token
+// presented a second time is known for what it is and ends the session.
 model RefreshToken {
-  id        String    @id @default(uuid())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  id              String    @id @default(uuid())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  tokenHash       String    @unique
+  familyId        String
+  // When the session ends, however often it is used.
+  familyExpiresAt DateTime
+  // What the session was opened from, as far as the request said.
+  label           String?
+  expiresAt       DateTime
+  rotatedAt       DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
 
   @@index([userId])
+  @@index([familyId])
 }
 
 model PasswordResetToken {
