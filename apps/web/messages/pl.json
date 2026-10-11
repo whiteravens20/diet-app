@@ -840,7 +840,7 @@
     "offerLine": "Zamiast tego: <strong>{title}</strong>, {servings, plural, one {# porcja} few {# porcje} many {# porcji} other {# porcji}}: {after} kcal zamiast {before}.",
     "offerMacros": "Białko {protein} g · tłuszcz {fat} g · węglowodany {carbs} g",
     "offerDay": "Dzień miałby {kcal} z {target} kcal, zanim pozostałe posiłki zostaną do niego dopasowane.",
-    "offerTake": "Zamień",
+    "offerTake": "Zamień na ten przepis",
     "offerAnother": "Inna propozycja",
     "swapFavIngr": "Zamień ★ skł.",
     "swapToFav": "Zamiana z",
