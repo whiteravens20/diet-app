@@ -6,7 +6,10 @@ import { NestFactory } from '@nestjs/core';
 import { AiKeyService } from './ai/ai-key.service.js';
 import { AppModule } from './app.module.js';
 import { AddressResealService } from './auth/address-reseal.service.js';
+import { pruneLinks } from './auth/one-time-links.js';
+import { SessionsService } from './auth/sessions.service.js';
 import { WeightReminderService } from './notifications/weight-reminder.service.js';
+import { PrismaService } from './prisma/prisma.service.js';
 import { PersonalRecipesService } from './recipes/personal-recipes.service.js';
 
 /**
@@ -23,6 +26,8 @@ async function bootstrap(): Promise<void> {
   const personalRecipes = app.get(PersonalRecipesService);
   const addresses = app.get(AddressResealService);
   const providerKeys = app.get(AiKeyService);
+  const sessions = app.get(SessionsService);
+  const prisma = app.get(PrismaService);
   const logger = new Logger('Worker');
 
   // Hourly granularity is enough for both. The reminder scan debounces
@@ -36,6 +41,14 @@ async function bootstrap(): Promise<void> {
       async () => {
         const removed = await personalRecipes.collectDeleted();
         if (removed > 0) logger.log(`Removed ${removed} deleted personal recipe(s) that nothing uses any more.`);
+      },
+    ],
+    [
+      'removal of ended sessions and of links that can no longer be followed',
+      async () => {
+        const tokens = await sessions.prune();
+        const links = await pruneLinks(prisma);
+        if (tokens + links > 0) logger.log(`Removed ${tokens} token(s) of ended sessions and ${links} used or expired link(s).`);
       },
     ],
     // What was encrypted before a value was sealed for its account. Each run

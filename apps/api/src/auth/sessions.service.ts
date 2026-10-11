@@ -150,6 +150,23 @@ export class SessionsService {
     await this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
   }
 
+  /**
+   * Remove the tokens of sessions that have ended: signed out of, run out, or
+   * not used for the refresh lifetime. The used tokens of a session that is
+   * open stay, so that one presented a second time is still found out.
+   * Returns how many were removed.
+   */
+  async prune(): Promise<number> {
+    return this.prisma.$executeRaw`
+      DELETE FROM "RefreshToken" token
+      WHERE NOT EXISTS (
+        SELECT 1 FROM "RefreshToken" usable
+        WHERE usable."familyId" = token."familyId"
+          AND usable."rotatedAt" IS NULL AND usable."revokedAt" IS NULL
+          AND usable."expiresAt" > NOW() AND usable."familyExpiresAt" > NOW()
+      )`;
+  }
+
   private async endFamily(familyId: string): Promise<void> {
     await this.prisma.refreshToken.updateMany({ where: { familyId, revokedAt: null }, data: { revokedAt: new Date() } });
   }

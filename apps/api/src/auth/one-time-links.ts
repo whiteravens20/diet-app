@@ -18,3 +18,20 @@ export async function retirePendingLinks(tx: Prisma.TransactionClient, userId: s
   await tx.emailChangeToken.updateMany(pending);
   if (addressToo) await tx.emailVerificationToken.updateMany(pending);
 }
+
+/**
+ * Remove the links that can no longer be followed: used, or run out a day
+ * ago. They answer the same as a link that never was, so nothing is lost
+ * with them, and without this the three tables only ever grow. Returns how
+ * many were removed.
+ */
+export async function pruneLinks(db: Pick<Prisma.TransactionClient, 'passwordResetToken' | 'emailVerificationToken' | 'emailChangeToken'>): Promise<number> {
+  const gone = { OR: [{ usedAt: { not: null } }, { expiresAt: { lt: new Date(Date.now() - 86_400_000) } }] };
+  const removed = await Promise.all([
+    db.passwordResetToken.deleteMany({ where: gone }),
+    db.emailVerificationToken.deleteMany({ where: gone }),
+    db.emailChangeToken.deleteMany({ where: gone }),
+  ]);
+  return removed.reduce((sum, { count }) => sum + count, 0);
+}
+
