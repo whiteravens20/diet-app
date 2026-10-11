@@ -39,6 +39,18 @@ describe('putting another recipe in the place of a planned meal', () => {
   const take = (preview: MealSwapPreview, over: Record<string, unknown> = {}) =>
     t.http().post('/api/meal-plans/swap-meal').set(as(user)).send({ ...asked(), recipeId: preview.recipe.id, revision: preview.revision, ...over });
   const recipeId = async (slug: string): Promise<string> => (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).id;
+  /** The lunches the catalogue has besides the one on the plate and the recipes of the day's other meals. */
+  const otherLunches = async (): Promise<string[]> => {
+    const onTheDay = (await now()).days[0]!.meals.map((meal) => meal.recipe!.id);
+    return (await t.prisma.recipe.findMany({ where: { mealTypes: { has: 'lunch' }, id: { notIn: onTheDay } }, orderBy: { id: 'asc' } })).map((recipe) => recipe.id);
+  };
+  /** Make the day's dinner a recipe that would do for its lunch as well, and is not its lunch. */
+  const aLunchForDinner = async (): Promise<string> => {
+    const both = await t.prisma.recipe.findFirstOrThrow({ where: { mealTypes: { hasEvery: ['lunch', 'dinner'] }, id: { not: lunch.recipe!.id } }, orderBy: { slug: 'asc' } });
+    const dinner = plan.days[0]!.meals.find((meal) => meal.mealType === 'dinner')!;
+    await t.prisma.plannedMeal.update({ where: { id: dinner.id }, data: { recipeId: both.id } });
+    return both.id;
+  };
 
   describe('the offer', () => {
     it('names a recipe and says what the swap would do to the meal and to the day', async () => {
@@ -64,23 +76,47 @@ describe('putting another recipe in the place of a planned meal', () => {
     });
 
     it('is a recipe of which a serving holds about as much as the meal does', async () => {
-      // Every recipe the catalogue has for lunch is offered in turn.
+      // Every other lunch of the catalogue is offered in turn.
+      const others = await otherLunches();
       const seen: string[] = [];
-      for (let round = 0; round < 6; round += 1) {
+      for (let round = 0; round < others.length; round += 1) {
         const preview: MealSwapPreview = (await offer({ skip: seen }).expect(201)).body;
         expect(Math.abs(preview.after.calories - preview.before.calories), preview.recipe.title).toBeLessThanOrEqual(preview.before.calories * 0.15 + 1);
         seen.push(preview.recipe.id);
       }
-      // Six lunches besides the one on the plate, and each was offered once.
-      expect(new Set(seen).size).toBe(6);
+      expect(others.length).toBeGreaterThanOrEqual(5);
+      expect([...seen].sort()).toEqual(others);
     });
 
     it('goes round again once every recipe was offered', async () => {
-      const all = (await t.prisma.recipe.findMany({ where: { mealTypes: { has: 'lunch' }, id: { not: lunch.recipe!.id } } })).map((recipe) => recipe.id);
+      const all = await otherLunches();
 
       const preview: MealSwapPreview = (await offer({ skip: all }).expect(201)).body;
 
       expect(all).toContain(preview.recipe.id);
+    });
+
+    it('is never a recipe another meal of the day holds', async () => {
+      const dinner = await aLunchForDinner();
+
+      const seen: string[] = [];
+      for (let round = 0; round < 7; round += 1) seen.push(((await offer({ skip: seen }).expect(201)).body as MealSwapPreview).recipe.id);
+
+      expect(seen).not.toContain(dinner);
+    });
+
+    it.each([
+      ['is for cooking ahead', { mealPrepFriendly: true }],
+      ['was let have a recipe twice a day', { allowRelaxations: ['same_day'] }],
+    ])('may be one where the plan %s', async (_, option) => {
+      const kept = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      await t.prisma.mealPlan.update({ where: { id: plan.id }, data: { options: { ...(kept.options as object), ...option } } });
+      const dinner = await aLunchForDinner();
+
+      const seen: string[] = [];
+      for (let round = 0; round < 7; round += 1) seen.push(((await offer({ skip: seen }).expect(201)).body as MealSwapPreview).recipe.id);
+
+      expect(seen).toContain(dinner);
     });
 
     it('is refused where no recipe holds about as much, and a favourite picked by hand is offered all the same', async () => {
@@ -157,6 +193,19 @@ describe('putting another recipe in the place of a planned meal', () => {
         .send({ ...asked({ strategy: 'favorite' }), recipeId: await recipeId('egg-fried-rice'), revision: fresh.revision })
         .expect(201);
     });
+
+    it('refuses a recipe that was not offered because another meal of the day holds it, unless it was picked by hand', async () => {
+      const dinner = await aLunchForDinner();
+      const send = (strategy: string) => t.http().post('/api/meal-plans/swap-meal').set(as(user)).send({ ...asked({ strategy }), recipeId: dinner, revision: plan.revision });
+
+      const refused = await send('random');
+      expect(refused.status).toBe(400);
+      expect(refused.body.error).toBe('RECIPE_NOT_ELIGIBLE');
+
+      const taken = await send('favorite');
+      expect(taken.status).toBe(201);
+      expect((taken.body.plan as MealPlan).days[0]!.meals.filter((meal) => meal.recipe!.id === dinner)).toHaveLength(2);
+    });
   });
 
   describe('with a model asked', () => {
@@ -165,30 +214,32 @@ describe('putting another recipe in the place of a planned meal', () => {
     });
 
     it('offers the recipe the model named, says who picked, and writes nothing', async () => {
-      const others = await t.prisma.recipe.findMany({ where: { mealTypes: { has: 'lunch' }, id: { not: lunch.recipe!.id } }, orderBy: { id: 'asc' } });
-      t.model.reply({ text: JSON.stringify({ recipeId: others[2]!.id, reason: 'Lighter.' }) });
+      const named = (await otherLunches())[2]!;
+      t.model.reply({ text: JSON.stringify({ recipeId: named, reason: 'Lighter.' }) });
 
       const preview = (await t.http().post('/api/meal-plans/ai-swap-meal/preview').set(as(user)).send({ planId: plan.id, plannedMealId: lunch.id }).expect(201)).body;
 
-      expect(preview.recipe.id).toBe(others[2]!.id);
+      expect(preview.recipe.id).toBe(named);
       expect(preview.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: 'Lighter.' });
       expect(preview.revision).toBe(plan.revision);
       expect((await now()).revision).toBe(plan.revision);
 
       await take(preview).expect(201);
-      expect((await now()).days[0]!.meals.find((meal) => meal.id === lunch.id)!.recipe!.id).toBe(others[2]!.id);
+      expect((await now()).days[0]!.meals.find((meal) => meal.id === lunch.id)!.recipe!.id).toBe(named);
     });
 
-    it('is not shown the recipes this sitting has offered already', async () => {
-      const others = await t.prisma.recipe.findMany({ where: { mealTypes: { has: 'lunch' }, id: { not: lunch.recipe!.id } }, orderBy: { id: 'asc' } });
-      const seen = others.slice(0, 4).map((recipe) => recipe.id);
+    it('is not shown the recipes this sitting has offered already, nor one another meal of the day holds', async () => {
+      const dinner = await aLunchForDinner();
+      const others = await otherLunches();
+      const seen = others.slice(0, 3);
       t.model.reply({ text: 'no idea' });
 
       await t.http().post('/api/meal-plans/ai-swap-meal/preview').set(as(user)).send({ planId: plan.id, plannedMealId: lunch.id, skip: seen }).expect(201);
 
       const prompt = t.model.requests.at(-1)!.prompt;
-      for (const id of seen) expect(prompt).not.toContain(`id=${id}`);
-      for (const recipe of others.slice(4)) expect(prompt).toContain(`id=${recipe.id}`);
+      for (const id of [...seen, dinner]) expect(prompt).not.toContain(`id=${id}`);
+      expect(others.length).toBeGreaterThan(3);
+      for (const id of others.slice(3)) expect(prompt).toContain(`id=${id}`);
     });
   });
 });

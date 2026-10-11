@@ -2,15 +2,16 @@
 
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
-import type {
-  AiMealSwapPreview,
-  AiSwapMealRequest,
-  ApplyMealSwapRequest,
-  Locale,
-  MealSwapPreview,
-  MealType,
-  RebalanceResult,
-  SwapMealRequest,
+import {
+  PlanOptions,
+  type AiMealSwapPreview,
+  type AiSwapMealRequest,
+  type ApplyMealSwapRequest,
+  type Locale,
+  type MealSwapPreview,
+  type MealType,
+  type RebalanceResult,
+  type SwapMealRequest,
 } from '@diet-app/shared';
 import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js';
 import { modelText, readModelReply } from '../ai/model-json.js';
@@ -47,7 +48,7 @@ function waivedBy(req: { strategy: SwapMealRequest['strategy']; allowOffDiet: bo
 const noAlternative = () =>
   new NotFoundException({
     error: 'NO_ALTERNATIVE',
-    message: 'No other recipe the profile may be given for this meal holds about as much energy as the meal does.',
+    message: 'No other recipe the profile may be given for this meal, and that its day does not hold already, holds about as much energy as the meal does.',
   });
 
 /**
@@ -73,9 +74,9 @@ export class MealSwapService {
   /**
    * The same, with a model asked which recipe to take. The engine decides
    * what the model may choose from: everything the profile may be given for
-   * the meal that holds about as much as the meal does now. Where no model
-   * answers, or the answer names none of those, the engine picks, and
-   * `aiMeta` says which of the two happened and why.
+   * the meal that holds about as much as the meal does now and is not on the
+   * day already. Where no model answers, or the answer names none of those,
+   * the engine picks, and `aiMeta` says which of the two happened and why.
    */
   async previewWithAi(userId: string, locale: Locale, req: AiSwapMealRequest): Promise<AiMealSwapPreview> {
     const slot = await this.slot(userId, req.planId, req.plannedMealId);
@@ -85,7 +86,7 @@ export class MealSwapService {
     // The model is never shown a recipe it must not pick.
     const candidates = (
       await this.prisma.recipe.findMany({
-        where: poolWhere(restrictions, meal.mealType, {}, [slot.recipeId]),
+        where: poolWhere(restrictions, meal.mealType, {}, [slot.recipeId, ...slot.onTheDay]),
         select: {
           ...CANDIDATE,
           title: true,
@@ -157,12 +158,16 @@ export class MealSwapService {
       throw new BadRequestException({ error: refusal, message: 'That recipe is not available.' });
     }
     assertMayEnter(replacement, restrictions, meal.mealType, refusal, waivedBy(req));
-    // A favourite picked by hand is the user's own choice of what to eat; anything else keeps to what the meal holds.
+    // A favourite picked by hand is the user's own choice of what to eat;
+    // anything else keeps to what the meal holds and to a recipe once a day.
     if (!byHand && !holdsAbout(replacement.caloriesPerServing, slot.held)) {
       throw new BadRequestException({
         error: refusal,
         message: 'That recipe cannot take the place of this meal: no serving of it holds about as much energy as the meal does.',
       });
+    }
+    if (!byHand && slot.onTheDay.includes(replacement.id)) {
+      throw new BadRequestException({ error: refusal, message: 'That recipe cannot take the place of this meal: another meal of the day holds it already.' });
     }
 
     const servings = fitServings(replacement.caloriesPerServing, slot.held);
@@ -180,21 +185,30 @@ export class MealSwapService {
     return this.plans.buildRebalanceResult(userId, locale, req.planId, 'day', summary);
   }
 
-  /** The meal a swap is about: its recipe, what it holds, what was offered for it before, and what its plan rules out. */
+  /**
+   * The meal a swap is about: its recipe, what it holds, what was offered for
+   * it before, what its plan rules out, and the recipes its day holds already.
+   */
   private async slot(userId: string, planId: string, plannedMealId: string) {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
     const recipeId = swappableRecipeOf(meal);
     const [restrictions, current, daySlots] = await Promise.all([
       restrictionsFor(this.prisma, meal.day.plan),
       this.prisma.recipe.findUniqueOrThrow({ where: { id: recipeId }, select: { title: true, caloriesPerServing: true } }),
-      this.prisma.plannedMeal.findMany({ where: { dayId: meal.dayId }, select: { mealType: true } }),
+      this.prisma.plannedMeal.findMany({ where: { dayId: meal.dayId }, select: { id: true, mealType: true, recipeId: true } }),
     ]);
+    // A day holds a recipe once, as the planner has it: what another meal of
+    // the day holds is not offered for this one, unless the plan is for
+    // cooking ahead or was let have a recipe twice a day when it was made.
+    const options = PlanOptions.parse(meal.day.plan.options);
+    const twiceADay = options.mealPrepFriendly || options.allowRelaxations.includes('same_day');
+    const onTheDay = twiceADay ? [] : daySlots.flatMap((other) => (other.id !== meal.id && other.recipeId ? [other.recipeId] : []));
     // What the meal holds now is what a recipe in its place is sized to and
     // held to: the day keeps its total, whatever share of it this meal had
     // come to carry. A meal that holds nothing is taken at its share of the day.
     const share = slotBudgets(daySlots.map((other) => other.mealType as MealType), meal.day.calorieTarget).get(meal.mealType as MealType) ?? meal.day.calorieTarget;
     const held = current.caloriesPerServing * meal.servings * meal.quantityScale || share;
-    return { meal, recipeId, restrictions, current, held, history: meal.swapHistory ?? [] };
+    return { meal, recipeId, restrictions, current, held, onTheDay, history: meal.swapHistory ?? [] };
   }
 
   /** The recipe to offer for a meal, by the strategy that was asked for. */
@@ -217,11 +231,11 @@ export class MealSwapService {
       replacement = picked;
     } else {
       // One pool for both automatic strategies, in a fixed order: what the
-      // profile may be given for the meal, of which a serving holds about as
-      // much as the meal does now.
+      // profile may be given for the meal and the day does not hold already,
+      // of which a serving holds about as much as the meal does now.
       const pool = (
         await this.prisma.recipe.findMany({
-          where: poolWhere(restrictions, meal.mealType, waived, [slot.recipeId]),
+          where: poolWhere(restrictions, meal.mealType, waived, [slot.recipeId, ...slot.onTheDay]),
           select: { ...CANDIDATE, caloriesPerServing: true },
           orderBy: { id: 'asc' },
         })
