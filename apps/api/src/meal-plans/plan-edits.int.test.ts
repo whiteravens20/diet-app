@@ -16,6 +16,7 @@ import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 /** How each request ended: `ok`, or the error code it was refused with. */
@@ -56,7 +57,7 @@ describe('editing a plan', () => {
   });
 
   const swap = (plannedMealId: string) =>
-    plans.swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId, strategy: 'random' }));
+    t.app.get(MealSwapService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId, strategy: 'random' }));
 
   it('lets one of two overlapping swaps of a meal through', async () => {
     const meal = plan.days[0]!.meals[0]!;
@@ -274,7 +275,7 @@ describe('editing a plan', () => {
     });
 
     const aiSwap = (plannedMealId: string, locale: Locale = 'en') =>
-      plans.aiSwapMeal(user.id, locale, AiSwapMealRequest.parse({ planId: plan.id, plannedMealId }));
+      t.app.get(MealSwapService).aiSwapMeal(user.id, locale, AiSwapMealRequest.parse({ planId: plan.id, plannedMealId }));
 
     /** The first candidate the prompt offers, as a model that follows the prompt would pick it. */
     const firstOffered = (request: ModelRequest): string => /id=([0-9a-f-]{36})/.exec(request.prompt)![1]!;

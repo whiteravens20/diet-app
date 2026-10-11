@@ -6,7 +6,7 @@ import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { MealPlansService } from './meal-plans.service.js';
+import { MealSwapService } from './meal-swap.service.js';
 
 describe('the limits of a plan', () => {
   let t: TestApp;
@@ -131,7 +131,7 @@ describe('the limits of a plan', () => {
     const made: MealPlan = (await generate({ ...sixBreakfasts, allowRelaxations: ['variety_floor'] }).expect(201)).body;
     const sixth = made.days[5]!.meals.find((meal) => meal.mealType === 'breakfast')!;
 
-    const swapped = await t.app.get(MealPlansService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: made.id, plannedMealId: sixth.id, strategy: 'random' }));
+    const swapped = await t.app.get(MealSwapService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: made.id, plannedMealId: sixth.id, strategy: 'random' }));
 
     expect(swapped.plan.report).toEqual({ relaxations: [], singleCandidate: [], pantry: 'empty' });
   });

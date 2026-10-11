@@ -32,6 +32,7 @@ import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.j
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 @Controller('meal-plans')
@@ -41,6 +42,7 @@ export class MealPlansController {
     private readonly plans: MealPlansService,
     private readonly generation: PlanGenerationService,
     private readonly ingredients: IngredientSwapService,
+    private readonly swaps: MealSwapService,
   ) {}
 
   @Get()
@@ -108,7 +110,7 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(SwapMealRequest)) dto: SwapMealRequest,
   ) {
-    return this.plans.swapMeal(user.id, locale, dto);
+    return this.swaps.swapMeal(user.id, locale, dto);
   }
 
   /** Add a user-authored custom meal to a day. */
@@ -160,7 +162,7 @@ export class MealPlansController {
     @RequestLocale() locale: Locale,
     @Body(new ZodValidationPipe(AiSwapMealRequest)) dto: AiSwapMealRequest,
   ) {
-    return this.plans.aiSwapMeal(user.id, locale, dto);
+    return this.swaps.aiSwapMeal(user.id, locale, dto);
   }
 
   /**

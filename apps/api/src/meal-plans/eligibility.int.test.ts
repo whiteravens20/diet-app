@@ -14,6 +14,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 /** One kind of restriction a profile can set, and a recipe of the fixture that breaks it. */
@@ -165,7 +166,7 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     for (const mealType of ['breakfast', 'lunch', 'dinner']) {
       for (let round = 0; round < 8; round += 1) {
         const meal = await mealOf(mealType);
-        if (await attempt(() => plans.swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id, strategy: 'random' })))) {
+        if (await attempt(() => t.app.get(MealSwapService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id, strategy: 'random' })))) {
           swapped += 1;
         }
       }
@@ -179,7 +180,8 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     for (let round = 0; round < 6; round += 1) {
       const meal = await mealOf(kind.meal);
       outcomes.push(
-        await plans
+        await t.app
+          .get(MealSwapService)
           .swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id, strategy: 'favorite_ingredients' }))
           .then(() => 'swapped', (err: { response?: { error?: string } }) => err.response?.error ?? String(err)),
       );
@@ -194,7 +196,7 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     t.model.reply({ text: 'no idea', times: 4 });
     for (let round = 0; round < 8; round += 1) {
       const meal = await mealOf(kind.meal);
-      await plans.aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }));
+      await t.app.get(MealSwapService).aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }));
     }
     // The model was asked every time, and never shown the recipe.
     expect(t.model.requests).toHaveLength(8);
@@ -206,7 +208,7 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     const meal = await mealOf(kind.meal);
 
     await expect(
-      plans.swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id, strategy: 'favorite', favoriteRecipeId: violatorId })),
+      t.app.get(MealSwapService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id, strategy: 'favorite', favoriteRecipeId: violatorId })),
     ).rejects.toMatchObject({ status: 400 });
 
     expect(await intruders()).toEqual([]);

@@ -16,6 +16,7 @@ import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 let t: TestApp;
@@ -60,7 +61,7 @@ async function refusal(call: Promise<unknown>): Promise<{ status: number; error:
 const recipeId = async (slug: string): Promise<string> => (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).id;
 const mealRow = (id: string) => t.prisma.plannedMeal.findUniqueOrThrow({ where: { id } });
 const randomSwap = (plannedMealId: string) =>
-  plans.swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId, strategy: 'random' }));
+  t.app.get(MealSwapService).swapMeal(user.id, 'en', SwapMealRequest.parse({ planId: plan.id, plannedMealId, strategy: 'random' }));
 
 describe('a meal that was eaten', () => {
   it('cannot be swapped, re-picked by a model or have an ingredient substituted, and stays as it was', async () => {
@@ -72,7 +73,7 @@ describe('a meal that was eaten', () => {
     const eaten = { status: 409, error: 'MEAL_EATEN' };
     expect(await refusal(randomSwap(meal.id))).toEqual(eaten);
     expect(
-      await refusal(plans.aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }))),
+      await refusal(t.app.get(MealSwapService).aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }))),
     ).toEqual(eaten);
     expect(
       await refusal(
@@ -145,7 +146,7 @@ describe('a custom meal', () => {
     const refused = { status: 400, error: 'CUSTOM_MEAL_NOT_SWAPPABLE' };
     expect(await refusal(randomSwap(custom.id))).toEqual(refused);
     expect(
-      await refusal(plans.aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: custom.id }))),
+      await refusal(t.app.get(MealSwapService).aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: custom.id }))),
     ).toEqual(refused);
     expect((await mealRow(custom.id)).customName).toBe("Mum's lasagne");
   });
@@ -206,7 +207,7 @@ describe('a plan on a custom diet', () => {
     await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'admin' } });
     const meal = plan.days[0]!.meals[0]!;
 
-    const swapped = await plans.aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }));
+    const swapped = await t.app.get(MealSwapService).aiSwapMeal(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }));
     expect(swapped.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
 
     // Any ingredient of a category with more than one member has a substitute on offer.

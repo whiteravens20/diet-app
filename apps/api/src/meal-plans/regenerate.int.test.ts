@@ -9,6 +9,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, race } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 describe('regenerating a plan', () => {
@@ -184,7 +185,6 @@ describe('regenerating a plan', () => {
       const profile = await aProfile(t, user);
       const skipping = await save(user.id, profile, { preferences: { ...profile.preferences, excludedIngredientIds: [banana.id] } });
       const porridge = await recipeId('oat-porridge-with-banana');
-      const plans = t.app.get(MealPlansService);
       const plan = await aPlan(t, user, skipping, {
         durationDays: 2,
         respectExclusions: false,
@@ -199,7 +199,7 @@ describe('regenerating a plan', () => {
       expect(mealOf(oneDay, 0, 'breakfast').recipe!.id).toBe(porridge);
 
       const toast = await recipeId('peanut-butter-toast');
-      const swapped = await plans.swapMeal(
+      const swapped = await t.app.get(MealSwapService).swapMeal(
         user.id,
         'en',
         SwapMealRequest.parse({ planId: plan.id, plannedMealId: mealOf(oneDay, 1, 'breakfast').id, strategy: 'favorite', favoriteRecipeId: toast }),
