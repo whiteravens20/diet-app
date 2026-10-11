@@ -89,6 +89,20 @@ describe('validateEnv', () => {
     expect(() => validateEnv(valid({ NODE_ENV: 'test', AI_KEY_ENCRYPTION_SECRET: 'a1'.repeat(32) }))).not.toThrow();
   });
 
+  it('does not start in production with an admin password an account could not have', () => {
+    expect(() => validateEnv(valid({ ADMIN_PASSWORD: 'elevenchars' }))).toThrow(/ADMIN_PASSWORD: is shorter than 12 characters/);
+    // The message says what to do, and not what the password is.
+    try {
+      validateEnv(valid({ ADMIN_PASSWORD: 'elevenchars' }));
+    } catch (err) {
+      expect(String((err as Error).message)).not.toContain('elevenchars');
+    }
+    expect(() => validateEnv(valid({ ADMIN_PASSWORD: 'twelve-chars' }))).not.toThrow();
+    // An empty one keeps the panel closed, and is no problem; neither is a short one while developing.
+    expect(() => validateEnv(valid({ ADMIN_PASSWORD: '' }))).not.toThrow();
+    expect(() => validateEnv(valid({ NODE_ENV: 'development', ADMIN_PASSWORD: 'short' }))).not.toThrow();
+  });
+
   it('turns Swagger on outside production unless told otherwise', () => {
     expect(validateEnv(valid({ NODE_ENV: 'development' })).SWAGGER_ENABLED).toBe(true);
     expect(validateEnv(valid({ NODE_ENV: 'development', SWAGGER_ENABLED: 'false' })).SWAGGER_ENABLED).toBe(false);

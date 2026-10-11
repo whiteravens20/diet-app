@@ -4,7 +4,7 @@ import { Module } from '@nestjs/common';
 import { AiModule } from '../../ai/ai.module.js';
 import { CatalogueModule } from '../../catalogue/catalogue.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
-import { BasicAuthGuard } from '../basic-auth.guard.js';
+import { AdminSessionGuard } from '../admin-session.guard.js';
 import { DraftService } from './draft.service.js';
 import { DraftsController } from './drafts.controller.js';
 import { IngredientNamerRunner } from './ingredient-namer.runner.js';
@@ -20,7 +20,7 @@ import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
 @Module({
   imports: [PrismaModule, AiModule, CatalogueModule],
   controllers: [DraftsController],
-  providers: [BasicAuthGuard, IngredientNamerRunner, RecipeGeneratorRunner, DraftService],
+  providers: [AdminSessionGuard, IngredientNamerRunner, RecipeGeneratorRunner, DraftService],
   exports: [DraftService],
 })
 export class DraftsModule {}

@@ -163,6 +163,8 @@ export const ADMIN_PASSWORD_PLACEHOLDER = 'CHANGE_ME_IMMEDIATELY';
 
 /** Below this length the boot log warns: wrong guesses are slowed down, not made impossible. */
 const ADMIN_PASSWORD_ADVISED_LENGTH = 16;
+/** Under this the API does not start in production with the panel enabled. */
+const ADMIN_PASSWORD_MIN_LENGTH = 12;
 
 /** Whether ADMIN_PASSWORD has been set to a real value. */
 export function isAdminEnabled(env: Pick<Env, 'ADMIN_PASSWORD'>): boolean {
@@ -218,6 +220,12 @@ function secretProblems(env: z.infer<typeof envSchema>): string[] {
   }
   if (env.REVIEWER_SESSION_SECRET !== undefined && env.REVIEWER_SESSION_SECRET === env.JWT_ACCESS_SECRET) {
     problems.push('  REVIEWER_SESSION_SECRET: must differ from JWT_ACCESS_SECRET; leave it blank to have one derived.');
+  }
+  // The one password that opens the catalogue, the curation queue and the
+  // instance's settings. In production it is at least as long as an
+  // account's has to be; leaving it empty keeps the panel closed.
+  if (env.NODE_ENV === 'production' && isAdminEnabled(env) && env.ADMIN_PASSWORD.length < ADMIN_PASSWORD_MIN_LENGTH) {
+    problems.push(`  ADMIN_PASSWORD: is shorter than ${ADMIN_PASSWORD_MIN_LENGTH} characters. Choose a longer one, or leave it empty to keep the admin panel closed.`);
   }
   return problems;
 }

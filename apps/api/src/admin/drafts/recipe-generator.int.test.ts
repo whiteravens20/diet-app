@@ -10,12 +10,12 @@ import { recipeBatch, recipesPerCall } from '../../ai/operations.js';
 import { INGREDIENTS, RECIPES, seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase } from '../../testing/database.js';
 import type { ModelRequest } from '../../testing/fake-model.js';
-import { aPrivateRecipe, aRecipeDraft, aUser } from '../../testing/factories.js';
+import { aPrivateRecipe, aRecipeDraft, asAdmin, aUser } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
 import { RecipeGeneratorRunner, type RecipeRunnerState } from './recipe-generator.runner.js';
 import { shipRecipesLocal } from './ship/local-mode.js';
 
-const admin = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+const admin = asAdmin;
 
 /** Every set of three fixture ingredients that no fixture recipe already uses. */
 const unusedTriples: string[][] = (() => {

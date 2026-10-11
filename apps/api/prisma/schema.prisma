@@ -979,6 +979,9 @@ model InstanceSettings {
   // reviewer's session says which epoch it is of, and one of an earlier
   // epoch is no session: it ends then, and does not come back.
   reviewerSessionEpoch Int      @default(0)
+  // Raised when the administrator ends every admin session: one of an
+  // earlier epoch is none.
+  adminSessionEpoch    Int      @default(0)
   updatedAt            DateTime @updatedAt
 }
 

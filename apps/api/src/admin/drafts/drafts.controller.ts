@@ -5,7 +5,7 @@
  * dry-run PATCH for live nutrition recompute) and the ship endpoints — all on
  * this one controller.
  *
- * Auth: BasicAuthGuard, like the rest of /api/admin. Reviewer-cookie auth lives
+ * Auth: AdminSessionGuard, like the rest of /api/admin. Reviewer-cookie auth lives
  * on a separate controller (`/api/review/*`).
  */
 import {
@@ -47,7 +47,7 @@ import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Env } from '../../config/env.js';
-import { BasicAuthGuard } from '../basic-auth.guard.js';
+import { AdminSessionGuard } from '../admin-session.guard.js';
 import { DraftService, invalid, type Actor, type Page } from './draft.service.js';
 import { toIngredientNameDraftDto, toRecipeDraftDto } from './drafts.mapper.js';
 import {
@@ -160,7 +160,7 @@ type ShipResponseDto =
   | ({ mode: 'bundle' } & BundleShipResult);
 
 @Controller('admin/drafts')
-@UseGuards(BasicAuthGuard)
+@UseGuards(AdminSessionGuard)
 export class DraftsController {
   private readonly logger = new Logger(DraftsController.name);
 

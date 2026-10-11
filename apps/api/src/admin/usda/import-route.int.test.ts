@@ -2,6 +2,7 @@
 
 import { chmodSync, statSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { asAdmin } from '../../testing/factories.js';
 import { catalogueDirectory } from '../../testing/catalogue.js';
 import { resetDatabase } from '../../testing/database.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
@@ -9,7 +10,7 @@ import { UsdaImportRunner } from './runner.js';
 
 describe('starting an import of foods', () => {
   let t: TestApp;
-  const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+  const basic = asAdmin;
   /** Start the import without letting it run: no test asks the real source. */
   const started = () => vi.spyOn(t.app.get(UsdaImportRunner), 'start').mockReturnValue(true);
 

@@ -26,6 +26,7 @@ import { InstanceSettingsService } from '../instance-settings/instance-settings.
 import { MealSwapService } from '../meal-plans/meal-swap.service.js';
 import { PlanGenerationService } from '../meal-plans/plan-generation.service.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
+import { ADMIN_COOKIE, signAdminSession } from '../admin/admin-session.js';
 import { REVIEWER_COOKIE_NAME, resolveReviewerSecret, signReviewerCookie } from '../review/session.js';
 import type { TestApp } from './test-app.js';
 
@@ -134,8 +135,19 @@ export async function aPrivateRecipe(
   });
 }
 
-/** The header of the administrator the test application is set up with. */
-export const asAdmin = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+/**
+ * The headers of the administrator the test application is set up with: a
+ * session as a sign-in leaves one, and where the request comes from. The
+ * session is signed here, not asked for over HTTP, so that a file with many
+ * tests does not meet the limit on admin sign-ins.
+ */
+export const asAdmin = {
+  Cookie: `${ADMIN_COOKIE}=${signAdminSession(
+    { get: (key: string) => ({ DATA_ENCRYPTION_SECRET: 'b2'.repeat(32), ADMIN_USER: 'admin', ADMIN_PASSWORD: 'integration-test-admin-password' })[key] } as never,
+    0,
+  )}`,
+  Origin: 'http://localhost:3000',
+};
 
 /**
  * A reviewer who is signed in: the reviewer interface is switched on and the

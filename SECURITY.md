@@ -37,7 +37,9 @@ What the code guarantees today, and what it deliberately does not protect agains
 
 - [x] Every profile, plan, shopping-list, favourite and inventory query is scoped to the authenticated user
 - [x] A recipe referenced from a plan or a favourite set must be one the user may see — curated, or their own
-- [x] Admin panel and `/api/admin/*` behind HTTP Basic Auth with timing-safe comparison; closed when `ADMIN_PASSWORD` is unset or left at its placeholder
+- [x] Admin panel and `/api/admin/*` behind a session the administrator signs in for once: an `httpOnly`, `SameSite=Strict` cookie limited to the admin routes, signed with a key of its own, good for eight hours, and ended early by a change of the credentials or by "end every admin session". The password is compared in constant time and travels with no later request; closed when `ADMIN_PASSWORD` is unset or left at its placeholder
+- [x] Requests that change something with an administrator's or a reviewer's session, and their sign-ins, are taken only from the application's own pages (`Origin`)
+- [x] Reviewer sessions end for good when the reviewer password changes or the panel is closed
 - [x] All input validated with Zod schemas shared between client and server
 
 ### Anti-Abuse

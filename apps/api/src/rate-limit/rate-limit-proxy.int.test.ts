@@ -2,7 +2,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
-import { aUser } from '../testing/factories.js';
+import { asAdmin, aUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 /** One reverse proxy stands in front and is trusted: it writes the client's address into the header. */
@@ -25,7 +25,7 @@ describe('rate limits behind one trusted proxy', () => {
       .post('/api/auth/register')
       .set('X-Forwarded-For', forwardedFor)
       .send({ email: `visitor-${(sequence += 1)}-${Date.now().toString(36)}@example.test`, password: 'Integration-Passw0rd', displayName: 'Visitor' });
-  const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+  const basic = asAdmin;
 
   describe('signing in', () => {
     const login = (from: string, email: string, password: string) =>
@@ -157,13 +157,12 @@ describe('rate limits behind one trusted proxy', () => {
   });
 
   it('counts a wrong administrator password against the client, not against the proxy', async () => {
-    const wrong = { Authorization: `Basic ${Buffer.from('admin:not-the-password').toString('base64')}` };
-    for (let i = 0; i < 5; i += 1) {
-      await t.http().get('/api/admin/stats').set(wrong).set('X-Forwarded-For', '203.0.113.50').expect(401);
-    }
+    const signIn = (password: string, from: string) =>
+      t.http().post('/api/admin/session').set({ Origin: 'http://localhost:3000', 'X-Forwarded-For': from }).send({ user: 'admin', password });
+    for (let i = 0; i < 5; i += 1) await signIn('not-the-password', '203.0.113.50').expect(401);
 
     // The guesser waits; the administrator, at another address, does not.
-    await t.http().get('/api/admin/stats').set(basic).set('X-Forwarded-For', '203.0.113.50').expect(429);
-    await t.http().get('/api/admin/stats').set(basic).set('X-Forwarded-For', '203.0.113.60').expect(200);
+    expect((await signIn('integration-test-admin-password', '203.0.113.50').expect(429)).body.error).toBe('TOO_MANY_ATTEMPTS');
+    await signIn('integration-test-admin-password', '203.0.113.60').expect(204);
   });
 });

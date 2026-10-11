@@ -17,7 +17,6 @@ import { UsdaImportCard } from './usda-import-card';
 import {
   AdminApiError,
   adminApi,
-  adminCreds,
   type AdminStats,
   type AdminStatus,
   type DbUpdateState,
@@ -123,7 +122,8 @@ export function AdminPanel() {
         setView('disabled');
         return;
       }
-      if (adminCreds.get()) {
+      // Whether this browser holds an administrator's session, as far as the API says.
+      if ((await adminApi.session()).signedIn) {
         await loadStats();
       } else {
         setView('login');
@@ -164,19 +164,25 @@ export function AdminPanel() {
     event.preventDefault();
     setLoginError(null);
     const form = new FormData(event.currentTarget);
-    adminCreds.set(String(form.get('user')), String(form.get('password')));
-    const failure = await loadStats();
+    // The two values are given once, for a session; the page keeps neither.
+    const failure = await adminApi.signIn(String(form.get('user')), String(form.get('password'))).then(loadStats, (err: unknown) => err);
     if (failure === null) return;
-    // Held up after wrong passwords: say for how long, and keep nothing that was not checked.
+    // Held up after wrong passwords: say for how long.
     const wait = failure instanceof AdminApiError ? waitOf(failure.status, failure.retryAfterSeconds) : null;
     if (wait) {
-      adminCreds.clear();
       setLoginError(tAuth(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait));
     } else if (failure instanceof AdminApiError && failure.status === 401) {
       setLoginError(t('invalidCreds'));
     } else {
       setLoginError(failure instanceof Error ? failure.message : t('loadStatsFailed'));
     }
+  }
+
+  /** End the session, here or everywhere, and show the sign-in form: what the panel had loaded is not shown any more. */
+  async function leave(end: () => Promise<void>): Promise<void> {
+    await end().catch(() => undefined);
+    setStats(null);
+    setView('login');
   }
 
   async function onUpdate(): Promise<void> {
@@ -275,6 +281,15 @@ export function AdminPanel() {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+        <p className="mr-auto text-xs text-muted-foreground">{t('endAllSessionsHint')}</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void leave(adminApi.endAllSessions)}>
+          {t('endAllSessions')}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => void leave(adminApi.signOut)}>
+          {t('signOut')}
+        </Button>
+      </div>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label={t('ingredients')} value={counts.ingredients} />
         <StatCard label={t('recipes')} value={counts.recipes} />

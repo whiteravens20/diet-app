@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { catalogueDirectory, seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase } from '../../testing/database.js';
-import { aPlan, aPrivateRecipe, aProfile, aUser } from '../../testing/factories.js';
+import { aPlan, aPrivateRecipe, aProfile, asAdmin, aUser } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
 import { CatalogueError } from './catalogue.js';
@@ -468,7 +468,7 @@ describe('updating the curated database', () => {
 
 describe('the admin "Update database" action', () => {
   let t: TestApp;
-  const admin = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+  const admin = asAdmin;
 
   beforeAll(async () => {
     t = await createTestApp();

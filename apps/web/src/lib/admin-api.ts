@@ -1,29 +1,22 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Admin API client. Uses HTTP Basic against `/api/admin/*` — totally
- * separate identity space from the user JWT used by `lib/api.ts`. Credentials
- * live in sessionStorage so they vanish when the tab closes; never persisted
- * across browser sessions.
+ * Admin API client for `/api/admin/*`: an identity of its own, apart from the
+ * accounts `lib/api.ts` speaks for. The administrator signs in once, and the
+ * session is a cookie the API set, which no script reads: the page holds no
+ * credentials, and nothing here keeps a password.
  */
-import type { DietType, DraftRunNote, MealType } from '@diet-app/shared';
+import type { AdminSessionState, DietType, DraftRunNote, MealType } from '@diet-app/shared';
 import { retryAfterOf } from './api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
-const CREDS_KEY = 'diet-app.admin-basic';
 
-export const adminCreds = {
-  get(): string | null {
-    if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem(CREDS_KEY);
-  },
-  set(user: string, password: string): void {
-    sessionStorage.setItem(CREDS_KEY, btoa(`${user}:${password}`));
-  },
-  clear(): void {
-    sessionStorage.removeItem(CREDS_KEY);
-  },
-};
+// A version before this one kept the administrator's user and password in
+// sessionStorage for the life of the tab. Whatever it left there is removed.
+if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('diet-app.admin-basic');
+
+/** The session cookie goes with requests to the application's own address by itself; an API at another address has to be told. */
+const WITH_SESSION: RequestCredentials = API_URL ? 'include' : 'same-origin';
 
 export class AdminApiError extends Error {
   constructor(
@@ -43,28 +36,15 @@ export class AdminApiError extends Error {
   }
 }
 
-async function adminFetch<T>(
-  path: string,
-  init: RequestInit = {},
-  withAuth = true,
-): Promise<T> {
+async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('content-type', 'application/json');
-  if (withAuth) {
-    const creds = adminCreds.get();
-    if (creds) headers.set('authorization', `Basic ${creds}`);
-  }
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api/admin${path}`, { ...init, headers });
+    res = await fetch(`${API_URL}/api/admin${path}`, { ...init, headers, credentials: WITH_SESSION });
   } catch {
     throw new AdminApiError(0, 'Cannot reach the API.');
-  }
-
-  if (res.status === 401) {
-    adminCreds.clear();
-    throw new AdminApiError(401, 'Invalid admin credentials.');
   }
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string; details?: Record<string, unknown> };
@@ -351,7 +331,14 @@ export interface PagedDrafts<T> {
 }
 
 export const adminApi = {
-  status: () => adminFetch<AdminStatus>('/status', {}, false),
+  status: () => adminFetch<AdminStatus>('/status'),
+  /** Whether there is a panel, and whether this browser is signed in to it. */
+  session: () => adminFetch<AdminSessionState>('/session'),
+  /** Give the instance's user and password once, for the session. */
+  signIn: (user: string, password: string) => adminFetch<void>('/session', { method: 'POST', body: JSON.stringify({ user, password }) }),
+  signOut: () => adminFetch<void>('/session', { method: 'DELETE' }),
+  /** End every admin session there is, this one too. */
+  endAllSessions: () => adminFetch<void>('/session/end-all', { method: 'POST' }),
   stats: () => adminFetch<AdminStats>('/stats'),
   startDbUpdate: () => adminFetch<DbUpdateState>('/db/update', { method: 'POST' }),
   dbUpdateStatus: () => adminFetch<DbUpdateState>('/db/update/status'),
@@ -493,19 +480,13 @@ export const adminApi = {
   // Current-state export/push — the full ingredient-override set rebuilt from
   // the DB, available regardless of draft status (unlike the ship modes).
   downloadCurrentOverrides: async (): Promise<void> => {
-    const headers = new Headers();
-    const creds = adminCreds.get();
-    if (creds) headers.set('authorization', `Basic ${creds}`);
     let res: Response;
     try {
-      res = await fetch(`${API_URL}/api/admin/drafts/ship/current-overrides`, { headers });
+      res = await fetch(`${API_URL}/api/admin/drafts/ship/current-overrides`, { credentials: WITH_SESSION });
     } catch {
       throw new AdminApiError(0, 'Cannot reach the API.');
     }
-    if (res.status === 401) {
-      adminCreds.clear();
-      throw new AdminApiError(401, 'Invalid admin credentials.');
-    }
+    if (res.status === 401) throw new AdminApiError(401, 'The admin session has ended. Sign in again.', 'INVALID_ADMIN_SESSION');
     if (!res.ok) {
       throw new AdminApiError(res.status, 'Could not export current overrides.');
     }

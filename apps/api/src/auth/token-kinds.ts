@@ -13,3 +13,6 @@ export const ACCOUNT_AUDIENCE = 'diet-app/account';
 
 /** The cookie of a reviewer session. */
 export const REVIEWER_AUDIENCE = 'diet-app/reviewer';
+
+/** The cookie of the administrator's session. */
+export const ADMIN_AUDIENCE = 'diet-app/admin';

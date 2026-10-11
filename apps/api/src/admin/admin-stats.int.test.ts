@@ -3,12 +3,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase } from '../testing/database.js';
-import { aPrivateRecipe, aUser } from '../testing/factories.js';
+import { aPrivateRecipe, asAdmin, aUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 describe('the numbers on the admin page', () => {
   let t: TestApp;
-  const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+  const basic = asAdmin;
   const counts = async (): Promise<{ ingredients: number; recipes: number }> =>
     (await t.http().get('/api/admin/stats').set(basic).expect(200)).body.counts;
 

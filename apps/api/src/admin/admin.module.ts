@@ -5,18 +5,19 @@ import { AiModule } from '../ai/ai.module.js';
 import { CatalogueModule } from '../catalogue/catalogue.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AdminController } from './admin.controller.js';
-import { BasicAuthGuard } from './basic-auth.guard.js';
+import { AdminSessionController } from './admin-session.controller.js';
+import { AdminSessionGuard } from './admin-session.guard.js';
 import { SeedRunner } from './seed/runner.js';
 import { UsdaImportRunner } from './usda/runner.js';
 
 /**
- * Admin module — isolated namespace under `/api/admin/*`. No JWT, no
- * user identity; auth is HTTP Basic checked against ADMIN_USER / ADMIN_PASSWORD
- * by `BasicAuthGuard`.
+ * Admin module — isolated namespace under `/api/admin/*`. No account: the
+ * administrator signs in with ADMIN_USER / ADMIN_PASSWORD for a session
+ * cookie (`AdminSessionController`), which `AdminSessionGuard` asks for.
  */
 @Module({
   imports: [PrismaModule, AiModule, CatalogueModule],
-  controllers: [AdminController],
-  providers: [BasicAuthGuard, SeedRunner, UsdaImportRunner],
+  controllers: [AdminController, AdminSessionController],
+  providers: [AdminSessionGuard, SeedRunner, UsdaImportRunner],
 })
 export class AdminModule {}

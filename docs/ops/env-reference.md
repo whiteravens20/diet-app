@@ -50,8 +50,8 @@ Two rules apply to every variable:
 | `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC data sets: `Foundation`, `SR Legacy` or both. Anything else is refused at start-up. Default ≈ 340 clean generic foods. Adding `SR Legacy` swells the corpus to ~7 k, but most additions are brand SKUs or hyper-specific cuts that pollute template-generated recipes — see [data/README.md](../../data/README.md#choosing-fdc_data_types). |
 
 ## Admin
-| `ADMIN_USER` | `admin` | Basic-auth username for `/admin` + `/api/admin/*`. |
-| `ADMIN_PASSWORD` | `` *(empty)* | Required to enable the panel. Empty or `CHANGE_ME_IMMEDIATELY` → every admin route returns 403 (fail-closed). |
+| `ADMIN_USER` | `admin` | The user name the administrator signs in with at `/admin`. |
+| `ADMIN_PASSWORD` | `` *(empty)* | Required to enable the panel. Empty or `CHANGE_ME_IMMEDIATELY` → every admin route returns 403 (fail-closed). In production it has to be at least 12 characters long, or the API does not start; under 16 the start-up log advises a longer one. It is given once, at sign-in, for a session cookie of eight hours; changing it or `ADMIN_USER` ends the sessions there are. |
 
 ## Anti-abuse
 | `TURNSTILE_ENABLED` | `false` | Enable Cloudflare Turnstile. |

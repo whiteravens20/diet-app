@@ -118,3 +118,20 @@ export const AuthResponse = z.object({
   sessionId: z.string().uuid(),
 });
 export type AuthResponse = z.infer<typeof AuthResponse>;
+
+/** What the administrator signs in with: the two values of the instance's environment. */
+export const AdminSignInRequest = z
+  .object({
+    user: z.string().min(1).max(200),
+    password: z.string().min(1).max(200),
+  })
+  .strict();
+export type AdminSignInRequest = z.infer<typeof AdminSignInRequest>;
+
+/** What the admin pages ask first: whether there is a panel at all, and whether this browser is signed in to it. */
+export const AdminSessionState = z.object({
+  enabled: z.boolean(),
+  signedIn: z.boolean(),
+});
+export type AdminSessionState = z.infer<typeof AdminSessionState>;
+

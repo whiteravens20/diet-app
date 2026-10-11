@@ -26,7 +26,7 @@ import { isAdminEnabled, type Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
 import { COVERAGE_TARGET, MACRO_OUT_OF_REACH, type CoverageMatrix, type MacroReach } from '../engine/coverage.js';
 import { macroSplitOf } from '../engine/nutrition.js';
-import { BasicAuthGuard } from './basic-auth.guard.js';
+import { AdminSessionGuard } from './admin-session.guard.js';
 import { computeDataState, resolveDataDir } from './seed/data-hash.js';
 import { SeedRunner, type RunnerState } from './seed/runner.js';
 import { UsdaImportRunner, type ImportRunnerState } from './usda/runner.js';
@@ -120,7 +120,7 @@ export class AdminController {
    * believe it.
    */
   @Get('connection')
-  @UseGuards(BasicAuthGuard)
+  @UseGuards(AdminSessionGuard)
   connection(@Req() req: Request): AdminConnectionDto {
     const header = req.headers['x-forwarded-for'];
     const forwardedFor = Array.isArray(header) ? header.join(', ') : (header ?? null);
@@ -140,7 +140,7 @@ export class AdminController {
   }
 
   @Get('stats')
-  @UseGuards(BasicAuthGuard)
+  @UseGuards(AdminSessionGuard)
   async stats(): Promise<AdminStatsDto> {
     // The catalogue as plans see it: no recipe a user made for themselves, nothing an update retired.
     const [ingredients, recipes, substitutions, meta, coverage, reach] = await Promise.all([
@@ -177,7 +177,7 @@ export class AdminController {
    */
   @Post('db/update')
   @HttpCode(202)
-  @UseGuards(BasicAuthGuard)
+  @UseGuards(AdminSessionGuard)
   startUpdate(): RunnerState {
     const started = this.runner.start();
     if (!started) {
@@ -190,7 +190,7 @@ export class AdminController {
   }
 
   @Get('db/update/status')
-  @UseGuards(BasicAuthGuard)
+  @UseGuards(AdminSessionGuard)
   updateStatus(): RunnerState {
     return this.runner.getState();
   }
@@ -204,7 +204,7 @@ export class AdminController {
    */
   @Post('db/import-usda')
   @HttpCode(202)
-  @UseGuards(BasicAuthGuard)
+  @UseGuards(AdminSessionGuard)
   startUsdaImport(
     @Query(new ZodValidationPipe(z.object({ dataTypes: FdcDataTypes.optional() }))) query: { dataTypes?: string },
   ): ImportRunnerState {
@@ -219,7 +219,7 @@ export class AdminController {
   }
 
   @Get('db/import-usda/status')
-  @UseGuards(BasicAuthGuard)
+  @UseGuards(AdminSessionGuard)
   usdaImportStatus(): ImportRunnerState {
     return this.importer.getState();
   }

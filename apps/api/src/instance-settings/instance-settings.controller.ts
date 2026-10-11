@@ -12,12 +12,12 @@
  */
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { InstanceSettingsPatchBody } from '@diet-app/shared';
-import { BasicAuthGuard } from '../admin/basic-auth.guard.js';
+import { AdminSessionGuard } from '../admin/admin-session.guard.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { InstanceSettingsService, type InstanceSettingsState } from './instance-settings.service.js';
 
 @Controller('admin/instance-settings')
-@UseGuards(BasicAuthGuard)
+@UseGuards(AdminSessionGuard)
 export class InstanceSettingsController {
   constructor(private readonly service: InstanceSettingsService) {}
 

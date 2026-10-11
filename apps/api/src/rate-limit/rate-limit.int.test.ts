@@ -2,7 +2,7 @@
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
-import { aUser, as, type TestUser } from '../testing/factories.js';
+import { as, asAdmin, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { SignInGate } from './sign-in-gate.js';
 
@@ -170,47 +170,39 @@ describe('rate limits behind a proxy that is not trusted', () => {
   });
 
   describe('the administrator\'s password', () => {
-    const basic = (password: string) => ({ Authorization: `Basic ${Buffer.from(`admin:${password}`).toString('base64')}` });
-    const stats = (password: string) => t.http().get('/api/admin/stats').set(basic(password));
+    const signIn = (password: string) => t.http().post('/api/admin/session').set({ Origin: 'http://localhost:3000' }).send({ user: 'admin', password });
 
     it('makes a client wait after five wrong tries, right password or not, and lets it in once the wait is over', async () => {
       const gate = t.app.get(SignInGate);
       let time = Date.now();
       gate.now = () => time;
 
-      expect(await statuses(5, () => stats('not-the-password'))).toEqual(Array(5).fill(401));
+      expect(await statuses(5, () => signIn('not-the-password'))).toEqual(Array(5).fill(401));
 
-      const held = await stats('integration-test-admin-password');
+      const held = await signIn('integration-test-admin-password');
       expect(held.status).toBe(429);
       expect(held.body.error).toBe('TOO_MANY_ATTEMPTS');
       expect(held.headers['retry-after']).toBe('30');
 
       time += 31_000;
-      expect((await stats('integration-test-admin-password')).status).toBe(200);
-      // A correct sign-in clears the count: four more wrong ones cost nothing.
-      expect(await statuses(4, () => stats('not-the-password'))).toEqual(Array(4).fill(401));
-      expect((await stats('integration-test-admin-password')).status).toBe(200);
+      expect((await signIn('integration-test-admin-password')).status).toBe(204);
+      // A correct sign-in clears the count: wrong ones after it start from nothing.
+      expect(await statuses(2, () => signIn('not-the-password'))).toEqual(Array(2).fill(401));
+      expect((await signIn('integration-test-admin-password')).status).toBe(204);
     });
 
-    it('does not count a request that presents no password at all', async () => {
+    it('does not count a request that comes without a session', async () => {
       expect(await statuses(8, () => t.http().get('/api/admin/stats'))).toEqual(Array(8).fill(401));
 
-      expect((await stats('integration-test-admin-password')).status).toBe(200);
+      expect((await t.http().get('/api/admin/stats').set(asAdmin)).status).toBe(200);
     });
 
     it('shows the administrator what the API sees of the connection', async () => {
-      const direct = await stats('integration-test-admin-password').then(() =>
-        t.http().get('/api/admin/connection').set(basic('integration-test-admin-password')).expect(200),
-      );
+      const direct = await t.http().get('/api/admin/connection').set(asAdmin).expect(200);
       expect(direct.body).toMatchObject({ forwardedFor: null, forwardedHops: 0, trustProxy: false, countedAsProxy: false, overTrusted: false });
       expect(direct.body.clientAddress).toBe(direct.body.peerAddress);
 
-      const forwarded = await t
-        .http()
-        .get('/api/admin/connection')
-        .set(basic('integration-test-admin-password'))
-        .set('X-Forwarded-For', '203.0.113.7')
-        .expect(200);
+      const forwarded = await t.http().get('/api/admin/connection').set(asAdmin).set('X-Forwarded-For', '203.0.113.7').expect(200);
       // The header is shown, and not believed: the request counts as the proxy it came through.
       expect(forwarded.body).toMatchObject({ forwardedFor: '203.0.113.7', countedAsProxy: true });
       expect(forwarded.body.clientAddress).toBe(forwarded.body.peerAddress);
@@ -219,8 +211,7 @@ describe('rate limits behind a proxy that is not trusted', () => {
 
   describe('the reviewers\' password', () => {
     it('counts wrong tries at the same gate', async () => {
-      const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
-      await t.http().patch('/api/admin/instance-settings').set(basic).send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' }).expect(200);
+      await t.http().patch('/api/admin/instance-settings').set(asAdmin).send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' }).expect(200);
       const gate = t.app.get(SignInGate);
       const signIn = (password: string) => t.http().post('/api/review/auth').set({ Origin: 'http://localhost:3000' }).send({ password, label: 'pl reviewer' });
 

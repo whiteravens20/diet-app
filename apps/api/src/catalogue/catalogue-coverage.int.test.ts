@@ -5,13 +5,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { COVERAGE_TARGET } from '../engine/coverage.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPrivateRecipe, aProfile, aUser, as } from '../testing/factories.js';
+import { aPrivateRecipe, aProfile, as, asAdmin, aUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { CatalogueCoverageService } from './catalogue-coverage.service.js';
 
 describe('what the catalogue can serve', () => {
   let t: TestApp;
-  const basic = { Authorization: `Basic ${Buffer.from('admin:integration-test-admin-password').toString('base64')}` };
+  const basic = asAdmin;
 
   beforeAll(async () => {
     t = await createTestApp();
