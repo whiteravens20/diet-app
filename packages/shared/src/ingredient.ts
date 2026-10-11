@@ -47,3 +47,22 @@ export const SubstitutionRule = z.object({
   note: z.string().nullable().default(null),
 });
 export type SubstitutionRule = z.infer<typeof SubstitutionRule>;
+
+/** The most ingredients that can be asked for by id at once. */
+export const MAX_INGREDIENT_IDS = 200;
+
+/**
+ * What the ingredient catalogue is asked for: the ingredients of a list of
+ * ids (`ids`, separated by commas), or the ones whose name holds `search`.
+ */
+export const IngredientListQuery = z.object({
+  search: z.string().trim().max(200).optional(),
+  ids: z
+    .string()
+    .max(MAX_INGREDIENT_IDS * 37)
+    .transform((list) => list.split(',').filter(Boolean))
+    .pipe(z.array(z.string().uuid()).max(MAX_INGREDIENT_IDS))
+    .optional(),
+});
+export type IngredientListQuery = z.infer<typeof IngredientListQuery>;
+

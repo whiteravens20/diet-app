@@ -32,17 +32,6 @@ export interface AdvancedValue {
 
 const KINDS: NonNullable<DayDraft['dayKind']>[] = ['normal', 'rest', 'training', 'skip'];
 
-/** Dates (ISO yyyy-mm-dd) covered by a plan starting at `startDate` for `durationDays`. */
-export function planDates(startDate: string, durationDays: number): string[] {
-  const start = new Date(`${startDate}T00:00:00Z`);
-  if (Number.isNaN(start.getTime()) || durationDays < 1) return [];
-  return Array.from({ length: Math.min(durationDays, 28) }, (_, i) => {
-    const d = new Date(start);
-    d.setUTCDate(d.getUTCDate() + i);
-    return d.toISOString().slice(0, 10);
-  });
-}
-
 /** Collapse the form draft into the request's `maxRepeatsPerRecipe`, `allowRelaxations` and `dayOverrides`. */
 export function buildAdvancedRequest(
   value: AdvancedValue,
@@ -59,7 +48,8 @@ export function buildAdvancedRequest(
     if (d.useUpBy) o.useUpBy = true;
     if (d.dayKind === 'skip') o.skip = true;
     else if (d.dayKind === 'rest' || d.dayKind === 'training') o.dayType = d.dayKind;
-    if (d.lockSlot && d.lockRecipeId) {
+    // A day that is skipped has no meal to lock: a lock picked before the day was switched to skip is left out.
+    if (d.dayKind !== 'skip' && d.lockSlot && d.lockRecipeId) {
       o.lockedSlots = [{ mealType: d.lockSlot, recipeId: d.lockRecipeId }];
     }
     // Only send a day that actually carries an override beyond its date.

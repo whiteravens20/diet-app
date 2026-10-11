@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
-import { MealType } from './enums.js';
+import { CalendarDay, MealType } from './enums.js';
 
 /**
  * Slot map for a favorite set — one recipe id per meal slot. Sparse on purpose
@@ -48,6 +48,6 @@ export type UpdateFavoriteSetRequest = z.infer<typeof UpdateFavoriteSetRequest>;
  */
 export const ApplyFavoriteSetRequest = z.object({
   planId: z.string().uuid(),
-  dayDates: z.array(z.string().date()).min(1),
+  dayDates: z.array(CalendarDay).min(1).max(28),
 });
 export type ApplyFavoriteSetRequest = z.infer<typeof ApplyFavoriteSetRequest>;

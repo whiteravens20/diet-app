@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { WeightEntry, WeightEntryInput } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -42,18 +42,14 @@ export class WeightsService {
   }
 
   async remove(userId: string, id: string): Promise<void> {
-    const row = await this.prisma.weightEntry.findUnique({ where: { id } });
-    if (!row) throw new NotFoundException({ error: 'WEIGHT_ENTRY_NOT_FOUND', message: 'Weight entry not found.' });
-    await this.assertProfile(userId, row.profileId);
-    await this.prisma.weightEntry.delete({ where: { id } });
+    // An entry of somebody else's profile is answered as one that is not there.
+    const removed = await this.prisma.weightEntry.deleteMany({ where: { id, profile: { userId } } });
+    if (removed.count === 0) throw new NotFoundException({ error: 'WEIGHT_ENTRY_NOT_FOUND', message: 'Weight entry not found.' });
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {
     const profile = await this.prisma.profile.findUnique({ where: { id: profileId }, select: { userId: true } });
-    if (!profile) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
-    if (profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Profile belongs to another user.' });
-    }
+    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
   }
 
   private toDto(row: { id: string; profileId: string; kg: number; recordedAt: Date; createdAt: Date }): WeightEntry {

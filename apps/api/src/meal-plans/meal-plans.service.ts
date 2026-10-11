@@ -2,7 +2,6 @@
 
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,7 +13,10 @@ import {
   type Locale,
   type MealPlan,
   type MealPlanDay,
+  type MealPlanPage,
+  type MealPlanSummary,
   type MealType,
+  type PlanListQuery,
   type PlannedMeal,
   type RebalanceChange,
   type RebalanceRequest,
@@ -27,10 +29,11 @@ import {
   rebalanceWeek,
   type RebalanceMeal,
 } from '../engine/index.js';
+import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
 import { shownReport } from './generation-report.js';
-import { customMacros, isoDate, parseDayOverrides } from './plan-days.js';
+import { averageDay, customMacros, isoDate, isSkipped, mealNutrition, parseDayOverrides, sumNutrition, type MealAmount } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { writePlan } from './plan-write.js';
 import { restrictionsFor, violations, type Candidate, type Restrictions } from './eligibility.js';
@@ -51,10 +54,7 @@ export class MealPlansService {
       where: { id: planId },
       include: { profile: true },
     });
-    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    if (plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
-    }
+    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const profileId = plan.profile.id;
     // The plan takes its shopping lists with it. What was obtained for the
     // days still ahead is in the kitchen and goes into the pantry first, by
@@ -68,48 +68,59 @@ export class MealPlansService {
     );
   }
 
-  async list(
-    userId: string,
-    locale: Locale,
-    profileId: string,
-    filters: { from?: string; to?: string; status?: string } = {},
-  ): Promise<MealPlan[]> {
-    await this.loadProfile(userId, profileId);
+  /**
+   * A page of the plans of a profile, the one that begins last first, each
+   * as a summary. The list is narrowed in the database, so that a page is all
+   * that is ever read: a plan's days and meals are loaded only as far as its
+   * average takes.
+   */
+  async list(userId: string, query: PlanListQuery, clientToday: string | null = null): Promise<MealPlanPage> {
+    await this.loadProfile(userId, query.profileId);
+    // The day it is for whoever asks; the server's own when the client named none.
+    const today = clientToday ?? isoDate(new Date());
 
-    // `to` constrains startDate (`startDate <= to`). For `from` we need
-    // `startDate + durationDays - 1 >= from`, which Prisma can't express as a
-    // single column comparison — defer that check to a JS filter below.
-    const where: { profileId: string; startDate?: { lte?: Date } } = { profileId };
-    if (filters.to) where.startDate = { lte: new Date(filters.to) };
+    // The last day of a plan is its first plus its length less one.
+    const lastDay = Prisma.sql`("startDate" + ("durationDays" - 1))`;
+    const day = (date: string) => Prisma.sql`${date}::date`;
+    const narrowed = [
+      Prisma.sql`"profileId" = ${query.profileId}`,
+      ...(query.to ? [Prisma.sql`"startDate" <= ${day(query.to)}`] : []),
+      ...(query.from ? [Prisma.sql`${lastDay} >= ${day(query.from)}`] : []),
+      ...(query.status === 'active' ? [Prisma.sql`"startDate" <= ${day(today)} AND ${lastDay} >= ${day(today)}`] : []),
+      ...(query.status === 'past' ? [Prisma.sql`${lastDay} < ${day(today)}`] : []),
+      ...(query.status === 'upcoming' ? [Prisma.sql`"startDate" > ${day(today)}`] : []),
+    ];
+    const where = Prisma.join(narrowed, ' AND ');
+    const [{ total }] = await this.prisma.$queryRaw<[{ total: number }]>`SELECT COUNT(*)::int AS total FROM "MealPlan" WHERE ${where}`;
+    const page = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "MealPlan" WHERE ${where}
+      ORDER BY "startDate" DESC, "createdAt" DESC, "id"
+      LIMIT ${query.pageSize} OFFSET ${(query.page - 1) * query.pageSize}`;
 
-    let plans = await this.prisma.mealPlan.findMany({
-      where,
-      orderBy: { startDate: 'desc' },
+    const amount = { caloriesPerServing: true, proteinPerServing: true, fatPerServing: true, carbsPerServing: true } as const;
+    const plans = await this.prisma.mealPlan.findMany({
+      where: { id: { in: page.map((row) => row.id) } },
+      include: {
+        days: {
+          select: {
+            overrides: true,
+            meals: { select: { servings: true, quantityScale: true, source: true, customMacros: true, recipe: { select: amount } } },
+          },
+        },
+      },
     });
-
-    const planEnd = (p: { startDate: Date; durationDays: number }): Date => {
-      const end = new Date(p.startDate);
-      end.setUTCDate(end.getUTCDate() + p.durationDays - 1);
-      return end;
+    const byId = new Map(plans.map((plan) => [plan.id, plan]));
+    return {
+      items: page.flatMap(({ id }) => {
+        const plan = byId.get(id);
+        // Deleted between the two reads: it is on no page any more.
+        return plan ? [this.toSummary(plan)] : [];
+      }),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+      totalPages: Math.ceil(total / query.pageSize),
     };
-    if (filters.from) {
-      const fromDate = new Date(filters.from);
-      plans = plans.filter((p) => planEnd(p) >= fromDate);
-    }
-    if (filters.status) {
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-      plans = plans.filter((p) => {
-        const start = new Date(p.startDate);
-        const end = planEnd(p);
-        if (filters.status === 'active') return start <= today && today <= end;
-        if (filters.status === 'past') return end < today;
-        if (filters.status === 'upcoming') return start > today;
-        return true;
-      });
-    }
-
-    return Promise.all(plans.map((p) => this.get(userId, locale, p.id)));
   }
 
   async get(userId: string, locale: Locale, planId: string): Promise<MealPlan> {
@@ -139,10 +150,7 @@ export class MealPlansService {
         profile: { include: { preferences: true } },
       },
     });
-    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    if (plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
-    }
+    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     return this.toDto(plan, locale, await restrictionsFor(this.prisma, plan));
   }
 
@@ -240,6 +248,7 @@ export class MealPlansService {
     locale: Locale,
     planId: string,
     req: RebalanceRequest,
+    clientToday: string | null = null,
   ): Promise<RebalanceResult> {
     // Authorise the plan up front, and note the revision the request starts from.
     const { revision } = await this.planOf(userId, planId);
@@ -252,34 +261,31 @@ export class MealPlansService {
 
     if (req.scope === 'week') {
       const summary = await writePlan(this.prisma, planId, revision, (tx) =>
-        this.rebalanceWeekInternal(planId, tx, req.date ?? isoDate(new Date())),
+        this.rebalanceWeekInternal(planId, tx, req.date ?? clientToday ?? isoDate(new Date())),
       );
       return this.buildRebalanceResult(userId, locale, planId, 'week', summary);
     }
 
-    if (!req.date) {
-      throw new BadRequestException({
-        error: 'REBALANCE_DAY_NOT_FOUND',
-        message: 'A date is required to rebalance a single day.',
-      });
-    }
-    const day = await this.loadDay(userId, planId, req.date);
+    // The contract refuses a single day without its date before it gets here.
+    const day = await this.loadDay(userId, planId, req.date!);
     const summary = await writePlan(this.prisma, planId, revision, (tx) =>
       this.rebalanceDayInternal(day.id, tx),
     );
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }
 
-  /** The profile, when it is this user's; otherwise the refusal every route that names a profile gives. */
+  /**
+   * The profile, when it is this user's; otherwise the refusal every route
+   * that names a profile gives. Here and in every loader like it, something
+   * that is somebody else's is answered as something that is not there: the
+   * same 404, so that nobody learns which ids exist.
+   */
   async loadProfile(userId: string, profileId: string) {
     const profile = await this.prisma.profile.findUnique({
       where: { id: profileId },
       include: { preferences: true },
     });
-    if (!profile) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
-    if (profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Profile belongs to another user.' });
-    }
+    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
     return profile;
   }
 
@@ -296,11 +302,8 @@ export class MealPlansService {
       where: { id: plannedMealId },
       include: { day: { include: { plan: { include: { profile: { include: { preferences: true } } } } } } },
     });
-    if (!meal?.day?.plan?.profile || meal.day.planId !== planId) {
+    if (!meal?.day?.plan?.profile || meal.day.planId !== planId || meal.day.plan.profile.userId !== userId) {
       throw new NotFoundException({ error: 'MEAL_NOT_FOUND', message: 'Planned meal not found.' });
-    }
-    if (meal.day.plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
     }
     return meal;
   }
@@ -309,8 +312,7 @@ export class MealPlansService {
   /** The revision of a plan that is `userId`'s: enough to authorise an edit and to start it. */
   private async planOf(userId: string, planId: string): Promise<{ revision: number }> {
     const plan = await this.prisma.mealPlan.findUnique({ where: { id: planId }, select: { revision: true, profile: { select: { userId: true } } } });
-    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    if (plan.profile.userId !== userId) throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
+    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     return { revision: plan.revision };
   }
 
@@ -319,11 +321,8 @@ export class MealPlansService {
       where: { planId, date: new Date(date) },
       include: { plan: { include: { profile: true } } },
     });
-    if (!day?.plan?.profile) {
-      throw new NotFoundException({ error: 'REBALANCE_DAY_NOT_FOUND', message: 'Plan day not found.' });
-    }
-    if (day.plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
+    if (!day?.plan?.profile || day.plan.profile.userId !== userId) {
+      throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
     }
     return day;
   }
@@ -410,7 +409,7 @@ export class MealPlansService {
   ): Promise<void> {
     const meals = await tx.plannedMeal.findMany({
       where: { id: { in: restore.map((r) => r.mealId) }, day: { planId } },
-      select: { id: true, source: true, eatenAt: true },
+      select: { id: true, source: true, eatenAt: true, servings: true },
     });
     const byId = new Map(meals.map((m) => [m.id, m]));
     for (const r of restore) {
@@ -420,6 +419,15 @@ export class MealPlansService {
         throw new BadRequestException({
           error: 'MEAL_NOT_REBALANCEABLE',
           message: 'Custom and eaten meals are never rebalanced.',
+        });
+      }
+      // An undo puts back what a rebalance left, and a rebalance leaves a
+      // meal between half a serving and three: nothing else is an undo.
+      const servings = m.servings * r.scale;
+      if (servings < SERVING_MIN - SCALE_SLACK || servings > SERVING_MAX + SCALE_SLACK) {
+        throw new BadRequestException({
+          error: 'SCALE_OUT_OF_RANGE',
+          message: `A meal holds between ${SERVING_MIN} and ${SERVING_MAX} servings.`,
         });
       }
     }
@@ -455,6 +463,22 @@ export class MealPlansService {
     };
   }
 
+  private toSummary(plan: SummarisedPlan): MealPlanSummary {
+    return {
+      id: plan.id,
+      profileId: plan.profileId,
+      startDate: isoDate(plan.startDate),
+      durationDays: plan.durationDays,
+      dietType: plan.dietType,
+      averageDailyNutrition: averageDay(plan.days),
+      ingredientReuseScore: plan.reuseScore,
+      generationMode: plan.generationMode,
+      options: PlanOptions.parse(plan.options),
+      revision: plan.revision,
+      createdAt: plan.createdAt.toISOString(),
+    };
+  }
+
   private toDto(plan: PlanWithRelations, locale: Locale, restrictions: Restrictions): MealPlan {
     const floor = safetyFloor(plan.profile?.sex ?? null);
     const days: MealPlanDay[] = plan.days.map((day) => {
@@ -468,7 +492,6 @@ export class MealPlansService {
         const eatenAt = m.eatenAt ? m.eatenAt.toISOString() : null;
         // Custom meal: no catalogue recipe, macros frozen on the row.
         if (m.source === 'USER_CUSTOM' || !m.recipe) {
-          const per = customMacros(m.customMacros);
           return {
             id: m.id,
             mealType: m.mealType as MealType,
@@ -481,16 +504,10 @@ export class MealPlansService {
             eatenAt,
             dietOverride: false,
             restrictionConflicts: [],
-            nutrition: {
-              calories: Math.round(per.calories * factor),
-              protein: Math.round(per.protein * factor),
-              fat: Math.round(per.fat * factor),
-              carbs: Math.round(per.carbs * factor),
-            },
+            nutrition: mealNutrition(m),
           };
         }
         const recipe = toRecipeDto(m.recipe, locale);
-        const n = recipe.nutritionPerServing;
         return {
           id: m.id,
           mealType: m.mealType as MealType,
@@ -510,18 +527,12 @@ export class MealPlansService {
           restrictionConflicts: violations(m.recipe, restrictions, m.mealType, { diet: true, meal: true }).filter(
             (violation) => violation !== 'not_available',
           ) as PlannedMeal['restrictionConflicts'],
-          nutrition: {
-            calories: Math.round(n.calories * factor),
-            protein: Math.round(n.protein * factor),
-            fat: Math.round(n.fat * factor),
-            carbs: Math.round(n.carbs * factor),
-          },
+          nutrition: mealNutrition(m),
         };
       });
       const dayNutrition = sumNutrition(meals.map((m) => m.nutrition));
       const overrides = parseDayOverrides(day.overrides);
-      // A day the user skips has no meals: that is no shortfall.
-      const skipped = overrides?.skip === true && meals.length === 0;
+      const skipped = isSkipped(day);
       return {
         id: day.id,
         date: isoDate(day.date),
@@ -536,15 +547,6 @@ export class MealPlansService {
       };
     });
 
-    // What a day of this plan holds on average: a skipped day is no day of eating.
-    const eaten = days.filter((d) => !d.skipped);
-    const avg = eaten.length
-      ? scaleNutrition(
-          sumNutrition(eaten.map((d) => d.dayNutrition)),
-          1 / eaten.length,
-        )
-      : { calories: 0, protein: 0, fat: 0, carbs: 0 };
-
     return {
       id: plan.id,
       profileId: plan.profileId,
@@ -552,7 +554,7 @@ export class MealPlansService {
       durationDays: plan.durationDays,
       dietType: plan.dietType,
       days,
-      averageDailyNutrition: avg,
+      averageDailyNutrition: averageDay(plan.days),
       targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType),
       ingredientReuseScore: plan.reuseScore,
       generationMode: plan.generationMode,
@@ -565,6 +567,12 @@ export class MealPlansService {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+/** What a product of two fractions may be off by. */
+const SCALE_SLACK = 1e-6;
+
+/** A plan as far as its summary takes: the row, and what its meals amount to. */
+type SummarisedPlan = Prisma.MealPlanGetPayload<object> & { days: { overrides: unknown; meals: MealAmount[] }[] };
 
 interface PlanWithRelations {
   id: string;
@@ -701,23 +709,3 @@ function rowsMacros(rows: RebalanceRow[], scaleOf: (r: RebalanceRow) => number):
   );
 }
 
-function sumNutrition(items: { calories: number; protein: number; fat: number; carbs: number }[]) {
-  return items.reduce(
-    (acc, n) => ({
-      calories: acc.calories + n.calories,
-      protein: acc.protein + n.protein,
-      fat: acc.fat + n.fat,
-      carbs: acc.carbs + n.carbs,
-    }),
-    { calories: 0, protein: 0, fat: 0, carbs: 0 },
-  );
-}
-
-function scaleNutrition(n: { calories: number; protein: number; fat: number; carbs: number }, f: number) {
-  return {
-    calories: Math.round(n.calories * f),
-    protein: Math.round(n.protein * f),
-    fat: Math.round(n.fat * f),
-    carbs: Math.round(n.carbs * f),
-  };
-}

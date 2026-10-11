@@ -18,7 +18,6 @@ import {
   HttpCode,
   Logger,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -30,21 +29,28 @@ import { resolve as resolvePath } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
+  DraftBulkRejectBody,
+  DraftLocaleQuery,
+  DraftReviewBody,
+  DryRunQuery,
   IngredientNameDraftListQuery,
+  IngredientNameDraftPatchBody,
   IngredientNameGenerateSpec,
-  IngredientNameSuggestion,
-  Locale as LocaleSchema,
+  MarkShippedRequest,
+  PullOverridesRequest,
   RecipeDraftListQuery,
   RecipeDraftPatch,
   RecipeGenerateSpec,
-  TargetLocale,
+  ShipRequest,
+  TargetLocaleQuery,
   type DraftRunnerState,
   type IngredientNameDraft,
+  type Locale,
   type RecipeDraft,
   type ReviewAction,
+  type TargetLocale,
 } from '@diet-app/shared';
-import { z } from 'zod';
-import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Env } from '../../config/env.js';
 import { AdminSessionGuard } from '../admin-session.guard.js';
@@ -95,46 +101,6 @@ import {
 /** The administrator acting on a draft; a review carries the name they gave instead of this one. */
 const ADMIN: Actor = { role: 'ADMIN', label: 'admin' };
 
-/** `body` checked against `schema`, or a 400 under the code this route has always answered with. */
-function bodyOf<T>(schema: z.ZodType<T>, body: unknown, code: string): T {
-  const result = schema.safeParse(body);
-  if (!result.success) throw new BadRequestException({ error: code, message: result.error.message });
-  return result.data;
-}
-
-const ApproveRejectBody = z.object({
-  reviewedByLabel: z.string().min(1).max(80),
-  reason: z.string().max(500).optional(),
-});
-
-const BulkRejectBody = z.object({
-  ids: z.array(z.string().uuid()).min(1).max(100),
-  reviewedByLabel: z.string().min(1).max(80),
-  reason: z.string().max(500).optional(),
-});
-
-const PatchSuggestionsBody = z.object({
-  suggestions: IngredientNameSuggestion,
-});
-
-const ShipKind = z.enum(['recipe', 'ingredient-name']);
-const ShipMode = z.enum(['local', 'upstream-pr', 'bundle']);
-const ShipBody = z.object({
-  kind: ShipKind,
-  mode: ShipMode,
-  batchIds: z.array(z.string().min(1)).optional(),
-});
-
-const MarkShippedBody = z.object({
-  kind: ShipKind,
-  draftIds: z.array(z.string().uuid()).min(1),
-});
-
-const PullOverridesBody = z.object({
-  /** Repo (`owner/repo[@branch]`) or a full raw URL. Falls back to the env
-   *  default when omitted/blank. */
-  source: z.string().trim().min(1).optional(),
-});
 
 interface ShipConfigDto {
   modes: {
@@ -179,25 +145,8 @@ export class DraftsController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('ingredient-names/generate')
   @HttpCode(202)
-  startNamerRun(@Body() body: unknown): DraftRunnerState {
-    const parsed = IngredientNameGenerateSpec.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_SPEC',
-        message: parsed.error.message,
-      });
-    }
-    const spec: IngredientNamerStartSpec = {
-      scope: parsed.data.scope,
-      slugs: parsed.data.slugs,
-      targetLocales: parsed.data.targetLocales,
-    };
-    if (spec.scope === 'specific-slugs' && (!spec.slugs || spec.slugs.length === 0)) {
-      throw new BadRequestException({
-        error: 'INVALID_SPEC',
-        message: 'scope=specific-slugs requires a non-empty `slugs` array',
-      });
-    }
+  startNamerRun(@Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec): DraftRunnerState {
+    const spec: IngredientNamerStartSpec = { scope: body.scope, slugs: body.slugs, targetLocales: body.targetLocales };
     const started = this.namer.start(spec);
     if (!started) {
       throw new ConflictException({
@@ -231,31 +180,41 @@ export class DraftsController {
   }
 
   @Get('ingredient-names/:id')
-  async getIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string): Promise<IngredientNameDraft> {
+  async getIngredientNameDraft(@Param('id', requiredUuid) id: string): Promise<IngredientNameDraft> {
     return toIngredientNameDraftDto(await this.drafts.ingredientName(id));
   }
 
   // ── Edit / approve / reject / delete (ingredient names) ────────────────────
 
   @Patch('ingredient-names/:id')
-  async patchIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: unknown): Promise<IngredientNameDraft> {
-    const { suggestions } = bodyOf(PatchSuggestionsBody, body, 'INVALID_PATCH');
+  async patchIngredientNameDraft(
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(IngredientNameDraftPatchBody)) { suggestions }: IngredientNameDraftPatchBody,
+  ): Promise<IngredientNameDraft> {
     return toIngredientNameDraftDto(await this.drafts.editIngredientName(id, suggestions, ADMIN));
   }
 
   @Post('ingredient-names/:id/approve')
-  approveIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<IngredientNameDraft> {
+  approveIngredientNameDraft(
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Body(new ZodValidationPipe(DraftReviewBody)) body: DraftReviewBody,
+  ): Promise<IngredientNameDraft> {
     return this.reviewIngredientName(id, locale, body, 'APPROVE');
   }
 
   @Post('ingredient-names/:id/reject')
-  rejectIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<IngredientNameDraft> {
+  rejectIngredientNameDraft(
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Body(new ZodValidationPipe(DraftReviewBody)) body: DraftReviewBody,
+  ): Promise<IngredientNameDraft> {
     return this.reviewIngredientName(id, locale, body, 'REJECT');
   }
 
   @Delete('ingredient-names/:id')
   @HttpCode(204)
-  deleteIngredientNameDraft(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+  deleteIngredientNameDraft(@Param('id', requiredUuid) id: string): Promise<void> {
     return this.drafts.deleteIngredientName(id, ADMIN);
   }
 
@@ -265,15 +224,8 @@ export class DraftsController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('recipes/generate')
   @HttpCode(202)
-  startRecipeRun(@Body() body: unknown): RecipeRunnerStateDto {
-    const parsed = RecipeGenerateSpec.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_RECIPE_SPEC',
-        message: parsed.error.message,
-      });
-    }
-    const started = this.recipeGen.start(parsed.data);
+  startRecipeRun(@Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec): RecipeRunnerStateDto {
+    const started = this.recipeGen.start(spec);
     if (!started) {
       throw new ConflictException({
         error: 'RECIPE_GEN_IN_PROGRESS',
@@ -304,7 +256,7 @@ export class DraftsController {
   }
 
   @Get('recipes/:id')
-  async getRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string): Promise<RecipeDraft> {
+  async getRecipeDraft(@Param('id', requiredUuid) id: string): Promise<RecipeDraft> {
     return toRecipeDraftDto(await this.drafts.recipe(id));
   }
 
@@ -316,16 +268,19 @@ export class DraftsController {
    */
   @Patch('recipes/:id')
   async patchRecipeDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() body: unknown,
-    @Query('dryRun') dryRun: string | undefined,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(RecipeDraftPatch)) patch: RecipeDraftPatch,
+    @Query(new ZodValidationPipe(DryRunQuery)) { dryRun }: DryRunQuery,
   ): Promise<RecipeDraft> {
-    const patch = bodyOf(RecipeDraftPatch, body, 'INVALID_PATCH');
-    return toRecipeDraftDto(await this.drafts.editRecipe(id, patch, ADMIN, { dryRun: dryRun === 'true' || dryRun === '1' }));
+    return toRecipeDraftDto(await this.drafts.editRecipe(id, patch, ADMIN, { dryRun }));
   }
 
   @Post('recipes/:id/approve')
-  approveRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<RecipeDraft> {
+  approveRecipeDraft(
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(DraftLocaleQuery)) { locale }: DraftLocaleQuery,
+    @Body(new ZodValidationPipe(DraftReviewBody)) body: DraftReviewBody,
+  ): Promise<RecipeDraft> {
     return this.reviewRecipe(id, locale, body, 'APPROVE');
   }
 
@@ -337,19 +292,24 @@ export class DraftsController {
    */
   @Post('recipes/reject')
   @HttpCode(200)
-  rejectRecipeDrafts(@Body() body: unknown): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
-    const { ids, reviewedByLabel, reason } = bodyOf(BulkRejectBody, body, 'INVALID_REVIEW');
+  rejectRecipeDrafts(
+    @Body(new ZodValidationPipe(DraftBulkRejectBody)) { ids, reviewedByLabel, reason }: DraftBulkRejectBody,
+  ): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
     return this.drafts.rejectRecipes(ids, reason, { ...ADMIN, label: reviewedByLabel });
   }
 
   @Post('recipes/:id/reject')
-  rejectRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string, @Query('locale') locale: string, @Body() body: unknown): Promise<RecipeDraft> {
+  rejectRecipeDraft(
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(DraftLocaleQuery)) { locale }: DraftLocaleQuery,
+    @Body(new ZodValidationPipe(DraftReviewBody)) body: DraftReviewBody,
+  ): Promise<RecipeDraft> {
     return this.reviewRecipe(id, locale, body, 'REJECT');
   }
 
   @Delete('recipes/:id')
   @HttpCode(204)
-  deleteRecipeDraft(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+  deleteRecipeDraft(@Param('id', requiredUuid) id: string): Promise<void> {
     return this.drafts.deleteRecipe(id, ADMIN);
   }
 
@@ -361,7 +321,7 @@ export class DraftsController {
    */
   @Post('recipes/:id/promote')
   async promoteRecipeDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('id', requiredUuid) id: string,
   ): Promise<RecipeDraft> {
     const existing = await this.drafts.recipe(id);
     if (existing.source !== 'AI_USER') {
@@ -429,15 +389,7 @@ export class DraftsController {
   }
 
   @Post('ship')
-  async ship(@Body() body: unknown): Promise<ShipResponseDto> {
-    const parsed = ShipBody.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_SHIP_REQUEST',
-        message: parsed.error.message,
-      });
-    }
-    const { kind, mode, batchIds } = parsed.data;
+  async ship(@Body(new ZodValidationPipe(ShipRequest)) { kind, mode, batchIds }: ShipRequest): Promise<ShipResponseDto> {
 
     if (mode === 'local') {
       const instanceDataDir = this.resolveInstanceDataDir();
@@ -527,16 +479,9 @@ export class DraftsController {
    *  canonical community set) without rebuilding the image. Public repos need
    *  no auth; private GitHub repos use the env PAT. */
   @Post('ship/current-overrides/pull')
-  async pullCurrentOverrides(@Body() body: unknown): Promise<PullOverridesResult> {
-    const parsed = PullOverridesBody.safeParse(body ?? {});
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_PULL_REQUEST',
-        message: parsed.error.message,
-      });
-    }
+  async pullCurrentOverrides(@Body(new ZodValidationPipe(PullOverridesRequest.prefault({}))) body: PullOverridesRequest): Promise<PullOverridesResult> {
     const source =
-      parsed.data.source ??
+      body.source ??
       this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }) ??
       'whiteravens20/diet-app';
     try {
@@ -586,15 +531,8 @@ export class DraftsController {
   }
 
   @Post('ship/mark-shipped')
-  async shipMarkShipped(@Body() body: unknown): Promise<{ updated: number }> {
-    const parsed = MarkShippedBody.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_MARK_SHIPPED_REQUEST',
-        message: parsed.error.message,
-      });
-    }
-    return markBundleShipped(this.prisma, parsed.data.kind, parsed.data.draftIds);
+  async shipMarkShipped(@Body(new ZodValidationPipe(MarkShippedRequest)) { kind, draftIds }: MarkShippedRequest): Promise<{ updated: number }> {
+    return markBundleShipped(this.prisma, kind, draftIds);
   }
 
   // ── Internals ───────────────────────────────────────────────────────────────
@@ -632,23 +570,13 @@ export class DraftsController {
   }
 
   /** The administrator reviews the languages reviewers review: the name of an ingredient has no English. */
-  private async reviewIngredientName(id: string, locale: string, body: unknown, action: ReviewAction): Promise<IngredientNameDraft> {
-    const target = TargetLocale.safeParse(locale);
-    if (!target.success) {
-      throw new BadRequestException({ error: 'INVALID_LOCALE', message: `locale must be a supported non-canonical Locale, got "${locale}"` });
-    }
-    const { reviewedByLabel, reason } = bodyOf(ApproveRejectBody, body, 'INVALID_REVIEW');
-    return toIngredientNameDraftDto(await this.drafts.reviewIngredientName(id, { locale: target.data, action, reason }, { ...ADMIN, label: reviewedByLabel }));
+  private async reviewIngredientName(id: string, locale: TargetLocale, { reviewedByLabel, reason }: DraftReviewBody, action: ReviewAction): Promise<IngredientNameDraft> {
+    return toIngredientNameDraftDto(await this.drafts.reviewIngredientName(id, { locale, action, reason }, { ...ADMIN, label: reviewedByLabel }));
   }
 
   /** The administrator reviews any language of a recipe, and is the one who reviews English. */
-  private async reviewRecipe(id: string, locale: string, body: unknown, action: ReviewAction): Promise<RecipeDraft> {
-    const target = LocaleSchema.safeParse(locale);
-    if (!target.success) {
-      throw new BadRequestException({ error: 'INVALID_LOCALE', message: `locale must be a supported Locale, got "${locale}"` });
-    }
-    const { reviewedByLabel, reason } = bodyOf(ApproveRejectBody, body, 'INVALID_REVIEW');
-    return toRecipeDraftDto(await this.drafts.reviewRecipe(id, { locale: target.data, action, reason }, { ...ADMIN, label: reviewedByLabel }));
+  private async reviewRecipe(id: string, locale: Locale, { reviewedByLabel, reason }: DraftReviewBody, action: ReviewAction): Promise<RecipeDraft> {
+    return toRecipeDraftDto(await this.drafts.reviewRecipe(id, { locale, action, reason }, { ...ADMIN, label: reviewedByLabel }));
   }
 
   private namerRunnerState(): DraftRunnerState {

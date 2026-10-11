@@ -4,6 +4,7 @@ import { Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/commo
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { NotificationsService } from './notifications.service.js';
+import { requiredUuid } from '../common/zod-validation.pipe.js';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
@@ -16,8 +17,9 @@ export class NotificationsController {
   }
 
   @Post(':id/read')
-  markRead(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    return this.notifications.markRead(user.id, id);
+  @HttpCode(204)
+  async markRead(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string): Promise<void> {
+    await this.notifications.markRead(user.id, id);
   }
 
   @Post('read-all')

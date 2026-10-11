@@ -121,9 +121,19 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
 
 /** The page of somebody with that one profile and `plans`, on an instance whose catalogue has `depth`. */
 async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] = []) {
+  // The list answers each plan as a summary, a page at a time; a plan that is opened is read whole.
+  const listed = { items: plans.map(({ days: _days, report: _report, targetMacros: _targetMacros, ...summary }) => summary), page: 1, pageSize: 20, total: plans.length, totalPages: 1 };
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
-      (path === '/profiles' ? [profile] : path === '/users/me' ? { aiMode: 'none' } : path.startsWith('/meal-plans') ? plans : []) as never,
+      (path === '/profiles'
+        ? [profile]
+        : path === '/users/me'
+          ? { aiMode: 'none' }
+          : path.startsWith('/meal-plans?')
+            ? listed
+            : path.startsWith('/meal-plans/')
+              ? plans.find((plan) => path === `/meal-plans/${plan.id}`)
+              : []) as never,
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -517,3 +527,55 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     expect(screen.queryByRole('group', { name: messages.mealPlans.offerTitle })).toBeNull();
   });
 });
+
+describe('the list of plans on the plan page', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reads the plans as summaries, and a plan whole only when it is opened', async () => {
+    const plan = aPlan();
+    await renderPage(aDepth(9), [plan]);
+    const get = vi.mocked(api.get);
+
+    await screen.findByText('1-day plan · Vegan');
+    expect(get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('/meal-plans'))).toEqual([`/meal-plans?profileId=${profile.id}&page=1`]);
+    expect(screen.queryByText(plan.days[0]!.date)).toBeNull();
+
+    await userEvent.click(screen.getByText('1-day plan · Vegan'));
+
+    expect(await screen.findByText(plan.days[0]!.date)).toBeInTheDocument();
+    expect(get).toHaveBeenCalledWith(`/meal-plans/${plan.id}`);
+  });
+
+  it('pages through a list that is longer than a page, and begins at the first again when the list is narrowed', async () => {
+    const summary = (({ days: _days, report: _report, targetMacros: _targetMacros, ...rest }) => rest)(aPlan());
+    const get = vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve(
+        (path === '/profiles' ? [profile] : path === '/users/me' ? { aiMode: 'none' } : path.startsWith('/meal-plans?') ? { items: [summary], page: 1, pageSize: 20, total: 45, totalPages: 3 } : []) as never,
+      ),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['config'], aPublicConfig({ catalogue: { depth: aDepth(9) } }));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <MealPlansPage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    const asked = (): string[] => get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('/meal-plans?'));
+
+    expect(await screen.findByText('Page 1 of 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: messages.mealPlans.pageNewer })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.pageOlder }));
+
+    expect(await screen.findByText('Page 2 of 3')).toBeInTheDocument();
+    expect(asked().at(-1)).toBe(`/meal-plans?profileId=${profile.id}&page=2`);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.statusPast }));
+    expect(await screen.findByText('Page 1 of 3')).toBeInTheDocument();
+    expect(asked().at(-1)).toBe(`/meal-plans?profileId=${profile.id}&page=1&status=past`);
+  });
+});
+

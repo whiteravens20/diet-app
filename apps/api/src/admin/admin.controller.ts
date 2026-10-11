@@ -16,9 +16,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DietType, FdcDataTypes, type Macros } from '@diet-app/shared';
+import { DietType, type Macros, UsdaImportQuery } from '@diet-app/shared';
 import type { Request } from 'express';
-import { z } from 'zod';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -206,7 +205,7 @@ export class AdminController {
   @HttpCode(202)
   @UseGuards(AdminSessionGuard)
   startUsdaImport(
-    @Query(new ZodValidationPipe(z.object({ dataTypes: FdcDataTypes.optional() }))) query: { dataTypes?: string },
+    @Query(new ZodValidationPipe(UsdaImportQuery)) query: UsdaImportQuery,
   ): ImportRunnerState {
     const started = this.importer.start(query.dataTypes);
     if (!started) {

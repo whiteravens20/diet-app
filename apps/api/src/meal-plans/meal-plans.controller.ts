@@ -19,6 +19,7 @@ import {
   AiSwapMealRequest,
   ApplyMealSwapRequest,
   GeneratePlanRequest,
+  PlanListQuery,
   type Locale,
   RebalanceRequest,
   RegenerateDayRequest,
@@ -27,9 +28,10 @@ import {
   SwapIngredientRequest,
   SwapMealRequest,
 } from '@diet-app/shared';
+import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
-import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredDate, requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -49,17 +51,14 @@ export class MealPlansController {
   @Get()
   list(
     @CurrentUser() user: RequestUser,
-    @RequestLocale() locale: Locale,
-    @Query('profileId', requiredUuid) profileId: string,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('status') status?: string,
+    @Query(new ZodValidationPipe(PlanListQuery)) query: PlanListQuery,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.list(user.id, locale, profileId, { from, to, status });
+    return this.plans.list(user.id, query, today);
   }
 
   @Get(':id')
-  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id') id: string) {
+  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string) {
     return this.plans.get(user.id, locale, id);
   }
 
@@ -80,10 +79,11 @@ export class MealPlansController {
   regenerate(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
+    @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(RegenerateRequest)) options: RegenerateRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.generation.regenerate(user.id, locale, id, options);
+    return this.generation.regenerate(user.id, locale, id, options, today);
   }
 
   /** Re-roll the meals of a single day. */
@@ -92,16 +92,17 @@ export class MealPlansController {
   regenerateDay(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
-    @Param('dayId') dayId: string,
+    @Param('id', requiredUuid) id: string,
+    @Param('dayId', requiredUuid) dayId: string,
     @Body(new ZodValidationPipe(RegenerateDayRequest)) options: RegenerateDayRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.generation.regenerateDay(user.id, locale, id, dayId, options);
+    return this.generation.regenerateDay(user.id, locale, id, dayId, options, today);
   }
 
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     await this.plans.remove(user.id, id);
   }
 
@@ -131,8 +132,8 @@ export class MealPlansController {
   addCustomMeal(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
-    @Param('date') date: string,
+    @Param('id', requiredUuid) id: string,
+    @Param('date', requiredDate) date: string,
     @Body(new ZodValidationPipe(AddCustomMealRequest)) dto: AddCustomMealRequest,
   ) {
     return this.plans.addCustomMeal(user.id, locale, id, date, dto);
@@ -143,8 +144,8 @@ export class MealPlansController {
   setEaten(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
-    @Param('mealId') mealId: string,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
     @Body(new ZodValidationPipe(SetMealEatenRequest)) dto: SetMealEatenRequest,
   ) {
     return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten);
@@ -156,10 +157,11 @@ export class MealPlansController {
   rebalance(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
+    @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(RebalanceRequest)) dto: RebalanceRequest,
+    @ClientDate() today: string | null,
   ) {
-    return this.plans.rebalance(user.id, locale, id, dto);
+    return this.plans.rebalance(user.id, locale, id, dto, today);
   }
 
   /**
@@ -192,7 +194,7 @@ export class MealPlansController {
 
   /** The substitutes the catalogue's own rules name for the ingredients of a planned meal. */
   @Get(':id/meals/:mealId/substitutes')
-  substitutes(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id') id: string, @Param('mealId') mealId: string) {
+  substitutes(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string, @Param('mealId', requiredUuid) mealId: string) {
     return this.ingredients.suggestions(user.id, locale, id, mealId);
   }
 

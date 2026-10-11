@@ -3,6 +3,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { Locale, PlannedIngredient, Recipe, RecipeSearchPage } from '@diet-app/shared';
+import { collatedFor } from '../common/collation.js';
 import { displayAmount, type DisplayedIngredient } from '../engine/display.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { recipesForDiet } from './diet-where.js';
@@ -80,23 +81,34 @@ export class RecipesService {
           : []),
       ],
     };
-    // Total + page in parallel — both queries cost roughly the same; doing
-    // them sequentially would double the latency for no benefit.
-    const [total, rows] = await Promise.all([
-      this.prisma.recipe.count({ where }),
-      this.prisma.recipe.findMany({
-        where,
-        include: {
-          ingredients: { include: { ingredient: { include: translationsFor(locale) } } },
-          ...translationsFor(locale),
-        },
-        orderBy: { title: 'asc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
+    // The page is cut from the list as it is shown: sorted by the title in the
+    // language of the request, or the English one where there is none. Which
+    // recipes match is asked first, as ids; the database then puts those in
+    // order and hands back one page of them.
+    const matching = (await this.prisma.recipe.findMany({ where, select: { id: true } })).map((row) => row.id);
+    const total = matching.length;
+    const shown =
+      total === 0
+        ? []
+        : await this.prisma.$queryRaw<{ id: string }[]>`
+            SELECT r."id" FROM "Recipe" r
+            LEFT JOIN "RecipeTranslation" t ON t."recipeId" = r."id" AND t."locale" = ${locale}
+            WHERE r."id" = ANY(${matching}::text[])
+            ORDER BY COALESCE(t."title", r."title") ${collatedFor(locale)}, r."id"
+            LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`;
+    const rows = await this.prisma.recipe.findMany({
+      where: { id: { in: shown.map((row) => row.id) } },
+      include: {
+        ingredients: { include: { ingredient: { include: translationsFor(locale) } } },
+        ...translationsFor(locale),
+      },
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
     return {
-      items: rows.map((r) => toRecipeDto(r, locale)),
+      items: shown.flatMap(({ id }) => {
+        const row = byId.get(id);
+        return row ? [toRecipeDto(row, locale)] : [];
+      }),
       page,
       pageSize,
       total,
@@ -177,14 +189,13 @@ export class RecipesService {
       where: { id },
       select: { id: true, createdByUserId: true, deletedAt: true, origin: true },
     });
-    if (!row) {
+    // Somebody else's own recipe is answered as one that is not there.
+    if (!row || (row.createdByUserId !== null && row.createdByUserId !== userId)) {
       throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
     }
-    if (row.createdByUserId !== userId) {
-      throw new ForbiddenException({
-        error: 'FORBIDDEN',
-        message: 'Only the owner can delete a recipe.',
-      });
+    // A recipe of the catalogue is everybody's to read and nobody's to delete.
+    if (row.createdByUserId === null) {
+      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'A recipe of the catalogue cannot be deleted.' });
     }
     if (row.deletedAt) return;
     await this.prisma.recipe.update({

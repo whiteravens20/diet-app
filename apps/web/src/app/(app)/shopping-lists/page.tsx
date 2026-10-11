@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import type { DisplayUnit, MealPlan, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
+import type { DisplayUnit, MealPlanPage, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { Button } from '@/components/ui/button';
@@ -39,10 +39,10 @@ export default function ShoppingListsPage() {
 
   const plans = useQuery({
     queryKey: ['meal-plans', activeProfileId],
-    queryFn: () => api.get<MealPlan[]>(`/meal-plans?profileId=${activeProfileId}`),
+    queryFn: () => api.get<MealPlanPage>(`/meal-plans?profileId=${activeProfileId}&pageSize=50`),
     enabled: Boolean(activeProfileId),
   });
-  const planList = plans.data ?? [];
+  const planList = plans.data?.items ?? [];
   const activePlanId = pickedPlan ?? planList[0]?.id ?? null;
   const activePlan = planList.find((p) => p.id === activePlanId) ?? null;
 

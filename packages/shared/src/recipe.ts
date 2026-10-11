@@ -8,6 +8,7 @@ import {
   Complexity,
   Cuisine,
   DietType,
+  Difficulty,
   DisplayAmount,
   MealType,
   Unit,
@@ -69,7 +70,7 @@ export const Recipe = z.object({
   steps: z.array(z.string()).min(1),
   prepMinutes: z.number().int().min(0),
   cookMinutes: z.number().int().min(0),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
+  difficulty: Difficulty,
   allergens: z.array(Allergen),
   /** Per-serving nutrition, recomputed deterministically from the database. */
   nutritionPerServing: Nutrition,
@@ -142,6 +143,46 @@ export const AiDraftRecipeResponse = z.object({
   aiMeta: AiGenerationMeta,
 });
 export type AiDraftRecipeResponse = z.infer<typeof AiDraftRecipeResponse>;
+
+/** Which page of a list, and how long a page is. */
+export const PageQuery = z.object({
+  page: z.coerce.number().int().min(1).max(100_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(36),
+});
+export type PageQuery = z.infer<typeof PageQuery>;
+
+/** What the recipe library is searched by. Each part that is given narrows the result. */
+export const RecipeSearchQuery = PageQuery.extend({
+  /** Words of the title or the description, in English or in the language of the request. */
+  search: z.string().trim().max(200).optional(),
+  dietType: DietType.optional(),
+  mealType: MealType.optional(),
+  maxCalories: z.coerce.number().int().min(1).max(10_000).optional(),
+  maxPrepMinutes: z.coerce.number().int().min(1).max(1_440).optional(),
+  difficulty: Difficulty.optional(),
+});
+export type RecipeSearchQuery = z.infer<typeof RecipeSearchQuery>;
+
+/** How a profile feels about a recipe it marked. */
+export const FavoriteSentiment = z.enum(['favorite', 'often', 'avoid']);
+export type FavoriteSentiment = z.infer<typeof FavoriteSentiment>;
+
+/** Marks a recipe for a profile. Marking it again replaces what was said before. */
+export const AddFavoriteRequest = z.object({
+  profileId: z.string().uuid(),
+  recipeId: z.string().uuid(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+  sentiment: FavoriteSentiment.default('favorite'),
+});
+export type AddFavoriteRequest = z.infer<typeof AddFavoriteRequest>;
+
+/** The recipes a profile marked, narrowed by words and by meal. */
+export const FavoriteListQuery = z.object({
+  profileId: z.string().uuid(),
+  search: z.string().trim().max(200).optional(),
+  mealType: MealType.optional(),
+});
+export type FavoriteListQuery = z.infer<typeof FavoriteListQuery>;
 
 /** Paginated recipe list — returned by `GET /recipes`. */
 export const RecipeSearchPage = z.object({

@@ -51,6 +51,31 @@ export type WeeklyLossTarget = z.infer<typeof WeeklyLossTarget>;
 export const MealType = z.enum(['breakfast', 'lunch', 'dinner', 'snack', 'second_breakfast']);
 export type MealType = z.infer<typeof MealType>;
 
+/** The first and the last day a request may name. */
+export const FIRST_DAY = '2000-01-01';
+export const LAST_DAY = '2100-12-31';
+
+/**
+ * A calendar day a client names, as `2026-03-01`: a day there is, in the
+ * years the application is for. Dates in this form compare as text.
+ */
+export const CalendarDay = z
+  .string()
+  .date()
+  .refine((day) => day >= FIRST_DAY && day <= LAST_DAY, { message: `Must be a day from ${FIRST_DAY} to ${LAST_DAY}.` });
+export type CalendarDay = z.infer<typeof CalendarDay>;
+
+/** The day `days` days after `day`, in the same form. */
+export function dayAfter(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** How hard a recipe is to make. */
+export const Difficulty = z.enum(['easy', 'medium', 'hard']);
+export type Difficulty = z.infer<typeof Difficulty>;
+
 /** Canonical product categories — also the shopping-list grouping keys. */
 export const ProductCategory = z.enum([
   'vegetables',
@@ -126,7 +151,7 @@ export type FdcDataType = z.infer<typeof FdcDataType>;
  * a list. Parsed to the comma-separated form the source's own API takes.
  */
 export const FdcDataTypes = z
-  .union([z.string(), z.array(z.string())])
+  .union([z.string().max(100), z.array(z.string().max(40)).max(8)])
   .transform((value) =>
     (Array.isArray(value) ? value : value.split(','))
       .map((name) => name.trim())
@@ -139,6 +164,10 @@ export const FdcDataTypes = z
       .refine((list) => new Set(list).size === list.length, { message: 'A data set is named twice.' }),
   )
   .transform((list) => list.join(','));
+
+/** What an import of the food database may be started with: the data sets to read, in the place of the configured ones. */
+export const UsdaImportQuery = z.object({ dataTypes: FdcDataTypes.optional() });
+export type UsdaImportQuery = z.infer<typeof UsdaImportQuery>;
 
 /** Supported AI providers. */
 export const AiProvider = z.enum(['openai', 'anthropic', 'openrouter', 'ollama']);

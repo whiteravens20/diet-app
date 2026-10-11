@@ -30,7 +30,15 @@ export class ZodValidationPipe<T> implements PipeTransform {
 }
 
 /**
- * A required id in the query string.
- * Usage: `@Query('profileId', requiredUuid) profileId: string`.
+ * An id in a path or in a query string. One that is no id names nothing: it
+ * is refused as it comes in, before anything is looked up.
+ * Usage: `@Param('id', requiredUuid) id: string`.
  */
 export const requiredUuid = new ZodValidationPipe(z.string().uuid());
+
+/**
+ * A calendar day in a path, as `2026-03-01`. A day there is not (the 30th of
+ * February) is refused, not moved to the next one that there is.
+ * Usage: `@Param('date', requiredDate) date: string`.
+ */
+export const requiredDate = new ZodValidationPipe(z.string().date());

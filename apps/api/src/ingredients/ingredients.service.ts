@@ -1,7 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { Ingredient, Locale } from '@diet-app/shared';
+import { collatedFor, containing } from '../common/collation.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Read access to the curated ingredient database. Static seed data. */
@@ -9,33 +11,43 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class IngredientsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * The first hundred ingredients whose name holds `query`, by the name they
+   * are shown under: the name in the language of the request, or the English
+   * one where there is none. A search finds a row by either name, so that a
+   * row that has only its English name is found by it in any language.
+   */
   async search(locale: Locale, query: string | undefined): Promise<Ingredient[]> {
-    const contains = query ? { contains: query, mode: 'insensitive' as const } : undefined;
-    const rows = await this.prisma.ingredient.findMany({
-      // Match against the canonical English `name` OR the translated name
-      // for the request locale, so users searching in PL can find rows
-      // whose English title is the only canonical source.
-      where: {
-        retiredAt: null,
-        ...(contains ? { OR: [{ name: contains }, { translations: { some: { locale, name: contains } } }] } : {}),
-      },
-      include: translationsInclude(locale),
-      orderBy: { name: 'asc' },
-      take: 100,
-    });
-    return rows.map((r) => toIngredientDto(r, locale));
+    const named = query ? Prisma.sql`AND (i."name" ILIKE ${containing(query)} OR t."name" ILIKE ${containing(query)})` : Prisma.empty;
+    const first = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT i."id" FROM "Ingredient" i
+      LEFT JOIN "IngredientTranslation" t ON t."ingredientId" = i."id" AND t."locale" = ${locale}
+      WHERE i."retiredAt" IS NULL ${named}
+      ORDER BY COALESCE(t."name", i."name") ${collatedFor(locale)}, i."id"
+      LIMIT 100`;
+    return this.inOrder(locale, first.map((row) => row.id));
   }
 
   /** Resolve a list of ids back to ingredient records — for displaying the
    *  favourite/avoid lists on the profile page without an N+1 round-trip. */
   async getMany(locale: Locale, ids: string[]): Promise<Ingredient[]> {
     if (ids.length === 0) return [];
-    const rows = await this.prisma.ingredient.findMany({
-      where: { id: { in: ids } },
-      include: translationsInclude(locale),
-      orderBy: { name: 'asc' },
+    const sorted = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT i."id" FROM "Ingredient" i
+      LEFT JOIN "IngredientTranslation" t ON t."ingredientId" = i."id" AND t."locale" = ${locale}
+      WHERE i."id" = ANY(${ids}::text[])
+      ORDER BY COALESCE(t."name", i."name") ${collatedFor(locale)}, i."id"`;
+    return this.inOrder(locale, sorted.map((row) => row.id));
+  }
+
+  /** The ingredients of `ids`, as the request's language shows them, in the order of `ids`. */
+  private async inOrder(locale: Locale, ids: string[]): Promise<Ingredient[]> {
+    const rows = await this.prisma.ingredient.findMany({ where: { id: { in: ids } }, include: translationsInclude(locale) });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [toIngredientDto(row, locale)] : [];
     });
-    return rows.map((r) => toIngredientDto(r, locale));
   }
 }
 

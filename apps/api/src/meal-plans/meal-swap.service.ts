@@ -218,11 +218,9 @@ export class MealSwapService {
     let replacement: Candidate & { caloriesPerServing: number };
 
     if (req.strategy === 'favorite') {
-      if (!req.favoriteRecipeId) {
-        throw new NotFoundException({ error: 'NO_FAVORITE', message: 'favoriteRecipeId required.' });
-      }
+      // The contract refuses a favourite without its recipe before it gets here.
       const picked = await this.prisma.recipe.findUnique({
-        where: { id: req.favoriteRecipeId },
+        where: { id: req.favoriteRecipeId! },
         select: { ...CANDIDATE, caloriesPerServing: true },
       });
       if (!picked) {

@@ -2,7 +2,6 @@
 
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,6 +11,9 @@ import {
   MAX_PROFILES_PER_ACCOUNT,
   type Profile,
   type ProfileInput,
+  ProfilePreferences,
+  type ProfilePreferencesPatch,
+  type ProfileUpdate,
   riskOfLosingWeight,
   WeightReminderCadence,
 } from '@diet-app/shared';
@@ -26,7 +28,7 @@ type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
  * anybody else the time is cleared. Sent as true it is set (and an earlier
  * time kept), sent as false it is withdrawn, not sent it stays as it was.
  */
-function acknowledgedAt(input: ProfileInput, before: Date | null): Date | null {
+function acknowledgedAt(input: ProfileInput | ProfileUpdate, before: Date | null): Date | null {
   if (riskOfLosingWeight(input).length === 0) return null;
   if (input.acknowledgeRisk === undefined) return before;
   return input.acknowledgeRisk ? (before ?? new Date()) : null;
@@ -79,7 +81,22 @@ export class ProfilesService {
     return this.toDto(row);
   }
 
-  async update(userId: string, id: string, input: ProfileInput): Promise<Profile> {
+  /**
+   * Change some preferences of a profile. A profile gets its preferences
+   * when it is made; one from before that was so gets them here, with what a
+   * new profile starts with for the parts the change does not name.
+   */
+  async patchPreferences(userId: string, id: string, patch: ProfilePreferencesPatch): Promise<Profile> {
+    await this.load(userId, id);
+    const row = await this.prisma.profile.update({
+      where: { id },
+      data: { preferences: { upsert: { create: ProfilePreferences.parse(patch), update: patch } } },
+      include: { preferences: true },
+    });
+    return this.toDto(row);
+  }
+
+  async update(userId: string, id: string, input: ProfileUpdate): Promise<Profile> {
     const before = await this.load(userId, id);
     const row = await this.prisma.profile.update({
       where: { id },
@@ -126,10 +143,7 @@ export class ProfilesService {
 
   private async load(userId: string, id: string) {
     const row = await this.prisma.profile.findUnique({ where: { id }, include: { preferences: true } });
-    if (!row) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
-    if (row.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Profile belongs to another user.' });
-    }
+    if (!row || row.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
     return row;
   }
 

@@ -7,16 +7,21 @@ import { AiProvider } from './enums.js';
  * Per-user AI provider configuration. The API key is **write-only** — it is
  * encrypted at rest and never returned; the API exposes only `hasKey`.
  */
+/** A provider's key, the address of a provider's server and the name of a model: none longer than any provider's are. */
+const apiKey = z.string().min(1).max(500);
+const baseUrl = z.string().url().max(500);
+const model = z.string().min(1).max(200);
+
 export const AiProviderConfigInput = z
   .object({
     provider: AiProvider,
     /** Plaintext key on the way in; encrypted server-side immediately. */
-    apiKey: z.string().min(1).optional(),
+    apiKey: apiKey.optional(),
     /** Per-config Ollama host. Required when provider = ollama. */
-    baseUrl: z.string().url().optional(),
-    model: z.string().min(1),
+    baseUrl: baseUrl.optional(),
+    model,
     /** Lower number = tried first in the failover chain. */
-    priority: z.number().int().min(0).default(0),
+    priority: z.number().int().min(0).max(100).default(0),
     enabled: z.boolean().default(true),
   })
   .superRefine((cfg, ctx) => {
@@ -171,14 +176,14 @@ export type AiQuotaStatus = z.infer<typeof AiQuotaStatus>;
 export const AiTestConnectionRequest = z.object({
   provider: AiProvider,
   /** Required for OpenAI / Anthropic / OpenRouter; ignored for Ollama. */
-  apiKey: z.string().min(1).optional(),
+  apiKey: apiKey.optional(),
   /** Required for Ollama; ignored for the cloud providers. */
-  baseUrl: z.string().url().optional(),
+  baseUrl: baseUrl.optional(),
   /**
    * Anthropic has no `/v1/models` endpoint, so the probe needs a model id to
    * test. Optional for the others (they list models without it).
    */
-  model: z.string().min(1).optional(),
+  model: model.optional(),
 });
 export type AiTestConnectionRequest = z.infer<typeof AiTestConnectionRequest>;
 

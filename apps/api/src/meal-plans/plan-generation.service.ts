@@ -3,7 +3,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -124,13 +123,19 @@ export class PlanGenerationService {
     return this.plans.get(userId, locale, plan.id);
   }
 
-  /** Today's date, as the API writes dates; replaceable in a test. */
+  /** The server's own day, as the API writes dates, for a request that names none; replaceable in a test. */
   today: () => string = () => isoDate(new Date());
 
-  /** Make a plan again, or the days of it that the request names. */
-  async regenerate(userId: string, locale: Locale, planId: string, request: RegenerateRequest = RegenerateRequest.parse({})): Promise<MealPlan> {
+  /** Make a plan again, or the days of it that the request names. `clientToday` is the day it is for whoever asks. */
+  async regenerate(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    request: RegenerateRequest = RegenerateRequest.parse({}),
+    clientToday: string | null = null,
+  ): Promise<MealPlan> {
     const { from, to, ...options } = request;
-    await this.reroll(userId, planId, { from, to }, options);
+    await this.reroll(userId, planId, { from, to }, options, clientToday);
     return this.plans.get(userId, locale, planId);
   }
 
@@ -141,13 +146,17 @@ export class PlanGenerationService {
     planId: string,
     dayId: string,
     options: RegenerateDayRequest = RegenerateDayRequest.parse({}),
+    clientToday: string | null = null,
   ): Promise<MealPlan> {
+    // The plan first: whoever asks about a plan that is not theirs learns nothing about its days.
+    const plan = await this.prisma.mealPlan.findFirst({ where: { id: planId, profile: { userId } }, select: { id: true } });
+    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const day = await this.prisma.mealPlanDay.findUnique({ where: { id: dayId }, select: { planId: true, date: true } });
     if (!day || day.planId !== planId) {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
     }
     const date = isoDate(day.date);
-    await this.reroll(userId, planId, { from: date, to: date }, options);
+    await this.reroll(userId, planId, { from: date, to: date }, options, clientToday);
     return this.plans.get(userId, locale, planId);
   }
 
@@ -161,7 +170,7 @@ export class PlanGenerationService {
    * profile as it is now for what was left to the profile, and with what each
    * day carries of its own. With one, the plan stays what it is.
    */
-  private async reroll(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest): Promise<void> {
+  private async reroll(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest, clientToday: string | null): Promise<void> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: {
@@ -172,10 +181,7 @@ export class PlanGenerationService {
         },
       },
     });
-    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    if (plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
-    }
+    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
 
     const dates = plan.days.map((day) => isoDate(day.date));
     const whole = range.from === undefined && range.to === undefined;
@@ -188,7 +194,7 @@ export class PlanGenerationService {
         message: `The days from ${first} to ${last} are not days of this plan, in that order.`,
       });
     }
-    const today = this.today();
+    const today = clientToday ?? this.today();
     const again = (date: string): boolean => date >= first && date <= last && (options.includePast || date >= today);
     if (!dates.some(again)) {
       throw new ConflictException({

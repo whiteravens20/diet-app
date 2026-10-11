@@ -16,6 +16,7 @@ import {
   type DietType,
   type Profile,
   type ProfileInput,
+  type ProfilePreferencesPatch,
   type WeightReminderCadence,
 } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
@@ -123,23 +124,9 @@ export default function ProfilePage() {
       setError(e instanceof ApiClientError ? e.message : t('deleteFailed')),
   });
 
-  // Save updated preferences in place: the PUT endpoint is full-replace, so
-  // we send every existing field of the profile back, only swapping prefs.
+  // Change preferences in place: only the part that changed is sent, and the rest of the profile stays as it is.
   const savePrefs = useMutation({
-    mutationFn: (v: { profile: Profile; preferences: Profile['preferences'] }) =>
-      api.put<Profile>(`/profiles/${v.profile.id}`, {
-        name: v.profile.name,
-        age: v.profile.age,
-        sex: v.profile.sex,
-        heightCm: v.profile.heightCm,
-        weightKg: v.profile.weightKg,
-        activityLevel: v.profile.activityLevel,
-        dietType: v.profile.dietType,
-        weeklyLossTarget: v.profile.weeklyLossTarget,
-        manualCalorieTarget: v.profile.manualCalorieTarget,
-        mealCount: v.profile.mealCount,
-        preferences: v.preferences,
-      }),
+    mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) => api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
     onSuccess: recalculate,
     onError: (e) =>
       setError(e instanceof ApiClientError ? e.message : t('prefsSaveFailed')),
@@ -484,7 +471,7 @@ export default function ProfilePage() {
                     onChange={(allergens) =>
                       savePrefs.mutate({
                         profile: p,
-                        preferences: { ...p.preferences, allergens },
+                        preferences: { allergens },
                       })
                     }
                   />
@@ -497,7 +484,7 @@ export default function ProfilePage() {
                   onChange={(ids) =>
                     savePrefs.mutate({
                       profile: p,
-                      preferences: { ...p.preferences, favoriteIngredientIds: ids },
+                      preferences: { favoriteIngredientIds: ids },
                     })
                   }
                 />
@@ -509,7 +496,7 @@ export default function ProfilePage() {
                   onChange={(ids) =>
                     savePrefs.mutate({
                       profile: p,
-                      preferences: { ...p.preferences, excludedIngredientIds: ids },
+                      preferences: { excludedIngredientIds: ids },
                     })
                   }
                 />

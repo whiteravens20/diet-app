@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
+import { FIRST_DAY } from './enums.js';
 
 /**
  * Per-profile weight log + reminder cadence.
@@ -25,10 +26,31 @@ export type WeightReminderCadence = z.infer<typeof WeightReminderCadence>;
 /** Bounds match `ProfileInput.weightKg` so a log entry can be the same value. */
 export const WeightEntryInput = z.object({
   kg: z.number().min(30).max(400),
-  /** Optional override; defaults to server-side `now()` when omitted. */
-  recordedAt: z.string().datetime().optional(),
+  /**
+   * When the weight was taken; the moment it is logged when left out. Not a
+   * moment still to come: the newest entry is what reminders count from, and
+   * one dated ahead would keep them quiet until then. A day's grace is given
+   * for a clock that runs ahead.
+   */
+  recordedAt: z
+    .string()
+    .datetime()
+    .refine((moment) => Date.parse(moment) >= Date.parse(`${FIRST_DAY}T00:00:00Z`), { message: `Must not be before ${FIRST_DAY}.` })
+    .refine((moment) => Date.parse(moment) <= Date.now() + 86_400_000, { message: 'Must not be a moment still to come.' })
+    .optional(),
 });
 export type WeightEntryInput = z.infer<typeof WeightEntryInput>;
+
+/** A weight logged for a profile. */
+export const CreateWeightEntryRequest = WeightEntryInput.extend({ profileId: z.string().uuid() });
+export type CreateWeightEntryRequest = z.infer<typeof CreateWeightEntryRequest>;
+
+/** The weights of a profile, all of them or the ones recorded since a moment. */
+export const WeightListQuery = z.object({
+  profileId: z.string().uuid(),
+  since: z.string().datetime().optional(),
+});
+export type WeightListQuery = z.infer<typeof WeightListQuery>;
 
 export const WeightEntry = z.object({
   id: z.string().uuid(),

@@ -1,12 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Unit tests for IngredientsService + the shared `toIngredientDto` mapper.
- * Prisma is mocked. Focus: the EN-vs-locale translation `where` clause, the
- * empty-ids short-circuit, and translation fallback (locale → en → canonical).
+ * Unit tests for the shared `toIngredientDto` mapper: which name an
+ * ingredient is shown under (locale → en → canonical). What the service asks
+ * the database is tested against one (`ingredients.int.test.ts`).
  */
-import { describe, expect, it, vi } from 'vitest';
-import { IngredientsService, toIngredientDto } from './ingredients.service.js';
+import { describe, expect, it } from 'vitest';
+import { toIngredientDto } from './ingredients.service.js';
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -30,49 +30,6 @@ function row(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
-
-function makeService(rows = [row()]) {
-  const prisma = { ingredient: { findMany: vi.fn().mockResolvedValue(rows) } };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test double
-  return { service: new IngredientsService(prisma as any), prisma };
-}
-
-describe('IngredientsService.search', () => {
-  it('queries canonical name OR locale translation when a query is given (pl)', async () => {
-    const { service, prisma } = makeService();
-    await service.search('pl', 'oliwa');
-    const where = prisma.ingredient.findMany.mock.calls[0][0].where;
-    expect(where.OR).toBeDefined();
-    expect(JSON.stringify(where.OR)).toContain('oliwa');
-    expect(JSON.stringify(where.OR)).toContain('insensitive');
-  });
-
-  it('lists every ingredient still in the catalogue when no query is given', async () => {
-    const { service, prisma } = makeService();
-    await service.search('en', undefined);
-    expect(prisma.ingredient.findMany.mock.calls[0][0].where).toEqual({ retiredAt: null });
-  });
-
-  it('never lists a retired ingredient, with or without a query', async () => {
-    const { service, prisma } = makeService();
-    await service.search('pl', 'oliwa');
-    expect(prisma.ingredient.findMany.mock.calls[0][0].where.retiredAt).toBeNull();
-  });
-});
-
-describe('IngredientsService.getMany', () => {
-  it('short-circuits on an empty id list (no query)', async () => {
-    const { service, prisma } = makeService();
-    expect(await service.getMany('en', [])).toEqual([]);
-    expect(prisma.ingredient.findMany).not.toHaveBeenCalled();
-  });
-
-  it('resolves ids to DTOs', async () => {
-    const { service } = makeService([row()]);
-    const out = await service.getMany('en', ['ing-1']);
-    expect(out[0]).toMatchObject({ id: 'ing-1', name: 'Olive oil' });
-  });
-});
 
 describe('toIngredientDto translation fallback', () => {
   it('uses the locale translation when present', () => {

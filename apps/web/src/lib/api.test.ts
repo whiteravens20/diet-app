@@ -1,7 +1,18 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { waitOf } from './api';
+import { localDate, waitOf } from './api';
+
+describe('the day it is for the user', () => {
+  it('is read off the clock where the user is, not in UTC', () => {
+    // The first of March, half an hour before midnight on the user's clock, whatever the zone of the machine.
+    const lateEvening = new Date(2026, 2, 1, 23, 30);
+
+    expect(localDate(lateEvening)).toBe('2026-03-01');
+    expect(localDate(new Date(2026, 11, 31, 0, 5))).toBe('2026-12-31');
+    expect(localDate(new Date(2026, 0, 9, 12))).toBe('2026-01-09');
+  });
+});
 
 describe('how long a request that was held up has to wait', () => {
   it('is given in whole minutes, rounded up, when it is long', () => {
@@ -129,6 +140,19 @@ describe('a request of the web application', () => {
       ['DELETE', JSON.stringify({ currentPassword: 'secret', code: '123456' })],
       ['DELETE', undefined],
     ]);
+  });
+
+  it('says with every request which day it is for the user', async () => {
+    const { api } = await aPage(false);
+    fetchMock.mockImplementation(() => Promise.resolve(json(200, {})));
+
+    await api.get('/meal-plans?profileId=p');
+    await api.post('/meal-plans', { profileId: 'p' });
+
+    for (const call of fetchMock.mock.calls) {
+      expect(new Headers((call[1] as RequestInit).headers).get('x-client-date')).toBe(localDate());
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('signs in as a browser: it asks for its refresh token in a cookie', async () => {

@@ -9,6 +9,7 @@ import {
   fitsDiet,
   type AddCustomMealRequest,
   type MealPlan,
+  type MealPlanSummary,
   type MealSwapPreview,
   type PantryUse,
   type PlannedIngredient,
@@ -17,6 +18,7 @@ import {
 } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
@@ -54,6 +56,7 @@ const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' |
 
 /** One plan: its summary, and when open its days with every change a meal can be given. */
 export function PlanCard({
+  summary,
   plan,
   open,
   busy,
@@ -78,7 +81,10 @@ export function PlanCard({
   onIngredientSwapped,
   onAddCustomMeal,
 }: {
-  plan: MealPlan;
+  /** The plan as the list holds it: what the head of the card says. */
+  summary: MealPlanSummary;
+  /** The whole plan, once the open card has read it. */
+  plan: MealPlan | undefined;
   open: boolean;
   busy: boolean;
   dietLabel: string;
@@ -124,26 +130,26 @@ export function PlanCard({
   // The part of the plan to fill again: the whole of it until the user picks days.
   const [part, setPart] = useState<{ from?: string; to?: string }>({});
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
-  const pantryLine = plan.report ? PANTRY_LINE[plan.report.pantry] : undefined;
-  const from = part.from ?? plan.days[0]?.date ?? '';
-  const to = part.to ?? plan.days.at(-1)?.date ?? '';
+  const pantryLine = plan?.report ? PANTRY_LINE[plan.report.pantry] : undefined;
+  const from = part.from ?? plan?.days[0]?.date ?? '';
+  const to = part.to ?? plan?.days.at(-1)?.date ?? '';
   return (
     <Card className="relative w-full max-w-screen-2xl">
       <div className="flex items-center justify-between gap-4 p-4">
         <button type="button" onClick={onToggle} className="flex-1 text-left">
           <p className="font-medium">
-            {t('planSummary', { days: plan.durationDays, dietType: dietLabel })}
+            {t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
           </p>
           <p className="text-sm text-muted-foreground">
             {t('planMeta', {
-              date: plan.startDate,
-              kcal: plan.averageDailyNutrition.calories,
-              pct: Math.round(plan.ingredientReuseScore * 100),
+              date: summary.startDate,
+              kcal: summary.averageDailyNutrition.calories,
+              pct: Math.round(summary.ingredientReuseScore * 100),
             })}
           </p>
         </button>
         <div className="flex shrink-0 gap-2">
-          <ApplyFavoriteSetButton plan={plan} profileId={plan.profileId} disabled={busy} />
+          <ApplyFavoriteSetButton plan={summary} profileId={summary.profileId} disabled={busy} />
           <Button type="button" variant="outline" size="sm" onClick={() => onRegenerate()} disabled={busy}>
             {t('recalculate')}
           </Button>
@@ -162,7 +168,12 @@ export function PlanCard({
           </Button>
         </div>
       </div>
-      {open && (
+      {open && !plan && (
+        <CardContent className="border-t border-border pt-4">
+          <Skeleton className="h-40" />
+        </CardContent>
+      )}
+      {open && plan && (
         <CardContent className="space-y-4 border-t border-border pt-4">
           <div className="space-y-1 text-xs text-muted-foreground">
             {plan.days.length > 1 && (
@@ -529,7 +540,7 @@ export function PlanCard({
       {openSub && (
         <IngredientSubstituteModal
           meal={openSub}
-          planId={plan.id}
+          planId={summary.id}
           onClose={() => setOpenSub(null)}
           onApplied={onIngredientSwapped}
         />

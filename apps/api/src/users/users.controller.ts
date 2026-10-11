@@ -19,7 +19,7 @@ import {
 } from '@diet-app/shared';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
-import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { SessionsService } from '../auth/sessions.service.js';
 import { UsersService } from './users.service.js';
@@ -60,7 +60,7 @@ export class UsersController {
 
   @Delete('sessions/:id')
   @HttpCode(204)
-  async endSession(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+  async endSession(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     await this.sessions.endOne(user.id, id);
   }
 

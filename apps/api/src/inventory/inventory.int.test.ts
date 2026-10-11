@@ -168,15 +168,15 @@ describe('the pantry', () => {
       const row = (await add('rolled-oats', 300, 'g')).body as { id: string };
       const other = await aUser(t);
 
-      await t.http().get(`/api/inventory?profileId=${profile.id}`).set(as(other)).expect(403);
+      await t.http().get(`/api/inventory?profileId=${profile.id}`).set(as(other)).expect(404);
       await t
         .http()
         .post('/api/inventory')
         .set(as(other))
         .send({ profileId: profile.id, ingredientId: await ingredientId('rolled-oats'), quantity: 1, unit: 'g' })
-        .expect(403);
-      await t.http().patch(`/api/inventory/${row.id}`).set(as(other)).send({ quantity: 1 }).expect(403);
-      await t.http().delete(`/api/inventory/${row.id}`).set(as(other)).expect(403);
+        .expect(404);
+      await t.http().patch(`/api/inventory/${row.id}`).set(as(other)).send({ quantity: 1 }).expect(404);
+      await t.http().delete(`/api/inventory/${row.id}`).set(as(other)).expect(404);
 
       expect((await t.prisma.inventoryItem.findUniqueOrThrow({ where: { id: row.id } })).quantity).toBe(300);
     });

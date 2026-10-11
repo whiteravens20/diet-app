@@ -4,7 +4,7 @@
  * Unit tests for FavoritesService. Prisma + the recipe DTO mapper are mocked.
  * Focus on the per-profile ownership guard and the upsert/remove semantics.
  */
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // toRecipeDto is exercised by recipes.service tests; here we only need it not to
@@ -26,7 +26,7 @@ function makePrisma(owner: string | null = 'user-1') {
         { id: 'f1', tags: ['quick'], sentiment: 'favorite', recipe: { id: 'r1' } },
       ]),
       upsert: vi.fn().mockResolvedValue({ id: 'f1' }),
-      delete: vi.fn().mockResolvedValue({}),
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     // Default: the recipe is visible (curated or own). Tests override to null
     // to exercise the IDOR guard (favoriting a foreign/private recipe).
@@ -44,13 +44,11 @@ function makeService(prisma: ReturnType<typeof makePrisma>) {
 describe('FavoritesService ownership', () => {
   it('rejects listing another user’s profile', async () => {
     const prisma = makePrisma('other');
-    await expect(makeService(prisma).list('user-1', 'en', 'p1')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(makeService(prisma).list('user-1', 'en', 'p1')).rejects.toMatchObject({ response: { error: 'PROFILE_NOT_FOUND' } });
   });
   it('rejects add for a missing/foreign profile', async () => {
     const prisma = makePrisma(null);
-    await expect(makeService(prisma).add('user-1', 'p1', 'r1', [], 'favorite')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(makeService(prisma).add('user-1', 'p1', 'r1', [], 'favorite')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   // IDOR: favoriting another user's private (or soft-deleted) recipe must be
@@ -106,8 +104,18 @@ describe('FavoritesService happy paths', () => {
     );
   });
 
-  it('remove swallows a missing-row delete error (idempotent)', async () => {
-    prisma.favorite.delete = vi.fn().mockRejectedValue(new Error('no row'));
+  it('removes the mark of a recipe', async () => {
     await expect(makeService(prisma).remove('user-1', 'p1', 'r1')).resolves.toBeUndefined();
+    expect(prisma.favorite.deleteMany).toHaveBeenCalledWith({ where: { profileId: 'p1', recipeId: 'r1' } });
+  });
+
+  it('says so when there was no mark to remove', async () => {
+    prisma.favorite.deleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    await expect(makeService(prisma).remove('user-1', 'p1', 'r1')).rejects.toMatchObject({ response: { error: 'FAVORITE_NOT_FOUND' } });
+  });
+
+  it('does not take a failure of the database for a mark that was not there', async () => {
+    prisma.favorite.deleteMany = vi.fn().mockRejectedValue(new Error('connection lost'));
+    await expect(makeService(prisma).remove('user-1', 'p1', 'r1')).rejects.toThrow('connection lost');
   });
 });

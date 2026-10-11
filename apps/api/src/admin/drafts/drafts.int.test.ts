@@ -74,14 +74,14 @@ describe('the curation queue', () => {
       const refused = await asReviewer.review('recipes', draft.id, 'approve', 'en');
 
       expect(refused.status).toBe(400);
-      expect(refused.body.error).toBe('INVALID_LOCALE');
+      expect(refused.body).toMatchObject({ error: 'VALIDATION_FAILED', issues: [{ path: 'locale' }] });
       expect(await reviewsOf(draft.id)).toEqual([]);
     });
 
     it('make the name of an ingredient approved with the reviewer\'s word alone, and nobody reviews its English', async () => {
       const draft = await anIngredientNameDraft(t);
 
-      expect((await admin.review('ingredient-names', draft.id, 'approve', 'en')).body.error).toBe('INVALID_LOCALE');
+      expect((await admin.review('ingredient-names', draft.id, 'approve', 'en')).body).toMatchObject({ error: 'VALIDATION_FAILED', issues: [{ path: 'locale' }] });
       const approved = await asReviewer.review('ingredient-names', draft.id, 'approve').expect(201);
 
       expect(approved.body.status).toBe('APPROVED');
@@ -440,7 +440,7 @@ describe('the curation queue', () => {
 
       for (const body of [{ ids: [], reviewedByLabel: 'Pavlo' }, { ids: tooMany, reviewedByLabel: 'Pavlo' }, { ids: [draft.id] }, { ids: ['not-an-id'], reviewedByLabel: 'Pavlo' }]) {
         const res = await reject(body);
-        expect([res.status, res.body.error]).toEqual([400, 'INVALID_REVIEW']);
+        expect([res.status, res.body.error]).toEqual([400, 'VALIDATION_FAILED']);
       }
       expect((await recipeRow(draft.id)).status).toBe('PENDING');
     });
@@ -514,7 +514,7 @@ describe('the curation queue', () => {
       const refused = await t.http().post('/api/admin/drafts/ingredient-names/generate').set(asAdmin).send({ scope: 'all-usda-missing', targetLocales: ['en', 'pl'] });
 
       expect(refused.status).toBe(400);
-      expect(refused.body.error).toBe('INVALID_SPEC');
+      expect(refused.body.error).toBe('VALIDATION_FAILED');
     });
 
     describe('that has nothing to do', () => {

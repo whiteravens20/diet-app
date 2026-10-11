@@ -5,7 +5,6 @@
  * the ownership guard (a user cannot read/write/delete another user's profile
  * entries) and the create/list/delete happy paths.
  */
-import { ForbiddenException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WeightsService } from './weights.service.js';
 
@@ -23,8 +22,7 @@ function makePrisma(profileOwner: string | null = 'user-1') {
       create: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
         Promise.resolve({ id: 'w-new', createdAt: new Date(), ...args.data }),
       ),
-      findUnique: vi.fn().mockResolvedValue({ id: 'w1', profileId: 'p1' }),
-      delete: vi.fn().mockResolvedValue({}),
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   };
 }
@@ -42,7 +40,7 @@ describe('WeightsService ownership guard', () => {
 
   it('rejects listing another user’s profile', async () => {
     prisma = makePrisma('someone-else');
-    await expect(makeService(prisma).list('user-1', 'p1')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(makeService(prisma).list('user-1', 'p1')).rejects.toMatchObject({ response: { error: 'PROFILE_NOT_FOUND' } });
   });
 
   it('throws PROFILE_NOT_FOUND when the profile is missing', async () => {
@@ -50,12 +48,6 @@ describe('WeightsService ownership guard', () => {
     await expect(makeService(prisma).list('user-1', 'p-missing')).rejects.toMatchObject({
       response: expect.objectContaining({ error: 'PROFILE_NOT_FOUND' }),
     });
-  });
-
-  it('rejects deleting an entry on another user’s profile', async () => {
-    prisma = makePrisma('someone-else');
-    await expect(makeService(prisma).remove('user-1', 'w1')).rejects.toBeInstanceOf(ForbiddenException);
-    expect(prisma.weightEntry.delete).not.toHaveBeenCalled();
   });
 });
 
@@ -90,17 +82,17 @@ describe('WeightsService happy paths', () => {
     expect((data.recordedAt as Date).toISOString()).toBe('2026-06-10T00:00:00.000Z');
   });
 
-  it('throws WEIGHT_ENTRY_NOT_FOUND when deleting a missing entry', async () => {
+  it('throws WEIGHT_ENTRY_NOT_FOUND when no entry of that id is the account\'s', async () => {
     const prisma = makePrisma('user-1');
-    prisma.weightEntry.findUnique = vi.fn().mockResolvedValue(null);
+    prisma.weightEntry.deleteMany = vi.fn().mockResolvedValue({ count: 0 });
     await expect(makeService(prisma).remove('user-1', 'missing')).rejects.toMatchObject({
       response: expect.objectContaining({ error: 'WEIGHT_ENTRY_NOT_FOUND' }),
     });
   });
 
-  it('deletes an owned entry', async () => {
+  it('deletes an entry only as one of a profile of the account', async () => {
     const prisma = makePrisma('user-1');
     await makeService(prisma).remove('user-1', 'w1');
-    expect(prisma.weightEntry.delete).toHaveBeenCalledWith({ where: { id: 'w1' } });
+    expect(prisma.weightEntry.deleteMany).toHaveBeenCalledWith({ where: { id: 'w1', profile: { userId: 'user-1' } } });
   });
 });

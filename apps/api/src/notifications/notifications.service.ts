@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   type Notification,
   NotificationType,
@@ -31,19 +31,14 @@ export class NotificationsService {
     return rows.map((r) => this.toDto(r));
   }
 
-  async markRead(userId: string, id: string): Promise<Notification> {
+  async markRead(userId: string, id: string): Promise<void> {
     const row = await this.prisma.notification.findUnique({
       where: { id },
       include: { profile: { select: { userId: true } } },
     });
-    if (!row?.profile) throw new NotFoundException({ error: 'NOTIFICATION_NOT_FOUND', message: 'Notification not found.' });
-    if (row.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Notification belongs to another user.' });
-    }
-    const updated = row.readAt
-      ? row
-      : await this.prisma.notification.update({ where: { id }, data: { readAt: new Date() } });
-    return this.toDto(updated);
+    if (!row?.profile || row.profile.userId !== userId) throw new NotFoundException({ error: 'NOTIFICATION_NOT_FOUND', message: 'Notification not found.' });
+    // Read already, or read by another request meanwhile: it is read either way.
+    await this.prisma.notification.updateMany({ where: { id, readAt: null }, data: { readAt: new Date() } });
   }
 
   async markAllRead(userId: string): Promise<{ updated: number }> {

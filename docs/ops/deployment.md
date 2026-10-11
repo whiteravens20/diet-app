@@ -290,7 +290,18 @@ or address changes in the meantime.
 - Persisted volumes: `postgres-data`, `ollama-models`.
 - PostgreSQL, the API and the web front-end have health checks; the API's fails when it cannot reach the database. The worker has none: Docker restarts it when its process exits.
 - Run `db:migrate` (not `migrate dev`) on deploy; back up the Postgres volume.
+- A database of your own in the place of the Compose one has to be a PostgreSQL that is built with ICU, as the official images are: lists of recipes and ingredients are sorted by the names they show, in the alphabet of the reader's language (`en-x-icu`, `pl-x-icu`).
 - Bind published ports to a private interface in LAN-only deployments.
+
+### Whose day it is
+
+Which plan is under way, and which of its days have passed, goes by the day it
+is for the user, not for the server: late in the evening the two differ. The
+web says which day it is with every request (the header `X-Client-Date`), and
+the API takes it when it is the server's own day in UTC, the day before or the
+day after; any other is refused with 400. A client that sends none is given
+the server's day. So the server's clock has to be right to the day, which NTP
+sees to.
 
 ### Server clock
 

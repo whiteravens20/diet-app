@@ -1,21 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { z } from 'zod';
-import type { Locale } from '@diet-app/shared';
+import { AddFavoriteRequest, FavoriteListQuery, type Locale } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { FavoritesService } from './favorites.service.js';
-
-const AddFavorite = z.object({
-  profileId: z.string().uuid(),
-  recipeId: z.string().uuid(),
-  tags: z.array(z.string()).default([]),
-  sentiment: z.enum(['favorite', 'often', 'avoid']).default('favorite'),
-});
-type AddFavorite = z.infer<typeof AddFavorite>;
 
 @Controller('favorites')
 @UseGuards(JwtAuthGuard)
@@ -26,15 +17,14 @@ export class FavoritesController {
   list(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Query('profileId', requiredUuid) profileId: string,
-    @Query('search') search?: string,
-    @Query('mealType') mealType?: string,
+    @Query(new ZodValidationPipe(FavoriteListQuery)) query: FavoriteListQuery,
   ) {
-    return this.favorites.list(user.id, locale, profileId, { search, mealType });
+    const { profileId, ...filters } = query;
+    return this.favorites.list(user.id, locale, profileId, filters);
   }
 
   @Post()
-  add(@CurrentUser() user: RequestUser, @Body(new ZodValidationPipe(AddFavorite)) dto: AddFavorite) {
+  add(@CurrentUser() user: RequestUser, @Body(new ZodValidationPipe(AddFavoriteRequest)) dto: AddFavoriteRequest) {
     return this.favorites.add(user.id, dto.profileId, dto.recipeId, dto.tags, dto.sentiment);
   }
 
@@ -42,8 +32,8 @@ export class FavoritesController {
   @HttpCode(204)
   async remove(
     @CurrentUser() user: RequestUser,
-    @Param('profileId') profileId: string,
-    @Param('recipeId') recipeId: string,
+    @Param('profileId', requiredUuid) profileId: string,
+    @Param('recipeId', requiredUuid) recipeId: string,
   ) {
     await this.favorites.remove(user.id, profileId, recipeId);
   }

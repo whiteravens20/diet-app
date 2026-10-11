@@ -95,10 +95,7 @@ export class FavoriteSetsService {
       where: { id: req.planId },
       include: { profile: { include: { preferences: true } }, days: true },
     });
-    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    if (plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
-    }
+    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profileId !== set.profileId) {
       throw new ForbiddenException({
         error: 'FORBIDDEN',
@@ -233,20 +230,14 @@ export class FavoriteSetsService {
       where: { id },
       include: { profile: true },
     });
-    if (!row?.profile) throw new NotFoundException({ error: 'SET_NOT_FOUND', message: 'Favorite set not found.' });
-    if (row.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Favorite set belongs to another user.' });
-    }
+    if (!row?.profile || row.profile.userId !== userId) throw new NotFoundException({ error: 'SET_NOT_FOUND', message: 'Favorite set not found.' });
     return row;
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {
     const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
-    if (!profile) {
+    if (!profile || profile.userId !== userId) {
       throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
-    }
-    if (profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Profile belongs to another user.' });
     }
   }
 

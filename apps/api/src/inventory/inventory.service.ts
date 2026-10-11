@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { InventoryItem, Locale, PatchInventoryItem, UpsertInventoryItem } from '@diet-app/shared';
 import { convertUnit, displayStock, UnitConversionError } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -112,9 +112,7 @@ export class InventoryService {
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {
     const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
-    if (!profile || profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Profile belongs to another user.' });
-    }
+    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
   }
 
   private notFound(): NotFoundException {
@@ -126,10 +124,7 @@ export class InventoryService {
       where: { id },
       include: { profile: true },
     });
-    if (!row?.profile) throw this.notFound();
-    if (row.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Inventory item belongs to another user.' });
-    }
+    if (!row?.profile || row.profile.userId !== userId) throw this.notFound();
     return row;
   }
 

@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Locale } from '@diet-app/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { searchMatch, toRecipeDto } from '../recipes/recipes.service.js';
@@ -73,16 +73,15 @@ export class FavoritesService {
 
   async remove(userId: string, profileId: string, recipeId: string): Promise<void> {
     await this.assertProfile(userId, profileId);
-    await this.prisma.favorite
-      .delete({ where: { profileId_recipeId: { profileId, recipeId } } })
-      .catch(() => undefined);
+    const removed = await this.prisma.favorite.deleteMany({ where: { profileId, recipeId } });
+    if (removed.count === 0) {
+      throw new NotFoundException({ error: 'FAVORITE_NOT_FOUND', message: 'That recipe is not marked for this profile.' });
+    }
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {
     const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
-    if (!profile || profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Profile belongs to another user.' });
-    }
+    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
   }
 
   /**

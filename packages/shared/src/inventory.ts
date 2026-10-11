@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
-import { DisplayAmount, MAX_QUANTITY, Unit } from './enums.js';
+import { CalendarDay, DisplayAmount, MAX_QUANTITY, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 
 /**
@@ -46,10 +46,14 @@ export const UpsertInventoryItem = z.object({
   ingredientId: z.string().uuid(),
   quantity: z.number().positive().max(Math.max(...Object.values(MAX_QUANTITY))),
   unit: Unit,
-  bestBefore: z.string().date().nullable().optional(),
+  bestBefore: CalendarDay.nullable().optional(),
   note: z.string().max(280).nullable().optional(),
 });
 export type UpsertInventoryItem = z.infer<typeof UpsertInventoryItem>;
+
+/** The upsert as it is sent: for which profile's pantry. */
+export const UpsertInventoryItemRequest = UpsertInventoryItem.extend({ profileId: z.string().uuid() });
+export type UpsertInventoryItemRequest = z.infer<typeof UpsertInventoryItemRequest>;
 
 /**
  * Patch — anything omitted preserves the current value. The quantity is in the
@@ -57,7 +61,7 @@ export type UpsertInventoryItem = z.infer<typeof UpsertInventoryItem>;
  */
 export const PatchInventoryItem = z.object({
   quantity: z.number().min(0).max(Math.max(...Object.values(MAX_QUANTITY))).optional(),
-  bestBefore: z.string().date().nullable().optional(),
+  bestBefore: CalendarDay.nullable().optional(),
   note: z.string().max(280).nullable().optional(),
 });
 export type PatchInventoryItem = z.infer<typeof PatchInventoryItem>;

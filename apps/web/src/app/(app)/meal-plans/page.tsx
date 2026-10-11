@@ -16,13 +16,15 @@ import {
   type AiMealSwapPreview,
   type GeneratePlanRequest,
   type MealPlan,
+  type MealPlanPage,
   type MealSwapPreview,
   type PlanRelaxation,
   type Profile,
   type RebalanceResult,
   type SessionUser,
 } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api, ApiClientError, localDate } from '@/lib/api';
+import { planDates } from '@/lib/plan-dates';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,14 +37,7 @@ import { SupplyNote } from '@/components/supply-note';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
-import {
-  AdvancedOptions,
-  buildAdvancedRequest,
-  planDates,
-  type AdvancedValue,
-} from './advanced-options';
-
-const today = () => new Date().toISOString().slice(0, 10);
+import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 
 /** How many of the meals that stand in the way of a plan are named one by one. */
 const MEALS_NAMED = 6;
@@ -114,7 +109,8 @@ function MealPlansContent() {
   // Advanced options. startDate/durationDays are controlled so the per-day
   // override list can react to the plan window; the advanced disclosure is
   // collapsed by default and untouched days fall back to the plan defaults.
-  const [startDate, setStartDate] = useState(today());
+  // The user's own day: late in the evening the day in UTC is already another.
+  const [startDate, setStartDate] = useState(() => localDate());
   const [durationDays, setDurationDays] = useState(7);
   const [advanced, setAdvanced] = useState<AdvancedValue>({ days: {} });
 
@@ -129,16 +125,24 @@ function MealPlansContent() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
+  // Which page of the list is shown; a new profile or filter begins at the first.
+  const [page, setPage] = useState(1);
+  // The list holds each plan as a summary; the plan that is open is read whole.
   const plans = useQuery({
-    queryKey: ['meal-plans', activeId, status, from, to],
+    queryKey: ['meal-plans', activeId, status, from, to, page],
     queryFn: () => {
-      const qp = new URLSearchParams({ profileId: activeId! });
+      const qp = new URLSearchParams({ profileId: activeId!, page: String(page) });
       if (status) qp.set('status', status);
       if (from) qp.set('from', from);
       if (to) qp.set('to', to);
-      return api.get<MealPlan[]>(`/meal-plans?${qp}`);
+      return api.get<MealPlanPage>(`/meal-plans?${qp}`);
     },
     enabled: Boolean(activeId),
+  });
+  const opened = useQuery({
+    queryKey: ['meal-plan', openPlan],
+    queryFn: () => api.get<MealPlan>(`/meal-plans/${openPlan}`),
+    enabled: Boolean(openPlan),
   });
 
   const favorites = useQuery({
@@ -150,7 +154,7 @@ function MealPlansContent() {
     enabled: Boolean(activeId),
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['meal-plans', activeId] });
+  const invalidate = () => Promise.all([qc.invalidateQueries({ queryKey: ['meal-plans', activeId] }), qc.invalidateQueries({ queryKey: ['meal-plan'] })]);
   // Prefer the locale-aware `errors.<CODE>` catalogue over the backend's
   // English `message` field — the contract is "backend codes, client
   // translates". Falls back to the raw message if the code isn't in
@@ -219,7 +223,7 @@ function MealPlansContent() {
       const allow = e instanceof ApiClientError && e.code in ALLOWS ? ALLOWS[e.code as keyof typeof ALLOWS] : null;
       setRefused(allow && !v[allow] ? { reroll: v, allow } : null);
       const needed = relaxationNeeded(e);
-      const kept = (plans.data ?? []).find((plan) => plan.id === v.planId)?.options.allowRelaxations ?? [];
+      const kept = plans.data?.items.find((plan) => plan.id === v.planId)?.options.allowRelaxations ?? [];
       setInTheWay(needed ? { needed, allowed: v.allowRelaxations ?? kept, reroll: v } : null);
       if (!needed) fail(fallback)(e);
     },
@@ -409,6 +413,7 @@ function MealPlansContent() {
               size="sm"
               onClick={() => {
                 setPicked(p.id);
+                setPage(1);
                 setOpenPlan(null);
                 setError(null);
               }}
@@ -573,7 +578,10 @@ function MealPlansContent() {
                     key={s || 'all'}
                     size="sm"
                     variant={status === s ? 'primary' : 'outline'}
-                    onClick={() => setStatus(s)}
+                    onClick={() => {
+                      setStatus(s);
+                      setPage(1);
+                    }}
                   >
                     {t(labelKey)}
                   </Button>
@@ -581,10 +589,24 @@ function MealPlansContent() {
               })}
             </div>
             <Field label={t('from')}>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <Input
+                type="date"
+                value={from}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setPage(1);
+                }}
+              />
             </Field>
             <Field label={t('to')}>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <Input
+                type="date"
+                value={to}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setPage(1);
+                }}
+              />
             </Field>
             {(from || to || status) && (
               <Button
@@ -594,6 +616,7 @@ function MealPlansContent() {
                   setStatus('');
                   setFrom('');
                   setTo('');
+                  setPage(1);
                 }}
               >
                 {tCommon('clear')}
@@ -612,7 +635,7 @@ function MealPlansContent() {
         </label>
         {plans.isLoading ? (
           <Skeleton className="h-24 max-w-3xl" />
-        ) : (plans.data ?? []).length === 0 ? (
+        ) : (plans.data?.items ?? []).length === 0 ? (
           <EmptyState
             icon={CalendarRange}
             image={IMAGERY.emptyMealPlans}
@@ -620,10 +643,11 @@ function MealPlansContent() {
             description={t('noPlans')}
           />
         ) : (
-          (plans.data ?? []).map((plan) => (
+          (plans.data?.items ?? []).map((plan) => (
             <PlanCard
               key={plan.id}
-              plan={plan}
+              summary={plan}
+              plan={openPlan === plan.id ? opened.data : undefined}
               open={openPlan === plan.id}
               busy={busy}
               dietLabel={tDiet(plan.dietType)}
@@ -675,6 +699,17 @@ function MealPlansContent() {
               tMeal={tMeal}
             />
           ))
+        )}
+        {(plans.data?.totalPages ?? 0) > 1 && (
+          <nav aria-label={t('pages')} className="flex items-center gap-3 text-sm">
+            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              {t('pageNewer')}
+            </Button>
+            <span className="text-muted-foreground">{t('pageOf', { page, pages: plans.data!.totalPages })}</span>
+            <Button type="button" variant="outline" size="sm" disabled={page >= plans.data!.totalPages} onClick={() => setPage(page + 1)}>
+              {t('pageOlder')}
+            </Button>
+          </nav>
         )}
       </section>
 

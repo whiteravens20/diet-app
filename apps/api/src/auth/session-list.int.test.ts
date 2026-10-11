@@ -91,7 +91,8 @@ describe('the sessions of an account, as the account sees them', () => {
 
     await t.http().delete(`/api/users/me/sessions/${laptop.sessionId}`).set(as(user)).expect(204);
     await t.http().delete(`/api/users/me/sessions/${laptop.sessionId}`).set(as(user)).expect(404);
-    await t.http().delete('/api/users/me/sessions/not-an-id').set(as(user)).expect(404);
+    // What is no id names no session: refused as it comes in.
+    await t.http().delete('/api/users/me/sessions/not-an-id').set(as(user)).expect(400);
   });
 
   it('can be ended all at once', async () => {

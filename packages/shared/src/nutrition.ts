@@ -16,6 +16,18 @@ export const Nutrition = Macros.extend({
 });
 export type Nutrition = z.infer<typeof Nutrition>;
 
+/**
+ * The nutrition of one serving as somebody types it for a meal of their own.
+ * More than this in one serving is a slip of the keyboard, not a meal.
+ */
+export const EnteredNutrition = z.object({
+  calories: z.number().min(0).max(5000),
+  protein: z.number().min(0).max(500),
+  fat: z.number().min(0).max(500),
+  carbs: z.number().min(0).max(1000),
+});
+export type EnteredNutrition = z.infer<typeof EnteredNutrition>;
+
 /** The least and the most a calorie target somebody types may be, for a profile, a plan or a day. */
 export const MIN_CALORIE_TARGET = 800;
 export const MAX_CALORIE_TARGET = 6000;

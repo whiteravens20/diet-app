@@ -4,10 +4,11 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  type HttpException,
   Injectable,
   Logger,
+  NotFoundException,
   ServiceUnavailableException,
+  type HttpException,
 } from '@nestjs/common';
 import {
   type CookingMethod,
@@ -61,12 +62,7 @@ export class AiRecipeDraftService {
       where: { id: req.profileId },
       include: { preferences: true },
     });
-    if (!profile || profile.userId !== userId) {
-      throw new ForbiddenException({
-        error: 'FORBIDDEN',
-        message: 'Profile belongs to another user.',
-      });
-    }
+    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
 
     // Asked before the model is: a draft the account has no room for, or one
     // past the day's limit, would be paid for and then thrown away.

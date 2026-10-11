@@ -19,7 +19,7 @@ import {
   type AiTestConnectionResponse,
 } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
-import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiKeyService } from './ai-key.service.js';
@@ -53,7 +53,7 @@ export class AiController {
 
   @Delete('providers/:id')
   @HttpCode(204)
-  async removeProvider(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+  async removeProvider(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     await this.keys.remove(user.id, id);
   }
 

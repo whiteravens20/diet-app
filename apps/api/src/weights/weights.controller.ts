@@ -11,15 +11,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
-import { WeightEntryInput } from '@diet-app/shared';
+import { CreateWeightEntryRequest, WeightListQuery } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { WeightsService } from './weights.service.js';
-
-const CreateBody = WeightEntryInput.extend({ profileId: z.string().uuid() });
-type CreateBody = z.infer<typeof CreateBody>;
 
 @Controller('weights')
 @UseGuards(JwtAuthGuard)
@@ -34,17 +30,15 @@ export class WeightsController {
   @Get()
   list(
     @CurrentUser() user: RequestUser,
-    @Query('profileId', requiredUuid) profileId: string,
-    @Query('since') since?: string,
+    @Query(new ZodValidationPipe(WeightListQuery)) query: WeightListQuery,
   ) {
-    const sinceDate = since ? new Date(since) : undefined;
-    return this.weights.list(user.id, profileId, sinceDate);
+    return this.weights.list(user.id, query.profileId, query.since ? new Date(query.since) : undefined);
   }
 
   @Post()
   create(
     @CurrentUser() user: RequestUser,
-    @Body(new ZodValidationPipe(CreateBody)) dto: CreateBody,
+    @Body(new ZodValidationPipe(CreateWeightEntryRequest)) dto: CreateWeightEntryRequest,
   ) {
     const { profileId, ...body } = dto;
     return this.weights.create(user.id, profileId, body);
@@ -52,7 +46,7 @@ export class WeightsController {
 
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     await this.weights.remove(user.id, id);
   }
 }

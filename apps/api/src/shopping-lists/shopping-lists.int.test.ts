@@ -567,11 +567,11 @@ describe('shopping lists and the pantry', () => {
     const other = await aUser(t);
     const item = rows(list)[0]!;
 
-    await t.http().post('/api/shopping-lists/generate').set(as(other)).send({ planId: plan.id }).expect(403);
-    await t.http().get(`/api/shopping-lists?planId=${plan.id}`).set(as(other)).expect(403);
-    await t.http().get(`/api/shopping-lists/${list.id}`).set(as(other)).expect(403);
-    await t.http().patch(`/api/shopping-lists/${list.id}/items/${item.id}`).set(as(other)).send({ checked: true }).expect(403);
-    await t.http().delete(`/api/shopping-lists/${list.id}`).set(as(other)).expect(403);
+    await t.http().post('/api/shopping-lists/generate').set(as(other)).send({ planId: plan.id }).expect(404);
+    await t.http().get(`/api/shopping-lists?planId=${plan.id}`).set(as(other)).expect(404);
+    await t.http().get(`/api/shopping-lists/${list.id}`).set(as(other)).expect(404);
+    await t.http().patch(`/api/shopping-lists/${list.id}/items/${item.id}`).set(as(other)).send({ checked: true }).expect(404);
+    await t.http().delete(`/api/shopping-lists/${list.id}`).set(as(other)).expect(404);
 
     expect(await t.prisma.shoppingList.count()).toBe(1);
   });

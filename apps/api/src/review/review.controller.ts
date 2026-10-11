@@ -22,13 +22,11 @@
  * as for the administrator's.
  */
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
   HttpCode,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -48,17 +46,17 @@ import {
   ReviewQueueQuery,
   ReviewerLoginBody,
   ReviewerReasonBody,
-  TargetLocale,
+  TargetLocaleQuery,
   type IngredientNameReviewSlice,
   type Locale,
   type RecipeReviewSlice,
   type ReviewAction,
   type ReviewerSessionDto,
+  type TargetLocale,
 } from '@diet-app/shared';
-import type { z } from 'zod';
 import { DraftService, type Actor, type Page } from '../admin/drafts/draft.service.js';
 import { toIngredientNameReviewSlice, toRecipeReviewSlice } from '../admin/drafts/drafts.mapper.js';
-import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { assertFromTheApplication } from '../auth/session-cookies.js';
 import { Passwords } from '../common/passwords.js';
 import { readCookie } from '../common/cookies.js';
@@ -111,15 +109,7 @@ export class ReviewController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('auth')
   @HttpCode(204)
-  async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
-    const parsed = ReviewerLoginBody.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException({
-        error: 'INVALID_REVIEWER_LOGIN',
-        message: parsed.error.message,
-      });
-    }
-
+  async login(@Body(new ZodValidationPipe(ReviewerLoginBody)) body: ReviewerLoginBody, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     const appUrl = this.config.get('APP_URL', { infer: true });
     // A page of another site cannot sign a visitor in to a session of its choosing.
     assertFromTheApplication(req.headers.origin, appUrl);
@@ -132,7 +122,7 @@ export class ReviewController {
     }
     const client = req.ip ?? 'unknown';
     this.gate.assertOpen('reviewer', client, res);
-    const ok = await this.passwords.matches(parsed.data.password, reviewerPasswordHash);
+    const ok = await this.passwords.matches(body.password, reviewerPasswordHash);
     if (!ok) {
       this.gate.failed('reviewer', client);
       throw new UnauthorizedException({
@@ -144,7 +134,7 @@ export class ReviewController {
 
     const secret = resolveReviewerSecret(this.config);
     const { token, maxAgeSeconds } = signReviewerCookie(this.jwt, secret, {
-      label: parsed.data.label,
+      label: body.label,
       epoch: reviewerSessionEpoch,
     });
     res.setHeader(
@@ -206,10 +196,9 @@ export class ReviewController {
   @UseGuards(ReviewerSessionGuard)
   async getRecipeSlice(
     @Req() req: ReviewerRequest,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') localeRaw: string | undefined,
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
   ): Promise<RecipeReviewSlice> {
-    const locale = parseTargetLocale(localeRaw);
     return toRecipeReviewSlice(await this.drafts.recipeFor(id, locale, reviewerOf(req)), locale);
   }
 
@@ -217,12 +206,10 @@ export class ReviewController {
   @UseGuards(ReviewerSessionGuard)
   async patchRecipeSlice(
     @Req() req: ReviewerRequest,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') localeRaw: string | undefined,
-    @Body() body: unknown,
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Body(new ZodValidationPipe(RecipeReviewPatchBody)) patch: RecipeReviewPatchBody,
   ): Promise<RecipeReviewSlice> {
-    const locale = parseTargetLocale(localeRaw);
-    const patch = bodyOf(RecipeReviewPatchBody, body, 'INVALID_REVIEW_PATCH');
     return toRecipeReviewSlice(await this.drafts.editRecipeText(id, locale, patch, reviewerOf(req)), locale);
   }
 
@@ -230,27 +217,25 @@ export class ReviewController {
   @UseGuards(ReviewerSessionGuard)
   approveRecipeSlice(
     @Req() req: ReviewerRequest,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') localeRaw: string | undefined,
-    @Body() body: unknown,
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Body(new ZodValidationPipe(ReviewerReasonBody.prefault({}))) body: ReviewerReasonBody,
   ): Promise<RecipeReviewSlice> {
-    return this.reviewRecipe(req, id, localeRaw, body, 'APPROVE');
+    return this.reviewRecipe(req, id, locale, body, 'APPROVE');
   }
 
   @Post('drafts/recipes/:id/reject')
   @UseGuards(ReviewerSessionGuard)
   rejectRecipeSlice(
     @Req() req: ReviewerRequest,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') localeRaw: string | undefined,
-    @Body() body: unknown,
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Body(new ZodValidationPipe(ReviewerReasonBody.prefault({}))) body: ReviewerReasonBody,
   ): Promise<RecipeReviewSlice> {
-    return this.reviewRecipe(req, id, localeRaw, body, 'REJECT');
+    return this.reviewRecipe(req, id, locale, body, 'REJECT');
   }
 
-  private async reviewRecipe(req: ReviewerRequest, id: string, localeRaw: string | undefined, body: unknown, action: ReviewAction): Promise<RecipeReviewSlice> {
-    const locale = parseTargetLocale(localeRaw);
-    const { reason } = bodyOf(ReviewerReasonBody, body ?? {}, 'INVALID_REVIEW');
+  private async reviewRecipe(req: ReviewerRequest, id: string, locale: TargetLocale, { reason }: ReviewerReasonBody, action: ReviewAction): Promise<RecipeReviewSlice> {
     return toRecipeReviewSlice(await this.drafts.reviewRecipe(id, { locale, action, reason }, reviewerOf(req)), locale);
   }
 
@@ -267,10 +252,9 @@ export class ReviewController {
   @UseGuards(ReviewerSessionGuard)
   async getIngredientNameSlice(
     @Req() req: ReviewerRequest,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') localeRaw: string | undefined,
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
   ): Promise<IngredientNameReviewSlice> {
-    const locale = parseTargetLocale(localeRaw);
     return toIngredientNameReviewSlice(await this.drafts.ingredientNameFor(id, locale, reviewerOf(req)), locale);
   }
 
@@ -278,12 +262,10 @@ export class ReviewController {
   @UseGuards(ReviewerSessionGuard)
   async patchIngredientNameSlice(
     @Req() req: ReviewerRequest,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') localeRaw: string | undefined,
-    @Body() body: unknown,
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Body(new ZodValidationPipe(IngredientNameReviewPatchBody)) patch: IngredientNameReviewPatchBody,
   ): Promise<IngredientNameReviewSlice> {
-    const locale = parseTargetLocale(localeRaw);
-    const patch = bodyOf(IngredientNameReviewPatchBody, body, 'INVALID_REVIEW_PATCH');
     return toIngredientNameReviewSlice(await this.drafts.editIngredientNameText(id, locale, patch, reviewerOf(req)), locale);
   }
 
@@ -291,33 +273,31 @@ export class ReviewController {
   @UseGuards(ReviewerSessionGuard)
   approveIngredientNameSlice(
     @Req() req: ReviewerRequest,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') localeRaw: string | undefined,
-    @Body() body: unknown,
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Body(new ZodValidationPipe(ReviewerReasonBody.prefault({}))) body: ReviewerReasonBody,
   ): Promise<IngredientNameReviewSlice> {
-    return this.reviewIngredientName(req, id, localeRaw, body, 'APPROVE');
+    return this.reviewIngredientName(req, id, locale, body, 'APPROVE');
   }
 
   @Post('drafts/ingredient-names/:id/reject')
   @UseGuards(ReviewerSessionGuard)
   rejectIngredientNameSlice(
     @Req() req: ReviewerRequest,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('locale') localeRaw: string | undefined,
-    @Body() body: unknown,
+    @Param('id', requiredUuid) id: string,
+    @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
+    @Body(new ZodValidationPipe(ReviewerReasonBody.prefault({}))) body: ReviewerReasonBody,
   ): Promise<IngredientNameReviewSlice> {
-    return this.reviewIngredientName(req, id, localeRaw, body, 'REJECT');
+    return this.reviewIngredientName(req, id, locale, body, 'REJECT');
   }
 
   private async reviewIngredientName(
     req: ReviewerRequest,
     id: string,
-    localeRaw: string | undefined,
-    body: unknown,
+    locale: TargetLocale,
+    { reason }: ReviewerReasonBody,
     action: ReviewAction,
   ): Promise<IngredientNameReviewSlice> {
-    const locale = parseTargetLocale(localeRaw);
-    const { reason } = bodyOf(ReviewerReasonBody, body ?? {}, 'INVALID_REVIEW');
     return toIngredientNameReviewSlice(await this.drafts.reviewIngredientName(id, { locale, action, reason }, reviewerOf(req)), locale);
   }
 }
@@ -334,24 +314,4 @@ function reviewerOf(req: ReviewerRequest): Actor {
     });
   }
   return { role: 'REVIEWER', label: req.reviewer.label };
-}
-
-/** `body` checked against `schema`, or a 400 under the code this route has always answered with. */
-function bodyOf<T>(schema: z.ZodType<T>, body: unknown, code: string): T {
-  const result = schema.safeParse(body);
-  if (!result.success) throw new BadRequestException({ error: code, message: result.error.message });
-  return result.data;
-}
-
-/** Validates the `?locale=` query argument: must be a supported Locale and
- *  must not be `en` (EN is the canonical authoring language). */
-function parseTargetLocale(raw: string | undefined): TargetLocale {
-  const parsed = TargetLocale.safeParse(raw);
-  if (!parsed.success) {
-    throw new BadRequestException({
-      error: 'INVALID_LOCALE',
-      message: `locale must be a non-canonical Locale (got "${raw ?? ''}").`,
-    });
-  }
-  return parsed.data;
 }

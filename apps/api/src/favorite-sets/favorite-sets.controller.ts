@@ -45,7 +45,7 @@ export class FavoriteSetsController {
   @Patch(':id')
   update(
     @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
+    @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(UpdateFavoriteSetRequest)) dto: UpdateFavoriteSetRequest,
   ) {
     return this.sets.update(user.id, id, dto);
@@ -53,7 +53,7 @@ export class FavoriteSetsController {
 
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string): Promise<void> {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string): Promise<void> {
     await this.sets.remove(user.id, id);
   }
 
@@ -61,7 +61,7 @@ export class FavoriteSetsController {
   apply(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
+    @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(ApplyFavoriteSetRequest)) dto: ApplyFavoriteSetRequest,
   ) {
     return this.sets.apply(user.id, locale, id, dto);

@@ -14,11 +14,8 @@
  */
 import { z } from 'zod';
 import { Locale } from './settings.js';
-import { Complexity, Unit, MealType, DietType } from './enums.js';
+import { Complexity, Difficulty, Unit, MealType, DietType } from './enums.js';
 export { Complexity };
-
-export const Difficulty = z.enum(['easy', 'medium', 'hard']);
-export type Difficulty = z.infer<typeof Difficulty>;
 
 export const DraftStatus = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'SHIPPED']);
 export type DraftStatus = z.infer<typeof DraftStatus>;
@@ -39,6 +36,14 @@ export type ReviewerRole = z.infer<typeof ReviewerRole>;
 /** A language a draft is written in and reviewed for besides the canonical one. */
 export const TargetLocale = Locale.exclude(['en']);
 export type TargetLocale = z.infer<typeof TargetLocale>;
+
+/** The language of a draft a reviewer's request is about: `?locale=`. */
+export const TargetLocaleQuery = z.object({ locale: TargetLocale });
+export type TargetLocaleQuery = z.infer<typeof TargetLocaleQuery>;
+
+/** The language of a draft the administrator's request is about: any one, English too. */
+export const DraftLocaleQuery = z.object({ locale: Locale });
+export type DraftLocaleQuery = z.infer<typeof DraftLocaleQuery>;
 
 /** The review a language of a draft has now. */
 export const LocaleReview = z.object({
@@ -99,7 +104,7 @@ export type ReviewQueueQuery = z.infer<typeof ReviewQueueQuery>;
  * exhaustive-keys rule rejecting it. Coverage against `draft.locales` is the
  * runner/seeder's job, not the wire schema's.
  */
-export const LocaleStringMap = z.partialRecord(Locale, z.string().min(1));
+export const LocaleStringMap = z.partialRecord(Locale, z.string().min(1).max(10_000));
 export type LocaleStringMap = z.infer<typeof LocaleStringMap>;
 
 // ── Ingredient-name drafts ────────────────────────────────────────────────────
@@ -140,12 +145,71 @@ export type IngredientNameDraft = z.infer<typeof IngredientNameDraft>;
  * among them: the source's own name is the English one, and a draft made for
  * English could be approved by nobody.
  */
-export const IngredientNameGenerateSpec = z.object({
-  scope: z.enum(['all-usda-missing', 'specific-slugs']),
-  slugs: z.array(z.string()).optional(),
-  targetLocales: z.array(TargetLocale).min(1).optional(),
-});
+export const IngredientNameGenerateSpec = z
+  .object({
+    scope: z.enum(['all-usda-missing', 'specific-slugs']),
+    slugs: z.array(z.string().min(1).max(200)).max(1000).optional(),
+    targetLocales: z.array(TargetLocale).min(1).max(TargetLocale.options.length).optional(),
+  })
+  .refine((spec) => spec.scope !== 'specific-slugs' || (spec.slugs?.length ?? 0) > 0, {
+    path: ['slugs'],
+    message: 'Name the ingredients to write for.',
+  });
 export type IngredientNameGenerateSpec = z.infer<typeof IngredientNameGenerateSpec>;
+
+/** The administrator's edit of the names a draft suggests. */
+export const IngredientNameDraftPatchBody = z.object({ suggestions: IngredientNameSuggestion });
+export type IngredientNameDraftPatchBody = z.infer<typeof IngredientNameDraftPatchBody>;
+
+/** The administrator's review of one language of a draft: under which name, and why when it is a rejection. */
+export const DraftReviewBody = z.object({
+  reviewedByLabel: z.string().min(1).max(80),
+  reason: z.string().max(500).optional(),
+});
+export type DraftReviewBody = z.infer<typeof DraftReviewBody>;
+
+/** Up to a hundred drafts rejected with one reason. */
+export const DraftBulkRejectBody = DraftReviewBody.extend({ ids: z.array(z.string().uuid()).min(1).max(100) });
+export type DraftBulkRejectBody = z.infer<typeof DraftBulkRejectBody>;
+
+/** Which queue a shipment is taken from. */
+export const ShipKind = z.enum(['recipe', 'ingredient-name']);
+export type ShipKind = z.infer<typeof ShipKind>;
+
+/** How approved drafts leave the queue. */
+export const ShipMode = z.enum(['local', 'upstream-pr', 'bundle']);
+export type ShipMode = z.infer<typeof ShipMode>;
+
+/** The most drafts one shipment can name. */
+export const MAX_SHIPPED_AT_ONCE = 1000;
+
+/** Ships approved drafts: all of a queue, or the batches named. */
+export const ShipRequest = z.object({
+  kind: ShipKind,
+  mode: ShipMode,
+  batchIds: z.array(z.string().min(1).max(200)).max(MAX_SHIPPED_AT_ONCE).optional(),
+});
+export type ShipRequest = z.infer<typeof ShipRequest>;
+
+/** Says that the drafts of a bundle the administrator saved are shipped. */
+export const MarkShippedRequest = z.object({
+  kind: ShipKind,
+  draftIds: z.array(z.string().uuid()).min(1).max(MAX_SHIPPED_AT_ONCE),
+});
+export type MarkShippedRequest = z.infer<typeof MarkShippedRequest>;
+
+/** Where shipped data is pulled from: a repository (`owner/repo[@branch]`) or an address; the instance's own source when it is left out. */
+export const PullOverridesRequest = z.object({ source: z.string().trim().min(1).max(500).optional() });
+export type PullOverridesRequest = z.infer<typeof PullOverridesRequest>;
+
+/** `?dryRun=true`: say what an edit would give, and store nothing. */
+export const DryRunQuery = z.object({
+  dryRun: z
+    .enum(['true', 'false', '1', '0'])
+    .optional()
+    .transform((value) => value === 'true' || value === '1'),
+});
+export type DryRunQuery = z.infer<typeof DryRunQuery>;
 
 // ── Runner status (shared by ingredient-name + recipe pipelines) ──────────────
 
@@ -199,15 +263,15 @@ export type DraftRunnerState = z.infer<typeof DraftRunnerState>;
  *  it uses `partialRecord`: drafts are generated for a locale subset
  *  (`targetLocales`), so Zod v4's exhaustive `z.record` over the enum key would
  *  wrongly reject a `{ pl: … }` map for the missing `en` key. */
-export const LocaleStringsMap = z.partialRecord(Locale, z.array(z.string().min(1)).min(1));
+export const LocaleStringsMap = z.partialRecord(Locale, z.array(z.string().min(1).max(5_000)).min(1).max(200));
 export type LocaleStringsMap = z.infer<typeof LocaleStringsMap>;
 
 /** One ingredient line as the AI returns it inside a recipe draft. Slug must
  *  resolve to an `Ingredient.slug` in the live DB; the validator rejects rows
  *  that don't. */
 export const RecipeDraftIngredientLine = z.object({
-  slug: z.string().min(1),
-  quantity: z.number().positive(),
+  slug: z.string().min(1).max(200),
+  quantity: z.number().positive().max(1_000_000),
   unit: Unit,
   note: z.string().max(120).nullable().optional(),
 });
@@ -290,7 +354,7 @@ export type CatalogueScope = z.infer<typeof CatalogueScope>;
 export const RecipeGenerateSpec = z.object({
   /** How many recipes to write; with `fillCoverage`, how many at most. */
   count: z.number().int().min(1).max(25),
-  targetLocales: z.array(Locale).min(1).optional(),
+  targetLocales: z.array(Locale).min(1).max(Locale.options.length).optional(),
   catalogueScope: CatalogueScope.optional(),
   /**
    * Write for the diet and meal that have the fewest recipes, call after
@@ -299,18 +363,18 @@ export const RecipeGenerateSpec = z.object({
    * be sent with it.
    */
   fillCoverage: z.boolean().optional(),
-  dietTags: z.array(DietType).optional(),
-  mealTypes: z.array(MealType).optional(),
+  dietTags: z.array(DietType).max(DietType.options.length).optional(),
+  mealTypes: z.array(MealType).max(MealType.options.length).optional(),
   cuisine: z.string().min(1).max(80).optional(),
   kcalRange: z
     .object({
-      min: z.number().int().nonnegative(),
-      max: z.number().int().positive(),
+      min: z.number().int().min(0).max(5000),
+      max: z.number().int().min(1).max(5000),
     })
     .refine((r) => r.max >= r.min, { message: 'kcalRange.max must be >= min' })
     .optional(),
-  avoidSlugs: z.array(z.string()).optional(),
-  preferSlugs: z.array(z.string()).optional(),
+  avoidSlugs: z.array(z.string().min(1).max(200)).max(200).optional(),
+  preferSlugs: z.array(z.string().min(1).max(200)).max(200).optional(),
   complexityMix: ComplexityMix.optional(),
 }).refine((spec) => !spec.fillCoverage || (spec.dietTags === undefined && spec.mealTypes === undefined), {
   message: 'fillCoverage chooses the diet and the meal: dietTags and mealTypes may not be sent with it',
@@ -327,17 +391,20 @@ export type RecipeGenerateSpec = z.infer<typeof RecipeGenerateSpec>;
  *  A change sends the draft back to be reviewed, except a change of the slug
  *  alone: the slug names the recipe in the data and is no part of what a
  *  reviewer approved. */
+// The limits here are those of a request, wide enough for any edit: what a
+// recipe may hold is said by the rules a draft is checked against, which
+// answer with the problems of the draft and not with a refusal.
 export const RecipeDraftPatch = z.object({
-  slug: z.string().optional(),
+  slug: z.string().max(200).optional(),
   titles: LocaleStringMap.optional(),
   descriptions: LocaleStringMap.optional(),
   steps: LocaleStringsMap.optional(),
-  servings: z.number().int().min(1).optional(),
-  mealTypes: z.array(MealType).optional(),
-  prepMinutes: z.number().int().min(0).optional(),
-  cookMinutes: z.number().int().min(0).optional(),
+  servings: z.number().int().min(1).max(1000).optional(),
+  mealTypes: z.array(MealType).max(MealType.options.length).optional(),
+  prepMinutes: z.number().int().min(0).max(100_000).optional(),
+  cookMinutes: z.number().int().min(0).max(100_000).optional(),
   difficulty: Difficulty.optional(),
-  ingredients: z.array(RecipeDraftIngredientLine).min(1).optional(),
+  ingredients: z.array(RecipeDraftIngredientLine).min(1).max(200).optional(),
 });
 export type RecipeDraftPatch = z.infer<typeof RecipeDraftPatch>;
 

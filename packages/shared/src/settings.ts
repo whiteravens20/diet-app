@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
-import { AuthUser, newPassword } from './auth.js';
+import { AuthUser, emailAddress, newPassword } from './auth.js';
 
 /**
  * Supported UI locales. The single source of truth for "which locales the app
@@ -95,7 +95,7 @@ export type DeleteAccountRequest = z.infer<typeof DeleteAccountRequest>;
  * change only takes effect once that link is followed.
  */
 export const ChangeEmailRequest = z.object({
-  newEmail: z.string().email(),
+  newEmail: emailAddress,
   currentPassword: z.string().min(1).max(128),
 });
 export type ChangeEmailRequest = z.infer<typeof ChangeEmailRequest>;

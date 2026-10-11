@@ -12,20 +12,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
-import {
-  PatchInventoryItem,
-  UpsertInventoryItem,
-  type Locale,
-} from '@diet-app/shared';
+import { type Locale, PatchInventoryItem, UpsertInventoryItemRequest } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { InventoryService } from './inventory.service.js';
-
-const UpsertBody = UpsertInventoryItem.extend({ profileId: z.string().uuid() });
-type UpsertBody = z.infer<typeof UpsertBody>;
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard)
@@ -45,7 +37,7 @@ export class InventoryController {
   upsert(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Body(new ZodValidationPipe(UpsertBody)) dto: UpsertBody,
+    @Body(new ZodValidationPipe(UpsertInventoryItemRequest)) dto: UpsertInventoryItemRequest,
   ) {
     const { profileId, ...body } = dto;
     return this.inventory.upsert(user.id, locale, profileId, body);
@@ -55,7 +47,7 @@ export class InventoryController {
   patch(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
+    @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(PatchInventoryItem)) dto: PatchInventoryItem,
   ) {
     return this.inventory.patch(user.id, locale, id, dto);
@@ -63,7 +55,7 @@ export class InventoryController {
 
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     await this.inventory.remove(user.id, id);
   }
 }

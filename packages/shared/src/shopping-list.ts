@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { z } from 'zod';
-import { DisplayUnit, MAX_QUANTITY, ProductCategory, Unit } from './enums.js';
+import { CalendarDay, DisplayUnit, MAX_QUANTITY, ProductCategory, Unit } from './enums.js';
 
 /** The most shopping lists one plan may have at a time. */
 export const MAX_LISTS_PER_PLAN = 10;
@@ -11,8 +11,8 @@ export const GenerateShoppingListRequest = z
   .object({
     planId: z.string().uuid(),
     /** Optional inclusive sub-range; omitted = whole plan. */
-    fromDate: z.string().date().optional(),
-    toDate: z.string().date().optional(),
+    fromDate: CalendarDay.optional(),
+    toDate: CalendarDay.optional(),
   })
   .refine((request) => !request.fromDate || !request.toDate || request.fromDate <= request.toDate, {
     message: 'fromDate must not be after toDate.',

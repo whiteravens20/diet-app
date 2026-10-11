@@ -3,7 +3,13 @@
 import { z } from 'zod';
 
 /** Optional Cloudflare Turnstile token — required only when Turnstile is enabled. */
-const turnstileToken = z.string().optional();
+const turnstileToken = z.string().max(2048).optional();
+
+/** An e-mail address. No longer than an address can be. */
+export const emailAddress = z.string().email().max(254);
+
+/** A token from a link in a mail, or one that a session is refreshed with. */
+const token = z.string().min(1).max(512);
 
 /**
  * Password policy for new passwords (registration + reset). 12–128 characters
@@ -26,7 +32,7 @@ export const PASSWORD_RULES = [
 ] as const;
 
 export const RegisterRequest = z.object({
-  email: z.string().email(),
+  email: emailAddress,
   password: newPassword,
   displayName: z.string().min(1).max(80),
   turnstileToken,
@@ -34,20 +40,20 @@ export const RegisterRequest = z.object({
 export type RegisterRequest = z.infer<typeof RegisterRequest>;
 
 export const LoginRequest = z.object({
-  email: z.string().email(),
+  email: emailAddress,
   password: z.string().min(1).max(128),
   turnstileToken,
 });
 export type LoginRequest = z.infer<typeof LoginRequest>;
 
 export const PasswordResetRequest = z.object({
-  email: z.string().email(),
+  email: emailAddress,
   turnstileToken,
 });
 export type PasswordResetRequest = z.infer<typeof PasswordResetRequest>;
 
 export const PasswordResetConfirm = z.object({
-  token: z.string().min(1),
+  token,
   password: newPassword,
 });
 export type PasswordResetConfirm = z.infer<typeof PasswordResetConfirm>;
@@ -57,19 +63,19 @@ export type PasswordResetConfirm = z.infer<typeof PasswordResetConfirm>;
  * sends nothing: its token is in a cookie the API set.
  */
 export const RefreshRequest = z.object({
-  refreshToken: z.string().min(1).optional(),
+  refreshToken: token.optional(),
 });
 export type RefreshRequest = z.infer<typeof RefreshRequest>;
 
 /** Confirms an email address from a verification link. */
 export const VerifyEmailRequest = z.object({
-  token: z.string().min(1),
+  token,
 });
 export type VerifyEmailRequest = z.infer<typeof VerifyEmailRequest>;
 
 /** Confirms a pending email change from the link sent to the new address. */
 export const ConfirmEmailChangeRequest = z.object({
-  token: z.string().min(1),
+  token,
 });
 export type ConfirmEmailChangeRequest = z.infer<typeof ConfirmEmailChangeRequest>;
 
@@ -240,6 +246,6 @@ export const AdminSecondFactorOffRequest = z
 export type AdminSecondFactorOffRequest = z.infer<typeof AdminSecondFactorOffRequest>;
 
 /** The administrator takes the second factor off an account whose holder lost it. */
-export const AccountSecondFactorRemoval = z.object({ email: z.string().email() }).strict();
+export const AccountSecondFactorRemoval = z.object({ email: emailAddress }).strict();
 export type AccountSecondFactorRemoval = z.infer<typeof AccountSecondFactorRemoval>;
 

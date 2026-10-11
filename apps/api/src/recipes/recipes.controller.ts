@@ -1,11 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AiDraftRecipeRequest, type Locale } from '@diet-app/shared';
+import { AiDraftRecipeRequest, type Locale, PageQuery, RecipeSearchQuery } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
-import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
 import { PersonalRecipesService } from './personal-recipes.service.js';
@@ -28,44 +28,19 @@ export class RecipesController {
   listMine(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Query('page') page?: string,
-    @Query('pageSize') pageSize?: string,
+    @Query(new ZodValidationPipe(PageQuery)) paging: PageQuery,
   ) {
-    return this.recipes.listMine(user.id, locale, {
-      page: page ? Number(page) : undefined,
-      pageSize: pageSize ? Number(pageSize) : undefined,
-    });
+    return this.recipes.listMine(user.id, locale, paging);
   }
 
   @Get()
   search(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Query('search') search?: string,
-    @Query('dietType') dietType?: string,
-    @Query('mealType') mealType?: string,
-    @Query('maxCalories') maxCalories?: string,
-    @Query('maxPrepMinutes') maxPrepMinutes?: string,
-    @Query('difficulty') difficulty?: string,
-    @Query('page') page?: string,
-    @Query('pageSize') pageSize?: string,
+    @Query(new ZodValidationPipe(RecipeSearchQuery)) query: RecipeSearchQuery,
   ) {
-    return this.recipes.search(
-      user.id,
-      locale,
-      {
-        search,
-        dietType,
-        mealType,
-        maxCalories: maxCalories ? Number(maxCalories) : undefined,
-        maxPrepMinutes: maxPrepMinutes ? Number(maxPrepMinutes) : undefined,
-        difficulty,
-      },
-      {
-        page: page ? Number(page) : undefined,
-        pageSize: pageSize ? Number(pageSize) : undefined,
-      },
-    );
+    const { page, pageSize, ...filters } = query;
+    return this.recipes.search(user.id, locale, filters, { page, pageSize });
   }
 
   /**
@@ -85,7 +60,7 @@ export class RecipesController {
   }
 
   @Get(':id')
-  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id') id: string) {
+  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string) {
     return this.recipes.get(user.id, locale, id);
   }
 
@@ -97,7 +72,7 @@ export class RecipesController {
   @Post(':id/submit')
   @HttpCode(204)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  submit(@CurrentUser() user: RequestUser, @Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+  submit(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string): Promise<void> {
     return this.personal.submit(user.id, id);
   }
 
@@ -108,7 +83,7 @@ export class RecipesController {
    */
   @Delete(':id')
   @HttpCode(204)
-  delete(@CurrentUser() user: RequestUser, @Param('id') id: string): Promise<void> {
+  delete(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string): Promise<void> {
     return this.recipes.softDeleteMine(user.id, id);
   }
 }

@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   MAX_LISTS_PER_PLAN,
@@ -93,10 +93,7 @@ export class ShoppingListsService {
       where: { id: req.planId },
       include: { profile: true, days: { orderBy: { date: 'asc' }, select: { date: true } } },
     });
-    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    if (plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
-    }
+    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const profileId = plan.profile.id;
 
     const first = plan.days[0]?.date ?? plan.startDate;
@@ -182,10 +179,7 @@ export class ShoppingListsService {
       where: { id: planId },
       include: { profile: true },
     });
-    if (!plan?.profile) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    if (plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'Plan belongs to another user.' });
-    }
+    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const rows = await this.prisma.shoppingList.findMany({
       where: { planId },
       include: { items: true },
@@ -252,10 +246,7 @@ export class ShoppingListsService {
       where: { id: listId },
       include: { items: true, plan: { include: { profile: true } } },
     });
-    if (!list?.plan?.profile) throw new NotFoundException({ error: 'LIST_NOT_FOUND', message: 'Shopping list not found.' });
-    if (list.plan.profile.userId !== userId) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'List belongs to another user.' });
-    }
+    if (!list?.plan?.profile || list.plan.profile.userId !== userId) throw new NotFoundException({ error: 'LIST_NOT_FOUND', message: 'Shopping list not found.' });
     return list;
   }
 

@@ -6,7 +6,7 @@
  * Focus: ownership/limit guards, the create/update mapping, and DTO defaults
  * when a profile has no preferences row.
  */
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { MAX_PROFILES_PER_ACCOUNT } from '@diet-app/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { ProfilesService } from './profiles.service.js';
@@ -78,14 +78,14 @@ describe('ProfilesService ownership (load guard)', () => {
     prisma.profile.findUnique = vi.fn().mockResolvedValue(null);
     await expect(makeService(prisma).get('user-1', 'nope')).rejects.toBeInstanceOf(NotFoundException);
   });
-  it('throws FORBIDDEN for another user’s profile', async () => {
+  it('answers another user’s profile as one that is not there', async () => {
     const prisma = makePrisma(makeRow({ userId: 'other' }));
-    await expect(makeService(prisma).get('user-1', 'p1')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(makeService(prisma).get('user-1', 'p1')).rejects.toMatchObject({ response: { error: 'PROFILE_NOT_FOUND' } });
   });
   it('blocks update + delete on a foreign profile', async () => {
     const prisma = makePrisma(makeRow({ userId: 'other' }));
-    await expect(makeService(prisma).update('user-1', 'p1', { name: 'x', preferences: {} } as never)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(makeService(prisma).remove('user-1', 'p1')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(makeService(prisma).update('user-1', 'p1', { name: 'x', preferences: {} } as never)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(makeService(prisma).remove('user-1', 'p1')).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.profile.delete).not.toHaveBeenCalled();
   });
 });

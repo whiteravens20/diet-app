@@ -336,7 +336,7 @@ describe('generating recipe drafts', () => {
     it('chooses the diet and the meal itself: a run that names them too is refused', async () => {
       const refused = await t.http().post('/api/admin/drafts/recipes/generate').set(admin).send({ count: 2, fillCoverage: true, mealTypes: ['lunch'] });
 
-      expect([refused.status, refused.body.error]).toEqual([400, 'INVALID_RECIPE_SPEC']);
+      expect([refused.status, refused.body.error, refused.body.issues[0].path]).toEqual([400, 'VALIDATION_FAILED', 'fillCoverage']);
     });
   });
 

@@ -36,14 +36,14 @@ export class ShoppingListsController {
   get(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
+    @Param('id', requiredUuid) id: string,
   ) {
     return this.lists.get(user.id, locale, id);
   }
 
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     await this.lists.remove(user.id, id);
   }
 
@@ -51,8 +51,8 @@ export class ShoppingListsController {
   updateItem(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
-    @Param('id') id: string,
-    @Param('itemId') itemId: string,
+    @Param('id', requiredUuid) id: string,
+    @Param('itemId', requiredUuid) itemId: string,
     @Body(new ZodValidationPipe(UpdateShoppingItemRequest)) dto: UpdateShoppingItemRequest,
   ) {
     return this.lists.updateItem(user.id, locale, id, itemId, dto);

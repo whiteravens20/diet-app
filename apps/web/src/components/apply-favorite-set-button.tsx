@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FavoriteSet, MealPlan } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
+import { planDates } from '@/lib/plan-dates';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -20,18 +21,18 @@ export function ApplyFavoriteSetButton({
   profileId,
   disabled,
 }: {
-  plan: MealPlan;
+  /** The plan as a list shows it: its days are worked out from where it begins and how long it is. */
+  plan: Pick<MealPlan, 'id' | 'startDate' | 'durationDays'>;
   profileId: string;
   disabled?: boolean;
 }) {
+  const days = planDates(plan.startDate, plan.durationDays);
   const t = useTranslations('favoriteSets');
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickedSetId, setPickedSetId] = useState<string>('');
-  const [selectedDays, setSelectedDays] = useState<Set<string>>(
-    new Set(plan.days.map((d) => d.date)),
-  );
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set(days));
 
   const setsQ = useQuery({
     queryKey: ['favorite-sets', profileId],
@@ -44,6 +45,7 @@ export function ApplyFavoriteSetButton({
       api.post<MealPlan>(`/favorite-sets/${setId}/apply`, { planId: plan.id, dayDates }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['meal-plans', profileId] });
+      qc.invalidateQueries({ queryKey: ['meal-plan', plan.id] });
       setOpen(false);
     },
     onError: (e) => setError(e instanceof ApiClientError ? e.message : t('errApply')),
@@ -61,7 +63,7 @@ export function ApplyFavoriteSetButton({
   }
 
   function selectAllDays(): void {
-    setSelectedDays(new Set(plan.days.map((d) => d.date)));
+    setSelectedDays(new Set(days));
   }
 
   function onApply(): void {
@@ -124,16 +126,16 @@ export function ApplyFavoriteSetButton({
           </button>
         </div>
         <ul className="max-h-40 space-y-1 overflow-y-auto">
-          {plan.days.map((d) => (
-            <li key={d.id}>
+          {days.map((date) => (
+            <li key={date}>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={selectedDays.has(d.date)}
-                  onChange={() => toggleDay(d.date)}
+                  checked={selectedDays.has(date)}
+                  onChange={() => toggleDay(date)}
                   className="h-4 w-4"
                 />
-                <span className="tabular-nums">{d.date}</span>
+                <span className="tabular-nums">{date}</span>
               </label>
             </li>
           ))}

@@ -87,9 +87,21 @@ function currentLocale(): string {
   return match ? decodeURIComponent(match[1]!) : 'en';
 }
 
+/**
+ * The day it is for the user, as `2026-03-01`: by the clock and the time zone
+ * of the browser, not in UTC, where late in the evening it is already
+ * tomorrow or still yesterday.
+ */
+export function localDate(now = new Date()): string {
+  const two = (n: number): string => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+}
+
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('content-type', 'application/json');
+  // Which plan is under way and which days have passed goes by the user's day.
+  headers.set('x-client-date', localDate());
   // Tell the API which locale to serve translated text in. The API resolves
   // this header in `RequestLocale` decorator; absent/unsupported → 'en'.
   if (!headers.has('accept-language')) headers.set('accept-language', currentLocale());

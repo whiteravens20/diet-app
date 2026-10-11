@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { PlannedIngredient, Profile, Recipe } from '@diet-app/shared';
+import type { PlannedIngredient, Profile, ProfilePreferencesPatch, Recipe } from '@diet-app/shared';
 import { api, ApiClientError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,27 +73,15 @@ export function RecipeView({
   });
   const removeFav = useMutation({
     mutationFn: (profileId: string) => api.delete(`/favorites/${profileId}/${recipe.id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['favorites-index'] }),
+    // A mark that was gone already (taken off in another tab) is off, which is what was asked: the list is read again either way.
+    onSettled: () => qc.invalidateQueries({ queryKey: ['favorites-index'] }),
   });
 
   const [prefsProfileId, setPrefsProfileId] = useState<string | null>(null);
   const [prefsError, setPrefsError] = useState<string | null>(null);
 
   const savePrefs = useMutation({
-    mutationFn: (v: { profile: Profile; preferences: Profile['preferences'] }) =>
-      api.put<Profile>(`/profiles/${v.profile.id}`, {
-        name: v.profile.name,
-        age: v.profile.age,
-        sex: v.profile.sex,
-        heightCm: v.profile.heightCm,
-        weightKg: v.profile.weightKg,
-        activityLevel: v.profile.activityLevel,
-        dietType: v.profile.dietType,
-        weeklyLossTarget: v.profile.weeklyLossTarget,
-        manualCalorieTarget: v.profile.manualCalorieTarget,
-        mealCount: v.profile.mealCount,
-        preferences: v.preferences,
-      }),
+    mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) => api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profiles'] }),
     onError: (e) =>
       setPrefsError(e instanceof ApiClientError ? e.message : t('prefsSaveFailed')),
@@ -135,7 +123,6 @@ export function RecipeView({
     savePrefs.mutate({
       profile,
       preferences: {
-        ...profile.preferences,
         favoriteIngredientIds: Array.from(favs),
         excludedIngredientIds: Array.from(excl),
       },
