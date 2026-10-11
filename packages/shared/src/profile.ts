@@ -8,6 +8,11 @@ import { WeightReminderCadence } from './weight.js';
 /** A single account may hold at most this many profiles. */
 export const MAX_PROFILES_PER_ACCOUNT = 2;
 
+/** The most of one ingredient a plan may hold in seven days: what a profile starts with, and what it may be set to. */
+export const DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT = 3000;
+export const MIN_WEEKLY_AMOUNT_PER_INGREDIENT = 500;
+export const MAX_WEEKLY_AMOUNT_PER_INGREDIENT = 10_000;
+
 /** Free-form preference bundle attached to a profile. */
 export const ProfilePreferences = z.object({
   /** Ingredients the planner should prefer (a scoring bias, not a hard rule). */
@@ -32,6 +37,17 @@ export const ProfilePreferences = z.object({
    * plan (28 days = the same meal every day was the reported failure mode).
    */
   maxTimesPerWeekSameMeal: z.number().int().min(1).max(7).default(3),
+  /**
+   * The most of one ingredient, in grams or millilitres, that the meals of
+   * any seven days of a plan may hold together. It keeps a plan from resting
+   * on one food, however the recipes that use it are spread.
+   */
+  maxWeeklyAmountPerIngredient: z
+    .number()
+    .int()
+    .min(MIN_WEEKLY_AMOUNT_PER_INGREDIENT)
+    .max(MAX_WEEKLY_AMOUNT_PER_INGREDIENT)
+    .default(DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT),
   /**
    * Anti-monotony rotation threshold. After this many consecutive
    * plan-level generations actually applied the inventory bias, the next
@@ -73,6 +89,7 @@ export const ProfileInput = z.object({
     preferredCuisines: [],
     maxConsecutiveDaysSameMeal: 2,
     maxTimesPerWeekSameMeal: 3,
+    maxWeeklyAmountPerIngredient: DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
     inventoryBiasResetEvery: 5,
   }),
 });

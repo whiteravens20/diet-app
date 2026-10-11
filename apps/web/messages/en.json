@@ -1210,6 +1210,8 @@
     "maxConsecutiveDaysSameMealHint": "Forces a different recipe after this many consecutive days.",
     "maxTimesPerWeekSameMeal": "Max times the same recipe per week",
     "maxTimesPerWeekSameMealHint": "Hard cap inside any rolling 7-day window. Meal-prep mode relaxes this automatically.",
+    "maxWeeklyAmountPerIngredient": "Most of one ingredient in a week (g or ml)",
+    "maxWeeklyAmountPerIngredientHint": "Over every seven days of a plan, all meals together. It keeps a plan from resting on one food.",
     "inventoryBiasResetEvery": "Pantry-bias cool-down (plans)",
     "inventoryBiasResetEveryHint": "After this many consecutive plans that leaned on the pantry, the next round skips the pantry preference for variety. 0 disables the cool-down.",
     "saving": "Saving…",

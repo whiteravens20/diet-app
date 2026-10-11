@@ -6,9 +6,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import {
+  DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   MAX_CALORIE_TARGET,
   MAX_PROFILES_PER_ACCOUNT,
+  MAX_WEEKLY_AMOUNT_PER_INGREDIENT,
   MIN_CALORIE_TARGET,
+  MIN_WEEKLY_AMOUNT_PER_INGREDIENT,
   riskOfLosingWeight,
   type DietType,
   type Profile,
@@ -174,10 +177,12 @@ export default function ProfilePage() {
           preferredCuisines: [],
           maxConsecutiveDaysSameMeal: 2,
           maxTimesPerWeekSameMeal: 3,
+          maxWeeklyAmountPerIngredient: DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
           inventoryBiasResetEvery: 5,
         }),
         maxConsecutiveDaysSameMeal: Number(f.get('maxConsecutiveDaysSameMeal')) || 2,
         maxTimesPerWeekSameMeal: Number(f.get('maxTimesPerWeekSameMeal')) || 3,
+        maxWeeklyAmountPerIngredient: Number(f.get('maxWeeklyAmountPerIngredient')) || DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
         inventoryBiasResetEvery: Math.max(
           0,
           Math.min(20, Number(f.get('inventoryBiasResetEvery')) || 0),
@@ -408,6 +413,17 @@ export default function ProfilePage() {
                   min={1}
                   max={7}
                   defaultValue={editing?.preferences.maxTimesPerWeekSameMeal ?? 3}
+                />
+              </Field>
+              <Field label={t('maxWeeklyAmountPerIngredient')} hint={t('maxWeeklyAmountPerIngredientHint')}>
+                <Input
+                  name="maxWeeklyAmountPerIngredient"
+                  type="number"
+                  required
+                  min={MIN_WEEKLY_AMOUNT_PER_INGREDIENT}
+                  max={MAX_WEEKLY_AMOUNT_PER_INGREDIENT}
+                  step={100}
+                  defaultValue={editing?.preferences.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT}
                 />
               </Field>
               <Field

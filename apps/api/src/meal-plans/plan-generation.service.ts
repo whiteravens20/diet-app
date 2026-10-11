@@ -11,6 +11,7 @@ import {
 import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import {
+  DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   fitsDiet,
   MEAL_SLOTS_BY_COUNT,
   PlanOptions,
@@ -205,6 +206,7 @@ export class PlanGenerationService {
       const kept = (meal: (typeof day.meals)[number]): KeptMeal => ({
         recipeId: meal.recipeId ?? undefined,
         calories: (meal.recipe?.caloriesPerServing ?? customMacros(meal.customMacros).calories) * meal.servings * meal.quantityScale,
+        servings: meal.servings * meal.quantityScale,
       });
       if (!again(iso)) {
         return { date: day.date, isoDate: iso, mealSlots: [], calorieTarget: day.calorieTarget, useUpBy: false, skip: false, overrides: o, kept: day.meals.map(kept) };
@@ -328,6 +330,7 @@ export class PlanGenerationService {
             favoriteIngredientIds: string[];
             maxConsecutiveDaysSameMeal: number;
             maxTimesPerWeekSameMeal: number;
+            maxWeeklyAmountPerIngredient: number;
           }
         | null;
     },
@@ -439,6 +442,7 @@ export class PlanGenerationService {
         maxConsecutiveDaysSameMeal,
         maxTimesPerWeekSameMeal,
         maxRepeatsPerRecipe: opts.maxRepeatsPerRecipe,
+        maxIngredientPerWeek: profile.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
         allowRelaxations: new Set(opts.allowRelaxations),
         seed: opts.seed,
       });
@@ -583,6 +587,9 @@ export class PlanGenerationService {
       .filter((r) => !r.allergens.some((a) => allergens.includes(a)))
       .filter((r) => !r.ingredients.some((i) => excluded.has(i.ingredientId)));
 
+    const requirementsByRecipe = new Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>();
+    for (const r of filteredRecipes) requirementsByRecipe.set(r.id, requirementsPerServing(r));
+
     const optimizerRecipes: OptimizerRecipe[] = filteredRecipes.map((r) => ({
       id: r.id,
       mealTypes: r.mealTypes as MealType[],
@@ -592,13 +599,11 @@ export class PlanGenerationService {
       fatPerServing: r.fatPerServing,
       carbsPerServing: r.carbsPerServing,
       ingredientIds: r.ingredients.map((i) => i.ingredientId),
+      amounts: amountsPerServing(requirementsByRecipe.get(r.id) ?? []),
       difficulty: r.difficulty,
       isFavorite: favoriteIds.has(r.id),
       totalMinutes: r.prepMinutes + r.cookMinutes,
     }));
-
-    const requirementsByRecipe = new Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>();
-    for (const r of filteredRecipes) requirementsByRecipe.set(r.id, requirementsPerServing(r));
 
     return { optimizerRecipes, requirementsByRecipe, beforeProfileRules: recipes };
   }
@@ -656,6 +661,13 @@ export class PlanGenerationService {
 }
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
+
+/** What one serving of a recipe takes of each ingredient, in the ingredient's own unit; a line whose unit cannot be converted is not in it. */
+function amountsPerServing(lines: readonly { ingredientId: string; canonicalQuantity: number }[]): Map<string, number> {
+  const amounts = new Map<string, number>();
+  for (const line of lines) amounts.set(line.ingredientId, (amounts.get(line.ingredientId) ?? 0) + line.canonicalQuantity);
+  return amounts;
+}
 
 /** A fully-resolved day: defaults merged with overrides, ready for the optimiser. */
 interface ResolvedDay {

@@ -1,10 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { SwapMealRequest, type MealPlan, type Profile } from '@diet-app/shared';
+import { PLAN_RELAXATIONS, ProfileInput, SwapMealRequest, type MealPlan, type Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aProfile, aUser, as, type TestUser } from '../testing/factories.js';
+import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
 
@@ -150,6 +150,50 @@ describe('the limits of a plan', () => {
         { date: '2026-01-06', slot: 'second_breakfast' },
       ],
       pantryBiasApplied: false,
+    });
+  });
+
+  describe('the most of one ingredient in a week', () => {
+    const halfAKilo = () => t.prisma.profilePreference.update({ where: { profileId: profile.id }, data: { maxWeeklyAmountPerIngredient: 500 } });
+    /** The most of any one ingredient that the meals of a plan hold together. */
+    const mostOfOne = (plan: MealPlan): number => {
+      const held = new Map<string, number>();
+      for (const day of plan.days) {
+        for (const meal of day.meals) for (const line of meal.ingredients) held.set(line.ingredientId, (held.get(line.ingredientId) ?? 0) + line.quantity);
+      }
+      return Math.max(...held.values());
+    };
+    // Breakfast and dinner take a whole day's energy between them, so most dishes are served in amounts over half a kilogram of something.
+    const oneDay = { durationDays: 1, mealCount: 2 };
+
+    it('is part of the profile, within what it may be set to', async () => {
+      expect(profile.preferences.maxWeeklyAmountPerIngredient).toBe(3000);
+      const save = (amount: number) =>
+        t.http().put(`/api/profiles/${profile.id}`).set(as(user)).send({ ...ProfileInput.parse(profile), preferences: { ...profile.preferences, maxWeeklyAmountPerIngredient: amount } });
+
+      expect((await save(800).expect(200)).body.preferences.maxWeeklyAmountPerIngredient).toBe(800);
+      await save(100).expect(400);
+      await save(20_000).expect(400);
+    });
+
+    it('keeps the meals of a plan under it, where the recipes allow', async () => {
+      let without = 0;
+      for (let i = 0; i < 10; i += 1) without = Math.max(without, mostOfOne(await aPlan(t, user, profile, oneDay)));
+      // Left to themselves, plans hold more than half a kilogram of something.
+      expect(without).toBeGreaterThan(500);
+
+      await halfAKilo();
+      for (let i = 0; i < 10; i += 1) expect(mostOfOne(await aPlan(t, user, profile, oneDay))).toBeLessThanOrEqual(500);
+    });
+
+    it('stands in the way of a week that cannot stay under it, and gives way when the request says it may', async () => {
+      await halfAKilo();
+
+      const refused = await generate({ durationDays: 7, mealCount: 2 }).expect(422);
+      expect(refused.body.details.needs).toContain('ingredient_cap');
+
+      const made: MealPlan = (await generate({ durationDays: 7, mealCount: 2, allowRelaxations: [...PLAN_RELAXATIONS] }).expect(201)).body;
+      expect(made.report!.relaxations.some((meal) => meal.gaveWay.includes('ingredient_cap'))).toBe(true);
     });
   });
 

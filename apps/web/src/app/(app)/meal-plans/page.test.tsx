@@ -37,6 +37,7 @@ const profile: Profile = {
     preferredCuisines: [],
     maxConsecutiveDaysSameMeal: 2,
     maxTimesPerWeekSameMeal: 3,
+    maxWeeklyAmountPerIngredient: 3000,
     inventoryBiasResetEvery: 5,
   },
   createdAt: '2026-01-01T00:00:00.000Z',

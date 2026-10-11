@@ -1210,6 +1210,8 @@
     "maxConsecutiveDaysSameMealHint": "Po tylu dniach pod rząd planer musi wybrać inny przepis.",
     "maxTimesPerWeekSameMeal": "Maks. powtórzeń tego samego dania w tygodniu",
     "maxTimesPerWeekSameMealHint": "Twardy limit w dowolnym 7-dniowym oknie. Tryb meal-prep go rozluźnia.",
+    "maxWeeklyAmountPerIngredient": "Największa ilość jednego składnika w tygodniu (g lub ml)",
+    "maxWeeklyAmountPerIngredientHint": "W każdych siedmiu dniach planu, we wszystkich posiłkach łącznie. Dzięki temu plan nie opiera się na jednym produkcie.",
     "inventoryBiasResetEvery": "Przerwa od spiżarni (co ile planów)",
     "inventoryBiasResetEveryHint": "Po tylu kolejnych planach opartych o spiżarnię następny pomija preferencję spiżarni dla urozmaicenia. 0 wyłącza przerwę.",
     "saving": "Zapisywanie…",

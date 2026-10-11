@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   type CalorieCalculation,
+  DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   MAX_PROFILES_PER_ACCOUNT,
   type Profile,
   type ProfileInput,
@@ -158,6 +159,7 @@ export class ProfilesService {
       preferredCuisines: string[];
       maxConsecutiveDaysSameMeal: number;
       maxTimesPerWeekSameMeal: number;
+      maxWeeklyAmountPerIngredient: number;
       inventoryBiasResetEvery: number;
     } | null;
   }): Profile {
@@ -184,6 +186,7 @@ export class ProfilesService {
         preferredCuisines: row.preferences?.preferredCuisines ?? [],
         maxConsecutiveDaysSameMeal: row.preferences?.maxConsecutiveDaysSameMeal ?? 2,
         maxTimesPerWeekSameMeal: row.preferences?.maxTimesPerWeekSameMeal ?? 3,
+        maxWeeklyAmountPerIngredient: row.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
         inventoryBiasResetEvery: row.preferences?.inventoryBiasResetEvery ?? 5,
       },
       createdAt: row.createdAt.toISOString(),
