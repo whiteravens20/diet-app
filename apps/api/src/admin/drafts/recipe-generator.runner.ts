@@ -52,6 +52,15 @@ import {
 
 export type RecipeRunnerStatus = 'idle' | 'running' | 'done' | 'error';
 
+/** What a new recipe is held against. */
+interface ExistingRecipes {
+  /** For the likeness of ingredients; the prompt shows the first of them. */
+  recipes: ExistingRecipeSummary[];
+  takenSlugs: Set<string>;
+  /** English titles, in lower case. */
+  takenTitles: Set<string>;
+}
+
 export interface RecipeRunnerState {
   status: RecipeRunnerStatus;
   startedAt: string | null;
@@ -180,7 +189,7 @@ export class RecipeGeneratorRunner {
       }
       const resolveSlug = (slug: string) => resolverMap.get(slug) ?? null;
 
-      const existingRecipes = await this.loadExistingRecipes();
+      const existing = await this.loadExisting();
 
       const adapter = this.pickAdapter();
       const tuning = PROVIDER_TUNING[adapter.kind];
@@ -202,7 +211,7 @@ export class RecipeGeneratorRunner {
           targetLocales: targetLocalesWithEn,
           catalogue,
           resolveSlug,
-          existingRecipes,
+          existing,
         });
         if (answer.failure) {
           // The provider itself is failing; the calls still to come would too.
@@ -225,7 +234,11 @@ export class RecipeGeneratorRunner {
           failed: this.state.failed + missing,
         };
         // The calls still to come must not repeat what this one wrote.
-        existingRecipes.unshift(...accepted.map((c) => ({ slug: c.slug, ingredientSlugs: c.ingredients.map((i) => i.slug) })));
+        existing.recipes.unshift(...accepted.map((c) => ({ slug: c.slug, ingredientSlugs: c.ingredients.map((i) => i.slug) })));
+        for (const c of accepted) {
+          existing.takenSlugs.add(c.slug);
+          existing.takenTitles.add((c.titles.en ?? '').toLowerCase());
+        }
         if (tuning.interBatchDelayMs > 0 && index < calls.length - 1 && !this.cancelRequested) {
           await new Promise((waited) => setTimeout(waited, tuning.interBatchDelayMs));
         }
@@ -252,9 +265,9 @@ export class RecipeGeneratorRunner {
     targetLocales: Locale[];
     catalogue: CatalogueRow[];
     resolveSlug: (slug: string) => ResolvedIngredient | null;
-    existingRecipes: ExistingRecipeSummary[];
+    existing: ExistingRecipes;
   }): Promise<{ candidates: RecipeDraftCandidate[]; failure: string | null }> {
-    const { adapter, targets, spec, targetLocales, existingRecipes } = opts;
+    const { adapter, targets, spec, targetLocales, existing } = opts;
     const asked = targets.simple + targets.medium + targets.complex;
     const limits = recipeBatch(asked, targetLocales.length, opts.temperature);
     const promptText = buildRecipeGeneratorPrompt({
@@ -267,15 +280,19 @@ export class RecipeGeneratorRunner {
       avoidSlugs: spec.avoidSlugs,
       preferSlugs: spec.preferSlugs,
       catalogue: this.catalogueForPrompt(opts.catalogue),
-      existingRecipes,
+      existingRecipes: existing.recipes,
     });
 
     let failure: string | null = null;
+    // What the validator made of the last answer: a code and the slug or the
+    // field it is about. Said to the model with the next attempt, so that it
+    // does not send the same answer again.
+    let refused = '';
     for (let attempt = 0; attempt < 3; attempt += 1) {
       if (this.cancelRequested) break;
       const reminder = attempt === 0
         ? ''
-        : `\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.`;
+        : `\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.${refused}`;
       let result: CompletionResult;
       try {
         result = await adapter.chat([{ role: 'user', content: promptText + reminder }], {
@@ -310,10 +327,13 @@ export class RecipeGeneratorRunner {
         targetLocales,
         rawOutput: result.text,
         resolveSlug: opts.resolveSlug,
-        existingRecipes,
+        existingRecipes: existing.recipes,
+        takenSlugs: existing.takenSlugs,
+        takenTitles: existing.takenTitles,
         requiredDiets: spec.dietTags,
       });
       if (validation.ok) return { candidates: validation.candidates, failure: null };
+      refused = `\nYour last answer was refused: ${validation.reason}${validation.key ? ` at ${JSON.stringify(validation.key)}` : ''}. Send a corrected answer.`;
 
       const detailsSuffix = validation.details ? ` [${validation.details}]` : '';
       this.logger.warn(
@@ -388,35 +408,45 @@ export class RecipeGeneratorRunner {
 
   /**
    * What a new recipe must differ from: the recipes of the shared library and
-   * the drafts that wait in the queue, newest first.
+   * the drafts that wait in the queue, newest first, with every slug and
+   * English title that is spoken for. A rejected draft holds nothing: its
+   * slug and its title are free again.
    */
-  private async loadExistingRecipes(): Promise<ExistingRecipeSummary[]> {
+  private async loadExisting(): Promise<ExistingRecipes> {
     const library = await this.prisma.recipe.findMany({
-      where: { slug: { not: null }, createdByUserId: null, retiredAt: null },
+      where: { slug: { not: null }, createdByUserId: null },
       orderBy: { createdAt: 'desc' },
-      select: { slug: true, ingredients: { select: { ingredient: { select: { slug: true } } } } },
+      select: { slug: true, title: true, retiredAt: true, ingredients: { select: { ingredient: { select: { slug: true } } } } },
     });
     const queue = await this.prisma.recipeDraft.findMany({
-      where: { status: { in: ['PENDING', 'APPROVED'] } },
+      where: { status: { not: 'REJECTED' } },
       orderBy: { createdAt: 'desc' },
-      select: { slug: true, ingredientsJson: true },
+      select: { slug: true, titles: true, ingredientsJson: true, status: true },
     });
 
     const recipes: ExistingRecipeSummary[] = [];
-    const seen = new Set<string>();
+    const takenSlugs = new Set<string>();
+    const takenTitles = new Set<string>();
     for (const recipe of library) {
-      seen.add(recipe.slug!);
+      // A retired recipe keeps its slug, which is unique among all of them.
+      takenSlugs.add(recipe.slug!);
+      if (recipe.retiredAt) continue;
+      takenTitles.add(recipe.title.toLowerCase());
       const slugs = recipe.ingredients.map((line) => line.ingredient.slug).filter((slug): slug is string => slug !== null);
       if (slugs.length > 0) recipes.push({ slug: recipe.slug!, ingredientSlugs: slugs });
     }
     for (const draft of queue) {
-      if (seen.has(draft.slug)) continue;
-      seen.add(draft.slug);
+      const title = (draft.titles as Record<string, unknown> | null)?.en;
+      if (typeof title === 'string') takenTitles.add(title.toLowerCase());
+      const known = takenSlugs.has(draft.slug);
+      takenSlugs.add(draft.slug);
+      // A draft that shipped into this instance is in the library already.
+      if (known || draft.status === 'SHIPPED') continue;
       const lines = Array.isArray(draft.ingredientsJson) ? (draft.ingredientsJson as { slug?: unknown }[]) : [];
       const slugs = lines.map((line) => line?.slug).filter((slug): slug is string => typeof slug === 'string');
       if (slugs.length > 0) recipes.push({ slug: draft.slug, ingredientSlugs: slugs });
     }
-    return recipes;
+    return { recipes, takenSlugs, takenTitles };
   }
 
   /** Trim per-100 macros to one decimal to keep the prompt compact. */

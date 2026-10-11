@@ -45,6 +45,9 @@ export type RecipeValidationReason =
   | 'empty-step'
   | 'unknown-slug'
   | 'duplicate-slug-in-batch'
+  | 'duplicate-title-in-batch'
+  | 'slug-taken'
+  | 'title-taken'
   | 'ingredient-count-out-of-bands'
   | 'step-count-too-high'
   | 'total-time-too-high'
@@ -115,6 +118,10 @@ export interface ValidateRecipeBatchOptions {
    *  existing.ingredientSlugs) > `duplicateThreshold` (default 0.75). */
   existingRecipes?: { slug: string; ingredientSlugs: string[] }[];
   duplicateThreshold?: number;
+  /** The slugs recipes and drafts already have: a new recipe needs one of its own. */
+  takenSlugs?: ReadonlySet<string>;
+  /** Their English titles, in lower case: a new recipe needs one of its own too. */
+  takenTitles?: ReadonlySet<string>;
   /** The diets the run was asked for: a recipe that does not qualify is rejected. */
   requiredDiets?: DietType[];
 }
@@ -162,6 +169,7 @@ export function validateRecipeBatch(
 
   const candidates: RecipeDraftCandidate[] = [];
   const seenSlugs = new Set<string>();
+  const seenTitles = new Set<string>();
 
   for (let i = 0; i < root.recipes.length; i += 1) {
     const raw = isRecord(root.recipes[i]) ? root.recipes[i] : {};
@@ -175,6 +183,9 @@ export function validateRecipeBatch(
         key: slug,
       };
     }
+    // A slug names one recipe: the data refuses a second, and a ship would
+    // have to hold the draft back. Better not to write it.
+    if (opts.takenSlugs?.has(slug)) return { ok: false, reason: 'slug-taken', key: slug };
 
     // What a model's batch is held to beyond the rules of any recipe: a step
     // with nothing in it, or one that is the model talking, means the answer
@@ -194,6 +205,11 @@ export function validateRecipeBatch(
     }
     const { titles, descriptions, steps, servings, prepMinutes, cookMinutes, difficulty, mealTypes, ingredients } = checked.recipe;
 
+    // Nor may two recipes share an English title, however it is cased.
+    const titleKey = (titles.en ?? '').toLowerCase();
+    if (seenTitles.has(titleKey)) return { ok: false, reason: 'duplicate-title-in-batch', key: slug };
+    if (opts.takenTitles?.has(titleKey)) return { ok: false, reason: 'title-taken', key: slug };
+
     const resolved: ResolvedIngredient[] = [];
     for (const line of ingredients) {
       const res = resolveSlug(line.slug);
@@ -201,9 +217,8 @@ export function validateRecipeBatch(
       resolved.push(res);
     }
 
-    // Complexity band check (D8). We auto-tag, then reject if the row is
-    // outside every band — that's the "not willing to ship without manual
-    // override" guard.
+    // The band the recipe falls into by its ingredients, steps and time. One
+    // that is outside every band is not written.
     const stepCount = steps.en?.length ?? Object.values(steps)[0]?.length ?? 0;
     const totalMinutes = prepMinutes + cookMinutes;
     const ingredientCount = ingredients.length;
@@ -301,6 +316,7 @@ export function validateRecipeBatch(
     }
 
     seenSlugs.add(slug);
+    seenTitles.add(titleKey);
     candidates.push({
       slug,
       titles,

@@ -167,6 +167,46 @@ describe('generating recipe drafts', () => {
     });
   });
 
+  describe('a recipe with the slug or the title of another', () => {
+    const answerWith = (over: Record<string, unknown>) => (request: ModelRequest) => {
+      const batch = JSON.parse(author().answer()(request)) as { recipes: Record<string, unknown>[] };
+      return JSON.stringify({ recipes: batch.recipes.map((recipe) => ({ ...recipe, ...over })) });
+    };
+
+    it('is not written when the slug is a catalogue recipe\'s, and the model is told why with the next attempt', async () => {
+      t.model.reply({ text: answerWith({ slug: 'milk-porridge' }), times: 10 });
+
+      const state = await run({ count: 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE });
+
+      expect(state).toMatchObject({ written: 0, lastRejectReason: 'slug-taken', lastRejectKey: 'milk-porridge' });
+      expect(await t.prisma.recipeDraft.count()).toBe(0);
+      expect(t.model.requests[0]!.prompt).not.toContain('Your last answer was refused');
+      expect(t.model.requests[1]!.prompt).toContain('Your last answer was refused: slug-taken at "milk-porridge".');
+    });
+
+    it('is not written when the title is a catalogue recipe\'s or that of a draft in the queue', async () => {
+      t.model.reply({ text: answerWith({ titles: { en: 'milk PORRIDGE' } }), times: 3 });
+      expect(await run({ count: 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE })).toMatchObject({ written: 0, lastRejectReason: 'title-taken' });
+
+      await aRecipeDraft(t, { titles: { en: 'Oat bowl', pl: 'Owsianka' } });
+      t.model.reset();
+      t.model.reply({ text: answerWith({ titles: { en: 'Oat Bowl' } }), times: 3 });
+      expect(await run({ count: 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE })).toMatchObject({ written: 0, lastRejectReason: 'title-taken' });
+    });
+
+    it('is written once the model answers with a slug and a title of its own', async () => {
+      const refused = answerWith({ slug: 'milk-porridge' });
+      const model = author();
+      let calls = 0;
+      t.model.reply({ text: (request: ModelRequest) => ((calls += 1) === 1 ? refused(request) : model.answer()(request)), times: 10 });
+
+      const state = await run({ count: 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE });
+
+      expect(state).toMatchObject({ status: 'done', written: 1 });
+      expect(t.model.requests).toHaveLength(2);
+    });
+  });
+
   it('asks again when an answer was cut off at the token limit, and says why', async () => {
     const model = author();
     t.model.reply({ text: '{"recipes":[{"slug":"half-a-rec', truncated: true });

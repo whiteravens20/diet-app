@@ -415,6 +415,47 @@ describe('validateRecipeBatch', () => {
     if (!r.ok) expect(r.reason).toBe('duplicate-slug-in-batch');
   });
 
+  describe('a slug or a title another recipe has', () => {
+    /** A second recipe unlike the first: its own slug and title, other ingredients, quick enough for the simple band. */
+    const other = {
+      slug: 'lemon-chicken',
+      titles: { en: 'Lemon chicken', pl: 'Kurczak z cytryną' },
+      prepMinutes: 5,
+      cookMinutes: 15,
+      ingredients: [
+        { slug: 'chicken-breast', quantity: 300, unit: 'g' },
+        { slug: 'lemon', quantity: 1, unit: 'piece' },
+        { slug: 'peanut-butter', quantity: 20, unit: 'g' },
+      ],
+    };
+    const refusal = (recipes: unknown[], taken: { slugs?: string[]; titles?: string[] } = {}) => {
+      const result = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap(recipes),
+        resolveSlug,
+        takenSlugs: new Set(taken.slugs ?? []),
+        takenTitles: new Set(taken.titles ?? []),
+      });
+      return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+    };
+
+    it('is refused: a slug names one recipe', () => {
+      expect(refusal([recipeShell()], { slugs: ['chicken-rice-bowl'] })).toBe('slug-taken at chicken-rice-bowl');
+      expect(refusal([recipeShell()], { slugs: ['another-bowl'] })).toBe('accepted');
+    });
+
+    it('is refused: an English title names one recipe, however it is cased', () => {
+      expect(refusal([recipeShell({ titles: { en: 'CHICKEN Rice Bowl', pl: 'Miska ryżu z kurczakiem' } })], { titles: ['chicken rice bowl'] })).toBe('title-taken at chicken-rice-bowl');
+      // The Polish title is nobody's key: only the English one is compared.
+      expect(refusal([recipeShell()], { titles: ['miska ryżu z kurczakiem'] })).toBe('accepted');
+    });
+
+    it('is refused within one answer too, by the title as by the slug', () => {
+      expect(refusal([recipeShell(), recipeShell({ ...other, titles: { en: 'chicken rice BOWL', pl: 'Inna miska' } })])).toBe('duplicate-title-in-batch at lemon-chicken');
+      expect(refusal([recipeShell(), recipeShell(other)])).toBe('accepted');
+    });
+  });
+
   it('classifies simple recipes correctly', () => {
     const r = validateRecipeBatch({
       targetLocales: ['en', 'pl'],
@@ -504,7 +545,7 @@ describe('validateRecipeBatch', () => {
       targetLocales: ['en', 'pl'],
       rawOutput: wrap([
         recipeShell({ slug: 'first' }),
-        recipeShell({ slug: 'second' }),
+        recipeShell({ slug: 'second', titles: { en: 'The same bowl by another name', pl: 'Ta sama miska' } }),
       ]),
       resolveSlug,
     });
