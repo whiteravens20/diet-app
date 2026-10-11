@@ -30,6 +30,13 @@ project is in development.
 
 Profiles gate optional services: `--profile ollama` (local AI), `--profile proxy` (Traefik).
 
+PostgreSQL, Ollama and Traefik are pinned in these files by version and digest, as the
+base image of the application is: the digest is what gets pulled, the version says what
+it is. To move one, read the version and its digest from the registry
+(`docker buildx imagetools inspect postgres:<version>-alpine`) and write both. A new major
+of PostgreSQL is more than a new tag: the data has to be dumped from the old server and
+restored into the new one.
+
 ## Quick start
 
 ```bash

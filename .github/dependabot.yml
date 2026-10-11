@@ -1,6 +1,6 @@
 # ── Dependabot ────────────────────────────────────────────────────────────────
-# Dependency updates against `dev`: npm and the Docker base image weekly, GitHub
-# Actions monthly.
+# Dependency updates against `dev`: npm, the Docker base image and the images of
+# the Compose files weekly, GitHub Actions monthly.
 #
 # Every ecosystem sets `cooldown: default-days: 7`, so a version is not proposed
 # until it has been public for a week. That is the enforcement point of the
@@ -82,6 +82,27 @@ updates:
       default-days: 7
     # A new major of Node is a change to the project, made by hand together with
     # `node-version` in the workflows.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # The Compose files pin PostgreSQL, Ollama and Traefik the same way, by
+  # version and digest.
+  - package-ecosystem: docker-compose
+    directory: /infra
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: UTC
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(docker)"
+    cooldown:
+      default-days: 7
+    # A new major of PostgreSQL needs the data moved to it, and one of the proxy
+    # its configuration read again: both are made by hand.
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
