@@ -90,7 +90,7 @@ describe('shopping lists and the pantry', () => {
     return row;
   };
 
-  const edit = async (list: ShoppingList, name: string, patch: { checked?: boolean; purchasedQuantity?: number | null }): Promise<Row> =>
+  const edit = async (list: ShoppingList, name: string, patch: { checked?: boolean; purchasedQuantity?: number | null; alreadyHaveQuantity?: number }): Promise<Row> =>
     rowOf(await lists.updateItem(user.id, 'en', list.id, rowOf(list, name).id, patch), name);
 
   describe('a list', () => {
@@ -116,6 +116,14 @@ describe('shopping lists and the pantry', () => {
       expect(rowOf(list, 'Large egg').totalQuantity).toBe(4);
       // 77 g of bread are 2.2 slices.
       expect(rowOf(list, 'Wholegrain bread').totalQuantity).toBe(3);
+    });
+
+    it('says what each aisle comes to in kilocalories, the aisles adding up to the list', async () => {
+      const list = await listFor(0);
+
+      for (const group of list.groups) expect(group.estimatedCalories, group.category).toBe(group.items.reduce((sum, item) => sum + item.estimatedCalories, 0));
+      expect(list.groups.reduce((sum, group) => sum + group.estimatedCalories, 0)).toBe(list.totalEstimatedCalories);
+      expect(list.totalEstimatedCalories).toBeGreaterThan(0);
     });
 
     it('comes in aisle order, and stays in it after rows are edited', async () => {
@@ -321,6 +329,78 @@ describe('shopping lists and the pantry', () => {
       expect(tooManyEggs.body.error).toBe('QUANTITY_TOO_LARGE');
       expect(absurd.status).toBe(400);
       expect(await pantry('large-egg')).toEqual([]);
+    });
+  });
+
+  describe('what the user says is at home', () => {
+    // The day needs 160 g of rice.
+    beforeEach(() => menu(0, [PORRIDGE, TOFU_BOWL, CHICKEN_RICE]));
+
+    it('stands in the place of what the pantry had for the row, and moves nothing while the row is open', async () => {
+      const list = await listFor(0);
+
+      const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 100 });
+
+      expect(rice).toMatchObject({ alreadyHaveQuantity: 100, toBuyQuantity: 60, purchasedQuantity: 100, checked: false });
+      expect(await pantry('white-rice')).toEqual([]);
+    });
+
+    it('closes a row it covers, counting no more than the need and taking from the pantry only what the pantry has', async () => {
+      await stock('white-rice', 50, 'g');
+      const list = await listFor(0);
+
+      const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 5000 });
+
+      expect(rice).toMatchObject({ alreadyHaveQuantity: 160, toBuyQuantity: 0, purchasedQuantity: 160, checked: true });
+      expect(await pantry('white-rice')).toEqual([]);
+      // Unticked, the row gives back what it took: the 50 g the pantry had, not the 160 g it was told of.
+      await edit(list, 'White rice', { checked: false });
+      expect(await pantry('white-rice')).toEqual(['50 g']);
+    });
+
+    it('gives the pantry back what the list took when the user says there is none at home, and drops the date that went with it', async () => {
+      await stock('white-rice', 1000, 'g', '2026-02-01');
+      const list = await listFor(0);
+      expect(rowOf(list, 'White rice')).toMatchObject({ checked: true, pantryBestBefore: '2026-02-01' });
+      expect(await pantry('white-rice')).toEqual(['840 g']);
+
+      const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 0 });
+
+      expect(rice).toMatchObject({ alreadyHaveQuantity: 0, toBuyQuantity: 160, purchasedQuantity: null, checked: false, pantryBestBefore: null });
+      expect(await pantry('white-rice')).toEqual(['1000 g']);
+    });
+
+    it('leaves what was bought beyond what was at home as it was', async () => {
+      await stock('white-rice', 100, 'g');
+      const list = await listFor(0);
+      await edit(list, 'White rice', { purchasedQuantity: 130 });
+
+      const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 40 });
+
+      // 30 g were bought; with 40 g at home that is 70 g of the 160.
+      expect(rice).toMatchObject({ alreadyHaveQuantity: 40, purchasedQuantity: 70, toBuyQuantity: 120, checked: false });
+    });
+
+    it('is read before a quantity or a tick of the same request', async () => {
+      const list = await listFor(0);
+
+      const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 100, checked: true });
+
+      // A tick on a row that holds only what is at home means all of it.
+      expect(rice).toMatchObject({ alreadyHaveQuantity: 100, purchasedQuantity: 160, checked: true });
+    });
+
+    it('over HTTP is a number that is not under nothing, on a list of the account', async () => {
+      const list = await listFor(0);
+      const other = await aUser(t);
+      const path = `/api/shopping-lists/${list.id}/items/${rowOf(list, 'White rice').id}`;
+
+      const taken = await t.http().patch(path).set(as(user)).send({ alreadyHaveQuantity: 60 }).expect(200);
+      const negative = await t.http().patch(path).set(as(user)).send({ alreadyHaveQuantity: -1 }).expect(400);
+      await t.http().patch(path).set(as(other)).send({ alreadyHaveQuantity: 60 }).expect(404);
+
+      expect(rowOf(taken.body, 'White rice')).toMatchObject({ alreadyHaveQuantity: 60, toBuyQuantity: 100 });
+      expect(negative.body.issues[0].path).toBe('alreadyHaveQuantity');
     });
   });
 
@@ -637,6 +717,38 @@ describe('shopping lists and the pantry', () => {
           const now = await books();
           expect(now.negative, `seed ${seed}, step ${step}`).toBe(false);
           expect(now.inPantry, `seed ${seed}, step ${step}: ${JSON.stringify(patch)}`).toBeCloseTo(total + now.ledgers, 3);
+        }
+      }
+    });
+
+    it('keeps it there when the user also says, again and again, how much is at home', async () => {
+      for (let seed = 301; seed <= 312; seed += 1) {
+        const random = seeded(seed);
+        const { first, second, total } = await setUp(random);
+
+        for (let step = 0; step < 12; step += 1) {
+          const list = random() < 0.5 ? first : second;
+          const action = random();
+          const patch =
+            action < 0.2
+              ? { checked: true }
+              : action < 0.4
+                ? { checked: false }
+                : action < 0.65
+                  ? { purchasedQuantity: Math.floor(random() * 12) }
+                  : action < 0.7
+                    ? { purchasedQuantity: null }
+                    : action < 0.9
+                      ? { alreadyHaveQuantity: Math.floor(random() * 5) }
+                      : { alreadyHaveQuantity: Math.floor(random() * 5), checked: random() < 0.5 };
+          const row = rowOf(await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, patch), 'Large egg');
+
+          const now = await books();
+          expect(now.negative, `seed ${seed}, step ${step}`).toBe(false);
+          expect(now.inPantry, `seed ${seed}, step ${step}: ${JSON.stringify(patch)}`).toBeCloseTo(total + now.ledgers, 3);
+          // What is at home is never more than the row needs, and what is left to buy follows it.
+          expect(row.alreadyHaveQuantity, `seed ${seed}, step ${step}`).toBeLessThanOrEqual(row.totalQuantity);
+          expect(row.toBuyQuantity, `seed ${seed}, step ${step}`).toBe(row.totalQuantity - row.alreadyHaveQuantity);
         }
       }
     });

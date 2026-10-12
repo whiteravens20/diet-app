@@ -24,8 +24,8 @@ export type GenerateShoppingListRequest = z.infer<typeof GenerateShoppingListReq
  * One aggregated line: a single ingredient summed across all recipes.
  *
  * **How a row and the pantry relate.** `purchasedQuantity` is everything the
- * user has for the row: what the list took as already at home
- * (`alreadyHaveQuantity`, which it starts at) plus what was bought. Ticking
+ * user has for the row: what is already at home (`alreadyHaveQuantity`, which
+ * it starts at) plus what was bought. Ticking
  * the row off moves two things, and unticking moves them back:
  *
  *  - what the list counted as already at home leaves the pantry, because the
@@ -54,9 +54,11 @@ export const ShoppingListItem = z.object({
   /** What to call `unit` when showing the row: `slice` for bread, `clove` for garlic. */
   displayUnit: DisplayUnit,
   /**
-   * What the list took as already at home when it was made: the pantry's
-   * stock, less what the profile's other lists had already claimed and not
-   * yet ticked off, rounded down to what one counts. Never changes afterwards.
+   * What is already at home for the row. The list takes it from the pantry
+   * when it is made: the pantry's stock, less what the profile's other lists
+   * had already claimed and not yet ticked off, rounded down to what one
+   * counts. The user may say otherwise afterwards (`UpdateShoppingItemRequest`):
+   * the pantry does not know everything that is in a kitchen.
    */
   alreadyHaveQuantity: z.number().min(0).default(0),
   /** totalQuantity - alreadyHaveQuantity, floored at 0. */
@@ -83,6 +85,8 @@ export type ShoppingListItem = z.infer<typeof ShoppingListItem>;
 export const ShoppingListGroup = z.object({
   category: ProductCategory,
   items: z.array(ShoppingListItem),
+  /** What the entries of the group come to in kilocalories: an estimate, as each of theirs is. */
+  estimatedCalories: z.number().min(0),
 });
 export type ShoppingListGroup = z.infer<typeof ShoppingListGroup>;
 
@@ -104,15 +108,21 @@ export const ShoppingList = z.object({
 });
 export type ShoppingList = z.infer<typeof ShoppingList>;
 
+/** The most a quantity of a row may be, whatever its unit: each unit has a ceiling of its own, which the API holds a row to. */
+const MOST = Math.max(...Object.values(MAX_QUANTITY));
+
 /**
- * Mark an item's purchased quantity or checked state. `alreadyHaveQuantity` is
- * a generate-time snapshot and is not user-editable. Setting `purchasedQuantity`
- * to null clears it; values >= totalQuantity auto-check the row server-side.
- * The quantity is in the row's `unit` and may not exceed that unit's ceiling
- * (`MAX_QUANTITY`).
+ * Change a row: what the user has for it, whether it is done, how much of it
+ * was at home already. Setting `purchasedQuantity` to null clears it; a value
+ * that reaches `totalQuantity` ticks the row. `alreadyHaveQuantity` stands in
+ * the place of what the list took from the pantry: more than the row needs
+ * counts as the need, what was bought beyond what was at home stays what it
+ * was, and the row is ticked or unticked by what that comes to. A quantity is
+ * in the row's `unit` and may not exceed that unit's ceiling (`MAX_QUANTITY`).
  */
 export const UpdateShoppingItemRequest = z.object({
-  purchasedQuantity: z.number().min(0).max(Math.max(...Object.values(MAX_QUANTITY))).nullable().optional(),
+  purchasedQuantity: z.number().min(0).max(MOST).nullable().optional(),
   checked: z.boolean().optional(),
+  alreadyHaveQuantity: z.number().min(0).max(MOST).optional(),
 });
 export type UpdateShoppingItemRequest = z.infer<typeof UpdateShoppingItemRequest>;

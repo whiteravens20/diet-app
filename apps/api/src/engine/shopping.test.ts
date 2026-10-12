@@ -7,12 +7,14 @@ import {
   type ShoppingRowState,
   aggregateShoppingList,
   editRow,
+  energyOf,
   groupByAisle,
   heldForPlan,
   intendedPantryEffect,
   pantryEffectOnRemoval,
   shareAhead,
   toBuyQuantity,
+  withAtHome,
 } from './shopping.js';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
@@ -262,6 +264,39 @@ describe('editing a row', () => {
 
   it('changes nothing for an empty edit', () => {
     expect(editRow(row({ purchasedQuantity: 450 }), {})).toEqual({ purchasedQuantity: 450, checked: false });
+  });
+});
+
+describe('saying how much of a row is at home', () => {
+  it('stands in the place of what the list took from the pantry, and leaves what was bought beyond it as it was', () => {
+    // 200 g were at home and 300 g were bought since; there are 350 g at home after all.
+    expect(withAtHome(row({ purchasedQuantity: 500 }), 350)).toEqual({ alreadyHaveQuantity: 350, purchasedQuantity: 650, checked: false });
+    expect(withAtHome(row(), 350)).toEqual({ alreadyHaveQuantity: 350, purchasedQuantity: 350, checked: false });
+  });
+
+  it('ticks the row when what is at home and what was bought reach the need, and unticks it when they no longer do', () => {
+    expect(withAtHome(row({ purchasedQuantity: 500 }), 400)).toEqual({ alreadyHaveQuantity: 400, purchasedQuantity: 700, checked: true });
+    expect(withAtHome(row({ purchasedQuantity: 700, checked: true }), 0)).toEqual({ alreadyHaveQuantity: 0, purchasedQuantity: 500, checked: false });
+  });
+
+  it('counts no more than the row needs: the rest is not this list\'s', () => {
+    expect(withAtHome(row(), 5000)).toEqual({ alreadyHaveQuantity: 700, purchasedQuantity: 700, checked: true });
+  });
+
+  it('leaves a row nobody has anything for as untouched as a new one', () => {
+    expect(withAtHome(row(), 0)).toEqual({ alreadyHaveQuantity: 0, purchasedQuantity: null, checked: false });
+    expect(withAtHome(row({ alreadyHaveQuantity: 700, purchasedQuantity: 700, checked: true }), 0)).toEqual({ alreadyHaveQuantity: 0, purchasedQuantity: null, checked: false });
+  });
+
+  it('is free of floating-point noise', () => {
+    expect(withAtHome(row({ alreadyHaveQuantity: 0.1, purchasedQuantity: 0.3 }), 0.4)).toEqual({ alreadyHaveQuantity: 0.4, purchasedQuantity: 0.6, checked: false });
+  });
+});
+
+describe('what rows come to in kilocalories', () => {
+  it('is the sum of what each was estimated at, and nothing for no rows', () => {
+    expect(energyOf([{ estimatedCalories: 120 }, { estimatedCalories: 75 }])).toBe(195);
+    expect(energyOf([])).toBe(0);
   });
 });
 

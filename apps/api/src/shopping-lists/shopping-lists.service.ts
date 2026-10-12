@@ -15,6 +15,7 @@ import {
   aggregateShoppingList,
   convertUnit,
   editRow,
+  energyOf,
   groupByAisle,
   intendedPantryEffect,
   isCounted,
@@ -24,6 +25,7 @@ import {
   shareAhead,
   toBuyQuantity,
   UnitConversionError,
+  withAtHome,
   type AggregatedItem,
   type PlanIngredientLine,
   type ShoppingIngredient,
@@ -229,7 +231,15 @@ export class ShoppingListsService {
         throw new NotFoundException({ error: 'ITEM_NOT_FOUND', message: 'Shopping list item not found.' });
       }
       const item = await tx.shoppingListItem.findUniqueOrThrow({ where: { id: itemId } });
-      const next = editRow(item, patch);
+      // What is at home is said first: the quantity and the tick of the same request are read against it.
+      const { alreadyHaveQuantity, ...edit } = patch;
+      const atHome = alreadyHaveQuantity === undefined ? null : withAtHome(item, alreadyHaveQuantity);
+      const next = {
+        ...atHome,
+        ...editRow({ ...item, ...atHome }, edit),
+        // The date was that of what the pantry held for the row: with nothing at home there is none.
+        ...(atHome?.alreadyHaveQuantity === 0 ? { pantryBestBefore: null } : {}),
+      };
       if (next.purchasedQuantity !== null) assertWithinCeiling(next.purchasedQuantity, item.unit);
 
       const moves = await settleRow(tx, profileId, item, intendedPantryEffect({ ...item, ...next }));
@@ -290,8 +300,8 @@ export class ShoppingListsService {
         planId: list.planId,
         fromDate: isoDate(list.fromDate),
         toDate: isoDate(list.toDate),
-        groups: groupByAisle(items),
-        totalEstimatedCalories: Math.round(list.items.reduce((sum, item) => sum + item.estimatedCalories, 0)),
+        groups: groupByAisle(items).map((group) => ({ ...group, estimatedCalories: energyOf(group.items) })),
+        totalEstimatedCalories: energyOf(list.items),
         stale: isStale(list, lines, ingredients),
         createdAt: list.createdAt.toISOString(),
       };

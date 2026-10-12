@@ -163,6 +163,25 @@ export function editRow(
 }
 
 /**
+ * What a row becomes when the user says how much of it is at home, in the
+ * place of what the list took from the pantry when it was made. More than the
+ * row needs counts as the need: the rest is not this list's. What was obtained
+ * beyond what was at home stays what it was, and the quantity ticks or unticks
+ * the row as it does when it is typed.
+ */
+export function withAtHome(row: ShoppingRowState, atHome: number): Pick<ShoppingRowState, 'alreadyHaveQuantity' | 'purchasedQuantity' | 'checked'> {
+  const counted = Math.min(Math.max(0, clean(atHome)), row.totalQuantity);
+  const bought = Math.max(0, clean((row.purchasedQuantity ?? row.alreadyHaveQuantity) - row.alreadyHaveQuantity));
+  const purchased = clean(counted + bought);
+  return { alreadyHaveQuantity: counted, purchasedQuantity: purchased > 0 ? purchased : null, checked: purchased >= row.totalQuantity };
+}
+
+/** What a number of rows come to in kilocalories: the sum of what each was estimated at. */
+export function energyOf(rows: readonly { estimatedCalories: number }[]): number {
+  return Math.round(rows.reduce((sum, row) => sum + row.estimatedCalories, 0));
+}
+
+/**
  * The net effect a row means to have on the pantry, in the row's unit. Ticked:
  * what was bought beyond the need enters the pantry, and what the list counted
  * as already at home leaves it, because the plan now uses it. Unticked: none.
