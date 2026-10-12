@@ -188,6 +188,8 @@ function RecipeReviewCard({
   const t = useTranslations('review');
   const fmt = useFormat();
   const errorText = useDraftErrorText();
+  // What the server holds of the reviewer's text: the draft as it came, then what was last saved.
+  const [saved, setSaved] = useState({ title: slice.title, description: slice.description, steps: slice.steps });
   const [title, setTitle] = useState(slice.title);
   const [description, setDescription] = useState(slice.description);
   const [steps, setSteps] = useState<string[]>(slice.steps);
@@ -196,23 +198,23 @@ function RecipeReviewCard({
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
-  const dirty =
-    title !== slice.title ||
-    description !== slice.description ||
-    steps.length !== slice.steps.length ||
-    steps.some((s, i) => s !== slice.steps[i]);
+  const dirty = title !== saved.title || description !== saved.description || stepsChanged(steps, saved.steps);
 
-  const save = async (): Promise<void> => {
+  /** Whether the text was saved: a decision is not taken on text the server does not hold. */
+  const save = async (): Promise<boolean> => {
     setSaving(true);
     setError(null);
     try {
       await reviewApi.patchRecipeSlice(locale, slice.id, {
-        title: title !== slice.title ? title : undefined,
-        description: description !== slice.description ? description : undefined,
-        steps: stepsChanged(steps, slice.steps) ? steps : undefined,
+        title: title !== saved.title ? title : undefined,
+        description: description !== saved.description ? description : undefined,
+        steps: stepsChanged(steps, saved.steps) ? steps : undefined,
       });
+      setSaved({ title, description, steps });
+      return true;
     } catch (err) {
       setError(errorText(err, t('saveFailed')));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -222,7 +224,7 @@ function RecipeReviewCard({
     setActing('approve');
     setError(null);
     try {
-      if (dirty) await save();
+      if (dirty && !(await save())) return;
       await reviewApi.approveRecipe(locale, slice.id);
       onReviewed();
     } catch (err) {
@@ -371,6 +373,8 @@ function IngredientNameReviewCard({
 }) {
   const t = useTranslations('review');
   const errorText = useDraftErrorText();
+  // What the server holds of the reviewer's text: the draft as it came, then what was last saved.
+  const [saved, setSaved] = useState({ name: slice.name, storageHint: slice.storageHint ?? '' });
   const [name, setName] = useState(slice.name);
   const [storageHint, setStorageHint] = useState(slice.storageHint ?? '');
   const [saving, setSaving] = useState(false);
@@ -378,18 +382,22 @@ function IngredientNameReviewCard({
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const dirty = name !== slice.name || storageHint !== (slice.storageHint ?? '');
+  const dirty = name !== saved.name || storageHint !== saved.storageHint;
 
-  const save = async (): Promise<void> => {
+  /** Whether the text was saved: a decision is not taken on text the server does not hold. */
+  const save = async (): Promise<boolean> => {
     setSaving(true);
     setError(null);
     try {
       await reviewApi.patchIngredientNameSlice(locale, slice.id, {
-        name: name !== slice.name ? name : undefined,
-        storageHint: storageHint !== (slice.storageHint ?? '') ? storageHint : undefined,
+        name: name !== saved.name ? name : undefined,
+        storageHint: storageHint !== saved.storageHint ? storageHint : undefined,
       });
+      setSaved({ name, storageHint });
+      return true;
     } catch (err) {
       setError(errorText(err, t('saveFailed')));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -399,7 +407,7 @@ function IngredientNameReviewCard({
     setActing('approve');
     setError(null);
     try {
-      if (dirty) await save();
+      if (dirty && !(await save())) return;
       await reviewApi.approveIngredientName(locale, slice.id);
       onReviewed();
     } catch (err) {
