@@ -83,6 +83,7 @@ export function toIngredientDto(
     dietCompatibility: string[];
     tags: string[];
     packSize: number | null;
+    perishable: boolean;
     brand: string | null;
     storageHint: string | null;
     translations?: { locale: string; name: string; storageHint: string | null }[];
@@ -106,6 +107,7 @@ export function toIngredientDto(
     dietCompatibility: row.dietCompatibility as Ingredient['dietCompatibility'],
     tags: row.tags,
     packSize: row.packSize,
+    perishable: row.perishable,
     brand: row.brand,
     storageHint: text.storageHint,
   };

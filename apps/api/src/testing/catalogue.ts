@@ -29,6 +29,9 @@ interface FixtureIngredient {
   /** What a piece is called, for an ingredient that is counted instead of weighed. */
   displayUnit?: 'piece' | 'slice';
   density?: number;
+  /** What one buys of it at a time, for what is not bought loose, and whether an opened pack does not keep. */
+  packSize?: number;
+  perishable?: boolean;
 }
 
 // `low_carb` on an ingredient says only that it may appear in such a recipe;
@@ -40,16 +43,16 @@ const VEGAN_PROTEIN = [...VEGAN, 'high_protein'];
 
 export const INGREDIENTS: FixtureIngredient[] = [
   { slug: 'rolled-oats', pl: 'Płatki owsiane', category: 'grains', canonicalUnit: 'g', per100: [379, 13, 7, 68], allergens: ['gluten'], diets: VEGAN },
-  { slug: 'whole-milk', pl: 'Mleko pełne', category: 'dairy', canonicalUnit: 'ml', per100: [61, 3.2, 3.3, 4.8], allergens: ['dairy'], diets: VEGETARIAN, density: 1.03 },
+  { slug: 'whole-milk', pl: 'Mleko pełne', category: 'dairy', canonicalUnit: 'ml', per100: [61, 3.2, 3.3, 4.8], allergens: ['dairy'], diets: VEGETARIAN, density: 1.03, packSize: 1000, perishable: true },
   { slug: 'oat-drink', pl: 'Napój owsiany', category: 'beverages', canonicalUnit: 'ml', per100: [45, 1, 1.5, 7], allergens: [], diets: VEGAN, density: 1.03 },
-  { slug: 'large-egg', pl: 'Jajko', category: 'dairy', canonicalUnit: 'g', per100: [143, 13, 9.5, 1.1], allergens: ['eggs'], diets: [...VEGETARIAN, 'high_protein'], gramsPerPiece: 55, displayUnit: 'piece' },
-  { slug: 'chicken-breast', pl: 'Pierś z kurczaka', category: 'meat', canonicalUnit: 'g', per100: [120, 22.5, 2.6, 0], allergens: [], diets: OMNIVORE },
-  { slug: 'salmon', pl: 'Łosoś', category: 'fish', canonicalUnit: 'g', per100: [208, 20, 13, 0], allergens: ['fish'], diets: OMNIVORE },
-  { slug: 'white-rice', pl: 'Ryż biały', category: 'grains', canonicalUnit: 'g', per100: [360, 7, 0.6, 79], allergens: [], diets: [...VEGAN, 'low_carb'] },
-  { slug: 'wholegrain-bread', pl: 'Chleb pełnoziarnisty', category: 'grains', canonicalUnit: 'g', per100: [247, 13, 3.4, 41], allergens: ['gluten'], diets: VEGAN, gramsPerPiece: 35, displayUnit: 'slice' },
+  { slug: 'large-egg', pl: 'Jajko', category: 'dairy', canonicalUnit: 'g', per100: [143, 13, 9.5, 1.1], allergens: ['eggs'], diets: [...VEGETARIAN, 'high_protein'], gramsPerPiece: 55, displayUnit: 'piece', packSize: 550 },
+  { slug: 'chicken-breast', pl: 'Pierś z kurczaka', category: 'meat', canonicalUnit: 'g', per100: [120, 22.5, 2.6, 0], allergens: [], diets: OMNIVORE, packSize: 500, perishable: true },
+  { slug: 'salmon', pl: 'Łosoś', category: 'fish', canonicalUnit: 'g', per100: [208, 20, 13, 0], allergens: ['fish'], diets: OMNIVORE, packSize: 250, perishable: true },
+  { slug: 'white-rice', pl: 'Ryż biały', category: 'grains', canonicalUnit: 'g', per100: [360, 7, 0.6, 79], allergens: [], diets: [...VEGAN, 'low_carb'], packSize: 1000 },
+  { slug: 'wholegrain-bread', pl: 'Chleb pełnoziarnisty', category: 'grains', canonicalUnit: 'g', per100: [247, 13, 3.4, 41], allergens: ['gluten'], diets: VEGAN, gramsPerPiece: 35, displayUnit: 'slice', packSize: 500, perishable: true },
   { slug: 'firm-tofu', pl: 'Tofu twarde', category: 'legumes', canonicalUnit: 'g', per100: [144, 17, 9, 3], allergens: ['soy'], diets: VEGAN_PROTEIN },
   { slug: 'chickpeas', pl: 'Ciecierzyca', category: 'legumes', canonicalUnit: 'g', per100: [164, 8.9, 2.6, 27], allergens: [], diets: VEGAN_PROTEIN },
-  { slug: 'greek-yogurt', pl: 'Jogurt grecki', category: 'dairy', canonicalUnit: 'g', per100: [97, 9, 5, 4], allergens: ['dairy'], diets: [...VEGETARIAN, 'high_protein'] },
+  { slug: 'greek-yogurt', pl: 'Jogurt grecki', category: 'dairy', canonicalUnit: 'g', per100: [97, 9, 5, 4], allergens: ['dairy'], diets: [...VEGETARIAN, 'high_protein'], packSize: 400, perishable: true },
   { slug: 'peanut-butter', pl: 'Masło orzechowe', category: 'nuts_seeds', canonicalUnit: 'g', per100: [588, 25, 50, 20], allergens: ['peanuts'], diets: VEGAN_PROTEIN },
   { slug: 'banana', pl: 'Banan', category: 'fruits', canonicalUnit: 'g', per100: [89, 1.1, 0.3, 23], allergens: [], diets: VEGAN, gramsPerPiece: 120 },
   { slug: 'broccoli', pl: 'Brokuł', category: 'vegetables', canonicalUnit: 'g', per100: [34, 2.8, 0.4, 7], allergens: [], diets: VEGAN_PROTEIN },
@@ -117,6 +120,8 @@ export function catalogueDirectory(): string {
     ...(i.gramsPerPiece ? { gramsPerPiece: i.gramsPerPiece } : {}),
     ...(i.displayUnit ? { displayUnit: i.displayUnit } : {}),
     ...(i.density ? { density: i.density } : {}),
+    ...(i.packSize ? { packSize: i.packSize } : {}),
+    ...(i.perishable ? { perishable: true } : {}),
     allergens: i.allergens,
     dietCompatibility: i.diets,
     tags: [],

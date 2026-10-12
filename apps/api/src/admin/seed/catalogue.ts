@@ -44,7 +44,10 @@ const IngredientSeed = z.object({
   allergens: z.array(Allergen),
   dietCompatibility: z.array(DietType),
   tags: z.array(z.string()),
-  packSize: z.number().min(0).optional(),
+  // What one buys of it at a time, in the canonical unit; left out for what is bought loose.
+  packSize: z.number().positive().optional(),
+  // What is left of an opened pack does not keep for long.
+  perishable: z.boolean().optional(),
   storageHint: localisedString.optional(),
   source: z.string().optional(),
 });
@@ -215,11 +218,15 @@ export function readCatalogue(dir: string = resolveDataDir()): {
   );
   withinFile('ingredients.json', curated);
   withinFile('ingredients.generated.json', generated);
-  // An ingredient can only be counted in pieces when a piece has a weight.
+  // An ingredient can only be counted in pieces when a piece has a weight, and only a pack can be one that does not keep.
   for (const [file, list] of [['ingredients.json', curated], ['ingredients.generated.json', generated]] as const) {
     list.forEach((row, i) => {
       if (row.displayUnit && row.gramsPerPiece === undefined) {
         problems.push({ file, path: `[${i}].displayUnit`, message: `"${identity(row)}" is counted in ${row.displayUnit}s but has no gramsPerPiece` });
+      }
+      // It is the pack that is opened and left: an ingredient without one has nothing to leave.
+      if (row.perishable && row.packSize === undefined) {
+        problems.push({ file, path: `[${i}].perishable`, message: `"${identity(row)}" is marked as a pack that does not keep but has no packSize` });
       }
     });
   }

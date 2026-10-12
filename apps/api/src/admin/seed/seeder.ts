@@ -237,6 +237,7 @@ async function applyIngredients(
       dietCompatibility: ing.dietCompatibility,
       tags: ing.tags,
       packSize: ing.packSize ?? null,
+      perishable: ing.perishable ?? false,
       storageHint: storage?.en ?? null,
       retiredAt: null,
     };

@@ -383,7 +383,12 @@ model Ingredient {
   allergens         String[]        @default([])
   dietCompatibility String[]        @default([])
   tags              String[]        @default([])
+  // What one buys of it at a time, in the canonical unit, for an ingredient
+  // that comes in a pack one cannot buy part of. Null for what is bought loose.
   packSize          Float?
+  // What is left of an opened pack does not keep for long: a plan that leaves
+  // more than about a third of one counts that as waste. See `engine/packs.ts`.
+  perishable        Boolean         @default(false)
   brand             String?
   storageHint       String?
   // Set when the curated data no longer carries the ingredient but user data

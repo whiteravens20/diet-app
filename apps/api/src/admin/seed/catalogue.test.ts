@@ -27,6 +27,17 @@ function catalogueWith(change: (recipes: RecipeRow[]) => void) {
   return readCatalogue(dir);
 }
 
+/** A copy of the test catalogue whose ingredients `change` may rewrite before it is read. */
+function ingredientsWith(change: (ingredients: Record<string, unknown>[]) => void) {
+  const dir = mkdtempSync(join(tmpdir(), 'diet-app-catalogue-check-'));
+  cpSync(catalogueDirectory(), dir, { recursive: true });
+  const file = join(dir, 'ingredients.json');
+  const ingredients = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>[];
+  change(ingredients);
+  writeFileSync(file, JSON.stringify(ingredients));
+  return readCatalogue(dir);
+}
+
 /** `recipe` under another name: what a second author of the same dish would hand in. */
 const renamed = (recipe: RecipeRow, slug: string): RecipeRow => ({ ...recipe, slug, title: { en: `Another ${slug}`, pl: `Inne ${slug}` } });
 
@@ -64,6 +75,42 @@ describe('two recipes of the same making in the curated data', () => {
 
     expect(problems).toEqual([]);
     expect(catalogue!.recipes).toHaveLength(24);
+  });
+});
+
+describe('the pack of an ingredient in the curated data', () => {
+  it('is read with whether an opened one keeps, and is none for what is sold loose', () => {
+    const { catalogue, problems } = ingredientsWith(() => undefined);
+    const packOf = (slug: string) => {
+      const { packSize, perishable } = catalogue!.ingredients.find((ingredient) => ingredient.slug === slug)!;
+      return { packSize, perishable };
+    };
+
+    expect(problems).toEqual([]);
+    expect(packOf('chicken-breast')).toEqual({ packSize: 500, perishable: true });
+    // Rice comes in a pack that keeps; a tomato comes in none.
+    expect(packOf('white-rice')).toEqual({ packSize: 1000, perishable: undefined });
+    expect(packOf('tomato')).toEqual({ packSize: undefined, perishable: undefined });
+  });
+
+  it('cannot be one that does not keep where there is no pack: the ingredient and the field are named', () => {
+    const { catalogue, problems } = ingredientsWith((ingredients) => {
+      const tomato = ingredients.findIndex((ingredient) => ingredient.slug === 'tomato');
+      ingredients[tomato]!.perishable = true;
+    });
+
+    expect(catalogue).toBeNull();
+    expect(problems).toEqual([{ file: 'ingredients.json', path: '[14].perishable', message: '"tomato" is marked as a pack that does not keep but has no packSize' }]);
+  });
+
+  it('has to hold something: a pack of nothing is refused', () => {
+    const { catalogue, problems } = ingredientsWith((ingredients) => {
+      ingredients[0]!.packSize = 0;
+    });
+
+    expect(catalogue).toBeNull();
+    // The ingredient is refused first; the recipes that use it then have a line nobody knows.
+    expect(problems[0]).toMatchObject({ file: 'ingredients.json', path: '[0].packSize' });
   });
 });
 

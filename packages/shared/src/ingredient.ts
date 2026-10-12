@@ -31,8 +31,17 @@ export const Ingredient = z.object({
   /** Diet types this ingredient is compatible with. */
   dietCompatibility: z.array(DietType).default([]),
   tags: z.array(z.string()).default([]),
-  /** Typical retail pack size in canonical units — used by the reuse optimiser. */
+  /**
+   * What one buys of it at a time, in the canonical unit, for an ingredient
+   * that comes in a pack one cannot buy part of; null for what is bought
+   * loose. A shopping list says how many packs a row comes to.
+   */
   packSize: z.number().min(0).nullable().default(null),
+  /**
+   * What is left of an opened pack does not keep for long. A plan counts what
+   * it leaves of such packs as waste, and leans towards using an opened one.
+   */
+  perishable: z.boolean().default(false),
   brand: z.string().nullable().default(null),
   storageHint: z.string().nullable().default(null),
 });
