@@ -119,16 +119,18 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
 /**
  * What stands behind a calorie target that is not simply maintenance less the
  * chosen pace: a goal that is held, a pace that was slowed, a floor, and the
- * warnings for somebody under 18 or underweight.
+ * warnings for somebody under 18 or underweight. A form that gives those
+ * warnings itself, with the box that answers them, asks for the rest alone
+ * (`risk` false).
  */
-export function TargetNotices({ calories: c }: { calories: CalorieCalculation }) {
+export function TargetNotices({ calories: c, risk = true }: { calories: CalorieCalculation; risk?: boolean }) {
   const t = useTranslations('profileSummary.notices');
   const notices: { key: string; text: string; strong: boolean }[] = [];
   const say = (key: string, strong = false) =>
     notices.push({ key, strong, text: t(key, { floor: c.safetyFloor, requested: c.requestedDeficit, deficit: c.dailyDeficit, bmr: c.bmr, maintenance: c.maintenance }) });
 
-  if (c.goalHeld) say('goalHeld', true);
-  for (const warning of c.warnings) if (warning === 'minor' || warning === 'underweight') say(warning, true);
+  if (risk && c.goalHeld) say('goalHeld', true);
+  for (const warning of c.warnings) if (risk && (warning === 'minor' || warning === 'underweight')) say(warning, true);
   if (c.maintenanceUnderFloor) say('maintenanceUnderFloor');
   if (c.safetyFloorApplied) say('safetyFloorApplied');
   // Under the floor the pace is not what set the target: the floor did.

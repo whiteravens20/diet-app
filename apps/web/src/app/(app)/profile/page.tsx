@@ -4,96 +4,67 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useState } from 'react';
 import {
   Cuisine,
-  DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
-  MAX_CALORIE_TARGET,
   DEFAULT_PROFILES_PER_ACCOUNT,
+  DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   MAX_WEEKLY_AMOUNT_PER_INGREDIENT,
-  MIN_CALORIE_TARGET,
   MIN_WEEKLY_AMOUNT_PER_INGREDIENT,
-  riskOfLosingWeight,
-  type DietType,
   type Profile,
   type ProfileInput,
   type ProfilePreferencesPatch,
   type WeightReminderCadence,
-  SPLIT_SHARE_LIMITS,
-  type MacroSplit,
-  type WeightUnit,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
-import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
+import { figuresOf, riskOf } from '@/lib/typed-figures';
+import { useProfileForm } from '@/lib/use-profile-form';
 import { useConfig } from '@/lib/use-config';
 import { useErrorText } from '@/lib/use-error-text';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AllergenPicker } from '@/components/allergen-picker';
 import { IngredientPicker } from '@/components/ingredient-picker';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SupplyNote } from '@/components/supply-note';
+import { CaloriePreviewPanel, useCaloriePreview } from '@/components/calorie-preview';
+import { BodyFields, DietFields, OwnTargetField, PaceChoice, RiskBox, splitAddsUp, splitIn } from '@/components/profile-fields';
 import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
+import { FirstProfile } from './first-profile';
 
-type Risk = ReturnType<typeof riskOfLosingWeight>[number];
-
-/** The risk a loss goal carries for a body, or none when no loss is asked for. */
-function riskOf(body: { age: number; heightCm: number; weightKg: number; weeklyLossTarget: string | null; manualCalorieTarget: number | null }): Risk[] {
-  const asksForLoss = body.weeklyLossTarget !== null || body.manualCalorieTarget !== null;
-  if (!asksForLoss || !(body.age > 0 && body.heightCm > 0 && body.weightKg > 0)) return [];
-  return riskOfLosingWeight(body);
-}
-
-/** The same, for what the form holds at this moment; its weight is typed in the unit of the account. */
-function riskIn(form: HTMLFormElement, unit: WeightUnit): Risk[] {
-  const f = new FormData(form);
-  return riskOf({
-    age: Number(f.get('age')),
-    heightCm: Number(f.get('heightCm')),
-    weightKg: toKilograms(Number(f.get('weight')), unit),
-    weeklyLossTarget: String(f.get('weeklyLossTarget') ?? '') || null,
-    manualCalorieTarget: f.get('manualCalorieTarget') ? Number(f.get('manualCalorieTarget')) : null,
-  });
-}
-
-const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
-
-const ACTIVITY_LEVELS = [
-  'sedentary',
-  'light',
-  'moderate',
-  'active',
-  'very_active',
-] as const;
 
 /** Profile manager — create, edit and delete the account's profiles. */
 export default function ProfilePage() {
   const t = useTranslations('profile');
   const tCommon = useTranslations('common');
   const tDiet = useTranslations('enums.dietType');
-  const tActivity = useTranslations('enums.activityLevel');
-  const tSex = useTranslations('enums.sex');
   const tCuisine = useTranslations('enums.cuisine');
+  const tWizard = useTranslations('profile.wizard');
   const errorText = useErrorText();
   const qc = useQueryClient();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
   const [error, setError] = useState<string | null>(null);
   // null = the form creates a new profile; a Profile = the form edits it.
   const [editing, setEditing] = useState<Profile | null>(null);
-  // Why losing weight is a risk for the body the form describes, when it asks
-  // for a loss: as typed, or as saved while nothing was typed yet.
-  const [typedRisk, setTypedRisk] = useState<{ form: string; reasons: Risk[] } | null>(null);
+  // Weights are shown and typed in the unit of the account; the API keeps kilograms.
+  const unit = useWeightUnit();
+  // What the form holds, as it was last typed: the figures a calorie target is
+  // worked out from, and why losing weight is a risk for the body they
+  // describe, when a loss is asked for. Until something is typed, both are the
+  // profile's own.
   const formKey = editing?.id ?? 'new';
-  const risk = typedRisk?.form === formKey ? typedRisk.reasons : editing ? riskOf(editing) : [];
+  const { form, typed, onChange } = useProfileForm(formKey, unit);
+  const risk = typed ? typed.reasons : editing ? riskOf(editing) : [];
+  const shown = useCaloriePreview(typed ? typed.figures : editing ? figuresOf(editing) : null);
+  // The profile the steps of a first profile have just made: the page says what comes next.
+  const [made, setMade] = useState<Profile | null>(null);
   // Creation is opt-in: the form stays hidden until the user clicks "Add".
   const [creating, setCreating] = useState(false);
 
   const list = profiles.data ?? [];
-  // Weights are shown and typed in the unit of the account; the API keeps kilograms.
-  const unit = useWeightUnit();
   const fmt = useFormat();
   const weightBounds = boundsIn(unit);
   /**
@@ -168,7 +139,7 @@ export default function ProfilePage() {
     setError(null);
     const f = new FormData(event.currentTarget);
     // The form says under the three shares what they add up to; a split that does not add up is not sent.
-    if (f.get('dietType') === 'custom' && Number(f.get('splitProtein')) + Number(f.get('splitFat')) + Number(f.get('splitCarbs')) !== 100) {
+    if (!splitAddsUp(f)) {
       setError(t('splitSumRefused'));
       return;
     }
@@ -182,10 +153,7 @@ export default function ProfilePage() {
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
       // The split of the custom diet, as the form shows it; on another diet the profile keeps the one it has.
-      customMacroSplit:
-        f.get('dietType') === 'custom'
-          ? { protein: Number(f.get('splitProtein')), fat: Number(f.get('splitFat')), carbs: Number(f.get('splitCarbs')) }
-          : (editing?.customMacroSplit ?? null),
+      customMacroSplit: splitIn(f, editing?.customMacroSplit ?? null),
       weeklyLossTarget: (f.get('weeklyLossTarget') as ProfileInput['weeklyLossTarget']) || null,
       manualCalorieTarget: f.get('manualCalorieTarget')
         ? Number(f.get('manualCalorieTarget'))
@@ -297,7 +265,31 @@ export default function ProfilePage() {
         )
       )}
 
-      {canCreate && (
+      {/* The first profile of an account is set up step by step; one more is added in the form. */}
+      {profiles.isSuccess && list.length === 0 && (
+        <FirstProfile
+          onMade={(first) => {
+            setError(null);
+            setMade(first);
+          }}
+        />
+      )}
+
+      {made && list.some((p) => p.id === made.id) && (
+        <Card className="max-w-2xl border-primary/40">
+          <CardHeader>
+            <CardTitle>{tWizard('made', { name: made.name })}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{tWizard('madeNext')}</p>
+            <Link href={`/meal-plans?profile=${made.id}`} className={buttonVariants({ size: 'md' })}>
+              {tWizard('madeCta')}
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {canCreate && list.length > 0 && (
         <div className="max-w-2xl">
           <Button
             type="button"
@@ -325,45 +317,16 @@ export default function ProfilePage() {
           <CardContent>
             {/* Re-mount on edit-target change so default values reset. */}
             <form
-              key={editing?.id ?? 'new'}
+              key={formKey}
+              ref={form}
               onSubmit={onSubmit}
-              onChange={(event) => setTypedRisk({ form: formKey, reasons: riskIn(event.currentTarget, unit) })}
+              onChange={onChange}
               className="grid gap-4 sm:grid-cols-2"
             >
-              <Field label={t('name')}>
-                <Input name="name" required placeholder="Default" defaultValue={editing?.name} />
+              <Field label={t('name')} hint={t('nameHint')}>
+                <Input name="name" required pattern=".*\S.*" maxLength={80} defaultValue={editing?.name} />
               </Field>
-              <Field label={t('age')}>
-                <Input
-                  name="age"
-                  type="number"
-                  required
-                  min={13}
-                  max={120}
-                  defaultValue={editing?.age ?? 30}
-                />
-              </Field>
-              <Field label={t('sex')}>
-                <select name="sex" className={selectClass} defaultValue={editing?.sex ?? ''}>
-                  <option value="">{t('preferNotToSay')}</option>
-                  <option value="male">{tSex('male')}</option>
-                  <option value="female">{tSex('female')}</option>
-                </select>
-              </Field>
-              <Field label={t('heightCm')}>
-                <Input
-                  name="heightCm"
-                  type="number"
-                  required
-                  min={100}
-                  max={250}
-                  defaultValue={editing?.heightCm ?? 175}
-                />
-              </Field>
-              {/* Typed in the unit of the account. The fields are made anew when the unit is known or changes: a number under another unit's name would be another weight. */}
-              <Field label={t('weight', { unit })}>
-                <Input key={unit} name="weight" type="number" inputMode="decimal" required min={weightBounds.min} max={weightBounds.max} step="0.1" defaultValue={shownToOne(editing?.weightKg ?? 75, unit)} />
-              </Field>
+              <BodyFields initial={editing ?? undefined} unit={unit} />
               <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
                 <Input
                   key={unit}
@@ -376,55 +339,10 @@ export default function ProfilePage() {
                   defaultValue={editing?.targetWeightKg != null ? shownToOne(editing.targetWeightKg, unit) : ''}
                 />
               </Field>
-              <Field label={t('activityLevel')}>
-                <select
-                  name="activityLevel"
-                  className={selectClass}
-                  defaultValue={editing?.activityLevel ?? 'moderate'}
-                >
-                  {ACTIVITY_LEVELS.map((a) => (
-                    <option key={a} value={a}>
-                      {tActivity(a)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <DietAndMealCount diet={editing?.dietType ?? 'balanced'} mealCount={editing?.mealCount ?? 3} split={editing?.customMacroSplit ?? null} />
-              <Field label={t('weeklyLossTarget')}>
-                <select
-                  name="weeklyLossTarget"
-                  className={selectClass}
-                  defaultValue={editing?.weeklyLossTarget ?? '0.5'}
-                >
-                  <option value="">{t('maintain')}</option>
-                  <option value="0.25">0.25</option>
-                  <option value="0.5">0.5</option>
-                  <option value="0.75">0.75</option>
-                  <option value="1.0">1.0</option>
-                </select>
-              </Field>
-              <Field label={t('manualKcalOverride')}>
-                <Input
-                  name="manualCalorieTarget"
-                  type="number"
-                  min={MIN_CALORIE_TARGET}
-                  max={MAX_CALORIE_TARGET}
-                  placeholder={t('auto')}
-                  defaultValue={editing?.manualCalorieTarget ?? ''}
-                />
-              </Field>
-              {risk.length > 0 && (
-                <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm sm:col-span-2">
-                  {risk.map((reason) => (
-                    <p key={reason}>{t(`risk.${reason}`)}</p>
-                  ))}
-                  <p className="text-muted-foreground">{t('risk.held')}</p>
-                  <label className="flex items-start gap-2 font-medium">
-                    <input type="checkbox" name="acknowledgeRisk" className="mt-1" defaultChecked={editing?.riskAcknowledgedAt != null} />
-                    {t('risk.acknowledge')}
-                  </label>
-                </div>
-              )}
+              <DietFields diet={editing?.dietType ?? 'balanced'} mealCount={editing?.mealCount ?? 3} split={editing?.customMacroSplit ?? null} />
+              <PaceChoice initial={editing ? editing.weeklyLossTarget : '0.5'} paces={shown.preview?.paces} unit={unit} className="sm:col-span-2" />
+              <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />
+              <RiskBox reasons={risk} acknowledged={editing?.riskAcknowledgedAt != null} className="sm:col-span-2" />
               <Field
                 label={t('weightReminderCadence')}
                 hint={t('weightReminderCadenceHint')}
@@ -483,6 +401,7 @@ export default function ProfilePage() {
                   defaultValue={editing?.preferences.inventoryBiasResetEvery ?? 5}
                 />
               </Field>
+              <CaloriePreviewPanel {...shown} className="sm:col-span-2" />
               <div className="flex items-center gap-3 sm:col-span-2">
                 <Button type="submit" disabled={save.isPending}>
                   {save.isPending
@@ -584,96 +503,5 @@ export default function ProfilePage() {
         </section>
       )}
     </div>
-  );
-}
-
-/** The split a profile that goes to the custom diet begins with: the balanced diet's. */
-const A_FIRST_SPLIT: MacroSplit = { protein: 25, fat: 30, carbs: 45 };
-
-/**
- * The diet and the number of meals a day. Each diet is marked when the
- * catalogue has no recipe, or few, for one of that many meals, and the chosen
- * pair gets a line saying what that means for a plan. The custom diet asks for
- * its split: how much of a day's energy comes from protein, fat and
- * carbohydrate.
- */
-function DietAndMealCount(initial: { diet: DietType; mealCount: number; split: MacroSplit | null }) {
-  const t = useTranslations('profile');
-  const tCatalogue = useTranslations('catalogue');
-  const tDiet = useTranslations('enums.dietType');
-  const depth = useConfig().data?.catalogue.depth;
-  // The fields stay the form's own; these follow them for the marks.
-  const [diet, setDiet] = useState(initial.diet);
-  const [mealCount, setMealCount] = useState(initial.mealCount);
-  const diets: readonly DietType[] = [...NAMED_DIETS, 'custom'];
-  // The three shares as they are typed, so that the form can say what they add up to before it is sent.
-  const [split, setSplit] = useState<Record<keyof MacroSplit, string>>(() => {
-    const first = initial.split ?? A_FIRST_SPLIT;
-    return { protein: String(first.protein), fat: String(first.fat), carbs: String(first.carbs) };
-  });
-  const sum = Number(split.protein) + Number(split.fat) + Number(split.carbs);
-  return (
-    <>
-      <Field label={t('dietType')}>
-        <select
-          name="dietType"
-          className={selectClass}
-          defaultValue={initial.diet}
-          onChange={(e) => setDiet(e.target.value as DietType)}
-        >
-          {diets.map((d) => {
-            const supply = supplyOf(depth, d, mealCount)?.supply;
-            return (
-              <option key={d} value={d}>
-                {supply === 'none'
-                  ? tCatalogue('dietNone', { diet: tDiet(d) })
-                  : supply === 'thin'
-                    ? tCatalogue('dietThin', { diet: tDiet(d) })
-                    : tDiet(d)}
-              </option>
-            );
-          })}
-        </select>
-      </Field>
-      <Field label={t('mealsPerDay')}>
-        <Input
-          name="mealCount"
-          type="number"
-          required
-          min={2}
-          max={5}
-          defaultValue={initial.mealCount}
-          onChange={(e) => setMealCount(e.target.valueAsNumber)}
-        />
-      </Field>
-      <SupplyNote diet={diet} mealCount={mealCount} className="sm:col-span-2" />
-      {diet === 'custom' && (
-        <fieldset className="space-y-2 sm:col-span-2">
-          <legend className="text-sm font-medium">{t('customSplit')}</legend>
-          <p className="text-xs text-muted-foreground">{t('customSplitHint')}</p>
-          <div className="grid grid-cols-3 gap-3">
-            {(['protein', 'fat', 'carbs'] as const).map((part) => (
-              <Field key={part} label={t(`split.${part}`)}>
-                <Input
-                  name={`split${part[0]!.toUpperCase()}${part.slice(1)}`}
-                  type="number"
-                  inputMode="numeric"
-                  required
-                  min={SPLIT_SHARE_LIMITS[part].min}
-                  max={SPLIT_SHARE_LIMITS[part].max}
-                  step={1}
-                  value={split[part]}
-                  onChange={(e) => setSplit({ ...split, [part]: e.target.value })}
-                />
-              </Field>
-            ))}
-          </div>
-          {/* Said while it is typed: a form that is refused for its sum should have said the sum. */}
-          <p aria-live="polite" className={sum === 100 ? 'text-xs text-muted-foreground' : 'text-xs text-warning'}>
-            {t(sum === 100 ? 'splitSum' : 'splitSumOff', { sum })}
-          </p>
-        </fieldset>
-      )}
-    </>
   );
 }

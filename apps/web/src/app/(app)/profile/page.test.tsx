@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
+import { aPreview } from '@/testing/calories';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import ProfilePage from './page';
@@ -48,6 +49,8 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
 /** The page of an account with `profiles`, on an instance that allows an account `maxProfiles`. */
 async function renderPage(profiles: Profile[], maxProfiles: number) {
   vi.spyOn(api, 'get').mockImplementation((path: string) => Promise.resolve((path === '/profiles' ? profiles : path.endsWith('/calories') ? { dailyTarget: 2209, warnings: [], macros: { protein: 0, fat: 0, carbs: 0 } } : []) as never));
+  // What a form's figures come to is asked of the API; a test that is about it asks in its own way.
+  vi.spyOn(api, 'post').mockResolvedValue(aPreview() as never);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['config'], aPublicConfig({ accounts: { maxProfiles } }));
   render(
@@ -313,3 +316,99 @@ describe('the profile form, on the weights of a profile', () => {
   });
 });
 
+
+describe('the profile page of an account that has no profile yet', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const texts = messages.profile;
+
+  /** The page, with the API keeping what is made on it. */
+  function renderEmpty() {
+    const kept: Profile[] = [];
+    vi.spyOn(api, 'get').mockImplementation((path: string) => Promise.resolve((path === '/profiles' ? [...kept] : path === '/users/me' ? { weightUnit: 'kg' } : []) as never));
+    const post = vi.spyOn(api, 'post').mockImplementation((path: string, body?: unknown) => {
+      if (path === '/profiles/calories') return Promise.resolve(aPreview() as never);
+      // What the form leaves out of the preferences, the API starts at its default.
+      const sent = body as Partial<Profile>;
+      const made = { ...aProfile('made'), ...sent, preferences: { ...aProfile('made').preferences, ...sent.preferences } };
+      kept.push(made);
+      return Promise.resolve(made as never);
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['config'], aPublicConfig());
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <ProfilePage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    return post;
+  }
+
+  it('leads through the steps of a first profile, with no other way to make one beside them', async () => {
+    renderEmpty();
+
+    expect(await screen.findByRole('heading', { name: `Step 1 of 3: ${texts.wizard.steps.body}` })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: texts.addProfile })).toBeNull();
+    expect(screen.queryByText(texts.preferencesTitle)).toBeNull();
+  });
+
+  it('says what comes next once the profile is made, and leads to a plan for it', async () => {
+    renderEmpty();
+    await screen.findByRole('heading', { name: `Step 1 of 3: ${texts.wizard.steps.body}` });
+    await userEvent.type(screen.getByLabelText(new RegExp(`^${texts.name}`)), 'Anna');
+    await userEvent.type(screen.getByLabelText(texts.age), '30');
+    await userEvent.type(screen.getByLabelText(texts.heightCm), '180');
+    await userEvent.type(screen.getByLabelText('Weight (kg)'), '80');
+    await userEvent.click(screen.getByRole('button', { name: messages.common.next }));
+    await userEvent.click(screen.getByRole('button', { name: messages.common.next }));
+
+    await userEvent.click(screen.getByRole('button', { name: texts.createProfile }));
+
+    expect(await screen.findByText('The profile “Anna” is ready')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: texts.wizard.madeCta })).toHaveAttribute('href', expect.stringMatching(/^\/meal-plans\?profile=6f1c2b1e/));
+    // The steps are gone: the account has a profile, which the page lists with its preferences.
+    expect(screen.queryByRole('heading', { name: /^Step / })).toBeNull();
+    expect(screen.getByText(texts.preferencesTitle)).toBeInTheDocument();
+  });
+});
+
+describe('the profile form, on what its figures come to', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const texts = messages.profile;
+
+  it('shows the target of the profile as it is kept, and what each pace would come to, before anything is typed', async () => {
+    await renderPage([aProfile('Me', { sex: 'male', weeklyLossTarget: '0.25' })], 2);
+    const post = vi.mocked(api.post);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
+
+    expect(await screen.findByText('2,209 kcal')).toBeInTheDocument();
+    expect(post).toHaveBeenCalledWith('/profiles/calories', expect.objectContaining({ age: 30, sex: 'male', heightCm: 180, weightKg: 80, weeklyLossTarget: '0.25', acknowledgeRisk: false }));
+    const paces = within(screen.getByRole('group', { name: texts.pace })).getAllByRole('radio');
+    expect(paces.map((pace) => (pace as HTMLInputElement).checked)).toEqual([false, true, false, false, false]);
+    // The fastest pace would take more than a quarter of maintenance.
+    expect(paces[4]!.closest('label')).toHaveTextContent('2,069 kcal a day · slowed');
+  });
+
+  it('asks again for what was typed, and sends the pace that was chosen', async () => {
+    const profile = aProfile('Me');
+    await renderPage([profile], 2);
+    const post = vi.mocked(api.post);
+    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
+    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
+    await screen.findByText('2,209 kcal');
+
+    await userEvent.click(screen.getByRole('radio', { name: /Keep my weight/ }));
+    await vi.waitFor(() => expect(post).toHaveBeenLastCalledWith('/profiles/calories', expect.objectContaining({ weeklyLossTarget: null })));
+    await userEvent.click(screen.getByRole('button', { name: texts.saveChanges }));
+
+    expect(put.mock.calls[0]![1]).toMatchObject({ weeklyLossTarget: null });
+  });
+});
