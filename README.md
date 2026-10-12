@@ -32,8 +32,13 @@ The companion Android app lives in a separate repository:
   approved ingredients, then a validation layer recomputes every number.
 - **Shopping lists and a pantry** — merged and category-grouped, counted the way one
   shops (eggs and slices of bread in pieces, weights rounded up to 5 g), with what the
-  pantry already holds taken off, what was bought beyond the need put into it, and PDF
-  export.
+  pantry already holds taken off, what was bought beyond the need put into it, and a way
+  out of the application: a PDF, a table for a spreadsheet, a text to send.
+- **Readable without a network** — over https the browser keeps the pages and the plans
+  and lists that were read last; a row ticked in a shop without a signal is sent when the
+  signal is back.
+- **Your data leaves with you** — a plan as a table or on paper, and everything an account
+  holds as one JSON file.
 - **Meal & ingredient swapping** — random/favorite meal swaps and ingredient substitutions
   that preserve calories and report the macro delta.
 - **BYOK AI** — per-user OpenAI / Anthropic / OpenRouter / Ollama keys with failover, and a
