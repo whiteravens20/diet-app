@@ -319,7 +319,7 @@ describe('the session of the browser', () => {
       expect(new URL(location.replace.mock.calls[0]![0] as string).origin).toBe(ORIGIN);
     });
 
-    it('leaves a page whose session has ended for the sign-in page, which is told where to come back to', async () => {
+    it('leaves a page of an account whose session has ended for the sign-in page, which is told where to come back to', async () => {
       const { session, location } = await aPageAt('/meal-plans', '?profile=0b1f');
 
       session.leave();
@@ -335,8 +335,8 @@ describe('the session of the browser', () => {
       expect(location.replace).toHaveBeenCalledWith(`${ORIGIN}/login`);
     });
 
-    it('stays on the sign-in page, which has nowhere to leave to', async () => {
-      const { session, location } = await aPageAt('/login', '?next=%2Fprofile');
+    it.each(['/login', '/', '/terms', '/admin', '/reset-password'])('stays on %s, a page anybody can open: it has nothing of the account to lose', async (pathname) => {
+      const { session, location } = await aPageAt(pathname, '?next=%2Fprofile');
 
       session.leave();
 

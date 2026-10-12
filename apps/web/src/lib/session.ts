@@ -14,7 +14,7 @@
  * as it tells them when the session is signed out of.
  */
 import type { AuthResponse } from '@diet-app/shared';
-import { signInPath } from './return-path';
+import { isAccountPage, signInPath } from './return-path';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const MARKER_COOKIE = 'diet_session';
@@ -210,13 +210,15 @@ export const session = {
   },
 
   /**
-   * Where a page goes when its session has ended under it: the sign-in
-   * page, which brings the reader back afterwards. Loaded anew, so that
-   * nothing a signed-in page had loaded stays on screen.
+   * Where a page of an account goes when its session has ended under it: the
+   * sign-in page, which brings the reader back afterwards. Loaded anew, so
+   * that nothing the page had loaded stays on screen. A page anybody can
+   * open stays: it has nothing of the account to lose.
    */
   leave(): void {
-    if (typeof window === 'undefined' || window.location.pathname.startsWith('/login')) return;
-    session.load(signInPath(`${window.location.pathname}${window.location.search}`));
+    if (typeof window === 'undefined') return;
+    const page = `${window.location.pathname}${window.location.search}`;
+    if (isAccountPage(page)) session.load(signInPath(page));
   },
 
   /** Be told when the session begins, goes on with another token, or ends. */
