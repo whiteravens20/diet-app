@@ -1,7 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
-import { CalendarDay, DisplayUnit, MAX_QUANTITY, ProductCategory, Unit } from './enums.js';
+import { AiGenerationMeta } from './ai.js';
+import { CalendarDay, DisplayUnit, MAX_QUANTITY, MealType, ProductCategory, Unit } from './enums.js';
 
 /** The most shopping lists one plan may have at a time. */
 export const MAX_LISTS_PER_PLAN = 10;
@@ -140,3 +141,57 @@ export const UpdateShoppingItemRequest = z.object({
   alreadyHaveQuantity: z.number().min(0).max(MOST).optional(),
 });
 export type UpdateShoppingItemRequest = z.infer<typeof UpdateShoppingItemRequest>;
+
+/**
+ * Something a shopping list could do without, as the engine works it out.
+ *
+ * `merge`: two rows that one ingredient could stand for. The catalogue's
+ * substitution rules name `to` as a substitute for `from`, the plan would take
+ * it in every meal of the list's days that uses `from` (two meals at most:
+ * more is no small change to propose), and the list would then ask for fewer
+ * packs. The substitution itself is made in the plan, meal
+ * by meal (`SwapIngredientRequest`), after which the list says it is stale.
+ *
+ * `leftover`: a row whose packs leave more than three tenths of a pack that
+ * does not keep once it is opened. What would use it up is the plan's to say
+ * (`UseUpSuggestions`).
+ */
+export const ListProposal = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('merge'),
+    from: z.object({ ingredientId: z.string().uuid(), name: z.string() }),
+    to: z.object({ ingredientId: z.string().uuid(), name: z.string() }),
+    /** The meals of the list's days that use `from`, in the order of the days. */
+    meals: z.array(z.object({ plannedMealId: z.string().uuid(), date: z.string().date(), mealType: MealType, title: z.string() })).min(1).max(2),
+    /** How many packs fewer the list would ask for. */
+    packsSaved: z.number().int().min(1),
+    /** A model's sentence on it. Null when no model was asked, or it said none. */
+    reason: z.string().max(200).nullable(),
+  }),
+  z.object({
+    kind: z.literal('leftover'),
+    ingredientId: z.string().uuid(),
+    name: z.string(),
+    /** What `left` and `packSize` are counted in: grams or millilitres. */
+    unit: Unit,
+    /** What the row's packs leave of the last of them, to the gram or millilitre. */
+    left: z.number().int().min(1),
+    packSize: z.number().positive(),
+    reason: z.string().max(200).nullable(),
+  }),
+]);
+export type ListProposal = z.infer<typeof ListProposal>;
+
+/**
+ * What a shopping list could do without, as
+ * `POST /shopping-lists/:id/proposals` answers it: the proposals that save the
+ * most first, or in the order a model gave them where one was asked and
+ * answered. Nothing is written.
+ */
+export const ListProposals = z.object({
+  planId: z.string().uuid(),
+  proposals: z.array(ListProposal).max(8),
+  /** Who put them in order, or why the engine's order stands. Null when no model was asked. */
+  aiMeta: AiGenerationMeta.nullable(),
+});
+export type ListProposals = z.infer<typeof ListProposals>;

@@ -100,6 +100,7 @@ const ASKS: Ask[] = [
   ['list the shopping lists of a plan', 'get', (ids) => `/api/shopping-lists?planId=${ids.plan}`],
   ['read a shopping list', 'get', (ids) => `/api/shopping-lists/${ids.list}`],
   ['tick a line of a shopping list', 'patch', (ids) => `/api/shopping-lists/${ids.list}/items/${ids.item}`, () => ({ checked: true })],
+  ['ask what a shopping list could do without', 'post', (ids) => `/api/shopping-lists/${ids.list}/proposals`, () => ({})],
   ['delete a shopping list', 'delete', (ids) => `/api/shopping-lists/${ids.list}`],
 
   ['read a pantry', 'get', (ids) => `/api/inventory?profileId=${ids.profile}`],

@@ -18,6 +18,6 @@ import { UseUpService } from './use-up.service.js';
   imports: [RecipesModule, AiModule, PersonalRecipesModule],
   controllers: [MealPlansController],
   providers: [MealPlansService, PlanGenerationService, IngredientSwapService, MealSwapService, PlanOverviewService, PlanCalendarService, UseUpService, DayVariationsService],
-  exports: [MealPlansService, PlanGenerationService],
+  exports: [MealPlansService, PlanGenerationService, IngredientSwapService],
 })
 export class MealPlansModule {}

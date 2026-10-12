@@ -205,6 +205,32 @@ export class IngredientSwapService {
     return suggestions;
   }
 
+  /**
+   * How much of one ingredient would come into a planned meal in the place of
+   * another, in the substitute's own unit, where the plan would take the
+   * substitution. Null where the meal's recipe has nothing of the ingredient
+   * that is to leave, the substitute is gone, the plan's gate would refuse
+   * what the recipe becomes, or a unit cannot be converted. Nothing is
+   * written: this is what a proposal is checked with before it is made.
+   */
+  async wouldCome(userId: string, planId: string, plannedMealId: string, fromIngredientId: string, toIngredientId: string): Promise<number | null> {
+    const subject = await this.subject(userId, planId, plannedMealId);
+    if (fromIngredientId === toIngredientId || !subject.recipe.ingredients.some((line) => line.ingredientId === fromIngredientId)) return null;
+    const to =
+      subject.recipe.ingredients.find((line) => line.ingredientId === toIngredientId)?.ingredient ??
+      (await this.prisma.ingredient.findFirst({ where: { id: toIngredientId, retiredAt: null }, include: { translations: true } }));
+    if (!to) return null;
+    try {
+      const worked = this.workOut(subject, fromIngredientId, to);
+      if (worked.violations.length > 0) return null;
+      // The recipe's lines are for all its servings; the meal takes its own share of them.
+      return (worked.amountComing * subject.meal.servings * subject.meal.quantityScale) / Math.max(1, subject.recipe.servings);
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      return null;
+    }
+  }
+
   /** The planned meal a substitution is made in: its recipe with every line, and what its plan's profile rules out. */
   private async subject(userId: string, planId: string, plannedMealId: string) {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
