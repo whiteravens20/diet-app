@@ -89,6 +89,97 @@ describe('who can see a recipe', () => {
     });
   });
 
+  describe('narrowed to what somebody is looking for', () => {
+    const slugId = async (slug: string): Promise<string> => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+    const titles = (page: RecipeSearchPage): string[] => page.items.map((recipe) => recipe.title);
+    /** A search of the shared library alone: what the owner made is their own. */
+    const library = (query: Record<string, string>) => search(other, query);
+
+    it('holds every ingredient that was named, not any of them', async () => {
+      const [rice, chickpeas] = [await slugId('white-rice'), await slugId('chickpeas')];
+
+      expect(titles(await library({ ingredientIds: `${rice},${chickpeas}` }))).toEqual(['Chickpea tomato stew']);
+      // Either alone finds more.
+      expect((await library({ ingredientIds: chickpeas })).total).toBe(2);
+      expect((await library({ ingredientIds: rice })).total).toBeGreaterThan(2);
+    });
+
+    it('holds none of the allergens that were named', async () => {
+      const safe = await library({ withoutAllergens: 'gluten,dairy,eggs' });
+
+      expect(safe.total).toBeGreaterThan(0);
+      expect(safe.total).toBeLessThan(RECIPES.length);
+      for (const recipe of safe.items) expect(recipe.allergens.filter((allergen) => ['gluten', 'dairy', 'eggs'].includes(allergen))).toEqual([]);
+    });
+
+    it('holds as much protein, and no more fat or carbohydrate, as was asked for in a serving', async () => {
+      const rich = await library({ minProtein: '40' });
+      const lean = await library({ maxFat: '10', maxCarbs: '60' });
+
+      expect(rich.total).toBeGreaterThan(0);
+      expect(rich.items.every((recipe) => recipe.nutritionPerServing.protein >= 40)).toBe(true);
+      expect(lean.total).toBeGreaterThan(0);
+      expect(lean.items.every((recipe) => recipe.nutritionPerServing.fat <= 10 && recipe.nutritionPerServing.carbs <= 60)).toBe(true);
+      expect((await library({ minProtein: '40', maxFat: '10' })).total).toBeLessThanOrEqual(Math.min(rich.total, lean.total));
+    });
+
+    it('is of the cuisine that was asked for', async () => {
+      expect(titles(await library({ cuisine: 'asian' }))).toEqual(['Egg fried rice', 'Peanut tofu stir fry', 'Tofu rice bowl']);
+      expect((await library({ cuisine: 'polish' })).total).toBe(0);
+    });
+
+    describe('by what a profile marked and favours', () => {
+      let profileId: string;
+      const idOf = async (slug: string): Promise<string> => (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).id;
+      const mark = (recipeId: string, sentiment: string) => t.http().post('/api/favorites').set(as(other)).send({ profileId, recipeId, sentiment }).expect(201);
+
+      beforeEach(async () => {
+        profileId = (await t.http().post('/api/profiles').set(as(other)).send({ name: 'Me', age: 30, heightCm: 180, weightKg: 80 }).expect(201)).body.id;
+        await mark(await idOf('milk-porridge'), 'favorite');
+        await mark(await idOf('tofu-rice-bowl'), 'often');
+        await mark(await idOf('egg-sandwich'), 'avoid');
+      });
+
+      it('is what the profile marked: as a favourite or as eaten often, as eaten often alone, or to avoid', async () => {
+        expect(titles(await library({ profileId, marked: 'marked' }))).toEqual(['Milk porridge', 'Tofu rice bowl']);
+        expect(titles(await library({ profileId, marked: 'often' }))).toEqual(['Tofu rice bowl']);
+        expect(titles(await library({ profileId, marked: 'avoid' }))).toEqual(['Egg sandwich']);
+        // With the other parts of a search, like any other part.
+        expect(titles(await library({ profileId, marked: 'marked', cuisine: 'asian' }))).toEqual(['Tofu rice bowl']);
+      });
+
+      it('holds one of the ingredients the profile favours, and is nothing for a profile that favours none', async () => {
+        expect((await library({ profileId, favoriteIngredients: 'true' })).total).toBe(0);
+
+        await t.http().patch(`/api/profiles/${profileId}/preferences`).set(as(other)).send({ favoriteIngredientIds: [await slugId('salmon'), await slugId('chickpeas')] }).expect(200);
+
+        expect(titles(await library({ profileId, favoriteIngredients: 'true' }))).toEqual(['Chickpea broccoli salad', 'Chickpea tomato stew', 'Salmon with rice']);
+        expect((await library({ profileId, favoriteIngredients: 'false' })).total).toBe(RECIPES.length);
+      });
+
+      it('needs the profile to be named, and to be the account\'s own', async () => {
+        const unnamed = await t.http().get('/api/recipes').query({ marked: 'marked' }).set(as(other)).expect(400);
+        expect(unnamed.body.issues[0].path).toBe('profileId');
+
+        const foreign = await t.http().get('/api/recipes').query({ profileId, marked: 'marked' }).set(as(owner)).expect(404);
+        expect(foreign.body.error).toBe('PROFILE_NOT_FOUND');
+      });
+    });
+
+    it.each([
+      ['an ingredient that is no id', { ingredientIds: 'rice' }, 'ingredientIds.0'],
+      ['more ingredients than a search takes', { ingredientIds: Array.from({ length: 11 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`).join(',') }, 'ingredientIds'],
+      ['an allergen there is not', { withoutAllergens: 'gluten,kryptonite' }, 'withoutAllergens.1'],
+      ['a cuisine there is not', { cuisine: 'martian' }, 'cuisine'],
+      ['less than no protein', { minProtein: '-1' }, 'minProtein'],
+    ])('refuses %s', async (_what, query, part) => {
+      const refused = await t.http().get('/api/recipes').query(query).set(as(other)).expect(400);
+
+      expect(refused.body.error).toBe('VALIDATION_FAILED');
+      expect(refused.body.issues[0].path).toBe(part);
+    });
+  });
+
   it('says which cuisine a recipe belongs to, and nothing for a recipe that belongs to none', async () => {
     const library = await search(owner);
     const cuisineOf = (title: string) => library.items.find((recipe) => recipe.title === title)!.cuisine;

@@ -2,20 +2,14 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { Cuisine, type Locale, type PlannedIngredient, type Recipe, type RecipeSearchPage } from '@diet-app/shared';
+import { Cuisine, type Locale, type PlannedIngredient, type Recipe, type RecipeSearchPage, type RecipeSearchQuery } from '@diet-app/shared';
 import { collatedFor } from '../common/collation.js';
 import { displayAmount, type DisplayedIngredient } from '../engine/display.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { recipesForDiet } from './diet-where.js';
 
-export interface RecipeFilters {
-  search?: string;
-  dietType?: string;
-  mealType?: string;
-  maxCalories?: number;
-  maxPrepMinutes?: number;
-  difficulty?: string;
-}
+/** What a search of the library is narrowed by: the query of the contract without its paging. */
+export type RecipeFilters = Omit<RecipeSearchQuery, 'page' | 'pageSize'>;
 
 const DEFAULT_PAGE_SIZE = 36;
 const MAX_PAGE_SIZE = 100;
@@ -58,6 +52,13 @@ export class RecipesService {
   ): Promise<RecipeSearchPage> {
     const pageSize = Math.min(Math.max(paging.pageSize ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
     const page = Math.max(paging.page ?? 1, 1);
+    // What a profile marked and the ingredients it favours are its account's to ask about.
+    const profile =
+      filters.profileId === undefined
+        ? null
+        : await this.prisma.profile.findFirst({ where: { id: filters.profileId, userId }, select: { id: true, preferences: { select: { favoriteIngredientIds: true } } } });
+    if (filters.profileId !== undefined && !profile) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+    const favoured = profile?.preferences?.favoriteIngredientIds ?? [];
     // Two AND-ed groups: ownership AND the actual filters. We split them
     // because Prisma's top-level `OR` can't co-exist with a second `OR` for
     // the locale-aware search match.
@@ -79,6 +80,18 @@ export class RecipesService {
         ...(filters.difficulty
           ? [{ difficulty: filters.difficulty as 'easy' | 'medium' | 'hard' }]
           : []),
+        ...(filters.cuisine ? [{ cuisine: filters.cuisine }] : []),
+        // Every ingredient that was named, not any of them: a search for rice and beans is for dishes of both.
+        ...(filters.ingredientIds ?? []).map((ingredientId) => ({ ingredients: { some: { ingredientId } } })),
+        ...(filters.withoutAllergens?.length ? [{ NOT: { allergens: { hasSome: filters.withoutAllergens } } }] : []),
+        ...(filters.minProtein !== undefined ? [{ proteinPerServing: { gte: filters.minProtein } }] : []),
+        ...(filters.maxFat !== undefined ? [{ fatPerServing: { lte: filters.maxFat } }] : []),
+        ...(filters.maxCarbs !== undefined ? [{ carbsPerServing: { lte: filters.maxCarbs } }] : []),
+        ...(filters.marked && profile
+          ? [{ favorites: { some: { profileId: profile.id, sentiment: filters.marked === 'marked' ? { in: ['favorite', 'often'] } : filters.marked } } }]
+          : []),
+        // A profile that favours no ingredient has no recipe with one.
+        ...(filters.favoriteIngredients ? [{ ingredients: { some: { ingredientId: { in: favoured } } } }] : []),
       ],
     };
     // The page is cut from the list as it is shown: sorted by the title in the

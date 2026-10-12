@@ -7,9 +7,11 @@ import { Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import { RecipeDietTag, type Profile, type RecipeSearchPage, type SessionUser } from '@diet-app/shared';
+import { Cuisine, MAX_SEARCHED_INGREDIENTS, RecipeDietTag, type Allergen, type MarkedFilter, type Profile, type RecipeSearchPage, type SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
+import { AllergenPicker } from '@/components/allergen-picker';
+import { IngredientPicker } from '@/components/ingredient-picker';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AiMark, partInRecipe } from '@/components/ai-mark';
@@ -35,6 +37,7 @@ export default function RecipesPage() {
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   const tDifficulty = useTranslations('enums.difficulty');
+  const tCuisine = useTranslations('enums.cuisine');
   const errorText = useErrorText();
   const [search, setSearch] = useState('');
   const [dietType, setDietType] = useState('');
@@ -42,6 +45,15 @@ export default function RecipesPage() {
   const [difficulty, setDifficulty] = useState('');
   const [maxCalories, setMaxCalories] = useState('');
   const [maxPrepMinutes, setMaxPrepMinutes] = useState('');
+  // The narrower ways to look, behind "More filters".
+  const [cuisine, setCuisine] = useState('');
+  const [minProtein, setMinProtein] = useState('');
+  const [maxFat, setMaxFat] = useState('');
+  const [maxCarbs, setMaxCarbs] = useState('');
+  const [ingredientIds, setIngredientIds] = useState<string[]>([]);
+  const [withoutAllergens, setWithoutAllergens] = useState<Allergen[]>([]);
+  // What the profile chosen below marked, and what it favours.
+  const [marked, setMarked] = useState<MarkedFilter | ''>('');
   const [usesFavorites, setUsesFavorites] = useState(false);
   const [favoritesProfileId, setFavoritesProfileId] = useState<string>('');
   const [page, setPage] = useState(1);
@@ -58,16 +70,17 @@ export default function RecipesPage() {
   // Reset to page 1 whenever the filter set changes — React's "adjusting
   // state on prop change during render" pattern (preferred over useEffect
   // for derived resets; doesn't schedule an extra render).
-  const filterKey = [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes].join('|');
-  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
-  if (lastFilterKey !== filterKey) {
-    setLastFilterKey(filterKey);
-    setPage(1);
-  }
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
+  const profileList = profiles.data ?? [];
+  const activeProfileId = favoritesProfileId || profileList[0]?.id || '';
+  const activeProfile = profileList.find((p) => p.id === activeProfileId) ?? null;
+  const favoriteCount = activeProfile?.preferences.favoriteIngredientIds.length ?? 0;
 
-  // Server-side filters get encoded into the query string; client-side
-  // favourites filter runs after the fetch.
-  const queryString = useMemo(() => {
+  // Every way of narrowing is the API's: the page shows one page of what matches, and counts the rest.
+  const filters = useMemo(() => {
     const p = new URLSearchParams();
     if (search) p.set('search', search);
     if (dietType) p.set('dietType', dietType);
@@ -75,10 +88,31 @@ export default function RecipesPage() {
     if (difficulty) p.set('difficulty', difficulty);
     if (maxCalories) p.set('maxCalories', maxCalories);
     if (maxPrepMinutes) p.set('maxPrepMinutes', maxPrepMinutes);
-    p.set('page', String(page));
-    p.set('pageSize', String(PAGE_SIZE));
-    return `?${p.toString()}`;
-  }, [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes, page]);
+    if (cuisine) p.set('cuisine', cuisine);
+    if (minProtein) p.set('minProtein', minProtein);
+    if (maxFat) p.set('maxFat', maxFat);
+    if (maxCarbs) p.set('maxCarbs', maxCarbs);
+    if (ingredientIds.length > 0) p.set('ingredientIds', ingredientIds.join(','));
+    if (withoutAllergens.length > 0) p.set('withoutAllergens', withoutAllergens.join(','));
+    // What a profile marked and favours is asked about with the profile.
+    if (activeProfileId && (marked || usesFavorites)) {
+      p.set('profileId', activeProfileId);
+      if (marked) p.set('marked', marked);
+      if (usesFavorites) p.set('favoriteIngredients', 'true');
+    }
+    return p.toString();
+  }, [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes, cuisine, minProtein, maxFat, maxCarbs, ingredientIds, withoutAllergens, marked, usesFavorites, activeProfileId]);
+
+  // Reset to page 1 whenever the filter set changes — React's "adjusting
+  // state on prop change during render" pattern (preferred over useEffect
+  // for derived resets; doesn't schedule an extra render).
+  const [lastFilters, setLastFilters] = useState(filters);
+  if (lastFilters !== filters) {
+    setLastFilters(filters);
+    setPage(1);
+  }
+  const queryString = `?${filters}${filters ? '&' : ''}page=${page}&pageSize=${PAGE_SIZE}`;
+  const more = [cuisine, minProtein, maxFat, maxCarbs].filter(Boolean).length + (ingredientIds.length > 0 ? 1 : 0) + (withoutAllergens.length > 0 ? 1 : 0);
 
   // Library vs My Recipes share the same card UI but hit different
   // endpoints. `mine` skips the filter sidebar's server params (the personal
@@ -108,30 +142,12 @@ export default function RecipesPage() {
     onError: (e) => setSubmitted({ ok: false, text: errorText(e, t('submitFailed')) }),
   });
 
-  const profiles = useQuery({
-    queryKey: ['profiles'],
-    queryFn: () => api.get<Profile[]>('/profiles'),
-  });
-  const profileList = profiles.data ?? [];
-  const activeProfileId = favoritesProfileId || profileList[0]?.id || '';
-  const activeProfile = profileList.find((p) => p.id === activeProfileId) ?? null;
-  const favoriteIds = useMemo(
-    () => new Set(activeProfile?.preferences.favoriteIngredientIds ?? []),
-    [activeProfile],
-  );
-
-  const filtered = useMemo(() => {
-    const list = recipes.data?.items ?? [];
-    if (!usesFavorites || favoriteIds.size === 0) return list;
-    return list.filter((r) => r.ingredients.some((i) => favoriteIds.has(i.ingredientId)));
-  }, [recipes.data, usesFavorites, favoriteIds]);
+  const filtered = recipes.data?.items ?? [];
 
   const totalPages = recipes.data?.totalPages ?? 0;
   const totalItems = recipes.data?.total ?? 0;
 
-  const anyServerFilter = Boolean(
-    dietType || mealType || difficulty || maxCalories || maxPrepMinutes,
-  );
+  const anyServerFilter = Boolean(dietType || mealType || difficulty || maxCalories || maxPrepMinutes || more > 0 || marked || usesFavorites);
 
   function resetFilters() {
     setDietType('');
@@ -139,6 +155,14 @@ export default function RecipesPage() {
     setDifficulty('');
     setMaxCalories('');
     setMaxPrepMinutes('');
+    setCuisine('');
+    setMinProtein('');
+    setMaxFat('');
+    setMaxCarbs('');
+    setIngredientIds([]);
+    setWithoutAllergens([]);
+    setMarked('');
+    setUsesFavorites(false);
   }
 
   return (
@@ -226,6 +250,41 @@ export default function RecipesPage() {
         </Field>
       </div>
 
+      {/* The narrower ways to look stay folded until they are wanted; the count says when one of them is at work. */}
+      <details className={tab === 'mine' ? 'hidden' : 'max-w-4xl rounded-md border border-border px-3 py-2'}>
+        <summary className="cursor-pointer text-sm font-medium">{more > 0 ? t('moreFiltersOn', { count: more }) : t('moreFilters')}</summary>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label={t('cuisine')}>
+            <select className={selectClass} value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
+              <option value="">{t('any')}</option>
+              {Cuisine.options.map((c) => (
+                <option key={c} value={c}>
+                  {tCuisine(c)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('minProtein')}>
+            <Input type="number" inputMode="decimal" min={0} value={minProtein} onChange={(e) => setMinProtein(e.target.value)} />
+          </Field>
+          <Field label={t('maxFat')}>
+            <Input type="number" inputMode="decimal" min={0} value={maxFat} onChange={(e) => setMaxFat(e.target.value)} />
+          </Field>
+          <Field label={t('maxCarbs')}>
+            <Input type="number" inputMode="decimal" min={0} value={maxCarbs} onChange={(e) => setMaxCarbs(e.target.value)} />
+          </Field>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <IngredientPicker
+            label={t('withIngredients')}
+            hint={t('withIngredientsHint', { max: MAX_SEARCHED_INGREDIENTS })}
+            ids={ingredientIds}
+            onChange={(ids) => setIngredientIds(ids.slice(0, MAX_SEARCHED_INGREDIENTS))}
+          />
+          <AllergenPicker label={t('withoutAllergens')} hint={t('withoutAllergensHint')} selected={withoutAllergens} onChange={setWithoutAllergens} />
+        </div>
+      </details>
+
       <div className={tab === 'mine' ? 'hidden' : 'flex flex-wrap items-center gap-4'}>
         {anyServerFilter && (
           <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
@@ -243,20 +302,28 @@ export default function RecipesPage() {
               />
               {t('usesFavorites')}
             </label>
-            <select
-              aria-label={t('favoritesProfile')}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              value={activeProfileId}
-              onChange={(e) => setFavoritesProfileId(e.target.value)}
-              disabled={!usesFavorites}
-            >
-              {profileList.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
+            <select aria-label={t('marked')} className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={marked} onChange={(e) => setMarked(e.target.value as MarkedFilter | '')}>
+              <option value="">{t('markedAny')}</option>
+              <option value="marked">{t('markedMarked')}</option>
+              <option value="often">{t('markedOften')}</option>
+              <option value="avoid">{t('markedAvoid')}</option>
             </select>
-            {usesFavorites && favoriteIds.size === 0 && (
+            {/* Whose marks and favourite ingredients are meant, on an account with more than one profile. */}
+            {profileList.length > 1 && (
+              <select
+                aria-label={t('favoritesProfile')}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={activeProfileId}
+                onChange={(e) => setFavoritesProfileId(e.target.value)}
+              >
+                {profileList.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {usesFavorites && favoriteCount === 0 && (
               <span className="text-xs text-muted-foreground">
                 {t('noFavorites', {
                   name: activeProfile?.name ?? t('noFavoritesFallback'),
@@ -292,7 +359,7 @@ export default function RecipesPage() {
         <p className="text-sm text-muted-foreground">
           {tab === 'mine'
             ? t('mineEmpty')
-            : usesFavorites && favoriteIds.size > 0
+            : usesFavorites && favoriteCount > 0
               ? t('noneFavorites')
               : anyServerFilter || search
                 ? t('noneFiltered')

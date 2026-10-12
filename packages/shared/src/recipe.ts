@@ -161,7 +161,20 @@ export const PageQuery = z.object({
 });
 export type PageQuery = z.infer<typeof PageQuery>;
 
-/** What the recipe library is searched by. Each part that is given narrows the result. */
+/** The most ingredients a search of the library may name at once. */
+export const MAX_SEARCHED_INGREDIENTS = 10;
+
+/** How a search of the library may be narrowed to what a profile marked. */
+export const MarkedFilter = z.enum(['marked', 'often', 'avoid']);
+export type MarkedFilter = z.infer<typeof MarkedFilter>;
+
+/** A switch in a query string: `true` is on, `false` and nothing at all are off. */
+const querySwitch = z.enum(['true', 'false']).transform((value) => value === 'true');
+
+/**
+ * What the recipe library is searched by. Each part that is given narrows the
+ * result; a list is written with commas between its values.
+ */
 export const RecipeSearchQuery = PageQuery.extend({
   /** Words of the title or the description, in English or in the language of the request. */
   search: z.string().trim().max(200).optional(),
@@ -170,6 +183,37 @@ export const RecipeSearchQuery = PageQuery.extend({
   maxCalories: z.coerce.number().int().min(1).max(10_000).optional(),
   maxPrepMinutes: z.coerce.number().int().min(1).max(1_440).optional(),
   difficulty: Difficulty.optional(),
+  cuisine: Cuisine.optional(),
+  /** Ingredients every recipe of the result holds. */
+  ingredientIds: z
+    .string()
+    .max(MAX_SEARCHED_INGREDIENTS * 37)
+    .transform((list) => list.split(',').filter(Boolean))
+    .pipe(z.array(z.string().uuid()).max(MAX_SEARCHED_INGREDIENTS))
+    .optional(),
+  /** Allergens no recipe of the result holds. */
+  withoutAllergens: z
+    .string()
+    .max(Allergen.options.length * 20)
+    .transform((list) => list.split(',').filter(Boolean))
+    .pipe(z.array(Allergen).max(Allergen.options.length))
+    .optional(),
+  /** What a serving holds, in grams: at least this much protein, at most this much fat and carbohydrate. */
+  minProtein: z.coerce.number().min(0).max(500).optional(),
+  maxFat: z.coerce.number().min(0).max(500).optional(),
+  maxCarbs: z.coerce.number().min(0).max(1000).optional(),
+  /**
+   * The profile the two parts below are about. `marked` narrows to the
+   * recipes the profile marked (`marked`: as a favourite or as eaten often;
+   * `often`; `avoid`), `favoriteIngredients` to those that hold one of its
+   * favourite ingredients.
+   */
+  profileId: z.string().uuid().optional(),
+  marked: MarkedFilter.optional(),
+  favoriteIngredients: querySwitch.optional(),
+}).refine((query) => query.profileId !== undefined || (query.marked === undefined && !query.favoriteIngredients), {
+  path: ['profileId'],
+  message: 'Say whose marks or favourite ingredients are meant.',
 });
 export type RecipeSearchQuery = z.infer<typeof RecipeSearchQuery>;
 
