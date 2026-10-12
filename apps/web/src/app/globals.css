@@ -251,6 +251,11 @@ body {
     transform: translateX(-100%);
   }
 }
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .dialog[open] {
     animation: dialog-in 160ms ease-out;
@@ -268,6 +273,10 @@ body {
   }
   .rise-in {
     animation: rise-in 350ms ease-out both;
+  }
+  /* A page of the app that takes the place of another. */
+  .page-in {
+    animation: page-in 160ms ease-out;
   }
 }
 

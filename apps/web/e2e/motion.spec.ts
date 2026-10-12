@@ -40,4 +40,24 @@ test.describe('somebody who asked their system for less motion', () => {
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
   });
+
+  test('is the only one for whom a page takes the place of another at once: without the wish it fades in', async ({ session }) => {
+    const page = session.page;
+    /** How the page that is shown comes in: the name of its animation and how long it runs, in milliseconds. */
+    const comesIn = () =>
+      page.locator('main .page-in').evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { name: style.animationName, ms: Number.parseFloat(style.animationDuration) * (style.animationDuration.trim().endsWith('ms') ? 1 : 1000) };
+      });
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto('/settings');
+    await settled(page);
+    expect(await comesIn()).toEqual({ name: 'page-in', ms: 160 });
+    // A fade of opacity alone: the page is not moved, so what it holds in a fixed place stays where it is.
+    expect(await page.locator('main .page-in').evaluate((element) => getComputedStyle(element).transform)).toBe('none');
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    expect((await comesIn()).ms).toBeLessThan(1);
+  });
 });
