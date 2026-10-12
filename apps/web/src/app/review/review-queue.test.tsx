@@ -59,6 +59,9 @@ async function renderQueue(items: RecipeReviewSlice[], locale: 'en' | 'pl' = 'en
   await screen.findByRole('group');
 }
 
+/** The draft under that name has the focus. It takes it once it is on the page, which is a moment after it is found there. */
+const focused = (name: string) => vi.waitFor(() => expect(screen.getByRole('group', { name })).toHaveFocus());
+
 const draft = (current: number, visible: number) => screen.getByRole('group', { name: `Draft ${current} of ${visible}` });
 const button = (name: string) => screen.getByRole('button', { name });
 const keysOn = () => userEvent.click(button(text.keys));
@@ -126,7 +129,7 @@ describe('the reviewer\'s queue', () => {
       await userEvent.click(button(text.approve));
 
       // The button that was pressed went with its draft: the focus is not lost with it.
-      expect(await screen.findByRole('group', { name: 'Draft 1 of 1' })).toHaveFocus();
+      await focused('Draft 1 of 1');
       expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Jajecznica');
     });
   });
@@ -155,10 +158,10 @@ describe('the reviewer\'s queue', () => {
 
       draft(1, 3).focus();
       await userEvent.keyboard('a');
-      expect(await screen.findByRole('group', { name: 'Draft 1 of 2' })).toHaveFocus();
+      await focused('Draft 1 of 2');
       await userEvent.keyboard('a');
 
-      expect(await screen.findByRole('group', { name: 'Draft 1 of 1' })).toHaveFocus();
+      await focused('Draft 1 of 1');
       expect(approve.mock.calls.map(([, id]) => id)).toEqual([FIRST, SECOND]);
       expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Kanapka');
     });
@@ -172,7 +175,7 @@ describe('the reviewer\'s queue', () => {
       await userEvent.keyboard('{Escape}r');
 
       expect(reject).toHaveBeenCalledExactlyOnceWith('pl', FIRST, 'Not a breakfast');
-      expect(await screen.findByRole('group', { name: 'Draft 1 of 1' })).toHaveFocus();
+      await focused('Draft 1 of 1');
     });
 
     it('J and K, and the arrows, go to the draft after and before, and stop at the ends', async () => {
@@ -226,7 +229,7 @@ describe('the reviewer\'s queue', () => {
 
       await renderQueue([recipe(FIRST, 'Owsianka')]);
       // The draft of a reviewer who wants the keys has the focus as it comes up.
-      expect(draft(1, 1)).toHaveFocus();
+      await focused('Draft 1 of 1');
       expect(button(text.keys)).toHaveAttribute('aria-pressed', 'true');
 
       await userEvent.click(button(text.keys));
@@ -292,7 +295,7 @@ describe('the reviewer\'s queue', () => {
     expect(await screen.findByText(text.queueLoading)).toBeInTheDocument();
     expect(screen.queryByText(text.queueEmpty)).not.toBeInTheDocument();
     answer({ items: [recipe(SECOND, 'Jajecznica')], total: 1, page: 1, pageSize: 25 });
-    expect(await screen.findByRole('group', { name: 'Draft 1 of 1' })).toHaveFocus();
+    await focused('Draft 1 of 1');
   });
 
   it('says nothing is left once the last page is done', async () => {
