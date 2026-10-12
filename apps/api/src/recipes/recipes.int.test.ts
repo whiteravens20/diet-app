@@ -89,6 +89,17 @@ describe('who can see a recipe', () => {
     });
   });
 
+  it('says which cuisine a recipe belongs to, and nothing for a recipe that belongs to none', async () => {
+    const library = await search(owner);
+    const cuisineOf = (title: string) => library.items.find((recipe) => recipe.title === title)!.cuisine;
+
+    expect(cuisineOf('Tofu rice bowl')).toBe('asian');
+    expect(cuisineOf('Chickpea tomato stew')).toBe('mediterranean');
+    expect(cuisineOf('Milk porridge')).toBeNull();
+    // A recipe of a user's own was given none.
+    expect((await listMine(owner)).items[0]!.cuisine).toBeNull();
+  });
+
   describe('by its id', () => {
     it('opens for its owner and looks like nothing at all to anyone else', async () => {
       const opened = (await t.http().get(`/api/recipes/${mine.id}`).set(as(owner)).expect(200)).body as Recipe;

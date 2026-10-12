@@ -71,6 +71,8 @@ export const Recipe = z.object({
   prepMinutes: z.number().int().min(0),
   cookMinutes: z.number().int().min(0),
   difficulty: Difficulty,
+  /** The cuisine the recipe belongs to, when it belongs to one. */
+  cuisine: Cuisine.nullable(),
   allergens: z.array(Allergen),
   /** Per-serving nutrition, recomputed deterministically from the database. */
   nutritionPerServing: Nutrition,

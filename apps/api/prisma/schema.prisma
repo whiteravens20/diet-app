@@ -483,6 +483,9 @@ model Recipe {
   prepMinutes        Int
   cookMinutes        Int
   difficulty         Difficulty   @default(easy)
+  // The cuisine the recipe belongs to (`Cuisine` of the shared contract), when
+  // it belongs to one. The planner leans towards the cuisines a profile prefers.
+  cuisine            String?
   allergens          String[]     @default([])
   origin             RecipeOrigin @default(seed)
   // A model had a part in this recipe of a user's: it chose the ingredient

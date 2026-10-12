@@ -1305,7 +1305,8 @@
     "markFavorite": "Oznacz jako ulubiony",
     "markAvoid": "Oznacz do unikania",
     "clearMark": "Usuń oznaczenie",
-    "prefsSaveFailed": "Nie udało się zapisać preferencji składnika."
+    "prefsSaveFailed": "Nie udało się zapisać preferencji składnika.",
+    "cuisine": "Kuchnia: {cuisine}"
   },
   "weightCard": {
     "title": "Dziennik wagi",
@@ -1393,11 +1394,13 @@
     "prefsSaveFailed": "Nie udało się zapisać preferencji.",
     "deleteConfirm": "Usunąć \"{name}\"? Powiązane plany posiłków i listy zakupów również zostaną usunięte.",
     "preferencesTitle": "Preferencje składników",
-    "preferencesSubhead": "Listy przypisane do profilu, które wpływają na układanie planów. Pozycje z listy „unikaj” są pomijane; ulubione są delikatnie preferowane, a to, czego wolisz nie jeść, trafia do planu tylko wtedy, gdy nic innego nie pasuje. Alergeny są zawsze respektowane — przy generowaniu, podmianach i zamiennikach.",
+    "preferencesSubhead": "Listy przypisane do profilu, które wpływają na układanie planów. Pozycje z listy „unikaj” są pomijane; ulubione i lubiane kuchnie są delikatnie preferowane, a to, czego wolisz nie jeść, trafia do planu tylko wtedy, gdy nic innego nie pasuje. Alergeny są zawsze respektowane — przy generowaniu, podmianach i zamiennikach.",
     "allergensLabel": "Alergeny",
     "allergensHint": "Przepisy zawierające którykolwiek z nich nie będą planowane, podmieniane ani sugerowane dla tego profilu.",
     "favouritesLabel": "Ulubione składniki",
     "favouritesHint": "Planer preferuje przepisy z tymi składnikami.",
+    "cuisinesLabel": "Kuchnie, które lubię",
+    "cuisinesHint": "Planer chętniej sięga po przepisy z tych kuchni. Nic nie jest wykluczane, a wiele przepisów nie należy do żadnej konkretnej kuchni.",
     "dislikedLabel": "Produkty, których wolę nie jeść",
     "dislikedHint": "Planer i podmiany biorą przepis z którymś z nich tylko wtedy, gdy nic innego nie pasuje do posiłku. Żeby wykluczyć produkt całkowicie, dodaj go do „Unikanych składników”.",
     "avoidLabel": "Unikane składniki",

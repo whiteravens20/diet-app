@@ -322,6 +322,38 @@ describe('a plan for somebody who would rather not eat something', () => {
   });
 });
 
+describe('a plan for somebody who prefers a cuisine', () => {
+  /** Two lunches alike in everything but where they come from. */
+  const twoLunches = (over: Partial<OptimizerInput>): OptimizerInput => ({
+    ...baseInput,
+    recipes: [recipe('b1', ['breakfast'], 500), { ...recipe('l-asian', ['lunch'], 700), cuisine: 'asian' }, { ...recipe('l-plain', ['lunch'], 700), cuisine: null }, recipe('d1', ['dinner'], 600)],
+    days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2000),
+    ...over,
+  });
+  const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
+  const asianLunches = (over: Partial<OptimizerInput>): number =>
+    SEEDS.filter((seed) => optimisePlan(twoLunches({ ...over, seed })).assignments.find((a) => a.slot === 'lunch')!.recipeId === 'l-asian').length;
+
+  it('leans towards a recipe of that cuisine, and rules no other out', () => {
+    const without = asianLunches({});
+    const preferred = asianLunches({ preferredCuisines: new Set(['asian']) });
+
+    // A lean: more often than chance has it, and not every time.
+    expect(preferred).toBeGreaterThan(without);
+    expect(preferred).toBeGreaterThan(SEEDS.length * 0.7);
+    expect(preferred).toBeLessThan(SEEDS.length);
+  });
+
+  it('changes nothing for somebody who prefers none, or one no recipe has', () => {
+    for (const seed of [1, 2, 3]) {
+      const plain = optimisePlan(twoLunches({ seed })).assignments;
+
+      expect(optimisePlan(twoLunches({ seed, preferredCuisines: new Set() })).assignments).toEqual(plain);
+      expect(optimisePlan(twoLunches({ seed, preferredCuisines: new Set(['polish']) })).assignments).toEqual(plain);
+    }
+  });
+});
+
 describe('recipeCoverage', () => {
   it('returns 1.0 when every required ingredient is fully stocked', () => {
     const reqs = [

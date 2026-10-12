@@ -49,6 +49,7 @@ export function RecipeView({
   const tMeal = useTranslations('enums.mealType');
   const tDiet = useTranslations('enums.dietType');
   const tAllergen = useTranslations('enums.allergen');
+  const tCuisine = useTranslations('enums.cuisine');
   const fmt = useFormat();
   const errorText = useErrorText();
   const amount = useAmount();
@@ -159,6 +160,8 @@ export function RecipeView({
               {tagLabel(tag)}
             </span>
           ))}
+          {/* The kitchen the recipe belongs to, for the recipes that belong to one. */}
+          {recipe.cuisine && <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{t('cuisine', { cuisine: tCuisine(recipe.cuisine) })}</span>}
         </div>
       </div>
 

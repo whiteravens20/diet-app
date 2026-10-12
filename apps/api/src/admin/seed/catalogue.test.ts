@@ -12,6 +12,7 @@ interface RecipeRow {
   title: Record<string, string>;
   servings: number;
   mealTypes: string[];
+  cuisine?: string;
   ingredients: { slug: string; quantity: number; unit: string }[];
 }
 
@@ -63,5 +64,26 @@ describe('two recipes of the same making in the curated data', () => {
 
     expect(problems).toEqual([]);
     expect(catalogue!.recipes).toHaveLength(24);
+  });
+});
+
+describe('the cuisine of a recipe in the curated data', () => {
+  it('is read for a recipe that names one, and is none for a recipe that names none', () => {
+    const { catalogue, problems } = catalogueWith(() => undefined);
+    const cuisineOf = (slug: string): string | undefined => catalogue!.recipes.find((recipe) => recipe.slug === slug)!.seed.cuisine;
+
+    expect(problems).toEqual([]);
+    expect(cuisineOf('tofu-rice-bowl')).toBe('asian');
+    expect(cuisineOf('chickpea-tomato-stew')).toBe('mediterranean');
+    expect(cuisineOf('milk-porridge')).toBeUndefined();
+  });
+
+  it('has to be one the application knows: another is refused, and the recipe and the field are named', () => {
+    const { catalogue, problems } = catalogueWith((recipes) => {
+      recipes[3]!.cuisine = 'martian';
+    });
+
+    expect(catalogue).toBeNull();
+    expect(problems.map((problem) => [problem.file, problem.path])).toEqual([['recipes.json', '[3].cuisine']]);
   });
 });

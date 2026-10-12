@@ -363,6 +363,7 @@ export class PlanGenerationService {
             excludedIngredientIds: string[];
             favoriteIngredientIds: string[];
             dislikedIngredientIds: string[];
+            preferredCuisines: string[];
             maxConsecutiveDaysSameMeal: number;
             maxTimesPerWeekSameMeal: number;
             maxWeeklyAmountPerIngredient: number;
@@ -476,6 +477,7 @@ export class PlanGenerationService {
         mealPrepFriendly: opts.mealPrepFriendly,
         favoriteIngredientIds,
         dislikedIngredientIds: new Set(profile.preferences?.dislikedIngredientIds ?? []),
+        preferredCuisines: new Set(profile.preferences?.preferredCuisines ?? []),
         inventoryCoverage,
         maxConsecutiveDaysSameMeal,
         maxTimesPerWeekSameMeal,
@@ -636,6 +638,7 @@ export class PlanGenerationService {
       ingredientIds: r.ingredients.map((i) => i.ingredientId),
       amounts: amountsPerServing(requirementsByRecipe.get(r.id) ?? []),
       difficulty: r.difficulty,
+      cuisine: r.cuisine,
       isFavorite: favoriteIds.has(r.id),
       totalMinutes: r.prepMinutes + r.cookMinutes,
     }));

@@ -9,7 +9,7 @@
  * seeder can load, and a broken file stops an update while the database is
  * still untouched.
  */
-import { Allergen, DietType, MealType, NaturalUnit, ProductCategory, Unit, type RecipeDietTag } from '@diet-app/shared';
+import { Allergen, Cuisine, DietType, MealType, NaturalUnit, ProductCategory, Unit, type RecipeDietTag } from '@diet-app/shared';
 import { z } from 'zod';
 import { recipeFacts, type FactsLine } from '../../engine/recipe-facts.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
@@ -59,6 +59,7 @@ const RecipeSeed = z.object({
   prepMinutes: z.number().int().min(0),
   cookMinutes: z.number().int().min(0),
   difficulty: z.enum(['easy', 'medium', 'hard']),
+  cuisine: Cuisine.optional(),
   ingredients: z
     .array(
       z

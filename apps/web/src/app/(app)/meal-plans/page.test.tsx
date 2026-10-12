@@ -75,6 +75,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
             prepMinutes: 5,
             cookMinutes: 10,
             difficulty: 'easy',
+            cuisine: null,
             allergens: [],
             nutritionPerServing: { calories: 230, protein: 8, fat: 4, carbs: 40 },
             reuseScore: 0,
@@ -779,6 +780,17 @@ describe('the plan page, on what a model had to do with a plan', () => {
 
     const window = await screen.findByRole('dialog', { name: messages.recipeModal.title });
     expect(window.textContent).toContain('A model chose this recipe for the meal: “Lighter than the porridge.”');
+  });
+
+  it('names the cuisine of a recipe where the recipe is opened, and none for a recipe that belongs to none', async () => {
+    const plain = aPlan();
+    const meal = plain.days[0]!.meals[0]!;
+    const recipe = await opened({ ...plain, days: [{ ...plain.days[0]!, meals: [{ ...meal, recipe: { ...meal.recipe!, cuisine: 'asian' } }] }] });
+
+    await userEvent.click(recipe);
+
+    const shown = within(await screen.findByRole('dialog', { name: messages.recipeModal.title }));
+    expect(await shown.findByText('Asian cuisine')).toBeInTheDocument();
   });
 
   it('marks a meal a model chose without a reason, in words of its own', async () => {

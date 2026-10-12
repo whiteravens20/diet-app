@@ -360,6 +360,7 @@ async function applyRecipes(
       prepMinutes: seed.prepMinutes,
       cookMinutes: seed.cookMinutes,
       difficulty: seed.difficulty,
+      cuisine: seed.cuisine ?? null,
       allergens: recipe.allergens,
       // What a personal recipe is compared with: one that turns out to be this
       // recipe is not written a second time.

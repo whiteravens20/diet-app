@@ -74,6 +74,7 @@
     "prepMinutes": 3,
     "cookMinutes": 6,
     "difficulty": "easy",
+    "cuisine": "american",
     "ingredients": [
       { "slug": "rolled-oats", "quantity": 60, "unit": "g" },
       { "slug": "whole-milk", "quantity": 200, "unit": "ml" },
@@ -197,6 +198,7 @@
     "prepMinutes": 10,
     "cookMinutes": 25,
     "difficulty": "easy",
+    "cuisine": "mediterranean",
     "ingredients": [
       { "slug": "chickpeas", "quantity": 480, "unit": "g" },
       { "slug": "tomato", "quantity": 3, "unit": "piece" },
@@ -229,6 +231,7 @@
     "prepMinutes": 12,
     "cookMinutes": 15,
     "difficulty": "medium",
+    "cuisine": "asian",
     "ingredients": [
       { "slug": "tofu", "quantity": 300, "unit": "g" },
       { "slug": "bell-pepper", "quantity": 1, "unit": "piece" },
@@ -261,6 +264,7 @@
     "prepMinutes": 10,
     "cookMinutes": 25,
     "difficulty": "medium",
+    "cuisine": "italian",
     "ingredients": [
       { "slug": "ground-beef", "quantity": 360, "unit": "g" },
       { "slug": "pasta", "quantity": 300, "unit": "g" },
@@ -293,6 +297,7 @@
     "prepMinutes": 8,
     "cookMinutes": 25,
     "difficulty": "easy",
+    "cuisine": "middle_eastern",
     "ingredients": [
       { "slug": "red-lentils", "quantity": 240, "unit": "g" },
       { "slug": "carrot", "quantity": 3, "unit": "piece" },
@@ -355,6 +360,7 @@
     "prepMinutes": 12,
     "cookMinutes": 15,
     "difficulty": "easy",
+    "cuisine": "mexican",
     "ingredients": [
       { "slug": "black-beans", "quantity": 320, "unit": "g" },
       { "slug": "quinoa", "quantity": 120, "unit": "g" },
@@ -418,6 +424,7 @@
     "prepMinutes": 3,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "cuisine": "mediterranean",
     "ingredients": [
       { "slug": "greek-yogurt", "quantity": 170, "unit": "g" },
       { "slug": "almonds", "quantity": 20, "unit": "g" },
@@ -483,6 +490,7 @@
     "prepMinutes": 8,
     "cookMinutes": 18,
     "difficulty": "easy",
+    "cuisine": "american",
     "ingredients": [
       { "slug": "large-egg", "quantity": 4, "unit": "piece" },
       { "slug": "cheddar-cheese", "quantity": 80, "unit": "g" },
@@ -513,6 +521,7 @@
     "prepMinutes": 6,
     "cookMinutes": 0,
     "difficulty": "easy",
+    "cuisine": "middle_eastern",
     "ingredients": [
       { "slug": "chickpeas", "quantity": 150, "unit": "g" },
       { "slug": "olive-oil", "quantity": 10, "unit": "ml" },
@@ -572,6 +581,7 @@
     "prepMinutes": 5,
     "cookMinutes": 2,
     "difficulty": "easy",
+    "cuisine": "american",
     "ingredients": [
       { "slug": "whole-grain-bread", "quantity": 2, "unit": "piece" },
       { "slug": "peanut-butter", "quantity": 30, "unit": "g" },
@@ -626,6 +636,7 @@
     "prepMinutes": 5,
     "cookMinutes": 9,
     "difficulty": "easy",
+    "cuisine": "mediterranean",
     "ingredients": [
       { "slug": "large-egg", "quantity": 2, "unit": "piece" },
       { "slug": "feta-cheese", "quantity": 40, "unit": "g" },

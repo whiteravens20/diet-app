@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   type CalorieCalculation,
+  Cuisine,
   DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   type Profile,
   type ProfileInput,
@@ -214,7 +215,7 @@ export class ProfilesService {
         excludedIngredientIds: row.preferences?.excludedIngredientIds ?? [],
         allergens: (row.preferences?.allergens ?? []) as Profile['preferences']['allergens'],
         dislikedIngredientIds: row.preferences?.dislikedIngredientIds ?? [],
-        preferredCuisines: row.preferences?.preferredCuisines ?? [],
+        preferredCuisines: (row.preferences?.preferredCuisines ?? []).filter((kept): kept is Cuisine => Cuisine.safeParse(kept).success),
         maxConsecutiveDaysSameMeal: row.preferences?.maxConsecutiveDaysSameMeal ?? 2,
         maxTimesPerWeekSameMeal: row.preferences?.maxTimesPerWeekSameMeal ?? 3,
         maxWeeklyAmountPerIngredient: row.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,

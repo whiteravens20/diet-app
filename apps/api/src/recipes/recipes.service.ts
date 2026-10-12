@@ -2,7 +2,7 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { Locale, PlannedIngredient, Recipe, RecipeSearchPage } from '@diet-app/shared';
+import { Cuisine, type Locale, type PlannedIngredient, type Recipe, type RecipeSearchPage } from '@diet-app/shared';
 import { collatedFor } from '../common/collation.js';
 import { displayAmount, type DisplayedIngredient } from '../engine/display.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -272,6 +272,7 @@ export function toRecipeDto(
     prepMinutes: number;
     cookMinutes: number;
     difficulty: 'easy' | 'medium' | 'hard';
+    cuisine: string | null;
     allergens: string[];
     origin: 'seed' | 'ai' | 'user' | 'curated';
     modelAssisted: boolean;
@@ -309,6 +310,7 @@ export function toRecipeDto(
     prepMinutes: row.prepMinutes,
     cookMinutes: row.cookMinutes,
     difficulty: row.difficulty,
+    cuisine: Cuisine.safeParse(row.cuisine).data ?? null,
     allergens: row.allergens as Recipe['allergens'],
     nutritionPerServing: {
       calories: row.caloriesPerServing,

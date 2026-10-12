@@ -151,3 +151,35 @@ describe('the profile form, on the custom diet', () => {
   });
 });
 
+describe('the profile page, on the cuisines a profile likes', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const cuisine = (name: string) => screen.getByRole('checkbox', { name });
+
+  it('shows the ones the profile has, among all the application knows', async () => {
+    await renderPage([aProfile('Me', { preferences: { ...aProfile('Me').preferences, preferredCuisines: ['asian'] } })], 2);
+
+    expect(screen.getByRole('group', { name: messages.profile.cuisinesLabel })).toBeInTheDocument();
+    expect(cuisine('Asian')).toBeChecked();
+    expect(cuisine('Polish')).not.toBeChecked();
+    expect(screen.getAllByRole('checkbox', { name: /^(Polish|Italian|Asian|Mediterranean|Middle Eastern|Mexican|American|Indian)$/ })).toHaveLength(8);
+  });
+
+  it('keeps what is ticked and unticked with the profile at once, in the order the application lists cuisines', async () => {
+    const profile = aProfile('Me', { preferences: { ...aProfile('Me').preferences, preferredCuisines: ['asian'] } });
+    await renderPage([profile], 2);
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue(profile as never);
+
+    await userEvent.click(cuisine('Polish'));
+    await userEvent.click(cuisine('Asian'));
+
+    expect(patch.mock.calls.map(([path, body]) => [path, body])).toEqual([
+      [`/profiles/${profile.id}/preferences`, { preferredCuisines: ['polish', 'asian'] }],
+      // The page still shows the profile as it was loaded: the second change is made from that.
+      [`/profiles/${profile.id}/preferences`, { preferredCuisines: [] }],
+    ]);
+  });
+});
+

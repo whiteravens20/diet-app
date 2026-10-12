@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
-import { ActivityLevel, Allergen, DietType, MealType, Sex, WeeklyLossTarget } from './enums.js';
+import { ActivityLevel, Allergen, Cuisine, DietType, MealType, Sex, WeeklyLossTarget } from './enums.js';
 import { MAX_INGREDIENT_IDS } from './ingredient.js';
 import { MacroSplit, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
@@ -32,7 +32,8 @@ const preferenceFields = {
    * does; to rule an ingredient out there is `excludedIngredientIds`.
    */
   dislikedIngredientIds: z.array(z.string().uuid()).max(MAX_INGREDIENT_IDS),
-  preferredCuisines: z.array(z.string().trim().min(1).max(80)).max(50),
+  /** Cuisines the planner leans towards: a recipe of one of them scores a little higher. */
+  preferredCuisines: z.array(Cuisine).max(Cuisine.options.length),
   /**
    * Hard cap on how many days in a row the same recipe may occupy a slot.
    * The scorer treats this as an exclusion (not a soft penalty) so even a

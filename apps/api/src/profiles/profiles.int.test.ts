@@ -44,7 +44,7 @@ describe('changing a profile', () => {
         excludedIngredientIds: [oats],
         allergens: ['peanuts', 'fish'],
         dislikedIngredientIds: ['7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d'],
-        preferredCuisines: ['thai'],
+        preferredCuisines: ['asian', 'polish'],
         maxConsecutiveDaysSameMeal: 4,
         maxTimesPerWeekSameMeal: 5,
         maxWeeklyAmountPerIngredient: 2000,
@@ -170,6 +170,7 @@ describe('changing a profile', () => {
       ['an ingredient that is no id', { favoriteIngredientIds: ['rice'] }, 'favoriteIngredientIds.0'],
       ['more ingredients than a profile holds', { excludedIngredientIds: Array.from({ length: 201 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`) }, 'excludedIngredientIds'],
       ['a food to rather not eat that is no ingredient\'s id', { dislikedIngredientIds: ['liver'] }, 'dislikedIngredientIds.0'],
+      ['a cuisine the application does not know', { preferredCuisines: ['asian', 'martian'] }, 'preferredCuisines.1'],
       ['a limit outside its range', { maxTimesPerWeekSameMeal: 0 }, 'maxTimesPerWeekSameMeal'],
     ])('refuses %s, and changes nothing', async (_name, body, part) => {
       const refused = await patch(body).expect(400);

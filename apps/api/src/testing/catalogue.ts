@@ -62,6 +62,8 @@ interface FixtureRecipe {
   mealTypes: string[];
   /** Ingredient slug and quantity per serving, in the ingredient's canonical unit. */
   lines: [slug: string, quantity: number][];
+  /** The cuisine the recipe belongs to, for the few that are given one. */
+  cuisine?: string;
 }
 
 export const RECIPES: FixtureRecipe[] = [
@@ -74,15 +76,15 @@ export const RECIPES: FixtureRecipe[] = [
   { slug: 'banana-oat-shake', mealTypes: ['second_breakfast', 'snack'], lines: [['oat-drink', 300], ['banana', 120], ['rolled-oats', 30]] },
   { slug: 'egg-sandwich', mealTypes: ['second_breakfast'], lines: [['large-egg', 110], ['wholegrain-bread', 70], ['tomato', 50]] },
   { slug: 'chicken-rice-broccoli', mealTypes: ['lunch', 'dinner'], lines: [['chicken-breast', 150], ['white-rice', 80], ['broccoli', 150], ['olive-oil', 10]] },
-  { slug: 'tofu-rice-bowl', mealTypes: ['lunch', 'dinner'], lines: [['firm-tofu', 180], ['white-rice', 80], ['broccoli', 100], ['olive-oil', 5]] },
-  { slug: 'chickpea-tomato-stew', mealTypes: ['lunch', 'dinner'], lines: [['chickpeas', 250], ['tomato', 200], ['olive-oil', 10], ['white-rice', 40]] },
+  { slug: 'tofu-rice-bowl', mealTypes: ['lunch', 'dinner'], lines: [['firm-tofu', 180], ['white-rice', 80], ['broccoli', 100], ['olive-oil', 5]], cuisine: 'asian' },
+  { slug: 'chickpea-tomato-stew', mealTypes: ['lunch', 'dinner'], lines: [['chickpeas', 250], ['tomato', 200], ['olive-oil', 10], ['white-rice', 40]], cuisine: 'mediterranean' },
   { slug: 'salmon-with-rice', mealTypes: ['lunch', 'dinner'], lines: [['salmon', 140], ['white-rice', 70], ['broccoli', 100]] },
-  { slug: 'egg-fried-rice', mealTypes: ['lunch'], lines: [['large-egg', 110], ['white-rice', 90], ['broccoli', 80], ['olive-oil', 10]] },
+  { slug: 'egg-fried-rice', mealTypes: ['lunch'], lines: [['large-egg', 110], ['white-rice', 90], ['broccoli', 80], ['olive-oil', 10]], cuisine: 'asian' },
   { slug: 'chicken-sandwich', mealTypes: ['lunch'], lines: [['chicken-breast', 120], ['wholegrain-bread', 105], ['tomato', 80], ['olive-oil', 5]] },
   { slug: 'chicken-tomato-skillet', mealTypes: ['dinner'], lines: [['chicken-breast', 180], ['tomato', 250], ['olive-oil', 10], ['wholegrain-bread', 70]] },
   { slug: 'baked-tofu-with-broccoli', mealTypes: ['dinner'], lines: [['firm-tofu', 220], ['broccoli', 250], ['olive-oil', 10]] },
   { slug: 'chickpea-broccoli-salad', mealTypes: ['lunch', 'dinner'], lines: [['chickpeas', 200], ['broccoli', 150], ['tomato', 100], ['olive-oil', 15]] },
-  { slug: 'peanut-tofu-stir-fry', mealTypes: ['dinner'], lines: [['firm-tofu', 150], ['peanut-butter', 25], ['white-rice', 60], ['broccoli', 100]] },
+  { slug: 'peanut-tofu-stir-fry', mealTypes: ['dinner'], lines: [['firm-tofu', 150], ['peanut-butter', 25], ['white-rice', 60], ['broccoli', 100]], cuisine: 'asian' },
   { slug: 'banana-with-peanut-butter', mealTypes: ['snack'], lines: [['banana', 120], ['peanut-butter', 20]] },
   { slug: 'tomato-toast', mealTypes: ['snack'], lines: [['wholegrain-bread', 70], ['tomato', 100], ['olive-oil', 5]] },
   { slug: 'yogurt-oat-cup', mealTypes: ['second_breakfast', 'snack'], lines: [['greek-yogurt', 150], ['rolled-oats', 25]] },
@@ -133,6 +135,7 @@ export function catalogueDirectory(): string {
       prepMinutes: 10,
       cookMinutes: 10,
       difficulty: 'easy',
+      ...(r.cuisine ? { cuisine: r.cuisine } : {}),
       ingredients: r.lines.map(([slug, quantity]) => ({ slug, quantity, unit: bySlug.get(slug)!.canonicalUnit })),
       steps: { en: [`Combine ${names}.`], pl: [`Połącz: ${polishNames}.`] },
     };

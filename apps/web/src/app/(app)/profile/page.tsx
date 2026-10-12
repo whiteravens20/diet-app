@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import {
+  Cuisine,
   DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   MAX_CALORIE_TARGET,
   DEFAULT_PROFILES_PER_ACCOUNT,
@@ -72,6 +73,7 @@ export default function ProfilePage() {
   const tDiet = useTranslations('enums.dietType');
   const tActivity = useTranslations('enums.activityLevel');
   const tSex = useTranslations('enums.sex');
+  const tCuisine = useTranslations('enums.cuisine');
   const errorText = useErrorText();
   const qc = useQueryClient();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
@@ -497,6 +499,30 @@ export default function ProfilePage() {
                     })
                   }
                 />
+                <fieldset className="space-y-1.5 sm:col-span-2">
+                  <legend className="text-sm font-medium">{t('cuisinesLabel')}</legend>
+                  <p className="text-xs text-muted-foreground">{t('cuisinesHint')}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {Cuisine.options.map((cuisine) => (
+                      <label key={cuisine} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={p.preferences.preferredCuisines.includes(cuisine)}
+                          disabled={savePrefs.isPending}
+                          onChange={(e) =>
+                            savePrefs.mutate({
+                              profile: p,
+                              // In the order the application lists them, whatever order they were ticked in.
+                              preferences: { preferredCuisines: Cuisine.options.filter((other) => (other === cuisine ? e.target.checked : p.preferences.preferredCuisines.includes(other))) },
+                            })
+                          }
+                        />
+                        {tCuisine(cuisine)}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
                 <IngredientPicker
                   label={t('dislikedLabel')}
                   hint={t('dislikedHint')}

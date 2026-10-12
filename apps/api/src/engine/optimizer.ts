@@ -46,6 +46,8 @@ export interface OptimizerRecipe {
   amounts?: ReadonlyMap<string, number>;
   difficulty: 'easy' | 'medium' | 'hard';
   isFavorite: boolean;
+  /** The cuisine the recipe belongs to, when it belongs to one. */
+  cuisine?: string | null;
   /** Total prep + cook minutes — used by the per-day cook-time budget. */
   totalMinutes: number;
 }
@@ -108,6 +110,11 @@ export interface OptimizerInput {
    * orders the choice and rules nothing out. Empty or omitted: no part in it.
    */
   dislikedIngredientIds?: ReadonlySet<string>;
+  /**
+   * Cuisines the user prefers: a recipe of one of them scores a little
+   * higher. Empty or omitted: no part in the choice.
+   */
+  preferredCuisines?: ReadonlySet<string>;
   /**
    * Pantry-coverage map: `recipeId → [0..1]` share of the recipe's
    * required ingredient mass already covered by the profile's inventory.
@@ -211,6 +218,8 @@ export const SCORE_WEIGHTS = {
   variety: 0.15,
   favorite: 0.1,
   favoriteIngredient: 0.08,
+  // As much as a recipe made of favourite ingredients: a lean, not a rule.
+  cuisine: 0.08,
   // Weighted equal to favorite (0.10) so a 100%-covered recipe and a
   // favourited recipe weigh comparably. Lower would let day-to-day variety
   // overrule the pantry; higher would risk monotony before the anti-monotony
@@ -430,6 +439,7 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
           weights,
           mealPrepFriendly: input.mealPrepFriendly,
           favoriteIngredientIds: input.favoriteIngredientIds,
+          preferredCuisines: input.preferredCuisines,
           inventoryCoverage: coverage,
           seed,
         });
@@ -540,6 +550,7 @@ interface PickContext {
   weights: ScoreWeights;
   mealPrepFriendly: boolean;
   favoriteIngredientIds?: ReadonlySet<string>;
+  preferredCuisines?: ReadonlySet<string>;
   inventoryCoverage?: ReadonlyMap<string, number>;
   seed: number;
 }
@@ -611,6 +622,8 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
       ? 0
       : recipe.ingredientIds.filter((id) => favIngs.has(id)).length / recipe.ingredientIds.length;
 
+  const preferredCuisine = recipe.cuisine != null && ctx.preferredCuisines?.has(recipe.cuisine) ? 1 : 0;
+
   const complexityPenalty =
     ctx.mealPrepFriendly && recipe.difficulty === 'hard' ? 1 : recipe.difficulty === 'hard' ? 0.4 : 0;
 
@@ -625,6 +638,7 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
     weights.variety * variety +
     weights.favorite * favorite +
     weights.favoriteIngredient * favoriteIngredient +
+    weights.cuisine * preferredCuisine +
     weights.inventoryCoverage * inventoryCoverage -
     weights.complexity * complexityPenalty
   );
