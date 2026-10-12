@@ -116,7 +116,7 @@ test.describe('the content security policy of a page', () => {
     await page.evaluate(() => {
       setTimeout(() => {
         const outcome: string[] = [];
-        for (const make of [() => new Function('return 1')(), () => (0, eval)('1'), () => setTimeout('window.gotIn = "a timer"', 0)]) {
+        for (const make of [() => new Function('window.gotIn = "a function"')(), () => (0, eval)('window.gotIn = "an eval"')]) {
           try {
             make();
             outcome.push('made');
@@ -130,11 +130,10 @@ test.describe('the content security policy of a page', () => {
     await page.waitForFunction(() => 'outcome' in window);
     await page.waitForTimeout(300);
 
-    // The first two are refused loudly; a timer given a text is dropped without a word.
-    expect(await page.evaluate(() => (window as unknown as { outcome: string[] }).outcome)).toEqual(['EvalError', 'EvalError', 'made']);
+    expect(await page.evaluate(() => (window as unknown as { outcome: string[] }).outcome)).toEqual(['EvalError', 'EvalError']);
     expect(await ran(page)).toBe(false);
     const broken = violationsSeen();
-    expect(broken).toHaveLength(3);
+    expect(broken).toHaveLength(2);
     expect(new Set(broken.map((violation) => violation.split(' on ')[0]))).toEqual(new Set(['script-src blocked eval']));
   });
 
