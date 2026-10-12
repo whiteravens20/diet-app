@@ -33,7 +33,8 @@ const RecipePick = z.object({ recipeId: z.string().min(1), reason: z.unknown() }
 /** A recipe offered for a meal holds, at the serving that comes nearest, within this share of what the meal holds now. */
 export const SWAP_ENERGY_WINDOW = 0.15;
 
-function holdsAbout(caloriesPerServing: number, held: number): boolean {
+/** Whether a recipe, at the serving that comes nearest, holds about what a meal holds: what a swap asks of every recipe it offers. */
+export function holdsAbout(caloriesPerServing: number, held: number): boolean {
   return Math.abs(caloriesPerServing * fitServings(caloriesPerServing, held) - held) <= held * SWAP_ENERGY_WINDOW;
 }
 

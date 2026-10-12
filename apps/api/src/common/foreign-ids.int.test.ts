@@ -88,6 +88,7 @@ const ASKS: Ask[] = [
   ['rebalance a day', 'post', (ids) => `/api/meal-plans/${ids.plan}/rebalance`, (ids) => ({ scope: 'day', date: ids.date })],
   ['undo a rebalance', 'post', (ids) => `/api/meal-plans/${ids.plan}/rebalance`, (ids) => ({ scope: 'day', restore: [{ mealId: ids.meal, scale: 1 }] })],
   ['ask a model for another recipe for a meal', 'post', () => '/api/meal-plans/ai-swap-meal/preview', (ids) => ({ planId: ids.plan, plannedMealId: ids.meal })],
+  ['ask what would use up the packs a plan opens', 'post', (ids) => `/api/meal-plans/${ids.plan}/use-up`, () => ({})],
   ['ask what could stand in for an ingredient of a meal', 'get', (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/substitutes`],
   ['ask a model what could stand in for an ingredient', 'post', () => '/api/meal-plans/swap-ingredient/ai-suggest', (ids, shared) => ({ planId: ids.plan, plannedMealId: ids.meal, fromIngredientId: shared.ingredient })],
   ['see what a swap of an ingredient would do', 'post', () => '/api/meal-plans/swap-ingredient/preview', (ids, shared) => ({ planId: ids.plan, plannedMealId: ids.meal, fromIngredientId: shared.ingredient, toIngredientId: shared.other })],

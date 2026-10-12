@@ -29,6 +29,7 @@ import {
   SetMealEatenRequest,
   SwapIngredientRequest,
   SwapMealRequest,
+  WeighRequest,
 } from '@diet-app/shared';
 import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
@@ -41,6 +42,7 @@ import { MealSwapService } from './meal-swap.service.js';
 import { PlanCalendarService } from './plan-calendar.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { PlanOverviewService } from './plan-overview.service.js';
+import { UseUpService } from './use-up.service.js';
 
 @Controller('meal-plans')
 @UseGuards(JwtAuthGuard)
@@ -52,6 +54,7 @@ export class MealPlansController {
     private readonly swaps: MealSwapService,
     private readonly overviews: PlanOverviewService,
     private readonly calendars: PlanCalendarService,
+    private readonly useUp: UseUpService,
   ) {}
 
   @Get()
@@ -205,6 +208,25 @@ export class MealPlansController {
     @Body(new ZodValidationPipe(AiSwapMealRequest)) dto: AiSwapMealRequest,
   ) {
     return this.swaps.previewWithAi(user.id, locale, dto);
+  }
+
+  /**
+   * Swaps that would use up what the plan opens: the engine finds them, and a
+   * model puts them in order and says a sentence of each when the request
+   * asks for one. Nothing is written; a suggestion is taken as any swap is.
+   * The limit is that of making a plan: every meal of the plan is looked at.
+   */
+  @Post(':id/use-up')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  useUpSuggestions(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(WeighRequest)) dto: WeighRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.useUp.suggest(user.id, locale, id, dto, today);
   }
 
   /**

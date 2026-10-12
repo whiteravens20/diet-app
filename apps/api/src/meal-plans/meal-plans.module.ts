@@ -11,11 +11,12 @@ import { MealSwapService } from './meal-swap.service.js';
 import { PlanCalendarService } from './plan-calendar.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { PlanOverviewService } from './plan-overview.service.js';
+import { UseUpService } from './use-up.service.js';
 
 @Module({
   imports: [RecipesModule, AiModule, PersonalRecipesModule],
   controllers: [MealPlansController],
-  providers: [MealPlansService, PlanGenerationService, IngredientSwapService, MealSwapService, PlanOverviewService, PlanCalendarService],
+  providers: [MealPlansService, PlanGenerationService, IngredientSwapService, MealSwapService, PlanOverviewService, PlanCalendarService, UseUpService],
   exports: [MealPlansService, PlanGenerationService],
 })
 export class MealPlansModule {}

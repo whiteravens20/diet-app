@@ -629,6 +629,71 @@ export const ApplyMealSwapRequest = z.object({
 });
 export type ApplyMealSwapRequest = z.infer<typeof ApplyMealSwapRequest>;
 
+/**
+ * Whether a model is asked to weigh what the engine proposes: to put the
+ * proposals in order and say a sentence of each. One call on the caller's AI
+ * allowance. The engine makes the proposals either way, and they are the same
+ * ones: a model adds nothing to them and takes none away.
+ */
+export const WeighRequest = z.object({ weigh: z.boolean().default(false) });
+export type WeighRequest = z.infer<typeof WeighRequest>;
+
+/**
+ * What a menu buys in packs that do not keep against what it uses of them,
+ * and how many of those packs it leaves more than three tenths of (see
+ * `PlanPacks`).
+ */
+export const PackTally = z.object({ bought: z.number().min(0), used: z.number().min(0), wasted: z.number().int().min(0) });
+export type PackTally = z.infer<typeof PackTally>;
+
+/** A recipe in the place of a meal that would use up what the plan opens. */
+export const UseUpSuggestion = z.object({
+  plannedMealId: z.string().uuid(),
+  date: z.string().date(),
+  mealType: MealType,
+  /** The recipe the meal holds, and the one that would take its place. */
+  from: z.object({ id: z.string().uuid(), title: z.string() }),
+  to: z.object({ id: z.string().uuid(), title: z.string() }),
+  /** How many servings of it the meal would be: as many as come nearest to what the meal holds now. */
+  servings: z.number(),
+  /** What the meal holds now, and what it would hold. */
+  before: Nutrition,
+  after: Nutrition,
+  /**
+   * The packs the menu leaves more than three tenths of that the recipe takes
+   * from: how much more of each the menu would use, and what would then be
+   * left of its last pack, to the gram or millilitre.
+   */
+  takes: z.array(z.object({ ingredientId: z.string().uuid(), name: z.string(), unit: Unit, amount: z.number().int().min(1), left: z.number().int().min(0) })).min(1),
+  /** What the menu comes to in packs now, and what it would come to. */
+  packs: z.object({ before: PackTally, after: PackTally }),
+  /** A model's sentence on the swap. Null when no model was asked, or it said none. */
+  reason: z.string().max(200).nullable(),
+  /**
+   * The note of a model's pick, for the swap a model put first: handed back
+   * as `pick` of `ApplyMealSwapRequest`, and the meal then says that a model
+   * chose its recipe. Null on every other.
+   */
+  pick: ModelPickNote.nullable(),
+});
+export type UseUpSuggestion = z.infer<typeof UseUpSuggestion>;
+
+/**
+ * Swaps that would use up what a plan opens, as `POST /meal-plans/:id/use-up`
+ * answers them: for the meals from today on that are not eaten, the recipes
+ * that may take their place (as a swap offers them) and leave less of the
+ * packs that do not keep, one for a meal, the one that leaves the least
+ * first. A suggestion is taken with `ApplyMealSwapRequest` (`recipeId` its
+ * `to`, `strategy` `random`, `revision` the one here). Nothing is written.
+ */
+export const UseUpSuggestions = z.object({
+  revision: z.number().int().min(0),
+  suggestions: z.array(UseUpSuggestion).max(5),
+  /** Who put them in order, or why the engine's order stands. Null when no model was asked. */
+  aiMeta: AiGenerationMeta.nullable(),
+});
+export type UseUpSuggestions = z.infer<typeof UseUpSuggestions>;
+
 /** Request to substitute one ingredient inside a planned recipe. */
 export const SwapIngredientRequest = z.object({
   planId: z.string().uuid(),
