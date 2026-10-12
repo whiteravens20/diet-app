@@ -280,30 +280,51 @@ describe('the session of the browser', () => {
   });
 
   describe('moving between pages', () => {
+    const ORIGIN = 'https://app.example.test';
+
     /** The module with the browser at an address, and what it did to the address. */
     async function aPageAt(pathname: string, search = '') {
       vi.resetModules();
-      const location = { pathname, search, assign: vi.fn(), replace: vi.fn() };
+      const location = { origin: ORIGIN, pathname, search, assign: vi.fn(), replace: vi.fn() };
       vi.stubGlobal('location', location);
       const { session } = await import('./session');
       return { session, location };
     }
 
-    it('loads a page anew, so that nothing the page before held in memory comes along', async () => {
+    it('loads a page anew in the place of this one, so that nothing the page held in memory comes along and Back does not lead to it', async () => {
       const { session, location } = await aPageAt('/login');
 
       session.load('/meal-plans?profile=0b1f');
 
-      expect(location.assign).toHaveBeenCalledWith('/meal-plans?profile=0b1f');
+      expect(location.replace).toHaveBeenCalledWith(`${ORIGIN}/meal-plans?profile=0b1f`);
+      expect(location.assign).not.toHaveBeenCalled();
     });
 
-    it('leaves a page whose session has ended for the sign-in page, which is told where to come back to, with no way back to the page', async () => {
+    it.each([
+      ['//elsewhere.example/dashboard', `${ORIGIN}/elsewhere.example/dashboard`],
+      ['///elsewhere.example', `${ORIGIN}/elsewhere.example`],
+      ['/\\elsewhere.example', `${ORIGIN}/elsewhere.example`],
+      ['\\\\elsewhere.example', `${ORIGIN}/elsewhere.example`],
+      ['https://elsewhere.example/', `${ORIGIN}/https://elsewhere.example/`],
+      ['@elsewhere.example', `${ORIGIN}/@elsewhere.example`],
+      ['javascript:alert(1)', `${ORIGIN}/javascript:alert(1)`],
+      ['', `${ORIGIN}/`],
+    ])('loads a page of the application whatever it is handed: "%s" is %s', async (handed, loaded) => {
+      const { session, location } = await aPageAt('/login');
+
+      session.load(handed);
+
+      expect(location.replace).toHaveBeenCalledWith(loaded);
+      // The browser reads it as an address of the application, and of nowhere else.
+      expect(new URL(location.replace.mock.calls[0]![0] as string).origin).toBe(ORIGIN);
+    });
+
+    it('leaves a page whose session has ended for the sign-in page, which is told where to come back to', async () => {
       const { session, location } = await aPageAt('/meal-plans', '?profile=0b1f');
 
       session.leave();
 
-      expect(location.replace).toHaveBeenCalledWith('/login?next=%2Fmeal-plans%3Fprofile%3D0b1f');
-      expect(location.assign).not.toHaveBeenCalled();
+      expect(location.replace).toHaveBeenCalledWith(`${ORIGIN}/login?next=%2Fmeal-plans%3Fprofile%3D0b1f`);
     });
 
     it('leaves the home page of the account for the plain sign-in page', async () => {
@@ -311,7 +332,7 @@ describe('the session of the browser', () => {
 
       session.leave();
 
-      expect(location.replace).toHaveBeenCalledWith('/login');
+      expect(location.replace).toHaveBeenCalledWith(`${ORIGIN}/login`);
     });
 
     it('stays on the sign-in page, which has nowhere to leave to', async () => {

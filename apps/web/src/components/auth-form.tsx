@@ -2,7 +2,6 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
@@ -23,7 +22,6 @@ const wanted = (): string => returnPath(new URLSearchParams(window.location.sear
 
 /** Shared login / registration form. */
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
-  const router = useRouter();
   const t = useTranslations('auth');
   const worded = useErrorText();
   const tRules = useTranslations('auth.passwordRules');
@@ -43,8 +41,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   // outside the application arrives without the session's cookie, is sent to
   // this page, and goes on from it.
   useEffect(() => {
-    if (session.exists()) router.replace(wanted());
-  }, [router]);
+    if (session.exists()) session.load(wanted());
+  }, []);
 
   /** A Turnstile token is good for one request: the next one needs a new challenge. */
   function renewToken() {

@@ -12,9 +12,6 @@ import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../messages/en.json';
 import { AuthForm } from './auth-form';
 
-const router = { replace: vi.fn() };
-vi.mock('next/navigation', () => ({ useRouter: () => router }));
-
 /** The address the form is shown at. */
 const at = (address: string): void => window.history.replaceState(null, '', address);
 
@@ -50,7 +47,6 @@ const aSession = { user: { id: 'u' }, tokens: { accessToken: 'a', expiresIn: 900
 describe('where signing in leads', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    router.replace.mockClear();
     at('/');
   });
 
@@ -61,6 +57,8 @@ describe('where signing in leads', () => {
     vi.spyOn(session, 'begin').mockImplementation(() => undefined);
     const load = vi.spyOn(session, 'load').mockImplementation(() => undefined);
     renderLogin(false);
+    // A visitor without a session is left at the form.
+    expect(load).not.toHaveBeenCalled();
     await userEvent.type(screen.getByLabelText('Email'), 'holder@example.test');
     await userEvent.type(screen.getByLabelText('Password'), 'a-password');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -70,25 +68,28 @@ describe('where signing in leads', () => {
 
   it('is the home page of the account when no other page was asked for', async () => {
     expect(await signedInAt('/login')).toEqual(['/dashboard']);
-    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it('is the page the visitor was sent here from', async () => {
     expect(await signedInAt('/login?next=%2Fmeal-plans%3Fprofile%3Dabc')).toEqual(['/meal-plans?profile=abc']);
   });
 
-  it.each(['https://elsewhere.example/', '//elsewhere.example', '/\\elsewhere.example', 'javascript:alert(1)'])('is the home page when it is asked to be %s', async (asked) => {
-    expect(await signedInAt(`/login?next=${encodeURIComponent(asked)}`)).toEqual(['/dashboard']);
-  });
+  it.each(['https://elsewhere.example/', '//elsewhere.example/dashboard', '/\\elsewhere.example', 'javascript:alert(1)', '/api/users/me', '/terms'])(
+    'is the home page when it is asked to be %s, which is no page of an account',
+    async (asked) => {
+      expect(await signedInAt(`/login?next=${encodeURIComponent(asked)}`)).toEqual(['/dashboard']);
+    },
+  );
 
   it('sends a visitor who is signed in already on, without asking for anything', () => {
     at('/login?next=%2Frecipes');
     vi.spyOn(session, 'exists').mockReturnValue(true);
+    const load = vi.spyOn(session, 'load').mockImplementation(() => undefined);
     const post = vi.spyOn(api, 'post');
 
     renderLogin(false);
 
-    expect(router.replace).toHaveBeenCalledWith('/recipes');
+    expect(load).toHaveBeenCalledWith('/recipes');
     expect(post).not.toHaveBeenCalled();
   });
 });

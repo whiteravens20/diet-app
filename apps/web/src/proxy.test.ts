@@ -4,6 +4,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { NextRequest } from 'next/server';
 import { describe, expect, it } from 'vitest';
+import { ACCOUNT_PAGES } from './lib/return-path';
 import { config, proxy } from './proxy';
 
 const asked = (path: string, cookie?: string): ReturnType<typeof proxy> =>
@@ -39,5 +40,9 @@ describe('a request for a page of a signed-in account', () => {
       .map((entry) => `/${entry.name}/:path*`);
 
     expect([...config.matcher].sort()).toEqual(pages.sort());
+  });
+
+  it('is every page a sign-in can lead back to, and no other', () => {
+    expect([...config.matcher].sort()).toEqual(ACCOUNT_PAGES.map((page) => `${page}/:path*`).sort());
   });
 });

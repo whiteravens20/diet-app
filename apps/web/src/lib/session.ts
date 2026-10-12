@@ -70,6 +70,14 @@ function adopt(answer: AuthResponse): void {
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * The address of a page of the application: put together on its own origin,
+ * so that it names a page here whatever `path` holds. A path can come from
+ * the address the visitor was sent (`next`), and one that begins `//host`,
+ * or with a scheme, would otherwise be another site to the browser.
+ */
+const here = (path: string): string => `${window.location.origin}/${path.replace(/^[/\\]+/, '')}`;
+
+/**
  * A request that acts on the session cookie. It is finished by the browser
  * even when the page that sent it is gone (`keepalive`): the answer to a
  * refresh holds the next cookie, and a page that is loaded again in that
@@ -175,13 +183,14 @@ export const session = {
   },
 
   /**
-   * Load a page of the application anew. An account is entered and left this
-   * way, never by a move inside the page: what the page held in memory
-   * (answers of the API, pages the router kept) belongs to whoever was
-   * signed in then, and goes with it.
+   * Load a page of the application anew, in the place of this one. An
+   * account is entered and left this way, never by a move inside the page:
+   * what the page held in memory (answers of the API, pages the router kept)
+   * belongs to whoever was signed in then, and goes with it. The page that is
+   * left is not one to come back to with the Back button.
    */
   load(path: string): void {
-    window.location.assign(path);
+    window.location.replace(here(path));
   },
 
   /**
@@ -202,12 +211,12 @@ export const session = {
 
   /**
    * Where a page goes when its session has ended under it: the sign-in
-   * page, which brings the reader back afterwards. A hard navigation, so
-   * that nothing a signed-in page had loaded stays on screen.
+   * page, which brings the reader back afterwards. Loaded anew, so that
+   * nothing a signed-in page had loaded stays on screen.
    */
   leave(): void {
     if (typeof window === 'undefined' || window.location.pathname.startsWith('/login')) return;
-    window.location.replace(signInPath(`${window.location.pathname}${window.location.search}`));
+    session.load(signInPath(`${window.location.pathname}${window.location.search}`));
   },
 
   /** Be told when the session begins, goes on with another token, or ends. */

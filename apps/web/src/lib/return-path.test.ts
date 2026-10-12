@@ -1,10 +1,22 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { HOME, returnPath, signInPath } from './return-path';
+import { ACCOUNT_PAGES, HOME, isAccountPage, returnPath, signInPath } from './return-path';
+
+describe('a page of an account', () => {
+  it.each(ACCOUNT_PAGES)('is %s, what lies under it, and either with what it was asked with', (page) => {
+    expect(isAccountPage(page)).toBe(true);
+    expect(isAccountPage(`${page}/0b1f`)).toBe(true);
+    expect(isAccountPage(`${page}?profile=0b1f`)).toBe(true);
+  });
+
+  it.each(['/', '/login', '/register', '/terms', '/admin', '/review', '/api/users/me', '/dashboards', '/settings.html', 'dashboard', ''])('is not %s', (path) => {
+    expect(isAccountPage(path)).toBe(false);
+  });
+});
 
 describe('the page a sign-in returns to', () => {
-  it('is the page that was asked for, with what it was asked with', () => {
+  it('is the page of the account that was asked for, with what it was asked with', () => {
     expect(returnPath('/meal-plans')).toBe('/meal-plans');
     expect(returnPath('/recipes/0b1f?from=plan&day=2')).toBe('/recipes/0b1f?from=plan&day=2');
   });
@@ -15,23 +27,19 @@ describe('the page a sign-in returns to', () => {
 
   it.each([
     ['another site', 'https://elsewhere.example/'],
-    ['another site without a scheme', '//elsewhere.example/path'],
+    ['another site without a scheme', '//elsewhere.example/dashboard'],
     ['what a browser reads as another site', '/\\elsewhere.example'],
     ['the same, with a tab a browser drops', '/\t/elsewhere.example'],
     ['the same, with a line break a browser drops', '/\n/elsewhere.example'],
     ['a script', 'javascript:alert(1)'],
     ['a path that does not begin at the root', 'dashboard'],
-    ['a path with a control character', '/meal-plans\u0000'],
+    ['a page of the API', '/api/users/me'],
+    ['a page anybody can open', '/terms'],
+    ['the sign-in page', '/login?next=%2Fprofile'],
+    ['the page to sign up at', '/register'],
+    ['a page whose name only begins like one of the account', '/settingsx'],
   ])('is the home page for %s', (_what, asked) => {
     expect(returnPath(asked)).toBe(HOME);
-  });
-
-  it.each(['/login', '/login?next=%2Fprofile', '/login/', '/register', '/register?plan=1'])('is never a page to sign in or up at (%s)', (asked) => {
-    expect(returnPath(asked)).toBe(HOME);
-  });
-
-  it('is a page whose name only begins like a sign-in page', () => {
-    expect(returnPath('/logins')).toBe('/logins');
   });
 });
 
@@ -48,5 +56,6 @@ describe('the sign-in page for a visitor who was on a page', () => {
   it('says nothing of a page a sign-in would not lead to', () => {
     expect(signInPath('//elsewhere.example')).toBe('/login');
     expect(signInPath('/login?next=%2Fprofile')).toBe('/login');
+    expect(signInPath('/terms')).toBe('/login');
   });
 });
