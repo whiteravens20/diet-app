@@ -48,6 +48,8 @@ export interface AdminStats {
   coverage: Record<DietType, Record<MealType, number>>;
   /** How many a release needs for each. */
   coverageTarget: number;
+  /** How many recipe drafts wait in the queue for each: a recipe run that fills the catalogue counts them with the recipes. */
+  coverageWaiting: Record<DietType, Record<MealType, number>>;
   /**
    * For each diet, what its plans aim at and what they reach with the recipes
    * there are, as shares of a day's energy; `reached` is null where no plan

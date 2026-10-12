@@ -16,14 +16,28 @@ const shares = (of: MacroShares) => [of.protein, of.fat, of.carbs].map((share) =
 
 /**
  * How many recipes each diet has for each meal, where the empty cells and the
- * thin ones stand out; and what the plans of each diet hold of protein, fat
- * and carbohydrate against what the diet aims at.
+ * thin ones stand out, with the drafts that wait in the queue for each; and
+ * what the plans of each diet hold of protein, fat and carbohydrate against
+ * what the diet aims at.
  */
-export function CoverageCard({ coverage, target, macros }: { coverage: AdminStats['coverage']; target: number; macros: AdminStats['macros'] }) {
+export function CoverageCard({
+  coverage,
+  waiting,
+  target,
+  macros,
+}: {
+  coverage: AdminStats['coverage'];
+  waiting: AdminStats['coverageWaiting'];
+  target: number;
+  macros: AdminStats['macros'];
+}) {
   const t = useTranslations('admin.coverage');
   // A diet that takes any recipe has no pair of its own to fill.
-  const pairs = DietType.options.filter((diet) => diet !== 'custom').flatMap((diet) => MEALS.map((meal) => coverage[diet][meal]));
-  const below = pairs.filter((recipes) => recipes < target).length;
+  const pairs = DietType.options.filter((diet) => diet !== 'custom').flatMap((diet) => MEALS.map((meal) => ({ recipes: coverage[diet][meal], drafts: waiting[diet][meal] })));
+  const below = pairs.filter((pair) => pair.recipes < target).length;
+  // The pairs that stay short once every draft that waits has shipped.
+  const belowWithDrafts = pairs.filter((pair) => pair.recipes + pair.drafts < target).length;
+  const anyWaits = DietType.options.some((diet) => MEALS.some((meal) => waiting[diet][meal] > 0));
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   return (
@@ -55,6 +69,7 @@ export function CoverageCard({ coverage, target, macros }: { coverage: AdminStat
                   </th>
                   {MEALS.map((meal) => {
                     const recipes = coverage[diet][meal];
+                    const drafts = waiting[diet][meal];
                     return (
                       <td
                         key={meal}
@@ -65,6 +80,17 @@ export function CoverageCard({ coverage, target, macros }: { coverage: AdminStat
                         )}
                       >
                         {recipes}
+                        {/* A place of one width in every cell once a draft waits anywhere: the counts stay in a line. */}
+                        {anyWaits && (
+                          <span className="ml-1.5 inline-block w-6 text-left text-xs font-normal text-muted-foreground">
+                            {drafts > 0 && (
+                              <>
+                                <span aria-hidden>+{drafts}</span>
+                                <span className="sr-only">{t('waitingCell', { drafts })}</span>
+                              </>
+                            )}
+                          </span>
+                        )}
                       </td>
                     );
                   })}
@@ -74,6 +100,7 @@ export function CoverageCard({ coverage, target, macros }: { coverage: AdminStat
           </table>
         </div>
         <p className="text-sm text-muted-foreground">{t('gap', { below, pairs: pairs.length, target })}</p>
+        {anyWaits && <p className="text-sm text-muted-foreground">{t('waiting', { below: belowWithDrafts, target })}</p>}
 
         <h3 className="pt-2 text-sm font-medium">{t('macrosTitle')}</h3>
         <p className="text-sm text-muted-foreground">{t('macrosExplain', { points: Math.round(macros.outOfReach * 100) })}</p>

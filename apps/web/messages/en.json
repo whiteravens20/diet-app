@@ -520,6 +520,8 @@
       "explain": "How many recipes a plan can choose from. With none, no plan can be made for that diet with that meal; with fewer than {enough}, a week repeats the same dish more often than a profile allows by default.",
       "diet": "Diet",
       "gap": "{below, plural, =0 {Every diet has at least {target} recipes for every meal.} one {# of {pairs} pairs of diet and meal has fewer than {target} recipes.} other {# of {pairs} pairs of diet and meal have fewer than {target} recipes.}} A recipe run with \"Fill what the catalogue lacks\" writes for the emptiest pair first.",
+      "waitingCell": "{drafts, plural, one {and # draft waiting} other {and # drafts waiting}}",
+      "waiting": "A number after a plus sign is recipe drafts that wait in the queue for that diet and meal: a recipe run counts them. {below, plural, =0 {Once they ship, every pair has at least {target}.} one {Once they ship, # pair still has fewer than {target}.} other {Once they ship, # pairs still have fewer than {target}.}}",
       "macrosTitle": "Protein, fat and carbohydrate",
       "macrosExplain": "What each diet aims at, and what a week's plan for it holds with the recipes there are, as percentages of a day's energy. A diet that is more than {points} points off needs recipes nearer its split: no setting brings a plan there.",
       "macrosTarget": "Aims at",
