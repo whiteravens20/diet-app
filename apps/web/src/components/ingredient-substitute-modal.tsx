@@ -21,6 +21,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAmount } from '@/lib/ingredient-format';
+import { useFormat } from '@/lib/use-format';
 
 interface PlannedMealLike {
   id: string;
@@ -341,9 +342,9 @@ export function IngredientSubstituteModal({
                   {preview.data.merged && <p className="mt-1 text-xs text-muted-foreground">{t('merged', { name: preview.data.to.name })}</p>}
                   <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
                     <Delta label={tProf('kcal')} before={preview.data.before.calories} after={preview.data.after.calories} />
-                    <Delta label={tProf('protein').toLowerCase()} before={preview.data.before.protein} after={preview.data.after.protein} suffix=" g" />
-                    <Delta label={tProf('fat').toLowerCase()} before={preview.data.before.fat} after={preview.data.after.fat} suffix=" g" />
-                    <Delta label={tProf('carbs').toLowerCase()} before={preview.data.before.carbs} after={preview.data.after.carbs} suffix=" g" />
+                    <Delta label={tProf('protein').toLowerCase()} before={preview.data.before.protein} after={preview.data.after.protein} grams />
+                    <Delta label={tProf('fat').toLowerCase()} before={preview.data.before.fat} after={preview.data.after.fat} grams />
+                    <Delta label={tProf('carbs').toLowerCase()} before={preview.data.before.carbs} after={preview.data.after.carbs} grams />
                   </dl>
                   {!preview.data.valid && (
                     <div className="mt-2 text-xs text-destructive" role="alert">
@@ -406,31 +407,20 @@ export function IngredientSubstituteModal({
   );
 }
 
-function Delta({
-  label,
-  before,
-  after,
-  suffix = '',
-}: {
-  label: string;
-  before: number;
-  after: number;
-  suffix?: string;
-}) {
-  const diff = after - before;
-  const sign = diff > 0 ? '+' : '';
+function Delta({ label, before, after, grams = false }: { label: string; before: number; after: number; grams?: boolean }) {
+  const fmt = useFormat();
+  const shown = (value: number): string => (grams ? fmt.unit(value, 'gram', 1) : fmt.number(value));
+  // Rounded as it is shown, so that the difference is the one between the two numbers on screen.
+  const diff = Math.round((after - before) * 10) / 10;
   return (
     <div>
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="tabular-nums">
-        {before}
-        {suffix} → {after}
-        {suffix}
+        {shown(before)} → {shown(after)}
         <span className={diff === 0 ? '' : diff > 0 ? ' text-destructive' : ' text-primary'}>
           {' '}
-          ({sign}
-          {diff}
-          {suffix})
+          ({diff > 0 ? '+' : ''}
+          {shown(diff)})
         </span>
       </dd>
     </div>

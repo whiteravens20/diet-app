@@ -44,18 +44,18 @@ describe('what a user is told about their calorie target', () => {
 
   it('is that the pace was slowed, with both figures', () => {
     expect(told({ ...plain, requestedDeficit: 1100, dailyDeficit: 627, deficitCapped: true })).toEqual([
-      'The pace you chose asks for 1100 kcal a day less. That is more than a quarter of your maintenance, so the plan takes 627.',
+      'The pace you chose asks for 1,100 kcal a day less. That is more than a quarter of your maintenance, so the plan takes 627.',
     ]);
   });
 
   it('is the floor and the deficit it leaves, without the note on the pace', () => {
     expect(told({ ...plain, safetyFloor: 1200, dailyDeficit: 287, deficitCapped: true, safetyFloorApplied: true })).toEqual([
-      'The target was raised to 1200 kcal, the lowest a calculated plan goes. The deficit that leaves is 287 kcal a day.',
+      'The target was raised to 1,200 kcal, the lowest a calculated plan goes. The deficit that leaves is 287 kcal a day.',
     ]);
   });
 
   it('is that no loss is planned where maintenance is under the floor', () => {
-    expect(told({ ...plain, safetyFloor: 1200, maintenance: 992, dailyTarget: 992, dailyDeficit: 0, maintenanceUnderFloor: true })[0]).toMatch(/^Your maintenance is under 1200 kcal/);
+    expect(told({ ...plain, safetyFloor: 1200, maintenance: 992, dailyTarget: 992, dailyDeficit: 0, maintenanceUnderFloor: true })[0]).toMatch(/^Your maintenance is under 1,200 kcal/);
   });
 
   it('is that the goal is on hold and why, for somebody under 18 who has not acknowledged the risk', () => {

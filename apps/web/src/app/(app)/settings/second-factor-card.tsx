@@ -3,7 +3,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { type FormEvent, useState } from 'react';
 import type { RecoveryCodes, SecondFactorSetup, SecondFactorState } from '@diet-app/shared';
 import { AuthenticatorSetup } from '@/components/authenticator-setup';
@@ -13,6 +13,7 @@ import { Field, Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
+import { useFormat } from '@/lib/use-format';
 
 /** Where the card stands: at rest, or part of the way through one of the things it does. */
 type Step =
@@ -36,7 +37,7 @@ export function SecondFactorCard() {
   const t = useTranslations('secondFactor');
   const errorText = useErrorText();
   const tCommon = useTranslations('common');
-  const format = useFormatter();
+  const fmt = useFormat();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<Step>({ at: 'rest' });
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +141,7 @@ export function SecondFactorCard() {
         {step.at === 'rest' && state.data && (
           <>
             <p className="text-sm font-medium">
-              {on && state.data.since ? t('isOn', { since: format.dateTime(new Date(state.data.since), { dateStyle: 'medium' }) }) : t('isOff')}
+              {on && state.data.since ? t('isOn', { since: fmt.dayOf(state.data.since) }) : t('isOff')}
             </p>
             {on && (
               <p className="text-sm text-muted-foreground">

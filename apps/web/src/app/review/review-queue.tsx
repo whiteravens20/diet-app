@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { reviewApi } from '@/lib/review-api';
 import { useDraftErrorText } from '@/lib/use-draft-error';
 import { useErrorText } from '@/lib/use-error-text';
+import { useFormat } from '@/lib/use-format';
 
 interface QueueProps {
   locale: Locale;
@@ -185,6 +186,7 @@ function RecipeReviewCard({
   onReviewed: () => void;
 }) {
   const t = useTranslations('review');
+  const fmt = useFormat();
   const errorText = useDraftErrorText();
   const [title, setTitle] = useState(slice.title);
   const [description, setDescription] = useState(slice.description);
@@ -293,14 +295,11 @@ function RecipeReviewCard({
         </div>
 
         <section className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-          <Stat label={t('statCalories')} value={`${Math.round(slice.caloriesPerServing)} kcal`} />
-          <Stat label={t('statProtein')} value={`${slice.proteinPerServing.toFixed(1)} g`} />
-          <Stat label={t('statFat')} value={`${slice.fatPerServing.toFixed(1)} g`} />
-          <Stat label={t('statCarbs')} value={`${slice.carbsPerServing.toFixed(1)} g`} />
-          <Stat
-            label={t('statPrepCook')}
-            value={`${slice.prepMinutes}+${slice.cookMinutes} min`}
-          />
+          <Stat label={t('statCalories')} value={`${fmt.number(slice.caloriesPerServing)} kcal`} />
+          <Stat label={t('statProtein')} value={fmt.unit(slice.proteinPerServing, 'gram', 1)} />
+          <Stat label={t('statFat')} value={fmt.unit(slice.fatPerServing, 'gram', 1)} />
+          <Stat label={t('statCarbs')} value={fmt.unit(slice.carbsPerServing, 'gram', 1)} />
+          <Stat label={t('statPrepCook')} value={`${fmt.number(slice.prepMinutes)} + ${fmt.unit(slice.cookMinutes, 'minute')}`} />
           <Stat label={t('statServings')} value={String(slice.servings)} />
         </section>
 

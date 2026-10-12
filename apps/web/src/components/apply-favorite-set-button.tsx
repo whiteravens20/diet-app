@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { planDates } from '@/lib/plan-dates';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
+import { useFormat } from '@/lib/use-format';
 
 /**
  * Plan-level "Apply set" action — pick a favourite set + one-or-more days,
@@ -29,6 +30,7 @@ export function ApplyFavoriteSetButton({
 }) {
   const days = planDates(plan.startDate, plan.durationDays);
   const t = useTranslations('favoriteSets');
+  const fmt = useFormat();
   const errorText = useErrorText();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -137,7 +139,7 @@ export function ApplyFavoriteSetButton({
                   onChange={() => toggleDay(date)}
                   className="h-4 w-4"
                 />
-                <span className="tabular-nums">{date}</span>
+                <span className="tabular-nums">{fmt.day(date)}</span>
               </label>
             </li>
           ))}

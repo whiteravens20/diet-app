@@ -3,7 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { AccountSession } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -11,6 +11,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { session as browserSession } from '@/lib/session';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useFormat } from '@/lib/use-format';
 
 /**
  * Where the account is signed in: every session that is open, with what it
@@ -21,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export function SessionsCard({ onSignedOut }: { onSignedOut: () => void }) {
   const t = useTranslations('settings');
   const errorText = useErrorText();
-  const format = useFormatter();
+  const fmt = useFormat();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +50,6 @@ export function SessionsCard({ onSignedOut }: { onSignedOut: () => void }) {
     onError: (err) => setError(worded(err)),
   });
 
-  const when = (iso: string): string => format.dateTime(new Date(iso), { dateStyle: 'medium', timeStyle: 'short' });
   const busy = end.isPending || endAll.isPending;
 
   return (
@@ -80,7 +80,7 @@ export function SessionsCard({ onSignedOut }: { onSignedOut: () => void }) {
                         </>
                       )}
                     </p>
-                    <p className="text-xs text-muted-foreground">{t('sessionTimes', { started: when(open.startedAt), used: when(open.lastUsedAt) })}</p>
+                    <p className="text-xs text-muted-foreground">{t('sessionTimes', { started: fmt.moment(open.startedAt), used: fmt.moment(open.lastUsedAt) })}</p>
                   </div>
                   <Button type="button" variant="outline" size="sm" disabled={busy} aria-label={t('sessionEndNamed', { name })} onClick={() => end.mutate(open.id)}>
                     {t('sessionEnd')}

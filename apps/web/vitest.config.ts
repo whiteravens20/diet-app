@@ -15,6 +15,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // A moment is shown by the reader's clock: the tests read theirs in UTC,
+    // whatever the zone of the machine they run on.
+    env: { TZ: 'UTC' },
     setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {

@@ -40,6 +40,7 @@ import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
+import { useFormat } from '@/lib/use-format';
 
 /** How many of the meals that stand in the way of a plan are named one by one. */
 const MEALS_NAMED = 6;
@@ -89,6 +90,7 @@ function MealPlansContent() {
   const tMeal = useTranslations('enums.mealType');
   const tFallback = useTranslations('aiFallback');
   const errorText = useErrorText();
+  const fmt = useFormat();
   const qc = useQueryClient();
   const params = useSearchParams();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
@@ -505,7 +507,7 @@ function MealPlansContent() {
           <ul className="list-disc pl-5 text-xs">
             {inTheWay.needed.meals.slice(0, MEALS_NAMED).map((meal) => (
               <li key={`${meal.date} ${meal.slot}`}>
-                {meal.date} · {tMeal(meal.slot)}: {limitNames(meal.gaveWay)}
+                {fmt.day(meal.date)} · {tMeal(meal.slot)}: {limitNames(meal.gaveWay)}
               </li>
             ))}
             {inTheWay.needed.meals.length > MEALS_NAMED && (

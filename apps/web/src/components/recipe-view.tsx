@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAmount } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
+import { useFormat } from '@/lib/use-format';
 
 interface FavoriteRow {
   id: string;
@@ -47,6 +48,7 @@ export function RecipeView({
   const tMeal = useTranslations('enums.mealType');
   const tDiet = useTranslations('enums.dietType');
   const tAllergen = useTranslations('enums.allergen');
+  const fmt = useFormat();
   const errorText = useErrorText();
   const amount = useAmount();
   const qc = useQueryClient();
@@ -191,10 +193,10 @@ export function RecipeView({
           <CardContent>
             <div className="grid grid-cols-4 gap-4 text-center">
               {[
-                [t('calories'), `${n.calories}`],
-                [t('protein'), `${n.protein} g`],
-                [t('fat'), `${n.fat} g`],
-                [t('carbs'), `${n.carbs} g`],
+                [t('calories'), fmt.number(n.calories)],
+                [t('protein'), fmt.unit(n.protein, 'gram', 1)],
+                [t('fat'), fmt.unit(n.fat, 'gram', 1)],
+                [t('carbs'), fmt.unit(n.carbs, 'gram', 1)],
               ].map(([label, value]) => (
                 <div key={label}>
                   <p className="text-lg font-semibold">{value}</p>

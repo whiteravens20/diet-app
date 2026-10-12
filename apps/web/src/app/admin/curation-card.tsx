@@ -60,6 +60,7 @@ import {
   type ShipSkipped,
 } from '@/lib/admin-api';
 import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
+import { useFormat } from '@/lib/use-format';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
 type Kind = 'ingredient-names' | 'recipes';
@@ -1085,6 +1086,7 @@ function RecipeDraftRow({
 
 function RecipePreview({ draft }: { draft: RecipeDraft }) {
   const t = useTranslations('admin.curation');
+  const fmt = useFormat();
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {draft.locales.map((locale) => (
@@ -1104,7 +1106,7 @@ function RecipePreview({ draft }: { draft: RecipeDraft }) {
         <ul className="ml-4 list-disc text-xs">
           {draft.ingredients.map((ing, i) => (
             <li key={`${ing.slug}-${i}`}>
-              <code>{ing.slug}</code> — {ing.quantity} {ing.unit}
+              <code>{ing.slug}</code> — {fmt.number(ing.quantity, 2)} {ing.unit}
               {ing.note ? ` (${ing.note})` : ''}
             </li>
           ))}
@@ -1266,6 +1268,7 @@ function LocaleReviewMatrix({
   compact?: boolean;
 }) {
   const t = useTranslations('admin.curation');
+  const fmt = useFormat();
   const reviewByLocale = new Map(localeReviews.map((r) => [r.locale, r]));
 
   const pendingLocales = expectedLocales.filter((l) => !reviewByLocale.has(l));
@@ -1381,7 +1384,7 @@ function LocaleReviewMatrix({
                   locale: r.locale.toUpperCase(),
                   label: r.reviewedByLabel,
                   role: r.byRole ?? 'unknown',
-                  when: new Date(r.reviewedAt).toLocaleString(),
+                  when: fmt.moment(r.reviewedAt),
                 })}
                 {r.reason ? ` — ${r.reason}` : ''}
               </li>

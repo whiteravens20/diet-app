@@ -9,6 +9,7 @@ import { Sparkles } from 'lucide-react';
 import type { AiQuotaStatus, SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useFormat } from '@/lib/use-format';
 
 /**
  * App-shell AI status chip. Renders nothing when the user's
@@ -25,6 +26,7 @@ import { cn } from '@/lib/utils';
  */
 export function AiChip({ className }: { className?: string }) {
   const t = useTranslations('aiChip');
+  const fmt = useFormat();
   const session = useQuery({
     queryKey: ['session'],
     queryFn: () => api.get<SessionUser>('/users/me'),
@@ -56,7 +58,7 @@ export function AiChip({ className }: { className?: string }) {
   const limit = status.limit ?? 0;
   const remaining = status.remaining ?? 0;
   const exhausted = remaining === 0;
-  const reset = status.resetAt ? new Date(status.resetAt).toLocaleString() : '';
+  const reset = status.resetAt ? fmt.moment(status.resetAt) : '';
 
   return (
     <ChipLink

@@ -247,7 +247,7 @@ describe('the plan page, where a plan does not fit inside its limits', () => {
 
     const notice = await screen.findByRole('alert');
     expect(notice.textContent).toContain('This plan cannot be filled inside its limits. One meal would go outside: times a week for one recipe.');
-    expect(notice.textContent).toContain('2026-01-10 · Breakfast: times a week for one recipe');
+    expect(notice.textContent).toContain('Sat, Jan 10 · Breakfast: times a week for one recipe');
     expect((post.mock.calls[0]![1] as { allowRelaxations?: string[] }).allowRelaxations).toBeUndefined();
 
     await userEvent.click(await lettingGiveWay(1));
@@ -473,7 +473,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     const offered = await theOffer();
     expect(offered.textContent).toContain('Instead: Tofu scramble, 1.5 servings: 240 kcal in place of 230.');
     expect(offered.textContent).toContain('Protein 14 g · fat 9 g · carbohydrate 26 g');
-    expect(offered.textContent).toContain('The day would hold 240 of 2000 kcal before its other meals are balanced around this one.');
+    expect(offered.textContent).toContain('The day would hold 240 of 2,000 kcal before its other meals are balanced around this one.');
     expect(post.mock.calls[0]).toEqual([
       '/meal-plans/swap-meal/preview',
       { planId: plan.id, plannedMealId: breakfast.id, strategy: 'random', respectInventory: true, allowOffDiet: false, skip: [] },
@@ -545,7 +545,8 @@ describe('the list of plans on the plan page', () => {
 
     await userEvent.click(screen.getByText('1-day plan · Vegan'));
 
-    expect(await screen.findByText(plan.days[0]!.date)).toBeInTheDocument();
+    // The day as the language of the application writes it, not as the API spells it.
+    expect(await screen.findByText('Mon, Jan 5')).toBeInTheDocument();
     expect(get).toHaveBeenCalledWith(`/meal-plans/${plan.id}`);
   });
 

@@ -22,6 +22,8 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { useFormat } from '@/lib/use-format';
+import { localDate } from '@/lib/http';
 
 interface ChartPoint {
   /** ISO yyyy-mm-dd at midnight of the recordedAt day. */
@@ -42,6 +44,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export function WeightCard({ profile }: { profile: Profile }) {
   const t = useTranslations('weightCard');
+  const fmt = useFormat();
   const errorText = useErrorText();
   const qc = useQueryClient();
   const [kg, setKg] = useState('');
@@ -95,8 +98,8 @@ export function WeightCard({ profile }: { profile: Profile }) {
   // Entries arrive newest-first (`recordedAt: desc`), so [0] is the last one
   // logged — what we want to peel back on click.
   const latest = entries.data?.[0] ?? null;
-  const latestDate = latest?.recordedAt.slice(0, 10) ?? '';
-  const latestKg = latest ? latest.kg.toFixed(1) : '';
+  const latestDate = latest ? fmt.dayOf(latest.recordedAt) : '';
+  const latestKg = latest ? fmt.number(latest.kg, 1) : '';
 
   function onRemoveLatest(): void {
     if (!latest) return;
@@ -125,7 +128,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
               />
             </Field>
             <p className="text-xs text-muted-foreground">
-              {t('referenceHint', { kg: profile.weightKg })}
+              {t('referenceHint', { kg: fmt.number(profile.weightKg, 1) })}
             </p>
             {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex flex-wrap items-center gap-2">
@@ -160,11 +163,12 @@ export function WeightCard({ profile }: { profile: Profile }) {
                   <XAxis
                     dataKey="date"
                     tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
-                    tickFormatter={(d) => d.slice(5)}
+                    tickFormatter={(day: string) => fmt.dayShort(day)}
                   />
                   <YAxis
                     domain={['auto', 'auto']}
                     tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
+                    tickFormatter={(kg: number) => fmt.number(kg, 1)}
                     width={32}
                   />
                   <Tooltip
@@ -173,8 +177,9 @@ export function WeightCard({ profile }: { profile: Profile }) {
                       border: '1px solid var(--color-border)',
                       fontSize: 12,
                     }}
+                    labelFormatter={(day) => (typeof day === 'string' ? fmt.date(day) : '')}
                     formatter={(v, name) => [
-                      typeof v === 'number' ? `${v.toFixed(1)} kg` : '—',
+                      typeof v === 'number' ? fmt.unit(v, 'kilogram', 1) : '—',
                       name === 'kg' ? t('seriesEntry') : t('seriesMa7'),
                     ]}
                   />
@@ -226,11 +231,13 @@ export function WeightCard({ profile }: { profile: Profile }) {
  * already is in UTC. Returned series is sorted ascending by date so Recharts
  * draws left → right.
  */
+const hundredths = (kg: number): number => Math.round(kg * 100) / 100;
+
 function buildSeries(entries: WeightEntry[]): ChartPoint[] {
   if (entries.length === 0) return [];
   const byDate = new Map<string, WeightEntry>();
   for (const e of entries) {
-    const d = e.recordedAt.slice(0, 10);
+    const d = localDate(new Date(e.recordedAt));
     const prev = byDate.get(d);
     if (!prev || prev.recordedAt < e.recordedAt) byDate.set(d, e);
   }
@@ -240,17 +247,8 @@ function buildSeries(entries: WeightEntry[]): ChartPoint[] {
   const out: ChartPoint[] = [];
   for (let i = 0; i < sorted.length; i += 1) {
     const window = sorted.slice(Math.max(0, i - 6), i + 1);
-    const ma7 =
-      window.length >= 1
-        ? Number(
-            (window.reduce((s, w) => s + w.kg, 0) / window.length).toFixed(2),
-          )
-        : null;
-    out.push({
-      date: sorted[i].recordedAt.slice(0, 10),
-      kg: Number(sorted[i].kg.toFixed(2)),
-      ma7,
-    });
+    const ma7 = window.length >= 1 ? hundredths(window.reduce((s, w) => s + w.kg, 0) / window.length) : null;
+    out.push({ date: localDate(new Date(sorted[i].recordedAt)), kg: hundredths(sorted[i].kg), ma7 });
   }
   return out;
 }

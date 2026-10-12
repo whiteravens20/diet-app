@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/stat-card';
 import { FavoriteSetsCard } from '@/components/favorite-sets-card';
 import { WeightCard } from '@/components/weight-card';
+import { useFormat } from '@/lib/use-format';
 
 const MACRO_COLORS = ['var(--color-primary)', 'var(--color-accent)', 'oklch(0.75 0.13 80)'];
 
@@ -24,6 +25,7 @@ const MACRO_COLORS = ['var(--color-primary)', 'var(--color-accent)', 'oklch(0.75
  */
 export function ProfileSummary({ profile }: { profile: Profile }) {
   const t = useTranslations('profileSummary');
+  const fmt = useFormat();
   const calories = useQuery({
     queryKey: ['calories', profile.id],
     queryFn: () => api.get<CalorieCalculation>(`/profiles/${profile.id}/calories`),
@@ -57,20 +59,20 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
           index={0}
           icon={Target}
           label={t('dailyTarget')}
-          value={c ? `${c.dailyTarget} ${kcal}` : '—'}
+          value={c ? `${fmt.number(c.dailyTarget)} ${kcal}` : '—'}
           hint={c?.source === 'manual_override' ? t('manualHint') : t('calculatedHint')}
         />
         <StatCard
           index={1}
           icon={Flame}
           label={t('maintenance')}
-          value={c ? `${c.maintenance} ${kcal}` : '—'}
+          value={c ? `${fmt.number(c.maintenance)} ${kcal}` : '—'}
         />
         <StatCard
           index={2}
           icon={Wheat}
           label={c && c.dailyDeficit < 0 ? t('dailySurplus') : t('dailyDeficit')}
-          value={c ? `${Math.abs(c.dailyDeficit)} ${kcal}` : '—'}
+          value={c ? `${fmt.number(Math.abs(c.dailyDeficit))} ${kcal}` : '—'}
         />
         <StatCard
           index={3}

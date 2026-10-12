@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { OperatorContact } from '@/components/operator-contact';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { useFormat } from '@/lib/use-format';
 
 const LAST_UPDATED = '2026-10-04';
 
@@ -27,6 +28,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   const t = useTranslations('terms');
+  const fmt = useFormat();
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 lg:flex-row">
@@ -68,7 +70,7 @@ export default function TermsPage() {
         <header className="space-y-2 border-b border-border/60 pb-4">
           <h1 className="text-3xl font-semibold tracking-tight">{t('title')}</h1>
           <p className="text-sm text-muted-foreground">
-            {t('lastUpdated', { date: LAST_UPDATED })}
+            {t('lastUpdated', { date: fmt.date(LAST_UPDATED) })}
           </p>
         </header>
 

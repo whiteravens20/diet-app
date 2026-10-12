@@ -16,6 +16,7 @@ import {
   type ReviewStatusDto,
 } from '@/lib/review-api';
 import { ReviewQueue } from './review-queue';
+import { useFormat } from '@/lib/use-format';
 
 type View = 'loading' | 'disabled' | 'login' | 'session' | 'unreachable';
 
@@ -178,6 +179,7 @@ function ReviewSession({
 }) {
   const t = useTranslations('review');
   const tLocale = useTranslations('review.locales');
+  const fmt = useFormat();
   const [locale, setLocale] = useState<Locale | null>(locales[0] ?? null);
   const [kind, setKind] = useState<'recipe' | 'ingredient-name'>('recipe');
 
@@ -201,7 +203,7 @@ function ReviewSession({
             <div>
               <p className="text-sm font-medium">{session.label}</p>
               <p className="text-xs text-muted-foreground">
-                {t('sessionSince', { date: new Date(session.issuedAt).toLocaleString() })}
+                {t('sessionSince', { date: fmt.moment(session.issuedAt) })}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-1 rounded-md border bg-muted/30 p-1">

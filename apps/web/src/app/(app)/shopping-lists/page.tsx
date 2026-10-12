@@ -15,6 +15,7 @@ import { IMAGERY } from '@/lib/imagery';
 import { useErrorText } from '@/lib/use-error-text';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFormat } from '@/lib/use-format';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
@@ -29,6 +30,7 @@ export default function ShoppingListsPage() {
   const tDiet = useTranslations('enums.dietType');
   const tCategory = useTranslations('enums.category');
   const errorText = useErrorText();
+  const fmt = useFormat();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
@@ -188,7 +190,7 @@ export default function ShoppingListsPage() {
                   {planList.map((p) => (
                     <option key={p.id} value={p.id}>
                       {t('planOption', {
-                        date: p.startDate,
+                        date: fmt.date(p.startDate),
                         days: p.durationDays,
                         dietType: tDiet(p.dietType),
                       })}
@@ -245,7 +247,7 @@ export default function ShoppingListsPage() {
                   variant={l.id === activeListId ? 'primary' : 'outline'}
                   onClick={() => setPickedList(l.id)}
                 >
-                  {l.fromDate} → {l.toDate}
+                  {fmt.dates(l.fromDate, l.toDate)}
                 </Button>
               ))}
             </div>
@@ -257,11 +259,11 @@ export default function ShoppingListsPage() {
               formatQty={formatItemQty}
               categoryLabel={(c) => (tCategory.has(c) ? tCategory(c) : c)}
               summaryLabel={(checked, total, kcal) =>
-                t('summary', { checked, total, kcal: kcal.toLocaleString() })
+                t('summary', { checked, total, kcal })
               }
               boughtLabel={t('bought')}
               fromPantryLabel={t('fromPantry')}
-              fromPantryWithDateLabel={(date) => t('fromPantryWithDate', { date })}
+              fromPantryWithDateLabel={(date) => t('fromPantryWithDate', { date: fmt.date(date) })}
               ofLabel={(amount) => t('ofTotal', { amount })}
               deleteLabel={tCommon('delete')}
               deleteConfirm={t('deleteConfirm')}
@@ -275,7 +277,7 @@ export default function ShoppingListsPage() {
               planTitle={
                 activePlan
                   ? t('planOption', {
-                      date: activePlan.startDate,
+                      date: fmt.date(activePlan.startDate),
                       days: activePlan.durationDays,
                       dietType: tDiet(activePlan.dietType),
                     })
@@ -369,7 +371,8 @@ function ListView({
   );
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
-  const dateRangeLabel = `${list.fromDate} → ${list.toDate}`;
+  const fmt = useFormat();
+  const dateRangeLabel = fmt.dates(list.fromDate, list.toDate);
 
   // Two PDF flavours from the same generator:
   //   - download → 'pretty-a4': finished A4 shopping notebook with per-item

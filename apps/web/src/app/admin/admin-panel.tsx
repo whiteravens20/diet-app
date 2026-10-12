@@ -23,6 +23,7 @@ import {
   type AdminStatus,
   type DbUpdateState,
 } from '@/lib/admin-api';
+import { useFormat } from '@/lib/use-format';
 
 type View = 'loading' | 'disabled' | 'unreachable' | 'login' | 'ready';
 
@@ -41,6 +42,7 @@ const STAGE_KEY: Record<string, string> = {
 export function AdminPanel() {
   const t = useTranslations('admin');
   const errorText = useErrorText();
+  const fmt = useFormat();
   const tStages = useTranslations('admin.stages');
   const [view, setView] = useState<View>('loading');
   const [status, setStatus] = useState<AdminStatus | null>(null);
@@ -88,7 +90,7 @@ export function AdminPanel() {
         const r = state.result;
         setLastUpdate(
           t('updatedSummary', {
-            when: new Date(r.seededAt).toLocaleString(),
+            when: fmt.moment(r.seededAt),
             recipes: r.deletedRecipes,
             ingredients: r.deletedIngredients,
             retiredRecipes: r.retiredRecipes,
@@ -102,7 +104,7 @@ export function AdminPanel() {
         setUpdateError(state.error ?? t('updateFailed'));
       }
     },
-    [loadStats, stopPolling, t],
+    [loadStats, stopPolling, t, fmt],
   );
 
   const startPolling = useCallback((): void => {
@@ -327,7 +329,7 @@ export function AdminPanel() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
             <Row label={t('lastSeeded')}>
-              {seed.lastSeededAt ? new Date(seed.lastSeededAt).toLocaleString() : t('never')}
+              {seed.lastSeededAt ? fmt.moment(seed.lastSeededAt) : t('never')}
             </Row>
             <Row label={t('onDiskHash')}>
               <code className="text-xs">{seed.currentHash.slice(0, 16)}…</code>
@@ -364,7 +366,7 @@ export function AdminPanel() {
                 >
                   <code className="text-xs">{f.name}</code>
                   <span className="text-xs text-muted-foreground">
-                    {f.present ? `${(f.bytes / 1024).toFixed(1)} KB` : t('notPresent')}
+                    {f.present ? fmt.unit(f.bytes / 1024, 'kilobyte', 1) : t('notPresent')}
                   </span>
                 </li>
               ))}
@@ -411,11 +413,12 @@ export function AdminPanel() {
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {
+  const fmt = useFormat();
   return (
     <Card>
       <CardContent className="pt-5">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">{value.toLocaleString()}</p>
+        <p className="mt-1 text-3xl font-semibold tabular-nums">{fmt.number(value)}</p>
       </CardContent>
     </Card>
   );
@@ -428,6 +431,7 @@ function ProgressBar({
   state: DbUpdateState;
   stageLabel: (stage: string | null) => string;
 }) {
+  const fmt = useFormat();
   const hasTotal = state.total != null && state.total > 0;
   const pct = hasTotal ? Math.min(100, Math.round(((state.current ?? 0) / state.total!) * 100)) : null;
   const label = stageLabel(state.stage);
@@ -437,7 +441,7 @@ function ProgressBar({
         <span>{label}</span>
         {hasTotal && (
           <span className="tabular-nums text-muted-foreground">
-            {state.current?.toLocaleString()} / {state.total?.toLocaleString()} ({pct}%)
+            {fmt.number(state.current ?? 0)} / {fmt.number(state.total ?? 0)} ({fmt.percent((pct ?? 0) / 100)})
           </span>
         )}
       </div>

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { MealType, type AddCustomMealRequest } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
+import { useFormat } from '@/lib/use-format';
 
 /**
  * Modal for adding a user-authored custom meal to a day. The user owns
@@ -25,6 +26,7 @@ export function CustomMealModal({
   const t = useTranslations('mealPlans');
   const tCommon = useTranslations('common');
   const tMeal = useTranslations('enums.mealType');
+  const fmt = useFormat();
 
   const [name, setName] = useState('');
   const [mealType, setMealType] = useState<MealType>('lunch');
@@ -58,7 +60,7 @@ export function CustomMealModal({
         <div className="flex items-center justify-between border-b border-border p-4">
           <div>
             <h2 className="font-semibold">{t('customModalTitle')}</h2>
-            <p className="text-xs text-muted-foreground">{date}</p>
+            <p className="text-xs text-muted-foreground">{fmt.day(date)}</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             {tCommon('close')}

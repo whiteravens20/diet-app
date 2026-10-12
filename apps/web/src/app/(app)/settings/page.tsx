@@ -32,6 +32,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { DEFAULT_PALETTE, SUPPORTED_PALETTES } from '@/lib/palette';
 import { usePalette } from '@/app/providers';
 import { cn } from '@/lib/utils';
+import { useFormat } from '@/lib/use-format';
 
 const PROVIDERS: AiProvider[] = ['openai', 'anthropic', 'openrouter', 'ollama'];
 
@@ -264,6 +265,7 @@ function PaletteCard({ initial }: { initial: Palette }) {
 function AiAssistantCard({ me }: { me: SessionUser }) {
   const t = useTranslations('settings');
   const errorText = useErrorText();
+  const fmt = useFormat();
   const qc = useQueryClient();
   const quota = useQuery({
     queryKey: ['ai-quota'],
@@ -395,7 +397,7 @@ function AiAssistantCard({ me }: { me: SessionUser }) {
             {status.resetAt ? (
               <p className="text-xs text-muted-foreground">
                 {t('aiQuotaResetAt', {
-                  date: new Date(status.resetAt).toLocaleString(),
+                  date: fmt.moment(status.resetAt),
                 })}
               </p>
             ) : (

@@ -23,6 +23,7 @@ import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
 import { CustomMealModal } from './custom-meal-modal';
+import { useFormat } from '@/lib/use-format';
 
 interface FavoriteOption {
   recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] };
@@ -114,6 +115,7 @@ export function PlanCard({
 }) {
   const t = useTranslations('mealPlans');
   const tCommon = useTranslations('common');
+  const fmt = useFormat();
   // Which meal's "swap to favorite" picker is open, if any.
   const [openFav, setOpenFav] = useState<string | null>(null);
   // Show every favourite (drop the diet filter) in the open picker.
@@ -142,7 +144,7 @@ export function PlanCard({
           </p>
           <p className="text-sm text-muted-foreground">
             {t('planMeta', {
-              date: summary.startDate,
+              date: fmt.date(summary.startDate),
               kcal: summary.averageDailyNutrition.calories,
               pct: Math.round(summary.ingredientReuseScore * 100),
             })}
@@ -186,7 +188,9 @@ export function PlanCard({
                   onChange={(e) => setPart({ ...part, from: e.target.value })}
                 >
                   {plan.days.map((day) => (
-                    <option key={day.id}>{day.date}</option>
+                    <option key={day.id} value={day.date}>
+                      {fmt.day(day.date)}
+                    </option>
                   ))}
                 </select>
                 {t('rangeUntil')}
@@ -197,7 +201,9 @@ export function PlanCard({
                   onChange={(e) => setPart({ ...part, to: e.target.value })}
                 >
                   {plan.days.map((day) => (
-                    <option key={day.id}>{day.date}</option>
+                    <option key={day.id} value={day.date}>
+                      {fmt.day(day.date)}
+                    </option>
                   ))}
                 </select>
                 {/* Dates in this form sort as text. */}
@@ -224,7 +230,7 @@ export function PlanCard({
           {plan.days.map((day) => (
             <div key={day.id}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">{day.date}</span>
+                <span className="text-sm font-medium">{fmt.day(day.date)}</span>
                 {day.skipped ? (
                   // A day the user skips is no shortfall, and there is nothing in it to change.
                   <span className="text-sm text-muted-foreground">{t('daySkipped')}</span>
@@ -240,7 +246,7 @@ export function PlanCard({
                       {t('calorieLine', {
                         kcal: day.dayNutrition.calories,
                         target: day.calorieTarget,
-                        delta: day.calorieDelta >= 0 ? `+${day.calorieDelta}` : String(day.calorieDelta),
+                        delta: fmt.signed(day.calorieDelta),
                       })}
                     </span>
                     <Button
@@ -340,7 +346,7 @@ export function PlanCard({
                           )}
                           {m.quantityScale !== 1 && (
                             <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                              {t('autoBalancedChip', { scale: m.quantityScale.toFixed(2) })}
+                              {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
                             </span>
                           )}
                         </span>
@@ -563,11 +569,11 @@ function MacrosLine({
   nutrition: { calories: number; protein: number; fat: number; carbs: number };
 }) {
   const t = useTranslations('macrosLine');
+  const fmt = useFormat();
   return (
     <p className="ml-4 text-xs text-muted-foreground">
-      {t('protein')} {Math.round(nutrition.protein)} g · {t('fat')}{' '}
-      {Math.round(nutrition.fat)} g · {t('carbs')} {Math.round(nutrition.carbs)} g ·{' '}
-      {Math.round(nutrition.calories)} {t('kcal')}
+      {t('protein')} {fmt.unit(nutrition.protein, 'gram')} · {t('fat')} {fmt.unit(nutrition.fat, 'gram')} · {t('carbs')} {fmt.unit(nutrition.carbs, 'gram')} ·{' '}
+      {fmt.number(nutrition.calories)} {t('kcal')}
     </p>
   );
 }

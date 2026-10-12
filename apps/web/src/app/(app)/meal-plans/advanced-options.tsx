@@ -4,6 +4,7 @@
 
 import { useTranslations } from 'next-intl';
 import { MEAL_SLOTS_BY_COUNT, PLAN_RELAXATIONS, type DayOverride, type MealType, type PlanRelaxation } from '@diet-app/shared';
+import { useFormat } from '@/lib/use-format';
 
 /** A favourite recipe usable as a lock target. */
 export interface LockableRecipe {
@@ -81,6 +82,7 @@ export function AdvancedOptions({
   const t = useTranslations('mealPlans.advanced');
   const tLimit = useTranslations('mealPlans.limit');
   const tMeal = useTranslations('enums.mealType');
+  const fmt = useFormat();
 
   const patchDay = (date: string, patch: Partial<DayDraft>) =>
     onChange({ ...value, days: { ...value.days, [date]: { ...value.days[date], ...patch } } });
@@ -163,9 +165,7 @@ export function AdvancedOptions({
                   key={date}
                   className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2 text-sm"
                 >
-                  <span className="w-24 shrink-0 font-mono text-xs text-muted-foreground">
-                    {date}
-                  </span>
+                  <span className="w-24 shrink-0 text-xs text-muted-foreground">{fmt.day(date)}</span>
 
                   {/* Day kind (normal / rest / refeed / skip) */}
                   <select
