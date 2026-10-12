@@ -9,6 +9,7 @@ import dynamic from 'next/dynamic';
 import { Suspense, useEffect, useId, useRef, useState } from 'react';
 import { CalendarRange, UserRound } from 'lucide-react';
 import {
+  CalendarDay,
   MAX_CALORIE_TARGET,
   MEAL_SLOTS_BY_COUNT,
   MIN_CALORIE_TARGET,
@@ -91,9 +92,16 @@ function MealPlansContent() {
   const activeId = picked ?? params.get('profile') ?? list[0]?.id ?? null;
   const active = list.find((p) => p.id === activeId) ?? null;
 
+  // A link from elsewhere may name a plan and a day of it (`?plan=&day=`): the page then opens on the plan at that day, as its own calendar would lead there.
+  const [linked] = useState(() => {
+    const planId = params.get('plan');
+    const date = params.get('day');
+    return planId && date && /^[0-9a-f-]{36}$/i.test(planId) && CalendarDay.safeParse(date).success ? { planId, date } : null;
+  });
+
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [openPlan, setOpenPlan] = useState<string | null>(null);
+  const [openPlan, setOpenPlan] = useState<string | null>(linked?.planId ?? null);
   // Page-level toggle: applies to every swap / AI-swap on every plan card.
   // Plan generation has its own checkbox inside the new-plan form.
   const [swapWithPantry, setSwapWithPantry] = useState(true);
@@ -120,8 +128,9 @@ function MealPlansContent() {
   const aiEnabled = session.data?.aiMode && session.data.aiMode !== 'none';
   const aiOffNote = useId();
   const [status, setStatus] = useState<'' | 'active' | 'past' | 'upcoming'>('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  // The list is narrowed to the plans that hold the day a link named, so that the plan is on the page whatever page of the list it is on.
+  const [from, setFrom] = useState(linked?.date ?? '');
+  const [to, setTo] = useState(linked?.date ?? '');
 
   // Which page of the list is shown; a new profile or filter begins at the first.
   const [page, setPage] = useState(1);
@@ -390,7 +399,7 @@ function MealPlansContent() {
 
   // The day of a plan that the calendar led to. The page goes there once the day is drawn: its plan may still be on
   // its way, and the list still being narrowed to it.
-  const sought = useRef<{ planId: string; date: string } | null>(null);
+  const sought = useRef<{ planId: string; date: string } | null>(linked);
   useEffect(() => {
     const day = sought.current && document.getElementById(dayAnchor(sought.current.planId, sought.current.date));
     if (!day) return;

@@ -13,7 +13,9 @@ import { aDepth, aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import MealPlansPage from './page';
 
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }));
+/** What the address of the page says after its question mark: empty unless a test is about a link that leads here. */
+const address = vi.hoisted(() => ({ search: '' }));
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(address.search) }));
 
 /** A vegan with four meals a day. */
 const profile: Profile = {
@@ -1269,6 +1271,7 @@ describe('the plan page, on a plan taken out of the application', () => {
 describe('the plan page, on what the planner proposes for a plan', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    address.search = '';
   });
 
   const chicken = { ingredientId: '66666666-6666-4666-8666-666666666666', name: 'Chicken breast', unit: 'g', packSize: 500, packs: 1, left: 350, wasted: true } as const;
@@ -1314,5 +1317,32 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     await opened(aPlan({ packs: { bought: 500, used: 480, open: [{ ...chicken, left: 20, wasted: false }] } }));
 
     expect(screen.queryByRole('button', { name: messages.mealPlans.useUp.ask })).toBeNull();
+  });
+
+  it('opens on the plan a link names, with the list narrowed to the day the link names', async () => {
+    const plan = aPlan();
+    address.search = `plan=${plan.id}&day=2026-01-05`;
+    const get = vi.spyOn(api, 'get');
+
+    await renderPage(aDepth(9), [plan]);
+
+    // The plan is open without a click, and was read whole.
+    expect(await screen.findByRole('button', { name: 'Oat porridge' })).toBeInTheDocument();
+    expect(get.mock.calls.some(([path]) => String(path).startsWith('/meal-plans?') && String(path).includes('from=2026-01-05') && String(path).includes('to=2026-01-05'))).toBe(true);
+  });
+
+  it.each([
+    ['a plan that is no id', 'plan=..%2Fusers%2Fme&day=2026-01-05'],
+    ['a day that is no day', 'plan=11111111-1111-4111-8111-111111111111&day=tomorrow'],
+    ['a plan without a day', 'plan=11111111-1111-4111-8111-111111111111'],
+  ])('takes no notice of a link that names %s', async (_what, search) => {
+    address.search = search;
+    const get = vi.spyOn(api, 'get');
+
+    await renderPage(aDepth(9), [aPlan()]);
+
+    await screen.findByText('1-day plan · Vegan');
+    expect(screen.queryByRole('button', { name: 'Oat porridge' })).toBeNull();
+    expect(get.mock.calls.some(([path]) => String(path).includes('users') && String(path).includes('meal-plans'))).toBe(false);
   });
 });

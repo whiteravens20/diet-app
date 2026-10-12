@@ -57,11 +57,13 @@ const aListOf = (grains: Entry[], vegetables: Entry[]): ShoppingList => ({
 
 const aList = aListOf([anEntry('White rice', 'grains'), anEntry('Rolled oats', 'grains')], [anEntry('Broccoli', 'vegetables')]);
 
-async function renderPage(list: ShoppingList = aList) {
+async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' = 'none') {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
       (path === '/profiles'
         ? [{ id: 'profile', name: 'Me' }]
+        : path === '/users/me'
+          ? { aiMode }
         : path.startsWith('/meal-plans?')
           ? { items: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }], page: 1, pageSize: 50, total: 1, totalPages: 1 }
           : path.startsWith('/shopping-lists?')
@@ -115,6 +117,38 @@ describe('a shopping list, looked through for an entry', () => {
 
     expect(screen.queryAllByRole('checkbox')).toEqual([]);
     expect(screen.getByText('No entry of this list has “salmon” in its name.')).toBeInTheDocument();
+  });
+});
+
+describe('a shopping list, looked over for what it could do without', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const texts = messages.shoppingLists.proposals;
+  const leftover = { kind: 'leftover', ingredientId: 'beef', name: 'Ground beef', unit: 'g', left: 320, packSize: 500, reason: null } as const;
+
+  it('is asked of the API for the list that is shown, and what comes back leads to the plan of the profile', async () => {
+    await renderPage();
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ planId: PLAN, proposals: [leftover], aiMeta: null } as never);
+
+    await userEvent.click(screen.getByRole('button', { name: texts.ask }));
+
+    expect(post).toHaveBeenCalledWith(`/shopping-lists/${aList.id}/proposals`, { weigh: false });
+    expect(await screen.findByRole('link', { name: texts.leftoverHow })).toHaveAttribute('href', `/meal-plans?profile=profile&plan=${PLAN}&day=2026-01-05`);
+  });
+
+  it('says beside it, on an account with AI off, why no model can be asked', async () => {
+    await renderPage();
+
+    expect(await screen.findByText(/AI is turned off for this account/)).toBeInTheDocument();
+  });
+
+  it('says nothing of that on an account that has a model to ask', async () => {
+    await renderPage(aList, 'admin');
+    await screen.findByRole('button', { name: texts.ask });
+
+    await vi.waitFor(() => expect(screen.queryByText(/AI is turned off for this account/)).toBeNull());
   });
 });
 

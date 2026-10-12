@@ -905,7 +905,18 @@
     "staleUpdateHint": "What you already have for it is counted for the new one.",
     "findEntry": "Find an entry",
     "findEntryPlaceholder": "Name of an ingredient…",
-    "findEntryNone": "No entry of this list has “{words}” in its name."
+    "findEntryNone": "No entry of this list has “{words}” in its name.",
+    "proposals": {
+      "ask": "What could this list do without?",
+      "asking": "Looking…",
+      "merge": "<strong>{to}</strong> in place of {from} in {count, plural, one {# meal} other {# meals}}: {packs, plural, one {# pack} other {# packs}} fewer to buy",
+      "mergeHow": "Substitute it in the plan.",
+      "mergeThen": "This list then says that it no longer matches the plan, and can be updated.",
+      "leftover": "<strong>{name}</strong>: {left} of a pack of {size} will be left, and an opened pack of it does not keep",
+      "leftoverHow": "See in the plan what would use it up.",
+      "none": "Nothing: no row could stand for another, and no pack would be left more than three tenths full.",
+      "errLoad": "Could not look the list over."
+    }
   },
   "units": {
     "amount": {

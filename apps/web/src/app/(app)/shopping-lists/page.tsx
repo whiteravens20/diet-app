@@ -4,9 +4,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Package } from 'lucide-react';
-import type { DisplayUnit, MealPlanPage, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
+import type { DisplayUnit, MealPlanPage, Profile, SessionUser, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
 import { ApiClientError } from '@/lib/http';
@@ -24,6 +24,8 @@ import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
 import { LoadFailed } from '@/components/load-failed';
+import { AiOffNote } from '@/components/ai-off-note';
+import { ListProposals } from './list-proposals';
 import { packsStand, packsText } from './packs';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -50,6 +52,10 @@ export default function ShoppingListsPage() {
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
   const profileList = profiles.data ?? [];
   const activeProfileId = pickedProfile ?? profileList[0]?.id ?? null;
+  // Whether the account has a model to ask. Without one, what asks a model stays where it is, disabled, and one line says why.
+  const session = useQuery({ queryKey: ['session'], queryFn: () => api.get<SessionUser>('/users/me') });
+  const aiEnabled = Boolean(session.data?.aiMode && session.data.aiMode !== 'none');
+  const aiOffNote = useId();
 
   const plans = useQuery({
     queryKey: ['meal-plans', activeProfileId],
@@ -276,6 +282,9 @@ export default function ShoppingListsPage() {
           )}
           {activeList && (
             <ListView
+              profileId={activeProfileId}
+              aiEnabled={aiEnabled}
+              aiOffNote={session.data && !aiEnabled ? aiOffNote : undefined}
               list={activeList}
               busy={updateItem.isPending || remove.isPending || generate.isPending}
               formatQty={formatItemQty}
@@ -324,6 +333,9 @@ export default function ShoppingListsPage() {
 }
 
 function ListView({
+  profileId,
+  aiEnabled,
+  aiOffNote,
   list,
   busy,
   formatQty,
@@ -349,6 +361,10 @@ function ListView({
   onDelete,
   onUpdate,
 }: {
+  profileId: string | null;
+  aiEnabled: boolean;
+  /** The id of the line that says why what asks a model is off, on an account where it is. */
+  aiOffNote: string | undefined;
   list: ShoppingList;
   busy: boolean;
   formatQty: (qty: number, unit: DisplayUnit) => string;
@@ -577,6 +593,11 @@ function ListView({
         </div>
       )}
       <CardContent className="space-y-5 pt-4">
+        {/* Asked of the list as it is: another list, or the same list made anew, begins without an answer. */}
+        <div className="space-y-2">
+          <ListProposals key={`${list.id}-${list.createdAt}`} list={list} profileId={profileId} aiEnabled={aiEnabled} aiOffNote={aiOffNote} />
+          {aiOffNote && <AiOffNote id={aiOffNote} />}
+        </div>
         <div className="max-w-sm">
           <Field label={t('findEntry')}>
             <Input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={t('findEntryPlaceholder')} />

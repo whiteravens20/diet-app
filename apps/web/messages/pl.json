@@ -905,7 +905,18 @@
     "staleUpdateHint": "To, co już masz, zostanie policzone na poczet nowej listy.",
     "findEntry": "Znajdź pozycję",
     "findEntryPlaceholder": "Nazwa składnika…",
-    "findEntryNone": "Żadna pozycja tej listy nie ma „{words}” w nazwie."
+    "findEntryNone": "Żadna pozycja tej listy nie ma „{words}” w nazwie.",
+    "proposals": {
+      "ask": "Bez czego ta lista mogłaby się obejść?",
+      "asking": "Szukam…",
+      "merge": "<strong>{to}</strong> (zamiast: {from}) w {count, plural, one {# posiłku} few {# posiłkach} many {# posiłkach} other {# posiłku}} — do kupienia {packs, plural, one {o # opakowanie} few {o # opakowania} many {o # opakowań} other {o # opakowania}} mniej",
+      "mergeHow": "Zamień to w planie.",
+      "mergeThen": "Ta lista powie wtedy, że nie odpowiada już planowi, i będzie można ją zaktualizować.",
+      "leftover": "<strong>{name}</strong>: z opakowania {size} zostanie {left}, a otwarte się nie przechowuje",
+      "leftoverHow": "Zobacz w planie, co by to zużyło.",
+      "none": "Nic: żaden wiersz nie zastąpi innego i z żadnego opakowania nie zostanie ponad trzy dziesiąte.",
+      "errLoad": "Nie udało się przejrzeć listy."
+    }
   },
   "units": {
     "amount": {
