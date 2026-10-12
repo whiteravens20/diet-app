@@ -38,8 +38,19 @@ describe('the page a sign-in returns to', () => {
     ['the sign-in page', '/login?next=%2Fprofile'],
     ['the page to sign up at', '/register'],
     ['a page whose name only begins like one of the account', '/settingsx'],
+    ['a way up and out of a page of the account', '/dashboard/../../api/users/me'],
+    ['the same, written as a browser also reads it', '/dashboard/%2e%2e/%2E%2E/api/users/me'],
+    ['the same, with backslashes', '/dashboard\\..\\..\\api\\users\\me'],
+    ['the same, with a tab between the dots', '/settings/.\t./.\t./admin'],
+    ['a way up to the landing page', '/settings/..'],
+    ['an address no browser can read', 'http://['],
   ])('is the home page for %s', (_what, asked) => {
     expect(returnPath(asked)).toBe(HOME);
+  });
+
+  it('is the page a roundabout path comes to, written straight', () => {
+    expect(returnPath('/settings/../profile?tab=1')).toBe('/profile?tab=1');
+    expect(returnPath('/recipes/./0b1f#method')).toBe('/recipes/0b1f');
   });
 });
 
