@@ -155,7 +155,8 @@ export function PlanCalendar({
                         className={cn(
                           'flex h-16 w-full flex-col items-start gap-0.5 rounded-md border p-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           day ? 'border-primary/40 bg-primary/5 hover:bg-primary/10' : 'border-border/60 hover:bg-muted',
-                          monthOf(date) !== month && 'opacity-50',
+                          // A day of the month before or after is told apart by its frame and a quieter colour that can still be read: a faded day could not.
+                          monthOf(date) !== month && 'border-dashed text-muted-foreground',
                         )}
                       >
                         <span className={cn('flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-medium tabular-nums', date === today && 'bg-primary text-primary-foreground')}>
