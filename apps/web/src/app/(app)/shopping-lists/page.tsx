@@ -16,6 +16,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
+import { LoadFailed } from '@/components/load-failed';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
@@ -130,6 +131,7 @@ export default function ShoppingListsPage() {
   const formatItemQty = useAmount();
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
+  if (profiles.isError) return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (profileList.length === 0) {
     return (

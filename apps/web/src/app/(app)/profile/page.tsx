@@ -30,6 +30,7 @@ import { IngredientPicker } from '@/components/ingredient-picker';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SupplyNote } from '@/components/supply-note';
+import { LoadFailed } from '@/components/load-failed';
 
 type Risk = ReturnType<typeof riskOfLosingWeight>[number];
 
@@ -203,6 +204,8 @@ export default function ProfilePage() {
 
       {profiles.isLoading ? (
         <Skeleton className="h-24 max-w-2xl" />
+      ) : profiles.isError ? (
+        <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />
       ) : (
         list.length > 0 && (
           <div className="grid max-w-2xl gap-3 sm:grid-cols-2">

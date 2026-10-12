@@ -32,6 +32,7 @@ import { DEFAULT_PALETTE, SUPPORTED_PALETTES } from '@/lib/palette';
 import { usePalette } from '@/app/providers';
 import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/use-format';
+import { LoadFailed } from '@/components/load-failed';
 
 const PROVIDERS: AiProvider[] = ['openai', 'anthropic', 'openrouter', 'ollama'];
 
@@ -46,6 +47,7 @@ export default function SettingsPage() {
   if (session.isLoading) {
     return <p className="text-sm text-muted-foreground">{t('subhead')}</p>;
   }
+  if (session.isError) return <LoadFailed error={session.error} onRetry={() => void session.refetch()} />;
   if (!session.data) return null;
   const me = session.data;
 

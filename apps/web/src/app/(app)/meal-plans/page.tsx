@@ -41,6 +41,7 @@ import { PlanCard, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { useFormat } from '@/lib/use-format';
+import { LoadFailed } from '@/components/load-failed';
 
 /** How many of the meals that stand in the way of a plan are named one by one. */
 const MEALS_NAMED = 6;
@@ -376,6 +377,7 @@ function MealPlansContent() {
   }
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
+  if (profiles.isError) return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (list.length === 0) {
     return (
@@ -631,6 +633,8 @@ function MealPlansContent() {
         </label>
         {plans.isLoading ? (
           <Skeleton className="h-24 max-w-3xl" />
+        ) : plans.isError ? (
+          <LoadFailed error={plans.error} onRetry={() => void plans.refetch()} />
         ) : (plans.data?.items ?? []).length === 0 ? (
           <EmptyState
             icon={CalendarRange}

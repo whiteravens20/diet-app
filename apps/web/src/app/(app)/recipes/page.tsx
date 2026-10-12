@@ -18,6 +18,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DraftButton } from './draft-button';
+import { LoadFailed } from '@/components/load-failed';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
@@ -284,6 +285,8 @@ export default function RecipesPage() {
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
+      ) : recipes.isError ? (
+        <LoadFailed error={recipes.error} onRetry={() => void recipes.refetch()} />
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {tab === 'mine'
