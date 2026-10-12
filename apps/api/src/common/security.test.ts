@@ -25,11 +25,23 @@ describe('API security headers', () => {
     const res = await request(probeApp()).get('/api/probe').expect(200);
 
     expect(res.headers['x-content-type-options']).toBe('nosniff');
-    expect(res.headers['strict-transport-security']).toMatch(/max-age=\d+/);
     expect(res.headers['referrer-policy']).toBeDefined();
     expect(res.headers['x-frame-options']).toBeDefined();
     // helmet strips the framework banner.
     expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+
+  it('tells a browser to keep to https only where the instance is served over https', async () => {
+    const [plain, secure, withSwagger] = await Promise.all([
+      request(probeApp()).get('/api/probe'),
+      request(probeApp({ https: true })).get('/api/probe'),
+      request(probeApp({ https: true, swaggerPath: '/api/docs' })).get('/api/docs'),
+    ]);
+
+    // Over plain http a browser ignores the header: a home instance on a LAN address does not send it.
+    expect(plain.headers['strict-transport-security']).toBeUndefined();
+    expect(secure.headers['strict-transport-security']).toBe('max-age=63072000; includeSubDomains');
+    expect(withSwagger.headers['strict-transport-security']).toBe('max-age=63072000; includeSubDomains');
   });
 
   it('lets nothing load from, or frame, an API response', async () => {

@@ -29,7 +29,10 @@ export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix('api');
   // Security headers on /api/* — see common/security.ts. The Swagger routes
   // get their own policy only while Swagger is on.
-  applySecurityHeaders(app, swaggerEnabled ? { swaggerPath: `/${SWAGGER_PATH}` } : {});
+  applySecurityHeaders(app, {
+    https: config.get('APP_URL', { infer: true }).startsWith('https://'),
+    ...(swaggerEnabled ? { swaggerPath: `/${SWAGGER_PATH}` } : {}),
+  });
   app.useGlobalFilters(new AllExceptionsFilter());
   // Input validation is per-route via ZodValidationPipe against packages/shared.
   app.enableCors({ origin: config.get('APP_URL', { infer: true }), credentials: true });
