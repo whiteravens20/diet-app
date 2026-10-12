@@ -211,6 +211,7 @@ function ReviewSession({
                 <button
                   key={l}
                   type="button"
+                  aria-pressed={locale === l}
                   onClick={() => setLocale(l)}
                   className={`rounded px-3 py-1 text-xs uppercase tracking-wide ${
                     locale === l
@@ -225,6 +226,7 @@ function ReviewSession({
             <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-1">
               <button
                 type="button"
+                aria-pressed={kind === 'recipe'}
                 onClick={() => setKind('recipe')}
                 className={`rounded px-3 py-1 text-xs ${
                   kind === 'recipe'
@@ -236,6 +238,7 @@ function ReviewSession({
               </button>
               <button
                 type="button"
+                aria-pressed={kind === 'ingredient-name'}
                 onClick={() => setKind('ingredient-name')}
                 className={`rounded px-3 py-1 text-xs ${
                   kind === 'ingredient-name'

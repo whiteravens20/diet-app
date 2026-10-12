@@ -65,16 +65,51 @@ describe('the reviewer\'s queue', () => {
     vi.restoreAllMocks();
   });
 
-  it('does not approve text it could not save: the draft stays, with what was typed', async () => {
-    const patch = vi.spyOn(reviewApi, 'patchRecipeSlice').mockRejectedValue(new ApiClientError(503, 'UNAVAILABLE', 'down'));
+  it('names the buttons that go to the draft before and after', async () => {
+    await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')]);
+
+    expect(button(text.previous)).toBeDisabled();
+    await userEvent.click(button(text.next));
+
+    expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Jajecznica');
+    expect(button(text.next)).toBeDisabled();
+    expect(button(text.previous)).toBeEnabled();
+  });
+
+  it('names a draft\'s allergens as the rest of the app does, in the reader\'s language', async () => {
+    await renderQueue([recipe(FIRST, 'Owsianka', { allergens: ['dairy', 'nuts', 'lupin'] })], 'pl');
+
+    // A code this version has no name for is shown as it is.
+    expect(screen.getByText('Alergeny: Nabiał, Orzechy i lupin')).toBeInTheDocument();
+  });
+
+  it('says which language the reviewer writes in by its name', async () => {
+    await renderQueue([recipe(FIRST, 'Owsianka')]);
+
+    expect(screen.getByText('Your locale (Polish)')).toBeInTheDocument();
+  });
+
+  it('names every step for those who do not see where it stands', async () => {
+    await renderQueue([recipe(FIRST, 'Owsianka')]);
+
+    expect(screen.getByRole('textbox', { name: 'Step 2' })).toHaveValue('Podaj.');
+  });
+
+  it('says what the language decided about a draft before', async () => {
+    await renderQueue([recipe(FIRST, 'Owsianka', { alreadyReviewed: true, alreadyReviewedAction: 'REJECT' })]);
+
+    expect(screen.getByText('Rejected for this language before')).toBeInTheDocument();
+  });
+
+  it('does not approve text it could not save: the draft stays, with what went wrong and what was typed', async () => {
+    vi.spyOn(reviewApi, 'patchRecipeSlice').mockRejectedValue(new ApiClientError(503, 'UNAVAILABLE', 'down'));
     const approve = vi.spyOn(reviewApi, 'approveRecipe');
     await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')]);
 
     await userEvent.type(screen.getByRole('textbox', { name: text.fieldTitle }), ' z jabłkiem');
     await userEvent.click(button(text.approve));
 
-    await vi.waitFor(() => expect(patch).toHaveBeenCalledOnce());
-    await vi.waitFor(() => expect(button(text.approve)).toBeEnabled());
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(approve).not.toHaveBeenCalled();
     expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Owsianka z jabłkiem');
   });

@@ -5,11 +5,7 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
-import type {
-  IngredientNameReviewSlice,
-  Locale,
-  RecipeReviewSlice,
-} from '@diet-app/shared';
+import { Allergen, type IngredientNameReviewSlice, type Locale, type RecipeReviewSlice } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { reviewApi } from '@/lib/review-api';
@@ -141,19 +137,21 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
             type="button"
             size="sm"
             variant="outline"
+            aria-label={t('previous')}
             disabled={safeCursor === 0}
             onClick={() => setCursor((c) => Math.max(0, c - 1))}
           >
-            <ChevronLeft className="h-3 w-3" />
+            <ChevronLeft className="h-3 w-3" aria-hidden />
           </Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
+            aria-label={t('next')}
             disabled={safeCursor === items.length - 1}
             onClick={() => setCursor((c) => Math.min(items.length - 1, c + 1))}
           >
-            <ChevronRight className="h-3 w-3" />
+            <ChevronRight className="h-3 w-3" aria-hidden />
           </Button>
         </div>
       </div>
@@ -187,6 +185,7 @@ function RecipeReviewCard({
   onReviewed: () => void;
 }) {
   const t = useTranslations('review');
+  const tAllergen = useTranslations('enums.allergen');
   const fmt = useFormat();
   const errorText = useDraftErrorText();
   // What the server holds of the reviewer's text: the draft as it came, then what was last saved.
@@ -248,12 +247,15 @@ function RecipeReviewCard({
     }
   };
 
+  // A code this version has no name for is shown as it is.
+  const allergens = slice.allergens.map((code) => (Allergen.safeParse(code).success ? tAllergen(code as Allergen) : code));
+
   return (
     <Card>
       <CardContent className="space-y-6 py-6">
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="space-y-3">
-            <SectionHeader label={t('targetLabel', { locale })} />
+            <SectionHeader label={t('targetLabel', { locale: t(`locales.${locale}`) })} />
             <LabeledInput
               label={t('fieldTitle')}
               value={title}
@@ -269,6 +271,7 @@ function RecipeReviewCard({
               {steps.map((step, i) => (
                 <textarea
                   key={i}
+                  aria-label={t('fieldStep', { number: i + 1 })}
                   value={step}
                   onChange={(e) => {
                     const next = [...steps];
@@ -306,13 +309,14 @@ function RecipeReviewCard({
           <Stat label={t('statServings')} value={String(slice.servings)} />
         </section>
 
-        {slice.allergens.length > 0 ? (
+        {allergens.length > 0 ? (
           <p className="text-xs text-muted-foreground">
-            {t('allergens')}: {slice.allergens.join(', ')}
+            {t('allergens')}: {fmt.list(allergens)}
           </p>
         ) : null}
 
         <textarea
+          aria-label={t('rejectReasonPlaceholder')}
           placeholder={t('rejectReasonPlaceholder')}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
@@ -337,7 +341,7 @@ function RecipeReviewCard({
             onClick={() => void approve()}
             disabled={acting !== null}
           >
-            <Check className="mr-1 h-3 w-3" />
+            <Check className="mr-1 h-3 w-3" aria-hidden />
             {acting === 'approve' ? t('working') : t('approve')}
           </Button>
           <Button
@@ -347,17 +351,19 @@ function RecipeReviewCard({
             onClick={() => void reject()}
             disabled={acting !== null}
           >
-            <X className="mr-1 h-3 w-3" />
+            <X className="mr-1 h-3 w-3" aria-hidden />
             {acting === 'reject' ? t('working') : t('reject')}
           </Button>
-          {slice.alreadyReviewed ? (
-            <span className="ml-auto text-xs text-muted-foreground">
-              {t('alreadyReviewed', { action: slice.alreadyReviewedAction ?? '' })}
-            </span>
+          {slice.alreadyReviewedAction ? (
+            <span className="ml-auto text-xs text-muted-foreground">{t('decidedBefore', { action: slice.alreadyReviewedAction })}</span>
           ) : null}
         </div>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -440,7 +446,7 @@ function IngredientNameReviewCard({
 
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="space-y-3">
-            <SectionHeader label={t('targetLabel', { locale })} />
+            <SectionHeader label={t('targetLabel', { locale: t(`locales.${locale}`) })} />
             <LabeledInput label={t('fieldName')} value={name} onChange={setName} />
             <LabeledInput
               label={t('fieldStorageHint')}
@@ -459,6 +465,7 @@ function IngredientNameReviewCard({
         </div>
 
         <textarea
+          aria-label={t('rejectReasonPlaceholder')}
           placeholder={t('rejectReasonPlaceholder')}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
@@ -483,7 +490,7 @@ function IngredientNameReviewCard({
             onClick={() => void approve()}
             disabled={acting !== null}
           >
-            <Check className="mr-1 h-3 w-3" />
+            <Check className="mr-1 h-3 w-3" aria-hidden />
             {acting === 'approve' ? t('working') : t('approve')}
           </Button>
           <Button
@@ -493,17 +500,19 @@ function IngredientNameReviewCard({
             onClick={() => void reject()}
             disabled={acting !== null}
           >
-            <X className="mr-1 h-3 w-3" />
+            <X className="mr-1 h-3 w-3" aria-hidden />
             {acting === 'reject' ? t('working') : t('reject')}
           </Button>
-          {slice.alreadyReviewed ? (
-            <span className="ml-auto text-xs text-muted-foreground">
-              {t('alreadyReviewed', { action: slice.alreadyReviewedAction ?? '' })}
-            </span>
+          {slice.alreadyReviewedAction ? (
+            <span className="ml-auto text-xs text-muted-foreground">{t('decidedBefore', { action: slice.alreadyReviewedAction })}</span>
           ) : null}
         </div>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );
