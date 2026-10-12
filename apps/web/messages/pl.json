@@ -921,6 +921,8 @@
     "recalculate": "Przelicz…",
     "calorieLine": "{kcal, number} / {target, number} kcal {delta}",
     "changeDay": "Zmień dzień…",
+    "changeMeal": "Zmień",
+    "mealActions": "Sposoby zmiany posiłku: {title}",
     "swap": "Zamień",
     "offerTitle": "Przepis w miejsce tego posiłku",
     "offerLine": "Zamiast tego: <strong>{title}</strong>, {servings, plural, one {# porcja} few {# porcje} many {# porcji} other {# porcji}}: {after, number} kcal zamiast {before, number}.",

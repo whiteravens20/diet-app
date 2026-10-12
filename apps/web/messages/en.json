@@ -921,6 +921,8 @@
     "recalculate": "Recalculate…",
     "calorieLine": "{kcal, number} / {target, number} kcal {delta}",
     "changeDay": "Change day…",
+    "changeMeal": "Change",
+    "mealActions": "Ways to change the meal: {title}",
     "swap": "Swap",
     "offerTitle": "A recipe in the place of this meal",
     "offerLine": "Instead: <strong>{title}</strong>, {servings, plural, one {# serving} other {# servings}}: {after, number} kcal in place of {before, number}.",
