@@ -310,6 +310,13 @@ export const MealPlanDay = z.object({
   targetMacros: Macros,
   /** Signed delta vs. target — positive means over budget. Zero for a skipped day. */
   calorieDelta: z.number(),
+  /**
+   * Where the day stands outside the tenth either side of its target that a
+   * plan is held to: `over` or `under`. Null inside it, and for a skipped
+   * day. What a rebalance could not bring back says so here, for as long as
+   * it is so.
+   */
+  offTarget: z.enum(['over', 'under']).nullable(),
   /** The user skips this day: it has no meals, is no shortfall, and is left out of the plan's averages. */
   skipped: z.boolean(),
   /** A target somebody typed, for the plan or for this day, has put the day under the lowest a calculated plan goes. */

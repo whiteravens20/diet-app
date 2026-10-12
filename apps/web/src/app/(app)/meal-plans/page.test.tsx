@@ -96,6 +96,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
       calorieTarget: 2000,
       targetMacros: { protein: 100, fat: 62, carbs: 260 },
       calorieDelta: -1770,
+      offTarget: null,
       skipped: false,
       belowSafetyFloor: false,
       overrides: null,

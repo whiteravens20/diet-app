@@ -46,7 +46,9 @@ describe('a plan with skipped days, and the rebalance of a week', () => {
       const plan = await aPlan(t, user, await aProfile(t, user), { durationDays: 3, dayOverrides: [{ date: '2026-01-06', skip: true }] });
 
       const [first, skipped, third] = plan.days;
-      expect(skipped).toMatchObject({ skipped: true, meals: [], calorieDelta: 0 });
+      expect(skipped).toMatchObject({ skipped: true, meals: [], calorieDelta: 0, offTarget: null });
+      // A day the plan was made for stands inside the window around its target.
+      expect([first!.offTarget, third!.offTarget]).toEqual([null, null]);
       expect([first!.skipped, third!.skipped]).toEqual([false, false]);
       const eaten = (first!.dayNutrition.calories + third!.dayNutrition.calories) / 2;
       expect(Math.abs(plan.averageDailyNutrition.calories - eaten)).toBeLessThanOrEqual(1);
@@ -82,6 +84,9 @@ describe('a plan with skipped days, and the rebalance of a week', () => {
       const plan = await aHeavyMeal(await aPlan(t, user, await aProfile(t, user)), '2026-01-06');
       const heavy = plan.days.find((day) => day.date === '2026-01-06')!;
       expect(heavy.calorieDelta).toBeGreaterThan(heavy.calorieTarget * 0.1);
+      // The day says so itself, for as long as it stands over: no notice that goes away has to be caught.
+      expect(heavy.offTarget).toBe('over');
+      expect(plan.days.filter((day) => day.date !== '2026-01-06').map((day) => day.offTarget)).toEqual(plan.days.slice(1).map(() => null));
 
       const { rebalance, plan: after } = await rebalanceWeek(plan, '2026-01-05');
 

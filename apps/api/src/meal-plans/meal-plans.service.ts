@@ -30,6 +30,7 @@ import {
   type RebalanceMeal,
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
+import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
 import { shownReport } from './generation-report.js';
@@ -535,6 +536,7 @@ export class MealPlansService {
       const dayNutrition = sumNutrition(meals.map((m) => m.nutrition));
       const overrides = parseDayOverrides(day.overrides);
       const skipped = isSkipped(day);
+      const calorieDelta = skipped ? 0 : dayNutrition.calories - day.calorieTarget;
       return {
         id: day.id,
         date: isoDate(day.date),
@@ -542,7 +544,9 @@ export class MealPlansService {
         dayNutrition,
         calorieTarget: day.calorieTarget,
         targetMacros: macrosForCalories(day.calorieTarget, plan.dietType),
-        calorieDelta: skipped ? 0 : dayNutrition.calories - day.calorieTarget,
+        calorieDelta,
+        // The window a rebalance brings a day back into.
+        offTarget: Math.abs(calorieDelta) <= REBALANCE_TOLERANCE * day.calorieTarget ? null : calorieDelta > 0 ? ('over' as const) : ('under' as const),
         skipped,
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,
