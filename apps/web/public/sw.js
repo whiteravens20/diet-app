@@ -115,6 +115,8 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('message', (event) => {
+  // Only a page of the application tells this worker anything.
+  if (event.origin !== self.location.origin) return;
   const said = event.data;
   if (!said || said.type !== 'keep-pages' || !Array.isArray(said.pages)) return;
   // The pages somebody will want without the server, kept before they are wanted there. One that is kept already is left as it is.

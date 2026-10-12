@@ -171,7 +171,7 @@ describe('the service worker of the web application', () => {
     await worker.answerTo('/meal-plans', { mode: 'navigate' });
     worker.asked.length = 0;
 
-    await worker.told('message', { data: { type: 'keep-pages', pages: ['/shopping-lists', '/meal-plans'] } });
+    await worker.told('message', { origin: ORIGIN, data: { type: 'keep-pages', pages: ['/shopping-lists', '/meal-plans'] } });
 
     expect((await worker.stores.held('diet-app.pages.v1')).sort()).toEqual(['/meal-plans', '/shopping-lists']);
     expect((await worker.stores.held('diet-app.files.v1')).sort()).toEqual(['/_next/static/chunks/lists.js', '/_next/static/css/lists.css']);
@@ -182,9 +182,16 @@ describe('the service worker of the web application', () => {
     ['is not a plain path of the application', ['/api/users/me', 'https://elsewhere.example.test/x', '/meal-plans/../api', '//elsewhere', 7]],
     ['is no list', '/shopping-lists'],
   ])('keeps nothing ahead that %s', async (_why, pages) => {
-    await worker.told('message', { data: { type: 'keep-pages', pages } });
-    await worker.told('message', { data: { type: 'something-else', pages: ['/shopping-lists'] } });
-    await worker.told('message', { data: null });
+    await worker.told('message', { origin: ORIGIN, data: { type: 'keep-pages', pages } });
+    await worker.told('message', { origin: ORIGIN, data: { type: 'something-else', pages: ['/shopping-lists'] } });
+    await worker.told('message', { origin: ORIGIN, data: null });
+
+    expect(worker.asked).toEqual([]);
+  });
+
+  it('takes no word from anything but a page of the application', async () => {
+    await worker.told('message', { origin: 'https://elsewhere.example.test', data: { type: 'keep-pages', pages: ['/shopping-lists'] } });
+    await worker.told('message', { data: { type: 'keep-pages', pages: ['/shopping-lists'] } });
 
     expect(worker.asked).toEqual([]);
   });

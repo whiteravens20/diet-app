@@ -76,6 +76,10 @@ test.describe('an account on a device that has lost its network', () => {
     const { page, context } = session;
     const words = messages.offline as Texts;
     await theListUnderTheWorker(page);
+    // The pages somebody needs in a shop were kept ahead, on the word of the page that somebody is signed in: the plan page was not opened here.
+    await expect
+      .poll(() => page.evaluate(async () => (await (await caches.open('diet-app.pages.v1')).keys()).map((kept) => new URL(kept.url).pathname)))
+      .toEqual(expect.arrayContaining(['/offline', '/meal-plans', '/shopping-lists']));
 
     await context.setOffline(true);
     await page.goto('/inventory');
