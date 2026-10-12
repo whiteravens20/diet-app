@@ -409,6 +409,41 @@ export type PlanOverviewQuery = z.infer<typeof PlanOverviewQuery>;
 export const PlanOverviewAnswer = z.object({ overview: PlanOverview.nullable() });
 export type PlanOverviewAnswer = z.infer<typeof PlanOverviewAnswer>;
 
+/** The most days a calendar of plans is asked for at once: the six weeks a month is drawn in. */
+export const MAX_CALENDAR_DAYS = 42;
+
+/** The days from one calendar day to another, both counted. */
+const daysBetween = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+
+/** Whose plans are asked about, and on which days: from one calendar day to another, both included. */
+export const PlanCalendarQuery = z
+  .object({ profileId: z.string().uuid(), from: CalendarDay, to: CalendarDay })
+  .refine((asked) => asked.from <= asked.to, { path: ['to'], message: 'The last day cannot be before the first.' })
+  .refine((asked) => asked.from > asked.to || daysBetween(asked.from, asked.to) <= MAX_CALENDAR_DAYS, { path: ['to'], message: `At most ${MAX_CALENDAR_DAYS} days at once.` });
+export type PlanCalendarQuery = z.infer<typeof PlanCalendarQuery>;
+
+/** A day that a plan of the profile holds, as a calendar shows it. */
+export const PlanCalendarDay = z.object({
+  date: z.string().date(),
+  /** The plan that holds the day: the one made last, when several do. */
+  planId: z.string().uuid(),
+  /** How many plans of the profile hold the day. */
+  plans: z.number().int().min(1),
+  /** What the day holds and what it aims at, in kilocalories. */
+  calories: z.number().min(0),
+  target: z.number().min(0),
+  /** `MealPlanDay.offTarget` of the same day. */
+  offTarget: z.enum(['over', 'under']).nullable(),
+  /** Of the meals of the day, how many are marked as eaten. */
+  eaten: Share,
+  skipped: z.boolean(),
+});
+export type PlanCalendarDay = z.infer<typeof PlanCalendarDay>;
+
+/** The days of the span that a plan holds, in order. A day no plan holds is not among them. */
+export const PlanCalendar = z.object({ days: z.array(PlanCalendarDay) });
+export type PlanCalendar = z.infer<typeof PlanCalendar>;
+
 /**
  * A plan as a list shows it: what it is and what a day of it holds on
  * average, without its days. `GET /meal-plans/:id` answers the whole plan.

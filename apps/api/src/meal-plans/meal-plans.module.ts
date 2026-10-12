@@ -8,13 +8,14 @@ import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansController } from './meal-plans.controller.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
+import { PlanCalendarService } from './plan-calendar.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { PlanOverviewService } from './plan-overview.service.js';
 
 @Module({
   imports: [RecipesModule, AiModule, PersonalRecipesModule],
   controllers: [MealPlansController],
-  providers: [MealPlansService, PlanGenerationService, IngredientSwapService, MealSwapService, PlanOverviewService],
+  providers: [MealPlansService, PlanGenerationService, IngredientSwapService, MealSwapService, PlanOverviewService, PlanCalendarService],
   exports: [MealPlansService, PlanGenerationService],
 })
 export class MealPlansModule {}

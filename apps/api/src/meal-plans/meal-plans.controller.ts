@@ -19,6 +19,7 @@ import {
   AiSwapMealRequest,
   ApplyMealSwapRequest,
   GeneratePlanRequest,
+  PlanCalendarQuery,
   PlanListQuery,
   PlanOverviewQuery,
   type Locale,
@@ -37,6 +38,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
+import { PlanCalendarService } from './plan-calendar.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 import { PlanOverviewService } from './plan-overview.service.js';
 
@@ -49,6 +51,7 @@ export class MealPlansController {
     private readonly ingredients: IngredientSwapService,
     private readonly swaps: MealSwapService,
     private readonly overviews: PlanOverviewService,
+    private readonly calendars: PlanCalendarService,
   ) {}
 
   @Get()
@@ -69,6 +72,18 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.overviews.overview(user.id, locale, query.profileId, today);
+  }
+
+  /**
+   * The days of the profile's plans in a span of days, for a calendar.
+   * Declared before the route of one plan, whose id it is not. A calendar is
+   * leafed through a month at a time, and a month is one request: the limit
+   * is that of somebody who leafs fast.
+   */
+  @Get('calendar')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  calendar(@CurrentUser() user: RequestUser, @Query(new ZodValidationPipe(PlanCalendarQuery)) query: PlanCalendarQuery) {
+    return this.calendars.calendar(user.id, query);
   }
 
   @Get(':id')

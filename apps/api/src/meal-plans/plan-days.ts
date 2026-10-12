@@ -2,6 +2,7 @@
 
 /** What a day of a plan and its meals carry of their own, as it is kept with them and read back. */
 import type { MealType } from '@diet-app/shared';
+import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
 
 /**
  * Persisted per-day overrides. The resolved per-day calorie target lives in
@@ -81,6 +82,16 @@ export function sumNutrition(items: Amounts[]): Amounts {
 /** A day the user skips has no meals: that is no day of eating, and no shortfall. */
 export function isSkipped(day: { overrides: unknown; meals: unknown[] }): boolean {
   return parseDayOverrides(day.overrides)?.skip === true && day.meals.length === 0;
+}
+
+/**
+ * Where a day stands against its target: how far over or under it is, and
+ * whether that is outside the window a rebalance brings a day back into. A
+ * skipped day is neither over nor under.
+ */
+export function standingOf(calories: number, target: number, skipped: boolean): { calorieDelta: number; offTarget: 'over' | 'under' | null } {
+  const calorieDelta = skipped ? 0 : calories - target;
+  return { calorieDelta, offTarget: Math.abs(calorieDelta) <= REBALANCE_TOLERANCE * target ? null : calorieDelta > 0 ? 'over' : 'under' };
 }
 
 /** What a day of a plan holds on average, over the days that are not skipped. */
