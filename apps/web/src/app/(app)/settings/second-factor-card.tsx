@@ -14,6 +14,7 @@ import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { copyText } from '@/lib/clipboard';
 
 /** Where the card stands: at rest, or part of the way through one of the things it does. */
 type Step =
@@ -104,7 +105,8 @@ export function SecondFactorCard() {
   }
 
   function copy(recoveryCodes: string[]): void {
-    void navigator.clipboard.writeText(recoveryCodes.join('\n')).then(() => setCopied(true));
+    // Where the browser gives the page no clipboard, the codes stay on the screen to be written down.
+    void copyText(recoveryCodes.join('\n')).then(setCopied);
   }
 
   function to(next: Step): void {

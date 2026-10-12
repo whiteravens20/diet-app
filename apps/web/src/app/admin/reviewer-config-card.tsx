@@ -11,6 +11,7 @@ import { Field, Input } from '@/components/ui/input';
 import { adminApi, type InstanceSettingsDto } from '@/lib/admin-api';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
+import { copyText } from '@/lib/clipboard';
 
 /**
  * Admin card that manages the reviewer interface — toggle, password,
@@ -82,7 +83,9 @@ export function ReviewerConfigCard() {
 
   const copyUrl = (): void => {
     if (typeof window === 'undefined') return;
-    void navigator.clipboard.writeText(reviewUrl).then(() => {
+    // Where the browser gives the page no clipboard, the address stays on the screen to be copied by hand.
+    void copyText(reviewUrl).then((done) => {
+      if (!done) return;
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     });
