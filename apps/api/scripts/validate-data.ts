@@ -10,6 +10,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DietType, MealType } from '@diet-app/shared';
+import { IMPORT_ALIASES_FILE, readImportAliases } from '../src/admin/drafts/external/import-aliases.js';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
 import { COVERAGE_FLOOR, COVERAGE_TARGET, MACRO_OUT_OF_REACH, macroReachByDiet, recipesPerDietAndMeal } from '../src/engine/coverage.js';
 import { macroSplitOf } from '../src/engine/nutrition.js';
@@ -26,12 +27,21 @@ if (!catalogue) {
   process.exit(1);
 }
 
+// The other names an import knows ingredients by: each has to name an ingredient there is.
+const { aliases, problems: aliasProblems } = readImportAliases(dataDir, new Set(catalogue.ingredients.map((ingredient) => ingredient.slug)));
+if (aliasProblems.length > 0) {
+  console.error(`\n✗ ${aliasProblems.length} issue(s) in ${IMPORT_ALIASES_FILE}:`);
+  for (const problem of aliasProblems) console.error(`  ${problem}`);
+  process.exit(1);
+}
+
 const shipped = catalogue.recipes.length - catalogue.anchorRecipes;
 console.log(
   `  ingredients:    ${catalogue.ingredients.length}\n` +
     `  recipes:        ${catalogue.recipes.length} (${catalogue.anchorRecipes} anchor + ${shipped} shipped)\n` +
     `  substitutions:  ${catalogue.substitutions.length}\n` +
-    `  name overrides: ${Object.keys(catalogue.overrides).length}`,
+    `  name overrides: ${Object.keys(catalogue.overrides).length}\n` +
+    `  import aliases: ${Object.keys(aliases).length}`,
 );
 // How many recipes each diet can draw on for each meal. The diets are worked
 // out from the ingredients, so this is what a plan really has to choose from.
