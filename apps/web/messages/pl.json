@@ -121,6 +121,7 @@
   },
   "auth": {
     "welcomeBack": "Witaj ponownie",
+    "sessionUnreachable": "Nie udało się teraz połączyć z Twoją sesją. Sprawdź połączenie i spróbuj ponownie.",
     "createAccount": "Załóż konto",
     "name": "Imię",
     "email": "E-mail",

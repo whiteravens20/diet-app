@@ -2,9 +2,10 @@
 
 'use client';
 
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AuthResponse, LoginResponse } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,9 +16,14 @@ import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
 import { session } from '@/lib/session';
 import { useConfig } from '@/lib/use-config';
+import { returnPath } from '@/lib/return-path';
+
+/** The page the visitor was on when they were sent here, or the home page: read when it is needed, from the address. */
+const wanted = (): string => returnPath(new URLSearchParams(window.location.search).get('next'));
 
 /** Shared login / registration form. */
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
+  const router = useRouter();
   const t = useTranslations('auth');
   const worded = useErrorText();
   const tRules = useTranslations('auth.passwordRules');
@@ -32,6 +38,13 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const needsToken = Boolean(turnstile?.enabled && turnstile.siteKey);
   // What an account with two-step sign-in got for its password: the form then asks for the code.
   const [challenge, setChallenge] = useState<string | null>(null);
+
+  // Somebody who is signed in already has nothing to do here: a link from
+  // outside the application arrives without the session's cookie, is sent to
+  // this page, and goes on from it.
+  useEffect(() => {
+    if (session.exists()) router.replace(wanted());
+  }, [router]);
 
   /** A Turnstile token is good for one request: the next one needs a new challenge. */
   function renewToken() {
@@ -58,7 +71,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         return;
       }
       session.begin(answer);
-      session.load('/dashboard');
+      session.load(wanted());
     } catch (err) {
       setError(worded(err));
       renewToken();
@@ -74,7 +87,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     const code = String(new FormData(event.currentTarget).get('code'));
     try {
       session.begin(await api.post<AuthResponse>('/auth/login/second-factor', { challenge, code }, COOKIE_SESSION));
-      session.load('/dashboard');
+      session.load(wanted());
     } catch (err) {
       setError(worded(err));
       // A sign-in that took too long begins again, with the password.

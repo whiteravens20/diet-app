@@ -12,6 +12,12 @@ import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../messages/en.json';
 import { AuthForm } from './auth-form';
 
+const router = { replace: vi.fn() };
+vi.mock('next/navigation', () => ({ useRouter: () => router }));
+
+/** The address the form is shown at. */
+const at = (address: string): void => window.history.replaceState(null, '', address);
+
 function renderLogin(emailEnabled: boolean) {
   const client = new QueryClient();
   client.setQueryData(['config'], aPublicConfig({ email: { enabled: emailEnabled } }));
@@ -39,8 +45,55 @@ describe('AuthForm', () => {
   });
 });
 
+const aSession = { user: { id: 'u' }, tokens: { accessToken: 'a', expiresIn: 900, refreshExpiresIn: 2_592_000 }, sessionId: 's' };
+
+describe('where signing in leads', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    router.replace.mockClear();
+    at('/');
+  });
+
+  /** Sign in with a password that is right, and say where the form went: always as a page loaded anew. */
+  async function signedInAt(address: string): Promise<unknown[]> {
+    at(address);
+    vi.spyOn(api, 'post').mockResolvedValueOnce(aSession as never);
+    vi.spyOn(session, 'begin').mockImplementation(() => undefined);
+    const load = vi.spyOn(session, 'load').mockImplementation(() => undefined);
+    renderLogin(false);
+    await userEvent.type(screen.getByLabelText('Email'), 'holder@example.test');
+    await userEvent.type(screen.getByLabelText('Password'), 'a-password');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    return load.mock.calls[0]!;
+  }
+
+  it('is the home page of the account when no other page was asked for', async () => {
+    expect(await signedInAt('/login')).toEqual(['/dashboard']);
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it('is the page the visitor was sent here from', async () => {
+    expect(await signedInAt('/login?next=%2Fmeal-plans%3Fprofile%3Dabc')).toEqual(['/meal-plans?profile=abc']);
+  });
+
+  it.each(['https://elsewhere.example/', '//elsewhere.example', '/\\elsewhere.example', 'javascript:alert(1)'])('is the home page when it is asked to be %s', async (asked) => {
+    expect(await signedInAt(`/login?next=${encodeURIComponent(asked)}`)).toEqual(['/dashboard']);
+  });
+
+  it('sends a visitor who is signed in already on, without asking for anything', () => {
+    at('/login?next=%2Frecipes');
+    vi.spyOn(session, 'exists').mockReturnValue(true);
+    const post = vi.spyOn(api, 'post');
+
+    renderLogin(false);
+
+    expect(router.replace).toHaveBeenCalledWith('/recipes');
+    expect(post).not.toHaveBeenCalled();
+  });
+});
+
 describe('signing in to an account with two-step sign-in', () => {
-  const aSession = { user: { id: 'u' }, tokens: { accessToken: 'a', expiresIn: 900, refreshExpiresIn: 2_592_000 }, sessionId: 's' };
   const challenge = { secondFactor: { challenge: 'the-challenge', expiresIn: 300 } };
 
   afterEach(() => {

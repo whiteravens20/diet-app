@@ -121,6 +121,7 @@
   },
   "auth": {
     "welcomeBack": "Welcome back",
+    "sessionUnreachable": "Your session could not be reached just now. Check your connection and try again.",
     "createAccount": "Create your account",
     "name": "Name",
     "email": "Email",

@@ -14,6 +14,7 @@
  * as it tells them when the session is signed out of.
  */
 import type { AuthResponse } from '@diet-app/shared';
+import { signInPath } from './return-path';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const MARKER_COOKIE = 'diet_session';
@@ -25,6 +26,8 @@ type Message = { type: 'token'; accessToken: string; sessionId: string } | { typ
 let accessToken: string | null = null;
 let sessionId: string | null = null;
 let refreshing: Promise<boolean> | null = null;
+/** The last try at a new access token got no answer about the session: the server was busy, away, or would not take the request. */
+let unreachable = false;
 const listeners = new Set<() => void>();
 const changed = (): void => listeners.forEach((listener) => listener());
 
@@ -50,6 +53,7 @@ if (typeof localStorage !== 'undefined') {
 function forgotten(): void {
   accessToken = null;
   sessionId = null;
+  unreachable = false;
   // The marker is ours to drop; the refresh cookie is the API's, and is dead with the session.
   if (typeof document !== 'undefined') document.cookie = `${MARKER_COOKIE}=; Max-Age=0; Path=/; SameSite=Strict`;
   changed();
@@ -58,6 +62,7 @@ function forgotten(): void {
 function adopt(answer: AuthResponse): void {
   accessToken = answer.tokens.accessToken;
   sessionId = answer.sessionId;
+  unreachable = false;
   channel?.postMessage({ type: 'token', accessToken, sessionId } satisfies Message);
   changed();
 }
@@ -86,7 +91,7 @@ async function refreshOnce(before: string | null): Promise<boolean> {
     try {
       res = await onTheCookie('refresh');
     } catch {
-      return false;
+      return notReached();
     }
     if (res.ok) {
       adopt((await res.json()) as AuthResponse);
@@ -102,19 +107,35 @@ async function refreshOnce(before: string | null): Promise<boolean> {
     // Only a refused session ends it. "Too many requests" or a server that
     // is down says nothing about the session: it is kept, and the next
     // request tries again.
-    if (res.status !== 401) return false;
+    if (res.status !== 401) return notReached();
     forgotten();
     channel?.postMessage({ type: 'signed-out' } satisfies Message);
     session.leave();
     return false;
   }
-  return Boolean(accessToken && accessToken !== before);
+  return Boolean(accessToken && accessToken !== before) || notReached();
+}
+
+/** No answer about the session this time: it stays, and whoever watches is told that it could not be reached. */
+function notReached(): false {
+  unreachable = true;
+  changed();
+  return false;
 }
 
 export const session = {
   /** The access token to send with a request, when the page has one. */
   get accessToken(): string | null {
     return accessToken;
+  },
+
+  /**
+   * True when the last try at a new access token said nothing about the
+   * session: it is still the browser's, and it could not be reached. It
+   * stays so until a try gets through, or the session ends.
+   */
+  get unreachable(): boolean {
+    return unreachable;
   },
 
   /** Which of the account's sessions this is, once the page has a token. */
@@ -180,11 +201,13 @@ export const session = {
   },
 
   /**
-   * Where a page goes when its session has ended under it. A hard
-   * navigation, so that nothing a signed-in page had loaded stays on screen.
+   * Where a page goes when its session has ended under it: the sign-in
+   * page, which brings the reader back afterwards. A hard navigation, so
+   * that nothing a signed-in page had loaded stays on screen.
    */
   leave(): void {
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) window.location.replace('/login');
+    if (typeof window === 'undefined' || window.location.pathname.startsWith('/login')) return;
+    window.location.replace(signInPath(`${window.location.pathname}${window.location.search}`));
   },
 
   /** Be told when the session begins, goes on with another token, or ends. */

@@ -114,6 +114,7 @@ describe('the session of the browser', () => {
         expect(await result).toBe(false);
         expect(fetchMock).toHaveBeenCalledTimes(4);
         expect(session.exists()).toBe(true);
+        expect(session.unreachable).toBe(true);
         expect(session.leave).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
@@ -150,6 +151,41 @@ describe('the session of the browser', () => {
       expect(session.accessToken).toBe('access-1');
       expect(session.exists()).toBe(true);
       expect(session.leave).not.toHaveBeenCalled();
+    });
+
+    it('says that the session could not be reached, to whoever watches, until a try gets through', async () => {
+      const session = await aPage(true);
+      const told = vi.fn();
+      session.subscribe(told);
+      expect(session.unreachable).toBe(false);
+      fetchMock.mockResolvedValueOnce(answered(503));
+
+      await session.refresh();
+
+      expect(session.unreachable).toBe(true);
+      expect(told).toHaveBeenCalledTimes(1);
+
+      fetchMock.mockResolvedValueOnce(answered(503)).mockResolvedValueOnce(answered(200, anAnswer('access-2')));
+      const again = session.refresh();
+      expect(session.unreachable).toBe(true);
+      await again;
+      expect(session.unreachable).toBe(true);
+
+      await session.refresh();
+
+      expect(session.unreachable).toBe(false);
+      expect(session.accessToken).toBe('access-2');
+    });
+
+    it('says nothing of the kind of a session that was refused: that one has ended', async () => {
+      const session = await aPage(true);
+      fetchMock.mockResolvedValueOnce(answered(503)).mockResolvedValueOnce(answered(401, { error: 'INVALID_REFRESH' }));
+      await session.refresh();
+
+      await session.refresh();
+
+      expect(session.unreachable).toBe(false);
+      expect(session.exists()).toBe(false);
     });
   });
 
@@ -259,6 +295,31 @@ describe('the session of the browser', () => {
       session.load('/meal-plans?profile=0b1f');
 
       expect(location.assign).toHaveBeenCalledWith('/meal-plans?profile=0b1f');
+    });
+
+    it('leaves a page whose session has ended for the sign-in page, which is told where to come back to, with no way back to the page', async () => {
+      const { session, location } = await aPageAt('/meal-plans', '?profile=0b1f');
+
+      session.leave();
+
+      expect(location.replace).toHaveBeenCalledWith('/login?next=%2Fmeal-plans%3Fprofile%3D0b1f');
+      expect(location.assign).not.toHaveBeenCalled();
+    });
+
+    it('leaves the home page of the account for the plain sign-in page', async () => {
+      const { session, location } = await aPageAt('/dashboard');
+
+      session.leave();
+
+      expect(location.replace).toHaveBeenCalledWith('/login');
+    });
+
+    it('stays on the sign-in page, which has nowhere to leave to', async () => {
+      const { session, location } = await aPageAt('/login', '?next=%2Fprofile');
+
+      session.leave();
+
+      expect(location.replace).not.toHaveBeenCalled();
     });
   });
 });

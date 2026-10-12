@@ -1,14 +1,17 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { ReactNode } from 'react';
+import { SessionGate } from '@/components/session-gate';
 import { Sidebar } from '@/components/sidebar';
 
-/** Authenticated app shell: persistent sidebar + scrollable content. */
+/** Authenticated app shell: persistent sidebar + scrollable content. The page waits for the session (see `SessionGate`). */
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-1">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto px-8 py-10">{children}</main>
+      <main className="flex-1 overflow-y-auto px-8 py-10">
+        <SessionGate>{children}</SessionGate>
+      </main>
     </div>
   );
 }
