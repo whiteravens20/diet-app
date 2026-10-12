@@ -184,6 +184,9 @@ async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] =
   return screen.findByRole('button', { name: messages.mealPlans.generateButton });
 }
 
+/** The name of a control of a meal: what it does, then the meal it does it to. */
+const ofAMeal = (action: string): RegExp => new RegExp(`^${action}: `);
+
 /** Make it the given day for the page, which reads the clock for what has passed. The date alone is replaced: the timers a test waits on stay real. */
 const onTheDay = (day: string) => vi.useFakeTimers({ toFake: ['Date'], now: new Date(`${day}T12:00:00`) });
 
@@ -636,7 +639,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     await open();
     const post = vi.spyOn(api, 'post').mockResolvedValueOnce(scramble as never).mockResolvedValue({ plan, rebalance: null } as never);
 
-    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.swap }));
+    await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
 
     const offered = await theOffer();
     expect(offered.textContent).toContain('Instead: Tofu scramble, 1.5 servings: 240 kcal in place of 230.');
@@ -660,7 +663,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     await open();
     const post = vi.spyOn(api, 'post').mockResolvedValueOnce(scramble as never).mockResolvedValueOnce(toast as never).mockResolvedValue(scramble as never);
 
-    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.swap }));
+    await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
     await theOffer();
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerAnother }));
 
@@ -676,7 +679,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     await open();
     const post = vi.spyOn(api, 'post').mockResolvedValue(scramble as never);
 
-    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.swap }));
+    await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
     await theOffer();
     await userEvent.click(screen.getByRole('button', { name: messages.common.cancel }));
 
@@ -688,7 +691,7 @@ describe('the plan page, when another recipe is asked for in the place of a meal
     await open();
     vi.spyOn(api, 'post').mockResolvedValueOnce(scramble as never).mockRejectedValue(new ApiClientError(409, 'PLAN_CHANGED', 'the text of the API'));
 
-    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.swap }));
+    await userEvent.click(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.swap) }));
     await theOffer();
     await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerTake }));
 
@@ -776,7 +779,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
   it('keeps the model\'s swap in its place on an account with AI off, disabled, and says once over the plans why', async () => {
     await opened(aPlan());
 
-    const swap = screen.getByRole('button', { name: messages.mealPlans.aiSwap });
+    const swap = screen.getByRole('button', { name: ofAMeal(messages.mealPlans.aiSwap) });
     const notes = screen.getAllByText(/^AI is turned off for this account/);
     expect(swap).toBeDisabled();
     expect(notes).toHaveLength(1);
@@ -787,7 +790,7 @@ describe('the plan page, on what a model had to do with a plan', () => {
   it('says nothing of the kind on an account that has a model to ask', async () => {
     await opened(aPlan(), 'admin');
 
-    expect(screen.getByRole('button', { name: messages.mealPlans.aiSwap })).toBeEnabled();
+    expect(screen.getByRole('button', { name: ofAMeal(messages.mealPlans.aiSwap) })).toBeEnabled();
     expect(screen.queryByText(/^AI is turned off for this account/)).toBeNull();
   });
 

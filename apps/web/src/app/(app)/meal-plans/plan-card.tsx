@@ -340,6 +340,8 @@ export function PlanCard({
                   const eaten = m.eatenAt !== null;
                   const isCustom = m.source === 'USER_CUSTOM' || m.recipe === null;
                   const title = isCustom ? m.customName ?? t('customMeal') : m.recipe!.title;
+                  // A control of this meal by a name of its own: among the buttons of a plan, "Swap" alone is every meal's.
+                  const named = (action: string): string => t('actionFor', { action, title });
                   const favOpen = openFav === m.id;
                   const actionsOpen = openActions === m.id;
                   const mealLabel = tMeal.has(m.mealType) ? tMeal(m.mealType) : m.mealType.replace('_', ' ');
@@ -370,7 +372,7 @@ export function PlanCard({
                             className="mr-2 h-4 w-4 align-middle"
                             checked={eaten}
                             disabled={busy}
-                            aria-label={t('markEaten')}
+                            aria-label={named(t('markEaten'))}
                             title={t('markEaten')}
                             onChange={() => onToggleEaten(m.id, !m.eatenAt)}
                           />
@@ -440,6 +442,7 @@ export function PlanCard({
                                 variant="ghost"
                                 size="sm"
                                 className="sm:hidden"
+                                aria-label={named(t('changeMeal'))}
                                 aria-expanded={actionsOpen}
                                 aria-controls={`${m.id}-actions`}
                                 onClick={() => setOpenActions(actionsOpen ? null : m.id)}
@@ -456,6 +459,7 @@ export function PlanCard({
                                   type="button"
                                   variant="ghost"
                                   size="sm"
+                                  aria-label={named(t('swap'))}
                                   onClick={() => onSwapMeal(m.id)}
                                   disabled={busy}
                                 >
@@ -466,6 +470,8 @@ export function PlanCard({
                                   variant="ghost"
                                   size="sm"
                                   title={t('tooltipSwapToFav')}
+                                  aria-label={named(t('swapToFav'))}
+                                  aria-expanded={favOpen}
                                   onClick={() => {
                                     setShowAllFav(false);
                                     setOpenFav(favOpen ? null : m.id);
@@ -479,6 +485,7 @@ export function PlanCard({
                                   variant="ghost"
                                   size="sm"
                                   title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
+                                  aria-label={named(t('aiSwap'))}
                                   onClick={() => onAiSwapMeal?.(m.id)}
                                   disabled={busy || !onAiSwapMeal}
                                   aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
@@ -492,6 +499,7 @@ export function PlanCard({
                                   variant="ghost"
                                   size="sm"
                                   title={t('tooltipSwapByFav')}
+                                  aria-label={named(t('swapFavIngr'))}
                                   onClick={() => onSwapByFavorites(m.id)}
                                   disabled={busy}
                                 >
@@ -502,6 +510,7 @@ export function PlanCard({
                                   variant="ghost"
                                   size="sm"
                                   title={t('tooltipSubstitute')}
+                                  aria-label={named(t('substituteIngr'))}
                                   onClick={() => {
                                     if (m.recipe) setOpenSub({ ...m, recipe: m.recipe });
                                   }}

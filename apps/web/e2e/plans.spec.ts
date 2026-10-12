@@ -19,11 +19,14 @@ async function anOpenPlan(page: Page, messages: Messages): Promise<void> {
   await expect(page.getByRole('button', { name: plans.addCustomMeal! }).first()).toBeVisible();
 }
 
+/** The name of a control of a meal: what it does, then the meal it does it to. */
+const ofAMeal = (action: string): RegExp => new RegExp(`^${action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: `);
+
 /** The ways to change the first meal that can be changed, unfolded where they are folded. */
 async function waysToChangeAMeal(page: Page, messages: Messages): Promise<Locator> {
   const plans = plansOf(messages);
-  if (narrow(page)) await page.getByRole('button', { name: plans.changeMeal!, exact: true }).first().click();
-  const ways = page.getByRole('group').filter({ has: page.getByRole('button', { name: plans.swap!, exact: true }) }).first();
+  if (narrow(page)) await page.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).first().click();
+  const ways = page.getByRole('group').filter({ has: page.getByRole('button', { name: ofAMeal(plans.swap!) }) }).first();
   await expect(ways).toBeVisible();
   return ways;
 }
@@ -120,20 +123,20 @@ test.describe('a meal of a plan', () => {
     await expect(note.getByRole('link')).toHaveAttribute('href', '/settings');
 
     const ways = await waysToChangeAMeal(page, messages);
-    const byModel = ways.getByRole('button', { name: plans.aiSwap!, exact: true });
+    const byModel = ways.getByRole('button', { name: ofAMeal(plans.aiSwap!) });
     await expect(byModel).toBeVisible();
     await expect(byModel).toBeDisabled();
     expect(await byModel.getAttribute('aria-describedby')).toBe(await note.getAttribute('id'));
     // The engine's own swap is there to use.
-    await expect(ways.getByRole('button', { name: plans.swap!, exact: true })).toBeEnabled();
+    await expect(ways.getByRole('button', { name: ofAMeal(plans.swap!) })).toBeEnabled();
   });
 
   test('folds the ways to change it behind one button on a narrow screen, and shows them in a row on a wide one', async ({ session, messages }) => {
     const page = session.page;
     const plans = plansOf(messages);
     await anOpenPlan(page, messages);
-    const swap = page.getByRole('button', { name: plans.swap!, exact: true }).first();
-    const fold = page.getByRole('button', { name: plans.changeMeal!, exact: true }).first();
+    const swap = page.getByRole('button', { name: ofAMeal(plans.swap!) }).first();
+    const fold = page.getByRole('button', { name: ofAMeal(plans.changeMeal!) }).first();
 
     if (!narrow(page)) {
       await expect(swap).toBeVisible();

@@ -1005,6 +1005,7 @@
     "otherWays": "Inne warianty…",
     "changeMeal": "Zmień",
     "mealActions": "Sposoby zmiany posiłku: {title}",
+    "actionFor": "{action}: {title}",
     "swap": "Zamień",
     "offerTitle": "Przepis w miejsce tego posiłku",
     "offerLine": "Zamiast tego: <strong>{title}</strong>, {servings, plural, one {# porcja} few {# porcje} many {# porcji} other {# porcji}}: {after, number} kcal zamiast {before, number}.",

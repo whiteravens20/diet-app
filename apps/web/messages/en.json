@@ -1005,6 +1005,7 @@
     "otherWays": "Other ways…",
     "changeMeal": "Change",
     "mealActions": "Ways to change the meal: {title}",
+    "actionFor": "{action}: {title}",
     "swap": "Swap",
     "offerTitle": "A recipe in the place of this meal",
     "offerLine": "Instead: <strong>{title}</strong>, {servings, plural, one {# serving} other {# servings}}: {after, number} kcal in place of {before, number}.",
