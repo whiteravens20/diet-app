@@ -189,6 +189,18 @@ describe('favourite sets', () => {
       expect(after.revision).toBe(plan.revision + 1);
     });
 
+    it('leaves a meal it fills no longer a model\'s pick: the set is the user\'s own choice', async () => {
+      const mealsOf = (p: MealPlan, date: string) => Object.fromEntries(day(p, date).meals.map((meal) => [meal.mealType, meal.modelPick]));
+      // A model had picked every meal of the two days.
+      await t.prisma.plannedMeal.updateMany({ where: { day: { planId: plan.id } }, data: { modelPicked: true, modelReason: 'Lighter.' } });
+
+      const after = (await apply({ planId: plan.id, dayDates: ['2026-01-06'] }).expect(201)).body as MealPlan;
+
+      // The slots the set fills say nothing of a model any more; what it left alone still does.
+      expect(mealsOf(after, '2026-01-06')).toMatchObject({ breakfast: null, dinner: null, lunch: { reason: 'Lighter.' } });
+      expect(mealsOf(after, '2026-01-07')).toMatchObject({ breakfast: { reason: 'Lighter.' }, dinner: { reason: 'Lighter.' } });
+    });
+
     it('answers that no day matches when none of the dates is in the plan', async () => {
       const res = await apply({ planId: plan.id, dayDates: ['2027-03-01'] });
 

@@ -129,6 +129,16 @@ export const AiGenerationMeta = z.object({
 export type AiGenerationMeta = z.infer<typeof AiGenerationMeta>;
 
 /**
+ * A note that a model made a pick: which one, for what, and why. The API
+ * signs it and hands it out with the pick, before anything is written; the
+ * request that then takes the pick hands it back, and what is written says
+ * that a model chose it. A client cannot write one, and a note is good for
+ * the one pick it was made for. Opaque: a client passes it on unread.
+ */
+export const ModelPickNote = z.string().min(1).max(2048);
+export type ModelPickNote = z.infer<typeof ModelPickNote>;
+
+/**
  * Snapshot of the caller's AI routing state. The app-shell chip and the
  * Settings AI card both render from this. `providerConfigured` flags whether
  * the operator has set `AI_DEFAULT_PROVIDER` — when false the `admin` mode

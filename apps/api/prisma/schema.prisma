@@ -481,6 +481,10 @@ model Recipe {
   difficulty         Difficulty   @default(easy)
   allergens          String[]     @default([])
   origin             RecipeOrigin @default(seed)
+  // A model had a part in this recipe of a user's: it chose the ingredient
+  // that was swapped in, or reworded the text around it. A recipe a model
+  // wrote whole says so by its origin.
+  modelAssisted      Boolean      @default(false)
   // Per-serving nutrition — DERIVED from ingredients, recomputed on write.
   caloriesPerServing Float        @default(0)
   proteinPerServing  Float        @default(0)
@@ -641,6 +645,11 @@ model PlannedMeal {
   // shopping-list quantities read the product of the two.
   quantityScale Float     @default(1.0)
   lastRebalanceAt DateTime?
+  // A model chose this recipe for the meal, out of what the engine allowed,
+  // and this is the reason it gave, when it gave one. Cleared when the meal
+  // gets another recipe any other way.
+  modelPicked Boolean     @default(false)
+  modelReason String?
 
   @@index([dayId])
   // Cross-plan "which meals use recipe X" lookups (cascade checks, future

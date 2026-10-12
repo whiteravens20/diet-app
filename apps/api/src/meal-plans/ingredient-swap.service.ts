@@ -20,6 +20,7 @@ import {
   type Unit,
 } from '@diet-app/shared';
 import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js';
+import { ModelPickService } from '../ai/model-pick.service.js';
 import { modelText, readModelReply } from '../ai/model-json.js';
 import { INGREDIENT_SWAP, SWAP_REWRITE } from '../ai/operations.js';
 import {
@@ -63,6 +64,7 @@ export class IngredientSwapService {
     private readonly ai: AiRouterService,
     private readonly personalRecipes: PersonalRecipesService,
     private readonly plans: MealPlansService,
+    private readonly picks: ModelPickService,
   ) {}
 
   /** What a substitution would do to the meal, for the user to decide on. Nothing is written. */
@@ -107,6 +109,8 @@ export class IngredientSwapService {
   async applyIngredientSwap(userId: string, locale: Locale, req: SwapIngredientRequest): Promise<SwapIngredientResponse> {
     const s = await this.substitution(userId, req);
     const { meal, recipe, facts, lines, restrictions } = s;
+    // A substitute a model suggested is taken with the note that came with it, and with no other.
+    const picked = this.picks.taken(userId, req.pick, { kind: 'ingredient', meal: req.plannedMealId, from: req.fromIngredientId, to: req.toIngredientId });
     // The gate refuses in its own words what the preview listed.
     assertMayEnter(s.candidate, { ...restrictions, avoidedRecipeIds: [] }, meal.mealType, 'INVALID_SUBSTITUTION', s.waived);
     if (s.moved.length > 0 && !req.acceptChange) {
@@ -129,6 +133,7 @@ export class IngredientSwapService {
         origin: 'user',
         text: variant.text,
         modelWrote: variant.modelWrote,
+        modelAssisted: picked !== null || variant.modelWrote.size > 0,
         servings: recipe.servings,
         mealTypes: recipe.mealTypes,
         prepMinutes: recipe.prepMinutes,
@@ -144,7 +149,8 @@ export class IngredientSwapService {
     const summary = await writePlan(this.prisma, req.planId, meal.day.plan.revision, async (tx) => {
       await tx.plannedMeal.update({
         where: { id: req.plannedMealId },
-        data: { recipeId: variantId },
+        // The recipe is the user's own change now: what a model had to do with it, the recipe says itself.
+        data: { recipeId: variantId, modelPicked: false, modelReason: null },
       });
       // The substitution changed the meal's macros, so the day total moved —
       // run the same rebalance pipeline as every other edit.
@@ -543,7 +549,9 @@ export class IngredientSwapService {
       where: { id: toIngredientId },
       include: { translations: { where: { locale: { in: locales } } } },
     });
-    return { toIngredient: toIngredientDto(toIngredient, locale), aiMeta };
+    // What the model picked goes out with a note of it, which the request that makes the substitution hands back.
+    const note = pick ? this.picks.sign(userId, { kind: 'ingredient', meal: req.plannedMealId, from: req.fromIngredientId, to: toIngredientId, reason: pick.reason }) : null;
+    return { toIngredient: toIngredientDto(toIngredient, locale), aiMeta, pick: note };
   }
 
   // ── internals ───────────────────────────────────────────────────────────────

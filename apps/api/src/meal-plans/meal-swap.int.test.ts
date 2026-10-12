@@ -243,6 +243,97 @@ describe('putting another recipe in the place of a planned meal', () => {
       expect((await now()).days[0]!.meals.find((meal) => meal.id === lunch.id)!.recipe!.id).toBe(named);
     });
 
+    describe('what the meal says of who chose its recipe', () => {
+      const lunchNow = async (): Promise<PlannedMeal> => (await now()).days[0]!.meals.find((meal) => meal.id === lunch.id)!;
+      /** An offer a model picked, with the note that came with it. */
+      const aModelsOffer = async (reason: unknown = 'Lighter.') => {
+        t.model.reply({ text: JSON.stringify({ recipeId: (await otherLunches())[2]!, reason }) });
+        return (await t.http().post('/api/meal-plans/ai-swap-meal/preview').set(as(user)).send({ planId: plan.id, plannedMealId: lunch.id }).expect(201)).body as MealSwapPreview & { pick: string | null };
+      };
+
+      it('is nothing for a meal the plan was made with', async () => {
+        expect(plan.days[0]!.meals.map((meal) => meal.modelPick)).toEqual(plan.days[0]!.meals.map(() => null));
+      });
+
+      it('is the model, with its reason, once its offer is taken with the note that came with it', async () => {
+        const preview = await aModelsOffer();
+        expect(preview.pick).toEqual(expect.any(String));
+
+        await take(preview, { pick: preview.pick }).expect(201);
+
+        expect((await lunchNow()).modelPick).toEqual({ reason: 'Lighter.' });
+      });
+
+      it('is the model without a reason when it gave none', async () => {
+        const preview = await aModelsOffer(null);
+
+        await take(preview, { pick: preview.pick }).expect(201);
+
+        expect((await lunchNow()).modelPick).toEqual({ reason: null });
+      });
+
+      it('is nothing when the offer is taken without the note: the request does not say that a model chose', async () => {
+        const preview = await aModelsOffer();
+
+        await take(preview).expect(201);
+
+        expect((await lunchNow()).modelPick).toBeNull();
+      });
+
+      it('comes with no note when the engine picked in the model\'s place', async () => {
+        t.model.reply({ text: 'no idea' });
+
+        const preview = (await t.http().post('/api/meal-plans/ai-swap-meal/preview').set(as(user)).send({ planId: plan.id, plannedMealId: lunch.id }).expect(201)).body;
+
+        expect(preview.aiMeta.usedDeterministicFallback).toBe(true);
+        expect(preview.pick).toBeNull();
+      });
+
+      it('is refused on a note that is for another recipe, another meal, the plan as it was, another account, or is none at all', async () => {
+        const preview = await aModelsOffer();
+        const [other] = (await otherLunches()).filter((id) => id !== preview.recipe.id);
+        const dinner = plan.days[0]!.meals.find((meal) => meal.mealType === 'dinner')!;
+        const stranger = await aUser(t);
+        const refused = async (send: PromiseLike<{ status: number; body: { error?: string } }>): Promise<void> => {
+          const res = await send;
+          expect([res.status, res.body.error]).toEqual([400, 'MODEL_PICK_INVALID']);
+        };
+
+        // Another recipe than the one the model picked.
+        await refused(take(preview, { recipeId: other, pick: preview.pick }));
+        // Another meal of the same plan.
+        await refused(take(preview, { plannedMealId: dinner.id, pick: preview.pick }));
+        // The plan as it was said to stand at another revision.
+        await refused(take(preview, { revision: preview.revision + 1, pick: preview.pick }));
+        // A note that was changed, and one that never was one.
+        await refused(take(preview, { pick: `${preview.pick!.slice(0, -3)}abc` }));
+        await refused(take(preview, { pick: 'made-up' }));
+        // An access token is signed with the same key, and is no note.
+        await refused(take(preview, { pick: user.accessToken }));
+        // Somebody else's note, on a plan of their own.
+        const theirs = await aPlan(t, stranger, await aProfile(t, stranger), { durationDays: 1 });
+        const theirLunch = theirs.days[0]!.meals.find((meal) => meal.mealType === 'lunch')!;
+        await refused(
+          t.http().post('/api/meal-plans/swap-meal').set(as(stranger)).send({ planId: theirs.id, plannedMealId: theirLunch.id, strategy: 'random', recipeId: preview.recipe.id, revision: theirs.revision, pick: preview.pick }),
+        );
+
+        // Nothing was written by any of them.
+        expect((await now()).revision).toBe(plan.revision);
+        expect((await lunchNow()).modelPick).toBeNull();
+      });
+
+      it('is nothing again once the meal gets another recipe some other way', async () => {
+        const preview = await aModelsOffer();
+        await take(preview, { pick: preview.pick }).expect(201);
+        expect((await lunchNow()).modelPick).not.toBeNull();
+
+        const next: MealSwapPreview = (await offer().expect(201)).body;
+        await take(next).expect(201);
+
+        expect((await lunchNow()).modelPick).toBeNull();
+      });
+    });
+
     it('is not shown the recipes this sitting has offered already, nor one another meal of the day holds', async () => {
       const dinner = await aLunchForDinner();
       const others = await otherLunches();

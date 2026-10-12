@@ -101,6 +101,8 @@ describe('drafting a recipe with a model', () => {
     expect(recipe.title).toBe('Scripted bowl');
     expect(recipe.ingredients).toHaveLength(3);
     expect(recipe.nutritionPerServing.calories).toBeGreaterThan(30);
+    // It says that a model wrote it, wherever it is shown from here on.
+    expect(recipe).toMatchObject({ origin: 'ai', byModel: 'written' });
     expect(aiMeta).toMatchObject({ provider: 'ollama', usedDeterministicFallback: false });
     expect(await stored()).toBe(1);
 

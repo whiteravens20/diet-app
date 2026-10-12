@@ -504,6 +504,7 @@ export class MealPlansService {
             eatenAt,
             dietOverride: false,
             restrictionConflicts: [],
+            modelPick: null,
             nutrition: mealNutrition(m),
           };
         }
@@ -527,6 +528,7 @@ export class MealPlansService {
           restrictionConflicts: violations(m.recipe, restrictions, m.mealType, { diet: true, meal: true }).filter(
             (violation) => violation !== 'not_available',
           ) as PlannedMeal['restrictionConflicts'],
+          modelPick: m.modelPicked ? { reason: m.modelReason } : null,
           nutrition: mealNutrition(m),
         };
       });
@@ -603,6 +605,8 @@ interface PlanWithRelations {
       customName: string | null;
       customMacros: unknown;
       eatenAt: Date | null;
+      modelPicked: boolean;
+      modelReason: string | null;
       recipe: (Parameters<typeof toRecipeDto>[0] & Candidate) | null;
     }[];
   }[];

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
-import { AiGenerationMeta } from './ai.js';
+import { AiGenerationMeta, ModelPickNote } from './ai.js';
 import { CalendarDay, dayAfter, DietType, DisplayAmount, LAST_DAY, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
 import { EnteredNutrition, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET, Macros, Nutrition } from './nutrition.js';
@@ -237,6 +237,12 @@ export const PlannedMeal = z.object({
    * and says so. Empty for a meal that is still fine, and for a custom meal.
    */
   restrictionConflicts: z.array(z.enum(['allergen', 'excluded_ingredient', 'avoided'])),
+  /**
+   * Set when a model chose this recipe for the meal, out of what the engine
+   * allowed: the reason it gave, when it gave one. Null when the engine
+   * chose, or the user did.
+   */
+  modelPick: z.object({ reason: z.string().max(200).nullable() }).nullable(),
   nutrition: Nutrition, // effective: per-serving macros * servings * quantityScale
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;
@@ -458,8 +464,12 @@ export const MealSwapPreview = z.object({
 });
 export type MealSwapPreview = z.infer<typeof MealSwapPreview>;
 
-/** An offer a model was asked for: `aiMeta` says who picked, or why the engine did. */
-export const AiMealSwapPreview = MealSwapPreview.extend({ aiMeta: AiGenerationMeta });
+/**
+ * An offer a model was asked for: `aiMeta` says who picked, or why the engine
+ * did. `pick` is the note of a model's pick, to hand back when the offer is
+ * taken; null when the engine picked.
+ */
+export const AiMealSwapPreview = MealSwapPreview.extend({ aiMeta: AiGenerationMeta, pick: ModelPickNote.nullable() });
 export type AiMealSwapPreview = z.infer<typeof AiMealSwapPreview>;
 
 /**
@@ -475,6 +485,12 @@ export const ApplyMealSwapRequest = z.object({
   /** How the offer was asked for; `random` for one a model picked. A `favorite` is not held to the energy of the meal it replaces. */
   strategy: z.enum(['random', 'favorite', 'favorite_ingredients']),
   allowOffDiet: z.boolean().default(false),
+  /**
+   * The note that came with an offer a model picked. The meal then says that
+   * a model chose its recipe. 400 `MODEL_PICK_INVALID` for a note that is not
+   * for this recipe on this meal of the plan as it stands, or has run out.
+   */
+  pick: ModelPickNote.optional(),
 });
 export type ApplyMealSwapRequest = z.infer<typeof ApplyMealSwapRequest>;
 
@@ -498,6 +514,12 @@ export const SwapIngredientRequest = z.object({
    * `SUBSTITUTION_MOVES_NUTRITION`, whose `details.moved` names what moves.
    */
   acceptChange: z.boolean().default(false),
+  /**
+   * The note that came with a substitute a model suggested. The recipe the
+   * substitution makes then says that a model had a part in it. 400
+   * `MODEL_PICK_INVALID` for a note that is not for this substitution.
+   */
+  pick: ModelPickNote.optional(),
 });
 export type SwapIngredientRequest = z.infer<typeof SwapIngredientRequest>;
 
@@ -523,10 +545,13 @@ export type AiSuggestIngredientRequest = z.infer<typeof AiSuggestIngredientReque
  * The caller runs `/meal-plans/swap-ingredient/preview` + `/apply` with this id
  * so nutrition stays engine-owned. `aiMeta.fallbackReason` surfaces the
  * localised toast when AI was unavailable and the pick is deterministic.
+ * `pick` is the note of a model's pick, to hand back when the substitution is
+ * made; null when the engine picked.
  */
 export const AiSuggestIngredientResponse = z.object({
   toIngredient: Ingredient,
   aiMeta: AiGenerationMeta,
+  pick: ModelPickNote.nullable(),
 });
 export type AiSuggestIngredientResponse = z.infer<typeof AiSuggestIngredientResponse>;
 

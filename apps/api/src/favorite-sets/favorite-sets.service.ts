@@ -195,6 +195,9 @@ export class FavoriteSetsService {
                 servings,
                 swapHistory: [recipeId],
                 quantityScale: 1,
+                // The set is the user's own choice of what to eat.
+                modelPicked: false,
+                modelReason: null,
                 source: 'CATALOGUE',
                 customName: null,
                 customMacros: Prisma.JsonNull,

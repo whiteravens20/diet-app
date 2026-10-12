@@ -14,6 +14,7 @@ import {
   type SwapMealRequest,
 } from '@diet-app/shared';
 import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js';
+import { ModelPickService } from '../ai/model-pick.service.js';
 import { modelText, readModelReply } from '../ai/model-json.js';
 import { MEAL_SWAP } from '../ai/operations.js';
 import { fitServings, recipeCoverage, requirementsPerServing, slotBudgets } from '../engine/index.js';
@@ -63,6 +64,7 @@ export class MealSwapService {
     private readonly prisma: PrismaService,
     private readonly ai: AiRouterService,
     private readonly plans: MealPlansService,
+    private readonly picks: ModelPickService,
   ) {}
 
   /** A recipe to put in the place of a planned meal, and what that would do. Nothing is written. */
@@ -140,7 +142,10 @@ export class MealSwapService {
 
     // The gate: the model's pick and the engine's are judged alike.
     assertMayEnter(replacement, restrictions, meal.mealType, 'RECIPE_NOT_ELIGIBLE');
-    return { ...(await this.previewOf(userId, locale, slot, replacement)), aiMeta };
+    const preview = await this.previewOf(userId, locale, slot, replacement);
+    // What the model picked goes out with a note of it, which the request that takes the offer hands back.
+    const note = pick ? this.picks.sign(userId, { kind: 'meal', meal: req.plannedMealId, recipe: replacement.id, revision: preview.revision, reason: pick.reason }) : null;
+    return { ...preview, aiMeta, pick: note };
   }
 
   /**
@@ -151,6 +156,8 @@ export class MealSwapService {
   async apply(userId: string, locale: Locale, req: ApplyMealSwapRequest): Promise<RebalanceResult> {
     const slot = await this.slot(userId, req.planId, req.plannedMealId);
     const { meal, restrictions } = slot;
+    // A model's pick is taken with the note that came with it, and with no other.
+    const picked = this.picks.taken(userId, req.pick, { kind: 'meal', meal: req.plannedMealId, recipe: req.recipeId, revision: req.revision });
     const byHand = req.strategy === 'favorite';
     const refusal = byHand ? 'OFF_DIET_FAVORITE_NOT_ALLOWED' : 'RECIPE_NOT_ELIGIBLE';
     const replacement = await this.prisma.recipe.findUnique({ where: { id: req.recipeId }, select: { ...CANDIDATE, caloriesPerServing: true } });
@@ -176,8 +183,8 @@ export class MealSwapService {
     const summary = await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
       await tx.plannedMeal.update({
         where: { id: req.plannedMealId },
-        // A fresh recipe is a new baseline for the rebalancer.
-        data: { recipeId: replacementId, servings, swapHistory: nextHistory, quantityScale: 1 },
+        // A fresh recipe is a new baseline for the rebalancer, and says who chose it.
+        data: { recipeId: replacementId, servings, swapHistory: nextHistory, quantityScale: 1, modelPicked: picked !== null, modelReason: picked?.reason ?? null },
       });
       // The swap changed the day total — pull it back toward target.
       return this.plans.rebalanceDayInternal(meal.dayId, tx);

@@ -16,3 +16,6 @@ export const REVIEWER_AUDIENCE = 'diet-app/reviewer';
 
 /** The cookie of the administrator's session. */
 export const ADMIN_AUDIENCE = 'diet-app/admin';
+
+/** A note that a model made a pick, handed to the client with the pick and back with the request that takes it. */
+export const MODEL_PICK_AUDIENCE = 'diet-app/model-pick';

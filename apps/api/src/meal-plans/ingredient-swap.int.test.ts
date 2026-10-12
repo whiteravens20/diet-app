@@ -7,6 +7,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
+import { MealPlansService } from './meal-plans.service.js';
 
 interface Text {
   title: string;
@@ -120,6 +121,88 @@ describe('the text of a recipe after an ingredient swap', () => {
     expect(res.body.aiMeta).toBeNull();
     expect(res.body.plan.id).toBe(plan.id);
     expect(t.model.requests).toHaveLength(0);
+  });
+
+  describe('what the meal and its recipe say of a model\'s part in the swap', () => {
+    /** The meal as the plan shows it now. */
+    const theMeal = async () => (await t.app.get(MealPlansService).get(user.id, 'en', plan.id)).days[0]!.meals.find((meal) => meal.id === mealId)!;
+    const swap = async (over: Record<string, unknown> = {}) =>
+      t
+        .http()
+        .post('/api/meal-plans/swap-ingredient/apply')
+        .set(as(user))
+        .send({ planId: plan.id, plannedMealId: mealId, fromIngredientId: await ingredientId('broccoli'), toIngredientId: await ingredientId('tomato'), acceptChange: true, ...over });
+    /** Ask a model what could stand in for the broccoli; it names the tomato, or `names`. */
+    const suggestion = async (names?: string) => {
+      t.model.reply({ text: names ?? JSON.stringify({ ingredientId: await ingredientId('tomato'), reason: 'In season.' }) });
+      return (await t.http().post('/api/meal-plans/swap-ingredient/ai-suggest').set(as(user)).send({ planId: plan.id, plannedMealId: mealId, fromIngredientId: await ingredientId('broccoli') }).expect(201)).body;
+    };
+
+    it('is nothing for a recipe of the catalogue, and for a swap the user made by hand', async () => {
+      expect((await theMeal()).recipe!.byModel).toBeNull();
+
+      await swap().then((res) => expect(res.status).toBe(201));
+
+      expect((await theMeal()).recipe).toMatchObject({ origin: 'user', byModel: null });
+    });
+
+    it('is "changed" when a model reworded the text around the substitute', async () => {
+      t.model.reply({ match: REWORDING, text: JSON.stringify({ description: 'A bowl of rice and tofu with tomato.', steps: ['Combine firm tofu, white rice and chopped tomato, then olive oil.'] }) });
+
+      await swap({ rewriteWithAi: true }).then((res) => expect(res.status).toBe(201));
+
+      expect((await theMeal()).recipe!.byModel).toBe('changed');
+    });
+
+    it('is nothing when the rewording that was asked for was not usable: the text is the plain replacement', async () => {
+      t.model.reply({ match: REWORDING, text: 'I would rather not.', times: 5 });
+
+      await swap({ rewriteWithAi: true }).then((res) => expect(res.status).toBe(201));
+
+      expect((await theMeal()).recipe!.byModel).toBeNull();
+    });
+
+    it('is "changed" when the substitute was a model\'s suggestion and is taken with the note that came with it', async () => {
+      const suggested = await suggestion();
+      expect(suggested).toMatchObject({ toIngredient: { name: 'Tomato' }, aiMeta: { usedDeterministicFallback: false, reason: 'In season.' }, pick: expect.any(String) });
+
+      await swap({ pick: suggested.pick }).then((res) => expect(res.status).toBe(201));
+
+      expect((await theMeal()).recipe!.byModel).toBe('changed');
+    });
+
+    it('comes with no note when the engine suggested in the model\'s place', async () => {
+      expect(await suggestion('no idea')).toMatchObject({ aiMeta: { usedDeterministicFallback: true }, pick: null });
+    });
+
+    it('is nothing when the suggestion is taken without the note: the request does not say that a model chose', async () => {
+      await suggestion();
+
+      await swap().then((res) => expect(res.status).toBe(201));
+
+      expect((await theMeal()).recipe!.byModel).toBeNull();
+    });
+
+    it('is refused on a note that is for another substitute, or for another ingredient, and writes nothing', async () => {
+      const suggested = await suggestion();
+      const before = await theMeal();
+
+      const another = await swap({ toIngredientId: await ingredientId('chickpeas'), pick: suggested.pick });
+      expect([another.status, another.body.error]).toEqual([400, 'MODEL_PICK_INVALID']);
+      const elsewhere = await swap({ fromIngredientId: await ingredientId('white-rice'), pick: suggested.pick });
+      expect([elsewhere.status, elsewhere.body.error]).toEqual([400, 'MODEL_PICK_INVALID']);
+
+      expect((await theMeal()).recipe!.id).toBe(before.recipe!.id);
+    });
+
+    it('leaves the meal no longer a model\'s pick: the recipe is the user\'s own change from here on', async () => {
+      await t.prisma.plannedMeal.update({ where: { id: mealId }, data: { modelPicked: true, modelReason: 'Lighter.' } });
+      expect((await theMeal()).modelPick).toEqual({ reason: 'Lighter.' });
+
+      await swap().then((res) => expect(res.status).toBe(201));
+
+      expect((await theMeal()).modelPick).toBeNull();
+    });
   });
 
   describe('when a rewording by a model is asked for', () => {

@@ -44,6 +44,8 @@ export interface PersonalRecipe {
    * every other language is stored as text no model wrote.
    */
   modelWrote?: ReadonlySet<string>;
+  /** A model chose the ingredient that was swapped in, or reworded the text around it. */
+  modelAssisted?: boolean;
   servings: number;
   mealTypes: string[];
   prepMinutes: number;
@@ -264,6 +266,7 @@ export class PersonalRecipesService {
         difficulty: recipe.difficulty,
         allergens: recipe.facts.allergens,
         origin: recipe.origin,
+        modelAssisted: recipe.modelAssisted ?? false,
         createdByUserId: recipe.userId,
         fingerprint,
         caloriesPerServing: recipe.facts.perServing.calories,

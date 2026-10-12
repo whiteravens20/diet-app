@@ -225,6 +225,7 @@
     "UNAUTHORIZED": "Zaloguj się, aby kontynuować.",
     "NOT_FOUND": "Nie znaleziono.",
     "METHOD_NOT_ALLOWED": "Ta operacja nie jest tutaj dostępna.",
+    "MODEL_PICK_INVALID": "Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową.",
     "PAYLOAD_TOO_LARGE": "Żądanie jest zbyt duże.",
     "UNSUPPORTED_MEDIA_TYPE": "Serwer nie obsługuje tego formatu.",
     "RATE_LIMITED": "Zbyt wiele żądań. Spróbuj ponownie za chwilę.",

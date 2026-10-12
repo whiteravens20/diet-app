@@ -83,6 +83,14 @@ export const Recipe = z.object({
    * `user`, made by them, by hand or by swapping an ingredient.
    */
   origin: z.enum(['seed', 'ai', 'user', 'curated']),
+  /**
+   * What a model had to do with the recipe, for the mark it carries wherever
+   * it is shown: `written`, a model wrote it for the user (from the
+   * catalogue's ingredients, with nutrition the engine computed); `changed`,
+   * a recipe of the user's in which a model chose the ingredient that was
+   * swapped in, or reworded the text around it; null, nothing.
+   */
+  byModel: z.enum(['written', 'changed']).nullable(),
 });
 export type Recipe = z.infer<typeof Recipe>;
 
