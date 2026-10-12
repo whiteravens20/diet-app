@@ -10,7 +10,8 @@
 Diet App generates calorie-targeted meal plans, optimises ingredient reuse across a
 planning window, and produces consolidated shopping lists — all from a **curated product
 database** so every calorie and macro is deterministic and reproducible. AI is an optional
-assistant for recipe drafting and substitution ideas; it never invents nutrition facts.
+assistant: it drafts recipes, suggests substitutions and weighs what the planner proposes;
+it never invents nutrition facts.
 
 The companion Android app lives in a separate repository:
 [`whiteravens20/diet-app-android`](https://github.com/whiteravens20/diet-app-android).
@@ -44,6 +45,9 @@ The companion Android app lives in a separate repository:
   holds as one JSON file.
 - **Meal & ingredient swapping** — random/favorite meal swaps and ingredient substitutions
   that preserve calories and report the macro delta.
+- **Proposals to choose from** — other ways to fill a day, swaps that use up an opened
+  pack, and what a shopping list could do without: worked out by the planner, and put in
+  order with a sentence on each by a model when the account has one and is asked.
 - **BYOK AI** — per-user OpenAI / Anthropic / OpenRouter / Ollama keys with failover, and a
   full deterministic fallback so the app works with **no AI key at all**.
 - **Self-hosted, Docker-first** — `docker compose up` boots the whole stack.

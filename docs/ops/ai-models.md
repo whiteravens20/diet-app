@@ -25,6 +25,7 @@ provider/model that clears the demand bar for the surface you actually use.
 | **AI meal swap** | `POST /api/meal-plans/ai-swap-meal` | ~1k tok (candidate pool) | ~100 tok (pick + reason) | lenient | no |
 | **AI ingredient swap suggest** | `POST /api/meal-plans/swap-ingredient/ai-suggest` | ~800 tok | ~100 tok | lenient | no |
 | **Swap rewrite** | `POST /api/meal-plans/swap-ingredient/apply` with `rewriteWithAi: true`, only when the user ticks it | ~500 tok (sentences only) | ~500 tok | strict (two keys) | no: one call, in the user's language |
+| **Weighing what the planner proposes** | `POST /api/meal-plans/:id/days/:dayId/variations`, `POST /api/meal-plans/:id/use-up` and `POST /api/shopping-lists/:id/proposals`, each with `weigh: true`, only when the user asks ([weigh.service.ts](../../apps/api/src/ai/weigh.service.ts)) | ~300–700 tok (up to eight options, a line each) | ~200 tok (an order, and a sentence for each option) | lenient | no: one call, in the user's language |
 | **Admin auto-translate** | `POST /api/admin/translations/fill` | per-row, ~200 tok | ~200 tok | strict (key-preserving) | yes |
 | **Admin ingredient-name draft** | `POST /api/admin/drafts/ingredient-names/generate` ([ingredient-namer.runner.ts](../../apps/api/src/admin/drafts/ingredient-namer.runner.ts)) | per-row, ~150 tok | ~80 tok | strict | yes |
 
@@ -46,6 +47,7 @@ runs on a provider's defaults.
 | Request | Wait | Output cap | Temperature |
 |---|---|---|---|
 | AI meal swap, AI ingredient suggestion | 60 s | 400 tokens | 0.2 |
+| Weighing what the planner proposes | 60 s | 700 tokens | 0.2 |
 | Recipe draft from prompt | 60 s | 1,800 tokens for one language, 1,200 more for each further one | 0.7 |
 | Swap rewrite | 20 s | 3,000 tokens | 0.3 |
 | Admin recipe batch | 180 s per call | about 1,100 tokens per recipe in one language, 700 more for each further one | 0.2 |
@@ -64,6 +66,14 @@ runs on a provider's defaults.
   twice a typical answer. Admin runs ask again and show `answer-cut-off`.
   Models that think before they answer spend the cap on thinking: use one that
   does not for swaps, or expect the engine's pick.
+- **A model that weighs adds nothing.** Other ways to fill a day, swaps that
+  use up an opened pack and what a shopping list could do without are worked
+  out by the engine, with or without a model, and are the same either way. A
+  model is shown them under letters with the figures the engine counted, and
+  answers with an order and a sentence for each. A letter it makes up is
+  ignored, an option it leaves out keeps its place after the ones it named,
+  and an answer that names none leaves the engine's order with a line that
+  says so.
 - **Admin batches are split into calls.** A run of 25 recipes in two languages
   is nine calls of three recipes or fewer; each call sees what the earlier ones
   wrote, so the run does not repeat itself. A rejected call fails only its own
