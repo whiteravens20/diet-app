@@ -76,6 +76,11 @@ Two rules apply to every variable:
 |---|---|---|
 | `MAX_PROFILES_PER_ACCOUNT` | `2` | How many profiles one account may hold, from 1 to 20: one for each member of a household, or to compare diets. Every profile has its own plans, shopping lists, pantry and favourites, so the number is also how much one account can store. Lowering it takes no profile away: an account that has more keeps them, and can add none. The web app reads the number from the API. |
 
+## Plans
+| Variable | Default | Purpose |
+|---|---|---|
+| `DEFAULT_MAX_REPEATS_PER_RECIPE` | (unset) | The most times one recipe appears in a plan whose maker names no number of their own, from 1 to 28. Unset, such a plan is held to the limits of its profile only. A number typed into the form of a plan takes its place for that plan. The limit is one of those a plan may let give way: where the catalogue has too few recipes for a diet and meal to keep it, the plan is refused with the meals that would be outside it, and made once its maker allows that. The administrator's table of recipes per diet and meal shows what the catalogue can serve. The web app reads the number from the API and shows it in the form. |
+
 ## Email (optional)
 | Variable | Default | Purpose |
 |---|---|---|

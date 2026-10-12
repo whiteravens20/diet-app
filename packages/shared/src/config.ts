@@ -2,6 +2,7 @@
 
 import * as z from './zod.js';
 import { DietType } from './enums.js';
+import { MAX_PLAN_DAYS } from './meal-plan.js';
 import { MOST_PROFILES_PER_ACCOUNT } from './profile.js';
 
 /**
@@ -73,6 +74,14 @@ export const PublicConfig = z.object({
   accounts: z.object({
     /** How many profiles an account may hold on this instance. */
     maxProfiles: z.number().int().min(1).max(MOST_PROFILES_PER_ACCOUNT),
+  }),
+  plans: z.object({
+    /**
+     * The most times one recipe appears in a plan whose request names no
+     * number of its own; null when the operator set none, and such a plan is
+     * held to the limits of its profile only.
+     */
+    maxRepeatsPerRecipe: z.number().int().min(1).max(MAX_PLAN_DAYS).nullable(),
   }),
 });
 export type PublicConfig = z.infer<typeof PublicConfig>;

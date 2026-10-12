@@ -7,6 +7,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import {
@@ -43,6 +44,7 @@ import {
   type OptimizerRecipe,
   type OptimizerResult,
 } from '../engine/index.js';
+import type { Env } from '../config/env.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { storedSplit } from '../common/stored-split.js';
@@ -61,6 +63,7 @@ export class PlanGenerationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly plans: MealPlansService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   /** Deterministically generate and persist a meal plan. */
@@ -503,7 +506,8 @@ export class PlanGenerationService {
         inventoryCoverage,
         maxConsecutiveDaysSameMeal,
         maxTimesPerWeekSameMeal,
-        maxRepeatsPerRecipe: opts.maxRepeatsPerRecipe,
+        // A plan that names no number is held to the operator's, where one is set.
+        maxRepeatsPerRecipe: opts.maxRepeatsPerRecipe ?? this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
         maxIngredientPerWeek: profile.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
         perishablePacks,
         allowRelaxations: new Set(opts.allowRelaxations),

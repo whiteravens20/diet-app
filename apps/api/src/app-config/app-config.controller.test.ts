@@ -53,6 +53,11 @@ describe('GET /api/config', () => {
     expect((await configOf({ MAX_PROFILES_PER_ACCOUNT: 4 })).accounts).toEqual({ maxProfiles: 4 });
   });
 
+  it('publishes the most a recipe repeats in a plan that names no number, and that the operator set none', async () => {
+    expect((await configOf({ DEFAULT_MAX_REPEATS_PER_RECIPE: 3 })).plans).toEqual({ maxRepeatsPerRecipe: 3 });
+    expect((await configOf({})).plans).toEqual({ maxRepeatsPerRecipe: null });
+  });
+
   it('never carries a secret', async () => {
     const body = JSON.stringify(await configOf({ TURNSTILE_SECRET_KEY: 'turnstile-secret', JWT_ACCESS_SECRET: 'jwt-secret' }));
     expect(body).not.toContain('turnstile-secret');

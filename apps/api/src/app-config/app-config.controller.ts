@@ -14,9 +14,10 @@ import { PACKAGE_VERSION } from './package-version.js';
  * Public, unauthenticated runtime configuration for the web app. Exposes only
  * non-secret operator choices the front-end needs before sign-in (whether to
  * render Turnstile + the site key, whether email flows are available), what
- * the operator publishes about the instance, and which diets the catalogue has
- * recipes for. Mirrors the unauthenticated HealthController, and is limited
- * like it and every other route.
+ * the operator publishes about the instance, which diets the catalogue has
+ * recipes for, and the limits the operator set for accounts and plans.
+ * Mirrors the unauthenticated HealthController, and is limited like it and
+ * every other route.
  */
 @Controller('config')
 export class AppConfigController {
@@ -45,6 +46,7 @@ export class AppConfigController {
       },
       catalogue: { depth: depthByMealCount(await this.coverage.recent()) },
       accounts: { maxProfiles: this.config.get('MAX_PROFILES_PER_ACCOUNT', { infer: true }) },
+      plans: { maxRepeatsPerRecipe: this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }) ?? null },
     };
   }
 }

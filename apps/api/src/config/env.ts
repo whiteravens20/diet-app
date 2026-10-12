@@ -8,7 +8,7 @@
  * optional keys as `KEY=`, and such a line must mean "use the default", never
  * "the value is an empty string".
  */
-import { DEFAULT_PROFILES_PER_ACCOUNT, FdcDataTypes, MOST_PROFILES_PER_ACCOUNT } from '@diet-app/shared';
+import { DEFAULT_PROFILES_PER_ACCOUNT, FdcDataTypes, MAX_PLAN_DAYS, MOST_PROFILES_PER_ACCOUNT } from '@diet-app/shared';
 import { z } from 'zod';
 import { describeTrustProxy, parseTrustProxy } from './trust-proxy.js';
 
@@ -102,6 +102,10 @@ export const envSchema = z.object({
   // How many profiles an account may hold. An account that has more than a
   // lowered number keeps them, and can add none.
   MAX_PROFILES_PER_ACCOUNT: z.coerce.number().int().min(1).max(MOST_PROFILES_PER_ACCOUNT).default(DEFAULT_PROFILES_PER_ACCOUNT),
+
+  // The most times one recipe appears in a plan whose request names no number
+  // of its own. Unset, such a plan is held to the limits of its profile only.
+  DEFAULT_MAX_REPEATS_PER_RECIPE: z.coerce.number().int().min(1).max(MAX_PLAN_DAYS).optional(),
 
   // What the operator publishes about the instance. Served by GET /api/config,
   // so a change takes effect on restart, without rebuilding the web app.

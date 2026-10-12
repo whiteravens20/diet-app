@@ -58,6 +58,12 @@ describe('validateEnv', () => {
     expect(validateEnv(valid({ MAX_PROFILES_PER_ACCOUNT: '' })).MAX_PROFILES_PER_ACCOUNT).toBe(2);
   });
 
+  it('takes the most a recipe repeats in a plan that names no number from the operator, and none when it is left out', () => {
+    expect(validateEnv(valid({ DEFAULT_MAX_REPEATS_PER_RECIPE: '3' })).DEFAULT_MAX_REPEATS_PER_RECIPE).toBe(3);
+    expect(validateEnv(valid({ DEFAULT_MAX_REPEATS_PER_RECIPE: '' })).DEFAULT_MAX_REPEATS_PER_RECIPE).toBeUndefined();
+    expect(validateEnv(valid()).DEFAULT_MAX_REPEATS_PER_RECIPE).toBeUndefined();
+  });
+
   it('still requires a required key that was left blank', () => {
     expect(() => validateEnv(valid({ DATABASE_URL: '' }))).toThrow(/DATABASE_URL/);
   });
@@ -73,6 +79,10 @@ describe('validateEnv', () => {
     ['MAX_PROFILES_PER_ACCOUNT', '0'],
     ['MAX_PROFILES_PER_ACCOUNT', '21'],
     ['MAX_PROFILES_PER_ACCOUNT', '2.5'],
+    // A recipe is in a plan once at least, and no more often than the longest plan has days.
+    ['DEFAULT_MAX_REPEATS_PER_RECIPE', '0'],
+    ['DEFAULT_MAX_REPEATS_PER_RECIPE', '29'],
+    ['DEFAULT_MAX_REPEATS_PER_RECIPE', '1.5'],
   ])('refuses %s=%s', (key, value) => {
     expect(() => validateEnv(valid({ [key]: value }))).toThrow(new RegExp(key));
   });
