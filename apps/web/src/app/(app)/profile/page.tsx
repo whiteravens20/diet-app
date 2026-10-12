@@ -8,7 +8,7 @@ import { useState } from 'react';
 import {
   DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   MAX_CALORIE_TARGET,
-  MAX_PROFILES_PER_ACCOUNT,
+  DEFAULT_PROFILES_PER_ACCOUNT,
   MAX_WEEKLY_AMOUNT_PER_INGREDIENT,
   MIN_CALORIE_TARGET,
   MIN_WEEKLY_AMOUNT_PER_INGREDIENT,
@@ -85,7 +85,9 @@ export default function ProfilePage() {
   const [creating, setCreating] = useState(false);
 
   const list = profiles.data ?? [];
-  const atLimit = list.length >= MAX_PROFILES_PER_ACCOUNT;
+  // How many profiles an account may hold is the instance's to say.
+  const maxProfiles = useConfig().data?.accounts.maxProfiles ?? DEFAULT_PROFILES_PER_ACCOUNT;
+  const atLimit = list.length >= maxProfiles;
 
   /** Profile data feeds the calorie engine — refresh everything derived from it. */
   function recalculate() {
@@ -188,7 +190,7 @@ export default function ProfilePage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">
-          {t('subhead', { max: MAX_PROFILES_PER_ACCOUNT })}
+          {t('subhead', { max: maxProfiles })}
         </p>
       </header>
 
@@ -257,7 +259,7 @@ export default function ProfilePage() {
 
       {!showForm && atLimit && (
         <p className="max-w-2xl text-sm text-muted-foreground">
-          {t('atLimit', { max: MAX_PROFILES_PER_ACCOUNT })}
+          {t('atLimit', { max: maxProfiles })}
         </p>
       )}
 

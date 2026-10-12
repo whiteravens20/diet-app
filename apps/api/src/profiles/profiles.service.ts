@@ -8,7 +8,6 @@ import {
 import {
   type CalorieCalculation,
   DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
-  MAX_PROFILES_PER_ACCOUNT,
   type Profile,
   type ProfileInput,
   ProfilePreferences,
@@ -17,7 +16,9 @@ import {
   riskOfLosingWeight,
   WeightReminderCadence,
 } from '@diet-app/shared';
+import { ConfigService } from '@nestjs/config';
 import { holdAccount } from '../common/hold.js';
+import type { Env } from '../config/env.js';
 import { calculateCalories } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -37,7 +38,10 @@ function acknowledgedAt(input: ProfileInput | ProfileUpdate, before: Date | null
 
 @Injectable()
 export class ProfilesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService<Env, true>,
+  ) {}
 
   async list(userId: string): Promise<Profile[]> {
     const rows = await this.prisma.profile.findMany({
@@ -55,11 +59,13 @@ export class ProfilesService {
   async create(userId: string, input: ProfileInput): Promise<Profile> {
     const row = await this.prisma.$transaction(async (tx) => {
       await holdAccount(tx, userId);
+      // The instance's own number. An account that holds more than a lowered number keeps what it has.
+      const most = this.config.get('MAX_PROFILES_PER_ACCOUNT', { infer: true });
       const count = await tx.profile.count({ where: { userId } });
-      if (count >= MAX_PROFILES_PER_ACCOUNT) {
+      if (count >= most) {
         throw new ConflictException({
           error: 'PROFILE_LIMIT_REACHED',
-          message: `An account can have at most ${MAX_PROFILES_PER_ACCOUNT} profiles. Delete one to add another.`,
+          message: `An account can have at most ${most} profiles on this instance. Delete one to add another.`,
         });
       }
       return tx.profile.create({

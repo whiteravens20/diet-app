@@ -44,6 +44,7 @@ export class AppConfigController {
         version: this.config.get('APP_VERSION', { infer: true }) ?? PACKAGE_VERSION,
       },
       catalogue: { depth: depthByMealCount(await this.coverage.recent()) },
+      accounts: { maxProfiles: this.config.get('MAX_PROFILES_PER_ACCOUNT', { infer: true }) },
     };
   }
 }

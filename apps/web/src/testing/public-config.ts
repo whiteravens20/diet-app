@@ -18,6 +18,7 @@ export function aPublicConfig(overrides: Partial<PublicConfig> = {}): PublicConf
     ai: { ollamaUserPolicy: 'off' },
     instance: { supportUrl: null, operatorContact: null, version: '0.0.0' },
     catalogue: { depth: aDepth(9) },
+    accounts: { maxProfiles: 2 },
     ...overrides,
   };
 }

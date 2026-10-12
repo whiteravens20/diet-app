@@ -6,8 +6,13 @@ import { MAX_INGREDIENT_IDS } from './ingredient.js';
 import { MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
 
-/** A single account may hold at most this many profiles. */
-export const MAX_PROFILES_PER_ACCOUNT = 2;
+/**
+ * How many profiles an account may hold is for whoever runs an instance to
+ * say: this many unless they say otherwise, and never more than the most.
+ * A client reads the number of its instance from the public configuration.
+ */
+export const DEFAULT_PROFILES_PER_ACCOUNT = 2;
+export const MOST_PROFILES_PER_ACCOUNT = 20;
 
 /** The most of one ingredient a plan may hold in seven days: what a profile starts with, and what it may be set to. */
 export const DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT = 3000;

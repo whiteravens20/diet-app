@@ -61,6 +61,11 @@ Two rules apply to every variable:
 | `RATE_LIMIT_MAX` | `120` | Requests per window and route, global default. Counted against the signed-in user, or against the client's address for a request without a sign-in. AI + plan-generation routes carry fixed tighter per-route limits (recipe draft 10, recipe submission 10, plan (re)generate 20, AI swap 30, ingredient swap 30, provider test 20/min) that are not operator-tunable. Sign-in and the other credential routes are limited per account or per token, see [deployment](deployment.md#rate-limits). |
 | `TRUST_PROXY` | — | Whose word is taken for a client's address. Blank: the address of the connection, which behind the web server or a reverse proxy is the same for everybody. A number: that many reverse proxies stand in front of the app and their `X-Forwarded-For` is believed (`1` for one Traefik, Caddy or nginx). A list: the proxies' addresses or networks (`10.0.0.0/8,172.16.0.0/12`, or `loopback`, `linklocal`, `uniquelocal`). Set it only when the proxy is there and the app cannot be reached around it. `true` is refused. See [deployment](deployment.md#reverse-proxy). |
 
+## Accounts
+| Variable | Default | Purpose |
+|---|---|---|
+| `MAX_PROFILES_PER_ACCOUNT` | `2` | How many profiles one account may hold, from 1 to 20: one for each member of a household, or to compare diets. Every profile has its own plans, shopping lists, pantry and favourites, so the number is also how much one account can store. Lowering it takes no profile away: an account that has more keeps them, and can add none. The web app reads the number from the API. |
+
 ## Email (optional)
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | — | SMTP for mail. Unset → no mail is sent and the web app does not offer password reset. A reset requested straight from the API is logged outside production and dropped in production. |
 | `SMTP_FROM` | `no-reply@diet-app.local` | From address. |

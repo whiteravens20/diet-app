@@ -1339,8 +1339,8 @@
   },
   "profile": {
     "title": "Profiles",
-    "subhead": "A profile drives the deterministic calorie engine. An account can have up to {max} profiles — one per household member, or to compare diet scenarios. Editing a profile recalculates its targets; deleting one also removes its meal plans and shopping lists.",
-    "atLimit": "You have reached the limit of {max} profiles. Edit one above, or delete a profile to create a new one.",
+    "subhead": "A profile drives the deterministic calorie engine. An account on this instance can have {max, plural, one {one profile} other {up to # profiles: one for each member of a household, or to compare diet scenarios}}. Editing a profile recalculates its targets; deleting one also removes its meal plans and shopping lists.",
+    "atLimit": "You have reached the limit of {max, plural, one {one profile} other {# profiles}} that this instance allows an account. Edit one above, or delete a profile to create a new one.",
     "newProfile": "New profile",
     "addProfile": "Add profile",
     "editing": "Edit {name}",

@@ -1339,8 +1339,8 @@
   },
   "profile": {
     "title": "Profile",
-    "subhead": "Profil to dane, z których liczony jest Twój cel kaloryczny. Konto może mieć do {max} profili — np. po jednym na członka rodziny albo do porównania różnych podejść do diety. Edycja profilu przelicza jego cele; usunięcie kasuje też powiązane plany posiłków i listy zakupów.",
-    "atLimit": "Osiągnięto limit {max} profili. Edytuj jeden z istniejących lub usuń jeden, aby utworzyć nowy.",
+    "subhead": "Profil to dane, z których liczony jest Twój cel kaloryczny. Konto w tej instancji może mieć {max, plural, one {jeden profil} few {do # profili: np. po jednym na członka rodziny albo do porównania różnych podejść do diety} many {do # profili: np. po jednym na członka rodziny albo do porównania różnych podejść do diety} other {do # profilu}}. Edycja profilu przelicza jego cele; usunięcie kasuje też powiązane plany posiłków i listy zakupów.",
+    "atLimit": "Osiągnięto limit, na który ta instancja pozwala jednemu kontu: {max, plural, one {jeden profil} few {# profile} many {# profili} other {# profilu}}. Edytuj jeden z istniejących lub usuń jeden, aby utworzyć nowy.",
     "newProfile": "Nowy profil",
     "addProfile": "Dodaj profil",
     "editing": "Edytuj {name}",

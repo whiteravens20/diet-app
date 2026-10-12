@@ -7,7 +7,7 @@
  * when a profile has no preferences row.
  */
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { MAX_PROFILES_PER_ACCOUNT } from '@diet-app/shared';
+import { DEFAULT_PROFILES_PER_ACCOUNT } from '@diet-app/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { ProfilesService } from './profiles.service.js';
 
@@ -51,18 +51,30 @@ function makePrisma(row = makeRow(), count = 0) {
   return prisma;
 }
 
-function makeService(prisma: ReturnType<typeof makePrisma>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test double
-  return new ProfilesService(prisma as any);
+/** The service of an instance that allows `most` profiles an account. */
+function makeService(prisma: ReturnType<typeof makePrisma>, most = DEFAULT_PROFILES_PER_ACCOUNT) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
+  return new ProfilesService(prisma as any, { get: () => most } as any);
 }
 
 describe('ProfilesService.create', () => {
   it('rejects when the per-account limit is reached', async () => {
-    const prisma = makePrisma(makeRow(), MAX_PROFILES_PER_ACCOUNT);
+    const prisma = makePrisma(makeRow(), DEFAULT_PROFILES_PER_ACCOUNT);
     await expect(
       makeService(prisma).create('user-1', { name: 'X', preferences: {} } as never),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.profile.create).not.toHaveBeenCalled();
+  });
+
+  it('goes by the number the instance was given, not by the one it starts with', async () => {
+    const five = makePrisma(makeRow(), 4);
+    await makeService(five, 5).create('user-1', { name: 'X', preferences: {} } as never);
+    expect(five.profile.create).toHaveBeenCalledOnce();
+
+    // An instance that lowered its number to one: an account that has two keeps them and can add none.
+    const one = makePrisma(makeRow(), 2);
+    await expect(makeService(one, 1).create('user-1', { name: 'X', preferences: {} } as never)).rejects.toMatchObject({ response: { error: 'PROFILE_LIMIT_REACHED' } });
+    expect(one.profile.create).not.toHaveBeenCalled();
   });
 
   it('creates a profile with a nested preferences create', async () => {

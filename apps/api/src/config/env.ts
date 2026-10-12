@@ -8,7 +8,7 @@
  * optional keys as `KEY=`, and such a line must mean "use the default", never
  * "the value is an empty string".
  */
-import { FdcDataTypes } from '@diet-app/shared';
+import { DEFAULT_PROFILES_PER_ACCOUNT, FdcDataTypes, MOST_PROFILES_PER_ACCOUNT } from '@diet-app/shared';
 import { z } from 'zod';
 import { describeTrustProxy, parseTrustProxy } from './trust-proxy.js';
 
@@ -98,6 +98,10 @@ export const envSchema = z.object({
   // Whose word is taken for a client's address: off, a number of proxies, or
   // their addresses. See config/trust-proxy.ts.
   TRUST_PROXY: z.string().optional(),
+
+  // How many profiles an account may hold. An account that has more than a
+  // lowered number keeps them, and can add none.
+  MAX_PROFILES_PER_ACCOUNT: z.coerce.number().int().min(1).max(MOST_PROFILES_PER_ACCOUNT).default(DEFAULT_PROFILES_PER_ACCOUNT),
 
   // What the operator publishes about the instance. Served by GET /api/config,
   // so a change takes effect on restart, without rebuilding the web app.

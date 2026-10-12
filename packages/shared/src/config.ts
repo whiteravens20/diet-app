@@ -2,6 +2,7 @@
 
 import * as z from './zod.js';
 import { DietType } from './enums.js';
+import { MOST_PROFILES_PER_ACCOUNT } from './profile.js';
 
 /**
  * Whether — and how — a user may point a bring-your-own Ollama config at a host
@@ -68,6 +69,10 @@ export const PublicConfig = z.object({
   }),
   catalogue: z.object({
     depth: CatalogueDepth,
+  }),
+  accounts: z.object({
+    /** How many profiles an account may hold on this instance. */
+    maxProfiles: z.number().int().min(1).max(MOST_PROFILES_PER_ACCOUNT),
   }),
 });
 export type PublicConfig = z.infer<typeof PublicConfig>;

@@ -49,6 +49,10 @@ describe('GET /api/config', () => {
     });
   });
 
+  it('publishes how many profiles an account may hold on this instance', async () => {
+    expect((await configOf({ MAX_PROFILES_PER_ACCOUNT: 4 })).accounts).toEqual({ maxProfiles: 4 });
+  });
+
   it('never carries a secret', async () => {
     const body = JSON.stringify(await configOf({ TURNSTILE_SECRET_KEY: 'turnstile-secret', JWT_ACCESS_SECRET: 'jwt-secret' }));
     expect(body).not.toContain('turnstile-secret');

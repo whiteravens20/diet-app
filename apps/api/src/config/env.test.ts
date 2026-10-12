@@ -31,7 +31,7 @@ function template(): Record<string, string> {
 describe('validateEnv', () => {
   it('accepts a generated configuration and applies the defaults', () => {
     const env = validateEnv(valid());
-    expect(env).toMatchObject({ API_PORT: 4000, RATE_LIMIT_MAX: 120, FDC_API_KEY: 'DEMO_KEY', SWAGGER_ENABLED: false });
+    expect(env).toMatchObject({ API_PORT: 4000, RATE_LIMIT_MAX: 120, FDC_API_KEY: 'DEMO_KEY', SWAGGER_ENABLED: false, MAX_PROFILES_PER_ACCOUNT: 2 });
   });
 
   it('reads a blank optional key as not set', () => {
@@ -53,6 +53,11 @@ describe('validateEnv', () => {
     expect(env.RATE_LIMIT_MAX).toBe(120);
   });
 
+  it('takes the number of profiles an account may hold from the operator', () => {
+    expect(validateEnv(valid({ MAX_PROFILES_PER_ACCOUNT: '5' })).MAX_PROFILES_PER_ACCOUNT).toBe(5);
+    expect(validateEnv(valid({ MAX_PROFILES_PER_ACCOUNT: '' })).MAX_PROFILES_PER_ACCOUNT).toBe(2);
+  });
+
   it('still requires a required key that was left blank', () => {
     expect(() => validateEnv(valid({ DATABASE_URL: '' }))).toThrow(/DATABASE_URL/);
   });
@@ -64,6 +69,10 @@ describe('validateEnv', () => {
     ['JWT_REFRESH_TTL', '0'],
     ['API_PORT', '70000'],
     ['SMTP_PORT', '0'],
+    // An account has at least one profile to plan for, and an instance allows no more than the contract knows.
+    ['MAX_PROFILES_PER_ACCOUNT', '0'],
+    ['MAX_PROFILES_PER_ACCOUNT', '21'],
+    ['MAX_PROFILES_PER_ACCOUNT', '2.5'],
   ])('refuses %s=%s', (key, value) => {
     expect(() => validateEnv(valid({ [key]: value }))).toThrow(new RegExp(key));
   });
