@@ -132,7 +132,8 @@ describe('the calculator', () => {
     await userEvent.type(screen.getByLabelText('Weight (kg)'), '72.5');
     await userEvent.selectOptions(screen.getByLabelText(new RegExp(`^${fields.activityLevel}`)), 'very_active');
     await userEvent.click(screen.getByRole('radio', { name: /Keep my weight/ }));
-    await userEvent.type(screen.getByLabelText(new RegExp(`^${fields.manualKcalOverride.replace(/[()]/g, '\\$&')}`)), '{Enter}');
+    // The field is named by its label and the line under it: it is found by how its name begins.
+    await userEvent.type(screen.getByRole('spinbutton', { name: (name) => name.startsWith(fields.manualKcalOverride) }), '{Enter}');
 
     await vi.waitFor(() => expect(asked()).toMatchObject({ weightKg: 72.5, activityLevel: 'very_active', weeklyLossTarget: null }));
     expect(kept()).toEqual([]);
