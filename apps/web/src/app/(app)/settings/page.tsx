@@ -18,7 +18,8 @@ import {
   type SessionUser,
   type Theme,
 } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useErrorText } from '@/lib/use-error-text';
 import { session as browserSession } from '@/lib/session';
 import { SecondFactorCard } from './second-factor-card';
 import { SessionsCard } from './sessions-card';
@@ -36,7 +37,6 @@ const PROVIDERS: AiProvider[] = ['openai', 'anthropic', 'openrouter', 'ollama'];
 
 export default function SettingsPage() {
   const t = useTranslations('settings');
-  const tErrors = useTranslations('errors');
   const qc = useQueryClient();
   const router = useRouter();
   const session = useQuery({
@@ -61,8 +61,8 @@ export default function SettingsPage() {
       <LanguageCard />
       <ThemeCard initial={me.theme} />
       <PaletteCard initial={me.palette} />
-      <AiAssistantCard me={me} tErrors={tErrors} />
-      <AiProvidersCard tErrors={tErrors} />
+      <AiAssistantCard me={me} />
+      <AiProvidersCard />
       <PasswordCard onChanged={() => router.push('/login')} />
       <SecondFactorCard />
       <SessionsCard onSignedOut={() => router.push('/login')} />
@@ -80,6 +80,7 @@ export default function SettingsPage() {
 
 function ProfileCard({ me, onSaved }: { me: SessionUser; onSaved: () => void }) {
   const t = useTranslations('settings');
+  const errorText = useErrorText();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const save = useMutation({
@@ -90,8 +91,7 @@ function ProfileCard({ me, onSaved }: { me: SessionUser; onSaved: () => void }) 
       onSaved();
       window.setTimeout(() => setSaved(false), 2000);
     },
-    onError: (err) =>
-      setError(err instanceof ApiClientError ? err.message : t('profileFailed')),
+    onError: (err) => setError(errorText(err, t('profileFailed'))),
   });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -261,14 +261,9 @@ function PaletteCard({ initial }: { initial: Palette }) {
   );
 }
 
-function AiAssistantCard({
-  me,
-  tErrors,
-}: {
-  me: SessionUser;
-  tErrors: ReturnType<typeof useTranslations<'errors'>>;
-}) {
+function AiAssistantCard({ me }: { me: SessionUser }) {
   const t = useTranslations('settings');
+  const errorText = useErrorText();
   const qc = useQueryClient();
   const quota = useQuery({
     queryKey: ['ai-quota'],
@@ -293,14 +288,7 @@ function AiAssistantCard({
       qc.invalidateQueries({ queryKey: ['ai-quota'] });
       window.setTimeout(() => setSaved(false), 2000);
     },
-    onError: (err) =>
-      setError(
-        err instanceof ApiClientError
-          ? tErrors.has(err.code)
-            ? tErrors(err.code)
-            : err.message
-          : t('aiModeFailed'),
-      ),
+    onError: (err) => setError(errorText(err, t('aiModeFailed'))),
   });
 
   const status = quota.data;
@@ -430,8 +418,9 @@ function AiAssistantCard({
   );
 }
 
-function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslations<'errors'>> }) {
+function AiProvidersCard() {
   const t = useTranslations('settings');
+  const errorText = useErrorText();
   const qc = useQueryClient();
   const providers = useQuery({
     queryKey: ['ai-providers'],
@@ -446,14 +435,7 @@ function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslatio
       setEditing(false);
       qc.invalidateQueries({ queryKey: ['ai-providers'] });
     },
-    onError: (err) =>
-      setError(
-        err instanceof ApiClientError
-          ? tErrors.has(err.code)
-            ? tErrors(err.code)
-            : err.message
-          : t('aiFailed'),
-      ),
+    onError: (err) => setError(errorText(err, t('aiFailed'))),
   });
   const remove = useMutation({
     mutationFn: (id: string) => api.delete<void>(`/ai/providers/${id}`),
@@ -464,14 +446,7 @@ function AiProvidersCard({ tErrors }: { tErrors: ReturnType<typeof useTranslatio
       qc.invalidateQueries({ queryKey: ['session'] });
       qc.invalidateQueries({ queryKey: ['ai-quota'] });
     },
-    onError: (err) =>
-      setError(
-        err instanceof ApiClientError
-          ? tErrors.has(err.code)
-            ? tErrors(err.code)
-            : err.message
-          : t('aiDeleteFailed'),
-      ),
+    onError: (err) => setError(errorText(err, t('aiDeleteFailed'))),
   });
 
   const list = providers.data ?? [];
@@ -743,7 +718,7 @@ function ProviderForm({
 
 function PasswordCard({ onChanged }: { onChanged: () => void }) {
   const t = useTranslations('settings');
-  const tErrors = useTranslations('errors');
+  const errorText = useErrorText();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const change = useMutation({
@@ -755,14 +730,7 @@ function PasswordCard({ onChanged }: { onChanged: () => void }) {
       browserSession.forget();
       window.setTimeout(onChanged, 1200);
     },
-    onError: (err) =>
-      setError(
-        err instanceof ApiClientError
-          ? tErrors.has(err.code)
-            ? tErrors(err.code)
-            : err.message
-          : t('passwordFailed'),
-      ),
+    onError: (err) => setError(errorText(err, t('passwordFailed'))),
   });
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -812,22 +780,14 @@ function PasswordCard({ onChanged }: { onChanged: () => void }) {
 
 function EmailCard({ me }: { me: SessionUser }) {
   const t = useTranslations('settings');
+  const errorText = useErrorText();
   const tCommon = useTranslations('common');
-  const tErrors = useTranslations('errors');
   const config = useConfig();
   const emailEnabled = config.data?.email.enabled ?? false;
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [resendDone, setResendDone] = useState(false);
-
-  function mapError(err: unknown, fallback: string): string {
-    return err instanceof ApiClientError
-      ? tErrors.has(err.code)
-        ? tErrors(err.code)
-        : err.message
-      : fallback;
-  }
 
   const change = useMutation({
     mutationFn: (body: { newEmail: string; currentPassword: string }) =>
@@ -836,13 +796,13 @@ function EmailCard({ me }: { me: SessionUser }) {
       setSent(true);
       setEditing(false);
     },
-    onError: (err) => setError(mapError(err, t('changeEmailFailed'))),
+    onError: (err) => setError(errorText(err, t('changeEmailFailed'))),
   });
 
   const resend = useMutation({
     mutationFn: () => api.post<void>('/users/me/email/resend-verification'),
     onSuccess: () => setResendDone(true),
-    onError: (err) => setError(mapError(err, t('resendVerificationFailed'))),
+    onError: (err) => setError(errorText(err, t('resendVerificationFailed'))),
   });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -944,53 +904,23 @@ function EmailCard({ me }: { me: SessionUser }) {
 
 function DangerZoneCard({ me, onDeleted }: { me: SessionUser; onDeleted: () => void }) {
   const t = useTranslations('settings');
+  const errorText = useErrorText();
   const tCommon = useTranslations('common');
-  const tErrors = useTranslations('errors');
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const remove = useMutation({
-    mutationFn: () => api.delete<void>('/users/me'),
-    // The API uses a Body for the delete-confirm; api.delete only accepts a
-    // path, so route through the underlying request helper via POST sentinel —
-    // simpler: build a fetch directly.
+    mutationFn: () => api.delete<void>('/users/me', { currentPassword: password }),
+    onMutate: () => setError(null),
     onSuccess: onDeleted,
-    onError: (err) =>
-      setError(
-        err instanceof ApiClientError
-          ? tErrors.has(err.code)
-            ? tErrors(err.code)
-            : err.message
-          : t('deleteFailed'),
-      ),
+    onError: (err) => setError(errorText(err, t('deleteFailed'))),
   });
 
-  async function confirm() {
-    setError(null);
+  function confirm() {
     if (email.trim().toLowerCase() !== me.email.toLowerCase() || !password) return;
-    try {
-      // The DELETE endpoint expects a body — bypass api.delete (no body support)
-      // and call fetch directly. Token is read from the same store.
-      const res = await fetch('/api/users/me', {
-        method: 'DELETE',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${browserSession.accessToken ?? ''}`,
-        },
-        body: JSON.stringify({ currentPassword: password }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { code?: string; error?: string; message?: string };
-        const code = body.code ?? body.error;
-        setError(code && tErrors.has(code) ? tErrors(code) : body.message ?? t('deleteFailed'));
-        return;
-      }
-      onDeleted();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('deleteFailed'));
-    }
+    remove.mutate();
   }
 
   return (
@@ -1035,7 +965,7 @@ function DangerZoneCard({ me, onDeleted }: { me: SessionUser; onDeleted: () => v
                   email.trim().toLowerCase() !== me.email.toLowerCase() ||
                   !password
                 }
-                onClick={() => void confirm()}
+                onClick={confirm}
               >
                 {remove.isPending ? t('deleting') : t('deleteAccountConfirm')}
               </Button>

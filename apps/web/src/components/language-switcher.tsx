@@ -7,7 +7,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useState, type ChangeEvent } from 'react';
 import { Locale } from '@diet-app/shared';
 import { LOCALE_COOKIE, SUPPORTED_LOCALES, isSupportedLocale } from '@/lib/locale';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import { useIsAuthenticated } from '@/lib/use-is-authenticated';
 import { cn } from '@/lib/utils';
 

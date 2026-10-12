@@ -16,7 +16,8 @@ import type {
   SwapIngredientResponse,
   SwapPreview,
 } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAmount } from '@/lib/ingredient-format';
@@ -52,7 +53,7 @@ export function IngredientSubstituteModal({
 }) {
   const qc = useQueryClient();
   const t = useTranslations('swap');
-  const tErrors = useTranslations('errors');
+  const worded = useErrorText();
   const tCommon = useTranslations('common');
   const tPickers = useTranslations('pickers');
   const tProf = useTranslations('profileSummary');
@@ -73,7 +74,6 @@ export function IngredientSubstituteModal({
   // A substitution that moves what a serving holds by more than a tenth is made only when the user says so.
   const [acceptChange, setAcceptChange] = useState(false);
   // What the API refused with, in the reader's language where the code is known.
-  const worded = (e: unknown, fallback: string) => (e instanceof ApiClientError ? (tErrors.has(e.code) ? tErrors(e.code) : e.message) : fallback);
 
   const session = useQuery({
     queryKey: ['session'],

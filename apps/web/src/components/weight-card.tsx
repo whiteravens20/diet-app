@@ -17,7 +17,8 @@ import {
 } from 'recharts';
 import { Undo2 } from 'lucide-react';
 import type { Profile, WeightEntry } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -41,6 +42,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export function WeightCard({ profile }: { profile: Profile }) {
   const t = useTranslations('weightCard');
+  const errorText = useErrorText();
   const qc = useQueryClient();
   const [kg, setKg] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
       setError(null);
       qc.invalidateQueries({ queryKey: ['weights', profile.id] });
     },
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('logFailed')),
+    onError: (e) => setError(errorText(e, t('logFailed'))),
   });
 
   // Delete the latest logged entry. Repeated clicks peel back successive
@@ -75,7 +77,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
       setError(null);
       qc.invalidateQueries({ queryKey: ['weights', profile.id] });
     },
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('removeFailed')),
+    onError: (e) => setError(errorText(e, t('removeFailed'))),
   });
 
   function submit(e: React.FormEvent): void {
@@ -218,9 +220,11 @@ export function WeightCard({ profile }: { profile: Profile }) {
 }
 
 /**
- * Collapse entries to one row per ISO date (keep the most recent log of the
- * day) and attach a 7-day trailing moving average. Returned series is sorted
- * ascending by date so Recharts draws left → right.
+ * Collapse entries to one row per day (keep the most recent log of the day)
+ * and attach a 7-day trailing moving average. A day is the reader's own: an
+ * entry made late in the evening belongs to that evening, not to the day it
+ * already is in UTC. Returned series is sorted ascending by date so Recharts
+ * draws left → right.
  */
 function buildSeries(entries: WeightEntry[]): ChartPoint[] {
   if (entries.length === 0) return [];

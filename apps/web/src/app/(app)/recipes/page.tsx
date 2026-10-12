@@ -8,12 +8,13 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { RecipeDietTag, type Profile, type RecipeSearchPage, type SessionUser } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
+import { useErrorText } from '@/lib/use-error-text';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DraftButton } from './draft-button';
@@ -32,6 +33,7 @@ export default function RecipesPage() {
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   const tDifficulty = useTranslations('enums.difficulty');
+  const errorText = useErrorText();
   const [search, setSearch] = useState('');
   const [dietType, setDietType] = useState('');
   const [mealType, setMealType] = useState('');
@@ -101,7 +103,7 @@ export default function RecipesPage() {
   const submitRecipe = useMutation({
     mutationFn: (id: string) => api.post<void>(`/recipes/${id}/submit`),
     onSuccess: () => setSubmitted({ ok: true, text: t('submitDone') }),
-    onError: (e) => setSubmitted({ ok: false, text: e instanceof ApiClientError ? e.message : t('submitFailed') }),
+    onError: (e) => setSubmitted({ ok: false, text: errorText(e, t('submitFailed')) }),
   });
 
   const profiles = useQuery({

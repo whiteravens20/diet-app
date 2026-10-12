@@ -19,9 +19,10 @@ import {
   type ProfilePreferencesPatch,
   type WeightReminderCadence,
 } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
+import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AllergenPicker } from '@/components/allergen-picker';
@@ -78,6 +79,7 @@ export default function ProfilePage() {
   const tDiet = useTranslations('enums.dietType');
   const tActivity = useTranslations('enums.activityLevel');
   const tSex = useTranslations('enums.sex');
+  const errorText = useErrorText();
   const qc = useQueryClient();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +113,7 @@ export default function ProfilePage() {
       setCreating(false);
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : t('saveFailed')),
+      setError(errorText(e, t('saveFailed'))),
   });
 
   const remove = useMutation({
@@ -121,7 +123,7 @@ export default function ProfilePage() {
       setEditing(null);
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : t('deleteFailed')),
+      setError(errorText(e, t('deleteFailed'))),
   });
 
   // Change preferences in place: only the part that changed is sent, and the rest of the profile stays as it is.
@@ -129,7 +131,7 @@ export default function ProfilePage() {
     mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) => api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
     onSuccess: recalculate,
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : t('prefsSaveFailed')),
+      setError(errorText(e, t('prefsSaveFailed'))),
   });
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {

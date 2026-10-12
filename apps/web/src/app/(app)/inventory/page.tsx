@@ -7,7 +7,7 @@ import { Package, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { Ingredient, InventoryItem, Profile } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 import { useUnitName } from '@/lib/ingredient-format';
+import { useErrorText } from '@/lib/use-error-text';
 
 const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
 
@@ -60,6 +61,7 @@ function isExpiringSoon(bestBefore: string): boolean {
 export default function InventoryPage() {
   const t = useTranslations('inventory');
   const tCategory = useTranslations('enums.category');
+  const errorText = useErrorText();
   const unitName = useUnitName();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +88,7 @@ export default function InventoryPage() {
       note?: string | null;
     }) => api.post<InventoryItem>('/inventory', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('errAdd')),
+    onError: (e) => setError(errorText(e, t('errAdd'))),
   });
 
   const patch = useMutation({
@@ -97,13 +99,13 @@ export default function InventoryPage() {
         ...(v.note !== undefined ? { note: v.note } : {}),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('errUpdate')),
+    onError: (e) => setError(errorText(e, t('errUpdate'))),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete<void>(`/inventory/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('errDelete')),
+    onError: (e) => setError(errorText(e, t('errDelete'))),
   });
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;

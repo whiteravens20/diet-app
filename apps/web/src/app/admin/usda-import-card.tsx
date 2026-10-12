@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminApi, type UsdaImportRunnerState } from '@/lib/admin-api';
+import { useErrorText } from '@/lib/use-error-text';
 
 /**
  * Fetching foods from USDA FoodData Central into the instance's data
@@ -16,6 +17,7 @@ import { adminApi, type UsdaImportRunnerState } from '@/lib/admin-api';
  */
 export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unknown> }) {
   const t = useTranslations('admin.usda');
+  const errorText = useErrorText();
   const [run, setRun] = useState<UsdaImportRunnerState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dataTypes, setDataTypes] = useState<string>('Foundation');
@@ -63,7 +65,7 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
       setRun(s);
       startPolling();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err));
     }
   }
 

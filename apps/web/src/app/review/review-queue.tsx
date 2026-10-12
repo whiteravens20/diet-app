@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { reviewApi } from '@/lib/review-api';
 import { useDraftErrorText } from '@/lib/use-draft-error';
+import { useErrorText } from '@/lib/use-error-text';
 
 interface QueueProps {
   locale: Locale;
@@ -29,6 +30,7 @@ interface QueueProps {
  */
 export function ReviewQueue({ locale, kind }: QueueProps) {
   const t = useTranslations('review');
+  const errorText = useErrorText();
   // `itemsKind` is the kind the current `items` were fetched for. If it
   // doesn't match the prop, the data is stale (mid-switch) and we must treat
   // the queue as still loading — otherwise we'd cast e.g. an ingredient-name
@@ -59,11 +61,11 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
       setItemsKind(kind);
       setCursor(0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('queueFailed'));
+      setError(errorText(err, t('queueFailed')));
       setItems([]);
       setItemsKind(kind);
     }
-  }, [kind, locale, t]);
+  }, [kind, locale, t, errorText]);
 
   useEffect(() => {
     void (async () => {

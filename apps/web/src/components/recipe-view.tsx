@@ -7,10 +7,11 @@ import { Ban, Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { PlannedIngredient, Profile, ProfilePreferencesPatch, Recipe } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAmount } from '@/lib/ingredient-format';
+import { useErrorText } from '@/lib/use-error-text';
 
 interface FavoriteRow {
   id: string;
@@ -46,6 +47,7 @@ export function RecipeView({
   const tMeal = useTranslations('enums.mealType');
   const tDiet = useTranslations('enums.dietType');
   const tAllergen = useTranslations('enums.allergen');
+  const errorText = useErrorText();
   const amount = useAmount();
   const qc = useQueryClient();
 
@@ -84,7 +86,7 @@ export function RecipeView({
     mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) => api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profiles'] }),
     onError: (e) =>
-      setPrefsError(e instanceof ApiClientError ? e.message : t('prefsSaveFailed')),
+      setPrefsError(errorText(e, t('prefsSaveFailed'))),
   });
 
   const profileList = profiles.data ?? [];

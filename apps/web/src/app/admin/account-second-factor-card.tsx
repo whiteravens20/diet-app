@@ -7,7 +7,8 @@ import { type FormEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
-import { AdminApiError, adminApi } from '@/lib/admin-api';
+import { adminApi } from '@/lib/admin-api';
+import { useErrorText } from '@/lib/use-error-text';
 
 /**
  * For the holder of an account who lost the authenticator app and the
@@ -17,7 +18,7 @@ import { AdminApiError, adminApi } from '@/lib/admin-api';
  */
 export function AccountSecondFactorCard() {
   const t = useTranslations('admin');
-  const tErrors = useTranslations('errors');
+  const errorText = useErrorText();
   const tCommon = useTranslations('common');
   const [email, setEmail] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -39,7 +40,7 @@ export function AccountSecondFactorCard() {
       setDone(t('accountFactorRemoved', { email: email.trim() }));
       setEmail('');
     } catch (err) {
-      setError(err instanceof AdminApiError && err.code && tErrors.has(err.code) ? tErrors(err.code) : t('secondFactorFailed'));
+      setError(errorText(err, t('secondFactorFailed')));
     } finally {
       setBusy(false);
       setConfirming(false);

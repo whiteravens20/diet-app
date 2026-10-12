@@ -8,11 +8,9 @@ import { Copy, ShieldCheck, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
-import {
-  AdminApiError,
-  adminApi,
-  type InstanceSettingsDto,
-} from '@/lib/admin-api';
+import { adminApi, type InstanceSettingsDto } from '@/lib/admin-api';
+import { ApiClientError } from '@/lib/http';
+import { useErrorText } from '@/lib/use-error-text';
 
 /**
  * Admin card that manages the reviewer interface — toggle, password,
@@ -24,6 +22,7 @@ import {
  */
 export function ReviewerConfigCard() {
   const t = useTranslations('admin.reviewer');
+  const errorText = useErrorText();
   const [settings, setSettings] = useState<InstanceSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,12 +37,12 @@ export function ReviewerConfigCard() {
         const s = await adminApi.instanceSettings();
         setSettings(s);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('loadFailed'));
+        setError(errorText(err, t('loadFailed')));
       } finally {
         setLoading(false);
       }
     })();
-  }, [t]);
+  }, [t, errorText]);
 
   const reviewUrl =
     typeof window === 'undefined'
@@ -57,7 +56,7 @@ export function ReviewerConfigCard() {
       const updated = await adminApi.patchInstanceSettings({ reviewerEnabled: next });
       setSettings(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('toggleFailed'));
+      setError(errorText(err, t('toggleFailed')));
     } finally {
       setSavingToggle(false);
     }
@@ -71,10 +70,10 @@ export function ReviewerConfigCard() {
       setSettings(updated);
       setPasswordInput('');
     } catch (err) {
-      if (err instanceof AdminApiError && err.status === 400) {
+      if (err instanceof ApiClientError && err.status === 400) {
         setError(t('passwordLength'));
       } else {
-        setError(err instanceof Error ? err.message : t('passwordSaveFailed'));
+        setError(errorText(err, t('passwordSaveFailed')));
       }
     } finally {
       setSavingPassword(false);

@@ -8,7 +8,8 @@ import { AlertTriangle, CheckCircle2, Database, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
-import { waitOf } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
+import { useErrorText } from '@/lib/use-error-text';
 import { AccountSecondFactorCard } from './account-second-factor-card';
 import { AdminSecondFactorCard } from './admin-second-factor-card';
 import { ConnectionCard } from './connection-card';
@@ -17,7 +18,6 @@ import { CurationCard } from './curation-card';
 import { ReviewerConfigCard } from './reviewer-config-card';
 import { UsdaImportCard } from './usda-import-card';
 import {
-  AdminApiError,
   adminApi,
   type AdminStats,
   type AdminStatus,
@@ -40,7 +40,7 @@ const STAGE_KEY: Record<string, string> = {
 
 export function AdminPanel() {
   const t = useTranslations('admin');
-  const tAuth = useTranslations('auth');
+  const errorText = useErrorText();
   const tStages = useTranslations('admin.stages');
   const [view, setView] = useState<View>('loading');
   const [status, setStatus] = useState<AdminStatus | null>(null);
@@ -62,15 +62,15 @@ export function AdminPanel() {
       setView('ready');
       return null;
     } catch (err) {
-      if (err instanceof AdminApiError && err.status === 401) {
+      if (err instanceof ApiClientError && err.status === 401) {
         setView('login');
         return err;
       }
-      setUpdateError(err instanceof Error ? err.message : t('loadStatsFailed'));
+      setUpdateError(errorText(err, t('loadStatsFailed')));
       setView('login');
       return err;
     }
-  }, [t]);
+  }, [t, errorText]);
 
   const stopPolling = useCallback((): void => {
     if (pollRef.current) {
@@ -110,10 +110,10 @@ export function AdminPanel() {
     pollRef.current = setInterval(() => {
       void adminApi.dbUpdateStatus().then(handleProgress).catch((err: unknown) => {
         stopPolling();
-        setUpdateError(err instanceof Error ? err.message : t('lostConnection'));
+        setUpdateError(errorText(err, t('lostConnection')));
       });
     }, 1000);
-  }, [handleProgress, stopPolling, t]);
+  }, [handleProgress, stopPolling, t, errorText]);
 
   // Probe `/admin/status`, then either show the disabled banner, the login
   // form, or fetch stats. Wrapped in try/catch so a proxy / network error
@@ -135,10 +135,10 @@ export function AdminPanel() {
         setView('login');
       }
     } catch (err) {
-      setUnreachableDetail(err instanceof Error ? err.message : String(err));
+      setUnreachableDetail(errorText(err));
       setView('unreachable');
     }
-  }, [loadStats]);
+  }, [loadStats, errorText]);
 
   useEffect(() => {
     void (async () => {
@@ -176,11 +176,7 @@ export function AdminPanel() {
       .signIn(String(form.get('user')), String(form.get('password')), code ? String(code) : undefined)
       .then(loadStats, (err: unknown) => err);
     if (failure === null) return;
-    // Held up after wrong passwords or wrong codes: say for how long.
-    const wait = failure instanceof AdminApiError ? waitOf(failure.status, failure.retryAfterSeconds) : null;
-    if (wait) {
-      setLoginError(tAuth(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait));
-    } else if (failure instanceof AdminApiError && failure.status === 401) {
+    if (failure instanceof ApiClientError && failure.status === 401) {
       // A second factor that was set up since this page was loaded: the form then shows its field.
       const takesCode = await adminApi.session().then(
         (session) => session.secondFactor,
@@ -189,7 +185,8 @@ export function AdminPanel() {
       setNeedsCode(takesCode);
       setLoginError(t(takesCode ? 'invalidCredsOrCode' : 'invalidCreds'));
     } else {
-      setLoginError(failure instanceof Error ? failure.message : t('loadStatsFailed'));
+      // Held up after wrong passwords or wrong codes, this says for how long.
+      setLoginError(errorText(failure, t('loadStatsFailed')));
     }
   }
 
@@ -213,7 +210,7 @@ export function AdminPanel() {
       setProgress(state);
       startPolling();
     } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : t('updateFailed'));
+      setUpdateError(errorText(err, t('updateFailed')));
     }
   }
 

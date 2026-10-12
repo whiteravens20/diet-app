@@ -4,7 +4,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AdminApiError, adminApi } from '@/lib/admin-api';
+import { adminApi } from '@/lib/admin-api';
+import { ApiClientError } from '@/lib/http';
 import messages from '../../../messages/en.json';
 import { AccountSecondFactorCard } from './account-second-factor-card';
 import { AdminSecondFactorCard } from './admin-second-factor-card';
@@ -58,7 +59,7 @@ describe('two-step sign-in to the admin panel', () => {
   });
 
   it('says what the API refused, in the visitor\'s language', async () => {
-    vi.spyOn(adminApi, 'proposeSecondFactor').mockRejectedValue(new AdminApiError(409, 'ADMIN_SECOND_FACTOR_RESET is on', 'ADMIN_SECOND_FACTOR_RESET_SET'));
+    vi.spyOn(adminApi, 'proposeSecondFactor').mockRejectedValue(new ApiClientError(409, 'ADMIN_SECOND_FACTOR_RESET_SET', 'ADMIN_SECOND_FACTOR_RESET is on'));
     within(<AdminSecondFactorCard on={false} onChanged={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('button', { name: m.setUp }));
@@ -102,7 +103,7 @@ describe('two-step sign-in of an account, for the operator', () => {
   });
 
   it('says so when no account of that address has it', async () => {
-    vi.spyOn(adminApi, 'removeAccountSecondFactor').mockRejectedValue(new AdminApiError(404, 'No account with that address has a second factor.', 'SECOND_FACTOR_NOT_FOUND'));
+    vi.spyOn(adminApi, 'removeAccountSecondFactor').mockRejectedValue(new ApiClientError(404, 'SECOND_FACTOR_NOT_FOUND', 'No account with that address has a second factor.'));
     within(<AccountSecondFactorCard />);
 
     await userEvent.type(screen.getByLabelText(a.accountFactorEmail), 'nobody@example.test');

@@ -6,7 +6,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { AccountSession } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useErrorText } from '@/lib/use-error-text';
 import { session as browserSession } from '@/lib/session';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,13 +20,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
  */
 export function SessionsCard({ onSignedOut }: { onSignedOut: () => void }) {
   const t = useTranslations('settings');
-  const tErrors = useTranslations('errors');
+  const errorText = useErrorText();
   const format = useFormatter();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => api.get<AccountSession[]>('/users/me/sessions') });
-  const worded = (err: unknown): string => (err instanceof ApiClientError && tErrors.has(err.code) ? tErrors(err.code) : t('sessionEndFailed'));
+  const worded = (err: unknown): string => errorText(err, t('sessionEndFailed'));
   const leave = (): void => {
     browserSession.forget();
     onSignedOut();

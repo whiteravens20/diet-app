@@ -16,7 +16,8 @@ import type {
   MealType,
   Profile,
 } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { Field } from '@/components/ui/input';
@@ -87,6 +88,7 @@ export function AiRecipeDraftModal({
   const tCuisine = useTranslations('enums.cuisine');
   const tCooking = useTranslations('enums.cookingMethod');
   const tComplexity = useTranslations('enums.complexity');
+  const errorText = useErrorText();
   const [mealType, setMealType] = useState<MealType | ''>('');
   const [dietType, setDietType] = useState<DietType>(profile.dietType);
   const [cuisine, setCuisine] = useState<Cuisine | ''>('');
@@ -128,7 +130,7 @@ export function AiRecipeDraftModal({
     onError: (e) => {
       // A failed attempt may still have used a request, or met the limit.
       qc.invalidateQueries({ queryKey: ['ai-quota'] });
-      setError(e instanceof ApiClientError ? e.message : t('failed'));
+      setError(errorText(e, t('failed')));
     },
   });
 

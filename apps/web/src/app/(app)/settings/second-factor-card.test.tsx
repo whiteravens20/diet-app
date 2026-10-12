@@ -6,7 +6,8 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SecondFactorState } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import messages from '../../../../messages/en.json';
 import { SecondFactorCard } from './second-factor-card';
 

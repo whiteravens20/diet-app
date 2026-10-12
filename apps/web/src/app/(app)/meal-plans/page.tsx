@@ -23,7 +23,9 @@ import {
   type RebalanceResult,
   type SessionUser,
 } from '@diet-app/shared';
-import { api, ApiClientError, localDate } from '@/lib/api';
+import { api } from '@/lib/api';
+import { ApiClientError, localDate } from '@/lib/http';
+import { useErrorText } from '@/lib/use-error-text';
 import { planDates } from '@/lib/plan-dates';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -86,7 +88,7 @@ function MealPlansContent() {
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   const tFallback = useTranslations('aiFallback');
-  const tErrors = useTranslations('errors');
+  const errorText = useErrorText();
   const qc = useQueryClient();
   const params = useSearchParams();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
@@ -155,18 +157,10 @@ function MealPlansContent() {
   });
 
   const invalidate = () => Promise.all([qc.invalidateQueries({ queryKey: ['meal-plans', activeId] }), qc.invalidateQueries({ queryKey: ['meal-plan'] })]);
-  // Prefer the locale-aware `errors.<CODE>` catalogue over the backend's
-  // English `message` field — the contract is "backend codes, client
-  // translates". Falls back to the raw message if the code isn't in
-  // the catalogue, then to the caller's fallback string for non-Api errors.
   const fail = (fallback: string) => (e: unknown) => {
-    if (e instanceof ApiClientError) {
-      // Another request changed the plan first, so the one on screen is stale.
-      if (e.code === 'PLAN_CHANGED') void invalidate();
-      setError(unfilledMeal(e) ?? (tErrors.has(e.code) ? tErrors(e.code) : e.message));
-      return;
-    }
-    setError(fallback);
+    // Another request changed the plan first, so the one on screen is stale.
+    if (e instanceof ApiClientError && e.code === 'PLAN_CHANGED') void invalidate();
+    setError((e instanceof ApiClientError ? unfilledMeal(e) : null) ?? errorText(e, fallback));
   };
   // A plan that could not be made names the meal it had no recipe for, and
   // tells a catalogue without one from a profile that rules out what there is.

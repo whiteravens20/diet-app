@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { localDate, waitOf } from './api';
+import { localDate, waitOf } from './http';
 
 describe('the day it is for the user', () => {
   it('is read off the clock where the user is, not in UTC', () => {

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminApi, type AdminConnection } from '@/lib/admin-api';
+import { useErrorText } from '@/lib/use-error-text';
 
 /**
  * What the API sees of the administrator's own connection: the address it
@@ -17,6 +18,7 @@ import { adminApi, type AdminConnection } from '@/lib/admin-api';
  */
 export function ConnectionCard() {
   const t = useTranslations('admin.connection');
+  const errorText = useErrorText();
   const [connection, setConnection] = useState<AdminConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,10 +27,10 @@ export function ConnectionCard() {
       try {
         setConnection(await adminApi.connection());
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('loadFailed'));
+        setError(errorText(err, t('loadFailed')));
       }
     })();
-  }, [t]);
+  }, [t, errorText]);
 
   const trust = (setting: AdminConnection['trustProxy']): string =>
     setting === false ? t('trustOff') : typeof setting === 'number' ? t('trustHops', { count: setting }) : setting.join(', ');

@@ -10,8 +10,8 @@ import { AuthenticatorSetup } from '@/components/authenticator-setup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
-import { AdminApiError, adminApi } from '@/lib/admin-api';
-import { waitOf } from '@/lib/api';
+import { adminApi } from '@/lib/admin-api';
+import { useErrorText } from '@/lib/use-error-text';
 
 type Step =
   | { at: 'rest' }
@@ -29,20 +29,14 @@ type Step =
 export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChanged: (on: boolean) => void }) {
   const t = useTranslations('admin');
   const tSecond = useTranslations('secondFactor');
-  const tErrors = useTranslations('errors');
-  const tAuth = useTranslations('auth');
+  const errorText = useErrorText();
   const tCommon = useTranslations('common');
   const [step, setStep] = useState<Step>({ at: 'rest' });
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  function worded(err: unknown): string {
-    if (!(err instanceof AdminApiError)) return t('secondFactorFailed');
-    const wait = waitOf(err.status, err.retryAfterSeconds);
-    if (wait) return tAuth(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait);
-    return err.code && tErrors.has(err.code) ? tErrors(err.code) : t('secondFactorFailed');
-  }
+  const worded = (err: unknown): string => errorText(err, t('secondFactorFailed'));
 
   /** One request of the card at a time; what went wrong is shown. */
   async function run(work: () => Promise<void>): Promise<void> {

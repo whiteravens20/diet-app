@@ -6,12 +6,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import type { DisplayUnit, MealPlanPage, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
+import { useErrorText } from '@/lib/use-error-text';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -27,6 +28,7 @@ export default function ShoppingListsPage() {
   const tCommon = useTranslations('common');
   const tDiet = useTranslations('enums.dietType');
   const tCategory = useTranslations('enums.category');
+  const errorText = useErrorText();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export default function ShoppingListsPage() {
       setPickedList(list.id);
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : t('errGenerate')),
+      setError(errorText(e, t('errGenerate'))),
   });
 
   const updateItem = useMutation({
@@ -94,7 +96,7 @@ export default function ShoppingListsPage() {
       qc.invalidateQueries({ queryKey: ['inventory'] });
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : t('errUpdate')),
+      setError(errorText(e, t('errUpdate'))),
   });
 
   const remove = useMutation({
@@ -105,7 +107,7 @@ export default function ShoppingListsPage() {
       qc.invalidateQueries({ queryKey: ['inventory'] });
     },
     onError: (e) =>
-      setError(e instanceof ApiClientError ? e.message : t('errDelete')),
+      setError(errorText(e, t('errDelete'))),
   });
 
   function onGenerate(event: React.FormEvent<HTMLFormElement>) {

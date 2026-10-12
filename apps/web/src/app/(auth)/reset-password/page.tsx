@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ function ResetPasswordInner() {
   const params = useSearchParams();
   const t = useTranslations('auth');
   const tRules = useTranslations('auth.passwordRules');
-  const tErrors = useTranslations('errors');
+  const errorText = useErrorText();
   const token = params.get('token') ?? '';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,13 +45,7 @@ function ResetPasswordInner() {
       // Brief pause so the user sees the confirmation, then off to login.
       setTimeout(() => router.push('/login'), 1500);
     } catch (err) {
-      setError(
-        err instanceof ApiClientError
-          ? tErrors.has(err.code)
-            ? tErrors(err.code)
-            : err.message
-          : t('resetFailed'),
-      );
+      setError(errorText(err, t('resetFailed')));
     } finally {
       setLoading(false);
     }

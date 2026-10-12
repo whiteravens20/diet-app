@@ -10,7 +10,9 @@ import { AuthenticatorSetup } from '@/components/authenticator-setup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
-import { api, ApiClientError, waitOf } from '@/lib/api';
+import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
+import { useErrorText } from '@/lib/use-error-text';
 
 /** Where the card stands: at rest, or part of the way through one of the things it does. */
 type Step =
@@ -32,8 +34,7 @@ const FEW_CODES = 3;
  */
 export function SecondFactorCard() {
   const t = useTranslations('secondFactor');
-  const tErrors = useTranslations('errors');
-  const tAuth = useTranslations('auth');
+  const errorText = useErrorText();
   const tCommon = useTranslations('common');
   const format = useFormatter();
   const queryClient = useQueryClient();
@@ -44,12 +45,7 @@ export function SecondFactorCard() {
 
   const state = useQuery({ queryKey: ['second-factor'], queryFn: () => api.get<SecondFactorState>('/users/me/second-factor') });
 
-  function worded(err: unknown): string {
-    if (!(err instanceof ApiClientError)) return t('failed');
-    const wait = waitOf(err.status, err.retryAfterSeconds);
-    if (wait) return tAuth(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait);
-    return tErrors.has(err.code) ? tErrors(err.code) : t('failed');
-  }
+  const worded = (err: unknown): string => errorText(err, t('failed'));
 
   /** One request of the card at a time; what went wrong is shown, and `orElse` says where the card then stands. */
   async function run(work: () => Promise<void>, orElse?: (err: unknown) => void): Promise<void> {

@@ -36,9 +36,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ApiClientError } from '@/lib/http';
 import {
   adminApi,
-  AdminApiError,
   saveJsonFile,
   type DraftLocaleReview,
   type DraftPastReview,
@@ -1441,7 +1441,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
     } catch (err) {
       setError(errorText(err, String(err)));
       // A ship that ships nothing names the drafts it held back.
-      const skipped = err instanceof AdminApiError ? err.details?.skipped : undefined;
+      const skipped = err instanceof ApiClientError ? err.details?.skipped : undefined;
       if (Array.isArray(skipped)) setHeldBack(skipped as ShipSkipped[]);
     } finally {
       setBusyMode(null);

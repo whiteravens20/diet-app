@@ -5,7 +5,8 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { api, ApiClientError, waitOf } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ import { useConfig } from '@/lib/use-config';
  */
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
-  const tErrors = useTranslations('errors');
+  const errorText = useErrorText();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -41,12 +42,7 @@ export default function ForgotPasswordPage() {
       });
       setSent(true);
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        const wait = waitOf(err.status, err.retryAfterSeconds);
-        setError(wait ? t(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait) : tErrors.has(err.code) ? tErrors(err.code) : err.message);
-      } else {
-        setError(tErrors('GENERIC'));
-      }
+      setError(errorText(err));
       if (needsToken) {
         setToken(null);
         setWidgetKey((k) => k + 1);

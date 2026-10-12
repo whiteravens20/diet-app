@@ -7,58 +7,15 @@
  * credentials, and nothing here keeps a password.
  */
 import type { AdminSessionState, DietType, DraftRunNote, MealType, SecondFactorSetup } from '@diet-app/shared';
-import { retryAfterOf } from './api';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+import { apiClient } from './http';
 
 // A version before this one kept the administrator's user and password in
 // sessionStorage for the life of the tab. Whatever it left there is removed.
 if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('diet-app.admin-basic');
 
-/** The session cookie goes with requests to the application's own address by itself; an API at another address has to be told. */
-const WITH_SESSION: RequestCredentials = API_URL ? 'include' : 'same-origin';
-
-export class AdminApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-    /** Backend error code, e.g. `DRAFT_STRUCTURAL_EDIT_FORBIDDEN`. Lets the
-     *  UI look up a localized message instead of showing the raw English
-     *  envelope text. */
-    public readonly code: string | null = null,
-    /** How long the server asks to wait before the next try, in seconds, when it said so. */
-    public readonly retryAfterSeconds?: number,
-    /** What the refusal was about, in fields that depend on its code. */
-    public readonly details?: Record<string, unknown>,
-  ) {
-    super(message);
-    this.name = 'AdminApiError';
-  }
-}
-
-async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  headers.set('content-type', 'application/json');
-
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL}/api/admin${path}`, { ...init, headers, credentials: WITH_SESSION });
-  } catch {
-    throw new AdminApiError(0, 'Cannot reach the API.');
-  }
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string; details?: Record<string, unknown> };
-    throw new AdminApiError(
-      res.status,
-      body.message ?? body.error ?? res.statusText,
-      body.error ?? null,
-      retryAfterOf(res),
-      body.details,
-    );
-  }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
-}
+// The session is the cookie, which the browser sends: nothing is added to a request.
+const admin = apiClient('/admin');
+const adminFetch = admin.request;
 
 export interface AdminStatus {
   enabled: boolean;
@@ -487,17 +444,7 @@ export const adminApi = {
   // Current-state export/push — the full ingredient-override set rebuilt from
   // the DB, available regardless of draft status (unlike the ship modes).
   downloadCurrentOverrides: async (): Promise<void> => {
-    let res: Response;
-    try {
-      res = await fetch(`${API_URL}/api/admin/drafts/ship/current-overrides`, { credentials: WITH_SESSION });
-    } catch {
-      throw new AdminApiError(0, 'Cannot reach the API.');
-    }
-    if (res.status === 401) throw new AdminApiError(401, 'The admin session has ended. Sign in again.', 'INVALID_ADMIN_SESSION');
-    if (!res.ok) {
-      throw new AdminApiError(res.status, 'Could not export current overrides.');
-    }
-    const blob = await res.blob();
+    const blob = await admin.download('/drafts/ship/current-overrides');
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

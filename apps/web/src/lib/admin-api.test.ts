@@ -45,8 +45,9 @@ describe('the administrator\'s requests', () => {
     vi.resetModules();
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    const { adminApi, AdminApiError } = await import('./admin-api');
-    return { adminApi, AdminApiError, fetchMock };
+    const { adminApi } = await import('./admin-api');
+    const { ApiClientError } = await import('./http');
+    return { adminApi, ApiClientError, fetchMock };
   }
 
   it('give the user and the password once, at sign-in, and keep neither', async () => {
@@ -82,12 +83,12 @@ describe('the administrator\'s requests', () => {
   });
 
   it('say when the session has ended, by its code', async () => {
-    const { adminApi, AdminApiError, fetchMock } = await aPage();
+    const { adminApi, ApiClientError, fetchMock } = await aPage();
     fetchMock.mockResolvedValue(answered(401, { error: 'INVALID_ADMIN_SESSION', message: 'The admin session is invalid or has ended.' }));
 
     const refused = await adminApi.stats().catch((err: unknown) => err);
 
-    expect(refused).toBeInstanceOf(AdminApiError);
+    expect(refused).toBeInstanceOf(ApiClientError);
     expect(refused).toMatchObject({ status: 401, code: 'INVALID_ADMIN_SESSION' });
   });
 

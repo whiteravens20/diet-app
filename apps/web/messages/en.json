@@ -131,8 +131,6 @@
       "digit": "At least one digit"
     },
     "signInButton": "Sign in",
-    "heldUp": "Too many attempts. Try again in {count, plural, one {# minute} other {# minutes}}.",
-    "heldUpSeconds": "Too many attempts. Try again in {count, plural, one {# second} other {# seconds}}.",
     "createAccountButton": "Create account",
     "forgotPassword": "Forgot password?",
     "noAccount": "Don't have an account?",
@@ -232,6 +230,9 @@
     "REFERENCE_CONFLICT": "The request refers to something that does not exist or is still in use.",
     "WRITE_CONFLICT": "The data changed while the request was running. Try again.",
     "VALIDATION_FAILED": "Some fields need attention.",
+    "VALIDATION_FAILED_FIELDS": "Some fields need attention: {fields}.",
+    "HELD_UP_MINUTES": "Too many attempts. Try again in {count, plural, one {# minute} other {# minutes}}.",
+    "HELD_UP_SECONDS": "Too many attempts. Try again in {count, plural, one {# second} other {# seconds}}.",
     "VALIDATION": "Some fields need attention.",
     "FORBIDDEN": "You don't have access to that.",
     "AUTH_REQUIRED": "Sign in to continue.",

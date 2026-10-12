@@ -6,8 +6,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { FavoriteSet, MealPlan } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { planDates } from '@/lib/plan-dates';
+import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -28,6 +29,7 @@ export function ApplyFavoriteSetButton({
 }) {
   const days = planDates(plan.startDate, plan.durationDays);
   const t = useTranslations('favoriteSets');
+  const errorText = useErrorText();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function ApplyFavoriteSetButton({
       qc.invalidateQueries({ queryKey: ['meal-plan', plan.id] });
       setOpen(false);
     },
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('errApply')),
+    onError: (e) => setError(errorText(e, t('errApply'))),
   });
 
   const sets = setsQ.data ?? [];

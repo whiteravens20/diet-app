@@ -4,9 +4,9 @@
 
 import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { AdminApiError } from './admin-api';
 import { draftProblemsOf, limitOf, placeOf, type DraftProblem } from './draft-problems';
-import { ReviewApiError } from './review-api';
+import { ApiClientError } from './http';
+import { useErrorText } from './use-error-text';
 
 /** One problem the API named in a draft: the field, and the rule it breaks. */
 function useProblemLine(): (problem: DraftProblem) => string {
@@ -55,7 +55,7 @@ export function useSkipReasonText(): (reason: string) => string {
 /**
  * A failed request about a draft, in the reader's language: every problem the
  * API named when it refused the content, the reason a draft may not ship, else
- * the text of the refusal's code, else what the API said.
+ * what any failed request says (`useErrorText`).
  *
  * The function is the same from one render to the next while the language
  * stays, so it can be named among the dependencies of a callback.
@@ -65,9 +65,10 @@ export function useDraftErrorText(): (err: unknown, fallback: string) => string 
   const tErrors = useTranslations('errors');
   const problemLine = useProblemLine();
   const skipReason = useSkipReasonText();
+  const errorText = useErrorText();
   return useCallback(
     (err, fallback) => {
-      const refusal = err instanceof AdminApiError || err instanceof ReviewApiError ? err : null;
+      const refusal = err instanceof ApiClientError ? err : null;
       if (refusal?.code === 'DRAFT_INVALID') {
         const problems = draftProblemsOf(refusal.details);
         if (problems.length > 0) return `${t('intro')} ${problems.map(problemLine).join('; ')}`;
@@ -75,9 +76,9 @@ export function useDraftErrorText(): (err: unknown, fallback: string) => string 
       if (refusal?.code === 'DRAFT_NOT_SHIPPABLE' && typeof refusal.details?.reason === 'string') {
         return `${tErrors('DRAFT_NOT_SHIPPABLE')} ${skipReason(refusal.details.reason)}`;
       }
-      if (refusal?.code && tErrors.has(refusal.code)) return tErrors(refusal.code);
-      return err instanceof Error ? err.message : fallback;
+      // An error of the page's own says what it is; a failed request is worded as everywhere.
+      return errorText(err, err instanceof Error && !refusal ? err.message : fallback);
     },
-    [t, tErrors, problemLine, skipReason],
+    [t, tErrors, problemLine, skipReason, errorText],
   );
 }

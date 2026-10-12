@@ -3,9 +3,8 @@
 /**
  * Reviewer API client.
  *
- * Cookie-based — `fetch` is called with `credentials: 'include'` so the
- * `reviewer_session` httpOnly cookie set by the backend rides along. No
- * sessionStorage; the cookie is the single source of identity. EN is rejected
+ * Cookie-based: the `reviewer_session` httpOnly cookie the backend set goes
+ * with every request, and is the single source of identity. EN is rejected
  * at the API; this client never sends it.
  */
 import type {
@@ -15,53 +14,9 @@ import type {
   ReviewerSessionDto,
 } from '@diet-app/shared';
 
-import { retryAfterOf } from './api';
+import { apiClient } from './http';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
-
-export class ReviewApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code: string | null,
-    message: string,
-    /** How long the server asks to wait before the next try, in seconds, when it said so. */
-    public readonly retryAfterSeconds?: number,
-    /** What the refusal was about, in fields that depend on its code. */
-    public readonly details?: Record<string, unknown>,
-  ) {
-    super(message);
-    this.name = 'ReviewApiError';
-  }
-}
-
-async function reviewFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  if (init.body !== undefined && !headers.has('content-type')) {
-    headers.set('content-type', 'application/json');
-  }
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL}/api/review${path}`, {
-      ...init,
-      headers,
-      credentials: 'include',
-    });
-  } catch {
-    throw new ReviewApiError(0, null, 'Cannot reach the API.');
-  }
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string; details?: Record<string, unknown> };
-    throw new ReviewApiError(
-      res.status,
-      body.error ?? null,
-      body.message ?? body.error ?? res.statusText,
-      retryAfterOf(res),
-      body.details,
-    );
-  }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
-}
+const reviewFetch = apiClient('/review').request;
 
 export interface ReviewStatusDto {
   enabled: boolean;

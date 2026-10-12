@@ -11,7 +11,8 @@ import type {
   FavoriteSetSlots,
   MealType,
 } from '@diet-app/shared';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ interface FavoriteRecipe {
 export function FavoriteSetsCard({ profileId }: { profileId: string }) {
   const t = useTranslations('favoriteSets');
   const tMeal = useTranslations('enums.mealType');
+  const errorText = useErrorText();
   const qc = useQueryClient();
   const [composing, setComposing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,13 +56,13 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
       invalidate();
       setComposing(false);
     },
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('errCreate')),
+    onError: (e) => setError(errorText(e, t('errCreate'))),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete<void>(`/favorite-sets/${id}`),
     onSuccess: invalidate,
-    onError: (e) => setError(e instanceof ApiClientError ? e.message : t('errDelete')),
+    onError: (e) => setError(errorText(e, t('errDelete'))),
   });
 
   const sets = setsQ.data ?? [];

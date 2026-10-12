@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { TurnstileWidget } from '@/components/turnstile-widget';
-import { api, ApiClientError, COOKIE_SESSION, waitOf } from '@/lib/api';
+import { api, COOKIE_SESSION } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
+import { useErrorText } from '@/lib/use-error-text';
 import { session } from '@/lib/session';
 import { useConfig } from '@/lib/use-config';
 
@@ -19,7 +21,7 @@ import { useConfig } from '@/lib/use-config';
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const router = useRouter();
   const t = useTranslations('auth');
-  const tErrors = useTranslations('errors');
+  const worded = useErrorText();
   const tRules = useTranslations('auth.passwordRules');
   const tSecond = useTranslations('secondFactor');
   const [error, setError] = useState<string | null>(null);
@@ -32,13 +34,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const needsToken = Boolean(turnstile?.enabled && turnstile.siteKey);
   // What an account with two-step sign-in got for its password: the form then asks for the code.
   const [challenge, setChallenge] = useState<string | null>(null);
-
-  /** What went wrong, in words: a translated message for the error's code, else the server's English text, else the catch-all. */
-  function worded(err: unknown): string {
-    if (!(err instanceof ApiClientError)) return tErrors('GENERIC');
-    const wait = waitOf(err.status, err.retryAfterSeconds);
-    return wait ? t(wait.unit === 'minutes' ? 'heldUp' : 'heldUpSeconds', wait) : tErrors.has(err.code) ? tErrors(err.code) : err.message;
-  }
 
   /** A Turnstile token is good for one request: the next one needs a new challenge. */
   function renewToken() {

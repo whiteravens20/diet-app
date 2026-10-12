@@ -5,8 +5,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
-import { AdminApiError } from './admin-api';
-import { ReviewApiError } from './review-api';
+import { ApiClientError } from './http';
 import { useDraftErrorText, useSkipReasonText } from './use-draft-error';
 
 function Shown({ error }: { error: unknown }) {
@@ -27,7 +26,7 @@ function told(error: unknown, locale: 'en' | 'pl' = 'en'): string {
 }
 
 const refused = (problems: { path: string; rule: string }[]) =>
-  new AdminApiError(400, 'The draft would break 3 rules: …', 'DRAFT_INVALID', undefined, { problems });
+  new ApiClientError(400, 'DRAFT_INVALID', 'The draft would break 3 rules: …', undefined, undefined, { problems });
 
 describe('what an editor is told when a draft edit is refused', () => {
   it('is every rule the edit broke, by the field it broke it in', () => {
@@ -44,7 +43,7 @@ describe('what an editor is told when a draft edit is refused', () => {
   });
 
   it('is the same in Polish', () => {
-    const error = new ReviewApiError(400, 'DRAFT_INVALID', 'The draft would break a rule: …', undefined, {
+    const error = new ApiClientError(400, 'DRAFT_INVALID', 'The draft would break a rule: …', undefined, undefined, {
       problems: [
         { path: 'titles.pl', rule: 'text-too-long' },
         { path: 'name.pl', rule: 'markup' },
@@ -60,12 +59,12 @@ describe('what an editor is told when a draft edit is refused', () => {
 
   it('is the text of the refusal when it names no problem', () => {
     expect(told(refused([]))).toBe(en.errors.DRAFT_INVALID);
-    expect(told(new ReviewApiError(409, 'DRAFT_REJECTED', 'This draft was rejected. Only the administrator can reopen it.'), 'pl')).toBe(pl.errors.DRAFT_REJECTED);
-    expect(told(new AdminApiError(409, 'A draft that has shipped cannot be edited.', 'DRAFT_SHIPPED'), 'pl')).toBe(pl.errors.DRAFT_SHIPPED);
+    expect(told(new ApiClientError(409, 'DRAFT_REJECTED', 'This draft was rejected. Only the administrator can reopen it.'), 'pl')).toBe(pl.errors.DRAFT_REJECTED);
+    expect(told(new ApiClientError(409, 'DRAFT_SHIPPED', 'A draft that has shipped cannot be edited.'), 'pl')).toBe(pl.errors.DRAFT_SHIPPED);
   });
 
   it('is what the API said when the code has no text here, and the fallback for anything else', () => {
-    expect(told(new AdminApiError(500, 'Something the API said.', 'A_CODE_OF_TOMORROW'))).toBe('Something the API said.');
+    expect(told(new ApiClientError(500, 'A_CODE_OF_TOMORROW', 'Something the API said.'))).toBe('Something the API said.');
     expect(told('not an error')).toBe('It did not work.');
   });
 });
@@ -115,7 +114,7 @@ describe('what the administrator is told about a draft that did not ship', () =>
   });
 
   it('is what a refused promotion says too', () => {
-    const error = new AdminApiError(409, 'The draft cannot go into the library: same-making-as: milk-porridge.', 'DRAFT_NOT_SHIPPABLE', undefined, {
+    const error = new ApiClientError(409, 'DRAFT_NOT_SHIPPABLE', 'The draft cannot go into the library: same-making-as: milk-porridge.', undefined, undefined, {
       reason: 'same-making-as: milk-porridge',
     });
 

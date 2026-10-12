@@ -131,8 +131,6 @@
       "digit": "Co najmniej jedna cyfra"
     },
     "signInButton": "Zaloguj się",
-    "heldUp": "Zbyt wiele prób. Spróbuj ponownie za {count, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}.",
-    "heldUpSeconds": "Zbyt wiele prób. Spróbuj ponownie za {count, plural, one {# sekundę} few {# sekundy} many {# sekund} other {# sekundy}}.",
     "createAccountButton": "Załóż konto",
     "forgotPassword": "Nie pamiętasz hasła?",
     "noAccount": "Nie masz konta?",
@@ -232,6 +230,9 @@
     "REFERENCE_CONFLICT": "Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane.",
     "WRITE_CONFLICT": "Dane zmieniły się w trakcie operacji. Spróbuj ponownie.",
     "VALIDATION_FAILED": "Niektóre pola wymagają poprawy.",
+    "VALIDATION_FAILED_FIELDS": "Niektóre pola wymagają poprawy: {fields}.",
+    "HELD_UP_MINUTES": "Zbyt wiele prób. Spróbuj ponownie za {count, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}.",
+    "HELD_UP_SECONDS": "Zbyt wiele prób. Spróbuj ponownie za {count, plural, one {# sekundę} few {# sekundy} many {# sekund} other {# sekundy}}.",
     "VALIDATION": "Niektóre pola wymagają poprawy.",
     "FORBIDDEN": "Brak dostępu.",
     "AUTH_REQUIRED": "Zaloguj się, aby kontynuować.",
