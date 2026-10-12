@@ -133,9 +133,16 @@ export function planCalls(
   return calls;
 }
 
-/** Whether the realised mix (counts per band) deviates from the target mix
- *  by > `tolerancePp` percentage-points in any band. The runner surfaces this
- *  as a yellow warning chip on the batch; it never rejects. */
+/**
+ * Whether a run came out with another mix than it was asked for: by more than
+ * `tolerancePp` points of the run in any band. The runner shows this as a
+ * warning on the run; it never rejects.
+ *
+ * What a run was asked for is whole recipes (`targetsForMix`), and that is
+ * what it is held against, not the shares of the mix themselves: a run of one
+ * recipe cannot be half simple and a third medium, and one that wrote the one
+ * recipe it was asked for has not drifted.
+ */
 export function batchMixDrift(opts: {
   realised: Record<Complexity, number>;
   target: ComplexityMix;
@@ -143,19 +150,9 @@ export function batchMixDrift(opts: {
   tolerancePp?: number;
 }): { drifted: boolean; deltas: Record<Complexity, number> } {
   const tolerance = opts.tolerancePp ?? 25;
-  const target = normaliseMix(opts.target);
-  const realisedFraction: Record<Complexity, number> = {
-    simple: opts.total === 0 ? 0 : opts.realised.simple / opts.total,
-    medium: opts.total === 0 ? 0 : opts.realised.medium / opts.total,
-    complex: opts.total === 0 ? 0 : opts.realised.complex / opts.total,
-  };
-  const deltas: Record<Complexity, number> = {
-    simple: Math.round((realisedFraction.simple - target.simple) * 100),
-    medium: Math.round((realisedFraction.medium - target.medium) * 100),
-    complex: Math.round((realisedFraction.complex - target.complex) * 100),
-  };
-  const drifted = (Object.values(deltas) as number[]).some(
-    (d) => Math.abs(d) > tolerance,
-  );
+  const asked = targetsForMix(opts.total, opts.target);
+  const off = (band: Complexity): number => (opts.total === 0 ? 0 : Math.round(((opts.realised[band] - asked[band]) / opts.total) * 100));
+  const deltas: Record<Complexity, number> = { simple: off('simple'), medium: off('medium'), complex: off('complex') };
+  const drifted = (Object.values(deltas) as number[]).some((d) => Math.abs(d) > tolerance);
   return { drifted, deltas };
 }
