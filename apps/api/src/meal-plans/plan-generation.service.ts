@@ -28,6 +28,7 @@ import {
   type UnfilledMeal,
 } from '@diet-app/shared';
 import {
+  amountsPerServing,
   calculateCalories,
   effectiveDayTarget,
   macroSplitOf,
@@ -394,7 +395,7 @@ export class PlanGenerationService {
       seed: number;
     },
   ): Promise<{ assignments: OptimizerResult['assignments']; ingredientReuseScore: number; report: StoredReport; pantryRound?: PantryRound }> {
-    const { optimizerRecipes, requirementsByRecipe, beforeProfileRules } = await this.loadEligibleRecipes(ownerUserId, profile, {
+    const { optimizerRecipes, requirementsByRecipe, beforeProfileRules, perishablePacks } = await this.loadEligibleRecipes(ownerUserId, profile, {
       respectExclusions: opts.respectExclusions,
     });
 
@@ -483,6 +484,7 @@ export class PlanGenerationService {
         maxTimesPerWeekSameMeal,
         maxRepeatsPerRecipe: opts.maxRepeatsPerRecipe,
         maxIngredientPerWeek: profile.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+        perishablePacks,
         allowRelaxations: new Set(opts.allowRelaxations),
         seed: opts.seed,
       });
@@ -584,6 +586,8 @@ export class PlanGenerationService {
     requirementsByRecipe: Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>;
     /** Every recipe the user may be given at all, before the profile's allergens, skipped ingredients and avoided recipes took any out. */
     beforeProfileRules: Array<{ mealTypes: string[]; dietTags: string[] }>;
+    /** The pack of each ingredient of the pool whose opened pack does not keep, in the ingredient's canonical unit. */
+    perishablePacks: Map<string, number>;
   }> {
     const allergens = profile.preferences?.allergens ?? [];
     const excluded =
@@ -605,7 +609,7 @@ export class PlanGenerationService {
       include: {
         ingredients: {
           include: {
-            ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } },
+            ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true, packSize: true, perishable: true } },
           },
         },
       },
@@ -645,7 +649,13 @@ export class PlanGenerationService {
       totalMinutes: r.prepMinutes + r.cookMinutes,
     }));
 
-    return { optimizerRecipes, requirementsByRecipe, beforeProfileRules: recipes };
+    // The pack of every ingredient of the pool whose opened pack does not keep.
+    const perishablePacks = new Map<string, number>();
+    for (const line of filteredRecipes.flatMap((r) => r.ingredients)) {
+      if (line.ingredient.perishable && line.ingredient.packSize) perishablePacks.set(line.ingredientId, line.ingredient.packSize);
+    }
+
+    return { optimizerRecipes, requirementsByRecipe, beforeProfileRules: recipes, perishablePacks };
   }
 
   /**
@@ -708,13 +718,6 @@ type PantryRound = 'counted' | 'left_out';
 const pantryCount = (round: PantryRound): Prisma.ProfileUpdateInput => ({ inventoryBiasStreak: round === 'counted' ? { increment: 1 } : 0 });
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
-
-/** What one serving of a recipe takes of each ingredient, in the ingredient's own unit; a line whose unit cannot be converted is not in it. */
-function amountsPerServing(lines: readonly { ingredientId: string; canonicalQuantity: number }[]): Map<string, number> {
-  const amounts = new Map<string, number>();
-  for (const line of lines) amounts.set(line.ingredientId, (amounts.get(line.ingredientId) ?? 0) + line.canonicalQuantity);
-  return amounts;
-}
 
 /** A fully-resolved day: defaults merged with overrides, ready for the optimiser. */
 interface ResolvedDay {

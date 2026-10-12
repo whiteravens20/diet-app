@@ -26,6 +26,7 @@
  */
 import { fitsDiet, PLAN_RELAXATIONS, type DietType, type Macros, type MealType, type PlanRelaxation, type Unit } from '@diet-app/shared';
 import { energyShares, splitDistance } from './nutrition.js';
+import { packPull } from './packs.js';
 import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
 
 export interface OptimizerRecipe {
@@ -143,6 +144,14 @@ export interface OptimizerInput {
    */
   maxIngredientPerWeek?: number;
   /**
+   * The pack of each ingredient whose opened pack does not keep, in the
+   * ingredient's own unit. A recipe that takes from a pack the plan has
+   * opened and mostly left scores higher, and one that would open a pack
+   * with little of the plan left to use it in scores lower (`packs.ts`).
+   * Omitted or empty: packs play no part in the choice.
+   */
+  perishablePacks?: ReadonlyMap<string, number>;
+  /**
    * The limits that may give way when no recipe is left for a meal inside
    * them. `all` (the default) lets any of them. A limit that may give way
    * does so before one that may not; a plan in which one that may not had to
@@ -230,6 +239,12 @@ export const SCORE_WEIGHTS = {
   // reset triggers.
   inventoryCoverage: 0.1,
   complexity: 0.05,
+  // What a meal does to the packs of the plan, from -1 to 1. Chosen with
+  // `scripts/tune-pack-weight.ts`: at this weight a week leaves about a third
+  // fewer packs more than three tenths full where the catalogue gives it a
+  // choice, and a day is at most a point further from its split. More weight
+  // goes on taking from the split and from the variety of a week.
+  packs: 0.15,
 };
 export type ScoreWeights = typeof SCORE_WEIGHTS;
 
@@ -383,9 +398,13 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
     return found;
   };
 
+  // The days the run fills: a pack that a meal opens can be used on those that come after the meal's own.
+  const filled = input.days.map((spec) => !spec.skip && spec.mealSlots.length > 0);
+
   for (let day = 0; day < input.days.length; day++) {
     const spec = input.days[day]!;
     if (spec.skip) continue;
+    const daysToCome = filled.slice(day + 1).filter(Boolean).length;
 
     const coverage = spec.inventoryCoverage ?? input.inventoryCoverage;
     const lockedBySlot = new Map((spec.lockedSlots ?? []).map((l) => [l.slot, l.recipeId] as const));
@@ -438,6 +457,9 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
           day,
           planIngredients,
           uses,
+          packs: input.perishablePacks,
+          daysToCome,
+          heldOf: (ingredientId) => (held.get(ingredientId) ?? []).reduce((sum, entry) => sum + entry.amount, 0),
           dayMacros,
           macroSplit: input.macroSplit,
           weights,
@@ -548,6 +570,10 @@ interface PickContext {
   planIngredients: Set<string>;
   /** The meals of the plan so far: those that stay and those already placed. */
   uses: readonly Use[];
+  /** The pack of each ingredient whose opened pack does not keep, what the plan holds of an ingredient so far, and the days still to be filled after this one. */
+  packs?: ReadonlyMap<string, number>;
+  heldOf?: (ingredientId: string) => number;
+  daysToCome?: number;
   /** What the meals of the day hold so far, in grams. */
   dayMacros: Macros;
   macroSplit?: Macros;
@@ -635,6 +661,12 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   // Pantry coverage. Pre-computed by the caller; omitted/empty map → 0.
   const inventoryCoverage = ctx.inventoryCoverage?.get(recipe.id) ?? 0;
 
+  // What the meal would do to the packs of the plan as it stands.
+  const packs =
+    ctx.packs && ctx.packs.size > 0 && ctx.heldOf && recipe.amounts
+      ? packPull(new Map([...recipe.amounts].map(([ingredientId, perServing]) => [ingredientId, perServing * servings])), ctx.heldOf, ctx.packs, ctx.daysToCome ?? 0)
+      : 0;
+
   const { weights } = ctx;
   return (
     weights.calorieFit * fit +
@@ -645,7 +677,8 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
     weights.often * often +
     weights.favoriteIngredient * favoriteIngredient +
     weights.cuisine * preferredCuisine +
-    weights.inventoryCoverage * inventoryCoverage -
+    weights.inventoryCoverage * inventoryCoverage +
+    weights.packs * packs -
     weights.complexity * complexityPenalty
   );
 }
@@ -688,6 +721,13 @@ export function requirementsPerServing(recipe: {
     }
   }
   return needs;
+}
+
+/** What one serving of a recipe takes of each ingredient, in the ingredient's own unit: `requirementsPerServing`, with an ingredient that is on two lines added up. */
+export function amountsPerServing(requirements: readonly { ingredientId: string; canonicalQuantity: number }[]): Map<string, number> {
+  const amounts = new Map<string, number>();
+  for (const line of requirements) amounts.set(line.ingredientId, (amounts.get(line.ingredientId) ?? 0) + line.canonicalQuantity);
+  return amounts;
 }
 
 /**

@@ -378,6 +378,98 @@ describe('a plan for somebody who prefers a cuisine', () => {
   });
 });
 
+describe('a plan and the packs it opens', () => {
+  /** Chicken comes in packs of 600 g, and what is left of an opened one does not keep. */
+  const PACKS = new Map([['chicken', 600]]);
+  const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
+  /**
+   * A day whose lunch takes `lunchGrams` of chicken, and two dinners alike in
+   * everything, but that one takes `dinnerGrams` of chicken and the other none.
+   * Both share as many ingredients with the day so far. Each meal is what its
+   * part of the day comes to, so each is one serving.
+   */
+  const aDay = (lunchGrams: number, dinnerGrams: number, over: Partial<OptimizerInput>): OptimizerInput => ({
+    ...baseInput,
+    recipes: [
+      recipe('b1', ['breakfast'], 500),
+      { ...recipe('l1', ['lunch'], 800), ingredientIds: ['l1-a', 'chicken', 'shared'], amounts: new Map([['chicken', lunchGrams]]) },
+      { ...recipe('d-chicken', ['dinner'], 700), ingredientIds: ['d1-a', 'chicken', 'shared'], amounts: new Map([['chicken', dinnerGrams]]) },
+      { ...recipe('d-plain', ['dinner'], 700), ingredientIds: ['d2-a', 'l1-a', 'shared'], amounts: new Map([['lentils', 80]]) },
+    ],
+    days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2000),
+    ...over,
+  });
+  const chickenDinners = (lunchGrams: number, dinnerGrams: number, over: Partial<OptimizerInput> = {}): number =>
+    SEEDS.filter((seed) => optimisePlan(aDay(lunchGrams, dinnerGrams, { ...over, seed })).assignments.find((a) => a.slot === 'dinner')!.recipeId === 'd-chicken').length;
+
+  it('is made of one serving a meal here, so that the grams above are the grams planned', () => {
+    expect(optimisePlan(aDay(200, 200, { seed: 1 })).assignments.map((a) => a.servings)).toEqual([1, 1, 1]);
+  });
+
+  it('leans towards the meal that takes from a pack the plan has opened and mostly left', () => {
+    // Lunch took 200 g of the 600: two thirds of the pack would be left.
+    const without = chickenDinners(200, 200);
+    const withPacks = chickenDinners(200, 200, { perishablePacks: PACKS });
+
+    expect(withPacks).toBeGreaterThan(without);
+    expect(withPacks).toBeGreaterThan(SEEDS.length * 0.7);
+  });
+
+  it('leans away from the meal that would open another pack for what a used one cannot give', () => {
+    // Lunch took 550 g: the 150 g of the dinner would open a second pack and leave most of it.
+    const without = chickenDinners(550, 150);
+    const withPacks = chickenDinners(550, 150, { perishablePacks: PACKS });
+
+    expect(withPacks).toBeLessThan(without);
+    expect(withPacks).toBeLessThan(SEEDS.length * 0.3);
+  });
+
+  it('has nothing to say of what is left of a pack that is used well enough', () => {
+    // 550 g of 600 are used, and a dinner could take the last 50 g: no reason to plan it, and none against.
+    for (const seed of [1, 2, 3, 4, 5]) {
+      expect(optimisePlan(aDay(550, 50, { seed, perishablePacks: PACKS })).assignments).toEqual(optimisePlan(aDay(550, 50, { seed })).assignments);
+    }
+  });
+
+  /** Days whose dinners are alike in everything, but that one opens a tub of yogurt and takes 150 g of its 500. */
+  const withATub = (days: number, over: Partial<OptimizerInput>): OptimizerInput => ({
+    ...baseInput,
+    recipes: [
+      recipe('b1', ['breakfast'], 500),
+      recipe('l1', ['lunch'], 800),
+      { ...recipe('d-yogurt', ['dinner'], 700), ingredientIds: ['d1-a', 'yogurt', 'shared'], amounts: new Map([['yogurt', 150]]) },
+      { ...recipe('d-plain', ['dinner'], 700), ingredientIds: ['d2-a', 'lentils', 'shared'], amounts: new Map([['lentils', 80]]) },
+    ],
+    days: uniformDays(days, ['breakfast', 'lunch', 'dinner'], 2000),
+    ...over,
+  });
+  const TUB = new Map([['yogurt', 500]]);
+  const firstDinner = (days: number, over: Partial<OptimizerInput>): string => optimisePlan(withATub(days, over)).assignments.find((a) => a.dayIndex === 0 && a.slot === 'dinner')!.recipeId;
+
+  it('leans away from the meal that opens a pack on the last day of a plan and would leave most of it', () => {
+    const without = SEEDS.filter((seed) => firstDinner(1, { seed }) === 'd-yogurt').length;
+    const withPacks = SEEDS.filter((seed) => firstDinner(1, { seed, perishablePacks: TUB }) === 'd-yogurt').length;
+
+    expect(without).toBeGreaterThan(SEEDS.length * 0.3);
+    expect(withPacks).toBeLessThan(without / 2);
+  });
+
+  it('holds a pack against no meal that opens it with a week of the plan still to come', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      expect(firstDinner(8, { seed, perishablePacks: TUB }), `seed ${seed}`).toBe(firstDinner(8, { seed }));
+    }
+  });
+
+  it('changes nothing where no ingredient of the plan comes in such a pack', () => {
+    for (const seed of [1, 2, 3]) {
+      const plain = optimisePlan(aDay(200, 200, { seed })).assignments;
+
+      expect(optimisePlan(aDay(200, 200, { seed, perishablePacks: new Map() })).assignments).toEqual(plain);
+      expect(optimisePlan(aDay(200, 200, { seed, perishablePacks: new Map([['yogurt', 500]]) })).assignments).toEqual(plain);
+    }
+  });
+});
+
 describe('recipeCoverage', () => {
   it('returns 1.0 when every required ingredient is fully stocked', () => {
     const reqs = [
