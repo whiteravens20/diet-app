@@ -17,6 +17,7 @@ async function aPage(signedIn: boolean) {
   document.cookie = signedIn ? 'diet_session=1; Path=/' : 'diet_session=; Max-Age=0; Path=/';
   const { session } = await import('./session');
   session.leave = vi.fn();
+  session.load = vi.fn();
   return session;
 }
 
@@ -195,7 +196,7 @@ describe('the session of the browser', () => {
     });
   });
 
-  it('signs out by ending the session on the server, here and in the other tabs', async () => {
+  it('signs out by ending the session on the server, here and in the other tabs, and loads the sign-in page', async () => {
     const session = await aPage(true);
     session.begin(anAnswer('access-1'));
     const other = anotherTab();
@@ -208,6 +209,56 @@ describe('the session of the browser', () => {
     expect(session.accessToken).toBeNull();
     expect(session.exists()).toBe(false);
     expect(other.heard).toContainEqual({ type: 'signed-out' });
+    expect(session.load).toHaveBeenCalledWith('/login');
     other.close();
+  });
+
+  it('signs out here even when the server could not be told', async () => {
+    const session = await aPage(true);
+    session.begin(anAnswer('access-1'));
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await session.signOut();
+
+    expect(session.accessToken).toBeNull();
+    expect(session.exists()).toBe(false);
+    expect(session.load).toHaveBeenCalledWith('/login');
+  });
+
+  it('ends where the reader ended it: forgotten here and in the other tabs before the next page is loaded', async () => {
+    const session = await aPage(true);
+    session.begin(anAnswer('access-1'));
+    const other = anotherTab();
+    const held: (string | null)[] = [];
+    session.load = vi.fn(() => held.push(session.accessToken));
+
+    session.end('/');
+    await aMoment();
+
+    expect(session.load).toHaveBeenCalledWith('/');
+    expect(held).toEqual([null]);
+    expect(session.exists()).toBe(false);
+    expect(other.heard).toContainEqual({ type: 'signed-out' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    other.close();
+  });
+
+  describe('moving between pages', () => {
+    /** The module with the browser at an address, and what it did to the address. */
+    async function aPageAt(pathname: string, search = '') {
+      vi.resetModules();
+      const location = { pathname, search, assign: vi.fn(), replace: vi.fn() };
+      vi.stubGlobal('location', location);
+      const { session } = await import('./session');
+      return { session, location };
+    }
+
+    it('loads a page anew, so that nothing the page before held in memory comes along', async () => {
+      const { session, location } = await aPageAt('/login');
+
+      session.load('/meal-plans?profile=0b1f');
+
+      expect(location.assign).toHaveBeenCalledWith('/meal-plans?profile=0b1f');
+    });
   });
 });

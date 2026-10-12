@@ -5,7 +5,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   type AiMode,
@@ -39,7 +38,6 @@ const PROVIDERS: AiProvider[] = ['openai', 'anthropic', 'openrouter', 'ollama'];
 export default function SettingsPage() {
   const t = useTranslations('settings');
   const qc = useQueryClient();
-  const router = useRouter();
   const session = useQuery({
     queryKey: ['session'],
     queryFn: () => api.get<SessionUser>('/users/me'),
@@ -64,17 +62,11 @@ export default function SettingsPage() {
       <PaletteCard initial={me.palette} />
       <AiAssistantCard me={me} />
       <AiProvidersCard />
-      <PasswordCard onChanged={() => router.push('/login')} />
+      <PasswordCard />
       <SecondFactorCard />
-      <SessionsCard onSignedOut={() => router.push('/login')} />
+      <SessionsCard />
       <EmailCard me={me} />
-      <DangerZoneCard
-        me={me}
-        onDeleted={() => {
-          browserSession.forget();
-          router.push('/');
-        }}
-      />
+      <DangerZoneCard me={me} />
     </div>
   );
 }
@@ -718,7 +710,7 @@ function ProviderForm({
   );
 }
 
-function PasswordCard({ onChanged }: { onChanged: () => void }) {
+function PasswordCard() {
   const t = useTranslations('settings');
   const errorText = useErrorText();
   const [error, setError] = useState<string | null>(null);
@@ -728,9 +720,8 @@ function PasswordCard({ onChanged }: { onChanged: () => void }) {
       api.post<void>('/users/me/password', body),
     onSuccess: () => {
       setDone(true);
-      // Server invalidated active sessions; clear local + send to login.
-      browserSession.forget();
-      window.setTimeout(onChanged, 1200);
+      // Every session of the account ended with the password, this one too: the reader reads that it worked, and signs in again.
+      window.setTimeout(() => browserSession.end('/login'), 1200);
     },
     onError: (err) => setError(errorText(err, t('passwordFailed'))),
   });
@@ -904,7 +895,7 @@ function EmailCard({ me }: { me: SessionUser }) {
   );
 }
 
-function DangerZoneCard({ me, onDeleted }: { me: SessionUser; onDeleted: () => void }) {
+function DangerZoneCard({ me }: { me: SessionUser }) {
   const t = useTranslations('settings');
   const errorText = useErrorText();
   const tCommon = useTranslations('common');
@@ -916,7 +907,8 @@ function DangerZoneCard({ me, onDeleted }: { me: SessionUser; onDeleted: () => v
   const remove = useMutation({
     mutationFn: () => api.delete<void>('/users/me', { currentPassword: password }),
     onMutate: () => setError(null),
-    onSuccess: onDeleted,
+    // The account is gone, and its session with it.
+    onSuccess: () => browserSession.end('/'),
     onError: (err) => setError(errorText(err, t('deleteFailed'))),
   });
 

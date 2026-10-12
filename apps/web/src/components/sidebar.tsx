@@ -3,7 +3,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarRange,
@@ -35,14 +35,8 @@ const NAV = [
 /** Persistent app navigation. */
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
-
-  async function logout() {
-    await session.signOut();
-    router.push('/login');
-  }
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card p-4">
@@ -76,7 +70,7 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <Button variant="ghost" size="sm" className="justify-start" onClick={logout}>
+      <Button variant="ghost" size="sm" className="justify-start" onClick={() => void session.signOut()}>
         <LogOut size={18} /> {tNav('signOut')}
       </Button>
     </aside>

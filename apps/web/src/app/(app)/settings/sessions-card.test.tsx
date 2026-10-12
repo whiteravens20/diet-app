@@ -26,18 +26,17 @@ const aSession = (id: string, label: string | null): AccountSession => ({
 /** The card for an account signed in from this browser, a phone and something that did not say what it is. */
 function shown(list: AccountSession[] = [aSession(HERE, 'Firefox · Linux'), aSession(PHONE, 'Safari · iOS'), aSession(OTHER, null)]) {
   vi.spyOn(browserSession, 'id', 'get').mockReturnValue(HERE);
-  const forget = vi.spyOn(browserSession, 'forget').mockImplementation(() => undefined);
+  const end = vi.spyOn(browserSession, 'end').mockImplementation(() => undefined);
   const get = vi.spyOn(api, 'get').mockResolvedValue(list as never);
   const remove = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
-  const onSignedOut = vi.fn();
   render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <SessionsCard onSignedOut={onSignedOut} />
+        <SessionsCard />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  return { get, remove, forget, onSignedOut };
+  return { get, remove, end };
 }
 
 describe('the list of where an account is signed in', () => {
@@ -60,33 +59,32 @@ describe('the list of where an account is signed in', () => {
   });
 
   it('signs out another session and stays, with the list read again', async () => {
-    const { get, remove, forget, onSignedOut } = shown();
+    const { get, remove, end } = shown();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out Safari · iOS' }));
 
     expect(remove).toHaveBeenCalledWith(`/users/me/sessions/${PHONE}`);
     await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2));
-    expect(forget).not.toHaveBeenCalled();
-    expect(onSignedOut).not.toHaveBeenCalled();
+    expect(end).not.toHaveBeenCalled();
   });
 
-  it('leaves the page when the session of this browser is the one signed out', async () => {
-    const { forget, onSignedOut } = shown();
+  it('leaves the account for the sign-in page when the session of this browser is the one signed out', async () => {
+    const { end } = shown();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out Firefox · Linux' }));
 
-    await vi.waitFor(() => expect(onSignedOut).toHaveBeenCalledTimes(1));
-    expect(forget).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(end).toHaveBeenCalledTimes(1));
+    expect(end).toHaveBeenCalledWith('/login');
   });
 
-  it('signs out everywhere, and leaves the page', async () => {
-    const { remove, forget, onSignedOut } = shown();
+  it('signs out everywhere, and leaves the account for the sign-in page', async () => {
+    const { remove, end } = shown();
 
     await userEvent.click(await screen.findByRole('button', { name: messages.settings.sessionEndAll }));
 
     expect(remove).toHaveBeenCalledWith('/users/me/sessions');
-    await vi.waitFor(() => expect(onSignedOut).toHaveBeenCalledTimes(1));
-    expect(forget).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(end).toHaveBeenCalledTimes(1));
+    expect(end).toHaveBeenCalledWith('/login');
   });
 
   it('says so when a session was gone already, and reads the list again', async () => {
@@ -105,7 +103,7 @@ describe('the list of where an account is signed in', () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-          <SessionsCard onSignedOut={() => undefined} />
+          <SessionsCard />
         </QueryClientProvider>
       </NextIntlClientProvider>,
     );

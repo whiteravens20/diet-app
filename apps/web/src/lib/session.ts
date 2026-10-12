@@ -147,16 +147,36 @@ export const session = {
     return refreshing;
   },
 
-  /** The session has ended on the server (a new password, a new address, the account deleted): forget it here and in the other tabs. */
+  /** The session has ended on the server (a new address): forget it here and in the other tabs. */
   forget(): void {
     forgotten();
     channel?.postMessage({ type: 'signed-out' } satisfies Message);
   },
 
-  /** Sign out: the session ends on the server, here and in the other tabs. */
+  /**
+   * Load a page of the application anew. An account is entered and left this
+   * way, never by a move inside the page: what the page held in memory
+   * (answers of the API, pages the router kept) belongs to whoever was
+   * signed in then, and goes with it.
+   */
+  load(path: string): void {
+    window.location.assign(path);
+  },
+
+  /**
+   * The session has ended by the reader's own doing (signed out, a new
+   * password, the account deleted): forget it here and in the other tabs,
+   * and go on at `to`.
+   */
+  end(to: string): void {
+    session.forget();
+    session.load(to);
+  },
+
+  /** Sign out: the session ends on the server, here and in the other tabs, and the sign-in page is next. */
   async signOut(): Promise<void> {
     await onTheCookie('logout').catch(() => undefined);
-    session.forget();
+    session.end('/login');
   },
 
   /**

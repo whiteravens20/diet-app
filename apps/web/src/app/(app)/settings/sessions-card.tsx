@@ -17,9 +17,9 @@ import { useFormat } from '@/lib/use-format';
  * Where the account is signed in: every session that is open, with what it
  * was opened from and when it was last used. Any of them can be signed out,
  * or all at once. Signing out the session of this browser, alone or with the
- * others, leaves the page: `onSignedOut` says where to.
+ * others, leaves the account for the sign-in page.
  */
-export function SessionsCard({ onSignedOut }: { onSignedOut: () => void }) {
+export function SessionsCard() {
   const t = useTranslations('settings');
   const errorText = useErrorText();
   const fmt = useFormat();
@@ -28,10 +28,7 @@ export function SessionsCard({ onSignedOut }: { onSignedOut: () => void }) {
 
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => api.get<AccountSession[]>('/users/me/sessions') });
   const worded = (err: unknown): string => errorText(err, t('sessionEndFailed'));
-  const leave = (): void => {
-    browserSession.forget();
-    onSignedOut();
-  };
+  const leave = (): void => browserSession.end('/login');
 
   const end = useMutation({
     mutationFn: (id: string) => api.delete<void>(`/users/me/sessions/${id}`),

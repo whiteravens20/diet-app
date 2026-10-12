@@ -12,9 +12,6 @@ import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../messages/en.json';
 import { AuthForm } from './auth-form';
 
-const push = vi.fn();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
-
 function renderLogin(emailEnabled: boolean) {
   const client = new QueryClient();
   client.setQueryData(['config'], aPublicConfig({ email: { enabled: emailEnabled } }));
@@ -48,33 +45,33 @@ describe('signing in to an account with two-step sign-in', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    push.mockClear();
   });
 
   /** The form after the password was right: it asks for the code. */
   async function atTheSecondStep() {
     const post = vi.spyOn(api, 'post').mockResolvedValueOnce(challenge as never);
     const begin = vi.spyOn(session, 'begin').mockImplementation(() => undefined);
+    const load = vi.spyOn(session, 'load').mockImplementation(() => undefined);
     renderLogin(false);
     await userEvent.type(screen.getByLabelText('Email'), 'holder@example.test');
     await userEvent.type(screen.getByLabelText('Password'), 'a-password');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     const code = await screen.findByLabelText(messages.secondFactor.codeOrRecovery);
-    return { post, begin, code };
+    return { post, begin, load, code };
   }
 
   it('asks for a code after the password, and opens no session yet', async () => {
-    const { post, begin } = await atTheSecondStep();
+    const { post, begin, load } = await atTheSecondStep();
 
     expect(screen.getByText(messages.secondFactor.signInBody)).toBeInTheDocument();
     expect(screen.queryByLabelText('Password')).toBeNull();
     expect(post).toHaveBeenCalledTimes(1);
     expect(begin).not.toHaveBeenCalled();
-    expect(push).not.toHaveBeenCalled();
+    expect(load).not.toHaveBeenCalled();
   });
 
   it('signs in with the code and the challenge the password was answered with, as a browser', async () => {
-    const { post, begin, code } = await atTheSecondStep();
+    const { post, begin, load, code } = await atTheSecondStep();
     post.mockResolvedValueOnce(aSession as never);
 
     await userEvent.type(code, '123456');
@@ -82,7 +79,7 @@ describe('signing in to an account with two-step sign-in', () => {
 
     expect(post).toHaveBeenLastCalledWith('/auth/login/second-factor', { challenge: 'the-challenge', code: '123456' }, COOKIE_SESSION);
     expect(begin).toHaveBeenCalledWith(aSession);
-    expect(push).toHaveBeenCalledWith('/dashboard');
+    expect(load).toHaveBeenCalledWith('/dashboard');
   });
 
   it('says so when the code is wrong, and stays at the code', async () => {

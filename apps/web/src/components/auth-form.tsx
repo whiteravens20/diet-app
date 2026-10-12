@@ -2,7 +2,6 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -19,7 +18,6 @@ import { useConfig } from '@/lib/use-config';
 
 /** Shared login / registration form. */
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
-  const router = useRouter();
   const t = useTranslations('auth');
   const worded = useErrorText();
   const tRules = useTranslations('auth.passwordRules');
@@ -60,7 +58,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         return;
       }
       session.begin(answer);
-      router.push('/dashboard');
+      session.load('/dashboard');
     } catch (err) {
       setError(worded(err));
       renewToken();
@@ -76,7 +74,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     const code = String(new FormData(event.currentTarget).get('code'));
     try {
       session.begin(await api.post<AuthResponse>('/auth/login/second-factor', { challenge, code }, COOKIE_SESSION));
-      router.push('/dashboard');
+      session.load('/dashboard');
     } catch (err) {
       setError(worded(err));
       // A sign-in that took too long begins again, with the password.
