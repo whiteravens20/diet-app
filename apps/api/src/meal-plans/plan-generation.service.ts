@@ -171,16 +171,18 @@ export class PlanGenerationService {
   }
 
   /**
-   * Fill days of a plan again: all of them, or those from `range.from` to
+   * The days of a plan that are to be filled again, with everything a draw
+   * for them needs: all of the plan's days, or those from `range.from` to
    * `range.to`. Days before today, meals marked as eaten and the user's own
    * meals stay unless the options say otherwise, and whatever stays counts for
-   * the limits of the plan and for what its day has left.
+   * the limits of the plan and for what its day has left. Read once, for as
+   * many draws as are made of it; nothing is written.
    *
    * Without a range the plan is made again: as it was asked for, with the
    * profile as it is now for what was left to the profile, and with what each
    * day carries of its own. With one, the plan stays what it is.
    */
-  private async reroll(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest, clientToday: string | null): Promise<void> {
+  async prepare(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest, clientToday: string | null) {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: {
@@ -271,20 +273,32 @@ export class PlanGenerationService {
     const stayingOn = new Map(filled.map((entry) => [entry.dayId, new Set(entry.staying)]));
     const modelsPickStays = plan.days.some((day) => day.meals.some((meal) => meal.modelPicked && (stayingOn.get(day.id)?.has(meal.id) ?? true)));
 
-    const seed = newSeed();
-    const result = await this.optimiseFor(userId, profile, {
-      days,
-      dietType,
-      macroSplit,
-      mealPrepFriendly: made.mealPrepFriendly,
-      respectExclusions: made.respectExclusions,
-      respectFavorites: made.respectFavorites,
-      respectInventory: made.respectInventory,
-      maxRepeatsPerRecipe: made.maxRepeatsPerRecipe ?? undefined,
-      allowRelaxations,
-      dropIneligibleLocks: options.dropIneligibleLocks,
+    return { plan, profile, made, dates, whole, days, filled, allowRelaxations, base, dietType, macroSplit, modelsPickStays, dropIneligibleLocks: options.dropIneligibleLocks };
+  }
+
+  /** One way to fill the days that were prepared, by the draws of `seed`. Nothing is written. */
+  draw(userId: string, prepared: Awaited<ReturnType<PlanGenerationService['prepare']>>, seed: number) {
+    return this.optimiseFor(userId, prepared.profile, {
+      days: prepared.days,
+      dietType: prepared.dietType,
+      macroSplit: prepared.macroSplit,
+      mealPrepFriendly: prepared.made.mealPrepFriendly,
+      respectExclusions: prepared.made.respectExclusions,
+      respectFavorites: prepared.made.respectFavorites,
+      respectInventory: prepared.made.respectInventory,
+      maxRepeatsPerRecipe: prepared.made.maxRepeatsPerRecipe ?? undefined,
+      allowRelaxations: prepared.allowRelaxations,
+      dropIneligibleLocks: prepared.dropIneligibleLocks,
       seed,
     });
+  }
+
+  /** Fill days of a plan again (see `prepare`), and write what the draw came to. */
+  private async reroll(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest, clientToday: string | null): Promise<void> {
+    const prepared = await this.prepare(userId, planId, range, options, clientToday);
+    const { plan, made, dates, whole, days, filled, allowRelaxations, base, dietType, macroSplit, modelsPickStays } = prepared;
+    const seed = newSeed();
+    const result = await this.draw(userId, prepared, seed);
 
     // What the report said of the days filled again gives place to what this
     // run found. A plan from before reports were kept gets one when the whole
@@ -472,6 +486,7 @@ export class PlanGenerationService {
       inventoryCoverage: d.useUpBy ? expiringByDate.get(d.isoDate) : undefined,
       skip: d.skip,
       kept: d.kept,
+      avoid: d.avoid,
     }));
 
     const dates = opts.days.map((d) => d.isoDate);
@@ -739,6 +754,8 @@ interface ResolvedDay {
   overrides: DayOverridesJson | null;
   /** Meals that are on the day and stay there. */
   kept?: KeptMeal[];
+  /** Recipes the day is filled with only where the limits leave no other (`OptimizerDay.avoid`). */
+  avoid?: ReadonlySet<string>;
 }
 
 /** Collapse a request `DayOverride` into the persisted JSON (only set keys). */
@@ -756,7 +773,7 @@ function buildOverridesJson(o: DayOverride | undefined): DayOverridesJson | null
 }
 
 /** A random value for one generation: any 32-bit integer, which is what the column holds. */
-function newSeed(): number {
+export function newSeed(): number {
   return randomInt(-(2 ** 31), 2 ** 31);
 }
 

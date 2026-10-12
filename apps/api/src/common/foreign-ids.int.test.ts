@@ -79,6 +79,8 @@ const ASKS: Ask[] = [
   ['read a plan', 'get', (ids) => `/api/meal-plans/${ids.plan}`],
   ['make a plan again', 'post', (ids) => `/api/meal-plans/${ids.plan}/regenerate`, () => ({ includePast: true })],
   ['fill a day of a plan again', 'post', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/regenerate`, () => ({ includePast: true })],
+  ['ask for other ways to fill a day of a plan', 'post', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/variations`, () => ({})],
+  ['take a way to fill a day of a plan', 'post', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/variations/take`, () => ({ offer: 'a-note' })],
   ['delete a plan', 'delete', (ids) => `/api/meal-plans/${ids.plan}`],
   ['ask for another recipe for a meal', 'post', () => '/api/meal-plans/swap-meal/preview', (ids) => ({ planId: ids.plan, plannedMealId: ids.meal, strategy: 'random' })],
   ['swap a meal', 'post', () => '/api/meal-plans/swap-meal', (ids, shared) => ({ planId: ids.plan, plannedMealId: ids.meal, recipeId: shared.recipe, revision: 0, strategy: 'random' })],

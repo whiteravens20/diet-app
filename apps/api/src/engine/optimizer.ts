@@ -72,6 +72,12 @@ export interface OptimizerDay {
   /** Produce no meals for this day. */
   skip?: boolean;
   /**
+   * Recipes that fill a meal of this day only where the limits leave no
+   * other: what the day holds already, when another way to fill it is asked
+   * for. They order the choice and rule nothing out.
+   */
+  avoid?: ReadonlySet<string>;
+  /**
    * Meals that are on this day already and stay there. They are not chosen
    * again: `mealSlots` names the meals to fill. They count for the limits of
    * the plan, on the days before them and after, and what they hold is taken
@@ -448,11 +454,14 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
         }
         if (candidates.length === 1) report.singleCandidate.push({ dayIndex: day, slot });
         const pool = withinLimits(candidates, { day, budget, uses, useCount, held, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
-        // Of the recipes the limits leave, those that hold nothing the user
-        // would rather not eat come before any that does, however well the
-        // others score.
-        const welcome = pool.recipes.filter((r) => !holdsDisliked(r));
-        const liked = welcome.length > 0 ? welcome : pool.recipes;
+        // Of the recipes the limits leave, those the day is to do without
+        // come after every other.
+        const others = spec.avoid ? pool.recipes.filter((r) => !spec.avoid!.has(r.id)) : pool.recipes;
+        const offered = others.length > 0 ? others : pool.recipes;
+        // Of those, the ones that hold nothing the user would rather not eat
+        // come before any that does, however well the others score.
+        const welcome = offered.filter((r) => !holdsDisliked(r));
+        const liked = welcome.length > 0 ? welcome : offered;
         // Of those, one that stays far under the budget even at the largest
         // serving is left out, unless nothing else is there.
         const reaching = liked.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);

@@ -29,6 +29,7 @@ import {
   SetMealEatenRequest,
   SwapIngredientRequest,
   SwapMealRequest,
+  TakeDayVariationRequest,
   WeighRequest,
 } from '@diet-app/shared';
 import { ClientDate } from '../common/client-date.decorator.js';
@@ -36,6 +37,7 @@ import { CurrentUser, type RequestUser } from '../common/current-user.decorator.
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { requiredDate, requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { DayVariationsService } from './day-variations.service.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
@@ -55,6 +57,7 @@ export class MealPlansController {
     private readonly overviews: PlanOverviewService,
     private readonly calendars: PlanCalendarService,
     private readonly useUp: UseUpService,
+    private readonly variations: DayVariationsService,
   ) {}
 
   @Get()
@@ -130,6 +133,40 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.generation.regenerateDay(user.id, locale, id, dayId, options, today);
+  }
+
+  /**
+   * Other ways to fill a day: the engine makes them as it makes a day again,
+   * and a model puts them in order and says a sentence of each when the
+   * request asks for one. Nothing is written. One request makes the day up
+   * to eight times over, so it is held to half of what making a day again is.
+   */
+  @Post(':id/days/:dayId/variations')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  dayVariations(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('dayId', requiredUuid) dayId: string,
+    @Body(new ZodValidationPipe(WeighRequest)) dto: WeighRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.variations.offer(user.id, locale, id, dayId, dto, today);
+  }
+
+  /** Fill a day the way it was offered. */
+  @Post(':id/days/:dayId/variations/take')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  takeDayVariation(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('dayId', requiredUuid) dayId: string,
+    @Body(new ZodValidationPipe(TakeDayVariationRequest)) dto: TakeDayVariationRequest,
+  ) {
+    return this.variations.take(user.id, locale, id, dayId, dto);
   }
 
   @Delete(':id')

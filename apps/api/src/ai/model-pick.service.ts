@@ -14,6 +14,22 @@ export type ModelPick =
 /** What a request does with a pick: the pick itself, without the model's reason, which only the note knows. */
 export type PickTaken = ModelPick extends infer Pick ? (Pick extends unknown ? Omit<Pick, 'reason'> : never) : never;
 
+/**
+ * A way to fill a day of a plan that the engine made and offered: the meals
+ * it places (meal, recipe, servings), what the plan's reuse score becomes,
+ * and whether a model that was asked put this way first, with its sentence.
+ */
+export interface DayOffer {
+  kind: 'day';
+  plan: string;
+  day: string;
+  revision: number;
+  meals: [meal: string, recipe: string, servings: number][];
+  reuse: number;
+  picked: boolean;
+  reason: string | null;
+}
+
 /** How long a note is good for, in seconds: an offer is taken or left within the sitting it was made in. */
 const LIFETIME = 2 * 60 * 60;
 
@@ -54,6 +70,25 @@ export class ModelPickService {
       throw new BadRequestException({ error: 'MODEL_PICK_INVALID', message: 'This suggestion is no longer good for what it was made for. Ask for another.' });
     }
     return pick;
+  }
+
+  /**
+   * The note for a way to fill a day that was offered to this account. The
+   * engine makes such a way whether a model is asked or not, and the request
+   * that takes it writes the meals the note names, so the note is what says
+   * which meals: a client cannot write a day of its own making with it.
+   */
+  signDay(userId: string, offer: DayOffer): string {
+    return this.jwt.sign(offer, { ...this.signing(), subject: userId, expiresIn: LIFETIME });
+  }
+
+  /** The way a note offers, when the note is this account's and is for this day of this plan. Any other note is refused. */
+  dayOffered(userId: string, note: string, of: { plan: string; day: string }): DayOffer {
+    const offer = this.read(userId, note) as (ModelPick | DayOffer) | null;
+    if (offer === null || offer.kind !== 'day' || offer.plan !== of.plan || offer.day !== of.day || !Array.isArray(offer.meals)) {
+      throw new BadRequestException({ error: 'OFFER_INVALID', message: 'This offer is no longer good for what it was made for. Ask for another.' });
+    }
+    return offer;
   }
 
   private read(userId: string, note: string): ModelPick | null {

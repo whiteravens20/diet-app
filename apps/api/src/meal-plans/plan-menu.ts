@@ -17,14 +17,18 @@ export interface PackedLine {
   };
 }
 
+/** A meal that has a recipe: the lines of the recipe, and how much of the recipe the meal is (`factor`: its servings over the recipe's). */
+export interface PackedMeal {
+  factor: number;
+  lines: readonly PackedLine[];
+}
+
 /**
- * What a menu comes to in packs that do not keep once they are opened (see
- * `engine/packs.ts`). `meals` are the meals that have a recipe: the lines of
- * the recipe, and how much of the recipe the meal is (`factor`: its servings
- * over the recipe's). A line whose unit cannot be converted is left out, as
- * a shopping list leaves it out.
+ * What meals take of every ingredient whose opened pack does not keep, with
+ * the pack of each and the ingredient itself. A line whose unit cannot be
+ * converted is left out, as a shopping list leaves it out.
  */
-export function planPacks(meals: readonly { factor: number; lines: readonly PackedLine[] }[], locale: Locale): PlanPacks {
+export function menuNeeds(meals: readonly PackedMeal[]): { needs: Map<string, number>; packs: Map<string, number>; known: Map<string, PackedLine['ingredient']> } {
   const needs = new Map<string, number>();
   const packs = new Map<string, number>();
   const known = new Map<string, PackedLine['ingredient']>();
@@ -42,6 +46,15 @@ export function planPacks(meals: readonly { factor: number; lines: readonly Pack
       known.set(line.ingredientId, line.ingredient);
     }
   }
+  return { needs, packs, known };
+}
+
+/**
+ * What a menu comes to in packs that do not keep once they are opened (see
+ * `engine/packs.ts`), as a plan says it.
+ */
+export function planPacks(meals: readonly PackedMeal[], locale: Locale): PlanPacks {
+  const { needs, packs, known } = menuNeeds(meals);
   const use = packUse(needs, packs);
   return {
     bought: use.bought,

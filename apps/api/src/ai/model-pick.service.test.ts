@@ -5,7 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ACCOUNT_AUDIENCE, MODEL_PICK_AUDIENCE, TOKEN_ALGORITHM } from '../auth/token-kinds.js';
 import type { Env } from '../config/env.js';
-import { ModelPickService, type ModelPick } from './model-pick.service.js';
+import { ModelPickService, type DayOffer, type ModelPick } from './model-pick.service.js';
 
 const SECRET = 'a-secret-of-the-instance-0123456789abcdef';
 const jwt = new JwtService();
@@ -103,5 +103,86 @@ describe('the note of a pick a model made', () => {
 
     vi.setSystemTime(new Date('2026-01-05T10:00:01Z'));
     expect(refusal(() => service.taken(HOLDER, note, takingTheMeal))).toBe('MODEL_PICK_INVALID');
+  });
+});
+
+describe('the note of a way to fill a day that was offered', () => {
+  const THE_DAY = { plan: 'plan-1', day: 'day-2' } as const;
+  const way: DayOffer = {
+    kind: 'day',
+    ...THE_DAY,
+    revision: 4,
+    meals: [
+      ['breakfast', 'recipe-1', 1],
+      ['lunch', 'recipe-2', 1.25],
+      ['dinner', 'recipe-3', 0.75],
+    ],
+    reuse: 0.4,
+    picked: true,
+    reason: 'Closest to the target.',
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('gives the way back, with its meals and what was said of it, for the day of the plan it was made for', () => {
+    const service = picks();
+
+    expect(service.dayOffered(HOLDER, service.signDay(HOLDER, way), THE_DAY)).toMatchObject(way);
+  });
+
+  it.each([
+    ['another day of the plan', { plan: 'plan-1', day: 'day-3' }],
+    ['the same day of another plan', { plan: 'plan-2', day: 'day-2' }],
+  ])('is refused for %s', (_what, of) => {
+    const service = picks();
+
+    expect(refusal(() => service.dayOffered(HOLDER, service.signDay(HOLDER, way), of))).toBe('OFFER_INVALID');
+  });
+
+  it('is good for the account it was made for, and for no other', () => {
+    const service = picks();
+
+    expect(refusal(() => service.dayOffered(STRANGER, service.signDay(HOLDER, way), THE_DAY))).toBe('OFFER_INVALID');
+  });
+
+  it('cannot be made by a client: a note with other meals, a made-up one and one signed with another key are refused', () => {
+    const service = picks();
+    const [head, body, signature] = service.signDay(HOLDER, way).split('.') as [string, string, string];
+    const withOtherMeals = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body, 'base64url').toString()), meals: [['dinner', 'cake', 3]] })).toString('base64url');
+
+    expect(refusal(() => service.dayOffered(HOLDER, `${head}.${withOtherMeals}.${signature}`, THE_DAY))).toBe('OFFER_INVALID');
+    expect(refusal(() => service.dayOffered(HOLDER, 'made-up', THE_DAY))).toBe('OFFER_INVALID');
+    expect(refusal(() => service.dayOffered(HOLDER, picks('another-secret-0123456789abcdef0123').signDay(HOLDER, way), THE_DAY))).toBe('OFFER_INVALID');
+  });
+
+  it('is no note of a pick, and the note of a pick is no offer of a day', () => {
+    const service = picks();
+
+    expect(refusal(() => service.dayOffered(HOLDER, service.sign(HOLDER, meal), THE_DAY))).toBe('OFFER_INVALID');
+    expect(refusal(() => service.taken(HOLDER, service.signDay(HOLDER, way), takingTheMeal))).toBe('MODEL_PICK_INVALID');
+  });
+
+  it('runs out after two hours', () => {
+    vi.useFakeTimers({ now: new Date('2026-01-05T08:00:00Z') });
+    const service = picks();
+    const note = service.signDay(HOLDER, way);
+
+    vi.setSystemTime(new Date('2026-01-05T10:00:01Z'));
+    expect(refusal(() => service.dayOffered(HOLDER, note, THE_DAY))).toBe('OFFER_INVALID');
+  });
+
+  it('is short enough for a day of five meals to go where a note goes', () => {
+    const five: DayOffer = {
+      ...way,
+      plan: '11111111-1111-4111-8111-111111111111',
+      day: '22222222-2222-4222-8222-222222222222',
+      meals: ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'].map((slot, index) => [slot, `3333333${index}-3333-4333-8333-333333333333`, 1.25]),
+      reason: 'x'.repeat(200),
+    };
+
+    // The contract takes a note of up to 2048 characters.
+    expect(picks().signDay(HOLDER, five).length).toBeLessThan(2048);
   });
 });

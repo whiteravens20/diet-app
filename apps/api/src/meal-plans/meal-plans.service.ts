@@ -33,7 +33,7 @@ import {
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
-import { cookAhead, planPacks, type PackedLine } from './plan-menu.js';
+import { cookAhead, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
 import { shownReport } from './generation-report.js';
 import { storedSplit } from '../common/stored-split.js';
 import { averageDay, customMacros, isoDate, isSkipped, mealNutrition, parseDayOverrides, standingOf, sumNutrition, type MealAmount } from './plan-days.js';
@@ -493,7 +493,7 @@ export class MealPlansService {
     const inOrder = plan.days.map((day) => [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType)));
     const cookedOnce = options.mealPrepFriendly ? cookAhead(inOrder.map((meals) => meals.map((m) => (m.source === 'USER_CUSTOM' || !m.recipe ? null : m.recipe.id)))) : null;
     // What the meals with a recipe take of it, for the count of the packs the menu opens.
-    const packed: { factor: number; lines: readonly PackedLine[] }[] = [];
+    const packed: PackedMeal[] = [];
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
       const orderedMeals = inOrder[dayIndex]!;
       const meals: PlannedMeal[] = orderedMeals.map((m, mealIndex) => {
@@ -638,7 +638,7 @@ const MEAL_RANK: Record<string, number> = {
   snack: 3,
   dinner: 4,
 };
-function mealRank(slot: string): number {
+export function mealRank(slot: string): number {
   return MEAL_RANK[slot] ?? 99;
 }
 

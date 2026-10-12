@@ -503,6 +503,46 @@ describe('a plan made for cooking ahead', () => {
   });
 });
 
+describe('a day that is to do without some recipes', () => {
+  /** One day of three meals, with two recipes for each. */
+  const twoEach: OptimizerInput = {
+    ...baseInput,
+    recipes: [recipe('b1', ['breakfast'], 500), recipe('b2', ['breakfast'], 500), recipe('l1', ['lunch'], 800), recipe('l2', ['lunch'], 800), recipe('d1', ['dinner'], 700), recipe('d2', ['dinner'], 700)],
+    days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2000),
+  };
+  const filled = (avoid: string[], over: Partial<OptimizerInput> = {}, seed = 1): string[] =>
+    optimisePlan({ ...twoEach, ...over, days: [{ ...twoEach.days[0]!, avoid: new Set(avoid) }], seed }).assignments.map((placed) => placed.recipeId);
+
+  it('is filled with the others, whatever the draw', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      expect(filled(['b1', 'l2', 'd1'], {}, seed), `seed ${seed}`).toEqual(['b2', 'l1', 'd2']);
+    }
+  });
+
+  it('takes one of them where no other recipe is there for the meal: they order the choice and rule nothing out', () => {
+    expect(filled(['b1', 'b2', 'l1'])).toEqual([expect.stringMatching(/^b[12]$/), 'l2', expect.stringMatching(/^d[12]$/)]);
+  });
+
+  it('takes one of them before it lets a limit give way for another', () => {
+    // The other lunch was eaten on the two days before: a third day running is outside the limit.
+    const kept = { calories: 800, servings: 1 };
+    const days = [
+      { mealSlots: [], dailyCalorieTarget: 2000, kept: [{ ...kept, recipeId: 'l2' }] },
+      { mealSlots: [], dailyCalorieTarget: 2000, kept: [{ ...kept, recipeId: 'l2' }] },
+      { mealSlots: ['lunch' as const], dailyCalorieTarget: 800, avoid: new Set(['l1']) },
+    ];
+
+    const result = optimisePlan({ ...twoEach, days, maxConsecutiveDaysSameMeal: 2 });
+
+    expect(result.assignments.map((placed) => placed.recipeId)).toEqual(['l1']);
+    expect(result.report.relaxations).toEqual([]);
+  });
+
+  it('is filled as any day where it is to do without nothing', () => {
+    expect(filled([], {}, 3)).toEqual(optimisePlan({ ...twoEach, seed: 3 }).assignments.map((placed) => placed.recipeId));
+  });
+});
+
 describe('recipeCoverage', () => {
   it('returns 1.0 when every required ingredient is fully stocked', () => {
     const reqs = [

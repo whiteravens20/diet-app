@@ -646,6 +646,76 @@ export type WeighRequest = z.infer<typeof WeighRequest>;
 export const PackTally = z.object({ bought: z.number().min(0), used: z.number().min(0), wasted: z.number().int().min(0) });
 export type PackTally = z.infer<typeof PackTally>;
 
+/**
+ * The note of an offer to fill a day another way. The API signs it and hands
+ * it out with the offer, before anything is written; the request that takes
+ * the offer hands it back. It is good for the day of the plan as the plan
+ * stood. Opaque: a client passes it on unread.
+ */
+export const DayOfferNote = z.string().min(1).max(2048);
+export type DayOfferNote = z.infer<typeof DayOfferNote>;
+
+/** A meal of a day as another way to fill the day has it. */
+export const DayVariationMeal = z.object({
+  mealType: MealType,
+  /** The name of its recipe, or of a meal of the user's own. */
+  title: z.string(),
+  /** Null for a meal of the user's own. */
+  recipeId: z.string().uuid().nullable(),
+  servings: z.number(),
+  nutrition: Nutrition,
+  /** The meal is on the day already and stays there: it was eaten, or it is the user's own. */
+  stays: z.boolean(),
+});
+export type DayVariationMeal = z.infer<typeof DayVariationMeal>;
+
+/** Another way to fill a day of a plan. */
+export const DayVariation = z.object({
+  /** The meals of the day in the order they are eaten, those that stay among them. */
+  meals: z.array(DayVariationMeal),
+  dayNutrition: Nutrition,
+  /** What the menu of the whole plan would come to in packs with the day filled this way. */
+  packs: PackTally,
+  /** A model's sentence on this way: what speaks for it and what against. Null when no model was asked, or it said none. */
+  reason: z.string().max(200).nullable(),
+  /** Handed back to take this way (`TakeDayVariationRequest`). */
+  offer: DayOfferNote,
+});
+export type DayVariation = z.infer<typeof DayVariation>;
+
+/**
+ * Other ways to fill a day, as `POST /meal-plans/:id/days/:dayId/variations`
+ * answers them. The engine makes each of them as it makes a day again: inside
+ * the limits of the plan, around the meals that stay, with everything the
+ * profile rules out left out. Nothing is written.
+ */
+export const DayVariations = z.object({
+  date: z.string().date(),
+  calorieTarget: z.number(),
+  /** The day as it is, to hold the others against. */
+  current: z.object({ dayNutrition: Nutrition, packs: PackTally }),
+  /**
+   * Up to three ways that differ from the day as it is and from each other:
+   * in the order a model gave them where one was asked and answered, in the
+   * engine's otherwise. None where the catalogue leaves no other way.
+   */
+  variations: z.array(DayVariation).max(3),
+  /** Who put them in order, or why the engine's order stands. Null when no model was asked. */
+  aiMeta: AiGenerationMeta.nullable(),
+});
+export type DayVariations = z.infer<typeof DayVariations>;
+
+/**
+ * Take one of the ways a day was offered. The day gets its meals as the offer
+ * had them; each recipe is judged again before it is written. A plan that
+ * changed since the offer answers 409 `PLAN_CHANGED`, and a note that is not
+ * for this day of this plan, or has run out, 400 `OFFER_INVALID`. The way a
+ * model put first is written as its pick: the meals say so, and the plan says
+ * that a model had a part in it.
+ */
+export const TakeDayVariationRequest = z.object({ offer: DayOfferNote });
+export type TakeDayVariationRequest = z.infer<typeof TakeDayVariationRequest>;
+
 /** A recipe in the place of a meal that would use up what the plan opens. */
 export const UseUpSuggestion = z.object({
   plannedMealId: z.string().uuid(),

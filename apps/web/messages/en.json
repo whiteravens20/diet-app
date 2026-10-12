@@ -239,6 +239,7 @@
     "NOT_FOUND": "That does not exist.",
     "METHOD_NOT_ALLOWED": "That action is not available here.",
     "MODEL_PICK_INVALID": "This suggestion is no longer good for what it was made for. Ask for another.",
+    "OFFER_INVALID": "This offer is no longer good for what it was made for. Ask for another.",
     "PAYLOAD_TOO_LARGE": "The request is too large.",
     "UNSUPPORTED_MEDIA_TYPE": "The server does not accept that format.",
     "RATE_LIMITED": "Too many requests. Try again in a moment.",
