@@ -12,6 +12,10 @@
  *    English title belong to no other recipe, and no other shared recipe is
  *    made the same way.
  *
+ * A draft that is a recipe the library already has of its own, word for word
+ * and line for line, is no new recipe: it brings that recipe its other
+ * languages (`sameLibraryRecipe`, `addLanguages`) and nothing else is written.
+ *
  * A recipe that fails one of these is not written, and the reason is named
  * as `<rule>: <detail>`: a rule a client can word in the reader's language,
  * and the slug, title or figures it is about.
@@ -219,6 +223,42 @@ export async function writeToLibrary(tx: Db, recipe: LibraryRecipe, own?: string
   return id;
 }
 
+/** The library's own recipes: shipped into this instance, and neither deleted nor retired. */
+const OWN = { ...SHARED, origin: 'curated' } as const;
+
+/**
+ * Whether `content` is a recipe the library already has of its own: the same
+ * slug, made the same way, with the same English text. Such a draft brings
+ * the recipe more languages and changes nothing else of it. `changed` when
+ * the slug is such a recipe's and the rest no longer agrees: the recipe moved
+ * on since the draft was made from it.
+ */
+export async function sameLibraryRecipe(db: Db, content: ShippedRecipe): Promise<{ id: string } | 'changed' | null> {
+  const held = await db.recipe.findFirst({ where: { ...OWN, slug: content.slug }, select: { id: true, title: true, description: true, steps: true, fingerprint: true } });
+  if (!held) return null;
+  const fingerprint = computeFingerprint({ ingredients: content.ingredients, mealTypes: content.mealTypes, servings: content.servings });
+  const english = content.steps.en ?? [];
+  const sameText = held.title === content.title.en && held.description === (content.description.en ?? '') && held.steps.length === english.length && held.steps.every((step, index) => step === english[index]);
+  return held.fingerprint === fingerprint && sameText ? { id: held.id } : 'changed';
+}
+
+/**
+ * Give the library's recipe `id` the text of `content` in every language but
+ * English, stored as approved by people. Nothing else of the recipe is
+ * written, and its English stays what it was.
+ */
+export async function addLanguages(tx: Db, id: string, content: ShippedRecipe): Promise<void> {
+  for (const locale of Object.keys(content.title).filter((language) => language !== 'en')) {
+    const text = {
+      title: content.title[locale as keyof typeof content.title]!,
+      description: content.description[locale as keyof typeof content.description] ?? '',
+      steps: content.steps[locale as keyof typeof content.steps] ?? [],
+      source: 'MANUAL' as const,
+    };
+    await tx.recipeTranslation.upsert({ where: { recipeId_locale: { recipeId: id, locale } }, create: { recipeId: id, locale, ...text }, update: text });
+  }
+}
+
 /**
  * Of the approved `drafts`, those that may leave as a file for a repository's
  * data, and why the others may not. They are held to the terms of a recipe
@@ -234,6 +274,11 @@ export async function sortRecipesForFile<D extends RecipeDraftContent & Reviewed
   const claimed = nothingClaimed();
   for (const draft of drafts) {
     const shippable = shippableRecipe(draft);
+    // A language for a recipe this instance has is the instance's to take: a file for a repository holds whole recipes.
+    if (shippable.ok && (await sameLibraryRecipe(db, shippable.content)) !== null) {
+      skipped.push({ draftId: draft.id, slug: draft.slug, reason: `adds-a-language: ${draft.slug}` });
+      continue;
+    }
     const assessed = shippable.ok ? await assessForLibrary(db, shippable.content, { reviewed: draft, claimed }) : shippable;
     if (assessed.ok) shipping.push({ draft, content: assessed.recipe.content });
     else skipped.push({ draftId: draft.id, slug: draft.slug, reason: assessed.reason });

@@ -7,7 +7,9 @@
  *  - A recipe draft becomes a recipe of the shared library (`library.ts`),
  *    with its text stored as approved by people. It is refused when the
  *    figures moved since it was reviewed, or when it would take the place of
- *    another recipe.
+ *    another recipe. A draft of a recipe the library already has of its own
+ *    gives that recipe its other languages, and is refused when the recipe
+ *    has changed since.
  *  - The draft of an ingredient's name becomes that ingredient's name in the
  *    languages the draft was reviewed in, stored as approved by people, which
  *    an update of the catalogue leaves alone.
@@ -34,7 +36,7 @@ import {
   type IngredientOverrideEntry,
   type IngredientOverrideFile,
 } from './ingredient-overrides.writer.js';
-import { assessForLibrary, writeToLibrary } from './library.js';
+import { addLanguages, assessForLibrary, sameLibraryRecipe, writeToLibrary } from './library.js';
 import { recipeBatchesDir, writeRecipeBatch, type ShippedRecipe } from './recipe-batches.writer.js';
 import { shippableIngredientName, shippableRecipe, type Skipped } from './shippable.js';
 
@@ -83,10 +85,18 @@ export function shipRecipeDraftLocal(prisma: PrismaService, id: string): Promise
     // rule existed does not ship until it is edited.
     const shippable = shippableRecipe(draft);
     if (!shippable.ok) return shippable;
-    const assessed = await assessForLibrary(tx, shippable.content, { reviewed: draft });
-    if (!assessed.ok) return assessed;
-
-    const recipeId = await writeToLibrary(tx, assessed.recipe);
+    // A draft of a recipe the library has is that recipe in more languages: its text is added, and nothing else is written.
+    const same = await sameLibraryRecipe(tx, shippable.content);
+    if (same === 'changed') return { ok: false, reason: `library-recipe-changed: ${draft.slug}` };
+    let recipeId: string;
+    if (same) {
+      await addLanguages(tx, same.id, shippable.content);
+      recipeId = same.id;
+    } else {
+      const assessed = await assessForLibrary(tx, shippable.content, { reviewed: draft });
+      if (!assessed.ok) return assessed;
+      recipeId = await writeToLibrary(tx, assessed.recipe);
+    }
     const shipped = await tx.recipeDraft.update({
       where: { id },
       data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: null, promotedRecipeId: recipeId },

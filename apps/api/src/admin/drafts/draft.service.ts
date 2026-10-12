@@ -46,7 +46,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { checkIngredientName, checkRecipe, checkRecipeSlug, checkRecipeText, type RecipeProblem } from '../../recipes/recipe-rules.js';
 import { deriveDraftStatus } from './derive-status.js';
 import { lockIngredientNameDraft, lockRecipeDraft } from './draft-lock.js';
-import { localeMap, localeStepsMap, type IngredientNameDraftRow, type RecipeDraftRow } from './drafts.mapper.js';
+import { currentReviews, localeMap, localeStepsMap, type IngredientNameDraftRow, type RecipeDraftRow } from './drafts.mapper.js';
 import { classifyComplexity } from './recipe-generator.complexity.js';
 
 type Tx = Prisma.TransactionClient;
@@ -253,6 +253,41 @@ export class DraftService {
       }
     }
     return { rejected, skipped };
+  }
+
+  // ── A language added ────────────────────────────────────────────────────────
+
+  /**
+   * Add the text of one more language to a recipe draft that waits: what a
+   * run that fills a missing language writes. The language joins the draft's
+   * own, so it has to be reviewed before the draft can ship; the reviews the
+   * other languages have stand, since none of their text changed.
+   *
+   * Null when the draft is gone, is no longer open, or has the language by
+   * now: somebody was quicker, and nothing is written.
+   */
+  addRecipeLanguage(id: string, locale: Locale, text: { title: string; description: string; steps: string[] }): Promise<RecipeDraftRow | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await lockRecipeDraft(tx, id);
+      const draft = await tx.recipeDraft.findUnique({ where: { id }, include: WITH_REVIEWS });
+      if (!draft || (draft.status !== 'PENDING' && draft.status !== 'APPROVED') || draft.locales.includes(locale)) return null;
+
+      const locales = [...draft.locales, locale];
+      const checked = checkRecipeText(
+        {
+          titles: { ...localeMap(draft.titles), [locale]: text.title },
+          descriptions: { ...localeMap(draft.descriptions), [locale]: text.description },
+          steps: { ...localeStepsMap(draft.steps), [locale]: text.steps },
+        },
+        locales,
+      );
+      if (!checked.ok) throw invalid(checked.problems);
+      return tx.recipeDraft.update({
+        where: { id },
+        data: { ...checked.text, locales, status: deriveDraftStatus(locales, currentReviews(draft.localeReviews)) },
+        include: WITH_REVIEWS,
+      });
+    });
   }
 
   // ── Edits ──────────────────────────────────────────────────────────────────
