@@ -6,7 +6,7 @@
  * session is a cookie the API set, which no script reads: the page holds no
  * credentials, and nothing here keeps a password.
  */
-import type { AdminSessionState, Cuisine, DietType, DraftRunNote, MealType, SecondFactorSetup } from '@diet-app/shared';
+import type { AdminSessionState, Cuisine, DietType, DraftRunNote, MealType, RecipeImportResult, SecondFactorSetup, StoredImportRejection } from '@diet-app/shared';
 import { apiClient } from './http';
 
 // A version before this one kept the administrator's user and password in
@@ -170,6 +170,17 @@ export interface IngredientNameDraft {
   updatedAt: string;
   localeReviews: DraftLocaleReview[];
   pastReviews: DraftPastReview[];
+}
+
+/** What an import is sent: a document of recipes, and what holds for a recipe of it that does not say so itself. */
+export interface RecipeImportRequestInput {
+  /** The text of the JSON document, as it was pasted or read from a file. */
+  document: string;
+  sourceUrl?: string;
+  license?: string;
+  mealTypes?: MealType[];
+  /** Say what would come of the document, and write nothing. */
+  dryRun: boolean;
 }
 
 export interface DraftRunnerState {
@@ -375,6 +386,11 @@ export const adminApi = {
     ),
   deleteIngredientNameDraft: (id: string) =>
     adminFetch<void>(`/drafts/ingredient-names/${id}`, { method: 'DELETE' }),
+
+  // Drafts: recipes from elsewhere
+  importRecipes: (request: RecipeImportRequestInput) => adminFetch<RecipeImportResult>('/drafts/recipes/import', { method: 'POST', body: JSON.stringify(request) }),
+  importRejections: () => adminFetch<StoredImportRejection[]>('/drafts/recipes/import/rejections'),
+  clearImportRejections: () => adminFetch<void>('/drafts/recipes/import/rejections', { method: 'DELETE' }),
 
   // Drafts: a language recipes lack
   startTranslations: (spec: { locale: string; limit: number }) =>

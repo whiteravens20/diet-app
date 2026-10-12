@@ -63,6 +63,7 @@ import {
 import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
 import { useFormat } from '@/lib/use-format';
 import { MissingLanguage } from './missing-language';
+import { RecipeImport } from './recipe-import';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
 type Kind = 'ingredient-names' | 'recipes';
@@ -471,6 +472,8 @@ function RecipePanel() {
           </span>
         )}
       </div>
+
+      <RecipeImport onImported={loadDrafts} />
 
       <MissingLanguage onWritten={loadDrafts} />
 
@@ -1145,6 +1148,12 @@ function RecipePreview({ draft }: { draft: RecipeDraft }) {
           ))}
         </ul>
       </div>
+      {/* A draft that was taken in from elsewhere: where from, and the licence it ships with. Written as text: an address is no link until a person has looked at it. */}
+      {draft.provenanceLicense && (
+        <p className="break-all text-xs text-muted-foreground md:col-span-2">
+          {draft.provenanceUrl ? t('importedFrom', { source: draft.provenanceUrl, licence: draft.provenanceLicense }) : t('importedLicence', { licence: draft.provenanceLicense })}
+        </p>
+      )}
     </div>
   );
 }

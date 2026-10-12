@@ -9,7 +9,7 @@ import { ApiClientError } from './http';
 import { useErrorText } from './use-error-text';
 
 /** One problem the API named in a draft: the field, and the rule it breaks. */
-function useProblemLine(): (problem: DraftProblem) => string {
+export function useProblemLine(): (problem: DraftProblem) => string {
   const t = useTranslations('draftProblems');
   return useCallback(
     (problem) => {
