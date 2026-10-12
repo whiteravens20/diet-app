@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
-import { ProfileInput, ProfilePreferencesPatch, ProfileUpdate } from '@diet-app/shared';
+import { CaloriePreviewRequest, ProfileInput, ProfilePreferencesPatch, ProfileUpdate } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -26,6 +26,17 @@ export class ProfilesController {
   @Get(':id/calories')
   calories(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     return this.profiles.calories(user.id, id);
+  }
+
+  /**
+   * The calorie target and macros that figures somebody typed would come to,
+   * and what each pace of loss would: for a form that shows them before there
+   * is a profile. Nothing is kept.
+   */
+  @Post('calories')
+  @HttpCode(200)
+  previewCalories(@Body(new ZodValidationPipe(CaloriePreviewRequest)) dto: CaloriePreviewRequest) {
+    return this.profiles.previewCalories(dto);
   }
 
   @Post()

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { DietType, FdcDataTypes, MacroSplit, MEAL_SLOTS_BY_COUNT, ProfileInput, ProfileUpdate, RecipeDietTag, RegisterRequest, fitsDiet } from './index.js';
+import { CaloriePreviewRequest, DietType, FdcDataTypes, MacroSplit, MEAL_SLOTS_BY_COUNT, PACES_OF_LOSS, ProfileInput, ProfileUpdate, RecipeDietTag, RegisterRequest, fitsDiet } from './index.js';
 
 describe('fitsDiet', () => {
   it.each(RecipeDietTag.options)('admits a recipe to a %s plan only when it carries that tag', (diet) => {
@@ -82,6 +82,37 @@ describe('API contract schemas', () => {
     for (const count of [2, 3, 4, 5]) {
       expect(MEAL_SLOTS_BY_COUNT[count]).toHaveLength(count);
     }
+  });
+});
+
+describe('the figures a calorie target is worked out from before there is a profile', () => {
+  const typed = { age: 30, heightCm: 180, weightKg: 80 };
+
+  it('are given what a new profile is given for what they leave out', () => {
+    const asked = CaloriePreviewRequest.parse(typed);
+    const made = ProfileInput.parse({ ...typed, name: 'Me' });
+
+    expect(asked).toEqual({
+      ...typed,
+      sex: made.sex,
+      activityLevel: made.activityLevel,
+      dietType: made.dietType,
+      customMacroSplit: made.customMacroSplit,
+      weeklyLossTarget: made.weeklyLossTarget,
+      manualCalorieTarget: made.manualCalorieTarget,
+      acknowledgeRisk: false,
+    });
+  });
+
+  it('are held to the bounds of a profile', () => {
+    expect(CaloriePreviewRequest.safeParse({ ...typed, age: 12 }).success).toBe(false);
+    expect(CaloriePreviewRequest.safeParse({ ...typed, weightKg: 29 }).success).toBe(false);
+    expect(CaloriePreviewRequest.safeParse({ ...typed, manualCalorieTarget: 1 }).success).toBe(false);
+    expect(CaloriePreviewRequest.safeParse({ ...typed, dietType: 'custom' }).error?.issues[0]?.path).toEqual(['customMacroSplit']);
+  });
+
+  it('are worked out at every pace a profile may choose, beginning with no loss', () => {
+    expect(PACES_OF_LOSS).toEqual([null, '0.25', '0.5', '0.75', '1.0']);
   });
 });
 

@@ -219,3 +219,89 @@ describe('changing a profile', () => {
     expect(await t.prisma.profile.count({ where: { userId: user.id } })).toBe(DEFAULT_PROFILES_PER_ACCOUNT);
   });
 });
+
+describe('the calorie target that figures somebody typed would come to', () => {
+  let t: TestApp;
+  let user: TestUser;
+  const TYPED = { age: 30, sex: 'male', heightCm: 180, weightKg: 80 };
+
+  beforeAll(async () => {
+    t = await createTestApp();
+    await resetDatabase(t.prisma);
+  });
+
+  afterAll(async () => {
+    await t.close();
+  });
+
+  beforeEach(async () => {
+    await resetUserData(t.prisma);
+    user = await aUser(t);
+  });
+
+  const preview = (body: Record<string, unknown>) => t.http().post('/api/profiles/calories').set(as(user)).send(body);
+
+  it('is worked out as a profile with them would have it, and nothing is kept', async () => {
+    const answer = (await preview(TYPED).expect(200)).body.calculation;
+
+    // A basal rate of 1,780 kcal, half as much again and a little more for moderate activity, less the 550 a day that half a kilogram a week takes.
+    expect(answer).toMatchObject({ bmr: 1780, maintenance: 2759, requestedDeficit: 550, dailyTarget: 2209, source: 'calculated', goalHeld: false, warnings: [] });
+    // A quarter, three tenths and the rest of 2,209 kcal: the balanced diet, which a new profile begins with.
+    expect(answer.targetMacros).toEqual({ protein: 138, fat: 74, carbs: 249 });
+    expect(await t.prisma.profile.count({ where: { userId: user.id } })).toBe(0);
+
+    const made: Profile = (await t.http().post('/api/profiles').set(as(user)).send({ ...TYPED, name: 'Adam' }).expect(201)).body;
+    expect((await t.http().get(`/api/profiles/${made.id}/calories`).set(as(user)).expect(200)).body).toEqual(answer);
+  });
+
+  it('says what each pace of loss would come to for the same body, a typed target left aside', async () => {
+    const answer = (await preview({ ...TYPED, weeklyLossTarget: '0.75', manualCalorieTarget: 1900 }).expect(200)).body;
+
+    expect(answer.calculation).toMatchObject({ dailyTarget: 1900, source: 'manual_override' });
+    expect(answer.paces.map((pace: { weeklyLossTarget: string | null }) => pace.weeklyLossTarget)).toEqual([null, '0.25', '0.5', '0.75', '1.0']);
+    // 275 kcal a day for each quarter of a kilogram a week, and never more than a quarter of maintenance: 690 kcal.
+    expect(answer.paces.map((pace: { dailyTarget: number }) => pace.dailyTarget)).toEqual([2759, 2484, 2209, 2069, 2069]);
+    expect(answer.paces.map((pace: { deficitCapped: boolean }) => pace.deficitCapped)).toEqual([false, false, false, true, true]);
+    expect(new Set(answer.paces.map((pace: { source: string }) => pace.source))).toEqual(new Set(['calculated']));
+  });
+
+  it('follows the activity, the pace, the diet and a target of one\'s own', async () => {
+    const paced = (await preview({ ...TYPED, activityLevel: 'sedentary', weeklyLossTarget: null, dietType: 'custom', customMacroSplit: { protein: 30, fat: 40, carbs: 30 } }).expect(200)).body.calculation;
+    const own = (await preview({ ...TYPED, manualCalorieTarget: 1900 }).expect(200)).body.calculation;
+
+    // Sedentary: 1,780 kcal and a fifth. No pace: nothing is taken away.
+    expect(paced).toMatchObject({ maintenance: 2136, dailyDeficit: 0, dailyTarget: 2136, targetMacros: { protein: 160, fat: 95, carbs: 160 } });
+    expect(own).toMatchObject({ dailyTarget: 1900, source: 'manual_override' });
+  });
+
+  it.each([
+    ['under 18', { ...TYPED, age: 16 }, 'minor'],
+    ['underweight', { ...TYPED, weightKg: 55 }, 'underweight'],
+  ])('holds the goal of somebody %s at maintenance until they say they understand the risk', async (_who, typed, risk) => {
+    const held = (await preview(typed).expect(200)).body.calculation;
+    const acknowledged = (await preview({ ...typed, acknowledgeRisk: true }).expect(200)).body.calculation;
+
+    expect(held).toMatchObject({ goalHeld: true, dailyDeficit: 0 });
+    expect(held.dailyTarget).toBe(held.maintenance);
+    expect(held.warnings).toContain(risk);
+    expect(acknowledged).toMatchObject({ goalHeld: false, maintenance: held.maintenance });
+    expect(acknowledged.dailyTarget).toBeLessThan(held.maintenance);
+    // The risk is said either way.
+    expect(acknowledged.warnings).toContain(risk);
+  });
+
+  it.each([
+    ['an age no profile may have', { ...TYPED, age: 5 }, 'age'],
+    ['no weight', { age: 30, heightCm: 180 }, 'weightKg'],
+    ['the custom diet without its split', { ...TYPED, dietType: 'custom' }, 'customMacroSplit'],
+  ])('is refused for %s', async (_what, typed, path) => {
+    const refused = await preview(typed).expect(400);
+
+    expect(refused.body.error).toBe('VALIDATION_FAILED');
+    expect(refused.body.issues[0].path).toBe(path);
+  });
+
+  it('is for an account that is signed in', async () => {
+    await t.http().post('/api/profiles/calories').send(TYPED).expect(401);
+  });
+});

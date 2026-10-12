@@ -7,8 +7,11 @@ import {
 } from '@nestjs/common';
 import {
   type CalorieCalculation,
+  type CaloriePreview,
+  type CaloriePreviewRequest,
   Cuisine,
   DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+  PACES_OF_LOSS,
   type Profile,
   type ProfileInput,
   ProfilePreferences,
@@ -157,6 +160,27 @@ export class ProfilesService {
       manualCalorieTarget: p.manualCalorieTarget,
       riskAcknowledged: p.riskAcknowledgedAt !== null,
     });
+  }
+
+  /**
+   * The same calculation for figures somebody typed, and for the same body at
+   * each pace of loss: nothing is read from a profile and nothing is kept.
+   */
+  previewCalories(typed: CaloriePreviewRequest): CaloriePreview {
+    const body = {
+      age: typed.age,
+      sex: typed.sex,
+      heightCm: typed.heightCm,
+      weightKg: typed.weightKg,
+      activityLevel: typed.activityLevel,
+      dietType: typed.dietType,
+      customMacroSplit: sharesOf(typed.customMacroSplit),
+      riskAcknowledged: typed.acknowledgeRisk,
+    };
+    return {
+      calculation: calculateCalories({ ...body, weeklyLossTarget: typed.weeklyLossTarget, manualCalorieTarget: typed.manualCalorieTarget }),
+      paces: PACES_OF_LOSS.map((pace) => calculateCalories({ ...body, weeklyLossTarget: pace, manualCalorieTarget: null })),
+    };
   }
 
   private async load(userId: string, id: string) {

@@ -3,7 +3,7 @@
 import * as z from './zod.js';
 import { ActivityLevel, Allergen, Cuisine, DietType, MealType, Sex, WeeklyLossTarget } from './enums.js';
 import { MAX_INGREDIENT_IDS } from './ingredient.js';
-import { MacroSplit, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
+import { CalorieCalculation, MacroSplit, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
 
 /**
@@ -177,6 +177,45 @@ export const ProfileUpdate = z
   })
   .refine(hasItsSplit, SPLIT_MISSING);
 export type ProfileUpdate = z.infer<typeof ProfileUpdate>;
+
+/**
+ * What the calorie target of somebody is worked out from, for a client that
+ * wants the figures before there is a profile, or without changing one: the
+ * parts of a profile the engine reads. Nothing is kept. `acknowledgeRisk`
+ * says whether somebody under 18 or underweight who asks to lose weight has
+ * said they understand the risk; without it their goal is held.
+ */
+export const CaloriePreviewRequest = z
+  .object({
+    age: profileFields.age,
+    sex: profileFields.sex.default(null),
+    heightCm: profileFields.heightCm,
+    weightKg: profileFields.weightKg,
+    activityLevel: profileFields.activityLevel.default('moderate'),
+    dietType: profileFields.dietType.default('balanced'),
+    customMacroSplit: profileFields.customMacroSplit.default(null),
+    weeklyLossTarget: profileFields.weeklyLossTarget.default('0.5'),
+    manualCalorieTarget: profileFields.manualCalorieTarget.default(null),
+    acknowledgeRisk: z.boolean().default(false),
+  })
+  .refine(hasItsSplit, SPLIT_MISSING);
+export type CaloriePreviewRequest = z.infer<typeof CaloriePreviewRequest>;
+
+/** The paces of loss a profile may choose, slowest first: none at all, then the four in kilograms a week. */
+export const PACES_OF_LOSS = [null, ...WeeklyLossTarget.options] as const;
+
+/**
+ * What typed figures come to, and what each pace of loss would come to for
+ * the same body: a form lays the paces side by side, so that the pace is
+ * chosen by what it means for a day.
+ */
+export const CaloriePreview = z.object({
+  /** The calculation for the figures as they were typed. */
+  calculation: CalorieCalculation,
+  /** The same body at each pace, in the order of `PACES_OF_LOSS`. A typed target is left aside: it would be the same at every pace. */
+  paces: z.array(CalorieCalculation),
+});
+export type CaloriePreview = z.infer<typeof CaloriePreview>;
 
 /** Persisted profile as returned by the API. */
 export const Profile = newProfile.omit({ acknowledgeRisk: true }).extend({
