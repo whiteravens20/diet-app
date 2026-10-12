@@ -139,9 +139,9 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
           {/* The browser's own check is asked for step by step: it has nothing to say of a field on a step that is not shown. */}
           <form ref={form} noValidate onSubmit={onSubmit} onChange={onChange} className="space-y-4">
-            <h3 ref={heading} tabIndex={-1} className="text-base font-semibold tracking-tight focus:outline-none">
+            <h4 ref={heading} tabIndex={-1} className="text-base font-semibold tracking-tight focus:outline-none">
               {tWizard('progress', { step: step + 1, of: STEPS.length, name: tWizard(`steps.${STEPS[step]!}`) })}
-            </h3>
+            </h4>
 
             <fieldset data-step={0} hidden={step !== 0} className="space-y-4">
               <legend className="sr-only">{tWizard('steps.body')}</legend>

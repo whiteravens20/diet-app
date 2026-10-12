@@ -53,12 +53,15 @@ export function CaloriePreviewPanel({
   behind,
   waiting,
   failed,
+  heading: Heading = 'h4',
   className,
 }: {
   preview: CaloriePreview | undefined;
   behind: boolean;
   waiting: boolean;
   failed: boolean;
+  /** The level of the panel's heading: one under that of what it stands in, which is a card unless it is said. */
+  heading?: 'h2' | 'h4';
   className?: string;
 }) {
   const t = useTranslations('caloriePreview');
@@ -66,9 +69,9 @@ export function CaloriePreviewPanel({
   const c = preview?.calculation;
   return (
     <section aria-labelledby={title} className={cn('space-y-3 rounded-lg border border-border bg-muted/30 p-4', className)}>
-      <h3 id={title} className="text-sm font-semibold">
+      <Heading id={title} className="text-sm font-semibold">
         {t('title')}
-      </h3>
+      </Heading>
       {c ? (
         <div className={cn('space-y-3 transition-opacity', behind && 'opacity-60')} aria-busy={behind}>
           <dl className="grid grid-cols-3 gap-3">

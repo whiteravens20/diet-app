@@ -77,7 +77,7 @@ export default function CalculatorPage() {
               </CardContent>
             </Card>
 
-            <CaloriePreviewPanel {...shown} className="lg:sticky lg:top-6" />
+            <CaloriePreviewPanel {...shown} heading="h2" className="lg:sticky lg:top-6" />
           </div>
 
           <p className="max-w-2xl text-sm text-muted-foreground">
