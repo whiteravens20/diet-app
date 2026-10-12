@@ -24,6 +24,10 @@ apps/api/prisma/migrations/dev/
 # Test / coverage
 coverage/
 *.lcov
+# What the browser tests leave behind: traces and screenshots of a failure, and their accounts
+test-results/
+playwright-report/
+/apps/web/e2e/.state/
 
 # Logs
 *.log
