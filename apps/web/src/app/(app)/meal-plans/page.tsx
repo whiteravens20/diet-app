@@ -479,10 +479,16 @@ function MealPlansContent() {
                   onChange={(e) => setDurationDays(Number(e.target.value))}
                 />
               </Field>
-              <label className="flex items-end gap-2 pb-2 text-sm">
-                <input name="mealPrepFriendly" type="checkbox" className="h-4 w-4" />
-                {t('mealPrepFriendly')}
-              </label>
+              {/* What the box does is said beside it, and read out with it: its name stays short. */}
+              <div className="self-end pb-1 text-sm">
+                <label className="flex items-center gap-2">
+                  <input name="mealPrepFriendly" type="checkbox" className="h-4 w-4" aria-describedby="meal-prep-hint" />
+                  {t('mealPrepFriendly')}
+                </label>
+                <p id="meal-prep-hint" className="mt-1 text-xs text-muted-foreground">
+                  {t('mealPrepFriendlyHint')}
+                </p>
+              </div>
             </div>
             {active && (
               <div className="space-y-1">

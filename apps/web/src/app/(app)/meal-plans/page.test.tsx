@@ -988,6 +988,19 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
     await screen.findAllByRole('button', { name: 'Oat porridge' });
   };
 
+  it('marks, in a plan made for cooking ahead, the meal a dish is cooked at and the one it is eaten from', async () => {
+    await opened(aPlanOf({ cookAhead: 'cook' }, { cookAhead: 'cooked' }));
+
+    for (const text of ['cookOnceChip', 'cookOnceHint', 'cookedChip', 'cookedHint'] as const) expect(screen.getByText(messages.mealPlans[text])).toBeVisible();
+  });
+
+  it('says nothing of cooking ahead of a meal that is cooked for itself', async () => {
+    await opened(aPlanOf({}, {}));
+
+    expect(screen.queryByText(messages.mealPlans.cookOnceChip)).toBeNull();
+    expect(screen.queryByText(messages.mealPlans.cookedChip)).toBeNull();
+  });
+
   it('says over the days how many meals hold what the profile has ruled out since, and under each of them what and what to do', async () => {
     await opened(aPlanOf({ restrictionConflicts: ['allergen'] }, { restrictionConflicts: ['excluded_ingredient', 'avoided'] }));
 
@@ -1075,6 +1088,23 @@ describe('the plan page, on what a plan is made for', () => {
     await userEvent.type(screen.getByLabelText(messages.mealPlans.calorieTarget), '1800');
 
     expect(await sent()).toMatchObject({ dietType: 'high_protein', mealCount: 5, calorieTargetOverride: 1800 });
+  });
+
+  it('asks for a plan for cooking ahead when the box for it is ticked, and says beside the box what that is', async () => {
+    await renderPage();
+    const cookAhead = screen.getByRole('checkbox', { name: messages.mealPlans.mealPrepFriendly });
+
+    expect(cookAhead).toHaveAccessibleDescription(messages.mealPlans.mealPrepFriendlyHint);
+    expect(cookAhead).not.toBeChecked();
+    await userEvent.click(cookAhead);
+
+    expect(await sent()).toMatchObject({ mealPrepFriendly: true });
+  });
+
+  it('asks for no cooking ahead while the box is left as it is', async () => {
+    await renderPage();
+
+    expect(await sent()).toMatchObject({ mealPrepFriendly: false });
   });
 
   it('does not offer the custom diet to a profile that has said no split for it', async () => {

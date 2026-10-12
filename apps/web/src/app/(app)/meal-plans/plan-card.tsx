@@ -400,6 +400,9 @@ export function PlanCard({
                               {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
                             </span>
                           )}
+                          {m.cookAhead && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-foreground">{t(m.cookAhead === 'cook' ? 'cookOnceChip' : 'cookedChip')}</span>
+                          )}
                         </span>
                         <span className="flex flex-wrap items-center gap-x-4">
                           {eaten ? (
@@ -535,6 +538,7 @@ export function PlanCard({
                       {disliked.length > 0 && <p className="ml-4 text-xs text-muted-foreground">{t('dislikedHint', { foods: fmt.list(disliked) })}</p>}
                       {outside && <p className="ml-4 text-xs text-muted-foreground">{t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}</p>}
                       {onlyRecipe && <p className="ml-4 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>}
+                      {m.cookAhead && <p className="ml-4 text-xs text-muted-foreground">{t(m.cookAhead === 'cook' ? 'cookOnceHint' : 'cookedHint')}</p>}
                       {isCustom && (
                         <p className="ml-6 text-xs italic text-muted-foreground">
                           {t('customMacrosNote')}
