@@ -185,7 +185,7 @@ export class ProfilesService {
       favoriteIngredientIds: string[];
       excludedIngredientIds: string[];
       allergens: string[];
-      dislikedFoods: string[];
+      dislikedIngredientIds: string[];
       preferredCuisines: string[];
       maxConsecutiveDaysSameMeal: number;
       maxTimesPerWeekSameMeal: number;
@@ -213,7 +213,7 @@ export class ProfilesService {
         favoriteIngredientIds: row.preferences?.favoriteIngredientIds ?? [],
         excludedIngredientIds: row.preferences?.excludedIngredientIds ?? [],
         allergens: (row.preferences?.allergens ?? []) as Profile['preferences']['allergens'],
-        dislikedFoods: row.preferences?.dislikedFoods ?? [],
+        dislikedIngredientIds: row.preferences?.dislikedIngredientIds ?? [],
         preferredCuisines: row.preferences?.preferredCuisines ?? [],
         maxConsecutiveDaysSameMeal: row.preferences?.maxConsecutiveDaysSameMeal ?? 2,
         maxTimesPerWeekSameMeal: row.preferences?.maxTimesPerWeekSameMeal ?? 3,

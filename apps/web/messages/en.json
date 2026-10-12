@@ -1017,6 +1017,8 @@
     "customMacrosNote": "Custom meal — macros entered by you.",
     "dietOverrideChip": "Off-diet",
     "dietOverrideHint": "This recipe does not fit the diet of the plan ({diet}). It stays until you swap it.",
+    "dislikedChip": "Rather not",
+    "dislikedHint": "Holds {foods}, which this profile would rather not eat: nothing else fit the meal when it was planned, or the profile came to dislike it since. Swap the meal to change it.",
     "conflictChip": {
       "allergen": "Allergen",
       "excluded_ingredient": "Skipped ingredient",
@@ -1391,11 +1393,13 @@
     "prefsSaveFailed": "Could not save preferences.",
     "deleteConfirm": "Delete \"{name}\"? Its meal plans and shopping lists are removed too.",
     "preferencesTitle": "Ingredient preferences",
-    "preferencesSubhead": "Per-profile lists that bias and constrain meal-plan generation. Avoid entries are skipped entirely; favourites are softly preferred. Allergens are always honoured — across generation, swaps and substitutions.",
+    "preferencesSubhead": "Per-profile lists that bias and constrain meal-plan generation. Avoid entries are skipped entirely; favourites are softly preferred, and what you would rather not eat is planned only where nothing else fits. Allergens are always honoured — across generation, swaps and substitutions.",
     "allergensLabel": "Allergens",
     "allergensHint": "Recipes containing any of these are never planned, swapped or suggested for this profile.",
     "favouritesLabel": "Favourite ingredients",
     "favouritesHint": "The planner leans toward recipes using these.",
+    "dislikedLabel": "Foods I would rather not eat",
+    "dislikedHint": "The planner and the swaps take a recipe with one of these only where nothing else fits the meal. To rule a food out altogether, put it under “Avoid ingredients”.",
     "avoidLabel": "Avoid ingredients",
     "avoidHint": "The planner skips recipes that contain these.",
     "risk": {

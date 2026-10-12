@@ -35,7 +35,7 @@ const profile: Profile = {
     favoriteIngredientIds: [],
     excludedIngredientIds: [],
     allergens: [],
-    dislikedFoods: [],
+    dislikedIngredientIds: [],
     preferredCuisines: [],
     maxConsecutiveDaysSameMeal: 2,
     maxTimesPerWeekSameMeal: 3,
@@ -89,6 +89,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
           eatenAt: null,
           dietOverride: false,
           restrictionConflicts: [],
+          dislikedIngredientIds: [],
           modelPick: null,
           nutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
         },
@@ -939,6 +940,17 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
     expect(screen.getByText(messages.mealPlans.dietOverrideChip)).toBeVisible();
     expect(screen.getByText('This recipe does not fit the diet of the plan (Vegan). It stays until you swap it.')).toBeVisible();
     // Outside the diet is the user's to decide: nothing has been ruled out.
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('names what a meal holds that the profile would rather not eat, and why it may be there', async () => {
+    const oats = { ingredientId: '55555555-5555-4555-8555-555555555555', name: 'Rolled oats', quantity: 60, unit: 'g' as const, display: { quantity: 60, unit: 'g' as const }, note: null };
+    const milk = { ...oats, ingredientId: '66666666-6666-4666-8666-666666666666', name: 'Whole milk' };
+    await opened(aPlanOf({ ingredients: [oats, milk], dislikedIngredientIds: [oats.ingredientId, milk.ingredientId] }, { ingredients: [oats, milk] }));
+
+    expect(screen.getAllByText(messages.mealPlans.dislikedChip)).toHaveLength(1);
+    expect(screen.getByText(/^Holds Rolled oats and Whole milk, which this profile would rather not eat/)).toBeVisible();
+    // Something a profile would rather not eat is not something it has ruled out.
     expect(screen.queryByRole('alert')).toBeNull();
   });
 

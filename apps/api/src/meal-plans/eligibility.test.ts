@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { pickIndex, violations, type Candidate, type Restrictions } from './eligibility.js';
+import { dislikedIn, pickIndex, violations, welcome, type Candidate, type Restrictions } from './eligibility.js';
 
 const restrictions = (overrides: Partial<Restrictions> = {}): Restrictions => ({
   userId: 'me',
@@ -9,6 +9,7 @@ const restrictions = (overrides: Partial<Restrictions> = {}): Restrictions => ({
   allergens: [],
   excludedIngredientIds: [],
   avoidedRecipeIds: [],
+  dislikedIngredientIds: [],
   ...overrides,
 });
 
@@ -81,6 +82,31 @@ describe('violations', () => {
       );
       expect(found).toEqual(['not_available', 'allergen', 'excluded_ingredient', 'avoided']);
     });
+  });
+});
+
+describe('what a profile would rather not eat', () => {
+  const withCheese = recipe({ id: 'with-cheese' });
+  const withoutIt = recipe({ id: 'without', ingredients: [{ ingredientId: 'rice' }, { ingredientId: 'beans' }] });
+
+  it('is no reason to refuse a recipe', () => {
+    expect(violations(withCheese, restrictions({ dislikedIngredientIds: ['cheese'] }), 'lunch')).toEqual([]);
+  });
+
+  it('is named for a recipe that holds it, each ingredient once', () => {
+    const twice = recipe({ ingredients: [{ ingredientId: 'cheese' }, { ingredientId: 'rice' }, { ingredientId: 'cheese' }] });
+
+    expect(dislikedIn(twice, restrictions({ dislikedIngredientIds: ['cheese', 'liver'] }))).toEqual(['cheese']);
+    expect(dislikedIn(withoutIt, restrictions({ dislikedIngredientIds: ['cheese'] }))).toEqual([]);
+  });
+
+  it('puts the recipes without it before those with it, and leaves those with it when there is nothing else', () => {
+    const dislikes = restrictions({ dislikedIngredientIds: ['cheese'] });
+
+    expect(welcome([withCheese, withoutIt], dislikes)).toEqual([withoutIt]);
+    expect(welcome([withCheese], dislikes)).toEqual([withCheese]);
+    expect(welcome([withCheese, withoutIt], restrictions())).toEqual([withCheese, withoutIt]);
+    expect(welcome([], dislikes)).toEqual([]);
   });
 });
 

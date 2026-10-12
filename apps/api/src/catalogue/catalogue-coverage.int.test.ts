@@ -132,7 +132,7 @@ describe('what the catalogue can serve', () => {
     const skipped = [...new Set(lunches.map((r) => r.ingredients[0]!.ingredientId))];
     const profile = await aProfile(t, user, {
       dietType: 'vegan',
-      preferences: { favoriteIngredientIds: [], excludedIngredientIds: skipped, allergens: [], dislikedFoods: [], preferredCuisines: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, inventoryBiasResetEvery: 5 },
+      preferences: { favoriteIngredientIds: [], excludedIngredientIds: skipped, allergens: [], dislikedIngredientIds: [], preferredCuisines: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, inventoryBiasResetEvery: 5 },
     });
 
     const res = await t.http().post('/api/meal-plans/generate').set(as(user)).send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });

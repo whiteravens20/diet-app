@@ -26,7 +26,12 @@ const preferenceFields = {
   /** Ingredients the planner must skip. */
   excludedIngredientIds: z.array(z.string().uuid()).max(MAX_INGREDIENT_IDS),
   allergens: z.array(Allergen).max(Allergen.options.length),
-  dislikedFoods: z.array(z.string().trim().min(1).max(80)).max(50),
+  /**
+   * Ingredients the profile would rather not eat. The planner and the swaps
+   * take a recipe that holds one only where every recipe left for the meal
+   * does; to rule an ingredient out there is `excludedIngredientIds`.
+   */
+  dislikedIngredientIds: z.array(z.string().uuid()).max(MAX_INGREDIENT_IDS),
   preferredCuisines: z.array(z.string().trim().min(1).max(80)).max(50),
   /**
    * Hard cap on how many days in a row the same recipe may occupy a slot.
@@ -64,7 +69,7 @@ const PREFERENCE_DEFAULTS = {
   favoriteIngredientIds: [],
   excludedIngredientIds: [],
   allergens: [],
-  dislikedFoods: [],
+  dislikedIngredientIds: [],
   preferredCuisines: [],
   maxConsecutiveDaysSameMeal: 2,
   maxTimesPerWeekSameMeal: 3,
@@ -77,7 +82,7 @@ export const ProfilePreferences = z.object({
   favoriteIngredientIds: preferenceFields.favoriteIngredientIds.default(PREFERENCE_DEFAULTS.favoriteIngredientIds),
   excludedIngredientIds: preferenceFields.excludedIngredientIds.default(PREFERENCE_DEFAULTS.excludedIngredientIds),
   allergens: preferenceFields.allergens.default(PREFERENCE_DEFAULTS.allergens),
-  dislikedFoods: preferenceFields.dislikedFoods.default(PREFERENCE_DEFAULTS.dislikedFoods),
+  dislikedIngredientIds: preferenceFields.dislikedIngredientIds.default(PREFERENCE_DEFAULTS.dislikedIngredientIds),
   preferredCuisines: preferenceFields.preferredCuisines.default(PREFERENCE_DEFAULTS.preferredCuisines),
   maxConsecutiveDaysSameMeal: preferenceFields.maxConsecutiveDaysSameMeal.default(PREFERENCE_DEFAULTS.maxConsecutiveDaysSameMeal),
   maxTimesPerWeekSameMeal: preferenceFields.maxTimesPerWeekSameMeal.default(PREFERENCE_DEFAULTS.maxTimesPerWeekSameMeal),

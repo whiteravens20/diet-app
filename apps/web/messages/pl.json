@@ -1017,6 +1017,8 @@
     "customMacrosNote": "Własny posiłek — makroskładniki wpisane przez Ciebie.",
     "dietOverrideChip": "Spoza diety",
     "dietOverrideHint": "Ten przepis nie pasuje do diety planu ({diet}). Zostaje, dopóki go nie zamienisz.",
+    "dislikedChip": "Wolę nie",
+    "dislikedHint": "Zawiera: {foods}. Ten profil woli tego nie jeść: przy układaniu nic innego nie pasowało do posiłku albo profil dodał to później. Zamień posiłek, żeby to zmienić.",
     "conflictChip": {
       "allergen": "Alergen",
       "excluded_ingredient": "Pomijany składnik",
@@ -1391,11 +1393,13 @@
     "prefsSaveFailed": "Nie udało się zapisać preferencji.",
     "deleteConfirm": "Usunąć \"{name}\"? Powiązane plany posiłków i listy zakupów również zostaną usunięte.",
     "preferencesTitle": "Preferencje składników",
-    "preferencesSubhead": "Listy przypisane do profilu, które wpływają na układanie planów. Pozycje z listy „unikaj” są pomijane; ulubione są delikatnie preferowane. Alergeny są zawsze respektowane — przy generowaniu, podmianach i zamiennikach.",
+    "preferencesSubhead": "Listy przypisane do profilu, które wpływają na układanie planów. Pozycje z listy „unikaj” są pomijane; ulubione są delikatnie preferowane, a to, czego wolisz nie jeść, trafia do planu tylko wtedy, gdy nic innego nie pasuje. Alergeny są zawsze respektowane — przy generowaniu, podmianach i zamiennikach.",
     "allergensLabel": "Alergeny",
     "allergensHint": "Przepisy zawierające którykolwiek z nich nie będą planowane, podmieniane ani sugerowane dla tego profilu.",
     "favouritesLabel": "Ulubione składniki",
     "favouritesHint": "Planer preferuje przepisy z tymi składnikami.",
+    "dislikedLabel": "Produkty, których wolę nie jeść",
+    "dislikedHint": "Planer i podmiany biorą przepis z którymś z nich tylko wtedy, gdy nic innego nie pasuje do posiłku. Żeby wykluczyć produkt całkowicie, dodaj go do „Unikanych składników”.",
     "avoidLabel": "Unikane składniki",
     "avoidHint": "Planer pomija przepisy zawierające te składniki.",
     "risk": {

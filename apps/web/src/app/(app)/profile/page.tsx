@@ -167,7 +167,7 @@ export default function ProfilePage() {
           favoriteIngredientIds: [],
           excludedIngredientIds: [],
           allergens: [],
-          dislikedFoods: [],
+          dislikedIngredientIds: [],
           preferredCuisines: [],
           maxConsecutiveDaysSameMeal: 2,
           maxTimesPerWeekSameMeal: 3,
@@ -494,6 +494,18 @@ export default function ProfilePage() {
                     savePrefs.mutate({
                       profile: p,
                       preferences: { favoriteIngredientIds: ids },
+                    })
+                  }
+                />
+                <IngredientPicker
+                  label={t('dislikedLabel')}
+                  hint={t('dislikedHint')}
+                  ids={p.preferences.dislikedIngredientIds}
+                  disabled={savePrefs.isPending}
+                  onChange={(ids) =>
+                    savePrefs.mutate({
+                      profile: p,
+                      preferences: { dislikedIngredientIds: ids },
                     })
                   }
                 />

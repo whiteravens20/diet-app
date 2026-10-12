@@ -286,6 +286,8 @@ export function PlanCard({
                   const outside = said(plan.report?.relaxations);
                   const onlyRecipe = said(plan.report?.singleCandidate);
                   const byModel = partInMeal(m);
+                  // What the meal holds that the profile would rather not eat, by name.
+                  const disliked = m.ingredients.filter((line) => m.dislikedIngredientIds.includes(line.ingredientId)).map((line) => line.name);
                   // The picker shows diet-matching, slot-matching favourites
                   // by default; "show all my favourites" drops BOTH the diet and the
                   // meal-time filter (allergens stay enforced server-side), so a
@@ -340,6 +342,9 @@ export function PlanCard({
                               {t(`conflictChip.${conflict}`)}
                             </span>
                           ))}
+                          {disliked.length > 0 && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{t('dislikedChip')}</span>
+                          )}
                           {outside && (
                             <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
                               {t('outsideLimitChip')}
@@ -487,6 +492,7 @@ export function PlanCard({
                         </p>
                       ))}
                       {m.dietOverride && <p className="ml-4 text-xs text-warning">{t('dietOverrideHint', { diet: dietLabel })}</p>}
+                      {disliked.length > 0 && <p className="ml-4 text-xs text-muted-foreground">{t('dislikedHint', { foods: fmt.list(disliked) })}</p>}
                       {outside && <p className="ml-4 text-xs text-muted-foreground">{t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}</p>}
                       {onlyRecipe && <p className="ml-4 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>}
                       {isCustom && (

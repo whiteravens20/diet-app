@@ -21,7 +21,7 @@ import { fitServings, recipeCoverage, requirementsPerServing, slotBudgets } from
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
-import { assertMayEnter, CANDIDATE, pickIndex, poolWhere, restrictionsFor, type Candidate, type Waived } from './eligibility.js';
+import { assertMayEnter, CANDIDATE, pickIndex, poolWhere, restrictionsFor, welcome, type Candidate, type Waived } from './eligibility.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { writePlan } from './plan-write.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
@@ -103,8 +103,10 @@ export class MealSwapService {
     ).filter((candidate) => holdsAbout(candidate.caloriesPerServing, slot.held));
     if (candidates.length === 0) throw noAlternative();
 
-    const fresh = candidates.filter((candidate) => !shown.has(candidate.id));
-    let pool = fresh.length > 0 ? fresh : candidates;
+    // What holds nothing the profile would rather not eat comes before what does, for the model as for the engine.
+    const liked = welcome(candidates, restrictions);
+    const fresh = liked.filter((candidate) => !shown.has(candidate.id));
+    let pool = fresh.length > 0 ? fresh : liked;
     // What the pantry covers comes first, for the model and for the engine's own pick alike.
     const coverage = await this.recipeCoverageMap(meal.day.plan.profileId, pool.map((candidate) => candidate.id), req.respectInventory !== false);
     if (coverage) {
@@ -272,8 +274,10 @@ export class MealSwapService {
       // sitting, is left out while anything else is there, so that asking
       // again moves on instead of going round between two.
       const shown = new Set<string>([slot.recipeId, ...slot.history, ...req.skip]);
-      const fresh = ranked.filter((recipe) => !shown.has(recipe.id));
-      let candidates = fresh.length > 0 ? fresh : ranked;
+      // A recipe with something the profile would rather not eat is offered only when every other has been ruled out: asking again goes round the others first.
+      const liked = welcome(ranked, restrictions);
+      const fresh = liked.filter((recipe) => !shown.has(recipe.id));
+      let candidates = fresh.length > 0 ? fresh : liked;
       if (req.strategy === 'random') {
         // What the pantry covers comes first when the user asked for that; the pick below still rotates.
         const coverage = await this.recipeCoverageMap(meal.day.plan.profileId, candidates.map((c) => c.id), req.respectInventory !== false);

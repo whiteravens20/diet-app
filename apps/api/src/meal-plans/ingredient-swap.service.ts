@@ -178,7 +178,7 @@ export class IngredientSwapService {
 
     const suggestions: SubstituteSuggestion[] = [];
     for (const fromIngredientId of sources) {
-      let best: { to: (typeof rules)[number]['toIngredient']; moved: MovedNutrient[]; far: number } | null = null;
+      let best: { to: (typeof rules)[number]['toIngredient']; moved: MovedNutrient[]; far: number; unwelcome: boolean } | null = null;
       for (const rule of rules.filter((candidate) => candidate.fromIngredientId === fromIngredientId)) {
         let worked;
         try {
@@ -192,8 +192,13 @@ export class IngredientSwapService {
         const before = energyShares(worked.before);
         const after = energyShares(worked.facts.perServing);
         const far = before && after ? splitDistance(before, after) : 1;
-        const better = !best || worked.moved.length < best.moved.length || (worked.moved.length === best.moved.length && far < best.far);
-        if (better) best = { to: rule.toIngredient, moved: worked.moved, far };
+        // What the profile would rather not eat is suggested only where the rules name nothing else.
+        const unwelcome = subject.restrictions.dislikedIngredientIds.includes(rule.toIngredient.id);
+        const better =
+          !best ||
+          (best.unwelcome && !unwelcome) ||
+          (best.unwelcome === unwelcome && (worked.moved.length < best.moved.length || (worked.moved.length === best.moved.length && far < best.far)));
+        if (better) best = { to: rule.toIngredient, moved: worked.moved, far, unwelcome };
       }
       if (best) suggestions.push({ fromIngredientId, to: toIngredientDto(best.to, locale), moved: best.moved });
     }
@@ -493,7 +498,10 @@ export class IngredientSwapService {
       },
       orderBy: { id: 'asc' },
     });
-    let pool = rawCandidates;
+    // What the profile would rather not eat is put before the model, and picked in its place, only where nothing else is there.
+    const disliked = new Set(prefs?.dislikedIngredientIds ?? []);
+    const liked = rawCandidates.filter((candidate) => !disliked.has(candidate.id));
+    let pool = liked.length > 0 ? liked : rawCandidates;
     if (pool.length === 0) {
       throw new NotFoundException({
         error: 'NO_ALTERNATIVE',

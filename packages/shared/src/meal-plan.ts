@@ -238,6 +238,12 @@ export const PlannedMeal = z.object({
    */
   restrictionConflicts: z.array(z.enum(['allergen', 'excluded_ingredient', 'avoided'])),
   /**
+   * The ingredients of this meal that the profile would rather not eat, as
+   * the profile has them now: the planner found no recipe without one, or the
+   * profile came to dislike one since. Empty for a custom meal.
+   */
+  dislikedIngredientIds: z.array(z.string().uuid()),
+  /**
    * Set when a model chose this recipe for the meal, out of what the engine
    * allowed: the reason it gave, when it gave one. Null when the engine
    * chose, or the user did.

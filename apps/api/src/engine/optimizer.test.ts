@@ -286,6 +286,42 @@ describe('optimisePlan', () => {
   });
 });
 
+describe('a plan for somebody who would rather not eat something', () => {
+  /** Seven days of a breakfast, a lunch and a dinner; the lunches may repeat, so that one lunch alone can fill the week. */
+  const aWeek = (over: Partial<OptimizerInput>): OptimizerInput => ({ ...baseInput, days: uniformDays(7, ['breakfast', 'lunch', 'dinner'], 2000), maxConsecutiveDaysSameMeal: 7, maxTimesPerWeekSameMeal: 7, ...over });
+  const lunches = (input: OptimizerInput): string[] => optimisePlan(input).assignments.filter((a) => a.slot === 'lunch').map((a) => a.recipeId);
+
+  it('holds no recipe with it at a meal that has another, whatever seed the choice is drawn with', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      // Without the dislike both lunches are planned: the choice between them is the seed's and the week's.
+      expect(new Set(lunches(aWeek({ seed })))).toEqual(new Set(['l1', 'l2']));
+      expect(new Set(lunches(aWeek({ seed, dislikedIngredientIds: new Set(['l1-a']) })))).toEqual(new Set(['l2']));
+    }
+  });
+
+  it('holds one all the same where every recipe left for the meal has it: a dislike rules nothing out', () => {
+    // Every recipe of the plan holds the ingredient they share.
+    const result = optimisePlan(aWeek({ dislikedIngredientIds: new Set(['shared']) }));
+
+    expect(result.assignments).toHaveLength(7 * 3);
+  });
+
+  it('breaks no limit for it: once the limits leave only what is disliked, that is planned', () => {
+    // Six days, a recipe at most three times in a week, and no limit that may give way: the lunch that is liked can fill three of them.
+    const strict = aWeek({ days: uniformDays(6, ['breakfast', 'lunch', 'dinner'], 2000), maxTimesPerWeekSameMeal: 3, dislikedIngredientIds: new Set(['l1-a']), allowRelaxations: new Set() });
+
+    // The liked one as long as it may be, then the other: not the two in turn, as a week without a dislike would have them.
+    expect(lunches(strict)).toEqual(['l2', 'l2', 'l2', 'l1', 'l1', 'l1']);
+  });
+
+  it('changes nothing for somebody who dislikes nothing, or nothing that is in the catalogue', () => {
+    const plain = optimisePlan(aWeek({})).assignments;
+
+    expect(optimisePlan(aWeek({ dislikedIngredientIds: new Set() })).assignments).toEqual(plain);
+    expect(optimisePlan(aWeek({ dislikedIngredientIds: new Set(['in-no-recipe']) })).assignments).toEqual(plain);
+  });
+});
+
 describe('recipeCoverage', () => {
   it('returns 1.0 when every required ingredient is fully stocked', () => {
     const reqs = [

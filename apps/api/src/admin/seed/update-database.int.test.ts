@@ -62,7 +62,7 @@ describe('updating the curated database', () => {
         favoriteIngredientIds: [tofu],
         excludedIngredientIds: [salmon],
         allergens: [],
-        dislikedFoods: [],
+        dislikedIngredientIds: [],
         preferredCuisines: [],
         maxConsecutiveDaysSameMeal: 2,
         maxTimesPerWeekSameMeal: 3,

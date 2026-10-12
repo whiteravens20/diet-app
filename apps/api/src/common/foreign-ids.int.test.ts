@@ -56,7 +56,7 @@ const WHOLE_PROFILE = {
     favoriteIngredientIds: [],
     excludedIngredientIds: [],
     allergens: [],
-    dislikedFoods: [],
+    dislikedIngredientIds: [],
     preferredCuisines: [],
     maxConsecutiveDaysSameMeal: 2,
     maxTimesPerWeekSameMeal: 3,

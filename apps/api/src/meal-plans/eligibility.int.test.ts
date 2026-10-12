@@ -111,7 +111,7 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
         favoriteIngredientIds: await ingredientIds(kind.favouriteIngredients),
         excludedIngredientIds: await ingredientIds(kind.excluded),
         allergens: kind.allergens as never,
-        dislikedFoods: [],
+        dislikedIngredientIds: [],
         preferredCuisines: [],
         maxConsecutiveDaysSameMeal: 2,
         maxTimesPerWeekSameMeal: 3,

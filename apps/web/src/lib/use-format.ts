@@ -29,6 +29,8 @@ export interface Format {
   unit(value: number, unit: Unit, digits?: number): string;
   /** A share as a percentage: 0.42 is "42%", "42%". */
   percent(share: number): string;
+  /** Several things named one after another: "rice, oats and tofu", "ryż, owies i tofu". */
+  list(items: readonly string[]): string;
 }
 
 /**
@@ -67,6 +69,7 @@ export function useFormat(): Format {
       signed: (value) => format.number(value, { signDisplay: 'always', maximumFractionDigits: 0 }),
       unit: (value, unit, digits = 0) => format.number(value, { style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: digits }),
       percent: (share) => format.number(share, { style: 'percent', maximumFractionDigits: 0 }),
+      list: (items) => format.list([...items], { type: 'conjunction' }),
     }),
     [format],
   );

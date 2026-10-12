@@ -24,6 +24,11 @@ export interface Restrictions {
   excludedIngredientIds: readonly string[];
   /** Recipes the profile marked "avoid". */
   avoidedRecipeIds: readonly string[];
+  /**
+   * Ingredients the profile would rather not eat. No recipe is refused for
+   * one: see `welcome`.
+   */
+  dislikedIngredientIds: readonly string[];
 }
 
 /** Why a recipe may not go into a plan. */
@@ -118,7 +123,7 @@ export async function restrictionsFor(
     options: unknown;
     profile: {
       userId: string;
-      preferences: { allergens: string[]; excludedIngredientIds: string[] } | null;
+      preferences: { allergens: string[]; excludedIngredientIds: string[]; dislikedIngredientIds: string[] } | null;
     };
   },
 ): Promise<Restrictions> {
@@ -133,7 +138,23 @@ export async function restrictionsFor(
     allergens: plan.profile.preferences?.allergens ?? [],
     excludedIngredientIds: respectExclusions ? (plan.profile.preferences?.excludedIngredientIds ?? []) : [],
     avoidedRecipeIds: avoided.map((row) => row.recipeId),
+    dislikedIngredientIds: plan.profile.preferences?.dislikedIngredientIds ?? [],
   };
+}
+
+/** The ingredients of `recipe` that the profile would rather not eat. */
+export function dislikedIn(recipe: Pick<Candidate, 'ingredients'>, restrictions: Pick<Restrictions, 'dislikedIngredientIds'>): string[] {
+  return [...new Set(recipe.ingredients.map((line) => line.ingredientId).filter((id) => restrictions.dislikedIngredientIds.includes(id)))];
+}
+
+/**
+ * Of `candidates`, those that hold nothing the profile would rather not eat,
+ * and all of them when every one holds something: a dislike orders a choice
+ * and rules nothing out.
+ */
+export function welcome<Recipe extends Pick<Candidate, 'ingredients'>>(candidates: Recipe[], restrictions: Pick<Restrictions, 'dislikedIngredientIds'>): Recipe[] {
+  const liked = candidates.filter((candidate) => dislikedIn(candidate, restrictions).length === 0);
+  return liked.length > 0 ? liked : candidates;
 }
 
 const REASON: Record<Violation, string> = {

@@ -103,6 +103,12 @@ export interface OptimizerInput {
    */
   favoriteIngredientIds?: ReadonlySet<string>;
   /**
+   * Ingredients the user would rather not eat. A recipe that holds one fills
+   * a meal only where every recipe the limits leave for it holds one: it
+   * orders the choice and rules nothing out. Empty or omitted: no part in it.
+   */
+  dislikedIngredientIds?: ReadonlySet<string>;
+  /**
    * Pantry-coverage map: `recipeId → [0..1]` share of the recipe's
    * required ingredient mass already covered by the profile's inventory.
    * Caller pre-computes this from the inventory snapshot + recipe
@@ -350,6 +356,9 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
     perIngredient: input.maxIngredientPerWeek,
   };
 
+  const disliked = input.dislikedIngredientIds;
+  const holdsDisliked = (recipe: OptimizerRecipe): boolean => disliked !== undefined && disliked.size > 0 && recipe.ingredientIds.some((id) => disliked.has(id));
+
   // The recipes of a meal are looked up once, however many days ask for them.
   const eligibleBySlot = new Map<MealType, OptimizerRecipe[]>();
   const eligibleFor = (slot: MealType): OptimizerRecipe[] => {
@@ -403,10 +412,15 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
         }
         if (candidates.length === 1) report.singleCandidate.push({ dayIndex: day, slot });
         const pool = withinLimits(candidates, { day, budget, uses, useCount, held, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
-        // Of the recipes the limits leave, one that stays far under the budget
-        // even at the largest serving is left out, unless nothing else is there.
-        const reaching = pool.recipes.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
-        recipe = pickBest(reaching.length > 0 ? reaching : pool.recipes, {
+        // Of the recipes the limits leave, those that hold nothing the user
+        // would rather not eat come before any that does, however well the
+        // others score.
+        const welcome = pool.recipes.filter((r) => !holdsDisliked(r));
+        const liked = welcome.length > 0 ? welcome : pool.recipes;
+        // Of those, one that stays far under the budget even at the largest
+        // serving is left out, unless nothing else is there.
+        const reaching = liked.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
+        recipe = pickBest(reaching.length > 0 ? reaching : liked, {
           budget,
           day,
           planIngredients,

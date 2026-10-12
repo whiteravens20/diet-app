@@ -297,7 +297,7 @@ model ProfilePreference {
   favoriteIngredientIds      String[] @default([])
   excludedIngredientIds      String[] @default([])
   allergens                  String[] @default([])
-  dislikedFoods              String[] @default([])
+  dislikedIngredientIds              String[] @default([])
   preferredCuisines          String[] @default([])
   // Hard caps for the meal-plan generator's variety enforcement.
   // See ProfilePreferences zod schema in packages/shared for semantics.

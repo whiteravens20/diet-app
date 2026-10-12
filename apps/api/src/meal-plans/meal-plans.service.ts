@@ -39,7 +39,7 @@ import { storedSplit } from '../common/stored-split.js';
 import { averageDay, customMacros, isoDate, isSkipped, mealNutrition, parseDayOverrides, sumNutrition, type MealAmount } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { writePlan } from './plan-write.js';
-import { restrictionsFor, violations, type Candidate, type Restrictions } from './eligibility.js';
+import { dislikedIn, restrictionsFor, violations, type Candidate, type Restrictions } from './eligibility.js';
 
 /**
  * Reading a plan, and what changes a meal without choosing another recipe: a
@@ -509,6 +509,7 @@ export class MealPlansService {
             eatenAt,
             dietOverride: false,
             restrictionConflicts: [],
+            dislikedIngredientIds: [],
             modelPick: null,
             nutrition: mealNutrition(m),
           };
@@ -533,6 +534,7 @@ export class MealPlansService {
           restrictionConflicts: violations(m.recipe, restrictions, m.mealType, { diet: true, meal: true }).filter(
             (violation) => violation !== 'not_available',
           ) as PlannedMeal['restrictionConflicts'],
+          dislikedIngredientIds: dislikedIn(m.recipe, restrictions),
           modelPick: m.modelPicked ? { reason: m.modelReason } : null,
           nutrition: mealNutrition(m),
         };

@@ -74,4 +74,11 @@ describe('dates, numbers and units, as the language of the application writes th
     expect(shown((f) => f.unit(15, 'minute'))).toBe('15 min');
     expect(shown((f) => f.unit(12.34, 'kilobyte', 1), 'pl')).toBe('12,3 kB');
   });
+
+  it('names several things one after another the way the language joins them', () => {
+    expect(shown((f) => f.list(['rice', 'oats', 'tofu']))).toBe('rice, oats, and tofu');
+    expect(shown((f) => f.list(['ryż', 'owies', 'tofu']), 'pl')).toBe('ryż, owies i tofu');
+    expect(shown((f) => f.list(['rice', 'oats']))).toBe('rice and oats');
+    expect(shown((f) => f.list(['rice']))).toBe('rice');
+  });
 });

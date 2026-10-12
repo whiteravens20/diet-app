@@ -362,6 +362,7 @@ export class PlanGenerationService {
             allergens: string[];
             excludedIngredientIds: string[];
             favoriteIngredientIds: string[];
+            dislikedIngredientIds: string[];
             maxConsecutiveDaysSameMeal: number;
             maxTimesPerWeekSameMeal: number;
             maxWeeklyAmountPerIngredient: number;
@@ -474,6 +475,7 @@ export class PlanGenerationService {
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
         favoriteIngredientIds,
+        dislikedIngredientIds: new Set(profile.preferences?.dislikedIngredientIds ?? []),
         inventoryCoverage,
         maxConsecutiveDaysSameMeal,
         maxTimesPerWeekSameMeal,

@@ -31,7 +31,7 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
     favoriteIngredientIds: [],
     excludedIngredientIds: [],
     allergens: [],
-    dislikedFoods: [],
+    dislikedIngredientIds: [],
     preferredCuisines: [],
     maxConsecutiveDaysSameMeal: 2,
     maxTimesPerWeekSameMeal: 3,
