@@ -408,6 +408,8 @@
     "empty": "Nothing new.",
     "dismiss": "Dismiss",
     "markAllRead": "Mark all read",
+    "toastTitle": "{count, plural, one {New notification} other {# new notifications}}",
+    "toastMarkRead": "{count, plural, one {Mark as read} other {Mark all as read}}",
     "weight_reminder": {
       "withHistory": "Time to log your weight — {days, plural, one {it's been 1 day} other {it's been # days}}.",
       "noHistory": "Log your first weight to start your trend chart."

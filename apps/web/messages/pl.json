@@ -408,6 +408,8 @@
     "empty": "Brak nowości.",
     "dismiss": "Odrzuć",
     "markAllRead": "Oznacz wszystkie jako przeczytane",
+    "toastTitle": "{count, plural, one {Nowe powiadomienie} few {# nowe powiadomienia} many {# nowych powiadomień} other {# nowego powiadomienia}}",
+    "toastMarkRead": "{count, plural, one {Oznacz jako przeczytane} other {Oznacz wszystkie jako przeczytane}}",
     "weight_reminder": {
       "withHistory": "Czas zważyć się — minął {days, plural, one {1 dzień} few {# dni} many {# dni} other {# dnia}}.",
       "noHistory": "Dodaj pierwszy wpis wagi, aby uruchomić wykres trendu."

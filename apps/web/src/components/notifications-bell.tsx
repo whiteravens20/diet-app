@@ -15,22 +15,15 @@ import { cn } from '@/lib/utils';
 const POLL_INTERVAL_MS = 60_000;
 
 /**
- * Unread-notification bell with a small dropdown. Polls the API every
- * 60s when a session is active; the same row shape feeds the future Android
- * surface, so this component is the web-only render of a shared contract.
+ * The notifications of the account that nobody has read yet, asked for again
+ * every minute while a session is open. Whoever shows them asks through here,
+ * so that the question goes out once however many do.
  */
-export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end' }) {
-  const t = useTranslations('notifications');
-  const tBody = useTranslations('notifications.weight_reminder');
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-
+export function useUnreadNotifications() {
   // Only poll once an access token is present — otherwise unauthenticated
   // public pages would spam 401s. Resolved after mount, so the first client
   // render matches the server's, which has no token store to read.
   const hasToken = useIsAuthenticated();
-
   const unread = useQuery({
     queryKey: ['notifications-unread'],
     queryFn: () => api.get<Notification[]>('/notifications/unread'),
@@ -38,6 +31,36 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
     refetchInterval: hasToken ? POLL_INTERVAL_MS : false,
     refetchOnWindowFocus: true,
   });
+  return { hasToken, list: unread.data ?? [] };
+}
+
+/** What a notification says, in the reader's language. */
+export function useNotificationText(): (notification: Notification) => string {
+  const t = useTranslations('notifications');
+  const tBody = useTranslations('notifications.weight_reminder');
+  return (n) => {
+    if (n.type === 'weight_reminder') {
+      const p = (n.payload ?? null) as WeightReminderPayload | null;
+      const days = p?.daysSinceLastEntry ?? 0;
+      return days > 0 ? tBody('withHistory', { days }) : tBody('noHistory');
+    }
+    if (n.type === 'preferences_review') return t('preferences_review');
+    return n.type;
+  };
+}
+
+/**
+ * Unread-notification bell with a small dropdown. Polls the API every
+ * 60s when a session is active; the same row shape feeds the future Android
+ * surface, so this component is the web-only render of a shared contract.
+ */
+export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end' }) {
+  const t = useTranslations('notifications');
+  const renderBody = useNotificationText();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const { hasToken, list } = useUnreadNotifications();
 
   const markRead = useMutation({
     mutationFn: (id: string) => api.post(`/notifications/${id}/read`),
@@ -64,20 +87,7 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
     };
   }, [open]);
 
-  const list = unread.data ?? [];
   const count = list.length;
-
-  function renderBody(n: Notification): string {
-    if (n.type === 'weight_reminder') {
-      const p = (n.payload ?? null) as WeightReminderPayload | null;
-      const days = p?.daysSinceLastEntry ?? 0;
-      return days > 0
-        ? tBody('withHistory', { days })
-        : tBody('noHistory');
-    }
-    if (n.type === 'preferences_review') return t('preferences_review');
-    return n.type;
-  }
 
   if (!hasToken) return null;
 
