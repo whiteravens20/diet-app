@@ -7,6 +7,13 @@ const config = [
   ...next,
   { ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'] },
   {
+    // What is imported or declared and never used is removed, as in the other workspaces.
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
     // Dates, numbers and units are written as the language of the application
     // writes them, in one place. Anything that formats by itself would follow
     // the browser's language, or the server's time zone.

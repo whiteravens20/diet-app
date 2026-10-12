@@ -6,7 +6,6 @@ import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useEffect } from 'react';
 import type { PlannedIngredient, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
