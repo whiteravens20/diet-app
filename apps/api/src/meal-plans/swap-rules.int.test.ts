@@ -187,7 +187,7 @@ describe('a favourite set applied over a rebalanced meal', () => {
 
 describe('a plan on a custom diet', () => {
   beforeEach(async () => {
-    profile = await aProfile(t, user, { name: 'Custom', dietType: 'custom' });
+    profile = await aProfile(t, user, { name: 'Custom', dietType: 'custom', customMacroSplit: { protein: 25, fat: 30, carbs: 45 } });
     plan = await aPlan(t, user, profile);
     expect(plan.dietType).toBe('custom');
   });

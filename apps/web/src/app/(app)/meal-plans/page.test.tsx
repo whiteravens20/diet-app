@@ -30,6 +30,7 @@ const profile: Profile = {
   riskAcknowledgedAt: null,
   mealCount: 4,
   weightReminderCadence: 'weekly',
+  customMacroSplit: null,
   preferences: {
     favoriteIngredientIds: [],
     excludedIngredientIds: [],
@@ -954,6 +955,7 @@ describe('the plan page, on what a plan is made for', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     favoriteSets = [];
+    profile.customMacroSplit = null;
   });
 
   /** Ask for a plan and say what was sent. */
@@ -989,6 +991,22 @@ describe('the plan page, on what a plan is made for', () => {
     await userEvent.type(screen.getByLabelText(messages.mealPlans.calorieTarget), '1800');
 
     expect(await sent()).toMatchObject({ dietType: 'high_protein', mealCount: 5, calorieTargetOverride: 1800 });
+  });
+
+  it('does not offer the custom diet to a profile that has said no split for it', async () => {
+    await renderPage();
+
+    expect(screen.queryByRole('option', { name: /^Custom/ })).toBeNull();
+  });
+
+  it('offers the custom diet to a profile that has said its split, names the split, and asks for the diet', async () => {
+    profile.customMacroSplit = { protein: 30, fat: 40, carbs: 30 };
+    await renderPage();
+
+    expect(screen.getByRole('option', { name: 'Custom (30 % protein, 40 % fat, 30 % carbohydrate)' })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'custom');
+
+    expect(await sent()).toMatchObject({ dietType: 'custom' });
   });
 
   it('warns about the diet and the meals the form names, not the profile\'s, and says of each diet what the catalogue has for it', async () => {

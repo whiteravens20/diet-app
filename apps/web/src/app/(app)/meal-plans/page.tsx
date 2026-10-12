@@ -40,7 +40,7 @@ import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { SupplyNote } from '@/components/supply-note';
-import { OFFERED_DIETS, supplyOf } from '@/lib/catalogue';
+import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
@@ -468,7 +468,7 @@ function MealPlansContent() {
                   <Field label={t('diet')}>
                     <select className={selectClass} value={diet} onChange={(e) => setDiet(e.target.value as DietType | '')}>
                       <option value="">{t('asInProfile', { value: tDiet(active.dietType) })}</option>
-                      {OFFERED_DIETS.map((offered) => {
+                      {NAMED_DIETS.map((offered) => {
                         const supply = supplyOf(depth, offered, planMeals)?.supply;
                         return (
                           <option key={offered} value={offered}>
@@ -476,6 +476,8 @@ function MealPlansContent() {
                           </option>
                         );
                       })}
+                      {/* The custom diet is the profile's own split: there is one to plan to, or the diet is not on offer. */}
+                      {active.customMacroSplit && <option value="custom">{t('dietCustom', active.customMacroSplit)}</option>}
                     </select>
                   </Field>
                   <Field label={t('mealsPerDay')}>

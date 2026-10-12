@@ -39,6 +39,11 @@ const MACRO_SPLIT: Record<DietType, Macros> = {
   custom: { protein: 0.25, fat: 0.3, carbs: 0.45 },
 };
 
+/** A split in whole per cent, as a profile keeps it, as the shares of one the engine works with; null stays null. */
+export function sharesOf(split: Macros | null | undefined): Macros | null {
+  return split ? { protein: split.protein / 100, fat: split.fat / 100, carbs: split.carbs / 100 } : null;
+}
+
 export interface CalorieEngineInput {
   age: number;
   sex: Sex | null;
@@ -46,6 +51,8 @@ export interface CalorieEngineInput {
   weightKg: number;
   activityLevel: ActivityLevel;
   dietType: DietType;
+  /** The shares the custom diet aims at, when the profile has said them. */
+  customMacroSplit?: Macros | null;
   weeklyLossTarget: '0.25' | '0.5' | '0.75' | '1.0' | null;
   manualCalorieTarget: number | null;
   /** Whether a profile that is under 18 or underweight has said it understands the risk of losing weight. */
@@ -83,8 +90,9 @@ export function safetyFloor(sex: Sex | null): number {
 }
 
 /** The split of a day's energy that a diet aims at, as shares that add up to one. */
-export function macroSplitOf(dietType: DietType): Macros {
-  return MACRO_SPLIT[dietType];
+export function macroSplitOf(dietType: DietType, own?: Macros | null): Macros {
+  // The custom diet aims at what its profile said, and at the balanced split until one has.
+  return dietType === 'custom' && own ? own : MACRO_SPLIT[dietType];
 }
 
 /** The share of their energy that protein, fat and carbohydrate each carry; null when they hold none. */
@@ -101,9 +109,9 @@ export function splitDistance(a: Macros, b: Macros): number {
   return (Math.abs(a.protein - b.protein) + Math.abs(a.fat - b.fat) + Math.abs(a.carbs - b.carbs)) / 2;
 }
 
-/** Split a calorie target into target macros (grams) for a diet type. */
-export function macrosForCalories(calories: number, dietType: DietType): Macros {
-  const split = MACRO_SPLIT[dietType];
+/** Split a calorie target into target macros (grams) for a diet type; `own` is the split of the custom diet. */
+export function macrosForCalories(calories: number, dietType: DietType, own?: Macros | null): Macros {
+  const split = macroSplitOf(dietType, own);
   return {
     protein: round((calories * split.protein) / KCAL_PER_GRAM.protein),
     fat: round((calories * split.fat) / KCAL_PER_GRAM.fat),
@@ -162,7 +170,7 @@ export function calculateCalories(input: CalorieEngineInput): CalorieCalculation
     requestedDeficit,
     dailyDeficit: maintenance - dailyTarget,
     dailyTarget,
-    targetMacros: macrosForCalories(dailyTarget, input.dietType),
+    targetMacros: macrosForCalories(dailyTarget, input.dietType, input.customMacroSplit),
     source,
     safetyFloor: floor,
     deficitCapped,

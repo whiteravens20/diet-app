@@ -223,6 +223,10 @@ model Profile {
   // risk of losing weight. Until then its loss goal is planned as
   // maintenance. Cleared when the profile is no longer either.
   riskAcknowledgedAt  DateTime?
+  // The split of a day's energy between protein, fat and carbohydrate that
+  // the profile aims at on the custom diet, in whole per cent (`MacroSplit`
+  // of the shared contract). A profile on that diet has one.
+  customMacroSplit    Json?
   mealCount           Int           @default(3)
   // Transient counter — incremented on every plan-level generation that
   // actually applied the inventory bias. Reset to 0 when it reaches
@@ -570,6 +574,9 @@ model MealPlan {
   durationDays   Int
   dietType       DietType
   calorieTarget  Int
+  // The split a plan on the custom diet aims at, as the profile had it when
+  // the plan was made (`MacroSplit`); null on every other diet.
+  macroSplit     Json?
   generationMode GenerationMode @default(deterministic)
   reuseScore     Float          @default(0)
   // What the plan was asked for (`PlanOptions` of the shared contract): what

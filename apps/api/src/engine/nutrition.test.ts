@@ -10,6 +10,7 @@ import {
   energyShares,
   macroSplitOf,
   macrosForCalories,
+  sharesOf,
   splitDistance,
   type CalorieEngineInput,
 } from './nutrition.js';
@@ -115,6 +116,16 @@ describe('calculateCalories', () => {
     manualCalorieTarget: null,
     riskAcknowledged: false,
     ...over,
+  });
+
+  it('splits the target of somebody on the custom diet as they said, and as the balanced diet until they have', () => {
+    const balanced = calculateCalories(person()).targetMacros;
+
+    expect(calculateCalories(person({ dietType: 'custom' })).targetMacros).toEqual(balanced);
+    // 2,209 kcal: 30 % and 30 % at four a gram, 40 % at nine.
+    expect(calculateCalories(person({ dietType: 'custom', customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } })).targetMacros).toEqual({ protein: 166, fat: 98, carbs: 166 });
+    // The split is the custom diet's: it changes nothing for somebody on another.
+    expect(calculateCalories(person({ customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } })).targetMacros).toEqual(balanced);
   });
 
   it('derives the target as maintenance minus the deficit of the pace', () => {
@@ -234,6 +245,25 @@ describe('the split of energy between protein, fat and carbohydrate', () => {
     // 15 points from carbohydrate to protein.
     expect(splitDistance(balanced, macroSplitOf('high_protein'))).toBeCloseTo(0.15);
     expect(splitDistance({ protein: 1, fat: 0, carbs: 0 }, { protein: 0, fat: 1, carbs: 0 })).toBe(1);
+  });
+
+  it('is, for the custom diet, the one its profile said, and the balanced one until it has said one', () => {
+    const own = { protein: 0.3, fat: 0.4, carbs: 0.3 };
+
+    expect(macroSplitOf('custom')).toEqual(macroSplitOf('balanced'));
+    expect(macroSplitOf('custom', null)).toEqual(macroSplitOf('balanced'));
+    expect(macroSplitOf('custom', own)).toEqual(own);
+    // Another diet keeps its own, whatever a profile keeps for the custom one.
+    expect(macroSplitOf('keto', own)).toEqual(macroSplitOf('keto'));
+    // 600, 800 and 600 of 2,000 kcal, at four, nine and four a gram.
+    expect(macrosForCalories(2000, 'custom', own)).toEqual({ protein: 150, fat: 89, carbs: 150 });
+    expect(macrosForCalories(2000, 'keto', own)).toEqual(macrosForCalories(2000, 'keto'));
+  });
+
+  it('is kept in whole per cent and worked with as shares of one', () => {
+    expect(sharesOf({ protein: 30, fat: 40, carbs: 30 })).toEqual({ protein: 0.3, fat: 0.4, carbs: 0.3 });
+    expect(sharesOf(null)).toBeNull();
+    expect(sharesOf(undefined)).toBeNull();
   });
 
   it('is given for every diet, and adds up to the whole', () => {

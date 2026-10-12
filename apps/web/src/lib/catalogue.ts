@@ -3,11 +3,11 @@
 import { VARIETY_DEPTH, type CatalogueDepth, type DietType, type MealCountKey } from '@diet-app/shared';
 
 /**
- * The diets a form offers to choose from. The contract knows one more,
- * `custom`, which has no split of its own to plan to yet; a profile that has
- * it keeps it.
+ * The diets that have a split of protein, fat and carbohydrate of their own.
+ * The contract knows one more, `custom`, whose split is the profile's to say:
+ * a form offers it where there is such a split, or a place to say one.
  */
-export const OFFERED_DIETS: readonly DietType[] = ['balanced', 'high_protein', 'low_carb', 'vegetarian', 'vegan', 'keto', 'mediterranean'];
+export const NAMED_DIETS: readonly DietType[] = ['balanced', 'high_protein', 'low_carb', 'vegetarian', 'vegan', 'keto', 'mediterranean'];
 
 export interface Supply {
   supply: 'none' | 'thin' | 'enough';

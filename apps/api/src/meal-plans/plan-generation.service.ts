@@ -19,6 +19,7 @@ import {
   type DayOverride,
   type GeneratePlanRequest,
   type Locale,
+  type MacroSplit,
   type MealPlan,
   type MealType,
   type PantryUse,
@@ -31,6 +32,7 @@ import {
   effectiveDayTarget,
   macroSplitOf,
   optimisePlan,
+  sharesOf,
   OptimizerError,
   recipeCoverage,
   requirementsPerServing,
@@ -42,6 +44,7 @@ import {
 } from '../engine/index.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { customMacros, isoDate, parseDayOverrides, type DayOverridesJson } from './plan-days.js';
@@ -78,6 +81,7 @@ export class PlanGenerationService {
     const base = this.planBase(profile, req.calorieTargetOverride);
     const baseCalorieTarget = base.target;
     const dietType = req.dietType ?? profile.dietType;
+    const macroSplit = splitFor(dietType, profile);
     const baseMealCount = req.mealCount ?? profile.mealCount;
 
     const start = new Date(req.startDate);
@@ -96,6 +100,7 @@ export class PlanGenerationService {
     const result = await this.optimiseFor(userId, profile, {
       days: resolvedDays,
       dietType,
+      macroSplit,
       mealPrepFriendly: req.mealPrepFriendly,
       respectExclusions: req.respectExclusions,
       respectFavorites: req.respectFavorites,
@@ -114,6 +119,7 @@ export class PlanGenerationService {
           durationDays: req.durationDays,
           dietType,
           calorieTarget: baseCalorieTarget,
+          macroSplit: macroSplit ?? Prisma.JsonNull,
           generationMode: 'deterministic',
           reuseScore: result.ingredientReuseScore,
           options,
@@ -211,6 +217,8 @@ export class PlanGenerationService {
     const allowRelaxations = options.allowRelaxations ?? made.allowRelaxations;
     const base = this.planBase(profile, made.calorieTargetOverride ?? undefined);
     const dietType = whole ? (made.dietType ?? profile.dietType) : plan.dietType;
+    // A plan that is made again takes the split the profile has now; days of it that are filled again, the one the plan was made with.
+    const macroSplit = whole ? splitFor(dietType, profile) : storedSplit(plan.macroSplit);
 
     /** The days that are filled again, by their place in the plan, with the meals that stay on them. */
     const filled: { dayIndex: number; dayId: string; staying: string[] }[] = [];
@@ -262,6 +270,7 @@ export class PlanGenerationService {
     const result = await this.optimiseFor(userId, profile, {
       days,
       dietType,
+      macroSplit,
       mealPrepFriendly: made.mealPrepFriendly,
       respectExclusions: made.respectExclusions,
       respectFavorites: made.respectFavorites,
@@ -302,7 +311,7 @@ export class PlanGenerationService {
           reuseScore: result.ingredientReuseScore,
           ...(report ? { report } : {}),
           // A plan that was made again is what it was made with this time.
-          ...(whole ? { calorieTarget: base.target, dietType, options: { ...made, allowRelaxations }, seed } : {}),
+          ...(whole ? { calorieTarget: base.target, dietType, macroSplit: macroSplit ?? Prisma.JsonNull, options: { ...made, allowRelaxations }, seed } : {}),
         },
       });
     });
@@ -313,7 +322,7 @@ export class PlanGenerationService {
    * target typed for the plan stands in for the one typed on the profile.
    */
   private planBase(
-    profile: Omit<CalorieEngineInput, 'weeklyLossTarget' | 'riskAcknowledged'> & { weeklyLossTarget: string | null; riskAcknowledgedAt: Date | null },
+    profile: Omit<CalorieEngineInput, 'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit'> & { weeklyLossTarget: string | null; riskAcknowledgedAt: Date | null },
     typedForThePlan?: number,
   ): PlanBase {
     const riskAcknowledged = profile.riskAcknowledgedAt !== null;
@@ -362,6 +371,8 @@ export class PlanGenerationService {
     opts: {
       days: ResolvedDay[];
       dietType: MealPlan['dietType'];
+      /** The split a plan on the custom diet aims at; null on every other diet. */
+      macroSplit: MacroSplit | null;
       mealPrepFriendly: boolean;
       /** Honour the avoid-list (default true). Allergens are always respected. */
       respectExclusions?: boolean;
@@ -459,7 +470,7 @@ export class PlanGenerationService {
       const result = optimisePlan({
         recipes: optimizerRecipes,
         days,
-        macroSplit: macroSplitOf(opts.dietType),
+        macroSplit: macroSplitOf(opts.dietType, sharesOf(opts.macroSplit)),
         dietType: opts.dietType,
         mealPrepFriendly: opts.mealPrepFriendly,
         favoriteIngredientIds,
@@ -852,4 +863,22 @@ function dropLock(day: ResolvedDay, lock: { slot: MealType; recipeId: string }):
   const next: DayOverridesJson = { ...day.overrides, lockedSlots: kept };
   if (kept.length === 0) delete next.lockedSlots;
   day.overrides = Object.keys(next).length > 0 ? next : null;
+}
+
+/**
+ * The split a plan on `dietType` aims at for this profile: the profile's own
+ * on the custom diet, and none on any other. A plan for the custom diet of a
+ * profile that has said no split is refused: another diet's split under that
+ * name would be a plan for something nobody asked for.
+ */
+function splitFor(dietType: MealPlan['dietType'], profile: { customMacroSplit: unknown }): MacroSplit | null {
+  if (dietType !== 'custom') return null;
+  const split = storedSplit(profile.customMacroSplit);
+  if (!split) {
+    throw new BadRequestException({
+      error: 'CUSTOM_SPLIT_MISSING',
+      message: 'The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first.',
+    });
+  }
+  return split;
 }

@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { Field } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
-import { OFFERED_DIETS } from '@/lib/catalogue';
+import { NAMED_DIETS } from '@/lib/catalogue';
 
 const MEAL_TYPES: MealType[] = [
   'breakfast',
@@ -155,7 +155,7 @@ export function AiRecipeDraftModal({
               value={dietType}
               onChange={(e) => setDietType(e.target.value as DietType)}
             >
-              {OFFERED_DIETS.map((d) => (
+              {NAMED_DIETS.map((d) => (
                 <option key={d} value={d}>
                   {tDiet(d)}
                 </option>

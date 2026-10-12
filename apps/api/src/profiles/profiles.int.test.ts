@@ -69,7 +69,7 @@ describe('changing a profile', () => {
       expect(changed.preferences).toEqual(profile.preferences);
     });
 
-    it.each(['name', 'age', 'sex', 'heightCm', 'weightKg', 'activityLevel', 'dietType', 'weeklyLossTarget', 'manualCalorieTarget', 'mealCount', 'weightReminderCadence', 'preferences'])(
+    it.each(['name', 'age', 'sex', 'heightCm', 'weightKg', 'activityLevel', 'dietType', 'weeklyLossTarget', 'manualCalorieTarget', 'mealCount', 'weightReminderCadence', 'customMacroSplit', 'preferences'])(
       'refuses a profile without its %s, and puts nothing back to a default',
       async (part) => {
         const refused = await put(without(whole(), part)).expect(400);
@@ -94,6 +94,58 @@ describe('changing a profile', () => {
 
       expect(made).toMatchObject({ sex: null, activityLevel: 'moderate', dietType: 'balanced', weeklyLossTarget: '0.5', mealCount: 3, weightReminderCadence: 'weekly' });
       expect(made.preferences).toMatchObject({ allergens: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, inventoryBiasResetEvery: 5 });
+    });
+  });
+
+  describe('to the custom diet', () => {
+    const OWN = { protein: 30, fat: 40, carbs: 30 };
+
+    it('is refused without the split the profile aims at, and stays on its diet', async () => {
+      const refused = await put({ ...whole(), dietType: 'custom' }).expect(400);
+
+      expect(refused.body.issues[0].path).toBe('customMacroSplit');
+      expect((await stored()).dietType).toBe('vegan');
+    });
+
+    it.each([
+      ['does not add up to a hundred', { protein: 30, fat: 40, carbs: 40 }],
+      ['gives protein less than a diet needs', { protein: 5, fat: 45, carbs: 50 }],
+      ['is not in whole per cent', { protein: 30.5, fat: 39.5, carbs: 30 }],
+    ])('is refused with a split that %s', async (_why, split) => {
+      const refused = await put({ ...whole(), dietType: 'custom', customMacroSplit: split }).expect(400);
+
+      expect(refused.body.error).toBe('VALIDATION_FAILED');
+      expect(refused.body.issues[0].path).toMatch(/^customMacroSplit/);
+      expect((await stored()).customMacroSplit).toBeNull();
+    });
+
+    it('takes the split, and the profile\'s target is split by it', async () => {
+      const changed: Profile = (await put({ ...whole(), dietType: 'custom', customMacroSplit: OWN }).expect(200)).body;
+      const calories = (await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)).body;
+
+      expect(changed).toMatchObject({ dietType: 'custom', customMacroSplit: OWN });
+      // The typed target of 2,100 kcal: 630, 840 and 630 of them, at four, nine and four a gram.
+      expect(calories).toMatchObject({ dailyTarget: 2100, targetMacros: { protein: 158, fat: 93, carbs: 158 } });
+    });
+
+    it('keeps the split for a profile that goes to another diet, where it changes nothing', async () => {
+      await put({ ...whole(), dietType: 'custom', customMacroSplit: OWN }).expect(200);
+      const vegan = (await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)).body.targetMacros;
+      const back: Profile = (await put({ ...whole(), dietType: 'vegan', customMacroSplit: OWN }).expect(200)).body;
+      const calories = (await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)).body;
+
+      expect(back).toMatchObject({ dietType: 'vegan', customMacroSplit: OWN });
+      expect(calories.targetMacros).not.toEqual(vegan);
+      // 20 %, 28 % and 52 % of 2,100 kcal: the vegan diet's own split.
+      expect(calories.targetMacros).toEqual({ protein: 105, fat: 65, carbs: 273 });
+    });
+
+    it('is where a new profile can begin', async () => {
+      const made = await t.http().post('/api/profiles').set(as(user)).send({ name: 'Second', age: 30, heightCm: 180, weightKg: 80, dietType: 'custom', customMacroSplit: OWN }).expect(201);
+      const refused = await t.http().post('/api/profiles').set(as(user)).send({ name: 'Third', age: 30, heightCm: 180, weightKg: 80, dietType: 'custom' }).expect(400);
+
+      expect(made.body.customMacroSplit).toEqual(OWN);
+      expect(refused.body.issues[0].path).toBe('customMacroSplit');
     });
   });
 

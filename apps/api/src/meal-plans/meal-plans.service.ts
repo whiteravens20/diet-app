@@ -25,6 +25,7 @@ import {
 import {
   safetyFloor,
   macrosForCalories,
+  sharesOf,
   rebalanceDay,
   rebalanceWeek,
   type RebalanceMeal,
@@ -34,6 +35,7 @@ import { REBALANCE_TOLERANCE } from '../engine/rebalance.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
 import { shownReport } from './generation-report.js';
+import { storedSplit } from '../common/stored-split.js';
 import { averageDay, customMacros, isoDate, isSkipped, mealNutrition, parseDayOverrides, sumNutrition, type MealAmount } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { writePlan } from './plan-write.js';
@@ -482,6 +484,8 @@ export class MealPlansService {
 
   private toDto(plan: PlanWithRelations, locale: Locale, restrictions: Restrictions): MealPlan {
     const floor = safetyFloor(plan.profile?.sex ?? null);
+    // What a plan on the custom diet aims at is the split it was made with.
+    const ownSplit = sharesOf(storedSplit(plan.macroSplit));
     const days: MealPlanDay[] = plan.days.map((day) => {
       // Sort meals into canonical eating order — Prisma's row order is
       // undefined and shifts after updates, which would look like other meals
@@ -543,7 +547,7 @@ export class MealPlansService {
         meals,
         dayNutrition,
         calorieTarget: day.calorieTarget,
-        targetMacros: macrosForCalories(day.calorieTarget, plan.dietType),
+        targetMacros: macrosForCalories(day.calorieTarget, plan.dietType, ownSplit),
         calorieDelta,
         // The window a rebalance brings a day back into.
         offTarget: Math.abs(calorieDelta) <= REBALANCE_TOLERANCE * day.calorieTarget ? null : calorieDelta > 0 ? ('over' as const) : ('under' as const),
@@ -561,7 +565,7 @@ export class MealPlansService {
       dietType: plan.dietType,
       days,
       averageDailyNutrition: averageDay(plan.days),
-      targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType),
+      targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType, ownSplit),
       ingredientReuseScore: plan.reuseScore,
       generationMode: plan.generationMode,
       options: PlanOptions.parse(plan.options),
@@ -587,6 +591,7 @@ interface PlanWithRelations {
   durationDays: number;
   dietType: MealPlan['dietType'];
   calorieTarget: number;
+  macroSplit: unknown;
   reuseScore: number;
   generationMode: 'deterministic' | 'ai_assisted';
   options: unknown;

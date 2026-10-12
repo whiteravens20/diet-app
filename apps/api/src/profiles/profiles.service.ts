@@ -17,9 +17,11 @@ import {
   WeightReminderCadence,
 } from '@diet-app/shared';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { holdAccount } from '../common/hold.js';
+import { storedSplit } from '../common/stored-split.js';
 import type { Env } from '../config/env.js';
-import { calculateCalories } from '../engine/index.js';
+import { calculateCalories, sharesOf } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
@@ -81,6 +83,7 @@ export class ProfilesService {
           weeklyLossTarget: input.weeklyLossTarget,
           manualCalorieTarget: input.manualCalorieTarget,
           riskAcknowledgedAt: acknowledgedAt(input, null),
+          customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
           mealCount: input.mealCount,
           weightReminderCadence: input.weightReminderCadence,
           preferences: { create: input.preferences },
@@ -121,6 +124,7 @@ export class ProfilesService {
         weeklyLossTarget: input.weeklyLossTarget,
         manualCalorieTarget: input.manualCalorieTarget,
         riskAcknowledgedAt: acknowledgedAt(input, before.riskAcknowledgedAt),
+        customMacroSplit: input.customMacroSplit ?? Prisma.JsonNull,
         mealCount: input.mealCount,
         weightReminderCadence: input.weightReminderCadence,
         preferences: { upsert: { create: input.preferences, update: input.preferences } },
@@ -145,6 +149,7 @@ export class ProfilesService {
       weightKg: p.weightKg,
       activityLevel: p.activityLevel,
       dietType: p.dietType,
+      customMacroSplit: sharesOf(storedSplit(p.customMacroSplit)),
       weeklyLossTarget: p.weeklyLossTarget as WeeklyTarget,
       manualCalorieTarget: p.manualCalorieTarget,
       riskAcknowledged: p.riskAcknowledgedAt !== null,
@@ -171,6 +176,7 @@ export class ProfilesService {
     weeklyLossTarget: string | null;
     manualCalorieTarget: number | null;
     riskAcknowledgedAt: Date | null;
+    customMacroSplit: unknown;
     mealCount: number;
     weightReminderCadence: string;
     createdAt: Date;
@@ -202,6 +208,7 @@ export class ProfilesService {
       riskAcknowledgedAt: row.riskAcknowledgedAt?.toISOString() ?? null,
       mealCount: row.mealCount,
       weightReminderCadence: WeightReminderCadence.parse(row.weightReminderCadence),
+      customMacroSplit: storedSplit(row.customMacroSplit),
       preferences: {
         favoriteIngredientIds: row.preferences?.favoriteIngredientIds ?? [],
         excludedIngredientIds: row.preferences?.excludedIngredientIds ?? [],

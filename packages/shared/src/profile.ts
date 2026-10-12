@@ -3,7 +3,7 @@
 import * as z from './zod.js';
 import { ActivityLevel, Allergen, DietType, MealType, Sex, WeeklyLossTarget } from './enums.js';
 import { MAX_INGREDIENT_IDS } from './ingredient.js';
-import { MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
+import { MacroSplit, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
 
 /**
@@ -113,7 +113,17 @@ const profileFields = {
   mealCount: z.number().int().min(2).max(5),
   /** How often the background worker should nudge to log a weight. */
   weightReminderCadence: WeightReminderCadence,
+  /**
+   * The split of a day's energy the profile aims at on the `custom` diet.
+   * A profile on that diet has one; a profile on another may keep one for
+   * when it goes back, or for a plan that is made for the custom diet.
+   */
+  customMacroSplit: MacroSplit.nullable(),
 };
+
+/** A profile on the custom diet says which split it aims at: no other diet's stands in for it. */
+const hasItsSplit = (profile: { dietType: DietType; customMacroSplit: MacroSplit | null }): boolean => profile.dietType !== 'custom' || profile.customMacroSplit !== null;
+const SPLIT_MISSING = { path: ['customMacroSplit'], message: 'The custom diet needs its split of protein, fat and carbohydrate.' };
 
 /**
  * Sent as true by somebody under 18 or underweight who asks to lose weight
@@ -122,8 +132,8 @@ const profileFields = {
  */
 const acknowledgeRisk = z.boolean().optional();
 
-/** A new profile. What it leaves out starts at a default. */
-export const ProfileInput = z.object({
+/** What a new profile holds. What a request leaves out starts at a default. */
+const newProfile = z.object({
   name: profileFields.name,
   age: profileFields.age,
   sex: profileFields.sex.default(null),
@@ -136,8 +146,12 @@ export const ProfileInput = z.object({
   acknowledgeRisk,
   mealCount: profileFields.mealCount.default(3),
   weightReminderCadence: profileFields.weightReminderCadence.default('weekly'),
+  customMacroSplit: profileFields.customMacroSplit.default(null),
   preferences: ProfilePreferences.default(PREFERENCE_DEFAULTS),
 });
+
+/** A new profile. */
+export const ProfileInput = newProfile.refine(hasItsSplit, SPLIT_MISSING);
 export type ProfileInput = z.infer<typeof ProfileInput>;
 
 /**
@@ -146,15 +160,17 @@ export type ProfileInput = z.infer<typeof ProfileInput>;
  * default: a client that forgot one would otherwise change what it never
  * showed. To change some preferences alone there is `ProfilePreferencesPatch`.
  */
-export const ProfileUpdate = z.object({
-  ...profileFields,
-  acknowledgeRisk,
-  preferences: z.object(preferenceFields),
-});
+export const ProfileUpdate = z
+  .object({
+    ...profileFields,
+    acknowledgeRisk,
+    preferences: z.object(preferenceFields),
+  })
+  .refine(hasItsSplit, SPLIT_MISSING);
 export type ProfileUpdate = z.infer<typeof ProfileUpdate>;
 
 /** Persisted profile as returned by the API. */
-export const Profile = ProfileInput.omit({ acknowledgeRisk: true }).extend({
+export const Profile = newProfile.omit({ acknowledgeRisk: true }).extend({
   id: z.string().uuid(),
   userId: z.string().uuid(),
   /** When the risk of losing weight was acknowledged, for a profile that needs it. */

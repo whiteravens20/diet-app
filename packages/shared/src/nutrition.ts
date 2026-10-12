@@ -10,6 +10,31 @@ export const Macros = z.object({
 });
 export type Macros = z.infer<typeof Macros>;
 
+/**
+ * The least and the most of a day's energy that somebody's own split may
+ * give to protein, to fat and to carbohydrate, in per cent. Under the least
+ * of protein and of fat a diet runs short of what a body cannot make itself;
+ * the rest leaves room for every diet the application names and for more.
+ */
+export const SPLIT_SHARE_LIMITS = {
+  protein: { min: 10, max: 45 },
+  fat: { min: 15, max: 75 },
+  carbs: { min: 5, max: 70 },
+} as const;
+
+/**
+ * Somebody's own split of a day's energy between protein, fat and
+ * carbohydrate: whole per cent that add up to a hundred.
+ */
+export const MacroSplit = z
+  .object({
+    protein: z.number().int().min(SPLIT_SHARE_LIMITS.protein.min).max(SPLIT_SHARE_LIMITS.protein.max),
+    fat: z.number().int().min(SPLIT_SHARE_LIMITS.fat.min).max(SPLIT_SHARE_LIMITS.fat.max),
+    carbs: z.number().int().min(SPLIT_SHARE_LIMITS.carbs.min).max(SPLIT_SHARE_LIMITS.carbs.max),
+  })
+  .refine((split) => split.protein + split.fat + split.carbs === 100, { message: 'The three shares have to add up to 100.' });
+export type MacroSplit = z.infer<typeof MacroSplit>;
+
 /** A full nutrition snapshot — calories plus macros. */
 export const Nutrition = Macros.extend({
   calories: z.number().min(0),

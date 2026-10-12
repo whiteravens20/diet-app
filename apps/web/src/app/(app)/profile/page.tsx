@@ -18,9 +18,11 @@ import {
   type ProfileInput,
   type ProfilePreferencesPatch,
   type WeightReminderCadence,
+  SPLIT_SHARE_LIMITS,
+  type MacroSplit,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
-import { OFFERED_DIETS, supplyOf } from '@/lib/catalogue';
+import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
@@ -131,6 +133,11 @@ export default function ProfilePage() {
     event.preventDefault();
     setError(null);
     const f = new FormData(event.currentTarget);
+    // The form says under the three shares what they add up to; a split that does not add up is not sent.
+    if (f.get('dietType') === 'custom' && Number(f.get('splitProtein')) + Number(f.get('splitFat')) + Number(f.get('splitCarbs')) !== 100) {
+      setError(t('splitSumRefused'));
+      return;
+    }
     save.mutate({
       name: String(f.get('name')),
       age: Number(f.get('age')),
@@ -139,6 +146,11 @@ export default function ProfilePage() {
       weightKg: Number(f.get('weightKg')),
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
+      // The split of the custom diet, as the form shows it; on another diet the profile keeps the one it has.
+      customMacroSplit:
+        f.get('dietType') === 'custom'
+          ? { protein: Number(f.get('splitProtein')), fat: Number(f.get('splitFat')), carbs: Number(f.get('splitCarbs')) }
+          : (editing?.customMacroSplit ?? null),
       weeklyLossTarget: (f.get('weeklyLossTarget') as ProfileInput['weeklyLossTarget']) || null,
       manualCalorieTarget: f.get('manualCalorieTarget')
         ? Number(f.get('manualCalorieTarget'))
@@ -329,7 +341,7 @@ export default function ProfilePage() {
                   ))}
                 </select>
               </Field>
-              <DietAndMealCount diet={editing?.dietType ?? 'balanced'} mealCount={editing?.mealCount ?? 3} />
+              <DietAndMealCount diet={editing?.dietType ?? 'balanced'} mealCount={editing?.mealCount ?? 3} split={editing?.customMacroSplit ?? null} />
               <Field label={t('weeklyLossTarget')}>
                 <select
                   name="weeklyLossTarget"
@@ -506,12 +518,17 @@ export default function ProfilePage() {
   );
 }
 
+/** The split a profile that goes to the custom diet begins with: the balanced diet's. */
+const A_FIRST_SPLIT: MacroSplit = { protein: 25, fat: 30, carbs: 45 };
+
 /**
  * The diet and the number of meals a day. Each diet is marked when the
  * catalogue has no recipe, or few, for one of that many meals, and the chosen
- * pair gets a line saying what that means for a plan.
+ * pair gets a line saying what that means for a plan. The custom diet asks for
+ * its split: how much of a day's energy comes from protein, fat and
+ * carbohydrate.
  */
-function DietAndMealCount(initial: { diet: DietType; mealCount: number }) {
+function DietAndMealCount(initial: { diet: DietType; mealCount: number; split: MacroSplit | null }) {
   const t = useTranslations('profile');
   const tCatalogue = useTranslations('catalogue');
   const tDiet = useTranslations('enums.dietType');
@@ -519,8 +536,13 @@ function DietAndMealCount(initial: { diet: DietType; mealCount: number }) {
   // The fields stay the form's own; these follow them for the marks.
   const [diet, setDiet] = useState(initial.diet);
   const [mealCount, setMealCount] = useState(initial.mealCount);
-  // A profile keeps the diet it has, also one this form does not offer.
-  const diets = OFFERED_DIETS.includes(initial.diet) ? OFFERED_DIETS : [...OFFERED_DIETS, initial.diet];
+  const diets: readonly DietType[] = [...NAMED_DIETS, 'custom'];
+  // The three shares as they are typed, so that the form can say what they add up to before it is sent.
+  const [split, setSplit] = useState<Record<keyof MacroSplit, string>>(() => {
+    const first = initial.split ?? A_FIRST_SPLIT;
+    return { protein: String(first.protein), fat: String(first.fat), carbs: String(first.carbs) };
+  });
+  const sum = Number(split.protein) + Number(split.fat) + Number(split.carbs);
   return (
     <>
       <Field label={t('dietType')}>
@@ -556,6 +578,33 @@ function DietAndMealCount(initial: { diet: DietType; mealCount: number }) {
         />
       </Field>
       <SupplyNote diet={diet} mealCount={mealCount} className="sm:col-span-2" />
+      {diet === 'custom' && (
+        <fieldset className="space-y-2 sm:col-span-2">
+          <legend className="text-sm font-medium">{t('customSplit')}</legend>
+          <p className="text-xs text-muted-foreground">{t('customSplitHint')}</p>
+          <div className="grid grid-cols-3 gap-3">
+            {(['protein', 'fat', 'carbs'] as const).map((part) => (
+              <Field key={part} label={t(`split.${part}`)}>
+                <Input
+                  name={`split${part[0]!.toUpperCase()}${part.slice(1)}`}
+                  type="number"
+                  inputMode="numeric"
+                  required
+                  min={SPLIT_SHARE_LIMITS[part].min}
+                  max={SPLIT_SHARE_LIMITS[part].max}
+                  step={1}
+                  value={split[part]}
+                  onChange={(e) => setSplit({ ...split, [part]: e.target.value })}
+                />
+              </Field>
+            ))}
+          </div>
+          {/* Said while it is typed: a form that is refused for its sum should have said the sum. */}
+          <p aria-live="polite" className={sum === 100 ? 'text-xs text-muted-foreground' : 'text-xs text-warning'}>
+            {t(sum === 100 ? 'splitSum' : 'splitSumOff', { sum })}
+          </p>
+        </fieldset>
+      )}
     </>
   );
 }

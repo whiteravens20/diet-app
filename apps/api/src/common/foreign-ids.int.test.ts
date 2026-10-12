@@ -51,6 +51,7 @@ const WHOLE_PROFILE = {
   manualCalorieTarget: null,
   mealCount: 3,
   weightReminderCadence: 'off',
+  customMacroSplit: null,
   preferences: {
     favoriteIngredientIds: [],
     excludedIngredientIds: [],
