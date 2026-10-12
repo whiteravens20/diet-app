@@ -4,11 +4,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, X } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { PlannedIngredient, Recipe } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
+import { IMAGERY } from '@/lib/imagery';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RecipeView } from '@/components/recipe-view';
@@ -64,6 +66,17 @@ export function RecipeModal({
           <X className="h-4 w-4" aria-hidden />
         </Button>
       </div>
+      {/*
+        The place of a recipe's photo. Recipes carry none of their own yet: until
+        they do, the photo of the recipe pages stands here, a board of cut
+        vegetables that is no dish, so that it is taken for none. It says
+        nothing a reader of the page needs (`alt=""`).
+      */}
+      {recipe.data && (
+        <div className="relative h-28 sm:h-36" data-recipe-photo>
+          <Image src={IMAGERY.recipes} alt="" fill sizes="(min-width: 44rem) 42rem, 100vw" className="object-cover" />
+        </div>
+      )}
       <div className="p-6">
         {recipe.isLoading && <Skeleton className="h-64" />}
         {recipe.error && (
