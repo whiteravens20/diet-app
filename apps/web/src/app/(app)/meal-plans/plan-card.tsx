@@ -25,6 +25,7 @@ import { IngredientSubstituteModal } from '@/components/ingredient-substitute-mo
 import { RecipeModal } from '@/components/recipe-modal';
 import { AiMark, partInMeal } from '@/components/ai-mark';
 import { CustomMealModal } from './custom-meal-modal';
+import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
 import { useFormat } from '@/lib/use-format';
 
 interface FavoriteOption {
@@ -70,11 +71,9 @@ export function PlanCard({
   favorites,
   tMeal,
   onToggle,
-  onRegenerate,
-  onRegenerateDays,
+  onReroll,
   limitNames,
   onDelete,
-  onRegenerateDay,
   onSwapMeal,
   onSwapByFavorites,
   onSwapToFavorite,
@@ -97,13 +96,10 @@ export function PlanCard({
   favorites: FavoriteOption[];
   tMeal: ReturnType<typeof useTranslations<'enums.mealType'>>;
   onToggle: () => void;
-  /** Make the plan again; with a list, letting those limits give way and no others. */
-  onRegenerate: (allowRelaxations?: PlanRelaxation[]) => void;
-  /** Fill the days from one day of the plan to another again. */
-  onRegenerateDays: (from: string, to: string) => void;
+  /** Make the plan again, or the part of it that was chosen in the window for it. */
+  onReroll: (asked: RerollAsked) => void;
   limitNames: (kinds: readonly PlanRelaxation[]) => string;
   onDelete: () => void;
-  onRegenerateDay: (dayId: string) => void;
   onSwapMeal: (plannedMealId: string) => void;
   onSwapByFavorites: (plannedMealId: string) => void;
   onSwapToFavorite: (plannedMealId: string, recipeId: string, allowOffDiet: boolean) => void;
@@ -134,12 +130,10 @@ export function PlanCard({
   // ingredient lines of the meal it was opened from, so the window shows what
   // that meal takes rather than the recipe's own servings.
   const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[]; picked: PlannedMealView['modelPick'] } | null>(null);
-  // The part of the plan to fill again: the whole of it until the user picks days.
-  const [part, setPart] = useState<{ from?: string; to?: string }>({});
+  // What the window a plan is made again in opens on, while it is open.
+  const [reroll, setReroll] = useState<RerollStart | null>(null);
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
   const pantryLine = plan?.report ? PANTRY_LINE[plan.report.pantry] : undefined;
-  const from = part.from ?? plan?.days[0]?.date ?? '';
-  const to = part.to ?? plan?.days.at(-1)?.date ?? '';
   return (
     <Card className="relative w-full max-w-screen-2xl">
       {/* On a narrow screen what can be done with the plan goes under what the plan is, and what opens from it under both. */}
@@ -159,7 +153,7 @@ export function PlanCard({
         </button>
         <div className="flex flex-wrap items-center gap-2">
           <ApplyFavoriteSetButton plan={summary} profileId={summary.profileId} disabled={busy} />
-          <Button type="button" variant="outline" size="sm" onClick={() => onRegenerate()} disabled={busy}>
+          <Button type="button" variant="outline" size="sm" onClick={() => setReroll({ scope: 'whole' })} disabled={busy}>
             {t('recalculate')}
           </Button>
           <Button
@@ -185,41 +179,6 @@ export function PlanCard({
       {open && plan && (
         <CardContent className="space-y-4 border-t border-border pt-4">
           <div className="space-y-1 text-xs text-muted-foreground">
-            {plan.days.length > 1 && (
-              <p className="flex flex-wrap items-center gap-2">
-                {t('rangeLabel')}
-                <select
-                  aria-label={t('rangeFrom')}
-                  className="rounded-md border border-input bg-background px-2 py-1"
-                  value={from}
-                  onChange={(e) => setPart({ ...part, from: e.target.value })}
-                >
-                  {plan.days.map((day) => (
-                    <option key={day.id} value={day.date}>
-                      {fmt.day(day.date)}
-                    </option>
-                  ))}
-                </select>
-                {t('rangeUntil')}
-                <select
-                  aria-label={t('rangeTo')}
-                  className="rounded-md border border-input bg-background px-2 py-1"
-                  value={to}
-                  onChange={(e) => setPart({ ...part, to: e.target.value })}
-                >
-                  {plan.days.map((day) => (
-                    <option key={day.id} value={day.date}>
-                      {fmt.day(day.date)}
-                    </option>
-                  ))}
-                </select>
-                {/* Dates in this form sort as text. */}
-                <Button type="button" variant="ghost" size="sm" onClick={() => onRegenerateDays(from, to)} disabled={busy || from > to}>
-                  {t('recalculateRange')}
-                </Button>
-              </p>
-            )}
-            <p>{t('rerollKeeps')}</p>
             <p>
               {t('planMacros', {
                 protein: plan.averageDailyNutrition.protein,
@@ -236,7 +195,7 @@ export function PlanCard({
               {plan.options.allowRelaxations.length > 0 && (
                 <p className="flex flex-wrap items-center gap-2">
                   {t('planMayGiveWay', { limits: limitNames(plan.options.allowRelaxations) })}
-                  <Button type="button" variant="ghost" size="sm" onClick={() => onRegenerate([])} disabled={busy}>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setReroll({ scope: 'whole', holdLimits: true })} disabled={busy}>
                     {t('holdLimits')}
                   </Button>
                 </p>
@@ -270,7 +229,7 @@ export function PlanCard({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => onRegenerateDay(day.id)}
+                      onClick={() => setReroll({ scope: 'day', day: day.date })}
                       disabled={busy}
                     >
                       {t('changeDay')}
@@ -577,6 +536,16 @@ export function PlanCard({
             </div>
           ))}
         </CardContent>
+      )}
+      {reroll && (
+        <RerollDialog
+          planId={summary.id}
+          title={t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
+          start={reroll}
+          limitNames={limitNames}
+          onClose={() => setReroll(null)}
+          onSubmit={onReroll}
+        />
       )}
       {customDay && (
         <CustomMealModal

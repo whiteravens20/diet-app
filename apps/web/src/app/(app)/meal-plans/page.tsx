@@ -44,6 +44,7 @@ import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
+import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { useFormat } from '@/lib/use-format';
 import { LoadFailed } from '@/components/load-failed';
@@ -55,31 +56,6 @@ const selectClass = 'h-10 w-full rounded-md border border-input bg-background px
 
 /** What a generate request sends: the fields with a default may be left out. */
 type GenerateBody = Omit<GeneratePlanRequest, 'allowRelaxations'> & { allowRelaxations?: PlanRelaxation[] };
-
-/** A re-roll of a plan, or of one of its days. */
-interface Reroll {
-  planId: string;
-  dayId?: string;
-  /** The first and the last day to fill again, for a part of the plan. */
-  from?: string;
-  to?: string;
-  includePast?: boolean;
-  dropIneligibleLocks?: boolean;
-  /** Left out: the limits the plan may let give way already. */
-  allowRelaxations?: PlanRelaxation[];
-}
-
-/** What a re-roll sends: nothing at all when it asks for nothing of its own. */
-function rerollBody(v: Reroll): Record<string, unknown> | undefined {
-  const body = {
-    ...(v.from ? { from: v.from } : {}),
-    ...(v.to ? { to: v.to } : {}),
-    ...(v.includePast ? { includePast: true } : {}),
-    ...(v.dropIneligibleLocks ? { dropIneligibleLocks: true } : {}),
-    ...(v.allowRelaxations ? { allowRelaxations: v.allowRelaxations } : {}),
-  };
-  return Object.keys(body).length > 0 ? body : undefined;
-}
 
 /** What the user can allow so that a refused re-roll goes through, by the code of the refusal. */
 const ALLOWS = { LOCKED_RECIPE_INELIGIBLE: 'dropIneligibleLocks', NOTHING_TO_REGENERATE: 'includePast' } as const;
@@ -720,13 +696,9 @@ function MealPlansContent() {
               busy={busy}
               dietLabel={tDiet(plan.dietType)}
               onToggle={() => setOpenPlan(openPlan === plan.id ? null : plan.id)}
-              onRegenerate={(allowRelaxations) => {
+              onReroll={(asked) => {
                 setError(null);
-                regenerate.mutate({ planId: plan.id, allowRelaxations });
-              }}
-              onRegenerateDays={(from, to) => {
-                setError(null);
-                regenerate.mutate({ planId: plan.id, from, to });
+                (asked.dayId ? regenerateDay : regenerate).mutate({ planId: plan.id, ...asked });
               }}
               limitNames={limitNames}
               onDelete={() => {
@@ -734,10 +706,6 @@ function MealPlansContent() {
                 if (window.confirm(t('deleteConfirm'))) {
                   remove.mutate(plan.id);
                 }
-              }}
-              onRegenerateDay={(dayId) => {
-                setError(null);
-                regenerateDay.mutate({ planId: plan.id, dayId });
               }}
               onSwapMeal={(plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'random' })}
               onSwapByFavorites={(plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'favorite_ingredients' })}
