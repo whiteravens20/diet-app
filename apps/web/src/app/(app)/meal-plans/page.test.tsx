@@ -697,3 +697,43 @@ describe('the plan page, on what a model had to do with a plan', () => {
     });
   });
 });
+
+describe('the plan page, on how a day stands against its target', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const aDay = (day: Partial<MealPlan['days'][number]>): MealPlan => {
+    const plan = aPlan();
+    return { ...plan, days: [{ ...plan.days[0]!, ...day }] };
+  };
+  const opened = async (plan: MealPlan) => {
+    await renderPage(aDepth(9), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+    await screen.findByRole('button', { name: 'Oat porridge' });
+  };
+
+  it('says what the day holds of protein, fat and carbohydrate against what it aims at', async () => {
+    await opened(aPlan());
+
+    expect(screen.getByText('Protein 8 of 100 g · fat 4 of 62 g · carbs 40 of 260 g')).toBeInTheDocument();
+    expect(screen.getByText('A day of this plan holds on average: protein 8 of 100 g · fat 4 of 62 g · carbs 40 of 260 g.')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['over', messages.mealPlans.dayOver, messages.mealPlans.dayOverHint],
+    ['under', messages.mealPlans.dayUnder, messages.mealPlans.dayUnderHint],
+  ] as const)('says on the day, for as long as it is so, that it stands %s its target, and what can be done', async (offTarget, label, hint) => {
+    await opened(aDay({ offTarget }));
+
+    const chip = screen.getByText(label);
+    expect(chip.textContent).toContain(hint);
+  });
+
+  it('says nothing of the kind of a day inside its window, nor of a day that is skipped', async () => {
+    await opened(aDay({ offTarget: null }));
+    expect(screen.queryByText(messages.mealPlans.dayOver)).toBeNull();
+    expect(screen.queryByText(messages.mealPlans.dayUnder)).toBeNull();
+  });
+});
+

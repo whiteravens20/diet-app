@@ -220,6 +220,16 @@ export function PlanCard({
               </p>
             )}
             <p>{t('rerollKeeps')}</p>
+            <p>
+              {t('planMacros', {
+                protein: plan.averageDailyNutrition.protein,
+                proteinTarget: plan.targetMacros.protein,
+                fat: plan.averageDailyNutrition.fat,
+                fatTarget: plan.targetMacros.fat,
+                carbs: plan.averageDailyNutrition.carbs,
+                carbsTarget: plan.targetMacros.carbs,
+              })}
+            </p>
           </div>
           {(plan.options.allowRelaxations.length > 0 || pantryLine) && (
             <div className="space-y-1 text-xs text-muted-foreground">
@@ -268,6 +278,30 @@ export function PlanCard({
                   </div>
                 )}
               </div>
+              {!day.skipped && (
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  {/* Said for as long as it is so: a notice that goes away is easy to miss. */}
+                  {day.offTarget && (
+                    <span
+                      title={t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}
+                      className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning"
+                    >
+                      {t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}
+                      <span className="sr-only">: {t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}</span>
+                    </span>
+                  )}
+                  <span>
+                    {t('dayMacros', {
+                      protein: day.dayNutrition.protein,
+                      proteinTarget: day.targetMacros.protein,
+                      fat: day.dayNutrition.fat,
+                      fatTarget: day.targetMacros.fat,
+                      carbs: day.dayNutrition.carbs,
+                      carbsTarget: day.targetMacros.carbs,
+                    })}
+                  </span>
+                </p>
+              )}
               {day.belowSafetyFloor && <p className="text-xs text-warning">{t('dayBelowFloor')}</p>}
               <ul className="mt-1 space-y-1 text-sm">
                 {day.meals.map((m) => {
