@@ -507,7 +507,6 @@ model Recipe {
   proteinPerServing  Float        @default(0)
   fatPerServing      Float        @default(0)
   carbsPerServing    Float        @default(0)
-  reuseScore         Float        @default(0)
   // The account a personal recipe belongs to; null for a recipe of the shared
   // library. A personal recipe goes with its account.
   createdBy          User?        @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)

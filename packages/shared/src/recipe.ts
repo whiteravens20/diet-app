@@ -76,8 +76,6 @@ export const Recipe = z.object({
   allergens: z.array(Allergen),
   /** Per-serving nutrition, recomputed deterministically from the database. */
   nutritionPerServing: Nutrition,
-  /** 0-1 score: how reusable this recipe's ingredients are across a plan. */
-  reuseScore: z.number().min(0).max(1),
   /**
    * Where the recipe came from. Shared with everybody: `seed`, from the
    * catalogue's data files, and `curated`, approved in this instance's

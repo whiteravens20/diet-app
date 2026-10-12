@@ -293,7 +293,6 @@ export function toRecipeDto(
     proteinPerServing: number;
     fatPerServing: number;
     carbsPerServing: number;
-    reuseScore: number;
     translations?: { locale: string; title: string; description: string; steps: string[] }[];
     ingredients: RecipeLine[];
   },
@@ -331,7 +330,6 @@ export function toRecipeDto(
       fat: row.fatPerServing,
       carbs: row.carbsPerServing,
     },
-    reuseScore: row.reuseScore,
     origin: row.origin,
     // A recipe a model wrote says so by its origin; one of the user's that a model had a part in, by its flag.
     byModel: row.origin === 'ai' ? 'written' : row.modelAssisted ? 'changed' : null,

@@ -53,7 +53,6 @@ export interface PersonalRecipe {
   difficulty: Difficulty;
   /** The cuisine the recipe was asked for, or the one of the recipe it was made from. */
   cuisine?: string | null;
-  reuseScore?: number;
   ingredients: { ingredientId: string; quantity: number; unit: Unit; note: string | null }[];
   /** Worked out by the engine from the ingredients above. */
   facts: RecipeFacts;
@@ -276,7 +275,6 @@ export class PersonalRecipesService {
         proteinPerServing: recipe.facts.perServing.protein,
         fatPerServing: recipe.facts.perServing.fat,
         carbsPerServing: recipe.facts.perServing.carbs,
-        reuseScore: recipe.reuseScore ?? 0,
         ingredients: { create: recipe.ingredients },
         translations: {
           create: [...recipe.text].map(([locale, text]) => ({

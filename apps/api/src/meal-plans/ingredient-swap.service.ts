@@ -140,7 +140,6 @@ export class IngredientSwapService {
         cookMinutes: recipe.cookMinutes,
         difficulty: recipe.difficulty,
         cuisine: recipe.cuisine,
-        reuseScore: recipe.reuseScore,
         ingredients: lines,
         facts,
       },

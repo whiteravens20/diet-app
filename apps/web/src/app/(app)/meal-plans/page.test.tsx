@@ -80,7 +80,6 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
             cuisine: null,
             allergens: [],
             nutritionPerServing: { calories: 230, protein: 8, fat: 4, carbs: 40 },
-            reuseScore: 0,
             origin: 'seed',
             byModel: null,
           },
