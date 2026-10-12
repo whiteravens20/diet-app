@@ -411,7 +411,7 @@
     "toastTitle": "{count, plural, one {Nowe powiadomienie} few {# nowe powiadomienia} many {# nowych powiadomień} other {# nowego powiadomienia}}",
     "toastMarkRead": "{count, plural, one {Oznacz jako przeczytane} other {Oznacz wszystkie jako przeczytane}}",
     "weight_reminder": {
-      "withHistory": "Czas zważyć się — minął {days, plural, one {1 dzień} few {# dni} many {# dni} other {# dnia}}.",
+      "withHistory": "Czas zważyć się — {days, plural, one {minął 1 dzień} few {minęły # dni} many {minęło # dni} other {minęło # dnia}}.",
       "noHistory": "Dodaj pierwszy wpis wagi, aby uruchomić wykres trendu."
     },
     "preferences_review": "Części składników lub przepisów, które były u Ciebie oznaczone, nie ma już w katalogu. Sprawdź unikane i ulubione składniki oraz zestawy ulubionych."
