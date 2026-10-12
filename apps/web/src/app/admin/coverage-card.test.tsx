@@ -76,6 +76,18 @@ describe('the administrator\'s table of recipes per diet and meal', () => {
     expect(screen.getByText(/^4 of 35 pairs of diet and meal have fewer than 6 recipes\./)).toBeTruthy();
   });
 
+  it('stands in a box of its own that scrolls sideways on a narrow screen, can be reached with the Tab key and says what it is', () => {
+    renderCard({ ...none, vegan: { breakfast: 2, second_breakfast: 0, lunch: 0, snack: 0, dinner: 0 } });
+
+    const box = screen.getByRole('group', { name: 'Recipes per diet and meal: a table that scrolls sideways' });
+    expect(box).toHaveAttribute('tabindex', '0');
+    expect(box.className).toContain('overflow-x-auto');
+    // What only a screen reader is given is placed by the box: it stays inside it.
+    expect(box.className).toContain('relative');
+    expect(within(box).getByRole('table', { name: messages.admin.coverage.title })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Protein, fat and carbohydrate: a table that scrolls sideways' })).toHaveAttribute('tabindex', '0');
+  });
+
   it('says nothing of drafts while none waits', () => {
     renderCard();
 

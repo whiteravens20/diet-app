@@ -523,6 +523,7 @@
       "title": "Przepisy według diety i posiłku",
       "explain": "Z ilu przepisów plan może wybierać. Gdy nie ma żadnego, dla tej diety z tym posiłkiem nie da się ułożyć planu; gdy jest ich mniej niż {enough}, tydzień powtarza to samo danie częściej, niż domyślnie pozwala profil.",
       "diet": "Dieta",
+      "scrollable": "{table}: tabela przewijana w poziomie",
       "gap": "{below, plural, =0 {Każda dieta ma co najmniej {target} przepisów na każdy posiłek.} one {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.} few {# z {pairs} par dieta–posiłek mają mniej niż {target} przepisów.} many {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.} other {# z {pairs} par dieta–posiłek ma mniej niż {target} przepisów.}} Uruchomienie przepisów z opcją „Uzupełnij braki katalogu” pisze najpierw dla najpustszej pary.",
       "waitingCell": "{drafts, plural, one {i # szkic w kolejce} few {i # szkice w kolejce} many {i # szkiców w kolejce} other {i # szkicu w kolejce}}",
       "waiting": "Liczba po znaku plus to szkice przepisów, które czekają w kolejce dla tej diety i posiłku: uruchomienie przepisów je wlicza. {below, plural, =0 {Gdy zostaną wysłane, każda para będzie mieć co najmniej {target}.} one {Gdy zostaną wysłane, # para nadal będzie mieć mniej niż {target}.} few {Gdy zostaną wysłane, # pary nadal będą mieć mniej niż {target}.} many {Gdy zostaną wysłane, # par nadal będzie mieć mniej niż {target}.} other {Gdy zostaną wysłane, # pary nadal będzie mieć mniej niż {target}.}}",

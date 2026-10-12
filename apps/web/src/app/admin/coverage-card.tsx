@@ -11,6 +11,15 @@ import { cn } from '@/lib/utils';
 /** The meals in the order of a day. */
 const MEALS = MEAL_SLOTS_BY_COUNT[5]!;
 
+/**
+ * A table that is wider than a narrow screen scrolls sideways in a box of its
+ * own, and the page stays as wide as the screen. The box can be reached with
+ * the Tab key and moved with the arrows, and says what it is. It is the
+ * place of what stands in it: text for a screen reader alone, which is taken
+ * out of the flow, would otherwise stand out of the box and widen the page.
+ */
+const SCROLLS = 'relative overflow-x-auto rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
 /** Protein, fat and carbohydrate as whole percentages of a day's energy. */
 const shares = (of: MacroShares) => [of.protein, of.fat, of.carbs].map((share) => Math.round(share * 100)).join(' / ');
 
@@ -47,7 +56,7 @@ export function CoverageCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">{t('explain', { enough: VARIETY_DEPTH })}</p>
-        <div className="overflow-x-auto">
+        <div className={SCROLLS} tabIndex={0} role="group" aria-label={t('scrollable', { table: t('title') })}>
           <table className="w-full text-sm" aria-label={t('title')}>
             <thead>
               <tr className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -105,7 +114,7 @@ export function CoverageCard({
         <h3 className="pt-2 text-sm font-medium">{t('macrosTitle')}</h3>
         <p className="text-sm text-muted-foreground">{t('macrosExplain', { points: Math.round(macros.outOfReach * 100) })}</p>
         <p className="text-sm text-muted-foreground">{t('packsExplain')}</p>
-        <div className="overflow-x-auto">
+        <div className={SCROLLS} tabIndex={0} role="group" aria-label={t('scrollable', { table: t('macrosTitle') })}>
           <table className="w-full text-sm" aria-label={t('macrosTitle')}>
             <thead>
               <tr className="text-xs uppercase tracking-wide text-muted-foreground">

@@ -151,5 +151,7 @@ test.describe('the reviewer\'s queue in a browser, with the server\'s answers gi
     await expect(page.getByRole('button', { name: text.next!, exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: text.previous!, exact: true })).toBeDisabled();
     expect(await barriers(page)).toEqual([]);
+    // Whatever the screen: the page is no wider than it.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 });

@@ -214,6 +214,32 @@ test.describe('on the narrowest screens the application is used on', () => {
     });
   }
 
+  test('the administrator\'s panel fits the screen once signed in', async ({ anonymous, messages }) => {
+    const user = process.env.E2E_ADMIN_USER;
+    const password = process.env.E2E_ADMIN_PASSWORD;
+    test.skip(!narrow(anonymous) || !user || !password, 'checked by the projects of a narrow screen, in a run that was given the administrator');
+    const admin = texts(messages, 'admin');
+    const size = anonymous.viewportSize()!;
+    const wide: Record<string, string[]> = {};
+    try {
+      await anonymous.goto('/admin');
+      await anonymous.getByLabel(admin.adminUser!).fill(user!);
+      await anonymous.getByLabel(admin.adminPassword!).fill(password!);
+      await anonymous.getByRole('button', { name: admin.signIn!, exact: true }).click();
+      // Its tables are in by the time the statistics are.
+      await expect(anonymous.getByRole('table').first()).toBeVisible();
+      await settled(anonymous);
+      for (const width of [360, 375]) {
+        await anonymous.setViewportSize({ width, height: size.height });
+        if ((await sideways(anonymous)) > 0) wide[`the panel at ${width}`] = await stickingOut(anonymous);
+      }
+    } finally {
+      await anonymous.setViewportSize(size);
+    }
+
+    expect(wide).toEqual({});
+  });
+
   test('a plan with its days open, a shopping list and what opens over them fit the screen', async ({ session, messages }) => {
     const page = session.page;
     test.skip(!narrow(page), 'checked by the projects of a narrow screen');

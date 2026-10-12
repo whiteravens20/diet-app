@@ -140,7 +140,8 @@ export function ReviewerConfigCard() {
               <div className="space-y-2 rounded-md border border-success/40 bg-success/5 px-3 py-2">
                 <p className="text-sm font-medium">{t('shareTitle')}</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 truncate rounded bg-background px-2 py-1 text-xs">
+                  {/* `min-w-0`: an item of a row is as wide as its text unless told it may be less, and the address then widens the whole page. */}
+                  <code className="min-w-0 flex-1 truncate rounded bg-background px-2 py-1 text-xs">
                     {reviewUrl}
                   </code>
                   <Button type="button" size="sm" variant="outline" onClick={copyUrl}>
