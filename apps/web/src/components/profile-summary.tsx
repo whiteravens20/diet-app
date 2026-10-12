@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/stat-card';
 import { FavoriteSetsCard } from '@/components/favorite-sets-card';
+import { PlanOverviewCard } from '@/components/plan-overview-card';
 import { WeightCard } from '@/components/weight-card';
 import { useFormat } from '@/lib/use-format';
 
@@ -87,6 +88,8 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
       </div>
 
       {c && <TargetNotices calories={c} />}
+
+      <PlanOverviewCard profile={profile} />
 
       <Card>
         <CardHeader>

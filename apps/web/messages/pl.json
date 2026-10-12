@@ -1549,6 +1549,44 @@
       "below_bmr": "Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku ({bmr, number} kcal)."
     }
   },
+  "planOverview": {
+    "title": {
+      "active": "Plan w toku",
+      "upcoming": "Plan, który zaczyna się jako następny",
+      "past": "Plan, który skończył się ostatnio"
+    },
+    "span": "{dates} · {diet}",
+    "open": "Otwórz plan",
+    "none": "Nie ma jeszcze planu",
+    "noneBody": "Ułóż plan dla tego profilu, a tu zobaczysz, jak plan ma się do swojego celu.",
+    "noneCta": "Ułóż plan",
+    "failed": "Nie udało się odczytać podsumowania planu.",
+    "energy": "Energia na dzień",
+    "energyValue": "{planned, number} kcal",
+    "energyHint": "Średnio, przy celu {target, number} kcal.",
+    "eaten": "Zjedzone",
+    "eatenHint": "{meals, number} z {of, plural, one {# posiłku} few {# posiłków} many {# posiłków} other {# posiłku}} zaplanowanych do dziś.",
+    "eatenNotYet": "—",
+    "eatenNotYetHint": "Żaden dzień planu jeszcze nie nadszedł.",
+    "onDiet": "Zgodne z dietą",
+    "onDietHint": "{meals, number} z {of, plural, one {# posiłku} few {# posiłków} many {# posiłków} other {# posiłku}} pasuje do diety planu ({diet}).",
+    "favourites": "Ulubione",
+    "favouritesHint": "{meals, number} z {of, plural, one {# posiłku} few {# posiłków} many {# posiłków} other {# posiłku}} to przepisy oznaczone jako ulubione albo jedzone często.",
+    "reuse": "Składniki użyte ponownie",
+    "reuseHint": "Część składników planu, której używa więcej niż jeden z jego przepisów.",
+    "shopping": "Zakupy",
+    "shoppingHint": "Odhaczono {ticked, number} z {entries, plural, one {# pozycji} few {# pozycji} many {# pozycji} other {# pozycji}} na listach planu.",
+    "shoppingNone": "—",
+    "shoppingNoneHint": "Plan nie ma jeszcze listy zakupów.",
+    "macros": "Co zawiera dzień, a w co celuje",
+    "macroValue": "{planned, number} z {target, number} g",
+    "days": "Dzień po dniu",
+    "day": "Dzień",
+    "seriesPlanned": "Zaplanowane",
+    "seriesTarget": "Cel",
+    "kcal": "{kcal, number} kcal",
+    "daySkipped": "Pominięty"
+  },
   "enums": {
     "dietType": {
       "balanced": "Zbilansowana",

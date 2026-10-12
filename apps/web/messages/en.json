@@ -1549,6 +1549,44 @@
       "below_bmr": "The target you typed is under what your body uses at rest ({bmr, number} kcal)."
     }
   },
+  "planOverview": {
+    "title": {
+      "active": "The plan under way",
+      "upcoming": "The plan that begins next",
+      "past": "The plan that ended last"
+    },
+    "span": "{dates} · {diet}",
+    "open": "Open the plan",
+    "none": "No plan yet",
+    "noneBody": "Make a plan for this profile, and this is where it says how the plan stands against its target.",
+    "noneCta": "Make a plan",
+    "failed": "Could not read what the plan comes to.",
+    "energy": "Energy a day",
+    "energyValue": "{planned, number} kcal",
+    "energyHint": "On average, against a target of {target, number} kcal.",
+    "eaten": "Eaten",
+    "eatenHint": "{meals, number} of the {of, plural, one {# meal} other {# meals}} that were due by today.",
+    "eatenNotYet": "—",
+    "eatenNotYetHint": "No day of the plan has come yet.",
+    "onDiet": "On the diet",
+    "onDietHint": "{meals, number} of {of, plural, one {# meal} other {# meals}} fit the diet of the plan ({diet}).",
+    "favourites": "Favourites",
+    "favouritesHint": "{meals, number} of {of, plural, one {# meal} other {# meals}} are of a recipe marked as a favourite or as eaten often.",
+    "reuse": "Ingredients used again",
+    "reuseHint": "The share of the plan’s ingredients that more than one of its recipes uses.",
+    "shopping": "Shopping",
+    "shoppingHint": "{ticked, number} of {entries, plural, one {# entry} other {# entries}} ticked on the plan’s lists.",
+    "shoppingNone": "—",
+    "shoppingNoneHint": "The plan has no shopping list yet.",
+    "macros": "What a day holds, against what it aims at",
+    "macroValue": "{planned, number} of {target, number} g",
+    "days": "Day by day",
+    "day": "Day",
+    "seriesPlanned": "Planned",
+    "seriesTarget": "Target",
+    "kcal": "{kcal, number} kcal",
+    "daySkipped": "Skipped"
+  },
   "enums": {
     "dietType": {
       "balanced": "Balanced",
