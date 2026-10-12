@@ -25,10 +25,14 @@ Two rules apply to every variable:
 | `SEED_DATA_DIR` | the repository's `data/` | Where the curated data is read from. Set only for a non-standard layout. |
 
 ## Database
+| Variable | Default | Purpose |
+|---|---|---|
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | — | Postgres credentials. |
 | `DATABASE_URL` | — | Full Postgres connection string. |
 
 ## Auth
+| Variable | Default | Purpose |
+|---|---|---|
 | `JWT_ACCESS_SECRET` | — | Signs user access tokens. 32+ random characters (`openssl rand -hex 32`); the API refuses to start on a blank, short or template value. |
 | `JWT_ACCESS_TTL` / `JWT_REFRESH_TTL` | `900` / `2592000` | Token lifetimes (seconds). A session that is not used for `JWT_REFRESH_TTL` ends. |
 | `JWT_SESSION_TTL` | `7776000` | The longest a session lasts, however often it is used (seconds; 90 days). After it the account signs in again. |
@@ -37,6 +41,8 @@ Two rules apply to every variable:
 | `REVIEWER_SESSION_SECRET` | derived from `DATA_ENCRYPTION_SECRET` | Signs the translation-reviewer cookie. Set a value of its own to rotate reviewer sessions separately. |
 
 ## AI
+| Variable | Default | Purpose |
+|---|---|---|
 | `AI_KEY_ENCRYPTION_SECRET` | — | **64 hex chars** — AES-256-GCM key for user API keys. |
 | `AI_DEFAULT_PROVIDER` | `ollama` | Admin default: `openai`/`anthropic`/`openrouter`/`ollama`. |
 | `AI_DEFAULT_MODEL` | `llama3.1:8b` | Default model id. |
@@ -50,11 +56,15 @@ Two rules apply to every variable:
 | `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC data sets: `Foundation`, `SR Legacy` or both. Anything else is refused at start-up. Default ≈ 340 clean generic foods. Adding `SR Legacy` swells the corpus to ~7 k, but most additions are brand SKUs or hyper-specific cuts that pollute template-generated recipes — see [data/README.md](../../data/README.md#choosing-fdc_data_types). |
 
 ## Admin
+| Variable | Default | Purpose |
+|---|---|---|
 | `ADMIN_USER` | `admin` | The user name the administrator signs in with at `/admin`. |
 | `ADMIN_PASSWORD` | `` *(empty)* | Required to enable the panel. Empty or `CHANGE_ME_IMMEDIATELY` → every admin route returns 403 (fail-closed). In production it has to be at least 12 characters long, or the API does not start; under 16 the start-up log advises a longer one. It is given once, at sign-in, for a session cookie of eight hours; changing it or `ADMIN_USER` ends the sessions there are. |
 | `ADMIN_SECOND_FACTOR_RESET` | `false` | For an administrator who lost the authenticator app. While `true`, the administrator's second factor is removed when the API starts, the panel opens with the password alone, and no second factor can be set up. Set it, restart the API, sign in, set it back to `false` and restart again. The start-up log warns for as long as it is on. The second factors of accounts are not touched. |
 
 ## Anti-abuse
+| Variable | Default | Purpose |
+|---|---|---|
 | `TURNSTILE_ENABLED` | `false` | Enable Cloudflare Turnstile. Read by the web server as well, whose pages have to allow the challenge's frame. |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | — | Required only when enabled. |
 | `RATE_LIMIT_WINDOW` | `60` | Rate-limit window (seconds), applies to every endpoint. |
@@ -67,6 +77,8 @@ Two rules apply to every variable:
 | `MAX_PROFILES_PER_ACCOUNT` | `2` | How many profiles one account may hold, from 1 to 20: one for each member of a household, or to compare diets. Every profile has its own plans, shopping lists, pantry and favourites, so the number is also how much one account can store. Lowering it takes no profile away: an account that has more keeps them, and can add none. The web app reads the number from the API. |
 
 ## Email (optional)
+| Variable | Default | Purpose |
+|---|---|---|
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | — | SMTP for mail. Unset → no mail is sent and the web app does not offer password reset. A reset requested straight from the API is logged outside production and dropped in production. |
 | `SMTP_FROM` | `no-reply@diet-app.local` | From address. |
 | `SMTP_REQUIRE_TLS` | `true` | On port 587 or 25 the connection must be upgraded with STARTTLS before the password or a mail goes over it; a server that does not offer it is not used, and the log says so. `false` only where the path to the mail server is trusted (a relay on the same host or network): the start-up log then warns. Port 465 is encrypted from the first byte either way. |
