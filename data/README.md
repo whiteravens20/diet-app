@@ -63,6 +63,28 @@ amount too small to be half a piece stays in grams. Vegetables sold by weight
 no `displayUnit`: they are shown in grams. The lint refuses a `displayUnit`
 without a `gramsPerPiece`.
 
+## Packs
+
+`packSize` is what one buys of an ingredient at a time, in its canonical unit:
+500 for a tray of chicken, 550 for a carton of ten eggs, 1000 for a litre of
+milk. A shopping list says how many packs a row takes, and whoever buys them
+has the rest in the pantry. What is sold loose or by weight (tomato, potato,
+apple, garlic) has no `packSize`.
+
+`perishable: true` marks a pack that does not keep once it is opened: meat,
+fish, dairy, bread, tofu, a punnet of berries, a head of broccoli, an opened
+tin. What a plan leaves of such a pack is what it wastes, so the planner leans
+towards meals that use an opened pack up, and a plan says what it buys of these
+packs against what it uses. A pack used to seven tenths counts as used: what is
+left of it is no reason for another meal. Rice, pasta, oil, nuts and eggs keep,
+and are left unmarked. The lint refuses `perishable` without a `packSize`.
+
+The lint prints, for each diet, how much of these packs a week's plan uses. The
+weight the planner gives them was chosen with
+[`apps/api/scripts/tune-pack-weight.ts`](../apps/api/scripts/tune-pack-weight.ts),
+which prints what each weight does to the packs, to the split and to the variety
+of the plans of every diet; run it again when the catalogue has grown.
+
 See [docs/ops/curation-shipping.md](../docs/ops/curation-shipping.md) for how the
 curation queue ships its batches.
 

@@ -27,13 +27,16 @@ The companion Android app lives in a separate repository:
   weight-loss targets (0.25–1.0 kg/wk) converted to a daily deficit of at most a quarter
   of maintenance, a floor no calculated target goes under, manual override.
 - **Meal planning** — multi-day plans honouring calorie/macro targets and diet type, with
-  an optimiser that maximises ingredient reuse and minimises waste.
+  an optimiser that leans towards using up what it opens: a plan says what it buys in
+  packs that do not keep against what it uses of them, and a plan made for cooking ahead
+  has a dish cooked once for two days.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
   approved ingredients, then a validation layer recomputes every number.
 - **Shopping lists and a pantry** — merged and category-grouped, counted the way one
-  shops (eggs and slices of bread in pieces, weights rounded up to 5 g), with what the
-  pantry already holds taken off, what was bought beyond the need put into it, and a way
-  out of the application: a PDF, a table for a spreadsheet, a text to send.
+  shops (eggs and slices of bread in pieces, weights rounded up to 5 g, the packs a row
+  takes), with what the pantry already holds taken off, what was bought beyond the need
+  put into it, and a way out of the application: a PDF, a table for a spreadsheet, a text
+  to send.
 - **Readable without a network** — over https the browser keeps the pages and the plans
   and lists that were read last; a row ticked in a shop without a signal is sent when the
   signal is back.
