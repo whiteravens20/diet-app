@@ -6,7 +6,8 @@
  * comes from the browser's session (`session.ts`): a page that was just
  * loaded gets one before its first request, and a 401 gets the next one, once.
  */
-import { apiClient } from './http';
+import { apiClient, type ApiClient } from './http';
+import { offline } from './offline';
 import { session } from './session';
 
 /**
@@ -23,7 +24,7 @@ export const COOKIE_SESSION = { 'x-session-transport': 'cookie' };
  */
 const ACCESS_TOKEN_REFUSALS = new Set(['UNAUTHORIZED', 'INVALID_ACCESS_TOKEN']);
 
-export const api = apiClient('', {
+const client = apiClient('', {
   async sign(headers) {
     // A page that was just loaded holds no access token yet: where the
     // browser has a session, it gets one first.
@@ -37,3 +38,15 @@ export const api = apiClient('', {
     return session.refresh();
   },
 });
+
+/**
+ * The client of an account. What it reads of plans and shopping lists is
+ * kept in the browser as it is read, and answered from there when the server
+ * cannot be reached (`offline.ts`): a list can then still be read in a shop
+ * without a signal. Everything that changes something is asked of the server
+ * alone.
+ */
+export const api: ApiClient = {
+  ...client,
+  get: <Answer>(path: string) => offline.through<Answer>(path, () => client.get<Answer>(path)),
+};

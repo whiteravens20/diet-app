@@ -385,6 +385,13 @@
     "EMAIL_ALREADY_VERIFIED": "Ten adres e-mail jest już potwierdzony.",
     "VERIFICATION_SENT_RECENTLY": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
   },
+  "offline": {
+    "notice": "Nie można połączyć się z serwerem. Widzisz to, co zostało wczytane ostatnio, i teraz nic nie da się zmienić poza odhaczeniem pozycji listy zakupów: odhaczenie zostanie wysłane, gdy serwer będzie znów dostępny.",
+    "waiting": "{count, plural, one {# odhaczenie czeka} few {# odhaczenia czekają} many {# odhaczeń czeka} other {# odhaczenia czeka}} na wysłanie.",
+    "sent": "Wysłano to, co odhaczono bez połączenia: {sent, plural, one {# pozycję} few {# pozycje} many {# pozycji} other {# pozycji}}.",
+    "refused": "{refused, plural, one {# odhaczenie nie zostało przyjęte} few {# odhaczenia nie zostały przyjęte} many {# odhaczeń nie zostało przyjętych} other {# odhaczenia nie zostało przyjęte}}: lista w międzyczasie się zmieniła.",
+    "onlyTicks": "Ilość będzie można zmienić, gdy serwer będzie dostępny. Odhaczyć pozycję można już teraz."
+  },
   "notifications": {
     "label": "Powiadomienia",
     "title": "Powiadomienia",

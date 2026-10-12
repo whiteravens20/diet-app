@@ -48,7 +48,11 @@ export function Providers({
   const [client] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+        // A request is sent whatever the browser says of its network: it is the request that finds
+        // out, and a read that gets no answer is answered from what the browser kept (`lib/offline.ts`).
+        // Held back until the network returns, a read would show a page that waits for ever, and a
+        // change would be sent later without anybody having asked for it then.
+        defaultOptions: { queries: { staleTime: 30_000, retry: 1, networkMode: 'always' }, mutations: { networkMode: 'always' } },
       }),
   );
 

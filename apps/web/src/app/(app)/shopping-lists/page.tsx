@@ -8,6 +8,8 @@ import { useMemo, useState } from 'react';
 import type { DisplayUnit, MealPlanPage, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
+import { ApiClientError } from '@/lib/http';
+import { offline } from '@/lib/offline';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { saveText } from '@/lib/save-file';
@@ -32,6 +34,7 @@ const selectClass = 'h-10 w-full rounded-md border border-input bg-background px
 export default function ShoppingListsPage() {
   const t = useTranslations('shoppingLists');
   const tCommon = useTranslations('common');
+  const tOffline = useTranslations('offline');
   const tDiet = useTranslations('enums.dietType');
   const tCategory = useTranslations('enums.category');
   const errorText = useErrorText();
@@ -94,8 +97,27 @@ export default function ShoppingListsPage() {
       );
       qc.invalidateQueries({ queryKey: ['inventory'] });
     },
-    onError: (e) =>
-      setError(errorText(e, t('errUpdate'))),
+    onError: (e, { listId, itemId, ...patch }) => {
+      if (e instanceof ApiClientError && e.code === 'NETWORK') {
+        // The server cannot be reached. A tick waits for it (`lib/offline.ts`) and the row shows it at once, on
+        // this page and on the one loaded next; what a quantity does to a row is the server's to work out.
+        const tick = Object.keys(patch).length === 1 ? patch.checked : undefined;
+        if (tick === undefined) return setError(tOffline('onlyTicks'));
+        if (offline.wait({ listId, itemId, checked: tick })) {
+          const withTick = (lists: ShoppingList[] | undefined): ShoppingList[] | undefined =>
+            lists?.map((list) =>
+              list.id !== listId ? list : { ...list, groups: list.groups.map((group) => ({ ...group, items: group.items.map((item) => (item.id === itemId ? { ...item, checked: tick } : item)) })) },
+            );
+          const shown = withTick(qc.getQueryData<ShoppingList[]>(['shopping-lists', activePlanId]));
+          if (shown) {
+            qc.setQueryData(['shopping-lists', activePlanId], shown);
+            void offline.remember(`/shopping-lists?planId=${activePlanId}`, shown);
+          }
+          return setError(null);
+        }
+      }
+      setError(errorText(e, t('errUpdate')));
+    },
   });
 
   const remove = useMutation({

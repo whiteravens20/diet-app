@@ -14,6 +14,7 @@
  * as it tells them when the session is signed out of.
  */
 import type { AuthResponse } from '@diet-app/shared';
+import { offline } from './offline';
 import { isAccountPage, signInPath } from './return-path';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -54,6 +55,8 @@ function forgotten(): void {
   accessToken = null;
   sessionId = null;
   unreachable = false;
+  // What the browser kept of the account for when the server cannot be reached goes with the session.
+  void offline.forget();
   // The marker is ours to drop; the refresh cookie is the API's, and is dead with the session.
   if (typeof document !== 'undefined') document.cookie = `${MARKER_COOKIE}=; Max-Age=0; Path=/; SameSite=Strict`;
   changed();
@@ -63,6 +66,8 @@ function adopt(answer: AuthResponse): void {
   accessToken = answer.tokens.accessToken;
   sessionId = answer.sessionId;
   unreachable = false;
+  // Whose answers the browser may keep from now on: this account's, and nobody else's.
+  void offline.belongsTo(answer.user.id);
   channel?.postMessage({ type: 'token', accessToken, sessionId } satisfies Message);
   changed();
 }
@@ -206,6 +211,8 @@ export const session = {
   /** Sign out: the session ends on the server, here and in the other tabs, and the sign-in page is next. */
   async signOut(): Promise<void> {
     await onTheCookie('logout').catch(() => undefined);
+    // Waited for here, where the page is about to be left: a removal that is only started may not be finished.
+    await offline.forget().catch(() => undefined);
     session.end('/login');
   },
 

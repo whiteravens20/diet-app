@@ -4,10 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShoppingList } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
+import { offline } from '@/lib/offline';
 import * as files from '@/lib/save-file';
+import { aCacheStorage } from '@/testing/cache-storage';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import ShoppingListsPage from './page';
@@ -273,5 +276,71 @@ describe('a row of a shopping list', () => {
     await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150, pantryBestBefore: '2026-02-01' }));
 
     expect(screen.getByText('best before Feb 1, 2026')).toBeInTheDocument();
+  });
+});
+
+describe('a row of a shopping list, while the server cannot be reached', () => {
+  const ACCOUNT = '99999999-9999-4999-8999-999999999999';
+  const noAnswer = new ApiClientError(0, 'NETWORK', 'Cannot reach the server.');
+
+  beforeEach(async () => {
+    vi.stubGlobal('caches', aCacheStorage());
+    localStorage.clear();
+    await offline.belongsTo(ACCOUNT);
+  });
+
+  afterEach(async () => {
+    await offline.forget();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  it('keeps a tick for when the server is back, and shows it at once', async () => {
+    await renderPage();
+    vi.spyOn(api, 'patch').mockRejectedValue(noAnswer);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }));
+
+    await vi.waitFor(() => expect(offline.waiting).toEqual([{ listId: aList.id, itemId: 'entry-White rice', checked: true }]));
+    expect(screen.getByRole('checkbox', { name: 'White rice' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Rolled oats' })).not.toBeChecked();
+    expect(screen.queryByText(texts.errUpdate)).toBeNull();
+    // The list as it is shown is what a page loaded next will find.
+    const kept = await offline.recall<ShoppingList[]>(`/shopping-lists?planId=${PLAN}`);
+    expect(kept.found && kept.answer[0]!.groups[0]!.items.find((entry) => entry.name === 'White rice')!.checked).toBe(true);
+  });
+
+  it('takes a tick back the same way', async () => {
+    await renderPage(aListOf([anEntry('White rice', 'grains', { purchasedQuantity: 200, checked: true })], []));
+    vi.spyOn(api, 'patch').mockRejectedValue(noAnswer);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }));
+
+    await vi.waitFor(() => expect(offline.waiting).toEqual([{ listId: aList.id, itemId: 'entry-White rice', checked: false }]));
+    expect(screen.getByRole('checkbox', { name: 'White rice' })).not.toBeChecked();
+  });
+
+  it('says of a quantity that it can be changed when the server is back, and keeps nothing of it', async () => {
+    await renderPage();
+    vi.spyOn(api, 'patch').mockRejectedValue(noAnswer);
+
+    const atHome = screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0]!;
+    await userEvent.type(atHome, '80');
+    await userEvent.tab();
+
+    expect(await screen.findByText(messages.offline.onlyTicks)).toBeInTheDocument();
+    expect(offline.waiting).toEqual([]);
+  });
+
+  it('says that the row could not be changed where the browser keeps nothing', async () => {
+    await offline.forget();
+    await renderPage();
+    vi.spyOn(api, 'patch').mockRejectedValue(noAnswer);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }));
+
+    expect(await screen.findByText(messages.errors.NETWORK)).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'White rice' })).not.toBeChecked();
   });
 });

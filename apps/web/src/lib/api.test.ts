@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { aCacheStorage } from '@/testing/cache-storage';
 import { localDate, waitOf } from './http';
 
 describe('the day it is for the user', () => {
@@ -167,3 +168,88 @@ describe('a request of the web application', () => {
   });
 });
 
+describe('what the web application read last, when the server cannot be reached', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const json = (status: number, body: unknown): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  const ACCOUNT = '22222222-2222-4222-8222-222222222222';
+  const aSession = { user: { id: ACCOUNT }, tokens: { accessToken: 'fresh-token', expiresIn: 900, refreshExpiresIn: 2_592_000 }, sessionId: '11111111-1111-4111-8111-111111111111' };
+  const noAnswer = (): Promise<never> => Promise.reject(new TypeError('Failed to fetch'));
+  /** Let what was started without being waited for (an answer being kept) finish. */
+  const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+  /** A page that was just loaded in a browser that keeps answers, signed in. */
+  async function aPage() {
+    vi.resetModules();
+    document.cookie = 'diet_session=1; Path=/';
+    const { api } = await import('./api');
+    const { session } = await import('./session');
+    const { offline } = await import('./offline');
+    session.leave = vi.fn();
+    return { api, session, offline };
+  }
+
+  beforeEach(async () => {
+    // The pages of the tests before this one are other tabs of the same browser: a sign-out one of them
+    // was told of a moment ago still reaches the others, and takes what the browser kept with it. It is
+    // let through first, and the page of a test here has no channel to the tabs before it.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    vi.stubGlobal('BroadcastChannel', undefined);
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('caches', aCacheStorage());
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it('is what a plan and a list answered, kept for the account that read them', async () => {
+    const { api, offline } = await aPage();
+    fetchMock.mockResolvedValueOnce(json(200, aSession)).mockResolvedValueOnce(json(200, [{ id: 'list' }]));
+
+    expect(await api.get('/shopping-lists?planId=plan')).toEqual([{ id: 'list' }]);
+    await settled();
+
+    expect(offline.account).toBe(ACCOUNT);
+    expect(await offline.recall('/shopping-lists?planId=plan')).toEqual({ found: true, answer: [{ id: 'list' }] });
+  });
+
+  it('is answered from what was kept, on a page that was loaded without a way to the server', async () => {
+    const before = await aPage();
+    fetchMock.mockResolvedValueOnce(json(200, aSession)).mockResolvedValueOnce(json(200, [{ id: 'list' }]));
+    await before.api.get('/shopping-lists?planId=plan');
+    await settled();
+
+    // The page is loaded again: it holds no token, and nothing answers.
+    const { api, session, offline } = await aPage();
+    fetchMock.mockReset().mockImplementation(noAnswer);
+
+    expect(await api.get('/shopping-lists?planId=plan')).toEqual([{ id: 'list' }]);
+    expect(offline.serving).toBe(true);
+    // The session is not ended by silence.
+    expect(session.exists()).toBe(true);
+    await expect(api.get('/shopping-lists?planId=another')).rejects.toMatchObject({ code: 'NETWORK' });
+  });
+
+  it('is not what a change answers with: nothing is changed from memory', async () => {
+    const { api } = await aPage();
+    fetchMock.mockResolvedValueOnce(json(200, aSession)).mockImplementation(noAnswer);
+
+    await expect(api.patch('/shopping-lists/list/items/row', { checked: true })).rejects.toMatchObject({ code: 'NETWORK' });
+  });
+
+  it('goes with the session: an account that signs out leaves nothing', async () => {
+    const { api, session, offline } = await aPage();
+    fetchMock.mockResolvedValueOnce(json(200, aSession)).mockResolvedValueOnce(json(200, [{ id: 'list' }])).mockResolvedValue(json(204, undefined));
+    await api.get('/shopping-lists?planId=plan');
+    await settled();
+    session.load = vi.fn();
+
+    await session.signOut();
+
+    expect(offline.account).toBeNull();
+    expect(await (caches as unknown as { keys(): Promise<string[]> }).keys()).toEqual([]);
+  });
+});
