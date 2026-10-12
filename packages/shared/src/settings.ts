@@ -2,17 +2,18 @@
 
 import * as z from './zod.js';
 import { AuthUser, emailAddress, newPassword } from './auth.js';
+import { LOCALES, PALETTES } from './options.js';
 
 /**
  * Supported UI locales. The single source of truth for "which locales the app
  * speaks" — the API derives the locale list from this enum, the admin
  * translation-status card iterates over it, and adding a new locale starts
- * with extending this enum.
+ * with adding it to `LOCALES` in `options.ts`, which this enum is built on.
  *
  * `en` is the canonical source language. Translations are stored per
  * non-canonical locale in `IngredientTranslation` / `RecipeTranslation`.
  */
-export const Locale = z.enum(['en', 'pl']);
+export const Locale = z.enum(LOCALES);
 export type Locale = z.infer<typeof Locale>;
 
 /** All non-canonical locales — handy for "translate all" loops. */
@@ -27,18 +28,12 @@ export type Theme = z.infer<typeof Theme>;
  * `apps/web/src/app/globals.css`; the active variant is picked by the
  * `.dark` class plus the `data-palette` attribute on `<html>`.
  *
- * Adding a new palette is a 2-step recipe: extend this enum, then drop the
+ * Adding a new palette is a 2-step recipe: add it to `PALETTES` in
+ * `options.ts`, which this enum is built on, then drop the
  * `:root[data-palette="<name>"]` + `.dark[data-palette="<name>"]` blocks in
- * `globals.css`. The settings picker iterates this enum automatically.
+ * `globals.css`. The settings picker iterates the list automatically.
  */
-export const Palette = z.enum([
-  'default',
-  'ocean',
-  'forest',
-  'sunset',
-  'mono',
-  'rose',
-]);
+export const Palette = z.enum(PALETTES);
 export type Palette = z.infer<typeof Palette>;
 
 /**

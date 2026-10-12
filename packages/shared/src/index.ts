@@ -8,6 +8,7 @@
  * Android app mirrors them. Changing a
  * schema is a contract change — bump it deliberately.
  */
+export * from './options.js';
 export * from './enums.js';
 export * from './nutrition.js';
 export * from './config.js';

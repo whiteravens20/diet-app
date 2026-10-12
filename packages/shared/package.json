@@ -16,6 +16,16 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
+    },
+    "./options": {
+      "import": {
+        "types": "./dist/esm/options.d.ts",
+        "default": "./dist/esm/options.js"
+      },
+      "require": {
+        "types": "./dist/options.d.ts",
+        "default": "./dist/options.js"
+      }
     }
   },
   "scripts": {

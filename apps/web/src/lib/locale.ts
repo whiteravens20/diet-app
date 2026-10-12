@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Locale } from '@diet-app/shared';
+import type { Locale } from '@diet-app/shared';
+import { LOCALES } from '@diet-app/shared/options';
 
 /**
  * Locale resolution rules for the web app (kept deliberately simple — no
@@ -14,12 +15,13 @@ import { Locale } from '@diet-app/shared';
  *     takes effect, but avoids the complexity of server-side header parsing.
  *  4. Fallback → `DEFAULT_LOCALE`.
  *
- * The single source of truth for "which locales exist" is the `Locale` enum in
- * `@diet-app/shared`.
+ * The single source of truth for "which locales exist" is the contract
+ * (`@diet-app/shared`). The list is taken from its `options` file alone: every
+ * page runs this, and none of them should load the contract's schemas for it.
  */
 export const LOCALE_COOKIE = 'NEXT_LOCALE';
 export const DEFAULT_LOCALE: Locale = 'en';
-export const SUPPORTED_LOCALES = Locale.options;
+export const SUPPORTED_LOCALES = LOCALES;
 
 /** Type-guard that narrows a runtime string to a supported `Locale`. */
 export function isSupportedLocale(value: string | undefined | null): value is Locale {
