@@ -27,6 +27,7 @@ export * from './ai.js';
 export * from './drafts.js';
 export * from './weight.js';
 export * from './notification.js';
+export * from './policy-report.js';
 
 /** Standard API error envelope returned for any non-2xx response. */
 export { ApiError } from './error.js';

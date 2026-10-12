@@ -20,6 +20,7 @@ import { InstanceSettingsModule } from './instance-settings/instance-settings.mo
 import { InventoryModule } from './inventory/inventory.module.js';
 import { MealPlansModule } from './meal-plans/meal-plans.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { PolicyReportsModule } from './policy-reports/policy-reports.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ClientThrottlerGuard } from './rate-limit/client-throttler.guard.js';
 import { RateLimitModule } from './rate-limit/rate-limit.module.js';
@@ -68,6 +69,7 @@ import { WeightsModule } from './weights/weights.module.js';
     UsersModule,
     WeightsModule,
     NotificationsModule,
+    PolicyReportsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ClientThrottlerGuard }],
 })
