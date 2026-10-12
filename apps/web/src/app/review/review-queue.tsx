@@ -115,12 +115,13 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
   const current = items[safeCursor];
   const advance = (): void => {
     const next = items.filter((_, i) => i !== safeCursor);
-    setItems(next as typeof items);
     setTotal((n) => Math.max(0, n - 1));
     if (next.length === 0) {
-      // Page exhausted — pull a fresh one.
+      // The page is done: the next one is read, and nothing is said to be left over meanwhile.
+      setItems(null);
       void fetchPage();
     } else {
+      setItems(next as typeof items);
       setCursor((c) => Math.min(c, next.length - 1));
     }
   };

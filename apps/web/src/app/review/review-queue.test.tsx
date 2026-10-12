@@ -103,4 +103,41 @@ describe('the reviewer\'s queue', () => {
     await vi.waitFor(() => expect(patch).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(button(text.save)).toBeDisabled());
   });
+
+  it('reads the next page when the last draft of one is decided, and says nothing is left only when nothing is', async () => {
+    vi.spyOn(reviewApi, 'approveRecipe').mockResolvedValue(recipe(FIRST, 'Owsianka'));
+    const list = vi.spyOn(reviewApi, 'listRecipeSlices');
+    let answer: (page: { items: RecipeReviewSlice[]; total: number; page: number; pageSize: number }) => void = () => undefined;
+    list.mockResolvedValueOnce({ items: [recipe(FIRST, 'Owsianka')], total: 2, page: 1, pageSize: 25 });
+    list.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ReviewQueue locale="pl" kind="recipe" />
+      </NextIntlClientProvider>,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: text.approve }));
+
+    // The next page is on its way: the queue is not said to be empty meanwhile.
+    expect(await screen.findByText(text.queueLoading)).toBeInTheDocument();
+    expect(screen.queryByText(text.queueEmpty)).not.toBeInTheDocument();
+    answer({ items: [recipe(SECOND, 'Jajecznica')], total: 1, page: 1, pageSize: 25 });
+    expect(await screen.findByDisplayValue('Jajecznica')).toBeInTheDocument();
+  });
+
+  it('says nothing is left once the last page is done', async () => {
+    vi.spyOn(reviewApi, 'approveRecipe').mockResolvedValue(recipe(FIRST, 'Owsianka'));
+    const list = vi.spyOn(reviewApi, 'listRecipeSlices');
+    list.mockResolvedValueOnce({ items: [recipe(FIRST, 'Owsianka')], total: 1, page: 1, pageSize: 25 });
+    list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 25 });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ReviewQueue locale="pl" kind="recipe" />
+      </NextIntlClientProvider>,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: text.approve }));
+
+    expect(await screen.findByText(text.queueEmpty)).toBeInTheDocument();
+  });
 });
