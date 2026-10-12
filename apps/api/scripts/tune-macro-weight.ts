@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { DietType, MEAL_SLOTS_BY_COUNT } from '@diet-app/shared';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
 import { energyShares, macroSplitOf, splitDistance } from '../src/engine/nutrition.js';
-import { optimisePlan, SCORE_WEIGHTS, uniformDays, type OptimizerRecipe } from '../src/engine/optimizer.js';
+import { optimisePlan, SCORE_WEIGHTS, uniformDays } from '../src/engine/optimizer.js';
+import { plannable } from './catalogue-plans.js';
 
 const WEIGHTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1];
 const SEEDS = 20;
@@ -28,19 +29,7 @@ if (!catalogue) {
   process.exit(1);
 }
 
-const recipes: OptimizerRecipe[] = catalogue.recipes.map((recipe) => ({
-  id: recipe.slug,
-  mealTypes: recipe.seed.mealTypes,
-  dietTags: recipe.dietTags,
-  caloriesPerServing: recipe.nutrition.calories,
-  proteinPerServing: recipe.nutrition.protein,
-  fatPerServing: recipe.nutrition.fat,
-  carbsPerServing: recipe.nutrition.carbs,
-  ingredientIds: recipe.lines.map((line) => line.slug),
-  difficulty: recipe.seed.difficulty,
-  isFavorite: false,
-  totalMinutes: recipe.seed.prepMinutes + recipe.seed.cookMinutes,
-}));
+const { recipes, perishablePacks } = plannable(catalogue);
 const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
 const percent = (share: number) => `${Math.round(share * 100)}`.padStart(3);
 
@@ -62,7 +51,7 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
         let result;
         try {
           result = optimisePlan(
-            { recipes, days: uniformDays(DAYS, MEAL_SLOTS_BY_COUNT[meals]!, TARGET), macroSplit: split, dietType: diet, mealPrepFriendly: false, maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, maxIngredientPerWeek: 3000, seed },
+            { recipes, days: uniformDays(DAYS, MEAL_SLOTS_BY_COUNT[meals]!, TARGET), macroSplit: split, dietType: diet, mealPrepFriendly: false, maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, maxIngredientPerWeek: 3000, perishablePacks, seed },
             { ...SCORE_WEIGHTS, macroFit },
           );
         } catch {
