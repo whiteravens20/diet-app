@@ -4,7 +4,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Ingredient } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ export function IngredientPicker({
   disabled?: boolean;
 }) {
   const t = useTranslations('pickers');
+  const id = useId();
   const [search, setSearch] = useState('');
 
   // Names of saved ids — one query that updates whenever ids change.
@@ -47,10 +48,17 @@ export function IngredientPicker({
   const available = (results.data ?? []).filter((i) => !idSet.has(i.id)).slice(0, 20);
 
   return (
-    <div className="space-y-2">
+    // A page holds several of these, each with the same search field: the heading names the group and its field.
+    <div role="group" aria-labelledby={`${id}-label`} className="space-y-2">
       <div>
-        <p className="text-sm font-medium">{label}</p>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+        <p id={`${id}-label`} className="text-sm font-medium">
+          {label}
+        </p>
+        {hint && (
+          <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+            {hint}
+          </p>
+        )}
       </div>
 
       {(saved.data ?? []).length > 0 ? (
@@ -82,6 +90,8 @@ export function IngredientPicker({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t('ingredientSearch')}
+          aria-labelledby={`${id}-label`}
+          aria-describedby={hint ? `${id}-hint` : undefined}
           disabled={disabled}
         />
         {search.trim().length >= 2 && available.length > 0 && (

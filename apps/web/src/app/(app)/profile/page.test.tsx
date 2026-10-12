@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -183,3 +183,42 @@ describe('the profile page, on the cuisines a profile likes', () => {
   });
 });
 
+
+describe('the profile page, on the foods a profile has an opinion of', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('has a list for each opinion, each named for somebody who does not see its heading, with a search field of its own', async () => {
+    await renderPage([aProfile('Me')], 2);
+
+    for (const label of [messages.profile.favouritesLabel, messages.profile.dislikedLabel, messages.profile.avoidLabel]) {
+      const list = within(screen.getByRole('group', { name: label }));
+      expect(list.getByRole('textbox', { name: label })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('textbox', { name: messages.profile.dislikedLabel })).toHaveAccessibleDescription(messages.profile.dislikedHint);
+  });
+
+  it('keeps a food the profile would rather not eat with the profile, as an ingredient of the catalogue', async () => {
+    const profile = aProfile('Me');
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve((path === '/profiles' ? [profile] : path.startsWith('/ingredients?search=') ? [{ id: '7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d', name: 'Firm tofu' }] : path.endsWith('/calories') ? { dailyTarget: 2209, warnings: [], macros: { protein: 0, fat: 0, carbs: 0 } } : []) as never),
+    );
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue(profile as never);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['config'], aPublicConfig());
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <ProfilePage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    const list = within(await screen.findByRole('group', { name: messages.profile.dislikedLabel }));
+
+    await userEvent.type(list.getByRole('textbox'), 'tofu');
+    await userEvent.click(await list.findByRole('button', { name: 'Firm tofu' }));
+
+    expect(patch).toHaveBeenCalledWith(`/profiles/${profile.id}/preferences`, { dislikedIngredientIds: ['7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d'] });
+  });
+});
