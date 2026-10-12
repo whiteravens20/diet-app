@@ -130,14 +130,28 @@ describe('the headers that are for https alone', () => {
 describe('what the proxy runs for', () => {
   const runsFor = (path: string): boolean => new RegExp(`^${config.matcher[0]}$`).test(path);
 
-  it.each(['/', '/login', '/dashboard', '/recipes/0b1f', '/admin', '/terms', '/no-such-page', '/apiary'])('is the page %s', (path) => {
+  it.each(['/', '/login', '/dashboard', '/recipes/0b1f', '/admin', '/terms', '/offline', '/no-such-page', '/apiary', '/iconography'])('is the page %s', (path) => {
     expect(runsFor(path)).toBe(true);
   });
 
-  it.each(['/api/users/me', '/api/csp-reports', '/_next/static/chunks/0a1b.js', '/_next/image', '/imagery/recipes.webp', '/fonts/Inter-Regular.ttf', '/icon.svg', '/favicon.ico'])(
-    'is not %s, which is no page',
-    (path) => {
-      expect(runsFor(path)).toBe(false);
-    },
-  );
+  it.each([
+    '/api/users/me',
+    '/api/csp-reports',
+    '/_next/static/chunks/0a1b.js',
+    '/_next/image',
+    '/imagery/recipes.webp',
+    '/fonts/Inter-Regular.ttf',
+    '/icon.svg',
+    '/icon-192.png',
+    '/icon-512.png',
+    '/icon-maskable-512.png',
+    '/apple-touch-icon.png',
+    '/favicon.ico',
+  ])('is not %s, which is no page', (path) => {
+    expect(runsFor(path)).toBe(false);
+  });
+
+  it('is the service worker, whose requests are then held to the policy it is answered with', () => {
+    expect(runsFor('/sw.js')).toBe(true);
+  });
 });
