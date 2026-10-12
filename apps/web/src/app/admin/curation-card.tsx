@@ -22,12 +22,12 @@ import {
   Check,
   ClipboardCheck,
   Clock,
+  CloudDownload,
   Download,
-  DownloadCloud,
   ExternalLink,
   GitPullRequest,
-  History,
-  Loader2,
+  LoaderCircle,
+  RotateCcwClock,
   Send,
   ServerCog,
   Sparkles,
@@ -214,7 +214,7 @@ function IngredientPanel() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={onGenerate} disabled={!configured || running} className="gap-2">
-          {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {running ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {running
             ? t('running', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })
             : t('generate')}
@@ -431,7 +431,7 @@ function RecipePanel() {
           {t('fillCoverage')}
         </label>
         <Button onClick={onGenerate} disabled={!configured || running} className="gap-2">
-          {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {running ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {running
             ? t('runningRecipes', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })
             : t('generateRecipes')}
@@ -1572,7 +1572,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
           className="gap-2"
         >
           {busyMode === 'local' ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <ServerCog className="h-3.5 w-3.5" />
           )}
@@ -1588,7 +1588,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
             title={t('shipModeUpstreamHint', { remote: up.remote, branch: up.baseBranch })}
           >
             {busyMode === 'upstream-pr' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <GitPullRequest className="h-3.5 w-3.5" />
             )}
@@ -1603,7 +1603,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
           className="gap-2"
         >
           {busyMode === 'bundle' ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <Download className="h-3.5 w-3.5" />
           )}
@@ -1628,7 +1628,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
               className="gap-2"
             >
               {currentBusy === 'download' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Download className="h-3.5 w-3.5" />
               )}
@@ -1644,7 +1644,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
                 title={t('shipModeUpstreamHint', { remote: up.remote, branch: up.baseBranch })}
               >
                 {currentBusy === 'push' ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <GitPullRequest className="h-3.5 w-3.5" />
                 )}
@@ -1673,9 +1673,9 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
               className="gap-2"
             >
               {currentBusy === 'pull' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <DownloadCloud className="h-3.5 w-3.5" />
+                <CloudDownload className="h-3.5 w-3.5" />
               )}
               {t('shipCurrentPull')}
             </Button>
@@ -1777,7 +1777,7 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('instanceDataHeader')}</span>
         <span className="text-xs">{t('instanceDataState', { recipes: state.recipes, files: state.recipeFiles, names: state.names })}</span>
         <Button size="sm" variant="outline" disabled={disabled || busy || nothingToRestore} onClick={restore} className="gap-2">
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+          {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <RotateCcwClock className="h-3.5 w-3.5" />}
           {t('restoreButton')}
         </Button>
       </div>

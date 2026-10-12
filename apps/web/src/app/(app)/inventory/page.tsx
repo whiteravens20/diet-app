@@ -3,7 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Package, Trash2 } from 'lucide-react';
+import { Package, Trash } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import type { Ingredient, InventoryItem, Profile } from '@diet-app/shared';
@@ -244,7 +244,7 @@ export default function InventoryPage() {
                         aria-label={t('removeLabel', { name: item.ingredient.name })}
                         onClick={() => remove.mutate(item.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </li>
                   ))}

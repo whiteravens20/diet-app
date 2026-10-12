@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 'use client';
 
-import { BookOpen, Code2, Heart, Scale } from 'lucide-react';
+import { BookOpen, CodeXml, Heart, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useConfig } from '@/lib/use-config';
@@ -15,12 +15,12 @@ type FooterLink = {
   key: 'source' | 'docs' | 'terms' | 'support';
   href: string;
   external: boolean;
-  Icon: typeof Code2;
+  Icon: typeof CodeXml;
 };
 
 function getLinks(supportUrl: string): FooterLink[] {
   return [
-    { key: 'source', href: SOURCE_URL, external: true, Icon: Code2 },
+    { key: 'source', href: SOURCE_URL, external: true, Icon: CodeXml },
     { key: 'docs', href: DOCS_URL, external: true, Icon: BookOpen },
     { key: 'terms', href: '/terms', external: false, Icon: Scale },
     { key: 'support', href: supportUrl, external: true, Icon: Heart },

@@ -4,7 +4,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Database, RefreshCw } from 'lucide-react';
+import { CircleCheck, Database, RefreshCw, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -230,7 +230,7 @@ export function AdminPanel() {
       <Card className="border-destructive/40 bg-destructive/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" /> {t('unreachable')}
+            <TriangleAlert className="h-5 w-5" /> {t('unreachable')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -251,7 +251,7 @@ export function AdminPanel() {
       <Card className="border-warning/40 bg-warning/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" /> {t('disabled')}
+            <TriangleAlert className="h-5 w-5" /> {t('disabled')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -341,11 +341,11 @@ export function AdminPanel() {
             <Row label={t('status')}>
               {seed.updateAvailable ? (
                 <span className="inline-flex items-center gap-1 text-warning">
-                  <AlertTriangle className="h-4 w-4" /> {t('updateAvailable')}
+                  <TriangleAlert className="h-4 w-4" /> {t('updateAvailable')}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-success">
-                  <CheckCircle2 className="h-4 w-4" /> {t('upToDate')}
+                  <CircleCheck className="h-4 w-4" /> {t('upToDate')}
                 </span>
               )}
             </Row>

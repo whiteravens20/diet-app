@@ -4,7 +4,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Check, ChevronLeft, ChevronRight, Keyboard, Loader2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Keyboard, LoaderCircle, X } from 'lucide-react';
 import { Allergen, type IngredientNameReviewSlice, type Locale, type RecipeReviewSlice, type ReviewAction } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -94,7 +94,7 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
     return (
       <Card>
         <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <LoaderCircle className="h-4 w-4 animate-spin" />
           {t('queueLoading')}
         </CardContent>
       </Card>

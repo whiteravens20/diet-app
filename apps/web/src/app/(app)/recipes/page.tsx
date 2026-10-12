@@ -3,7 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Send, Trash2 } from 'lucide-react';
+import { Send, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
@@ -428,7 +428,7 @@ export default function RecipesPage() {
                     disabled={deleteRecipe.isPending}
                     className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus:opacity-100"
                   >
-                    <Trash2 size={14} aria-hidden />
+                    <Trash size={14} aria-hidden />
                   </button>
                 )}
               </div>

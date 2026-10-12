@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   CalendarRange,
-  Code2,
+  CodeXml,
   Cpu,
   ListChecks,
   Server,
@@ -29,7 +29,7 @@ const FEATURE_KEYS = [
 const HIGHLIGHT_KEYS = [
   { icon: Server, key: 'selfHosted' },
   { icon: ShieldCheck, key: 'privacy' },
-  { icon: Code2, key: 'openSource' },
+  { icon: CodeXml, key: 'openSource' },
   { icon: Cpu, key: 'aiOptional' },
 ] as const;
 
