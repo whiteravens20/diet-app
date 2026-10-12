@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { MAX_FAVORITES_PER_PROFILE, type Locale } from '@diet-app/shared';
+import { FavoriteSentiment, MAX_FAVORITES_PER_PROFILE, type FavoriteListQuery, type FavoriteSort, type Locale, type MarkedRecipe } from '@diet-app/shared';
 import { holdProfile } from '../common/hold.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { searchMatch, toRecipeDto } from '../recipes/recipes.service.js';
@@ -15,13 +15,15 @@ export class FavoritesService {
     userId: string,
     locale: Locale,
     profileId: string,
-    filters: { search?: string; mealType?: string } = {},
-  ) {
+    filters: Omit<FavoriteListQuery, 'profileId' | 'sort'> & { sort?: FavoriteSort } = {},
+  ): Promise<MarkedRecipe[]> {
     await this.assertProfile(userId, profileId);
     const trWhere = locale === 'en' ? ['en'] : [locale, 'en'];
     const rows = await this.prisma.favorite.findMany({
       where: {
         profileId,
+        ...(filters.sentiment ? { sentiment: filters.sentiment } : {}),
+        ...(filters.tag ? { tags: { has: filters.tag } } : {}),
         // Defence-in-depth: never surface a favorite whose recipe is now
         // soft-deleted, or (for any row created before the `add` guard) is
         // private to another user. `add` already blocks creating such a row.
@@ -48,12 +50,17 @@ export class FavoritesService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map((f) => ({
+    const marked = rows.map((f) => ({
       id: f.id,
       tags: f.tags,
-      sentiment: f.sentiment,
+      sentiment: FavoriteSentiment.parse(f.sentiment),
+      markedAt: f.createdAt.toISOString(),
       recipe: toRecipeDto(f.recipe, locale),
     }));
+    // A profile has at most a few hundred marks: they are put in order here, by the title as the reader sees it.
+    if (filters.sort === 'title') return marked.sort((a, b) => a.recipe.title.localeCompare(b.recipe.title, locale) || a.id.localeCompare(b.id));
+    if (filters.sort === 'calories') return marked.sort((a, b) => a.recipe.nutritionPerServing.calories - b.recipe.nutritionPerServing.calories || a.id.localeCompare(b.id));
+    return marked;
   }
 
   async add(

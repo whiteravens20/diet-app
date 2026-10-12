@@ -322,6 +322,30 @@ describe('a plan for somebody who would rather not eat something', () => {
   });
 });
 
+describe('a plan for somebody who marked recipes', () => {
+  /** Two lunches alike in everything but how they are marked. */
+  const twoLunches = (first: Partial<OptimizerRecipe>, second: Partial<OptimizerRecipe>, seed: number): OptimizerInput => ({
+    ...baseInput,
+    recipes: [recipe('b1', ['breakfast'], 500), { ...recipe('l-first', ['lunch'], 700), ...first }, { ...recipe('l-second', ['lunch'], 700), ...second }, recipe('d1', ['dinner'], 600)],
+    days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2000),
+    seed,
+  });
+  const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
+  const firstChosen = (first: Partial<OptimizerRecipe>, second: Partial<OptimizerRecipe>): number =>
+    SEEDS.filter((seed) => optimisePlan(twoLunches(first, second, seed)).assignments.find((a) => a.slot === 'lunch')!.recipeId === 'l-first').length;
+
+  it('leans towards one that is eaten often more than towards one that is merely a favourite', () => {
+    const favourite = firstChosen({ isFavorite: true }, {});
+    const often = firstChosen({ isFavorite: true, eatenOften: true }, {});
+    const oftenAgainstFavourite = firstChosen({ isFavorite: true, eatenOften: true }, { isFavorite: true });
+
+    expect(often).toBeGreaterThan(favourite);
+    // Against a favourite it still leads, and not every time: a lean, as every mark is.
+    expect(oftenAgainstFavourite).toBeGreaterThan(SEEDS.length / 2);
+    expect(oftenAgainstFavourite).toBeLessThan(SEEDS.length);
+  });
+});
+
 describe('a plan for somebody who prefers a cuisine', () => {
   /** Two lunches alike in everything but where they come from. */
   const twoLunches = (over: Partial<OptimizerInput>): OptimizerInput => ({

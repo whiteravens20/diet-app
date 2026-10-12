@@ -618,6 +618,7 @@ export class PlanGenerationService {
     });
     const avoidedIds = new Set(favorites.filter((f) => f.sentiment === 'avoid').map((f) => f.recipeId));
     const favoriteIds = new Set(favorites.filter((f) => f.sentiment !== 'avoid').map((f) => f.recipeId));
+    const oftenIds = new Set(favorites.filter((f) => f.sentiment === 'often').map((f) => f.recipeId));
 
     const filteredRecipes = recipes
       .filter((r) => !avoidedIds.has(r.id))
@@ -640,6 +641,7 @@ export class PlanGenerationService {
       difficulty: r.difficulty,
       cuisine: r.cuisine,
       isFavorite: favoriteIds.has(r.id),
+      eatenOften: oftenIds.has(r.id),
       totalMinutes: r.prepMinutes + r.cookMinutes,
     }));
 

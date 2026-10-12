@@ -46,6 +46,8 @@ export interface OptimizerRecipe {
   amounts?: ReadonlyMap<string, number>;
   difficulty: 'easy' | 'medium' | 'hard';
   isFavorite: boolean;
+  /** The user marked the recipe as one they eat often: it counts on top of being a favourite. */
+  eatenOften?: boolean;
   /** The cuisine the recipe belongs to, when it belongs to one. */
   cuisine?: string | null;
   /** Total prep + cook minutes — used by the per-day cook-time budget. */
@@ -217,6 +219,8 @@ export const SCORE_WEIGHTS = {
   reuse: 0.25,
   variety: 0.15,
   favorite: 0.1,
+  // On top of `favorite`, for a recipe marked as eaten often: together as much as the pull of the pantry and of a favourite.
+  often: 0.1,
   favoriteIngredient: 0.08,
   // As much as a recipe made of favourite ingredients: a lean, not a rule.
   cuisine: 0.08,
@@ -615,6 +619,7 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   const variety = mine.length === 0 ? 1 : 1 - 1 / (nearest + 1);
 
   const favorite = recipe.isFavorite ? 1 : 0;
+  const often = recipe.eatenOften ? 1 : 0;
 
   const favIngs = ctx.favoriteIngredientIds;
   const favoriteIngredient =
@@ -637,6 +642,7 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
     weights.reuse * reuse +
     weights.variety * variety +
     weights.favorite * favorite +
+    weights.often * often +
     weights.favoriteIngredient * favoriteIngredient +
     weights.cuisine * preferredCuisine +
     weights.inventoryCoverage * inventoryCoverage -

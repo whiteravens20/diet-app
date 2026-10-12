@@ -233,13 +233,34 @@ export const AddFavoriteRequest = z.object({
 });
 export type AddFavoriteRequest = z.infer<typeof AddFavoriteRequest>;
 
-/** The recipes a profile marked, narrowed by words and by meal. */
+/** The order a profile's marked recipes are listed in. */
+export const FavoriteSort = z.enum(['newest', 'title', 'calories']);
+export type FavoriteSort = z.infer<typeof FavoriteSort>;
+
+/**
+ * The recipes a profile marked, narrowed by words, by meal, by how they are
+ * marked and by a tag, in the order asked for: the mark made last first
+ * (`newest`, when nothing is said), by title, or the lightest serving first.
+ */
 export const FavoriteListQuery = z.object({
   profileId: z.string().uuid(),
   search: z.string().trim().max(200).optional(),
   mealType: MealType.optional(),
+  sentiment: FavoriteSentiment.optional(),
+  tag: z.string().trim().min(1).max(40).optional(),
+  sort: FavoriteSort.default('newest'),
 });
 export type FavoriteListQuery = z.infer<typeof FavoriteListQuery>;
+
+/** A recipe a profile marked: how, under which tags of the profile's own, and when. */
+export const MarkedRecipe = z.object({
+  id: z.string().uuid(),
+  tags: z.array(z.string()),
+  sentiment: FavoriteSentiment,
+  markedAt: z.string().datetime(),
+  recipe: Recipe,
+});
+export type MarkedRecipe = z.infer<typeof MarkedRecipe>;
 
 /** Paginated recipe list — returned by `GET /recipes`. */
 export const RecipeSearchPage = z.object({

@@ -24,7 +24,7 @@ function makePrisma(owner: string | null = 'user-1') {
     },
     favorite: {
       findMany: vi.fn().mockResolvedValue([
-        { id: 'f1', tags: ['quick'], sentiment: 'favorite', recipe: { id: 'r1' } },
+        { id: 'f1', tags: ['quick'], sentiment: 'favorite', createdAt: new Date('2026-01-05T10:00:00.000Z'), recipe: { id: 'r1' } },
       ]),
       // Default: the recipe is not marked yet, and the profile has room for it.
       findUnique: vi.fn().mockResolvedValue(null),
@@ -88,10 +88,16 @@ describe('FavoritesService happy paths', () => {
     prisma = makePrisma('user-1');
   });
 
-  it('lists favorites mapped to {id,tags,sentiment,recipe}', async () => {
+  it('lists favorites mapped to {id,tags,sentiment,markedAt,recipe}', async () => {
     const rows = await makeService(prisma).list('user-1', 'en', 'p1');
-    expect(rows[0]).toMatchObject({ id: 'f1', tags: ['quick'], sentiment: 'favorite' });
+    expect(rows[0]).toMatchObject({ id: 'f1', tags: ['quick'], sentiment: 'favorite', markedAt: '2026-01-05T10:00:00.000Z' });
     expect(rows[0].recipe).toMatchObject({ id: 'r1' });
+  });
+
+  it('passes how a recipe is marked and a tag into the query', async () => {
+    await makeService(prisma).list('user-1', 'en', 'p1', { sentiment: 'often', tag: 'quick' });
+    const arg = prisma.favorite.findMany.mock.calls[0][0];
+    expect(arg.where).toMatchObject({ profileId: 'p1', sentiment: 'often', tags: { has: 'quick' } });
   });
 
   it('passes search + mealType filters into the query', async () => {
