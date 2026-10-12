@@ -259,6 +259,32 @@ describe('the curation queue', () => {
       expect((await recipeRow(draft.id)).slug).toBe('oat-bowl-with-banana');
     });
 
+    it('of the cuisine alone leaves the reviews standing too, and can take the cuisine away again', async () => {
+      const draft = await aRecipeDraft(t);
+      await admin.review('recipes', draft.id, 'approve', 'en').expect(201);
+      await asReviewer.review('recipes', draft.id, 'approve').expect(201);
+
+      const tagged = await admin.edit(draft.id, { cuisine: 'asian' }).expect(200);
+
+      expect(tagged.body).toMatchObject({ cuisine: 'asian', status: 'APPROVED' });
+      expect(tagged.body.localeReviews).toHaveLength(2);
+      expect((await recipeRow(draft.id)).cuisine).toBe('asian');
+
+      const cleared = await admin.edit(draft.id, { cuisine: null }).expect(200);
+      expect(cleared.body).toMatchObject({ cuisine: null, status: 'APPROVED' });
+    });
+
+    it('keeps the cuisine through an edit of the text, and refuses one the application does not know', async () => {
+      const draft = await aRecipeDraft(t, { cuisine: 'polish' });
+
+      const edited = await admin.edit(draft.id, { titles: { en: 'Oat bowl with banana' } }).expect(200);
+      const refused = await admin.edit(draft.id, { cuisine: 'martian' }).expect(400);
+
+      expect(edited.body).toMatchObject({ cuisine: 'polish', status: 'PENDING' });
+      expect(refused.body.error).toBe('VALIDATION_FAILED');
+      expect((await recipeRow(draft.id)).cuisine).toBe('polish');
+    });
+
     it('of the slug works for a recipe users made, and with other changes sends the draft back to review', async () => {
       const fromUsers = await aRecipeDraft(t, { source: 'AI_USER', status: 'APPROVED' });
       const generated = await aRecipeDraft(t, { status: 'APPROVED' });

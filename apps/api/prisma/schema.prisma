@@ -912,6 +912,8 @@ model RecipeDraft {
   prepMinutes        Int
   cookMinutes        Int
   difficulty         Difficulty  @default(easy)
+  // The cuisine the recipe will be tagged with when it ships, if any.
+  cuisine            String?
   // 'simple' | 'medium' | 'complex': the band the count of ingredients and
   // steps and the total time put the recipe in.
   complexity         String      @default("medium")

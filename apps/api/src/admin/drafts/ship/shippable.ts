@@ -8,6 +8,7 @@
  * draft that was stored before a rule existed, or was changed behind the
  * queue's back, stays where it is and the reason is reported.
  */
+import { Cuisine } from '@diet-app/shared';
 import { checkIngredientName, checkRecipe, type CheckedRecipe, type RecipeProblem } from '../../../recipes/recipe-rules.js';
 import type { IngredientOverrideEntry } from './ingredient-overrides.writer.js';
 import type { ShippedRecipe } from './recipe-batches.writer.js';
@@ -24,6 +25,7 @@ export interface RecipeDraftContent {
   prepMinutes: number;
   cookMinutes: number;
   difficulty: string;
+  cuisine?: string | null;
   ingredientsJson: unknown;
 }
 
@@ -47,7 +49,8 @@ export class NothingShips extends Error {
 const reasonOf = (problems: RecipeProblem[]): string => `invalid-draft: ${problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`;
 
 /** A checked recipe in the shape of the catalogue's data files. */
-function inDataShape(recipe: CheckedRecipe): ShippedRecipe {
+function inDataShape(recipe: CheckedRecipe, tagged: unknown): ShippedRecipe {
+  const cuisine = Cuisine.safeParse(tagged).data;
   return {
     slug: recipe.slug!,
     title: recipe.titles,
@@ -57,6 +60,8 @@ function inDataShape(recipe: CheckedRecipe): ShippedRecipe {
     prepMinutes: recipe.prepMinutes,
     cookMinutes: recipe.cookMinutes,
     difficulty: recipe.difficulty,
+    // Left out for a recipe of no cuisine in particular, as the curated file leaves it out.
+    ...(cuisine ? { cuisine } : {}),
     ingredients: recipe.ingredients,
     steps: recipe.steps,
   };
@@ -80,7 +85,7 @@ export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRec
     draft.locales,
   );
   if (!checked.ok) return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
-  return { ok: true, content: inDataShape(checked.recipe) };
+  return { ok: true, content: inDataShape(checked.recipe, draft.cuisine) };
 }
 
 /**
@@ -98,7 +103,7 @@ export function recipeOfBatchRow(row: unknown): Shippable<ShippedRecipe> {
     const problems: RecipeProblem[] = [{ path: 'slug', rule: 'missing-field', message: 'slug is missing' }];
     return { ok: false, reason: reasonOf(problems), problems };
   }
-  return { ok: true, content: inDataShape(checked.recipe) };
+  return { ok: true, content: inDataShape(checked.recipe, fields.cuisine) };
 }
 
 /** The names a draft ships, for its own languages and no other, or why it does not ship. */

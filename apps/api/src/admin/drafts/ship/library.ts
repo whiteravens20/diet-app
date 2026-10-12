@@ -185,6 +185,7 @@ export async function writeToLibrary(tx: Db, recipe: LibraryRecipe, own?: string
     prepMinutes: content.prepMinutes,
     cookMinutes: content.cookMinutes,
     difficulty: content.difficulty,
+    cuisine: content.cuisine ?? null,
     allergens: facts.allergens,
     origin: 'curated' as const,
     createdByUserId: null,

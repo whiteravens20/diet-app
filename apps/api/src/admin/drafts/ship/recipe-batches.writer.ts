@@ -23,7 +23,7 @@ import {
   LocaleStringsMap,
   RecipeDraftIngredientLine,
 } from '@diet-app/shared';
-import { Unit as UnitSchema, MealType as MealTypeSchema } from '@diet-app/shared';
+import { Cuisine, Unit as UnitSchema, MealType as MealTypeSchema } from '@diet-app/shared';
 
 /** One recipe row as written to `data/recipes/<batchId>.json`. Matches the
  *  shape `data/recipes.json` already uses so the seeder can load both
@@ -38,6 +38,7 @@ export const ShippedRecipe = z.object({
   prepMinutes: z.number().int().nonnegative(),
   cookMinutes: z.number().int().nonnegative(),
   difficulty: Difficulty,
+  cuisine: Cuisine.optional(),
   ingredients: z.array(RecipeDraftIngredientLine).min(1),
   steps: LocaleStringsMap,
 });

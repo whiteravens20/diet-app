@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { shippableIngredientName, shippableRecipe, sortForShipping, type RecipeDraftContent } from './shippable.js';
+import { recipeOfBatchRow, shippableIngredientName, shippableRecipe, sortForShipping, type RecipeDraftContent } from './shippable.js';
 
 const draft = (over: Partial<RecipeDraftContent> = {}): RecipeDraftContent => ({
   slug: 'oat-bowl',
@@ -41,6 +41,26 @@ describe('a recipe draft that is about to ship', () => {
         steps: { en: ['Warm the drink.', 'Stir.'], pl: ['Podgrzej napój.', 'Wymieszaj.'] },
       },
     });
+  });
+
+  it('ships with the cuisine it was tagged with, and without the field when it was tagged with none or with one nobody knows', () => {
+    const shipped = (cuisine: string | null | undefined) => {
+      const result = shippableRecipe(draft({ cuisine }));
+      return result.ok ? result.content : null;
+    };
+
+    expect(shipped('asian')).toMatchObject({ slug: 'oat-bowl', cuisine: 'asian' });
+    for (const none of [null, undefined, 'martian']) expect(shipped(none)).not.toHaveProperty('cuisine');
+  });
+
+  it('keeps its cuisine when the row it shipped as is read back from a batch file', () => {
+    const first = shippableRecipe(draft({ cuisine: 'italian' }));
+    const row = first.ok ? first.content : null;
+
+    expect(recipeOfBatchRow(row)).toEqual(first);
+    // A file anybody may have edited: a cuisine nobody knows is not carried on.
+    const edited = recipeOfBatchRow({ ...row, cuisine: 'martian' });
+    expect(edited.ok && 'cuisine' in edited.content).toBe(false);
   });
 
   it('ships the languages it was reviewed in and no other', () => {

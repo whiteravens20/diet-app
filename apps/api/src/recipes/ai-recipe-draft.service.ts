@@ -271,6 +271,8 @@ export class AiRecipeDraftService {
         prepMinutes: payload.prepMinutes,
         cookMinutes: payload.cookMinutes,
         difficulty: payload.difficulty,
+        // The cuisine it was asked for: the model was pointed at it, and the recipe says so.
+        cuisine: req.cuisine ?? null,
         ingredients: resolved,
         facts,
       },

@@ -280,15 +280,17 @@ export class DraftService {
         throw new ForbiddenException({ error: 'DRAFT_STRUCTURAL_EDIT_FORBIDDEN', message: 'User-drafted recipes: translation edits only.' });
       }
 
-      const { slug: renamed, ...changes } = patch;
+      const { slug: renamed, cuisine: tagged, ...changes } = patch;
       let slug = draft.slug;
       if (renamed !== undefined) {
         const checked = checkRecipeSlug(renamed);
         if (!checked.ok) throw invalid(checked.problems);
         slug = checked.slug;
       }
-      if (renamed !== undefined && Object.values(changes).every((value) => value === undefined)) {
-        return options.dryRun ? { ...draft, slug } : tx.recipeDraft.update({ where: { id }, data: { slug }, include: WITH_REVIEWS });
+      // The name the recipe ships under and the cuisine it is tagged with are no part of what the reviewers approved.
+      const cuisine = tagged === undefined ? draft.cuisine : tagged;
+      if ((renamed !== undefined || tagged !== undefined) && Object.values(changes).every((value) => value === undefined)) {
+        return options.dryRun ? { ...draft, slug, cuisine } : tx.recipeDraft.update({ where: { id }, data: { slug, cuisine }, include: WITH_REVIEWS });
       }
 
       const text = {
@@ -302,7 +304,7 @@ export class DraftService {
         // rows, with the figures the engine gave them.
         const checked = checkRecipeText(text, draft.locales);
         if (!checked.ok) throw invalid(checked.problems);
-        data = { ...checked.text, slug, ...(await this.factsOf(tx, draft.ingredientsJson as RecipeLine[], draft.servings)) };
+        data = { ...checked.text, slug, cuisine, ...(await this.factsOf(tx, draft.ingredientsJson as RecipeLine[], draft.servings)) };
       } else {
         const checked = checkRecipe(
           {
@@ -320,6 +322,7 @@ export class DraftService {
         const recipe = checked.recipe;
         data = {
           slug,
+          cuisine,
           titles: recipe.titles,
           descriptions: recipe.descriptions,
           steps: recipe.steps,

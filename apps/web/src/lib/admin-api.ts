@@ -6,7 +6,7 @@
  * session is a cookie the API set, which no script reads: the page holds no
  * credentials, and nothing here keeps a password.
  */
-import type { AdminSessionState, DietType, DraftRunNote, MealType, SecondFactorSetup } from '@diet-app/shared';
+import type { AdminSessionState, Cuisine, DietType, DraftRunNote, MealType, SecondFactorSetup } from '@diet-app/shared';
 import { apiClient } from './http';
 
 // A version before this one kept the administrator's user and password in
@@ -218,6 +218,8 @@ export interface RecipeDraft {
   prepMinutes: number;
   cookMinutes: number;
   difficulty: 'easy' | 'medium' | 'hard';
+  /** The cuisine the recipe ships with, if any. */
+  cuisine: Cuisine | null;
   complexity: RecipeComplexity;
   caloriesPerServing: number;
   proteinPerServing: number;
@@ -267,6 +269,8 @@ export interface RecipeDraftPatch {
   prepMinutes?: number;
   cookMinutes?: number;
   difficulty?: 'easy' | 'medium' | 'hard';
+  /** Null takes the cuisine away. A change of it alone leaves the reviews standing. */
+  cuisine?: Cuisine | null;
   ingredients?: RecipeDraftIngredientLine[];
 }
 

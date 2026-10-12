@@ -113,6 +113,17 @@ describe('drafting a recipe with a model', () => {
     expect([...recipe.allergens].sort()).toEqual([...new Set(rows.flatMap((row) => row.allergens))].sort());
   });
 
+  it('tags the recipe with the cuisine it was asked for, and with none when none was asked for', async () => {
+    t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
+
+    const asked = await ask({ cuisine: 'italian' });
+    await t.prisma.recipe.deleteMany({ where: { createdByUserId: user.id } });
+    const plain = await ask();
+
+    expect(asked.recipe.cuisine).toBe('italian');
+    expect(plain.recipe.cuisine).toBeNull();
+  });
+
   it('stores the text as a model\'s, in every language it was written in', async () => {
     t.model.reply({
       text: (request) => {

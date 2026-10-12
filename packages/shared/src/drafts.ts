@@ -14,7 +14,7 @@
  */
 import * as z from './zod.js';
 import { Locale } from './settings.js';
-import { Complexity, Difficulty, Unit, MealType, DietType } from './enums.js';
+import { Complexity, Cuisine, Difficulty, Unit, MealType, DietType } from './enums.js';
 export { Complexity };
 
 export const DraftStatus = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'SHIPPED']);
@@ -301,6 +301,8 @@ export const RecipeDraft = z.object({
   prepMinutes: z.number().int().min(0),
   cookMinutes: z.number().int().min(0),
   difficulty: Difficulty,
+  /** The cuisine the recipe ships with, if any. */
+  cuisine: Cuisine.nullable(),
   complexity: Complexity,
   caloriesPerServing: z.number().nonnegative(),
   proteinPerServing: z.number().nonnegative(),
@@ -365,6 +367,10 @@ export const RecipeGenerateSpec = z.object({
   fillCoverage: z.boolean().optional(),
   dietTags: z.array(DietType).max(DietType.options.length).optional(),
   mealTypes: z.array(MealType).max(MealType.options.length).optional(),
+  /**
+   * The direction the model is given, in words. When it names a cuisine the
+   * application knows (`Cuisine`), the drafts of the run are tagged with it.
+   */
   cuisine: z.string().min(1).max(80).optional(),
   kcalRange: z
     .object({
@@ -404,6 +410,8 @@ export const RecipeDraftPatch = z.object({
   prepMinutes: z.number().int().min(0).max(100_000).optional(),
   cookMinutes: z.number().int().min(0).max(100_000).optional(),
   difficulty: Difficulty.optional(),
+  /** The cuisine to tag the recipe with, or null for none. It is no part of the text: a change of it alone leaves the reviews standing. */
+  cuisine: Cuisine.nullable().optional(),
   ingredients: z.array(RecipeDraftIngredientLine).min(1).max(200).optional(),
 });
 export type RecipeDraftPatch = z.infer<typeof RecipeDraftPatch>;

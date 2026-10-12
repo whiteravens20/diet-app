@@ -51,6 +51,8 @@ export interface PersonalRecipe {
   prepMinutes: number;
   cookMinutes: number;
   difficulty: Difficulty;
+  /** The cuisine the recipe was asked for, or the one of the recipe it was made from. */
+  cuisine?: string | null;
   reuseScore?: number;
   ingredients: { ingredientId: string; quantity: number; unit: Unit; note: string | null }[];
   /** Worked out by the engine from the ingredients above. */
@@ -264,6 +266,7 @@ export class PersonalRecipesService {
         prepMinutes: recipe.prepMinutes,
         cookMinutes: recipe.cookMinutes,
         difficulty: recipe.difficulty,
+        cuisine: recipe.cuisine ?? null,
         allergens: recipe.facts.allergens,
         origin: recipe.origin,
         modelAssisted: recipe.modelAssisted ?? false,
@@ -330,6 +333,7 @@ export class PersonalRecipesService {
         prepMinutes: recipe.prepMinutes,
         cookMinutes: recipe.cookMinutes,
         difficulty: recipe.difficulty,
+        cuisine: recipe.cuisine,
         complexity: 'medium',
         caloriesPerServing: recipe.caloriesPerServing,
         proteinPerServing: recipe.proteinPerServing,

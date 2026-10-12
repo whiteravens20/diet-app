@@ -19,6 +19,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import {
+  Cuisine,
   DietType,
   MealType,
   NON_CANONICAL_LOCALES,
@@ -572,6 +573,8 @@ export class RecipeGeneratorRunner {
             prepMinutes: c.prepMinutes,
             cookMinutes: c.cookMinutes,
             difficulty: c.difficulty,
+            // A run that was pointed at a cuisine the application knows tags what it writes with it.
+            cuisine: cuisineNamed(spec.cuisine),
             complexity: c.complexity,
             caloriesPerServing: c.caloriesPerServing,
             proteinPerServing: c.proteinPerServing,
@@ -697,6 +700,16 @@ export class RecipeGeneratorRunner {
       lastRejectHead: null,
     };
   }
+}
+
+/**
+ * The cuisine a run's direction names, when it names one the application
+ * knows: "Middle Eastern" and "middle-eastern" are `middle_eastern`. A
+ * direction in other words ("something light for summer") names none.
+ */
+export function cuisineNamed(direction: string | undefined): Cuisine | null {
+  if (!direction) return null;
+  return Cuisine.safeParse(direction.trim().toLowerCase().replace(/[\s-]+/g, '_')).data ?? null;
 }
 
 function describe(err: unknown): string {

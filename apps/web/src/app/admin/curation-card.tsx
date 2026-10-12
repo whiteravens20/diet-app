@@ -33,6 +33,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { Cuisine } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -791,6 +792,7 @@ function RecipeDraftRow({
   onChanged: () => void;
 }) {
   const t = useTranslations('admin.curation');
+  const tCuisine = useTranslations('enums.cuisine');
   const errorText = useDraftErrorText();
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -927,6 +929,11 @@ function RecipeDraftRow({
     const slug = window.prompt(t('slugPrompt'), draft.slug)?.trim();
     if (!slug || slug === draft.slug) return;
     void handle(() => adminApi.patchRecipeDraft(draft.id, { slug }, false));
+  };
+
+  // The cuisine alone: like the slug it is no part of what the reviewers approved.
+  const onChangeCuisine = (cuisine: Cuisine | null) => {
+    void handle(() => adminApi.patchRecipeDraft(draft.id, { cuisine }, false));
   };
 
   // AI_USER drafts mirror personal Recipe rows owned by the user. Editing
@@ -1075,6 +1082,21 @@ function RecipeDraftRow({
                 >
                   {t('changeSlug')}
                 </Button>
+                {/* The cuisine the recipe ships with: profiles that like it get the recipe a little more often. */}
+                <select
+                  aria-label={t('cuisine')}
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  value={draft.cuisine ?? ''}
+                  disabled={working || draft.status === 'SHIPPED'}
+                  onChange={(e) => onChangeCuisine(e.target.value ? (e.target.value as Cuisine) : null)}
+                >
+                  <option value="">{t('cuisineNone')}</option>
+                  {Cuisine.options.map((cuisine) => (
+                    <option key={cuisine} value={cuisine}>
+                      {t('cuisineOf', { cuisine: tCuisine(cuisine) })}
+                    </option>
+                  ))}
+                </select>
                 <Button
                   size="sm"
                   variant="ghost"
