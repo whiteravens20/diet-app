@@ -1,12 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ShoppingList } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import * as files from '@/lib/save-file';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import ShoppingListsPage from './page';
@@ -14,7 +15,9 @@ import ShoppingListsPage from './page';
 const texts = messages.shoppingLists;
 const PLAN = '11111111-1111-4111-8111-111111111111';
 
-const anEntry = (name: string, category: string) => ({
+type Entry = ShoppingList['groups'][number]['items'][number];
+
+const anEntry = (name: string, category: Entry['category'], over: Partial<Entry> = {}): Entry => ({
   id: `entry-${name}`,
   ingredientId: `ingredient-${name}`,
   name,
@@ -26,24 +29,28 @@ const anEntry = (name: string, category: string) => ({
   toBuyQuantity: 200,
   purchasedQuantity: null,
   pantryBestBefore: null,
+  estimatedCalories: 400,
   checked: false,
+  ...over,
 });
 
-const aList = {
+const aListOf = (grains: Entry[], vegetables: Entry[]): ShoppingList => ({
   id: '22222222-2222-4222-8222-222222222222',
   planId: PLAN,
   fromDate: '2026-01-05',
   toDate: '2026-01-07',
   groups: [
-    { category: 'grains', items: [anEntry('White rice', 'grains'), anEntry('Rolled oats', 'grains')] },
-    { category: 'vegetables', items: [anEntry('Broccoli', 'vegetables')] },
+    { category: 'grains', items: grains, estimatedCalories: grains.reduce((sum, entry) => sum + entry.estimatedCalories, 0) },
+    { category: 'vegetables', items: vegetables, estimatedCalories: vegetables.reduce((sum, entry) => sum + entry.estimatedCalories, 0) },
   ],
-  totalEstimatedCalories: 1200,
+  totalEstimatedCalories: [...grains, ...vegetables].reduce((sum, entry) => sum + entry.estimatedCalories, 0),
   stale: false,
   createdAt: '2026-01-01T00:00:00.000Z',
-} as unknown as ShoppingList;
+});
 
-async function renderPage() {
+const aList = aListOf([anEntry('White rice', 'grains'), anEntry('Rolled oats', 'grains')], [anEntry('Broccoli', 'vegetables')]);
+
+async function renderPage(list: ShoppingList = aList) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
       (path === '/profiles'
@@ -51,7 +58,7 @@ async function renderPage() {
         : path.startsWith('/meal-plans?')
           ? { items: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }], page: 1, pageSize: 50, total: 1, totalPages: 1 }
           : path.startsWith('/shopping-lists?')
-            ? [aList]
+            ? [list]
             : []) as never,
     ),
   );
@@ -101,5 +108,170 @@ describe('a shopping list, looked through for an entry', () => {
 
     expect(screen.queryAllByRole('checkbox')).toEqual([]);
     expect(screen.getByText('No entry of this list has “salmon” in its name.')).toBeInTheDocument();
+  });
+});
+
+describe('a shopping list, by its aisles', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says what each aisle comes to in kilocalories, as the API worked it out', async () => {
+    await renderPage();
+
+    expect(screen.getByText('about 800 kcal')).toBeInTheDocument();
+    expect(screen.getByText('about 400 kcal')).toBeInTheDocument();
+  });
+});
+
+describe('a shopping list, taken somewhere else', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** A list of which the oats are done with, and of the rice 50 g are at home. */
+  const underWay = aListOf(
+    [anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150 }), anEntry('Rolled oats', 'grains', { purchasedQuantity: 200, checked: true })],
+    [anEntry('Broccoli', 'vegetables', { name: '=Broccoli' })],
+  );
+
+  /** The lines of the text that was put on the clipboard. A language may write a range of days with spaces narrower than the one of a keyboard. */
+  const copiedBy = (writeText: ReturnType<typeof vi.fn>): string[] => String(writeText.mock.calls[0]![0]).replace(/[\u2009\u202f\u00a0]/g, ' ').split('\n');
+
+  it('is copied as a text of what is still to buy, under its aisles, and says so', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await renderPage(underWay);
+
+    await userEvent.click(screen.getByRole('button', { name: texts.copy }));
+
+    expect(copiedBy(writeText)).toEqual(['Shopping list, Jan 5 – 7, 2026', '', 'Grains', '- White rice: 150 g', '', 'Vegetables', '- =Broccoli: 200 g']);
+    expect(await screen.findByText('Copied: 2 entries still to buy, under their aisles.')).toBeInTheDocument();
+  });
+
+  it('is shown to be copied by hand where the browser gives the page no clipboard', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
+    await renderPage(underWay);
+
+    await userEvent.click(screen.getByRole('button', { name: texts.copy }));
+
+    const byHand = within(await screen.findByRole('dialog', { name: texts.copyByHand }));
+    expect(byHand.getByText(texts.copyByHandHint)).toBeInTheDocument();
+    expect((byHand.getByRole('textbox', { name: texts.copyByHand }) as HTMLTextAreaElement).value).toContain('- White rice: 150 g');
+  });
+
+  it('says that nothing is left to buy of a list that is all ticked', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await renderPage(aListOf([anEntry('White rice', 'grains', { purchasedQuantity: 200, checked: true })], []));
+
+    await userEvent.click(screen.getByRole('button', { name: texts.copy }));
+
+    expect(copiedBy(writeText)).toEqual(['Shopping list, Jan 5 – 7, 2026', '', texts.copyNothing]);
+    expect(await screen.findByText(texts.copiedNothing)).toBeInTheDocument();
+  });
+
+  it('is saved as a table of every row, with its numbers as numbers and no name that a spreadsheet would work out', async () => {
+    const saved = vi.spyOn(files, 'saveText').mockImplementation(() => undefined);
+    await renderPage(underWay);
+
+    await userEvent.click(screen.getByRole('button', { name: texts.csv }));
+
+    const [file, name, type] = saved.mock.calls[0]!;
+    expect(name).toBe('shopping-list-2026-01-05_2026-01-07.csv');
+    expect(type).toBe('text/csv');
+    expect(file.slice(1).split('\r\n')).toEqual([
+      'Aisle,Entry,Needed,Unit,At home,Have in all,Still to buy,Ticked,kcal (estimate)',
+      'Grains,White rice,200,g,50,50,150,No,400',
+      'Grains,Rolled oats,200,g,0,200,0,Yes,400',
+      "Vegetables,'=Broccoli,200,g,0,0,200,No,400",
+      '',
+    ]);
+  });
+});
+
+describe('a row of a shopping list', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const atHome = () => screen.getByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) });
+  const bought = () => screen.getByRole('spinbutton', { name: new RegExp(`^${texts.bought}`) });
+  /** The page with a list of one row, and what the row sends. */
+  async function aRow(entry: Entry) {
+    await renderPage(aListOf([entry], []));
+    return vi.spyOn(api, 'patch').mockResolvedValue(aListOf([entry], []) as never);
+  }
+
+  it('shows what is at home and what was bought as two numbers, and what is left to buy of the need', async () => {
+    await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 120, toBuyQuantity: 150 }));
+
+    expect(atHome()).toHaveValue(50);
+    expect(bought()).toHaveValue(70);
+    expect(screen.getByText('80 g')).toBeInTheDocument();
+    expect(screen.getByText('(of 200 g)')).toBeInTheDocument();
+  });
+
+  it('leaves both fields empty on a row nobody has anything for', async () => {
+    await aRow(anEntry('White rice', 'grains'));
+
+    expect(atHome()).toHaveValue(null);
+    expect(bought()).toHaveValue(null);
+    expect(screen.queryByText('(of 200 g)')).toBeNull();
+  });
+
+  it('sends what the user says is at home when the field is left, and follows it while it is typed', async () => {
+    const patch = await aRow(anEntry('White rice', 'grains'));
+
+    await userEvent.type(atHome(), '80');
+    expect(screen.getByText('120 g')).toBeInTheDocument();
+    await userEvent.tab();
+
+    expect(patch).toHaveBeenCalledWith(expect.stringMatching(/\/items\/entry-White rice$/), { alreadyHaveQuantity: 80 });
+  });
+
+  it('sends nothing at home for a field that is emptied', async () => {
+    const patch = await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150 }));
+
+    await userEvent.clear(atHome());
+    await userEvent.tab();
+
+    expect(patch).toHaveBeenCalledWith(expect.any(String), { alreadyHaveQuantity: 0 });
+  });
+
+  it('sends what was bought as everything the user has for the row: the part at home with it', async () => {
+    const patch = await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150 }));
+
+    await userEvent.type(bought(), '100');
+    await userEvent.tab();
+
+    expect(patch).toHaveBeenCalledWith(expect.any(String), { purchasedQuantity: 150 });
+  });
+
+  it('sends nothing when a field is left as it was', async () => {
+    const patch = await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 120, toBuyQuantity: 150 }));
+
+    await userEvent.click(atHome());
+    await userEvent.tab();
+    await userEvent.tab();
+
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it('sends what was typed along with a tick, in one request', async () => {
+    const patch = await aRow(anEntry('White rice', 'grains'));
+
+    await userEvent.type(atHome(), '80');
+    // The box is clicked while the field still has the focus: the field is left by the same click.
+    await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }));
+
+    expect(patch.mock.calls.map(([, body]) => body)).toContainEqual({ checked: true, alreadyHaveQuantity: 80 });
+  });
+
+  it('says until when what the pantry held for the row is good', async () => {
+    await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150, pantryBestBefore: '2026-02-01' }));
+
+    expect(screen.getByText('best before Feb 1, 2026')).toBeInTheDocument();
   });
 });

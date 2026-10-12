@@ -16,6 +16,7 @@ import {
   pdf,
 } from '@react-pdf/renderer';
 import type { DisplayUnit, ShoppingList } from '@diet-app/shared';
+import { saveFile } from '@/lib/save-file';
 
 /*
  * Self-hosted PDF generator for the shopping list. The default @react-pdf
@@ -402,15 +403,7 @@ function buildFoldable(opts: BuildOpts) {
 export async function downloadShoppingListPdf(opts: BuildOpts & { filename: string }) {
   const { filename, ...rest } = opts;
   const doc = buildShoppingListPdf(rest);
-  const blob = await pdf(doc).toBlob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  saveFile(await pdf(doc).toBlob(), filename);
 }
 
 /**

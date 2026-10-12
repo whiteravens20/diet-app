@@ -3,12 +3,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import type { DisplayUnit, MealPlanPage, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { copyText } from '@/lib/clipboard';
+import { CSV_DIALECTS, csvOf } from '@/lib/csv';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
+import { saveText } from '@/lib/save-file';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
@@ -78,16 +82,8 @@ export default function ShoppingListsPage() {
   });
 
   const updateItem = useMutation({
-    mutationFn: (v: {
-      listId: string;
-      itemId: string;
-      purchasedQuantity?: number | null;
-      checked?: boolean;
-    }) =>
-      api.patch<ShoppingList>(`/shopping-lists/${v.listId}/items/${v.itemId}`, {
-        ...(v.purchasedQuantity !== undefined ? { purchasedQuantity: v.purchasedQuantity } : {}),
-        ...(v.checked !== undefined ? { checked: v.checked } : {}),
-      }),
+    // What a row sends is what changed of it, and nothing else.
+    mutationFn: ({ listId, itemId, ...patch }: { listId: string; itemId: string } & RowPatch) => api.patch<ShoppingList>(`/shopping-lists/${listId}/items/${itemId}`, patch),
     // Update the cache synchronously from the response so the row reflects the
     // server-derived state (auto-check, recomputed totals) without waiting on
     // a refetch round-trip. Pantry inventory may have changed too — invalidate
@@ -264,8 +260,6 @@ export default function ShoppingListsPage() {
                 t('summary', { checked, total, kcal })
               }
               boughtLabel={t('bought')}
-              fromPantryLabel={t('fromPantry')}
-              fromPantryWithDateLabel={(date) => t('fromPantryWithDate', { date: fmt.date(date) })}
               ofLabel={(amount) => t('ofTotal', { amount })}
               deleteLabel={tCommon('delete')}
               deleteConfirm={t('deleteConfirm')}
@@ -312,8 +306,6 @@ function ListView({
   categoryLabel,
   summaryLabel,
   boughtLabel,
-  fromPantryLabel,
-  fromPantryWithDateLabel,
   ofLabel,
   deleteLabel,
   deleteConfirm,
@@ -339,8 +331,6 @@ function ListView({
   categoryLabel: (key: string) => string;
   summaryLabel: (checked: number, total: number, kcal: number) => string;
   boughtLabel: string;
-  fromPantryLabel: string;
-  fromPantryWithDateLabel: (date: string) => string;
   ofLabel: (amount: string) => string;
   deleteLabel: string;
   deleteConfirm: string;
@@ -356,10 +346,7 @@ function ListView({
   staleLabel: string;
   staleUpdateLabel: string;
   staleUpdateHint: string;
-  onPatch: (
-    item: ShoppingListItem,
-    patch: { checked?: boolean; purchasedQuantity?: number | null },
-  ) => void;
+  onPatch: (item: ShoppingListItem, patch: RowPatch) => void;
   onDelete: (listId: string) => void;
   onUpdate: (list: ShoppingList) => void;
 }) {
@@ -380,6 +367,53 @@ function ListView({
   const groups = wanted ? list.groups.map((g) => ({ ...g, items: g.items.filter((i) => i.name.toLocaleLowerCase().includes(wanted)) })).filter((g) => g.items.length > 0) : list.groups;
   const fmt = useFormat();
   const dateRangeLabel = fmt.dates(list.fromDate, list.toDate);
+  const tCommon = useTranslations('common');
+  const unitName = useUnitName();
+  const locale = useLocale();
+
+  /** What is still to be obtained for a row: its need less everything the user has for it. */
+  const stillToBuy = (item: ShoppingListItem): number => Math.max(0, item.totalQuantity - (item.purchasedQuantity ?? item.alreadyHaveQuantity));
+  const everyItem = list.groups.flatMap((group) => group.items);
+  const open = everyItem.filter((item) => !item.checked);
+
+  // The list as a text somebody can send: what is still to be bought, under its aisles. What is ticked is done with.
+  const asText = (): string =>
+    [
+      t('copyTitle', { dates: dateRangeLabel }),
+      ...(open.length === 0 ? ['', t('copyNothing')] : []),
+      ...list.groups
+        .map((group) => ({ group, left: group.items.filter((item) => !item.checked) }))
+        .filter(({ left }) => left.length > 0)
+        .flatMap(({ group, left }) => ['', categoryLabel(group.category), ...left.map((item) => `- ${item.name}: ${formatQty(stillToBuy(item), item.displayUnit)}`)]),
+    ].join('\n');
+  // What happened to the last copy: it is on the clipboard, or it is shown to be copied by hand.
+  const [copied, setCopied] = useState<{ entries: number } | null>(null);
+  const [byHand, setByHand] = useState<string | null>(null);
+  async function copy() {
+    const text = asText();
+    setCopied(null);
+    if (await copyText(text)) setCopied({ entries: open.length });
+    else setByHand(text);
+  }
+
+  // The whole list as a table for a spreadsheet: every row, ticked or not, with its numbers as numbers.
+  function downloadCsv() {
+    const head = (['csvAisle', 'csvEntry', 'csvNeeded', 'csvUnit', 'csvAtHome', 'csvHave', 'csvToBuy', 'csvTicked', 'csvEnergy'] as const).map((column) => t(column));
+    const rows = list.groups.flatMap((group) =>
+      group.items.map((item) => [
+        categoryLabel(group.category),
+        item.name,
+        item.totalQuantity,
+        unitName(item.displayUnit),
+        item.alreadyHaveQuantity,
+        item.purchasedQuantity ?? item.alreadyHaveQuantity,
+        stillToBuy(item),
+        tCommon(item.checked ? 'yes' : 'no'),
+        item.estimatedCalories,
+      ]),
+    );
+    saveText(csvOf([head, ...rows], CSV_DIALECTS[locale] ?? CSV_DIALECTS.en!), `shopping-list-${list.fromDate}_${list.toDate}.csv`, 'text/csv');
+  }
 
   // Two PDF flavours from the same generator:
   //   - download → 'pretty-a4': finished A4 shopping notebook with per-item
@@ -451,6 +485,12 @@ function ListView({
           >
             {pdfBusy ? printGeneratingPdfLabel : printPdfLabel}
           </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
+            {t('copy')}
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={downloadCsv}>
+            {t('csv')}
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -470,6 +510,29 @@ function ListView({
           {pdfError}
         </p>
       )}
+      {/* Said where it happened, and read out: a text on the clipboard cannot be seen. */}
+      <p role="status" className={copied ? 'px-4 py-2 text-sm text-muted-foreground' : 'sr-only'}>
+        {copied ? t(copied.entries === 0 ? 'copiedNothing' : 'copied', { count: copied.entries }) : ''}
+      </p>
+      <Dialog open={byHand !== null} onClose={() => setByHand(null)} label={t('copyByHand')} className="max-w-md">
+        <div className="space-y-3 p-4">
+          <h2 className="font-semibold">{t('copyByHand')}</h2>
+          <p className="text-sm text-muted-foreground">{t('copyByHandHint')}</p>
+          <textarea
+            readOnly
+            rows={12}
+            aria-label={t('copyByHand')}
+            className="w-full rounded-md border border-input bg-background p-2 font-mono text-xs"
+            value={byHand ?? ''}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <div className="flex justify-end">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setByHand(null)}>
+              {tCommon('close')}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
       {list.stale && (
         <div
           role="status"
@@ -492,19 +555,19 @@ function ListView({
         {wanted && groups.length === 0 && <p className="text-sm text-muted-foreground">{t('findEntryNone', { words: find.trim() })}</p>}
         {groups.map((g) => (
           <div key={g.category}>
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {categoryLabel(g.category)}
-            </h3>
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{categoryLabel(g.category)}</h3>
+              {/* What the whole aisle comes to, whatever part of it is looked for. */}
+              <p className="text-xs text-muted-foreground">{t('aisleEnergy', { kcal: g.estimatedCalories })}</p>
+            </div>
             <ul className="divide-y divide-border">
               {g.items.map((i) => (
                 <ItemRow
-                  key={`${i.id}-${i.purchasedQuantity ?? 'na'}-${i.checked}`}
+                  key={`${i.id}-${i.alreadyHaveQuantity}-${i.purchasedQuantity ?? 'na'}-${i.checked}`}
                   item={i}
                   busy={busy}
                   formatQty={formatQty}
                   boughtLabel={boughtLabel}
-                  fromPantryLabel={fromPantryLabel}
-                  fromPantryWithDateLabel={fromPantryWithDateLabel}
                   ofLabel={ofLabel}
                   onPatch={(patch) => onPatch(i, patch)}
                 />
@@ -517,13 +580,29 @@ function ListView({
   );
 }
 
+/** What a row sends when it is changed: what is at home, everything the user has for it, whether it is done. */
+interface RowPatch {
+  checked?: boolean;
+  purchasedQuantity?: number | null;
+  alreadyHaveQuantity?: number;
+}
+
+/** A number somebody typed into a field of a row: nothing for an empty field, never under nothing. */
+const typed = (field: string): number | null => (field.trim() === '' ? null : Math.max(0, Number(field) || 0));
+
+/**
+ * A row of the list: what is still to be bought of it, how much of it is at
+ * home, and how much was bought. The API keeps one number for everything the
+ * user has for a row; the row shows it as its two parts, and sends the part
+ * that changed. What is at home starts at what the pantry had when the list
+ * was made, and is the user's to correct: a pantry does not know everything
+ * that is in a kitchen.
+ */
 function ItemRow({
   item,
   busy,
   formatQty,
   boughtLabel,
-  fromPantryLabel,
-  fromPantryWithDateLabel,
   ofLabel,
   onPatch,
 }: {
@@ -531,99 +610,91 @@ function ItemRow({
   busy: boolean;
   formatQty: (qty: number, unit: DisplayUnit) => string;
   boughtLabel: string;
-  fromPantryLabel: string;
-  fromPantryWithDateLabel: (date: string) => string;
   ofLabel: (amount: string) => string;
-  onPatch: (patch: { checked?: boolean; purchasedQuantity?: number | null }) => void;
+  onPatch: (patch: RowPatch) => void;
 }) {
-  // Local copy of the numeric input so it's editable without an API round-trip
-  // per keystroke. We commit on blur. The parent re-keys this component on
-  // server-side changes, so initial state is always fresh after auto-check.
-  const [bought, setBought] = useState(
-    item.purchasedQuantity === null ? '' : String(item.purchasedQuantity),
-  );
+  const t = useTranslations('shoppingLists');
+  const fmt = useFormat();
   const unitName = useUnitName();
+  // What was bought beyond what was at home, as the API has it.
+  const boughtBefore = Math.max(0, (item.purchasedQuantity ?? item.alreadyHaveQuantity) - item.alreadyHaveQuantity);
+  // Local copies of the two fields, so that they can be typed in without a
+  // request for every key. They are sent when the field is left. The parent
+  // makes the row anew when the server changed it, so these begin fresh then.
+  const [home, setHome] = useState(item.alreadyHaveQuantity > 0 ? String(item.alreadyHaveQuantity) : '');
+  const [bought, setBought] = useState(boughtBefore > 0 ? String(boughtBefore) : '');
   // Eggs come whole; half a loaf's slice is as fine as it gets.
   const step = item.unit === 'piece' ? 0.5 : 1;
-  const pantryChipLabel =
-    item.pantryBestBefore != null
-      ? fromPantryWithDateLabel(item.pantryBestBefore)
-      : fromPantryLabel;
 
-  // Live "still to buy" mirrors the pantry behaviour: as the user types into
-  // `bought`, the displayed required drops without waiting for blur/server.
-  // `purchasedQuantity` (and therefore `boughtNum`) is the cumulative total
-  // obtained — pantry pre-credit + actually bought — so we subtract it from
-  // `totalQuantity`, not from `toBuyQuantity` (which already had pantry
-  // removed and would double-count the pre-credit).
-  const boughtNum = bought.trim() === '' ? 0 : Math.max(0, Number(bought) || 0);
-  const remainingToBuy = Math.max(0, item.totalQuantity - boughtNum);
-  const showOfTotal = item.alreadyHaveQuantity > 0 || boughtNum > 0;
+  // What is left to buy follows the fields while they are typed in.
+  const homeNow = typed(home) ?? 0;
+  const boughtNow = typed(bought) ?? 0;
+  const remainingToBuy = Math.max(0, item.totalQuantity - homeNow - boughtNow);
+  const showOfTotal = homeNow > 0 || boughtNow > 0;
 
-  /** Latest typed-but-not-yet-blurred bought value, or `undefined` if it
-   *  matches the server. Including it in the checkbox PATCH avoids racing the
-   *  blur-triggered PATCH against the checkbox one — clicking the checkbox
-   *  while focused in the number input commits both fields atomically. */
-  function pendingPurchasedPatch(): { purchasedQuantity: number | null } | null {
-    const trimmed = bought.trim();
-    const next = trimmed === '' ? null : Math.max(0, Number(bought) || 0);
-    if (next === item.purchasedQuantity) return null;
-    return { purchasedQuantity: next };
+  /**
+   * What the fields hold that the server does not have yet. A tick sends it
+   * along, so that a click on the box while a field still has the focus does
+   * not race the request the field sends when it is left.
+   */
+  function pending(): RowPatch {
+    // What is at home is sent alone: the server leaves what was bought beyond it as it was.
+    const atHome = homeNow !== item.alreadyHaveQuantity ? { alreadyHaveQuantity: homeNow } : {};
+    if (boughtNow === boughtBefore) return atHome;
+    // Everything the user has for the row: the part at home, as the server will count it, and what was bought.
+    const have = Math.min(homeNow, item.totalQuantity) + boughtNow;
+    return { ...atHome, purchasedQuantity: have > 0 ? have : null };
   }
+  const send = (): void => {
+    const patch = pending();
+    if (Object.keys(patch).length > 0) onPatch(patch);
+  };
+  const field = 'h-7 w-16 rounded border border-input bg-background px-1 text-right text-sm';
 
   return (
-    <li className="flex flex-wrap items-center gap-3 py-2 text-sm">
-      <input
-        type="checkbox"
-        aria-label={item.name}
-        className="h-4 w-4 shrink-0"
-        checked={item.checked}
-        disabled={busy}
-        onChange={(e) =>
-          onPatch({ checked: e.target.checked, ...(pendingPurchasedPatch() ?? {}) })
-        }
-      />
-      <span className={item.checked ? 'flex-1 line-through text-muted-foreground' : 'flex-1'}>
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 text-sm">
+      <input type="checkbox" aria-label={item.name} className="h-4 w-4 shrink-0" checked={item.checked} disabled={busy} onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })} />
+      <span className={item.checked ? 'min-w-32 flex-1 text-muted-foreground line-through' : 'min-w-32 flex-1'}>
         {item.name}
-        {item.alreadyHaveQuantity > 0 && (
-          <span
-            className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-           
-          >
-            {pantryChipLabel}
-          </span>
+        {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
+          <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">{t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}</span>
         )}
       </span>
       <span className="tabular-nums text-muted-foreground">
         {formatQty(remainingToBuy, item.displayUnit)}
-        {showOfTotal && (
-          <span className="ml-1 text-xs">
-            {ofLabel(formatQty(item.totalQuantity, item.displayUnit))}
-          </span>
-        )}
+        {showOfTotal && <span className="ml-1 text-xs">{ofLabel(formatQty(item.totalQuantity, item.displayUnit))}</span>}
       </span>
-      <label className="flex items-center gap-1 text-xs text-muted-foreground">
-        {boughtLabel}
-        <input
-          type="number"
-          min={0}
-          step={step}
-          className="h-7 w-16 rounded border border-input bg-background px-1 text-right text-sm"
-          value={bought}
-          disabled={busy}
-          onChange={(e) => {
-            const v = e.target.value;
-            // Reject negative typed values; allow empty + non-negative.
-            if (v === '' || Number(v) >= 0) setBought(v);
-          }}
-          onBlur={() => {
-            const trimmed = bought.trim();
-            const next = trimmed === '' ? null : Math.max(0, Number(bought) || 0);
-            if (next !== item.purchasedQuantity) onPatch({ purchasedQuantity: next });
-          }}
-        />
-        {unitName(item.displayUnit)}
-      </label>
+      <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <label className="flex items-center gap-1 text-xs text-muted-foreground">
+          {t('atHome')}
+          <input
+            type="number"
+            min={0}
+            step={step}
+            className={field}
+            value={home}
+            disabled={busy}
+            // A number under nothing is not taken; an empty field is.
+            onChange={(e) => (e.target.value === '' || Number(e.target.value) >= 0) && setHome(e.target.value)}
+            onBlur={send}
+          />
+          {unitName(item.displayUnit)}
+        </label>
+        <label className="flex items-center gap-1 text-xs text-muted-foreground">
+          {boughtLabel}
+          <input
+            type="number"
+            min={0}
+            step={step}
+            className={field}
+            value={bought}
+            disabled={busy}
+            onChange={(e) => (e.target.value === '' || Number(e.target.value) >= 0) && setBought(e.target.value)}
+            onBlur={send}
+          />
+          {unitName(item.displayUnit)}
+        </label>
+      </span>
     </li>
   );
 }
