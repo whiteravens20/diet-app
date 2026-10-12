@@ -975,6 +975,23 @@ model RecipeDraft {
   @@index([source])
 }
 
+// A recipe an import did not take, with every reason: kept so that the
+// administrator can see what a document lacked, give an ingredient another
+// name and import again. It was never a draft and nobody reviews it.
+model RecipeImportRejection {
+  id        String   @id @default(uuid())
+  // The import it belongs to, as the drafts of the same import do.
+  batchId   String
+  title     String
+  sourceUrl String?
+  // Each as `<rule>` or `<rule>: <what it is about>`.
+  reasons   String[]
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([batchId])
+}
+
 // Who wrote a review: the administrator, or a reviewer signed in with the
 // shared reviewer password.
 enum ReviewerRole {

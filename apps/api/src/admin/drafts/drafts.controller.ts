@@ -41,6 +41,7 @@ import {
   RecipeDraftListQuery,
   RecipeDraftPatch,
   RecipeGenerateSpec,
+  RecipeImportRequest,
   ShipRequest,
   TargetLocaleQuery,
   TranslationGenerateSpec,
@@ -48,7 +49,9 @@ import {
   type IngredientNameDraft,
   type Locale,
   type RecipeDraft,
+  type RecipeImportResult,
   type ReviewAction,
+  type StoredImportRejection,
   type TargetLocale,
 } from '@diet-app/shared';
 import { requiredUuid, ZodValidationPipe } from '../../common/zod-validation.pipe.js';
@@ -66,6 +69,7 @@ import {
   type RecipeRunnerState,
 } from './recipe-generator.runner.js';
 import { AdminModelService } from './admin-model.service.js';
+import { RecipeImportService } from './external/recipe-import.service.js';
 import { TranslationRunner } from './translation.runner.js';
 import {
   shipIngredientNamesLocal,
@@ -140,6 +144,7 @@ export class DraftsController {
     private readonly recipeGen: RecipeGeneratorRunner,
     private readonly translations: TranslationRunner,
     private readonly adminModel: AdminModelService,
+    private readonly imports: RecipeImportService,
     private readonly drafts: DraftService,
   ) {}
 
@@ -250,6 +255,33 @@ export class DraftsController {
   async stopRecipeRun(): Promise<RecipeRunnerStateDto> {
     await this.recipeGen.cancel();
     return this.recipeRunnerState();
+  }
+
+  // ── Recipes from elsewhere ──────────────────────────────────────────────────
+
+  /**
+   * Take recipes in from a document the operator has: those that resolve
+   * against the catalogue become drafts, in English, with where they are from;
+   * the others are refused with their reasons and kept for the administrator
+   * to look through. With `dryRun` nothing is written. No model is asked and
+   * nothing is fetched.
+   */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('recipes/import')
+  @HttpCode(200)
+  importRecipes(@Body(new ZodValidationPipe(RecipeImportRequest)) body: RecipeImportRequest): Promise<RecipeImportResult> {
+    return this.imports.import(body);
+  }
+
+  @Get('recipes/import/rejections')
+  importRejections(): Promise<StoredImportRejection[]> {
+    return this.imports.rejections();
+  }
+
+  @Delete('recipes/import/rejections')
+  @HttpCode(204)
+  clearImportRejections(): Promise<void> {
+    return this.imports.clearRejections();
   }
 
   // ── A missing language ──────────────────────────────────────────────────────

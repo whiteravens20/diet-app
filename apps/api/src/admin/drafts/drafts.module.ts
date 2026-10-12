@@ -8,6 +8,7 @@ import { AdminSessionGuard } from '../admin-session.guard.js';
 import { AdminModelService } from './admin-model.service.js';
 import { DraftService } from './draft.service.js';
 import { DraftsController } from './drafts.controller.js';
+import { RecipeImportService } from './external/recipe-import.service.js';
 import { IngredientNamerRunner } from './ingredient-namer.runner.js';
 import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
 import { TranslationRunner } from './translation.runner.js';
@@ -23,7 +24,7 @@ import { TranslationRunner } from './translation.runner.js';
 @Module({
   imports: [PrismaModule, AiModule, CatalogueModule],
   controllers: [DraftsController],
-  providers: [AdminSessionGuard, IngredientNamerRunner, RecipeGeneratorRunner, TranslationRunner, AdminModelService, DraftService],
+  providers: [AdminSessionGuard, IngredientNamerRunner, RecipeGeneratorRunner, TranslationRunner, AdminModelService, RecipeImportService, DraftService],
   exports: [DraftService],
 })
 export class DraftsModule {}
