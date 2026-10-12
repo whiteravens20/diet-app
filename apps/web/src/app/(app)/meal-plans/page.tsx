@@ -567,7 +567,7 @@ function MealPlansContent() {
             {active ? t('plansFor', { name: active.name }) : t('plans')}
           </h2>
           <div className="flex flex-wrap items-end gap-2">
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {(['', 'active', 'upcoming', 'past'] as const).map((s) => {
                 const labelKey =
                   s === '' ? 'statusAll' : s === 'active' ? 'statusActive' : s === 'upcoming' ? 'statusUpcoming' : 'statusPast';

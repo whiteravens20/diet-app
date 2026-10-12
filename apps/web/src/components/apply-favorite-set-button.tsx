@@ -102,7 +102,7 @@ export function ApplyFavoriteSetButton({
   }
 
   return (
-    <div className="absolute right-4 top-14 z-10 w-80 rounded-md border border-border bg-card p-3 shadow-md">
+    <div className="absolute right-4 top-full z-10 -mt-2 w-80 max-w-[calc(100%-2rem)] rounded-md border border-border bg-card p-3 shadow-md">
       <label className="block space-y-1 text-sm">
         <span className="font-medium">{t('applyPickSet')}</span>
         <select

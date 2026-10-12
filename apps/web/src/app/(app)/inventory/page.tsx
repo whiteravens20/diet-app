@@ -203,23 +203,26 @@ export default function InventoryPage() {
                           </span>
                         )}
                       </span>
-                      {/* The field shows the amount as the API rounds it; leaving it
-                          untouched must not write the rounded number over the exact one. */}
-                      <Input
-                        key={`${item.id}-${item.display.quantity}`}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        defaultValue={item.display.quantity}
-                        className="w-24"
-                        aria-label={t('quantityLabel')}
-                        onBlur={(e) => {
-                          const next = Number(e.currentTarget.value);
-                          if (!Number.isFinite(next) || next < 0 || next === item.display.quantity) return;
-                          patch.mutate({ id: item.id, quantity: next });
-                        }}
-                      />
-                      <span className="w-14 text-xs text-muted-foreground">{unitName(item.display.unit)}</span>
+                      {/* An amount and its unit stay on one line, however the row wraps. */}
+                      <span className="flex items-center gap-3">
+                        {/* The field shows the amount as the API rounds it; leaving it
+                            untouched must not write the rounded number over the exact one. */}
+                        <Input
+                          key={`${item.id}-${item.display.quantity}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          defaultValue={item.display.quantity}
+                          className="w-24"
+                          aria-label={t('quantityLabel')}
+                          onBlur={(e) => {
+                            const next = Number(e.currentTarget.value);
+                            if (!Number.isFinite(next) || next < 0 || next === item.display.quantity) return;
+                            patch.mutate({ id: item.id, quantity: next });
+                          }}
+                        />
+                        <span className="w-14 text-xs text-muted-foreground">{unitName(item.display.unit)}</span>
+                      </span>
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">
                         {t('bestBeforeLabel')}
                         <Input

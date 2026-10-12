@@ -137,8 +137,9 @@ export function PlanCard({
   const to = part.to ?? plan?.days.at(-1)?.date ?? '';
   return (
     <Card className="relative w-full max-w-screen-2xl">
-      <div className="flex items-center justify-between gap-4 p-4">
-        <button type="button" onClick={onToggle} aria-expanded={open} className="flex-1 text-left">
+      {/* On a narrow screen what can be done with the plan goes under what the plan is, and what opens from it under both. */}
+      <div className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
+        <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 flex-1 basis-56 text-left">
           <p className="font-medium">
             {t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
           </p>
@@ -150,7 +151,7 @@ export function PlanCard({
             })}
           </p>
         </button>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ApplyFavoriteSetButton plan={summary} profileId={summary.profileId} disabled={busy} />
           <Button type="button" variant="outline" size="sm" onClick={() => onRegenerate()} disabled={busy}>
             {t('recalculate')}
@@ -229,13 +230,13 @@ export function PlanCard({
           )}
           {plan.days.map((day) => (
             <div key={day.id}>
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span className="text-sm font-medium">{fmt.day(day.date)}</span>
                 {day.skipped ? (
                   // A day the user skips is no shortfall, and there is nothing in it to change.
                   <span className="text-sm text-muted-foreground">{t('daySkipped')}</span>
                 ) : (
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-x-3">
                     <span
                       className={
                         Math.abs(day.calorieDelta) <= 50
@@ -286,8 +287,8 @@ export function PlanCard({
                   );
                   return (
                     <li key={m.id} className="space-y-1">
-                      <div className="flex items-center justify-between gap-6">
-                        <span className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+                        <span className="min-w-0 flex-1 basis-64">
                           <input
                             type="checkbox"
                             className="mr-2 h-4 w-4 align-middle"
@@ -350,7 +351,7 @@ export function PlanCard({
                             </span>
                           )}
                         </span>
-                        <span className="flex shrink-0 items-center gap-4">
+                        <span className="flex flex-wrap items-center gap-x-4">
                           {eaten ? (
                             <span className="text-xs font-medium text-muted-foreground">
                               {t('eatenBadge')}
