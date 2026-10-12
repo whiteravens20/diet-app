@@ -141,6 +141,14 @@ services:
     # Same image, different command: the Next.js standalone server under /web.
     command: ['node', '/web/apps/web/server.js']
     restart: unless-stopped
+    environment:
+      # The two settings of the instance the web server is told, and nothing
+      # else from .env: it holds none of the instance's secrets. Whether the
+      # public address is https decides the headers that are for https alone;
+      # where Turnstile is on, the pages' content security policy has to
+      # allow its frame.
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-false}
     depends_on:
       - api
     ports:

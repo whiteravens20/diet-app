@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Geist } from 'next/font/google';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import { Footer } from '@/components/footer';
 import { DEFAULT_PALETTE, PALETTE_COOKIE, isSupportedPalette } from '@/lib/palette';
@@ -36,11 +36,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const cookieStore = await cookies();
   const rawPalette = cookieStore.get(PALETTE_COOKIE)?.value;
   const palette = isSupportedPalette(rawPalette) ? rawPalette : DEFAULT_PALETTE;
+  // The nonce of this response (see `src/proxy.ts`), for the one script the page writes itself: the theme's.
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html lang={locale} data-palette={palette} suppressHydrationWarning>
       <body className={geist.variable}>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers initialPalette={palette}>
+          <Providers initialPalette={palette} nonce={nonce}>
             <div className="flex min-h-screen flex-col">
               <div className="flex flex-1 flex-col">{children}</div>
               <Footer />

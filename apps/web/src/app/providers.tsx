@@ -30,13 +30,20 @@ export function usePalette(): PaletteContextValue {
   return useContext(PaletteContext);
 }
 
-/** App-wide client providers: data fetching cache, dark-mode theme, palette. */
+/**
+ * App-wide client providers: data fetching cache, dark-mode theme, palette.
+ * `nonce` is the one the response's content security policy names: the theme
+ * provider writes a script into the page (it sets the theme before the first
+ * paint), and that script has to carry it to run.
+ */
 export function Providers({
   children,
   initialPalette,
+  nonce,
 }: {
   children: ReactNode;
   initialPalette: Palette;
+  nonce?: string;
 }) {
   const [client] = useState(
     () =>
@@ -59,7 +66,7 @@ export function Providers({
   }, []);
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem nonce={nonce}>
       <PaletteContext.Provider value={{ palette, setPalette }}>
         <QueryClientProvider client={client}>
           <FirstVisitLocaleDetector />

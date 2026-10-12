@@ -32,7 +32,9 @@ const config: NextConfig = {
     // answer.
     proxyTimeout: 90_000,
   },
-  // Security headers on every response. See src/lib/security-headers.ts.
+  // The security headers that are the same for every response. The content
+  // security policy and the headers of an https instance are set for each
+  // page by src/proxy.ts. See src/lib/security-headers.ts.
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS.map((h) => ({ ...h })) }];
   },
