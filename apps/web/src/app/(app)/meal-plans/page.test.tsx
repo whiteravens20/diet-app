@@ -110,6 +110,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
   averageDailyNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
   targetMacros: { protein: 100, fat: 62, carbs: 260 },
   ingredientReuseScore: 0,
+  packs: { bought: 0, used: 0, open: [] },
   generationMode: 'deterministic',
   options: {
     dietType: null,
@@ -147,7 +148,7 @@ let favoriteSets: FavoriteSet[] = [];
 /** The page of somebody with that one profile and `plans`, on an instance whose catalogue has `depth`. AI is off for them unless `aiMode` says otherwise. */
 async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] = [], aiMode: 'none' | 'admin' = 'none') {
   // The list answers each plan as a summary, a page at a time; a plan that is opened is read whole.
-  const listed = { items: plans.map(({ days: _days, report: _report, targetMacros: _targetMacros, ...summary }) => summary), page: 1, pageSize: 20, total: plans.length, totalPages: 1 };
+  const listed = { items: plans.map(({ days: _days, report: _report, targetMacros: _targetMacros, packs: _packs, ...summary }) => summary), page: 1, pageSize: 20, total: plans.length, totalPages: 1 };
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
       (path === '/profiles'

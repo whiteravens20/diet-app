@@ -33,7 +33,7 @@ import {
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
-import { cookAhead } from './plan-menu.js';
+import { cookAhead, planPacks, type PackedLine } from './plan-menu.js';
 import { shownReport } from './generation-report.js';
 import { storedSplit } from '../common/stored-split.js';
 import { averageDay, customMacros, isoDate, isSkipped, mealNutrition, parseDayOverrides, standingOf, sumNutrition, type MealAmount } from './plan-days.js';
@@ -492,6 +492,8 @@ export class MealPlansService {
     // also changed.
     const inOrder = plan.days.map((day) => [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType)));
     const cookedOnce = options.mealPrepFriendly ? cookAhead(inOrder.map((meals) => meals.map((m) => (m.source === 'USER_CUSTOM' || !m.recipe ? null : m.recipe.id)))) : null;
+    // What the meals with a recipe take of it, for the count of the packs the menu opens.
+    const packed: { factor: number; lines: readonly PackedLine[] }[] = [];
     const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
       const orderedMeals = inOrder[dayIndex]!;
       const meals: PlannedMeal[] = orderedMeals.map((m, mealIndex) => {
@@ -519,12 +521,14 @@ export class MealPlansService {
           };
         }
         const recipe = toRecipeDto(m.recipe, locale);
+        // The recipe's lines are for `recipe.servings` servings; the meal takes `factor` of one.
+        const ofRecipe = factor / Math.max(1, m.recipe.servings);
+        packed.push({ factor: ofRecipe, lines: m.recipe.ingredients });
         return {
           id: m.id,
           mealType: m.mealType as MealType,
           recipe,
-          // The recipe's lines are for `recipe.servings` servings; the meal takes `factor` of one.
-          ingredients: toPlannedIngredients(m.recipe.ingredients, factor / Math.max(1, m.recipe.servings), locale),
+          ingredients: toPlannedIngredients(m.recipe.ingredients, ofRecipe, locale),
           source: 'CATALOGUE' as const,
           customName: null,
           servings: m.servings,
@@ -571,6 +575,7 @@ export class MealPlansService {
       averageDailyNutrition: averageDay(plan.days),
       targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType, ownSplit),
       ingredientReuseScore: plan.reuseScore,
+      packs: planPacks(packed, locale),
       generationMode: plan.generationMode,
       options,
       report: shownReport(plan.report, days),
@@ -620,7 +625,7 @@ interface PlanWithRelations {
       eatenAt: Date | null;
       modelPicked: boolean;
       modelReason: string | null;
-      recipe: (Parameters<typeof toRecipeDto>[0] & Candidate) | null;
+      recipe: (Parameters<typeof toRecipeDto>[0] & Candidate & { ingredients: PackedLine[] }) | null;
     }[];
   }[];
 }

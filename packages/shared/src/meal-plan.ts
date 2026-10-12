@@ -340,6 +340,38 @@ export const MealPlanDay = z.object({
 });
 export type MealPlanDay = z.infer<typeof MealPlanDay>;
 
+/** A pack that a plan's menu opens and does not finish. */
+export const PlanOpenPack = z.object({
+  ingredientId: z.string().uuid(),
+  name: z.string(),
+  /** What the pack, and what is left of it, are counted in: grams or millilitres. */
+  unit: Unit,
+  packSize: z.number().positive(),
+  /** How many packs the menu takes of the ingredient. */
+  packs: z.number().int().min(1),
+  /** What the menu leaves of the last of them, to the gram or millilitre. */
+  left: z.number().int().min(1),
+  /** More of it is left than the three tenths of a pack that a plan accepts. */
+  wasted: z.boolean(),
+});
+export type PlanOpenPack = z.infer<typeof PlanOpenPack>;
+
+/**
+ * What a plan's menu comes to in packs that do not keep once they are opened:
+ * the whole packs it takes (`bought`) against what it uses of them (`used`),
+ * grams and millilitres added up as they are, and the packs it does not
+ * finish, the one with the most left first. An ingredient that is bought
+ * loose, or whose opened pack keeps, is not counted. What is at home already
+ * is not either: this is the menu, and the shopping list is what knows the
+ * kitchen.
+ */
+export const PlanPacks = z.object({
+  bought: z.number().min(0),
+  used: z.number().min(0),
+  open: z.array(PlanOpenPack),
+});
+export type PlanPacks = z.infer<typeof PlanPacks>;
+
 /** A full multi-day meal plan. */
 export const MealPlan = z.object({
   id: z.string().uuid(),
@@ -353,6 +385,8 @@ export const MealPlan = z.object({
   /** What a day at the plan's own calorie target aims at of protein, fat and carbohydrate, in grams. */
   targetMacros: Macros,
   ingredientReuseScore: z.number().min(0).max(1),
+  /** What the menu, as it is now, buys and uses of packs that do not keep. */
+  packs: PlanPacks,
   /** `deterministic` = engine only; `ai_assisted` = AI-drafted + validated. */
   generationMode: z.enum(['deterministic', 'ai_assisted']),
   /** What the plan was asked for. */
@@ -454,9 +488,10 @@ export type PlanCalendar = z.infer<typeof PlanCalendar>;
 
 /**
  * A plan as a list shows it: what it is and what a day of it holds on
- * average, without its days. `GET /meal-plans/:id` answers the whole plan.
+ * average, without its days and what is counted from their meals.
+ * `GET /meal-plans/:id` answers the whole plan.
  */
-export const MealPlanSummary = MealPlan.omit({ days: true, report: true, targetMacros: true });
+export const MealPlanSummary = MealPlan.omit({ days: true, report: true, targetMacros: true, packs: true });
 export type MealPlanSummary = z.infer<typeof MealPlanSummary>;
 
 /**
