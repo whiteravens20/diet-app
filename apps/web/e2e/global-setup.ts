@@ -9,10 +9,12 @@ const CATALOGUE_WAIT = 300;
 
 /**
  * An instance that was just installed has an empty catalogue, and no plan
- * comes of that. Filling it is the administrator's first step after an
- * installation, and it is taken here the same way when the run was given the
- * administrator's name and password. Without them the instance is taken to
- * have its catalogue.
+ * comes of that; one that was brought up to a newer version may hold the
+ * catalogue of the older one, without what the newer one's data says of the
+ * ingredients. Filling it, and bringing it up to its data, is the
+ * administrator's step after an installation and after an upgrade, and it is
+ * taken here the same way when the run was given the administrator's name
+ * and password. Without them the instance is taken to have its catalogue.
  */
 async function aCatalogue(baseURL: string): Promise<void> {
   const user = process.env.E2E_ADMIN_USER;
@@ -23,8 +25,8 @@ async function aCatalogue(baseURL: string): Promise<void> {
   try {
     const signedIn = await admin.post('/api/admin/session', { data: { user, password } });
     if (!signedIn.ok()) throw new Error(`The administrator's sign-in answered ${signedIn.status()}: ${await signedIn.text()}`);
-    const stats = (await (await admin.get('/api/admin/stats')).json()) as { counts: { recipes: number } };
-    if (stats.counts.recipes > 0) return;
+    const stats = (await (await admin.get('/api/admin/stats')).json()) as { counts: { recipes: number }; seed: { updateAvailable: boolean } };
+    if (stats.counts.recipes > 0 && !stats.seed.updateAvailable) return;
 
     const started = await admin.post('/api/admin/db/update');
     if (!started.ok()) throw new Error(`The catalogue update answered ${started.status()}: ${await started.text()}`);
