@@ -238,12 +238,40 @@ body {
     transform: scale(0.97);
   }
 }
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .dialog[open] {
     animation: dialog-in 160ms ease-out;
   }
   .dialog[open]::backdrop {
     animation: dialog-in 160ms ease-out;
+  }
+  /* A panel that drops from a button, and a tile that takes its place. */
+  .pop-in {
+    animation: dialog-in 150ms ease-out;
+  }
+  .rise-in {
+    animation: rise-in 350ms ease-out both;
+  }
+}
+
+/*
+ * Somebody who asked for less motion gets none that is only decoration:
+ * nothing slides, fades or pulses, and what changes, changes at once.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

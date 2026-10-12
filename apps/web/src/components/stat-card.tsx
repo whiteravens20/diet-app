@@ -2,7 +2,6 @@
 
 'use client';
 
-import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
@@ -15,15 +14,13 @@ interface StatCardProps {
   index?: number;
 }
 
+/** The tiles come in one after another: each waits a little longer than the one before it. */
+const WAIT = ['', '[animation-delay:60ms]', '[animation-delay:120ms]', '[animation-delay:180ms]'];
+
 /** Animated dashboard summary tile. */
 export function StatCard({ label, value, hint, icon: Icon, index = 0 }: StatCardProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06, duration: 0.35, ease: 'easeOut' }}
-      className="h-full"
-    >
+    <div className={`rise-in h-full ${WAIT[index] ?? ''}`}>
       <Card className="h-full p-5">
         <div className="flex items-start justify-between">
           <div>
@@ -32,10 +29,10 @@ export function StatCard({ label, value, hint, icon: Icon, index = 0 }: StatCard
             {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
           </div>
           <span className="rounded-md bg-muted p-2 text-primary">
-            <Icon size={20} />
+            <Icon size={20} aria-hidden />
           </span>
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }

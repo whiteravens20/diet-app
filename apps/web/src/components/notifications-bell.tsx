@@ -3,7 +3,6 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
 import { Bell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
@@ -53,8 +52,15 @@ export function NotificationsBell() {
     const onClick = (e: MouseEvent): void => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
 
   const list = unread.data ?? [];
@@ -79,6 +85,8 @@ export function NotificationsBell() {
       <button
         type="button"
         aria-label={t('label')}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
@@ -90,59 +98,49 @@ export function NotificationsBell() {
         )}
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.97, y: -4 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: -4 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute left-0 top-full z-50 mt-2 w-72 rounded-md border border-border bg-card text-card-foreground shadow-lg"
-            role="dialog"
-            aria-label={t('label')}
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-              <span className="text-sm font-medium">{t('title')}</span>
-              {count > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs"
-                  disabled={markAllRead.isPending}
-                  onClick={() => markAllRead.mutate()}
+      {open && (
+        <div className="pop-in absolute left-0 top-full z-50 mt-2 w-72 rounded-md border border-border bg-card text-card-foreground shadow-lg" role="dialog" aria-label={t('label')}>
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+            <span className="text-sm font-medium">{t('title')}</span>
+            {count > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                disabled={markAllRead.isPending}
+                onClick={() => markAllRead.mutate()}
+              >
+                {t('markAllRead')}
+              </Button>
+            )}
+          </div>
+          <ul className="max-h-72 overflow-y-auto">
+            {count === 0 ? (
+              <li className="px-3 py-6 text-center text-xs text-muted-foreground">
+                {t('empty')}
+              </li>
+            ) : (
+              list.map((n) => (
+                <li
+                  key={n.id}
+                  className="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2 last:border-b-0"
                 >
-                  {t('markAllRead')}
-                </Button>
-              )}
-            </div>
-            <ul className="max-h-72 overflow-y-auto">
-              {count === 0 ? (
-                <li className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  {t('empty')}
-                </li>
-              ) : (
-                list.map((n) => (
-                  <li
-                    key={n.id}
-                    className="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2 last:border-b-0"
+                  <span className="flex-1 text-sm">{renderBody(n)}</span>
+                  <button
+                    type="button"
+                    onClick={() => markRead.mutate(n.id)}
+                    disabled={markRead.isPending}
+                    className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                   >
-                    <span className="flex-1 text-sm">{renderBody(n)}</span>
-                    <button
-                      type="button"
-                      onClick={() => markRead.mutate(n.id)}
-                      disabled={markRead.isPending}
-                      className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                    >
-                      {t('dismiss')}
-                    </button>
-                  </li>
-                ))
-              )}
+                    {t('dismiss')}
+                  </button>
+                </li>
+              ))
+            )}
             </ul>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
