@@ -31,7 +31,7 @@ import {
 } from '@diet-app/shared';
 import { CatalogueCoverageService } from '../../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../../config/env.js';
-import { COVERAGE_TARGET, recipesPerDietAndMeal } from '../../engine/coverage.js';
+import { COVERAGE_TARGET } from '../../engine/coverage.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobState } from '../job-state.js';
 import { AnthropicProvider } from '../../ai/providers/anthropic.provider.js';
@@ -522,10 +522,7 @@ export class RecipeGeneratorRunner {
    * stricter diet fills both.
    */
   private async emptiestCell(setAside: ReadonlySet<string>): Promise<{ diet: DietType; meal: MealType; recipes: number } | null> {
-    const library = await this.coverage.count();
-    const waiting = recipesPerDietAndMeal(
-      await this.prisma.recipeDraft.findMany({ where: { status: { in: ['PENDING', 'APPROVED'] } }, select: { dietTags: true, mealTypes: true } }),
-    );
+    const [library, waiting] = await Promise.all([this.coverage.count(), this.coverage.waiting()]);
     let emptiest: { diet: DietType; meal: MealType; recipes: number } | null = null;
     // The diets that need recipes of their own come first in the order of ties.
     const diets = [...RecipeDietTag.options, ...DietType.options.filter((diet) => !RecipeDietTag.safeParse(diet).success && diet !== 'custom')];

@@ -33,6 +33,16 @@ export class CatalogueCoverageService {
   }
 
   /**
+   * The recipe drafts that wait in the queue, counted like the recipes they
+   * would become: those nobody rejected and that have not shipped yet.
+   */
+  async waiting(): Promise<CoverageMatrix> {
+    return recipesPerDietAndMeal(
+      await this.prisma.recipeDraft.findMany({ where: { status: { in: ['PENDING', 'APPROVED'] } }, select: { dietTags: true, mealTypes: true } }),
+    );
+  }
+
+  /**
    * What the plans of each diet reach of the diet's split, and how much they
    * use of the packs that do not keep, with the recipes any user's plan may
    * draw on.

@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { COVERAGE_TARGET } from '../engine/coverage.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPrivateRecipe, aProfile, as, asAdmin, aUser } from '../testing/factories.js';
+import { aPrivateRecipe, aProfile, aRecipeDraft, as, asAdmin, aUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { CatalogueCoverageService } from './catalogue-coverage.service.js';
 
@@ -53,6 +53,21 @@ describe('what the catalogue can serve', () => {
     expect(coverage.vegan.lunch).toBe(await counted('vegan', 'lunch'));
     expect(Object.keys(coverage.balanced).sort()).toEqual([...MealType.options].sort());
     expect(coverageTarget).toBe(COVERAGE_TARGET);
+  });
+
+  it('shows the administrator the drafts that wait for each diet and meal: those nobody rejected and that have not shipped', async () => {
+    // Oats, an oat drink and a banana: a breakfast for every diet but the two that keep carbohydrate low.
+    await aRecipeDraft(t);
+    await aRecipeDraft(t, { status: 'APPROVED', mealTypes: ['breakfast', 'snack'] });
+    await aRecipeDraft(t, { status: 'REJECTED' });
+    await aRecipeDraft(t, { status: 'SHIPPED' });
+
+    const { coverageWaiting } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
+
+    expect(coverageWaiting.vegan).toEqual({ breakfast: 2, second_breakfast: 0, lunch: 0, snack: 1, dinner: 0 });
+    expect(coverageWaiting.balanced.breakfast).toBe(2);
+    expect(coverageWaiting.keto.breakfast).toBe(0);
+    expect(Object.keys(coverageWaiting).sort()).toEqual([...DietType.options].sort());
   });
 
   it('tells the administrator what each diet aims at and what its plans reach, as shares of a day\'s energy', async () => {

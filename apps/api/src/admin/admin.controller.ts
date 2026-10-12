@@ -42,6 +42,8 @@ interface AdminStatsDto {
   coverage: CoverageMatrix;
   /** How many a release needs for each: what a recipe run that fills the catalogue writes towards. */
   coverageTarget: number;
+  /** How many recipe drafts wait in the queue for each: such a run counts them with the recipes. */
+  coverageWaiting: CoverageMatrix;
   /**
    * For each diet, what its plans aim at and what they reach with the recipes
    * there are, as shares of a day's energy; `reached` is null where no plan
@@ -142,12 +144,13 @@ export class AdminController {
   @UseGuards(AdminSessionGuard)
   async stats(): Promise<AdminStatsDto> {
     // The catalogue as plans see it: no recipe a user made for themselves, nothing an update retired.
-    const [ingredients, recipes, substitutions, meta, coverage, reach] = await Promise.all([
+    const [ingredients, recipes, substitutions, meta, coverage, waiting, reach] = await Promise.all([
       this.prisma.ingredient.count({ where: { retiredAt: null } }),
       this.prisma.recipe.count({ where: { createdByUserId: null, retiredAt: null } }),
       this.prisma.substitutionRule.count(),
       this.prisma.seedMeta.findUnique({ where: { key: 'data' } }),
       this.coverage.count(),
+      this.coverage.waiting(),
       this.coverage.macroReach(),
     ]);
     const state = computeDataState(resolveDataDir());
@@ -155,6 +158,7 @@ export class AdminController {
       counts: { ingredients, recipes, substitutions },
       coverage,
       coverageTarget: COVERAGE_TARGET,
+      coverageWaiting: waiting,
       macros: {
         outOfReach: MACRO_OUT_OF_REACH,
         diets: Object.fromEntries(DietType.options.map((diet) => [diet, { target: macroSplitOf(diet), reached: reach[diet] }])) as AdminStatsDto['macros']['diets'],
