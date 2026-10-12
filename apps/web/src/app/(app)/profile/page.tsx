@@ -124,12 +124,26 @@ export default function ProfilePage() {
   });
 
   // Change preferences in place: only the part that changed is sent, and the rest of the profile stays as it is.
+  // What is on its way to the API is shown from the moment it was chosen, in the same breath as the click: a box that
+  // was ticked looks ticked. It is taken back when the API refuses it.
+  const [sending, setSending] = useState<{ id: string; preferences: ProfilePreferencesPatch } | null>(null);
   const savePrefs = useMutation({
     mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) => api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
-    onSuccess: recalculate,
-    onError: (e) =>
-      setError(errorText(e, t('prefsSaveFailed'))),
+    onSuccess: (saved) => {
+      // The answer is the profile as it is now: shown before the list is read again, so that nothing flickers back.
+      qc.setQueryData<Profile[]>(['profiles'], (shown) => shown?.map((p) => (p.id === saved.id ? saved : p)));
+      recalculate();
+    },
+    onError: (e) => setError(errorText(e, t('prefsSaveFailed'))),
+    onSettled: () => setSending(null),
   });
+  const changePrefs = (profile: Profile, preferences: ProfilePreferencesPatch) => {
+    setError(null);
+    setSending({ id: profile.id, preferences });
+    savePrefs.mutate({ profile, preferences });
+  };
+  /** The preferences of a profile as the page shows them: what is kept, with what is being sent on top. */
+  const preferencesOf = (profile: Profile): Profile['preferences'] => (sending?.id === profile.id ? { ...profile.preferences, ...sending.preferences } : profile.preferences);
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -207,6 +221,13 @@ export default function ProfilePage() {
           {t('subhead', { max: maxProfiles })}
         </p>
       </header>
+
+      {/* A change that was refused outside the form (a preference, a profile that could not be deleted) is said here: the form shows its own. */}
+      {error && !showForm && (
+        <p role="alert" className="max-w-2xl text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       {profiles.isLoading ? (
         <Skeleton className="h-24 max-w-2xl" />
@@ -477,26 +498,20 @@ export default function ProfilePage() {
                   <AllergenPicker
                     label={t('allergensLabel')}
                     hint={t('allergensHint')}
-                    selected={p.preferences.allergens}
+                    selected={preferencesOf(p).allergens}
                     disabled={savePrefs.isPending}
                     onChange={(allergens) =>
-                      savePrefs.mutate({
-                        profile: p,
-                        preferences: { allergens },
-                      })
+                      changePrefs(p, { allergens })
                     }
                   />
                 </div>
                 <IngredientPicker
                   label={t('favouritesLabel')}
                   hint={t('favouritesHint')}
-                  ids={p.preferences.favoriteIngredientIds}
+                  ids={preferencesOf(p).favoriteIngredientIds}
                   disabled={savePrefs.isPending}
                   onChange={(ids) =>
-                    savePrefs.mutate({
-                      profile: p,
-                      preferences: { favoriteIngredientIds: ids },
-                    })
+                    changePrefs(p, { favoriteIngredientIds: ids })
                   }
                 />
                 <fieldset className="space-y-1.5 sm:col-span-2">
@@ -508,14 +523,11 @@ export default function ProfilePage() {
                         <input
                           type="checkbox"
                           className="h-4 w-4"
-                          checked={p.preferences.preferredCuisines.includes(cuisine)}
+                          checked={preferencesOf(p).preferredCuisines.includes(cuisine)}
                           disabled={savePrefs.isPending}
                           onChange={(e) =>
-                            savePrefs.mutate({
-                              profile: p,
-                              // In the order the application lists them, whatever order they were ticked in.
-                              preferences: { preferredCuisines: Cuisine.options.filter((other) => (other === cuisine ? e.target.checked : p.preferences.preferredCuisines.includes(other))) },
-                            })
+                            // In the order the application lists them, whatever order they were ticked in.
+                            changePrefs(p, { preferredCuisines: Cuisine.options.filter((other) => (other === cuisine ? e.target.checked : preferencesOf(p).preferredCuisines.includes(other))) })
                           }
                         />
                         {tCuisine(cuisine)}
@@ -526,25 +538,19 @@ export default function ProfilePage() {
                 <IngredientPicker
                   label={t('dislikedLabel')}
                   hint={t('dislikedHint')}
-                  ids={p.preferences.dislikedIngredientIds}
+                  ids={preferencesOf(p).dislikedIngredientIds}
                   disabled={savePrefs.isPending}
                   onChange={(ids) =>
-                    savePrefs.mutate({
-                      profile: p,
-                      preferences: { dislikedIngredientIds: ids },
-                    })
+                    changePrefs(p, { dislikedIngredientIds: ids })
                   }
                 />
                 <IngredientPicker
                   label={t('avoidLabel')}
                   hint={t('avoidHint')}
-                  ids={p.preferences.excludedIngredientIds}
+                  ids={preferencesOf(p).excludedIngredientIds}
                   disabled={savePrefs.isPending}
                   onChange={(ids) =>
-                    savePrefs.mutate({
-                      profile: p,
-                      preferences: { excludedIngredientIds: ids },
-                    })
+                    changePrefs(p, { excludedIngredientIds: ids })
                   }
                 />
               </CardContent>

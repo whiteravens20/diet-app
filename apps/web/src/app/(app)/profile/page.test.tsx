@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
+import { ApiClientError } from '@/lib/http';
 import { aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import ProfilePage from './page';
@@ -167,19 +168,48 @@ describe('the profile page, on the cuisines a profile likes', () => {
     expect(screen.getAllByRole('checkbox', { name: /^(Polish|Italian|Asian|Mediterranean|Middle Eastern|Mexican|American|Indian)$/ })).toHaveLength(8);
   });
 
-  it('keeps what is ticked and unticked with the profile at once, in the order the application lists cuisines', async () => {
-    const profile = aProfile('Me', { preferences: { ...aProfile('Me').preferences, preferredCuisines: ['asian'] } });
-    await renderPage([profile], 2);
-    const patch = vi.spyOn(api, 'patch').mockResolvedValue(profile as never);
+  it('shows a tick at once and keeps it with the profile, in the order the application lists cuisines', async () => {
+    // An API that keeps what it is sent, as the real one does: the page reads the profile again after every change.
+    let kept = aProfile('Me', { preferences: { ...aProfile('Me').preferences, preferredCuisines: ['asian'] } });
+    vi.spyOn(api, 'get').mockImplementation((path: string) => Promise.resolve((path === '/profiles' ? [kept] : path.endsWith('/calories') ? { dailyTarget: 2209, warnings: [], macros: { protein: 0, fat: 0, carbs: 0 } } : []) as never));
+    const patch = vi.spyOn(api, 'patch').mockImplementation((_path: string, body: unknown) => {
+      kept = { ...kept, preferences: { ...kept.preferences, ...(body as Partial<Profile['preferences']>) } };
+      return Promise.resolve(kept as never);
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['config'], aPublicConfig());
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <ProfilePage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    await screen.findByRole('checkbox', { name: 'Asian', checked: true });
 
     await userEvent.click(cuisine('Polish'));
+    expect(cuisine('Polish')).toBeChecked();
+    await vi.waitFor(() => expect(cuisine('Asian')).toBeEnabled());
     await userEvent.click(cuisine('Asian'));
 
     expect(patch.mock.calls.map(([path, body]) => [path, body])).toEqual([
-      [`/profiles/${profile.id}/preferences`, { preferredCuisines: ['polish', 'asian'] }],
-      // The page still shows the profile as it was loaded: the second change is made from that.
-      [`/profiles/${profile.id}/preferences`, { preferredCuisines: [] }],
+      [`/profiles/${kept.id}/preferences`, { preferredCuisines: ['polish', 'asian'] }],
+      [`/profiles/${kept.id}/preferences`, { preferredCuisines: ['polish'] }],
     ]);
+    await vi.waitFor(() => expect(cuisine('Asian')).not.toBeChecked());
+    expect(cuisine('Polish')).toBeChecked();
+  });
+
+  it('takes a tick back, and says so, when the API refuses the change', async () => {
+    const profile = aProfile('Me');
+    await renderPage([profile], 2);
+    vi.spyOn(api, 'patch').mockRejectedValue(new ApiClientError(409, 'WRITE_CONFLICT', 'the text of the API'));
+
+    await userEvent.click(cuisine('Polish'));
+
+    await vi.waitFor(() => expect(cuisine('Polish')).not.toBeChecked());
+    // Said on the page itself: the form, which is where a refusal used to be shown, is closed.
+    expect(screen.getByRole('alert')).toHaveTextContent(messages.errors.WRITE_CONFLICT);
   });
 });
 
