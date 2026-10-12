@@ -2,8 +2,9 @@
 
 'use client';
 
-import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
+import { useCallback, useState } from 'react';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import {
   fitsDiet,
@@ -26,8 +27,14 @@ import { RecipeModal } from '@/components/recipe-modal';
 import { AiMark, partInMeal } from '@/components/ai-mark';
 import { CustomMealModal } from './custom-meal-modal';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
+import { CSV_DIALECTS, csvOf } from '@/lib/csv';
+import { saveText } from '@/lib/save-file';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
+import { lastDayOf, planTable, type PlanWords } from './plan-export';
+
+/** Fetched when a plan is printed: the sheet is drawn for the printer alone. */
+const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), { ssr: false });
 
 interface FavoriteOption {
   recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] };
@@ -141,6 +148,19 @@ export function PlanCard({
   const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[]; picked: PlannedMealView['modelPick'] } | null>(null);
   // What the window a plan is made again in opens on, while it is open.
   const [reroll, setReroll] = useState<RerollStart | null>(null);
+  // The plan taken out of the application: as a table for a spreadsheet, or as a sheet for the printer.
+  const tExport = useTranslations('mealPlans.export');
+  const locale = useLocale();
+  const [printing, setPrinting] = useState(false);
+  const printed = useCallback(() => setPrinting(false), []);
+  const words: PlanWords = {
+    head: [tExport('date'), tExport('meal'), tExport('dish'), tExport('servings'), tExport('energy'), tExport('protein'), tExport('fat'), tExport('carbs'), tExport('eaten')],
+    meal: (type) => (tMeal.has(type) ? tMeal(type) : type),
+    ownMeal: t('customMeal'),
+    yes: tCommon('yes'),
+    no: tCommon('no'),
+    skipped: t('daySkipped'),
+  };
   // The meals that hold something the profile has ruled out since the plan was made.
   const conflicts = plan?.days.reduce((count, day) => count + day.meals.filter((meal) => meal.restrictionConflicts.length > 0).length, 0) ?? 0;
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
@@ -191,6 +211,20 @@ export function PlanCard({
       )}
       {open && plan && (
         <CardContent className="space-y-4 border-t border-border pt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => saveText(csvOf(planTable(plan, words), CSV_DIALECTS[locale] ?? CSV_DIALECTS.en!), `meal-plan-${plan.startDate}_${lastDayOf(plan)}.csv`, 'text/csv')}
+            >
+              {tExport('csv')}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setPrinting(true)} disabled={printing}>
+              {tExport('print')}
+            </Button>
+          </div>
+          {printing && <PlanPrintSheet plan={plan} dietLabel={dietLabel} words={words} onDone={printed} />}
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
               {t('planMacros', {

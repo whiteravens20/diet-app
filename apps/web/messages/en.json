@@ -1139,6 +1139,22 @@
       "legendEaten": "Meals marked as eaten, out of the meals of the day.",
       "legendMore": "+1 and the like: so many more plans hold the same day. The calendar shows the plan made last.",
       "legendKeys": "On a keyboard the arrow keys move among the days, and Page Up and Page Down among the months."
+    },
+    "export": {
+      "csv": "Download CSV",
+      "print": "Print or save as PDF",
+      "date": "Date",
+      "meal": "Meal",
+      "dish": "Dish",
+      "servings": "Servings",
+      "energy": "kcal",
+      "protein": "Protein (g)",
+      "fat": "Fat (g)",
+      "carbs": "Carbohydrate (g)",
+      "eaten": "Eaten",
+      "sheetTitle": "Meal plan, {dates} · {diet}",
+      "sheetAverage": "A day on average: {kcal, number} kcal · protein {protein, number} g · fat {fat, number} g · carbohydrate {carbs, number} g.",
+      "sheetDay": "{kcal, number} of {target, number} kcal"
     }
   },
   "inventory": {

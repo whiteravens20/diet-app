@@ -1139,6 +1139,22 @@
       "legendEaten": "Posiłki oznaczone jako zjedzone, spośród posiłków danego dnia.",
       "legendMore": "+1 i podobne: tyle innych planów obejmuje ten sam dzień. Kalendarz pokazuje plan utworzony najpóźniej.",
       "legendKeys": "Na klawiaturze strzałki przechodzą między dniami, a Page Up i Page Down między miesiącami."
+    },
+    "export": {
+      "csv": "Pobierz CSV",
+      "print": "Drukuj lub zapisz jako PDF",
+      "date": "Data",
+      "meal": "Posiłek",
+      "dish": "Danie",
+      "servings": "Porcje",
+      "energy": "kcal",
+      "protein": "Białko (g)",
+      "fat": "Tłuszcz (g)",
+      "carbs": "Węglowodany (g)",
+      "eaten": "Zjedzone",
+      "sheetTitle": "Plan posiłków, {dates} · {diet}",
+      "sheetAverage": "Średnio dziennie: {kcal, number} kcal · białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g.",
+      "sheetDay": "{kcal, number} z {target, number} kcal"
     }
   },
   "inventory": {

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogueDepth, FavoriteSet, MealPlan, MealSwapPreview, PlanCalendarDay, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
+import * as files from '@/lib/save-file';
 import { aDepth, aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import MealPlansPage from './page';
@@ -1140,5 +1141,55 @@ describe('the calendar on the plan page', () => {
     expect(startDate).toHaveValue('2026-01-09');
     expect(startDate).toHaveFocus();
     expect(listsAsked()).toEqual([`/meal-plans?profileId=${profile.id}&page=1`]);
+  });
+});
+
+describe('the plan page, on a plan taken out of the application', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const texts = messages.mealPlans.export;
+  /** The page with the one plan open. */
+  async function anOpenPlan() {
+    await renderPage(aDepth(9), [aPlan()]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+    await screen.findByText('Mon, Jan 5');
+  }
+
+  it('saves the plan as a table of its meals, under the days it is for', async () => {
+    const saved = vi.spyOn(files, 'saveText').mockImplementation(() => undefined);
+    await anOpenPlan();
+
+    await userEvent.click(screen.getByRole('button', { name: texts.csv }));
+
+    const [file, name, type] = saved.mock.calls[0]!;
+    expect(name).toBe('meal-plan-2026-01-05_2026-01-05.csv');
+    expect(type).toBe('text/csv');
+    expect(file.slice(1).split('\r\n')).toEqual(['Date,Meal,Dish,Servings,kcal,Protein (g),Fat (g),Carbohydrate (g),Eaten', '2026-01-05,Breakfast,Oat porridge,1,230,8,4,40,No', '']);
+  });
+
+  it('hands the printer a sheet of the plan alone, and takes it away when the browser is done', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    await anOpenPlan();
+    expect(document.querySelector('.print-sheet')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: texts.print }));
+
+    const sheet = await vi.waitFor(() => {
+      const shown = document.querySelector('.print-sheet');
+      expect(shown).not.toBeNull();
+      return shown as HTMLElement;
+    });
+    // Beside the application, not inside it: the styles for the printer hide everything else of the page.
+    expect(sheet.parentElement).toBe(document.body);
+    expect(within(sheet).getByRole('heading', { level: 1 })).toHaveTextContent(/^Meal plan, Jan 5.*2026 · Vegan$/);
+    expect(within(sheet).getByRole('heading', { level: 2 })).toHaveTextContent('Mon, Jan 5230 of 2,000 kcal');
+    expect(within(sheet).getAllByRole('row').map((row) => row.textContent)).toEqual(['MealDishServingskcalProtein (g)Fat (g)Carbohydrate (g)', 'BreakfastOat porridge12308440']);
+    expect(print).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new Event('afterprint'));
+
+    await vi.waitFor(() => expect(document.querySelector('.print-sheet')).toBeNull());
   });
 });

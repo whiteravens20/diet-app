@@ -306,3 +306,19 @@ body {
   animation: shimmer 1.6s infinite;
 }
 
+/*
+ * A sheet for the printer: a plan written out as a page of paper. On a screen
+ * it is not shown. When the page is printed while a sheet is there, the sheet
+ * is all that is printed: the application around it is not.
+ */
+.print-sheet {
+  display: none;
+}
+@media print {
+  body:has(> .print-sheet) > :not(.print-sheet) {
+    display: none !important;
+  }
+  .print-sheet {
+    display: block;
+  }
+}
