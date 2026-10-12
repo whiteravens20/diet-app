@@ -7,7 +7,7 @@ import { OperatorContact } from '@/components/operator-contact';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useFormat } from '@/lib/use-format';
 
-const LAST_UPDATED = '2026-10-04';
+const LAST_UPDATED = '2026-10-12';
 
 const SECTION_KEYS = [
   'section1',

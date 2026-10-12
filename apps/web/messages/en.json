@@ -1840,7 +1840,7 @@
     },
     "section7": {
       "title": "Data residency",
-      "body": "Your data lives in the database of the instance you are using. The upstream project has no access to it, no backups of it, and no recovery path for it. Ask the operator of this instance about backup policy and data handling before storing anything you cannot afford to lose."
+      "body": "Your data lives in the database of the instance you are using. The upstream project has no access to it, no backups of it, and no recovery path for it. Ask the operator of this instance about backup policy and data handling before storing anything you cannot afford to lose. You can take a copy of everything your account holds, as one file, from the settings at any time."
     },
     "section8": {
       "title": "Liability and warranty",

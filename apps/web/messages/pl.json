@@ -1840,7 +1840,7 @@
     },
     "section7": {
       "title": "Lokalizacja danych",
-      "body": "Twoje dane znajdują się w bazie danych tej instancji, której używasz. Projekt źródłowy nie ma do nich dostępu, nie posiada ich kopii zapasowych ani ścieżki ich odzyskiwania. Zapytaj operatora tej instancji o politykę backupów i postępowanie z danymi, zanim powierzysz mu coś, czego nie możesz stracić."
+      "body": "Twoje dane znajdują się w bazie danych tej instancji, której używasz. Projekt źródłowy nie ma do nich dostępu, nie posiada ich kopii zapasowych ani ścieżki ich odzyskiwania. Zapytaj operatora tej instancji o politykę backupów i postępowanie z danymi, zanim powierzysz mu coś, czego nie możesz stracić. W każdej chwili możesz pobrać z ustawień kopię wszystkiego, co przechowuje Twoje konto, w jednym pliku."
     },
     "section8": {
       "title": "Odpowiedzialność i gwarancja",
