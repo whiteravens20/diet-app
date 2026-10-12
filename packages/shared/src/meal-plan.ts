@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { z } from 'zod';
+import * as z from './zod.js';
 import { AiGenerationMeta } from './ai.js';
 import { CalendarDay, dayAfter, DietType, DisplayAmount, LAST_DAY, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';

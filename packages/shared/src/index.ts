@@ -8,9 +8,6 @@
  * Android app mirrors them. Changing a
  * schema is a contract change — bump it deliberately.
  */
-// First, before a schema is made: see the file.
-import './validation-mode.js';
-
 export * from './enums.js';
 export * from './nutrition.js';
 export * from './config.js';

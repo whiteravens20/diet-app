@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { z } from 'zod';
+import * as z from './zod.js';
 
 /**
  * What a browser sends to `POST /csp-reports` when a page of the web

@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { z } from 'zod';
+import * as z from './zod.js';
 import { CalendarDay, DisplayUnit, MAX_QUANTITY, ProductCategory, Unit } from './enums.js';
 
 /** The most shopping lists one plan may have at a time. */

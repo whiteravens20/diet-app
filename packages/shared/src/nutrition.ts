@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { z } from 'zod';
+import * as z from './zod.js';
 
 /** Macronutrient triple, grams. Used for targets and totals alike. */
 export const Macros = z.object({

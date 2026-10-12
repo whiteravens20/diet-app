@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { z } from 'zod';
+import * as z from './zod.js';
 import { ActivityLevel, Allergen, DietType, MealType, Sex, WeeklyLossTarget } from './enums.js';
 import { MAX_INGREDIENT_IDS } from './ingredient.js';
 import { MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';

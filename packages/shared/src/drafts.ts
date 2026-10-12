@@ -12,7 +12,7 @@
  * Covers ingredient-name drafts (and the runner-status shape they share with
  * the recipe pipeline) and recipe drafts (spec / preview / patch shapes).
  */
-import { z } from 'zod';
+import * as z from './zod.js';
 import { Locale } from './settings.js';
 import { Complexity, Difficulty, Unit, MealType, DietType } from './enums.js';
 export { Complexity };

@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { z } from 'zod';
+import * as z from './zod.js';
 
 /** Optional Cloudflare Turnstile token — required only when Turnstile is enabled. */
 const turnstileToken = z.string().max(2048).optional();
