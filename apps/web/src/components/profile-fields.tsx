@@ -26,9 +26,9 @@ import { SupplyNote } from '@/components/supply-note';
 
 /*
  * The fields a profile is made of, as every form that asks for them shows
- * them: the form of a profile, and the steps a first profile is set up in.
- * Each keeps its value in the form it stands in, under the name the form
- * reads it by.
+ * them: the form of a profile, the steps a first profile is set up in, and
+ * the calculator. Each keeps its value in the form it stands in, under the
+ * name the form reads it by.
  */
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
@@ -138,9 +138,10 @@ export function OwnTargetField({ initial }: { initial: number | null }) {
 /**
  * Why losing weight is a risk for the body a form describes, and the box by
  * which somebody says they understand it. Until it is ticked the goal is
- * kept, and plans follow maintenance.
+ * kept, and plans follow maintenance. A form that keeps nothing (`kept`
+ * false) says what the box does to the figures it shows, and no more.
  */
-export function RiskBox({ reasons, acknowledged, className }: { reasons: Risk[]; acknowledged: boolean; className?: string }) {
+export function RiskBox({ reasons, acknowledged, kept = true, className }: { reasons: Risk[]; acknowledged: boolean; kept?: boolean; className?: string }) {
   const t = useTranslations('profile.risk');
   if (reasons.length === 0) return null;
   return (
@@ -148,10 +149,10 @@ export function RiskBox({ reasons, acknowledged, className }: { reasons: Risk[];
       {reasons.map((reason) => (
         <p key={reason}>{t(reason)}</p>
       ))}
-      <p className="text-muted-foreground">{t('held')}</p>
+      <p className="text-muted-foreground">{t(kept ? 'held' : 'heldHere')}</p>
       <label className="flex items-start gap-2 font-medium">
         <input type="checkbox" name="acknowledgeRisk" className="mt-1" defaultChecked={acknowledged} />
-        {t('acknowledge')}
+        {t(kept ? 'acknowledge' : 'acknowledgeHere')}
       </label>
     </div>
   );
@@ -171,20 +172,20 @@ export function splitIn(fields: FormData, kept: MacroSplit | null): MacroSplit |
 }
 
 /**
- * The diet and the number of meals a day. Each diet is marked when the
- * catalogue has no recipe, or few, for one of that many meals, and the chosen
- * pair gets a line saying what that means for a plan. The custom diet asks for
- * its split: how much of a day's energy comes from protein, fat and
- * carbohydrate.
+ * The diet, and with `meals` the number of meals a day. With the meals, each
+ * diet is marked when the catalogue has no recipe, or few, for one of that
+ * many meals, and the chosen pair gets a line saying what that means for a
+ * plan. The custom diet asks for its split: how much of a day's energy comes
+ * from protein, fat and carbohydrate.
  */
-export function DietFields({ diet: firstDiet, mealCount: firstMealCount, split: firstSplit }: { diet: DietType; mealCount: number; split: MacroSplit | null }) {
+export function DietFields({ diet: firstDiet, mealCount: firstMealCount, split: firstSplit, meals = true }: { diet: DietType; mealCount?: number; split: MacroSplit | null; meals?: boolean }) {
   const t = useTranslations('profile');
   const tCatalogue = useTranslations('catalogue');
   const tDiet = useTranslations('enums.dietType');
   const depth = useConfig().data?.catalogue.depth;
   // The fields stay the form's own; these follow them for the marks.
   const [diet, setDiet] = useState(firstDiet);
-  const [mealCount, setMealCount] = useState(firstMealCount);
+  const [mealCount, setMealCount] = useState(firstMealCount ?? 3);
   const diets: readonly DietType[] = [...NAMED_DIETS, 'custom'];
   // The three shares as they are typed, so that the form can say what they add up to before it is sent.
   const [split, setSplit] = useState<Record<keyof MacroSplit, string>>(() => {
@@ -197,7 +198,7 @@ export function DietFields({ diet: firstDiet, mealCount: firstMealCount, split: 
       <Field label={t('dietType')}>
         <select name="dietType" className={selectClass} defaultValue={firstDiet} onChange={(e) => setDiet(e.target.value as DietType)}>
           {diets.map((d) => {
-            const supply = supplyOf(depth, d, mealCount)?.supply;
+            const supply = meals ? supplyOf(depth, d, mealCount)?.supply : undefined;
             return (
               <option key={d} value={d}>
                 {supply === 'none' ? tCatalogue('dietNone', { diet: tDiet(d) }) : supply === 'thin' ? tCatalogue('dietThin', { diet: tDiet(d) }) : tDiet(d)}
@@ -206,10 +207,14 @@ export function DietFields({ diet: firstDiet, mealCount: firstMealCount, split: 
           })}
         </select>
       </Field>
-      <Field label={t('mealsPerDay')}>
-        <Input name="mealCount" type="number" inputMode="numeric" required min={2} max={5} defaultValue={firstMealCount} onChange={(e) => setMealCount(e.target.valueAsNumber)} />
-      </Field>
-      <SupplyNote diet={diet} mealCount={mealCount} className="sm:col-span-2" />
+      {meals && (
+        <>
+          <Field label={t('mealsPerDay')}>
+            <Input name="mealCount" type="number" inputMode="numeric" required min={2} max={5} defaultValue={firstMealCount ?? 3} onChange={(e) => setMealCount(e.target.valueAsNumber)} />
+          </Field>
+          <SupplyNote diet={diet} mealCount={mealCount} className="sm:col-span-2" />
+        </>
+      )}
       {diet === 'custom' && (
         <fieldset className="space-y-2 sm:col-span-2">
           <legend className="text-sm font-medium">{t('customSplit')}</legend>

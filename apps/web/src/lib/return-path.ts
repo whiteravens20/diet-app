@@ -5,7 +5,7 @@
  * proxy guards them (its own list has to be written out, and a test holds
  * the two to each other), and a sign-in leads back to one of them only.
  */
-export const ACCOUNT_PAGES = ['/dashboard', '/profile', '/recipes', '/favorites', '/meal-plans', '/shopping-lists', '/inventory', '/settings'] as const;
+export const ACCOUNT_PAGES = ['/dashboard', '/profile', '/calculator', '/recipes', '/favorites', '/meal-plans', '/shopping-lists', '/inventory', '/settings'] as const;
 
 /** Where somebody lands after signing in when no other page was asked for. */
 export const HOME = '/dashboard';

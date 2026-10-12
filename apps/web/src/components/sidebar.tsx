@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { CalendarRange, LayoutDashboard, LogOut, Menu, Package, Settings, ShoppingBasket, Soup, Star, UserRound, X } from 'lucide-react';
+import { Calculator, CalendarRange, LayoutDashboard, LogOut, Menu, Package, Settings, ShoppingBasket, Soup, Star, UserRound, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { session } from '@/lib/session';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ import { NotificationsBell } from '@/components/notifications-bell';
 const NAV = [
   { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard },
   { href: '/profile', labelKey: 'profiles', icon: UserRound },
+  { href: '/calculator', labelKey: 'calculator', icon: Calculator },
   { href: '/meal-plans', labelKey: 'mealPlans', icon: CalendarRange },
   { href: '/recipes', labelKey: 'recipes', icon: Soup },
   { href: '/favorites', labelKey: 'favorites', icon: Star },

@@ -27,7 +27,7 @@ test.describe('a page anybody can open has nothing that keeps somebody from usin
 });
 
 test.describe('a page of a signed-in account has nothing that keeps somebody from using it', () => {
-  for (const path of ['/dashboard', '/profile', '/recipes', '/favorites', '/meal-plans', '/shopping-lists', '/inventory', '/settings']) {
+  for (const path of ['/dashboard', '/profile', '/calculator', '/recipes', '/favorites', '/meal-plans', '/shopping-lists', '/inventory', '/settings']) {
     test(path, async ({ session }) => {
       await session.page.goto(path);
       await settled(session.page);

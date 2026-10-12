@@ -31,6 +31,7 @@
     "menu": "Menu",
     "dashboard": "Panel",
     "profiles": "Profile",
+    "calculator": "Kalkulator",
     "recipes": "Przepisy",
     "favorites": "Ulubione",
     "mealPlans": "Plany posiłków",
@@ -1515,7 +1516,9 @@
       "minor": "Poniżej 18 lat wartości w tej aplikacji są przybliżeniem, a odchudzanie to sprawa do omówienia z lekarzem.",
       "underweight": "Przy takim wzroście i masie wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może zaszkodzić.",
       "held": "Dopóki pole poniżej nie jest zaznaczone, cel jest zapisany, ale plany trzymają się zapotrzebowania.",
-      "acknowledge": "Rozumiem ryzyko i chcę, aby plany były układane pod ten cel."
+      "acknowledge": "Rozumiem ryzyko i chcę, aby plany były układane pod ten cel.",
+      "heldHere": "Dopóki pole poniżej nie jest zaznaczone, liczby pokazują zapotrzebowanie: tego trzymałyby się plany.",
+      "acknowledgeHere": "Rozumiem ryzyko: pokaż, co wynika z tego celu."
     }
   },
   "caloriePreview": {
@@ -1532,6 +1535,13 @@
     "over": "{kcal, number} kcal dziennie powyżej Twojego zapotrzebowania.",
     "macros": "Białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g dziennie.",
     "said": "Cel dzienny: {kcal, number} kcal."
+  },
+  "calculator": {
+    "title": "Kalkulator",
+    "subhead": "Ile dziennie wynika z danych ciała, aktywności, tempa i diety — liczone na bieżąco.",
+    "startFrom": "Zacznij od",
+    "empty": "Pusty formularz",
+    "notKept": "Nic z tego, co tu wpiszesz, nie jest zapisywane i żaden plan się nie zmienia. Aby zmienić cel swoich planów, edytuj <profiles>profil</profiles>."
   },
   "pickers": {
     "ingredientSearch": "Szukaj składników…",

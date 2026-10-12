@@ -31,6 +31,7 @@
     "menu": "Menu",
     "dashboard": "Dashboard",
     "profiles": "Profiles",
+    "calculator": "Calculator",
     "recipes": "Recipes",
     "favorites": "Favourites",
     "mealPlans": "Meal plans",
@@ -1515,7 +1516,9 @@
       "minor": "Under 18 the figures of this application are an approximation, and losing weight is something to do with a doctor.",
       "underweight": "With this height and weight the body-mass index is under 18.5, which is underweight. Losing more weight can harm you.",
       "held": "Until the box below is ticked, the goal is saved but plans follow maintenance.",
-      "acknowledge": "I understand the risk and want plans made for this goal."
+      "acknowledge": "I understand the risk and want plans made for this goal.",
+      "heldHere": "Until the box below is ticked, the figures show maintenance: that is what plans would follow.",
+      "acknowledgeHere": "I understand the risk: show what this goal comes to."
     }
   },
   "caloriePreview": {
@@ -1532,6 +1535,13 @@
     "over": "{kcal, number} kcal a day over your maintenance.",
     "macros": "Protein {protein, number} g · fat {fat, number} g · carbohydrate {carbs, number} g a day.",
     "said": "Daily target: {kcal, number} kcal."
+  },
+  "calculator": {
+    "title": "Calculator",
+    "subhead": "What a body, an activity, a pace and a diet come to in a day, worked out as you type.",
+    "startFrom": "Start from",
+    "empty": "An empty form",
+    "notKept": "Nothing typed here is kept, and no plan changes. To change what your plans aim at, edit the <profiles>profile</profiles>."
   },
   "pickers": {
     "ingredientSearch": "Search ingredients…",
