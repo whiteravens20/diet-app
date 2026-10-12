@@ -43,6 +43,7 @@ import {
   RecipeGenerateSpec,
   ShipRequest,
   TargetLocaleQuery,
+  TranslationGenerateSpec,
   type DraftRunnerState,
   type IngredientNameDraft,
   type Locale,
@@ -64,6 +65,8 @@ import {
   RecipeGeneratorRunner,
   type RecipeRunnerState,
 } from './recipe-generator.runner.js';
+import { AdminModelService } from './admin-model.service.js';
+import { TranslationRunner } from './translation.runner.js';
 import {
   shipIngredientNamesLocal,
   shipRecipeDraftLocal,
@@ -135,6 +138,8 @@ export class DraftsController {
     private readonly config: ConfigService<Env, true>,
     private readonly namer: IngredientNamerRunner,
     private readonly recipeGen: RecipeGeneratorRunner,
+    private readonly translations: TranslationRunner,
+    private readonly adminModel: AdminModelService,
     private readonly drafts: DraftService,
   ) {}
 
@@ -245,6 +250,35 @@ export class DraftsController {
   async stopRecipeRun(): Promise<RecipeRunnerStateDto> {
     await this.recipeGen.cancel();
     return this.recipeRunnerState();
+  }
+
+  // ── A missing language ──────────────────────────────────────────────────────
+
+  /**
+   * Start the run that fills a language recipes lack. What it writes are
+   * drafts for the queue; nothing live changes until a person has approved
+   * them and they ship.
+   */
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('translations/generate')
+  @HttpCode(202)
+  async startTranslations(@Body(new ZodValidationPipe(TranslationGenerateSpec)) body: TranslationGenerateSpec): Promise<DraftRunnerState> {
+    if (!(await this.translations.start(body))) {
+      throw new ConflictException({ error: 'TRANSLATIONS_IN_PROGRESS', message: 'A run that fills a language is already in progress.' });
+    }
+    return this.translationRunnerState();
+  }
+
+  @Get('translations/generate/status')
+  translationsStatus(): Promise<DraftRunnerState> {
+    return this.translationRunnerState();
+  }
+
+  @Post('translations/generate/stop')
+  @HttpCode(202)
+  async stopTranslations(): Promise<DraftRunnerState> {
+    await this.translations.cancel();
+    return this.translationRunnerState();
   }
 
   // ── Recipe list + read ─────────────────────────────────────────────────────
@@ -581,6 +615,10 @@ export class DraftsController {
 
   private async namerRunnerState(): Promise<DraftRunnerState> {
     return { ...(await this.namer.getState()), configured: this.namer.isConfigured() };
+  }
+
+  private async translationRunnerState(): Promise<DraftRunnerState> {
+    return { ...(await this.translations.getState()), configured: this.adminModel.configured };
   }
 
   private async recipeRunnerState(): Promise<RecipeRunnerStateDto> {

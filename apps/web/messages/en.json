@@ -337,6 +337,7 @@
     "DRAFT_NOT_SHIPPABLE": "This draft cannot go into the library as it is:",
     "LOCALE_NOT_IN_DRAFT": "This draft wasn't generated for that locale.",
     "RECIPE_GEN_IN_PROGRESS": "A recipe-generator run is already in progress.",
+    "TRANSLATIONS_IN_PROGRESS": "A run that fills a missing language is already in progress.",
     "UNKNOWN_SLUG": "Ingredient slug not found in the curated catalogue.",
     "UNIT_CONVERSION_FAILED": "Could not convert the recipe's quantities — missing density or grams-per-piece.",
     "AI_UNAVAILABLE": "The AI provider didn't respond — try again in a moment.",

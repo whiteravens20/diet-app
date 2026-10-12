@@ -157,6 +157,22 @@ export const IngredientNameGenerateSpec = z
   });
 export type IngredientNameGenerateSpec = z.infer<typeof IngredientNameGenerateSpec>;
 
+/** The most one run that fills a language takes on. */
+export const MOST_TRANSLATIONS_PER_RUN = 200;
+
+/**
+ * What `POST /api/admin/drafts/translations/generate` is asked for: the
+ * language to fill for recipes, and the most the run takes on. English is
+ * none of the languages: everything is written from it.
+ */
+export const TranslationGenerateSpec = z
+  .object({
+    locale: TargetLocale,
+    limit: z.number().int().min(1).max(MOST_TRANSLATIONS_PER_RUN).default(25),
+  })
+  .strict();
+export type TranslationGenerateSpec = z.infer<typeof TranslationGenerateSpec>;
+
 /** The administrator's edit of the names a draft suggests. */
 export const IngredientNameDraftPatchBody = z.object({ suggestions: IngredientNameSuggestion });
 export type IngredientNameDraftPatchBody = z.infer<typeof IngredientNameDraftPatchBody>;
@@ -224,9 +240,10 @@ export type DraftRunnerStatus = z.infer<typeof DraftRunnerStatus>;
  *  - `not-imported`: none of the ingredients named is an imported one, and
  *    only those get their names from a run;
  *  - `all-have-drafts`: every imported ingredient already has a draft;
- *  - `coverage-reached`: every diet has enough recipes for every meal.
+ *  - `coverage-reached`: every diet has enough recipes for every meal;
+ *  - `nothing-to-translate`: nothing lacks the language that was asked for.
  */
-export const DraftRunNote = z.enum(['nothing-imported', 'not-imported', 'all-have-drafts', 'coverage-reached']);
+export const DraftRunNote = z.enum(['nothing-imported', 'not-imported', 'all-have-drafts', 'coverage-reached', 'nothing-to-translate']);
 export type DraftRunNote = z.infer<typeof DraftRunNote>;
 
 export const DraftRunnerState = z.object({

@@ -337,6 +337,7 @@
     "DRAFT_NOT_SHIPPABLE": "Ten szkic nie może w tej postaci trafić do biblioteki:",
     "LOCALE_NOT_IN_DRAFT": "Ta propozycja nie została wygenerowana dla wybranego języka.",
     "RECIPE_GEN_IN_PROGRESS": "Generowanie przepisów już trwa.",
+    "TRANSLATIONS_IN_PROGRESS": "Uzupełnianie brakującego języka już trwa.",
     "UNKNOWN_SLUG": "Składnik nie istnieje w katalogu — podaj inny slug.",
     "UNIT_CONVERSION_FAILED": "Nie udało się przeliczyć jednostek — brak gęstości lub gramów na sztukę.",
     "AI_UNAVAILABLE": "Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę.",
