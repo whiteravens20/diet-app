@@ -365,6 +365,50 @@ export type MealPlan = z.infer<typeof MealPlan>;
 export const PlanStatus = z.enum(['active', 'past', 'upcoming']);
 export type PlanStatus = z.infer<typeof PlanStatus>;
 
+/** A number of things out of how many there are. */
+const Share = z.object({ meals: z.number().int().min(0), of: z.number().int().min(0) });
+
+/**
+ * What a profile's plan of the moment comes to, for somebody who opens the
+ * application to see how they stand. The plan of the moment is the one under
+ * way; with none under way, the one that begins next; with none ahead, the
+ * one that ended last.
+ */
+export const PlanOverview = z.object({
+  plan: z.object({
+    id: z.string().uuid(),
+    startDate: z.string().date(),
+    durationDays: z.number().int().min(1),
+    dietType: DietType,
+    status: z.enum(['active', 'upcoming', 'past']),
+  }),
+  /** Kilocalories a day, on average over the days that are not skipped: what the plan holds and what it aims at. */
+  energy: z.object({ planned: z.number().min(0), target: z.number().min(0) }),
+  /** Grams a day, on the same average. */
+  macros: z.object({ planned: Macros, target: Macros }),
+  /** Of the meals of the days that have come, today included, how many are marked as eaten. */
+  eaten: Share,
+  /** Of the meals that have a recipe, how many fit the diet of the plan. */
+  onDiet: Share,
+  /** Of the same meals, how many are of a recipe the profile marked as a favourite or as eaten often. */
+  favourites: Share,
+  /** 0-1: the share of the plan's ingredients that more than one of its recipes uses. */
+  ingredientReuse: z.number().min(0).max(1),
+  /** The plan's shopping lists: how many there are, and how many of their entries are ticked. */
+  shopping: z.object({ lists: z.number().int().min(0), entries: z.number().int().min(0), ticked: z.number().int().min(0) }),
+  /** Day by day: what the day holds and what it aims at, in kilocalories. */
+  days: z.array(z.object({ date: z.string().date(), calories: z.number().min(0), target: z.number().min(0), skipped: z.boolean() })),
+});
+export type PlanOverview = z.infer<typeof PlanOverview>;
+
+/** Whose plan of the moment is asked about. */
+export const PlanOverviewQuery = z.object({ profileId: z.string().uuid() });
+export type PlanOverviewQuery = z.infer<typeof PlanOverviewQuery>;
+
+/** The overview, or none for a profile that has no plan. */
+export const PlanOverviewAnswer = z.object({ overview: PlanOverview.nullable() });
+export type PlanOverviewAnswer = z.infer<typeof PlanOverviewAnswer>;
+
 /**
  * A plan as a list shows it: what it is and what a day of it holds on
  * average, without its days. `GET /meal-plans/:id` answers the whole plan.

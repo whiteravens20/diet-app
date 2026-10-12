@@ -20,6 +20,7 @@ import {
   ApplyMealSwapRequest,
   GeneratePlanRequest,
   PlanListQuery,
+  PlanOverviewQuery,
   type Locale,
   RebalanceRequest,
   RegenerateDayRequest,
@@ -37,6 +38,7 @@ import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
+import { PlanOverviewService } from './plan-overview.service.js';
 
 @Controller('meal-plans')
 @UseGuards(JwtAuthGuard)
@@ -46,6 +48,7 @@ export class MealPlansController {
     private readonly generation: PlanGenerationService,
     private readonly ingredients: IngredientSwapService,
     private readonly swaps: MealSwapService,
+    private readonly overviews: PlanOverviewService,
   ) {}
 
   @Get()
@@ -55,6 +58,17 @@ export class MealPlansController {
     @ClientDate() today: string | null,
   ) {
     return this.plans.list(user.id, query, today);
+  }
+
+  /** What the profile's plan of the moment comes to. Declared before the route of one plan, whose id it is not. */
+  @Get('overview')
+  overview(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Query(new ZodValidationPipe(PlanOverviewQuery)) query: PlanOverviewQuery,
+    @ClientDate() today: string | null,
+  ) {
+    return this.overviews.overview(user.id, locale, query.profileId, today);
   }
 
   @Get(':id')

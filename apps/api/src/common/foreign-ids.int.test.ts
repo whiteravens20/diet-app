@@ -73,6 +73,7 @@ const ASKS: Ask[] = [
   ['delete a profile', 'delete', (ids) => `/api/profiles/${ids.profile}`],
 
   ['list the plans of a profile', 'get', (ids) => `/api/meal-plans?profileId=${ids.profile}`],
+  ['read what the plan of a profile comes to', 'get', (ids) => `/api/meal-plans/overview?profileId=${ids.profile}`],
   ['make a plan for a profile', 'post', () => '/api/meal-plans/generate', (ids) => ({ profileId: ids.profile, startDate: '2026-02-02', durationDays: 1 })],
   ['read a plan', 'get', (ids) => `/api/meal-plans/${ids.plan}`],
   ['make a plan again', 'post', (ids) => `/api/meal-plans/${ids.plan}/regenerate`, () => ({ includePast: true })],
