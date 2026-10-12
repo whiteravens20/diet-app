@@ -166,7 +166,7 @@ export default function RecipesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')}>
         {session.data && activeProfile && <DraftButton aiEnabled={session.data.aiMode !== 'none'} onOpen={() => setDraftOpen(true)} />}
       </PageBanner>

@@ -125,7 +125,7 @@ export default function FavoritesPage() {
 
   const list = marks.data ?? [];
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')} />
 
       {profileList.length > 1 && (

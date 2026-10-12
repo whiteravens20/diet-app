@@ -215,6 +215,8 @@
   --radius-md: calc(var(--radius) - 0.25rem);
   --radius-sm: calc(var(--radius) - 0.4rem);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /* The smallest size text is set in: the chips of a row and the labels over a figure. `scale.test.ts` holds the sizes in use to the scale. */
+  --text-2xs: 0.625rem;
 }
 
 * {

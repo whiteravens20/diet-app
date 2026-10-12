@@ -66,7 +66,7 @@ export function PlanPrintSheet({ plan, dietLabel, words, onDone }: { plan: MealP
                     <td className="py-1 pr-2">
                       <span className="font-medium">{dishOf(planned, words)}</span>
                       {planned.ingredients.length > 0 && (
-                        <span className="block text-[10px] leading-snug">{fmt.list(planned.ingredients.map((line) => `${line.name} ${amount(line.display.quantity, line.display.unit)}`))}</span>
+                        <span className="block text-2xs leading-snug">{fmt.list(planned.ingredients.map((line) => `${line.name} ${amount(line.display.quantity, line.display.unit)}`))}</span>
                       )}
                     </td>
                     <td className="py-1 pr-2 text-right tabular-nums">{fmt.number(servingsOf(planned), 2)}</td>

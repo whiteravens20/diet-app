@@ -134,7 +134,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex max-w-4xl flex-col gap-8">
       <PageBanner image={IMAGERY.inventory} title={t('title')} subtitle={t('subhead')} />
 
       {profileList.length > 1 && (

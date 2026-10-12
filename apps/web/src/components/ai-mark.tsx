@@ -45,7 +45,7 @@ export function AiMark({ part, spelledOut = false, className }: { part: ModelPar
   const chip = (
     <span
       title={spelledOut ? undefined : said}
-      className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-foreground', !spelledOut && className)}
+      className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-foreground', !spelledOut && className)}
     >
       <Sparkles size={10} className="text-primary" aria-hidden />
       {t('label')}

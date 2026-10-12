@@ -114,7 +114,7 @@ export function DayVariationsDialog({
                         <li key={`${meal.mealType}-${meal.recipeId ?? meal.title}`}>
                           <span className="text-muted-foreground">{mealName(meal.mealType)}</span> · {meal.title}
                           <span className="text-muted-foreground"> · {t('mealEnergy', { kcal: meal.nutrition.calories })}</span>
-                          {meal.stays && <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{t('stays')}</span>}
+                          {meal.stays && <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">{t('stays')}</span>}
                         </li>
                       ))}
                     </ul>

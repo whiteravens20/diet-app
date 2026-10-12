@@ -93,7 +93,7 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
       >
         <Bell size={16} aria-hidden />
         {count > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-2xs font-medium text-primary-foreground">
             {count > 9 ? '9+' : count}
           </span>
         )}

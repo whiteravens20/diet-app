@@ -486,7 +486,7 @@ function RecipePanel() {
             })}
           </p>
           {runner.lastRejectHead && (
-            <p className="break-all font-mono text-[10px] text-muted-foreground">
+            <p className="break-all font-mono text-2xs text-muted-foreground">
               {runner.lastRejectHead}…
             </p>
           )}

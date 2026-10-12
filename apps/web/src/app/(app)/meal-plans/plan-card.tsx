@@ -318,7 +318,7 @@ export function PlanCard({
               {/* Said for as long as it is so, in words anybody can read: a notice that goes away is easy to miss, and a text that shows on hover says nothing to a finger. */}
               {!day.skipped && day.offTarget && (
                 <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-warning">
-                  <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium">{t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}</span>
+                  <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">{t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}</span>
                   <span>{t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}</span>
                 </p>
               )}
@@ -389,42 +389,42 @@ export function PlanCard({
                             </button>
                           )}
                           {isCustom && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs uppercase text-muted-foreground">
                               {t('customChip')}
                             </span>
                           )}
                           {byModel && <AiMark part={byModel} className="ml-2 align-middle" />}
                           {/* A chip names what there is to say of the meal at a glance; what it means is a line under the meal. */}
                           {m.dietOverride && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
+                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
                               {t('dietOverrideChip')}
                             </span>
                           )}
                           {m.restrictionConflicts.map((conflict) => (
-                            <span key={conflict} className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+                            <span key={conflict} className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive">
                               {t(`conflictChip.${conflict}`)}
                             </span>
                           ))}
                           {disliked.length > 0 && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{t('dislikedChip')}</span>
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">{t('dislikedChip')}</span>
                           )}
                           {outside && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
+                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
                               {t('outsideLimitChip')}
                             </span>
                           )}
                           {onlyRecipe && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
                               {t('onlyRecipeChip')}
                             </span>
                           )}
                           {m.quantityScale !== 1 && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-foreground">
+                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
                               {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
                             </span>
                           )}
                           {m.cookAhead && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-foreground">{t(m.cookAhead === 'cook' ? 'cookOnceChip' : 'cookedChip')}</span>
+                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">{t(m.cookAhead === 'cook' ? 'cookOnceChip' : 'cookedChip')}</span>
                           )}
                         </span>
                         <span className="flex flex-wrap items-center gap-x-4">
@@ -603,14 +603,14 @@ export function PlanCard({
                                       <span>{f.recipe.title}</span>
                                       <span className="flex shrink-0 items-center gap-1">
                                         {crossSlot && (
-                                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                          <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
                                             {f.recipe.mealTypes
                                               .map((mt) => (tMeal.has(mt) ? tMeal(mt) : mt))
                                               .join(' · ')}
                                           </span>
                                         )}
                                         {off && (
-                                          <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
+                                          <span className="rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
                                             {t('offDietTag')}
                                           </span>
                                         )}

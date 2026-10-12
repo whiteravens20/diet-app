@@ -195,7 +195,7 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
       {keys ? (
         <p className="text-xs text-muted-foreground">
           {t.rich('keysLegend', {
-            kbd: (key) => <kbd className="rounded border border-border bg-muted px-1 font-mono text-[11px] text-foreground">{key}</kbd>,
+            kbd: (key) => <kbd className="rounded border border-border bg-muted px-1 font-mono text-xs text-foreground">{key}</kbd>,
           })}
         </p>
       ) : null}
@@ -635,7 +635,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-muted/20 px-2 py-1">
-      <p className="text-[10px] uppercase tracking-wide">{label}</p>
+      <p className="text-2xs uppercase tracking-wide">{label}</p>
       <p className="text-sm text-foreground">{value}</p>
     </div>
   );

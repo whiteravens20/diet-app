@@ -54,7 +54,7 @@ export default function SettingsPage() {
   const me = session.data;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <p className="text-sm text-muted-foreground">{t('subhead')}</p>
