@@ -124,7 +124,7 @@ function ProfileCard({ me, onSaved }: { me: SessionUser; onSaved: () => void }) 
             {save.isPending ? t('saveProfile') + '…' : t('saveProfile')}
           </Button>
           {saved && (
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">{t('profileSaved')}</p>
+            <p className="text-xs text-success">{t('profileSaved')}</p>
           )}
           {error && <p className="text-xs text-destructive">{error}</p>}
         </form>
@@ -410,7 +410,7 @@ function AiAssistantCard({ me }: { me: SessionUser }) {
           <p className="text-xs text-muted-foreground">{t('aiModeSaving')}</p>
         )}
         {saved && (
-          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+          <p className="text-xs text-success">
             {t('aiModeSaved')}
           </p>
         )}
@@ -590,7 +590,7 @@ function ProviderForm({
   return (
     <form onSubmit={submit} className="grid max-w-2xl gap-3 sm:grid-cols-2">
       <div
-        className="sm:col-span-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-200"
+        className="sm:col-span-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-warning"
         role="note"
       >
         <p className="font-medium">{t('aiModelWarningTitle')}</p>
@@ -600,7 +600,7 @@ function ProviderForm({
         <select
           name="provider"
           required
-          className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
           value={provider}
           onChange={(e) => {
             setProvider(e.target.value as AiProvider);
@@ -618,7 +618,7 @@ function ProviderForm({
         <Field label={t('aiPickModel')}>
           <select
             required
-            className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
             value={model}
             onChange={(e) => setModel(e.target.value)}
           >
@@ -707,7 +707,7 @@ function ProviderForm({
         <p
           className={cn(
             'text-xs sm:col-span-2',
-            testResult.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive',
+            testResult.ok ? 'text-success' : 'text-destructive',
           )}
         >
           {testResult.ok ? t('aiTestOk') : t('aiTestFailed', { error: testResult.error ?? '?' })}
@@ -768,7 +768,7 @@ function PasswordCard({ onChanged }: { onChanged: () => void }) {
               {change.isPending ? t('changingPassword') : t('changePassword')}
             </Button>
             {done && (
-              <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+              <p className="mt-2 text-xs text-success">
                 {t('passwordChanged')}
               </p>
             )}
@@ -834,7 +834,7 @@ function EmailCard({ me }: { me: SessionUser }) {
         {!me.emailVerified && emailEnabled && (
           <div>
             {resendDone ? (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              <p className="text-xs text-success">
                 {t('resendVerificationSent')}
               </p>
             ) : (
@@ -856,7 +856,7 @@ function EmailCard({ me }: { me: SessionUser }) {
 
         {/* Change email — gated entirely on SMTP being configured. */}
         {sent ? (
-          <p className="text-xs text-emerald-600 dark:text-emerald-400">{t('changeEmailSent')}</p>
+          <p className="text-xs text-success">{t('changeEmailSent')}</p>
         ) : emailEnabled ? (
           editing ? (
             <form onSubmit={onSubmit} className="grid max-w-md gap-3 sm:grid-cols-2">

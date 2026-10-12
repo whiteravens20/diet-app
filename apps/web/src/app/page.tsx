@@ -67,7 +67,7 @@ export default function Landing() {
             {t('signIn')}
           </Link>
         </div>
-        <div className="mx-auto mt-8 flex max-w-xl items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left text-sm text-amber-700 dark:text-amber-300">
+        <div className="mx-auto mt-8 flex max-w-xl items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-left text-sm text-warning">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />
           <p>
             <span className="font-semibold">{t('devWarning.title')}</span>{' '}

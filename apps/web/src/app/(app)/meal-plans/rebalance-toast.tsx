@@ -49,10 +49,10 @@ export function RebalanceToast({
         })}
       </p>
       {rebalance.feasibility === 'best-effort' && (
-        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{t('rebalanceBestEffort')}</p>
+        <p className="mt-1 text-xs text-warning">{t('rebalanceBestEffort')}</p>
       )}
       {rebalance.unabsorbedKcal !== 0 && (
-        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+        <p className="mt-1 text-xs text-warning">
           {t(rebalance.unabsorbedKcal > 0 ? 'rebalanceLeftOver' : 'rebalanceLeftUnder', { kcal: Math.abs(rebalance.unabsorbedKcal) })}
         </p>
       )}

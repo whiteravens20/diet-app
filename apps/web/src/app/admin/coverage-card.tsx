@@ -61,7 +61,7 @@ export function CoverageCard({ coverage, target, macros }: { coverage: AdminStat
                         className={cn(
                           'px-2 py-1.5 text-right tabular-nums',
                           recipes === 0 && 'font-semibold text-destructive',
-                          recipes > 0 && recipes < VARIETY_DEPTH && 'text-amber-600 dark:text-amber-400',
+                          recipes > 0 && recipes < VARIETY_DEPTH && 'text-warning',
                         )}
                       >
                         {recipes}
@@ -104,7 +104,7 @@ export function CoverageCard({ coverage, target, macros }: { coverage: AdminStat
                         {tDiet(diet)}
                       </th>
                       <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{shares(aim)}</td>
-                      <td className={cn('px-2 py-1.5 text-right tabular-nums', far && 'font-semibold text-amber-600 dark:text-amber-400', reached === null && 'text-destructive')}>
+                      <td className={cn('px-2 py-1.5 text-right tabular-nums', far && 'font-semibold text-warning', reached === null && 'text-destructive')}>
                         {reached ? shares(reached) : t('macrosNoPlan')}
                         {far && <span className="ml-2 font-normal">{t('macrosOff', { points: Math.round(reached.distance * 100) })}</span>}
                       </td>

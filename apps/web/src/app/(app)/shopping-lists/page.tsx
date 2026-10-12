@@ -17,7 +17,7 @@ import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
 
-const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
+const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /**
  * Shopping-list page — pick a profile + a plan, generate a list for any range
@@ -466,7 +466,7 @@ function ListView({
       {list.stale && (
         <div
           role="status"
-          className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning"
         >
           <p>
             {staleLabel} <span className="text-xs">{staleUpdateHint}</span>
@@ -594,7 +594,7 @@ function ItemRow({
           type="number"
           min={0}
           step={step}
-          className="h-7 w-16 rounded border border-border bg-background px-1 text-right text-sm"
+          className="h-7 w-16 rounded border border-input bg-background px-1 text-right text-sm"
           value={bought}
           disabled={busy}
           onChange={(e) => {

@@ -6,6 +6,18 @@
 /*
  * Design tokens — the single source of truth for the Diet App visual system.
  * Light + dark palettes, an emerald-forward brand ramp, radii and shadows.
+ *
+ * The lightness of a token is not a matter of taste alone. Text has to stand
+ * 4.5:1 against what it is written on, and the edge of a control 3:1 against
+ * what surrounds it (WCAG 2.2, level AA). `tokens.test.ts` reads this file
+ * and holds every palette to that, in light and in dark: change a value here
+ * and run it.
+ *
+ *   --border   a line that only divides or frames: it carries no meaning
+ *   --input    the edge of something to type into, pick from or press
+ *   --warning, --success, --destructive
+ *              text and icons of a notice, readable on a surface and on a
+ *              tint of their own colour (`bg-warning/10`)
  */
 :root {
   --background: oklch(0.99 0.005 120);
@@ -15,11 +27,15 @@
   --muted: oklch(0.96 0.01 140);
   --muted-foreground: oklch(0.52 0.02 150);
   --border: oklch(0.91 0.01 140);
-  --primary: oklch(0.62 0.15 155);
+  --input: oklch(0.62 0.01 140);
+  --primary: oklch(0.515 0.15 155);
   --primary-foreground: oklch(0.99 0.01 150);
   --accent: oklch(0.7 0.13 195);
-  --destructive: oklch(0.58 0.2 27);
-  --ring: oklch(0.62 0.15 155);
+  --destructive: oklch(0.495 0.2 27);
+  --destructive-foreground: oklch(0.99 0.01 27);
+  --warning: oklch(0.49 0.12 70);
+  --success: oklch(0.465 0.13 155);
+  --ring: oklch(0.515 0.15 155);
   --radius: 0.85rem;
 }
 
@@ -31,10 +47,14 @@
   --muted: oklch(0.27 0.02 160);
   --muted-foreground: oklch(0.68 0.02 150);
   --border: oklch(0.31 0.02 160);
+  --input: oklch(0.56 0.02 160);
   --primary: oklch(0.7 0.15 155);
   --primary-foreground: oklch(0.18 0.02 160);
   --accent: oklch(0.74 0.12 195);
-  --destructive: oklch(0.64 0.2 27);
+  --destructive: oklch(0.78 0.14 27);
+  --destructive-foreground: oklch(0.18 0.02 27);
+  --warning: oklch(0.8 0.13 80);
+  --success: oklch(0.78 0.14 155);
   --ring: oklch(0.7 0.15 155);
 }
 
@@ -53,10 +73,11 @@
   --background: oklch(0.99 0.01 240);
   --muted: oklch(0.96 0.015 240);
   --border: oklch(0.91 0.015 240);
-  --primary: oklch(0.6 0.15 240);
+  --input: oklch(0.62 0.015 240);
+  --primary: oklch(0.525 0.15 240);
   --primary-foreground: oklch(0.99 0.01 240);
   --accent: oklch(0.72 0.12 200);
-  --ring: oklch(0.6 0.15 240);
+  --ring: oklch(0.525 0.15 240);
 }
 .dark[data-palette='ocean'] {
   --background: oklch(0.19 0.02 240);
@@ -64,6 +85,7 @@
   --muted: oklch(0.28 0.02 240);
   --muted-foreground: oklch(0.7 0.02 240);
   --border: oklch(0.32 0.02 240);
+  --input: oklch(0.57 0.02 240);
   --primary: oklch(0.7 0.15 240);
   --primary-foreground: oklch(0.18 0.02 240);
   --accent: oklch(0.74 0.12 200);
@@ -75,10 +97,11 @@
   --background: oklch(0.98 0.01 140);
   --muted: oklch(0.95 0.02 140);
   --border: oklch(0.89 0.02 140);
-  --primary: oklch(0.52 0.13 145);
+  --input: oklch(0.61 0.02 140);
+  --primary: oklch(0.51 0.13 145);
   --primary-foreground: oklch(0.99 0.01 140);
   --accent: oklch(0.65 0.13 95);
-  --ring: oklch(0.52 0.13 145);
+  --ring: oklch(0.51 0.13 145);
 }
 .dark[data-palette='forest'] {
   --background: oklch(0.17 0.02 145);
@@ -86,6 +109,7 @@
   --muted: oklch(0.26 0.02 145);
   --muted-foreground: oklch(0.67 0.02 145);
   --border: oklch(0.3 0.02 145);
+  --input: oklch(0.55 0.02 145);
   --primary: oklch(0.66 0.14 145);
   --primary-foreground: oklch(0.17 0.02 145);
   --accent: oklch(0.7 0.13 95);
@@ -97,10 +121,11 @@
   --background: oklch(0.99 0.01 65);
   --muted: oklch(0.96 0.02 60);
   --border: oklch(0.91 0.02 60);
-  --primary: oklch(0.65 0.16 50);
+  --input: oklch(0.62 0.02 60);
+  --primary: oklch(0.55 0.16 50);
   --primary-foreground: oklch(0.99 0.01 60);
   --accent: oklch(0.7 0.15 25);
-  --ring: oklch(0.65 0.16 50);
+  --ring: oklch(0.55 0.16 50);
 }
 .dark[data-palette='sunset'] {
   --background: oklch(0.19 0.02 50);
@@ -108,6 +133,7 @@
   --muted: oklch(0.28 0.02 50);
   --muted-foreground: oklch(0.7 0.02 50);
   --border: oklch(0.33 0.02 50);
+  --input: oklch(0.57 0.02 50);
   --primary: oklch(0.74 0.15 55);
   --primary-foreground: oklch(0.19 0.02 50);
   --accent: oklch(0.76 0.14 25);
@@ -123,6 +149,7 @@
   --muted: oklch(0.96 0 0);
   --muted-foreground: oklch(0.5 0 0);
   --border: oklch(0.9 0 0);
+  --input: oklch(0.62 0 0);
   --primary: oklch(0.3 0 0);
   --primary-foreground: oklch(0.99 0 0);
   --accent: oklch(0.55 0 0);
@@ -136,6 +163,7 @@
   --muted: oklch(0.27 0 0);
   --muted-foreground: oklch(0.68 0 0);
   --border: oklch(0.31 0 0);
+  --input: oklch(0.56 0 0);
   --primary: oklch(0.85 0 0);
   --primary-foreground: oklch(0.17 0 0);
   --accent: oklch(0.65 0 0);
@@ -147,10 +175,11 @@
   --background: oklch(0.99 0.005 10);
   --muted: oklch(0.96 0.015 10);
   --border: oklch(0.91 0.015 10);
-  --primary: oklch(0.6 0.17 5);
+  --input: oklch(0.62 0.015 10);
+  --primary: oklch(0.55 0.17 5);
   --primary-foreground: oklch(0.99 0.01 10);
   --accent: oklch(0.72 0.13 330);
-  --ring: oklch(0.6 0.17 5);
+  --ring: oklch(0.55 0.17 5);
 }
 .dark[data-palette='rose'] {
   --background: oklch(0.19 0.015 10);
@@ -158,6 +187,7 @@
   --muted: oklch(0.28 0.02 10);
   --muted-foreground: oklch(0.7 0.02 10);
   --border: oklch(0.32 0.02 10);
+  --input: oklch(0.57 0.02 10);
   --primary: oklch(0.72 0.16 5);
   --primary-foreground: oklch(0.19 0.015 10);
   --accent: oklch(0.76 0.13 330);
@@ -172,10 +202,14 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-input: var(--input);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-accent: var(--accent);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
   --color-ring: var(--ring);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 0.25rem);

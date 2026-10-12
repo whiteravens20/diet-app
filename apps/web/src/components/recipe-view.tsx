@@ -261,7 +261,7 @@ export function RecipeView({
                         onClick={() => toggleIngredientPref(i.ingredientId, 'favorite')}
                         className={
                           'rounded p-1 transition-colors hover:bg-muted disabled:opacity-50 ' +
-                          (isFav ? 'text-amber-500' : 'text-muted-foreground')
+                          (isFav ? 'text-warning' : 'text-muted-foreground')
                         }
                       >
                         <Star

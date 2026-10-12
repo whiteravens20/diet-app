@@ -20,7 +20,7 @@ export function SupplyNote({ diet, mealCount, className }: { diet: DietType; mea
   const found = supplyOf(useConfig().data?.catalogue.depth, diet, mealCount);
   if (!found || found.supply === 'enough') return null;
   return (
-    <p role="status" className={cn('text-xs text-amber-600 dark:text-amber-400', className)}>
+    <p role="status" className={cn('text-xs text-warning', className)}>
       {found.supply === 'none'
         ? t('none', { diet: tDiet(diet), count: mealCount, advice: found.fewerMeals ? 'fewer' : 'diet', fewer: found.fewerMeals ?? 0 })
         : t('thin', { diet: tDiet(diet), count: mealCount, recipes: found.recipes })}

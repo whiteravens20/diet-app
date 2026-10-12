@@ -18,7 +18,7 @@ import { IMAGERY } from '@/lib/imagery';
 import { useUnitName } from '@/lib/ingredient-format';
 import { useErrorText } from '@/lib/use-error-text';
 
-const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
+const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 type UnitChoice = 'g' | 'ml' | 'piece';
 

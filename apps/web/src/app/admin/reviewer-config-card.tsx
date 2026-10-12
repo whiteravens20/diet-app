@@ -97,7 +97,7 @@ export function ReviewerConfigCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {fullyOn ? (
-            <ShieldCheck className="h-5 w-5 text-emerald-500" />
+            <ShieldCheck className="h-5 w-5 text-success" />
           ) : (
             <ShieldOff className="h-5 w-5 text-muted-foreground" />
           )}
@@ -134,7 +134,7 @@ export function ReviewerConfigCard() {
             </div>
 
             {fullyOn ? (
-              <div className="space-y-2 rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2">
+              <div className="space-y-2 rounded-md border border-success/40 bg-success/5 px-3 py-2">
                 <p className="text-sm font-medium">{t('shareTitle')}</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 truncate rounded bg-background px-2 py-1 text-xs">

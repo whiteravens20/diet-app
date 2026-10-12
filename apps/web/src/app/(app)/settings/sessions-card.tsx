@@ -76,7 +76,7 @@ export function SessionsCard({ onSignedOut }: { onSignedOut: () => void }) {
                       {open.id === browserSession.id && (
                         <>
                           {' '}
-                          <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-normal text-primary">{t('sessionCurrent')}</span>
+                          <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-normal text-foreground">{t('sessionCurrent')}</span>
                         </>
                       )}
                     </p>

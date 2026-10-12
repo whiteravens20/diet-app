@@ -34,7 +34,7 @@ export default function RecipeDetailPage() {
           <CardTitle>{notFound ? t('notFound') : t('loadFailed')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Link href="/recipes" className="text-sm text-primary hover:underline">
+          <Link href="/recipes" className="text-sm text-primary underline underline-offset-2">
             ← {t('back')}
           </Link>
         </CardContent>
@@ -44,7 +44,7 @@ export default function RecipeDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-4">
-      <Link href="/recipes" className="text-sm text-primary hover:underline">
+      <Link href="/recipes" className="text-sm text-primary underline underline-offset-2">
         ← {t('back')}
       </Link>
       <RecipeView recipe={recipe.data!} />

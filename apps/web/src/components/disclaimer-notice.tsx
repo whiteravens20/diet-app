@@ -42,7 +42,7 @@ export function DisclaimerNotice({
                 href="https://github.com/whiteravens20/diet-app/issues/new"
                 target="_blank"
                 rel="noreferrer"
-                className="text-primary underline-offset-2 hover:underline"
+                className="text-primary underline underline-offset-2"
               >
                 {chunks}
               </a>

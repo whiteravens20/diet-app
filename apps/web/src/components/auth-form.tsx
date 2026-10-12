@@ -184,7 +184,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                     href="/terms"
                     target="_blank"
                     rel="noreferrer"
-                    className="text-primary underline-offset-2 hover:underline"
+                    className="text-primary underline underline-offset-2"
                   >
                     {chunks}
                   </Link>
@@ -197,14 +197,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           {mode === 'login' ? (
             <>
               {t('noAccount')}{' '}
-              <Link href="/register" className="text-primary hover:underline">
+              <Link href="/register" className="text-primary underline underline-offset-2">
                 {t('createAccountButton')}
               </Link>
             </>
           ) : (
             <>
               {t('hasAccount')}{' '}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href="/login" className="text-primary underline underline-offset-2">
                 {t('signInButton')}
               </Link>
             </>

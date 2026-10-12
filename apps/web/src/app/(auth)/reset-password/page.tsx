@@ -61,7 +61,7 @@ function ResetPasswordInner() {
           <p className="text-muted-foreground">
             {t.rich('missingTokenBody', {
               link: (chunks) => (
-                <Link href="/forgot-password" className="text-primary hover:underline">
+                <Link href="/forgot-password" className="text-primary underline underline-offset-2">
                   {chunks}
                 </Link>
               ),

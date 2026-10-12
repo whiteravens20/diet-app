@@ -136,7 +136,7 @@ export function TargetNotices({ calories: c }: { calories: CalorieCalculation })
   if (c.warnings.includes('below_bmr') && c.source === 'manual_override') say('below_bmr');
   if (notices.length === 0) return null;
   return (
-    <ul className="space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm">
+    <ul className="space-y-1.5 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm">
       {notices.map((notice) => (
         <li key={notice.key} className={notice.strong ? 'font-medium' : 'text-muted-foreground'}>
           {notice.text}

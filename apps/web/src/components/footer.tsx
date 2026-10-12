@@ -87,7 +87,7 @@ export function Footer() {
               <span aria-hidden className="text-border">
                 ·
               </span>
-              <span className="text-muted-foreground/70">v{version}</span>
+              <span className="text-muted-foreground">v{version}</span>
             </>
           )}
         </p>

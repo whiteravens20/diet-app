@@ -10,10 +10,10 @@ import { useConfig } from '@/lib/use-config';
 export function OperatorContact({ notPublished }: { notPublished: string }) {
   const { data: config } = useConfig();
   const contact = config?.instance.operatorContact;
-  if (!contact) return <p className="text-sm text-muted-foreground/70">{notPublished}</p>;
+  if (!contact) return <p className="text-sm text-muted-foreground">{notPublished}</p>;
   return (
     <p>
-      <a href={`mailto:${contact}`} className="text-primary underline-offset-2 hover:underline">
+      <a href={`mailto:${contact}`} className="text-primary underline underline-offset-2">
         {contact}
       </a>
     </p>

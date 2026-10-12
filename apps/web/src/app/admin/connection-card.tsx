@@ -51,7 +51,7 @@ export function ConnectionCard() {
             {connection.countedAsProxy && (
               <p
                 role="status"
-                className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300"
+                className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-warning"
               >
                 {t('countedAsProxy')}
               </p>
@@ -59,7 +59,7 @@ export function ConnectionCard() {
             {connection.overTrusted && (
               <p
                 role="status"
-                className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300"
+                className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-warning"
               >
                 {connection.forwardedHops === 0
                   ? t('overTrustedDirect')

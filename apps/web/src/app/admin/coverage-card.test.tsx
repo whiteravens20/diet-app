@@ -61,8 +61,8 @@ describe('the administrator\'s table of recipes per diet and meal', () => {
 
     const [enough, none, few] = within(counts().getByRole('row', { name: /^Vegan/ })).getAllByRole('cell');
     expect(none!.className).toContain('text-destructive');
-    expect(few!.className).toContain('text-amber-600');
-    expect(enough!.className).not.toMatch(/text-destructive|text-amber/);
+    expect(few!.className).toContain('text-warning');
+    expect(enough!.className).not.toMatch(/text-destructive|text-warning/);
   });
 
   it('says how many pairs of diet and meal are short of what a release needs', () => {
@@ -90,8 +90,8 @@ describe('the administrator\'s table of what each diet aims at and what its plan
     const [aim, reached] = cells(/^High protein/);
     expect(aim!.textContent).toBe('40 / 30 / 30');
     expect(reached!.textContent).toBe('27 / 33 / 40' + '13 points off');
-    expect(reached!.className).toContain('text-amber-600');
-    expect(cells(/^Balanced/)[1]!.className).not.toMatch(/text-destructive|text-amber/);
+    expect(reached!.className).toContain('text-warning');
+    expect(cells(/^Balanced/)[1]!.className).not.toMatch(/text-destructive|text-warning/);
   });
 
   it('says so where no plan can be made for a diet', () => {

@@ -123,7 +123,7 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
         </div>
 
         {run?.demoKey && (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-xs">
+          <p className="rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">
             {t('demoKeyHint')}
           </p>
         )}
@@ -148,7 +148,7 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
 
         {run?.status === 'done' && run.result && (
           <>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+            <p className="text-xs text-success">
               {t('doneSummary', {
                 kept: run.result.kept,
                 skipped: run.result.skipped,

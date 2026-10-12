@@ -104,7 +104,7 @@ export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChange
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {on ? <ShieldCheck className="h-5 w-5 text-emerald-500" /> : <ShieldOff className="h-5 w-5 text-muted-foreground" />}
+          {on ? <ShieldCheck className="h-5 w-5 text-success" /> : <ShieldOff className="h-5 w-5 text-muted-foreground" />}
           {t('secondFactorTitle')}
         </CardTitle>
       </CardHeader>
@@ -115,7 +115,7 @@ export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChange
           <>
             <p className="text-sm font-medium">{t(on ? 'secondFactorOn' : 'secondFactorOff')}</p>
             {done && (
-              <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
+              <p role="status" className="text-sm text-success">
                 {done}
               </p>
             )}

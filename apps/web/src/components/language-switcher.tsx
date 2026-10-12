@@ -63,7 +63,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
           // tokens (the white pill some browsers ship by default). The chevron
           // is re-drawn via inline background-image below so the control stays
           // recognisable as a select.
-          'h-9 appearance-none rounded-md border border-border bg-background text-foreground',
+          'h-9 appearance-none rounded-md border border-input bg-background text-foreground',
           'px-2 pr-8 text-sm',
           // Options popup: most browsers respect bg/text on <option> only when
           // they're explicit. Without these the dropdown reverts to OS colours

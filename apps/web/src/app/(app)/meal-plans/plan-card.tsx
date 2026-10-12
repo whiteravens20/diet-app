@@ -261,7 +261,7 @@ export function PlanCard({
                   </div>
                 )}
               </div>
-              {day.belowSafetyFloor && <p className="text-xs text-amber-700 dark:text-amber-400">{t('dayBelowFloor')}</p>}
+              {day.belowSafetyFloor && <p className="text-xs text-warning">{t('dayBelowFloor')}</p>}
               <ul className="mt-1 space-y-1 text-sm">
                 {day.meals.map((m) => {
                   const eaten = m.eatenAt !== null;
@@ -317,7 +317,7 @@ export function PlanCard({
                             </span>
                           )}
                           {m.dietOverride && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
                               {t('dietOverrideChip')}
                             </span>
                           )}
@@ -334,7 +334,7 @@ export function PlanCard({
                           {outside && (
                             <span
                               title={t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}
-                              className="ml-2 whitespace-nowrap rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400"
+                              className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning"
                             >
                               {t('outsideLimitChip')}
                             </span>
@@ -345,7 +345,7 @@ export function PlanCard({
                             </span>
                           )}
                           {m.quantityScale !== 1 && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-foreground">
                               {t('autoBalancedChip', { scale: fmt.fixed(m.quantityScale, 2) })}
                             </span>
                           )}
@@ -502,7 +502,7 @@ export function PlanCard({
                                           </span>
                                         )}
                                         {off && (
-                                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                                          <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
                                             {t('offDietTag')}
                                           </span>
                                         )}

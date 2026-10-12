@@ -500,7 +500,7 @@ function MealPlansContent() {
       )}
       {inTheWay && (
         <div
-          className="max-w-2xl space-y-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+          className="max-w-2xl space-y-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
           role="alert"
         >
           <p>{t('limitsInTheWay', { count: inTheWay.needed.meals.length, limits: limitNames(inTheWay.needed.needs) })}</p>
@@ -542,7 +542,7 @@ function MealPlansContent() {
       )}
       {notice && (
         <p
-          className="max-w-2xl rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+          className="max-w-2xl rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
           role="status"
         >
           {notice}
@@ -550,7 +550,7 @@ function MealPlansContent() {
       )}
       {aiReason && (
         <p
-          className="max-w-2xl rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary"
+          className="max-w-2xl rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-foreground"
           role="status"
         >
           {t('aiReason', { reason: aiReason })}

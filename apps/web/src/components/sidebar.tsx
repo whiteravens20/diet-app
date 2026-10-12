@@ -66,11 +66,11 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
                 active
-                  ? 'bg-primary/10 font-medium text-primary'
+                  ? 'bg-primary/10 font-medium text-foreground'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
-              <item.icon size={18} />
+              <item.icon size={18} className={active ? 'text-primary' : undefined} aria-hidden />
               {tNav(item.labelKey)}
             </Link>
           );

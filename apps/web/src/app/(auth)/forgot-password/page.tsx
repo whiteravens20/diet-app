@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
         <CardContent className="space-y-4 text-sm">
           <p className="text-muted-foreground">{t('resetUnavailable')}</p>
           <p className="text-center">
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary underline underline-offset-2">
               {t('backToSignIn')}
             </Link>
           </p>
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
         <CardContent className="space-y-4 text-sm">
           <p className="text-muted-foreground">{t('resetSentBody')}</p>
           <p className="text-center">
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary underline underline-offset-2">
               {t('backToSignIn')}
             </Link>
           </p>
@@ -111,7 +111,7 @@ export default function ForgotPasswordPage() {
         </form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           {t('remembered')}{' '}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="text-primary underline underline-offset-2">
             {t('signInButton')}
           </Link>
         </p>

@@ -202,7 +202,7 @@ export function SecondFactorCard() {
 
         {step.at === 'codes' && (
           <div className="space-y-3">
-            {step.fresh && <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{t('onNow')}</p>}
+            {step.fresh && <p className="text-sm font-medium text-success">{t('onNow')}</p>}
             <p className="text-sm font-medium">{t('recoveryTitle')}</p>
             <p className="text-sm text-muted-foreground">{t('recoveryBody')}</p>
             <ul aria-label={t('recoveryTitle')} className="grid max-w-sm grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border p-3 font-mono text-sm">

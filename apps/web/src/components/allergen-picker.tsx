@@ -71,7 +71,7 @@ export function AllergenPicker({
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          className="flex h-10 w-full items-center justify-between rounded-md border border-border bg-background px-3 text-left text-sm disabled:opacity-50"
+          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm disabled:opacity-50"
         >
           <span className={selected.length === 0 ? 'text-muted-foreground' : ''}>
             {selected.length === 0
@@ -112,7 +112,7 @@ export function AllergenPicker({
           {selected.map((a) => (
             <li
               key={a}
-              className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400"
+              className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs text-warning"
             >
               {tAllergen(a)}
               <button

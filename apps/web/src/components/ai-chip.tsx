@@ -98,9 +98,9 @@ function ChipLink({
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
         tone === 'admin' &&
-          'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',
+          'border-primary/30 bg-primary/10 text-foreground hover:bg-primary/15',
         tone === 'byok' &&
-          'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300',
+          'border-success/30 bg-success/10 text-success hover:bg-success/15',
         tone === 'exhausted' &&
           'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15',
         className,

@@ -49,7 +49,7 @@ function VerifyEmailInner() {
         {copy[status].body && <p className="text-muted-foreground">{copy[status].body}</p>}
         {status !== 'pending' && (
           <p className="text-center">
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary underline underline-offset-2">
               {t('backToSignIn')}
             </Link>
           </p>

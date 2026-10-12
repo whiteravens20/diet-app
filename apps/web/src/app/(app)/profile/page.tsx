@@ -52,7 +52,7 @@ function riskIn(form: HTMLFormElement): Risk[] {
   });
 }
 
-const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
+const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 const DIET_TYPES: readonly DietType[] = [
   'balanced',
@@ -359,7 +359,7 @@ export default function ProfilePage() {
                 />
               </Field>
               {risk.length > 0 && (
-                <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm sm:col-span-2">
+                <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm sm:col-span-2">
                   {risk.map((reason) => (
                     <p key={reason}>{t(`risk.${reason}`)}</p>
                   ))}
@@ -377,7 +377,7 @@ export default function ProfilePage() {
                 <select
                   name="weightReminderCadence"
                   defaultValue={editing?.weightReminderCadence ?? 'weekly'}
-                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="off">{t('weightReminderOff')}</option>
                   <option value="daily">{t('weightReminderDaily')}</option>

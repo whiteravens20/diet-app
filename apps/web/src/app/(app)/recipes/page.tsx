@@ -19,7 +19,7 @@ import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DraftButton } from './draft-button';
 
-const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
+const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 // Only the diets a recipe has to qualify for narrow the library; any recipe
 // may appear in a balanced or a high-protein plan.
@@ -242,7 +242,7 @@ export default function RecipesPage() {
               {t('usesFavorites')}
             </label>
             <select
-              className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
               value={activeProfileId}
               onChange={(e) => setFavoritesProfileId(e.target.value)}
               disabled={!usesFavorites}
@@ -269,7 +269,7 @@ export default function RecipesPage() {
           role="status"
           className={
             submitted.ok
-              ? 'rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary'
+              ? 'rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-foreground'
               : 'rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive'
           }
         >

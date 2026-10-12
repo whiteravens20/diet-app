@@ -206,7 +206,7 @@ function IngredientPanel() {
   return (
     <>
       {!configured && (
-        <p className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs">
+        <p className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs">
           {t('notConfigured')}
         </p>
       )}
@@ -391,7 +391,7 @@ function RecipePanel() {
   return (
     <>
       {!configured && (
-        <p className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs">
+        <p className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs">
           {t('notConfigured')}
         </p>
       )}
@@ -412,7 +412,7 @@ function RecipePanel() {
           value={scope}
           onChange={(e) => setScope(e.target.value as 'curated' | 'all')}
           disabled={running}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+          className="rounded-md border border-input bg-background px-2 py-1 text-xs"
         >
           <option value="curated">{t('scopeCurated')}</option>
           <option value="all">{t('scopeAll')}</option>
@@ -456,7 +456,7 @@ function RecipePanel() {
         )}
         {!running && runner?.note && <span className="text-xs text-muted-foreground">{t(`runNotes.${runner.note}`, { skipped: runner.skipped })}</span>}
         {runner?.mixDrift && !running && (
-          <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
+          <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs text-warning">
             {t('mixDriftWarning')}
           </span>
         )}
@@ -469,7 +469,7 @@ function RecipePanel() {
       )}
 
       {runner && runner.lastRejectReason && !running && runner.written === 0 && (
-        <div className="space-y-1 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs">
+        <div className="space-y-1 rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs">
           <p className="font-medium">
             {t('rejectReasonLabel', {
               reason: runner.lastRejectReason,
@@ -946,7 +946,7 @@ function RecipeDraftRow({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isUserDraft && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-foreground">
               {t('sourceUserBadge')}
             </span>
           )}
@@ -1292,7 +1292,7 @@ function LocaleReviewMatrix({
           const review = reviewByLocale.get(locale);
           const tone =
             review?.action === 'APPROVE'
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+              ? 'border-success/40 bg-success/10 text-success'
               : review?.action === 'REJECT'
                 ? 'border-destructive/40 bg-destructive/10 text-destructive'
                 : 'border-border bg-muted text-muted-foreground';
@@ -1338,7 +1338,7 @@ function LocaleReviewMatrix({
             </span>
           )}
           {shipState === 'ready' && (
-            <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-success">
               <Check className="h-3 w-3" />
               {t('shipStateReady')}
             </span>
@@ -1515,7 +1515,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
   const upstreamStatus = up.available ? null : !up.enabled ? (
     <p className="mt-2 text-xs text-muted-foreground">{t('shipUpstreamDisabledInfo')}</p>
   ) : up.reason === 'SHIP_UPSTREAM_BLOCKED_CANONICAL' ? (
-    <p className="mt-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">
+    <p className="mt-2 rounded border border-warning/40 bg-warning/10 px-2 py-1 text-xs text-warning">
       {t('shipUpstreamCanonicalWarning', { remote: up.remote })}
     </p>
   ) : (
@@ -1654,10 +1654,10 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
             {config.pull.tokenSet ? t('shipPullExplainToken') : t('shipPullExplainNoToken')}
           </p>
           {pullResult && (
-            <div className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-xs">
+            <div className="mt-2 rounded border border-success/40 bg-success/5 px-2 py-1 text-xs">
               <p>{t('shipPullSuccess', { applied: pullResult.applied, total: pullResult.total })}</p>
               {pullResult.skippedSlugs.length > 0 && (
-                <p className="mt-1 text-amber-600 dark:text-amber-400">
+                <p className="mt-1 text-warning">
                   {t('shipPullSkipped', {
                     count: pullResult.skippedSlugs.length,
                     slugs: pullResult.skippedSlugs.slice(0, 8).join(', '),
@@ -1665,7 +1665,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
                 </p>
               )}
               {pullResult.refused.length > 0 && (
-                <div className="mt-1 text-amber-600 dark:text-amber-400">
+                <div className="mt-1 text-warning">
                   <p>{t('shipPullRefused', { count: pullResult.refused.length })}</p>
                   <ul className="list-disc pl-4">
                     {pullResult.refused.slice(0, 8).map((entry) => (
@@ -1679,7 +1679,7 @@ function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | 
             </div>
           )}
           {currentPushUrl && (
-            <p className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-xs">
+            <p className="mt-2 rounded border border-success/40 bg-success/5 px-2 py-1 text-xs">
               {t('shipCurrentPushSuccess')}{' '}
               <a
                 href={currentPushUrl}
@@ -1752,13 +1752,13 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
         </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t('instanceDataExplain')}</p>
-      {!state.writable && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{t('instanceDataNotWritable')}</p>}
+      {!state.writable && <p className="mt-1 text-xs text-warning">{t('instanceDataNotWritable')}</p>}
       {error && <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">{error}</p>}
       {result && (
-        <div className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-xs">
+        <div className="mt-2 rounded border border-success/40 bg-success/5 px-2 py-1 text-xs">
           <p>{t('restoreDone', { added: result.recipes.added, rewritten: result.recipes.rewritten, names: result.names.applied })}</p>
           {result.recipes.skipped.length > 0 && (
-            <div className="mt-1 text-amber-600 dark:text-amber-400">
+            <div className="mt-1 text-warning">
               <p>{t('restoreSkipped', { count: result.recipes.skipped.length })}</p>
               <ul className="list-disc pl-4">
                 {result.recipes.skipped.map((entry, index) => (
@@ -1770,12 +1770,12 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
             </div>
           )}
           {result.names.skippedSlugs.length > 0 && (
-            <p className="mt-1 text-amber-600 dark:text-amber-400">
+            <p className="mt-1 text-warning">
               {t('shipPullSkipped', { count: result.names.skippedSlugs.length, slugs: result.names.skippedSlugs.slice(0, 8).join(', ') })}
             </p>
           )}
           {result.names.refused.length > 0 && (
-            <div className="mt-1 text-amber-600 dark:text-amber-400">
+            <div className="mt-1 text-warning">
               <p>{t('shipPullRefused', { count: result.names.refused.length })}</p>
               <ul className="list-disc pl-4">
                 {result.names.refused.slice(0, 8).map((entry) => (
@@ -1787,7 +1787,7 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
             </div>
           )}
           {result.unreadable.length > 0 && (
-            <div className="mt-1 text-amber-600 dark:text-amber-400">
+            <div className="mt-1 text-warning">
               <p>{t('restoreUnreadable', { count: result.unreadable.length })}</p>
               <ul className="list-disc pl-4">
                 {result.unreadable.map((entry) => (
@@ -1810,7 +1810,7 @@ function SkippedDrafts({ skipped, heading }: { skipped: ShipSkipped[]; heading: 
   const reasonText = useSkipReasonText();
   if (skipped.length === 0) return null;
   return (
-    <div className="mt-1 text-amber-600 dark:text-amber-400">
+    <div className="mt-1 text-warning">
       <p>{t(heading, { count: skipped.length })}</p>
       <ul className="list-disc pl-4">
         {skipped.map((entry) => (
@@ -1835,7 +1835,7 @@ function ShipSuccess({
   const t = useTranslations('admin.curation');
   if (result.mode === 'local') {
     return (
-      <div className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs">
+      <div className="mt-2 rounded border border-success/40 bg-success/5 px-3 py-2 text-xs">
         <div className="flex items-center gap-2">
           <Send className="h-3.5 w-3.5" />
           <strong>
@@ -1852,7 +1852,7 @@ function ShipSuccess({
           </p>
         )}
         {result.sidecarError && (
-          <p className="mt-1 text-amber-600 dark:text-amber-400">
+          <p className="mt-1 text-warning">
             {t('shipSidecarWarning', { error: result.sidecarError })}
           </p>
         )}
@@ -1862,7 +1862,7 @@ function ShipSuccess({
   }
   if (result.mode === 'upstream-pr') {
     return (
-      <div className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs">
+      <div className="mt-2 rounded border border-success/40 bg-success/5 px-3 py-2 text-xs">
         <div className="flex items-center gap-2">
           <GitPullRequest className="h-3.5 w-3.5" />
           <strong>{t('shipSuccessUpstream', { count: result.shippedDraftIds.length })}</strong>
@@ -1880,7 +1880,7 @@ function ShipSuccess({
   }
   // bundle
   return (
-    <div className="mt-2 rounded border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs space-y-1">
+    <div className="mt-2 rounded border border-warning/40 bg-warning/5 px-3 py-2 text-xs space-y-1">
       <div className="flex items-center gap-2">
         <Download className="h-3.5 w-3.5" />
         <strong>{t('shipBundleReady', { count: result.draftIds.length })}</strong>

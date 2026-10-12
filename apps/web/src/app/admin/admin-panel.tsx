@@ -251,7 +251,7 @@ export function AdminPanel() {
 
   if (view === 'disabled') {
     return (
-      <Card className="border-amber-500/40 bg-amber-500/5">
+      <Card className="border-warning/40 bg-warning/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" /> {t('disabled')}
@@ -343,11 +343,11 @@ export function AdminPanel() {
             </Row>
             <Row label={t('status')}>
               {seed.updateAvailable ? (
-                <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                <span className="inline-flex items-center gap-1 text-warning">
                   <AlertTriangle className="h-4 w-4" /> {t('updateAvailable')}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <span className="inline-flex items-center gap-1 text-success">
                   <CheckCircle2 className="h-4 w-4" /> {t('upToDate')}
                 </span>
               )}
@@ -389,7 +389,7 @@ export function AdminPanel() {
               dangerouslySetInnerHTML={{ __html: t('updateExplain') }}
             />
             {updating && progress && <ProgressBar state={progress} stageLabel={stageLabel} />}
-            {lastUpdate && <p className="text-xs text-emerald-600 dark:text-emerald-400">{lastUpdate}</p>}
+            {lastUpdate && <p className="text-xs text-success">{lastUpdate}</p>}
             {updateError && <p className="text-xs text-destructive">{updateError}</p>}
           </div>
         </CardContent>
