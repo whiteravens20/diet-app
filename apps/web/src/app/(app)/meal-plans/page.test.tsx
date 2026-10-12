@@ -93,6 +93,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
           restrictionConflicts: [],
           dislikedIngredientIds: [],
           modelPick: null,
+          cookAhead: null,
           nutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
         },
       ],

@@ -33,6 +33,7 @@ import {
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js';
+import { cookAhead } from './plan-menu.js';
 import { shownReport } from './generation-report.js';
 import { storedSplit } from '../common/stored-split.js';
 import { averageDay, customMacros, isoDate, isSkipped, mealNutrition, parseDayOverrides, standingOf, sumNutrition, type MealAmount } from './plan-days.js';
@@ -485,12 +486,15 @@ export class MealPlansService {
     const floor = safetyFloor(plan.profile?.sex ?? null);
     // What a plan on the custom diet aims at is the split it was made with.
     const ownSplit = sharesOf(storedSplit(plan.macroSplit));
-    const days: MealPlanDay[] = plan.days.map((day) => {
-      // Sort meals into canonical eating order — Prisma's row order is
-      // undefined and shifts after updates, which would look like other meals
-      // also changed.
-      const orderedMeals = [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType));
-      const meals: PlannedMeal[] = orderedMeals.map((m) => {
+    const options = PlanOptions.parse(plan.options);
+    // Sort meals into canonical eating order — Prisma's row order is
+    // undefined and shifts after updates, which would look like other meals
+    // also changed.
+    const inOrder = plan.days.map((day) => [...day.meals].sort((a, b) => mealRank(a.mealType) - mealRank(b.mealType)));
+    const cookedOnce = options.mealPrepFriendly ? cookAhead(inOrder.map((meals) => meals.map((m) => (m.source === 'USER_CUSTOM' || !m.recipe ? null : m.recipe.id)))) : null;
+    const days: MealPlanDay[] = plan.days.map((day, dayIndex) => {
+      const orderedMeals = inOrder[dayIndex]!;
+      const meals: PlannedMeal[] = orderedMeals.map((m, mealIndex) => {
         // Effective amount folds the rebalancer multiplier into the baseline.
         const factor = m.servings * m.quantityScale;
         const eatenAt = m.eatenAt ? m.eatenAt.toISOString() : null;
@@ -510,6 +514,7 @@ export class MealPlansService {
             restrictionConflicts: [],
             dislikedIngredientIds: [],
             modelPick: null,
+            cookAhead: null,
             nutrition: mealNutrition(m),
           };
         }
@@ -535,6 +540,7 @@ export class MealPlansService {
           ) as PlannedMeal['restrictionConflicts'],
           dislikedIngredientIds: dislikedIn(m.recipe, restrictions),
           modelPick: m.modelPicked ? { reason: m.modelReason } : null,
+          cookAhead: cookedOnce?.[dayIndex]?.[mealIndex] ?? null,
           nutrition: mealNutrition(m),
         };
       });
@@ -566,7 +572,7 @@ export class MealPlansService {
       targetMacros: macrosForCalories(plan.calorieTarget, plan.dietType, ownSplit),
       ingredientReuseScore: plan.reuseScore,
       generationMode: plan.generationMode,
-      options: PlanOptions.parse(plan.options),
+      options,
       report: shownReport(plan.report, days),
       revision: plan.revision,
       createdAt: plan.createdAt.toISOString(),

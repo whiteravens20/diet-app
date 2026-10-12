@@ -470,6 +470,39 @@ describe('a plan and the packs it opens', () => {
   });
 });
 
+describe('a plan made for cooking ahead', () => {
+  const SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
+  /** Four days of one meal, with four lunches alike to choose from. */
+  const fourLunches = (mealPrepFriendly: boolean, seed: number): string[] =>
+    optimisePlan({
+      ...baseInput,
+      recipes: ['l1', 'l2', 'l3', 'l4'].map((id) => recipe(id, ['lunch'], 700)),
+      days: uniformDays(4, ['lunch'], 700),
+      mealPrepFriendly,
+      maxConsecutiveDaysSameMeal: mealPrepFriendly ? 4 : 2,
+      maxTimesPerWeekSameMeal: mealPrepFriendly ? 5 : 3,
+      seed,
+    }).assignments.map((a) => a.recipeId);
+
+  it('has a recipe on two days running, and then another: cooked once, eaten twice', () => {
+    for (const seed of SEEDS) {
+      const [first, second, third, fourth] = fourLunches(true, seed);
+
+      expect([second, fourth], `seed ${seed}`).toEqual([first, third]);
+      expect(third, `seed ${seed}`).not.toBe(first);
+    }
+  });
+
+  it('is what makes it so: a plan that was not asked for it has another recipe the day after', () => {
+    const repeats = SEEDS.filter((seed) => {
+      const [first, second] = fourLunches(false, seed);
+      return first === second;
+    });
+
+    expect(repeats).toEqual([]);
+  });
+});
+
 describe('recipeCoverage', () => {
   it('returns 1.0 when every required ingredient is fully stocked', () => {
     const reqs = [

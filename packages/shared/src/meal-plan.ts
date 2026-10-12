@@ -249,6 +249,14 @@ export const PlannedMeal = z.object({
    * chose, or the user did.
    */
   modelPick: z.object({ reason: z.string().max(200).nullable() }).nullable(),
+  /**
+   * In a plan made for cooking ahead, a dish that is planned twice running is
+   * cooked once: `cook` on the meal it is cooked for, which is cooked for the
+   * next as well; `cooked` on the meal that is eaten from it, the day after
+   * or later the same day. Null for every other meal, and in a plan that was
+   * not made for cooking ahead.
+   */
+  cookAhead: z.enum(['cook', 'cooked']).nullable(),
   nutrition: Nutrition, // effective: per-serving macros * servings * quantityScale
 });
 export type PlannedMeal = z.infer<typeof PlannedMeal>;

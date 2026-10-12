@@ -245,6 +245,10 @@ export const SCORE_WEIGHTS = {
   // choice, and a day is at most a point further from its split. More weight
   // goes on taking from the split and from the variety of a week.
   packs: 0.15,
+  // In a plan made for cooking ahead: the recipe that was cooked the day
+  // before, eaten a second time. More than what a recipe eaten again loses
+  // on reuse and variety, so that it happens; the limits keep it to days.
+  cookOnce: 0.4,
 };
 export type ScoreWeights = typeof SCORE_WEIGHTS;
 
@@ -667,6 +671,12 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
       ? packPull(new Map([...recipe.amounts].map(([ingredientId, perServing]) => [ingredientId, perServing * servings])), ctx.heldOf, ctx.packs, ctx.daysToCome ?? 0)
       : 0;
 
+  // Cooking ahead: a recipe is cooked for two days, and then another. The day
+  // after it was cooked speaks for it; the day after that speaks for nothing.
+  let daysRunning = 0;
+  while (mine.some((use) => use.day === ctx.day - 1 - daysRunning)) daysRunning += 1;
+  const cookOnce = ctx.mealPrepFriendly && daysRunning % 2 === 1 && !mine.some((use) => use.day === ctx.day) ? 1 : 0;
+
   const { weights } = ctx;
   return (
     weights.calorieFit * fit +
@@ -678,7 +688,8 @@ export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
     weights.favoriteIngredient * favoriteIngredient +
     weights.cuisine * preferredCuisine +
     weights.inventoryCoverage * inventoryCoverage +
-    weights.packs * packs -
+    weights.packs * packs +
+    weights.cookOnce * cookOnce -
     weights.complexity * complexityPenalty
   );
 }
