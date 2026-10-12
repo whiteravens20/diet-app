@@ -114,3 +114,14 @@ export function ingredientNames(names: number, locales: number, temperature: num
     timeoutMs: BATCH_WAIT_MS,
   };
 }
+
+/** The text of one recipe in another language: its title, its description and its `steps` steps. */
+export function recipeTranslation(steps: number, temperature: number): Operation {
+  return {
+    name: 'admin-recipe-translation',
+    maxTokens: 300 + 120 * steps,
+    temperature,
+    timeoutMs: BATCH_WAIT_MS,
+  };
+}
+
