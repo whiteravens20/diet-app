@@ -29,7 +29,7 @@ const BUDGETS: Record<string, number> = {
   '/settings': 210,
   // The pages that also check what is typed or answered against the contract, which brings its schemas.
   '/profile': 240,
-  '/calculator': 240,
+  '/calculator': 235,
   '/recipes': 245,
   '/favorites': 245,
   '/meal-plans': 260,

@@ -1,19 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import AxeBuilder from '@axe-core/playwright';
-import type { Page } from '@playwright/test';
-import { expect, settled, test } from './fixtures';
-
-/** The rules a page is held to: WCAG 2.1 and 2.2, levels A and AA. */
-const RULES = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
-
-/** What stands in the way of somebody using the page: the two graver of the four degrees. */
-async function barriers(page: Page): Promise<string[]> {
-  const { violations } = await new AxeBuilder({ page }).withTags(RULES).analyze();
-  return violations
-    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
-    .flatMap((violation) => violation.nodes.map((node) => `${violation.id}: ${node.target.join(' ')} — ${node.failureSummary?.split('\n').slice(1).join(' ').trim().slice(0, 200)}`));
-}
+import { barriers, expect, settled, test } from './fixtures';
 
 test.describe('a page anybody can open has nothing that keeps somebody from using it', () => {
   for (const path of ['/', '/login', '/register', '/forgot-password', '/terms', '/review', '/admin']) {
@@ -76,7 +63,8 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     await page.goto('/profile');
     await settled(page);
     await page.getByRole('button', { name: (messages.common as Record<string, string>).edit!, exact: true }).first().click();
-    await expect(page.getByLabel((messages.profile as Record<string, string>).name!, { exact: true })).toBeVisible();
+    // The field is named by its label and the line under it: it is found by how its name begins.
+    await expect(page.getByLabel(new RegExp(`^${(messages.profile as Record<string, string>).name!}`))).toBeVisible();
 
     expect(await barriers(page)).toEqual([]);
   });

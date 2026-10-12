@@ -2,6 +2,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import AxeBuilder from '@axe-core/playwright';
 import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
 import { accountOf, STATE, type Account } from './accounts';
 
@@ -140,4 +141,15 @@ export { expect };
 export async function settled(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
   await expect(page.locator('.skeleton')).toHaveCount(0);
+}
+
+/** The rules a page is held to: WCAG 2.1 and 2.2, levels A and AA. */
+const RULES = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+/** What stands in the way of somebody using the page as it is now: the two graver of the four degrees. */
+export async function barriers(page: Page): Promise<string[]> {
+  const { violations } = await new AxeBuilder({ page }).withTags(RULES).analyze();
+  return violations
+    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+    .flatMap((violation) => violation.nodes.map((node) => `${violation.id}: ${node.target.join(' ')} — ${node.failureSummary?.split('\n').slice(1).join(' ').trim().slice(0, 200)}`));
 }

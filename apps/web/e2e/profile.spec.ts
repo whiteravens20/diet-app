@@ -15,7 +15,8 @@ async function editing(page: Page, messages: Messages): Promise<void> {
   await page.goto('/profile');
   await settled(page);
   await page.getByRole('button', { name: textsOf(messages, 'common').edit!, exact: true }).first().click();
-  await expect(page.getByLabel(textsOf(messages, 'profile').name!, { exact: true })).toBeVisible();
+  // The field is named by its label and the line under it: it is found by how its name begins.
+  await expect(page.getByLabel(new RegExp(`^${textsOf(messages, 'profile').name!}`))).toBeVisible();
 }
 
 test.describe('what a profile says of how it eats', () => {
