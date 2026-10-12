@@ -79,6 +79,7 @@ export class ProfilesService {
           sex: input.sex,
           heightCm: input.heightCm,
           weightKg: input.weightKg,
+          targetWeightKg: input.targetWeightKg,
           activityLevel: input.activityLevel,
           dietType: input.dietType,
           weeklyLossTarget: input.weeklyLossTarget,
@@ -120,6 +121,7 @@ export class ProfilesService {
         sex: input.sex,
         heightCm: input.heightCm,
         weightKg: input.weightKg,
+        targetWeightKg: input.targetWeightKg,
         activityLevel: input.activityLevel,
         dietType: input.dietType,
         weeklyLossTarget: input.weeklyLossTarget,
@@ -172,6 +174,7 @@ export class ProfilesService {
     sex: 'male' | 'female' | null;
     heightCm: number;
     weightKg: number;
+    targetWeightKg: number | null;
     activityLevel: Profile['activityLevel'];
     dietType: Profile['dietType'];
     weeklyLossTarget: string | null;
@@ -202,6 +205,7 @@ export class ProfilesService {
       sex: row.sex,
       heightCm: row.heightCm,
       weightKg: row.weightKg,
+      targetWeightKg: row.targetWeightKg,
       activityLevel: row.activityLevel,
       dietType: row.dietType,
       weeklyLossTarget: row.weeklyLossTarget as WeeklyTarget,

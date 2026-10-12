@@ -42,6 +42,7 @@ function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
     theme: 'system',
     palette: 'default',
     aiMode: 'none',
+    weightUnit: null,
     passwordHash: bcrypt.hashSync(pepperPassword('CorrectHorse1', PEPPER_KEY), 4),
     ...overrides,
   };
@@ -99,6 +100,18 @@ describe('UsersService', () => {
         where: { id: 'user-1' },
         data: { locale: 'pl' },
       });
+    });
+
+    it('keeps the unit an account weighs in, takes it back when told to, and says it with the account', async () => {
+      await service.updateSettings('user-1', { weightUnit: 'lb' });
+      await service.updateSettings('user-1', { weightUnit: null });
+
+      expect(prisma.user.update.mock.calls.map(([arg]) => arg.data)).toEqual([{ weightUnit: 'lb' }, { weightUnit: null }]);
+      prisma.user.findUnique.mockResolvedValueOnce({ ...makeUser(), weightUnit: 'lb' });
+      expect((await service.getMe('user-1')).weightUnit).toBe('lb');
+      // What is kept and is no unit is no choice: the client goes by where its reader is.
+      prisma.user.findUnique.mockResolvedValueOnce({ ...makeUser(), weightUnit: 'stone' });
+      expect((await service.getMe('user-1')).weightUnit).toBeNull();
     });
 
     it('rejects byok flip when the user has zero enabled provider configs', async () => {

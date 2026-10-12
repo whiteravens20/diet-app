@@ -23,6 +23,7 @@ const profile: Profile = {
   sex: null,
   heightCm: 180,
   weightKg: 80,
+  targetWeightKg: null,
   activityLevel: 'moderate',
   dietType: 'vegan',
   weeklyLossTarget: '0.5',

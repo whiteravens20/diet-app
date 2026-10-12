@@ -91,22 +91,25 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
 
       <PlanOverviewCard profile={profile} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('macroSplit')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {macroData.length > 0 ? (
-            <div className="h-64">
-              <MacroChart data={macroData} />
-            </div>
-          ) : (
-            <Skeleton className="h-64" />
-          )}
-        </CardContent>
-      </Card>
+      {/* The split a day aims at and the weights that were logged, beside each other where there is room for both. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('macroSplit')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {macroData.length > 0 ? (
+              <div className="h-64">
+                <MacroChart data={macroData} />
+              </div>
+            ) : (
+              <Skeleton className="h-64" />
+            )}
+          </CardContent>
+        </Card>
 
-      <WeightCard profile={profile} />
+        <WeightCard profile={profile} />
+      </div>
 
       <FavoriteSetsCard profileId={profile.id} />
     </section>

@@ -20,6 +20,7 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
   sex: null,
   heightCm: 180,
   weightKg: 80,
+  targetWeightKg: null,
   activityLevel: 'moderate',
   dietType: 'balanced',
   weeklyLossTarget: '0.5',
@@ -252,3 +253,63 @@ describe('the profile page, on the foods a profile has an opinion of', () => {
     expect(patch).toHaveBeenCalledWith(`/profiles/${profile.id}/preferences`, { dislikedIngredientIds: ['7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d'] });
   });
 });
+
+describe('the profile form, on the weights of a profile', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** The form of the account's one profile, open, for an account that weighs in `unit`. */
+  const editing = async (profile: Profile, unit: 'kg' | 'lb') => {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve((path === '/profiles' ? [profile] : path === '/users/me' ? { weightUnit: unit } : path.endsWith('/calories') ? { dailyTarget: 2209, warnings: [], macros: { protein: 0, fat: 0, carbs: 0 } } : []) as never),
+    );
+    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['config'], aPublicConfig());
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <ProfilePage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: messages.common.edit }));
+    const weight = await screen.findByLabelText(`Weight (${unit})`);
+    return { put, weight, target: screen.getByRole('spinbutton', { name: new RegExp(`^Weight to work towards \\(${unit}\\)`) }), save: () => userEvent.click(screen.getByRole('button', { name: messages.profile.saveChanges })) };
+  };
+
+  it('are typed in kilograms by an account that weighs in them, the one to work towards being left out or named', async () => {
+    const { put, weight, target, save } = await editing(aProfile('Me'), 'kg');
+
+    expect(weight).toHaveValue(80);
+    expect(target).toHaveValue(null);
+    await userEvent.type(target, '72.5');
+    await save();
+
+    expect(put.mock.calls[0]![1]).toMatchObject({ weightKg: 80, targetWeightKg: 72.5 });
+  });
+
+  it('are typed in pounds by an account that weighs in them, and kept in kilograms', async () => {
+    const { put, weight, target, save } = await editing(aProfile('Me', { targetWeightKg: 70 }), 'lb');
+
+    expect(weight).toHaveValue(176.4);
+    expect(target).toHaveValue(154.3);
+    await userEvent.clear(target);
+    await userEvent.type(target, '150');
+    await save();
+
+    // What was typed is converted; what was left as it stood is the weight the profile had, to the gram.
+    expect(put.mock.calls[0]![1]).toMatchObject({ weightKg: 80, targetWeightKg: 68.04 });
+  });
+
+  it('give up the weight to work towards when its field is emptied', async () => {
+    const { put, target, save } = await editing(aProfile('Me', { targetWeightKg: 70 }), 'kg');
+
+    await userEvent.clear(target);
+    await save();
+
+    expect(put.mock.calls[0]![1]).toMatchObject({ targetWeightKg: null });
+  });
+});
+

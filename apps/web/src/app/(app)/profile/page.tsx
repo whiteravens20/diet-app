@@ -21,6 +21,7 @@ import {
   type WeightReminderCadence,
   SPLIT_SHARE_LIMITS,
   type MacroSplit,
+  type WeightUnit,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
@@ -34,6 +35,8 @@ import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SupplyNote } from '@/components/supply-note';
 import { LoadFailed } from '@/components/load-failed';
+import { useFormat } from '@/lib/use-format';
+import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
 
 type Risk = ReturnType<typeof riskOfLosingWeight>[number];
 
@@ -44,13 +47,13 @@ function riskOf(body: { age: number; heightCm: number; weightKg: number; weeklyL
   return riskOfLosingWeight(body);
 }
 
-/** The same, for what the form holds at this moment. */
-function riskIn(form: HTMLFormElement): Risk[] {
+/** The same, for what the form holds at this moment; its weight is typed in the unit of the account. */
+function riskIn(form: HTMLFormElement, unit: WeightUnit): Risk[] {
   const f = new FormData(form);
   return riskOf({
     age: Number(f.get('age')),
     heightCm: Number(f.get('heightCm')),
-    weightKg: Number(f.get('weightKg')),
+    weightKg: toKilograms(Number(f.get('weight')), unit),
     weeklyLossTarget: String(f.get('weeklyLossTarget') ?? '') || null,
     manualCalorieTarget: f.get('manualCalorieTarget') ? Number(f.get('manualCalorieTarget')) : null,
   });
@@ -89,6 +92,21 @@ export default function ProfilePage() {
   const [creating, setCreating] = useState(false);
 
   const list = profiles.data ?? [];
+  // Weights are shown and typed in the unit of the account; the API keeps kilograms.
+  const unit = useWeightUnit();
+  const fmt = useFormat();
+  const weightBounds = boundsIn(unit);
+  /**
+   * A weight of the form, in kilograms; null for a field left empty. A field
+   * that still shows what the profile had gives back exactly that: a weight
+   * that went through pounds and back would otherwise move by a hair with
+   * every save.
+   */
+  const weightTyped = (field: FormDataEntryValue | null, before: number | null | undefined): number | null => {
+    if (field === null || String(field).trim() === '') return null;
+    const typed = Number(field);
+    return before != null && typed === shownToOne(before, unit) ? before : toKilograms(typed, unit);
+  };
   // How many profiles an account may hold is the instance's to say.
   const maxProfiles = useConfig().data?.accounts.maxProfiles ?? DEFAULT_PROFILES_PER_ACCOUNT;
   const atLimit = list.length >= maxProfiles;
@@ -159,7 +177,8 @@ export default function ProfilePage() {
       age: Number(f.get('age')),
       sex: (f.get('sex') as 'male' | 'female') || null,
       heightCm: Number(f.get('heightCm')),
-      weightKg: Number(f.get('weightKg')),
+      weightKg: weightTyped(f.get('weight'), editing?.weightKg) ?? 0,
+      targetWeightKg: weightTyped(f.get('targetWeight'), editing?.targetWeightKg),
       activityLevel: f.get('activityLevel') as ProfileInput['activityLevel'],
       dietType: f.get('dietType') as ProfileInput['dietType'],
       // The split of the custom diet, as the form shows it; on another diet the profile keeps the one it has.
@@ -244,7 +263,7 @@ export default function ProfilePage() {
                     {t('summary', {
                       age: p.age,
                       height: p.heightCm,
-                      weight: p.weightKg,
+                      weight: fmt.unit(shownWeight(p.weightKg, unit), unit === 'lb' ? 'pound' : 'kilogram', 1),
                       dietType: tDiet(p.dietType),
                     })}
                   </p>
@@ -308,7 +327,7 @@ export default function ProfilePage() {
             <form
               key={editing?.id ?? 'new'}
               onSubmit={onSubmit}
-              onChange={(event) => setTypedRisk({ form: formKey, reasons: riskIn(event.currentTarget) })}
+              onChange={(event) => setTypedRisk({ form: formKey, reasons: riskIn(event.currentTarget, unit) })}
               className="grid gap-4 sm:grid-cols-2"
             >
               <Field label={t('name')}>
@@ -341,14 +360,20 @@ export default function ProfilePage() {
                   defaultValue={editing?.heightCm ?? 175}
                 />
               </Field>
-              <Field label={t('weightKg')}>
+              {/* Typed in the unit of the account. The fields are made anew when the unit is known or changes: a number under another unit's name would be another weight. */}
+              <Field label={t('weight', { unit })}>
+                <Input key={unit} name="weight" type="number" inputMode="decimal" required min={weightBounds.min} max={weightBounds.max} step="0.1" defaultValue={shownToOne(editing?.weightKg ?? 75, unit)} />
+              </Field>
+              <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
                 <Input
-                  name="weightKg"
+                  key={unit}
+                  name="targetWeight"
                   type="number"
-                  required
-                  min={30}
-                  max={400}
-                  defaultValue={editing?.weightKg ?? 75}
+                  inputMode="decimal"
+                  min={weightBounds.min}
+                  max={weightBounds.max}
+                  step="0.1"
+                  defaultValue={editing?.targetWeightKg != null ? shownToOne(editing.targetWeightKg, unit) : ''}
                 />
               </Field>
               <Field label={t('activityLevel')}>

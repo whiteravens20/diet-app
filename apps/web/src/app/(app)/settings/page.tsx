@@ -14,6 +14,7 @@ import {
   type AiQuotaStatus,
   type AiTestConnectionResponse,
   type Palette,
+  type WeightUnit,
   type SessionUser,
   type Theme,
 } from '@diet-app/shared';
@@ -62,6 +63,7 @@ export default function SettingsPage() {
       <LanguageCard />
       <ThemeCard initial={me.theme} />
       <PaletteCard initial={me.palette} />
+      <WeightUnitCard me={me} onSaved={() => qc.invalidateQueries({ queryKey: ['session'] })} />
       <AiAssistantCard me={me} />
       <AiProvidersCard />
       <PasswordCard />
@@ -205,6 +207,62 @@ const PALETTE_SWATCHES: Record<Palette, string> = {
   mono: 'oklch(0.3 0 0)',
   rose: 'oklch(0.6 0.17 5)',
 };
+
+/**
+ * The unit body weights are shown and typed in. Until the account chooses,
+ * the application goes by where the reader's browser says they are; the
+ * choice is kept with the account, and every page that shows a weight
+ * follows it. The API keeps kilograms whatever is chosen.
+ */
+function WeightUnitCard({ me, onSaved }: { me: SessionUser; onSaved: () => void }) {
+  const t = useTranslations('settings');
+  const errorText = useErrorText();
+  const [error, setError] = useState<string | null>(null);
+  // What was chosen and is on its way: shown in the same breath as the click.
+  const [chosen, setChosen] = useState<WeightUnit | null | undefined>(undefined);
+  const value = chosen === undefined ? me.weightUnit : chosen;
+
+  async function pick(next: WeightUnit | null) {
+    setError(null);
+    setChosen(next);
+    try {
+      await api.patch('/users/me', { weightUnit: next });
+      onSaved();
+    } catch (e) {
+      setChosen(undefined);
+      setError(errorText(e, t('weightUnitFailed')));
+    }
+  }
+
+  const options: { value: WeightUnit | null; label: string }[] = [
+    { value: null, label: t('weightUnitByRegion') },
+    { value: 'kg', label: t('weightUnitKg') },
+    { value: 'lb', label: t('weightUnitLb') },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('weightUnit')}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t('weightUnit')}>
+          {options.map((o) => (
+            <Button key={o.value ?? 'region'} type="button" size="sm" variant={value === o.value ? 'primary' : 'outline'} aria-pressed={value === o.value} onClick={() => void pick(o.value)}>
+              {o.label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">{t('weightUnitHint')}</p>
+        {error && (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function PaletteCard({ initial }: { initial: Palette }) {
   const t = useTranslations('settings');

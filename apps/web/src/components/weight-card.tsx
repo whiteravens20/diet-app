@@ -15,8 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
-import { localDate } from '@/lib/http';
-import type { WeightPoint } from '@/components/weight-chart';
+import { weightSeries } from '@/lib/weight-series';
+import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
 
 /** Fetched when a chart is first shown: the charting library is the heaviest thing the dashboard has. */
 const WeightChart = dynamic(() => import('@/components/weight-chart').then((chart) => chart.WeightChart), {
@@ -27,17 +27,22 @@ const WeightChart = dynamic(() => import('@/components/weight-chart').then((char
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Per-profile weight log with a 90-day trend, a 7-day moving average,
- * and the registered Profile.weightKg as a horizontal reference. Empty state
- * stays out of the operator's way; the chart only renders once the user
- * starts logging.
+ * The weights a profile logged: ninety days of them as a chart, with the mean
+ * of each seven days and a line at the weight the profile is working towards
+ * (at the weight it registered with while it has named none). Everything is
+ * shown and typed in the unit of the account, kilograms or pounds; the API
+ * keeps kilograms. The chart is drawn once there is something to draw.
  */
 export function WeightCard({ profile }: { profile: Profile }) {
   const t = useTranslations('weightCard');
   const fmt = useFormat();
   const errorText = useErrorText();
   const qc = useQueryClient();
-  const [kg, setKg] = useState('');
+  const unit = useWeightUnit();
+  const bounds = boundsIn(unit);
+  const inUnit = (value: number): string => fmt.unit(value, unit === 'lb' ? 'pound' : 'kilogram', 1);
+  // What is typed, in the unit of the account.
+  const [typed, setTyped] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const entries = useQuery({
@@ -54,7 +59,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
     mutationFn: (v: number) =>
       api.post<WeightEntry>('/weights', { profileId: profile.id, kg: v }),
     onSuccess: () => {
-      setKg('');
+      setTyped('');
       setError(null);
       qc.invalidateQueries({ queryKey: ['weights', profile.id] });
     },
@@ -75,25 +80,30 @@ export function WeightCard({ profile }: { profile: Profile }) {
 
   function submit(e: React.FormEvent): void {
     e.preventDefault();
-    const v = Number(kg.replace(',', '.'));
-    if (!Number.isFinite(v) || v < 30 || v > 400) {
-      setError(t('rangeError'));
+    const v = Number(typed.replace(',', '.'));
+    if (!Number.isFinite(v) || v < bounds.min || v > bounds.max) {
+      setError(t('rangeError', { min: inUnit(bounds.min), max: inUnit(bounds.max) }));
       return;
     }
-    log.mutate(v);
+    log.mutate(toKilograms(v, unit));
   }
 
-  const points = buildSeries(entries.data ?? []);
+  const points = weightSeries(entries.data ?? []).map((point) => ({ ...point, kg: shownWeight(point.kg, unit), ma7: shownWeight(point.ma7, unit) }));
   const hasData = points.length > 0;
+  // The line across the chart: where the profile wants to be, or where it began.
+  const reference =
+    profile.targetWeightKg !== null
+      ? { value: shownWeight(profile.targetWeightKg, unit), label: t('targetLabel') }
+      : { value: shownWeight(profile.weightKg, unit), label: t('referenceLabel') };
   // Entries arrive newest-first (`recordedAt: desc`), so [0] is the last one
   // logged — what we want to peel back on click.
   const latest = entries.data?.[0] ?? null;
   const latestDate = latest ? fmt.dayOf(latest.recordedAt) : '';
-  const latestKg = latest ? fmt.number(latest.kg, 1) : '';
+  const latestWeight = latest ? inUnit(shownWeight(latest.kg, unit)) : '';
 
   function onRemoveLatest(): void {
     if (!latest) return;
-    if (!window.confirm(t('removeLatestConfirm', { kg: latestKg, date: latestDate }))) return;
+    if (!window.confirm(t('removeLatestConfirm', { weight: latestWeight, date: latestDate }))) return;
     remove.mutate(latest.id);
   }
 
@@ -103,26 +113,28 @@ export function WeightCard({ profile }: { profile: Profile }) {
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6">
           <form onSubmit={submit} className="space-y-3">
-            <Field label={t('formLabel')}>
+            <Field label={t('formLabel', { unit })}>
               <Input
                 type="number"
                 inputMode="decimal"
                 step="0.1"
-                min={30}
-                max={400}
-                value={kg}
-                onChange={(e) => setKg(e.target.value)}
-                placeholder={String(profile.weightKg)}
+                min={bounds.min}
+                max={bounds.max}
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder={String(shownToOne(profile.weightKg, unit))}
               />
             </Field>
             <p className="text-xs text-muted-foreground">
-              {t('referenceHint', { kg: fmt.number(profile.weightKg, 1) })}
+              {profile.targetWeightKg !== null
+                ? t('targetHint', { registered: inUnit(shownWeight(profile.weightKg, unit)), target: inUnit(shownWeight(profile.targetWeightKg, unit)) })
+                : t('referenceHint', { registered: inUnit(shownWeight(profile.weightKg, unit)) })}
             </p>
             {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" size="sm" disabled={log.isPending || kg.trim() === ''}>
+              <Button type="submit" size="sm" disabled={log.isPending || typed.trim() === ''}>
                 {log.isPending ? t('logging') : t('log')}
               </Button>
               {latest && (
@@ -132,13 +144,13 @@ export function WeightCard({ profile }: { profile: Profile }) {
                   size="sm"
                   onClick={onRemoveLatest}
                   disabled={remove.isPending}
-                  title={t('removeLatestLabel', { kg: latestKg, date: latestDate })}
+                  title={t('removeLatestLabel', { weight: latestWeight, date: latestDate })}
                   className="text-muted-foreground"
                 >
                   <Undo2 size={14} aria-hidden />
                   <span className="ml-1">{t('removeLatest')}</span>
                   <span className="ml-1 text-xs">
-                    ({t('removeLatestLabel', { kg: latestKg, date: latestDate })})
+                    ({t('removeLatestLabel', { weight: latestWeight, date: latestDate })})
                   </span>
                 </Button>
               )}
@@ -147,7 +159,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
 
           <div className="min-h-[200px]">
             {hasData ? (
-              <WeightChart points={points} referenceKg={profile.weightKg} />
+              <WeightChart points={points} reference={reference} unit={unit} />
             ) : (
               <div className="flex h-full min-h-[200px] items-center justify-center rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
                 {t('emptyState')}
@@ -158,33 +170,4 @@ export function WeightCard({ profile }: { profile: Profile }) {
       </CardContent>
     </Card>
   );
-}
-
-/**
- * Collapse entries to one row per day (keep the most recent log of the day)
- * and attach a 7-day trailing moving average. A day is the reader's own: an
- * entry made late in the evening belongs to that evening, not to the day it
- * already is in UTC. Returned series is sorted ascending by date so Recharts
- * draws left → right.
- */
-const hundredths = (kg: number): number => Math.round(kg * 100) / 100;
-
-function buildSeries(entries: WeightEntry[]): WeightPoint[] {
-  if (entries.length === 0) return [];
-  const byDate = new Map<string, WeightEntry>();
-  for (const e of entries) {
-    const d = localDate(new Date(e.recordedAt));
-    const prev = byDate.get(d);
-    if (!prev || prev.recordedAt < e.recordedAt) byDate.set(d, e);
-  }
-  const sorted = Array.from(byDate.values()).sort((a, b) =>
-    a.recordedAt < b.recordedAt ? -1 : 1,
-  );
-  const out: WeightPoint[] = [];
-  for (let i = 0; i < sorted.length; i += 1) {
-    const window = sorted.slice(Math.max(0, i - 6), i + 1);
-    const ma7 = window.length >= 1 ? hundredths(window.reduce((s, w) => s + w.kg, 0) / window.length) : null;
-    out.push({ date: localDate(new Date(sorted[i].recordedAt)), kg: hundredths(sorted[i].kg), ma7 });
-  }
-  return out;
 }

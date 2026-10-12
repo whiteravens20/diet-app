@@ -53,6 +53,14 @@ export const AiMode = z.enum(['none', 'admin', 'byok']);
 export type AiMode = z.infer<typeof AiMode>;
 
 /**
+ * The unit an account reads and types a body weight in. The API keeps and
+ * answers every weight in kilograms; a client converts for whoever chose
+ * pounds.
+ */
+export const WeightUnit = z.enum(['kg', 'lb']);
+export type WeightUnit = z.infer<typeof WeightUnit>;
+
+/**
  * `AuthUser` extended with the user-controlled preference fields. Returned by
  * `GET /users/me` and by every settings-mutation endpoint.
  */
@@ -61,6 +69,8 @@ export const SessionUser = AuthUser.extend({
   theme: Theme,
   palette: Palette,
   aiMode: AiMode,
+  /** Null until the account chooses: a client then goes by where its reader is (pounds in the few countries that weigh in them). */
+  weightUnit: WeightUnit.nullable(),
 });
 export type SessionUser = z.infer<typeof SessionUser>;
 
@@ -70,6 +80,8 @@ export const UpdateUserSettings = z.object({
   theme: Theme.optional(),
   palette: Palette.optional(),
   aiMode: AiMode.optional(),
+  /** Null gives the choice back to the client. */
+  weightUnit: WeightUnit.nullable().optional(),
 });
 export type UpdateUserSettings = z.infer<typeof UpdateUserSettings>;
 

@@ -113,6 +113,8 @@ const profileFields = {
   activityLevel: ActivityLevel,
   dietType: DietType,
   weeklyLossTarget: WeeklyLossTarget.nullable(),
+  /** The weight the profile is working towards, in kilograms; null when it has named none. The chart of its weights draws it as a line. */
+  targetWeightKg: z.number().min(30).max(400).nullable(),
   /** Manual kcal target; when set it overrides the calculated value. */
   manualCalorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
   /** Default meal count (2-5) for new plans. */
@@ -145,6 +147,7 @@ const newProfile = z.object({
   sex: profileFields.sex.default(null),
   heightCm: profileFields.heightCm,
   weightKg: profileFields.weightKg,
+  targetWeightKg: profileFields.targetWeightKg.default(null),
   activityLevel: profileFields.activityLevel.default('moderate'),
   dietType: profileFields.dietType.default('balanced'),
   weeklyLossTarget: profileFields.weeklyLossTarget.default('0.5'),

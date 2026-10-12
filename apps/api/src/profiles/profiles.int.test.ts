@@ -69,7 +69,7 @@ describe('changing a profile', () => {
       expect(changed.preferences).toEqual(profile.preferences);
     });
 
-    it.each(['name', 'age', 'sex', 'heightCm', 'weightKg', 'activityLevel', 'dietType', 'weeklyLossTarget', 'manualCalorieTarget', 'mealCount', 'weightReminderCadence', 'customMacroSplit', 'preferences'])(
+    it.each(['name', 'age', 'sex', 'heightCm', 'weightKg', 'activityLevel', 'dietType', 'weeklyLossTarget', 'manualCalorieTarget', 'mealCount', 'weightReminderCadence', 'customMacroSplit', 'targetWeightKg', 'preferences'])(
       'refuses a profile without its %s, and puts nothing back to a default',
       async (part) => {
         const refused = await put(without(whole(), part)).expect(400);
@@ -94,6 +94,23 @@ describe('changing a profile', () => {
 
       expect(made).toMatchObject({ sex: null, activityLevel: 'moderate', dietType: 'balanced', weeklyLossTarget: '0.5', mealCount: 3, weightReminderCadence: 'weekly' });
       expect(made.preferences).toMatchObject({ allergens: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, inventoryBiasResetEvery: 5 });
+    });
+  });
+
+  describe('with a weight to work towards', () => {
+    it('keeps the weight, in kilograms, and gives it up again', async () => {
+      const set: Profile = (await put({ ...whole(), targetWeightKg: 62.5 }).expect(200)).body;
+      const cleared: Profile = (await put({ ...whole(), targetWeightKg: null }).expect(200)).body;
+
+      expect(set.targetWeightKg).toBe(62.5);
+      expect(cleared.targetWeightKg).toBeNull();
+    });
+
+    it.each([29, 401])('refuses %d kg, which no weight of a profile is', async (kg) => {
+      const refused = await put({ ...whole(), targetWeightKg: kg }).expect(400);
+
+      expect(refused.body.issues[0].path).toBe('targetWeightKg');
+      expect((await stored()).targetWeightKg).toBeNull();
     });
   });
 

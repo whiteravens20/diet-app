@@ -15,7 +15,7 @@ import type {
   SessionUser,
   UpdateUserSettings,
 } from '@diet-app/shared';
-import { AiMode, Locale, Palette, Theme } from '@diet-app/shared';
+import { AiMode, Locale, Palette, Theme, WeightUnit } from '@diet-app/shared';
 import { Passwords } from '../common/passwords.js';
 import type { Env } from '../config/env.js';
 import { carryUsageOfAccount } from '../ai/ai-quota.service.js';
@@ -58,12 +58,14 @@ export class UsersService {
     if (dto.theme !== undefined) Theme.parse(dto.theme);
     if (dto.palette !== undefined) Palette.parse(dto.palette);
     if (dto.aiMode !== undefined) AiMode.parse(dto.aiMode);
+    if (dto.weightUnit !== undefined) WeightUnit.nullable().parse(dto.weightUnit);
     if (
       dto.displayName === undefined &&
       dto.locale === undefined &&
       dto.theme === undefined &&
       dto.palette === undefined &&
-      dto.aiMode === undefined
+      dto.aiMode === undefined &&
+      dto.weightUnit === undefined
     ) {
       throw new BadRequestException({ error: 'EMPTY_UPDATE', message: 'Nothing to update.' });
     }
@@ -90,6 +92,7 @@ export class UsersService {
         ...(dto.theme !== undefined ? { theme: dto.theme } : {}),
         ...(dto.palette !== undefined ? { palette: dto.palette } : {}),
         ...(dto.aiMode !== undefined ? { aiMode: dto.aiMode } : {}),
+        ...(dto.weightUnit !== undefined ? { weightUnit: dto.weightUnit } : {}),
       },
     });
     return this.toSessionUser(user);
@@ -222,6 +225,7 @@ export class UsersService {
     theme: string;
     palette: string;
     aiMode: string;
+    weightUnit: string | null;
   }): SessionUser {
     return {
       id: user.id,
@@ -233,6 +237,7 @@ export class UsersService {
       theme: Theme.parse(user.theme),
       palette: Palette.parse(user.palette),
       aiMode: AiMode.parse(user.aiMode),
+      weightUnit: WeightUnit.nullable().catch(null).parse(user.weightUnit),
     };
   }
 }

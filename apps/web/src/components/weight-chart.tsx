@@ -4,27 +4,22 @@
 
 import { useTranslations } from 'next-intl';
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import type { WeightUnit } from '@diet-app/shared';
 import { useFormat } from '@/lib/use-format';
-
-export interface WeightPoint {
-  /** ISO yyyy-mm-dd at midnight of the recordedAt day. */
-  date: string;
-  /** Raw entry (latest of the day, if duplicates). */
-  kg: number;
-  /** 7-day trailing moving average over the same series, anchored at this row. */
-  ma7: number | null;
-}
+import type { WeightPoint } from '@/lib/weight-series';
 
 /** As high as the chart, so that the card does not jump when the chart arrives. */
 export const WEIGHT_CHART_HEIGHT = 220;
 
 /**
- * The weights of a profile over time: each entry, a moving average over
- * seven days, and the weight the profile was registered with as a line across.
- * A file of its own, so that the charting library is fetched when a chart is
- * shown and is no part of the pages that show none (see `weight-card.tsx`).
+ * The weights of a profile over time, in the unit its account reads them in:
+ * each entry, the mean of the seven days that end with it, and a line across
+ * at the weight the profile is working towards, or at the weight it was
+ * registered with while it has named none. A file of its own, so that the
+ * charting library is fetched when a chart is shown and is no part of the
+ * pages that show none (see `weight-card.tsx`).
  */
-export function WeightChart({ points, referenceKg }: { points: WeightPoint[]; referenceKg: number }) {
+export function WeightChart({ points, reference, unit }: { points: WeightPoint[]; reference: { value: number; label: string }; unit: WeightUnit }) {
   const t = useTranslations('weightCard');
   const fmt = useFormat();
   return (
@@ -40,14 +35,14 @@ export function WeightChart({ points, referenceKg }: { points: WeightPoint[]; re
             fontSize: 12,
           }}
           labelFormatter={(day) => (typeof day === 'string' ? fmt.date(day) : '')}
-          formatter={(v, name) => [typeof v === 'number' ? fmt.unit(v, 'kilogram', 1) : '—', name === 'kg' ? t('seriesEntry') : t('seriesMa7')]}
+          formatter={(v, name) => [typeof v === 'number' ? fmt.unit(v, unit === 'lb' ? 'pound' : 'kilogram', 1) : '—', name === 'kg' ? t('seriesEntry') : t('seriesMa7')]}
         />
         <ReferenceLine
-          y={referenceKg}
+          y={reference.value}
           stroke="var(--color-accent)"
           strokeDasharray="4 4"
           label={{
-            value: t('referenceLabel'),
+            value: reference.label,
             position: 'insideTopRight',
             fontSize: 10,
             fill: 'var(--color-muted-foreground)',

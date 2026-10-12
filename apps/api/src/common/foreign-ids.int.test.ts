@@ -45,6 +45,7 @@ const WHOLE_PROFILE = {
   sex: 'female',
   heightCm: 170,
   weightKg: 70,
+  targetWeightKg: null,
   activityLevel: 'moderate',
   dietType: 'balanced',
   weeklyLossTarget: null,

@@ -44,6 +44,9 @@ model User {
   // so a fresh account never makes outbound AI calls until the user opts in.
   // Constrained at the API layer via the AiMode enum in packages/shared.
   aiMode         String   @default("none")
+  // The unit the account reads and types a body weight in: "kg" or "lb". Null
+  // until it chooses; a client then goes by where its reader is.
+  weightUnit     String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -213,6 +216,8 @@ model Profile {
   sex                 Sex?
   heightCm            Float
   weightKg            Float
+  // The weight the profile is working towards, when it has named one.
+  targetWeightKg      Float?
   activityLevel       ActivityLevel @default(moderate)
   dietType            DietType      @default(balanced)
   // "0.25" | "0.5" | "0.75" | "1.0" — null = maintenance.
