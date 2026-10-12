@@ -373,6 +373,11 @@ function ListView({
   );
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const t = useTranslations('shoppingLists');
+  // What somebody in a shop is looking for on the list: the entries whose name holds the words, under the aisles they are in.
+  const [find, setFind] = useState('');
+  const wanted = find.trim().toLocaleLowerCase();
+  const groups = wanted ? list.groups.map((g) => ({ ...g, items: g.items.filter((i) => i.name.toLocaleLowerCase().includes(wanted)) })).filter((g) => g.items.length > 0) : list.groups;
   const fmt = useFormat();
   const dateRangeLabel = fmt.dates(list.fromDate, list.toDate);
 
@@ -479,7 +484,13 @@ function ListView({
         </div>
       )}
       <CardContent className="space-y-5 pt-4">
-        {list.groups.map((g) => (
+        <div className="max-w-sm">
+          <Field label={t('findEntry')}>
+            <Input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={t('findEntryPlaceholder')} />
+          </Field>
+        </div>
+        {wanted && groups.length === 0 && <p className="text-sm text-muted-foreground">{t('findEntryNone', { words: find.trim() })}</p>}
+        {groups.map((g) => (
           <div key={g.category}>
             <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {categoryLabel(g.category)}

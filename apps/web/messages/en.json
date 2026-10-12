@@ -859,7 +859,10 @@
     "errDelete": "Could not delete the list.",
     "stale": "The plan's menu changed after this list was made, so it no longer matches what the plan needs.",
     "staleUpdate": "Update the list",
-    "staleUpdateHint": "What you already have for it is counted for the new one."
+    "staleUpdateHint": "What you already have for it is counted for the new one.",
+    "findEntry": "Find an entry",
+    "findEntryPlaceholder": "Name of an ingredient…",
+    "findEntryNone": "No entry of this list has “{words}” in its name."
   },
   "units": {
     "amount": {
