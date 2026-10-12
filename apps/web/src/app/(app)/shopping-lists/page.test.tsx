@@ -33,6 +33,7 @@ const anEntry = (name: string, category: Entry['category'], over: Partial<Entry>
   purchasedQuantity: null,
   pantryBestBefore: null,
   estimatedCalories: 400,
+  packs: null,
   checked: false,
   ...over,
 });

@@ -11,6 +11,7 @@ import {
   groupByAisle,
   heldForPlan,
   intendedPantryEffect,
+  packsToBuy,
   pantryEffectOnRemoval,
   shareAhead,
   toBuyQuantity,
@@ -290,6 +291,55 @@ describe('saying how much of a row is at home', () => {
 
   it('is free of floating-point noise', () => {
     expect(withAtHome(row({ alreadyHaveQuantity: 0.1, purchasedQuantity: 0.3 }), 0.4)).toEqual({ alreadyHaveQuantity: 0.4, purchasedQuantity: 0.6, checked: false });
+  });
+});
+
+describe('what is left to buy of a row, in packs', () => {
+  const salmon = ing({ id: 's', name: 'Salmon', category: 'fish', packSize: 250 });
+  const inGrams = { unit: 'g', displayUnit: 'g' } as const;
+
+  it('is as many packs as the need takes, named by what one holds, with what they hold together', () => {
+    expect(packsToBuy(435, inGrams, salmon)).toEqual({ count: 2, size: 250, sizeUnit: 'g', quantity: 500 });
+    expect(packsToBuy(250, inGrams, salmon)).toEqual({ count: 1, size: 250, sizeUnit: 'g', quantity: 250 });
+    expect(packsToBuy(5, inGrams, salmon)).toEqual({ count: 1, size: 250, sizeUnit: 'g', quantity: 250 });
+  });
+
+  it('takes a need that is a spoonful over whole packs for the whole packs, and whoever buys them to have the need', () => {
+    // 1010 g of salmon: four packs, and nobody opens a fifth for 10 g. The row is done with them.
+    expect(packsToBuy(1010, inGrams, salmon)).toEqual({ count: 4, size: 250, sizeUnit: 'g', quantity: 1010 });
+    expect(packsToBuy(1015, inGrams, salmon)).toMatchObject({ count: 5, quantity: 1250 });
+    // Seven handfuls of spinach are 210 g, and a bag holds 200 g: six handfuls and two thirds of one.
+    const spinach = ing({ id: 'sp', name: 'Spinach', gramsPerPiece: 30, displayUnit: 'handful', packSize: 200 });
+    expect(packsToBuy(7, { unit: 'piece', displayUnit: 'handful' }, spinach)).toEqual({ count: 1, size: 200, sizeUnit: 'g', quantity: 7 });
+    expect(packsToBuy(5, { unit: 'piece', displayUnit: 'handful' }, spinach)).toEqual({ count: 1, size: 200, sizeUnit: 'g', quantity: 6 });
+  });
+
+  it('names a pack in pieces where the row is in pieces and a pack holds a whole number of them', () => {
+    // Eggs come in tens: 550 g at 55 g each.
+    const eggs = { ...egg, packSize: 550 };
+
+    expect(packsToBuy(4, { unit: 'piece', displayUnit: 'piece' }, eggs)).toEqual({ count: 1, size: 10, sizeUnit: 'piece', quantity: 10 });
+    expect(packsToBuy(12, { unit: 'piece', displayUnit: 'piece' }, eggs)).toEqual({ count: 2, size: 10, sizeUnit: 'piece', quantity: 20 });
+  });
+
+  it('names it by its weight where it holds no whole number of pieces, and counts whole pieces of it', () => {
+    // A loaf of 500 g is twelve and a half slices of 40 g.
+    const loaf = { ...bread, packSize: 500 };
+
+    expect(packsToBuy(6, { unit: 'piece', displayUnit: 'slice' }, loaf)).toEqual({ count: 1, size: 500, sizeUnit: 'g', quantity: 12 });
+    expect(packsToBuy(20, { unit: 'piece', displayUnit: 'slice' }, loaf)).toEqual({ count: 2, size: 500, sizeUnit: 'g', quantity: 25 });
+  });
+
+  it('counts a pack of something poured in millilitres', () => {
+    expect(packsToBuy(1200, { unit: 'ml', displayUnit: 'ml' }, { ...milk, packSize: 1000 })).toEqual({ count: 2, size: 1000, sizeUnit: 'ml', quantity: 2000 });
+  });
+
+  it('is not there for what is bought loose, for a row with nothing left to buy, and for a row that cannot be converted', () => {
+    expect(packsToBuy(300, inGrams, tomato)).toBeNull();
+    expect(packsToBuy(300, inGrams, { ...tomato, packSize: null })).toBeNull();
+    expect(packsToBuy(0, inGrams, salmon)).toBeNull();
+    // Salmon has no weight of a piece to count a row in pieces by.
+    expect(packsToBuy(2, { unit: 'piece', displayUnit: 'piece' }, salmon)).toBeNull();
   });
 });
 

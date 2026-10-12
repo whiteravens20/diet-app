@@ -19,6 +19,7 @@ import {
   groupByAisle,
   intendedPantryEffect,
   isCounted,
+  packsToBuy,
   pantryEffectOnRemoval,
   pantryStock,
   quantityToClaim,
@@ -279,6 +280,7 @@ export class ShoppingListsService {
         const ingredient = ingredients.get(item.ingredientId);
         // A row in pieces is called what its ingredient calls a piece.
         const displayUnit: DisplayUnit = item.unit === 'piece' && ingredient && isCounted(ingredient) ? ingredient.displayUnit : item.unit;
+        const toBuy = toBuyQuantity(item.totalQuantity, item.alreadyHaveQuantity);
         return {
           id: item.id,
           ingredientId: item.ingredientId,
@@ -288,10 +290,11 @@ export class ShoppingListsService {
           unit: item.unit,
           displayUnit,
           alreadyHaveQuantity: item.alreadyHaveQuantity,
-          toBuyQuantity: toBuyQuantity(item.totalQuantity, item.alreadyHaveQuantity),
+          toBuyQuantity: toBuy,
           purchasedQuantity: item.purchasedQuantity,
           pantryBestBefore: item.pantryBestBefore ? isoDate(item.pantryBestBefore) : null,
           estimatedCalories: item.estimatedCalories,
+          packs: ingredient ? packsToBuy(toBuy, { unit: item.unit, displayUnit }, ingredient) : null,
           checked: item.checked,
         };
       });

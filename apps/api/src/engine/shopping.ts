@@ -11,13 +11,16 @@
  */
 import type { DisplayUnit, ProductCategory, Unit } from '@diet-app/shared';
 import { quantityToBuy, shoppingUnit } from './display.js';
-import { convertUnit, nutritionFor, toCanonical } from './units.js';
+import { packsFor } from './packs.js';
+import { convertUnit, nutritionFor, toCanonical, UnitConversionError } from './units.js';
 import type { EngineIngredient } from './substitution.js';
 
 /** An ingredient as a shopping list needs to know it. */
 export type ShoppingIngredient = EngineIngredient & {
   /** What a piece of it is called, when it is counted instead of weighed. */
   displayUnit: string | null;
+  /** What one buys of it at a time, in its canonical unit. Null, or left out, for what is bought loose. */
+  packSize?: number | null;
 };
 
 /** One ingredient line drawn from a planned meal. */
@@ -124,6 +127,45 @@ export function groupByAisle<T extends { category: ProductCategory; name: string
 /** to-buy quantity after deducting what the user already has, floored at 0. */
 export function toBuyQuantity(total: number, alreadyHave: number): number {
   return Math.max(0, clean(total - alreadyHave));
+}
+
+/** What is left to buy of a row, in the packs its ingredient is sold in. */
+export interface RowPacks {
+  count: number;
+  /** What one pack holds, in `sizeUnit`. */
+  size: number;
+  sizeUnit: DisplayUnit;
+  /** What whoever buys the packs has for the row, in the row's unit. */
+  quantity: number;
+}
+
+/**
+ * What `toBuy` of a row comes to in packs: as many as the need takes, a need
+ * that is a spoonful over whole packs taking the whole packs (`packsFor`).
+ * A pack is named in pieces where the row is and a pack holds a whole number
+ * of them (ten eggs), by its weight or volume otherwise (a loaf of 500 g,
+ * whatever number of slices that is). `quantity` is what the packs hold
+ * together in the row's unit, a row in pieces counting whole pieces, and
+ * never less than `toBuy`: packs that are a spoonful short of the need are
+ * taken to cover it, so whoever buys them has what the row needs. Null for an
+ * ingredient that is not sold in packs, for a row with nothing left to buy,
+ * and where the row's unit cannot be brought to the ingredient's own.
+ */
+export function packsToBuy(toBuy: number, row: { unit: Unit; displayUnit: DisplayUnit }, ingredient: ShoppingIngredient): RowPacks | null {
+  const packSize = ingredient.packSize ?? 0;
+  if (packSize <= 0 || toBuy <= 0) return null;
+  try {
+    const count = packsFor(convertUnit(toBuy, row.unit, ingredient.canonicalUnit, ingredient), packSize);
+    const together = convertUnit(count * packSize, ingredient.canonicalUnit, row.unit, ingredient);
+    const quantity = Math.max(row.unit === 'piece' ? Math.floor(together + 1e-6) : clean(together), toBuy);
+    if (count < 1) return null;
+    const pieces = row.unit === 'piece' ? convertUnit(packSize, ingredient.canonicalUnit, 'piece', ingredient) : null;
+    if (pieces !== null && Math.abs(pieces - Math.round(pieces)) < 1e-6) return { count, size: Math.round(pieces), sizeUnit: row.displayUnit, quantity };
+    return { count, size: packSize, sizeUnit: ingredient.canonicalUnit, quantity };
+  } catch (err) {
+    if (!(err instanceof UnitConversionError)) throw err;
+    return null;
+  }
 }
 
 /** A shopping row as far as the pantry is concerned. All quantities in the row's unit. */

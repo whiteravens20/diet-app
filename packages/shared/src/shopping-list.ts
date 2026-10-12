@@ -77,6 +77,20 @@ export const ShoppingListItem = z.object({
   pantryBestBefore: z.string().date().nullable().default(null),
   /** Estimated calories contributed by this line (informational). */
   estimatedCalories: z.number().min(0),
+  /**
+   * What is left to buy, in the packs the ingredient is sold in: how many,
+   * what one holds (`size`, in `sizeUnit`: pieces where a pack holds a whole
+   * number of them, grams or millilitres otherwise), and what whoever buys
+   * them has for the row beside what was at home (`quantity`, in the row's
+   * `unit`): what the packs hold together, and never less than
+   * `toBuyQuantity`, because a need that is a spoonful over whole packs
+   * takes the whole packs and is taken to be met by them. Null for an
+   * ingredient that is not sold in packs, and for a row with nothing left to
+   * buy.
+   */
+  packs: z
+    .object({ count: z.number().int().min(1), size: z.number().positive(), sizeUnit: DisplayUnit, quantity: z.number().positive() })
+    .nullable(),
   checked: z.boolean().default(false),
 });
 export type ShoppingListItem = z.infer<typeof ShoppingListItem>;

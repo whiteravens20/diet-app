@@ -107,6 +107,63 @@ describe('shopping lists and the pantry', () => {
       expect(list.stale).toBe(false);
     });
 
+    it('says what is left to buy comes to in packs, for what is sold in packs', async () => {
+      const list = await listFor(0);
+
+      // Eggs come in tens; a loaf holds no whole number of slices, so it is named by its weight.
+      expect(rowOf(list, 'Large egg').packs).toEqual({ count: 1, size: 10, sizeUnit: 'piece', quantity: 10 });
+      expect(rowOf(list, 'Wholegrain bread').packs).toEqual({ count: 1, size: 500, sizeUnit: 'g', quantity: 14 });
+      expect(rowOf(list, 'Chicken breast').packs).toEqual({ count: 1, size: 500, sizeUnit: 'g', quantity: 500 });
+      expect(rowOf(list, 'White rice').packs).toEqual({ count: 1, size: 1000, sizeUnit: 'g', quantity: 1000 });
+      // Bought loose.
+      expect(rowOf(list, 'Broccoli').packs).toBeNull();
+      expect(rowOf(list, 'Olive oil').packs).toBeNull();
+    });
+
+    it('counts the packs of what is left to buy, after what is at home', async () => {
+      await stock('chicken-breast', 100, 'g');
+      await stock('white-rice', 400, 'g');
+
+      const list = await listFor(0);
+
+      expect(rowOf(list, 'Chicken breast')).toMatchObject({ alreadyHaveQuantity: 100, toBuyQuantity: 50, packs: { count: 1, quantity: 500 } });
+      // The rice at home covers the need: nothing to buy, and no pack to name.
+      expect(rowOf(list, 'White rice')).toMatchObject({ toBuyQuantity: 0, packs: null });
+    });
+
+    it('takes whoever buys the packs to have what they hold: what is beyond the need goes into the pantry', async () => {
+      await stock('chicken-breast', 100, 'g');
+      const list = await listFor(0);
+      const chicken = rowOf(list, 'Chicken breast');
+
+      const bought = await edit(list, 'Chicken breast', { purchasedQuantity: chicken.alreadyHaveQuantity + chicken.packs!.quantity, checked: true });
+
+      expect(bought).toMatchObject({ purchasedQuantity: 600, checked: true });
+      // 100 g were at home and are the plan's now; of the 500 g bought the plan takes 50 g.
+      expect(await pantry('chicken-breast')).toEqual(['450 g']);
+
+      // Ten eggs for a need of three: seven are in the pantry.
+      const eggs = rowOf(list, 'Large egg');
+      await edit(list, 'Large egg', { purchasedQuantity: eggs.packs!.quantity, checked: true });
+      expect(await pantry('large-egg')).toEqual(['7 piece']);
+    });
+
+    it('takes packs that are a spoonful short of the need to cover it: the row is done, and nothing goes into the pantry', async () => {
+      // 510 g of chicken: a pack of 500 g, and nobody opens another for 10 g.
+      const dinner = plan.days[0]!.meals.find((meal) => meal.mealType === 'dinner')!;
+      await t.prisma.plannedMeal.update({ where: { id: dinner.id }, data: { quantityScale: 3.4 } });
+      const list = await listFor(0);
+      const chicken = rowOf(list, 'Chicken breast');
+      expect(chicken).toMatchObject({ totalQuantity: 510, packs: { count: 1, size: 500, sizeUnit: 'g', quantity: 510 } });
+
+      const bought = await edit(list, 'Chicken breast', { purchasedQuantity: chicken.packs!.quantity, checked: true });
+
+      expect(bought).toMatchObject({ purchasedQuantity: 510, checked: true });
+      expect(await pantry('chicken-breast')).toEqual([]);
+      // Taken back, the row is as it was, and offers its pack again.
+      expect(await edit(list, 'Chicken breast', { checked: false })).toMatchObject({ purchasedQuantity: null, checked: false, packs: { count: 1 } });
+    });
+
     it('rounds a need up, never down: a scaled meal that takes 3.3 eggs asks for four', async () => {
       const breakfast = plan.days[0]!.meals.find((meal) => meal.mealType === 'breakfast')!;
       await t.prisma.plannedMeal.update({ where: { id: breakfast.id }, data: { quantityScale: 1.1 } });
