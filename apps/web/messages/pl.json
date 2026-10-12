@@ -58,6 +58,9 @@
     "exhaustedTooltip": "Miesięczny limit AI wyczerpany. Następne zapytanie odblokuje się {date}.",
     "instanceExhaustedTooltip": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. Kolejne miejsce zwolni się {date}."
   },
+  "aiOff": {
+    "note": "AI jest wyłączone dla tego konta, więc akcje, które pytają model, są nieaktywne. <settings>Włącz AI w Ustawieniach</settings>, żeby z nich korzystać."
+  },
   "aiFallback": {
     "quota_exhausted": "Miesięczny limit AI wyczerpany — przełączam się na wbudowany silnik.",
     "instance_quota_exhausted": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana — używam silnika regułowego.",
@@ -1250,7 +1253,6 @@
     "noneAtAll": "Brak przepisów.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
     "aiDraft": "Zaproponuj z AI",
-    "aiDraftOff": "Włącz AI w Ustawieniach, aby tworzyć szkice przepisów.",
     "tabs": {
       "library": "Biblioteka",
       "mine": "Moje przepisy"

@@ -746,6 +746,24 @@ describe('the plan page, on what a model had to do with a plan', () => {
     expect(marks()).toEqual([]);
   });
 
+  it('keeps the model\'s swap in its place on an account with AI off, disabled, and says once over the plans why', async () => {
+    await opened(aPlan());
+
+    const swap = screen.getByRole('button', { name: messages.mealPlans.aiSwap });
+    const notes = screen.getAllByText(/^AI is turned off for this account/);
+    expect(swap).toBeDisabled();
+    expect(notes).toHaveLength(1);
+    expect(swap).toHaveAccessibleDescription(notes[0]!.textContent!);
+    expect(screen.getByRole('link', { name: 'Turn AI on in Settings' })).toHaveAttribute('href', '/settings');
+  });
+
+  it('says nothing of the kind on an account that has a model to ask', async () => {
+    await opened(aPlan(), 'admin');
+
+    expect(screen.getByRole('button', { name: messages.mealPlans.aiSwap })).toBeEnabled();
+    expect(screen.queryByText(/^AI is turned off for this account/)).toBeNull();
+  });
+
   it('marks a meal whose recipe a model chose, says why, and says it again where the recipe is opened', async () => {
     const recipe = await opened(aPlanWith({ modelPick: { reason: 'Lighter than the porridge.' } }));
 

@@ -150,6 +150,19 @@ describe('the substitution of an ingredient, before it is made', () => {
     expect(post).toHaveBeenCalledWith('/meal-plans/swap-ingredient/preview', expect.objectContaining({ toIngredientId: chickpeas.ingredientId }));
   });
 
+  it('keeps what asks a model in its place on an account with AI off, disabled, over a line that says why', async () => {
+    await substituting(aPreview());
+
+    const suggest = screen.getByRole('button', { name: messages.swap.aiSuggest });
+    const reword = screen.getByRole('checkbox', { name: new RegExp(`^${messages.swap.rewriteWithAi}`) });
+    const notes = screen.getAllByText(/^AI is turned off for this account/);
+    expect(notes).toHaveLength(1);
+    for (const off of [suggest, reword]) {
+      expect(off).toBeDisabled();
+      expect(off).toHaveAccessibleDescription(notes[0]!.textContent!);
+    }
+  });
+
   it('words a refusal of the API by its code', async () => {
     const { post, applyButton } = await substituting(aPreview());
     post.mockRejectedValueOnce(new ApiClientError(422, 'SUBSTITUTION_MOVES_NUTRITION', 'the text of the API'));

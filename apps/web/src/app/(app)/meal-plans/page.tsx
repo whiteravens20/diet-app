@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Suspense, useState } from 'react';
+import { Suspense, useId, useState } from 'react';
 import { CalendarRange, UserRound } from 'lucide-react';
 import {
   MAX_CALORIE_TARGET,
@@ -35,6 +35,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AiOffNote } from '@/components/ai-off-note';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
@@ -103,13 +104,14 @@ function MealPlansContent() {
   const [calorieTarget, setCalorieTarget] = useState('');
   const depth = useConfig().data?.catalogue.depth;
 
-  // Drives whether the ✨ button renders. `aiMode === 'none'` users hid AI on
-  // purpose — they shouldn't see AI surfaces at all (matches AiChip semantics).
+  // Whether the account has a model to ask. Without one, what asks a model
+  // stays where it is, disabled, and one line over the plans says why.
   const session = useQuery({
     queryKey: ['session'],
     queryFn: () => api.get<SessionUser>('/users/me'),
   });
   const aiEnabled = session.data?.aiMode && session.data.aiMode !== 'none';
+  const aiOffNote = useId();
   const [status, setStatus] = useState<'' | 'active' | 'past' | 'upcoming'>('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -675,6 +677,7 @@ function MealPlansContent() {
           />
           {t('swapWithPantry')}
         </label>
+        {session.data && !aiEnabled && <AiOffNote id={aiOffNote} />}
         {plans.isLoading ? (
           <Skeleton className="h-24 max-w-3xl" />
         ) : plans.isError ? (
@@ -713,6 +716,7 @@ function MealPlansContent() {
                 askFor({ planId: plan.id, plannedMealId, strategy: 'favorite', favoriteRecipeId, allowOffDiet })
               }
               onAiSwapMeal={aiEnabled ? (plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'ai' }) : undefined}
+              aiOffNote={aiOffNote}
               offer={offer?.asked.planId === plan.id ? offer : null}
               onTakeOffer={() => offer && takeOffer.mutate(offer)}
               onAnotherOffer={() => offer && askFor(offer.asked, offer.seen)}

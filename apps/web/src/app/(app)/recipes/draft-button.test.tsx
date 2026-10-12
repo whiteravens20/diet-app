@@ -27,12 +27,15 @@ describe('the button that drafts a recipe with a model', () => {
     expect(button).not.toHaveAccessibleDescription();
   });
 
-  it('stays in its place without one, disabled, and says what it waits for', async () => {
+  it('stays in its place without one, disabled, over a line that says what it waits for and where that is changed', async () => {
     const { onOpen, button } = shown(false);
 
     expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleDescription(messages.recipes.aiDraftOff);
-    expect(button.parentElement).toHaveAttribute('title', messages.recipes.aiDraftOff);
+    // A line anybody can read, not a text that shows on hover: a disabled button says nothing to a finger.
+    const note = screen.getByText(/^AI is turned off for this account/);
+    expect(note).toBeVisible();
+    expect(button).toHaveAccessibleDescription(note.textContent!);
+    expect(screen.getByRole('link', { name: 'Turn AI on in Settings' })).toHaveAttribute('href', '/settings');
 
     await userEvent.click(button);
     expect(onOpen).not.toHaveBeenCalled();

@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type {
   AiSuggestIngredientResponse,
   Ingredient,
@@ -18,6 +18,7 @@ import type {
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
+import { AiOffNote } from '@/components/ai-off-note';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAmount } from '@/lib/ingredient-format';
@@ -84,6 +85,9 @@ export function IngredientSubstituteModal({
     queryFn: () => api.get<SessionUser>('/users/me'),
   });
   const aiEnabled = session.data?.aiMode && session.data.aiMode !== 'none';
+  // Known to be off, not merely not known yet: what asks a model then stays in its place, disabled, over a line that says why.
+  const aiOff = session.data !== undefined && !aiEnabled;
+  const aiOffNote = useId();
 
   const fromLine = meal.ingredients.find((i) => i.ingredientId === fromId) ?? null;
 
@@ -233,28 +237,28 @@ export function IngredientSubstituteModal({
                 }}
                 placeholder={tPickers('ingredientSearch')}
               />
-              {aiEnabled && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  title={t('tooltipAiSuggest')}
-                  onClick={() => {
-                    setError(null);
-                    setNotice(null);
-                    setAiReason(null);
-                    aiSuggest.mutate();
-                  }}
-                  disabled={aiSuggest.isPending}
-                  className="text-primary"
-                >
-                  <Sparkles size={14} aria-hidden />
-                  <span className="ml-1">
-                    {aiSuggest.isPending ? t('aiSuggestPending') : t('aiSuggest')}
-                  </span>
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                title={aiEnabled ? t('tooltipAiSuggest') : undefined}
+                onClick={() => {
+                  setError(null);
+                  setNotice(null);
+                  setAiReason(null);
+                  aiSuggest.mutate();
+                }}
+                disabled={!aiEnabled || aiSuggest.isPending}
+                aria-describedby={aiOff ? aiOffNote : undefined}
+                className="text-primary"
+              >
+                <Sparkles size={14} aria-hidden />
+                <span className="ml-1">
+                  {aiSuggest.isPending ? t('aiSuggestPending') : t('aiSuggest')}
+                </span>
+              </Button>
             </div>
+            {aiOff && <AiOffNote id={aiOffNote} className="mt-2" />}
             {notice && (
               <p
                 className="mt-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
@@ -363,20 +367,20 @@ export function IngredientSubstituteModal({
                 )}
               </>
             )}
-            {aiEnabled && (
-              <label className="mt-3 flex items-start gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={rewriteWithAi}
-                  onChange={(e) => setRewriteWithAi(e.target.checked)}
-                />
-                <span>
-                  {t('rewriteWithAi')}
-                  <span className="block text-muted-foreground">{t('rewriteWithAiHint')}</span>
-                </span>
-              </label>
-            )}
+            <label className={`mt-3 flex items-start gap-2 text-xs ${aiEnabled ? '' : 'text-muted-foreground'}`}>
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={Boolean(aiEnabled) && rewriteWithAi}
+                disabled={!aiEnabled}
+                aria-describedby={aiOff ? aiOffNote : undefined}
+                onChange={(e) => setRewriteWithAi(e.target.checked)}
+              />
+              <span>
+                {t('rewriteWithAi')}
+                <span className="block text-muted-foreground">{t('rewriteWithAiHint')}</span>
+              </span>
+            </label>
             <div className="mt-3 flex items-center justify-end gap-2">
               {error && <span className="text-xs text-destructive">{error}</span>}
               <Button

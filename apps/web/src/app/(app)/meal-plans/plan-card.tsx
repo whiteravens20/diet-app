@@ -78,6 +78,7 @@ export function PlanCard({
   onSwapByFavorites,
   onSwapToFavorite,
   onAiSwapMeal,
+  aiOffNote,
   offer,
   onTakeOffer,
   onAnotherOffer,
@@ -103,8 +104,10 @@ export function PlanCard({
   onSwapMeal: (plannedMealId: string) => void;
   onSwapByFavorites: (plannedMealId: string) => void;
   onSwapToFavorite: (plannedMealId: string, recipeId: string, allowOffDiet: boolean) => void;
-  /** Undefined when the user has `aiMode='none'` — the button is hidden. */
+  /** Undefined on an account that has no model to ask: the button stays in its place, disabled. */
   onAiSwapMeal?: (plannedMealId: string) => void;
+  /** The line of the page that says why what asks a model is off, for the buttons that are. */
+  aiOffNote?: string;
   /** The recipe that is on offer for one of this plan's meals, if any. */
   offer: SwapOffer | null;
   onTakeOffer: () => void;
@@ -381,20 +384,19 @@ export function PlanCard({
                               >
                                 {t('swapToFav')} ★ {favOpen ? '▲' : '▾'}
                               </Button>
-                              {onAiSwapMeal && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  title={t('tooltipAiSwap')}
-                                  onClick={() => onAiSwapMeal(m.id)}
-                                  disabled={busy}
-                                  className="text-primary"
-                                >
-                                  <Sparkles size={14} aria-hidden />
-                                  <span className="ml-1">{t('aiSwap')}</span>
-                                </Button>
-                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                title={onAiSwapMeal ? t('tooltipAiSwap') : undefined}
+                                onClick={() => onAiSwapMeal?.(m.id)}
+                                disabled={busy || !onAiSwapMeal}
+                                aria-describedby={onAiSwapMeal ? undefined : aiOffNote}
+                                className="text-primary"
+                              >
+                                <Sparkles size={14} aria-hidden />
+                                <span className="ml-1">{t('aiSwap')}</span>
+                              </Button>
                               <Button
                                 type="button"
                                 variant="ghost"

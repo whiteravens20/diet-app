@@ -58,6 +58,9 @@
     "exhaustedTooltip": "Monthly AI requests exhausted. Next slot frees up {date}.",
     "instanceExhaustedTooltip": "This instance's shared AI requests for the month are used up. Next slot frees up {date}."
   },
+  "aiOff": {
+    "note": "AI is turned off for this account, so the actions that ask a model are switched off. <settings>Turn AI on in Settings</settings> to use them."
+  },
   "aiFallback": {
     "quota_exhausted": "Your monthly AI requests are used up — falling back to the rule-based engine.",
     "instance_quota_exhausted": "This instance's shared AI requests for the month are used up — falling back to the rule-based engine.",
@@ -1250,7 +1253,6 @@
     "noneAtAll": "No recipes.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
     "aiDraft": "Draft with AI",
-    "aiDraftOff": "Turn on AI in Settings to draft recipes.",
     "tabs": {
       "library": "Library",
       "mine": "My recipes"
