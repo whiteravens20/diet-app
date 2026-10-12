@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Palette } from '@diet-app/shared';
+import { ServiceWorker } from '../components/service-worker';
 import { DEFAULT_PALETTE, PALETTE_COOKIE } from '../lib/palette';
 import { LOCALE_COOKIE, pickFromBrowserLanguage } from '../lib/locale';
 
@@ -74,6 +75,7 @@ export function Providers({
       <PaletteContext.Provider value={{ palette, setPalette }}>
         <QueryClientProvider client={client}>
           <FirstVisitLocaleDetector />
+          <ServiceWorker />
           {children}
         </QueryClientProvider>
       </PaletteContext.Provider>

@@ -22,6 +22,7 @@ const BUDGETS: Record<string, number> = {
   '/register': 190,
   '/forgot-password': 190,
   '/terms': 190,
+  '/offline': 190,
   // The pages of an account that read and show.
   '/dashboard': 205,
   '/shopping-lists': 205,

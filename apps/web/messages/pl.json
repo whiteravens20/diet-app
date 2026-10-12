@@ -390,7 +390,9 @@
     "waiting": "{count, plural, one {# odhaczenie czeka} few {# odhaczenia czekają} many {# odhaczeń czeka} other {# odhaczenia czeka}} na wysłanie.",
     "sent": "Wysłano to, co odhaczono bez połączenia: {sent, plural, one {# pozycję} few {# pozycje} many {# pozycji} other {# pozycji}}.",
     "refused": "{refused, plural, one {# odhaczenie nie zostało przyjęte} few {# odhaczenia nie zostały przyjęte} many {# odhaczeń nie zostało przyjętych} other {# odhaczenia nie zostało przyjęte}}: lista w międzyczasie się zmieniła.",
-    "onlyTicks": "Ilość będzie można zmienić, gdy serwer będzie dostępny. Odhaczyć pozycję można już teraz."
+    "onlyTicks": "Ilość będzie można zmienić, gdy serwer będzie dostępny. Odhaczyć pozycję można już teraz.",
+    "pageTitle": "Brak połączenia",
+    "pageBody": "Ta strona nie była wcześniej otwierana na tym urządzeniu, więc bez serwera nie ma czego pokazać. Strony, które już otwierano, takie jak plany i listy zakupów, nadal można czytać."
   },
   "notifications": {
     "label": "Powiadomienia",

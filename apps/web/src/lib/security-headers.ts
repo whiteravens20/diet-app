@@ -80,8 +80,8 @@ export interface PolicySettings {
  * that does not know the two finer directives.
  *
  * Everything else comes from the application's own address: it talks to its
- * API through the web server, frames nothing (but Turnstile's challenge),
- * and may itself be framed by nobody.
+ * API through the web server, runs no worker but its own, frames nothing
+ * (but Turnstile's challenge), and may itself be framed by nobody.
  */
 export function contentSecurityPolicy({ nonce, https, turnstile }: PolicySettings): string {
   return [
@@ -97,6 +97,8 @@ export function contentSecurityPolicy({ nonce, https, turnstile }: PolicySetting
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self' data:",
+    // The service worker that keeps the shell of the pages (`public/sw.js`) is the application's own file.
+    "worker-src 'self'",
     `frame-src ${turnstile ? TURNSTILE : "'none'"}`,
     `report-uri ${POLICY_REPORTS}`,
     // A report to a named endpoint, and the upgrade of http requests, are for https only: on an

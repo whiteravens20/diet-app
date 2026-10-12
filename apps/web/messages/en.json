@@ -390,7 +390,9 @@
     "waiting": "{count, plural, one {# tick is} other {# ticks are}} waiting to be sent.",
     "sent": "Sent what was ticked while the server was away: {sent, plural, one {# row} other {# rows}}.",
     "refused": "{refused, plural, one {# tick was} other {# ticks were}} not taken: the list had changed in the meantime.",
-    "onlyTicks": "A quantity can be changed when the server is back. A row can be ticked now."
+    "onlyTicks": "A quantity can be changed when the server is back. A row can be ticked now.",
+    "pageTitle": "No connection",
+    "pageBody": "This page was not opened on this device before, so there is nothing of it to show without the server. Pages you have opened, like your plans and your shopping lists, can still be read."
   },
   "notifications": {
     "label": "Notifications",

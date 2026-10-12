@@ -68,6 +68,8 @@ describe('the content security policy of a page', () => {
     expect(policy.get('default-src')).toEqual(["'self'"]);
     // `data:` is no address anything is sent to: the layout library of the printed list reads itself from one.
     expect(policy.get('connect-src')).toEqual(["'self'", 'data:']);
+    // Named, because a worker cannot carry a nonce: without it the policy for scripts would refuse the application's own.
+    expect(policy.get('worker-src')).toEqual(["'self'"]);
     expect(policy.get('base-uri')).toEqual(["'self'"]);
     expect(policy.get('form-action')).toEqual(["'self'"]);
     expect(policy.get('object-src')).toEqual(["'none'"]);
