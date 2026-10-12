@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
+import { Package } from 'lucide-react';
 import type { DisplayUnit, MealPlanPage, Profile, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
@@ -23,6 +24,7 @@ import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
 import { LoadFailed } from '@/components/load-failed';
+import { packsStand, packsText } from './packs';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
@@ -406,7 +408,12 @@ function ListView({
       ...list.groups
         .map((group) => ({ group, left: group.items.filter((item) => !item.checked) }))
         .filter(({ left }) => left.length > 0)
-        .flatMap(({ group, left }) => ['', categoryLabel(group.category), ...left.map((item) => `- ${item.name}: ${formatQty(stillToBuy(item), item.displayUnit)}`)]),
+        .flatMap(({ group, left }) => [
+          '',
+          categoryLabel(group.category),
+          // What is sold in packs says how many, for whoever stands at the shelf.
+          ...left.map((item) => `- ${item.name}: ${formatQty(stillToBuy(item), item.displayUnit)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`),
+        ]),
     ].join('\n');
   // What happened to the last copy: it is on the clipboard, or it is shown to be copied by hand.
   const [copied, setCopied] = useState<{ entries: number } | null>(null);
@@ -420,7 +427,7 @@ function ListView({
 
   // The whole list as a table for a spreadsheet: every row, ticked or not, with its numbers as numbers.
   function downloadCsv() {
-    const head = (['csvAisle', 'csvEntry', 'csvNeeded', 'csvUnit', 'csvAtHome', 'csvHave', 'csvToBuy', 'csvTicked', 'csvEnergy'] as const).map((column) => t(column));
+    const head = (['csvAisle', 'csvEntry', 'csvNeeded', 'csvUnit', 'csvAtHome', 'csvHave', 'csvToBuy', 'csvPacks', 'csvTicked', 'csvEnergy'] as const).map((column) => t(column));
     const rows = list.groups.flatMap((group) =>
       group.items.map((item) => [
         categoryLabel(group.category),
@@ -430,6 +437,7 @@ function ListView({
         item.alreadyHaveQuantity,
         item.purchasedQuantity ?? item.alreadyHaveQuantity,
         stillToBuy(item),
+        packsStand(item) ? packsText(item.packs, formatQty) : '',
         tCommon(item.checked ? 'yes' : 'no'),
         item.estimatedCalories,
       ]),
@@ -574,6 +582,7 @@ function ListView({
             <Input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={t('findEntryPlaceholder')} />
           </Field>
         </div>
+        {everyItem.some(packsStand) && <p className="text-xs text-muted-foreground">{t('packsHint')}</p>}
         {wanted && groups.length === 0 && <p className="text-sm text-muted-foreground">{t('findEntryNone', { words: find.trim() })}</p>}
         {groups.map((g) => (
           <div key={g.category}>
@@ -686,6 +695,21 @@ function ItemRow({
         {formatQty(remainingToBuy, item.displayUnit)}
         {showOfTotal && <span className="ml-1 text-xs">{ofLabel(formatQty(item.totalQuantity, item.displayUnit))}</span>}
       </span>
+      {/* The packs are counted by the server from what it knows is at home: while that is being typed anew, they are not said. */}
+      {packsStand(item) && homeNow === item.alreadyHaveQuantity && boughtNow === 0 && (
+        <button
+          type="button"
+          className="inline-flex h-7 items-center gap-1 rounded border border-input px-2 text-xs tabular-nums text-muted-foreground hover:bg-muted disabled:opacity-50"
+          disabled={busy}
+          aria-label={t('buyPacks', { packs: packsText(item.packs, formatQty), name: item.name })}
+          title={t('buyPacksTitle')}
+          // Everything the user has for the row then: what was at home, and what the packs give it. That is the need at least, so the row is done.
+          onClick={() => onPatch({ purchasedQuantity: item.alreadyHaveQuantity + item.packs.quantity, checked: true })}
+        >
+          <Package size={12} aria-hidden />
+          {packsText(item.packs, formatQty)}
+        </button>
+      )}
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <label className="flex items-center gap-1 text-xs text-muted-foreground">
           {t('atHome')}

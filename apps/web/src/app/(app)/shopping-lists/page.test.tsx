@@ -38,6 +38,9 @@ const anEntry = (name: string, category: Entry['category'], over: Partial<Entry>
   ...over,
 });
 
+/** Two packs of 250 g, for a row that has 435 g left to buy. */
+const TWO_PACKS = { count: 2, size: 250, sizeUnit: 'g', quantity: 500 } as const;
+
 const aListOf = (grains: Entry[], vegetables: Entry[]): ShoppingList => ({
   id: '22222222-2222-4222-8222-222222222222',
   planId: PLAN,
@@ -186,11 +189,43 @@ describe('a shopping list, taken somewhere else', () => {
     expect(name).toBe('shopping-list-2026-01-05_2026-01-07.csv');
     expect(type).toBe('text/csv');
     expect(file.slice(1).split('\r\n')).toEqual([
-      'Aisle,Entry,Needed,Unit,At home,Have in all,Still to buy,Ticked,kcal (estimate)',
-      'Grains,White rice,200,g,50,50,150,No,400',
-      'Grains,Rolled oats,200,g,0,200,0,Yes,400',
-      "Vegetables,'=Broccoli,200,g,0,0,200,No,400",
+      'Aisle,Entry,Needed,Unit,At home,Have in all,Still to buy,Packs,Ticked,kcal (estimate)',
+      'Grains,White rice,200,g,50,50,150,,No,400',
+      'Grains,Rolled oats,200,g,0,200,0,,Yes,400',
+      "Vegetables,'=Broccoli,200,g,0,0,200,,No,400",
       '',
+    ]);
+  });
+
+  /** Salmon to buy in two packs; eggs at home in part, in a carton of ten; bread of which a part was bought already. */
+  const inPacks = aListOf(
+    [anEntry('Wholegrain bread', 'grains', { totalQuantity: 8, unit: 'piece', displayUnit: 'slice', purchasedQuantity: 3, toBuyQuantity: 8, packs: { count: 1, size: 500, sizeUnit: 'g', quantity: 14 } })],
+    [
+      anEntry('Salmon', 'vegetables', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }),
+      anEntry('Large egg', 'vegetables', { totalQuantity: 6, unit: 'piece', displayUnit: 'piece', alreadyHaveQuantity: 2, purchasedQuantity: 2, toBuyQuantity: 4, packs: { count: 1, size: 10, sizeUnit: 'piece', quantity: 10 } }),
+    ],
+  );
+
+  it('says in the text how many packs a row takes, for a row of which nothing was bought yet', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await renderPage(inPacks);
+
+    await userEvent.click(screen.getByRole('button', { name: texts.copy }));
+
+    expect(copiedBy(writeText).slice(2)).toEqual(['Grains', '- Wholegrain bread: 5 slices', '', 'Vegetables', '- Salmon: 435 g (2 × 250 g)', '- Large egg: 4 pieces (1 × 10 pieces)']);
+  });
+
+  it('has a column for the packs in the table', async () => {
+    const saved = vi.spyOn(files, 'saveText').mockImplementation(() => undefined);
+    await renderPage(inPacks);
+
+    await userEvent.click(screen.getByRole('button', { name: texts.csv }));
+
+    expect(saved.mock.calls[0]![0].slice(1).split('\r\n').slice(1, 4)).toEqual([
+      'Grains,Wholegrain bread,8,slices,0,3,5,,No,400',
+      'Vegetables,Salmon,435,g,0,0,435,2 × 250 g,No,400',
+      'Vegetables,Large egg,6,pieces,2,2,4,1 × 10 pieces,No,400',
     ]);
   });
 });
@@ -271,6 +306,52 @@ describe('a row of a shopping list', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }));
 
     expect(patch.mock.calls.map(([, body]) => body)).toContainEqual({ checked: true, alreadyHaveQuantity: 80 });
+  });
+
+  describe('of something sold in packs', () => {
+    const packsOf = (name: string) => screen.queryByRole('button', { name: new RegExp(`^Bought in packs: .* of ${name}$`) });
+
+    it('says how many packs what is left to buy comes to, and what pressing that does', async () => {
+      await aRow(anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }));
+
+      expect(packsOf('Salmon')).toHaveTextContent('2 × 250 g');
+      expect(packsOf('Salmon')).toHaveAccessibleName('Bought in packs: 2 × 250 g of Salmon');
+      expect(screen.getByText(texts.packsHint)).toBeInTheDocument();
+    });
+
+    it('takes whoever presses it to have what was at home and what the packs hold, and the row for done', async () => {
+      const patch = await aRow(anEntry('Large egg', 'grains', { totalQuantity: 6, unit: 'piece', displayUnit: 'piece', alreadyHaveQuantity: 2, purchasedQuantity: 2, toBuyQuantity: 4, packs: { count: 1, size: 10, sizeUnit: 'piece', quantity: 10 } }));
+
+      await userEvent.click(packsOf('Large egg')!);
+
+      expect(patch).toHaveBeenCalledWith(expect.stringMatching(/\/items\/entry-Large egg$/), { purchasedQuantity: 12, checked: true });
+    });
+
+    it('says nothing of packs on a row that is not sold in them, and nothing of what pressing does on a list without one', async () => {
+      await aRow(anEntry('Broccoli', 'grains'));
+
+      expect(screen.queryByRole('button', { name: /^Bought in packs/ })).toBeNull();
+      expect(screen.queryByText(texts.packsHint)).toBeNull();
+    });
+
+    it('says nothing of packs on a row that is ticked, or of which a part was bought', async () => {
+      await renderPage(
+        aListOf(
+          [anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, purchasedQuantity: 435, checked: true, packs: TWO_PACKS })],
+          [anEntry('Cod', 'vegetables', { totalQuantity: 435, toBuyQuantity: 435, purchasedQuantity: 100, packs: TWO_PACKS })],
+        ),
+      );
+
+      expect(screen.queryByRole('button', { name: /^Bought in packs/ })).toBeNull();
+    });
+
+    it('takes the packs back while what is at home is typed anew: the server counts them from that', async () => {
+      await aRow(anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }));
+
+      await userEvent.type(atHome(), '200');
+
+      expect(packsOf('Salmon')).toBeNull();
+    });
   });
 
   it('says until when what the pantry held for the row is good', async () => {
