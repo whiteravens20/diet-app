@@ -9,3 +9,14 @@ import { afterEach } from 'vitest';
 afterEach(() => {
   cleanup();
 });
+
+// The DOM the tests run in knows the dialog element but cannot open one. What a
+// test needs of an open dialog is that its content is there; what the browser
+// does with the focus and the page behind is tested in a browser.
+HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement): void {
+  this.setAttribute('open', '');
+};
+HTMLDialogElement.prototype.close ??= function close(this: HTMLDialogElement): void {
+  this.removeAttribute('open');
+  this.dispatchEvent(new Event('close'));
+};

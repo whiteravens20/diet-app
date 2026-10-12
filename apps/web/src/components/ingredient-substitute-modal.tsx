@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAmount } from '@/lib/ingredient-format';
 import { useFormat } from '@/lib/use-format';
+import { Dialog } from '@/components/ui/dialog';
 
 interface PlannedMealLike {
   id: string;
@@ -163,247 +164,237 @@ export function IngredientSubstituteModal({
   const toIngredient = candidates.find((c) => c.id === toId) ?? null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-xl rounded-lg border border-border bg-background shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border p-4">
-          <div>
-            <h2 className="font-semibold">{t('title')}</h2>
-            <p className="text-xs text-muted-foreground">{meal.recipe.title}</p>
-          </div>
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            {tCommon('close')}
-          </Button>
+    <Dialog open onClose={onClose} label={t('title')} className="max-w-xl">
+      <div className="flex items-center justify-between border-b border-border p-4">
+        <div>
+          <h2 className="font-semibold">{t('title')}</h2>
+          <p className="text-xs text-muted-foreground">{meal.recipe.title}</p>
         </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          {tCommon('close')}
+        </Button>
+      </div>
 
-        <div className="space-y-4 p-4">
-          {/* Step 1 — pick the source line. */}
-          <section>
-            <p className="mb-1 text-sm font-medium">{t('stepPick')}</p>
-            <ul className="divide-y divide-border rounded-md border border-border">
-              {meal.ingredients.map((i) => {
-                const selected = i.ingredientId === fromId;
-                return (
-                  <li key={i.ingredientId}>
-                    <button
-                      type="button"
-                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted ${
-                        selected ? 'bg-muted/60' : ''
-                      }`}
-                      onClick={() => {
-                        setFromId(i.ingredientId);
-                        setAcceptChange(false);
-                        setToId(null);
-                        setSearch('');
-                        setError(null);
-                        setNotice(null);
-                        setAiReason(null);
-                        setAiPick(null);
-                      }}
-                    >
-                      <span>{i.name}</span>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {amount(i.display.quantity, i.display.unit)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-
-          {/* Step 2 — search a replacement. */}
-          {fromLine && (
-            <section>
-              <p className="mb-1 text-sm font-medium">
-                {t.rich('stepReplace', {
-                  name: fromLine.name,
-                  strong: (chunks) => <span className="text-primary">{chunks}</span>,
-                })}
-              </p>
-              <div className="flex gap-2">
-                <Input
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setToId(null);
-                  }}
-                  placeholder={tPickers('ingredientSearch')}
-                />
-                {aiEnabled && (
-                  <Button
+      <div className="space-y-4 p-4">
+        {/* Step 1 — pick the source line. */}
+        <section>
+          <p className="mb-1 text-sm font-medium">{t('stepPick')}</p>
+          <ul className="divide-y divide-border rounded-md border border-border">
+            {meal.ingredients.map((i) => {
+              const selected = i.ingredientId === fromId;
+              return (
+                <li key={i.ingredientId}>
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    title={t('tooltipAiSuggest')}
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted ${
+                      selected ? 'bg-muted/60' : ''
+                    }`}
                     onClick={() => {
+                      setFromId(i.ingredientId);
+                      setAcceptChange(false);
+                      setToId(null);
+                      setSearch('');
                       setError(null);
                       setNotice(null);
                       setAiReason(null);
-                      aiSuggest.mutate();
+                      setAiPick(null);
                     }}
-                    disabled={aiSuggest.isPending}
-                    className="text-primary"
                   >
-                    <Sparkles size={14} aria-hidden />
-                    <span className="ml-1">
-                      {aiSuggest.isPending ? t('aiSuggestPending') : t('aiSuggest')}
+                    <span>{i.name}</span>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {amount(i.display.quantity, i.display.unit)}
                     </span>
-                  </Button>
-                )}
-              </div>
-              {notice && (
-                <p
-                  className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300"
-                  role="status"
-                >
-                  {notice}
-                </p>
-              )}
-              {aiReason && (
-                <p
-                  className="mt-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary"
-                  role="status"
-                >
-                  {t('aiReason', { reason: aiReason })}
-                </p>
-              )}
-              {suggestion && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t('catalogueSuggests')}{' '}
-                  <button
-                    type="button"
-                    className="font-medium text-primary hover:underline"
-                    onClick={() => {
-                      setToId(suggestion.to.id);
-                      setAcceptChange(false);
-                    }}
-                  >
-                    {suggestion.to.name}
                   </button>
-                </p>
-              )}
-              {(search.trim().length >= 2 || picks.length > 0) && (
-                <ul className="mt-1 max-h-48 overflow-y-auto rounded-md border border-border">
-                  {candidates.length === 0 && !results.isLoading && (
-                    <li className="px-3 py-2 text-xs text-muted-foreground">
-                      {tPickers('noMatches')}
-                    </li>
-                  )}
-                  {candidates.map((c) => (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-muted ${
-                          c.id === toId ? 'bg-muted/60' : ''
-                        }`}
-                        onClick={() => {
-                          setToId(c.id);
-                          setAcceptChange(false);
-                        }}
-                      >
-                        <span>{c.name}</span>
-                        {aiPick?.id === c.id && (
-                          <Sparkles size={12} className="text-primary" aria-hidden />
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
 
-          {/* Step 3 — delta preview + apply. */}
-          {fromLine && toId && (
-            <section className="rounded-md border border-border bg-muted/30 p-3 text-sm">
-              <p className="mb-1 text-sm font-medium">{t('stepDelta')}</p>
-              {preview.isLoading && (
-                <p className="text-xs text-muted-foreground">{t('computing')}</p>
-              )}
-              {preview.error && <p className="text-xs text-destructive">{worded(preview.error, t('previewFailed'))}</p>}
-              {preview.data && (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    {t(`sizing.${preview.data.sizing}`, {
-                      fromAmount: amount(preview.data.from.display.quantity, preview.data.from.display.unit),
-                      fromName: preview.data.from.name,
-                      toAmount: amount(preview.data.to.display.quantity, preview.data.to.display.unit),
-                      toName: preview.data.to.name,
-                    })}
-                  </p>
-                  {preview.data.merged && <p className="mt-1 text-xs text-muted-foreground">{t('merged', { name: preview.data.to.name })}</p>}
-                  <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
-                    <Delta label={tProf('kcal')} before={preview.data.before.calories} after={preview.data.after.calories} />
-                    <Delta label={tProf('protein').toLowerCase()} before={preview.data.before.protein} after={preview.data.after.protein} grams />
-                    <Delta label={tProf('fat').toLowerCase()} before={preview.data.before.fat} after={preview.data.after.fat} grams />
-                    <Delta label={tProf('carbs').toLowerCase()} before={preview.data.before.carbs} after={preview.data.after.carbs} grams />
-                  </dl>
-                  {!preview.data.valid && (
-                    <div className="mt-2 text-xs text-destructive" role="alert">
-                      <p>{t('invalid')}</p>
-                      <ul className="list-disc pl-5">
-                        {preview.data.violations.map((violation) => (
-                          <li key={violation}>{t(`violation.${violation}`)}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {preview.data.valid && preview.data.moved.length > 0 && (
-                    <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                      <p>{t('moved', { what: preview.data.moved.map((key) => t(`movedName.${key}`)).join(', ') })}</p>
-                      <label className="mt-1 flex items-center gap-2">
-                        <input type="checkbox" checked={acceptChange} onChange={(e) => setAcceptChange(e.target.checked)} />
-                        {t('acceptChange')}
-                      </label>
-                    </div>
-                  )}
-                </>
-              )}
+        {/* Step 2 — search a replacement. */}
+        {fromLine && (
+          <section>
+            <p className="mb-1 text-sm font-medium">
+              {t.rich('stepReplace', {
+                name: fromLine.name,
+                strong: (chunks) => <span className="text-primary">{chunks}</span>,
+              })}
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setToId(null);
+                }}
+                placeholder={tPickers('ingredientSearch')}
+              />
               {aiEnabled && (
-                <label className="mt-3 flex items-start gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5"
-                    checked={rewriteWithAi}
-                    onChange={(e) => setRewriteWithAi(e.target.checked)}
-                  />
-                  <span>
-                    {t('rewriteWithAi')}
-                    <span className="block text-muted-foreground">{t('rewriteWithAiHint')}</span>
-                  </span>
-                </label>
-              )}
-              <div className="mt-3 flex items-center justify-end gap-2">
-                {error && <span className="text-xs text-destructive">{error}</span>}
                 <Button
                   type="button"
-                  disabled={
-                    !preview.data?.valid ||
-                    (preview.data.moved.length > 0 && !acceptChange) ||
-                    apply.isPending ||
-                    !toIngredient
-                  }
+                  variant="ghost"
+                  size="sm"
+                  title={t('tooltipAiSuggest')}
                   onClick={() => {
                     setError(null);
-                    apply.mutate();
+                    setNotice(null);
+                    setAiReason(null);
+                    aiSuggest.mutate();
+                  }}
+                  disabled={aiSuggest.isPending}
+                  className="text-primary"
+                >
+                  <Sparkles size={14} aria-hidden />
+                  <span className="ml-1">
+                    {aiSuggest.isPending ? t('aiSuggestPending') : t('aiSuggest')}
+                  </span>
+                </Button>
+              )}
+            </div>
+            {notice && (
+              <p
+                className="mt-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
+                role="status"
+              >
+                {notice}
+              </p>
+            )}
+            {aiReason && (
+              <p
+                className="mt-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-foreground"
+                role="status"
+              >
+                {t('aiReason', { reason: aiReason })}
+              </p>
+            )}
+            {suggestion && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t('catalogueSuggests')}{' '}
+                <button
+                  type="button"
+                  className="font-medium text-primary hover:underline"
+                  onClick={() => {
+                    setToId(suggestion.to.id);
+                    setAcceptChange(false);
                   }}
                 >
-                  {apply.isPending ? t('applying') : t('apply')}
-                </Button>
-              </div>
-            </section>
-          )}
-        </div>
+                  {suggestion.to.name}
+                </button>
+              </p>
+            )}
+            {(search.trim().length >= 2 || picks.length > 0) && (
+              <ul className="mt-1 max-h-48 overflow-y-auto rounded-md border border-border">
+                {candidates.length === 0 && !results.isLoading && (
+                  <li className="px-3 py-2 text-xs text-muted-foreground">
+                    {tPickers('noMatches')}
+                  </li>
+                )}
+                {candidates.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-muted ${
+                        c.id === toId ? 'bg-muted/60' : ''
+                      }`}
+                      onClick={() => {
+                        setToId(c.id);
+                        setAcceptChange(false);
+                      }}
+                    >
+                      <span>{c.name}</span>
+                      {aiPick?.id === c.id && (
+                        <Sparkles size={12} className="text-primary" aria-hidden />
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {/* Step 3 — delta preview + apply. */}
+        {fromLine && toId && (
+          <section className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+            <p className="mb-1 text-sm font-medium">{t('stepDelta')}</p>
+            {preview.isLoading && (
+              <p className="text-xs text-muted-foreground">{t('computing')}</p>
+            )}
+            {preview.error && <p className="text-xs text-destructive">{worded(preview.error, t('previewFailed'))}</p>}
+            {preview.data && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {t(`sizing.${preview.data.sizing}`, {
+                    fromAmount: amount(preview.data.from.display.quantity, preview.data.from.display.unit),
+                    fromName: preview.data.from.name,
+                    toAmount: amount(preview.data.to.display.quantity, preview.data.to.display.unit),
+                    toName: preview.data.to.name,
+                  })}
+                </p>
+                {preview.data.merged && <p className="mt-1 text-xs text-muted-foreground">{t('merged', { name: preview.data.to.name })}</p>}
+                <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
+                  <Delta label={tProf('kcal')} before={preview.data.before.calories} after={preview.data.after.calories} />
+                  <Delta label={tProf('protein').toLowerCase()} before={preview.data.before.protein} after={preview.data.after.protein} grams />
+                  <Delta label={tProf('fat').toLowerCase()} before={preview.data.before.fat} after={preview.data.after.fat} grams />
+                  <Delta label={tProf('carbs').toLowerCase()} before={preview.data.before.carbs} after={preview.data.after.carbs} grams />
+                </dl>
+                {!preview.data.valid && (
+                  <div className="mt-2 text-xs text-destructive" role="alert">
+                    <p>{t('invalid')}</p>
+                    <ul className="list-disc pl-5">
+                      {preview.data.violations.map((violation) => (
+                        <li key={violation}>{t(`violation.${violation}`)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {preview.data.valid && preview.data.moved.length > 0 && (
+                  <div className="mt-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                    <p>{t('moved', { what: preview.data.moved.map((key) => t(`movedName.${key}`)).join(', ') })}</p>
+                    <label className="mt-1 flex items-center gap-2">
+                      <input type="checkbox" checked={acceptChange} onChange={(e) => setAcceptChange(e.target.checked)} />
+                      {t('acceptChange')}
+                    </label>
+                  </div>
+                )}
+              </>
+            )}
+            {aiEnabled && (
+              <label className="mt-3 flex items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={rewriteWithAi}
+                  onChange={(e) => setRewriteWithAi(e.target.checked)}
+                />
+                <span>
+                  {t('rewriteWithAi')}
+                  <span className="block text-muted-foreground">{t('rewriteWithAiHint')}</span>
+                </span>
+              </label>
+            )}
+            <div className="mt-3 flex items-center justify-end gap-2">
+              {error && <span className="text-xs text-destructive">{error}</span>}
+              <Button
+                type="button"
+                disabled={
+                  !preview.data?.valid ||
+                  (preview.data.moved.length > 0 && !acceptChange) ||
+                  apply.isPending ||
+                  !toIngredient
+                }
+                onClick={() => {
+                  setError(null);
+                  apply.mutate();
+                }}
+              >
+                {apply.isPending ? t('applying') : t('apply')}
+              </Button>
+            </div>
+          </section>
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }
 

@@ -228,6 +228,25 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * A window over the page comes in with a short fade, for those who have not
+ * asked their system for less motion.
+ */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dialog[open] {
+    animation: dialog-in 160ms ease-out;
+  }
+  .dialog[open]::backdrop {
+    animation: dialog-in 160ms ease-out;
+  }
+}
+
 /* Shimmer used by skeleton loaders. */
 @keyframes shimmer {
   100% {

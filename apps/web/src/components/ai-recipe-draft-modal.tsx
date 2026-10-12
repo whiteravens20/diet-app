@@ -21,6 +21,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { Field } from '@/components/ui/input';
+import { Dialog } from '@/components/ui/dialog';
 
 const DIET_TYPES: DietType[] = [
   'balanced',
@@ -60,7 +61,7 @@ const COOKING_METHODS: CookingMethod[] = [
 ];
 const COMPLEXITIES: Complexity[] = ['simple', 'medium', 'complex'];
 
-const selectClass = 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm';
+const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /**
  * Draft a brand-new recipe from structured filters. No free-text input:
@@ -139,211 +140,201 @@ export function AiRecipeDraftModal({
   const allergensCount = profile.preferences?.allergens?.length ?? 0;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-2xl rounded-lg border border-border bg-background shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border p-4">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-primary" aria-hidden />
-            <h2 className="font-semibold">{t('title')}</h2>
-          </div>
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            {tCommon('close')}
-          </Button>
+    <Dialog open onClose={onClose} label={t('title')} className="max-w-2xl">
+      <div className="flex items-center justify-between border-b border-border p-4">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-primary" aria-hidden />
+          <h2 className="font-semibold">{t('title')}</h2>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          {tCommon('close')}
+        </Button>
+      </div>
+
+      <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
+        <p className="text-xs text-muted-foreground">{t('subhead')}</p>
+
+        <DisclaimerNotice bodyKey="aiRecipeDraft" />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('dietType')}>
+            <select
+              className={selectClass}
+              value={dietType}
+              onChange={(e) => setDietType(e.target.value as DietType)}
+            >
+              {DIET_TYPES.map((d) => (
+                <option key={d} value={d}>
+                  {tDiet(d)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('mealType')}>
+            <select
+              className={selectClass}
+              value={mealType}
+              onChange={(e) => setMealType(e.target.value as MealType | '')}
+            >
+              <option value="">{t('any')}</option>
+              {MEAL_TYPES.map((m) => (
+                <option key={m} value={m}>
+                  {tMeal(m)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('cuisine')}>
+            <select
+              className={selectClass}
+              value={cuisine}
+              onChange={(e) => setCuisine(e.target.value as Cuisine | '')}
+            >
+              <option value="">{t('any')}</option>
+              {CUISINES.map((c) => (
+                <option key={c} value={c}>
+                  {tCuisine(c)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('cookingMethod')}>
+            <select
+              className={selectClass}
+              value={cookingMethod}
+              onChange={(e) => setCookingMethod(e.target.value as CookingMethod | '')}
+            >
+              <option value="">{t('any')}</option>
+              {COOKING_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {tCooking(m)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('complexity')}>
+            <select
+              className={selectClass}
+              value={complexity}
+              onChange={(e) => setComplexity(e.target.value as Complexity | '')}
+            >
+              <option value="">{t('any')}</option>
+              {COMPLEXITIES.map((c) => (
+                <option key={c} value={c}>
+                  {tComplexity(c)}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
 
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
-          <p className="text-xs text-muted-foreground">{t('subhead')}</p>
+        <fieldset className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+          <legend className="px-1 text-xs font-medium text-muted-foreground">
+            {t('targetsLegend')}
+          </legend>
+          <SliderRow
+            enabled={kcalTargetEnabled}
+            onEnabledChange={setKcalTargetEnabled}
+            label={t('kcalTarget')}
+            value={kcalTarget}
+            onValueChange={setKcalTarget}
+            min={200}
+            max={1200}
+            step={50}
+            unit={t('kcalUnit')}
+          />
+          <SliderRow
+            enabled={prepTimeEnabled}
+            onEnabledChange={setPrepTimeEnabled}
+            label={t('prepTimeMax')}
+            value={prepTimeMaxMinutes}
+            onValueChange={setPrepTimeMaxMinutes}
+            min={5}
+            max={120}
+            step={5}
+            unit={t('minutesUnit')}
+          />
+        </fieldset>
 
-          <DisclaimerNotice bodyKey="aiRecipeDraft" />
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t('dietType')}>
-              <select
-                className={selectClass}
-                value={dietType}
-                onChange={(e) => setDietType(e.target.value as DietType)}
-              >
-                {DIET_TYPES.map((d) => (
-                  <option key={d} value={d}>
-                    {tDiet(d)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t('mealType')}>
-              <select
-                className={selectClass}
-                value={mealType}
-                onChange={(e) => setMealType(e.target.value as MealType | '')}
-              >
-                <option value="">{t('any')}</option>
-                {MEAL_TYPES.map((m) => (
-                  <option key={m} value={m}>
-                    {tMeal(m)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t('cuisine')}>
-              <select
-                className={selectClass}
-                value={cuisine}
-                onChange={(e) => setCuisine(e.target.value as Cuisine | '')}
-              >
-                <option value="">{t('any')}</option>
-                {CUISINES.map((c) => (
-                  <option key={c} value={c}>
-                    {tCuisine(c)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t('cookingMethod')}>
-              <select
-                className={selectClass}
-                value={cookingMethod}
-                onChange={(e) => setCookingMethod(e.target.value as CookingMethod | '')}
-              >
-                <option value="">{t('any')}</option>
-                {COOKING_METHODS.map((m) => (
-                  <option key={m} value={m}>
-                    {tCooking(m)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t('complexity')}>
-              <select
-                className={selectClass}
-                value={complexity}
-                onChange={(e) => setComplexity(e.target.value as Complexity | '')}
-              >
-                <option value="">{t('any')}</option>
-                {COMPLEXITIES.map((c) => (
-                  <option key={c} value={c}>
-                    {tComplexity(c)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <fieldset className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
-            <legend className="px-1 text-xs font-medium text-muted-foreground">
-              {t('targetsLegend')}
-            </legend>
-            <SliderRow
-              enabled={kcalTargetEnabled}
-              onEnabledChange={setKcalTargetEnabled}
-              label={t('kcalTarget')}
-              value={kcalTarget}
-              onValueChange={setKcalTarget}
-              min={200}
-              max={1200}
-              step={50}
-              unit={t('kcalUnit')}
-            />
-            <SliderRow
-              enabled={prepTimeEnabled}
-              onEnabledChange={setPrepTimeEnabled}
-              label={t('prepTimeMax')}
-              value={prepTimeMaxMinutes}
-              onValueChange={setPrepTimeMaxMinutes}
-              min={5}
-              max={120}
-              step={5}
-              unit={t('minutesUnit')}
-            />
-          </fieldset>
-
-          <fieldset className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
-            <legend className="px-1 text-xs font-medium text-muted-foreground">
-              {t('profilePrefsLegend')}
-            </legend>
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4"
-                checked={useFavoriteIngredients}
-                onChange={(e) => setUseFavoriteIngredients(e.target.checked)}
-                disabled={favouritesCount === 0}
-              />
-              <span className="flex flex-col">
-                <span>{t('useFavoriteIngredients')}</span>
-                <span className="text-xs text-muted-foreground">
-                  {favouritesCount === 0
-                    ? t('useFavoriteIngredientsEmpty')
-                    : t('useFavoriteIngredientsCount', { count: favouritesCount })}
-                </span>
-              </span>
-            </label>
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4"
-                checked={respectExclusions}
-                onChange={(e) => setRespectExclusions(e.target.checked)}
-                disabled={exclusionsCount === 0}
-              />
-              <span className="flex flex-col">
-                <span>{t('respectExclusions')}</span>
-                <span className="text-xs text-muted-foreground">
-                  {exclusionsCount === 0
-                    ? t('respectExclusionsEmpty')
-                    : t('respectExclusionsCount', { count: exclusionsCount })}
-                </span>
-              </span>
-            </label>
-            {allergensCount > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {t('allergensAlwaysRespected', { count: allergensCount })}
-              </p>
-            )}
-          </fieldset>
-
-          <label className="flex items-center gap-2 text-sm">
+        <fieldset className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+          <legend className="px-1 text-xs font-medium text-muted-foreground">
+            {t('profilePrefsLegend')}
+          </legend>
+          <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
-              className="h-4 w-4"
-              checked={addToFavorites}
-              onChange={(e) => setAddToFavorites(e.target.checked)}
+              className="mt-1 h-4 w-4"
+              checked={useFavoriteIngredients}
+              onChange={(e) => setUseFavoriteIngredients(e.target.checked)}
+              disabled={favouritesCount === 0}
             />
-            {t('addToFavorites')}
+            <span className="flex flex-col">
+              <span>{t('useFavoriteIngredients')}</span>
+              <span className="text-xs text-muted-foreground">
+                {favouritesCount === 0
+                  ? t('useFavoriteIngredientsEmpty')
+                  : t('useFavoriteIngredientsCount', { count: favouritesCount })}
+              </span>
+            </span>
           </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4"
+              checked={respectExclusions}
+              onChange={(e) => setRespectExclusions(e.target.checked)}
+              disabled={exclusionsCount === 0}
+            />
+            <span className="flex flex-col">
+              <span>{t('respectExclusions')}</span>
+              <span className="text-xs text-muted-foreground">
+                {exclusionsCount === 0
+                  ? t('respectExclusionsEmpty')
+                  : t('respectExclusionsCount', { count: exclusionsCount })}
+              </span>
+            </span>
+          </label>
+          {allergensCount > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t('allergensAlwaysRespected', { count: allergensCount })}
+            </p>
+          )}
+        </fieldset>
 
-          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            {t('determinismHint')}
-          </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={addToFavorites}
+            onChange={(e) => setAddToFavorites(e.target.checked)}
+          />
+          {t('addToFavorites')}
+        </label>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+        <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          {t('determinismHint')}
+        </p>
 
-          <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              {tCommon('cancel')}
-            </Button>
-            <Button
-              type="button"
-              disabled={draft.isPending}
-              onClick={() => {
-                setError(null);
-                draft.mutate();
-              }}
-            >
-              <Sparkles size={14} aria-hidden />
-              <span className="ml-1">{draft.isPending ? t('drafting') : t('submit')}</span>
-            </Button>
-          </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <div className="flex items-center justify-end gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            {tCommon('cancel')}
+          </Button>
+          <Button
+            type="button"
+            disabled={draft.isPending}
+            onClick={() => {
+              setError(null);
+              draft.mutate();
+            }}
+          >
+            <Sparkles size={14} aria-hidden />
+            <span className="ml-1">{draft.isPending ? t('drafting') : t('submit')}</span>
+          </Button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
