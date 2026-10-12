@@ -1271,6 +1271,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     vi.restoreAllMocks();
   });
 
+  const chicken = { ingredientId: '66666666-6666-4666-8666-666666666666', name: 'Chicken breast', unit: 'g', packSize: 500, packs: 1, left: 350, wasted: true } as const;
   const opened = async (plan: MealPlan, aiMode: 'none' | 'admin' = 'none') => {
     await renderPage(aDepth(9), [plan], aiMode);
     await userEvent.click(await screen.findByText('1-day plan · Vegan'));
@@ -1296,5 +1297,22 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     await screen.findByText(messages.mealPlans.daySkipped);
 
     expect(screen.queryByRole('button', { name: messages.mealPlans.otherWays })).toBeNull();
+  });
+
+  it('offers, with the packs a plan leaves more than three tenths of, to look for what would use them up', async () => {
+    const plan = aPlan({ packs: { bought: 500, used: 150, open: [chicken] } });
+    await opened(plan);
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ revision: 0, suggestions: [], aiMeta: null } as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.useUp.ask }));
+
+    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/use-up`, { weigh: false });
+    expect(await screen.findByText(messages.mealPlans.useUp.none)).toBeInTheDocument();
+  });
+
+  it('does not offer that for a plan whose packs are used well enough', async () => {
+    await opened(aPlan({ packs: { bought: 500, used: 480, open: [{ ...chicken, left: 20, wasted: false }] } }));
+
+    expect(screen.queryByRole('button', { name: messages.mealPlans.useUp.ask })).toBeNull();
   });
 });

@@ -796,6 +796,7 @@ function MealPlansContent() {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
               }}
+              onSwapped={(res) => showRebalance(plan.id, res)}
               onChanged={() => void invalidate()}
               favorites={liked}
               tMeal={tMeal}

@@ -1193,6 +1193,15 @@
       "allFinished": "Every pack the menu opens is used up.",
       "explain": "Counted from the menu alone; what is at home is for the shopping list to count. A pack used to seven tenths counts as used: what is left of it is no reason for another meal."
     },
+    "useUp": {
+      "ask": "What would use them up?",
+      "asking": "Looking…",
+      "swap": "<strong>{to}</strong> in place of {from}",
+      "takes": "takes {amount} more of {name}, and {left} of its pack would be left",
+      "energy": "The meal: {before, number} → {after, number} kcal · protein {proteinBefore, number} → {proteinAfter, number} g",
+      "none": "Nothing that may take the place of a meal would leave less of these packs.",
+      "errLoad": "Could not look for swaps."
+    },
     "variations": {
       "title": "Other ways to fill {date}",
       "intro": "Each of these is a day the planner would make for this plan: inside its limits, around what stays on the day. Nothing changes until you take one.",

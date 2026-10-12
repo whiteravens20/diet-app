@@ -3,15 +3,17 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 import type { PlanPacks } from '@diet-app/shared';
 import { useAmount } from '@/lib/ingredient-format';
 
 /**
  * What a plan's menu uses of the packs that do not keep once they are opened,
  * in a line that unfolds into the packs it does not finish. The server counts
- * all of it; this spells it.
+ * all of it; this spells it. `children` is what can be done about what is
+ * left, shown with the packs.
  */
-export function PlanPacksLine({ packs }: { packs: PlanPacks }) {
+export function PlanPacksLine({ packs, children }: { packs: PlanPacks; children?: ReactNode }) {
   const t = useTranslations('mealPlans.packs');
   const amount = useAmount();
   const wasted = packs.open.filter((pack) => pack.wasted).length;
@@ -31,6 +33,7 @@ export function PlanPacksLine({ packs }: { packs: PlanPacks }) {
           </ul>
         )}
         <p>{t('explain')}</p>
+        {children}
       </div>
     </details>
   );

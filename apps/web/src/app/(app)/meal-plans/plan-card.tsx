@@ -16,6 +16,7 @@ import {
   type PantryUse,
   type PlannedIngredient,
   type PlanRelaxation,
+  type RebalanceResult,
   type SwapIngredientResponse,
 } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
 import { lastDayOf, planTable, type PlanWords } from './plan-export';
 import { PlanPacksLine } from './plan-packs';
+import { UseUp } from './use-up';
 
 /** Fetched when a plan is printed: the sheet is drawn for the printer alone. */
 const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), { ssr: false });
@@ -99,6 +101,7 @@ export function PlanCard({
   onToggleEaten,
   onIngredientSwapped,
   onAddCustomMeal,
+  onSwapped,
   onChanged,
 }: {
   /** The plan as the list holds it: what the head of the card says. */
@@ -130,6 +133,8 @@ export function PlanCard({
   onToggleEaten: (mealId: string, eaten: boolean) => void;
   onIngredientSwapped: (result: SwapIngredientResponse) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
+  /** Told what a swap that the card made itself came to: one that uses up what the plan opens. */
+  onSwapped: (result: RebalanceResult) => void;
   /** Told when the plan is no longer what the card shows: a day was filled another way, or the plan had changed under an offer. */
   onChanged: () => void;
 }) {
@@ -246,7 +251,13 @@ export function PlanCard({
                 carbsTarget: plan.targetMacros.carbs,
               })}
             </p>
-            {plan.packs.bought > 0 && <PlanPacksLine packs={plan.packs} />}
+            {plan.packs.bought > 0 && (
+              <PlanPacksLine packs={plan.packs}>
+                {plan.packs.open.some((pack) => pack.wasted) && (
+                  <UseUp planId={plan.id} aiEnabled={aiEnabled} aiOffNote={aiOffNote} mealName={mealName} busy={busy} onSwapped={onSwapped} onStale={onChanged} />
+                )}
+              </PlanPacksLine>
+            )}
           </div>
           {(plan.options.allowRelaxations.length > 0 || pantryLine) && (
             <div className="space-y-1 text-xs text-muted-foreground">
