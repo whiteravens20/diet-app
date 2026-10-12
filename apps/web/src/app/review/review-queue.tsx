@@ -3,19 +3,32 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
-import { Allergen, type IngredientNameReviewSlice, type Locale, type RecipeReviewSlice } from '@diet-app/shared';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Check, ChevronLeft, ChevronRight, Keyboard, Loader2, X } from 'lucide-react';
+import { Allergen, type IngredientNameReviewSlice, type Locale, type RecipeReviewSlice, type ReviewAction } from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { reviewApi } from '@/lib/review-api';
 import { useDraftErrorText } from '@/lib/use-draft-error';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
+import { cn } from '@/lib/utils';
+import { useReviewKeys, useReviewKeysWanted } from './review-keys';
 
 interface QueueProps {
   locale: Locale;
   kind: 'recipe' | 'ingredient-name';
+}
+
+/** What the queue tells the draft on show about the keys and its place. */
+interface DraftPlace {
+  /** How the draft is named to those who do not see it. */
+  label: string;
+  keys: boolean;
+  takesFocus: boolean;
+  /** Left out at the last draft of the page, and at the first. */
+  next?: () => void;
+  previous?: () => void;
 }
 
 /**
@@ -39,6 +52,10 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
   const [cursor, setCursor] = useState(0);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [keys, wantKeys] = useReviewKeysWanted();
+  // Whether the draft on show came up after a decision on the one before: it
+  // then takes the focus that went with the button pressed there.
+  const [decided, setDecided] = useState(false);
 
   const fetchPage = useCallback(async (): Promise<void> => {
     setError(null);
@@ -68,6 +85,7 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
     void (async () => {
       setItems(null);
       setItemsKind(null);
+      setDecided(false);
       await fetchPage();
     })();
   }, [fetchPage]);
@@ -112,6 +130,7 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
   const advance = (): void => {
     const next = items.filter((_, i) => i !== safeCursor);
     setTotal((n) => Math.max(0, n - 1));
+    setDecided(true);
     if (next.length === 0) {
       // The page is done: the next one is read, and nothing is said to be left over meanwhile.
       setItems(null);
@@ -121,10 +140,22 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
       setCursor((c) => Math.min(c, next.length - 1));
     }
   };
+  // A step with a button leaves the focus on the button; the keys keep it on the draft.
+  const step = (by: 1 | -1): void => {
+    setDecided(false);
+    setCursor(safeCursor + by);
+  };
+  const place: DraftPlace = {
+    label: t('draftLabel', { current: safeCursor + 1, visible: items.length }),
+    keys,
+    takesFocus: keys || decided,
+    previous: safeCursor > 0 ? () => step(-1) : undefined,
+    next: safeCursor < items.length - 1 ? () => step(1) : undefined,
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
           {t('queueProgress', {
             current: safeCursor + 1,
@@ -133,13 +164,18 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
           })}
         </span>
         <div className="flex items-center gap-1">
+          <Button type="button" size="sm" variant={keys ? 'primary' : 'outline'} aria-pressed={keys} onClick={() => wantKeys(!keys)}>
+            <Keyboard className="h-3 w-3" aria-hidden />
+            {t('keys')}
+          </Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
             aria-label={t('previous')}
-            disabled={safeCursor === 0}
-            onClick={() => setCursor((c) => Math.max(0, c - 1))}
+            aria-keyshortcuts={keys ? 'ArrowLeft K' : undefined}
+            disabled={!place.previous}
+            onClick={place.previous}
           >
             <ChevronLeft className="h-3 w-3" aria-hidden />
           </Button>
@@ -148,19 +184,28 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
             size="sm"
             variant="outline"
             aria-label={t('next')}
-            disabled={safeCursor === items.length - 1}
-            onClick={() => setCursor((c) => Math.min(items.length - 1, c + 1))}
+            aria-keyshortcuts={keys ? 'ArrowRight J' : undefined}
+            disabled={!place.next}
+            onClick={place.next}
           >
             <ChevronRight className="h-3 w-3" aria-hidden />
           </Button>
         </div>
       </div>
+      {keys ? (
+        <p className="text-xs text-muted-foreground">
+          {t.rich('keysLegend', {
+            kbd: (key) => <kbd className="rounded border border-border bg-muted px-1 font-mono text-[11px] text-foreground">{key}</kbd>,
+          })}
+        </p>
+      ) : null}
 
       {kind === 'recipe' ? (
         <RecipeReviewCard
           key={(current as RecipeReviewSlice).id}
           slice={current as RecipeReviewSlice}
           locale={locale}
+          place={place}
           onReviewed={advance}
         />
       ) : (
@@ -168,6 +213,7 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
           key={(current as IngredientNameReviewSlice).id}
           slice={current as IngredientNameReviewSlice}
           locale={locale}
+          place={place}
           onReviewed={advance}
         />
       )}
@@ -175,13 +221,99 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
   );
 }
 
+/**
+ * The draft on show, as one thing that can hold the focus: the keys act while
+ * it does, and it is named for those who do not see it.
+ */
+function DraftRegion({ place, act, children }: { place: DraftPlace; act: { approve: () => void; reject: () => void; save?: () => void; busy: boolean }; children: ReactNode }) {
+  const region = useReviewKeys({ enabled: place.keys, takesFocus: place.takesFocus, next: place.next, previous: place.previous, ...act });
+  return (
+    <div
+      {...region}
+      role="group"
+      aria-label={place.label}
+      // With the keys on, the ring says where they act however the focus came; without them it is the ring of the Tab key.
+      className={cn('scroll-mt-4 rounded-lg outline-none', place.keys ? 'focus:ring-2 focus:ring-ring' : 'focus-visible:ring-2 focus-visible:ring-ring')}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The reason of a rejection, the three buttons of a draft, and what came of pressing one. */
+function Decide({
+  reason,
+  onReason,
+  dirty,
+  saving,
+  acting,
+  onSave,
+  onApprove,
+  onReject,
+  before,
+  keys,
+  error,
+}: {
+  reason: string;
+  onReason: (reason: string) => void;
+  dirty: boolean;
+  saving: boolean;
+  acting: 'approve' | 'reject' | null;
+  onSave: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+  /** What this language decided about the draft before, when it did. */
+  before: ReviewAction | null;
+  keys: boolean;
+  error: string | null;
+}) {
+  const t = useTranslations('review');
+  const busy = saving || acting !== null;
+  return (
+    <>
+      <textarea
+        aria-label={t('rejectReasonPlaceholder')}
+        placeholder={t('rejectReasonPlaceholder')}
+        value={reason}
+        onChange={(e) => onReason(e.target.value)}
+        rows={2}
+        className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+        maxLength={500}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" variant="outline" aria-keyshortcuts={keys ? 'S' : undefined} onClick={onSave} disabled={!dirty || busy}>
+          {saving ? t('saving') : t('save')}
+        </Button>
+        <Button type="button" size="sm" aria-keyshortcuts={keys ? 'A' : undefined} onClick={onApprove} disabled={busy}>
+          <Check className="mr-1 h-3 w-3" aria-hidden />
+          {acting === 'approve' ? t('working') : t('approve')}
+        </Button>
+        <Button type="button" size="sm" variant="destructive" aria-keyshortcuts={keys ? 'R' : undefined} onClick={onReject} disabled={busy}>
+          <X className="mr-1 h-3 w-3" aria-hidden />
+          {acting === 'reject' ? t('working') : t('reject')}
+        </Button>
+        {before ? <span className="ml-auto text-xs text-muted-foreground">{t('decidedBefore', { action: before })}</span> : null}
+      </div>
+
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 function RecipeReviewCard({
   slice,
   locale,
+  place,
   onReviewed,
 }: {
   slice: RecipeReviewSlice;
   locale: Locale;
+  place: DraftPlace;
   onReviewed: () => void;
 }) {
   const t = useTranslations('review');
@@ -251,131 +383,94 @@ function RecipeReviewCard({
   const allergens = slice.allergens.map((code) => (Allergen.safeParse(code).success ? tAllergen(code as Allergen) : code));
 
   return (
-    <Card>
-      <CardContent className="space-y-6 py-6">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="space-y-3">
-            <SectionHeader label={t('targetLabel', { locale: t(`locales.${locale}`) })} />
-            <LabeledInput
-              label={t('fieldTitle')}
-              value={title}
-              onChange={setTitle}
-            />
-            <LabeledTextarea
-              label={t('fieldDescription')}
-              value={description}
-              onChange={setDescription}
-            />
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">{t('fieldSteps')}</p>
-              {steps.map((step, i) => (
-                <textarea
-                  key={i}
-                  aria-label={t('fieldStep', { number: i + 1 })}
-                  value={step}
-                  onChange={(e) => {
-                    const next = [...steps];
-                    next[i] = e.target.value;
-                    setSteps(next);
-                  }}
-                  className="w-full rounded-md border bg-background px-2 py-1 text-sm"
-                  rows={2}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <SectionHeader label={t('sourceLabel')} />
-            <ReadOnlyField label={t('fieldTitle')} value={slice.titleSource} />
-            <ReadOnlyField label={t('fieldDescription')} value={slice.descriptionSource} />
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">{t('fieldSteps')}</p>
-              <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-                {slice.stepsSource.map((s, i) => (
-                  <li key={i}>{s}</li>
+    <DraftRegion
+      place={place}
+      act={{ approve: () => void approve(), reject: () => void reject(), save: dirty ? () => void save() : undefined, busy: saving || acting !== null }}
+    >
+      <Card>
+        <CardContent className="space-y-6 py-6">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="space-y-3">
+              <SectionHeader label={t('targetLabel', { locale: t(`locales.${locale}`) })} />
+              <LabeledInput label={t('fieldTitle')} value={title} onChange={setTitle} />
+              <LabeledTextarea label={t('fieldDescription')} value={description} onChange={setDescription} />
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">{t('fieldSteps')}</p>
+                {steps.map((step, i) => (
+                  <textarea
+                    key={i}
+                    aria-label={t('fieldStep', { number: i + 1 })}
+                    value={step}
+                    onChange={(e) => {
+                      const next = [...steps];
+                      next[i] = e.target.value;
+                      setSteps(next);
+                    }}
+                    className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+                    rows={2}
+                  />
                 ))}
-              </ol>
-            </div>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <SectionHeader label={t('sourceLabel')} />
+              <ReadOnlyField label={t('fieldTitle')} value={slice.titleSource} />
+              <ReadOnlyField label={t('fieldDescription')} value={slice.descriptionSource} />
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">{t('fieldSteps')}</p>
+                <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                  {slice.stepsSource.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+              </div>
+            </section>
+          </div>
+
+          <section className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+            <Stat label={t('statCalories')} value={`${fmt.number(slice.caloriesPerServing)} kcal`} />
+            <Stat label={t('statProtein')} value={fmt.unit(slice.proteinPerServing, 'gram', 1)} />
+            <Stat label={t('statFat')} value={fmt.unit(slice.fatPerServing, 'gram', 1)} />
+            <Stat label={t('statCarbs')} value={fmt.unit(slice.carbsPerServing, 'gram', 1)} />
+            <Stat label={t('statPrepCook')} value={`${fmt.number(slice.prepMinutes)} + ${fmt.unit(slice.cookMinutes, 'minute')}`} />
+            <Stat label={t('statServings')} value={String(slice.servings)} />
           </section>
-        </div>
 
-        <section className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-          <Stat label={t('statCalories')} value={`${fmt.number(slice.caloriesPerServing)} kcal`} />
-          <Stat label={t('statProtein')} value={fmt.unit(slice.proteinPerServing, 'gram', 1)} />
-          <Stat label={t('statFat')} value={fmt.unit(slice.fatPerServing, 'gram', 1)} />
-          <Stat label={t('statCarbs')} value={fmt.unit(slice.carbsPerServing, 'gram', 1)} />
-          <Stat label={t('statPrepCook')} value={`${fmt.number(slice.prepMinutes)} + ${fmt.unit(slice.cookMinutes, 'minute')}`} />
-          <Stat label={t('statServings')} value={String(slice.servings)} />
-        </section>
-
-        {allergens.length > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t('allergens')}: {fmt.list(allergens)}
-          </p>
-        ) : null}
-
-        <textarea
-          aria-label={t('rejectReasonPlaceholder')}
-          placeholder={t('rejectReasonPlaceholder')}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={2}
-          className="w-full rounded-md border bg-background px-2 py-1 text-sm"
-          maxLength={500}
-        />
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => void save()}
-            disabled={!dirty || saving}
-          >
-            {saving ? t('saving') : t('save')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void approve()}
-            disabled={acting !== null}
-          >
-            <Check className="mr-1 h-3 w-3" aria-hidden />
-            {acting === 'approve' ? t('working') : t('approve')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="destructive"
-            onClick={() => void reject()}
-            disabled={acting !== null}
-          >
-            <X className="mr-1 h-3 w-3" aria-hidden />
-            {acting === 'reject' ? t('working') : t('reject')}
-          </Button>
-          {slice.alreadyReviewedAction ? (
-            <span className="ml-auto text-xs text-muted-foreground">{t('decidedBefore', { action: slice.alreadyReviewedAction })}</span>
+          {allergens.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {t('allergens')}: {fmt.list(allergens)}
+            </p>
           ) : null}
-        </div>
 
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
+          <Decide
+            reason={reason}
+            onReason={setReason}
+            dirty={dirty}
+            saving={saving}
+            acting={acting}
+            onSave={() => void save()}
+            onApprove={() => void approve()}
+            onReject={() => void reject()}
+            before={slice.alreadyReviewedAction}
+            keys={place.keys}
+            error={error}
+          />
+        </CardContent>
+      </Card>
+    </DraftRegion>
   );
 }
 
 function IngredientNameReviewCard({
   slice,
   locale,
+  place,
   onReviewed,
 }: {
   slice: IngredientNameReviewSlice;
   locale: Locale;
+  place: DraftPlace;
   onReviewed: () => void;
 }) {
   const t = useTranslations('review');
@@ -438,83 +533,45 @@ function IngredientNameReviewCard({
   };
 
   return (
-    <Card>
-      <CardContent className="space-y-4 py-6">
-        <p className="text-xs text-muted-foreground">
-          <span className="font-medium">{t('rawDescription')}:</span> {slice.rawDescription}
-        </p>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="space-y-3">
-            <SectionHeader label={t('targetLabel', { locale: t(`locales.${locale}`) })} />
-            <LabeledInput label={t('fieldName')} value={name} onChange={setName} />
-            <LabeledInput
-              label={t('fieldStorageHint')}
-              value={storageHint}
-              onChange={setStorageHint}
-            />
-          </section>
-          <section className="space-y-3">
-            <SectionHeader label={t('sourceLabel')} />
-            <ReadOnlyField label={t('fieldName')} value={slice.nameSource} />
-            <ReadOnlyField
-              label={t('fieldStorageHint')}
-              value={slice.storageHintSource ?? '—'}
-            />
-          </section>
-        </div>
-
-        <textarea
-          aria-label={t('rejectReasonPlaceholder')}
-          placeholder={t('rejectReasonPlaceholder')}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={2}
-          className="w-full rounded-md border bg-background px-2 py-1 text-sm"
-          maxLength={500}
-        />
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => void save()}
-            disabled={!dirty || saving}
-          >
-            {saving ? t('saving') : t('save')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void approve()}
-            disabled={acting !== null}
-          >
-            <Check className="mr-1 h-3 w-3" aria-hidden />
-            {acting === 'approve' ? t('working') : t('approve')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="destructive"
-            onClick={() => void reject()}
-            disabled={acting !== null}
-          >
-            <X className="mr-1 h-3 w-3" aria-hidden />
-            {acting === 'reject' ? t('working') : t('reject')}
-          </Button>
-          {slice.alreadyReviewedAction ? (
-            <span className="ml-auto text-xs text-muted-foreground">{t('decidedBefore', { action: slice.alreadyReviewedAction })}</span>
-          ) : null}
-        </div>
-
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
+    <DraftRegion
+      place={place}
+      act={{ approve: () => void approve(), reject: () => void reject(), save: dirty ? () => void save() : undefined, busy: saving || acting !== null }}
+    >
+      <Card>
+        <CardContent className="space-y-4 py-6">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">{t('rawDescription')}:</span> {slice.rawDescription}
           </p>
-        ) : null}
-      </CardContent>
-    </Card>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="space-y-3">
+              <SectionHeader label={t('targetLabel', { locale: t(`locales.${locale}`) })} />
+              <LabeledInput label={t('fieldName')} value={name} onChange={setName} />
+              <LabeledInput label={t('fieldStorageHint')} value={storageHint} onChange={setStorageHint} />
+            </section>
+            <section className="space-y-3">
+              <SectionHeader label={t('sourceLabel')} />
+              <ReadOnlyField label={t('fieldName')} value={slice.nameSource} />
+              <ReadOnlyField label={t('fieldStorageHint')} value={slice.storageHintSource ?? '—'} />
+            </section>
+          </div>
+
+          <Decide
+            reason={reason}
+            onReason={setReason}
+            dirty={dirty}
+            saving={saving}
+            acting={acting}
+            onSave={() => void save()}
+            onApprove={() => void approve()}
+            onReject={() => void reject()}
+            before={slice.alreadyReviewedAction}
+            keys={place.keys}
+            error={error}
+          />
+        </CardContent>
+      </Card>
+    </DraftRegion>
   );
 }
 

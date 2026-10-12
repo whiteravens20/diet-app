@@ -1,10 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { RecipeReviewSlice } from '@diet-app/shared';
+import type { IngredientNameReviewSlice, RecipeReviewSlice } from '@diet-app/shared';
 import { ApiClientError } from '@/lib/http';
 import { reviewApi } from '@/lib/review-api';
 import messages from '../../../messages/en.json';
@@ -46,6 +46,7 @@ const recipe = (id: string, title: string, over: Partial<RecipeReviewSlice> = {}
 
 const FIRST = '11111111-1111-4111-8111-111111111111';
 const SECOND = '22222222-2222-4222-8222-222222222222';
+const THIRD = '33333333-3333-4333-8333-333333333333';
 
 /** The queue of Polish recipe drafts with `items` waiting. */
 async function renderQueue(items: RecipeReviewSlice[], locale: 'en' | 'pl' = 'en') {
@@ -55,14 +56,17 @@ async function renderQueue(items: RecipeReviewSlice[], locale: 'en' | 'pl' = 'en
       <ReviewQueue locale="pl" kind="recipe" />
     </NextIntlClientProvider>,
   );
-  await screen.findByRole('button', { name: (locale === 'en' ? messages : polish).review.approve });
+  await screen.findByRole('group');
 }
 
+const draft = (current: number, visible: number) => screen.getByRole('group', { name: `Draft ${current} of ${visible}` });
 const button = (name: string) => screen.getByRole('button', { name });
+const keysOn = () => userEvent.click(button(text.keys));
 
 describe('the reviewer\'s queue', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    localStorage.clear();
   });
 
   it('names the buttons that go to the draft before and after', async () => {
@@ -71,9 +75,11 @@ describe('the reviewer\'s queue', () => {
     expect(button(text.previous)).toBeDisabled();
     await userEvent.click(button(text.next));
 
+    expect(draft(2, 2)).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Jajecznica');
     expect(button(text.next)).toBeDisabled();
-    expect(button(text.previous)).toBeEnabled();
+    // A step with a button leaves the focus on the button.
+    expect(button(text.next)).toHaveFocus();
   });
 
   it('names a draft\'s allergens as the rest of the app does, in the reader\'s language', async () => {
@@ -95,13 +101,141 @@ describe('the reviewer\'s queue', () => {
     expect(screen.getByRole('textbox', { name: 'Step 2' })).toHaveValue('Podaj.');
   });
 
-  it('says what the language decided about a draft before', async () => {
-    await renderQueue([recipe(FIRST, 'Owsianka', { alreadyReviewed: true, alreadyReviewedAction: 'REJECT' })]);
+  describe('with the keys off, as they are until the reviewer turns them on', () => {
+    it('a letter decides nothing, and no key is promised', async () => {
+      const approve = vi.spyOn(reviewApi, 'approveRecipe');
+      const reject = vi.spyOn(reviewApi, 'rejectRecipe');
+      await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')]);
 
-    expect(screen.getByText('Rejected for this language before')).toBeInTheDocument();
+      draft(1, 2).focus();
+      await userEvent.keyboard('arj');
+
+      expect(approve).not.toHaveBeenCalled();
+      expect(reject).not.toHaveBeenCalled();
+      expect(draft(1, 2)).toBeInTheDocument();
+      expect(button(text.keys)).toHaveAttribute('aria-pressed', 'false');
+      expect(button(text.approve)).not.toHaveAttribute('aria-keyshortcuts');
+      expect(screen.queryByText(/approves/)).not.toBeInTheDocument();
+    });
+
+    it('the first draft leaves the focus alone, and the one after a decision takes it', async () => {
+      vi.spyOn(reviewApi, 'approveRecipe').mockResolvedValue(recipe(FIRST, 'Owsianka'));
+      await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')]);
+      expect(draft(1, 2)).not.toHaveFocus();
+
+      await userEvent.click(button(text.approve));
+
+      // The button that was pressed went with its draft: the focus is not lost with it.
+      expect(await screen.findByRole('group', { name: 'Draft 1 of 1' })).toHaveFocus();
+      expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Jajecznica');
+    });
   });
 
-  it('does not approve text it could not save: the draft stays, with what went wrong and what was typed', async () => {
+  describe('with the keys on', () => {
+    it('says what each key does and that a decision cannot be taken back', async () => {
+      await renderQueue([recipe(FIRST, 'Owsianka')]);
+
+      await keysOn();
+
+      expect(button(text.keys)).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByText(/A decision cannot be taken back here\./)).toHaveTextContent(
+        'With the draft selected, not a field in it: A approves, R rejects, S saves, ← → or K J go to the draft before and after. Esc leaves a field.',
+      );
+      expect(button(text.approve)).toHaveAttribute('aria-keyshortcuts', 'A');
+      expect(button(text.reject)).toHaveAttribute('aria-keyshortcuts', 'R');
+      expect(button(text.save)).toHaveAttribute('aria-keyshortcuts', 'S');
+      // Turning them on moved no focus.
+      expect(button(text.keys)).toHaveFocus();
+    });
+
+    it('A approves the draft on show, and the next draft has the focus and the keys', async () => {
+      const approve = vi.spyOn(reviewApi, 'approveRecipe').mockResolvedValue(recipe(FIRST, 'Owsianka'));
+      await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica'), recipe(THIRD, 'Kanapka')]);
+      await keysOn();
+
+      draft(1, 3).focus();
+      await userEvent.keyboard('a');
+      expect(await screen.findByRole('group', { name: 'Draft 1 of 2' })).toHaveFocus();
+      await userEvent.keyboard('a');
+
+      expect(await screen.findByRole('group', { name: 'Draft 1 of 1' })).toHaveFocus();
+      expect(approve.mock.calls.map(([, id]) => id)).toEqual([FIRST, SECOND]);
+      expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Kanapka');
+    });
+
+    it('R rejects with the reason that was typed', async () => {
+      const reject = vi.spyOn(reviewApi, 'rejectRecipe').mockResolvedValue(recipe(FIRST, 'Owsianka'));
+      await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')]);
+      await keysOn();
+
+      await userEvent.type(screen.getByRole('textbox', { name: text.rejectReasonPlaceholder }), 'Not a breakfast');
+      await userEvent.keyboard('{Escape}r');
+
+      expect(reject).toHaveBeenCalledExactlyOnceWith('pl', FIRST, 'Not a breakfast');
+      expect(await screen.findByRole('group', { name: 'Draft 1 of 1' })).toHaveFocus();
+    });
+
+    it('J and K, and the arrows, go to the draft after and before, and stop at the ends', async () => {
+      await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')]);
+      await keysOn();
+      const title = () => screen.getByRole('textbox', { name: text.fieldTitle });
+
+      draft(1, 2).focus();
+      await userEvent.keyboard('j');
+      expect(draft(2, 2)).toHaveFocus();
+      expect(title()).toHaveValue('Jajecznica');
+      await userEvent.keyboard('j{ArrowRight}');
+      expect(title()).toHaveValue('Jajecznica');
+
+      await userEvent.keyboard('{ArrowLeft}');
+      expect(draft(1, 2)).toHaveFocus();
+      expect(title()).toHaveValue('Owsianka');
+      await userEvent.keyboard('k');
+      expect(title()).toHaveValue('Owsianka');
+    });
+
+    it('S saves what was typed, once: there is nothing to save after it', async () => {
+      const patch = vi.spyOn(reviewApi, 'patchRecipeSlice').mockResolvedValue(recipe(FIRST, 'Owsianka z jabłkiem'));
+      await renderQueue([recipe(FIRST, 'Owsianka')]);
+      await keysOn();
+
+      await userEvent.type(screen.getByRole('textbox', { name: text.fieldTitle }), ' z jabłkiem');
+      await userEvent.keyboard('{Escape}s');
+      await screen.findByRole('button', { name: text.save });
+      await userEvent.keyboard('s');
+
+      expect(patch).toHaveBeenCalledExactlyOnceWith('pl', FIRST, { title: 'Owsianka z jabłkiem', description: undefined, steps: undefined });
+      expect(button(text.save)).toBeDisabled();
+    });
+
+    it('a letter typed into a field is a letter', async () => {
+      const approve = vi.spyOn(reviewApi, 'approveRecipe');
+      await renderQueue([recipe(FIRST, 'Owsianka')]);
+      await keysOn();
+
+      await userEvent.type(screen.getByRole('textbox', { name: text.fieldTitle }), ' a');
+
+      expect(screen.getByRole('textbox', { name: text.fieldTitle })).toHaveValue('Owsianka a');
+      expect(approve).not.toHaveBeenCalled();
+    });
+
+    it('are on for the next visit, and off again once turned off', async () => {
+      await renderQueue([recipe(FIRST, 'Owsianka')]);
+      await keysOn();
+      cleanup();
+
+      await renderQueue([recipe(FIRST, 'Owsianka')]);
+      // The draft of a reviewer who wants the keys has the focus as it comes up.
+      expect(draft(1, 1)).toHaveFocus();
+      expect(button(text.keys)).toHaveAttribute('aria-pressed', 'true');
+
+      await userEvent.click(button(text.keys));
+      expect(button(text.keys)).toHaveAttribute('aria-pressed', 'false');
+      expect(draft(1, 1)).toHaveAttribute('tabindex', '-1');
+    });
+  });
+
+  it('does not approve text it could not save: the draft stays, with what went wrong', async () => {
     vi.spyOn(reviewApi, 'patchRecipeSlice').mockRejectedValue(new ApiClientError(503, 'UNAVAILABLE', 'down'));
     const approve = vi.spyOn(reviewApi, 'approveRecipe');
     await renderQueue([recipe(FIRST, 'Owsianka'), recipe(SECOND, 'Jajecznica')]);
@@ -150,14 +284,15 @@ describe('the reviewer\'s queue', () => {
         <ReviewQueue locale="pl" kind="recipe" />
       </NextIntlClientProvider>,
     );
+    await screen.findByRole('group');
 
-    await userEvent.click(await screen.findByRole('button', { name: text.approve }));
+    await userEvent.click(button(text.approve));
 
     // The next page is on its way: the queue is not said to be empty meanwhile.
     expect(await screen.findByText(text.queueLoading)).toBeInTheDocument();
     expect(screen.queryByText(text.queueEmpty)).not.toBeInTheDocument();
     answer({ items: [recipe(SECOND, 'Jajecznica')], total: 1, page: 1, pageSize: 25 });
-    expect(await screen.findByDisplayValue('Jajecznica')).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'Draft 1 of 1' })).toHaveFocus();
   });
 
   it('says nothing is left once the last page is done', async () => {
@@ -174,5 +309,43 @@ describe('the reviewer\'s queue', () => {
     await userEvent.click(await screen.findByRole('button', { name: text.approve }));
 
     expect(await screen.findByText(text.queueEmpty)).toBeInTheDocument();
+  });
+
+  it('says what the language decided about a draft before', async () => {
+    await renderQueue([recipe(FIRST, 'Owsianka', { alreadyReviewed: true, alreadyReviewedAction: 'REJECT' })]);
+
+    expect(screen.getByText('Rejected for this language before')).toBeInTheDocument();
+  });
+
+  it('has the same keys for the names of ingredients', async () => {
+    const name: IngredientNameReviewSlice = {
+      id: FIRST,
+      ingredientSlug: 'beef-tenderloin',
+      rawDescription: 'Beef, loin, tenderloin roast, separable lean only',
+      locale: 'pl',
+      name: 'Polędwica wołowa',
+      nameSource: 'Beef tenderloin',
+      storageHint: null,
+      storageHintSource: null,
+      batchId: 'batch-1',
+      modelUsed: null,
+      status: 'PENDING',
+      alreadyReviewed: false,
+      alreadyReviewedAction: null,
+    };
+    vi.spyOn(reviewApi, 'listIngredientNameSlices').mockResolvedValue({ items: [name], total: 1, page: 1, pageSize: 25 });
+    const approve = vi.spyOn(reviewApi, 'approveIngredientName').mockResolvedValue(name);
+    localStorage.setItem('diet-app.review.keys', 'on');
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ReviewQueue locale="pl" kind="ingredient-name" />
+      </NextIntlClientProvider>,
+    );
+    const region = await screen.findByRole('group', { name: 'Draft 1 of 1' });
+    expect(within(region).getByRole('textbox', { name: text.fieldName })).toHaveValue('Polędwica wołowa');
+
+    await userEvent.keyboard('a');
+
+    expect(approve).toHaveBeenCalledExactlyOnceWith('pl', FIRST);
   });
 });
