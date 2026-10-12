@@ -62,6 +62,7 @@ import {
 } from '@/lib/admin-api';
 import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
 import { useFormat } from '@/lib/use-format';
+import { MissingLanguage } from './missing-language';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
 type Kind = 'ingredient-names' | 'recipes';
@@ -470,6 +471,8 @@ function RecipePanel() {
           </span>
         )}
       </div>
+
+      <MissingLanguage onWritten={loadDrafts} />
 
       {error && (
         <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">

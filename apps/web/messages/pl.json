@@ -650,7 +650,18 @@
         "nothing-imported": "Nie ma czego nazywać: katalog nie zawiera zaimportowanych składników.",
         "not-imported": "{skipped, plural, one {Nie ma czego nazywać: podany składnik nie jest zaimportowany.} few {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.} many {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.} other {Nie ma czego nazywać: żaden z # podanych składników nie jest zaimportowany.}} Tylko zaimportowane składniki dostają nazwy z uruchomienia.",
         "all-have-drafts": "{skipped, plural, one {Nie ma czego nazywać: jedyny zaimportowany składnik ma już szkic.} few {Nie ma czego nazywać: wszystkie # zaimportowane składniki mają już szkic.} many {Nie ma czego nazywać: wszystkie # zaimportowanych składników ma już szkic.} other {Nie ma czego nazywać: wszystkie # zaimportowanego składnika mają już szkic.}}",
-        "coverage-reached": "Nie ma czego pisać: każda dieta ma dość przepisów na każdy posiłek, licząc szkice w kolejce."
+        "coverage-reached": "Nie ma czego pisać: każda dieta ma dość przepisów na każdy posiłek, licząc szkice w kolejce.",
+        "nothing-to-translate": "Nie ma czego tłumaczyć: żadnemu czekającemu szkicowi ani przepisowi wysłanemu przez tę instancję nie brakuje tego języka."
+      },
+      "missingLanguage": {
+        "title": "Uzupełnij brakujący język",
+        "hint": "Prosi model o tekst przepisów w języku, którego im brakuje. Szkic czekający w kolejce dostaje ten język jako dodatkowy; przepis wysłany przez tę instancję dostaje własny szkic. Dla użytkowników nic się nie zmienia, dopóki tekst nie zostanie zatwierdzony, a szkic wysłany. Przepisy z danych katalogu zostają bez zmian.",
+        "language": "Język",
+        "limit": "Najwyżej",
+        "start": "Uzupełnij język",
+        "running": "Piszę {processed} z {total}…",
+        "lastRun": "Ostatni przebieg: {written, plural, one {# tekst zapisany} few {# teksty zapisane} many {# tekstów zapisanych} other {# tekstu zapisanego}}, nieudanych: {failed}{skipped, plural, =0 {} one {, w międzyczasie załatwionych przez kogoś innego: #} few {, w międzyczasie załatwionych przez kogoś innego: #} many {, w międzyczasie załatwionych przez kogoś innego: #} other {, w międzyczasie załatwionych przez kogoś innego: #}}.",
+        "failed": "Przebieg nie powiódł się: {error}"
       },
       "rejectReasonLabel": "Ostatni przebieg odrzucony: {reason} ({key})",
       "rejectReasonHint": "Walidator odrzucił odpowiedź modelu przy każdej próbie. Częste przyczyny: unknown-slug (model wymyślił slug), invalid-unit (użył tbsp/cup), missing-field (pominął difficulty). Spróbuj innego modelu lub mniejszej liczby przepisów.",
@@ -706,6 +717,8 @@
         "slug-taken": "slug {detail} ma już inny przepis; zmień slug szkicu",
         "title-taken": "inny przepis w bibliotece nazywa się już „{detail}”",
         "same-making-as": "ma te same składniki, ilości, posiłki i porcje co {detail}",
+        "adds-a-language": "dodaje język do przepisu, który ta instancja już ma ({detail}), więc trafia tylko do tej instancji",
+        "library-recipe-changed": "przepis, do którego dodaje język, zmienił się od tego czasu ({detail}); odrzuć szkic i uzupełnij język ponownie",
         "facts-moved-since-review": "jego wyliczenia zmieniły się od recenzji ({detail}); zapisz go ponownie i zatwierdź",
         "unknown-slug-at-ship": "używa składnika, którego nie ma już w katalogu: {detail}",
         "unknown-slug": "w katalogu nie ma składnika {detail}",

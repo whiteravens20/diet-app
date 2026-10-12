@@ -650,7 +650,18 @@
         "nothing-imported": "Nothing to name: the catalogue has no imported ingredients.",
         "not-imported": "{skipped, plural, one {Nothing to name: the ingredient given is not an imported one.} other {Nothing to name: none of the # ingredients given is an imported one.}} Only imported ingredients get their names from a run.",
         "all-have-drafts": "{skipped, plural, one {Nothing to name: the one imported ingredient already has a draft.} other {Nothing to name: all # imported ingredients already have a draft.}}",
-        "coverage-reached": "Nothing to write: every diet has enough recipes for every meal, counting the drafts in the queue."
+        "coverage-reached": "Nothing to write: every diet has enough recipes for every meal, counting the drafts in the queue.",
+        "nothing-to-translate": "Nothing to translate: no recipe draft that waits and no recipe this instance shipped lacks that language."
+      },
+      "missingLanguage": {
+        "title": "Fill a missing language",
+        "hint": "Asks the model for the text of recipes in a language they lack. A draft that waits in the queue gets the language added; a recipe this instance shipped gets a draft of its own. Nothing changes for users until the text is approved and the draft ships. Recipes of the catalogue's own data are left as they are.",
+        "language": "Language",
+        "limit": "At most",
+        "start": "Fill the language",
+        "running": "Writing {processed} of {total}…",
+        "lastRun": "Last run: {written, plural, one {# text written} other {# texts written}}, {failed} failed{skipped, plural, =0 {} one {, # taken care of by somebody else meanwhile} other {, # taken care of by somebody else meanwhile}}.",
+        "failed": "The run failed: {error}"
       },
       "rejectReasonLabel": "Last batch rejected: {reason} ({key})",
       "rejectReasonHint": "The validator rejected the model's output on every retry. Common causes: unknown-slug (model invented a slug), invalid-unit (used tbsp/cup), missing-field (skipped difficulty). Try a different model, or fewer recipes per batch.",
@@ -706,6 +717,8 @@
         "slug-taken": "another recipe already has the slug {detail}; change the slug of the draft",
         "title-taken": "another recipe of the library is already called “{detail}”",
         "same-making-as": "has the same ingredients, amounts, meals and servings as {detail}",
+        "adds-a-language": "adds a language to a recipe this instance already has ({detail}), so it ships into this instance only",
+        "library-recipe-changed": "the recipe it adds a language to has changed since ({detail}); reject the draft and fill the language again",
         "facts-moved-since-review": "its figures changed since it was reviewed ({detail}); save it again and have it approved",
         "unknown-slug-at-ship": "uses an ingredient the catalogue no longer has: {detail}",
         "unknown-slug": "the catalogue has no ingredient {detail}",

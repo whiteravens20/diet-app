@@ -376,6 +376,12 @@ export const adminApi = {
   deleteIngredientNameDraft: (id: string) =>
     adminFetch<void>(`/drafts/ingredient-names/${id}`, { method: 'DELETE' }),
 
+  // Drafts: a language recipes lack
+  startTranslations: (spec: { locale: string; limit: number }) =>
+    adminFetch<DraftRunnerState>('/drafts/translations/generate', { method: 'POST', body: JSON.stringify(spec) }),
+  translationsStatus: () => adminFetch<DraftRunnerState>('/drafts/translations/generate/status'),
+  stopTranslations: () => adminFetch<DraftRunnerState>('/drafts/translations/generate/stop', { method: 'POST' }),
+
   // Drafts: recipes
   startRecipeGenerator: (spec: RecipeGenerateSpec) =>
     adminFetch<RecipeRunnerState>('/drafts/recipes/generate', {

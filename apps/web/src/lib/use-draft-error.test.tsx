@@ -94,6 +94,8 @@ describe('what the administrator is told about a draft that did not ship', () =>
     expect(heldBack('facts-moved-since-review: calories 100 → 412; allergens +gluten')).toBe(
       'its figures changed since it was reviewed (calories 100 → 412; allergens +gluten); save it again and have it approved',
     );
+    expect(heldBack('adds-a-language: oat-bowl')).toBe('adds a language to a recipe this instance already has (oat-bowl), so it ships into this instance only');
+    expect(heldBack('library-recipe-changed: oat-bowl')).toBe('the recipe it adds a language to has changed since (oat-bowl); reject the draft and fill the language again');
     expect(heldBack('not-approved: PENDING')).toBe('is not approved any more');
     expect(heldBack('changed-while-shipping')).toBe('changed while it was being shipped; the pull request holds it as it was');
   });
