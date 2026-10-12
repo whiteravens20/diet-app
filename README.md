@@ -224,6 +224,8 @@ independent security review.
   is still marked as not production ready.
 - A release will be cut from `main`, which requires CodeQL, `npm audit` and both Trivy
   scans on top of the tests.
+- Before a release is published, a group of human testers will try the release candidate
+  at the maintainer's request and report what they find.
 
 If something looks wrong, open an issue. For a vulnerability, follow
 [SECURITY.md](SECURITY.md).
