@@ -46,16 +46,17 @@ export function PlanPrintSheet({ plan, dietLabel, words, onDone }: { plan: MealP
             <span className="text-xs font-normal">{day.skipped ? words.skipped : t('sheetDay', { kcal: day.dayNutrition.calories, target: day.calorieTarget })}</span>
           </h2>
           {!day.skipped && (
-            <table className="mt-1 w-full border-collapse text-left text-xs">
+            // The columns are as wide on every day, and no wider than the paper: a long word is broken, not printed past the edge.
+            <table className="mt-1 w-full table-fixed border-collapse break-words text-left text-xs">
               <thead>
                 <tr>
-                  <th scope="col" className="w-1/6 py-1 pr-2 font-semibold">{meal}</th>
+                  <th scope="col" className="w-[14%] py-1 pr-2 font-semibold">{meal}</th>
                   <th scope="col" className="py-1 pr-2 font-semibold">{dish}</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-semibold">{servings}</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-semibold">{energy}</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-semibold">{protein}</th>
-                  <th scope="col" className="py-1 pr-2 text-right font-semibold">{fat}</th>
-                  <th scope="col" className="py-1 text-right font-semibold">{carbs}</th>
+                  <th scope="col" className="w-[10%] py-1 pr-2 text-right font-semibold">{servings}</th>
+                  <th scope="col" className="w-[8%] py-1 pr-2 text-right font-semibold">{energy}</th>
+                  <th scope="col" className="w-[10%] py-1 pr-2 text-right font-semibold">{protein}</th>
+                  <th scope="col" className="w-[9%] py-1 pr-2 text-right font-semibold">{fat}</th>
+                  <th scope="col" className="w-[14%] py-1 text-right font-semibold">{carbs}</th>
                 </tr>
               </thead>
               <tbody>
