@@ -28,6 +28,7 @@
     "back": "Go back"
   },
   "nav": {
+    "menu": "Menu",
     "dashboard": "Dashboard",
     "profiles": "Profiles",
     "recipes": "Recipes",

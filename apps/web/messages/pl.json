@@ -28,6 +28,7 @@
     "back": "Cofnij"
   },
   "nav": {
+    "menu": "Menu",
     "dashboard": "Panel",
     "profiles": "Profile",
     "recipes": "Przepisy",

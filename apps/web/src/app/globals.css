@@ -244,12 +244,21 @@ body {
     transform: translateY(12px);
   }
 }
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .dialog[open] {
     animation: dialog-in 160ms ease-out;
   }
   .dialog[open]::backdrop {
     animation: dialog-in 160ms ease-out;
+  }
+  /* The navigation of a narrow screen comes in from the edge it lies at. */
+  .dialog.drawer[open] {
+    animation: drawer-in 180ms ease-out;
   }
   /* A panel that drops from a button, and a tile that takes its place. */
   .pop-in {

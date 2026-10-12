@@ -10,6 +10,7 @@ import type { Notification, WeightReminderPayload } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useIsAuthenticated } from '@/lib/use-is-authenticated';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -18,7 +19,7 @@ const POLL_INTERVAL_MS = 60_000;
  * 60s when a session is active; the same row shape feeds the future Android
  * surface, so this component is the web-only render of a shared contract.
  */
-export function NotificationsBell() {
+export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end' }) {
   const t = useTranslations('notifications');
   const tBody = useTranslations('notifications.weight_reminder');
   const qc = useQueryClient();
@@ -99,7 +100,11 @@ export function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="pop-in absolute left-0 top-full z-50 mt-2 w-72 rounded-md border border-border bg-card text-card-foreground shadow-lg" role="dialog" aria-label={t('label')}>
+        <div
+          className={cn('pop-in absolute top-full z-50 mt-2 w-72 max-w-[calc(100vw-1rem)] rounded-md border border-border bg-card text-card-foreground shadow-lg', align === 'end' ? 'right-0' : 'left-0')}
+          role="dialog"
+          aria-label={t('label')}
+        >
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
             <span className="text-sm font-medium">{t('title')}</span>
             {count > 0 && (
