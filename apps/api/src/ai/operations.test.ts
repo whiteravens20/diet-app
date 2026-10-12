@@ -2,9 +2,12 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  DAY_VARIATIONS,
   INGREDIENT_SWAP,
+  LIST_PROPOSALS,
   MEAL_SWAP,
   SWAP_REWRITE,
+  USE_UP_SWAPS,
   USER_WAIT_MS,
   ingredientNames,
   namesPerCall,
@@ -14,7 +17,11 @@ import {
 } from './operations.js';
 
 describe('the limits of a user request', () => {
-  const operations = [MEAL_SWAP, INGREDIENT_SWAP, SWAP_REWRITE, recipeDraft(1), recipeDraft(2)];
+  const operations = [MEAL_SWAP, INGREDIENT_SWAP, SWAP_REWRITE, DAY_VARIATIONS, USE_UP_SWAPS, LIST_PROPOSALS, recipeDraft(1), recipeDraft(2)];
+
+  it('names each kind of request by a name of its own in the usage log', () => {
+    expect(new Set(operations.slice(0, 6).map((operation) => operation.name)).size).toBe(6);
+  });
 
   it('never waits longer than the web proxy allows', () => {
     // The proxy in front of the API gives up after 90 s (apps/web/next.config.ts).

@@ -43,6 +43,16 @@ export const INGREDIENT_SWAP: Operation = {
 };
 
 /**
+ * An order of a handful of options the engine made, and a sentence on each:
+ * other ways to fill a day, swaps that use up what a plan opens, what a
+ * shopping list could do without.
+ */
+const weighing = (name: string): Operation => ({ name, maxTokens: 700, temperature: 0.2, timeoutMs: USER_WAIT_MS });
+export const DAY_VARIATIONS = weighing('day-variations');
+export const USE_UP_SWAPS = weighing('use-up-swaps');
+export const LIST_PROPOSALS = weighing('list-proposals');
+
+/**
  * The description and steps of one recipe in one language, reworded around a
  * substituted ingredient. The wording has a template fallback, so the wait is
  * short: it is not worth holding a swap for.

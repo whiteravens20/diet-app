@@ -8,6 +8,7 @@ import { AiQuotaService } from './ai-quota.service.js';
 import { AiRouterService } from './ai-router.service.js';
 import { AiTestService } from './ai-test.service.js';
 import { ModelPickService } from './model-pick.service.js';
+import { WeighService } from './weigh.service.js';
 import { AnthropicProvider } from './providers/anthropic.provider.js';
 import { OllamaProvider } from './providers/ollama.provider.js';
 import { OpenAiProvider } from './providers/openai.provider.js';
@@ -27,6 +28,7 @@ import { OpenRouterProvider } from './providers/openrouter.provider.js';
     AiRouterService,
     AiTestService,
     ModelPickService,
+    WeighService,
     OpenAiProvider,
     AnthropicProvider,
     OpenRouterProvider,
@@ -37,6 +39,7 @@ import { OpenRouterProvider } from './providers/openrouter.provider.js';
     AiQuotaService,
     AiRouterService,
     ModelPickService,
+    WeighService,
     // Exported so the admin curation runners can call a provider directly
     // with the AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL env config: env-driven,
     // not DB-driven.
