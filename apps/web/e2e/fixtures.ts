@@ -23,6 +23,33 @@ export interface Session {
   page: Page;
 }
 
+/**
+ * What the pages did against their content security policy since somebody
+ * last asked: the directive, what was blocked, and on which page. A test that
+ * leaves something here fails, whatever else it checked; one that breaks the
+ * policy on purpose takes its violations away with `violationsSeen`.
+ */
+const violations: string[] = [];
+
+/** The violations recorded since the last call, taken off the record. */
+export function violationsSeen(): string[] {
+  return violations.splice(0);
+}
+
+/** Record what every page of a browser does against its policy, from the first script of each page on. */
+async function watchThePolicy(context: BrowserContext): Promise<void> {
+  await context.exposeBinding('policyBroken', (_source, violation: string) => {
+    violations.push(violation);
+  });
+  await context.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (event) => {
+      const where = event.sourceFile ? ` in ${new URL(event.sourceFile, location.href).pathname}:${event.lineNumber}` : '';
+      const told = (window as unknown as { policyBroken: (violation: string) => void }).policyBroken;
+      told(`${event.effectiveDirective} blocked ${event.blockedURI || 'something'} on ${location.pathname}${where}`);
+    });
+  });
+}
+
 /** Fill in the sign-in form the page shows, and send it. Where that leads is the caller's to wait for. */
 export async function signInHere(page: Page, account: Pick<Account, 'email' | 'password'>, messages: Messages): Promise<void> {
   const auth = messages.auth as Record<string, string>;
@@ -37,7 +64,7 @@ async function signIn(page: Page, account: Account, locale: AppLocale): Promise<
   await page.waitForURL('**/dashboard');
 }
 
-export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anonymous: Page; sessionKept: void }, { account: Account; session: Session }>({
+export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anonymous: Page; sessionKept: void; policyKept: void }, { account: Account; session: Session }>({
   appLocale: ['en', { option: true }],
 
   messages: async ({ appLocale }, provide) => {
@@ -47,6 +74,7 @@ export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anon
   /** A page of a visitor who is not signed in, with the language chosen: a first visit would load itself again to choose one. */
   anonymous: async ({ context, page, appLocale, baseURL }, provide) => {
     await context.addCookies([{ name: 'NEXT_LOCALE', value: appLocale, url: baseURL! }]);
+    await watchThePolicy(context);
     await provide(page);
   },
 
@@ -69,6 +97,7 @@ export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anon
       const kept = join(STATE, `${workerInfo.project.name}.json`);
       const context = await browser.newContext({ baseURL, viewport, colorScheme, hasTouch, isMobile, reducedMotion, storageState: existsSync(kept) ? kept : undefined });
       await context.addCookies([{ name: 'NEXT_LOCALE', value: appLocale, url: baseURL! }]);
+      await watchThePolicy(context);
       const page = await context.newPage();
       const answered = page.waitForResponse((res) => res.url().endsWith('/api/users/me') && res.ok(), { timeout: 8_000 }).then(
         () => true,
@@ -90,6 +119,16 @@ export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anon
     async ({ session }, provide, testInfo) => {
       await provide();
       await session.context.storageState({ path: join(STATE, `${testInfo.project.name}.json`) });
+    },
+    { auto: true },
+  ],
+
+  /** No page a test opened did anything its content security policy forbids. */
+  policyKept: [
+    async ({}, provide) => {
+      violationsSeen();
+      await provide();
+      expect(violationsSeen(), 'what the pages did against their content security policy').toEqual([]);
     },
     { auto: true },
   ],
