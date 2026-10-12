@@ -30,6 +30,9 @@ test.describe('the recipes a profile marked', () => {
     await settled(page);
     const row = page.getByRole('listitem').filter({ has: page.getByRole('combobox') }).first();
     const how = row.getByRole('combobox');
+    // The two lists that narrow the page. A label that holds a list of choices reads with them, and a recipe's own tags are a list named alike: these are found as what they are, by how their name begins.
+    const byTag = page.getByRole('combobox', { name: new RegExp(`^${texts.tag!}`) });
+    const byMark = page.getByRole('combobox', { name: new RegExp(`^${texts.marked!}`) });
 
     const often = marked(page);
     await how.selectOption('often');
@@ -43,15 +46,15 @@ test.describe('the recipes a profile marked', () => {
     await expect(row.getByRole('button', { name: texts.removeTag!.replace('{tag}', 'quick'), exact: true })).toBeVisible();
 
     // The tag is one to narrow the list by, and so is the way the recipe is marked.
-    await page.getByLabel(new RegExp(`^${texts.tag!}`)).selectOption('quick');
-    await page.getByLabel(new RegExp(`^${texts.marked!}`)).selectOption({ label: sentiments.often! });
+    await byTag.selectOption('quick');
+    await byMark.selectOption({ label: sentiments.often! });
     await expect(page.getByRole('listitem').filter({ has: page.getByRole('combobox') })).toHaveCount(1);
-    await page.getByLabel(new RegExp(`^${texts.marked!}`)).selectOption({ label: sentiments.avoid! });
+    await byMark.selectOption({ label: sentiments.avoid! });
     await expect(page.getByText(texts.noneFiltered!)).toBeVisible();
 
     // Back to what the account had, for the tests after this one: a favourite without a tag.
-    await page.getByLabel(new RegExp(`^${texts.marked!}`)).selectOption('');
-    await page.getByLabel(new RegExp(`^${texts.tag!}`)).selectOption('');
+    await byMark.selectOption('');
+    await byTag.selectOption('');
     const untagged = marked(page);
     await row.getByRole('button', { name: texts.removeTag!.replace('{tag}', 'quick'), exact: true }).click();
     expect((await untagged).ok()).toBe(true);
