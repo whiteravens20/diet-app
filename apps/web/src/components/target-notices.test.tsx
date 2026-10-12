@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { CalorieCalculation } from '@diet-app/shared';
 import en from '../../messages/en.json';
 import pl from '../../messages/pl.json';
-import { TargetNotices } from './profile-summary';
+import { TargetNotices } from './target-notices';
 
 const plain: CalorieCalculation = {
   bmr: 1780,
@@ -72,5 +72,23 @@ describe('what a user is told about their calorie target', () => {
       'Wpisany cel jest niższy niż 1500 kcal, czyli najniższy, jaki wyliczyłby plan.',
       'Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku (1780 kcal).',
     ]);
+  });
+
+  it('leaves the warnings of a risk to a form that gives them itself, and still says the rest', () => {
+    const held = { ...plain, goalHeld: true, dailyTarget: 2759, dailyDeficit: 0, warnings: ['minor' as const] };
+    const floored = { ...plain, dailyTarget: 1500, dailyDeficit: 300, safetyFloorApplied: true, warnings: ['underweight' as const] };
+    const inAForm = (calories: CalorieCalculation): string[] => {
+      const { unmount } = render(
+        <NextIntlClientProvider locale="en" messages={en}>
+          <TargetNotices calories={calories} risk={false} />
+        </NextIntlClientProvider>,
+      );
+      const lines = screen.queryAllByRole('listitem').map((item) => item.textContent ?? '');
+      unmount();
+      return lines;
+    };
+
+    expect(inAForm(held)).toEqual([]);
+    expect(inAForm(floored)).toEqual([expect.stringMatching(/^The target was raised to 1,500 kcal/)]);
   });
 });

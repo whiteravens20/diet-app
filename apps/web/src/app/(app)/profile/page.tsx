@@ -4,6 +4,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState } from 'react';
 import {
@@ -33,8 +34,13 @@ import { BodyFields, DietFields, OwnTargetField, PaceChoice, RiskBox, splitAddsU
 import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
-import { FirstProfile } from './first-profile';
 
+
+/** Fetched for an account that has no profile yet: nobody else is shown the steps. */
+const FirstProfile = dynamic(() => import('./first-profile').then((steps) => steps.FirstProfile), {
+  ssr: false,
+  loading: () => <Skeleton className="h-96 max-w-4xl" />,
+});
 
 /** Profile manager — create, edit and delete the account's profiles. */
 export default function ProfilePage() {

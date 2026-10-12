@@ -8,7 +8,7 @@ import { useId } from 'react';
 import type { CaloriePreview, CaloriePreviewRequest } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useSettled } from '@/lib/use-settled';
-import { TargetNotices } from '@/components/profile-summary';
+import { TargetNotices } from '@/components/target-notices';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
