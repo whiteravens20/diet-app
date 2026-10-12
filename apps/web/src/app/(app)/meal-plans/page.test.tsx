@@ -341,8 +341,11 @@ describe('the plan page, on a plan and how it was made', () => {
       }),
     );
 
-    expect(screen.getByText('Outside a limit')).toHaveAttribute('title', 'No recipe was left for this meal inside: days in a row with one recipe, times a week for one recipe.');
+    // Each chip with what it means in words under the meal: a text that shows on hover says nothing to a finger.
+    expect(screen.getByText('Outside a limit')).toBeInTheDocument();
+    expect(screen.getByText('No recipe was left for this meal inside: days in a row with one recipe, times a week for one recipe.')).toBeVisible();
     expect(screen.getByText('Only recipe')).toBeInTheDocument();
+    expect(screen.getByText(messages.mealPlans.onlyRecipeHint)).toBeVisible();
     expect(screen.getByText(messages.mealPlans.pantryCounted)).toBeInTheDocument();
   });
 
@@ -881,14 +884,69 @@ describe('the plan page, on how a day stands against its target', () => {
   ] as const)('says on the day, for as long as it is so, that it stands %s its target, and what can be done', async (offTarget, label, hint) => {
     await opened(aDay({ offTarget }));
 
-    const chip = screen.getByText(label);
-    expect(chip.textContent).toContain(hint);
+    expect(screen.getByText(label)).toBeVisible();
+    expect(screen.getByText(hint)).toBeVisible();
   });
 
   it('says nothing of the kind of a day inside its window, nor of a day that is skipped', async () => {
     await opened(aDay({ offTarget: null }));
     expect(screen.queryByText(messages.mealPlans.dayOver)).toBeNull();
     expect(screen.queryByText(messages.mealPlans.dayUnder)).toBeNull();
+  });
+});
+
+describe('the plan page, on a meal the profile or the diet no longer allows', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  type Meal = MealPlan['days'][number]['meals'][number];
+  /** The plan with its one breakfast changed by `first`, and a lunch like it changed by `second` when there is one. */
+  const aPlanOf = (first: Partial<Meal>, second?: Partial<Meal>): MealPlan => {
+    const plan = aPlan();
+    const breakfast = plan.days[0]!.meals[0]!;
+    const meals = [{ ...breakfast, ...first }, ...(second ? [{ ...breakfast, id: '33333338-3333-4333-8333-333333333333', mealType: 'lunch' as const, ...second }] : [])];
+    return { ...plan, days: [{ ...plan.days[0]!, meals }] };
+  };
+  const opened = async (plan: MealPlan) => {
+    await renderPage(aDepth(9), [plan]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+    await screen.findAllByRole('button', { name: 'Oat porridge' });
+  };
+
+  it('says over the days how many meals hold what the profile has ruled out since, and under each of them what and what to do', async () => {
+    await opened(aPlanOf({ restrictionConflicts: ['allergen'] }, { restrictionConflicts: ['excluded_ingredient', 'avoided'] }));
+
+    expect(screen.getByRole('alert').textContent).toBe(
+      '2 meals of this plan hold something the profile has ruled out since the plan was made. Each is marked below: swap it, or recalculate the plan.',
+    );
+    for (const conflict of ['allergen', 'excluded_ingredient', 'avoided'] as const) {
+      expect(screen.getByText(messages.mealPlans.conflictChip[conflict])).toBeVisible();
+      expect(screen.getByText(messages.mealPlans.conflictHint[conflict])).toBeVisible();
+    }
+  });
+
+  it('counts one such meal as one', async () => {
+    await opened(aPlanOf({ restrictionConflicts: ['allergen', 'avoided'] }, {}));
+
+    expect(screen.getByRole('alert').textContent).toContain('One meal of this plan holds something the profile has ruled out');
+  });
+
+  it('says of a meal outside the diet of the plan that it is, and that it stays until it is swapped', async () => {
+    await opened(aPlanOf({ dietOverride: true }));
+
+    expect(screen.getByText(messages.mealPlans.dietOverrideChip)).toBeVisible();
+    expect(screen.getByText('This recipe does not fit the diet of the plan (Vegan). It stays until you swap it.')).toBeVisible();
+    // Outside the diet is the user's to decide: nothing has been ruled out.
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('says nothing of the kind of a plan whose meals are as the profile and the diet have them', async () => {
+    await opened(aPlanOf({}));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(messages.mealPlans.dietOverrideChip)).toBeNull();
+    for (const conflict of ['allergen', 'excluded_ingredient', 'avoided'] as const) expect(screen.queryByText(messages.mealPlans.conflictChip[conflict])).toBeNull();
   });
 });
 

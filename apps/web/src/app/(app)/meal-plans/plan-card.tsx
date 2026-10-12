@@ -135,6 +135,8 @@ export function PlanCard({
   const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[]; picked: PlannedMealView['modelPick'] } | null>(null);
   // What the window a plan is made again in opens on, while it is open.
   const [reroll, setReroll] = useState<RerollStart | null>(null);
+  // The meals that hold something the profile has ruled out since the plan was made.
+  const conflicts = plan?.days.reduce((count, day) => count + day.meals.filter((meal) => meal.restrictionConflicts.length > 0).length, 0) ?? 0;
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
   const pantryLine = plan?.report ? PANTRY_LINE[plan.report.pantry] : undefined;
   return (
@@ -206,6 +208,11 @@ export function PlanCard({
               {pantryLine && <p>{t(pantryLine)}</p>}
             </div>
           )}
+          {conflicts > 0 && (
+            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {t('conflictsNotice', { count: conflicts })}
+            </p>
+          )}
           {plan.days.map((day) => (
             <div key={day.id}>
               <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
@@ -240,28 +247,23 @@ export function PlanCard({
                   </div>
                 )}
               </div>
+              {/* Said for as long as it is so, in words anybody can read: a notice that goes away is easy to miss, and a text that shows on hover says nothing to a finger. */}
+              {!day.skipped && day.offTarget && (
+                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-warning">
+                  <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium">{t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}</span>
+                  <span>{t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}</span>
+                </p>
+              )}
               {!day.skipped && (
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                  {/* Said for as long as it is so: a notice that goes away is easy to miss. */}
-                  {day.offTarget && (
-                    <span
-                      title={t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}
-                      className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning"
-                    >
-                      {t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}
-                      <span className="sr-only">: {t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}</span>
-                    </span>
-                  )}
-                  <span>
-                    {t('dayMacros', {
-                      protein: day.dayNutrition.protein,
-                      proteinTarget: day.targetMacros.protein,
-                      fat: day.dayNutrition.fat,
-                      fatTarget: day.targetMacros.fat,
-                      carbs: day.dayNutrition.carbs,
-                      carbsTarget: day.targetMacros.carbs,
-                    })}
-                  </span>
+                <p className="text-xs text-muted-foreground">
+                  {t('dayMacros', {
+                    protein: day.dayNutrition.protein,
+                    proteinTarget: day.targetMacros.protein,
+                    fat: day.dayNutrition.fat,
+                    fatTarget: day.targetMacros.fat,
+                    carbs: day.dayNutrition.carbs,
+                    carbsTarget: day.targetMacros.carbs,
+                  })}
                 </p>
               )}
               {day.belowSafetyFloor && <p className="text-xs text-warning">{t('dayBelowFloor')}</p>}
@@ -321,31 +323,24 @@ export function PlanCard({
                             </span>
                           )}
                           {byModel && <AiMark part={byModel} className="ml-2 align-middle" />}
+                          {/* A chip names what there is to say of the meal at a glance; what it means is a line under the meal. */}
                           {m.dietOverride && (
                             <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
                               {t('dietOverrideChip')}
                             </span>
                           )}
-                          {/* What the profile has ruled out since this meal was planned: the plan is not rewritten, it says so. */}
                           {m.restrictionConflicts.map((conflict) => (
-                            <span
-                              key={conflict}
-                              title={t(`conflictHint.${conflict}`)}
-                              className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
-                            >
+                            <span key={conflict} className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
                               {t(`conflictChip.${conflict}`)}
                             </span>
                           ))}
                           {outside && (
-                            <span
-                              title={t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}
-                              className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning"
-                            >
+                            <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
                               {t('outsideLimitChip')}
                             </span>
                           )}
                           {onlyRecipe && (
-                            <span title={t('onlyRecipeHint')} className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                               {t('onlyRecipeChip')}
                             </span>
                           )}
@@ -460,6 +455,15 @@ export function PlanCard({
                           modal opened from the recipe title carries the full
                           ingredient list scaled for this meal. */}
                       <MacrosLine nutrition={m.nutrition} />
+                      {/* What the profile has ruled out since the meal was planned comes first: the plan is not rewritten, it says so. */}
+                      {m.restrictionConflicts.map((conflict) => (
+                        <p key={conflict} className="ml-4 text-xs text-destructive">
+                          {t(`conflictHint.${conflict}`)}
+                        </p>
+                      ))}
+                      {m.dietOverride && <p className="ml-4 text-xs text-warning">{t('dietOverrideHint', { diet: dietLabel })}</p>}
+                      {outside && <p className="ml-4 text-xs text-muted-foreground">{t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}</p>}
+                      {onlyRecipe && <p className="ml-4 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>}
                       {isCustom && (
                         <p className="ml-6 text-xs italic text-muted-foreground">
                           {t('customMacrosNote')}

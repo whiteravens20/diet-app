@@ -1012,6 +1012,7 @@
     "customChip": "Custom",
     "customMacrosNote": "Custom meal — macros entered by you.",
     "dietOverrideChip": "Off-diet",
+    "dietOverrideHint": "This recipe does not fit the diet of the plan ({diet}). It stays until you swap it.",
     "conflictChip": {
       "allergen": "Allergen",
       "excluded_ingredient": "Skipped ingredient",
@@ -1022,6 +1023,7 @@
       "excluded_ingredient": "This recipe uses an ingredient the profile now skips. Swap the meal or the ingredient.",
       "avoided": "This recipe is marked to avoid for the profile. Swap the meal."
     },
+    "conflictsNotice": "{count, plural, one {One meal of this plan holds} other {# meals of this plan hold}} something the profile has ruled out since the plan was made. Each is marked below: swap it, or recalculate the plan.",
     "offDietTag": "off-diet",
     "autoBalancedChip": "auto-balanced ×{scale}",
     "showAllFavorites": "Show all my favourites (any diet & meal time)",
