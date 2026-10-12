@@ -75,10 +75,13 @@ export class AiRecipeDraftService {
     const servings = 1;
     const allergens = (profile.preferences?.allergens ?? []) as string[];
     // Allergens are ALWAYS excluded. Other exclusions only when the user
-    // asked for it (defaults to true on the request shape).
-    const excludedIds = new Set(
-      req.respectExclusions ? (profile.preferences?.excludedIngredientIds ?? []) : [],
-    );
+    // asked for it (defaults to true on the request shape). What the profile
+    // would rather not eat is not offered either: a recipe that is written
+    // for somebody has no reason to begin with it.
+    const excludedIds = new Set([
+      ...(req.respectExclusions ? (profile.preferences?.excludedIngredientIds ?? []) : []),
+      ...(profile.preferences?.dislikedIngredientIds ?? []),
+    ]);
     const favouriteIds = new Set(
       req.useFavoriteIngredients ? (profile.preferences?.favoriteIngredientIds ?? []) : [],
     );

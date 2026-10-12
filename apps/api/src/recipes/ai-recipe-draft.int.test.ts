@@ -417,7 +417,7 @@ describe('drafting a recipe with a model', () => {
   describe('the ingredients a model is offered', () => {
     const slugId = async (slug: string): Promise<string> => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
 
-    const prefer = (data: { allergens?: string[]; favoriteIngredientIds?: string[]; excludedIngredientIds?: string[] }) =>
+    const prefer = (data: { allergens?: string[]; favoriteIngredientIds?: string[]; excludedIngredientIds?: string[]; dislikedIngredientIds?: string[] }) =>
       t.prisma.profilePreference.upsert({
         where: { profileId: profile.id },
         update: data,
@@ -467,6 +467,20 @@ describe('drafting a recipe with a model', () => {
         expect(await refusal(ask())).toMatchObject({ status: 400, error: 'AI_DRAFT_UNKNOWN_INGREDIENT' });
       }
       expect(await stored()).toBe(1);
+    });
+
+    it('leave out what the profile would rather not eat, whatever the request says of what it skips', async () => {
+      await prefer({ dislikedIngredientIds: [await slugId('broccoli')] });
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
+
+      await ask();
+      await t.prisma.recipe.deleteMany({ where: { createdByUserId: user.id } });
+      await ask({ respectExclusions: false });
+
+      for (const request of t.model.requests) {
+        expect(offered(request)).not.toContain('broccoli');
+        expect(offered(request)).toContain('tomato');
+      }
     });
 
     it('leave out what the profile skips, unless the request says otherwise', async () => {
