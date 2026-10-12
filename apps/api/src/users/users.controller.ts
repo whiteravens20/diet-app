@@ -1,14 +1,17 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { Readable } from 'node:stream';
 import {
   Body,
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   Patch,
   Post,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +25,7 @@ import { CurrentUser, type RequestUser } from '../common/current-user.decorator.
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { SessionsService } from '../auth/sessions.service.js';
+import { AccountExportService } from './account-export.service.js';
 import { UsersService } from './users.service.js';
 
 /**
@@ -38,11 +42,29 @@ export class UsersController {
   constructor(
     private readonly users: UsersService,
     private readonly sessions: SessionsService,
+    private readonly exports: AccountExportService,
   ) {}
 
   @Get()
   getMe(@CurrentUser() user: RequestUser) {
     return this.users.getMe(user.id);
+  }
+
+  /**
+   * Everything the account holds, as one JSON file (`AccountExportService`).
+   * It reads every table the account has rows in, so it is asked for a few
+   * times an hour at most, counted against the account; and it is nothing
+   * for a cache to keep.
+   */
+  @Get('export')
+  @Throttle({ default: { limit: 6, ttl: 3_600_000 } })
+  @Header('Cache-Control', 'no-store')
+  exportData(@CurrentUser() user: RequestUser): StreamableFile {
+    const now = new Date();
+    return new StreamableFile(Readable.from(this.exports.pieces(user.id, now)), {
+      type: 'application/json; charset=utf-8',
+      disposition: `attachment; filename="diet-app-account-${now.toISOString().slice(0, 10)}.json"`,
+    });
   }
 
   /** The sessions of the account that are open: where it is signed in. */
