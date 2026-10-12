@@ -4,17 +4,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import { Undo2 } from 'lucide-react';
 import type { Profile, WeightEntry } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -22,17 +13,16 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat } from '@/lib/use-format';
 import { localDate } from '@/lib/http';
+import type { WeightPoint } from '@/components/weight-chart';
 
-interface ChartPoint {
-  /** ISO yyyy-mm-dd at midnight of the recordedAt day. */
-  date: string;
-  /** Raw entry (latest of the day, if duplicates). */
-  kg: number;
-  /** 7-day trailing moving average over the same series, anchored at this row. */
-  ma7: number | null;
-}
+/** Fetched when a chart is first shown: the charting library is the heaviest thing the dashboard has. */
+const WeightChart = dynamic(() => import('@/components/weight-chart').then((chart) => chart.WeightChart), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[220px]" />,
+});
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -157,61 +147,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
 
           <div className="min-h-[200px]">
             {hasData ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
-                    tickFormatter={(day: string) => fmt.dayShort(day)}
-                  />
-                  <YAxis
-                    domain={['auto', 'auto']}
-                    tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
-                    tickFormatter={(kg: number) => fmt.number(kg, 1)}
-                    width={32}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--color-background)',
-                      border: '1px solid var(--color-border)',
-                      fontSize: 12,
-                    }}
-                    labelFormatter={(day) => (typeof day === 'string' ? fmt.date(day) : '')}
-                    formatter={(v, name) => [
-                      typeof v === 'number' ? fmt.unit(v, 'kilogram', 1) : '—',
-                      name === 'kg' ? t('seriesEntry') : t('seriesMa7'),
-                    ]}
-                  />
-                  <ReferenceLine
-                    y={profile.weightKg}
-                    stroke="var(--color-accent)"
-                    strokeDasharray="4 4"
-                    label={{
-                      value: t('referenceLabel'),
-                      position: 'insideTopRight',
-                      fontSize: 10,
-                      fill: 'var(--color-muted-foreground)',
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="kg"
-                    stroke="var(--color-muted-foreground)"
-                    strokeWidth={1}
-                    dot={{ r: 2 }}
-                    activeDot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="ma7"
-                    stroke="var(--color-primary)"
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <WeightChart points={points} referenceKg={profile.weightKg} />
             ) : (
               <div className="flex h-full min-h-[200px] items-center justify-center rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
                 {t('emptyState')}
@@ -233,7 +169,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
  */
 const hundredths = (kg: number): number => Math.round(kg * 100) / 100;
 
-function buildSeries(entries: WeightEntry[]): ChartPoint[] {
+function buildSeries(entries: WeightEntry[]): WeightPoint[] {
   if (entries.length === 0) return [];
   const byDate = new Map<string, WeightEntry>();
   for (const e of entries) {
@@ -244,7 +180,7 @@ function buildSeries(entries: WeightEntry[]): ChartPoint[] {
   const sorted = Array.from(byDate.values()).sort((a, b) =>
     a.recordedAt < b.recordedAt ? -1 : 1,
   );
-  const out: ChartPoint[] = [];
+  const out: WeightPoint[] = [];
   for (let i = 0; i < sorted.length; i += 1) {
     const window = sorted.slice(Math.max(0, i - 6), i + 1);
     const ma7 = window.length >= 1 ? hundredths(window.reduce((s, w) => s + w.kg, 0) / window.length) : null;

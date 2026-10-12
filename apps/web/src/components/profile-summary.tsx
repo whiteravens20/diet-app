@@ -3,10 +3,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Flame, Target, UtensilsCrossed, Wheat } from 'lucide-react';
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { CalorieCalculation, Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { buttonVariants } from '@/components/ui/button';
@@ -17,7 +17,11 @@ import { FavoriteSetsCard } from '@/components/favorite-sets-card';
 import { WeightCard } from '@/components/weight-card';
 import { useFormat } from '@/lib/use-format';
 
-const MACRO_COLORS = ['var(--color-primary)', 'var(--color-accent)', 'oklch(0.75 0.13 80)'];
+/** Fetched when a ring is first shown: the charting library is the heaviest thing the dashboard has. */
+const MacroChart = dynamic(() => import('@/components/macro-chart').then((chart) => chart.MacroChart), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64" />,
+});
 
 /**
  * Calorie target, deficit and macro split for a single profile. The dashboard
@@ -91,16 +95,7 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
         <CardContent>
           {macroData.length > 0 ? (
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={macroData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95}>
-                    {macroData.map((_, i) => (
-                      <Cell key={i} fill={MACRO_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <MacroChart data={macroData} />
             </div>
           ) : (
             <Skeleton className="h-64" />
