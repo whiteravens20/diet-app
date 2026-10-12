@@ -3,7 +3,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { MEAL_SLOTS_BY_COUNT, PLAN_RELAXATIONS, type DayOverride, type MealType, type PlanRelaxation } from '@diet-app/shared';
+import { MEAL_SLOTS_BY_COUNT, PLAN_RELAXATIONS, type DayOverride, type FavoriteSet, type MealType, type PlanRelaxation } from '@diet-app/shared';
 import { useFormat } from '@/lib/use-format';
 
 /** A favourite recipe usable as a lock target. */
@@ -20,6 +20,8 @@ export interface DayDraft {
   dayKind?: 'normal' | 'rest' | 'training' | 'skip';
   cookTimeBudgetMinutes?: number;
   useUpBy?: boolean;
+  /** The favourite set whose recipes fill the meals of the day that it has a recipe for. */
+  setId?: string;
   lockSlot?: MealType;
   lockRecipeId?: string;
 }
@@ -33,10 +35,30 @@ export interface AdvancedValue {
 
 const KINDS: NonNullable<DayDraft['dayKind']>[] = ['normal', 'rest', 'training', 'skip'];
 
+/**
+ * The recipes a day is given before the plan is made: those of its favourite
+ * set for the meals the day has, and the meal locked by hand, which goes
+ * before the set's recipe for the same meal.
+ */
+function locksOf(d: DayDraft, sets: readonly FavoriteSet[], defaultMealCount: number): NonNullable<DayOverride['lockedSlots']> {
+  const meals = MEAL_SLOTS_BY_COUNT[d.mealCount ?? defaultMealCount] ?? [];
+  const locked = new Map<MealType, string>();
+  const set = sets.find((one) => one.id === d.setId);
+  for (const meal of meals) {
+    const recipeId = set?.slots[meal];
+    if (recipeId) locked.set(meal, recipeId);
+  }
+  if (d.lockSlot && d.lockRecipeId) locked.set(d.lockSlot, d.lockRecipeId);
+  return [...locked].map(([mealType, recipeId]) => ({ mealType, recipeId }));
+}
+
 /** Collapse the form draft into the request's `maxRepeatsPerRecipe`, `allowRelaxations` and `dayOverrides`. */
 export function buildAdvancedRequest(
   value: AdvancedValue,
   dates: string[],
+  /** The profile's favourite sets, and how many meals a day of the plan has unless the day says otherwise. */
+  sets: readonly FavoriteSet[] = [],
+  defaultMealCount = 3,
 ): { maxRepeatsPerRecipe?: number; allowRelaxations?: PlanRelaxation[]; dayOverrides?: DayOverride[] } {
   const dayOverrides: DayOverride[] = [];
   for (const date of dates) {
@@ -49,10 +71,9 @@ export function buildAdvancedRequest(
     if (d.useUpBy) o.useUpBy = true;
     if (d.dayKind === 'skip') o.skip = true;
     else if (d.dayKind === 'rest' || d.dayKind === 'training') o.dayType = d.dayKind;
-    // A day that is skipped has no meal to lock: a lock picked before the day was switched to skip is left out.
-    if (d.dayKind !== 'skip' && d.lockSlot && d.lockRecipeId) {
-      o.lockedSlots = [{ mealType: d.lockSlot, recipeId: d.lockRecipeId }];
-    }
+    // A day that is skipped has no meal to lock: what was picked before the day was switched to skip is left out.
+    const locks = d.dayKind === 'skip' ? [] : locksOf(d, sets, defaultMealCount);
+    if (locks.length > 0) o.lockedSlots = locks;
     // Only send a day that actually carries an override beyond its date.
     if (Object.keys(o).length > 1) dayOverrides.push(o);
   }
@@ -70,12 +91,15 @@ export function AdvancedOptions({
   dates,
   defaultMealCount,
   favorites,
+  sets,
   value,
   onChange,
 }: {
   dates: string[];
   defaultMealCount: number;
   favorites: LockableRecipe[];
+  /** The profile's favourite sets: a day can be filled from one. */
+  sets: readonly FavoriteSet[];
   value: AdvancedValue;
   onChange: (next: AdvancedValue) => void;
 }) {
@@ -103,6 +127,7 @@ export function AdvancedOptions({
             <li>{t('legendCalories')}</li>
             <li>{t('legendCookTime')}</li>
             <li>{t('legendUseUpBy')}</li>
+            <li>{t('legendSet')}</li>
             <li>{t('legendLock')}</li>
             <li>{t('legendVariety')}</li>
           </ul>
@@ -247,6 +272,23 @@ export function AdvancedOptions({
                         />
                         {t('useUpBy')}
                       </label>
+
+                      {/* Fill the day from a favourite set. Offered when there is one. */}
+                      {sets.length > 0 && (
+                        <select
+                          aria-label={t('favoriteSet')}
+                          className={inputCls}
+                          value={d.setId ?? ''}
+                          onChange={(e) => patchDay(date, { setId: e.target.value || undefined })}
+                        >
+                          <option value="">{`${t('favoriteSet')}: ${t('favoriteSetNone')}`}</option>
+                          {sets.map((set) => (
+                            <option key={set.id} value={set.id}>
+                              {`${t('favoriteSet')}: ${set.label}`}
+                            </option>
+                          ))}
+                        </select>
+                      )}
 
                       {/* Lock a recipe to a slot */}
                       <select

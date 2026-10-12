@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CatalogueDepth, MealPlan, MealSwapPreview, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
+import type { CatalogueDepth, FavoriteSet, MealPlan, MealSwapPreview, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { aDepth, aPublicConfig } from '@/testing/public-config';
@@ -123,6 +123,9 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
   ...over,
 });
 
+/** The favourite sets the profile has, for the tests that are about them. */
+let favoriteSets: FavoriteSet[] = [];
+
 /** The page of somebody with that one profile and `plans`, on an instance whose catalogue has `depth`. AI is off for them unless `aiMode` says otherwise. */
 async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] = [], aiMode: 'none' | 'admin' = 'none') {
   // The list answers each plan as a summary, a page at a time; a plan that is opened is read whole.
@@ -137,7 +140,11 @@ async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] =
             ? listed
             : path.startsWith('/meal-plans/')
               ? plans.find((plan) => path === `/meal-plans/${plan.id}`)
-              : path.startsWith('/recipes/')
+              : path.endsWith('/calories')
+                ? { dailyTarget: 2209 }
+                : path.startsWith('/favorite-sets')
+                  ? favoriteSets
+                : path.startsWith('/recipes/')
                 ? plans.flatMap((plan) => plan.days.flatMap((day) => day.meals.map((meal) => meal.recipe))).find((recipe) => recipe && path === `/recipes/${recipe.id}`)
                 : []) as never,
     ),
@@ -195,7 +202,7 @@ describe('the plan page, where the catalogue is short of recipes', () => {
 
     expect(
       await screen.findByText(
-        'There is no recipe for "Snack" on the "Vegan" diet, so the plan could not be made. Choose another diet or fewer meals a day in the profile.',
+        'There is no recipe for "Snack" on the "Vegan" diet, so the plan could not be made. Choose another diet or fewer meals a day, in the form above for this plan or in the profile for every plan.',
       ),
     ).toBeInTheDocument();
   });
@@ -205,7 +212,7 @@ describe('the plan page, where the catalogue is short of recipes', () => {
 
     expect(
       await screen.findByText(
-        'There is no recipe for "Breakfast" on the "Vegan" diet, so the plan could not be made. Choose another diet in the profile.',
+        'There is no recipe for "Breakfast" on the "Vegan" diet, so the plan could not be made. Choose another diet, in the form above for this plan or in the profile for every plan.',
       ),
     ).toBeInTheDocument();
   });
@@ -734,6 +741,91 @@ describe('the plan page, on how a day stands against its target', () => {
     await opened(aDay({ offTarget: null }));
     expect(screen.queryByText(messages.mealPlans.dayOver)).toBeNull();
     expect(screen.queryByText(messages.mealPlans.dayUnder)).toBeNull();
+  });
+});
+
+describe('the plan page, on what a plan is made for', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    favoriteSets = [];
+  });
+
+  /** Ask for a plan and say what was sent. */
+  const sent = async (): Promise<Record<string, unknown>> => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue(aPlan() as never);
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.generateButton }));
+    await vi.waitFor(() => expect(post).toHaveBeenCalled());
+    return post.mock.calls[0]![1] as Record<string, unknown>;
+  };
+
+  it('offers the profile\'s diet, meals and target as what a plan is made for unless the form says otherwise', async () => {
+    await renderPage();
+
+    expect(screen.getByRole('option', { name: 'As in the profile (Vegan)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'As in the profile (4)' })).toBeInTheDocument();
+    expect(await screen.findByText(/Empty: the profile’s target, 2,209 kcal a day\./)).toBeInTheDocument();
+    expect(screen.getByLabelText(messages.mealPlans.calorieTarget)).toHaveAttribute('placeholder', '2209');
+  });
+
+  it('leaves all three to the profile when the form says nothing, so that the plan follows the profile when it is made again', async () => {
+    await renderPage();
+
+    const body = await sent();
+
+    expect(body).toMatchObject({ profileId: profile.id, durationDays: 7 });
+    for (const key of ['dietType', 'mealCount', 'calorieTargetOverride']) expect(body).not.toHaveProperty(key);
+  });
+
+  it('asks for the diet, the meals a day and the target the form names, for this plan', async () => {
+    await renderPage();
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'high_protein');
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.mealsPerDay), '5');
+    await userEvent.type(screen.getByLabelText(messages.mealPlans.calorieTarget), '1800');
+
+    expect(await sent()).toMatchObject({ dietType: 'high_protein', mealCount: 5, calorieTargetOverride: 1800 });
+  });
+
+  it('warns about the diet and the meals the form names, not the profile\'s, and says of each diet what the catalogue has for it', async () => {
+    const depth = aDepth(9);
+    depth.keto = { 2: 9, 3: 9, 4: 0, 5: 0 };
+    depth.low_carb['4'] = 2;
+    await renderPage(depth);
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByRole('option', { name: 'Keto (no recipes yet)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Low carb (few recipes)' })).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.diet), 'keto');
+    expect(screen.getByRole('status').textContent).toContain('no plan can be made: choose another diet, or no more than 3 meals a day.');
+
+    // Three meals a day, and the same diet has enough.
+    await userEvent.selectOptions(screen.getByLabelText(messages.mealPlans.mealsPerDay), '3');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('fills a day from a favourite set: its recipes for the meals the day has are locked before the plan is made', async () => {
+    favoriteSets = [
+      { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', profileId: profile.id, label: 'Workday', slots: { breakfast: 'r-breakfast', dinner: 'r-dinner', second_breakfast: 'r-second' }, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+    ];
+    await renderPage();
+    await userEvent.click(screen.getByText(messages.mealPlans.advanced.toggle));
+    const firstDay = (await screen.findAllByLabelText(messages.mealPlans.advanced.favoriteSet))[0]!;
+
+    await userEvent.selectOptions(firstDay, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+
+    const { dayOverrides } = (await sent()) as { dayOverrides: { date: string; lockedSlots: { mealType: string; recipeId: string }[] }[] };
+    expect(dayOverrides).toHaveLength(1);
+    // The profile eats four meals a day: no second breakfast, so the set's recipe for one is left out.
+    expect(dayOverrides[0]!.lockedSlots).toEqual([
+      { mealType: 'breakfast', recipeId: 'r-breakfast' },
+      { mealType: 'dinner', recipeId: 'r-dinner' },
+    ]);
+  });
+
+  it('does not offer a set to a profile that has none', async () => {
+    await renderPage();
+    await userEvent.click(screen.getByText(messages.mealPlans.advanced.toggle));
+
+    expect(screen.queryByLabelText(messages.mealPlans.advanced.favoriteSet)).toBeNull();
   });
 });
 

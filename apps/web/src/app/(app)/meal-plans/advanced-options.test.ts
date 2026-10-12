@@ -42,4 +42,38 @@ describe('what the plan form says of single days', () => {
     expect(buildAdvancedRequest(value, dates).dayOverrides).toEqual([{ date: '2026-03-04', mealCount: 4 }]);
     expect(asSent(value).success).toBe(true);
   });
+
+  describe('with a favourite set for a day', () => {
+    const sets = [
+      { id: 's1', profileId: 'p', label: 'Workday', slots: { breakfast: 'r-breakfast', lunch: 'r-lunch', second_breakfast: 'r-second' }, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+    ];
+    const locked = (value: AdvancedValue, mealsADay = 3) => buildAdvancedRequest(value, dates, sets, mealsADay).dayOverrides?.[0]?.lockedSlots;
+
+    it('locks the set\'s recipes for the meals the day has, and leaves out the ones for meals it has not', () => {
+      // Three meals a day are breakfast, lunch and dinner: no second breakfast.
+      expect(locked({ days: { '2026-03-03': { setId: 's1' } } })).toEqual([
+        { mealType: 'breakfast', recipeId: 'r-breakfast' },
+        { mealType: 'lunch', recipeId: 'r-lunch' },
+      ]);
+    });
+
+    it('goes by the number of meals the day itself was given', () => {
+      const meals = locked({ days: { '2026-03-03': { setId: 's1', mealCount: 5 } } })!.map((lock) => lock.mealType);
+
+      expect(meals).toContain('second_breakfast');
+    });
+
+    it('lets a meal locked by hand go before the set\'s recipe for the same meal', () => {
+      expect(locked({ days: { '2026-03-03': { setId: 's1', lockSlot: 'lunch', lockRecipeId: RECIPE } } })).toEqual([
+        { mealType: 'breakfast', recipeId: 'r-breakfast' },
+        { mealType: 'lunch', recipeId: RECIPE },
+      ]);
+    });
+
+    it('locks nothing on a day that is skipped, and nothing for a set the profile no longer has', () => {
+      expect(buildAdvancedRequest({ days: { '2026-03-03': { setId: 's1', dayKind: 'skip' } } }, dates, sets).dayOverrides).toEqual([{ date: '2026-03-03', skip: true }]);
+      expect(buildAdvancedRequest({ days: { '2026-03-03': { setId: 'gone' } } }, dates, sets).dayOverrides).toBeUndefined();
+    });
+  });
 });
+

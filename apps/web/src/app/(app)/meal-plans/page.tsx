@@ -8,11 +8,16 @@ import { useTranslations } from 'next-intl';
 import { Suspense, useState } from 'react';
 import { CalendarRange, UserRound } from 'lucide-react';
 import {
+  MAX_CALORIE_TARGET,
   MEAL_SLOTS_BY_COUNT,
+  MIN_CALORIE_TARGET,
   PLAN_RELAXATIONS,
   RelaxationNeeded,
   UnfilledMeal,
   type AddCustomMealRequest,
+  type CalorieCalculation,
+  type DietType,
+  type FavoriteSet,
   type GeneratePlanRequest,
   type MealPlan,
   type MealPlanPage,
@@ -34,6 +39,8 @@ import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { SupplyNote } from '@/components/supply-note';
+import { OFFERED_DIETS, supplyOf } from '@/lib/catalogue';
+import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
 import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
@@ -43,6 +50,8 @@ import { LoadFailed } from '@/components/load-failed';
 
 /** How many of the meals that stand in the way of a plan are named one by one. */
 const MEALS_NAMED = 6;
+
+const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /** What a generate request sends: the fields with a default may be left out. */
 type GenerateBody = Omit<GeneratePlanRequest, 'allowRelaxations'> & { allowRelaxations?: PlanRelaxation[] };
@@ -85,6 +94,7 @@ function MealPlansContent() {
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   const tFallback = useTranslations('aiFallback');
+  const tCatalogue = useTranslations('catalogue');
   const errorText = useErrorText();
   const fmt = useFormat();
   const qc = useQueryClient();
@@ -111,6 +121,11 @@ function MealPlansContent() {
   const [startDate, setStartDate] = useState(() => localDate());
   const [durationDays, setDurationDays] = useState(7);
   const [advanced, setAdvanced] = useState<AdvancedValue>({ days: {} });
+  // What this plan is made for where it differs from the profile: empty means "as the profile has it".
+  const [diet, setDiet] = useState<DietType | ''>('');
+  const [mealCount, setMealCount] = useState<number | ''>('');
+  const [calorieTarget, setCalorieTarget] = useState('');
+  const depth = useConfig().data?.catalogue.depth;
 
   // Drives whether the ✨ button renders. `aiMode === 'none'` users hid AI on
   // purpose — they shouldn't see AI surfaces at all (matches AiChip semantics).
@@ -151,6 +166,21 @@ function MealPlansContent() {
       ),
     enabled: Boolean(activeId),
   });
+
+  // What the plan aims at when the form says nothing: the profile's own target.
+  const calories = useQuery({
+    queryKey: ['calories', activeId],
+    queryFn: () => api.get<CalorieCalculation>(`/profiles/${activeId}/calories`),
+    enabled: Boolean(activeId),
+  });
+  const favoriteSets = useQuery({
+    queryKey: ['favorite-sets', activeId],
+    queryFn: () => api.get<FavoriteSet[]>(`/favorite-sets?profileId=${activeId}`),
+    enabled: Boolean(activeId),
+  });
+  // The diet and the number of meals the plan is made for: the form's, or the profile's.
+  const planDiet = diet || active?.dietType || 'balanced';
+  const planMeals = mealCount || active?.mealCount || 3;
 
   const invalidate = () => Promise.all([qc.invalidateQueries({ queryKey: ['meal-plans', activeId] }), qc.invalidateQueries({ queryKey: ['meal-plan'] })]);
   const fail = (fallback: string) => (e: unknown) => {
@@ -359,11 +389,15 @@ function MealPlansContent() {
       profileId: activeId,
       startDate,
       durationDays,
+      // Left out where the form leaves it to the profile: the plan then follows the profile when it is made again.
+      ...(diet ? { dietType: diet } : {}),
+      ...(mealCount ? { mealCount } : {}),
+      ...(calorieTarget.trim() ? { calorieTargetOverride: Number(calorieTarget) } : {}),
       mealPrepFriendly: f.get('mealPrepFriendly') === 'on',
       respectExclusions: f.get('respectExclusions') === 'on',
       respectFavorites: f.get('respectFavorites') === 'on',
       respectInventory: f.get('respectInventory') === 'on',
-      ...buildAdvancedRequest(advanced, dates),
+      ...buildAdvancedRequest(advanced, dates, favoriteSets.data ?? [], planMeals),
     });
   }
 
@@ -405,6 +439,11 @@ function MealPlansContent() {
                 setPage(1);
                 setOpenPlan(null);
                 setError(null);
+                // Another profile has its own diet, meals and sets: what was chosen for this one does not carry over.
+                setDiet('');
+                setMealCount('');
+                setCalorieTarget('');
+                setAdvanced({ days: {} });
               }}
             >
               {p.name}
@@ -445,6 +484,51 @@ function MealPlansContent() {
                 {t('mealPrepFriendly')}
               </label>
             </div>
+            {active && (
+              <div className="space-y-1">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label={t('diet')}>
+                    <select className={selectClass} value={diet} onChange={(e) => setDiet(e.target.value as DietType | '')}>
+                      <option value="">{t('asInProfile', { value: tDiet(active.dietType) })}</option>
+                      {OFFERED_DIETS.map((offered) => {
+                        const supply = supplyOf(depth, offered, planMeals)?.supply;
+                        return (
+                          <option key={offered} value={offered}>
+                            {supply === 'none' ? tCatalogue('dietNone', { diet: tDiet(offered) }) : supply === 'thin' ? tCatalogue('dietThin', { diet: tDiet(offered) }) : tDiet(offered)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </Field>
+                  <Field label={t('mealsPerDay')}>
+                    <select className={selectClass} value={mealCount} onChange={(e) => setMealCount(e.target.value ? Number(e.target.value) : '')}>
+                      <option value="">{t('asInProfile', { value: active.mealCount })}</option>
+                      {[2, 3, 4, 5].map((count) => (
+                        <option key={count} value={count}>
+                          {count}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label={t('calorieTarget')}>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={MIN_CALORIE_TARGET}
+                      max={MAX_CALORIE_TARGET}
+                      step={1}
+                      value={calorieTarget}
+                      placeholder={calories.data ? String(calories.data.dailyTarget) : undefined}
+                      onChange={(e) => setCalorieTarget(e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t('planChoicesHint')}
+                  {calories.data && ` ${t('calorieTargetHint', { kcal: calories.data.dailyTarget })}`}
+                </p>
+              </div>
+            )}
             <fieldset className="space-y-1">
               <legend className="text-sm font-medium">{t('applyPrefs')}</legend>
               <p className="mb-1 text-xs text-muted-foreground">{t('applyPrefsHint')}</p>
@@ -463,12 +547,13 @@ function MealPlansContent() {
             </fieldset>
             <AdvancedOptions
               dates={planDates(startDate, durationDays)}
-              defaultMealCount={active?.mealCount ?? 3}
+              defaultMealCount={planMeals}
               favorites={(favorites.data ?? []).map((f) => f.recipe)}
+              sets={favoriteSets.data ?? []}
               value={advanced}
               onChange={setAdvanced}
             />
-            {active && <SupplyNote diet={active.dietType} mealCount={active.mealCount} />}
+            {active && <SupplyNote diet={planDiet} mealCount={planMeals} />}
             <Button type="submit" disabled={generate.isPending}>
               {generate.isPending ? t('generating') : t('generateButton')}
             </Button>

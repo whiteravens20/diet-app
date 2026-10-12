@@ -2,6 +2,13 @@
 
 import { VARIETY_DEPTH, type CatalogueDepth, type DietType, type MealCountKey } from '@diet-app/shared';
 
+/**
+ * The diets a form offers to choose from. The contract knows one more,
+ * `custom`, which has no split of its own to plan to yet; a profile that has
+ * it keeps it.
+ */
+export const OFFERED_DIETS: readonly DietType[] = ['balanced', 'high_protein', 'low_carb', 'vegetarian', 'vegan', 'keto', 'mediterranean'];
+
 export interface Supply {
   supply: 'none' | 'thin' | 'enough';
   /** What the meal with the fewest recipes can choose from. */

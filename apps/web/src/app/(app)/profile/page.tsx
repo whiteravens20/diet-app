@@ -20,7 +20,7 @@ import {
   type WeightReminderCadence,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
-import { supplyOf } from '@/lib/catalogue';
+import { OFFERED_DIETS, supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
@@ -54,16 +54,6 @@ function riskIn(form: HTMLFormElement): Risk[] {
 }
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
-
-const DIET_TYPES: readonly DietType[] = [
-  'balanced',
-  'high_protein',
-  'low_carb',
-  'vegetarian',
-  'vegan',
-  'keto',
-  'mediterranean',
-];
 
 const ACTIVITY_LEVELS = [
   'sedentary',
@@ -528,7 +518,7 @@ function DietAndMealCount(initial: { diet: DietType; mealCount: number }) {
   const [diet, setDiet] = useState(initial.diet);
   const [mealCount, setMealCount] = useState(initial.mealCount);
   // A profile keeps the diet it has, also one this form does not offer.
-  const diets = DIET_TYPES.includes(initial.diet) ? DIET_TYPES : [...DIET_TYPES, initial.diet];
+  const diets = OFFERED_DIETS.includes(initial.diet) ? OFFERED_DIETS : [...OFFERED_DIETS, initial.diet];
   return (
     <>
       <Field label={t('dietType')}>

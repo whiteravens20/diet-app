@@ -22,16 +22,8 @@ import { Button } from '@/components/ui/button';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
 import { Field } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
+import { OFFERED_DIETS } from '@/lib/catalogue';
 
-const DIET_TYPES: DietType[] = [
-  'balanced',
-  'high_protein',
-  'low_carb',
-  'vegetarian',
-  'vegan',
-  'keto',
-  'mediterranean',
-];
 const MEAL_TYPES: MealType[] = [
   'breakfast',
   'second_breakfast',
@@ -163,7 +155,7 @@ export function AiRecipeDraftModal({
               value={dietType}
               onChange={(e) => setDietType(e.target.value as DietType)}
             >
-              {DIET_TYPES.map((d) => (
+              {OFFERED_DIETS.map((d) => (
                 <option key={d} value={d}>
                   {tDiet(d)}
                 </option>
