@@ -267,6 +267,10 @@ export class PlanGenerationService {
       };
     });
 
+    // Whether a meal a model picked stays in the plan: a plan made again as a whole then still says that a model had a part in it.
+    const stayingOn = new Map(filled.map((entry) => [entry.dayId, new Set(entry.staying)]));
+    const modelsPickStays = plan.days.some((day) => day.meals.some((meal) => meal.modelPicked && (stayingOn.get(day.id)?.has(meal.id) ?? true)));
+
     const seed = newSeed();
     const result = await this.optimiseFor(userId, profile, {
       days,
@@ -311,8 +315,10 @@ export class PlanGenerationService {
         data: {
           reuseScore: result.ingredientReuseScore,
           ...(report ? { report } : {}),
-          // A plan that was made again is what it was made with this time.
-          ...(whole ? { calorieTarget: base.target, dietType, macroSplit: macroSplit ?? Prisma.JsonNull, options: { ...made, allowRelaxations }, seed } : {}),
+          // A plan that was made again is what it was made with this time, and the engine's alone unless a meal a model picked stayed in it.
+          ...(whole
+            ? { calorieTarget: base.target, dietType, macroSplit: macroSplit ?? Prisma.JsonNull, options: { ...made, allowRelaxations }, seed, generationMode: modelsPickStays ? ('ai_assisted' as const) : ('deterministic' as const) }
+            : {}),
         },
       });
     });

@@ -188,6 +188,8 @@ export class MealSwapService {
         // A fresh recipe is a new baseline for the rebalancer, and says who chose it.
         data: { recipeId: replacementId, servings, swapHistory: nextHistory, quantityScale: 1, modelPicked: picked !== null, modelReason: picked?.reason ?? null },
       });
+      // A plan that holds a model's pick says that a model had a part in it.
+      if (picked !== null) await tx.mealPlan.update({ where: { id: req.planId }, data: { generationMode: 'ai_assisted' } });
       // The swap changed the day total — pull it back toward target.
       return this.plans.rebalanceDayInternal(meal.dayId, tx);
     });

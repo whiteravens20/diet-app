@@ -2,6 +2,8 @@
 
 import {
   AiSuggestIngredientRequest,
+  AiSwapMealRequest,
+  RegenerateRequest,
   type Locale,
   type MealPlan,
 } from '@diet-app/shared';
@@ -14,6 +16,7 @@ import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { MealSwapService } from './meal-swap.service.js';
 import { PlanGenerationService } from './plan-generation.service.js';
 
 /** How each request ended: `ok`, or the error code it was refused with. */
@@ -323,6 +326,39 @@ describe('editing a plan', () => {
         usedDeterministicFallback: false,
         fallbackReason: null,
         reason: 'Closest to the calorie budget of the slot.',
+      });
+    });
+
+    describe('and the plan', () => {
+      /** A swap of the first meal for what a model picked, taken with the note of the pick. */
+      const takeTheModelsPick = async (): Promise<MealPlan> => {
+        const meal = plan.days[0]!.meals[0]!;
+        t.model.reply({ text: (request) => JSON.stringify({ recipeId: firstOffered(request), reason: 'Lighter.' }) });
+        const swaps = t.app.get(MealSwapService);
+        const offer = await swaps.previewWithAi(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }));
+        return (await swaps.apply(user.id, 'en', { planId: plan.id, plannedMealId: meal.id, recipeId: offer.recipe.id, revision: offer.revision, strategy: 'random', allowOffDiet: false, pick: offer.pick! })).plan;
+      };
+      const madeAgain = (): Promise<MealPlan> => t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id, RegenerateRequest.parse({ includePast: true }), plan.startDate);
+
+      it('is the engine\'s alone until a pick of a model\'s is written into it, and says so from then on', async () => {
+        expect(plan.generationMode).toBe('deterministic');
+        // A swap the engine picked changes nothing about that.
+        expect((await swap(plan.days[1]!.meals[0]!.id)).plan.generationMode).toBe('deterministic');
+
+        expect((await takeTheModelsPick()).generationMode).toBe('ai_assisted');
+        // It goes on saying so, whatever is changed in it afterwards.
+        expect((await swap(plan.days[1]!.meals[1]!.id)).plan.generationMode).toBe('ai_assisted');
+      });
+
+      it('is the engine\'s again once it is made again as a whole, and not while a meal a model picked stays in it', async () => {
+        const picked = await takeTheModelsPick();
+        const meal = picked.days[0]!.meals.find((planned) => planned.modelPick !== null)!;
+        // Eaten, the meal stays when the plan is made again.
+        await plans.setEaten(user.id, 'en', plan.id, meal.id, true);
+        expect((await madeAgain()).generationMode).toBe('ai_assisted');
+
+        await plans.setEaten(user.id, 'en', plan.id, meal.id, false);
+        expect((await madeAgain()).generationMode).toBe('deterministic');
       });
     });
 
