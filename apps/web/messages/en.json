@@ -1105,6 +1105,22 @@
       "lockRecipe": "to recipe",
       "lockRecipePlaceholder": "Pick a favourite",
       "noFavoritesForLock": "No favourites for this meal yet."
+    },
+    "calendar": {
+      "title": "Calendar",
+      "lead": "The days your plans hold, a month at a time.",
+      "previous": "The month before",
+      "next": "The month after",
+      "thisMonth": "This month",
+      "skipped": "skipped",
+      "dayFree": "{day}: no plan. Choose it to begin a plan on this day.",
+      "dayPlanned": "{day}: {calories, number} of {target, number} kcal{standing, select, over {, over the target} under {, under the target} other {}}, {eaten, number} of {of, plural, one {# meal} other {# meals}} eaten{more, plural, =0 {} one {, and one more plan holds this day} other {, and # more plans hold this day}}. Choose it to open the plan.",
+      "daySkipped": "{day}: a day the plan skips{more, plural, =0 {} one {, and one more plan holds this day} other {, and # more plans hold this day}}. Choose it to open the plan.",
+      "legendDay": "A coloured day is in a plan, and its number is what the day holds in kcal. Choose it to open the plan at that day; choose a day without a plan to begin a plan on it.",
+      "legendOff": "The day is more than a tenth off its target.",
+      "legendEaten": "Meals marked as eaten, out of the meals of the day.",
+      "legendMore": "+1 and the like: so many more plans hold the same day. The calendar shows the plan made last.",
+      "legendKeys": "On a keyboard the arrow keys move among the days, and Page Up and Page Down among the months."
     }
   },
   "inventory": {

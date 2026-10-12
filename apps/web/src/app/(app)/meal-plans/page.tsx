@@ -5,7 +5,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Suspense, useId, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { Suspense, useEffect, useId, useRef, useState } from 'react';
 import { CalendarRange, UserRound } from 'lucide-react';
 import {
   MAX_CALORIE_TARGET,
@@ -43,12 +44,18 @@ import { SupplyNote } from '@/components/supply-note';
 import { NAMED_DIETS, supplyOf } from '@/lib/catalogue';
 import { useConfig } from '@/lib/use-config';
 import { IMAGERY } from '@/lib/imagery';
-import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
+import { dayAnchor, PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
 import { rerollBody, type Reroll } from './reroll';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { useFormat } from '@/lib/use-format';
 import { LoadFailed } from '@/components/load-failed';
+
+/** Fetched once the page is drawn: nobody waits for the calendar to read the page above it. */
+const PlanCalendar = dynamic(() => import('./plan-calendar').then((calendar) => calendar.PlanCalendar), {
+  ssr: false,
+  loading: () => <Skeleton className="h-96" />,
+});
 
 /** How many of the meals that stand in the way of a plan are named one by one. */
 const MEALS_NAMED = 6;
@@ -381,6 +388,18 @@ function MealPlansContent() {
     });
   }
 
+  // The day of a plan that the calendar led to. The page goes there once the day is drawn: its plan may still be on
+  // its way, and the list still being narrowed to it.
+  const sought = useRef<{ planId: string; date: string } | null>(null);
+  useEffect(() => {
+    const day = sought.current && document.getElementById(dayAnchor(sought.current.planId, sought.current.date));
+    if (!day) return;
+    sought.current = null;
+    day.scrollIntoView({ block: 'start' });
+    day.focus({ preventScroll: true });
+  });
+  const startDateField = useRef<HTMLInputElement>(null);
+
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
   if (profiles.isError) return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
@@ -441,6 +460,7 @@ function MealPlansContent() {
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={t('startDate')}>
                 <Input
+                  ref={startDateField}
                   name="startDate"
                   type="date"
                   required
@@ -610,6 +630,37 @@ function MealPlansContent() {
       )}
 
       <DisclaimerNotice bodyKey={aiEnabled ? 'aiPlans' : 'enginePlans'} />
+
+      {activeId && (
+        <Card className="max-w-3xl">
+          <CardHeader>
+            <CardTitle>{t('calendar.title')}</CardTitle>
+            <p className="text-sm text-muted-foreground">{t('calendar.lead')}</p>
+          </CardHeader>
+          <CardContent>
+            <PlanCalendar
+              key={activeId}
+              profileId={activeId}
+              today={localDate()}
+              onOpen={(planId, date) => {
+                // The list is narrowed to the plans that hold the day, so that the plan is on the page whatever page of the list it was on.
+                setStatus('');
+                setFrom(date);
+                setTo(date);
+                setPage(1);
+                setOpenPlan(planId);
+                sought.current = { planId, date };
+              }}
+              onStart={(date) => {
+                // A day without a plan is where the next one can begin: the form above takes it.
+                setStartDate(date);
+                startDateField.current?.scrollIntoView({ block: 'center' });
+                startDateField.current?.focus({ preventScroll: true });
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">

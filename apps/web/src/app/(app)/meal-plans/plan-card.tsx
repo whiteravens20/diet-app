@@ -62,6 +62,9 @@ const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' |
   unused: 'pantryUnused',
 };
 
+/** The name a day of a plan has on the page, for whatever leads to it. */
+export const dayAnchor = (planId: string, date: string): string => `plan-${planId}-${date}`;
+
 /** One plan: its summary, and when open its days with every change a meal can be given. */
 export function PlanCard({
   summary,
@@ -219,7 +222,8 @@ export function PlanCard({
             </p>
           )}
           {plan.days.map((day) => (
-            <div key={day.id}>
+            // A day can be gone to from the calendar: it is named, and can take the focus.
+            <div key={day.id} id={dayAnchor(plan.id, day.date)} tabIndex={-1} className="scroll-mt-20 focus:outline-none">
               <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span className="text-sm font-medium">{fmt.day(day.date)}</span>
                 {day.skipped ? (

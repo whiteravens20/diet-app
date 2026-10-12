@@ -1,10 +1,10 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { InputHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
 
-/** Text input primitive. */
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+/** Text input primitive. It takes what an input takes, a `ref` to it among the rest. */
+export function Input({ className, ...props }: ComponentProps<'input'>) {
   return (
     <input
       className={cn(

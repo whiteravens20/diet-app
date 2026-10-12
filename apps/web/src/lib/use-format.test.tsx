@@ -43,6 +43,19 @@ describe('dates, numbers and units, as the language of the application writes th
     expect(shown((f) => f.dates('2026-01-05', '2026-01-11'), 'pl')).toBe('5–11 sty 2026');
   });
 
+  it('names the month and the weekday of a calendar day, whatever the time zone', () => {
+    for (const zone of ['UTC', 'America/Los_Angeles', 'Pacific/Auckland']) {
+      process.env.TZ = zone;
+
+      expect(shown((f) => f.month('2026-01-01'))).toBe('January 2026');
+      expect(shown((f) => f.weekday('2026-01-05'))).toBe('Mon');
+    }
+    expect(shown((f) => f.month('2026-01-31'), 'pl')).toBe('styczeń 2026');
+    expect(shown((f) => f.weekday('2026-01-05'), 'pl')).toBe('pon.');
+    expect(shown((f) => f.weekday('2026-01-05', 'long'))).toBe('Monday');
+    expect(shown((f) => f.weekday('2026-01-05', 'long'), 'pl')).toBe('poniedziałek');
+  });
+
   it('writes a moment by the clock of the reader, not by the server\'s', () => {
     const moment = '2026-01-05T23:30:00.000Z';
 

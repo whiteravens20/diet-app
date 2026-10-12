@@ -13,6 +13,10 @@ export interface Format {
   date(day: string): string;
   /** A calendar day at its shortest, for an axis: "Jan 5", "5 sty". */
   dayShort(day: string): string;
+  /** The month a calendar day lies in, with its year: "January 2026", "styczeń 2026". */
+  month(day: string): string;
+  /** The weekday of a calendar day: at its shortest ("Mon", "pon.") or in full ("Monday", "poniedziałek"). */
+  weekday(day: string, form?: 'short' | 'long'): string;
   /** From one calendar day to another: "Jan 5 – 11, 2026", "5–11 sty 2026". */
   dates(from: string, to: string): string;
   /** A moment, by the reader's clock: "Jan 5, 2026, 2:03 PM", "5 sty 2026, 14:03". */
@@ -61,6 +65,8 @@ export function useFormat(): Format {
       day: (day) => format.dateTime(utcDay(day), { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }),
       date: (day) => format.dateTime(utcDay(day), { dateStyle: 'medium', timeZone: 'UTC' }),
       dayShort: (day) => format.dateTime(utcDay(day), { day: 'numeric', month: 'short', timeZone: 'UTC' }),
+      month: (day) => format.dateTime(utcDay(day), { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+      weekday: (day, form = 'short') => format.dateTime(utcDay(day), { weekday: form, timeZone: 'UTC' }),
       dates: (from, to) => format.dateTimeRange(utcDay(from), utcDay(to), { dateStyle: 'medium', timeZone: 'UTC' }),
       moment: (iso) => format.dateTime(new Date(iso), { dateStyle: 'medium', timeStyle: 'short', timeZone: readersZone() }),
       dayOf: (iso) => format.dateTime(new Date(iso), { dateStyle: 'medium', timeZone: readersZone() }),

@@ -5,7 +5,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CatalogueDepth, FavoriteSet, MealPlan, MealSwapPreview, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
+import type { CatalogueDepth, FavoriteSet, MealPlan, MealSwapPreview, PlanCalendarDay, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import { aDepth, aPublicConfig } from '@/testing/public-config';
@@ -127,6 +127,19 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
   ...over,
 });
 
+/** The days of a plan as the calendar of the page is answered them. */
+const daysOnTheCalendar = (plan: MealPlan): PlanCalendarDay[] =>
+  plan.days.map((day) => ({
+    date: day.date,
+    planId: plan.id,
+    plans: 1,
+    calories: day.dayNutrition.calories,
+    target: day.calorieTarget,
+    offTarget: day.offTarget,
+    eaten: { meals: day.meals.filter((meal) => meal.eatenAt !== null).length, of: day.meals.length },
+    skipped: day.skipped,
+  }));
+
 /** The favourite sets the profile has, for the tests that are about them. */
 let favoriteSets: FavoriteSet[] = [];
 
@@ -142,6 +155,8 @@ async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] =
           ? { aiMode }
           : path.startsWith('/meal-plans?')
             ? listed
+            : path.startsWith('/meal-plans/calendar?')
+              ? { days: plans.flatMap(daysOnTheCalendar) }
             : path.startsWith('/meal-plans/')
               ? plans.find((plan) => path === `/meal-plans/${plan.id}`)
               : path.endsWith('/calories')
@@ -689,7 +704,8 @@ describe('the list of plans on the plan page', () => {
     const get = vi.mocked(api.get);
 
     await screen.findByText('1-day plan · Vegan');
-    expect(get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('/meal-plans'))).toEqual([`/meal-plans?profileId=${profile.id}&page=1`]);
+    // The calendar asks for the days of its month, in a request of its own.
+    expect(get.mock.calls.map(([path]) => path).filter((path) => path.startsWith('/meal-plans') && !path.startsWith('/meal-plans/calendar?'))).toEqual([`/meal-plans?profileId=${profile.id}&page=1`]);
     expect(screen.queryByText(plan.days[0]!.date)).toBeNull();
 
     await userEvent.click(screen.getByText('1-day plan · Vegan'));
@@ -1078,3 +1094,51 @@ describe('the plan page, on what a plan is made for', () => {
   });
 });
 
+
+describe('the calendar on the plan page', () => {
+  beforeEach(() => {
+    onTheDay('2026-01-05');
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const texts = messages.mealPlans;
+  /** The requests for the list of plans, in order. */
+  const listsAsked = (): string[] => vi.mocked(api.get).mock.calls.map(([path]) => path).filter((path) => path.startsWith('/meal-plans?'));
+
+  it('asks for the month it is for the profile whose plans the page shows', async () => {
+    await renderPage(aDepth(9), [aPlan()]);
+
+    expect(await screen.findByRole('grid', { name: 'January 2026' })).toBeInTheDocument();
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith(`/meal-plans/calendar?profileId=${profile.id}&from=2025-12-29&to=2026-02-01`);
+  });
+
+  it('opens the plan of a day that is chosen, with the list narrowed to the plans of that day, and goes to the day', async () => {
+    const plan = aPlan();
+    await renderPage(aDepth(9), [plan]);
+
+    await userEvent.click(await screen.findByRole('button', { name: /^Mon, Jan 5: 230 of 2,000 kcal/ }));
+
+    await vi.waitFor(() => expect(listsAsked().at(-1)).toBe(`/meal-plans?profileId=${profile.id}&page=1&from=2026-01-05&to=2026-01-05`));
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith(`/meal-plans/${plan.id}`);
+    // The plan is open, and the reader is at the day that was chosen.
+    await vi.waitFor(() => expect(document.getElementById(`plan-${plan.id}-2026-01-05`)).toHaveFocus());
+    expect(screen.getByLabelText(texts.from)).toHaveValue('2026-01-05');
+    expect(screen.getByLabelText(texts.to)).toHaveValue('2026-01-05');
+  });
+
+  it('takes a day without a plan as the day the next plan begins on, and puts the reader at the form', async () => {
+    await renderPage(aDepth(9), [aPlan()]);
+    const startDate = screen.getByLabelText(texts.startDate);
+    expect(startDate).toHaveValue('2026-01-05');
+
+    await userEvent.click(await screen.findByRole('button', { name: /^Fri, Jan 9: no plan/ }));
+
+    expect(startDate).toHaveValue('2026-01-09');
+    expect(startDate).toHaveFocus();
+    expect(listsAsked()).toEqual([`/meal-plans?profileId=${profile.id}&page=1`]);
+  });
+});

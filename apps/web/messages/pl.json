@@ -1105,6 +1105,22 @@
       "lockRecipe": "do przepisu",
       "lockRecipePlaceholder": "Wybierz ulubiony",
       "noFavoritesForLock": "Brak ulubionych dla tego posiłku."
+    },
+    "calendar": {
+      "title": "Kalendarz",
+      "lead": "Dni objęte Twoimi planami, miesiąc po miesiącu.",
+      "previous": "Poprzedni miesiąc",
+      "next": "Następny miesiąc",
+      "thisMonth": "Bieżący miesiąc",
+      "skipped": "pominięty",
+      "dayFree": "{day}: brak planu. Wybierz, aby zacząć plan od tego dnia.",
+      "dayPlanned": "{day}: {calories, number} z {target, number} kcal{standing, select, over {, powyżej celu} under {, poniżej celu} other {}}, zjedzono {eaten, number} z {of, plural, one {# posiłku} few {# posiłków} many {# posiłków} other {# posiłku}}{more, plural, =0 {} one {, a ten dzień obejmuje jeszcze jeden plan} few {, a ten dzień obejmują jeszcze # plany} many {, a ten dzień obejmuje jeszcze # planów} other {, a ten dzień obejmuje jeszcze # planu}}. Wybierz, aby otworzyć plan.",
+      "daySkipped": "{day}: dzień pominięty w planie{more, plural, =0 {} one {, a ten dzień obejmuje jeszcze jeden plan} few {, a ten dzień obejmują jeszcze # plany} many {, a ten dzień obejmuje jeszcze # planów} other {, a ten dzień obejmuje jeszcze # planu}}. Wybierz, aby otworzyć plan.",
+      "legendDay": "Dzień wyróżniony kolorem należy do planu, a liczba to jego kcal. Wybierz go, aby otworzyć plan na tym dniu; wybierz dzień bez planu, aby zacząć od niego nowy plan.",
+      "legendOff": "Dzień odbiega od celu o więcej niż jedną dziesiątą.",
+      "legendEaten": "Posiłki oznaczone jako zjedzone, spośród posiłków danego dnia.",
+      "legendMore": "+1 i podobne: tyle innych planów obejmuje ten sam dzień. Kalendarz pokazuje plan utworzony najpóźniej.",
+      "legendKeys": "Na klawiaturze strzałki przechodzą między dniami, a Page Up i Page Down między miesiącami."
     }
   },
   "inventory": {
