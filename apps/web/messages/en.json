@@ -517,7 +517,10 @@
       "macrosTarget": "Aims at",
       "macrosReached": "Plans reach",
       "macrosNoPlan": "no plan can be made",
-      "macrosOff": "{points} points off"
+      "macrosOff": "{points} points off",
+      "packsUsed": "Packs used",
+      "packsUsedShare": "{percent}%",
+      "packsExplain": "Packs used: how much of what those plans buy in packs that do not keep once opened they use. Recipes that share such ingredients raise it."
     },
     "usda": {
       "title": "USDA importer",

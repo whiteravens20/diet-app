@@ -52,11 +52,12 @@ export interface AdminStats {
    * For each diet, what its plans aim at and what they reach with the recipes
    * there are, as shares of a day's energy; `reached` is null where no plan
    * can be made. A diet whose `distance` is over `outOfReach` needs recipes
-   * that fit it.
+   * that fit it. `packsUsed` is the share those plans use of what they buy
+   * in packs that do not keep once opened; null where they buy none.
    */
   macros: {
     outOfReach: number;
-    diets: Record<DietType, { target: MacroShares; reached: (MacroShares & { distance: number }) | null }>;
+    diets: Record<DietType, { target: MacroShares; reached: (MacroShares & { distance: number; packsUsed: number | null }) | null }>;
   };
   seed: {
     lastSeededAt: string | null;

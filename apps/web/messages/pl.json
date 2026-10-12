@@ -517,7 +517,10 @@
       "macrosTarget": "Cel",
       "macrosReached": "Plany osiągają",
       "macrosNoPlan": "nie da się ułożyć planu",
-      "macrosOff": "{points, plural, one {# punkt różnicy} few {# punkty różnicy} many {# punktów różnicy} other {# punktu różnicy}}"
+      "macrosOff": "{points, plural, one {# punkt różnicy} few {# punkty różnicy} many {# punktów różnicy} other {# punktu różnicy}}",
+      "packsUsed": "Zużycie opakowań",
+      "packsUsedShare": "{percent}%",
+      "packsExplain": "Zużycie opakowań: ile z tego, co te plany kupują w opakowaniach nieprzechowujących się po otwarciu, zostaje zużyte. Podnoszą je przepisy, które dzielą takie składniki."
     },
     "usda": {
       "title": "Importer USDA",

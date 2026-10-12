@@ -77,6 +77,7 @@ export function CoverageCard({ coverage, target, macros }: { coverage: AdminStat
 
         <h3 className="pt-2 text-sm font-medium">{t('macrosTitle')}</h3>
         <p className="text-sm text-muted-foreground">{t('macrosExplain', { points: Math.round(macros.outOfReach * 100) })}</p>
+        <p className="text-sm text-muted-foreground">{t('packsExplain')}</p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm" aria-label={t('macrosTitle')}>
             <thead>
@@ -89,6 +90,9 @@ export function CoverageCard({ coverage, target, macros }: { coverage: AdminStat
                 </th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">
                   {t('macrosReached')}
+                </th>
+                <th scope="col" className="px-2 py-1.5 text-right font-medium">
+                  {t('packsUsed')}
                 </th>
               </tr>
             </thead>
@@ -107,6 +111,9 @@ export function CoverageCard({ coverage, target, macros }: { coverage: AdminStat
                       <td className={cn('px-2 py-1.5 text-right tabular-nums', far && 'font-semibold text-warning', reached === null && 'text-destructive')}>
                         {reached ? shares(reached) : t('macrosNoPlan')}
                         {far && <span className="ml-2 font-normal">{t('macrosOff', { points: Math.round(reached.distance * 100) })}</span>}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                        {reached?.packsUsed != null ? t('packsUsedShare', { percent: Math.round(reached.packsUsed * 100) }) : '–'}
                       </td>
                     </tr>
                   );

@@ -16,10 +16,10 @@ coverage.vegan = { breakfast: 4, second_breakfast: 0, lunch: 2, snack: 3, dinner
 const even = { protein: 0.25, fat: 0.3, carbs: 0.45 };
 const macros: AdminStats['macros'] = {
   outOfReach: 0.1,
-  diets: Object.fromEntries(DietType.options.map((diet) => [diet, { target: even, reached: { ...even, distance: 0 } }])) as AdminStats['macros']['diets'],
+  diets: Object.fromEntries(DietType.options.map((diet) => [diet, { target: even, reached: { ...even, distance: 0, packsUsed: 0.764 } }])) as AdminStats['macros']['diets'],
 };
 // A catalogue with nothing rich in protein, and nothing for a ketogenic day at all.
-macros.diets.high_protein = { target: { protein: 0.4, fat: 0.3, carbs: 0.3 }, reached: { protein: 0.274, fat: 0.33, carbs: 0.396, distance: 0.126 } };
+macros.diets.high_protein = { target: { protein: 0.4, fat: 0.3, carbs: 0.3 }, reached: { protein: 0.274, fat: 0.33, carbs: 0.396, distance: 0.126, packsUsed: null } };
 macros.diets.keto = { target: { protein: 0.25, fat: 0.7, carbs: 0.05 }, reached: null };
 
 function renderCard() {
@@ -79,7 +79,7 @@ describe('the administrator\'s table of what each diet aims at and what its plan
   it('gives protein, fat and carbohydrate as percentages of a day\'s energy, for every diet with recipes of its own to find', () => {
     renderCard();
 
-    expect(cells(/^Balanced/).map((cell) => cell.textContent)).toEqual(['25 / 30 / 45', '25 / 30 / 45']);
+    expect(cells(/^Balanced/).map((cell) => cell.textContent)).toEqual(['25 / 30 / 45', '25 / 30 / 45', '76%']);
     // A diet the user sets up for themselves has no split of its own to be held to.
     expect(split().getAllByRole('rowheader')).toHaveLength(DietType.options.length - 1);
   });
@@ -97,8 +97,18 @@ describe('the administrator\'s table of what each diet aims at and what its plan
   it('says so where no plan can be made for a diet', () => {
     renderCard();
 
-    const [, reached] = cells(/^Keto/);
+    const [, reached, packs] = cells(/^Keto/);
     expect(reached!.textContent).toBe(messages.admin.coverage.macrosNoPlan);
     expect(reached!.className).toContain('text-destructive');
+    expect(packs!.textContent).toBe('–');
+  });
+
+  it('says how much of the packs that do not keep the plans of a diet use, and nothing where they buy none', () => {
+    renderCard();
+
+    expect(split().getByRole('columnheader', { name: messages.admin.coverage.packsUsed })).toBeInTheDocument();
+    expect(cells(/^Vegan/)[2]!.textContent).toBe('76%');
+    expect(cells(/^High protein/)[2]!.textContent).toBe('–');
+    expect(screen.getByText(messages.admin.coverage.packsExplain)).toBeInTheDocument();
   });
 });
