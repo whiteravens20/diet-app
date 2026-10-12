@@ -20,7 +20,6 @@ import { UsdaImportCard } from './usda-import-card';
 import {
   adminApi,
   type AdminStats,
-  type AdminStatus,
   type DbUpdateState,
 } from '@/lib/admin-api';
 import { useFormat } from '@/lib/use-format';
@@ -45,7 +44,6 @@ export function AdminPanel() {
   const fmt = useFormat();
   const tStages = useTranslations('admin.stages');
   const [view, setView] = useState<View>('loading');
-  const [status, setStatus] = useState<AdminStatus | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   // Whether signing in takes a code from an authenticator app as well.
@@ -123,7 +121,6 @@ export function AdminPanel() {
   const probe = useCallback(async (): Promise<void> => {
     try {
       const s = await adminApi.status();
-      setStatus(s);
       if (!s.enabled) {
         setView('disabled');
         return;
@@ -258,7 +255,7 @@ export function AdminPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm">{status?.message ?? t('disabledHint')}</p>
+          <p className="text-sm">{t('disabledHint')}</p>
           <pre className="mt-3 overflow-x-auto rounded bg-muted p-3 text-xs">
             ADMIN_USER=admin{'\n'}ADMIN_PASSWORD=&lt;strong-password&gt;
           </pre>
