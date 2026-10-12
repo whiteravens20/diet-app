@@ -12,6 +12,7 @@ import { ApiClientError } from '@/lib/http';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RecipeView } from '@/components/recipe-view';
+import { AiMark } from '@/components/ai-mark';
 import { Dialog } from '@/components/ui/dialog';
 
 /**
@@ -21,12 +22,15 @@ import { Dialog } from '@/components/ui/dialog';
 export function RecipeModal({
   recipeId,
   amounts,
+  picked = null,
   onClose,
 }: {
   recipeId: string | null;
   /** The ingredient lines of the planned meal the modal was opened from, so it
    *  shows what that meal takes, not the recipe's own servings. */
   amounts?: PlannedIngredient[];
+  /** Set when a model chose this recipe for the meal the modal was opened from: the reason it gave, if any. */
+  picked?: { reason: string | null } | null;
   onClose: () => void;
 }) {
   const t = useTranslations('recipeModal');
@@ -69,6 +73,7 @@ export function RecipeModal({
               : tDetail('loadFailed')}
           </p>
         )}
+        {recipe.data && picked && <AiMark part={{ kind: 'picked', reason: picked.reason }} spelledOut className="mb-4" />}
         {recipe.data && <RecipeView recipe={recipe.data} amounts={amounts} hideNutrition />}
       </div>
     </Dialog>

@@ -8,6 +8,7 @@ import { Sparkles } from 'lucide-react';
 import {
   fitsDiet,
   type AddCustomMealRequest,
+  type AiMealSwapPreview,
   type MealPlan,
   type MealPlanSummary,
   type MealSwapPreview,
@@ -22,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ApplyFavoriteSetButton } from '@/components/apply-favorite-set-button';
 import { IngredientSubstituteModal } from '@/components/ingredient-substitute-modal';
 import { RecipeModal } from '@/components/recipe-modal';
+import { AiMark, partInMeal } from '@/components/ai-mark';
 import { CustomMealModal } from './custom-meal-modal';
 import { useFormat } from '@/lib/use-format';
 
@@ -42,10 +44,13 @@ export interface SwapAsk {
   allowOffDiet?: boolean;
 }
 
+/** What comes back when a recipe is asked for in the place of a meal. A model that was asked leaves `aiMeta`, and the note of its pick when the pick is its own. */
+export type Offered = MealSwapPreview & Partial<Pick<AiMealSwapPreview, 'aiMeta' | 'pick'>>;
+
 /** A recipe that was offered for a meal, with what the swap would do, and the recipes this sitting has offered for it. */
 export interface SwapOffer {
   asked: SwapAsk;
-  preview: MealSwapPreview;
+  preview: Offered;
   seen: string[];
 }
 
@@ -128,7 +133,7 @@ export function PlanCard({
   // Which recipe is open in a window over the page, if any, with the
   // ingredient lines of the meal it was opened from, so the window shows what
   // that meal takes rather than the recipe's own servings.
-  const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[] } | null>(null);
+  const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[]; picked: PlannedMealView['modelPick'] } | null>(null);
   // The part of the plan to fill again: the whole of it until the user picks days.
   const [part, setPart] = useState<{ from?: string; to?: string }>({});
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
@@ -142,6 +147,7 @@ export function PlanCard({
         <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 flex-1 basis-56 text-left">
           <p className="font-medium">
             {t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
+            {summary.generationMode === 'ai_assisted' && <AiMark part={{ kind: 'plan' }} className="ml-2 align-middle" />}
           </p>
           <p className="text-sm text-muted-foreground">
             {t('planMeta', {
@@ -275,6 +281,7 @@ export function PlanCard({
                     isCustom ? undefined : entries?.find((entry) => entry.date === day.date && entry.slot === m.mealType);
                   const outside = said(plan.report?.relaxations);
                   const onlyRecipe = said(plan.report?.singleCandidate);
+                  const byModel = partInMeal(m);
                   // The picker shows diet-matching, slot-matching favourites
                   // by default; "show all my favourites" drops BOTH the diet and the
                   // meal-time filter (allergens stay enforced server-side), so a
@@ -305,7 +312,7 @@ export function PlanCard({
                             <button
                               type="button"
                               onClick={() =>
-                                setOpenRecipe({ id: m.recipe!.id, amounts: m.ingredients })
+                                setOpenRecipe({ id: m.recipe!.id, amounts: m.ingredients, picked: m.modelPick })
                               }
                               className="font-medium text-primary hover:underline"
                             >
@@ -317,6 +324,7 @@ export function PlanCard({
                               {t('customChip')}
                             </span>
                           )}
+                          {byModel && <AiMark part={byModel} className="ml-2 align-middle" />}
                           {m.dietOverride && (
                             <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
                               {t('dietOverrideChip')}
@@ -422,6 +430,8 @@ export function PlanCard({
                       </div>
                       {offer?.asked.plannedMealId === m.id && (
                         <div className="ml-4 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs" role="group" aria-label={t('offerTitle')}>
+                          {/* A model's own pick says so, with its reason, before it is taken. */}
+                          {offer.preview.pick && <AiMark part={{ kind: 'picked', reason: offer.preview.aiMeta?.reason ?? null }} spelledOut />}
                           <p>
                             {t.rich('offerLine', {
                               title: offer.preview.recipe.title,
@@ -555,6 +565,7 @@ export function PlanCard({
       <RecipeModal
         recipeId={openRecipe?.id ?? null}
         amounts={openRecipe?.amounts}
+        picked={openRecipe?.picked ?? null}
         onClose={() => setOpenRecipe(null)}
       />
     </Card>

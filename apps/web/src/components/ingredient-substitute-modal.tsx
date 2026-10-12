@@ -71,6 +71,8 @@ export function IngredientSubstituteModal({
   // AI-suggested ingredient injected into the candidate list so its name
   // renders without an extra search round-trip.
   const [aiPick, setAiPick] = useState<Ingredient | null>(null);
+  // The note of a model's own pick, and what it was a pick for: it goes back with that substitution and with no other.
+  const [aiNote, setAiNote] = useState<{ from: string; to: string; note: string } | null>(null);
   // Off unless the user asks: a rewording costs one of their AI requests.
   const [rewriteWithAi, setRewriteWithAi] = useState(false);
   // A substitution that moves what a serving holds by more than a tenth is made only when the user says so.
@@ -115,6 +117,7 @@ export function IngredientSubstituteModal({
       }),
     onSuccess: (res) => {
       setAiPick(res.toIngredient);
+      setAiNote(res.pick ? { from: fromId!, to: res.toIngredient.id, note: res.pick } : null);
       setToId(res.toIngredient.id);
       qc.invalidateQueries({ queryKey: ['ai-quota'] });
       const reason = res.aiMeta.fallbackReason;
@@ -148,6 +151,7 @@ export function IngredientSubstituteModal({
         toIngredientId: toId!,
         rewriteWithAi: Boolean(aiEnabled) && rewriteWithAi,
         acceptChange,
+        ...(aiNote && aiNote.from === fromId && aiNote.to === toId ? { pick: aiNote.note } : {}),
       } satisfies SwapIngredientRequest),
     onSuccess: (result) => {
       // Refresh whichever plan list is currently rendered so the meal card

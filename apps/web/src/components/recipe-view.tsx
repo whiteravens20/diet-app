@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAmount } from '@/lib/ingredient-format';
+import { AiMark, partInRecipe } from '@/components/ai-mark';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 
@@ -141,11 +142,13 @@ export function RecipeView({
   }
 
   const n = recipe.nutritionPerServing;
+  const byModel = partInRecipe(recipe);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{recipe.title}</h1>
+        {byModel && <AiMark part={byModel} spelledOut className="mt-2" />}
         <p className="mt-1 text-sm text-muted-foreground">{recipe.description}</p>
         <div className="mt-2 flex flex-wrap gap-1">
           {[recipe.difficulty, ...recipe.mealTypes, ...recipe.dietTags].map((tag) => (

@@ -13,11 +13,9 @@ import {
   RelaxationNeeded,
   UnfilledMeal,
   type AddCustomMealRequest,
-  type AiMealSwapPreview,
   type GeneratePlanRequest,
   type MealPlan,
   type MealPlanPage,
-  type MealSwapPreview,
   type PlanRelaxation,
   type Profile,
   type RebalanceResult,
@@ -37,7 +35,7 @@ import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { SupplyNote } from '@/components/supply-note';
 import { IMAGERY } from '@/lib/imagery';
-import { PlanCard, type SwapAsk, type SwapOffer } from './plan-card';
+import { PlanCard, type Offered, type SwapAsk, type SwapOffer } from './plan-card';
 import { RebalanceToast } from './rebalance-toast';
 import { AdvancedOptions, buildAdvancedRequest, type AdvancedValue } from './advanced-options';
 import { useFormat } from '@/lib/use-format';
@@ -61,9 +59,6 @@ interface Reroll {
   /** Left out: the limits the plan may let give way already. */
   allowRelaxations?: PlanRelaxation[];
 }
-
-/** What comes back when a recipe is asked for in the place of a meal; a model that was asked leaves `aiMeta`. */
-type Offered = MealSwapPreview & Partial<Pick<AiMealSwapPreview, 'aiMeta'>>;
 
 /** What a re-roll sends: nothing at all when it asks for nothing of its own. */
 function rerollBody(v: Reroll): Record<string, unknown> | undefined {
@@ -104,8 +99,6 @@ function MealPlansContent() {
 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // What the model said about its last pick, shown next to the changed plan.
-  const [aiReason, setAiReason] = useState<string | null>(null);
   const [openPlan, setOpenPlan] = useState<string | null>(null);
   // Page-level toggle: applies to every swap / AI-swap on every plan card.
   // Plan generation has its own checkbox inside the new-plan form.
@@ -262,7 +255,6 @@ function MealPlansContent() {
         // A model was asked: that counts against the allowance whoever picked in the end.
         qc.invalidateQueries({ queryKey: ['ai-quota'] });
         setNotice(preview.aiMeta.fallbackReason ? tFallback(preview.aiMeta.fallbackReason) : null);
-        setAiReason(preview.aiMeta.reason);
       }
     },
     onError: (e: unknown, v) => {
@@ -280,6 +272,8 @@ function MealPlansContent() {
         // What a model picked is held to what the engine's own pick is.
         strategy: asked.strategy === 'ai' ? 'random' : asked.strategy,
         allowOffDiet: asked.allowOffDiet ?? false,
+        // The note that came with a model's own pick: the meal then says who chose its recipe.
+        ...(preview.pick ? { pick: preview.pick } : {}),
       }),
     onSuccess: (res, { asked }) => {
       setOffer(null);
@@ -293,10 +287,7 @@ function MealPlansContent() {
   });
   const askFor = (asked: SwapAsk, seen: string[] = []) => {
     setError(null);
-    if (asked.strategy === 'ai') {
-      setNotice(null);
-      setAiReason(null);
-    }
+    if (asked.strategy === 'ai') setNotice(null);
     offerSwap.mutate({ ...asked, seen });
   };
 
@@ -548,14 +539,6 @@ function MealPlansContent() {
           role="status"
         >
           {notice}
-        </p>
-      )}
-      {aiReason && (
-        <p
-          className="max-w-2xl rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-foreground"
-          role="status"
-        >
-          {t('aiReason', { reason: aiReason })}
         </p>
       )}
 

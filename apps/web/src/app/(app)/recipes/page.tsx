@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { AiMark, partInRecipe } from '@/components/ai-mark';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 import { useErrorText } from '@/lib/use-error-text';
@@ -313,6 +314,7 @@ export default function RecipesPage() {
                       })}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1">
+                      {partInRecipe(r) && <AiMark part={partInRecipe(r)!} />}
                       {r.dietTags.map((d) => (
                         <span
                           key={d}

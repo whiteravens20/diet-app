@@ -123,8 +123,8 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
   ...over,
 });
 
-/** The page of somebody with that one profile and `plans`, on an instance whose catalogue has `depth`. */
-async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] = []) {
+/** The page of somebody with that one profile and `plans`, on an instance whose catalogue has `depth`. AI is off for them unless `aiMode` says otherwise. */
+async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] = [], aiMode: 'none' | 'admin' = 'none') {
   // The list answers each plan as a summary, a page at a time; a plan that is opened is read whole.
   const listed = { items: plans.map(({ days: _days, report: _report, targetMacros: _targetMacros, ...summary }) => summary), page: 1, pageSize: 20, total: plans.length, totalPages: 1 };
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
@@ -132,12 +132,14 @@ async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] =
       (path === '/profiles'
         ? [profile]
         : path === '/users/me'
-          ? { aiMode: 'none' }
+          ? { aiMode }
           : path.startsWith('/meal-plans?')
             ? listed
             : path.startsWith('/meal-plans/')
               ? plans.find((plan) => path === `/meal-plans/${plan.id}`)
-              : []) as never,
+              : path.startsWith('/recipes/')
+                ? plans.flatMap((plan) => plan.days.flatMap((day) => day.meals.map((meal) => meal.recipe))).find((recipe) => recipe && path === `/recipes/${recipe.id}`)
+                : []) as never,
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -584,3 +586,114 @@ describe('the list of plans on the plan page', () => {
   });
 });
 
+describe('the plan page, on what a model had to do with a plan', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** The plan with its one meal changed by `meal`, and its one day by `day`. */
+  const aPlanWith = (meal: Partial<MealPlan['days'][number]['meals'][number]>, day: Partial<MealPlan['days'][number]> = {}, plan: Partial<MealPlan> = {}): MealPlan => {
+    const base = aPlan(plan);
+    return { ...base, days: [{ ...base.days[0]!, ...day, meals: [{ ...base.days[0]!.meals[0]!, ...meal }] }] };
+  };
+  const opened = async (plan: MealPlan, aiMode: 'none' | 'admin' = 'none') => {
+    await renderPage(aDepth(9), [plan], aiMode);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+    return screen.findByRole('button', { name: 'Oat porridge' });
+  };
+  const marks = (): string[] => screen.queryAllByText(messages.aiMark.label).map((mark) => mark.parentElement?.textContent ?? mark.textContent ?? '');
+
+  it('marks no meal of a plan the engine made alone', async () => {
+    await opened(aPlan());
+
+    expect(marks()).toEqual([]);
+  });
+
+  it('marks a meal whose recipe a model chose, says why, and says it again where the recipe is opened', async () => {
+    const recipe = await opened(aPlanWith({ modelPick: { reason: 'Lighter than the porridge.' } }));
+
+    expect(marks()).toHaveLength(1);
+    expect(marks()[0]).toContain('A model chose this recipe for the meal: “Lighter than the porridge.”');
+
+    await userEvent.click(recipe);
+
+    const window = await screen.findByRole('dialog', { name: messages.recipeModal.title });
+    expect(window.textContent).toContain('A model chose this recipe for the meal: “Lighter than the porridge.”');
+  });
+
+  it('marks a meal a model chose without a reason, in words of its own', async () => {
+    await opened(aPlanWith({ modelPick: { reason: null } }));
+
+    expect(marks()[0]).toContain(messages.aiMark.picked);
+  });
+
+  it.each([
+    ['written', messages.aiMark.written],
+    ['changed', messages.aiMark.changed],
+  ] as const)('marks a meal whose recipe a model had %s', async (byModel, said) => {
+    const base = aPlan().days[0]!.meals[0]!;
+    await opened(aPlanWith({ recipe: { ...base.recipe!, byModel } }));
+
+    expect(marks()).toHaveLength(1);
+    expect(marks()[0]).toContain(said);
+  });
+
+  it('marks a plan that was made with the help of a model on its row in the list', async () => {
+    await renderPage(aDepth(9), [aPlan({ generationMode: 'ai_assisted' })]);
+
+    const row = await screen.findByText('1-day plan · Vegan');
+    expect(row.textContent).toContain(messages.aiMark.label);
+    expect(row.textContent).toContain(messages.aiMark.plan);
+  });
+
+  describe('when a model is asked for another recipe', () => {
+    const plan = aPlan();
+    const breakfast = plan.days[0]!.meals[0]!;
+    const offered = (by: 'model' | 'engine') => ({
+      recipe: { ...breakfast.recipe!, id: '66666666-6666-4666-8666-666666666666', title: 'Tofu scramble' },
+      servings: 1.5,
+      before: breakfast.nutrition,
+      after: { calories: 240, protein: 14, fat: 9, carbs: 26 },
+      dayBefore: plan.days[0]!.dayNutrition,
+      dayAfter: { calories: 240, protein: 14, fat: 9, carbs: 26 },
+      calorieTarget: 2000,
+      revision: 0,
+      aiMeta:
+        by === 'model'
+          ? { provider: 'ollama', model: 'a-model', failoverChain: [], usedDeterministicFallback: false, fallbackReason: null, reason: 'More protein to start the day.' }
+          : { provider: null, model: null, failoverChain: [], usedDeterministicFallback: true, fallbackReason: 'all_providers_failed', reason: null },
+      pick: by === 'model' ? 'the-note-the-api-signed' : null,
+    });
+    const ask = async (by: 'model' | 'engine') => {
+      await opened(plan, 'admin');
+      const post = vi.spyOn(api, 'post').mockResolvedValueOnce(offered(by) as never).mockResolvedValue({ plan, rebalance: null } as never);
+      await userEvent.click(screen.getByRole('button', { name: new RegExp(messages.mealPlans.aiSwap) }));
+      return { post, offer: await screen.findByRole('group', { name: messages.mealPlans.offerTitle }) };
+    };
+
+    it('says that the offer is the model\'s own pick, with its reason, and hands the note back when the offer is taken', async () => {
+      const { post, offer } = await ask('model');
+
+      expect(offer.textContent).toContain(messages.aiMark.label);
+      expect(offer.textContent).toContain('A model chose this recipe for the meal: “More protein to start the day.”');
+
+      await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerTake }));
+
+      expect(post.mock.calls[1]).toEqual([
+        '/meal-plans/swap-meal',
+        { planId: plan.id, plannedMealId: breakfast.id, recipeId: '66666666-6666-4666-8666-666666666666', revision: 0, strategy: 'random', allowOffDiet: false, pick: 'the-note-the-api-signed' },
+      ]);
+    });
+
+    it('does not say so of an offer the engine made in the model\'s place, and hands no note back', async () => {
+      const { post, offer } = await ask('engine');
+
+      expect(offer.textContent).not.toContain(messages.aiMark.label);
+      expect(screen.getByRole('status').textContent).toBe(messages.aiFallback.all_providers_failed);
+
+      await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.offerTake }));
+
+      expect(post.mock.calls[1]![1]).not.toHaveProperty('pick');
+    });
+  });
+});

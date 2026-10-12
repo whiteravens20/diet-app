@@ -41,6 +41,14 @@
     "signOut": "Sign out",
     "signUp": "Create account"
   },
+  "aiMark": {
+    "label": "AI-assisted",
+    "picked": "A model chose this recipe for the meal, from the recipes that fit your plan.",
+    "pickedWhy": "A model chose this recipe for the meal: “{reason}”",
+    "written": "A model wrote this recipe for you. Its ingredients are the catalogue’s and its nutrition was computed from them. Check the amounts and the steps before you rely on it.",
+    "changed": "A model had a part in this recipe: it chose the ingredient that was swapped in, or reworded the text around it. Check the steps before you rely on it.",
+    "plan": "Parts of this plan were chosen with the help of a model."
+  },
   "aiChip": {
     "adminLabel": "{remaining, number}/{limit, number} this month",
     "adminTooltip": "Instance AI requests left this month (rolling 30-day window). Manage in Settings.",
@@ -957,7 +965,6 @@
     "pantryUnused": "Nothing that is in the pantry is used by a recipe this plan could choose.",
     "errSwap": "Could not swap the meal.",
     "errAiSwap": "Could not AI-swap the meal.",
-    "aiReason": "AI: {reason}",
     "errDelete": "Could not delete the plan.",
     "errCustomMeal": "Could not add the custom meal.",
     "errEaten": "Could not update the meal.",

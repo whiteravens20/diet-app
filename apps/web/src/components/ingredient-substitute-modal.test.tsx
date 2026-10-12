@@ -159,3 +159,69 @@ describe('the substitution of an ingredient, before it is made', () => {
     expect(await screen.findByText(messages.errors.SUBSTITUTION_MOVES_NUTRITION)).toBeInTheDocument();
   });
 });
+
+describe('a substitute a model suggested', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const NOTE = 'the-note-the-api-signed';
+  /** The modal of somebody with AI on, the rice picked, and a model asked: it names chickpeas, with `pick` as the note of its pick. */
+  async function suggested(pick: string | null) {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve((path === '/users/me' ? { aiMode: 'admin' } : path.startsWith('/ingredients') ? [{ id: 'lentils-id', name: 'Lentils' }] : []) as never),
+    );
+    const post = vi.spyOn(api, 'post').mockImplementation((path: string) =>
+      Promise.resolve(
+        (path.endsWith('/ai-suggest')
+          ? {
+              toIngredient: { id: chickpeas.ingredientId, name: chickpeas.name },
+              aiMeta: { provider: pick ? 'ollama' : null, model: null, failoverChain: [], usedDeterministicFallback: !pick, fallbackReason: pick ? null : 'all_providers_failed', reason: pick ? 'Holds as much protein.' : null },
+              pick,
+            }
+          : path.endsWith('/preview')
+            ? aPreview()
+            : { plan: {}, rebalance: null, aiMeta: null }) as never,
+      ),
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <IngredientSubstituteModal meal={meal} planId="55555555-5555-4555-8555-555555555555" onClose={() => undefined} onApplied={() => undefined} />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /White rice/ }));
+    await userEvent.click(await screen.findByRole('button', { name: new RegExp(messages.swap.aiSuggest) }));
+    await screen.findByText(messages.swap.stepDelta);
+    const applied = async (): Promise<Record<string, unknown>> => {
+      await userEvent.click(screen.getByRole('button', { name: messages.swap.apply }));
+      return post.mock.calls.find(([path]) => (path as string).endsWith('/apply'))![1] as Record<string, unknown>;
+    };
+    return { applied };
+  }
+
+  it('is made with the note that came with it, so that the recipe says a model had a part in it', async () => {
+    const { applied } = await suggested(NOTE);
+
+    expect(await applied()).toMatchObject({ toIngredientId: chickpeas.ingredientId, pick: NOTE });
+  });
+
+  it('is made without a note when the engine suggested in the model\'s place', async () => {
+    const { applied } = await suggested(null);
+
+    expect(await applied()).not.toHaveProperty('pick');
+  });
+
+  it('gives its note to no other substitute: one the user then looks for and picks is their own choice', async () => {
+    const { applied } = await suggested(NOTE);
+    await userEvent.type(screen.getByPlaceholderText(messages.pickers.ingredientSearch), 'lent');
+    await userEvent.click(await screen.findByRole('button', { name: 'Lentils' }));
+
+    const sent = await applied();
+
+    expect(sent).toMatchObject({ toIngredientId: 'lentils-id' });
+    expect(sent).not.toHaveProperty('pick');
+  });
+});
+

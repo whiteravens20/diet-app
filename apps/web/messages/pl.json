@@ -41,6 +41,14 @@
     "signOut": "Wyloguj się",
     "signUp": "Załóż konto"
   },
+  "aiMark": {
+    "label": "Z pomocą AI",
+    "picked": "Ten przepis wybrał dla tego posiłku model AI, spośród przepisów pasujących do Twojego planu.",
+    "pickedWhy": "Ten przepis wybrał dla tego posiłku model AI: „{reason}”",
+    "written": "Ten przepis napisał dla Ciebie model AI. Składniki pochodzą z katalogu, a wartości odżywcze zostały z nich wyliczone. Sprawdź ilości i kroki, zanim zaczniesz na nim polegać.",
+    "changed": "W tym przepisie miał udział model AI: wybrał podmieniony składnik albo przeredagował tekst wokół niego. Sprawdź kroki, zanim zaczniesz na nim polegać.",
+    "plan": "Części tego planu wybrano z pomocą modelu AI."
+  },
   "aiChip": {
     "adminLabel": "{remaining, number}/{limit, number} w tym miesiącu",
     "adminTooltip": "Pozostałe zapytania AI z puli instancji w tym miesiącu (okno 30 dni). Zarządzaj w Ustawieniach.",
@@ -957,7 +965,6 @@
     "pantryUnused": "Żaden przepis, który mógł trafić do tego planu, nie korzysta z tego, co jest w spiżarni.",
     "errSwap": "Nie udało się zamienić posiłku.",
     "errAiSwap": "Nie udało się dokonać zamiany przez AI.",
-    "aiReason": "AI: {reason}",
     "errDelete": "Nie udało się usunąć planu.",
     "errCustomMeal": "Nie udało się dodać własnego posiłku.",
     "errEaten": "Nie udało się zaktualizować posiłku.",
@@ -1527,7 +1534,7 @@
     },
     "section5": {
       "title": "Treści tworzone przy pomocy AI",
-      "body": "Przepisy, podmiany składników i wymiany posiłków wygenerowane przez AI mają znacznik ✨ AI-assisted. Sprawdź je, zanim zaczniesz z nich korzystać. Wbudowany silnik aplikacji ponownie wylicza wartości odżywcze dla każdej treści tworzonej przez AI i odrzuca liczby wymyślone przez model, ale dobór składników i kroki przygotowania pozostają autorstwa AI — zweryfikuj je względem własnych potrzeb żywieniowych i stanu zdrowia."
+      "body": "Przepisy, podmiany składników i wymiany posiłków wygenerowane przez AI mają znacznik ✨ Z pomocą AI. Sprawdź je, zanim zaczniesz z nich korzystać. Wbudowany silnik aplikacji ponownie wylicza wartości odżywcze dla każdej treści tworzonej przez AI i odrzuca liczby wymyślone przez model, ale dobór składników i kroki przygotowania pozostają autorstwa AI — zweryfikuj je względem własnych potrzeb żywieniowych i stanu zdrowia."
     },
     "section6": {
       "title": "Licencja wyselekcjonowanej zawartości",
