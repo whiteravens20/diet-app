@@ -1547,6 +1547,7 @@
     "atRest": "W spoczynku",
     "kcal": "{value, number} kcal",
     "atMaintenance": "Celem jest Twoje zapotrzebowanie: redukcja nie jest planowana.",
+    "held": "Cel redukcji jest wstrzymany, dopóki w formularzu nie potwierdzisz, że rozumiesz ryzyko, więc celem jest Twoje zapotrzebowanie.",
     "under": "{kcal, number} kcal dziennie poniżej Twojego zapotrzebowania.",
     "over": "{kcal, number} kcal dziennie powyżej Twojego zapotrzebowania.",
     "macros": "Białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g dziennie.",

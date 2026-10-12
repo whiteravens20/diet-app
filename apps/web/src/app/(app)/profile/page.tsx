@@ -327,6 +327,8 @@ export default function ProfilePage() {
                 <Input name="name" required pattern=".*\S.*" maxLength={80} defaultValue={editing?.name} />
               </Field>
               <BodyFields initial={editing ?? undefined} unit={unit} />
+              <DietFields diet={editing?.dietType ?? 'balanced'} mealCount={editing?.mealCount ?? 3} split={editing?.customMacroSplit ?? null} />
+              <PaceChoice initial={editing ? editing.weeklyLossTarget : '0.5'} paces={shown.preview?.paces} unit={unit} className="sm:col-span-2" />
               <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
                 <Input
                   key={unit}
@@ -339,8 +341,6 @@ export default function ProfilePage() {
                   defaultValue={editing?.targetWeightKg != null ? shownToOne(editing.targetWeightKg, unit) : ''}
                 />
               </Field>
-              <DietFields diet={editing?.dietType ?? 'balanced'} mealCount={editing?.mealCount ?? 3} split={editing?.customMacroSplit ?? null} />
-              <PaceChoice initial={editing ? editing.weeklyLossTarget : '0.5'} paces={shown.preview?.paces} unit={unit} className="sm:col-span-2" />
               <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />
               <RiskBox reasons={risk} acknowledged={editing?.riskAcknowledgedAt != null} className="sm:col-span-2" />
               <Field

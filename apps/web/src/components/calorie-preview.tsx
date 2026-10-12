@@ -74,10 +74,11 @@ export function CaloriePreviewPanel({
       </Heading>
       {c ? (
         <div className={cn('space-y-3 transition-opacity', behind && 'opacity-60')} aria-busy={behind}>
-          <dl className="grid grid-cols-3 gap-3">
-            <div>
+          {/* The target has a line of its own: beside the two it is worked out from, a narrow panel would break it in two. */}
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+            <div className="col-span-2">
               <dt className="text-xs text-muted-foreground">{t('dailyTarget')}</dt>
-              <dd className="text-xl font-semibold tracking-tight tabular-nums">{t('kcal', { value: c.dailyTarget })}</dd>
+              <dd className="text-2xl font-semibold tracking-tight tabular-nums">{t('kcal', { value: c.dailyTarget })}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">{t('maintenance')}</dt>
@@ -89,7 +90,7 @@ export function CaloriePreviewPanel({
             </div>
           </dl>
           <p className="text-xs text-muted-foreground">
-            {c.dailyDeficit === 0 ? t('atMaintenance') : c.dailyDeficit > 0 ? t('under', { kcal: c.dailyDeficit }) : t('over', { kcal: -c.dailyDeficit })}
+            {c.goalHeld ? t('held') : c.dailyDeficit === 0 ? t('atMaintenance') : c.dailyDeficit > 0 ? t('under', { kcal: c.dailyDeficit }) : t('over', { kcal: -c.dailyDeficit })}
           </p>
           <p className="text-sm">{t('macros', c.targetMacros)}</p>
           <TargetNotices calories={c} risk={false} />

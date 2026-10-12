@@ -1547,6 +1547,7 @@
     "atRest": "At rest",
     "kcal": "{value, number} kcal",
     "atMaintenance": "The target is your maintenance: no loss is planned.",
+    "held": "The goal to lose weight is on hold until its risk is acknowledged in the form, so the target is your maintenance.",
     "under": "{kcal, number} kcal a day under your maintenance.",
     "over": "{kcal, number} kcal a day over your maintenance.",
     "macros": "Protein {protein, number} g · fat {fat, number} g · carbohydrate {carbs, number} g a day.",

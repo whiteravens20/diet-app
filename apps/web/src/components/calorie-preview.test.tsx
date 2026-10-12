@@ -165,6 +165,15 @@ describe('what the figures of a form come to', () => {
     expect(screen.getByText(texts.atMaintenance)).toBeInTheDocument();
   });
 
+  it('says of a goal that is held why the target is maintenance', async () => {
+    vi.spyOn(api, 'post').mockResolvedValue(aPreview({ dailyTarget: 2759, dailyDeficit: 0, goalHeld: true, warnings: ['minor'] }) as never);
+    show(figures({ age: 16 }));
+    await pass(500);
+
+    expect(screen.getByText(texts.held)).toBeInTheDocument();
+    expect(screen.queryByText(texts.atMaintenance)).toBeNull();
+  });
+
   it('says that the figures could not be worked out when the API does not answer, and nothing more', async () => {
     vi.spyOn(api, 'post').mockRejectedValue(new Error('no answer'));
     show(figures());

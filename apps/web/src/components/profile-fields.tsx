@@ -107,11 +107,16 @@ export function PaceChoice({ initial, paces, unit, className }: { initial: Profi
         {PACES_OF_LOSS.map((pace, index) => {
           const at = paces?.[index];
           return (
-            <label key={pace ?? 'none'} className="flex items-center gap-3 rounded-md border border-input px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+            // On a narrow screen what a pace comes to stands under its name: side by side, each would be broken into a column of words.
+            <label
+              key={pace ?? 'none'}
+              className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md border border-input px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
+            >
               <input type="radio" name="weeklyLossTarget" value={pace ?? ''} defaultChecked={pace === initial} className="h-4 w-4" />
-              <span className="flex-1">{pace === null ? t('paceNone') : t('paceLose', { amount: fmt.unit(shownWeight(Number(pace), unit), unit === 'lb' ? 'pound' : 'kilogram', 2) })}</span>
+              {/* A quarter of a kilogram is said to the hundredth; in pounds, where no pace is a round number, to the tenth. */}
+              <span>{pace === null ? t('paceNone') : t('paceLose', { amount: unit === 'lb' ? fmt.unit(shownWeight(Number(pace), unit), 'pound', 1) : fmt.unit(Number(pace), 'kilogram', 2) })}</span>
               {at && (
-                <span className="text-right text-muted-foreground tabular-nums">
+                <span className="col-start-2 text-muted-foreground tabular-nums sm:col-start-3 sm:text-right">
                   {t('paceComesTo', { kcal: at.dailyTarget })}
                   {pace !== null && at.goalHeld ? ` · ${t('paceHeld')}` : pace !== null && slowed(at) ? ` · ${t('paceSlowed')}` : ''}
                 </span>
