@@ -1541,7 +1541,9 @@
     "markAvoid": "Mark to avoid",
     "clearMark": "Clear mark",
     "prefsSaveFailed": "Could not save ingredient preference.",
-    "cuisine": "{cuisine} cuisine"
+    "cuisine": "{cuisine} cuisine",
+    "source": "From <site></site>",
+    "sourceLicence": "Licence: <licence></licence>"
   },
   "weightCard": {
     "title": "Weight log",

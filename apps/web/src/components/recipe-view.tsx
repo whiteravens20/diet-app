@@ -15,6 +15,54 @@ import { AiMark, partInRecipe } from '@/components/ai-mark';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 
+/** An address of the web, and nothing else: only such a one is made a link. */
+const onTheWeb = (address: string | null): address is string => address !== null && /^https?:\/\//i.test(address);
+
+/** The site an address is on, for a link that is read: `recipes.example`. */
+function siteOf(address: string): string {
+  try {
+    return new URL(address).hostname;
+  } catch {
+    return address;
+  }
+}
+
+/**
+ * Where a recipe that was taken in from elsewhere is from, and the licence
+ * it is passed on under. Each is a link when it is an address of the web,
+ * opened without telling the other site where the reader came from.
+ */
+function RecipeSourceLine({ source }: { source: NonNullable<Recipe['source']> }) {
+  const t = useTranslations('recipeDetail');
+  const link = 'text-primary underline underline-offset-2';
+  return (
+    <p className="mt-2 text-xs text-muted-foreground">
+      {onTheWeb(source.url) && (
+        <>
+          {t.rich('source', {
+            site: () => (
+              <a href={source.url!} target="_blank" rel="noopener noreferrer" className={link}>
+                {siteOf(source.url!)}
+              </a>
+            ),
+          })}
+          {' · '}
+        </>
+      )}
+      {t.rich('sourceLicence', {
+        licence: () =>
+          onTheWeb(source.license) ? (
+            <a href={source.license} target="_blank" rel="noopener noreferrer" className={link}>
+              {siteOf(source.license)}
+            </a>
+          ) : (
+            <span>{source.license}</span>
+          ),
+      })}
+    </p>
+  );
+}
+
 interface FavoriteRow {
   id: string;
   recipe: { id: string };
@@ -163,6 +211,7 @@ export function RecipeView({
           {/* The kitchen the recipe belongs to, for the recipes that belong to one. */}
           {recipe.cuisine && <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{t('cuisine', { cuisine: tCuisine(recipe.cuisine) })}</span>}
         </div>
+        {recipe.source && <RecipeSourceLine source={recipe.source} />}
       </div>
 
       {profileList.length > 0 && (

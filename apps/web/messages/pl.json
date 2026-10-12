@@ -1541,7 +1541,9 @@
     "markAvoid": "Oznacz do unikania",
     "clearMark": "Usuń oznaczenie",
     "prefsSaveFailed": "Nie udało się zapisać preferencji składnika.",
-    "cuisine": "Kuchnia: {cuisine}"
+    "cuisine": "Kuchnia: {cuisine}",
+    "source": "Źródło: <site></site>",
+    "sourceLicence": "Licencja: <licence></licence>"
   },
   "weightCard": {
     "title": "Dziennik wagi",
