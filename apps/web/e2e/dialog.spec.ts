@@ -35,7 +35,7 @@ test.describe('a window over the page', () => {
     expect(visited).toContain('window');
     // The page behind does not scroll, and takes no click.
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('hidden');
-    expect(await page.evaluate(() => document.querySelector('dialog')?.matches(':modal'))).toBe(true);
+    expect(await page.evaluate(() => document.querySelector('dialog[open]')?.matches(':modal'))).toBe(true);
 
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();

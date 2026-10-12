@@ -23,12 +23,17 @@ export interface Session {
   page: Page;
 }
 
-async function signIn(page: Page, account: Account, locale: AppLocale): Promise<void> {
-  const auth = messagesOf(locale).auth as Record<string, string>;
-  await page.goto('/login');
+/** Fill in the sign-in form the page shows, and send it. Where that leads is the caller's to wait for. */
+export async function signInHere(page: Page, account: Pick<Account, 'email' | 'password'>, messages: Messages): Promise<void> {
+  const auth = messages.auth as Record<string, string>;
   await page.getByLabel(auth.email!).fill(account.email);
   await page.getByLabel(auth.password!, { exact: true }).fill(account.password);
   await page.getByRole('button', { name: auth.signInButton! }).click();
+}
+
+async function signIn(page: Page, account: Account, locale: AppLocale): Promise<void> {
+  await page.goto('/login');
+  await signInHere(page, account, messagesOf(locale));
   await page.waitForURL('**/dashboard');
 }
 
@@ -65,11 +70,14 @@ export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anon
       const context = await browser.newContext({ baseURL, viewport, colorScheme, hasTouch, isMobile, reducedMotion, storageState: existsSync(kept) ? kept : undefined });
       await context.addCookies([{ name: 'NEXT_LOCALE', value: appLocale, url: baseURL! }]);
       const page = await context.newPage();
+      const answered = page.waitForResponse((res) => res.url().endsWith('/api/users/me') && res.ok(), { timeout: 8_000 }).then(
+        () => true,
+        () => false,
+      );
       await page.goto('/dashboard');
-      // A page that finds no session sends the visitor to the sign-in form.
-      const signedIn = await page
-        .waitForResponse((res) => res.url().endsWith('/api/users/me') && res.ok(), { timeout: 8_000 })
-        .then(() => true, () => false);
+      // A browser without a session is sent to the sign-in form before the page
+      // is rendered; one whose session has ended, when the page asks for it.
+      const signedIn = !new URL(page.url()).pathname.startsWith('/login') && (await answered);
       if (!signedIn) await signIn(page, account, appLocale);
       await context.storageState({ path: kept });
       await provide({ context, page });
