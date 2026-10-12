@@ -236,6 +236,14 @@ test.describe('on the narrowest screens the application is used on', () => {
         if (box.x < 0 || box.x + box.width > width) wide[`the recipe window at ${width}`] = [`from ${box.x} to ${box.x + box.width}`];
         if ((await recipe.evaluate((dialog) => dialog.scrollWidth - dialog.clientWidth)) > 0) wide[`inside the recipe window at ${width}`] = ['its content is wider than the window'];
         await page.keyboard.press('Escape');
+
+        await page.getByRole('button', { name: plans.recalculate!, exact: true }).first().click();
+        const again = page.getByRole('dialog', { name: (messages.mealPlans as unknown as { reroll: Record<string, string> }).reroll.title! });
+        await expect(again.getByRole('radio').first()).toBeVisible();
+        const asked = (await again.boundingBox())!;
+        if (asked.x < 0 || asked.x + asked.width > width) wide[`the window a plan is made again in at ${width}`] = [`from ${asked.x} to ${asked.x + asked.width}`];
+        if ((await again.evaluate((dialog) => dialog.scrollWidth - dialog.clientWidth)) > 0) wide[`inside the window a plan is made again in at ${width}`] = ['its content is wider than the window'];
+        await page.keyboard.press('Escape');
       }
     } finally {
       await page.setViewportSize(size);

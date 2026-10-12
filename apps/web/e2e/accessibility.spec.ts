@@ -58,6 +58,12 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     expect(await barriers(page), 'the window for a meal of one\'s own').toEqual([]);
     await page.keyboard.press('Escape');
 
+    await page.getByRole('button', { name: plans.recalculate!, exact: true }).first().click();
+    const again = page.getByRole('dialog', { name: (messages.mealPlans as unknown as { reroll: Record<string, string> }).reroll.title! });
+    await expect(again.getByRole('radio').first()).toBeVisible();
+    expect(await barriers(page), 'the window a plan is made again in').toEqual([]);
+    await page.keyboard.press('Escape');
+
     await page.locator('li button.text-primary').first().click();
     const recipe = page.getByRole('dialog', { name: (messages.recipeModal as Record<string, string>).title! });
     await expect(recipe.getByRole('heading').first()).toBeVisible();

@@ -1,0 +1,174 @@
+// Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+
+import type { Locator, Page } from '@playwright/test';
+import { expect, settled, test, type Messages } from './fixtures';
+
+type Texts = Record<string, string>;
+const plansOf = (messages: Messages): Texts => messages.mealPlans as Texts;
+const rerollOf = (messages: Messages): Texts => (messages.mealPlans as unknown as { reroll: Texts }).reroll;
+
+/** Whether the screen is one on which the ways to change a meal fold behind one button. */
+const narrow = (page: Page): boolean => (page.viewportSize()?.width ?? 0) < 640;
+
+/** The plan page with the first plan of the list open. */
+async function anOpenPlan(page: Page, messages: Messages): Promise<void> {
+  const plans = plansOf(messages);
+  await page.goto('/meal-plans');
+  await settled(page);
+  await page.getByRole('button', { name: plans.showPlan! }).first().click();
+  await expect(page.getByRole('button', { name: plans.addCustomMeal! }).first()).toBeVisible();
+}
+
+/** The ways to change the first meal that can be changed, unfolded where they are folded. */
+async function waysToChangeAMeal(page: Page, messages: Messages): Promise<Locator> {
+  const plans = plansOf(messages);
+  if (narrow(page)) await page.getByRole('button', { name: plans.changeMeal!, exact: true }).first().click();
+  const ways = page.getByRole('group').filter({ has: page.getByRole('button', { name: plans.swap!, exact: true }) }).first();
+  await expect(ways).toBeVisible();
+  return ways;
+}
+
+test.describe('a plan and what it is made for', () => {
+  test('the form makes a plan for the meals a day and the target it names', async ({ session, messages }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    await page.goto('/meal-plans');
+    await settled(page);
+
+    // A label that holds a list of choices reads with them: it is found by how it begins.
+    await page.getByLabel(new RegExp(`^${plans.mealsPerDay!}`)).selectOption('2');
+    await page.getByLabel(plans.calorieTarget!, { exact: true }).fill('1900');
+    const answered = page.waitForResponse((res) => new URL(res.url()).pathname === '/api/meal-plans/generate');
+    await page.getByRole('button', { name: plans.generateButton!, exact: true }).click();
+
+    const answer = await answered;
+    const asked = answer.request().postDataJSON() as Record<string, unknown>;
+    const made = (await answer.json()) as { id: string; days: { calorieTarget: number; meals: unknown[] }[]; options: Record<string, unknown> };
+    expect(asked).toMatchObject({ mealCount: 2, calorieTargetOverride: 1900 });
+    // What the form left to the profile is not asked for, and not written on the plan: the plan follows the profile there when it is made again.
+    expect(asked).not.toHaveProperty('dietType');
+    expect(made.options).toMatchObject({ mealCount: 2, calorieTargetOverride: 1900, dietType: null });
+    expect(made.days.map((day) => [day.meals.length, day.calorieTarget])).toEqual(made.days.map(() => [2, 1900]));
+    // The new plan opens by itself, and each of its days says what it aims at.
+    await expect(page.getByText(/\/ 1[,\s\u00a0\u202f]?900 kcal/).first()).toBeVisible();
+
+    // The plan was made for this test. It goes again, so that the tests after this one find what the account had: a plan with a shopping list.
+    page.once('dialog', (confirm) => void confirm.accept());
+    const gone = page.waitForResponse((res) => res.request().method() === 'DELETE' && new URL(res.url()).pathname === `/api/meal-plans/${made.id}`);
+    const head = page.getByRole('button', { name: plans.hidePlan! });
+    await head.locator('xpath=..').getByRole('button', { name: (messages.common as Texts).delete!, exact: true }).click();
+    expect((await gone).status()).toBe(204);
+    await expect(head).toHaveCount(0);
+  });
+});
+
+test.describe('a plan that is made again', () => {
+  test('is asked for in one window that says what would be replaced before it asks, and one day of it gets other meals', async ({ session, messages }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    const reroll = rerollOf(messages);
+    await anOpenPlan(page, messages);
+
+    await page.getByRole('button', { name: plans.recalculate!, exact: true }).first().click();
+    const dialog = page.getByRole('dialog', { name: reroll.title! });
+    const confirm = dialog.getByRole('button', { name: reroll.confirm!, exact: true });
+    await expect(confirm).toBeEnabled();
+    // The plan begins today: nothing of it has passed, and what is left of it is the whole of it.
+    await expect(dialog.getByText(new RegExp(`^${reroll.replaced!.split(':')[0]}:`))).toBeVisible();
+    await expect(dialog.getByLabel(reroll.fromToday!, { exact: true })).toBeDisabled();
+    await expect(dialog.getByText(reroll.fromTodayNotBegun!)).toBeVisible();
+    await expect(dialog.getByLabel(reroll.includePast!, { exact: true })).toHaveCount(0);
+
+    await dialog.getByLabel(reroll.day!, { exact: true }).check();
+    await expect(dialog.getByLabel(reroll.dayWhich!, { exact: true })).toBeVisible();
+    const asked = page.waitForResponse((res) => /^\/api\/meal-plans\/[^/]+\/days\/[^/]+\/regenerate$/.test(new URL(res.url()).pathname));
+    await confirm.click();
+
+    expect((await asked).ok()).toBe(true);
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('button', { name: plans.addCustomMeal! }).first()).toBeVisible();
+  });
+
+  test('opens on the day whose own button was pressed', async ({ session, messages }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    const reroll = rerollOf(messages);
+    await anOpenPlan(page, messages);
+
+    await page.getByRole('button', { name: plans.changeDay!, exact: true }).nth(1).click();
+    const dialog = page.getByRole('dialog', { name: reroll.title! });
+
+    await expect(dialog.getByLabel(reroll.day!, { exact: true })).toBeChecked();
+    // The second day of the plan: the second of the days the window offers.
+    const which = dialog.getByLabel(reroll.dayWhich!, { exact: true });
+    expect(await which.evaluate((select: HTMLSelectElement) => select.selectedIndex)).toBe(1);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  });
+});
+
+test.describe('a meal of a plan', () => {
+  test('keeps the swap a model makes in its place on an account with AI off, disabled, under a line that says why', async ({ session, messages }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    await anOpenPlan(page, messages);
+
+    // A line anybody can read, with the way to the setting: a disabled button says nothing to a finger.
+    const toSettings = /<settings>(.*)<\/settings>/.exec((messages.aiOff as Texts).note!)![1]!;
+    const note = page.locator('p', { has: page.getByRole('link', { name: toSettings, exact: true }) });
+    await expect(note).toBeVisible();
+    await expect(note.getByRole('link')).toHaveAttribute('href', '/settings');
+
+    const ways = await waysToChangeAMeal(page, messages);
+    const byModel = ways.getByRole('button', { name: plans.aiSwap!, exact: true });
+    await expect(byModel).toBeVisible();
+    await expect(byModel).toBeDisabled();
+    expect(await byModel.getAttribute('aria-describedby')).toBe(await note.getAttribute('id'));
+    // The engine's own swap is there to use.
+    await expect(ways.getByRole('button', { name: plans.swap!, exact: true })).toBeEnabled();
+  });
+
+  test('folds the ways to change it behind one button on a narrow screen, and shows them in a row on a wide one', async ({ session, messages }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    await anOpenPlan(page, messages);
+    const swap = page.getByRole('button', { name: plans.swap!, exact: true }).first();
+    const fold = page.getByRole('button', { name: plans.changeMeal!, exact: true }).first();
+
+    if (!narrow(page)) {
+      await expect(swap).toBeVisible();
+      await expect(fold).toBeHidden();
+      return;
+    }
+    await expect(swap).toBeHidden();
+    await expect(fold).toHaveAttribute('aria-expanded', 'false');
+    await fold.click();
+    await expect(fold).toHaveAttribute('aria-expanded', 'true');
+    await expect(swap).toBeVisible();
+    await fold.click();
+    await expect(swap).toBeHidden();
+  });
+
+  test('of one\'s own is added in a window that says its numbers are those of one serving, and what the meal adds', async ({ session, messages }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    await anOpenPlan(page, messages);
+
+    await page.getByRole('button', { name: plans.addCustomMeal! }).first().click();
+    const dialog = page.getByRole('dialog', { name: plans.customModalTitle! });
+    await expect(dialog.getByRole('group', { name: plans.customPerServing! })).toBeVisible();
+    await expect(dialog.getByText(plans.customTotalPending!)).toBeVisible();
+
+    await dialog.getByLabel(plans.customCalories!, { exact: true }).fill('900');
+    await dialog.getByLabel(plans.customProtein!, { exact: true }).fill('30');
+    await dialog.getByLabel(plans.customFat!, { exact: true }).fill('20');
+    await dialog.getByLabel(plans.customCarbs!, { exact: true }).fill('110');
+    await dialog.getByRole('spinbutton', { name: new RegExp(`^${plans.customServings!}`) }).fill('2');
+
+    // Two servings of 900 kcal: the day gets 1,800, and the window says so before anything is sent.
+    await expect(dialog.getByText(/1[,\s  ]?800 kcal/)).toBeVisible();
+    await expect(dialog.getByText(plans.customTotalPending!)).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  });
+});
