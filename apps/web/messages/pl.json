@@ -32,6 +32,7 @@
     "dashboard": "Panel",
     "profiles": "Profile",
     "recipes": "Przepisy",
+    "favorites": "Ulubione",
     "mealPlans": "Plany posiłków",
     "shoppingLists": "Listy zakupów",
     "inventory": "Spiżarnia",
@@ -1298,6 +1299,48 @@
       "prev": "Poprzednia",
       "next": "Następna"
     }
+  },
+  "favorites": {
+    "title": "Ulubione",
+    "subhead": "Przepisy oznaczone przez profil: lubiane, jedzone często albo do unikania. Tagi to Twoje własne słowa, po których znajdziesz przepis.",
+    "noProfile": "Nie ma jeszcze profilu",
+    "noProfileBody": "Przepisy oznacza się dla profilu. Najpierw utwórz profil.",
+    "noProfileCta": "Do profili",
+    "search": "Szukaj",
+    "searchPlaceholder": "Tytuł przepisu…",
+    "mealType": "Posiłek",
+    "marked": "Oznaczone jako",
+    "tag": "Tag",
+    "sort": "Kolejność",
+    "any": "Dowolne",
+    "sentiment": {
+      "favorite": "Ulubiony",
+      "often": "Jedzony często",
+      "avoid": "Unikaj"
+    },
+    "sortBy": {
+      "newest": "Najpierw ostatnio oznaczone",
+      "title": "Według tytułu",
+      "calories": "Najpierw najlżejsze"
+    },
+    "legend": "Ulubiony to przepis, po który planer sięga chętniej; po jedzony często sięga jeszcze chętniej; przepis do unikania nigdy nie jest planowany, podmieniany ani sugerowany.",
+    "count": "{count, plural, one {# przepis} few {# przepisy} many {# przepisów} other {# przepisu}}",
+    "facts": "{kcal, number} kcal na porcję · {meals}",
+    "markedAs": "Jak oznaczony jest przepis {title}",
+    "remove": "Usuń",
+    "removeOf": "Usuń oznaczenie przepisu {title}",
+    "tagsOf": "Tagi przepisu {title}",
+    "removeTag": "Usuń tag {tag}",
+    "newTag": "Nowy tag",
+    "newTagOf": "Nowy tag dla przepisu {title}",
+    "addTag": "Dodaj tag",
+    "tagsFull": "Przepis ma najwyżej {max} tagów.",
+    "noneFiltered": "Żaden oznaczony przepis nie pasuje.",
+    "emptyTitle": "Nic jeszcze nie oznaczono",
+    "emptyBody": "Otwórz przepis i oznacz go jako ulubiony, a pojawi się tutaj.",
+    "emptyCta": "Do przepisów",
+    "errSave": "Nie udało się zapisać oznaczenia.",
+    "errRemove": "Nie udało się usunąć oznaczenia."
   },
   "recipeDetail": {
     "back": "Wróć do przepisów",

@@ -139,11 +139,13 @@ function MealPlansContent() {
   const favorites = useQuery({
     queryKey: ['favorites', activeId],
     queryFn: () =>
-      api.get<{ recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] } }[]>(
+      api.get<{ sentiment: string; recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] } }[]>(
         `/favorites?profileId=${activeId}`,
       ),
     enabled: Boolean(activeId),
   });
+  // What a profile marked to avoid is marked, and is nothing to put into a plan: the gate would refuse it.
+  const liked = (favorites.data ?? []).filter((marked) => marked.sentiment !== 'avoid');
 
   // What the plan aims at when the form says nothing: the profile's own target.
   const calories = useQuery({
@@ -528,7 +530,7 @@ function MealPlansContent() {
             <AdvancedOptions
               dates={planDates(startDate, durationDays)}
               defaultMealCount={planMeals}
-              favorites={(favorites.data ?? []).map((f) => f.recipe)}
+              favorites={liked.map((f) => f.recipe)}
               sets={favoriteSets.data ?? []}
               value={advanced}
               onChange={setAdvanced}
@@ -737,7 +739,7 @@ function MealPlansContent() {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
               }}
-              favorites={favorites.data ?? []}
+              favorites={liked}
               tMeal={tMeal}
             />
           ))

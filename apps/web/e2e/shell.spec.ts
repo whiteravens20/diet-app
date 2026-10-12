@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { accountOf } from './accounts';
 import { expect, settled, signInHere, test, type Messages } from './fixtures';
 
-const ACCOUNT_PAGES = ['/dashboard', '/profile', '/recipes', '/meal-plans', '/shopping-lists', '/inventory', '/settings'];
+const ACCOUNT_PAGES = ['/dashboard', '/profile', '/recipes', '/favorites', '/meal-plans', '/shopping-lists', '/inventory', '/settings'];
 
 const texts = (messages: Messages, group: string): Record<string, string> => messages[group] as Record<string, string>;
 

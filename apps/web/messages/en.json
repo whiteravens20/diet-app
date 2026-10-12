@@ -32,6 +32,7 @@
     "dashboard": "Dashboard",
     "profiles": "Profiles",
     "recipes": "Recipes",
+    "favorites": "Favourites",
     "mealPlans": "Meal plans",
     "shoppingLists": "Shopping lists",
     "inventory": "Inventory",
@@ -1298,6 +1299,48 @@
       "prev": "Prev",
       "next": "Next"
     }
+  },
+  "favorites": {
+    "title": "Favourites",
+    "subhead": "The recipes a profile marked: liked, eaten often, or to avoid. Tags are your own words, to find a recipe by.",
+    "noProfile": "No profile yet",
+    "noProfileBody": "Recipes are marked for a profile. Make one first.",
+    "noProfileCta": "To the profiles",
+    "search": "Search",
+    "searchPlaceholder": "Recipe title…",
+    "mealType": "Meal",
+    "marked": "Marked as",
+    "tag": "Tag",
+    "sort": "Order",
+    "any": "Any",
+    "sentiment": {
+      "favorite": "Favourite",
+      "often": "Eaten often",
+      "avoid": "Avoid"
+    },
+    "sortBy": {
+      "newest": "Marked last first",
+      "title": "By title",
+      "calories": "Lightest first"
+    },
+    "legend": "A favourite is a recipe the planner leans towards; one that is eaten often, it leans towards more; one to avoid is never planned, swapped in or suggested.",
+    "count": "{count, plural, one {# recipe} other {# recipes}}",
+    "facts": "{kcal, number} kcal a serving · {meals}",
+    "markedAs": "How {title} is marked",
+    "remove": "Remove",
+    "removeOf": "Remove the mark of {title}",
+    "tagsOf": "Tags of {title}",
+    "removeTag": "Remove the tag {tag}",
+    "newTag": "New tag",
+    "newTagOf": "A new tag for {title}",
+    "addTag": "Add tag",
+    "tagsFull": "A recipe holds at most {max} tags.",
+    "noneFiltered": "No marked recipe matches.",
+    "emptyTitle": "Nothing marked yet",
+    "emptyBody": "Open a recipe and mark it as a favourite, and it is listed here.",
+    "emptyCta": "To the recipes",
+    "errSave": "Could not save the mark.",
+    "errRemove": "Could not remove the mark."
   },
   "recipeDetail": {
     "back": "Back to recipes",

@@ -76,7 +76,7 @@ describe('the navigation of a signed-in account', () => {
 
     const beside = within(screen.getByRole('complementary'));
     const links = beside.getAllByRole('link');
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/dashboard', '/profile', '/meal-plans', '/recipes', '/shopping-lists', '/inventory', '/settings']);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/dashboard', '/profile', '/meal-plans', '/recipes', '/favorites', '/shopping-lists', '/inventory', '/settings']);
     expect(links.filter((link) => link.getAttribute('aria-current') === 'page').map((link) => link.textContent)).toEqual([messages.nav.mealPlans]);
   });
 
@@ -96,7 +96,7 @@ describe('the navigation of a signed-in account', () => {
     await userEvent.click(menuButton());
 
     expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
-    expect(within(drawer()!).getAllByRole('link')).toHaveLength(7);
+    expect(within(drawer()!).getAllByRole('link')).toHaveLength(8);
     expect(within(drawer()!).getByRole('link', { name: messages.nav.mealPlans })).toHaveAttribute('aria-current', 'page');
   });
 

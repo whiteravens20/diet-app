@@ -21,6 +21,7 @@ const SLOTS: MealType[] = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'd
 
 interface FavoriteRecipe {
   id: string;
+  sentiment: string;
   recipe: { id: string; title: string; mealTypes: string[] };
 }
 
@@ -66,7 +67,8 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
   });
 
   const sets = setsQ.data ?? [];
-  const favorites = favoritesQ.data ?? [];
+  // A set is made of what the profile likes: a recipe it marked to avoid is none of that.
+  const favorites = (favoritesQ.data ?? []).filter((marked) => marked.sentiment !== 'avoid');
   const hasFavorites = favorites.length > 0;
 
   function onCreate(event: React.FormEvent<HTMLFormElement>) {
