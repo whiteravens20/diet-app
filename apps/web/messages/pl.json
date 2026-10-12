@@ -1164,6 +1164,13 @@
       "sheetTitle": "Plan posiłków, {dates} · {diet}",
       "sheetAverage": "Średnio dziennie: {kcal, number} kcal · białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g.",
       "sheetDay": "{kcal, number} z {target, number} kcal"
+    },
+    "packs": {
+      "line": "Opakowania, które po otwarciu się nie przechowują: jadłospis zużywa {percent}% tego, co kupuje{wasted, plural, =0 {.} one {, a z # opakowania zostaje ponad trzy dziesiąte.} few {, a z # opakowań zostaje ponad trzy dziesiąte.} many {, a z # opakowań zostaje ponad trzy dziesiąte.} other {, a z # opakowania zostaje ponad trzy dziesiąte.}}",
+      "left": "{name}: zostaje {left} z opakowania {size}",
+      "leftMuch": "{name}: zostaje {left} z opakowania {size}, ponad trzy dziesiąte",
+      "allFinished": "Każde otwarte opakowanie jest zużyte do końca.",
+      "explain": "Policzone z samego jadłospisu; to, co jest w domu, liczy lista zakupów. Opakowanie zużyte w siedmiu dziesiątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku."
     }
   },
   "inventory": {

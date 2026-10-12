@@ -1164,6 +1164,13 @@
       "sheetTitle": "Meal plan, {dates} · {diet}",
       "sheetAverage": "A day on average: {kcal, number} kcal · protein {protein, number} g · fat {fat, number} g · carbohydrate {carbs, number} g.",
       "sheetDay": "{kcal, number} of {target, number} kcal"
+    },
+    "packs": {
+      "line": "Packs that do not keep once opened: the menu uses {percent}% of what it buys{wasted, plural, =0 {.} one {, and leaves more than three tenths of # pack.} other {, and leaves more than three tenths of # packs.}}",
+      "left": "{name}: {left} left of a pack of {size}",
+      "leftMuch": "{name}: {left} left of a pack of {size}, more than three tenths of it",
+      "allFinished": "Every pack the menu opens is used up.",
+      "explain": "Counted from the menu alone; what is at home is for the shopping list to count. A pack used to seven tenths counts as used: what is left of it is no reason for another meal."
     }
   },
   "inventory": {
