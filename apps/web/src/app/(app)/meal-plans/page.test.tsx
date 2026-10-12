@@ -84,6 +84,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
             nutritionPerServing: { calories: 230, protein: 8, fat: 4, carbs: 40 },
             origin: 'seed',
             byModel: null,
+            source: null,
           },
           ingredients: [],
           source: 'CATALOGUE',

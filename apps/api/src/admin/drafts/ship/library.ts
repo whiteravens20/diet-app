@@ -192,6 +192,8 @@ export async function writeToLibrary(tx: Db, recipe: LibraryRecipe, own?: string
     cuisine: content.cuisine ?? null,
     allergens: facts.allergens,
     origin: 'curated' as const,
+    sourceUrl: content.source?.url ?? null,
+    sourceLicense: content.source?.license ?? null,
     createdByUserId: null,
     // What a personal recipe is compared with: one that turns out to be this
     // recipe is not written a second time.

@@ -9,7 +9,7 @@
  * seeder can load, and a broken file stops an update while the database is
  * still untouched.
  */
-import { Allergen, Cuisine, DietType, MealType, NaturalUnit, ProductCategory, Unit, type RecipeDietTag } from '@diet-app/shared';
+import { Allergen, Cuisine, DietType, MealType, NaturalUnit, ProductCategory, Unit, WebAddress, type RecipeDietTag } from '@diet-app/shared';
 import { z } from 'zod';
 import { recipeFacts, type FactsLine } from '../../engine/recipe-facts.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
@@ -77,6 +77,8 @@ const RecipeSeed = z.object({
     )
     .min(1),
   steps: localisedStringArray,
+  // Where a recipe that was taken in from somewhere else is from, and the licence it may be passed on under.
+  source: z.object({ url: WebAddress.optional(), license: z.string().min(1).max(200) }).optional(),
 });
 type RecipeSeed = z.infer<typeof RecipeSeed>;
 

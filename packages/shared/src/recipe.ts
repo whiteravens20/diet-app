@@ -59,6 +59,23 @@ export type RecipeIngredient = z.infer<typeof RecipeIngredient>;
  * A recipe. Nutrition is always **derived** from `ingredients` against the
  * curated database — it is never authored directly, including by AI.
  */
+/**
+ * The address of a page: http or https and nothing else. An address is shown
+ * as a link, and `javascript:` is an address too as far as a parser goes.
+ */
+export const WebAddress = z
+  .string()
+  .max(500)
+  .url()
+  .refine((address) => /^https?:\/\//i.test(address), { message: 'An address begins with http:// or https://.' });
+
+/** Where a recipe is from: its address there, when it has one, and its licence. */
+export const RecipeSource = z.object({
+  url: WebAddress.nullable(),
+  license: z.string().min(1).max(200),
+});
+export type RecipeSource = z.infer<typeof RecipeSource>;
+
 export const Recipe = z.object({
   id: z.string().uuid(),
   title: z.string(),
@@ -91,6 +108,12 @@ export const Recipe = z.object({
    * swapped in, or reworded the text around it; null, nothing.
    */
   byModel: z.enum(['written', 'changed']).nullable(),
+  /**
+   * Where a recipe that was taken in from somewhere else is from, and the
+   * licence it may be passed on under: to be shown with the recipe. Null for
+   * a recipe written here.
+   */
+  source: RecipeSource.nullable(),
 });
 export type Recipe = z.infer<typeof Recipe>;
 

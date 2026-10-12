@@ -13,6 +13,7 @@ interface RecipeRow {
   servings: number;
   mealTypes: string[];
   cuisine?: string;
+  source?: unknown;
   ingredients: { slug: string; quantity: number; unit: string }[];
 }
 
@@ -132,5 +133,29 @@ describe('the cuisine of a recipe in the curated data', () => {
 
     expect(catalogue).toBeNull();
     expect(problems.map((problem) => [problem.file, problem.path])).toEqual([['recipes.json', '[3].cuisine']]);
+  });
+});
+
+describe('where a recipe of the data is from', () => {
+  it('is read with the recipe: an address of the web and a licence, or a licence alone', () => {
+    const { catalogue, problems } = catalogueWith((recipes) => {
+      recipes[0]!.source = { url: 'https://recipes.example/porridge', license: 'CC BY 4.0' };
+      recipes[1]!.source = { license: 'https://creativecommons.org/publicdomain/zero/1.0/' };
+    });
+
+    expect(problems).toEqual([]);
+    expect(catalogue!.recipes[0]!.seed.source).toEqual({ url: 'https://recipes.example/porridge', license: 'CC BY 4.0' });
+    expect(catalogue!.recipes[1]!.seed.source).toEqual({ license: 'https://creativecommons.org/publicdomain/zero/1.0/' });
+    expect(catalogue!.recipes[2]!.seed.source).toBeUndefined();
+  });
+
+  it('is refused where the address is none of the web, or the licence is not said', () => {
+    const { catalogue, problems } = catalogueWith((recipes) => {
+      recipes[0]!.source = { url: 'javascript:alert(1)', license: 'CC BY 4.0' };
+      recipes[1]!.source = { url: 'https://recipes.example/porridge' };
+    });
+
+    expect(catalogue).toBeNull();
+    expect(problems.map((problem) => `${problem.file} ${problem.path}`)).toEqual(['recipes.json [0].source.url', 'recipes.json [1].source.license']);
   });
 });

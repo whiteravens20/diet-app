@@ -11,7 +11,7 @@
 import { Cuisine } from '@diet-app/shared';
 import { checkIngredientName, checkRecipe, type CheckedRecipe, type RecipeProblem } from '../../../recipes/recipe-rules.js';
 import type { IngredientOverrideEntry } from './ingredient-overrides.writer.js';
-import type { ShippedRecipe } from './recipe-batches.writer.js';
+import { ShippedRecipe } from './recipe-batches.writer.js';
 
 /** The columns of a recipe draft that ship. */
 export interface RecipeDraftContent {
@@ -27,6 +27,9 @@ export interface RecipeDraftContent {
   difficulty: string;
   cuisine?: string | null;
   ingredientsJson: unknown;
+  /** Where a draft that was taken in from somewhere else is from, and its licence. */
+  provenanceUrl?: string | null;
+  provenanceLicense?: string | null;
 }
 
 export type Shippable<T> = { ok: true; content: T } | { ok: false; reason: string; problems: RecipeProblem[] };
@@ -48,9 +51,23 @@ export class NothingShips extends Error {
 
 const reasonOf = (problems: RecipeProblem[]): string => `invalid-draft: ${problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`;
 
+/**
+ * Where a recipe is from, as the data files say it: nothing for a recipe that
+ * names no licence. An address that is none is left out and the licence
+ * stays: the licence is what passing the recipe on depends on.
+ */
+function sourceOf(from: unknown): ShippedRecipe['source'] {
+  const source = ShippedRecipe.shape.source.safeParse(from);
+  if (source.success) return source.data;
+  const license = typeof from === 'object' && from !== null ? (from as { license?: unknown }).license : undefined;
+  const alone = ShippedRecipe.shape.source.safeParse({ license });
+  return alone.success ? alone.data : undefined;
+}
+
 /** A checked recipe in the shape of the catalogue's data files. */
-function inDataShape(recipe: CheckedRecipe, tagged: unknown): ShippedRecipe {
+function inDataShape(recipe: CheckedRecipe, tagged: unknown, from: unknown): ShippedRecipe {
   const cuisine = Cuisine.safeParse(tagged).data;
+  const source = sourceOf(from);
   return {
     slug: recipe.slug!,
     title: recipe.titles,
@@ -64,6 +81,7 @@ function inDataShape(recipe: CheckedRecipe, tagged: unknown): ShippedRecipe {
     ...(cuisine ? { cuisine } : {}),
     ingredients: recipe.ingredients,
     steps: recipe.steps,
+    ...(source ? { source } : {}),
   };
 }
 
@@ -85,7 +103,8 @@ export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRec
     draft.locales,
   );
   if (!checked.ok) return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
-  return { ok: true, content: inDataShape(checked.recipe, draft.cuisine) };
+  const from = draft.provenanceLicense ? { ...(draft.provenanceUrl ? { url: draft.provenanceUrl } : {}), license: draft.provenanceLicense } : undefined;
+  return { ok: true, content: inDataShape(checked.recipe, draft.cuisine, from) };
 }
 
 /**
@@ -103,7 +122,7 @@ export function recipeOfBatchRow(row: unknown): Shippable<ShippedRecipe> {
     const problems: RecipeProblem[] = [{ path: 'slug', rule: 'missing-field', message: 'slug is missing' }];
     return { ok: false, reason: reasonOf(problems), problems };
   }
-  return { ok: true, content: inDataShape(checked.recipe, fields.cuisine) };
+  return { ok: true, content: inDataShape(checked.recipe, fields.cuisine, fields.source) };
 }
 
 /** The names a draft ships, for its own languages and no other, or why it does not ship. */

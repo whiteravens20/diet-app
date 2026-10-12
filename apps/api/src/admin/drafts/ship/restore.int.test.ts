@@ -89,6 +89,20 @@ describe('restoring what an instance added to its catalogue', () => {
     expect(await t.prisma.ingredientTranslation.findMany({ where: { source: 'MANUAL' }, select: { locale: true, name: true } })).toEqual([{ locale: 'pl', name: 'Filet z kurczaka' }]);
   });
 
+  it('brings back where a recipe is from: the address when it is one of the web, and the licence either way', async () => {
+    aBatch('ship-1.json', [
+      aRow({ source: { url: 'https://recipes.example/tomato-rice', license: 'CC BY 4.0' } }),
+      aRow({ slug: 'tomato-rice-again', title: { en: 'Tomato rice, again' }, description: { en: 'Rice with more tomatoes.' }, steps: { en: ['Cook it.'] }, servings: 3, source: { url: 'javascript:alert(1)', license: 'CC0' } }),
+    ]);
+
+    await restore();
+
+    expect((await curated()).map((recipe) => [recipe.slug, recipe.sourceUrl, recipe.sourceLicense])).toEqual([
+      ['tomato-rice', 'https://recipes.example/tomato-rice', 'CC BY 4.0'],
+      ['tomato-rice-again', null, 'CC0'],
+    ]);
+  });
+
   it('can be run again: a recipe the library has is written over from its file and keeps its id', async () => {
     await aRecipeDraft(t, { status: 'APPROVED' });
     const shipping = await ship('recipe');

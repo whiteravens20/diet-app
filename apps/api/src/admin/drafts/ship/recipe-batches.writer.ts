@@ -23,7 +23,7 @@ import {
   LocaleStringsMap,
   RecipeDraftIngredientLine,
 } from '@diet-app/shared';
-import { Cuisine, Unit as UnitSchema, MealType as MealTypeSchema } from '@diet-app/shared';
+import { Cuisine, Unit as UnitSchema, MealType as MealTypeSchema, WebAddress } from '@diet-app/shared';
 
 /** One recipe row as written to `data/recipes/<batchId>.json`. Matches the
  *  shape `data/recipes.json` already uses so the seeder can load both
@@ -41,6 +41,8 @@ export const ShippedRecipe = z.object({
   cuisine: Cuisine.optional(),
   ingredients: z.array(RecipeDraftIngredientLine).min(1),
   steps: LocaleStringsMap,
+  /** Where a recipe that was taken in from somewhere else is from, and its licence. Left out for a recipe written here. */
+  source: z.object({ url: WebAddress.optional(), license: z.string().min(1).max(200) }).optional(),
 });
 export type ShippedRecipe = z.infer<typeof ShippedRecipe>;
 

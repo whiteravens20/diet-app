@@ -289,6 +289,8 @@ export function toRecipeDto(
     allergens: string[];
     origin: 'seed' | 'ai' | 'user' | 'curated';
     modelAssisted: boolean;
+    sourceUrl: string | null;
+    sourceLicense: string | null;
     caloriesPerServing: number;
     proteinPerServing: number;
     fatPerServing: number;
@@ -333,5 +335,6 @@ export function toRecipeDto(
     origin: row.origin,
     // A recipe a model wrote says so by its origin; one of the user's that a model had a part in, by its flag.
     byModel: row.origin === 'ai' ? 'written' : row.modelAssisted ? 'changed' : null,
+    source: row.sourceLicense === null ? null : { url: row.sourceUrl, license: row.sourceLicense },
   };
 }
