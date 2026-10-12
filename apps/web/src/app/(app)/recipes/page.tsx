@@ -274,6 +274,7 @@ export default function RecipesPage() {
             <Input type="number" inputMode="decimal" min={0} value={maxCarbs} onChange={(e) => setMaxCarbs(e.target.value)} />
           </Field>
         </div>
+        <p className="mt-1 text-xs text-muted-foreground">{t('perServing')}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <IngredientPicker
             label={t('withIngredients')}
