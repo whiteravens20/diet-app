@@ -189,7 +189,8 @@ See [SECURITY.md](SECURITY.md) for the disclosure policy.
 Diet App is built using AI coding tools. The tools write most of the code, tests and
 documentation; the maintainer decides what gets built and is responsible for everything
 that lands here. The project is in early development: there is no release yet and no
-independent security review.
+independent security review. Before the first release is published, a group of human
+testers will try the release candidate at the maintainer's request.
 
 **What a change goes through**
 
@@ -215,17 +216,6 @@ independent security review.
 - `apps/api/src/common/crypto.ts` and `apps/api/src/auth/auth.service.ts` (e-mail
   encryption, password peppering, blind-index lookups) are read line by line by the
   maintainer whenever they change.
-
-**Before a release**
-
-- There is no release yet. Before the first one, the whole application is audited and
-  tested on running instances, not only in unit tests.
-- The latest audit found problems that have to be fixed first, which is why the project
-  is still marked as not production ready.
-- A release will be cut from `main`, which requires CodeQL, `npm audit` and both Trivy
-  scans on top of the tests.
-- Before a release is published, a group of human testers will try the release candidate
-  at the maintainer's request and report what they find.
 
 If something looks wrong, open an issue. For a vulnerability, follow
 [SECURITY.md](SECURITY.md).
