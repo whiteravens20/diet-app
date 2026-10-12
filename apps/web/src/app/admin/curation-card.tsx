@@ -17,7 +17,7 @@
  * extra `complexityCounts` + `mixDrift` fields.
  */
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   Check,
   ClipboardCheck,
@@ -279,6 +279,8 @@ const SOURCE_FILTERS: readonly SourceFilter[] = ['ALL', 'AI_USER', 'AI'];
 
 function RecipePanel() {
   const t = useTranslations('admin.curation');
+  const countId = useId();
+  const scopeId = useId();
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   const errorText = useDraftErrorText();
@@ -397,8 +399,11 @@ function RecipePanel() {
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs text-muted-foreground">{t('recipeCount')}</label>
+        <label htmlFor={countId} className="text-xs text-muted-foreground">
+          {t('recipeCount')}
+        </label>
         <Input
+          id={countId}
           type="number"
           min={1}
           max={25}
@@ -407,8 +412,11 @@ function RecipePanel() {
           className="w-20"
           disabled={running}
         />
-        <label className="text-xs text-muted-foreground">{t('scopeLabel')}</label>
+        <label htmlFor={scopeId} className="text-xs text-muted-foreground">
+          {t('scopeLabel')}
+        </label>
         <select
+          id={scopeId}
           value={scope}
           onChange={(e) => setScope(e.target.value as 'curated' | 'all')}
           disabled={running}

@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Ingredient, InventoryItem, Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,7 @@ export default function InventoryPage() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
+  const profileId = useId();
 
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
   const profileList = profiles.data ?? [];
@@ -136,10 +137,11 @@ export default function InventoryPage() {
 
       {profileList.length > 1 && (
         <div className="max-w-xs">
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <label htmlFor={profileId} className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {t('profileLabel')}
           </label>
           <select
+            id={profileId}
             className={selectClass}
             value={activeProfileId ?? ''}
             onChange={(e) => setPickedProfile(e.target.value)}
@@ -273,6 +275,9 @@ function AddInventoryForm({
   const unitName = useUnitName();
   const [search, setSearch] = useState('');
   const [pickedIngredient, setPickedIngredient] = useState<Ingredient | null>(null);
+  // What ties each label of the form to its field.
+  const id = useId();
+  const ids = { ingredient: `${id}-ingredient`, quantity: `${id}-quantity`, unit: `${id}-unit`, bestBefore: `${id}-best-before` };
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<UnitChoice>('g');
   const [bestBefore, setBestBefore] = useState('');
@@ -314,7 +319,9 @@ function AddInventoryForm({
       <CardContent>
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
           <div className="relative flex-1 min-w-[14rem]">
-            <label className="block text-xs font-medium text-muted-foreground">{t('ingredientLabel')}</label>
+            <label htmlFor={ids.ingredient} className="block text-xs font-medium text-muted-foreground">
+              {t('ingredientLabel')}
+            </label>
             {pickedIngredient ? (
               <div className="mt-1 flex items-center gap-2">
                 <span className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
@@ -327,6 +334,7 @@ function AddInventoryForm({
             ) : (
               <>
                 <Input
+                  id={ids.ingredient}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={t('searchPlaceholder')}
@@ -357,8 +365,11 @@ function AddInventoryForm({
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">{t('quantityLabel')}</label>
+            <label htmlFor={ids.quantity} className="block text-xs font-medium text-muted-foreground">
+              {t('quantityLabel')}
+            </label>
             <Input
+              id={ids.quantity}
               type="number"
               step="0.01"
               min="0"
@@ -369,8 +380,11 @@ function AddInventoryForm({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">{t('unitLabel')}</label>
+            <label htmlFor={ids.unit} className="block text-xs font-medium text-muted-foreground">
+              {t('unitLabel')}
+            </label>
             <select
+              id={ids.unit}
               className={selectClass + ' w-24'}
               value={unit}
               onChange={(e) => setUnit(e.target.value as UnitChoice)}
@@ -384,8 +398,11 @@ function AddInventoryForm({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">{t('bestBeforeLabel')}</label>
+            <label htmlFor={ids.bestBefore} className="block text-xs font-medium text-muted-foreground">
+              {t('bestBeforeLabel')}
+            </label>
             <Input
+              id={ids.bestBefore}
               type="date"
               value={bestBefore}
               onChange={(e) => setBestBefore(e.target.value)}

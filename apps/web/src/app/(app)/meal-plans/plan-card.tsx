@@ -138,7 +138,7 @@ export function PlanCard({
   return (
     <Card className="relative w-full max-w-screen-2xl">
       <div className="flex items-center justify-between gap-4 p-4">
-        <button type="button" onClick={onToggle} className="flex-1 text-left">
+        <button type="button" onClick={onToggle} aria-expanded={open} className="flex-1 text-left">
           <p className="font-medium">
             {t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
           </p>
@@ -165,8 +165,8 @@ export function PlanCard({
           >
             {tCommon('delete')}
           </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={onToggle}>
-            {open ? '▲' : '▼'}
+          <Button type="button" variant="ghost" size="sm" onClick={onToggle} aria-expanded={open} aria-label={t(open ? 'hidePlan' : 'showPlan')}>
+            <span aria-hidden>{open ? '▲' : '▼'}</span>
           </Button>
         </div>
       </div>

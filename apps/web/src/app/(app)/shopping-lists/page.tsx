@@ -562,6 +562,7 @@ function ItemRow({
     <li className="flex flex-wrap items-center gap-3 py-2 text-sm">
       <input
         type="checkbox"
+        aria-label={item.name}
         className="h-4 w-4 shrink-0"
         checked={item.checked}
         disabled={busy}

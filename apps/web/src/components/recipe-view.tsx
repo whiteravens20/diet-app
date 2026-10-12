@@ -224,6 +224,7 @@ export function RecipeView({
             <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
               <span className="text-muted-foreground">{t('prefsFor')}</span>
               <select
+                aria-label={t('prefsFor')}
                 value={activePrefsProfile.id}
                 onChange={(e) => setPrefsProfileId(e.target.value)}
                 className="rounded border border-input bg-background px-2 py-1 text-sm"

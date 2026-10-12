@@ -108,6 +108,7 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
         <p className="text-xs text-muted-foreground">{t('explain')}</p>
         <div className="flex flex-wrap items-center gap-2">
           <select
+            aria-label={t('dataSets')}
             value={dataTypes}
             onChange={(e) => setDataTypes(e.target.value)}
             disabled={running}
