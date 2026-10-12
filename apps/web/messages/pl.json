@@ -49,7 +49,8 @@
     "pickedWhy": "Ten przepis wybrał dla tego posiłku model AI: „{reason}”",
     "written": "Ten przepis napisał dla Ciebie model AI. Składniki pochodzą z katalogu, a wartości odżywcze zostały z nich wyliczone. Sprawdź ilości i kroki, zanim zaczniesz na nim polegać.",
     "changed": "W tym przepisie miał udział model AI: wybrał podmieniony składnik albo przeredagował tekst wokół niego. Sprawdź kroki, zanim zaczniesz na nim polegać.",
-    "plan": "Części tego planu wybrano z pomocą modelu AI."
+    "plan": "Części tego planu wybrano z pomocą modelu AI.",
+    "weighed": "Model o tym: „{reason}”"
   },
   "aiChip": {
     "adminLabel": "{remaining, number}/{limit, number} w tym miesiącu",
@@ -71,6 +72,12 @@
     "provider_timeout": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. Tym razem korzystam z wbudowanego silnika.",
     "key_unreadable": "Zapisanego klucza AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach. Używam silnika regułowego.",
     "invalid_output": "Odpowiedzi AI nie dało się użyć — wyboru dokonał silnik regułowy."
+  },
+  "weigh": {
+    "ask": "Poproś model o ocenę",
+    "asking": "Pytam…",
+    "tooltip": "Model ustawia te propozycje w kolejności i mówi o każdej jedno zdanie. Niczego nie dodaje i niczego nie zmienia. Jedno zapytanie z Twojego limitu AI.",
+    "weighed": "Kolejność ustalił model. To, co jest proponowane, pochodzi z planera, tak jak każda liczba."
   },
   "disclaimers": {
     "aiPlans": "AI pomaga tworzyć plany i dobierać zamiany — i bywa, że się pomyli. Każdy plan, przepis i zamianę sprawdź pod kątem swoich potrzeb żywieniowych i zdrowia, zanim z nich skorzystasz.",

@@ -49,7 +49,8 @@
     "pickedWhy": "A model chose this recipe for the meal: “{reason}”",
     "written": "A model wrote this recipe for you. Its ingredients are the catalogue’s and its nutrition was computed from them. Check the amounts and the steps before you rely on it.",
     "changed": "A model had a part in this recipe: it chose the ingredient that was swapped in, or reworded the text around it. Check the steps before you rely on it.",
-    "plan": "Parts of this plan were chosen with the help of a model."
+    "plan": "Parts of this plan were chosen with the help of a model.",
+    "weighed": "A model says of this: “{reason}”"
   },
   "aiChip": {
     "adminLabel": "{remaining, number}/{limit, number} this month",
@@ -71,6 +72,12 @@
     "provider_timeout": "AI provider was too slow — try a smaller model or a cloud provider. Falling back to the rule-based engine.",
     "key_unreadable": "Your saved AI key can no longer be read — enter it again in Settings. Falling back to the rule-based engine.",
     "invalid_output": "The AI's answer could not be used — the rule-based engine picked instead."
+  },
+  "weigh": {
+    "ask": "Ask a model to weigh them",
+    "asking": "Asking…",
+    "tooltip": "A model puts these in order and says a sentence of each. It adds none and changes none. One request of your AI allowance.",
+    "weighed": "A model put these in order. What is proposed is the planner’s own, and so is every figure."
   },
   "disclaimers": {
     "aiPlans": "AI helps draft plans and pick swaps — and it can get things wrong. Review every plan, recipe and swap against your own dietary needs and health before you rely on it.",

@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils';
 /**
  * What a model had to do with what the mark stands on: it chose the recipe of
  * a meal (and may have said why), it wrote a recipe, it had a part in a
- * recipe of the user's, or parts of a plan were chosen with its help.
+ * recipe of the user's, parts of a plan were chosen with its help, or it
+ * said a sentence of something the engine proposed.
  */
-export type ModelPart = { kind: 'picked'; reason: string | null } | { kind: 'written' } | { kind: 'changed' } | { kind: 'plan' };
+export type ModelPart = { kind: 'picked'; reason: string | null } | { kind: 'written' } | { kind: 'changed' } | { kind: 'plan' } | { kind: 'weighed'; reason: string };
 
 /** A model's part in a recipe, as the recipe says it, or null. */
 export const partInRecipe = (recipe: Pick<Recipe, 'byModel'> | null | undefined): ModelPart | null => (recipe?.byModel ? { kind: recipe.byModel } : null);
@@ -28,7 +29,8 @@ export const partInMeal = (meal: Pick<PlannedMeal, 'modelPick'> & { recipe: Pick
 /** The sentence that says what a model did. */
 export function useModelPartText(): (part: ModelPart) => string {
   const t = useTranslations('aiMark');
-  return (part) => (part.kind === 'picked' ? (part.reason ? t('pickedWhy', { reason: part.reason }) : t('picked')) : t(part.kind));
+  return (part) =>
+    part.kind === 'picked' ? (part.reason ? t('pickedWhy', { reason: part.reason }) : t('picked')) : part.kind === 'weighed' ? t('weighed', { reason: part.reason }) : t(part.kind);
 }
 
 /**
