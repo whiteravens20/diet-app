@@ -11,7 +11,7 @@
  *    page renders.
  *  - {@link CSP_REPORT_ONLY} — the Content-Security-Policy, shipped in
  *    *Report-Only* mode. App Router emits inline bootstrap scripts and several
- *    libraries (next/font, Framer Motion, Recharts, next-themes) inject inline
+ *    libraries (next/font, Recharts, next-themes) inject inline
  *    styles, so an enforcing CSP must first be validated in a browser across
  *    every palette + light/dark. Report-Only surfaces violations in the console
  *    without breaking the page. Promote to enforcing (ideally nonce-based via a

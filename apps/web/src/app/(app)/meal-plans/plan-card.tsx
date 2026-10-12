@@ -125,8 +125,8 @@ export function PlanCard({
   // Which meal's ingredient-substitution modal is open, if any. Only catalogue
   // meals (recipe present) can be substituted.
   const [openSub, setOpenSub] = useState<CatalogueMeal | null>(null);
-  // Which recipe is open in the Framer Motion modal, if any, with the
-  // ingredient lines of the meal it was opened from, so the modal shows what
+  // Which recipe is open in a window over the page, if any, with the
+  // ingredient lines of the meal it was opened from, so the window shows what
   // that meal takes rather than the recipe's own servings.
   const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[] } | null>(null);
   // The part of the plan to fill again: the whole of it until the user picks days.

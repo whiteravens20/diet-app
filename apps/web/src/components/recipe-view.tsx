@@ -21,8 +21,8 @@ interface FavoriteRow {
 
 /**
  * Full recipe body. Used both by the standalone /recipes/[id] page and by
- * the Framer Motion RecipeModal opened from meal-plan rows — the page
- * wrapper owns navigation chrome (back link), this owns the content.
+ * the RecipeModal opened from meal-plan rows — the page wrapper owns
+ * navigation chrome (back link), this owns the content.
  *
  * `amounts` are the ingredient lines of one planned meal, as the API scaled
  * them: the meal-plan modal passes them so the list shows what that meal
