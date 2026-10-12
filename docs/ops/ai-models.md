@@ -26,7 +26,7 @@ provider/model that clears the demand bar for the surface you actually use.
 | **AI ingredient swap suggest** | `POST /api/meal-plans/swap-ingredient/ai-suggest` | ~800 tok | ~100 tok | lenient | no |
 | **Swap rewrite** | `POST /api/meal-plans/swap-ingredient/apply` with `rewriteWithAi: true`, only when the user ticks it | ~500 tok (sentences only) | ~500 tok | strict (two keys) | no: one call, in the user's language |
 | **Weighing what the planner proposes** | `POST /api/meal-plans/:id/days/:dayId/variations`, `POST /api/meal-plans/:id/use-up` and `POST /api/shopping-lists/:id/proposals`, each with `weigh: true`, only when the user asks ([weigh.service.ts](../../apps/api/src/ai/weigh.service.ts)) | ~300–700 tok (up to eight options, a line each) | ~200 tok (an order, and a sentence for each option) | lenient | no: one call, in the user's language |
-| **Admin auto-translate** | `POST /api/admin/translations/fill` | per-row, ~200 tok | ~200 tok | strict (key-preserving) | yes |
+| **Admin missing language** | `POST /api/admin/drafts/translations/generate` ([translation.runner.ts](../../apps/api/src/admin/drafts/translation.runner.ts)) | one recipe a call, ~600 tok (the title, the description and the steps, with two examples) | ~300 tok | strict (three keys, as many steps as it was given) | no: one call, one language |
 | **Admin ingredient-name draft** | `POST /api/admin/drafts/ingredient-names/generate` ([ingredient-namer.runner.ts](../../apps/api/src/admin/drafts/ingredient-namer.runner.ts)) | per-row, ~150 tok | ~80 tok | strict | yes |
 
 "Strict JSON" means: locale-keyed nested shape, every required key present,
@@ -52,6 +52,7 @@ runs on a provider's defaults.
 | Swap rewrite | 20 s | 3,000 tokens | 0.3 |
 | Admin recipe batch | 180 s per call | about 1,100 tokens per recipe in one language, 700 more for each further one | 0.2 |
 | Admin ingredient names | 180 s per call | about 80 tokens per name in one language | 0.2 |
+| Admin missing language | 180 s per call | 300 tokens and 120 more for each step of the recipe | 0.2 |
 
 - **The wait covers the whole failover chain.** With one provider it gets the
   full wait. With several, each provider still to be tried gets an equal share
@@ -66,6 +67,13 @@ runs on a provider's defaults.
   twice a typical answer. Admin runs ask again and show `answer-cut-off`.
   Models that think before they answer spend the cap on thinking: use one that
   does not for swaps, or expect the engine's pick.
+- **A model that translates writes words and nothing else.** The run that
+  fills a language recipes lack sends the title, the description and the steps
+  of one recipe, and no ingredient, amount or figure. What comes back has to
+  have as many steps as the English and no number the English does not have,
+  and must not be the English again; an answer that fails is asked for once
+  more and then left. What passes goes into the curation queue as a draft: a
+  person approves it before anything a user sees changes.
 - **A model that weighs adds nothing.** Other ways to fill a day, swaps that
   use up an opened pack and what a shopping list could do without are worked
   out by the engine, with or without a model, and are the same either way. A
@@ -119,7 +127,7 @@ and the cost is small (drafting a recipe is one short request).
 | **Anthropic** | `claude-haiku-4-5` | Cheap, fast, excellent JSON discipline. |
 | | `claude-sonnet-4-6` | Best Polish prose of any provider tested. Use sparingly for high-value batches. |
 
-For **AI meal/ingredient swap** and **admin auto-translate**, the demand is
+For **AI meal/ingredient swap** and the **admin's missing language**, the demand is
 much lower — `gpt-4o-mini` or any free OpenRouter 8B+ model is fine.
 
 OpenRouter free tier is rate-limited (~20 req/min, ~200/day per account).
@@ -155,7 +163,7 @@ Ollama for the lighter ones.
 | Surface | Viable model on CPU/iGPU | Notes |
 |---|---|---|
 | AI meal/ingredient swap | `llama3.2:3b`, `qwen2.5:3b` | Borderline; pick fixed candidates so the prompt is short. |
-| Admin auto-translate | `qwen2.5:3b`, `gemma3:4b` | Per-row request is small; works but slow on CPU. |
+| Admin missing language | `qwen2.5:3b`, `gemma3:4b` | One recipe a call; works but slow on CPU. |
 | Admin ingredient-name draft | `qwen2.5:3b` | Per-row request is small. |
 | **Recipe draft / recipe batch** | — none — | Use cloud. |
 

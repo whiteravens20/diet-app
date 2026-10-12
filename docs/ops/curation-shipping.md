@@ -38,6 +38,28 @@ A draft that fails stays in the queue, approved, and the panel names it by its
 slug with the reason. The slug of a draft can be changed from its row without
 sending it back to review; a title is text and goes through review again.
 
+## A language a recipe lacks
+
+"Fill a missing language" in the curation card asks the instance's model for
+the text of recipes in a language they do not have, and puts the answers into
+the queue. It changes nothing a user sees: the text is approved like any other,
+and ships like any other.
+
+- A draft that waits in the queue gets the language added to it. It then waits
+  for that language to be reviewed; the reviews its other languages have stand.
+- A recipe this instance shipped gets a draft of its own: the recipe as it is,
+  with the new text beside its English. English is in that draft so that the
+  administrator passes it on like any draft. Shipped into the instance (`local`),
+  it gives the recipe the new language and writes nothing else of it. If the
+  recipe has changed since the draft was made, the draft does not ship: reject
+  it and fill the language again.
+- Such a draft does not go into a bundle or a pull request, which hold whole
+  recipes; the panel names it with the reason.
+- The recipes of the catalogue's own data are left alone. Their text is written
+  by hand in the repository's data files.
+- The names of ingredients are not part of this run. An imported ingredient
+  gets its name in each language from "Generate names".
+
 ### `local`
 
 - A recipe draft becomes a shared recipe of this instance (`origin: curated`),
