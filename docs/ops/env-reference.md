@@ -18,7 +18,7 @@ Two rules apply to every variable:
 | Variable | Default | Purpose |
 |---|---|---|
 | `NODE_ENV` | `development` | `development` / `production` / `test`. |
-| `APP_URL` | `http://localhost:3000` | Public web origin (CORS, links). |
+| `APP_URL` | `http://localhost:3000` | Public web origin (CORS, links, the cookies of a session). Read by the web server as well: at an `https://` address the pages and the API tell browsers to keep to https, see [deployment](deployment.md#what-a-page-may-load). |
 | `API_URL` | `http://localhost:4000` | Public API origin. |
 | `WEB_PORT` / `API_PORT` | `3000` / `4000` | Host port bindings. |
 | `SWAGGER_ENABLED` | on in development, off in production | Interactive API documentation at `/api/docs`. `true` or `false` decides for both. |
@@ -55,7 +55,7 @@ Two rules apply to every variable:
 | `ADMIN_SECOND_FACTOR_RESET` | `false` | For an administrator who lost the authenticator app. While `true`, the administrator's second factor is removed when the API starts, the panel opens with the password alone, and no second factor can be set up. Set it, restart the API, sign in, set it back to `false` and restart again. The start-up log warns for as long as it is on. The second factors of accounts are not touched. |
 
 ## Anti-abuse
-| `TURNSTILE_ENABLED` | `false` | Enable Cloudflare Turnstile. |
+| `TURNSTILE_ENABLED` | `false` | Enable Cloudflare Turnstile. Read by the web server as well, whose pages have to allow the challenge's frame. |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | — | Required only when enabled. |
 | `RATE_LIMIT_WINDOW` | `60` | Rate-limit window (seconds), applies to every endpoint. |
 | `RATE_LIMIT_MAX` | `120` | Requests per window and route, global default. Counted against the signed-in user, or against the client's address for a request without a sign-in. AI + plan-generation routes carry fixed tighter per-route limits (recipe draft 10, recipe submission 10, plan (re)generate 20, AI swap 30, ingredient swap 30, provider test 20/min) that are not operator-tunable. Sign-in and the other credential routes are limited per account or per token, see [deployment](deployment.md#rate-limits). |

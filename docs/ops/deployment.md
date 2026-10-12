@@ -215,6 +215,54 @@ show only their newest entries: the 1000 newest weights of a profile, the 50 new
 notifications, and the 50 sessions of an account that were used last. Signing out
 everywhere ends the sessions the list does not show, too.
 
+### What a page may load
+
+Every page is sent with a content security policy that the browser enforces. Only the
+application's own scripts run: each carries a value made for that one response, and a
+script that got into a page any other way (written into its HTML, in an attribute, from
+another site) does not. No script may make code from text. Pictures, fonts and requests
+come from the instance's own address only, the page frames nothing and may be framed by
+nobody. With `TURNSTILE_ENABLED=true` the frame of Cloudflare's challenge is allowed, and
+nothing else of another site.
+
+What this asks of a reverse proxy or a CDN in front:
+
+- **Pass the pages on as they are.** A feature that rewrites the HTML or adds scripts to
+  it (Cloudflare's Rocket Loader, an injected analytics or "email protection" script) is
+  blocked by the policy, and a page whose own scripts were rewritten stops working. Turn
+  such features off for the instance.
+- **Do not cache the pages.** The value in the policy and on the scripts belongs to one
+  response, and the pages say so themselves (`Cache-Control: private, no-store`): a rule
+  that caches HTML all the same serves a page with an old value. The files under
+  `/_next/static/` say that they never change and can be cached for as long as you like.
+- **Leave the `Content-Security-Policy` header alone.** A second policy added by the
+  proxy can only forbid more, and will forbid the application's scripts if it does not
+  name their value.
+
+Two things follow from `APP_URL`: an instance whose public address is `https://…` also
+tells browsers to keep to https for two years (`Strict-Transport-Security`) and to turn
+any http request of a page into https; an instance at an `http://` address sends neither,
+since both would break it. The web server reads `APP_URL` and `TURNSTILE_ENABLED` for
+this, and nothing else from `.env`: the Compose files hand it those two. If you start the
+image's web server some other way, set both in its environment.
+
+When a browser blocks something, it tells the API (`POST /api/csp-reports`), and the API
+says so in its log: each kind of violation once when it is first seen, and every ten
+minutes how often each was reported.
+
+```
+WARN [ContentSecurityPolicy] script-src-elem blocked inline on /login
+LOG  [ContentSecurityPolicy] 14 report(s) in the last 10 minutes: 14x script-src-elem blocked inline on /login
+```
+
+A line names the directive, what was blocked (a word such as `inline` or `eval`, or the
+site it came from) and the page, without its query. `chrome-extension` or `moz-extension`
+is a visitor's browser extension and can be ignored. `inline`, or the name of a site you
+do not know, on pages that many visitors open means that something adds to the pages on
+their way: look at the proxy first. The route takes sixty reports a minute from one
+sender and at most thirty kinds of violation in ten minutes are told apart, so nobody can
+fill the log through it; what comes beyond is counted or dropped.
+
 ## Two-step sign-in
 
 An account can add a second step to signing in, under **Settings**: a six-digit code
@@ -272,6 +320,11 @@ The widget then renders on **Register, Login, and Forgot-password**; the front-e
 reads the site key from `/api/config` at runtime, so no web rebuild is needed to
 flip it. With `TURNSTILE_ENABLED=true` but the keys missing, verification
 fails closed (every submit is rejected).
+
+The web server has to know of the switch as well as the API: the pages' content security
+policy allows the challenge's frame only when it is on (see
+[What a page may load](#what-a-page-may-load)). With the Compose files both read it from
+the same `.env`; restart the web container too when you change it.
 
 ## Email (SMTP)
 

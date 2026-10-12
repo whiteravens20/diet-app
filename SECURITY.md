@@ -62,7 +62,9 @@ What the code guarantees today, and what it deliberately does not protect agains
 ### HTTP Surface
 
 - [x] API responses carry a Content-Security-Policy that loads nothing and forbids framing
-- [x] Security headers on the API and the web: HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- [x] Pages carry an enforced Content-Security-Policy with a value made for each response: only the application's own scripts run, no script makes code from text, and nothing is loaded from or sent to another site
+- [x] What a browser blocks under that policy is reported to the API, which counts it in its log
+- [x] Security headers on the API and the web: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, and HSTS where the instance's address is https
 - [x] CORS restricted to `APP_URL`
 - [x] Swagger UI and the OpenAPI document are off in production unless `SWAGGER_ENABLED` is set
 - [x] Unhandled errors return a generic response without a stack trace
