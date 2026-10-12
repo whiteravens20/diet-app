@@ -5,7 +5,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CatalogueDepth, FavoriteSet, MealPlan, MealSwapPreview, PlanCalendarDay, Profile, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
+import type { CatalogueDepth, FavoriteSet, MealPlan, MealSwapPreview, PlanCalendarDay, Profile, PublicConfig, RelaxationNeeded, UnfilledMeal } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { ApiClientError } from '@/lib/http';
 import * as files from '@/lib/save-file';
@@ -148,7 +148,7 @@ const daysOnTheCalendar = (plan: MealPlan): PlanCalendarDay[] =>
 let favoriteSets: FavoriteSet[] = [];
 
 /** The page of somebody with that one profile and `plans`, on an instance whose catalogue has `depth`. AI is off for them unless `aiMode` says otherwise. */
-async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] = [], aiMode: 'none' | 'admin' = 'none') {
+async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] = [], aiMode: 'none' | 'admin' = 'none', operator: Partial<PublicConfig> = {}) {
   // The list answers each plan as a summary, a page at a time; a plan that is opened is read whole.
   const listed = { items: plans.map(({ days: _days, report: _report, targetMacros: _targetMacros, packs: _packs, ...summary }) => summary), page: 1, pageSize: 20, total: plans.length, totalPages: 1 };
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
@@ -173,7 +173,7 @@ async function renderPage(depth: CatalogueDepth = aDepth(9), plans: MealPlan[] =
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(['config'], aPublicConfig({ catalogue: { depth } }));
+  client.setQueryData(['config'], aPublicConfig({ catalogue: { depth }, ...operator }));
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <QueryClientProvider client={client}>
@@ -1166,6 +1166,28 @@ describe('the plan page, on what a plan is made for', () => {
     await userEvent.click(screen.getByText(messages.mealPlans.advanced.toggle));
 
     expect(screen.queryByLabelText(messages.mealPlans.advanced.favoriteSet)).toBeNull();
+  });
+
+  it('says that an empty field for the repeats of a recipe adds no limit, where the operator set no number', async () => {
+    await renderPage();
+    await userEvent.click(screen.getByText(messages.mealPlans.advanced.toggle));
+
+    const field = screen.getByLabelText(messages.mealPlans.advanced.varietyFloor);
+    expect(field).not.toHaveAttribute('placeholder');
+    expect(screen.getByText(/Leave blank for no extra limit\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/Blank = no extra limit\.$/)).toBeInTheDocument();
+  });
+
+  it('says the number the operator set for the repeats of a recipe, and sends none of its own: the server applies it', async () => {
+    await renderPage(aDepth(9), [], 'none', { plans: { maxRepeatsPerRecipe: 3 } });
+    await userEvent.click(screen.getByText(messages.mealPlans.advanced.toggle));
+
+    const field = screen.getByLabelText(messages.mealPlans.advanced.varietyFloor);
+    expect(field).toHaveAttribute('placeholder', '3');
+    expect(field).toHaveValue(null);
+    expect(screen.getByText(/Left blank, the number set for this instance applies: 3\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/Blank = 3, the number set for this instance\.$/)).toBeInTheDocument();
+    expect((await sent()).maxRepeatsPerRecipe).toBeUndefined();
   });
 });
 

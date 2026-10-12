@@ -117,7 +117,8 @@ function MealPlansContent() {
   const [diet, setDiet] = useState<DietType | ''>('');
   const [mealCount, setMealCount] = useState<number | ''>('');
   const [calorieTarget, setCalorieTarget] = useState('');
-  const depth = useConfig().data?.catalogue.depth;
+  const config = useConfig().data;
+  const depth = config?.catalogue.depth;
 
   // Whether the account has a model to ask. Without one, what asks a model
   // stays where it is, disabled, and one line over the plans says why.
@@ -567,6 +568,7 @@ function MealPlansContent() {
               defaultMealCount={planMeals}
               favorites={liked.map((f) => f.recipe)}
               sets={favoriteSets.data ?? []}
+              defaultMaxRepeats={config?.plans.maxRepeatsPerRecipe ?? null}
               value={advanced}
               onChange={setAdvanced}
             />

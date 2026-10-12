@@ -92,6 +92,7 @@ export function AdvancedOptions({
   defaultMealCount,
   favorites,
   sets,
+  defaultMaxRepeats,
   value,
   onChange,
 }: {
@@ -100,6 +101,8 @@ export function AdvancedOptions({
   favorites: LockableRecipe[];
   /** The profile's favourite sets: a day can be filled from one. */
   sets: readonly FavoriteSet[];
+  /** The most a recipe repeats in a plan that names no number, where the operator set one. */
+  defaultMaxRepeats: number | null;
   value: AdvancedValue;
   onChange: (next: AdvancedValue) => void;
 }) {
@@ -107,6 +110,9 @@ export function AdvancedOptions({
   const tLimit = useTranslations('mealPlans.limit');
   const tMeal = useTranslations('enums.mealType');
   const fmt = useFormat();
+
+  // What an empty field stands for: the operator's number, or no limit beyond the profile's.
+  const most = defaultMaxRepeats ?? 'none';
 
   const patchDay = (date: string, patch: Partial<DayDraft>) =>
     onChange({ ...value, days: { ...value.days, [date]: { ...value.days[date], ...patch } } });
@@ -129,7 +135,7 @@ export function AdvancedOptions({
             <li>{t('legendUseUpBy')}</li>
             <li>{t('legendSet')}</li>
             <li>{t('legendLock')}</li>
-            <li>{t('legendVariety')}</li>
+            <li>{t('legendVariety', { most })}</li>
           </ul>
         </div>
 
@@ -143,12 +149,13 @@ export function AdvancedOptions({
             min={1}
             max={28}
             className={`${inputCls} mt-1 w-24`}
+            placeholder={defaultMaxRepeats === null ? undefined : String(defaultMaxRepeats)}
             value={value.maxRepeats ?? ''}
             onChange={(e) =>
               onChange({ ...value, maxRepeats: e.target.value ? Number(e.target.value) : undefined })
             }
           />
-          <p className="mt-1 text-xs text-muted-foreground">{t('varietyFloorHint')}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('varietyFloorHint', { most })}</p>
         </div>
 
         <fieldset>
