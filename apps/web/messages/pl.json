@@ -1300,7 +1300,13 @@
     "resendVerification": "Wyślij ponownie e-mail weryfikacyjny",
     "resendVerificationSending": "Wysyłanie…",
     "resendVerificationSent": "Wysłano e-mail weryfikacyjny.",
-    "resendVerificationFailed": "Nie udało się wysłać e-maila weryfikacyjnego."
+    "resendVerificationFailed": "Nie udało się wysłać e-maila weryfikacyjnego.",
+    "dataExport": "Twoje dane",
+    "dataExportBody": "Wszystko, co przechowuje to konto, w jednym pliku JSON: profile i ich preferencje, zapisane pomiary wagi, spiżarnia, oznaczone przepisy i przepisy własne, plany z posiłkami i listami zakupów. W pliku nie ma hasła, tokenów ani kluczy dostawców AI.",
+    "dataExportButton": "Pobierz moje dane",
+    "dataExportPreparing": "Przygotowywanie pliku…",
+    "dataExportSaved": "Plik został przekazany przeglądarce.",
+    "dataExportFailed": "Nie udało się przygotować pliku. Spróbuj ponownie."
   },
   "recipes": {
     "title": "Przepisy",

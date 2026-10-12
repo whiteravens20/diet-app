@@ -1300,7 +1300,13 @@
     "resendVerification": "Resend verification email",
     "resendVerificationSending": "Sending…",
     "resendVerificationSent": "Verification email sent.",
-    "resendVerificationFailed": "Could not send the verification email."
+    "resendVerificationFailed": "Could not send the verification email.",
+    "dataExport": "Your data",
+    "dataExportBody": "Everything this account holds, as one JSON file: its profiles and their preferences, the weights you logged, your pantry, the recipes you marked and the ones that are your own, your plans with their meals and shopping lists. No password, token or provider key is in it.",
+    "dataExportButton": "Download my data",
+    "dataExportPreparing": "Preparing the file…",
+    "dataExportSaved": "The file was handed to your browser.",
+    "dataExportFailed": "The file could not be prepared. Try again."
   },
   "recipes": {
     "title": "Recipes",

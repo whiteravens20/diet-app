@@ -22,6 +22,7 @@ import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { session as browserSession } from '@/lib/session';
 import { SecondFactorCard } from './second-factor-card';
+import { DataExportCard } from './data-export-card';
 import { SessionsCard } from './sessions-card';
 import { useConfig } from '@/lib/use-config';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,7 @@ export default function SettingsPage() {
       <SecondFactorCard />
       <SessionsCard />
       <EmailCard me={me} />
+      <DataExportCard />
       <DangerZoneCard me={me} />
     </div>
   );
