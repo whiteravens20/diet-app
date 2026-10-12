@@ -974,6 +974,7 @@
     "recalculate": "Recalculate…",
     "calorieLine": "{kcal, number} / {target, number} kcal {delta}",
     "changeDay": "Change day…",
+    "otherWays": "Other ways…",
     "changeMeal": "Change",
     "mealActions": "Ways to change the meal: {title}",
     "swap": "Swap",
@@ -1191,6 +1192,21 @@
       "leftMuch": "{name}: {left} left of a pack of {size}, more than three tenths of it",
       "allFinished": "Every pack the menu opens is used up.",
       "explain": "Counted from the menu alone; what is at home is for the shopping list to count. A pack used to seven tenths counts as used: what is left of it is no reason for another meal."
+    },
+    "variations": {
+      "title": "Other ways to fill {date}",
+      "intro": "Each of these is a day the planner would make for this plan: inside its limits, around what stays on the day. Nothing changes until you take one.",
+      "loading": "Working out other ways…",
+      "now": "As it is: {kcal, number} of {target, number} kcal. The plan leaves {wasted, plural, =0 {no opened pack} one {# opened pack} other {# opened packs}} more than three tenths full.",
+      "way": "Way {n}",
+      "take": "Take this day",
+      "stays": "stays",
+      "mealEnergy": "{kcal, number} kcal",
+      "dayLine": "{kcal, number} of {target, number} kcal · protein {protein, number} g · fat {fat, number} g · carbs {carbs, number} g",
+      "packsLine": "With it the plan would leave {wasted, plural, =0 {no opened pack} one {# opened pack} other {# opened packs}} more than three tenths full.",
+      "none": "The catalogue leaves no other way to fill this day inside the limits of the plan.",
+      "errLoad": "Could not work out other ways for this day.",
+      "errTake": "Could not change the day."
     }
   },
   "inventory": {

@@ -796,6 +796,7 @@ function MealPlansContent() {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
               }}
+              onChanged={() => void invalidate()}
               favorites={liked}
               tMeal={tMeal}
             />

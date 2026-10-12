@@ -1265,3 +1265,36 @@ describe('the plan page, on a plan taken out of the application', () => {
     await vi.waitFor(() => expect(document.querySelector('.print-sheet')).toBeNull());
   });
 });
+
+describe('the plan page, on what the planner proposes for a plan', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const opened = async (plan: MealPlan, aiMode: 'none' | 'admin' = 'none') => {
+    await renderPage(aDepth(9), [plan], aiMode);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+    await screen.findByRole('button', { name: 'Oat porridge' });
+  };
+
+  it('offers other ways to fill a day in a window of its own, asked of the API for that day of that plan', async () => {
+    const plan = aPlan();
+    await opened(plan);
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ date: '2026-01-05', calorieTarget: 2000, current: { dayNutrition: plan.days[0]!.dayNutrition, packs: { bought: 0, used: 0, wasted: 0 } }, variations: [], aiMeta: null } as never);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.otherWays }));
+
+    const dialog = within(await screen.findByRole('dialog', { name: 'Other ways to fill Mon, Jan 5' }));
+    expect(post).toHaveBeenCalledWith(`/meal-plans/${plan.id}/days/${plan.days[0]!.id}/variations`, { weigh: false });
+    expect(await dialog.findByText(messages.mealPlans.variations.none)).toBeInTheDocument();
+  });
+
+  it('offers no other ways for a day the user skips', async () => {
+    const plan = aPlan();
+    await renderPage(aDepth(9), [{ ...plan, days: [{ ...plan.days[0]!, skipped: true, meals: [] }] }]);
+    await userEvent.click(await screen.findByText('1-day plan · Vegan'));
+    await screen.findByText(messages.mealPlans.daySkipped);
+
+    expect(screen.queryByRole('button', { name: messages.mealPlans.otherWays })).toBeNull();
+  });
+});

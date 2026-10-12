@@ -974,6 +974,7 @@
     "recalculate": "Przelicz…",
     "calorieLine": "{kcal, number} / {target, number} kcal {delta}",
     "changeDay": "Zmień dzień…",
+    "otherWays": "Inne warianty…",
     "changeMeal": "Zmień",
     "mealActions": "Sposoby zmiany posiłku: {title}",
     "swap": "Zamień",
@@ -1191,6 +1192,21 @@
       "leftMuch": "{name}: zostaje {left} z opakowania {size}, ponad trzy dziesiąte",
       "allFinished": "Każde otwarte opakowanie jest zużyte do końca.",
       "explain": "Policzone z samego jadłospisu; to, co jest w domu, liczy lista zakupów. Opakowanie zużyte w siedmiu dziesiątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku."
+    },
+    "variations": {
+      "title": "Inne sposoby na {date}",
+      "intro": "Każdy z nich to dzień, który planer ułożyłby dla tego planu: w jego limitach, wokół tego, co w dniu zostaje. Nic się nie zmienia, dopóki żadnego nie wybierzesz.",
+      "loading": "Układam inne sposoby…",
+      "now": "Obecnie: {kcal, number} z {target, number} kcal. Plan zostawia {wasted, plural, =0 {żadnego otwartego opakowania} one {# otwarte opakowanie} few {# otwarte opakowania} many {# otwartych opakowań} other {# otwartego opakowania}} zapełnione w ponad trzech dziesiątych.",
+      "way": "Sposób {n}",
+      "take": "Wybierz ten dzień",
+      "stays": "zostaje",
+      "mealEnergy": "{kcal, number} kcal",
+      "dayLine": "{kcal, number} z {target, number} kcal · białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g",
+      "packsLine": "Z nim plan zostawiłby {wasted, plural, =0 {żadnego otwartego opakowania} one {# otwarte opakowanie} few {# otwarte opakowania} many {# otwartych opakowań} other {# otwartego opakowania}} zapełnione w ponad trzech dziesiątych.",
+      "none": "Katalog nie zostawia innego sposobu na ten dzień w limitach planu.",
+      "errLoad": "Nie udało się ułożyć innych sposobów na ten dzień.",
+      "errTake": "Nie udało się zmienić dnia."
     }
   },
   "inventory": {

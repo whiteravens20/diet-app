@@ -26,6 +26,7 @@ import { IngredientSubstituteModal } from '@/components/ingredient-substitute-mo
 import { RecipeModal } from '@/components/recipe-modal';
 import { AiMark, partInMeal } from '@/components/ai-mark';
 import { CustomMealModal } from './custom-meal-modal';
+import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
 import { saveText } from '@/lib/save-file';
@@ -98,6 +99,7 @@ export function PlanCard({
   onToggleEaten,
   onIngredientSwapped,
   onAddCustomMeal,
+  onChanged,
 }: {
   /** The plan as the list holds it: what the head of the card says. */
   summary: MealPlanSummary;
@@ -128,6 +130,8 @@ export function PlanCard({
   onToggleEaten: (mealId: string, eaten: boolean) => void;
   onIngredientSwapped: (result: SwapIngredientResponse) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
+  /** Told when the plan is no longer what the card shows: a day was filled another way, or the plan had changed under an offer. */
+  onChanged: () => void;
 }) {
   const t = useTranslations('mealPlans');
   const tCommon = useTranslations('common');
@@ -149,6 +153,11 @@ export function PlanCard({
   const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[]; picked: PlannedMealView['modelPick'] } | null>(null);
   // What the window a plan is made again in opens on, while it is open.
   const [reroll, setReroll] = useState<RerollStart | null>(null);
+  // The day whose other ways are on offer in a window, while it is open.
+  const [waysFor, setWaysFor] = useState<{ id: string; date: string } | null>(null);
+  // An account has a model to ask where the page was given the way to ask one.
+  const aiEnabled = onAiSwapMeal !== undefined;
+  const mealName = (type: string): string => (tMeal.has(type) ? tMeal(type) : type.replace('_', ' '));
   // The plan taken out of the application: as a table for a spreadsheet, or as a sheet for the printer.
   const tExport = useTranslations('mealPlans.export');
   const locale = useLocale();
@@ -280,6 +289,9 @@ export function PlanCard({
                         delta: fmt.signed(day.calorieDelta),
                       })}
                     </span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setWaysFor({ id: day.id, date: day.date })} disabled={busy}>
+                      {t('otherWays')}
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
@@ -617,6 +629,9 @@ export function PlanCard({
             </div>
           ))}
         </CardContent>
+      )}
+      {waysFor && (
+        <DayVariationsDialog planId={summary.id} day={waysFor} aiEnabled={aiEnabled} aiOffNote={aiOffNote} mealName={mealName} onClose={() => setWaysFor(null)} onChanged={onChanged} />
       )}
       {reroll && (
         <RerollDialog
