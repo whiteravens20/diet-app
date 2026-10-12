@@ -3,6 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type {
@@ -13,7 +14,7 @@ import type {
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 
@@ -70,6 +71,8 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
   // A set is made of what the profile likes: a recipe it marked to avoid is none of that.
   const favorites = (favoritesQ.data ?? []).filter((marked) => marked.sentiment !== 'avoid');
   const hasFavorites = favorites.length > 0;
+  // Until both answers are in, nothing is said to be missing.
+  const loading = setsQ.isLoading || favoritesQ.isLoading;
 
   function onCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -99,18 +102,29 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
           <CardTitle>{t('title')}</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
-        {!composing && hasFavorites && (
+        {!composing && hasFavorites && sets.length > 0 && (
           <Button type="button" size="sm" variant="outline" onClick={() => setComposing(true)}>
             {t('newSet')}
           </Button>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {!hasFavorites && (
-          <p className="text-sm text-muted-foreground">{t('noFavorites')}</p>
+        {/* What a set needs first, and where nothing is saved yet, the way to the first set. */}
+        {!loading && !hasFavorites && (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-sm text-muted-foreground">{t('noFavorites')}</p>
+            <Link href="/recipes" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+              {t('noFavoritesCta')}
+            </Link>
+          </div>
         )}
-        {hasFavorites && sets.length === 0 && !composing && (
-          <p className="text-sm text-muted-foreground">{t('empty')}</p>
+        {!loading && hasFavorites && sets.length === 0 && !composing && (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-sm text-muted-foreground">{t('empty')}</p>
+            <Button type="button" size="sm" onClick={() => setComposing(true)}>
+              {t('newSet')}
+            </Button>
+          </div>
         )}
         {sets.length > 0 && (
           <ul className="divide-y divide-border">

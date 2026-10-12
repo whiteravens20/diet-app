@@ -133,3 +133,34 @@ describe('the recipe library, narrowed', () => {
     expect(screen.getByText(texts.moreFilters)).toBeInTheDocument();
   });
 });
+
+describe('the recipes of one\'s own, while there are none', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    asked = new URLSearchParams();
+  });
+
+  it('says what lands there and offers the way to the first, with why it waits where no model can be asked', async () => {
+    await renderPage();
+
+    await userEvent.click(screen.getByRole('button', { name: texts.tabs.mine }));
+
+    expect(await screen.findByRole('heading', { name: texts.mineEmptyTitle })).toBeInTheDocument();
+    expect(screen.getByText(texts.mineEmpty)).toBeInTheDocument();
+    // The button of the page's head, a second time: here it is the way on. This account has AI off.
+    const drafts = screen.getAllByRole('button', { name: texts.aiDraft });
+    expect(drafts).toHaveLength(2);
+    for (const draft of drafts) expect(draft).toBeDisabled();
+  });
+
+  it('says the same whatever narrows the library: its filters are not asked of one\'s own recipes', async () => {
+    await renderPage();
+    await userEvent.type(screen.getByPlaceholderText(texts.searchPlaceholder), 'soup');
+    expect(await screen.findByText(texts.noneFiltered)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: texts.tabs.mine }));
+
+    expect(await screen.findByRole('heading', { name: texts.mineEmptyTitle })).toBeInTheDocument();
+    expect(screen.queryByText(texts.noneFiltered)).not.toBeInTheDocument();
+  });
+});

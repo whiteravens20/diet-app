@@ -3,9 +3,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useId, useMemo, useState } from 'react';
-import { Package } from 'lucide-react';
+import { Package, ShoppingBasket } from 'lucide-react';
 import type { DisplayUnit, MealPlanPage, Profile, SessionUser, ShoppingList, ShoppingListItem } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
@@ -14,9 +15,10 @@ import { offline } from '@/lib/offline';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
 import { useAmount, useUnitName } from '@/lib/ingredient-format';
 import { saveText } from '@/lib/save-file';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 import { useErrorText } from '@/lib/use-error-text';
@@ -56,6 +58,8 @@ export default function ShoppingListsPage() {
   const session = useQuery({ queryKey: ['session'], queryFn: () => api.get<SessionUser>('/users/me') });
   const aiEnabled = Boolean(session.data?.aiMode && session.data.aiMode !== 'none');
   const aiOffNote = useId();
+  // The form a list is made with, so that a button elsewhere on the page can send it.
+  const makeList = useId();
 
   const plans = useQuery({
     queryKey: ['meal-plans', activeProfileId],
@@ -161,14 +165,18 @@ export default function ShoppingListsPage() {
 
   if (profileList.length === 0) {
     return (
-      <Card className="mx-auto mt-20 max-w-md text-center">
-        <CardHeader>
-          <CardTitle>{t('noProfile')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">{t('noProfileBody')}</p>
-        </CardContent>
-      </Card>
+      <div className="mt-16">
+        <EmptyState
+          icon={ShoppingBasket}
+          title={t('noProfile')}
+          description={t('noProfileBody')}
+          cta={
+            <Link href="/profile" className={buttonVariants({ size: 'md' })}>
+              {t('noProfileCta')}
+            </Link>
+          }
+        />
+      </div>
     );
   }
 
@@ -197,15 +205,27 @@ export default function ShoppingListsPage() {
         </div>
       )}
 
-      <Card className="max-w-3xl">
-        <CardHeader>
-          <CardTitle>{t('generate')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {planList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('noPlans')}</p>
-          ) : (
-            <form onSubmit={onGenerate} className="grid gap-4 sm:grid-cols-4">
+      {plans.isLoading ? (
+        <Skeleton className="h-24 max-w-3xl" />
+      ) : planList.length === 0 ? (
+        // A list is made from a plan: without one there is nothing to make it from, and the way on is the plan page.
+        <EmptyState
+          icon={ShoppingBasket}
+          title={t('noPlansTitle')}
+          description={t('noPlans')}
+          cta={
+            <Link href="/meal-plans" className={buttonVariants({ size: 'md' })}>
+              {t('noPlansCta')}
+            </Link>
+          }
+        />
+      ) : (
+        <Card className="max-w-3xl">
+          <CardHeader>
+            <CardTitle>{t('generate')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form id={makeList} onSubmit={onGenerate} className="grid gap-4 sm:grid-cols-4">
               <Field label={t('plan')}>
                 <select
                   className={selectClass}
@@ -251,9 +271,9 @@ export default function ShoppingListsPage() {
                 </Button>
               </div>
             </form>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {error && <p className="max-w-3xl text-sm text-destructive">{error}</p>}
 
@@ -261,7 +281,17 @@ export default function ShoppingListsPage() {
         <Skeleton className="h-24 max-w-3xl" />
       ) : listOptions.length === 0 ? (
         planList.length > 0 && (
-          <p className="max-w-3xl text-sm text-muted-foreground">{t('noLists')}</p>
+          <EmptyState
+            icon={ShoppingBasket}
+            title={t('noListsTitle')}
+            description={t('noLists')}
+            cta={
+              // The form above, with the plan and the days it names.
+              <Button type="submit" form={makeList} disabled={generate.isPending || !activePlanId}>
+                {generate.isPending ? t('generating') : t('noListsCta')}
+              </Button>
+            }
+          />
         )
       ) : (
         <section className="space-y-3">

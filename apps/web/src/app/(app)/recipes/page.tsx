@@ -3,7 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Send, Trash } from 'lucide-react';
+import { Send, Soup, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
@@ -15,6 +15,7 @@ import { IngredientPicker } from '@/components/ingredient-picker';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AiMark, partInRecipe } from '@/components/ai-mark';
+import { EmptyState } from '@/components/empty-state';
 import { PageBanner } from '@/components/page-banner';
 import { IMAGERY } from '@/lib/imagery';
 import { useErrorText } from '@/lib/use-error-text';
@@ -357,15 +358,19 @@ export default function RecipesPage() {
       ) : recipes.isError ? (
         <LoadFailed error={recipes.error} onRetry={() => void recipes.refetch()} />
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {tab === 'mine'
-            ? t('mineEmpty')
-            : usesFavorites && favoriteCount > 0
-              ? t('noneFavorites')
-              : anyServerFilter || search
-                ? t('noneFiltered')
-                : t('noneAtAll')}
-        </p>
+        tab === 'mine' ? (
+          // Nothing of one's own yet, whatever narrows the library: what lands here, and the one way to it that starts on this page.
+          <EmptyState
+            icon={Soup}
+            title={t('mineEmptyTitle')}
+            description={t('mineEmpty')}
+            cta={session.data && activeProfile && <DraftButton aiEnabled={session.data.aiMode !== 'none'} onOpen={() => setDraftOpen(true)} />}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {usesFavorites && favoriteCount > 0 ? t('noneFavorites') : anyServerFilter || search ? t('noneFiltered') : t('noneAtAll')}
+          </p>
+        )
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -460,3 +460,62 @@ describe('a row of a shopping list, while the server cannot be reached', () => {
     expect(screen.getByRole('checkbox', { name: 'White rice' })).not.toBeChecked();
   });
 });
+
+describe('the shopping page with nothing to show yet', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** The page of an account with these profiles, plans and lists. */
+  function renderWith({ profiles = [{ id: 'profile', name: 'Me' }], plans = [] as unknown[], lists = [] as ShoppingList[] }) {
+    vi.spyOn(api, 'get').mockImplementation((path: string) =>
+      Promise.resolve(
+        (path === '/profiles'
+          ? profiles
+          : path === '/users/me'
+            ? { aiMode: 'none' }
+            : path.startsWith('/meal-plans?')
+              ? { items: plans, page: 1, pageSize: 50, total: plans.length, totalPages: 1 }
+              : path.startsWith('/shopping-lists?')
+                ? lists
+                : []) as never,
+      ),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['config'], aPublicConfig());
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <QueryClientProvider client={client}>
+          <ShoppingListsPage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it('leads an account without a profile to the profiles', async () => {
+    renderWith({ profiles: [] });
+
+    expect(await screen.findByRole('heading', { name: texts.noProfile })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: texts.noProfileCta })).toHaveAttribute('href', '/profile');
+  });
+
+  it('says that a list is made from a plan where the profile has none, and leads to the plans: there is no form to fill in', async () => {
+    renderWith({});
+
+    expect(await screen.findByRole('heading', { name: texts.noPlansTitle })).toBeInTheDocument();
+    expect(screen.getByText(texts.noPlans)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: texts.noPlansCta })).toHaveAttribute('href', '/meal-plans');
+    expect(screen.queryByRole('button', { name: texts.generateButton })).not.toBeInTheDocument();
+  });
+
+  it('offers the list of a plan that has none, and makes it with what the form names', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue(aList as never);
+    renderWith({ plans: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }] });
+
+    expect(await screen.findByRole('heading', { name: texts.noListsTitle })).toBeInTheDocument();
+    expect(screen.getByText(texts.noLists)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: texts.noListsCta }));
+
+    await vi.waitFor(() => expect(post).toHaveBeenCalledExactlyOnceWith('/shopping-lists/generate', { planId: PLAN, fromDate: '2026-01-05', toDate: '2026-01-07' }));
+  });
+});
