@@ -9,6 +9,7 @@ The source of truth for nutrition. Loaded by
 | `ingredients.generated.json` | Written by `npm run import:usda` — paginates the USDA FDC search API across the configured `FDC_DATA_TYPES` (default `Foundation`), maps every food into a `IngredientSeed` row, and clamps measurement-noise negative carbs to zero. Merged on top of the baseline; the baseline wins on a name clash. |
 | `recipes.json` | Hand-curated "anchor" recipes. |
 | `substitutions.json` | Ingredient substitution rules. |
+| `import-aliases.json` | Other names of the ingredients, for recipes taken in from elsewhere. No part of the catalogue: see "Recipes from elsewhere". |
 
 Run `npm run data:lint` to validate every row against the Zod schemas in
 [`apps/api/scripts/validate-data.ts`](../apps/api/scripts/validate-data.ts) — it
@@ -87,6 +88,36 @@ of the plans of every diet; run it again when the catalogue has grown.
 
 See [docs/ops/curation-shipping.md](../docs/ops/curation-shipping.md) for how the
 curation queue ships its batches.
+
+## Recipes from elsewhere
+
+A recipe that was taken in from somewhere else says so:
+
+```json
+"source": { "url": "https://recipes.example/salmon-rice-bowl", "license": "https://creativecommons.org/licenses/by/4.0/" }
+```
+
+`license` is the licence the recipe may be passed on under, by its address or
+its name; `url`, when there is one, begins with `http://` or `https://`. Both
+are shown with the recipe wherever it is read. A recipe written here has no
+`source`. The curation queue writes the key for a draft that came from an
+import; nothing else needs to.
+
+`import-aliases.json` is what an import goes by when a recipe calls an
+ingredient something the catalogue does not:
+
+```json
+{ "courgette": "zucchini", "prawns": "shrimp" }
+```
+
+A name on the left is matched in full, in a plain form: lower case, one of a
+thing, without the words that say how it is cut or how big it is ("2 large
+ripe courgettes, sliced" is `courgette`). The slug on the right has to be an
+ingredient of the catalogue; `npm run data:lint` refuses the file otherwise.
+Write down a name only when it is the same food: "dried apricots" are not
+`apricot`, and "milk" is not `whole-milk`. A recipe whose ingredient is still
+not known after that is refused by the import, with the name it did not know.
+The file changes no recipe that exists and is not read by a database update.
 
 ## Choosing `FDC_DATA_TYPES`
 

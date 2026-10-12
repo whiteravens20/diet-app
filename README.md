@@ -32,7 +32,10 @@ The companion Android app lives in a separate repository:
   packs that do not keep against what it uses of them, and a plan made for cooking ahead
   has a dish cooked once for two days.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
-  approved ingredients, then a validation layer recomputes every number.
+  approved ingredients, then a validation layer recomputes every number. An operator can
+  also take recipes in from a schema.org document they have: each line has to be an amount
+  of an ingredient the catalogue knows, a person approves every draft, and the recipe says
+  where it is from and under which licence.
 - **Shopping lists and a pantry** — merged and category-grouped, counted the way one
   shops (eggs and slices of bread in pieces, weights rounded up to 5 g, the packs a row
   takes), with what the pantry already holds taken off, what was bought beyond the need
@@ -167,7 +170,7 @@ The CLI alternative is `npm run db:seed`. See
 - [docs/ops/deployment.md](docs/ops/deployment.md) — Docker, self-hosting, Ollama
 - [docs/ops/env-reference.md](docs/ops/env-reference.md) — every environment variable
 - [docs/ops/ai-models.md](docs/ops/ai-models.md) — model recommendations by surface and hardware tier
-- [docs/ops/curation-shipping.md](docs/ops/curation-shipping.md) — how approved drafts ship, backing up what an instance added, moving to a new server
+- [docs/ops/curation-shipping.md](docs/ops/curation-shipping.md) — how approved drafts ship, taking recipes in from elsewhere, filling a language recipes lack, backing up what an instance added, moving to a new server
 
 The product specification and the architecture and design documents are not
 published while the project is in development; they join the repository with

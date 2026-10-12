@@ -38,6 +38,49 @@ A draft that fails stays in the queue, approved, and the panel names it by its
 slug with the reason. The slug of a draft can be changed from its row without
 sending it back to review; a title is text and goes through review again.
 
+## Recipes from elsewhere
+
+"Recipes from elsewhere" in the curation card takes recipes in from a document
+you have: one recipe or several written as schema.org `Recipe`, which is the
+JSON a recipe page carries and the shape many tools save. The instance fetches
+nothing and asks no model; it reads what you paste or load from a file.
+
+A recipe is taken when all of it can be answered for:
+
+- It has a name, instructions, and a list of ingredients.
+- Every line of that list is an amount of an ingredient the catalogue has. An
+  amount is a number (a fraction counts, a range does not) in grams, kilograms,
+  ounces, pounds, millilitres, litres, teaspoons, tablespoons, cups or fluid
+  ounces, or a count of pieces. The ingredient is found by the catalogue's own
+  name for it or by a name you wrote down in `data/import-aliases.json` (see
+  [`data/README.md`](../../data/README.md)); it is matched in full, never by
+  resemblance.
+- It says how many servings it makes and gives a preparation or a cooking time.
+- It is filed under a meal the app knows (breakfast, lunch, dinner, snack and
+  their like), or you named the meals for the import.
+- It names its licence, or you named one for the import. **The licence is yours
+  to answer for.** The instance records what you state and shows it with the
+  recipe; it cannot check that the recipe may be passed on.
+
+A recipe that is taken becomes a draft in English, with where it is from. Its
+figures are the engine's, worked out from the catalogue. It is reviewed and
+shipped like any other draft, gets its other languages from "Fill a missing
+language", and carries its source into the library, into a bundle and into a
+pull request. Whoever reads the recipe is told where it is from and under which
+licence.
+
+A recipe that is not taken never reaches the queue. The import names every
+reason, and keeps the refusals (the latest five hundred) under "What earlier
+imports refused", so that you can write down another name for an ingredient,
+or give a line its amount, and send the document again. "Look first" says what
+would come of a document and writes nothing.
+
+One import looks at the first hundred recipes of a document, and takes a
+document of about 90 kB. Of one that holds more recipes it says how many were
+left: send those in another document. A larger document is not sent at all:
+split it. A recipe the library or the queue already has, by its title or by
+what it is made of, is refused like any other draft would be at shipping.
+
 ## A language a recipe lacks
 
 "Fill a missing language" in the curation card asks the instance's model for
