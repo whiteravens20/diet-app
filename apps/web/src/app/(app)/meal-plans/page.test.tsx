@@ -1010,7 +1010,7 @@ describe('the plan page, on a meal the profile or the diet no longer allows', ()
     await opened(aPlanOf({ restrictionConflicts: ['allergen'] }, { restrictionConflicts: ['excluded_ingredient', 'avoided'] }));
 
     expect(screen.getByRole('alert').textContent).toBe(
-      '2 meals of this plan hold something the profile has ruled out since the plan was made. Each is marked below: swap it, or recalculate the plan.',
+      '2 meals of this plan hold something the profile has ruled out since the plan was made. Each is marked below: swap it, or make the plan again.',
     );
     for (const conflict of ['allergen', 'excluded_ingredient', 'avoided'] as const) {
       expect(screen.getByText(messages.mealPlans.conflictChip[conflict])).toBeVisible();
