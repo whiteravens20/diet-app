@@ -186,10 +186,10 @@ See [SECURITY.md](SECURITY.md) for the disclosure policy.
 
 ## How the code is written and checked
 
-Diet App is built by one maintainer using AI coding tools. The tools write most of the
-code, tests and documentation; the maintainer decides what gets built and is responsible
-for everything that lands here. The project is in early development: there is no release
-yet, no independent security review and no second human reviewer.
+Diet App is built using AI coding tools. The tools write most of the code, tests and
+documentation; the maintainer decides what gets built and is responsible for everything
+that lands here. The project is in early development: there is no release yet and no
+independent security review.
 
 **What a change goes through**
 
