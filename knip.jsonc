@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     "apps/api": {
       // `start:worker` runs the built `dist/worker.js`; declare the source so
@@ -7,9 +7,14 @@
       "entry": ["src/main.ts", "src/worker.ts", "scripts/*.ts"]
     },
     "apps/web": {
+      // The worker is fetched by its address and the icon script is run by hand: neither is imported.
       "entry": [
-        "src/app/**/{page,layout,loading,error,not-found,route,template,default}.tsx"
-      ]
+        "src/app/**/{page,layout,loading,error,not-found,route,template,default}.tsx",
+        "public/sw.js",
+        "scripts/make-icons.mjs"
+      ],
+      // The icon script draws with the image library the framework brings for its own pictures.
+      "ignoreDependencies": ["sharp"]
     }
   }
 }

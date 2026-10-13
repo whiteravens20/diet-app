@@ -42,6 +42,9 @@ jobs:
         working-directory: apps/api
       - run: npm run lint -- --filter=@diet-app/api
       - run: npm run typecheck -- --filter=@diet-app/api
+      # Nothing is exported, kept as a file or declared as a dependency that
+      # nothing uses, in any workspace: knip.jsonc names the entry points.
+      - run: npm run knip
       - run: npm run data:lint
       - run: npm run test -- --filter=@diet-app/shared
       # Unit and integration tests together. The integration tests start the API

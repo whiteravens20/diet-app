@@ -165,6 +165,7 @@ Every workspace enforces zero warnings:
 ```bash
 npm run lint
 npm run data:lint                # validates the curated data in data/
+npm run knip                     # rejects exports, files and dependencies nothing uses
 node scripts/check-markers.mjs   # rejects planning labels and dangling references
 ```
 
