@@ -34,7 +34,7 @@ export type IngredientNamerValidationReason =
   | 'llm-yap';
 
 /** Why one name of an answer is not written, and the slug or the field it is about. */
-export interface NameRefusal {
+interface NameRefusal {
   reason: IngredientNamerValidationReason;
   key: string;
 }
