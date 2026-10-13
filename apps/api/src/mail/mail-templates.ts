@@ -72,12 +72,12 @@ export const emailVerificationEmail: Builder<{ link: string }> = {
   }),
   pl: ({ link }) => ({
     subject: 'Potwierdź swój adres e-mail w Diet App',
-    text: `Witamy w Diet App! Potwierdź ten adres e-mail, aby dokończyć konfigurację konta.\n\nLink wygasa po 1 godzinie:\n${link}\n\nJeśli nie zakładałeś konta, zignoruj tę wiadomość.`,
+    text: `Witamy w Diet App! Potwierdź ten adres e-mail, aby dokończyć konfigurację konta.\n\nLink wygasa po 1 godzinie:\n${link}\n\nJeśli to nie Ty zakładasz konto, zignoruj tę wiadomość.`,
     html: shell([
       'Witamy w Diet App! Potwierdź ten adres e-mail, aby dokończyć konfigurację konta.',
       'Link wygasa po 1 godzinie:',
       linkButton(link, 'Potwierdź e-mail'),
-      'Jeśli nie zakładałeś konta, zignoruj tę wiadomość.',
+      'Jeśli to nie Ty zakładasz konto, zignoruj tę wiadomość.',
     ]),
   }),
 };
@@ -95,9 +95,9 @@ export const emailChangeEmail: Builder<{ link: string }> = {
   }),
   pl: ({ link }) => ({
     subject: 'Potwierdź nowy adres e-mail w Diet App',
-    text: `Poprosiłeś o zmianę adresu e-mail w Diet App na ten adres. Potwierdź zmianę, aby zacząć logować się przy jego użyciu.\n\nLink wygasa po 1 godzinie:\n${link}\n\nJeśli to nie Ty, zignoruj tę wiadomość — adres konta pozostanie bez zmian.`,
+    text: `Otrzymaliśmy prośbę o zmianę adresu e-mail konta w Diet App na ten adres. Potwierdź zmianę, aby logować się tym adresem.\n\nLink wygasa po 1 godzinie:\n${link}\n\nJeśli to nie Ty, zignoruj tę wiadomość — adres konta pozostanie bez zmian.`,
     html: shell([
-      'Poprosiłeś o zmianę adresu e-mail w Diet App na ten adres. Potwierdź zmianę, aby zacząć logować się przy jego użyciu.',
+      'Otrzymaliśmy prośbę o zmianę adresu e-mail konta w Diet App na ten adres. Potwierdź zmianę, aby logować się tym adresem.',
       'Link wygasa po 1 godzinie:',
       linkButton(link, 'Potwierdź nowy e-mail'),
       'Jeśli to nie Ty, zignoruj tę wiadomość — adres konta pozostanie bez zmian.',
@@ -116,9 +116,9 @@ export const passwordChangedEmail: Builder<Record<string, never>> = {
   }),
   pl: () => ({
     subject: 'Hasło w Diet App zostało zmienione',
-    text: 'To potwierdzenie, że hasło w Diet App zostało właśnie zmienione. Wszystkie sesje konta zostały wylogowane: zaloguj się ponownie nowym hasłem.\n\nJeśli to nie Ty, natychmiast zresetuj hasło na stronie logowania i skontaktuj się z operatorem instancji.',
+    text: 'To potwierdzenie, że hasło w Diet App zostało właśnie zmienione. Wszystkie sesje konta zostały zakończone: zaloguj się ponownie nowym hasłem.\n\nJeśli to nie Ty, natychmiast zresetuj hasło na stronie logowania i skontaktuj się z operatorem instancji.',
     html: shell([
-      'To potwierdzenie, że hasło w Diet App zostało właśnie zmienione. Wszystkie sesje konta zostały wylogowane: zaloguj się ponownie nowym hasłem.',
+      'To potwierdzenie, że hasło w Diet App zostało właśnie zmienione. Wszystkie sesje konta zostały zakończone: zaloguj się ponownie nowym hasłem.',
       'Jeśli to nie Ty, natychmiast zresetuj hasło na stronie logowania i skontaktuj się z operatorem instancji.',
     ]),
   }),
@@ -166,9 +166,9 @@ export const emailChangedEmail: Builder<{ newAddress: string }> = {
   }),
   pl: ({ newAddress }) => ({
     subject: 'Adres e-mail w Diet App został zmieniony',
-    text: `Adres e-mail Twojego konta w Diet App został zmieniony na ${partOf(newAddress)}. Tym adresem nie można się już zalogować, a wszystkie sesje zostały wylogowane.\n\nJeśli to nie Ty, skontaktuj się z operatorem instancji.`,
+    text: `Adres e-mail Twojego konta w Diet App został zmieniony na ${partOf(newAddress)}. Tym adresem nie można się już zalogować, a wszystkie sesje zostały zakończone.\n\nJeśli to nie Ty, skontaktuj się z operatorem instancji.`,
     html: shell([
-      `Adres e-mail Twojego konta w Diet App został zmieniony na ${partOf(newAddress)}. Tym adresem nie można się już zalogować, a wszystkie sesje zostały wylogowane.`,
+      `Adres e-mail Twojego konta w Diet App został zmieniony na ${partOf(newAddress)}. Tym adresem nie można się już zalogować, a wszystkie sesje zostały zakończone.`,
       'Jeśli to nie Ty, skontaktuj się z operatorem instancji.',
     ]),
   }),
@@ -190,7 +190,7 @@ export const secondFactorOnEmail: Builder<Record<string, never>> = {
   pl: () =>
     notice(
       'Logowanie dwuetapowe w Diet App zostało włączone',
-      'Na Twoim koncie w Diet App właśnie włączono logowanie dwuetapowe: do zalogowania potrzebne jest teraz hasło i kod z aplikacji uwierzytelniającej. Wszystkie pozostałe sesje zostały wylogowane.',
+      'Na Twoim koncie w Diet App właśnie włączono logowanie dwuetapowe: do zalogowania potrzebne jest teraz hasło i kod z aplikacji uwierzytelniającej. Wszystkie pozostałe sesje zostały zakończone.',
       'Jeśli to nie Ty, skontaktuj się z operatorem instancji: ktoś, kto zna Twoje hasło, podłączył własną aplikację.',
     ),
 };
