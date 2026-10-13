@@ -316,7 +316,8 @@ single violation, so be precise:
    numbering.
 10. Ingredient count and step count and total time (prep + cook) must
     ALL fall inside ONE complexity band from the table above. A recipe
-    with 2 ingredients, or 16+, or 21+ steps, or > 90 min is rejected.
+    with fewer than ${COMPLEXITY_BANDS[0]!.minIngredients} ingredients or more than ${COMPLEXITY_BANDS.at(-1)!.maxIngredients}, with more than ${COMPLEXITY_BANDS.at(-1)!.maxSteps} steps,
+    or that takes more than ${COMPLEXITY_BANDS.at(-1)!.maxTotalMinutes} min is rejected.
 11. Output literal characters in JSON values. Never HTML-escape.
 12. Each recipe MUST have a stable \`slug\` (kebab-case, ASCII, lowercase,
     derived from the English title). Slugs are unique within the batch.
