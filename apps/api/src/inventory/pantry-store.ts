@@ -24,6 +24,21 @@ export function lockPantry(tx: Prisma.TransactionClient, profileId: string, ingr
 }
 
 /**
+ * Hold the pantries of several ingredients of one profile until the
+ * transaction ends: one statement, which takes them one after another in the
+ * order of their ids. That is the order every writer takes them in, so two
+ * that want the same ones wait for each other and neither holds what the
+ * other needs.
+ */
+export async function lockPantries(tx: Prisma.TransactionClient, profileId: string, ingredientIds: readonly string[]): Promise<void> {
+  const keys = [...new Set(ingredientIds)].sort().map((ingredientId) => `pantry:${profileId}:${ingredientId}`);
+  if (keys.length === 0) return;
+  await tx.$executeRaw(
+    Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(wanted.key, 0)) FROM unnest(${keys}::text[]) WITH ORDINALITY AS wanted(key, place) ORDER BY wanted.place`,
+  );
+}
+
+/**
  * Refuse a new row for a pantry that holds as many as a pantry may. Whoever
  * makes a row asks first. Rows of different ingredients are made without
  * waiting for each other, so requests that arrive together can pass the most

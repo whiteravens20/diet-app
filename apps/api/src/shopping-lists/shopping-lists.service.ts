@@ -31,7 +31,7 @@ import {
   type PlanIngredientLine,
   type ShoppingIngredient,
 } from '../engine/index.js';
-import { assertWithinCeiling, lockPantry, readMoves, settlePantry } from '../inventory/pantry-store.js';
+import { assertWithinCeiling, lockPantries, lockPantry, readMoves, settlePantry } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 
@@ -135,15 +135,24 @@ export class ShoppingListsService {
       const claimed = await openClaims(tx, profileId, needs.ingredients);
 
       const list = await tx.shoppingList.create({ data: { planId: plan.id, fromDate: from, toDate: to } });
-      // In the order every writer takes the pantry locks in.
+      // A list of four weeks names some hundreds of ingredients: their
+      // pantries are held, and read, with one statement each, not one an
+      // ingredient. The list has one row for an ingredient, so what is read
+      // here of an ingredient is what its row finds.
+      const ingredientIds = items.map((item) => item.ingredientId);
+      await lockPantries(tx, profileId, ingredientIds);
+      const pantry = new Map<string, { unit: Unit; quantity: number; bestBefore: Date | null }[]>();
+      for (const row of await tx.inventoryItem.findMany({
+        where: { profileId, ingredientId: { in: ingredientIds } },
+        select: { ingredientId: true, unit: true, quantity: true, bestBefore: true },
+      })) {
+        pantry.set(row.ingredientId, [...(pantry.get(row.ingredientId) ?? []), row]);
+      }
+
+      const rows: Prisma.ShoppingListItemCreateManyInput[] = [];
       for (const item of [...items].sort((a, b) => (a.ingredientId < b.ingredientId ? -1 : 1))) {
         const ingredient = needs.ingredients.get(item.ingredientId)!;
-        await lockPantry(tx, profileId, ingredient.id);
-        const rows = await tx.inventoryItem.findMany({
-          where: { profileId, ingredientId: ingredient.id },
-          select: { unit: true, quantity: true, bestBefore: true },
-        });
-        const stock = pantryStock(rows, ingredient);
+        const stock = pantryStock(pantry.get(ingredient.id) ?? [], ingredient);
         const free = stock.quantity - (claimed.get(ingredient.id) ?? 0);
         const have = quantityToClaim(convertUnit(free, ingredient.canonicalUnit, item.unit, ingredient), item.unit, item.totalQuantity);
         // A need the pantry covers in full needs no shopping: the row arrives
@@ -152,24 +161,23 @@ export class ShoppingListsService {
         const moves = covered
           ? await settlePantry(tx, profileId, ingredient, [], -convertUnit(have, item.unit, ingredient.canonicalUnit, ingredient))
           : [];
-        await tx.shoppingListItem.create({
-          data: {
-            listId: list.id,
-            ingredientId: item.ingredientId,
-            name: item.name,
-            category: item.category,
-            totalQuantity: item.totalQuantity,
-            unit: item.unit,
-            alreadyHaveQuantity: have,
-            // One number for the user to raise as they shop: it starts at what is at home.
-            purchasedQuantity: have > 0 ? have : null,
-            checked: covered,
-            pantryMoves: moves as unknown as Prisma.InputJsonValue,
-            pantryBestBefore: have > 0 ? stock.bestBefore : null,
-            estimatedCalories: item.estimatedCalories,
-          },
+        rows.push({
+          listId: list.id,
+          ingredientId: item.ingredientId,
+          name: item.name,
+          category: item.category,
+          totalQuantity: item.totalQuantity,
+          unit: item.unit,
+          alreadyHaveQuantity: have,
+          // One number for the user to raise as they shop: it starts at what is at home.
+          purchasedQuantity: have > 0 ? have : null,
+          checked: covered,
+          pantryMoves: moves as unknown as Prisma.InputJsonValue,
+          pantryBestBefore: have > 0 ? stock.bestBefore : null,
+          estimatedCalories: item.estimatedCalories,
         });
       }
+      await tx.shoppingListItem.createMany({ data: rows });
       return list.id;
     }, TRANSACTION);
 
@@ -441,16 +449,20 @@ async function openClaims(tx: Tx, profileId: string, ingredients: ReadonlyMap<st
  */
 async function settleRow(tx: Tx, profileId: string, item: StoredItem, effect: number) {
   const ingredient = await tx.ingredient.findUnique({ where: { id: item.ingredientId } });
-  if (!ingredient) return null;
-  let target: number;
+  const target = ingredient ? inCanonicalUnit(effect, item.unit, ingredient) : null;
+  if (!ingredient || target === null) return null;
+  await lockPantry(tx, profileId, ingredient.id);
+  return settlePantry(tx, profileId, ingredient, readMoves(item.pantryMoves), target);
+}
+
+/** A quantity of a row in the canonical unit of its ingredient, or null when the ingredient can no longer be converted from the row's unit. */
+function inCanonicalUnit(quantity: number, unit: Unit, ingredient: Parameters<typeof convertUnit>[3] & { canonicalUnit: Unit }): number | null {
   try {
-    target = convertUnit(effect, item.unit, ingredient.canonicalUnit, ingredient);
+    return convertUnit(quantity, unit, ingredient.canonicalUnit, ingredient);
   } catch (err) {
     if (!(err instanceof UnitConversionError)) throw err;
     return null;
   }
-  await lockPantry(tx, profileId, ingredient.id);
-  return settlePantry(tx, profileId, ingredient, readMoves(item.pantryMoves), target);
 }
 
 /**
@@ -469,10 +481,26 @@ async function releaseLists(
   // Rows first, then the pantry: the order every writer takes its locks in.
   await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "ShoppingListItem" WHERE "listId" IN (${Prisma.join(listIds)}) ORDER BY "id" FOR UPDATE`);
   const lists = await tx.shoppingList.findMany({ where: { id: { in: [...listIds] } }, include: { items: true } });
-  const rows = lists.flatMap((list) => list.items.map((item) => ({ item, share: share(list) })));
+  // A row that did nothing to the pantry and is to do nothing to it has
+  // nothing to settle: of a list nobody shopped from, that is every row.
+  const rows = lists
+    .flatMap((list) => list.items.map((item) => ({ item, effect: pantryEffectOnRemoval(item, share(list)) })))
+    .filter(({ item, effect }) => effect !== 0 || readMoves(item.pantryMoves).length > 0);
+  if (rows.length === 0) return;
   rows.sort((a, b) => (a.item.ingredientId === b.item.ingredientId ? 0 : a.item.ingredientId < b.item.ingredientId ? -1 : 1));
-  for (const { item, share: part } of rows) {
-    await settleRow(tx, profileId, item, pantryEffectOnRemoval(item, part));
+
+  const ingredients = new Map(
+    (await tx.ingredient.findMany({ where: { id: { in: [...new Set(rows.map(({ item }) => item.ingredientId))] } } })).map((ingredient) => [ingredient.id, ingredient]),
+  );
+  // A row whose ingredient is gone, or can no longer be converted from the row's unit, leaves the pantry as it is.
+  const settled = rows.flatMap(({ item, effect }) => {
+    const ingredient = ingredients.get(item.ingredientId);
+    const target = ingredient ? inCanonicalUnit(effect, item.unit, ingredient) : null;
+    return ingredient && target !== null ? [{ item, ingredient, target }] : [];
+  });
+  await lockPantries(tx, profileId, settled.map(({ ingredient }) => ingredient.id));
+  for (const { item, ingredient, target } of settled) {
+    await settlePantry(tx, profileId, ingredient, readMoves(item.pantryMoves), target);
   }
 }
 
