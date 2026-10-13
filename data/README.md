@@ -10,6 +10,8 @@ the files the same way ([`apps/api/src/admin/seed/`](../apps/api/src/admin/seed/
 | `ingredients.json` | Hand-curated whole-food ingredients (the committed baseline). |
 | `ingredients.generated.json` | Written by `npm run import:usda` — paginates the USDA FDC search API across the configured `FDC_DATA_TYPES` (default `Foundation`), maps every food into a `IngredientSeed` row, and clamps measurement-noise negative carbs to zero. Merged on top of the baseline; the baseline wins on a name clash. |
 | `recipes.json` | Hand-curated "anchor" recipes. |
+| `recipes/*.json` | Batches of recipes that were approved in the curation queue and shipped, one file a batch. |
+| `ingredient-overrides.json` | Names of ingredients in other languages that were approved in the curation queue: the Polish names of the foods a `Foundation` import brings. An instance without those foods leaves them unused. |
 | `substitutions.json` | Ingredient substitution rules. |
 | `import-aliases.json` | Other names of the ingredients, for recipes taken in from elsewhere. No part of the catalogue: see "Recipes from elsewhere". |
 
@@ -77,6 +79,23 @@ with what it is. It also refuses meat or fish sold in a pack that holds more tha
 25 g of protein in 100 g, which raw meat does not; what is bought ready (a drained
 tin of tuna) is named in
 [`apps/api/src/admin/seed/raw-meat.ts`](../apps/api/src/admin/seed/raw-meat.ts).
+
+## What a model drafted
+
+Seventy of the recipes (`recipes/bundle-2026-10-13T19-25-49-341Z.json`) and the
+Polish names of the imported foods (`ingredient-overrides.json`) were drafted by
+language models inside the application and shipped through its curation queue.
+
+- The recipes were written by `openai/gpt-6-luna`, in English and Polish, from
+  the ingredients of `ingredients.json` alone, and held to the generator's rules
+  by its validator. Their figures, allergens and diets are worked out by the
+  engine, as those of every recipe are.
+- The names were written by `google/gemini-3.1-flash-lite` for the foods a
+  `Foundation` import gave on 2026-10-13. 266 of them ship.
+- Every recipe was read in both languages, and every name against the
+  description of its food, before it was approved; what the reading found was
+  corrected first, in 24 of the 70 recipes and in 44 of the 266 names. Who read
+  them is said in the [README](../README.md#how-the-code-is-written-and-checked).
 
 ## Where the figures are from
 

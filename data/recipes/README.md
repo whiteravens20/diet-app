@@ -13,9 +13,9 @@ Shipped recipe batches from the **curation queue** (see [docs/ops/curation-shipp
 
 **Do not edit by hand.** Files in this directory are written by the
 ship pipeline (`apps/api/src/admin/drafts/ship/recipe-batches.writer.ts`)
-after a human reviewer has approved every locale of every row. Editing
-them by hand bypasses the review audit trail that lives on
-`RecipeDraftLocaleReview` rows.
+after every row was approved in the curation queue in every language it is
+written in. Editing them by hand bypasses the record of those reviews, which
+lives on `RecipeDraftLocaleReview` rows.
 
 To add a new hand-curated recipe to the canonical baseline, edit
 `data/recipes.json` directly — that is the hand-curation file.
