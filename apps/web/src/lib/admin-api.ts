@@ -6,8 +6,52 @@
  * session is a cookie the API set, which no script reads: the page holds no
  * credentials, and nothing here keeps a password.
  */
-import type { AdminSessionState, Cuisine, DietType, DraftRunNote, MealType, RecipeImportResult, SecondFactorSetup, StoredImportRejection } from '@diet-app/shared';
+import type {
+  AdminConnection,
+  AdminSessionState,
+  AdminStats,
+  AdminStatus,
+  CatalogueUpdateState,
+  Cuisine,
+  DraftRunnerState,
+  FoodImportState,
+  IngredientNameDraft,
+  IngredientNameSuggestion,
+  InstanceDataState,
+  InstanceSettingsDto,
+  LocaleReview,
+  Macros,
+  MealType,
+  OverridesPulled,
+  OverridesPushed,
+  PastReview,
+  RecipeDraft,
+  RecipeDraftIngredientLine,
+  RecipeImportResult,
+  RecipeRunState,
+  RestoredFromInstanceData,
+  SecondFactorSetup,
+  ShipConfig,
+  ShipKind,
+  ShipMode,
+  ShipResult,
+  SkippedDraft,
+  StoredImportRejection,
+} from '@diet-app/shared';
 import { apiClient } from './http';
+
+// What the API answers with is a type of the contract, under the name the panel has for it.
+export type { AdminConnection, AdminStats, AdminStatus, DraftRunnerState, IngredientNameDraft, InstanceDataState, InstanceSettingsDto, RecipeDraft, RecipeDraftIngredientLine, ShipKind, ShipMode };
+export type IngredientNameSuggestionMap = IngredientNameSuggestion;
+export type DraftLocaleReview = LocaleReview;
+export type DraftPastReview = PastReview;
+export type RecipeRunnerState = RecipeRunState;
+export type ShipConfigDto = ShipConfig;
+export type RestoreResponse = RestoredFromInstanceData;
+export type CurrentOverridesPushResponse = OverridesPushed;
+export type CurrentOverridesPullResponse = OverridesPulled;
+export type ShipSkipped = SkippedDraft;
+export type ShipResponse = ShipResult;
 
 // A version before this one kept the administrator's user and password in
 // sessionStorage for the life of the tab. Whatever it left there is removed.
@@ -17,160 +61,16 @@ if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('diet-app.a
 const admin = apiClient('/admin');
 const adminFetch = admin.request;
 
-export interface AdminStatus {
-  enabled: boolean;
-  message: string | null;
-}
-
-/** How a request reached the API: see the admin controller's connection check. */
-export interface AdminConnection {
-  clientAddress: string | null;
-  peerAddress: string | null;
-  forwardedFor: string | null;
-  /** How many addresses the forwarding header holds: one for every proxy that wrote into it. */
-  forwardedHops: number;
-  trustProxy: false | number | string[];
-  countedAsProxy: boolean;
-  /** `TRUST_PROXY` counts more proxies than wrote into the header: a visitor can claim any address. */
-  overTrusted: boolean;
-}
-
 /** Shares of a day's energy, adding up to one. */
-export interface MacroShares {
-  protein: number;
-  fat: number;
-  carbs: number;
-}
+export type MacroShares = Macros;
 
-export interface AdminStats {
-  counts: { ingredients: number; recipes: number; substitutions: number };
-  /** How many recipes each diet has for each meal. */
-  coverage: Record<DietType, Record<MealType, number>>;
-  /** How many a release needs for each. */
-  coverageTarget: number;
-  /** How many recipe drafts wait in the queue for each: a recipe run that fills the catalogue counts them with the recipes. */
-  coverageWaiting: Record<DietType, Record<MealType, number>>;
-  /**
-   * For each diet, what its plans aim at and what they reach with the recipes
-   * there are, as shares of a day's energy; `reached` is null where no plan
-   * can be made. A diet whose `distance` is over `outOfReach` needs recipes
-   * that fit it. `packsUsed` is the share those plans use of what they buy
-   * in packs that do not keep once opened; null where they buy none.
-   */
-  macros: {
-    outOfReach: number;
-    diets: Record<DietType, { target: MacroShares; reached: (MacroShares & { distance: number; packsUsed: number | null }) | null }>;
-  };
-  seed: {
-    lastSeededAt: string | null;
-    storedHash: string | null;
-    currentHash: string;
-    updateAvailable: boolean;
-    files: { name: string; present: boolean; bytes: number }[];
-  };
-}
+/** Where the catalogue update stands. */
+export type DbUpdateState = CatalogueUpdateState;
 
-interface DbUpdateResult {
-  deletedRecipes: number;
-  deletedIngredients: number;
-  /** Dropped from the data but still used by someone: kept, hidden from search and planning. */
-  retiredRecipes: number;
-  retiredIngredients: number;
-  counts: { ingredients: number; recipes: number; substitutions: number };
-  hash: string;
-  seededAt: string;
-}
-
-type DbUpdateStatus = 'idle' | 'running' | 'done' | 'error';
-
-/** Mirrors `RunnerState` on the API. */
-export interface DbUpdateState {
-  status: DbUpdateStatus;
-  startedAt: string | null;
-  finishedAt: string | null;
-  stage: string | null;
-  current: number | null;
-  total: number | null;
-  result: DbUpdateResult | null;
-  error: string | null;
-}
-
-type UsdaImportStatus = 'idle' | 'running' | 'done' | 'error';
-
-export interface UsdaImportRunnerState {
-  status: UsdaImportStatus;
-  startedAt: string | null;
-  finishedAt: string | null;
-  page: number | null;
-  totalPages: number | null;
-  kept: number;
-  skipped: number;
-  excluded: number;
-  /** Foods left out because their record is incomplete or contradicts itself. */
-  refused: number;
-  dataTypes: string | null;
-  demoKey: boolean;
-  result: {
-    kept: number;
-    skipped: number;
-    excluded: number;
-    refused: number;
-    /** The first hundred of them, with the reason. */
-    refusals: { name: string; reason: string }[];
-    totalPages: number;
-    outFile: string;
-    dataTypes: string;
-    demoKey: boolean;
-  } | null;
-  /** What went wrong, in the API's words: detail under the explanation. */
-  error: string | null;
-  /** Why a run failed; `failed` is anything nobody foresaw. */
-  errorReason: 'over_limit' | 'key_refused' | 'unavailable' | 'not_writable' | 'failed' | null;
-  /** How long the source asks to wait before the next try, in seconds, when it said so. */
-  retryAfterSeconds: number | null;
-}
+/** Where the import of foods stands. */
+export type UsdaImportRunnerState = FoodImportState;
 
 // ── Curation queue (drafts) ───────────────────────────────────────────────────
-
-export interface DraftLocaleReview {
-  locale: string;
-  action: 'APPROVE' | 'REJECT';
-  /** Who wrote it; null on a review from before the role was recorded. */
-  byRole: 'ADMIN' | 'REVIEWER' | null;
-  reviewedByLabel: string;
-  reason: string | null;
-  reviewedAt: string;
-}
-
-/** A review that a later review of the same language, or an edit of the draft, took the place of. */
-export interface DraftPastReview extends DraftLocaleReview {
-  supersededAt: string;
-}
-
-export interface IngredientNameSuggestionMap {
-  name: Record<string, string>;
-  storageHint?: Record<string, string>;
-}
-
-export interface IngredientNameDraft {
-  id: string;
-  ingredientId: string | null;
-  ingredientSlug: string;
-  rawDescription: string;
-  suggestions: IngredientNameSuggestionMap;
-  locales: string[];
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'AI_USER';
-  batchId: string;
-  modelUsed: string | null;
-  generatorPrompt: string | null;
-  shippedPRUrl: string | null;
-  shippedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  localeReviews: DraftLocaleReview[];
-  pastReviews: DraftPastReview[];
-}
 
 /** What an import is sent: a document of recipes, and what holds for a recipe of it that does not say so itself. */
 export interface RecipeImportRequestInput {
@@ -183,25 +83,6 @@ export interface RecipeImportRequestInput {
   dryRun: boolean;
 }
 
-export interface DraftRunnerState {
-  status: 'idle' | 'running' | 'done' | 'error';
-  startedAt: string | null;
-  finishedAt: string | null;
-  processed: number;
-  total: number;
-  failed: number;
-  written: number;
-  provider: string | null;
-  model: string | null;
-  batchId: string | null;
-  error: string | null;
-  /** In the run's scope, and left out because there was nothing to do for them. */
-  skipped: number;
-  /** Why the run had nothing to do or ended early, when that is no failure. */
-  note: DraftRunNote | null;
-  configured: boolean;
-}
-
 export interface IngredientNameGenerateSpec {
   scope: 'all-usda-missing' | 'specific-slugs';
   slugs?: string[];
@@ -209,53 +90,6 @@ export interface IngredientNameGenerateSpec {
 }
 
 // ── Recipe drafts ─────────────────────────────────────────────────────────────
-
-type RecipeComplexity = 'simple' | 'medium' | 'complex';
-
-export interface RecipeDraftIngredientLine {
-  slug: string;
-  quantity: number;
-  unit: 'g' | 'ml' | 'piece';
-  note?: string | null;
-}
-
-export interface RecipeDraft {
-  id: string;
-  slug: string;
-  titles: Record<string, string>;
-  descriptions: Record<string, string>;
-  steps: Record<string, string[]>;
-  locales: string[];
-  servings: number;
-  mealTypes: string[];
-  dietTags: string[];
-  prepMinutes: number;
-  cookMinutes: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  /** The cuisine the recipe ships with, if any. */
-  cuisine: Cuisine | null;
-  complexity: RecipeComplexity;
-  caloriesPerServing: number;
-  proteinPerServing: number;
-  fatPerServing: number;
-  carbsPerServing: number;
-  allergens: string[];
-  ingredients: RecipeDraftIngredientLine[];
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'AI_USER';
-  batchId: string;
-  modelUsed: string | null;
-  generatorPrompt: string | null;
-  generationSpec: unknown;
-  provenanceUrl: string | null;
-  provenanceLicense: string | null;
-  shippedPRUrl: string | null;
-  shippedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  localeReviews: DraftLocaleReview[];
-  pastReviews: DraftPastReview[];
-}
 
 export interface RecipeGenerateSpec {
   count: number;
@@ -288,16 +122,7 @@ export interface RecipeDraftPatch {
   ingredients?: RecipeDraftIngredientLine[];
 }
 
-export interface RecipeRunnerState extends DraftRunnerState {
-  /** The diet and the meal the run is writing for, when it chooses them itself. */
-  target: { diet: DietType; meal: MealType } | null;
-  complexityCounts: { simple: number; medium: number; complex: number };
-  mixDrift: boolean;
-  lastRejectReason: string | null;
-  lastRejectKey: string | null;
-  lastRejectHead: string | null;
-}
-
+/** A page of drafts. */
 export interface PagedDrafts<T> {
   items: T[];
   total: number;
@@ -506,51 +331,10 @@ export const adminApi = {
     }),
 };
 
-export interface InstanceSettingsDto {
-  reviewerEnabled: boolean;
-  reviewerPasswordSet: boolean;
-  updatedAt: string;
-}
-
 export interface InstanceSettingsPatchPayload {
   reviewerEnabled?: boolean;
   /** Empty string clears the existing hash; `undefined` means "no change". */
   reviewerPassword?: string;
-}
-
-export type ShipKind = 'recipe' | 'ingredient-name';
-export type ShipMode = 'local' | 'upstream-pr' | 'bundle';
-
-export interface ShipConfigDto {
-  modes: {
-    local: { available: true };
-    upstreamPr: {
-      available: boolean;
-      enabled: boolean;
-      reason: string | null;
-      baseBranch: string;
-      remote: string;
-    };
-    bundle: { available: true };
-  };
-  pull: { available: true; defaultSource: string; tokenSet: boolean };
-  instanceData: InstanceDataState;
-  approvedCounts: { recipe: number; ingredientName: number };
-}
-
-/** The instance's own data directory: what local ships copied there, and whether the API can still write to it. */
-export interface InstanceDataState {
-  writable: boolean;
-  recipeFiles: number;
-  recipes: number;
-  names: number;
-}
-
-/** What a restore from the instance's data directory did. Reasons read as a skipped draft's do. */
-export interface RestoreResponse {
-  recipes: { added: number; rewritten: number; skipped: { file: string; slug: string; reason: string }[] };
-  names: { applied: number; skippedSlugs: string[]; refused: { slug: string; reason: string }[] };
-  unreadable: { file: string; reason: string }[];
 }
 
 export interface ShipRequest {
@@ -563,58 +347,6 @@ export interface ShipMarkShippedRequest {
   kind: ShipKind;
   draftIds: string[];
 }
-
-export interface CurrentOverridesPushResponse {
-  prUrl: string;
-  branch: string;
-  rowCount: number;
-}
-
-export interface CurrentOverridesPullResponse {
-  source: string;
-  resolvedUrl: string;
-  applied: number;
-  rowsWritten: number;
-  skippedSlugs: string[];
-  /** Entries that break a rule for names, with the reason as a skipped draft carries one. */
-  refused: { slug: string; reason: string }[];
-  total: number;
-}
-
-/** An approved draft that did not ship: its slug (or its ingredient's), and why, as `<rule>` or `<rule>: <detail>`. */
-export interface ShipSkipped {
-  draftId: string;
-  slug: string;
-  reason: string;
-}
-
-export type ShipResponse =
-  | {
-      mode: 'local';
-      kind: ShipKind;
-      shippedDraftIds: string[];
-      skipped: ShipSkipped[];
-      sidecarPaths: string[];
-      sidecarError?: string;
-    }
-  | {
-      mode: 'upstream-pr';
-      prUrl: string;
-      branch: string;
-      shippedDraftIds: string[];
-      skipped: ShipSkipped[];
-    }
-  | {
-      mode: 'bundle';
-      kind: ShipKind;
-      batchId: string;
-      draftIds: string[];
-      /** Approved drafts the bundle leaves out, with the reason. */
-      skipped: ShipSkipped[];
-      /** The name to save the file under, and what it holds: the shape the data directory takes. */
-      fileName: string;
-      content: unknown;
-    };
 
 /** Save `content` as a JSON file under `name`. It is made in the page: no server is asked for it. */
 export function saveJsonFile(name: string, content: unknown): void {

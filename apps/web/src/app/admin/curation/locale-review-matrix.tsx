@@ -46,7 +46,7 @@ export function LocaleReviewMatrix({
 }) {
   const t = useTranslations('admin.curation');
   const fmt = useFormat();
-  const reviewByLocale = new Map(localeReviews.map((r) => [r.locale, r]));
+  const reviewByLocale = new Map<string, LocaleReviewRow>(localeReviews.map((r) => [r.locale, r]));
 
   const pendingLocales = expectedLocales.filter((l) => !reviewByLocale.has(l));
   const rejectedLocales = expectedLocales.filter(
