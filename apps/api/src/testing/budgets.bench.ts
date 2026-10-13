@@ -24,7 +24,7 @@ import { macroSplitOf } from '../engine/nutrition.js';
 import { optimisePlan, uniformDays } from '../engine/optimizer.js';
 import { aggregateShoppingList, type PlanIngredientLine, type ShoppingIngredient } from '../engine/shopping.js';
 import { resetDatabase } from './database.js';
-import { aProfile, aUser, type TestUser } from './factories.js';
+import { aProfile, asAdmin, aUser, type TestUser } from './factories.js';
 import { REFERENCE_RECIPES, referenceCatalogueDirectory } from './reference-catalogue.js';
 import { createTestApp, type TestApp } from './test-app.js';
 
@@ -303,6 +303,17 @@ describe('the budgets of the server, at the reference catalogue', () => {
     expect(first.total).toBe(REFERENCE_RECIPES);
     await measure('GET /recipes/:id', READ, async () => (await ask(user, 'GET', `/api/recipes/${first.items[0]!.id}`)).ms);
     await measure('GET /ingredients (a word of a name)', READ, async () => (await ask(user, 'GET', '/api/ingredients?search=rice')).ms);
+    expect(overBudget()).toEqual([]);
+  });
+
+  it('tells the administrator what the catalogue holds and what its plans reach within 200 ms', async () => {
+    await measure('GET /admin/stats', READ, async () => {
+      const started = performance.now();
+      const response = await fetch(`${address}/api/admin/stats`, { headers: asAdmin });
+      await response.text();
+      if (!response.ok) throw new Error(`GET /admin/stats answered ${response.status}`);
+      return performance.now() - started;
+    });
     expect(overBudget()).toEqual([]);
   });
 
