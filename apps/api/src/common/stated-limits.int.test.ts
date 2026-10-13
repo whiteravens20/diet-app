@@ -72,6 +72,9 @@ describe('how much a profile may hold, and how much of a list one answer shows',
       })),
     });
     const rows = await t.prisma.recipe.findMany({ where: { createdByUserId: user.id }, select: { id: true }, orderBy: { title: 'asc' } });
+    // A recipe is made of something: each of them of rice.
+    const rice = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'white-rice' } });
+    await t.prisma.recipeIngredient.createMany({ data: rows.map((row) => ({ recipeId: row.id, ingredientId: rice.id, quantity: 80, unit: 'g' as const })) });
     return rows.map((row) => row.id);
   }
 

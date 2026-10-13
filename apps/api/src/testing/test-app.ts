@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { AnswersCheck, answersAreHeld } from './answers-check.js';
 import { catalogueDirectory } from './catalogue.js';
 import { testDatabaseUrl } from './database.js';
 import { startFakeModel, type FakeModel } from './fake-model.js';
@@ -70,7 +71,7 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
   Object.assign(process.env, environment(model.url), overrides);
 
   // Imported here, after the environment is in place.
-  const { NestFactory } = await import('@nestjs/core');
+  const { NestFactory, Reflector } = await import('@nestjs/core');
   const { AppModule } = await import('../app.module.js');
   const { configureApp } = await import('../app.setup.js');
   const { PrismaService: Prisma } = await import('../prisma/prisma.service.js');
@@ -78,6 +79,8 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
 
   const app = await NestFactory.create(AppModule, { logger: process.env.TEST_LOG ? ['error', 'warn'] : false });
   configureApp(app);
+  // The integration tests hold every answer to what its route declares; a measurement does not pay for that.
+  if (answersAreHeld()) app.useGlobalInterceptors(new AnswersCheck(app.get(Reflector)));
   await app.init();
   // The plans of the tests start on fixed days of January 2026. For the
   // application under test it is the first of that month, so those days are
