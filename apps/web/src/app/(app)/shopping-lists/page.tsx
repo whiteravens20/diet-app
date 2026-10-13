@@ -4,7 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { ShoppingBasket } from 'lucide-react';
 import type { MealPlanPage, Profile, SessionUser, ShoppingList } from '@diet-app/shared';
 import { api } from '@/lib/api';
@@ -24,6 +24,18 @@ import { LoadFailed } from '@/components/load-failed';
 import { ListView, type RowPatch } from './list-view';
 
 export const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
+
+/** What marks a change of a row among the requests on their way. */
+const ROW_CHANGE = ['shopping-list-item'];
+
+/** A tick and nothing with it: the one change of a row the page can show before the server has it. */
+const plainTick = (patch: RowPatch): boolean | undefined => (Object.keys(patch).length === 1 ? patch.checked : undefined);
+
+/** The lists with one entry ticked, or not. */
+const withTick = (lists: ShoppingList[] | undefined, listId: string, itemId: string, checked: boolean): ShoppingList[] | undefined =>
+  lists?.map((list) =>
+    list.id !== listId ? list : { ...list, groups: list.groups.map((group) => ({ ...group, items: group.items.map((item) => (item.id === itemId ? { ...item, checked } : item)) })) },
+  );
 
 /**
  * Shopping-list page — pick a profile + a plan, generate a list for any range
@@ -89,39 +101,59 @@ export default function ShoppingListsPage() {
       setError(errorText(e, t('errGenerate'))),
   });
 
+  // Whether an answer to a change of a row was left unshown because a later change was on its way.
+  const answersLeftOut = useRef(false);
   const updateItem = useMutation({
+    mutationKey: ROW_CHANGE,
     // What a row sends is what changed of it, and nothing else.
     mutationFn: ({ listId, itemId, ...patch }: { listId: string; itemId: string } & RowPatch) => api.patch<ShoppingList>(`/shopping-lists/${listId}/items/${itemId}`, patch),
-    // Update the cache synchronously from the response so the row reflects the
-    // server-derived state (auto-check, recomputed totals) without waiting on
-    // a refetch round-trip. Pantry inventory may have changed too — invalidate
-    // it so the inventory page reflects the consumption / leftover.
+    // A tick is shown at once: in a shop nobody waits for a connection between
+    // two entries. What else it changes of the row (the pantry, the packs) is
+    // the server's to work out, and comes with its answer.
+    onMutate: async ({ listId, itemId, ...patch }) => {
+      const tick = plainTick(patch);
+      if (tick === undefined) return;
+      // A list that is being read again would put the row back as it was.
+      await qc.cancelQueries({ queryKey: ['shopping-lists', activePlanId] });
+      qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (shown) => withTick(shown, listId, itemId, tick));
+    },
+    // The answer is the list as the server has it (a row ticked by itself,
+    // the totals): shown without another request. The pantry may have changed
+    // with it, so what the inventory page holds is read again.
     onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      // An answer does not know of the changes made after its request was sent: while one of those is on
+      // its way it is not shown, and neither is the last of them, which may have been made before an
+      // earlier one reached the server. The list is then read once, when all are through.
+      if (qc.isMutating({ mutationKey: ROW_CHANGE }) > 1 || answersLeftOut.current) {
+        answersLeftOut.current = true;
+        return;
+      }
       qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (prev) =>
         prev?.map((l) => (l.id === updated.id ? updated : l)) ?? [updated],
       );
-      qc.invalidateQueries({ queryKey: ['inventory'] });
     },
     onError: (e, { listId, itemId, ...patch }) => {
+      const tick = plainTick(patch);
       if (e instanceof ApiClientError && e.code === 'NETWORK') {
-        // The server cannot be reached. A tick waits for it (`lib/offline.ts`) and the row shows it at once, on
-        // this page and on the one loaded next; what a quantity does to a row is the server's to work out.
-        const tick = Object.keys(patch).length === 1 ? patch.checked : undefined;
+        // The server cannot be reached. A tick waits for it (`lib/offline.ts`) and stays shown, on this page and
+        // on the one loaded next; what a quantity does to a row is the server's to work out.
         if (tick === undefined) return setError(tOffline('onlyTicks'));
         if (offline.wait({ listId, itemId, checked: tick })) {
-          const withTick = (lists: ShoppingList[] | undefined): ShoppingList[] | undefined =>
-            lists?.map((list) =>
-              list.id !== listId ? list : { ...list, groups: list.groups.map((group) => ({ ...group, items: group.items.map((item) => (item.id === itemId ? { ...item, checked: tick } : item)) })) },
-            );
-          const shown = withTick(qc.getQueryData<ShoppingList[]>(['shopping-lists', activePlanId]));
-          if (shown) {
-            qc.setQueryData(['shopping-lists', activePlanId], shown);
-            void offline.remember(`/shopping-lists?planId=${activePlanId}`, shown);
-          }
+          const shown = qc.getQueryData<ShoppingList[]>(['shopping-lists', activePlanId]);
+          if (shown) void offline.remember(`/shopping-lists?planId=${activePlanId}`, shown);
           return setError(null);
         }
       }
+      // The tick did not hold: the row is shown as the server has it.
+      if (tick !== undefined) qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (shown) => withTick(shown, listId, itemId, !tick));
       setError(errorText(e, t('errUpdate')));
+    },
+    // Once the last change is through, a list of which an answer was left out is read from the server.
+    onSettled: () => {
+      if (qc.isMutating({ mutationKey: ROW_CHANGE }) > 1 || !answersLeftOut.current) return;
+      answersLeftOut.current = false;
+      void qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] });
     },
   });
 
@@ -310,6 +342,7 @@ export default function ShoppingListsPage() {
               aiOffNote={session.data && !aiEnabled ? aiOffNote : undefined}
               list={activeList}
               busy={updateItem.isPending || remove.isPending || generate.isPending}
+              locked={remove.isPending || generate.isPending}
               formatQty={formatItemQty}
               categoryLabel={(c) => (tCategory.has(c) ? tCategory(c) : c)}
               summaryLabel={(checked, total, kcal) =>

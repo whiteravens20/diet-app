@@ -395,6 +395,78 @@ describe('a row of a shopping list', () => {
   });
 });
 
+describe('a tick on a row of a shopping list', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const box = (name: string) => screen.getByRole('checkbox', { name });
+  const ticked = (list: ShoppingList, ...names: string[]): ShoppingList => ({
+    ...list,
+    groups: list.groups.map((group) => ({ ...group, items: group.items.map((entry) => (names.includes(entry.name) ? { ...entry, checked: true } : entry)) })),
+  });
+  /** A request whose answer the test gives when it chooses to. */
+  function anAnswerToGive() {
+    let give!: (list: ShoppingList) => void;
+    let refuse!: (error: unknown) => void;
+    const answer = new Promise<ShoppingList>((resolve, reject) => {
+      give = resolve;
+      refuse = reject;
+    });
+    return { answer, give, refuse };
+  }
+
+  it('is shown at once, and the other rows can be ticked while the server has not answered', async () => {
+    await renderPage();
+    const first = anAnswerToGive();
+    const patch = vi.spyOn(api, 'patch').mockReturnValue(first.answer as never);
+
+    await userEvent.click(box('White rice'));
+
+    expect(box('White rice')).toBeChecked();
+    expect(patch).toHaveBeenCalledWith(`/shopping-lists/${aList.id}/items/entry-White rice`, { checked: true });
+    expect(box('Rolled oats')).toBeEnabled();
+    expect(box('Broccoli')).toBeEnabled();
+    // What the server works out of a row waits for its answer.
+    expect(screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0]).toBeDisabled();
+
+    first.give(ticked(aList, 'White rice'));
+    await vi.waitFor(() => expect(screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0]).toBeEnabled());
+    expect(box('White rice')).toBeChecked();
+  });
+
+  it('is taken back when the server refuses it, and the page says so', async () => {
+    await renderPage();
+    vi.spyOn(api, 'patch').mockRejectedValue(new ApiClientError(409, 'CONFLICT', 'That already exists.'));
+
+    await userEvent.click(box('White rice'));
+
+    expect(await screen.findByText(messages.errors.CONFLICT)).toBeInTheDocument();
+    expect(box('White rice')).not.toBeChecked();
+    expect(box('Rolled oats')).not.toBeChecked();
+  });
+
+  it('stays shown beside a second one whose answer comes first, and the list is read from the server once both are through', async () => {
+    const get = await renderPage().then(() => vi.mocked(api.get));
+    const [rice, oats] = [anAnswerToGive(), anAnswerToGive()];
+    vi.spyOn(api, 'patch').mockImplementation(((path: string) => (path.endsWith('White rice') ? rice.answer : oats.answer)) as never);
+
+    await userEvent.click(box('White rice'));
+    await userEvent.click(box('Rolled oats'));
+    expect(box('White rice')).toBeChecked();
+    expect(box('Rolled oats')).toBeChecked();
+
+    // The answer to the second tick was made before the server had the first: it knows of one tick only.
+    const readBefore = get.mock.calls.filter(([path]) => String(path).startsWith('/shopping-lists?')).length;
+    oats.give(ticked(aList, 'Rolled oats'));
+    await Promise.resolve();
+    expect(box('White rice')).toBeChecked();
+
+    rice.give(ticked(aList, 'White rice'));
+    await vi.waitFor(() => expect(get.mock.calls.filter(([path]) => String(path).startsWith('/shopping-lists?')).length).toBeGreaterThan(readBefore));
+  });
+});
+
 describe('a row of a shopping list, while the server cannot be reached', () => {
   const ACCOUNT = '99999999-9999-4999-8999-999999999999';
   const noAnswer = new ApiClientError(0, 'NETWORK', 'Cannot reach the server.');

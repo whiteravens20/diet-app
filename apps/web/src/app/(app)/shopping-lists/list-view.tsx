@@ -26,6 +26,7 @@ export function ListView({
   aiOffNote,
   list,
   busy,
+  locked,
   formatQty,
   categoryLabel,
   summaryLabel,
@@ -54,7 +55,10 @@ export function ListView({
   /** The id of the line that says why what asks a model is off, on an account where it is. */
   aiOffNote: string | undefined;
   list: ShoppingList;
+  /** Something of the list is on its way to the server: what the server works out of a row waits for its answer. */
   busy: boolean;
+  /** The list is being made again or removed: nothing of it can be ticked either. */
+  locked: boolean;
   formatQty: (qty: number, unit: DisplayUnit) => string;
   categoryLabel: (key: string) => string;
   summaryLabel: (checked: number, total: number, kcal: number) => string;
@@ -306,6 +310,7 @@ export function ListView({
                   key={`${i.id}-${i.alreadyHaveQuantity}-${i.purchasedQuantity ?? 'na'}-${i.checked}`}
                   item={i}
                   busy={busy}
+                  locked={locked}
                   formatQty={formatQty}
                   boughtLabel={boughtLabel}
                   ofLabel={ofLabel}
@@ -341,6 +346,7 @@ const typed = (field: string): number | null => (field.trim() === '' ? null : Ma
 function ItemRow({
   item,
   busy,
+  locked,
   formatQty,
   boughtLabel,
   ofLabel,
@@ -348,6 +354,7 @@ function ItemRow({
 }: {
   item: ShoppingListItem;
   busy: boolean;
+  locked: boolean;
   formatQty: (qty: number, unit: DisplayUnit) => string;
   boughtLabel: string;
   ofLabel: (amount: string) => string;
@@ -393,7 +400,8 @@ function ItemRow({
 
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 text-sm">
-      <input type="checkbox" aria-label={item.name} className="h-4 w-4 shrink-0" checked={item.checked} disabled={busy} onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })} />
+      {/* A tick does not wait for the one before it: only a list that is being replaced takes none. */}
+      <input type="checkbox" aria-label={item.name} className="h-4 w-4 shrink-0" checked={item.checked} disabled={locked} onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })} />
       <span className={item.checked ? 'min-w-32 flex-1 text-muted-foreground line-through' : 'min-w-32 flex-1'}>
         {item.name}
         {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
