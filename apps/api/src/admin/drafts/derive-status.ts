@@ -2,8 +2,7 @@
 
 /**
  * Per-locale status derivation — single source of truth for the curation
- * queue. Used by the admin draft controller (BasicAuth) and the reviewer
- * controller (cookie auth).
+ * queue. Used by the administrator's routes and by the reviewers'.
  *
  *   APPROVED  ↔ every expected locale has an APPROVE row.
  *   REJECTED  ↔ at least one expected locale has a REJECT row.

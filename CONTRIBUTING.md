@@ -320,7 +320,7 @@ Diet App is a security-sensitive project. The following rules apply strictly.
 Most of this project is written with AI coding tools, as the [README](README.md#how-the-code-is-written-and-checked) describes, and contributions may be too. The same standard applies to every contribution:
 
 - Read AI-generated code line by line before you submit it.
-- Take extra care with the security-critical files: `common/crypto.ts`, `auth/auth.service.ts`, `admin/basic-auth.guard.ts`, `ai/ollama-url.ts` and the engine.
+- Take extra care with the security-critical files: `common/crypto.ts`, `common/outbound-http.ts`, `auth/auth.service.ts`, `auth/sessions.service.ts`, `admin/admin-session.ts`, `review/session.ts`, `ai/key-cipher.ts`, `ai/ollama-url.ts` and the engine.
 - Do not submit code that you cannot explain and defend in review.
 - Code that looks right and is subtly wrong is the usual failure. Tests are the main guard against it.
 
