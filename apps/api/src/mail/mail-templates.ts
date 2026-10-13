@@ -108,17 +108,17 @@ export const emailChangeEmail: Builder<{ link: string }> = {
 export const passwordChangedEmail: Builder<Record<string, never>> = {
   en: () => ({
     subject: 'Your Diet App password was changed',
-    text: 'This is a confirmation that your Diet App password was just changed. All other sessions have been signed out.\n\nIf this wasn\'t you, reset your password immediately from the sign-in page and contact your instance operator.',
+    text: 'This is a confirmation that your Diet App password was just changed. Every session of the account was signed out: sign in again with the new password.\n\nIf this wasn\'t you, reset your password immediately from the sign-in page and contact your instance operator.',
     html: shell([
-      'This is a confirmation that your Diet App password was just changed. All other sessions have been signed out.',
+      'This is a confirmation that your Diet App password was just changed. Every session of the account was signed out: sign in again with the new password.',
       "If this wasn't you, reset your password immediately from the sign-in page and contact your instance operator.",
     ]),
   }),
   pl: () => ({
     subject: 'Hasło w Diet App zostało zmienione',
-    text: 'To potwierdzenie, że hasło w Diet App zostało właśnie zmienione. Wszystkie pozostałe sesje zostały wylogowane.\n\nJeśli to nie Ty, natychmiast zresetuj hasło na stronie logowania i skontaktuj się z operatorem instancji.',
+    text: 'To potwierdzenie, że hasło w Diet App zostało właśnie zmienione. Wszystkie sesje konta zostały wylogowane: zaloguj się ponownie nowym hasłem.\n\nJeśli to nie Ty, natychmiast zresetuj hasło na stronie logowania i skontaktuj się z operatorem instancji.',
     html: shell([
-      'To potwierdzenie, że hasło w Diet App zostało właśnie zmienione. Wszystkie pozostałe sesje zostały wylogowane.',
+      'To potwierdzenie, że hasło w Diet App zostało właśnie zmienione. Wszystkie sesje konta zostały wylogowane: zaloguj się ponownie nowym hasłem.',
       'Jeśli to nie Ty, natychmiast zresetuj hasło na stronie logowania i skontaktuj się z operatorem instancji.',
     ]),
   }),
