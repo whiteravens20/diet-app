@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { DietType, MealType } from '@diet-app/shared';
 import { IMPORT_ALIASES_FILE, readImportAliases } from '../src/admin/drafts/external/import-aliases.js';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
+import { givenAsCooked, LEAST_ENERGY_OF_A_DRY_STAPLE } from '../src/admin/seed/dry-staples.js';
 import { COVERAGE_FLOOR, COVERAGE_TARGET, MACRO_OUT_OF_REACH, macroReachByDiet, recipesPerDietAndMeal } from '../src/engine/coverage.js';
 import { macroSplitOf } from '../src/engine/nutrition.js';
 import { plannable } from './catalogue-plans.js';
@@ -32,6 +33,14 @@ const { aliases, problems: aliasProblems } = readImportAliases(dataDir, new Set(
 if (aliasProblems.length > 0) {
   console.error(`\n✗ ${aliasProblems.length} issue(s) in ${IMPORT_ALIASES_FILE}:`);
   for (const problem of aliasProblems) console.error(`  ${problem}`);
+  process.exit(1);
+}
+
+// A grain or a pulse that keeps in its pack is weighed and bought dry: figures of the cooked food would give its dishes a third of their energy.
+const cooked = givenAsCooked(catalogue.ingredients);
+if (cooked.length > 0) {
+  console.error(`\n✗ ${cooked.length} dry food(s) with the figures of the cooked food (under ${LEAST_ENERGY_OF_A_DRY_STAPLE} kcal in 100 g):`);
+  for (const slug of cooked) console.error(`  ${slug}: give it per 100 g as it is bought, or name it in KEEPS_BUT_IS_NOT_DRY with what it is`);
   process.exit(1);
 }
 

@@ -44,6 +44,20 @@ the catalogue has grown.
 The recipe library is the union of `data/recipes.json` (hand-curated anchors) and
 `data/recipes/*.json` (curation-queue batches approved in-app and shipped).
 
+## An ingredient is given as it is bought
+
+The figures of an ingredient are for 100 g (or 100 ml) of the food as it is
+bought, because that is what a recipe weighs and what a shopping list buys.
+Rice, pasta, quinoa, couscous and lentils are dry: about 360 kcal in 100 g, from
+USDA FoodData Central. The cooked food holds about a third of that, and figures
+taken from a "cooked" row would give every dish made of it a third of its
+energy. Canned beans and chickpeas are given as they come out of the can.
+
+`npm run data:lint` refuses a grain or a pulse that keeps in its pack and holds
+under 300 kcal in 100 g. One that keeps and is not dry (frozen edamame) is named
+in [`apps/api/src/admin/seed/dry-staples.ts`](../apps/api/src/admin/seed/dry-staples.ts)
+with what it is.
+
 ## Ingredients that are counted, not weighed
 
 Nobody cooks with "110 g of egg". An ingredient with a `displayUnit` is shown,
