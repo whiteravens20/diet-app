@@ -7,7 +7,8 @@
  * has. (What a food import adds to `data/` stays on the machine that ran it,
  * so it is no part of this.)
  *
- * An ingredient of the data comes with six others of its kind: the same
+ * An ingredient of the data comes with others of its kind, as many as bring
+ * the catalogue nearest that size whatever the data has grown to: the same
  * category, unit, diets and allergens, a little more or less of everything
  * in it. A recipe is a dish of one of a few shapes (a bowl of grain with milk
  * and fruit, a main dish of a protein with a grain and vegetables, a plate
@@ -25,8 +26,8 @@ import { Cuisine, type MealType, type ProductCategory } from '@diet-app/shared';
 /** How many recipes the catalogue the budgets are measured at holds. */
 export const REFERENCE_RECIPES = 2000;
 
-/** How many ingredients of its kind each curated ingredient comes with, itself included. */
-const OF_EACH_KIND = 7;
+/** About how many ingredients it holds: each curated ingredient comes with as many of its kind as bring it nearest. */
+const REFERENCE_INGREDIENTS = 400;
 
 /** An ingredient as the data files write one; what the catalogue makes of it is read from these fields. */
 interface DataIngredient {
@@ -170,10 +171,11 @@ function listed(names: string[], and: string): string {
  */
 export function referenceIngredients(dataDir: string): DataIngredient[] {
   const curated = JSON.parse(readFileSync(join(dataDir, 'ingredients.json'), 'utf8')) as DataIngredient[];
+  const ofEachKind = Math.max(1, Math.round(REFERENCE_INGREDIENTS / curated.length));
   const next = fixedSequence(405);
   return curated.flatMap((ingredient) => [
     { ...ingredient, slug: slugOf(ingredient) },
-    ...Array.from({ length: OF_EACH_KIND - 1 }, (_, index): DataIngredient => {
+    ...Array.from({ length: ofEachKind - 1 }, (_, index): DataIngredient => {
       const share = 0.875 + next() * 0.25;
       const held = (amount: number): number => Math.round(amount * share * 10) / 10;
       return {

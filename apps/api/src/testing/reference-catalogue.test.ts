@@ -27,10 +27,13 @@ describe('the catalogue the performance budgets are measured at', () => {
     const { catalogue, problems } = readCatalogue(referenceCatalogueDirectory(DATA));
     expect(problems).toEqual([]);
     expect(catalogue!.recipes).toHaveLength(REFERENCE_RECIPES);
-    // Seven of a kind for every curated ingredient, whatever a food import left beside them on this machine.
+    // As many of a kind for every curated ingredient, some four hundred in all, whatever a food import left beside them on this machine.
     const curated = (JSON.parse(readFileSync(join(DATA, 'ingredients.json'), 'utf8')) as unknown[]).length;
-    expect(catalogue!.ingredients).toHaveLength(curated * 7);
-    expect(referenceIngredients(DATA)).toHaveLength(curated * 7);
+    const ingredients = referenceIngredients(DATA).length;
+    expect(ingredients % curated).toBe(0);
+    expect(ingredients).toBeGreaterThan(300);
+    expect(ingredients).toBeLessThan(500);
+    expect(catalogue!.ingredients).toHaveLength(ingredients);
     for (const diet of DietType.options.filter((option) => option !== 'custom')) {
       for (const meal of MealType.options) {
         const fitting = catalogue!.recipes.filter((recipe) => recipe.seed.mealTypes.includes(meal) && fitsDiet(recipe.dietTags, diet));
