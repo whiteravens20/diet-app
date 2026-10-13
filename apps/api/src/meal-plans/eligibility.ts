@@ -174,7 +174,7 @@ export function assertMayEnter(
   recipe: Candidate,
   restrictions: Restrictions,
   meal: string,
-  error: string,
+  error: 'RECIPE_NOT_ELIGIBLE' | 'OFF_DIET_FAVORITE_NOT_ALLOWED' | 'INVALID_SUBSTITUTION',
   waived: Waived = {},
 ): void {
   const found = violations(recipe, restrictions, meal, waived);

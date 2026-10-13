@@ -44,9 +44,12 @@ export interface PullPolicy {
   allowedHosts: readonly string[];
 }
 
+/** The codes a pull of name overrides is refused with. */
+export type PullOverridesCode = 'INVALID_PULL_SOURCE' | 'PULL_ADDRESS_NOT_PUBLIC' | 'PULL_FETCH_FAILED' | 'PULL_SHAPE_INVALID';
+
 export class PullOverridesError extends Error {
   constructor(
-    public readonly code: string,
+    public readonly code: PullOverridesCode,
     message: string,
   ) {
     super(message);

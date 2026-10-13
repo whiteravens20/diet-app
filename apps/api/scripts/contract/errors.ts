@@ -7,6 +7,11 @@
  * table of statuses), and the sentence each language of the message
  * catalogue has for it. A client shows the sentence of its user's language
  * for the code it was answered with.
+ *
+ * A code is not always written where it is thrown: an exception may pass on
+ * the code of an error it caught, or one it was handed. There the codes are
+ * the ones the type of that value names, so such a value has a type that
+ * names them; a refusal whose code is any string stops the command.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -40,10 +45,19 @@ function sources(dir = SOURCE): string[] {
     .sort();
 }
 
-interface ErrorCode {
+export interface ErrorCode {
   code: string;
   /** The statuses it was found thrown with; none where the code is handed to whatever throws it. */
   statuses: number[];
+}
+
+const CODE = /^[A-Z][A-Z0-9_]+$/;
+
+/** The API's source as the compiler reads it: what tells which codes a value can be. */
+function program(): ts.Program {
+  const root = join(SOURCE, '..');
+  const { options } = ts.parseJsonConfigFileContent(ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile).config, ts.sys, root);
+  return ts.createProgram(sources(), { ...options, noEmit: true });
 }
 
 /** A number that is written out, or named as the framework names a status. */
@@ -77,24 +91,47 @@ function statusOf(object: ts.ObjectLiteralExpression): number | null {
 }
 
 /** Every code of the API's source, in the order of the alphabet. */
-function readErrorCodes(): ErrorCode[] {
+export function readErrorCodes(): ErrorCode[] {
   const found = new Map<string, Set<number>>();
+  const unnamed: string[] = [];
+  const read = program();
+  const checker = read.getTypeChecker();
+  const note = (code: string, status: number | null): void => {
+    const statuses = found.get(code) ?? new Set<number>();
+    if (status !== null) statuses.add(status);
+    found.set(code, statuses);
+  };
   for (const path of sources()) {
-    const file = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true);
+    const file = read.getSourceFile(path);
+    if (!file) throw new Error(`The compiler did not read ${path}.`);
     const visit = (node: ts.Node): void => {
       if (ts.isObjectLiteralExpression(node)) {
         for (const property of node.properties) {
-          if (!ts.isPropertyAssignment(property) || !ts.isIdentifier(property.name) || property.name.text !== 'error') continue;
-          if (!ts.isStringLiteralLike(property.initializer) || !/^[A-Z][A-Z0-9_]+$/.test(property.initializer.text)) continue;
-          const statuses = found.get(property.initializer.text) ?? new Set<number>();
-          const status = statusOf(node);
-          if (status !== null) statuses.add(status);
-          found.set(property.initializer.text, statuses);
+          if (!(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) || !ts.isIdentifier(property.name) || property.name.text !== 'error') continue;
+          const value = ts.isPropertyAssignment(property) ? property.initializer : property.name;
+          if (ts.isStringLiteralLike(value)) {
+            if (CODE.test(value.text)) note(value.text, statusOf(node));
+            continue;
+          }
+          // Anything else is a code only where the object is what an exception is thrown with.
+          if (!ts.isNewExpression(node.parent) || node.parent.arguments?.[0] !== node) continue;
+          const type = ts.isShorthandPropertyAssignment(property) ? checker.getShorthandAssignmentValueSymbol(property) && checker.getTypeAtLocation(property.name) : checker.getTypeAtLocation(value);
+          const parts = type ? (type.isUnion() ? type.types : [type]) : [];
+          const codes = parts.flatMap((part) => (part.isStringLiteral() && CODE.test(part.value) ? [part.value] : []));
+          if (codes.length === 0 || codes.length !== parts.length) {
+            const { line } = file.getLineAndCharacterOfPosition(property.getStart());
+            unnamed.push(`${path.slice(SOURCE.length + 1)}:${line + 1}`);
+            continue;
+          }
+          for (const code of codes) note(code, statusOf(node));
         }
       }
       ts.forEachChild(node, visit);
     };
     visit(file);
+  }
+  if (unnamed.length > 0) {
+    throw new Error(`A refusal is thrown with a code its type does not name, so the list of codes cannot hold it. Give the value a type that names its codes: ${unnamed.join(', ')}`);
   }
   return [...found].sort(([a], [b]) => (a < b ? -1 : 1)).map(([code, statuses]) => ({ code, statuses: [...statuses].sort((a, b) => a - b) }));
 }

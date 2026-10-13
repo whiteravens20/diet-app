@@ -1,59 +1,30 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * Catalogue-completeness gate for translated error messages.
+ * The codes a request is refused with, and the sentences the message
+ * catalogue has for them.
  *
- * Scans every `throw new *Exception(...)` site in apps/api/src for a string
- * `error:` code, then asserts each unique code has a matching row under
- * `errors.*` in both apps/web/messages/en.json and pl.json.
- *
- * Prevents drift: if a backend throw adds a new code and the client
- * messages file doesn't grow a key for it, the client falls back to the
- * server's English `message` instead of the locale string. This test
- * forces that not to happen.
+ * Every code the API's source can answer with (read the way the published
+ * list of codes reads them, so a code that is handed on by a variable counts
+ * too) has a sentence in each language: without one a client shows the
+ * server's English message. And every sentence is for a code of the API or
+ * one of the few the web application makes itself, so that a code that left
+ * the API does not leave its sentence behind.
  */
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readErrorCodes } from '../../scripts/contract/errors.js';
 
 const API_SRC = resolve(__dirname, '..');
 const MESSAGES_DIR = resolve(API_SRC, '../../../apps/web/messages');
 
-const SCAN_EXCLUDES = new Set([
-  // Excluded so this test never accidentally pulls codes out of itself.
-  'error-catalogue.test.ts',
-]);
+/** What the web application says of failures the API did not name: no answer at all, a failure without a code, the fields of a failed check, a wait. */
+const OF_THE_WEB = ['GENERIC', 'NETWORK', 'VALIDATION_FAILED_FIELDS', 'HELD_UP_MINUTES', 'HELD_UP_SECONDS'];
 
-async function walkTs(dir: string): Promise<string[]> {
-  const out: string[] = [];
-  for (const entry of await readdir(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) out.push(...(await walkTs(join(dir, entry.name))));
-    else if (entry.isFile() && entry.name.endsWith('.ts') && !SCAN_EXCLUDES.has(entry.name)) {
-      out.push(join(dir, entry.name));
-    }
-  }
-  return out;
-}
-
-/** Pull `error: 'CODE_NAME'` (single or double quotes) from a source file. */
-function extractCodes(source: string): string[] {
-  const re = /\berror:\s*['"]([A-Z][A-Z0-9_]+)['"]/g;
-  const codes: string[] = [];
-  for (const m of source.matchAll(re)) codes.push(m[1]);
-  return codes;
-}
-
-async function loadCodes(): Promise<Set<string>> {
-  const files = await walkTs(API_SRC);
-  const codes = new Set<string>();
-  await Promise.all(
-    files.map(async (file) => {
-      const text = await readFile(file, 'utf-8');
-      for (const code of extractCodes(text)) codes.add(code);
-    }),
-  );
-  return codes;
-}
+let codes: Set<string> | undefined;
+/** The codes of the API's source: read once, since reading them takes the compiler. */
+const loadCodes = (): Set<string> => (codes ??= new Set(readErrorCodes().map(({ code }) => code)));
 
 interface MessagesShape {
   errors?: Record<string, string>;
@@ -73,11 +44,8 @@ async function loadLocaleErrors(locale: 'en' | 'pl'): Promise<Set<string>> {
 
 describe('error-code catalogue', () => {
   it('every thrown code has a matching key in en.json AND pl.json', async () => {
-    const [thrown, en, pl] = await Promise.all([
-      loadCodes(),
-      loadLocaleErrors('en'),
-      loadLocaleErrors('pl'),
-    ]);
+    const thrown = loadCodes();
+    const [en, pl] = await Promise.all([loadLocaleErrors('en'), loadLocaleErrors('pl')]);
 
     // No messages dir found (running outside the repo) — skip gracefully.
     if (en.size === 0 && pl.size === 0) return;
@@ -88,8 +56,20 @@ describe('error-code catalogue', () => {
     expect(missingPl, `Missing in pl.json#errors: ${missingPl.join(', ')}`).toEqual([]);
   });
 
-  it('extracts at least one code (sanity check the scanner is finding files)', async () => {
-    const thrown = await loadCodes();
-    expect(thrown.size, 'expected at least one error code in apps/api/src').toBeGreaterThan(0);
+  it('every sentence is for a code the API can answer with, or for one of the web application\'s own', async () => {
+    const thrown = loadCodes();
+    const en = await loadLocaleErrors('en');
+    if (en.size === 0) return;
+
+    expect([...en].filter((code) => !thrown.has(code) && !OF_THE_WEB.includes(code)).sort()).toEqual([]);
+    expect(OF_THE_WEB.filter((code) => thrown.has(code))).toEqual([]);
+  });
+
+  it('finds the codes that are handed on by a variable as well as the ones written where they are thrown', () => {
+    const thrown = loadCodes();
+
+    expect(thrown.size).toBeGreaterThan(140);
+    // Written in an exception; passed on from an error that was caught; handed to the function that throws.
+    expect([...thrown]).toEqual(expect.arrayContaining(['PLAN_NOT_FOUND', 'OLLAMA_HOST_NOT_ALLOWED', 'PULL_FETCH_FAILED', 'INVALID_SUBSTITUTION']));
   });
 });

@@ -100,9 +100,15 @@ export interface UpstreamShipResult {
   skipped: Skipped[];
 }
 
+/** Why a pull request cannot be opened from here at all: what the settings, the tool or the checkout say. */
+export type UpstreamBlocked = 'SHIP_UPSTREAM_DISABLED' | 'SHIP_UPSTREAM_NO_TOKEN' | 'GH_MODE_UNAVAILABLE' | 'SHIP_REPO_ROOT_NOT_FOUND' | 'SHIP_UPSTREAM_BLOCKED_CANONICAL';
+
+/** The codes a ship as a pull request is refused with. */
+export type UpstreamShipCode = UpstreamBlocked | 'NO_APPROVED_DRAFTS' | 'NO_VALID_DRAFTS' | 'NO_CURRENT_OVERRIDES' | 'GIT_FAILED' | 'GH_PR_CREATE_FAILED';
+
 export class UpstreamShipError extends Error {
   constructor(
-    public readonly code: string,
+    public readonly code: UpstreamShipCode,
     message: string,
     /** What a client is told besides the code: the drafts that were held back, when none could ship. */
     public readonly details?: { skipped: Skipped[] },
@@ -124,7 +130,7 @@ export function upstreamBlockedReason(
   config: UpstreamShipConfig,
   repoRoot: string | null,
   run: CommandRunner = runCommand,
-): string | null {
+): UpstreamBlocked | null {
   // What the settings alone decide comes first: a mode that is switched off
   // says so without looking for a tool or a repository.
   if (!config.enabled) return 'SHIP_UPSTREAM_DISABLED';
