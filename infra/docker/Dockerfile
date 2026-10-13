@@ -40,6 +40,7 @@ COPY packages/shared packages/shared
 COPY apps/api apps/api
 COPY apps/web apps/web
 COPY data data
+COPY docs/api/openapi.json docs/api/openapi.json
 RUN npm run build --workspace @diet-app/shared \
  && npm run db:generate --workspace @diet-app/api \
  && npm run build --workspace @diet-app/api \
@@ -87,6 +88,8 @@ COPY --from=build /app/apps/api/prisma.config.ts ./apps/api/
 # recipe nutrition. It is also the input compiled into dist.
 COPY --from=build /app/apps/api/src ./apps/api/src
 COPY --from=build /app/data ./data
+# What `SWAGGER_ENABLED` shows at /api/docs: the published contract of the API.
+COPY --from=build /app/docs/api ./docs/api
 # Create the gitignored instance-data sidecar dir owned by the runtime user.
 # A Docker named volume inherits ownership from the directory that exists at
 # its mount path in the image; without this the volume (and a bind-mount

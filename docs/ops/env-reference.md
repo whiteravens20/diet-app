@@ -21,7 +21,7 @@ Two rules apply to every variable:
 | `APP_URL` | `http://localhost:3000` | Public web origin (CORS, links, the cookies of a session). Read by the web server as well: at an `https://` address the pages and the API tell browsers to keep to https, see [deployment](deployment.md#what-a-page-may-load). |
 | `API_URL` | `http://localhost:4000` | Public API origin. |
 | `WEB_PORT` / `API_PORT` | `3000` / `4000` | Host port bindings. |
-| `SWAGGER_ENABLED` | on in development, off in production | Interactive API documentation at `/api/docs`. `true` or `false` decides for both. |
+| `SWAGGER_ENABLED` | on in development, off in production | Shows the contract of the API ([`docs/api/openapi.json`](../api/openapi.json)) at `/api/docs`, and serves it at `/api/docs-json`. `true` or `false` decides for both. |
 | `SEED_DATA_DIR` | the repository's `data/` | Where the curated data is read from. Set only for a non-standard layout. |
 
 ## Database

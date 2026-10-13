@@ -1,13 +1,25 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import 'reflect-metadata';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { SWAGGER_PATH, configureApp } from './app.setup.js';
 import { describePosture, type Env } from './config/env.js';
+
+/**
+ * The contract as the repository publishes it, read from where the process
+ * runs: the root of the repository or of the image, or the API's own
+ * directory under it. Null where the file is not there.
+ */
+function publishedContract(): OpenAPIObject | null {
+  const path = ['docs/api/openapi.json', '../../docs/api/openapi.json'].map((candidate) => resolve(process.cwd(), candidate)).find((candidate) => existsSync(candidate));
+  return path ? (JSON.parse(readFileSync(path, 'utf8')) as OpenAPIObject) : null;
+}
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -19,18 +31,18 @@ async function bootstrap(): Promise<void> {
   // database pool, instead of being killed after the grace period.
   app.enableShutdownHooks();
 
-  // OpenAPI — served at /api/docs, JSON at /api/docs-json. Off in production
-  // unless explicitly enabled: the schema dump is recon-enabling and there is
-  // no reason to expose it on a public instance by default.
+  // The published contract (`docs/api/openapi.json`, written by `npm run
+  // contract`), shown at /api/docs and served as JSON at /api/docs-json. Off
+  // in production unless switched on: it lays the whole API out, and a public
+  // instance has no reason to do that for a visitor.
   if (config.get('SWAGGER_ENABLED', { infer: true })) {
-    const swagger = new DocumentBuilder()
-      .setTitle('Diet App API')
-      .setDescription('Deterministic diet & meal-planning API. See packages/shared for contracts.')
-      .setVersion('0.0.0')
-      .addBearerAuth()
-      .build();
-    SwaggerModule.setup(SWAGGER_PATH, app, SwaggerModule.createDocument(app, swagger));
-    Logger.log(`Swagger UI enabled at /${SWAGGER_PATH}`, 'Bootstrap');
+    const contract = publishedContract();
+    if (contract) {
+      SwaggerModule.setup(SWAGGER_PATH, app, contract);
+      Logger.log(`The contract of the API is shown at /${SWAGGER_PATH}`, 'Bootstrap');
+    } else {
+      Logger.warn('SWAGGER_ENABLED is on, and docs/api/openapi.json was not found: nothing is shown at /api/docs.', 'Bootstrap');
+    }
   }
 
   const port = config.get('API_PORT', { infer: true });

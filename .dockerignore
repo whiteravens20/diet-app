@@ -6,6 +6,8 @@
 .git
 .github
 docs
+# The contract of the API is what `SWAGGER_ENABLED` shows.
+!docs/api/openapi.json
 *.md
 .env
 .env.*
