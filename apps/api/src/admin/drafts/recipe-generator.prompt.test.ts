@@ -55,6 +55,7 @@ describe('the examples the recipe generator shows a model', () => {
       targetLocales: ['en', 'pl'],
       rawOutput: JSON.stringify({ recipes: shown.map(({ recipe }) => recipe) }),
       resolveSlug: (slug) => bySlug.get(slug) ?? null,
+      catalogueNames: catalogue.map((row) => ({ slug: row.slug, name: row.names.en ?? row.slug })),
     });
 
     expect(judged).toMatchObject({ ok: true, refused: [] });

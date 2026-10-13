@@ -24,7 +24,7 @@ import { macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v6';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v7';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -349,6 +349,11 @@ single violation, so be precise:
     A recipe that mixes the two kinds is rejected. Asked for a snack, write
     a snack: something small, eaten between meals. Asked for a breakfast,
     write a breakfast. Every recipe is a meal of its own, never a side dish.
+15. A step uses nothing the ingredient list does not hold, water alone
+    excepted. If a step seasons with salt and pepper, \`salt\` and
+    \`black-pepper\` are in the list with their amounts; if it finishes with
+    lemon juice, \`lemon\` is. A recipe whose title or steps name a catalogue
+    ingredient that its list lacks is rejected.
 
 Return ONLY a JSON object of this exact shape — no prose, no fences:
 

@@ -404,6 +404,7 @@ export class RecipeGeneratorRunner {
         ...(({ recipes, takenSlugs, takenTitles }) => ({ existingRecipes: recipes, takenSlugs, takenTitles }))(known()),
         requiredDiets: spec.dietTags,
         requiredMeals: spec.mealTypes,
+        catalogueNames: opts.catalogue.map((row) => ({ slug: row.slug, name: row.names.en ?? row.slug })),
       });
       const refusals = validation.ok ? validation.refused : [validation];
       if (validation.ok) {

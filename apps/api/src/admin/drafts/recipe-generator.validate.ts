@@ -53,6 +53,7 @@ type RecipeValidationReason =
   | 'title-taken'
   | 'meal-not-asked-for'
   | 'meals-of-two-kinds'
+  | 'names-what-its-list-lacks'
   | 'title-names-a-diet-or-band'
   | 'ingredient-count-out-of-bands'
   | 'step-count-too-high'
@@ -144,6 +145,12 @@ export interface ValidateRecipeBatchOptions {
   requiredDiets?: DietType[];
   /** The meals the run was asked for: a recipe that is for none of them is rejected. */
   requiredMeals?: readonly string[];
+  /**
+   * The ingredients of the catalogue by their English names. With them, a
+   * recipe whose title or steps name one of them that its own list does not
+   * hold is rejected: "season with salt" without salt among the ingredients.
+   */
+  catalogueNames?: readonly { slug: string; name: string }[];
 }
 
 /** Jaccard similarity of two slug sets. 1.0 = identical, 0 = disjoint. */
@@ -167,6 +174,46 @@ const TITLE_SAYS_MORE = /\b(keto|ketogenic|low[- ]carb|high[- ]protein|vegan|veg
 
 /** The meals a main dish is eaten at. Every other meal is a small one. */
 const MAIN_MEALS: ReadonlySet<string> = new Set(['lunch', 'dinner']);
+
+/** An ingredient the catalogue calls by one word, and how that word is found in a text, one of it or several. */
+interface NamedByOneWord {
+  slug: string;
+  /** The word without its plural ending: what the name of an ingredient that stands in for it holds. */
+  stem: string;
+  found: RegExp;
+}
+
+/**
+ * The ingredients a text can be held to: those whose English name is one
+ * word ("Salt", "Lemon", "Mushrooms"). A name of several words ("Black
+ * pepper", "Olive oil") is left out: its last word alone ("pepper", "oil")
+ * names other things too.
+ */
+function namedByOneWord(names: readonly { slug: string; name: string }[]): NamedByOneWord[] {
+  return names
+    .map(({ slug, name }) => ({ slug, word: name.trim().toLowerCase() }))
+    .filter(({ word }) => /^[a-z]{3,}$/.test(word))
+    .map(({ slug, word }) => {
+      const [stem, endings] = word.endsWith('ies') ? [word.slice(0, -3), '(?:y|ies)'] : word.endsWith('s') ? [word.slice(0, -1), 's?'] : [word, '(?:s|es)?'];
+      return { slug, stem, found: new RegExp(`\\b${stem}${endings}\\b`) };
+    });
+}
+
+/**
+ * The first ingredient of the catalogue that the text names and the list
+ * does not hold, or null. An ingredient of the list whose own name holds the
+ * word answers for it: peanut butter for "butter", canned tomatoes for
+ * "tomato".
+ */
+function namedButNotListed(text: string, listed: readonly string[], named: readonly NamedByOneWord[], nameOf: ReadonlyMap<string, string>): string | null {
+  const lower = text.toLowerCase();
+  const have = listed.map((slug) => (nameOf.get(slug) ?? slug).toLowerCase());
+  for (const { slug, stem, found } of named) {
+    if (listed.includes(slug) || !found.test(lower)) continue;
+    if (!have.some((name) => name.includes(stem))) return slug;
+  }
+  return null;
+}
 
 const LLM_YAP_PATTERNS = [
   /\bnote\s*:/i,
@@ -202,6 +249,8 @@ export function validateRecipeBatch(
   const candidates: RecipeDraftCandidate[] = [];
   const seenSlugs = new Set<string>();
   const seenTitles = new Set<string>();
+  const named = namedByOneWord(opts.catalogueNames ?? []);
+  const nameOf = new Map((opts.catalogueNames ?? []).map(({ slug, name }) => [slug, name]));
 
   /** One recipe of the answer: what is written of it, or why nothing is. */
   const judge = (i: number): RecipeDraftCandidate | RecipeValidationFail => {
@@ -267,6 +316,12 @@ export function validateRecipeBatch(
       if (!res) return { ok: false, reason: 'unknown-slug', key: `${rowKey}.${line.slug}` };
       resolved.push(res);
     }
+
+    // The figures, the allergens and the shopping list of a recipe are all
+    // worked out from its list. A title or a step that names an ingredient
+    // the list does not hold describes another dish than the one that is counted.
+    const lacking = namedButNotListed([titles.en ?? '', ...(steps.en ?? [])].join(' '), ingredients.map((line) => line.slug), named, nameOf);
+    if (lacking) return { ok: false, reason: 'names-what-its-list-lacks', key: `${rowKey}.${lacking}` };
 
     // The band the recipe falls into by its ingredients, steps and time. One
     // that is outside every band is not written.

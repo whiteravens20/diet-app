@@ -468,6 +468,45 @@ describe('validateRecipeBatch', () => {
     expect(forMeals(['breakfast', 'second_breakfast', 'snack'])).toBe('accepted');
   });
 
+  describe('a title or a step that names an ingredient of the catalogue', () => {
+    /** The catalogue by its English names: the four of these tests, and three more that a text can name. */
+    const catalogueNames = [
+      { slug: 'chicken-breast', name: 'Chicken breast' },
+      { slug: 'white-rice', name: 'White rice' },
+      { slug: 'spinach', name: 'Spinach' },
+      { slug: 'peanut-butter', name: 'Peanut butter' },
+      { slug: 'salt', name: 'Salt' },
+      { slug: 'butter', name: 'Butter' },
+      { slug: 'mushrooms', name: 'Mushrooms' },
+      { slug: 'blueberries', name: 'Blueberries' },
+    ];
+    /** How a recipe is judged with the catalogue's names, or without them when `names` is null. */
+    const judged = (overrides: Record<string, unknown>, names: typeof catalogueNames | null = catalogueNames) => {
+      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell(overrides)]), resolveSlug, catalogueNames: names ?? undefined });
+      return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+    };
+    const steps = (...en: string[]) => ({ steps: { en, pl: en.map(() => 'Krok.') } });
+
+    it('is refused when its own list does not hold that ingredient', () => {
+      expect(judged(steps('Cook the rice.', 'Season the chicken with salt.', 'Serve with spinach.'))).toBe('names-what-its-list-lacks at chicken-rice-bowl.salt');
+      // One of them or several, and in the title as well.
+      expect(judged(steps('Cook the rice.', 'Fry a mushroom with the chicken.', 'Serve with spinach.'))).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
+      expect(judged(steps('Cook the rice.', 'Sear the chicken.', 'Serve with spinach and a blueberry.'))).toBe('names-what-its-list-lacks at chicken-rice-bowl.blueberries');
+      expect(judged({ titles: { en: 'Chicken rice bowl with mushrooms', pl: 'Miska ryżu z kurczakiem' } })).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
+    });
+
+    it('is taken when the list holds it, or an ingredient whose own name holds the word', () => {
+      expect(judged(steps('Cook the rice.', 'Sear the chicken.', 'Serve with spinach.'))).toBe('accepted');
+      const withPeanutButter = { prepMinutes: 5, cookMinutes: 15, ingredients: [{ slug: 'chicken-breast', quantity: 300, unit: 'g' }, { slug: 'white-rice', quantity: 160, unit: 'g' }, { slug: 'peanut-butter', quantity: 20, unit: 'g' }] };
+      expect(judged({ ...withPeanutButter, ...steps('Cook the rice.', 'Sear the chicken.', 'Stir the butter through.') })).toBe('accepted');
+    });
+
+    it('is no matter of a word that only holds the name, nor of a run that was given no names', () => {
+      expect(judged(steps('Cook the rice in salted water.', 'Sear the chicken until buttery.', 'Serve with spinach.'))).toBe('accepted');
+      expect(judged(steps('Cook the rice.', 'Season the chicken with salt.', 'Serve with spinach.'), null)).toBe('accepted');
+    });
+  });
+
   it('refuses a title that names a diet, a band or praise, in the title or in the slug made of it', () => {
     const titled = (slug: string, en: string) => {
       const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ slug, titles: { en, pl: 'Miska ryżu z kurczakiem' } })]), resolveSlug });
