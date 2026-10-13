@@ -128,6 +128,7 @@ each for what it was measured to do well:
 |---|---|---|
 | What an account asks: a swap, a substitute, a rewording, a recipe of its own, a weighing | `google/gemini-3.1-flash-lite` | Every call answered in one to two seconds, in sound Polish, for a fraction of a cent. Nothing was cut off at the output cap. |
 | The admin recipe batch, which writes the drafts of the shared catalogue | `openai/gpt-6-luna` | Wrote every recipe it was asked for, drew on the widest part of the catalogue, kept to the rules of the prompt, and cost the least of the models tried. |
+| The admin naming run, which names imported ingredients in a language | `google/gemini-3.1-flash-lite` | Named 349 ingredients in Polish in two minutes for three cents. On a sample of 25 it gave the short names a shop shelf has, where `openai/gpt-6-luna` kept the qualifiers of the description ("Kotlet schabowy" against "Kotlet schabowy ze środkowej części schabu"). About one name in fifteen still needed a person: a cut of beef, cherries for sweet cherries, two ingredients under one name. |
 
 The drafts for the shared catalogue are written with the second, held to the
 rules by the validator, and approved by a person in each language before any
@@ -245,7 +246,8 @@ WARN lines showing prose preambles or missing locale keys.
   spells the word (`sauté`). A recipe that is refused costs that one recipe:
   the others of the answer are kept, the next attempt of the call asks only
   for those still missing and says what was refused, and a slug is taken as
-  the plain one it means. Measured on 2026-10-13 with
+  the plain one it means. The naming run judges a name the same way: one
+  name refused leaves the other nineteen of its call standing. Measured on 2026-10-13 with
   `google/gemini-3.1-flash-lite` through OpenRouter: 23 of 25 recipes in
   English and Polish written in a minute and a half for about seven US cents,
   and no answer cut off by the output cap. The lighter surfaces (a swap, a
