@@ -209,6 +209,9 @@ export const IGNORE_ENV_FILES = process.env.NODE_ENV === 'test';
 const HOW_TO_GENERATE =
   'Run `sh scripts/init-env.sh` for a new install, or generate one value with `openssl rand -hex 32`.';
 
+/** The secrets the template ships blank and `scripts/init-env.sh` fills in. */
+const GENERATED_SECRETS = new Set(['JWT_ACCESS_SECRET', 'AI_KEY_ENCRYPTION_SECRET', 'DATA_ENCRYPTION_SECRET']);
+
 /** Why a secret cannot have been generated at random, or null when it looks random. */
 function whyNotRandom(value: string): string | null {
   if (/change[-_ ]?me/i.test(value)) return 'is a template placeholder';
@@ -258,10 +261,16 @@ function withoutBlanks(raw: Record<string, unknown>): Record<string, unknown> {
 
 /** @nestjs/config `validate` hook. */
 export function validateEnv(raw: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(withoutBlanks(raw));
+  const given = withoutBlanks(raw);
+  const result = envSchema.safeParse(given);
   if (!result.success) {
     const issues = result.error.issues
-      .map((i) => `  ${i.path.join('.')}: ${i.message}`)
+      .map((i) => {
+        const key = i.path.join('.');
+        // A setting that has to be there and is not: said so, and for a secret, how to make one.
+        if (!(key in given)) return `  ${key}: is not set.${GENERATED_SECRETS.has(key) ? ` ${HOW_TO_GENERATE}` : ''}`;
+        return `  ${key}: ${i.message}`;
+      })
       .join('\n');
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }

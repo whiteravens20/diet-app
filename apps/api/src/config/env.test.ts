@@ -142,6 +142,19 @@ describe('validateEnv', () => {
 describe('the shipped .env.example', () => {
   it('does not start as it is: it carries no secret', () => {
     expect(() => validateEnv(template())).toThrow(/JWT_ACCESS_SECRET|AI_KEY_ENCRYPTION_SECRET|DATA_ENCRYPTION_SECRET/);
+    // Each of the three is named as what it is, with the way to make one.
+    const refusal = (() => {
+      try {
+        validateEnv(template());
+      } catch (err) {
+        return (err as Error).message;
+      }
+      return '';
+    })();
+    for (const key of ['JWT_ACCESS_SECRET', 'AI_KEY_ENCRYPTION_SECRET', 'DATA_ENCRYPTION_SECRET']) {
+      expect(refusal).toContain(`  ${key}: is not set. Run \`sh scripts/init-env.sh\` for a new install`);
+    }
+    expect(refusal).not.toContain('received undefined');
   });
 
   it('starts once the three secrets are generated, with nothing else to fill in', () => {
