@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { AiDraftRecipeRequest, type MealPlan, type Profile } from '@diet-app/shared';
+import { AiDraftRecipeRequest, SwapIngredientRequest, type MealPlan, type Profile } from '@diet-app/shared';
 import { HttpException } from '@nestjs/common';
 import { recipeFacts } from '../engine/recipe-facts.js';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -49,13 +49,13 @@ async function tofuForChicken(account: Account): Promise<string> {
   const meal = account.plan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
   const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
   await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: bowl.id } });
-  await t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', {
+  await t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', SwapIngredientRequest.parse({
     planId: account.plan.id,
     plannedMealId: meal.id,
     fromIngredientId: await ingredientId('firm-tofu'),
     toIngredientId: await ingredientId('chicken-breast'),
     acceptChange: true,
-  });
+  }));
   return (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId!;
 }
 
@@ -178,13 +178,13 @@ describe('one user who makes the same recipe again', () => {
     const first = account.plan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
     await t.prisma.plannedMeal.updateMany({ where: { id: { in: [first.id, second.id] } }, data: { recipeId: bowl.id } });
     const swap = async (plannedMealId: string) =>
-      t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', {
+      t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', SwapIngredientRequest.parse({
         planId: account.plan.id,
         plannedMealId,
         fromIngredientId: await ingredientId('firm-tofu'),
         toIngredientId: await ingredientId('chicken-breast'),
         acceptChange: true,
-      });
+      }));
 
     const results = await race(2, (index) => swap(index === 0 ? first.id : second.id));
 
@@ -290,13 +290,13 @@ describe('the number of recipes an account may hold', () => {
     const meal = account.plan.days[1]!.meals.find((m) => m.mealType === 'lunch')!;
     const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
     await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: bowl.id } });
-    const full = t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', {
+    const full = t.app.get(IngredientSwapService).applyIngredientSwap(account.user.id, 'en', SwapIngredientRequest.parse({
       planId: account.plan.id,
       plannedMealId: meal.id,
       fromIngredientId: await ingredientId('firm-tofu'),
       toIngredientId: await ingredientId('chickpeas'),
       acceptChange: true,
-    });
+    }));
     await expect(full).rejects.toMatchObject({ status: 403, response: { error: 'PERSONAL_RECIPE_LIMIT' } });
     expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId).toBe(bowl.id);
   });

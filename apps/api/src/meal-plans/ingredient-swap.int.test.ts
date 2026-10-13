@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { Locale, MealPlan, SwapIngredientResponse } from '@diet-app/shared';
+import { SwapIngredientRequest, type Locale, type MealPlan, type SwapIngredientResponse } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -54,13 +54,13 @@ describe('the text of a recipe after an ingredient swap', () => {
   async function broccoliForTomato(
     options: { locale?: Locale; rewriteWithAi?: boolean } = {},
   ): Promise<{ answer: SwapIngredientResponse; text: Record<string, Text> }> {
-    const answer = await t.app.get(IngredientSwapService).applyIngredientSwap(user.id, options.locale ?? 'en', {
+    const answer = await t.app.get(IngredientSwapService).applyIngredientSwap(user.id, options.locale ?? 'en', SwapIngredientRequest.parse({
       planId: plan.id,
       plannedMealId: mealId,
       fromIngredientId: await ingredientId('broccoli'),
       toIngredientId: await ingredientId('tomato'),
       rewriteWithAi: options.rewriteWithAi ?? false,
-    });
+    }));
     const { recipeId } = await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: mealId } });
     const rows = await t.prisma.recipeTranslation.findMany({ where: { recipeId: recipeId! } });
     return {

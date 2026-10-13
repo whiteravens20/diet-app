@@ -4,6 +4,7 @@ import {
   AiSuggestIngredientRequest,
   AiSwapMealRequest,
   RegenerateRequest,
+  SwapIngredientRequest,
   type Locale,
   type MealPlan,
 } from '@diet-app/shared';
@@ -172,13 +173,13 @@ describe('editing a plan', () => {
     }
 
     async function substitute(plannedMealId: string, from: string, to: string) {
-      const result = await t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', {
+      const result = await t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', SwapIngredientRequest.parse({
         planId: plan.id,
         plannedMealId,
         fromIngredientId: await ingredientId(from),
         toIngredientId: await ingredientId(to),
         acceptChange: true,
-      });
+      }));
       const meal = result.plan.days[0]!.meals.find((m) => m.id === plannedMealId)!;
       return t.prisma.recipe.findUniqueOrThrow({ where: { id: meal.recipe!.id }, include: { ingredients: true } });
     }
@@ -244,13 +245,13 @@ describe('editing a plan', () => {
       await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: own.id } });
 
       // Rice may appear in a low-carbohydrate recipe; a dish that is mostly rice is not one.
-      const swap = t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', {
+      const swap = t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', SwapIngredientRequest.parse({
         planId: plan.id,
         plannedMealId: meal.id,
         fromIngredientId: chicken,
         toIngredientId: await ingredientId('white-rice'),
         acceptChange: true,
-      });
+      }));
 
       await expect(swap).rejects.toMatchObject({ status: 400, response: { error: 'INVALID_SUBSTITUTION', details: { violations: ['off_diet'] } } });
       expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId).toBe(own.id);

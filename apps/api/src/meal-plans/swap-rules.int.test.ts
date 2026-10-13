@@ -2,6 +2,9 @@
 
 import {
   AiSuggestIngredientRequest,
+  RegenerateDayRequest,
+  RegenerateRequest,
+  SwapIngredientRequest,
   type MealPlan,
   type Profile,
 } from '@diet-app/shared';
@@ -83,13 +86,13 @@ describe('a meal that was eaten', () => {
     ).toEqual(eaten);
     expect(
       await refusal(
-        t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', {
+        t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', SwapIngredientRequest.parse({
           planId: plan.id,
           plannedMealId: meal.id,
           fromIngredientId: line.ingredientId,
           toIngredientId: line.ingredientId,
           acceptChange: true,
-        }),
+        })),
       ),
     ).toEqual(eaten);
 
@@ -331,7 +334,7 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
   });
 
   it('is dropped when the re-roll is told to, and does not come back', async () => {
-    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', lockedPlan.id, { dropIneligibleLocks: true });
+    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', lockedPlan.id, RegenerateRequest.parse({ dropIneligibleLocks: true }));
 
     const day = await lockedDayOf();
     expect(day.meals.find((m) => m.mealType === 'dinner')!.recipe!.id).not.toBe(locked);
@@ -349,7 +352,7 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
       status: 400,
       error: 'LOCKED_RECIPE_INELIGIBLE',
     });
-    await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', lockedPlan.id, dayId, { dropIneligibleLocks: true });
+    await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', lockedPlan.id, dayId, RegenerateDayRequest.parse({ dropIneligibleLocks: true }));
 
     const day = await lockedDayOf();
     expect(day.meals.find((m) => m.mealType === 'dinner')!.recipe!.id).not.toBe(locked);
@@ -366,7 +369,7 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
       ],
     });
 
-    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', twoLocks.id, { dropIneligibleLocks: true });
+    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', twoLocks.id, RegenerateRequest.parse({ dropIneligibleLocks: true }));
 
     const day = (await plans.get(user.id, 'en', twoLocks.id)).days.find((d) => d.date.slice(0, 10) === '2026-04-07')!;
     expect(day.meals.find((m) => m.mealType === 'lunch')!.recipe!.id).toBe(fine);
