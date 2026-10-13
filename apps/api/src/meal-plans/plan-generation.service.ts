@@ -625,15 +625,33 @@ export class PlanGenerationService {
     // rows, which the optimiser would otherwise be free to embed into this
     // user's plan and leak through the plan view. Mirrors the visibility filter
     // used by the recipe list and the meal-swap candidate query.
+    // Only what the choice of recipes reads: the texts of two thousand
+    // recipes are most of what their rows weigh, and no part of the choice.
     const recipes = await this.prisma.recipe.findMany({
       where: {
         deletedAt: null,
         retiredAt: null,
         OR: [{ createdByUserId: null }, { createdByUserId: ownerUserId }],
       },
-      include: {
+      select: {
+        id: true,
+        servings: true,
+        mealTypes: true,
+        dietTags: true,
+        allergens: true,
+        caloriesPerServing: true,
+        proteinPerServing: true,
+        fatPerServing: true,
+        carbsPerServing: true,
+        difficulty: true,
+        cuisine: true,
+        prepMinutes: true,
+        cookMinutes: true,
         ingredients: {
-          include: {
+          select: {
+            ingredientId: true,
+            quantity: true,
+            unit: true,
             ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true, packSize: true, perishable: true } },
           },
         },
