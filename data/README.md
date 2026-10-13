@@ -60,6 +60,9 @@ Rice, pasta, quinoa, couscous and lentils are dry: about 360 kcal in 100 g, from
 USDA FoodData Central. The cooked food holds about a third of that, and figures
 taken from a "cooked" row would give every dish made of it a third of its
 energy. Canned beans and chickpeas are given as they come out of the can.
+Meat, fish and shellfish are raw: a chicken breast holds 120 kcal and 22.5 g of
+protein in 100 g as it is bought, and 165 kcal and 31 g once it is roasted,
+because the pan drives water out of it while a recipe weighs it before.
 
 What is poured is measured in millilitres (milk, an oil, soy sauce), and its
 figures are for 100 ml: those of 100 g times its `density`, the weight of one
@@ -83,6 +86,10 @@ database's as well.
 
 | Ingredient | FDC id | The food in the database |
 |---|---|---|
+| `chicken-breast` | 171077 | Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw |
+| `turkey-breast` | 174515 | Turkey, retail parts, breast, meat only, raw |
+| `ground-beef` | 171796 | Beef, ground, 85% lean meat / 15% fat, raw |
+| `shrimp` | 175179 | Crustaceans, shrimp, raw |
 | `tofu` | 172475 | Tofu, raw, firm, prepared with calcium sulfate |
 | `whole-milk` | 171265 | Milk, whole, 3.25% milkfat, with added vitamin D |
 | `olive-oil` | 171413 | Oil, olive, salad or cooking |
