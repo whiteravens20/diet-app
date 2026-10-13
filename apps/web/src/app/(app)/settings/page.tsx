@@ -523,11 +523,6 @@ function AiProvidersCard() {
                 <div>
                   <span className="font-medium capitalize">{p.provider}</span>{' '}
                   <span className="text-xs text-muted-foreground">· {p.model}</span>
-                  {p.isAdminDefault && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      ({t('aiAdminDefault')})
-                    </span>
-                  )}
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   {p.keyUnreadable ? (
@@ -537,20 +532,18 @@ function AiProvidersCard() {
                       {p.hasKey ? t('aiHasKey') : t('aiNoKey')}
                     </span>
                   )}
-                  {!p.isAdminDefault && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      disabled={remove.isPending}
-                      onClick={() => {
-                        if (window.confirm(t('aiDeleteConfirm'))) remove.mutate(p.id);
-                      }}
-                    >
-                      {t('aiDelete')}
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      if (window.confirm(t('aiDeleteConfirm'))) remove.mutate(p.id);
+                    }}
+                  >
+                    {t('aiDelete')}
+                  </Button>
                 </div>
               </li>
             ))}

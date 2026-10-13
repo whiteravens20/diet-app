@@ -160,7 +160,7 @@ export interface IngredientNameDraft {
   suggestions: IngredientNameSuggestionMap;
   locales: string[];
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'MANUAL' | 'AI_USER';
+  source: 'AI' | 'EXTERNAL' | 'AI_USER';
   batchId: string;
   modelUsed: string | null;
   generatorPrompt: string | null;
@@ -242,7 +242,7 @@ export interface RecipeDraft {
   allergens: string[];
   ingredients: RecipeDraftIngredientLine[];
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
-  source: 'AI' | 'EXTERNAL' | 'MANUAL' | 'AI_USER';
+  source: 'AI' | 'EXTERNAL' | 'AI_USER';
   batchId: string;
   modelUsed: string | null;
   generatorPrompt: string | null;

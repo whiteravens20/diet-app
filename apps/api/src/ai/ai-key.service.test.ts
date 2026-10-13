@@ -41,7 +41,7 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
       findUnique: vi.fn().mockResolvedValue(null),
       // As the database answers for an account that had no row for the provider: a column that was not written is null.
       upsert: vi.fn().mockImplementation((args: { create: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'cfg-1', isAdminDefault: false, encryptedKey: null, ...withoutUndefined(args.create) }),
+        Promise.resolve({ id: 'cfg-1', encryptedKey: null, ...withoutUndefined(args.create) }),
       ),
       delete: vi.fn().mockResolvedValue({}),
       count: vi.fn().mockResolvedValue(0),
@@ -209,7 +209,7 @@ describe('AiKeyService.remove', () => {
 describe('AiKeyService.list', () => {
   it('flags a stored key that can no longer be read, and never returns a key', async () => {
     const prisma = makePrisma();
-    const row = { id: 'cfg', userId: 'user-1', model: 'm', priority: 0, enabled: true, isAdminDefault: false, baseUrl: null };
+    const row = { id: 'cfg', userId: 'user-1', model: 'm', priority: 0, enabled: true, baseUrl: null };
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
       { ...row, provider: 'openai', encryptedKey: sealKey('sk-a', ENC_KEY, 'user-1') },
       { ...row, provider: 'openrouter', encryptedKey: ciphertextWrittenBefore('sk-b', ENC_KEY) },

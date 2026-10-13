@@ -43,18 +43,6 @@ export async function holdCatalogue(tx: Db): Promise<void> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('catalogue-update'))`;
 }
 
-const ALLERGENS = [
-  ['gluten', 'Gluten'],
-  ['dairy', 'Dairy'],
-  ['eggs', 'Eggs'],
-  ['nuts', 'Tree nuts'],
-  ['peanuts', 'Peanuts'],
-  ['soy', 'Soy'],
-  ['fish', 'Fish'],
-  ['shellfish', 'Shellfish'],
-  ['sesame', 'Sesame'],
-] as const;
-
 /** A whole catalogue is a few thousand statements; the default five seconds is not enough. */
 const TRANSACTION = { timeout: 300_000, maxWait: 30_000 } as const;
 
@@ -163,12 +151,6 @@ async function applyCatalogue(
   log: (msg: string) => void,
   onProgress: ProgressCallback,
 ): Promise<SeedCounts> {
-  log('Seeding allergens…');
-  onProgress({ stage: 'allergens' });
-  for (const [code, label] of ALLERGENS) {
-    await db.allergen.upsert({ where: { code }, create: { code, label }, update: { label } });
-  }
-
   const ingredientIds = await applyIngredients(db, catalogue, log, onProgress);
   await applyNameOverrides(db, catalogue, ingredientIds, log);
   await applyRecipes(db, catalogue, ingredientIds, log, onProgress);
@@ -241,23 +223,12 @@ async function applyIngredients(
       storageHint: storage?.en ?? null,
       retiredAt: null,
     };
-    const per100 = {
-      servingLabel: `per 100 ${ing.canonicalUnit}`,
-      servingGrams: 100,
-      calories: ing.caloriesPer100,
-      protein: ing.proteinPer100,
-      fat: ing.fatPer100,
-      carbs: ing.carbsPer100,
-    };
-
     const id = existingBySlug.get(ing.slug) ?? unslugged.get(ing.enName);
     if (id) {
       await db.ingredient.update({ where: { id }, data: fields });
-      await db.nutritionFact.deleteMany({ where: { ingredientId: id } });
-      await db.nutritionFact.create({ data: { ingredientId: id, ...per100 } });
       ids.set(ing.slug, id);
     } else {
-      const created = await db.ingredient.create({ data: { ...fields, nutritionFacts: { create: per100 } } });
+      const created = await db.ingredient.create({ data: fields });
       ids.set(ing.slug, created.id);
     }
 

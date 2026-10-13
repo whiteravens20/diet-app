@@ -368,8 +368,7 @@ model Ingredient {
   name              String          @unique
   category          ProductCategory
   canonicalUnit     Unit
-  // Nutrition per 100 canonical units. NutritionFact mirrors this 1:1 for
-  // explicit auditing / alternate serving sizes.
+  // What 100 canonical units of the food hold, as it is bought.
   caloriesPer100    Float
   proteinPer100     Float
   fatPer100         Float
@@ -397,7 +396,6 @@ model Ingredient {
   // ingredient returns to the data.
   retiredAt         DateTime?
 
-  nutritionFacts       NutritionFact[]
   recipeIngredients    RecipeIngredient[]
   substitutionsFrom    SubstitutionRule[]      @relation("SubFrom")
   substitutionsTo      SubstitutionRule[]      @relation("SubTo")
@@ -422,27 +420,6 @@ model IngredientTranslation {
   @@id([ingredientId, locale])
   @@index([locale])
   @@index([source])
-}
-
-// Explicit nutrition rows — supports alternate serving sizes and audit trail.
-model NutritionFact {
-  id           String     @id @default(uuid())
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-  ingredientId String
-  servingLabel String // e.g. "per 100 g", "per slice (28 g)"
-  servingGrams Float
-  calories     Float
-  protein      Float
-  fat          Float
-  carbs        Float
-
-  @@index([ingredientId])
-}
-
-model Allergen {
-  id    String @id @default(uuid())
-  code  String @unique // gluten | dairy | eggs | ...
-  label String
 }
 
 model SubstitutionRule {
@@ -830,7 +807,6 @@ model AiProviderConfig {
   baseUrl        String?
   priority       Int            @default(0)
   enabled        Boolean        @default(true)
-  isAdminDefault Boolean        @default(false)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -899,7 +875,6 @@ enum DraftStatus {
 enum DraftSource {
   AI
   EXTERNAL
-  MANUAL
   // Personal Recipe written by /recipes/ai-draft or applyIngredientSwap,
   // mirrored into the queue for translation polish + optional promotion to
   // curated. Reviewer can edit translations only; admin alone can promote.

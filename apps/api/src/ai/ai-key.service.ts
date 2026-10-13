@@ -50,7 +50,7 @@ export class AiKeyService {
 
   async list(userId: string): Promise<AiProviderConfig[]> {
     const rows = await this.prisma.aiProviderConfig.findMany({
-      where: { OR: [{ userId }, { isAdminDefault: true }] },
+      where: { userId },
       orderBy: { priority: 'asc' },
     });
     return rows.map((r) => this.toDto(r));
@@ -233,7 +233,6 @@ export class AiKeyService {
     model: string;
     priority: number;
     enabled: boolean;
-    isAdminDefault: boolean;
     userId: string | null;
     encryptedKey: string | null;
     baseUrl: string | null;
@@ -244,7 +243,6 @@ export class AiKeyService {
       model: row.model,
       priority: row.priority,
       enabled: row.enabled,
-      isAdminDefault: row.isAdminDefault,
       hasKey: row.encryptedKey !== null,
       keyUnreadable: row.encryptedKey !== null && !openKey(row.encryptedKey, this.encKey, row.userId).ok,
       baseUrl: row.baseUrl,

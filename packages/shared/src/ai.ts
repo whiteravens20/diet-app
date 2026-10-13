@@ -59,8 +59,6 @@ export const AiProviderConfig = z.object({
   keyUnreadable: z.boolean(),
   /** Per-config base URL (Ollama only). Null for other providers. */
   baseUrl: z.string().nullable(),
-  /** True for admin-supplied defaults visible to all users. */
-  isAdminDefault: z.boolean(),
 });
 export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
 
