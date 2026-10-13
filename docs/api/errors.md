@@ -10,7 +10,7 @@ A refusal is an `ApiError`: its `error` is one of the 146 codes below, and its `
 | `ADMIN_SECOND_FACTOR_RESET_SET` | 409 | ADMIN_SECOND_FACTOR_RESET is on: a second step would be removed at the next start. Switch it off and restart the API first. | ADMIN_SECOND_FACTOR_RESET jest włączone: drugi etap zostałby usunięty przy następnym starcie. Najpierw wyłącz tę opcję i zrestartuj API. |
 | `AI_CONFIG_NOT_FOUND` | 404 | AI provider configuration not found. | Nie znaleziono konfiguracji dostawcy AI. |
 | `AI_DRAFT_DAILY_LIMIT` | 429 | AI has written as many recipes for you as it may in one day. Try again tomorrow. | AI napisało już dla Ciebie tyle przepisów, ile może w ciągu jednego dnia. Spróbuj ponownie jutro. |
-| `AI_DRAFT_INVALID` | 400 | AI returned a malformed recipe draft — try a different prompt. | AI zwróciło niepoprawny szkic przepisu — spróbuj innego opisu. |
+| `AI_DRAFT_INVALID` | 400 | AI returned a malformed recipe draft — try again, or change what you chose. | AI zwróciło niepoprawny szkic przepisu — spróbuj ponownie albo zmień wybrane opcje. |
 | `AI_DRAFT_OFF_DIET` | 400 | The AI's recipe does not fit the diet you asked for — try again. | Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie. |
 | `AI_DRAFT_OFF_TARGET` | 400 | The AI's recipe came out far from the calories you asked for — try again. | Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie. |
 | `AI_DRAFT_UNKNOWN_INGREDIENT` | 400 | AI proposed an ingredient it was not offered — try again. | AI zaproponowało składnik, którego nie było na liście — spróbuj ponownie. |
@@ -25,7 +25,7 @@ A refusal is an `ApiError`: its `error` is one of the 146 codes below, and its `
 | `BYOK_NO_PROVIDER` | 400 | Add at least one provider key before switching to bring-your-own. | Dodaj co najmniej jeden klucz dostawcy, zanim przełączysz się na własny klucz. |
 | `CONFLICT` | 409 | That already exists. | Taki wpis już istnieje. |
 | `CUSTOM_MEAL_INVALID_MACROS` | 400 | Custom meal macros must be non-negative numbers. | Makroskładniki własnego posiłku muszą być liczbami nieujemnymi. |
-| `CUSTOM_MEAL_NOT_SWAPPABLE` | 400 | Custom meals can't be swapped or have ingredients substituted. | Własnych posiłków nie można wymieniać ani podmieniać w nich składników. |
+| `CUSTOM_MEAL_NOT_SWAPPABLE` | 400 | Custom meals can't be swapped or have ingredients substituted. | Własnego posiłku nie można zamienić na inny ani zamienić w nim składnika. |
 | `CUSTOM_SPLIT_MISSING` | 400 | The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first. | Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu. |
 | `DAY_NOT_FOUND` | 404 | Day not found in this plan. | Nie znaleziono dnia w tym planie. |
 | `DRAFT_INVALID` | 400 | The draft would break the rules for recipe text and quantities. Nothing was saved. | Szkic złamałby zasady dotyczące tekstu i ilości w przepisie. Nic nie zostało zapisane. |
@@ -96,7 +96,7 @@ A refusal is an `ApiError`: its `error` is one of the 146 codes below, and its `
 | `OFFER_INVALID` | 400 | This offer is no longer good for what it was made for. Ask for another. | Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową. |
 | `OFF_DIET_FAVORITE_NOT_ALLOWED` | 400 | That favourite can't go into this slot: it doesn't fit the meal or the diet, or the profile's allergens, skipped ingredients or avoid mark rule it out. | Tego ulubionego przepisu nie można tu wstawić: nie pasuje do posiłku lub diety albo wykluczają go alergeny, pomijane składniki lub oznaczenie do unikania. |
 | `OLLAMA_HOST_NOT_ALLOWED` | 400 | That Ollama address isn't allowed on this instance. Ask the operator to add it to OLLAMA_ALLOWED_HOSTS. | Ten adres Ollama nie jest dozwolony na tej instancji. Poproś operatora o dodanie go do OLLAMA_ALLOWED_HOSTS. |
-| `OLLAMA_USER_DISABLED` | 400 | Bring-your-own Ollama is turned off on this instance. | Własna instancja Ollama jest wyłączona na tej instancji. |
+| `OLLAMA_USER_DISABLED` | 400 | Bring-your-own Ollama is turned off on this instance. | Własny serwer Ollama jest wyłączony na tej instancji. |
 | `ORIGIN_NOT_ALLOWED` | 403 | This request has to come from the application itself. Reload the page and try again. | To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie. |
 | `OUT_OF_COMPLEXITY_BAND` | 400 | Recipe is outside every complexity band — adjust ingredients, steps, or time. | Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas. |
 | `OVERRIDE_DATE_OUT_OF_RANGE` | 400 | An advanced day option falls outside the plan's date range. | Ustawienie dnia wykracza poza zakres dat planu. |
@@ -132,7 +132,7 @@ A refusal is an `ApiError`: its `error` is one of the 146 codes below, and its `
 | `SET_NOT_FOUND` | 404 | Favourite set not found. | Nie znaleziono zestawu ulubionych. |
 | `SHIP_NO_APPROVED` | 409 | No approved drafts to ship. | Brak zatwierdzonych szkiców do wysłania. |
 | `SHIP_REPO_ROOT_NOT_FOUND` | 409 | Could not find the git repo root for the upstream PR mode. | Nie znaleziono katalogu .git potrzebnego do wysyłki przez pull request. |
-| `SHIP_UPSTREAM_BLOCKED_CANONICAL` | 409 | The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes. | Skonfigurowane zdalne repozytorium to główne repozytorium diet-app. Treść napisana przez AI nigdy tam nie trafia — nawet z instancji opiekuna projektu. Ustaw SHIP_UPSTREAM_REMOTE na prywatną kopię repozytorium albo wyślij szkice do tej instancji lub jako paczkę. |
+| `SHIP_UPSTREAM_BLOCKED_CANONICAL` | 409 | The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes. | Skonfigurowane zdalne repozytorium to główne repozytorium diet-app. Treść napisana przez AI nigdy tam nie trafia — nawet z instancji opiekuna projektu. Ustaw SHIP_UPSTREAM_REMOTE na prywatną kopię repozytorium albo wyślij szkice do tej instancji lub jako pakiet. |
 | `SHIP_UPSTREAM_DISABLED` | 409 | Upstream PR mode is disabled on this instance. | Wysyłka przez pull request jest wyłączona na tej instancji. |
 | `SHIP_UPSTREAM_NO_TOKEN` | 409 | Upstream PR mode is missing a gh token. | Brakuje tokenu gh do wysyłki przez pull request. |
 | `SHOPPING_LIST_LIMIT` | 409 | This plan already has as many shopping lists as it can hold. Delete one first. | Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich. |

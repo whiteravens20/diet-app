@@ -343,7 +343,7 @@
     "AI_KEY_UNREADABLE": "A saved AI provider key can no longer be read — enter it again in Settings.",
     "AI_INSTANCE_LIMIT_REACHED": "This instance's shared AI requests for the month are used up.",
     "AI_PROVIDER_TIMEOUT": "AI provider was too slow — try a smaller model or a cloud provider.",
-    "AI_DRAFT_INVALID": "AI returned a malformed recipe draft — try a different prompt.",
+    "AI_DRAFT_INVALID": "AI returned a malformed recipe draft — try again, or change what you chose.",
     "AI_DRAFT_OFF_TARGET": "The AI's recipe came out far from the calories you asked for — try again.",
     "AI_DRAFT_OFF_DIET": "The AI's recipe does not fit the diet you asked for — try again.",
     "AI_DRAFT_DAILY_LIMIT": "AI has written as many recipes for you as it may in one day. Try again tomorrow.",
@@ -552,7 +552,7 @@
     },
     "curation": {
       "title": "Curation queue",
-      "explain": "AI proposes friendly names for USDA ingredients; you approve, edit, or reject. Approved rows ship via PR.",
+      "explain": "AI proposes friendly names for USDA ingredients; you approve, edit, or reject. What is approved ships into this instance, as a file, or as a pull request.",
       "generate": "Generate drafts",
       "running": "Generating… {processed, number}/{total, number}",
       "lastRun": "Last run: wrote {written}, skipped {failed}",
@@ -1501,7 +1501,6 @@
     "submitConfirm": "Suggest this recipe for the library everyone uses? The curators will see its text and ingredients, not who sent it. If they accept it, it becomes a recipe of the library.",
     "submitDone": "Sent to the curators.",
     "submitFailed": "Could not send the recipe.",
-    "variantTitle": "{base} (with {replacement})",
     "pagination": {
       "label": "Recipe pages",
       "summary": "Showing {start}–{end} of {total}",
