@@ -55,7 +55,7 @@ USDA FoodData Central. The cooked food holds about a third of that, and figures
 taken from a "cooked" row would give every dish made of it a third of its
 energy. Canned beans and chickpeas are given as they come out of the can.
 
-What is poured is measured in millilitres (milk, an oil), and its
+What is poured is measured in millilitres (milk, an oil, soy sauce), and its
 figures are for 100 ml: those of 100 g times its `density`, the weight of one
 millilitre in grams. A litre of oil weighs about 920 g, so 100 ml of it hold 92 g
 of fat and not 100. The `density` is also what a recipe that weighs such an
@@ -73,8 +73,8 @@ bought and kept in the pantry in pieces of its own:
 
 | `displayUnit` | For | In `ingredients.json` |
 |---|---|---|
-| `piece` | what is used whole | egg, banana, avocado, apple, orange, onion, tortilla wrap |
-| `slice` | bread | whole-grain bread |
+| `piece` | what is used whole | egg, banana, avocado, apple, orange, lemon, lime, onion, tortilla wrap |
+| `slice` | bread | whole-grain bread, rye bread |
 | `clove` | garlic | garlic |
 | `handful` | leafy greens | spinach |
 
