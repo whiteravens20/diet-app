@@ -150,7 +150,7 @@
       ],
       "pl": [
         "Ugotuj ryż zgodnie z instrukcją na opakowaniu.",
-        "Dopraw kurczaka i grilluj, aż będzie w pełni ugotowany.",
+        "Dopraw kurczaka i grilluj, aż będzie w środku gotowy.",
         "Ugotuj brokuły na parze i złóż miski."
       ]
     }
@@ -511,7 +511,7 @@
   },
   {
     "slug": "hummus-style-chickpea-snack-bowl",
-    "title": { "en": "Hummus-style chickpea snack bowl", "pl": "Miska przekąskowa z ciecierzycą w stylu hummusu" },
+    "title": { "en": "Hummus-style chickpea snack bowl", "pl": "Przekąska z ciecierzycy w stylu hummusu" },
     "description": {
       "en": "Smashed chickpeas with olive oil and tomato.",
       "pl": "Rozgnieciona ciecierzyca z oliwą i pomidorem."
