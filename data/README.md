@@ -66,6 +66,65 @@ under 300 kcal in 100 g. One that keeps and is not dry (frozen edamame) is named
 in [`apps/api/src/admin/seed/dry-staples.ts`](../apps/api/src/admin/seed/dry-staples.ts)
 with what it is.
 
+## Where the figures are from
+
+The figures of the ingredients below are those of
+[USDA FoodData Central](https://fdc.nal.usda.gov/), of its SR Legacy data set,
+each by the id of its food there. What is measured in millilitres was worked
+out from the figures of 100 g and from what the database says a cup of the food
+weighs; the weight of a lemon, of a lime and of a slice of rye bread are the
+database's as well.
+
+| Ingredient | FDC id | The food in the database |
+|---|---|---|
+| `tofu` | 172475 | Tofu, raw, firm, prepared with calcium sulfate |
+| `whole-milk` | 171265 | Milk, whole, 3.25% milkfat, with added vitamin D |
+| `olive-oil` | 171413 | Oil, olive, salad or cooking |
+| `coconut-oil` | 171412 | Oil, coconut |
+| `lemon` | 167746 | Lemons, raw, without peel |
+| `lime` | 168155 | Limes, raw |
+| `salt` | 173468 | Salt, table |
+| `black-pepper` | 170931 | Spices, pepper, black |
+| `apple-cider-vinegar` | 173469 | Vinegar, cider |
+| `soy-sauce` | 174277 | Soy sauce made from soy and wheat (shoyu) |
+| `parsley` | 170416 | Parsley, fresh |
+| `basil` | 172232 | Basil, fresh |
+| `dill` | 172233 | Dill weed, fresh |
+| `dried-oregano` | 171328 | Spices, oregano, dried |
+| `paprika` | 171329 | Spices, paprika |
+| `cinnamon` | 171320 | Spices, cinnamon, ground |
+| `ginger` | 169231 | Ginger root, raw |
+| `sour-cream` | 171257 | Cream, sour, cultured |
+| `heavy-cream` | 170859 | Cream, fluid, heavy whipping |
+| `kefir` | 170904 | Kefir, lowfat, plain, LIFEWAY |
+| `gouda-cheese` | 171241 | Cheese, gouda |
+| `rapeseed-oil` | 172336 | Oil, canola |
+| `sunflower-oil` | 171025 | Oil, sunflower, linoleic, (approx. 65%) |
+| `cocoa-powder` | 169593 | Cocoa, dry powder, unsweetened |
+| `coconut-milk` | 170173 | Nuts, coconut milk, canned (liquid expressed from grated meat and water) |
+| `rye-bread` | 172684 | Bread, rye |
+| `buckwheat-groats` | 170685 | Buckwheat groats, roasted, dry |
+| `millet` | 169702 | Millet, raw |
+| `raisins` | 168165 | Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program) |
+| `herring-fillet` | 175116 | Fish, herring, Atlantic, raw |
+| `mackerel-fillet` | 175119 | Fish, mackerel, Atlantic, raw |
+| `trout-fillet` | 173717 | Fish, trout, rainbow, farmed, raw |
+| `smoked-salmon` | 173687 | Fish, salmon, chinook, smoked |
+| `pork-tenderloin` | 168249 | Pork, fresh, loin, tenderloin, separable lean only, raw |
+| `chicken-thigh` | 172385 | Chicken, broilers or fryers, thigh, meat and skin, raw |
+| `bacon` | 168277 | Pork, cured, bacon, unprepared |
+| `black-olives` | 169094 | Olives, ripe, canned (small-extra large) |
+| `romaine-lettuce` | 169247 | Lettuce, cos or romaine, raw |
+| `canned-tomatoes` | 170051 | Tomatoes, red, ripe, canned, packed in tomato juice |
+| `pumpkin-seeds` | 170556 | Seeds, pumpkin and squash seed kernels, dried |
+
+Curd cheese (`curd-cheese`, twaróg półtłusty) is not in that database. Its
+figures are those of the Polish tables of the composition of food, as the
+National Centre for Nutrition Education prints them
+([Przetwory mleczne](https://ncez.pzh.gov.pl/abc-zywienia/przetwory-mleczne-co-wybierac-czego-unikac/);
+Kunachowicz H., Nadolna I., Przygoda B., Iwanow K., *Wartość odżywcza wybranych
+produktów spożywczych i typowych potraw*, PZWL, Warszawa 2012).
+
 ## Ingredients that are counted, not weighed
 
 Nobody cooks with "110 g of egg". An ingredient with a `displayUnit` is shown,
