@@ -15,6 +15,7 @@
     "test:int": "vitest run --project integration",
     "test:cov": "vitest run --coverage --project unit --project integration",
     "bench": "vitest run --project benchmark",
+    "contract": "tsx scripts/contract.ts",
     "test:catalogue": "vitest run src/common/error-catalogue.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",

@@ -26,6 +26,7 @@ Thank you for considering a contribution to Diet App. This project stores **pers
     - [Run the full suite](#run-the-full-suite)
     - [Coverage](#coverage)
     - [Performance budgets](#performance-budgets)
+    - [The contract of the API](#the-contract-of-the-api)
     - [What to test](#what-to-test)
     - [Test style](#test-style)
   - [Secure Contributing](#secure-contributing)
@@ -251,6 +252,14 @@ npm run bench
 ```
 
 This starts the API on the same PostgreSQL with a reference catalogue of 2,000 recipes, made from the ingredients of `data/`, and asks it what an account asks: a plan of four weeks, a day made again, the shopping list of the plan, the recipe library. It fails when a path takes longer than its budget, when a path asks the database more statements than its ceiling, or when one statement takes 50 ms or longer, and it prints what every path took. Run it after a change to how plans are made, lists are built or recipes are read. The budgets are in `apps/api/src/testing/budgets.bench.ts`; `BENCH_STATEMENTS=<a word of a path's name>` lists the statements of the paths it names.
+
+### The contract of the API
+
+```bash
+npm run contract
+```
+
+This writes [`docs/api/`](docs/api/README.md) again: the OpenAPI description, the list of routes and the list of codes a request is refused with. Run it after a change to a route, to a schema of `packages/shared`, to the comment above a handler or to a text of an error, and commit the result with the change: a test fails when the files are not what the command writes. A new route says what it answers with (`@Answers(Schema)` above its handler, with the schema in `packages/shared`) and what it does (the first paragraph of the comment above it). The integration tests hold every answer of every route to its schema.
 
 ### What to test
 

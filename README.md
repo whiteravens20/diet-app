@@ -170,6 +170,7 @@ The CLI alternative is `npm run db:seed`. See
 - [docs/ops/deployment.md](docs/ops/deployment.md) — Docker, self-hosting, Ollama
 - [docs/ops/env-reference.md](docs/ops/env-reference.md) — every environment variable
 - [docs/ops/ai-models.md](docs/ops/ai-models.md) — model recommendations by surface and hardware tier
+- [docs/api/](docs/api/README.md) — the contract of the API: an OpenAPI description, the list of routes, the codes a request is refused with
 - [docs/ops/curation-shipping.md](docs/ops/curation-shipping.md) — how approved drafts ship, taking recipes in from elsewhere, filling a language recipes lack, backing up what an instance added, moving to a new server
 
 The product specification and the architecture and design documents are not
