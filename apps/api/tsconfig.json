@@ -17,8 +17,8 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src"
+    "noEmit": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/testing/**"]
+  "include": ["src/**/*", "scripts/**/*", "prisma/*.ts", "prisma.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }
