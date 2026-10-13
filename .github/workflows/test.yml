@@ -51,6 +51,10 @@ jobs:
       # on the PostgreSQL service above, in a database of their own. Coverage-gated:
       # vitest fails the job if a threshold in vitest.config.ts regresses.
       - run: npm run test:cov -- --filter=@diet-app/api
+      # The API with a reference catalogue of 2,000 recipes in the same
+      # PostgreSQL, asked what an account asks: fails when a path is over its
+      # budget of time or of statements, and prints what every path took.
+      - run: npm run bench
       - run: npm run build -- --filter=@diet-app/api
 
   web:

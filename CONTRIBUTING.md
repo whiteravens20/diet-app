@@ -25,6 +25,7 @@ Thank you for considering a contribution to Diet App. This project stores **pers
   - [Testing Requirements](#testing-requirements)
     - [Run the full suite](#run-the-full-suite)
     - [Coverage](#coverage)
+    - [Performance budgets](#performance-budgets)
     - [What to test](#what-to-test)
     - [Test style](#test-style)
   - [Secure Contributing](#secure-contributing)
@@ -242,6 +243,14 @@ npm run test:cov
 ```
 
 For the API this runs the unit and the integration tests together, so it needs the same PostgreSQL. The API's coverage floors live in `apps/api/vitest.config.ts` and only move up. New code should not decrease coverage. PRs that add testable logic without corresponding tests will be asked to add them.
+
+### Performance budgets
+
+```bash
+npm run bench
+```
+
+This starts the API on the same PostgreSQL with a reference catalogue of 2,000 recipes, made from the ingredients of `data/`, and asks it what an account asks: a plan of four weeks, a day made again, the shopping list of the plan, the recipe library. It fails when a path takes longer than its budget, when a path asks the database more statements than its ceiling, or when one statement takes 50 ms or longer, and it prints what every path took. Run it after a change to how plans are made, lists are built or recipes are read. The budgets are in `apps/api/src/testing/budgets.bench.ts`; `BENCH_STATEMENTS=<a word of a path's name>` lists the statements of the paths it names.
 
 ### What to test
 

@@ -29,6 +29,21 @@ export default defineConfig({
           hookTimeout: 60_000,
         },
       },
+      // `benchmark` measures the server against its performance budgets, on
+      // the same database. It is run by itself (`npm run bench`), never under
+      // coverage: an instrumented run is not what the budgets are about.
+      {
+        test: {
+          name: 'benchmark',
+          include: ['src/**/*.bench.ts'],
+          environment: 'node',
+          globals: true,
+          globalSetup: ['src/testing/global-setup.ts'],
+          fileParallelism: false,
+          testTimeout: 300_000,
+          hookTimeout: 600_000,
+        },
+      },
     ],
     coverage: {
       provider: 'v8',
