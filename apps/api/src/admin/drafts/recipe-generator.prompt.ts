@@ -24,7 +24,7 @@ import { macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v8';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v9';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -220,7 +220,7 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
   const constraints: string[] = [];
   if (input.dietTags && input.dietTags.length > 0) {
     constraints.push(
-      `- Diets every recipe MUST qualify for: ${input.dietTags.join(', ')}. For vegetarian, vegan and mediterranean, every ingredient must list the diet in its diets column. For low_carb at most 26 % of the recipe's calories may come from carbohydrate, for keto at most 10 %: build those recipes around protein, fat and low-carbohydrate vegetables. The validator works this out from your ingredient list and rejects a recipe that misses.`,
+      `- Diets every recipe MUST qualify for: ${input.dietTags.join(', ')}. For vegetarian, vegan and mediterranean, every ingredient must list the diet in its diets column. For low_carb under 26 % of the recipe's calories may come from carbohydrate, for keto under 10 %: build those recipes around protein, fat and low-carbohydrate vegetables. The validator works this out from your ingredient list and rejects a recipe that misses.`,
     );
   }
   // What the plans of a diet aim at is what its recipes are for: a dish that only passes the diet's rule leaves its plans far from their split.

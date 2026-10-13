@@ -89,13 +89,13 @@ describe('the diets a recipe qualifies for', () => {
     expect(recipeFacts(lines, 1).dietTags).toEqual(expected);
   });
 
-  it('draws the lines for carbohydrate at 10 % and 26 % of the energy, the limit included', () => {
-    // 100 kcal each, with 2.5 g, 2.6 g, 6.5 g and 6.6 g of carbohydrate.
+  it('draws the lines for carbohydrate under 10 % and under 26 % of the energy', () => {
+    // 100 kcal each, with 2.4 g, 2.5 g, 6.4 g and 6.5 g of carbohydrate: 10 % itself is no longer ketogenic, 26 % no longer low.
     const at = (carbs: number) => recipeFacts([g(ingredient([100, 0, 0, carbs], { dietCompatibility: [] }), 100)], 1).dietTags;
-    expect(at(2.5)).toEqual(['low_carb', 'keto']);
-    expect(at(2.6)).toEqual(['low_carb']);
-    expect(at(6.5)).toEqual(['low_carb']);
-    expect(at(6.6)).toEqual([]);
+    expect(at(2.4)).toEqual(['low_carb', 'keto']);
+    expect(at(2.5)).toEqual(['low_carb']);
+    expect(at(6.4)).toEqual(['low_carb']);
+    expect(at(6.5)).toEqual([]);
   });
 
   it('does not depend on how many servings the recipe makes or how big they are', () => {

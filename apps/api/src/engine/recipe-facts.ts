@@ -33,15 +33,15 @@ export interface RecipeFacts {
 }
 
 /**
- * The most of a recipe's energy that may come from carbohydrate for it to
- * count as ketogenic or as low-carbohydrate: under about 50 g and 130 g a day
- * at 2,000 kcal, the definitions used in the nutrition literature. A share of
- * energy stays the same when a serving is scaled to a calorie budget, which a
- * number of grams would not. Fibre is not in the data, so all carbohydrate
- * counts.
+ * The share of a recipe's energy that carbohydrate has to stay under for the
+ * recipe to count as ketogenic or as low-carbohydrate: under about 50 g and
+ * 130 g a day at 2,000 kcal, the definitions used in the nutrition literature.
+ * A share of energy stays the same when a serving is scaled to a calorie
+ * budget, which a number of grams would not. Fibre is not in the data, so all
+ * carbohydrate counts.
  */
-const KETO_MAX_CARB_ENERGY = 0.1;
-const LOW_CARB_MAX_CARB_ENERGY = 0.26;
+const KETO_BELOW_CARB_ENERGY = 0.1;
+const LOW_CARB_BELOW_CARB_ENERGY = 0.26;
 
 const KCAL_PER_GRAM_OF_CARBOHYDRATE = 4;
 
@@ -79,8 +79,8 @@ export function recipeFacts(lines: readonly FactsLine[], servings: number): Reci
       if (lines.every((line) => line.ingredient.dietCompatibility.includes(diet))) dietTags.push(diet);
     }
     const carbEnergy = (total.carbs * KCAL_PER_GRAM_OF_CARBOHYDRATE) / total.calories;
-    if (carbEnergy <= LOW_CARB_MAX_CARB_ENERGY) dietTags.push('low_carb');
-    if (carbEnergy <= KETO_MAX_CARB_ENERGY) dietTags.push('keto');
+    if (carbEnergy < LOW_CARB_BELOW_CARB_ENERGY) dietTags.push('low_carb');
+    if (carbEnergy < KETO_BELOW_CARB_ENERGY) dietTags.push('keto');
   }
 
   const perServing = (value: number): number => Math.round(value / servings);

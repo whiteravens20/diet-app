@@ -23,9 +23,11 @@ A recipe's nutrition, allergens and diets are **not** stored here. The loader
 works all three out from the ingredient table for every recipe: calories and macros
 per serving, the allergens of its ingredients, and the diets it qualifies for.
 A recipe is vegetarian, vegan or mediterranean when every one of its ingredients
-lists that diet; it is low-carb when at most 26 % of its energy comes from
-carbohydrate, and keto when at most 10 % does. Balanced and high-protein plans take
-any recipe. A `dietTags` or `allergens` key written into a recipe is ignored.
+lists that diet; it is low-carb when under 26 % of its energy comes from
+carbohydrate, and keto when under 10 % does. Those are the limits of the nutrition
+literature, about 130 g and 50 g of carbohydrate a day at 2,000 kcal (Feinman et
+al., *Nutrition* 31, 2015). Balanced and high-protein plans take any recipe. A
+`dietTags` or `allergens` key written into a recipe is ignored.
 `npm run data:lint` prints how many recipes each diet can draw on for each meal,
 and fails when a diet has fewer for a meal than the floor in
 [`apps/api/src/engine/coverage.ts`](../apps/api/src/engine/coverage.ts) (1 today,
