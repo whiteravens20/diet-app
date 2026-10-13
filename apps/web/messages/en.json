@@ -18,8 +18,7 @@
     "reset": "Reset",
     "yes": "Yes",
     "no": "No",
-    "optional": "optional",
-    "comingSoon": "Coming soon"
+    "optional": "optional"
   },
   "notFound": {
     "title": "Page not found",
@@ -257,10 +256,8 @@
     "VALIDATION_FAILED_FIELDS": "Some fields need attention: {fields}.",
     "HELD_UP_MINUTES": "Too many attempts. Try again in {count, plural, one {# minute} other {# minutes}}.",
     "HELD_UP_SECONDS": "Too many attempts. Try again in {count, plural, one {# second} other {# seconds}}.",
-    "VALIDATION": "Some fields need attention.",
     "FORBIDDEN": "You don't have access to that.",
     "AUTH_REQUIRED": "Sign in to continue.",
-    "INVALID_AUTH_HEADER": "Invalid authorization header.",
     "EMAIL_TAKEN": "That email is already registered.",
     "INVALID_CREDENTIALS": "Email or password is incorrect.",
     "INVALID_ACCESS_TOKEN": "Your session is invalid. Please sign in again.",
@@ -358,7 +355,6 @@
     "SHIP_NO_APPROVED": "No approved drafts to ship.",
     "SHIP_UPSTREAM_DISABLED": "Upstream PR mode is disabled on this instance.",
     "SHIP_UPSTREAM_NO_TOKEN": "Upstream PR mode is missing a gh token.",
-    "SHIP_UPSTREAM_UNAVAILABLE": "Upstream PR mode is not available.",
     "SHIP_REPO_ROOT_NOT_FOUND": "Could not find the git repo root for the upstream PR mode.",
     "GH_MODE_UNAVAILABLE": "`gh` CLI not found on PATH.",
     "GIT_FAILED": "A git command failed during the upstream-PR ship.",
@@ -370,9 +366,7 @@
     "PULL_FETCH_FAILED": "Could not fetch the overrides file. Check the repo, the branch and the access token; a redirect is not followed, and a file over 2 MB is not read.",
     "PULL_ADDRESS_NOT_PUBLIC": "That source is not at a public address. A source inside your own network is fetched only when its host is named in OVERRIDES_PULL_ALLOWED_HOSTS.",
     "PULL_SHAPE_INVALID": "The fetched file is not a valid ingredient-overrides.json.",
-    "SHIP_BUNDLE_TOKEN_INVALID": "Download token expired, invalid, or already consumed.",
     "SHIP_UPSTREAM_BLOCKED_CANONICAL": "The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes.",
-    "INVALID_INSTANCE_SETTINGS_PATCH": "Invalid instance-settings update.",
     "INVALID_REVIEWER_PASSWORD": "Wrong reviewer password.",
     "REVIEWER_DISABLED": "Reviewer interface is disabled.",
     "NO_REVIEWER_SESSION": "Sign in to continue reviewing.",

@@ -18,8 +18,7 @@
     "reset": "Resetuj",
     "yes": "Tak",
     "no": "Nie",
-    "optional": "opcjonalne",
-    "comingSoon": "Wkrótce"
+    "optional": "opcjonalne"
   },
   "notFound": {
     "title": "Nie znaleziono strony",
@@ -257,10 +256,8 @@
     "VALIDATION_FAILED_FIELDS": "Niektóre pola wymagają poprawy: {fields}.",
     "HELD_UP_MINUTES": "Zbyt wiele prób. Spróbuj ponownie za {count, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}.",
     "HELD_UP_SECONDS": "Zbyt wiele prób. Spróbuj ponownie za {count, plural, one {# sekundę} few {# sekundy} many {# sekund} other {# sekundy}}.",
-    "VALIDATION": "Niektóre pola wymagają poprawy.",
     "FORBIDDEN": "Brak dostępu.",
     "AUTH_REQUIRED": "Zaloguj się, aby kontynuować.",
-    "INVALID_AUTH_HEADER": "Nieprawidłowy nagłówek autoryzacji.",
     "EMAIL_TAKEN": "Ten adres e-mail jest już zarejestrowany.",
     "INVALID_CREDENTIALS": "Nieprawidłowy e-mail lub hasło.",
     "INVALID_ACCESS_TOKEN": "Sesja jest nieprawidłowa. Zaloguj się ponownie.",
@@ -358,7 +355,6 @@
     "SHIP_NO_APPROVED": "Brak zatwierdzonych szkiców do wysłania.",
     "SHIP_UPSTREAM_DISABLED": "Wysyłka przez pull request jest wyłączona na tej instancji.",
     "SHIP_UPSTREAM_NO_TOKEN": "Brakuje tokenu gh do wysyłki przez pull request.",
-    "SHIP_UPSTREAM_UNAVAILABLE": "Wysyłka przez pull request jest niedostępna.",
     "SHIP_REPO_ROOT_NOT_FOUND": "Nie znaleziono katalogu .git potrzebnego do wysyłki przez pull request.",
     "GH_MODE_UNAVAILABLE": "Nie znaleziono polecenia `gh` w PATH.",
     "GIT_FAILED": "Polecenie git zakończyło się błędem podczas wysyłki przez pull request.",
@@ -370,9 +366,7 @@
     "PULL_FETCH_FAILED": "Nie udało się pobrać pliku nadpisań. Sprawdź repo, gałąź i token dostępu; przekierowania nie są obsługiwane, a plik większy niż 2 MB nie jest czytany.",
     "PULL_ADDRESS_NOT_PUBLIC": "To źródło nie jest pod adresem publicznym. Źródło w sieci wewnętrznej jest pobierane tylko wtedy, gdy jego host jest wpisany w OVERRIDES_PULL_ALLOWED_HOSTS.",
     "PULL_SHAPE_INVALID": "Pobrany plik nie jest prawidłowym ingredient-overrides.json.",
-    "SHIP_BUNDLE_TOKEN_INVALID": "Token pobierania wygasł, jest nieprawidłowy lub został już użyty.",
     "SHIP_UPSTREAM_BLOCKED_CANONICAL": "Skonfigurowane zdalne repozytorium to główne repozytorium diet-app. Treść napisana przez AI nigdy tam nie trafia — nawet z instancji opiekuna projektu. Ustaw SHIP_UPSTREAM_REMOTE na prywatną kopię repozytorium albo wyślij szkice do tej instancji lub jako paczkę.",
-    "INVALID_INSTANCE_SETTINGS_PATCH": "Nieprawidłowa zmiana ustawień instancji.",
     "INVALID_REVIEWER_PASSWORD": "Nieprawidłowe hasło recenzenta.",
     "REVIEWER_DISABLED": "Panel recenzenta jest wyłączony.",
     "NO_REVIEWER_SESSION": "Zaloguj się, aby kontynuować recenzowanie.",
