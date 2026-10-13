@@ -10,7 +10,7 @@
       "pl": "Kremowa, wysokobiałkowa przekąska gotowa w niecałe pięć minut."
     },
     "servings": 1,
-    "mealTypes": ["snack"],
+    "mealTypes": ["snack", "second_breakfast"],
     "prepMinutes": 3,
     "cookMinutes": 0,
     "difficulty": "easy",
@@ -158,7 +158,7 @@
       "pl": "Klimat niedzielnego obiadu: pieczony łosoś z opiekanymi ziemniakami i brokułem, podany z lekkim sosem cytrynowo-jogurtowym."
     },
     "servings": 2,
-    "mealTypes": ["dinner"],
+    "mealTypes": ["lunch", "dinner"],
     "prepMinutes": 15,
     "cookMinutes": 35,
     "difficulty": "medium",
@@ -208,7 +208,7 @@
       "pl": "Makaron z podsmażoną wołowiną, pieczoną papryką i pomidorami, na koniec z porwaną mozzarellą."
     },
     "servings": 3,
-    "mealTypes": ["dinner"],
+    "mealTypes": ["lunch", "dinner"],
     "prepMinutes": 15,
     "cookMinutes": 40,
     "difficulty": "medium",

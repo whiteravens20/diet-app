@@ -29,12 +29,19 @@ const bySlug = new Map(catalogue.map((row) => [row.slug, row]));
 
 const prompt = buildRecipeGeneratorPrompt({ targetLocales: ['en', 'pl'], targets: { simple: 1, medium: 1, complex: 1 }, catalogue });
 
+/** A recipe of an answer, as far as these tests read one. */
+interface Shown {
+  slug: string;
+  titles: Record<string, string>;
+  mealTypes: string[];
+}
+
 /** The examples of the prompt, each with the band it stands under. */
-function examples(): { band: Complexity; recipe: { slug: string } }[] {
+function examples(): { band: Complexity; recipe: Shown }[] {
   const shown = prompt.slice(prompt.indexOf('Exemplar recipes'), prompt.indexOf('Ingredient catalogue'));
   // What stands before the first band is the sentence that introduces them; after it a band and its recipe take turns.
   const parts = shown.split(/^(simple|medium|complex):$/m).slice(1);
-  return Array.from({ length: parts.length / 2 }, (_, index) => ({ band: parts[index * 2] as Complexity, recipe: JSON.parse(parts[index * 2 + 1]!) as { slug: string } }));
+  return Array.from({ length: parts.length / 2 }, (_, index) => ({ band: parts[index * 2] as Complexity, recipe: JSON.parse(parts[index * 2 + 1]!) as Shown }));
 }
 
 describe('the examples the recipe generator shows a model', () => {
@@ -54,6 +61,15 @@ describe('the examples the recipe generator shows a model', () => {
     if (!judged.ok) return;
     expect(judged.candidates.map(({ slug, complexity }) => `${slug}: ${complexity}`)).toEqual(shown.map(({ band, recipe }) => `${recipe.slug}: ${band}`));
   });
+
+  it('keep the rules the prompt gives for a title and for the meals of a dish', () => {
+    const shown = examples().map(({ recipe }) => recipe);
+
+    // No diet, band or praise in a title or in the slug made of it.
+    expect(shown.filter(({ slug, titles }) => /\b(keto|low.carb|high.protein|vegan|vegetarian|simple|easy|quick|healthy)\b/i.test(`${slug} ${titles.en}`)).map(({ slug }) => slug)).toEqual([]);
+    // A main dish is one at noon and in the evening.
+    expect(shown.filter(({ mealTypes }) => mealTypes.includes('lunch') !== mealTypes.includes('dinner') && !mealTypes.includes('breakfast')).map(({ slug }) => slug)).toEqual([]);
+  });
 });
 
 describe('a prompt for a diet', () => {
@@ -69,5 +85,9 @@ describe('a prompt for a diet', () => {
     expect(asked()).not.toContain('aims at about');
     expect(asked(['custom'])).not.toContain('aims at about');
   });
-});
+
+  it('asks for a dish that suits the meal, and for every meal the dish suits', () => {
+    expect(asked()).toContain('Every recipe MUST suit at least one of these meals: dinner.');
+    expect(asked()).toContain('`mealTypes` lists EVERY meal the dish suits');
+  });
 });

@@ -230,7 +230,7 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
     );
   }
   if (input.mealTypes && input.mealTypes.length > 0) {
-    constraints.push(`- Meal types to draw from: ${input.mealTypes.join(', ')}.`);
+    constraints.push(`- Every recipe MUST suit at least one of these meals: ${input.mealTypes.join(', ')}. It names the other meals it suits as well (rule 14).`);
   }
   if (input.cuisine) {
     constraints.push(`- Cuisine direction: ${input.cuisine}.`);
@@ -332,6 +332,15 @@ single violation, so be precise:
 11. Output literal characters in JSON values. Never HTML-escape.
 12. Each recipe MUST have a stable \`slug\` (kebab-case, ASCII, lowercase,
     derived from the English title). Slugs are unique within the batch.
+13. A title names the dish as a cookbook would: what it is made of and
+    how it is made. NEVER put a diet, a complexity band or praise into a
+    title or a slug: no "Keto ...", "Low-carb ...", "High-protein ...",
+    "Vegan ...", "Simple ...", "Easy ...", "Quick ...", "Healthy ...". The
+    diets a recipe suits are shown beside it, worked out from its ingredients.
+14. \`mealTypes\` lists EVERY meal the dish suits, out of breakfast,
+    second_breakfast, lunch, dinner and snack. A main dish is as a rule
+    both lunch and dinner; a small breakfast dish or a snack is often a
+    second_breakfast as well.
 
 Return ONLY a JSON object of this exact shape — no prose, no fences:
 

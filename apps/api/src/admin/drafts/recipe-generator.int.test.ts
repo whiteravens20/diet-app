@@ -253,7 +253,7 @@ describe('generating recipe drafts', () => {
     /** The pair of diet and meal a prompt asks for. */
     const askedFor = (request: ModelRequest) => ({
       diet: /Diets every recipe MUST qualify for: ([a-z_]+)\./.exec(request.prompt)?.[1] ?? null,
-      meal: /Meal types to draw from: ([a-z_]+)\./.exec(request.prompt)![1]!,
+      meal: /Every recipe MUST suit at least one of these meals: ([a-z_]+)\./.exec(request.prompt)![1]!,
     });
     /** How many recipes the catalogue and the queue have for each diet and meal. */
     const counted = async () => {
