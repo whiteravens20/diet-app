@@ -431,6 +431,7 @@ model SubstitutionRule {
   note             String?
 
   @@unique([fromIngredientId, toIngredientId])
+  @@index([toIngredientId])
 }
 
 // ── Recipes ───────────────────────────────────────────────────────────────────
@@ -677,7 +678,7 @@ model Favorite {
   createdAt DateTime @default(now())
 
   @@unique([profileId, recipeId])
-  @@index([profileId])
+  @@index([recipeId])
 }
 
 // Per-profile saved day template — one favourited recipe per meal slot.
@@ -727,8 +728,7 @@ model InventoryItem {
   updatedAt    DateTime   @updatedAt
 
   @@unique([profileId, ingredientId, unit])
-  @@index([profileId])
-  @@index([profileId, ingredientId])
+  @@index([ingredientId])
 }
 
 // ── Shopping lists ────────────────────────────────────────────────────────────
@@ -845,7 +845,6 @@ model AiUsageLog {
   latencyMs    Int           @default(0)
   createdAt    DateTime      @default(now())
 
-  @@index([userId])
   @@index([createdAt])
   @@index([userId, mode, createdAt])
 }
@@ -1028,6 +1027,7 @@ model IngredientNameDraft {
   @@index([status])
   @@index([batchId])
   @@index([ingredientSlug])
+  @@index([ingredientId])
 }
 
 // The same record as RecipeDraftLocaleReview, for the name of an ingredient.
