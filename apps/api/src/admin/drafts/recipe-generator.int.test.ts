@@ -133,6 +133,32 @@ describe('generating recipe drafts', () => {
     expect(t.model.requests[1]!.prompt).toContain('generated-recipe-1');
   });
 
+  it('keeps what passes of an answer, and asks again only for what is missing, saying what was refused', async () => {
+    const model = author();
+    const perCall = recipesPerCall(1);
+    // The first answer holds all that was asked for, and one of its recipes is made of something the catalogue does not have.
+    t.model.reply({
+      text: (request) => {
+        const answer = JSON.parse(model.answer()(request)) as { recipes: { ingredients: { slug: string }[] }[] };
+        answer.recipes[0]!.ingredients[0]!.slug = 'unicorn-steak';
+        return JSON.stringify(answer);
+      },
+    });
+    t.model.reply({ text: model.answer(), times: 10 });
+
+    const state = await run({ count: perCall, targetLocales: ['en'], complexityMix: ALL_SIMPLE });
+
+    expect(state).toMatchObject({ status: 'done', written: perCall, failed: 0 });
+    expect(await t.prisma.recipeDraft.count()).toBe(perCall);
+    // The second request is for the one recipe that was refused, and says why it was.
+    expect(t.model.requests.map(model.asked)).toEqual([perCall, 1]);
+    expect(t.model.requests[1]!.prompt).toContain('these were refused: unknown-slug at "generated-recipe-1.unicorn-steak"');
+    expect(t.model.requests[1]!.prompt).toContain('Send 1 other recipe(s)');
+    // What the first answer brought is, for the second, a recipe there is.
+    expect(t.model.requests[0]!.prompt).not.toContain('generated-recipe-2');
+    expect(t.model.requests[1]!.prompt).toContain('generated-recipe-2');
+  });
+
   it('tags what it writes with the cuisine it was pointed at, when that is one the application knows', async () => {
     const generate = async (cuisine?: string): Promise<(string | null)[]> => {
       await t.prisma.recipeDraft.deleteMany();
@@ -568,12 +594,19 @@ describe('generating recipe drafts', () => {
       ['no servings', { servings: 0 }, 'servings-out-of-range'],
       ['five hundred servings', { servings: 500 }, 'servings-out-of-range'],
       ['a meal the planner does not know', { mealTypes: ['brunch'] }, 'invalid-meal-type'],
-      ['a slug that walks out of the data directory', { slug: '../../etc/passwd' }, 'invalid-slug'],
+      ['a slug that is nothing but a way out of the data directory', { slug: '../..' }, 'invalid-slug'],
     ])('with %s is refused, and nothing is stored', async (_what, over, reason) => {
       const state = await answeredWith(batch(over));
 
       expect(state).toMatchObject({ status: 'done', written: 0, failed: 1, lastRejectReason: reason });
       expect(await t.prisma.recipeDraft.count()).toBe(0);
+    });
+
+    it('with a slug that looks like a way out of the data directory is kept under the plain slug it means', async () => {
+      const state = await answeredWith(batch({ slug: '../../etc/passwd' }));
+
+      expect(state).toMatchObject({ status: 'done', written: 1, failed: 0 });
+      expect((await t.prisma.recipeDraft.findFirstOrThrow()).slug).toBe('etc-passwd');
     });
 
     it('with a description of two million characters is discarded before it is read, and the run ends', async () => {

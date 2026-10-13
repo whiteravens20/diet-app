@@ -405,14 +405,42 @@ describe('validateRecipeBatch', () => {
     if (!r.ok) expect(r.reason).toBe('invalid-quantity');
   });
 
-  it('rejects duplicate slug within the same batch', () => {
+  it('keeps the first of two recipes under one slug in an answer, and refuses the second', () => {
     const r = validateRecipeBatch({
       targetLocales: ['en', 'pl'],
       rawOutput: wrap([recipeShell(), recipeShell()]),
       resolveSlug,
     });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe('duplicate-slug-in-batch');
+    expect(r).toMatchObject({ ok: true, refused: [{ reason: 'duplicate-slug-in-batch', key: 'chicken-rice-bowl' }] });
+    expect(r.ok && r.candidates.map((recipe) => recipe.slug)).toEqual(['chicken-rice-bowl']);
+  });
+
+  it('judges each recipe of an answer by itself: what passes is kept, what does not is named with its reason', () => {
+    const r = validateRecipeBatch({
+      targetLocales: ['en', 'pl'],
+      rawOutput: wrap([
+        recipeShell(),
+        recipeShell({ slug: 'dragon-bowl', titles: { en: 'Dragon bowl', pl: 'Smocza miska' }, ingredients: [{ slug: 'dragon-fruit', quantity: 100, unit: 'g' }, { slug: 'white-rice', quantity: 80, unit: 'g' }, { slug: 'olive-oil', quantity: 10, unit: 'ml' }] }),
+        recipeShell({ slug: 'no-steps', titles: { en: 'A dish without steps', pl: 'Danie bez kroków' }, steps: { en: [''], pl: [''] } }),
+      ]),
+      resolveSlug,
+    });
+
+    expect(r.ok && r.candidates.map((recipe) => recipe.slug)).toEqual(['chicken-rice-bowl']);
+    expect(r.ok && r.refused).toEqual([
+      { reason: 'unknown-slug', key: 'dragon-bowl.dragon-fruit' },
+      { reason: 'empty-step', key: 'no-steps.steps' },
+    ]);
+  });
+
+  it('says the first refusal of an answer nothing can be kept of', () => {
+    const r = validateRecipeBatch({
+      targetLocales: ['en', 'pl'],
+      rawOutput: wrap([recipeShell({ ingredients: [{ slug: 'dragon-fruit', quantity: 100, unit: 'g' }, { slug: 'white-rice', quantity: 80, unit: 'g' }, { slug: 'olive-oil', quantity: 10, unit: 'ml' }] }), recipeShell({ slug: 'second', steps: { en: [''], pl: [''] } })]),
+      resolveSlug,
+    });
+
+    expect(r).toEqual({ ok: false, reason: 'unknown-slug', key: 'chicken-rice-bowl.dragon-fruit' });
   });
 
   it('refuses a recipe for a meal that was not asked for, and takes one that names it among others', () => {
@@ -447,7 +475,8 @@ describe('validateRecipeBatch', () => {
         takenSlugs: new Set(taken.slugs ?? []),
         takenTitles: new Set(taken.titles ?? []),
       });
-      return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+      const refused = result.ok ? result.refused : [result];
+      return refused.length === 0 ? 'accepted' : refused.map((one) => `${one.reason} at ${one.key}`).join('; ');
     };
 
     it('is refused: a slug names one recipe', () => {
@@ -551,7 +580,7 @@ describe('validateRecipeBatch', () => {
     expect(r.candidates).toHaveLength(1);
   });
 
-  it('rejects when two batch candidates duplicate each other', () => {
+  it('refuses the second of two recipes of an answer that are made of the same, and keeps the first', () => {
     const r = validateRecipeBatch({
       targetLocales: ['en', 'pl'],
       rawOutput: wrap([
@@ -560,11 +589,8 @@ describe('validateRecipeBatch', () => {
       ]),
       resolveSlug,
     });
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.reason).toBe('duplicate-of-existing');
-      expect(r.details).toContain('first');
-    }
+    expect(r.ok && r.candidates.map((recipe) => recipe.slug)).toEqual(['first']);
+    expect(r.ok && r.refused).toEqual([{ reason: 'duplicate-of-existing', key: 'second', details: expect.stringContaining('first') }]);
   });
 });
 
@@ -610,10 +636,19 @@ describe('what a batch answer may not put into the queue', () => {
     expect(rejected({ ingredients: [{ slug: 'white-rice', quantity: 1, unit: 'cup' }] })).toBe('invalid-unit at chicken-rice-bowl.ingredients[0].unit');
   });
 
-  it('a slug that is not one', () => {
-    const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ slug: '../../etc/passwd' })]), resolveSlug });
+  it('a slug that is not one: taken as the plain slug it means, and refused when it means none', () => {
+    const slugOf = (slug: string) => {
+      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ slug })]), resolveSlug });
+      return result.ok ? result.candidates[0]!.slug : result.reason;
+    };
 
-    expect(result).toMatchObject({ ok: false, reason: 'invalid-slug' });
+    // A model writes the word as its language spells it: the slug is the plain one.
+    expect(slugOf('zucchini-and-feta-sauté')).toBe('zucchini-and-feta-saute');
+    expect(slugOf('Zucchini and Feta')).toBe('zucchini-and-feta');
+    // What looks like a path is no path once it is a slug.
+    expect(slugOf('../../etc/passwd')).toBe('etc-passwd');
+    expect(slugOf('../..')).toBe('invalid-slug');
+    expect(slugOf('a'.repeat(81))).toBe('invalid-slug');
   });
 
   it('keeps text as one plain line, and text for the languages of the run only', () => {

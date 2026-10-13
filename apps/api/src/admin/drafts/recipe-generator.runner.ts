@@ -317,9 +317,11 @@ export class RecipeGeneratorRunner {
   }
 
   /**
-   * One call of a run, with up to three attempts. Returns the recipes that
-   * passed validation (none when every attempt was rejected), or the failure
-   * when the provider could not be reached at all.
+   * One call of a run, with up to three attempts. A recipe of an answer that
+   * passes is kept, and the next attempt asks only for those still missing,
+   * with what was refused and why. Returns the recipes that were kept (none
+   * when every attempt was rejected), or the failure when the provider could
+   * not be reached at all.
    */
   private async askForRecipes(opts: {
     adapter: AiProviderAdapter;
@@ -334,17 +336,13 @@ export class RecipeGeneratorRunner {
     const { adapter, targets, spec, targetLocales, existing } = opts;
     const asked = targets.simple + targets.medium + targets.complex;
     const limits = recipeBatch(asked, targetLocales.length, opts.temperature);
-    const promptText = buildRecipeGeneratorPrompt({
-      targetLocales,
-      targets,
-      dietTags: spec.dietTags,
-      mealTypes: spec.mealTypes,
-      cuisine: spec.cuisine,
-      kcalRange: spec.kcalRange,
-      avoidSlugs: spec.avoidSlugs,
-      preferSlugs: spec.preferSlugs,
-      catalogue: this.catalogueForPrompt(opts.catalogue),
-      existingRecipes: existing.recipes,
+    const catalogue = this.catalogueForPrompt(opts.catalogue);
+    /** What passed so far: taken, for the attempts after it, like any recipe there is. */
+    const kept: RecipeDraftCandidate[] = [];
+    const known = (): ExistingRecipes => ({
+      recipes: [...existing.recipes, ...kept.map((recipe) => ({ slug: recipe.slug, ingredientSlugs: recipe.ingredients.map((line) => line.slug) }))],
+      takenSlugs: new Set([...existing.takenSlugs, ...kept.map((recipe) => recipe.slug)]),
+      takenTitles: new Set([...existing.takenTitles, ...kept.map((recipe) => (recipe.titles.en ?? '').toLowerCase())]),
     });
 
     let failure: string | null = null;
@@ -357,6 +355,18 @@ export class RecipeGeneratorRunner {
       const reminder = attempt === 0
         ? ''
         : `\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.${refused}`;
+      const promptText = buildRecipeGeneratorPrompt({
+        targetLocales,
+        targets: stillMissing(targets, kept),
+        dietTags: spec.dietTags,
+        mealTypes: spec.mealTypes,
+        cuisine: spec.cuisine,
+        kcalRange: spec.kcalRange,
+        avoidSlugs: spec.avoidSlugs,
+        preferSlugs: spec.preferSlugs,
+        catalogue,
+        existingRecipes: known().recipes,
+      });
       let result: CompletionResult;
       try {
         result = await adapter.chat([{ role: 'user', content: promptText + reminder }], {
@@ -391,29 +401,36 @@ export class RecipeGeneratorRunner {
         targetLocales,
         rawOutput: result.text,
         resolveSlug: opts.resolveSlug,
-        existingRecipes: existing.recipes,
-        takenSlugs: existing.takenSlugs,
-        takenTitles: existing.takenTitles,
+        ...(({ recipes, takenSlugs, takenTitles }) => ({ existingRecipes: recipes, takenSlugs, takenTitles }))(known()),
         requiredDiets: spec.dietTags,
         requiredMeals: spec.mealTypes,
       });
-      if (validation.ok) return { candidates: validation.candidates, failure: null };
-      refused = `\nYour last answer was refused: ${validation.reason}${validation.key ? ` at ${JSON.stringify(validation.key)}` : ''}. Send a corrected answer.`;
+      const refusals = validation.ok ? validation.refused : [validation];
+      if (validation.ok) {
+        kept.push(...validation.candidates.slice(0, asked - kept.length));
+        // All that was asked for, or an answer nothing was wrong with: the call is done.
+        if (kept.length >= asked || refusals.length === 0) return { candidates: kept, failure: null };
+      }
+      const said = refusals.map((refusal) => `${refusal.reason}${refusal.key ? ` at ${JSON.stringify(refusal.key)}` : ''}`).join('; ');
+      refused = validation.ok
+        ? `\nOf your last answer these were refused: ${said}. Send ${asked - kept.length} other recipe(s), none of them one of those.`
+        : `\nYour last answer was refused: ${said}. Send a corrected answer.`;
 
-      const detailsSuffix = validation.details ? ` [${validation.details}]` : '';
+      const first = refusals[0]!;
+      const detailsSuffix = first.details ? ` [${first.details}]` : '';
       this.logger.warn(
-        `recipe batch reject (${validation.reason}${validation.key ? `, ${validation.key}` : ''})${detailsSuffix}: head="${head}"`,
+        `recipe batch reject (${first.reason}${first.key ? `, ${first.key}` : ''})${detailsSuffix}, ${refusals.length} refused, ${kept.length} of ${asked} kept: head="${head}"`,
       );
       this.state = {
         ...this.state,
-        lastRejectReason: validation.reason,
-        lastRejectKey: validation.key
-          ? `${validation.key}${detailsSuffix}`
-          : validation.details ?? null,
+        lastRejectReason: first.reason,
+        lastRejectKey: first.key
+          ? `${first.key}${detailsSuffix}`
+          : first.details ?? null,
         lastRejectHead: head,
       };
     }
-    return { candidates: [], failure };
+    return { candidates: kept, failure };
   }
 
   private async loadCatalogue(
@@ -707,6 +724,20 @@ export class RecipeGeneratorRunner {
 export function cuisineNamed(direction: string | undefined): Cuisine | null {
   if (!direction) return null;
   return Cuisine.safeParse(direction.trim().toLowerCase().replace(/[\s-]+/g, '_')).data ?? null;
+}
+
+/**
+ * What a call still has to bring, by how much there is to a recipe: what it
+ * was asked for less what was kept. A recipe kept in another band than any
+ * that was asked for counts against the band with the most still missing.
+ */
+function stillMissing(targets: Record<Complexity, number>, kept: readonly RecipeDraftCandidate[]): Record<Complexity, number> {
+  const left = { ...targets };
+  for (const recipe of kept) {
+    const band = left[recipe.complexity] > 0 ? recipe.complexity : (Object.keys(left) as Complexity[]).reduce((most, one) => (left[one] > left[most] ? one : most));
+    if (left[band] > 0) left[band] -= 1;
+  }
+  return left;
 }
 
 function describe(err: unknown): string {

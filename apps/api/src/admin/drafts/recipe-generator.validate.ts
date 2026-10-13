@@ -5,7 +5,9 @@
  *
  * Walks the AI's JSON response and rejects rows we wouldn't want a human
  * reviewer to even see. Every recipe goes through the same gate so the
- * curation queue is never polluted with structurally-broken drafts:
+ * curation queue is never polluted with structurally-broken drafts. A recipe
+ * is judged by itself: one that breaks a rule is refused with its reason,
+ * and the others of the answer are kept.
  *
  *   - The rules every recipe has to meet, whoever wrote it (`checkRecipe`):
  *     plain text of a length, for every language of the run, sane numbers, a
@@ -36,6 +38,7 @@ import {
 } from './recipe-generator.complexity.js';
 import { fitsDiet, type Complexity, type DietType } from '@diet-app/shared';
 import { checkRecipe, type RecipeRule } from '../../recipes/recipe-rules.js';
+import { slugify } from '../seed/catalogue.js';
 
 export type RecipeValidationReason =
   | RecipeRule
@@ -92,17 +95,29 @@ export interface RecipeDraftCandidate {
   allergens: string[];
 }
 
-export interface RecipeValidationOk {
-  ok: true;
-  candidates: RecipeDraftCandidate[];
-}
-export interface RecipeValidationFail {
-  ok: false;
+/** Why one recipe of an answer is not written. */
+export interface RecipeRefusal {
   reason: RecipeValidationReason;
   /** Identifies the recipe (slug or index) and field that triggered the
    *  failure. */
   key?: string;
   details?: string;
+}
+
+/**
+ * An answer some of whose recipes can be written. A recipe is judged by
+ * itself: one that breaks a rule is refused with its reason, and the others
+ * of the answer are kept.
+ */
+export interface RecipeValidationOk {
+  ok: true;
+  candidates: RecipeDraftCandidate[];
+  /** The recipes of the answer that are not written, in the order they came. */
+  refused: RecipeRefusal[];
+}
+/** An answer nothing can be written of: it could not be read, or every recipe of it was refused (the first refusal is said). */
+export interface RecipeValidationFail extends RecipeRefusal {
+  ok: false;
 }
 export type RecipeValidationResult = RecipeValidationOk | RecipeValidationFail;
 
@@ -169,16 +184,21 @@ export function validateRecipeBatch(
   if (root.recipes.length === 0) {
     return { ok: false, reason: 'empty-batch' };
   }
+  const rows: unknown[] = root.recipes;
 
   const candidates: RecipeDraftCandidate[] = [];
   const seenSlugs = new Set<string>();
   const seenTitles = new Set<string>();
 
-  for (let i = 0; i < root.recipes.length; i += 1) {
-    const raw = isRecord(root.recipes[i]) ? root.recipes[i] : {};
-    const slug = expectString(raw.slug);
-    const rowKey = slug ?? `#${i}`;
-    if (!slug) return { ok: false, reason: 'missing-field', key: `${rowKey}.slug` };
+  /** One recipe of the answer: what is written of it, or why nothing is. */
+  const judge = (i: number): RecipeDraftCandidate | RecipeValidationFail => {
+    const row = rows[i];
+    const raw = isRecord(row) ? row : {};
+    const written = expectString(raw.slug);
+    if (!written) return { ok: false, reason: 'missing-field', key: `#${i}.slug` };
+    // A slug with a letter of another alphabet in it, or a space, is taken as the plain one it means ("sauté" as "saute").
+    const slug = /^[a-z0-9-]+$/.test(written) ? written : slugify(written) || written;
+    const rowKey = slug;
     if (seenSlugs.has(slug)) {
       return {
         ok: false,
@@ -201,7 +221,7 @@ export function validateRecipeBatch(
       }
     }
 
-    const checked = checkRecipe(raw, targetLocales);
+    const checked = checkRecipe({ ...raw, slug }, targetLocales);
     if (!checked.ok) {
       const first = checked.problems[0]!;
       return { ok: false, reason: first.rule, key: `${rowKey}.${first.path}`, details: first.message };
@@ -325,7 +345,7 @@ export function validateRecipeBatch(
 
     seenSlugs.add(slug);
     seenTitles.add(titleKey);
-    candidates.push({
+    return {
       slug,
       titles,
       descriptions,
@@ -340,10 +360,17 @@ export function validateRecipeBatch(
       ingredients,
       ...engine,
       allergens: facts.allergens,
-    });
-  }
+    };
+  };
 
-  return { ok: true, candidates };
+  const refused: RecipeRefusal[] = [];
+  for (let i = 0; i < rows.length; i += 1) {
+    const judged = judge(i);
+    if ('ok' in judged) refused.push({ reason: judged.reason, ...(judged.key === undefined ? {} : { key: judged.key }), ...(judged.details === undefined ? {} : { details: judged.details }) });
+    else candidates.push(judged);
+  }
+  if (candidates.length === 0) return { ok: false, ...refused[0]! };
+  return { ok: true, candidates, refused };
 }
 
 /** Pick the most specific out-of-band rejection reason. */
