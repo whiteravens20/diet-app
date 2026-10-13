@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
-import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
+import { test as base, expect, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { accountOf, STATE, type Account } from './accounts';
 
 export type AppLocale = 'en' | 'pl';
@@ -136,6 +136,19 @@ export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anon
 });
 
 export { expect };
+
+/** True on a screen too narrow for the navigation to stand beside the page. */
+export const narrowScreen = (page: Page): boolean => (page.viewportSize()?.width ?? 0) < 768;
+
+/** The navigation as this screen has it: beside the page, or in the drawer, which is opened first. */
+export async function navigation(page: Page, messages: Messages): Promise<Locator> {
+  const menu = (messages.nav as Record<string, string>).menu!;
+  if (!narrowScreen(page)) return page.getByRole('complementary');
+  await page.getByRole('button', { name: menu }).click();
+  const drawer = page.getByRole('dialog', { name: menu });
+  await expect(drawer).toBeVisible();
+  return drawer;
+}
 
 /** Wait until a page has what it loads after it is shown: no placeholder is left on it. */
 export async function settled(page: Page): Promise<void> {

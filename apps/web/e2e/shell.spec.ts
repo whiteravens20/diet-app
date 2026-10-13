@@ -2,24 +2,11 @@
 
 import type { Page } from '@playwright/test';
 import { accountOf } from './accounts';
-import { expect, settled, signInHere, test, type Messages } from './fixtures';
+import { expect, narrowScreen as narrow, navigation, settled, signInHere, test, type Messages } from './fixtures';
 
 const ACCOUNT_PAGES = ['/dashboard', '/profile', '/calculator', '/recipes', '/favorites', '/meal-plans', '/shopping-lists', '/inventory', '/settings'];
 
 const texts = (messages: Messages, group: string): Record<string, string> => messages[group] as Record<string, string>;
-
-/** True on a screen too narrow for the navigation to stand beside the page. */
-const narrow = (page: Page): boolean => (page.viewportSize()?.width ?? 0) < 768;
-
-/** The navigation as this screen has it: beside the page, or in the drawer, which is opened first. */
-async function navigation(page: Page, messages: Messages) {
-  const menu = texts(messages, 'nav').menu!;
-  if (!narrow(page)) return page.getByRole('complementary');
-  await page.getByRole('button', { name: menu }).click();
-  const drawer = page.getByRole('dialog', { name: menu });
-  await expect(drawer).toBeVisible();
-  return drawer;
-}
 
 test.describe('a page of an account, for a browser without a session', () => {
   test('is answered with the way to the sign-in page, whichever page it is', async ({ request, baseURL }) => {
