@@ -144,15 +144,15 @@ export class AdminController {
   @UseGuards(AdminSessionGuard)
   async stats(): Promise<AdminStatsDto> {
     // The catalogue as plans see it: no recipe a user made for themselves, nothing an update retired.
-    const [ingredients, recipes, substitutions, meta, coverage, waiting, reach] = await Promise.all([
-      this.prisma.ingredient.count({ where: { retiredAt: null } }),
-      this.prisma.recipe.count({ where: { createdByUserId: null, retiredAt: null } }),
-      this.prisma.substitutionRule.count(),
-      this.prisma.seedMeta.findUnique({ where: { key: 'data' } }),
-      this.coverage.count(),
-      this.coverage.waiting(),
-      this.coverage.macroReach(),
-    ]);
+    // One after another, on one connection: the page is opened by one person now and then, and seven
+    // connections at once for it would be seven that the requests of accounts wait for.
+    const ingredients = await this.prisma.ingredient.count({ where: { retiredAt: null } });
+    const recipes = await this.prisma.recipe.count({ where: { createdByUserId: null, retiredAt: null } });
+    const substitutions = await this.prisma.substitutionRule.count();
+    const meta = await this.prisma.seedMeta.findUnique({ where: { key: 'data' } });
+    const coverage = await this.coverage.count();
+    const waiting = await this.coverage.waiting();
+    const reach = await this.coverage.macroReach();
     const state = computeDataState(resolveDataDir());
     return {
       counts: { ingredients, recipes, substitutions },

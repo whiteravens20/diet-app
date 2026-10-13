@@ -1,6 +1,5 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { DietType, MealType } from '@diet-app/shared';
 import { macroReachByDiet, recipesPerDietAndMeal, type CoverageMatrix, type MacroReach } from '../engine/coverage.js';
@@ -52,13 +51,17 @@ export class CatalogueCoverageService {
    *
    * The measure makes weeks of plans for every diet, which is work of this
    * process and holds up whoever else asks it something meanwhile. It is
-   * therefore done once for the recipes as they are: while what is read of
-   * them stays the same, to the last amount, the answer is the one kept.
+   * therefore done once for the recipes as they are: the database is asked
+   * for one line that changes when anything the measure reads changes, to
+   * the last amount, and while that line stays the same the answer is the
+   * one kept.
    */
   async macroReach(): Promise<Record<DietType, MacroReach | null>> {
+    const read = await this.whatTheMeasureReads();
+    if (this.reached?.with === read) return this.reached.reach;
+
     const recipes = await this.prisma.recipe.findMany({
       where: { createdByUserId: null, retiredAt: null, deletedAt: null },
-      orderBy: { id: 'asc' },
       select: {
         id: true,
         servings: true,
@@ -69,7 +72,6 @@ export class CatalogueCoverageService {
         fatPerServing: true,
         carbsPerServing: true,
         ingredients: {
-          orderBy: { id: 'asc' },
           select: {
             ingredientId: true,
             quantity: true,
@@ -79,9 +81,6 @@ export class CatalogueCoverageService {
         },
       },
     });
-    const read = createHash('sha256').update(JSON.stringify(recipes)).digest('hex');
-    if (this.reached?.with === read) return this.reached.reach;
-
     const perishablePacks = new Map<string, number>();
     for (const line of recipes.flatMap((recipe) => recipe.ingredients)) {
       if (line.ingredient.perishable && line.ingredient.packSize) perishablePacks.set(line.ingredientId, line.ingredient.packSize);
@@ -97,6 +96,37 @@ export class CatalogueCoverageService {
     );
     this.reached = { with: read, reach };
     return reach;
+  }
+
+  /**
+   * A digest of everything `macroReach` reads: of each recipe a plan may draw
+   * on, what a serving holds and which meals and diets it is for, and of each
+   * of its lines the amount and what its ingredient is converted and bought
+   * by. Worked out by the database, so that asking costs no reading of the
+   * recipes.
+   */
+  private async whatTheMeasureReads(): Promise<string> {
+    // The lines are put together once for all recipes and joined to them: asked recipe by recipe, the same takes seven times as long.
+    const [{ digest }] = await this.prisma.$queryRaw<[{ digest: string }]>`
+      SELECT md5(coalesce(string_agg(
+               concat_ws('|', r."id", r."servings", r."mealTypes"::text, r."dietTags"::text,
+                 r."caloriesPerServing", r."proteinPerServing", r."fatPerServing", r."carbsPerServing", of."held"),
+               ';' ORDER BY r."id"), '')) AS "digest"
+        FROM "Recipe" r
+        LEFT JOIN (
+          SELECT l."recipeId",
+                 string_agg(
+                   concat_ws(':', l."ingredientId", l."quantity", l."unit", i."canonicalUnit",
+                     coalesce(i."gramsPerPiece"::text, '-'), coalesce(i."density"::text, '-'),
+                     coalesce(i."packSize"::text, '-'), i."perishable"),
+                   ',' ORDER BY l."id") AS "held"
+            FROM "RecipeIngredient" l
+            JOIN "Ingredient" i ON i."id" = l."ingredientId"
+           WHERE l."recipeId" IN (SELECT "id" FROM "Recipe" WHERE "createdByUserId" IS NULL AND "retiredAt" IS NULL AND "deletedAt" IS NULL)
+           GROUP BY l."recipeId"
+        ) of ON of."recipeId" = r."id"
+       WHERE r."createdByUserId" IS NULL AND r."retiredAt" IS NULL AND r."deletedAt" IS NULL`;
+    return digest;
   }
 
   /**
