@@ -29,9 +29,9 @@ literature, about 130 g and 50 g of carbohydrate a day at 2,000 kcal (Feinman et
 al., *Nutrition* 31, 2015). Balanced and high-protein plans take any recipe. A
 `dietTags` or `allergens` key written into a recipe is ignored.
 `npm run data:lint` prints how many recipes each diet can draw on for each meal,
-and fails when a diet has fewer for a meal than the floor in
-[`apps/api/src/engine/coverage.ts`](../apps/api/src/engine/coverage.ts) (1 today,
-to rise with the catalogue). It also refuses two recipes of the same making: the
+and fails when a diet has fewer than six for a meal: a week without the same dish
+twice, and room to swap
+([`apps/api/src/engine/coverage.ts`](../apps/api/src/engine/coverage.ts)). It also refuses two recipes of the same making: the
 same ingredients and amounts, for the same meals and servings, under two names.
 
 Every diet aims at a split of a day's energy between protein, fat and

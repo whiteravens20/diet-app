@@ -13,7 +13,7 @@ import { IMPORT_ALIASES_FILE, readImportAliases } from '../src/admin/drafts/exte
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
 import { givenAsCooked, LEAST_ENERGY_OF_A_DRY_STAPLE } from '../src/admin/seed/dry-staples.js';
 import { givenAsCookedMeat, MOST_PROTEIN_OF_RAW_MEAT } from '../src/admin/seed/raw-meat.js';
-import { COVERAGE_FLOOR, COVERAGE_TARGET, MACRO_OUT_OF_REACH, macroReachByDiet, recipesPerDietAndMeal } from '../src/engine/coverage.js';
+import { COVERAGE_TARGET, MACRO_OUT_OF_REACH, macroReachByDiet, recipesPerDietAndMeal } from '../src/engine/coverage.js';
 import { macroSplitOf } from '../src/engine/nutrition.js';
 import { plannable } from './catalogue-plans.js';
 
@@ -70,16 +70,15 @@ for (const diet of diets) {
   console.log(`  ${diet.padEnd(14)}${slots.map((slot) => String(coverage[diet][slot]).padStart(17)).join('')}`);
 }
 
-// A cell under the floor is a diet no plan can be made for, or one that
-// serves the same dish every day. The floor rises as recipes are added.
-const thin = diets.flatMap((diet) => slots.filter((slot) => coverage[diet][slot] < COVERAGE_FLOOR).map((slot) => `${diet} ${slot}: ${coverage[diet][slot]}`));
+// A cell under what a week needs is a diet that is served the same dish day
+// after day, or one no plan can be made for.
+const thin = diets.flatMap((diet) => slots.filter((slot) => coverage[diet][slot] < COVERAGE_TARGET).map((slot) => `${diet} ${slot}: ${coverage[diet][slot]}`));
 if (thin.length > 0) {
-  console.error(`\n✗ ${thin.length} diet and meal pair(s) have fewer than ${COVERAGE_FLOOR} recipe(s):`);
+  console.error(`\n✗ ${thin.length} diet and meal pair(s) have fewer than the ${COVERAGE_TARGET} recipes a week needs:`);
   for (const cell of thin) console.error(`  ${cell}`);
   process.exit(1);
 }
-const short = diets.reduce((sum, diet) => sum + slots.filter((slot) => coverage[diet][slot] < COVERAGE_TARGET).length, 0);
-console.log(`\n  every pair has at least ${COVERAGE_FLOOR}; ${short} of ${diets.length * slots.length} are still under the ${COVERAGE_TARGET} a release needs`);
+console.log(`\n  every pair has the ${COVERAGE_TARGET} recipes a week needs, or more`);
 
 // What a week's plan for each diet holds of protein, fat and carbohydrate,
 // against what the diet aims at. Where the two are far apart no setting will

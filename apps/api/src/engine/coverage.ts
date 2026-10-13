@@ -14,12 +14,9 @@ import { OptimizerError, optimisePlan, uniformDays, type OptimizerRecipe } from 
 import { packUse } from './packs.js';
 
 /**
- * The fewest recipes the shipped catalogue may have for any diet and meal.
- * The data lint fails below it. It stands at what the catalogue has today and
- * is raised with every batch of recipes, up to `COVERAGE_TARGET`.
+ * The fewest recipes a catalogue needs for any diet and meal: a week without
+ * the same dish twice, and room to swap. The data lint fails below it.
  */
-export const COVERAGE_FLOOR = 1;
-/** What a release needs in every cell: a week without the same dish twice, and room to swap. */
 export const COVERAGE_TARGET = 6;
 
 export type CoverageMatrix = Record<DietType, Record<MealType, number>>;
