@@ -91,6 +91,12 @@ describe('validateIngredientNamer', () => {
     expect(result).toMatchObject({ ok: false, reason: 'extra-keys', key: 'mystery-slug' });
   });
 
+  it('takes a short name of a long description, and refuses a single letter', () => {
+    const named = (pl: string) => validateIngredientNamer({ source: { leeks: 'Leeks, bulb and greens, root removed, raw' }, targetLocales, rawOutput: happy({ leeks: { name: { pl } } }) });
+    expect(named('Por')).toMatchObject({ ok: true, suggestions: { leeks: { name: { pl: 'Por' } } } });
+    expect(named('P')).toMatchObject({ ok: false, reason: 'length-blowup' });
+  });
+
   it('rejects a missing target locale', () => {
     const result = validateIngredientNamer({
       source,
