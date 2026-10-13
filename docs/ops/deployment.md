@@ -450,6 +450,32 @@ Two more things differ from one process:
 
 The worker is not multiplied with the API: see [The worker](#the-worker).
 
+## When a page is slow
+
+The API is measured against a catalogue of 2,000 recipes (`npm run bench`, see
+[CONTRIBUTING](../../CONTRIBUTING.md#performance-budgets)). On a small virtual machine
+with the database beside it, a plan of four weeks and five meals a day is made in under
+half a second there, its shopping list in a tenth of a second, and a page of the recipe
+library in a twentieth. An instance whose catalogue is no larger and which takes several
+times as long is held up by something outside the application: the disk or the memory of
+the database, or a machine that is busy with something else.
+
+To see what the database is asked, set `SLOW_QUERY_MS`, to `50` for a start. The API then
+logs every statement that took that many milliseconds or longer:
+
+```
+WARN [Database] A statement took 212 ms: SELECT "public"."Recipe"."id", ... WHERE "public"."Recipe"."id" IN ($1,$2)
+```
+
+The line holds the statement with its placeholders, never the values that went with them.
+Leave the variable unset when the question is answered: with it set, every statement is
+timed.
+
+Choosing the recipes of a plan is work of the API process itself. For a plan of four
+weeks at that catalogue it holds the process for about a sixth of a second, in which the
+other requests of that process wait. [More than one process](#more-than-one-api-process)
+lets them be answered meanwhile.
+
 ## Production notes
 
 - Set strong `JWT_*` secrets and a 64-hex `AI_KEY_ENCRYPTION_SECRET` (`openssl rand`).
