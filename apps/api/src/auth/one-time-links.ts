@@ -1,6 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
+
+/** What is kept of a link that was sent: its hash, so that the table is no list of working links. */
+export function hashOfLink(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * Every link an account was sent to reset its password or to move to another

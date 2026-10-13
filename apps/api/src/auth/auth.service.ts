@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -28,7 +28,7 @@ import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
 import { AccountSecondFactor } from './account-second-factor.service.js';
-import { retirePendingLinks } from './one-time-links.js';
+import { hashOfLink, retirePendingLinks } from './one-time-links.js';
 import { type OpenedSession, SessionsService } from './sessions.service.js';
 import { TurnstileService } from './turnstile.service.js';
 
@@ -97,7 +97,7 @@ export class AuthService {
     const now = Date.now();
     const latest = await this.prisma.emailVerificationToken.findFirst({ where: { userId, usedAt: null }, orderBy: { createdAt: 'desc' } });
     // A link made before links could be sent again holds a token nobody can work out from the row.
-    const sameAgain = latest && latest.expiresAt.getTime() - now > VERIFICATION_LINK_WORTH_SENDING_MS && sha256(this.verificationToken(latest.id)) === latest.tokenHash;
+    const sameAgain = latest && latest.expiresAt.getTime() - now > VERIFICATION_LINK_WORTH_SENDING_MS && hashOfLink(this.verificationToken(latest.id)) === latest.tokenHash;
     let id: string;
     if (sameAgain) {
       id = latest.id;
@@ -107,7 +107,7 @@ export class AuthService {
       await this.prisma.$transaction([
         this.prisma.emailVerificationToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date(now) } }),
         this.prisma.emailVerificationToken.create({
-          data: { id, userId, tokenHash: sha256(this.verificationToken(id)), expiresAt: new Date(now + 3_600_000) },
+          data: { id, userId, tokenHash: hashOfLink(this.verificationToken(id)), expiresAt: new Date(now + 3_600_000) },
         }),
       ]);
     }
@@ -192,7 +192,7 @@ export class AuthService {
       this.prisma.passwordResetToken.create({
         data: {
           userId: user.id,
-          tokenHash: sha256(raw),
+          tokenHash: hashOfLink(raw),
           expiresAt: new Date(Date.now() + 3_600_000), // 1 hour
         },
       }),
@@ -206,7 +206,7 @@ export class AuthService {
   /** Confirms an email address from a verification link. */
   async verifyEmail(rawToken: string): Promise<void> {
     const token = await this.prisma.emailVerificationToken.findUnique({
-      where: { tokenHash: sha256(rawToken) },
+      where: { tokenHash: hashOfLink(rawToken) },
     });
     const invalid = () =>
       new BadRequestException({
@@ -228,7 +228,7 @@ export class AuthService {
    */
   async confirmEmailChange(rawToken: string): Promise<void> {
     const token = await this.prisma.emailChangeToken.findUnique({
-      where: { tokenHash: sha256(rawToken) },
+      where: { tokenHash: hashOfLink(rawToken) },
     });
     const invalid = () =>
       new BadRequestException({
@@ -263,7 +263,7 @@ export class AuthService {
 
   async confirmPasswordReset(dto: PasswordResetConfirm): Promise<void> {
     const token = await this.prisma.passwordResetToken.findUnique({
-      where: { tokenHash: sha256(dto.token) },
+      where: { tokenHash: hashOfLink(dto.token) },
     });
     const invalid = () => new BadRequestException({ error: 'INVALID_RESET_TOKEN', message: 'Reset link is invalid or expired.' });
     if (!token || token.usedAt || token.expiresAt < new Date()) throw invalid();
@@ -307,8 +307,4 @@ function emailTaken(): ConflictException {
 /** Turns the unique index refusing an address into the answer a client expects. */
 function rethrowAsEmailTaken(error: unknown): never {
   throw isUniqueViolation(error) ? emailTaken() : error;
-}
-
-function sha256(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
 }

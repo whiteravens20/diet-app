@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import {
   BadRequestException,
   Injectable,
@@ -15,14 +15,13 @@ import type {
   SessionUser,
   UpdateUserSettings,
 } from '@diet-app/shared';
-import { AiMode, Locale, Palette, Theme, WeightUnit } from '@diet-app/shared';
 import { Passwords } from '../common/passwords.js';
 import { storedAiMode, storedLocale, storedPalette, storedTheme, storedWeightUnit } from '../common/stored-settings.js';
 import type { Env } from '../config/env.js';
 import { carryUsageOfAccount } from '../ai/ai-quota.service.js';
 import { AccountEmail } from '../auth/account-email.js';
 import { AuthService } from '../auth/auth.service.js';
-import { retirePendingLinks } from '../auth/one-time-links.js';
+import { hashOfLink, retirePendingLinks } from '../auth/one-time-links.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { removePersonalRecipesOf } from '../recipes/personal-recipes.service.js';
@@ -52,22 +51,8 @@ export class UsersService {
   }
 
   async updateSettings(userId: string, dto: UpdateUserSettings): Promise<SessionUser> {
-    // Zod has already validated locale/theme/palette/aiMode against the
-    // supported enums, but we re-validate at the boundary in case a runtime
-    // caller bypasses it.
-    if (dto.locale !== undefined) Locale.parse(dto.locale);
-    if (dto.theme !== undefined) Theme.parse(dto.theme);
-    if (dto.palette !== undefined) Palette.parse(dto.palette);
-    if (dto.aiMode !== undefined) AiMode.parse(dto.aiMode);
-    if (dto.weightUnit !== undefined) WeightUnit.nullable().parse(dto.weightUnit);
-    if (
-      dto.displayName === undefined &&
-      dto.locale === undefined &&
-      dto.theme === undefined &&
-      dto.palette === undefined &&
-      dto.aiMode === undefined &&
-      dto.weightUnit === undefined
-    ) {
+    // The request passed the contract on its way in: what is left to say is that it names nothing.
+    if (Object.values(dto).every((value) => value === undefined)) {
       throw new BadRequestException({ error: 'EMPTY_UPDATE', message: 'Nothing to update.' });
     }
     // Flipping to `byok` with zero enabled provider configs would silently
@@ -99,16 +84,18 @@ export class UsersService {
     return this.toSessionUser(user);
   }
 
-  async changePassword(userId: string, dto: ChangePasswordRequest): Promise<void> {
+  /** The account, for whoever gave the password it has: what changes or ends an account asks for it again. */
+  private async holder(userId: string, currentPassword: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await this.passwords.matches(dto.currentPassword, user.passwordHash);
-    if (!ok) {
-      throw new UnauthorizedException({
-        error: 'INVALID_PASSWORD',
-        message: 'Current password is incorrect.',
-      });
+    if (!(await this.passwords.matches(currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException({ error: 'INVALID_PASSWORD', message: 'Current password is incorrect.' });
     }
+    return user;
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordRequest): Promise<void> {
+    const user = await this.holder(userId, dto.currentPassword);
     const passwordHash = await this.passwords.hash(dto.newPassword);
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -135,15 +122,7 @@ export class UsersService {
         message: 'Changing your email requires the operator to configure SMTP.',
       });
     }
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await this.passwords.matches(dto.currentPassword, user.passwordHash);
-    if (!ok) {
-      throw new UnauthorizedException({
-        error: 'INVALID_PASSWORD',
-        message: 'Current password is incorrect.',
-      });
-    }
+    const user = await this.holder(userId, dto.currentPassword);
     const newEmail = this.emails.normalise(dto.newEmail);
     const newEmailIndex = this.emails.indexOf(newEmail);
     // Covers both "already in use by someone else" and "this is already your
@@ -160,7 +139,7 @@ export class UsersService {
           userId,
           newEmailEncrypted: this.emails.sealPending(newEmail, userId),
           newEmailIndex,
-          tokenHash: createHash('sha256').update(raw).digest('hex'),
+          tokenHash: hashOfLink(raw),
           expiresAt: new Date(Date.now() + 3_600_000),
         },
       }),
@@ -186,15 +165,7 @@ export class UsersService {
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
-    const ok = await this.passwords.matches(dto.currentPassword, user.passwordHash);
-    if (!ok) {
-      throw new UnauthorizedException({
-        error: 'INVALID_PASSWORD',
-        message: 'Current password is incorrect.',
-      });
-    }
+    await this.holder(userId, dto.currentPassword);
     // Everything the account owns goes, in one transaction and in this order:
     // what holds a recipe before the recipes, and the account last.
     await this.prisma.$transaction(
