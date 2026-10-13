@@ -55,6 +55,15 @@ The companion Android app lives in a separate repository:
   full deterministic fallback so the app works with **no AI key at all**.
 - **Self-hosted, Docker-first** — `docker compose up` boots the whole stack.
 
+## What it looks like
+
+| | |
+|---|---|
+| ![The dashboard: the target of the day, maintenance and the deficit, and what the plan under way comes to](docs/screenshots/dashboard.png) | ![A plan of a week with a day open: every meal with what it holds and the ways to change it](docs/screenshots/meal-plan.png) |
+| ![A shopping list by aisle, with what is at home and what was bought](docs/screenshots/shopping-list.png) | ![The recipe library: each recipe with its energy, its time and the diets it fits](docs/screenshots/recipes.png) |
+
+The pictures are of an instance installed from this repository, with the catalogue it ships.
+
 ## Architecture
 
 Diet App is one image started in several roles, plus PostgreSQL. The web front-end is a Next.js server and the only thing a browser talks to: it renders the pages and passes every `/api` request on to the API over the internal network, so there is a single origin and no CORS to configure. The API is a NestJS service that validates each request against schemas it shares with the web, checks who owns what, and runs the planning logic. A worker runs the scheduled tasks from the same code, and a one-shot job applies database migrations before either of them starts.
