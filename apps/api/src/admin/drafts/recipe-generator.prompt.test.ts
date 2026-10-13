@@ -73,6 +73,27 @@ describe('the examples the recipe generator shows a model', () => {
   });
 });
 
+describe('the catalogue a prompt shows', () => {
+  const shown = (targetLocales: ('en' | 'pl')[]): string => {
+    const text = buildRecipeGeneratorPrompt({ targetLocales, targets: { simple: 1, medium: 1, complex: 1 }, catalogue: polish });
+    return text.slice(text.indexOf('slug\tname_en'));
+  };
+  /** Two rows as a run loads them: with the name each has in Polish. */
+  const polish: CatalogueRow[] = catalogue
+    .filter((row) => ['cottage-cheese', 'salt'].includes(row.slug))
+    .map((row) => ({ ...row, names: { ...row.names, pl: row.slug === 'salt' ? 'Sól' : 'Serek wiejski' } }));
+
+  it('names each ingredient in every language the run writes in, so that a text calls it what the catalogue does', () => {
+    expect(shown(['en', 'pl'])).toContain('slug\tname_en\tname_pl\tcategory');
+    expect(shown(['en', 'pl'])).toContain('cottage-cheese\tCottage cheese\tSerek wiejski\tdairy');
+  });
+
+  it('shows no name of a language the run does not write in', () => {
+    expect(shown(['en'])).toContain('slug\tname_en\tcategory');
+    expect(shown(['en'])).not.toContain('Serek wiejski');
+  });
+});
+
 describe('a prompt for a diet', () => {
   const asked = (dietTags?: ('keto' | 'vegan' | 'custom')[]): string =>
     buildRecipeGeneratorPrompt({ targetLocales: ['en', 'pl'], targets: { simple: 1, medium: 1, complex: 1 }, catalogue, dietTags, mealTypes: ['dinner'] });

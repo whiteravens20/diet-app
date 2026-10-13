@@ -148,11 +148,14 @@ function renderFewShotForLocale(locale: string): string {
   return `Exemplar recipes — ${label} (${locale}). Each is one entry of "recipes", written as yours must be; the word above it is its complexity band and no part of the entry:\n${blocks}\n\n`;
 }
 
-function renderCatalogue(catalogue: CatalogueRow[]): string {
+function renderCatalogue(catalogue: CatalogueRow[], targetLocales: readonly string[]): string {
   // Single TSV-ish block to minimise token usage. Header row labels the columns
   // explicitly so the model can read it once and use slugs verbatim afterwards.
-  const header =
-    'slug\tname_en\tcategory\tunit\tkcal/100\tP/100\tF/100\tC/100\tallergens\tdiets';
+  // An ingredient is shown with its name in every language the run writes in:
+  // a text that calls it something else than the shopping list does reads as
+  // another ingredient.
+  const others = targetLocales.filter((locale) => locale !== 'en');
+  const header = ['slug', 'name_en', ...others.map((locale) => `name_${locale}`), 'category', 'unit', 'kcal/100', 'P/100', 'F/100', 'C/100', 'allergens', 'diets'].join('\t');
   const rows = catalogue.map((row) => {
     const enName = row.names.en ?? row.slug;
     const allergens = row.allergens.length > 0 ? row.allergens.join(',') : '-';
@@ -160,6 +163,7 @@ function renderCatalogue(catalogue: CatalogueRow[]): string {
     return [
       row.slug,
       enName,
+      ...others.map((locale) => row.names[locale] ?? '-'),
       row.category,
       row.canonicalUnit,
       row.caloriesPer100,
@@ -384,8 +388,10 @@ ${localeStepsHints}
   ]
 }
 
-${existingBlock}${fewShot}Ingredient catalogue (slugs you MUST pick from):
-${renderCatalogue(input.catalogue)}
+${existingBlock}${fewShot}Ingredient catalogue (slugs you MUST pick from). In the text of each
+language call an ingredient by the name its row has for that language, in
+whatever form the sentence needs:
+${renderCatalogue(input.catalogue, targetLocales)}
 
 Now write ${count} recipe(s).`;
 }
