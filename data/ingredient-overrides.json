@@ -1,0 +1,1407 @@
+{
+  "alaska-pollock-raw": {
+    "name": {
+      "pl": "Mintaj surowy"
+    }
+  },
+  "almond-butter-creamy": {
+    "name": {
+      "pl": "Masło migdałowe gładkie"
+    }
+  },
+  "almond-milk-unsweetened-plain-refrigerated": {
+    "name": {
+      "pl": "Napój migdałowy niesłodzony"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w lodówce"
+    }
+  },
+  "almond-milk-unsweetened-plain-shelf-stable": {
+    "name": {
+      "pl": "Napój migdałowy niesłodzony UHT"
+    }
+  },
+  "anchovies-canned-in-olive-oil-with-salt-drained": {
+    "name": {
+      "pl": "Anchois w oliwie z oliwek"
+    }
+  },
+  "apple-juice-with-added-vitamin-c-from-concentrate-shelf-stable": {
+    "name": {
+      "pl": "Sok jabłkowy z witaminą C"
+    }
+  },
+  "apples-fuji-with-skin-raw": {
+    "name": {
+      "pl": "Jabłka fuji ze skórką"
+    }
+  },
+  "apples-gala-with-skin-raw": {
+    "name": {
+      "pl": "Jabłka gala ze skórką"
+    }
+  },
+  "apples-granny-smith-with-skin-raw": {
+    "name": {
+      "pl": "Jabłka granny smith ze skórką"
+    }
+  },
+  "apples-honeycrisp-with-skin-raw": {
+    "name": {
+      "pl": "Jabłka honeycrisp ze skórką"
+    }
+  },
+  "apples-red-delicious-with-skin-raw": {
+    "name": {
+      "pl": "Jabłka red delicious ze skórką"
+    }
+  },
+  "applesauce-unsweetened-with-added-vitamin-c": {
+    "name": {
+      "pl": "Mus jabłkowy niesłodzony z witaminą C"
+    }
+  },
+  "apricot-with-skin-raw": {
+    "name": {
+      "pl": "Morele ze skórką"
+    }
+  },
+  "arugula-baby-raw": {
+    "name": {
+      "pl": "Rukola młoda"
+    }
+  },
+  "asparagus-green-raw": {
+    "name": {
+      "pl": "Szparagi zielone"
+    }
+  },
+  "bananas-overripe-raw": {
+    "name": {
+      "pl": "Banany bardzo dojrzałe"
+    }
+  },
+  "beans-cannellini-canned-sodium-added-drained-and-rinsed": {
+    "name": {
+      "pl": "Fasola cannellini z puszki"
+    }
+  },
+  "beans-cannellini-dry": {
+    "name": {
+      "pl": "Fasola cannellini sucha"
+    }
+  },
+  "beans-great-northern-canned-sodium-added-drained-and-rinsed": {
+    "name": {
+      "pl": "Fasola great northern z puszki"
+    }
+  },
+  "beans-navy-canned-sodium-added-drained-and-rinsed": {
+    "name": {
+      "pl": "Fasola biała drobna z puszki"
+    }
+  },
+  "beans-pinto-canned-sodium-added-drained-and-rinsed": {
+    "name": {
+      "pl": "Fasola pinto z puszki"
+    }
+  },
+  "beans-snap-green-canned-regular-pack-drained-solids": {
+    "name": {
+      "pl": "Fasola szparagowa konserwowa"
+    }
+  },
+  "beef-chuck-roast-boneless-choice-raw": {
+    "name": {
+      "pl": "Karkówka wołowa bez kości"
+    }
+  },
+  "beef-flank-steak-boneless-choice-raw": {
+    "name": {
+      "pl": "Łata wołowa (flank steak)"
+    }
+  },
+  "beef-ground-80-lean-meat-20-fat-raw": {
+    "name": {
+      "pl": "Mięso mielone wołowe 80/20"
+    }
+  },
+  "beef-ground-90-lean-meat-10-fat-raw": {
+    "name": {
+      "pl": "Mięso mielone wołowe 90/10"
+    }
+  },
+  "beef-loin-tenderloin-roast-separable-lean-only-boneless-trimmed-to-0-fat-select-cooked-roasted": {
+    "name": {
+      "pl": "Polędwica wołowa pieczona"
+    }
+  },
+  "beef-loin-top-loin-steak-boneless-lip-on-separable-lean-only-trimmed-to-1-8-fat-choice-raw": {
+    "name": {
+      "pl": "Stek z rostbefu"
+    }
+  },
+  "beef-ribeye-steak-boneless-choice-raw": {
+    "name": {
+      "pl": "Stek ribeye"
+    }
+  },
+  "beef-round-eye-of-round-roast-boneless-separable-lean-only-trimmed-to-0-fat-select-raw": {
+    "name": {
+      "pl": "Pieczeń wołowa z ligawy"
+    }
+  },
+  "beef-round-top-round-boneless-choice-raw": {
+    "name": {
+      "pl": "Zrazowa górna wołowa bez kości"
+    }
+  },
+  "beef-round-top-round-roast-boneless-separable-lean-only-trimmed-to-0-fat-select-raw": {
+    "name": {
+      "pl": "Pieczeń wołowa ze zrazowej górnej"
+    }
+  },
+  "beef-short-loin-ny-strip-steak-raw": {
+    "name": {
+      "pl": "Stek nowojorski (NY strip)"
+    }
+  },
+  "beef-short-loin-porterhouse-steak-separable-lean-only-trimmed-to-1-8-fat-select-raw": {
+    "name": {
+      "pl": "Stek porterhouse"
+    }
+  },
+  "beef-short-loin-t-bone-steak-bone-in-separable-lean-only-trimmed-to-1-8-fat-choice-cooked-grilled": {
+    "name": {
+      "pl": "Stek T-bone grillowany"
+    }
+  },
+  "beef-tenderloin-steak-raw": {
+    "name": {
+      "pl": "Stek z polędwicy wołowej"
+    }
+  },
+  "beef-top-sirloin-steak-raw": {
+    "name": {
+      "pl": "Stek z krzyżowej (top sirloin)"
+    }
+  },
+  "beet-greens-raw": {
+    "name": {
+      "pl": "Botwina"
+    }
+  },
+  "beets-raw": {
+    "name": {
+      "pl": "Buraki świeże"
+    }
+  },
+  "bison-ground-raw": {
+    "name": {
+      "pl": "Mięso mielone z bizona"
+    }
+  },
+  "blackeye-pea-canned-sodium-added-drained-and-rinsed": {
+    "name": {
+      "pl": "Fasola czarne oczko z puszki"
+    }
+  },
+  "blackeye-pea-dry": {
+    "name": {
+      "pl": "Fasola czarne oczko sucha"
+    }
+  },
+  "brussels-sprouts-raw": {
+    "name": {
+      "pl": "Brukselka świeża"
+    }
+  },
+  "bulgur-dry-raw": {
+    "name": {
+      "pl": "Kasza bulgur sucha"
+    }
+  },
+  "buttermilk-low-fat": {
+    "name": {
+      "pl": "Maślanka niskotłuszczowa"
+    }
+  },
+  "cabbage-bok-choy-raw": {
+    "name": {
+      "pl": "Kapusta bok choy"
+    }
+  },
+  "cabbage-green-raw": {
+    "name": {
+      "pl": "Kapusta biała"
+    }
+  },
+  "cabbage-red-raw": {
+    "name": {
+      "pl": "Kapusta czerwona"
+    }
+  },
+  "carrots-baby-raw": {
+    "name": {
+      "pl": "Marchewki baby"
+    }
+  },
+  "carrots-frozen-unprepared": {
+    "name": {
+      "pl": "Marchew mrożona"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "celery-raw": {
+    "name": {
+      "pl": "Seler naciowy"
+    }
+  },
+  "cheese-american-restaurant": {
+    "name": {
+      "pl": "Ser amerykański"
+    }
+  },
+  "cheese-cotija-solid": {
+    "name": {
+      "pl": "Ser cotija"
+    }
+  },
+  "cheese-cottage-lowfat-2-milkfat": {
+    "name": {
+      "pl": "Serek wiejski niskotłuszczowy 2%"
+    }
+  },
+  "cheese-dry-white-queso-seco": {
+    "name": {
+      "pl": "Ser queso seco"
+    }
+  },
+  "cheese-monterey-jack-solid": {
+    "name": {
+      "pl": "Ser monterey jack"
+    }
+  },
+  "cheese-mozzarella-low-moisture-part-skim": {
+    "name": {
+      "pl": "Mozzarella twarda półtłusta"
+    }
+  },
+  "cheese-oaxaca-solid": {
+    "name": {
+      "pl": "Ser oaxaca"
+    }
+  },
+  "cheese-parmesan-grated": {
+    "name": {
+      "pl": "Parmezan tarty"
+    }
+  },
+  "cheese-parmesan-grated-refrigerated": {
+    "name": {
+      "pl": "Parmezan tarty świeży"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w lodówce"
+    }
+  },
+  "cheese-pasteurized-process-american-vitamin-d-fortified": {
+    "name": {
+      "pl": "Ser amerykański topiony"
+    }
+  },
+  "cheese-pasteurized-process-cheese-food-or-product-american-singles": {
+    "name": {
+      "pl": "Ser amerykański w plastrach"
+    }
+  },
+  "cheese-provolone-sliced": {
+    "name": {
+      "pl": "Ser provolone w plastrach"
+    }
+  },
+  "cheese-queso-fresco-solid": {
+    "name": {
+      "pl": "Ser queso fresco"
+    }
+  },
+  "cheese-ricotta-whole-milk": {
+    "name": {
+      "pl": "Ser ricotta"
+    }
+  },
+  "cheese-swiss": {
+    "name": {
+      "pl": "Ser szwajcarski"
+    }
+  },
+  "cherries-sweet-dark-red-raw": {
+    "name": {
+      "pl": "Czereśnie ciemnoczerwone"
+    }
+  },
+  "chicken-breast-meat-and-skin-raw": {
+    "name": {
+      "pl": "Pierś z kurczaka ze skórą"
+    }
+  },
+  "chicken-broiler-or-fryers-breast-skinless-boneless-meat-only-cooked-braised": {
+    "name": {
+      "pl": "Pierś z kurczaka duszona"
+    }
+  },
+  "chicken-broilers-or-fryers-drumstick-meat-only-cooked-braised": {
+    "name": {
+      "pl": "Podudzie z kurczaka duszone"
+    }
+  },
+  "chicken-drumstick-meat-and-skin-raw": {
+    "name": {
+      "pl": "Podudzie z kurczaka ze skórą"
+    }
+  },
+  "chicken-ground-with-additives-raw": {
+    "name": {
+      "pl": "Mięso mielone z kurczaka"
+    }
+  },
+  "chicken-thigh-boneless-skinless-raw": {
+    "name": {
+      "pl": "Udo z kurczaka bez skóry i kości"
+    }
+  },
+  "chicken-wing-meat-and-skin-raw": {
+    "name": {
+      "pl": "Skrzydełka z kurczaka"
+    }
+  },
+  "chickpeas-garbanzo-beans-bengal-gram-dry": {
+    "name": {
+      "pl": "Ciecierzyca sucha"
+    }
+  },
+  "cod-pacific-or-alaskan-frozen-wild-caught": {
+    "name": {
+      "pl": "Dorsz pacyficzny"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "collards-raw": {
+    "name": {
+      "pl": "Kapusta liściasta"
+    }
+  },
+  "cookies-oatmeal-soft-with-raisins": {
+    "name": {
+      "pl": "Ciasteczka owsiane z rodzynkami"
+    }
+  },
+  "corn-flour-masa-harina-white-or-yellow-dry-raw": {
+    "name": {
+      "pl": "Mąka kukurydziana masa harina"
+    }
+  },
+  "corn-sweet-yellow-and-white-kernels-fresh-raw": {
+    "name": {
+      "pl": "Kukurydza cukrowa"
+    }
+  },
+  "cranberry-juice-not-fortified-from-concentrate-shelf-stable": {
+    "name": {
+      "pl": "Sok żurawinowy"
+    }
+  },
+  "cream-cheese-full-fat-block": {
+    "name": {
+      "pl": "Serek śmietankowy pełnotłusty (kostka)"
+    }
+  },
+  "crustaceans-crab-blue-swimming-lump-pasteurized-refrigerated": {
+    "name": {
+      "pl": "Mięso kraba błękitnego"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w lodówce"
+    }
+  },
+  "egg-white-dried": {
+    "name": {
+      "pl": "Białko jaja w proszku"
+    }
+  },
+  "egg-white-raw-frozen-pasteurized": {
+    "name": {
+      "pl": "Białko jaja pasteryzowane mrożone"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "egg-whole-dried": {
+    "name": {
+      "pl": "Jaja w proszku"
+    }
+  },
+  "egg-whole-raw-frozen-pasteurized": {
+    "name": {
+      "pl": "Masa jajowa pasteryzowana mrożona"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "egg-yolk-dried": {
+    "name": {
+      "pl": "Żółtko jaja w proszku"
+    }
+  },
+  "egg-yolk-raw-frozen-pasteurized": {
+    "name": {
+      "pl": "Żółtko jaja pasteryzowane mrożone"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "eggplant-raw": {
+    "name": {
+      "pl": "Bakłażan"
+    }
+  },
+  "eggs-grade-a-large-egg-white": {
+    "name": {
+      "pl": "Białko jaja"
+    }
+  },
+  "eggs-grade-a-large-egg-yolk": {
+    "name": {
+      "pl": "Żółtko jaja"
+    }
+  },
+  "einkorn-grain-dry-raw": {
+    "name": {
+      "pl": "Ziarno samopszy"
+    }
+  },
+  "farro-pearled-dry-raw": {
+    "name": {
+      "pl": "Farro perłowe"
+    }
+  },
+  "fennel-bulb-raw": {
+    "name": {
+      "pl": "Fenkuł"
+    }
+  },
+  "figs-dried-uncooked": {
+    "name": {
+      "pl": "Figi suszone"
+    }
+  },
+  "fish-catfish-farm-raised-raw": {
+    "name": {
+      "pl": "Sum hodowlany surowy"
+    }
+  },
+  "fish-haddock-raw": {
+    "name": {
+      "pl": "Plamiak (łupacz)"
+    }
+  },
+  "fish-salmon-sockeye-wild-caught-raw": {
+    "name": {
+      "pl": "Łosoś sockeye dziki surowy"
+    }
+  },
+  "fish-tilapia-farm-raised-raw": {
+    "name": {
+      "pl": "Tilapia hodowlana surowa"
+    }
+  },
+  "flaxseed-ground": {
+    "name": {
+      "pl": "Siemię lniane mielone"
+    }
+  },
+  "flour-00": {
+    "name": {
+      "pl": "Mąka typu 00"
+    }
+  },
+  "flour-almond": {
+    "name": {
+      "pl": "Mąka migdałowa"
+    }
+  },
+  "flour-amaranth": {
+    "name": {
+      "pl": "Mąka z amarantusa"
+    }
+  },
+  "flour-barley": {
+    "name": {
+      "pl": "Mąka jęczmienna"
+    }
+  },
+  "flour-bread-white-enriched-unbleached": {
+    "name": {
+      "pl": "Mąka chlebowa pszenna"
+    }
+  },
+  "flour-buckwheat": {
+    "name": {
+      "pl": "Mąka gryczana"
+    }
+  },
+  "flour-cassava": {
+    "name": {
+      "pl": "Mąka z manioku"
+    }
+  },
+  "flour-chestnut": {
+    "name": {
+      "pl": "Mąka kasztanowa"
+    }
+  },
+  "flour-coconut": {
+    "name": {
+      "pl": "Mąka kokosowa"
+    }
+  },
+  "flour-corn-yellow-fine-meal-enriched": {
+    "name": {
+      "pl": "Mąka kukurydziana żółta"
+    }
+  },
+  "flour-oat-whole-grain": {
+    "name": {
+      "pl": "Mąka owsiana pełnoziarnista"
+    }
+  },
+  "flour-pastry-unenriched-unbleached": {
+    "name": {
+      "pl": "Mąka tortowa"
+    }
+  },
+  "flour-potato": {
+    "name": {
+      "pl": "Mąka z całych ziemniaków"
+    }
+  },
+  "flour-quinoa": {
+    "name": {
+      "pl": "Mąka z komosy ryżowej"
+    }
+  },
+  "flour-rice-brown": {
+    "name": {
+      "pl": "Mąka ryżowa brązowa"
+    }
+  },
+  "flour-rice-glutinous": {
+    "name": {
+      "pl": "Mąka ryżowa kleista"
+    }
+  },
+  "flour-rice-white-unenriched": {
+    "name": {
+      "pl": "Mąka ryżowa biała"
+    }
+  },
+  "flour-rye": {
+    "name": {
+      "pl": "Mąka żytnia"
+    }
+  },
+  "flour-semolina-coarse-and-semi-coarse": {
+    "name": {
+      "pl": "Semolina gruboziarnista"
+    }
+  },
+  "flour-semolina-fine": {
+    "name": {
+      "pl": "Semolina drobnoziarnista"
+    }
+  },
+  "flour-sorghum": {
+    "name": {
+      "pl": "Mąka z sorgo"
+    }
+  },
+  "flour-soy-defatted": {
+    "name": {
+      "pl": "Mąka sojowa odtłuszczona"
+    }
+  },
+  "flour-soy-full-fat": {
+    "name": {
+      "pl": "Mąka sojowa pełnotłusta"
+    }
+  },
+  "flour-spelt-whole-grain": {
+    "name": {
+      "pl": "Mąka orkiszowa pełnoziarnista"
+    }
+  },
+  "flour-wheat-all-purpose-enriched-bleached": {
+    "name": {
+      "pl": "Mąka pszenna uniwersalna wzbogacana, bielona"
+    }
+  },
+  "flour-wheat-all-purpose-enriched-unbleached": {
+    "name": {
+      "pl": "Mąka pszenna uniwersalna wzbogacana"
+    }
+  },
+  "flour-wheat-all-purpose-unenriched-unbleached": {
+    "name": {
+      "pl": "Mąka pszenna uniwersalna"
+    }
+  },
+  "flour-whole-wheat-unenriched": {
+    "name": {
+      "pl": "Mąka pszenna pełnoziarnista"
+    }
+  },
+  "fonio-grain-dry-raw": {
+    "name": {
+      "pl": "Fonio ziarno"
+    }
+  },
+  "frankfurter-beef-unheated": {
+    "name": {
+      "pl": "Parówki wołowe"
+    }
+  },
+  "grape-juice-purple-with-added-vitamin-c-from-concentrate-shelf-stable": {
+    "name": {
+      "pl": "Sok winogronowy ciemny"
+    }
+  },
+  "grape-juice-white-with-added-vitamin-c-from-concentrate-shelf-stable": {
+    "name": {
+      "pl": "Sok winogronowy biały z witaminą C"
+    }
+  },
+  "grapefruit-juice-red-not-fortified-not-from-concentrate-refrigerated": {
+    "name": {
+      "pl": "Sok grejpfrutowy czerwony"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w lodówce"
+    }
+  },
+  "grapefruit-juice-white-canned-or-bottled-unsweetened": {
+    "name": {
+      "pl": "Sok grejpfrutowy biały niesłodzony"
+    }
+  },
+  "grapes-green-seedless-raw": {
+    "name": {
+      "pl": "Winogrona zielone bezpestkowe"
+    }
+  },
+  "grapes-red-seedless-raw": {
+    "name": {
+      "pl": "Winogrona czerwone bezpestkowe"
+    }
+  },
+  "halibut-frozen-wild-caught": {
+    "name": {
+      "pl": "Halibut dziki"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "ham-sliced-pre-packaged-deli-meat-96-fat-free-water-added": {
+    "name": {
+      "pl": "Szynka w plastrach, paczkowana"
+    }
+  },
+  "ham-sliced-restaurant": {
+    "name": {
+      "pl": "Szynka w plastrach"
+    }
+  },
+  "hummus-commercial": {
+    "name": {
+      "pl": "Hummus"
+    }
+  },
+  "kale-frozen-cooked-boiled-drained-without-salt": {
+    "name": {
+      "pl": "Jarmuż mrożony, gotowany"
+    }
+  },
+  "kale-raw": {
+    "name": {
+      "pl": "Jarmuż świeży"
+    }
+  },
+  "ketchup-restaurant": {
+    "name": {
+      "pl": "Ketchup"
+    }
+  },
+  "khorasan-grain-dry-raw": {
+    "name": {
+      "pl": "Ziarno pszenicy khorasan"
+    }
+  },
+  "kiwifruit-green-raw": {
+    "name": {
+      "pl": "Kiwi"
+    }
+  },
+  "kiwifruit-kiwi-green-peeled-raw": {
+    "name": {
+      "pl": "Kiwi obrane"
+    }
+  },
+  "lamb-ground-raw": {
+    "name": {
+      "pl": "Mięso mielone z jagnięciny"
+    }
+  },
+  "lentils-dry": {
+    "name": {
+      "pl": "Soczewica sucha"
+    }
+  },
+  "lettuce-iceberg-raw": {
+    "name": {
+      "pl": "Sałata lodowa"
+    }
+  },
+  "lettuce-leaf-green-raw": {
+    "name": {
+      "pl": "Sałata zielona liściasta"
+    }
+  },
+  "lettuce-leaf-red-raw": {
+    "name": {
+      "pl": "Sałata czerwona liściasta"
+    }
+  },
+  "lobster-tail-only-frozen-wild-caught": {
+    "name": {
+      "pl": "Ogon homara dziki"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "mahi-mahi-frozen-wild-caught": {
+    "name": {
+      "pl": "Mahi mahi dziki"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "mandarin-seedless-peeled-raw": {
+    "name": {
+      "pl": "Mandarynki bezpestkowe obrane"
+    }
+  },
+  "mango-ataulfo-peeled-raw": {
+    "name": {
+      "pl": "Mango Ataulfo obrane"
+    }
+  },
+  "mango-tommy-atkins-peeled-raw": {
+    "name": {
+      "pl": "Mango Tommy Atkins obrane"
+    }
+  },
+  "melons-cantaloupe-raw": {
+    "name": {
+      "pl": "Melon kantalupa"
+    }
+  },
+  "melons-honeydew-raw": {
+    "name": {
+      "pl": "Melon miodowy"
+    }
+  },
+  "milk-lowfat-fluid-1-milkfat-with-added-vitamin-a-and-vitamin-d": {
+    "name": {
+      "pl": "Mleko 1% z witaminami A i D"
+    }
+  },
+  "milk-nonfat-fluid-with-added-vitamin-a-and-vitamin-d-fat-free-or-skim": {
+    "name": {
+      "pl": "Mleko odtłuszczone z witaminami A i D"
+    }
+  },
+  "milk-reduced-fat-fluid-2-milkfat-with-added-vitamin-a-and-vitamin-d": {
+    "name": {
+      "pl": "Mleko 2% z witaminami A i D"
+    }
+  },
+  "mushroom-beech": {
+    "name": {
+      "pl": "Grzyby shimeji"
+    }
+  },
+  "mushroom-crimini": {
+    "name": {
+      "pl": "Pieczarki brązowe"
+    }
+  },
+  "mushroom-enoki": {
+    "name": {
+      "pl": "Grzyby enoki"
+    }
+  },
+  "mushroom-king-oyster": {
+    "name": {
+      "pl": "Boczniak królewski"
+    }
+  },
+  "mushroom-lion-s-mane": {
+    "name": {
+      "pl": "Soplówka jeżowata"
+    }
+  },
+  "mushroom-maitake": {
+    "name": {
+      "pl": "Grzyby maitake"
+    }
+  },
+  "mushroom-oyster": {
+    "name": {
+      "pl": "Boczniaki"
+    }
+  },
+  "mushroom-pioppini": {
+    "name": {
+      "pl": "Grzyby pioppini"
+    }
+  },
+  "mushroom-portabella": {
+    "name": {
+      "pl": "Pieczarka portobello"
+    }
+  },
+  "mushrooms-shiitake": {
+    "name": {
+      "pl": "Grzyby shiitake"
+    }
+  },
+  "mustard-prepared-yellow": {
+    "name": {
+      "pl": "Musztarda żółta"
+    }
+  },
+  "nectarines-raw": {
+    "name": {
+      "pl": "Nektarynki"
+    }
+  },
+  "nuts-almonds-dry-roasted-with-salt-added": {
+    "name": {
+      "pl": "Migdały prażone solone"
+    }
+  },
+  "nuts-brazilnuts-raw": {
+    "name": {
+      "pl": "Orzechy brazylijskie"
+    }
+  },
+  "nuts-cashew-nuts-raw": {
+    "name": {
+      "pl": "Orzechy nerkowca"
+    }
+  },
+  "nuts-hazelnuts-or-filberts-raw": {
+    "name": {
+      "pl": "Orzechy laskowe"
+    }
+  },
+  "nuts-macadamia-nuts-raw": {
+    "name": {
+      "pl": "Orzechy makadamia"
+    }
+  },
+  "nuts-pecans-halves-raw": {
+    "name": {
+      "pl": "Orzechy pekan"
+    }
+  },
+  "nuts-pine-nuts-raw": {
+    "name": {
+      "pl": "Orzechy piniowe"
+    }
+  },
+  "nuts-pistachio-nuts-raw": {
+    "name": {
+      "pl": "Pistacje"
+    }
+  },
+  "oat-milk-unsweetened-plain-refrigerated": {
+    "name": {
+      "pl": "Napój owsiany niesłodzony"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w lodówce"
+    }
+  },
+  "oats-whole-grain-steel-cut": {
+    "name": {
+      "pl": "Owies łamany (steel cut)"
+    }
+  },
+  "olives-green-manzanilla-stuffed-with-pimiento": {
+    "name": {
+      "pl": "Oliwki zielone Manzanilla z papryką"
+    }
+  },
+  "onion-rings-breaded-par-fried-frozen-prepared-heated-in-oven": {
+    "name": {
+      "pl": "Krążki cebulowe w panierce"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "onions-red-raw": {
+    "name": {
+      "pl": "Cebula czerwona"
+    }
+  },
+  "onions-white-raw": {
+    "name": {
+      "pl": "Cebula biała"
+    }
+  },
+  "orange-juice-no-pulp-not-fortified-from-concentrate-refrigerated": {
+    "name": {
+      "pl": "Sok pomarańczowy z koncentratu"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w lodówce"
+    }
+  },
+  "orange-juice-no-pulp-not-fortified-not-from-concentrate-refrigerated": {
+    "name": {
+      "pl": "Sok pomarańczowy nie z koncentratu"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w lodówce"
+    }
+  },
+  "parsnips-raw": {
+    "name": {
+      "pl": "Pasternak"
+    }
+  },
+  "peaches-yellow-raw": {
+    "name": {
+      "pl": "Brzoskwinie żółte"
+    }
+  },
+  "peanuts-raw": {
+    "name": {
+      "pl": "Orzeszki ziemne"
+    }
+  },
+  "pear-anjou-green-with-skin-raw": {
+    "name": {
+      "pl": "Gruszka Anjou zielona"
+    }
+  },
+  "pears-raw-bartlett": {
+    "name": {
+      "pl": "Gruszki bartlett"
+    }
+  },
+  "peas-green-sweet-canned-sodium-added-sugar-added-drained-and-rinsed": {
+    "name": {
+      "pl": "Groszek zielony konserwowy"
+    }
+  },
+  "peppers-banana-or-hungarian-wax-seeded-raw": {
+    "name": {
+      "pl": "Papryka bananowa"
+    }
+  },
+  "peppers-bell-green-raw": {
+    "name": {
+      "pl": "Papryka zielona"
+    }
+  },
+  "peppers-bell-orange-raw": {
+    "name": {
+      "pl": "Papryka pomarańczowa"
+    }
+  },
+  "peppers-bell-yellow-raw": {
+    "name": {
+      "pl": "Papryka żółta"
+    }
+  },
+  "peppers-jalapeno-seeded-raw": {
+    "name": {
+      "pl": "Papryczka jalapeño"
+    }
+  },
+  "peppers-poblano-seeded-raw": {
+    "name": {
+      "pl": "Papryka poblano"
+    }
+  },
+  "peppers-serrano-seeded-raw": {
+    "name": {
+      "pl": "Papryczka serrano"
+    }
+  },
+  "pickles-cucumber-dill-or-kosher-dill": {
+    "name": {
+      "pl": "Ogórki konserwowe z koprem"
+    }
+  },
+  "pineapple-raw": {
+    "name": {
+      "pl": "Ananas świeży"
+    }
+  },
+  "plantains-overripe-raw": {
+    "name": {
+      "pl": "Plantany bardzo dojrzałe"
+    }
+  },
+  "plantains-ripe-raw": {
+    "name": {
+      "pl": "Plantany dojrzałe"
+    }
+  },
+  "plantains-underripe-raw": {
+    "name": {
+      "pl": "Plantany niedojrzałe"
+    }
+  },
+  "plum-black-with-skin-raw": {
+    "name": {
+      "pl": "Śliwki czarne"
+    }
+  },
+  "pork-belly-with-skin-raw": {
+    "name": {
+      "pl": "Boczek wieprzowy ze skórą"
+    }
+  },
+  "pork-chop-center-cut-raw": {
+    "name": {
+      "pl": "Kotlet ze schabu, surowy"
+    }
+  },
+  "pork-cured-bacon-cooked-restaurant": {
+    "name": {
+      "pl": "Boczek wędzony smażony"
+    }
+  },
+  "pork-ground-raw": {
+    "name": {
+      "pl": "Mięso wieprzowe mielone"
+    }
+  },
+  "pork-loin-boneless-raw": {
+    "name": {
+      "pl": "Schab wieprzowy bez kości"
+    }
+  },
+  "potatoes-gold-without-skin-raw": {
+    "name": {
+      "pl": "Ziemniaki żółte obrane"
+    }
+  },
+  "potatoes-red-without-skin-raw": {
+    "name": {
+      "pl": "Ziemniaki czerwone obrane"
+    }
+  },
+  "potatoes-russet-without-skin-raw": {
+    "name": {
+      "pl": "Ziemniaki typu russet obrane"
+    }
+  },
+  "radicchio-raw": {
+    "name": {
+      "pl": "Radicchio"
+    }
+  },
+  "radishes-red-raw": {
+    "name": {
+      "pl": "Rzodkiewka"
+    }
+  },
+  "raspberries-raw": {
+    "name": {
+      "pl": "Maliny"
+    }
+  },
+  "rice-black-unenriched-raw": {
+    "name": {
+      "pl": "Ryż czarny"
+    }
+  },
+  "rice-red-unenriched-dry-raw": {
+    "name": {
+      "pl": "Ryż czerwony"
+    }
+  },
+  "sauce-pasta-spaghetti-marinara-ready-to-serve": {
+    "name": {
+      "pl": "Sos marinara"
+    }
+  },
+  "sauce-salsa-ready-to-serve": {
+    "name": {
+      "pl": "Salsa"
+    }
+  },
+  "sausage-breakfast-sausage-beef-pre-cooked-unprepared": {
+    "name": {
+      "pl": "Kiełbaski śniadaniowe wołowe"
+    }
+  },
+  "sausage-italian-pork-mild-cooked-pan-fried": {
+    "name": {
+      "pl": "Kiełbasa włoska łagodna smażona"
+    }
+  },
+  "sausage-pork-chorizo-link-or-ground-cooked-pan-fried": {
+    "name": {
+      "pl": "Chorizo wieprzowe smażone"
+    }
+  },
+  "sausage-turkey-breakfast-links-mild-raw": {
+    "name": {
+      "pl": "Kiełbaski śniadaniowe z indyka"
+    }
+  },
+  "scallops-bay-patagonian-frozen-wild-caught": {
+    "name": {
+      "pl": "Przegrzebki patagońskie"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "scallops-sea-frozen-wild-caught": {
+    "name": {
+      "pl": "Przegrzebki morskie"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "sea-bass-chilean-frozen-wild-caught": {
+    "name": {
+      "pl": "Antar patagoński, mrożony"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "seeds-sunflower-seed-kernel-raw": {
+    "name": {
+      "pl": "Ziarna słonecznika łuskane"
+    }
+  },
+  "seeds-sunflower-seed-kernels-dry-roasted-with-salt-added": {
+    "name": {
+      "pl": "Ziarna słonecznika prażone solone"
+    }
+  },
+  "sesame-butter-creamy": {
+    "name": {
+      "pl": "Tahini (pasta sezamowa)"
+    }
+  },
+  "snapper-frozen-wild-caught": {
+    "name": {
+      "pl": "Lucjan, mrożony"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "snow-crab-legs-only-frozen": {
+    "name": {
+      "pl": "Nogi kraba śnieżnego, mrożone"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "sorghum-bran-white-unenriched-dry-raw": {
+    "name": {
+      "pl": "Otręby z sorgo"
+    }
+  },
+  "sorghum-flour-white-pearled-unenriched-dry-raw": {
+    "name": {
+      "pl": "Mąka z sorgo białego"
+    }
+  },
+  "sorghum-grain-white-pearled-unenriched-dry-raw": {
+    "name": {
+      "pl": "Ziarno sorgo"
+    }
+  },
+  "sorghum-whole-grain-white-dry-raw": {
+    "name": {
+      "pl": "Sorgo pełnoziarniste"
+    }
+  },
+  "soy-milk-sweetened-plain-refrigerated": {
+    "name": {
+      "pl": "Napój sojowy słodzony"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w lodówce"
+    }
+  },
+  "soy-milk-unsweetened-plain-shelf-stable": {
+    "name": {
+      "pl": "Napój sojowy niesłodzony"
+    }
+  },
+  "spinach-baby": {
+    "name": {
+      "pl": "Szpinak baby"
+    }
+  },
+  "squash-summer-yellow-includes-skin-raw": {
+    "name": {
+      "pl": "Cukinia żółta"
+    }
+  },
+  "squash-winter-acorn-raw": {
+    "name": {
+      "pl": "Dynia żołędziowa"
+    }
+  },
+  "squash-winter-butternut-raw": {
+    "name": {
+      "pl": "Dynia piżmowa"
+    }
+  },
+  "squid-calamari-frozen-tubes-only": {
+    "name": {
+      "pl": "Kalmary, mrożone, tuszki"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "sugars-granulated": {
+    "name": {
+      "pl": "Cukier kryształ"
+    }
+  },
+  "swordfish-frozen-wild-caught": {
+    "name": {
+      "pl": "Miecznik, mrożony, dziki"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "tomato-juice-with-added-ingredients-from-concentrate-shelf-stable": {
+    "name": {
+      "pl": "Sok pomidorowy"
+    }
+  },
+  "tomato-paste-canned-without-salt-added": {
+    "name": {
+      "pl": "Koncentrat pomidorowy bez soli"
+    }
+  },
+  "tomato-puree-canned": {
+    "name": {
+      "pl": "Przecier pomidorowy"
+    }
+  },
+  "tomato-roma": {
+    "name": {
+      "pl": "Pomidor śliwkowy (Roma)"
+    }
+  },
+  "tomato-sauce-canned-with-salt-added": {
+    "name": {
+      "pl": "Sos pomidorowy w puszce"
+    }
+  },
+  "tomatoes-crushed-canned": {
+    "name": {
+      "pl": "Pomidory rozdrobnione z puszki"
+    }
+  },
+  "tomatoes-grape-raw": {
+    "name": {
+      "pl": "Pomidorki daktylowe"
+    }
+  },
+  "tuna-ahi-or-yellowfin-frozen-wild-caught": {
+    "name": {
+      "pl": "Tuńczyk żółtopłetwy, mrożony, dziki"
+    },
+    "storageHint": {
+      "pl": "Przechowywać w zamrażarce"
+    }
+  },
+  "turkey-ground-93-lean-7-fat-pan-broiled-crumbles": {
+    "name": {
+      "pl": "Indyk mielony smażony"
+    }
+  },
+  "turkey-ground-93-lean-7-fat-raw": {
+    "name": {
+      "pl": "Indyk mielony surowy"
+    }
+  },
+  "turnips-raw": {
+    "name": {
+      "pl": "Rzepa"
+    }
+  },
+  "watermelon-seedless-rind-only-raw": {
+    "name": {
+      "pl": "Skórka arbuza bezpestkowego"
+    }
+  },
+  "wild-rice-dry-raw": {
+    "name": {
+      "pl": "Ryż dziki"
+    }
+  },
+  "yogurt-greek-plain-whole-milk": {
+    "name": {
+      "pl": "Jogurt grecki naturalny pełnotłusty"
+    }
+  },
+  "yogurt-greek-strawberry-nonfat": {
+    "name": {
+      "pl": "Jogurt grecki truskawkowy beztłuszczowy"
+    }
+  },
+  "yogurt-plain-nonfat": {
+    "name": {
+      "pl": "Jogurt naturalny beztłuszczowy"
+    }
+  },
+  "yogurt-plain-whole-milk": {
+    "name": {
+      "pl": "Jogurt naturalny pełnotłusty"
+    }
+  }
+}
