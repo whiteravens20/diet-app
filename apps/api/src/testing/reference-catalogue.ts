@@ -180,6 +180,8 @@ export function referenceIngredients(dataDir: string): DataIngredient[] {
       const held = (amount: number): number => Math.round(amount * share * 10) / 10;
       return {
         ...ingredient,
+        // Another food of the kind is not the food an import brings.
+        importedAs: undefined,
         slug: `${slugOf(ingredient)}-${index + 2}`,
         name: { en: `${nameOf(ingredient, 'en')} (${index + 2})`, pl: `${nameOf(ingredient, 'pl')} (${index + 2})` },
         caloriesPer100: held(ingredient.caloriesPer100),

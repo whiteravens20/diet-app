@@ -50,6 +50,8 @@ const IngredientSeed = z.object({
   perishable: z.boolean().optional(),
   storageHint: localisedString.optional(),
   source: z.string().optional(),
+  // The slugs under which a food import brings this same food: those rows are left out.
+  importedAs: z.array(z.string().min(1)).optional(),
 });
 type IngredientSeed = z.infer<typeof IngredientSeed>;
 
@@ -112,6 +114,8 @@ export interface Catalogue {
   /** How many of `recipes` come from `recipes.json`; the rest are shipped batches. */
   anchorRecipes: number;
   substitutions: { from: string; to: string; note: string | null }[];
+  /** How many foods of an import were left out because a curated ingredient is that food. */
+  importedLeftOut: number;
   /** Friendly ingredient names by slug, applied on top of the curated names. */
   overrides: IngredientOverrideFile;
   /** Hash and sizes of the bytes this catalogue was read from. */
@@ -233,16 +237,43 @@ export function readCatalogue(dir: string = resolveDataDir()): {
     });
   }
 
+  // A food the catalogue has under a name of its own is not taken from an
+  // import a second time: the pantry, a shopping list and a plan would count
+  // the two rows as two foods, each with figures of its own.
+  const standsFor = new Map<string, string>();
+  const curatedSlugs = new Set(curated.map(identity));
+  curated.forEach((row, i) => {
+    for (const imported of row.importedAs ?? []) {
+      const taken = standsFor.get(imported);
+      if (curatedSlugs.has(imported)) {
+        problems.push({ file: 'ingredients.json', path: `[${i}].importedAs`, message: `"${imported}" is an ingredient of this file, not a food of an import` });
+      } else if (taken !== undefined) {
+        problems.push({ file: 'ingredients.json', path: `[${i}].importedAs`, message: `"${imported}" is named by "${taken}" as well` });
+      } else {
+        standsFor.set(imported, identity(row));
+      }
+    }
+  });
+
   const bySlug = new Map<string, CatalogueIngredient>();
   const byName = new Map<string, CatalogueIngredient>();
+  let importedLeftOut = 0;
   for (const row of [...curated, ...generated]) {
     const slug = identity(row);
     if (bySlug.has(slug)) continue;
+    const curatedAs = bySlug.get(standsFor.get(slug) ?? '');
+    if (curatedAs) {
+      // What a recipe from elsewhere calls the imported food means the curated one.
+      importedLeftOut += 1;
+      const name = en(row.name).toLowerCase();
+      if (!byName.has(name)) byName.set(name, curatedAs);
+      continue;
+    }
     const ingredient = { ...row, slug, enName: en(row.name) };
     bySlug.set(slug, ingredient);
     byName.set(ingredient.enName.toLowerCase(), ingredient);
   }
-  const find = (ref: string) => bySlug.get(ref) ?? byName.get(ref.toLowerCase());
+  const find = (ref: string) => bySlug.get(ref) ?? bySlug.get(standsFor.get(ref) ?? '') ?? byName.get(ref.toLowerCase());
 
   // ── recipes: the anchor file, then every shipped batch in filename order ────
   const recipeFiles: { file: string; seeds: RecipeSeed[] }[] = [
@@ -355,6 +386,7 @@ export function readCatalogue(dir: string = resolveDataDir()): {
       recipes,
       anchorRecipes: recipeFiles[0]!.seeds.length,
       substitutions,
+      importedLeftOut,
       overrides,
       state: hashSeedInputs(inputs),
     },

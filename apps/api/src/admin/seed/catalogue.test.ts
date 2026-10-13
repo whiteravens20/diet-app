@@ -115,6 +115,91 @@ describe('the pack of an ingredient in the curated data', () => {
   });
 });
 
+describe('a food of an import that a curated ingredient is', () => {
+  /** An imported row, as the importer writes one. */
+  const imported = (slug: string, name: string, kcal = 36) => ({
+    slug,
+    name: { en: name },
+    category: 'fruits',
+    canonicalUnit: 'g',
+    caloriesPer100: kcal,
+    proteinPer100: 0.6,
+    fatPer100: 0.2,
+    carbsPer100: 8,
+    allergens: [],
+    dietCompatibility: ['balanced'],
+    tags: ['usda-imported'],
+  });
+  /** The test catalogue with an import beside it, after `change` has been at the curated ingredients and the recipes. */
+  function withImport(rows: unknown[], change: (ingredients: Record<string, unknown>[], recipes: RecipeRow[]) => void) {
+    const dir = mkdtempSync(join(tmpdir(), 'diet-app-catalogue-check-'));
+    cpSync(catalogueDirectory(), dir, { recursive: true });
+    const ingredients = JSON.parse(readFileSync(join(dir, 'ingredients.json'), 'utf8')) as Record<string, unknown>[];
+    const recipes = JSON.parse(readFileSync(join(dir, 'recipes.json'), 'utf8')) as RecipeRow[];
+    change(ingredients, recipes);
+    writeFileSync(join(dir, 'ingredients.json'), JSON.stringify(ingredients));
+    writeFileSync(join(dir, 'recipes.json'), JSON.stringify(recipes));
+    writeFileSync(join(dir, 'ingredients.generated.json'), JSON.stringify(rows));
+    return readCatalogue(dir);
+  }
+  const named = (ingredients: Record<string, unknown>[], slug: string, importedAs: string[]) => {
+    ingredients.find((ingredient) => ingredient.slug === slug)!.importedAs = importedAs;
+  };
+
+  it('is left out, and the other foods of the import are taken', () => {
+    const rows = [imported('bananas-ripe-raw', 'Bananas, ripe, raw', 97), imported('plantains-ripe-raw', 'Plantains, ripe, raw', 136)];
+    const alone = withImport(rows, () => undefined);
+    const { catalogue, problems } = withImport(rows, (ingredients) => named(ingredients, 'banana', ['bananas-ripe-raw']));
+    const slugs = (of: typeof catalogue) => of!.ingredients.map((ingredient) => ingredient.slug);
+
+    expect(problems).toEqual([]);
+    // Without the word of the curated row the import brings a second banana, with figures of its own.
+    expect(slugs(alone.catalogue)).toEqual(expect.arrayContaining(['banana', 'bananas-ripe-raw', 'plantains-ripe-raw']));
+    expect(alone.catalogue!.importedLeftOut).toBe(0);
+    expect(slugs(catalogue)).toContain('plantains-ripe-raw');
+    expect(slugs(catalogue)).not.toContain('bananas-ripe-raw');
+    expect(catalogue!.importedLeftOut).toBe(1);
+    expect(catalogue!.ingredients.find((ingredient) => ingredient.slug === 'banana')!.caloriesPer100).toBe(89);
+  });
+
+  it('means the curated ingredient to a recipe that names it by the import\'s slug or by the import\'s name', () => {
+    const { catalogue, problems } = withImport([imported('bananas-ripe-raw', 'Bananas, ripe, raw', 97)], (ingredients, recipes) => {
+      named(ingredients, 'banana', ['bananas-ripe-raw']);
+      recipes.push(
+        { slug: 'banana-by-its-other-slug', title: { en: 'Banana by its other slug' }, description: { en: 'A banana.' }, servings: 1, mealTypes: ['snack'], prepMinutes: 1, cookMinutes: 0, difficulty: 'easy', ingredients: [{ slug: 'bananas-ripe-raw', quantity: 100, unit: 'g' }], steps: { en: ['Peel it.'] } } as RecipeRow,
+        { slug: 'banana-by-its-other-name', title: { en: 'Banana by its other name' }, description: { en: 'A banana.' }, servings: 1, mealTypes: ['snack'], prepMinutes: 1, cookMinutes: 0, difficulty: 'easy', ingredients: [{ name: 'Bananas, ripe, raw', quantity: 150, unit: 'g' }], steps: { en: ['Peel it.'] } } as unknown as RecipeRow,
+      );
+    });
+    const made = (slug: string) => catalogue!.recipes.find((recipe) => recipe.slug === slug)!;
+
+    expect(problems).toEqual([]);
+    expect(made('banana-by-its-other-slug').lines).toEqual([{ slug: 'banana', quantity: 100, unit: 'g' }]);
+    // The curated figures, not the import's: 89 kcal in 100 g.
+    expect(made('banana-by-its-other-slug').nutrition.calories).toBe(89);
+    expect(made('banana-by-its-other-name').lines).toEqual([{ slug: 'banana', quantity: 150, unit: 'g' }]);
+  });
+
+  it('may be named where no import has brought it', () => {
+    const { catalogue, problems } = ingredientsWith((ingredients) => named(ingredients, 'banana', ['bananas-ripe-raw']));
+
+    expect(problems).toEqual([]);
+    expect(catalogue!.importedLeftOut).toBe(0);
+  });
+
+  it('cannot be an ingredient of the curated file, or the food of two of them', () => {
+    const own = ingredientsWith((ingredients) => named(ingredients, 'banana', ['tomato']));
+    const twice = ingredientsWith((ingredients) => {
+      named(ingredients, 'banana', ['bananas-ripe-raw']);
+      named(ingredients, 'tomato', ['bananas-ripe-raw']);
+    });
+
+    expect(own.catalogue).toBeNull();
+    expect(own.problems).toEqual([{ file: 'ingredients.json', path: '[12].importedAs', message: '"tomato" is an ingredient of this file, not a food of an import' }]);
+    expect(twice.catalogue).toBeNull();
+    expect(twice.problems).toEqual([{ file: 'ingredients.json', path: '[14].importedAs', message: '"bananas-ripe-raw" is named by "banana" as well' }]);
+  });
+});
+
 describe('the cuisine of a recipe in the curated data', () => {
   it('is read for a recipe that names one, and is none for a recipe that names none', () => {
     const { catalogue, problems } = catalogueWith(() => undefined);

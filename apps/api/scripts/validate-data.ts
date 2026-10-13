@@ -58,6 +58,7 @@ console.log(
     `  recipes:        ${catalogue.recipes.length} (${catalogue.anchorRecipes} anchor + ${shipped} shipped)\n` +
     `  substitutions:  ${catalogue.substitutions.length}\n` +
     `  name overrides: ${Object.keys(catalogue.overrides).length}\n` +
+    `  imported foods left out as curated ones: ${catalogue.importedLeftOut}\n` +
     `  import aliases: ${Object.keys(aliases).length}`,
 );
 // How many recipes each diet can draw on for each meal. The diets are worked
