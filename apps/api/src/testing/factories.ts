@@ -9,6 +9,7 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Prisma } from '@prisma/client';
+import type { z } from 'zod';
 import {
   AiSwapMealRequest,
   GeneratePlanRequest,
@@ -21,6 +22,8 @@ import {
   type RebalanceResult,
 } from '@diet-app/shared';
 import { AuthService } from '../auth/auth.service.js';
+import type { OpenedSession } from '../auth/sessions.service.js';
+import type { Env } from '../config/env.js';
 import { recipeFacts } from '../engine/recipe-facts.js';
 import { InstanceSettingsService } from '../instance-settings/instance-settings.service.js';
 import { MealSwapService } from '../meal-plans/meal-swap.service.js';
@@ -56,8 +59,19 @@ export async function aUser(t: TestApp, overrides: Partial<Pick<TestUser, 'email
   return { id: user.id, email, password, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
 }
 
+/**
+ * A session of `user` as signing in opens one. For an account without a
+ * second step: one that has it is answered with a challenge, which is no
+ * session.
+ */
+export async function aSession(t: TestApp, user: Pick<TestUser, 'email' | 'password'>): Promise<OpenedSession> {
+  const answer = await t.app.get(AuthService).login({ email: user.email, password: user.password });
+  if ('secondFactor' in answer) throw new Error('The account signs in with a second step: there is no session yet.');
+  return answer;
+}
+
 /** A profile of `user`: a 30-year-old on a balanced diet with three meals unless overridden. */
-export function aProfile(t: TestApp, user: TestUser, overrides: Partial<ProfileInput> = {}): Promise<Profile> {
+export function aProfile(t: TestApp, user: TestUser, overrides: Partial<z.input<typeof ProfileInput>> = {}): Promise<Profile> {
   const input = ProfileInput.parse({ name: 'Me', age: 30, sex: 'male', heightCm: 180, weightKg: 80, ...overrides });
   return t.app.get(ProfilesService).create(user.id, input);
 }
@@ -79,7 +93,7 @@ export function aPlan(
 }
 
 /** Ask for a recipe in the place of a meal and take what is offered: a swap as a user makes one. */
-export async function aSwap(t: TestApp, user: TestUser, request: Parameters<typeof SwapMealRequest.parse>[0] & { planId: string; plannedMealId: string }): Promise<RebalanceResult> {
+export async function aSwap(t: TestApp, user: TestUser, request: z.input<typeof SwapMealRequest>): Promise<RebalanceResult> {
   const swaps = t.app.get(MealSwapService);
   const asked = SwapMealRequest.parse(request);
   const offer = await swaps.preview(user.id, 'en', asked);
@@ -90,7 +104,7 @@ export async function aSwap(t: TestApp, user: TestUser, request: Parameters<type
 export async function anAiSwap(
   t: TestApp,
   user: TestUser,
-  request: Parameters<typeof AiSwapMealRequest.parse>[0] & { planId: string; plannedMealId: string },
+  request: z.input<typeof AiSwapMealRequest>,
   locale: Locale = 'en',
 ): Promise<RebalanceResult & { aiMeta: AiGenerationMeta }> {
   const swaps = t.app.get(MealSwapService);
@@ -165,7 +179,7 @@ export async function aReviewer(t: TestApp, label = 'pl reviewer'): Promise<{ Co
 export async function aReviewerSession(t: TestApp, label = 'pl reviewer'): Promise<{ Cookie: string; Origin: string }> {
   const { reviewerSessionEpoch } = await t.app.get(InstanceSettingsService).readReviewerCredentials();
   const { token } = signReviewerCookie(t.app.get(JwtService, { strict: false }), resolveReviewerSecret(t.app.get(ConfigService)), { label, epoch: reviewerSessionEpoch });
-  return { Cookie: `${REVIEWER_COOKIE_NAME}=${token}`, Origin: t.app.get(ConfigService).get('APP_URL') };
+  return { Cookie: `${REVIEWER_COOKIE_NAME}=${token}`, Origin: t.app.get<ConfigService<Env, true>>(ConfigService).get('APP_URL', { infer: true }) };
 }
 
 /**

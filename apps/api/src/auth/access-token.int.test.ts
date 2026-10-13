@@ -4,9 +4,8 @@ import { JwtService } from '@nestjs/jwt';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resolveReviewerSecret, signReviewerCookie, verifyReviewerCookie } from '../review/session.js';
 import { resetDatabase } from '../testing/database.js';
-import { aUser, type TestUser } from '../testing/factories.js';
+import { aSession, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { AuthService } from './auth.service.js';
 import { SessionsService } from './sessions.service.js';
 import { ConfigService } from '@nestjs/config';
 
@@ -85,7 +84,7 @@ describe('an access token', () => {
     });
 
     it('is refused at once after signing out everywhere, and so is that of every other session', async () => {
-      const other = await t.app.get(AuthService).login({ email: visitor.email, password: visitor.password });
+      const other = await aSession(t, visitor);
 
       await t.http().delete('/api/users/me/sessions').set({ Authorization: `Bearer ${visitor.accessToken}` }).expect(204);
 
@@ -116,7 +115,7 @@ describe('an access token', () => {
     });
 
     it('is no concern of another session of the same account', async () => {
-      const other = await t.app.get(AuthService).login({ email: visitor.email, password: visitor.password });
+      const other = await aSession(t, visitor);
 
       await sessions.end(visitor.refreshToken);
 

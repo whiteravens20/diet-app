@@ -1,24 +1,20 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { AuthResponse } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
-import { aUser, race, type TestUser } from '../testing/factories.js';
+import { aSession, aUser, race, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { AuthService } from './auth.service.js';
-import { SessionsService } from './sessions.service.js';
+import { SessionsService, type OpenedSession } from './sessions.service.js';
 
 const DAY = 86_400_000;
 
 describe('the session of an account', () => {
   let t: TestApp;
-  let auth: AuthService;
   let sessions: SessionsService;
   let user: TestUser;
 
   beforeAll(async () => {
     t = await createTestApp();
-    auth = t.app.get(AuthService);
     sessions = t.app.get(SessionsService);
   });
 
@@ -34,7 +30,7 @@ describe('the session of an account', () => {
   const refusedAs = (error: string) => ({ response: { error } });
   const refresh = (token: string) => sessions.refresh(token);
   /** Sign in again: a second session of the same account. */
-  const signIn = (): Promise<AuthResponse> => auth.login({ email: user.email, password: user.password });
+  const signIn = (): Promise<OpenedSession> => aSession(t, user);
   /** Let the moment in which a token was just used go by. */
   const later = () => t.prisma.refreshToken.updateMany({ where: { rotatedAt: { not: null } }, data: { rotatedAt: new Date(Date.now() - 11_000) } });
   const works = async (token: string): Promise<boolean> =>
@@ -102,7 +98,7 @@ describe('the session of an account', () => {
       expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: refusedAs('SESSION_JUST_REFRESHED') });
       // One token of the session works, and it is the one that was handed out.
       expect(await t.prisma.refreshToken.count({ where: { userId: user.id, rotatedAt: null, revokedAt: null } })).toBe(1);
-      expect(await works((won[0] as PromiseFulfilledResult<AuthResponse>).value.tokens.refreshToken)).toBe(true);
+      expect(await works((won[0] as PromiseFulfilledResult<OpenedSession>).value.tokens.refreshToken)).toBe(true);
     });
 
     it('that nobody was given is refused, and ends nothing', async () => {

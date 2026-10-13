@@ -2,9 +2,8 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
-import { aUser, type TestUser } from '../testing/factories.js';
+import { aSession, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { AuthService } from './auth.service.js';
 import { pruneLinks } from './one-time-links.js';
 import { SessionsService } from './sessions.service.js';
 
@@ -12,13 +11,11 @@ const HOUR = 3_600_000;
 
 describe('what the worker clears away of sessions and links', () => {
   let t: TestApp;
-  let auth: AuthService;
   let sessions: SessionsService;
   let user: TestUser;
 
   beforeAll(async () => {
     t = await createTestApp();
-    auth = t.app.get(AuthService);
     sessions = t.app.get(SessionsService);
   });
 
@@ -31,7 +28,7 @@ describe('what the worker clears away of sessions and links', () => {
     user = await aUser(t);
   });
 
-  const signIn = () => auth.login({ email: user.email, password: user.password });
+  const signIn = () => aSession(t, user);
   const rowsOf = (sessionId: string) => t.prisma.refreshToken.count({ where: { familyId: sessionId } });
   const later = () => t.prisma.refreshToken.updateMany({ where: { rotatedAt: { not: null } }, data: { rotatedAt: new Date(Date.now() - 11_000) } });
 

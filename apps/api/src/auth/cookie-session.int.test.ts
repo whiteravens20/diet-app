@@ -3,9 +3,8 @@
 import type { AuthResponse } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
-import { aUser, type TestUser } from '../testing/factories.js';
+import { aSession, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { AuthService } from './auth.service.js';
 import { sessionCookies } from './session-cookies.js';
 import { SessionsService } from './sessions.service.js';
 
@@ -50,7 +49,7 @@ describe('the session of a browser', () => {
 
   beforeEach(async () => {
     // A session as a sign-in leaves one, without a sign-in each time: the route counts those.
-    refreshCookie = (await t.app.get(AuthService).login({ email: user.email, password: user.password })).tokens.refreshToken;
+    refreshCookie = (await aSession(t, user)).tokens.refreshToken;
   });
 
   it('gets its refresh token in a cookie no script can read, sent to the routes that use it and nowhere else', async () => {

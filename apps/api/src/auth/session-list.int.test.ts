@@ -1,11 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import type { AccountSession, AuthResponse } from '@diet-app/shared';
+import type { AccountSession } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetDatabase } from '../testing/database.js';
 import { aUser, as, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
-import { SessionsService } from './sessions.service.js';
+import { SessionsService, type OpenedSession } from './sessions.service.js';
 
 const FIREFOX = 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0';
 const PHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
@@ -14,8 +14,8 @@ describe('the sessions of an account, as the account sees them', () => {
   let t: TestApp;
   let sessions: SessionsService;
   let user: TestUser;
-  let laptop: AuthResponse;
-  let phone: AuthResponse;
+  let laptop: OpenedSession;
+  let phone: OpenedSession;
 
   beforeAll(async () => {
     t = await createTestApp();
@@ -33,7 +33,7 @@ describe('the sessions of an account, as the account sees them', () => {
     phone = await signIn(PHONE);
   });
 
-  const signIn = async (userAgent: string, who = user): Promise<AuthResponse> =>
+  const signIn = async (userAgent: string, who = user): Promise<OpenedSession> =>
     (await t.http().post('/api/auth/login').set('User-Agent', userAgent).send({ email: who.email, password: who.password }).expect(200)).body;
   const listed = async (who = user): Promise<AccountSession[]> => (await t.http().get('/api/users/me/sessions').set(as(who)).expect(200)).body;
   const works = async (token: string): Promise<boolean> =>
@@ -114,7 +114,7 @@ describe('the sessions of an account, as the account sees them', () => {
   });
 
   it('are named when an account is made, too', async () => {
-    const made = (await t.http().post('/api/auth/register').set('User-Agent', FIREFOX).send({ email: 'named@example.test', password: 'Brand-New-Passw0rd', displayName: 'Named' }).expect(201)).body as AuthResponse;
+    const made = (await t.http().post('/api/auth/register').set('User-Agent', FIREFOX).send({ email: 'named@example.test', password: 'Brand-New-Passw0rd', displayName: 'Named' }).expect(201)).body as OpenedSession;
 
     const list = (await t.http().get('/api/users/me/sessions').set({ Authorization: `Bearer ${made.tokens.accessToken}` }).expect(200)).body as AccountSession[];
     expect(list).toMatchObject([{ id: made.sessionId, label: 'Firefox · Linux' }]);
