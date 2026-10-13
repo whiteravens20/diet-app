@@ -192,6 +192,17 @@ WARN lines showing prose preambles or missing locale keys.
   with operator polish in /admin/curation"; ≥24B is "ships unedited". The
   reviewer interface is the right surface for polishing low-end output rather
   than jumping to a bigger model.
+- **An admin batch is judged recipe by recipe.** A model repeats itself: in a
+  run of 25 recipes it proposes again a dish it wrote two calls earlier, or the
+  same ingredients under another name, and it writes a slug as its language
+  spells the word (`sauté`). A recipe that is refused costs that one recipe:
+  the others of the answer are kept, the next attempt of the call asks only
+  for those still missing and says what was refused, and a slug is taken as
+  the plain one it means. Measured on 2026-10-13 with
+  `google/gemini-3.1-flash-lite` through OpenRouter: 23 of 25 recipes in
+  English and Polish written in a minute and a half for about seven US cents,
+  and no answer cut off by the output cap. The lighter surfaces (a swap, a
+  substitute, a rewording, a weighing) answered in one to two seconds each.
 - **Temperature.** A recipe draft runs at `0.7` for variety; picking from a
   list, naming and translation run at `0.2` for fidelity. Don't raise the
   translation temperature — it produces "creative" mistranslations that pass
