@@ -22,10 +22,8 @@ const DEFAULT_SERVER_URL = 'postgresql://diet:diet@localhost:5432/postgres';
 
 /** Tables the catalogue seed fills; everything else is created by users. */
 const CATALOGUE_TABLES = [
-  'Allergen',
   'Ingredient',
   'IngredientTranslation',
-  'NutritionFact',
   'Recipe',
   'RecipeIngredient',
   'RecipeTranslation',
