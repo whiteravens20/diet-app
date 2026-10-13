@@ -8,7 +8,7 @@ the files the same way ([`apps/api/src/admin/seed/`](../apps/api/src/admin/seed/
 | File | Role |
 |---|---|
 | `ingredients.json` | Hand-curated whole-food ingredients (the committed baseline). |
-| `ingredients.generated.json` | Written by `npm run import:usda` — paginates the USDA FDC search API across the configured `FDC_DATA_TYPES` (default `Foundation`), maps every food into a `IngredientSeed` row, and clamps measurement-noise negative carbs to zero. Merged on top of the baseline; the baseline wins on a name clash. |
+| `ingredients.generated.json` | Written by `npm run import:usda` — paginates the USDA FDC search API across the configured `FDC_DATA_TYPES` (default `Foundation`), maps every food into a `IngredientSeed` row, and clamps measurement-noise negative carbs to zero. Merged on top of the baseline; the baseline wins on a name clash, and a food that a curated ingredient names in `importedAs` is left out (see "Foods the catalogue already has"). |
 | `recipes.json` | Hand-curated "anchor" recipes. |
 | `recipes/*.json` | Batches of recipes that were approved in the curation queue and shipped, one file a batch. |
 | `ingredient-overrides.json` | Names of ingredients in other languages that were approved in the curation queue: the Polish names of the foods a `Foundation` import brings. An instance without those foods leaves them unused. |
@@ -274,6 +274,26 @@ fat for four fifths of its weight or more is taken with no protein and no
 carbohydrate where its record names none. An oil's row then holds the fat of a
 nutrition label, 93 to 95 g in 100 g: a few per cent under what the bottle
 holds, which is all fat.
+
+### Foods the catalogue already has
+
+An import brings foods the curated file has under a name of its own: raw
+chicken breast, strawberries, white rice. Left as two rows they are two foods to
+the pantry, to a shopping list and to a plan, each with figures of its own. A
+curated ingredient therefore names the rows of an import that are the same food,
+by their slugs:
+
+```json
+{ "slug": "strawberries", "importedAs": ["strawberries-raw"] }
+```
+
+The catalogue leaves those rows out, and a recipe that names one of them means
+the curated ingredient. Name a food only when it is the same in the form the
+curated row describes: raw for raw, canned for canned. A variety (Fuji apples),
+another cut (a chicken breast with its skin) or another fat level (milk at 2 %)
+is a food of its own. `npm run data:lint` says how many foods of an import were
+left out so, and refuses a name that is an ingredient of the curated file or
+that two of them claim.
 
 If a specific worldwide staple is missing (miso, tahini, plantain, kefir,
 specific European fish), add it to `ingredients.json` rather than enabling
