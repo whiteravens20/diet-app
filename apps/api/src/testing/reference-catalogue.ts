@@ -1,16 +1,23 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * The catalogue the performance budgets are measured at: the ingredients of
- * `data/` as they are, and a number of recipes made of them here. A recipe is
- * a dish of one of a few shapes (a bowl of grain with milk and fruit, a main
- * dish of a protein with a grain and vegetables, a plate without a grain, a
- * small meal), its ingredients drawn by category and weighed so that each part
- * brings the energy such a part brings to a serving. Between them the shapes
- * give every meal recipes for every diet. The draws follow a fixed sequence:
- * the same data makes the same catalogue at every run.
+ * The catalogue the performance budgets are measured at: some four hundred
+ * ingredients and two thousand recipes, made here from the curated
+ * ingredients of `data/ingredients.json`, which every copy of the repository
+ * has. (What a food import adds to `data/` stays on the machine that ran it,
+ * so it is no part of this.)
+ *
+ * An ingredient of the data comes with six others of its kind: the same
+ * category, unit, diets and allergens, a little more or less of everything
+ * in it. A recipe is a dish of one of a few shapes (a bowl of grain with milk
+ * and fruit, a main dish of a protein with a grain and vegetables, a plate
+ * without a grain, a small meal), its ingredients drawn by category and
+ * weighed so that each part brings the energy such a part brings to a
+ * serving. Between them the shapes give every meal recipes for every diet.
+ * The draws follow a fixed sequence: the same data makes the same catalogue
+ * at every run and on every machine.
  */
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Cuisine, type MealType, type ProductCategory } from '@diet-app/shared';
@@ -18,15 +25,20 @@ import { Cuisine, type MealType, type ProductCategory } from '@diet-app/shared';
 /** How many recipes the catalogue the budgets are measured at holds. */
 export const REFERENCE_RECIPES = 2000;
 
-/** The files of `data/` the reference catalogue takes as they are. */
-const TAKEN_AS_THEY_ARE = ['ingredients.json', 'ingredients.generated.json', 'ingredient-overrides.json', 'substitutions.json'];
+/** How many ingredients of its kind each curated ingredient comes with, itself included. */
+const OF_EACH_KIND = 7;
 
+/** An ingredient as the data files write one; what the catalogue makes of it is read from these fields. */
 interface DataIngredient {
   slug?: string;
   name: string | { en: string; pl?: string };
   category: ProductCategory;
   canonicalUnit: 'g' | 'ml' | 'piece';
   caloriesPer100: number;
+  proteinPer100: number;
+  fatPer100: number;
+  carbsPer100: number;
+  [other: string]: unknown;
 }
 
 /** A part of a dish: the categories it is drawn from, and the energy it brings to one serving, in kcal. */
@@ -58,6 +70,13 @@ const SHAPES: Shape[] = [
     weight: 3,
     parts: [{ of: ['grains'], from: 150, to: 250 }, { of: ['dairy', 'meat', 'fish', 'legumes'], from: 90, to: 200 }, { of: ['vegetables'], from: 10, to: 40 }],
     sometimes: [{ of: ['fats_oils'], from: 30, to: 70 }],
+  },
+  // A porridge on water: a grain with fruit and nuts.
+  {
+    meals: ['breakfast', 'second_breakfast'],
+    weight: 2,
+    parts: [{ of: ['grains'], from: 180, to: 280 }, { of: ['fruits'], from: 50, to: 110 }, { of: ['nuts_seeds'], from: 60, to: 130 }],
+    sometimes: [],
   },
   // A breakfast without a grain: cheese, meat or fish with vegetables and a fat.
   {
@@ -96,7 +115,7 @@ const SHAPES: Shape[] = [
   },
   // A handful of nuts with fruit.
   {
-    meals: ['snack'],
+    meals: ['snack', 'second_breakfast'],
     weight: 2,
     parts: [{ of: ['nuts_seeds'], from: 90, to: 170 }, { of: ['fruits'], from: 40, to: 100 }],
     sometimes: [],
@@ -144,20 +163,36 @@ function listed(names: string[], and: string): string {
   return `${names.slice(0, -1).join(', ')} ${and} ${names.at(-1)}`;
 }
 
-function read(dataDir: string, file: string): DataIngredient[] {
-  const path = join(dataDir, file);
-  return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as DataIngredient[]) : [];
+/**
+ * The ingredients of the reference catalogue, as rows of an
+ * `ingredients.json`: each curated ingredient, and others of its kind that
+ * hold up to an eighth more or less of everything.
+ */
+export function referenceIngredients(dataDir: string): DataIngredient[] {
+  const curated = JSON.parse(readFileSync(join(dataDir, 'ingredients.json'), 'utf8')) as DataIngredient[];
+  const next = fixedSequence(405);
+  return curated.flatMap((ingredient) => [
+    { ...ingredient, slug: slugOf(ingredient) },
+    ...Array.from({ length: OF_EACH_KIND - 1 }, (_, index): DataIngredient => {
+      const share = 0.875 + next() * 0.25;
+      const held = (amount: number): number => Math.round(amount * share * 10) / 10;
+      return {
+        ...ingredient,
+        slug: `${slugOf(ingredient)}-${index + 2}`,
+        name: { en: `${nameOf(ingredient, 'en')} (${index + 2})`, pl: `${nameOf(ingredient, 'pl')} (${index + 2})` },
+        caloriesPer100: held(ingredient.caloriesPer100),
+        proteinPer100: held(ingredient.proteinPer100),
+        fatPer100: held(ingredient.fatPer100),
+        carbsPer100: held(ingredient.carbsPer100),
+      };
+    }),
+  ]);
 }
 
 /** The recipes of the reference catalogue, as rows of a `recipes.json`. */
 export function referenceRecipes(dataDir: string, count: number = REFERENCE_RECIPES): unknown[] {
-  // The curated ingredients come first and an imported one of the same slug is left out, as the seeder reads them.
-  const bySlug = new Map<string, DataIngredient>();
-  for (const ingredient of [...read(dataDir, 'ingredients.json'), ...read(dataDir, 'ingredients.generated.json')]) {
-    if (!bySlug.has(slugOf(ingredient))) bySlug.set(slugOf(ingredient), ingredient);
-  }
   const byCategory = new Map<ProductCategory, DataIngredient[]>();
-  for (const ingredient of bySlug.values()) {
+  for (const ingredient of referenceIngredients(dataDir)) {
     byCategory.set(ingredient.category, [...(byCategory.get(ingredient.category) ?? []), ingredient]);
   }
 
@@ -225,9 +260,9 @@ let directory: string | undefined;
 export function referenceCatalogueDirectory(dataDir: string): string {
   if (directory) return directory;
   const dir = mkdtempSync(join(tmpdir(), 'diet-app-reference-catalogue-'));
-  for (const file of TAKEN_AS_THEY_ARE) {
-    if (existsSync(join(dataDir, file))) copyFileSync(join(dataDir, file), join(dir, file));
-  }
+  // What may stand in for what is said of the curated ingredients, which the catalogue holds as they are.
+  copyFileSync(join(dataDir, 'substitutions.json'), join(dir, 'substitutions.json'));
+  writeFileSync(join(dir, 'ingredients.json'), JSON.stringify(referenceIngredients(dataDir)));
   writeFileSync(join(dir, 'recipes.json'), JSON.stringify(referenceRecipes(dataDir)));
   directory = dir;
   return dir;

@@ -1,10 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DietType, fitsDiet, MealType } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import { readCatalogue } from '../admin/seed/catalogue.js';
-import { REFERENCE_RECIPES, referenceCatalogueDirectory, referenceRecipes } from './reference-catalogue.js';
+import { REFERENCE_RECIPES, referenceCatalogueDirectory, referenceIngredients, referenceRecipes } from './reference-catalogue.js';
 
 const DATA = join(__dirname, '../../../../data');
 
@@ -26,8 +27,10 @@ describe('the catalogue the performance budgets are measured at', () => {
     const { catalogue, problems } = readCatalogue(referenceCatalogueDirectory(DATA));
     expect(problems).toEqual([]);
     expect(catalogue!.recipes).toHaveLength(REFERENCE_RECIPES);
-    // The ingredients are the ones of the data, every one of them.
-    expect(catalogue!.ingredients.length).toBe(readCatalogue(DATA).catalogue!.ingredients.length);
+    // Seven of a kind for every curated ingredient, whatever a food import left beside them on this machine.
+    const curated = (JSON.parse(readFileSync(join(DATA, 'ingredients.json'), 'utf8')) as unknown[]).length;
+    expect(catalogue!.ingredients).toHaveLength(curated * 7);
+    expect(referenceIngredients(DATA)).toHaveLength(curated * 7);
     for (const diet of DietType.options.filter((option) => option !== 'custom')) {
       for (const meal of MealType.options) {
         const fitting = catalogue!.recipes.filter((recipe) => recipe.seed.mealTypes.includes(meal) && fitsDiet(recipe.dietTags, diet));
