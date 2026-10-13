@@ -12,15 +12,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApplyFavoriteSetRequest,
-  CreateFavoriteSetRequest,
-  UpdateFavoriteSetRequest,
-  type Locale,
-} from '@diet-app/shared';
+import { ApplyFavoriteSetRequest, CreateFavoriteSetRequest, FavoriteSet, MealPlan, UpdateFavoriteSetRequest, type Locale } from '@diet-app/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
+import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { FavoriteSetsService } from './favorite-sets.service.js';
 
@@ -29,12 +25,16 @@ import { FavoriteSetsService } from './favorite-sets.service.js';
 export class FavoriteSetsController {
   constructor(private readonly sets: FavoriteSetsService) {}
 
+  /** The favourite sets of a profile. */
   @Get()
+  @AnswersListOf(FavoriteSet)
   list(@CurrentUser() user: RequestUser, @Query('profileId', requiredUuid) profileId: string) {
     return this.sets.list(user.id, profileId);
   }
 
+  /** Make a set: a recipe for each meal it names. */
   @Post()
+  @Answers(FavoriteSet)
   create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(CreateFavoriteSetRequest)) dto: CreateFavoriteSetRequest,
@@ -42,7 +42,9 @@ export class FavoriteSetsController {
     return this.sets.create(user.id, dto);
   }
 
+  /** Change a set's name or its recipes. */
   @Patch(':id')
+  @Answers(FavoriteSet)
   update(
     @CurrentUser() user: RequestUser,
     @Param('id', requiredUuid) id: string,
@@ -51,13 +53,16 @@ export class FavoriteSetsController {
     return this.sets.update(user.id, id, dto);
   }
 
+  /** Delete a set. */
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string): Promise<void> {
     await this.sets.remove(user.id, id);
   }
 
+  /** Put the recipes of a set on a day of a plan. */
   @Post(':id/apply')
+  @Answers(MealPlan)
   apply(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,

@@ -11,8 +11,9 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CreateWeightEntryRequest, WeightListQuery } from '@diet-app/shared';
+import { CreateWeightEntryRequest, WeightEntry, WeightListQuery } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { WeightsService } from './weights.service.js';
@@ -23,11 +24,12 @@ export class WeightsController {
   constructor(private readonly weights: WeightsService) {}
 
   /**
-   * `?since=ISO` caps the result to entries newer than the given date —
-   * the dashboard sends `now() - 90d` so we don't transfer years of
-   * history every page load.
+   * The weights noted for a profile, the newest first. `?since=` leaves out
+   * what is older than a moment: a chart of three months asks for three
+   * months.
    */
   @Get()
+  @AnswersListOf(WeightEntry)
   list(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(WeightListQuery)) query: WeightListQuery,
@@ -35,7 +37,9 @@ export class WeightsController {
     return this.weights.list(user.id, query.profileId, query.since ? new Date(query.since) : undefined);
   }
 
+  /** Note a weight of a profile for a day. */
   @Post()
+  @Answers(WeightEntry)
   create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(CreateWeightEntryRequest)) dto: CreateWeightEntryRequest,
@@ -44,6 +48,7 @@ export class WeightsController {
     return this.weights.create(user.id, profileId, body);
   }
 
+  /** Remove a noted weight. */
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {

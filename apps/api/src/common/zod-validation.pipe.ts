@@ -9,7 +9,8 @@ import { z, type ZodType } from 'zod';
  * Bound to one named parameter, the issue path starts with that name.
  */
 export class ZodValidationPipe<T> implements PipeTransform {
-  constructor(private readonly schema: ZodType<T>) {}
+  /** `schema` is what the value is held to; the published contract reads it from here. */
+  constructor(readonly schema: ZodType<T>) {}
 
   transform(value: unknown, metadata?: ArgumentMetadata): T {
     const result = this.schema.safeParse(value);

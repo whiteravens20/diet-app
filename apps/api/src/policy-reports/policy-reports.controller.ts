@@ -24,6 +24,7 @@ const POLICY_REPORTS_PATH = 'csp-reports';
 export class PolicyReportsController {
   constructor(private readonly reports: PolicyReportsService) {}
 
+  /** Take a browser's report of something a page was not allowed to do. */
   @Post()
   @HttpCode(204)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })

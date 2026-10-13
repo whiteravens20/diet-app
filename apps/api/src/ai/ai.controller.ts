@@ -12,13 +12,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import {
-  AiProviderConfigInput,
-  AiTestConnectionRequest,
-  type AiQuotaStatus,
-  type AiTestConnectionResponse,
-} from '@diet-app/shared';
+import { AiProviderConfig, AiProviderConfigInput, AiQuotaStatus, AiTestConnectionRequest, AiTestConnectionResponse } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -38,12 +34,16 @@ export class AiController {
     private readonly prisma: PrismaService,
   ) {}
 
+  /** The AI providers the account has set up, without their keys. */
   @Get('providers')
+  @AnswersListOf(AiProviderConfig)
   listProviders(@CurrentUser() user: RequestUser) {
     return this.keys.list(user.id);
   }
 
+  /** Save the account's configuration of a provider: made the first time, changed afterwards. A key that is left out stays as it is. */
   @Put('providers')
+  @Answers(AiProviderConfig)
   upsertProvider(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(AiProviderConfigInput)) dto: AiProviderConfigInput,
@@ -51,6 +51,7 @@ export class AiController {
     return this.keys.upsert(user.id, dto);
   }
 
+  /** Remove a provider of the account, with its key. */
   @Delete('providers/:id')
   @HttpCode(204)
   async removeProvider(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
@@ -58,10 +59,11 @@ export class AiController {
   }
 
   /**
-   * Snapshot of the caller's AI routing state — the app-shell chip and the
-   * Settings AI card render straight from this.
+   * What AI the account has now: the mode it chose, and how many calls of the
+   * instance's allowance it has made and has left.
    */
   @Get('quota')
+  @Answers(AiQuotaStatus)
   async getQuota(@CurrentUser() user: RequestUser): Promise<AiQuotaStatus> {
     return this.quota.status(user.id, await this.loadMode(user.id));
   }
@@ -78,6 +80,7 @@ export class AiController {
    */
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('test')
+  @Answers(AiTestConnectionResponse)
   async testConnection(
     @Body(new ZodValidationPipe(AiTestConnectionRequest)) dto: AiTestConnectionRequest,
   ): Promise<AiTestConnectionResponse> {

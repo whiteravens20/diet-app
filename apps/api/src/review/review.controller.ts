@@ -41,21 +41,24 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
   IngredientNameReviewPatchBody,
+  IngredientNameReviewSlice,
+  IngredientNameReviewSlicePage,
   NON_CANONICAL_LOCALES,
   RecipeReviewPatchBody,
-  ReviewQueueQuery,
+  RecipeReviewSlice,
+  RecipeReviewSlicePage,
   ReviewerLoginBody,
   ReviewerReasonBody,
+  ReviewerSessionAnswer,
+  ReviewQueueQuery,
+  ReviewStatus,
   TargetLocaleQuery,
-  type IngredientNameReviewSlice,
-  type Locale,
-  type RecipeReviewSlice,
   type ReviewAction,
-  type ReviewerSessionDto,
   type TargetLocale,
 } from '@diet-app/shared';
-import { DraftService, type Actor, type Page } from '../admin/drafts/draft.service.js';
+import { DraftService, type Actor } from '../admin/drafts/draft.service.js';
 import { toIngredientNameReviewSlice, toRecipeReviewSlice } from '../admin/drafts/drafts.mapper.js';
+import { Answers } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { assertFromTheApplication } from '../auth/session-cookies.js';
 import { Passwords } from '../common/passwords.js';
@@ -85,15 +88,13 @@ export class ReviewController {
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 
-  /** Public status probe — tells the `/review` page which state to render
-   *  (disabled vs login). Also exposes the catalogue of non-canonical locales
-   *  so the UI doesn't need to hardcode the list. Never reveals the hash. */
+  /**
+   * Whether reviewers may sign in on this instance, and the languages there
+   * are to review. Anyone may ask; the password is no part of the answer.
+   */
   @Get('status')
-  async status(): Promise<{
-    enabled: boolean;
-    passwordSet: boolean;
-    locales: Locale[];
-  }> {
+  @Answers(ReviewStatus)
+  async status(): Promise<ReviewStatus> {
     const { reviewerEnabled, reviewerPasswordHash } =
       await this.settings.readReviewerCredentials();
     return {
@@ -103,6 +104,7 @@ export class ReviewController {
     };
   }
 
+  /** Sign a reviewer in with the reviewers' password and the name they review under. The session is a cookie. */
   // One password for every reviewer, so there is no account to count attempts
   // against: five a minute per client, and wrong ones are slowed down by the
   // sign-in gate.
@@ -147,6 +149,7 @@ export class ReviewController {
     );
   }
 
+  /** End the reviewer's session. */
   @Post('auth/logout')
   @HttpCode(204)
   logout(@Res({ passthrough: true }) res: Response): void {
@@ -162,12 +165,13 @@ export class ReviewController {
     );
   }
 
-  /** Probes whether the current cookie is still valid + matches an enabled
-   *  reviewer toggle. The frontend uses this on `/review` page load to pick
-   *  between login form vs queue. Returns null instead of 401 so the
-   *  unauthenticated probe doesn't need to be a special case. */
+  /**
+   * The reviewer's session, or none: what the page asks first, to show the
+   * queue or the form to sign in. Answers 200 either way.
+   */
   @Get('session')
-  async session(@Req() req: Request): Promise<{ session: ReviewerSessionDto | null }> {
+  @Answers(ReviewerSessionAnswer)
+  async session(@Req() req: Request): Promise<ReviewerSessionAnswer> {
     const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } = await this.settings.readReviewerCredentials();
     if (!reviewerEnabled || reviewerPasswordHash === null) {
       return { session: null };
@@ -185,15 +189,19 @@ export class ReviewController {
 
   // ── Recipe drafts (guarded) ────────────────────────────────────────────────
 
+  /** The recipe drafts that wait for a review in a language, a page at a time. */
   @Get('drafts/recipes')
   @UseGuards(ReviewerSessionGuard)
-  async listRecipeSlices(@Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery): Promise<Page<RecipeReviewSlice>> {
+  @Answers(RecipeReviewSlicePage)
+  async listRecipeSlices(@Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery): Promise<RecipeReviewSlicePage> {
     const found = await this.drafts.recipesWaitingFor(query);
     return { ...found, items: found.items.map((row) => toRecipeReviewSlice(row, query.locale)) };
   }
 
+  /** One of those drafts: the text in the language beside the English. */
   @Get('drafts/recipes/:id')
   @UseGuards(ReviewerSessionGuard)
+  @Answers(RecipeReviewSlice)
   async getRecipeSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
@@ -202,8 +210,10 @@ export class ReviewController {
     return toRecipeReviewSlice(await this.drafts.recipeFor(id, locale, reviewerOf(req)), locale);
   }
 
+  /** Change the text of a recipe draft in the language. */
   @Patch('drafts/recipes/:id')
   @UseGuards(ReviewerSessionGuard)
+  @Answers(RecipeReviewSlice)
   async patchRecipeSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
@@ -213,8 +223,10 @@ export class ReviewController {
     return toRecipeReviewSlice(await this.drafts.editRecipeText(id, locale, patch, reviewerOf(req)), locale);
   }
 
+  /** Approve a recipe draft in the language. */
   @Post('drafts/recipes/:id/approve')
   @UseGuards(ReviewerSessionGuard)
+  @Answers(RecipeReviewSlice)
   approveRecipeSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
@@ -224,8 +236,10 @@ export class ReviewController {
     return this.reviewRecipe(req, id, locale, body, 'APPROVE');
   }
 
+  /** Reject a recipe draft in the language, with a reason. */
   @Post('drafts/recipes/:id/reject')
   @UseGuards(ReviewerSessionGuard)
+  @Answers(RecipeReviewSlice)
   rejectRecipeSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
@@ -241,15 +255,19 @@ export class ReviewController {
 
   // ── Ingredient-name drafts (guarded) ───────────────────────────────────────
 
+  /** The names of ingredients that wait for a review in a language, a page at a time. */
   @Get('drafts/ingredient-names')
   @UseGuards(ReviewerSessionGuard)
-  async listIngredientNameSlices(@Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery): Promise<Page<IngredientNameReviewSlice>> {
+  @Answers(IngredientNameReviewSlicePage)
+  async listIngredientNameSlices(@Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery): Promise<IngredientNameReviewSlicePage> {
     const found = await this.drafts.ingredientNamesWaitingFor(query);
     return { ...found, items: found.items.map((row) => toIngredientNameReviewSlice(row, query.locale)) };
   }
 
+  /** One of those names: the text in the language beside the English. */
   @Get('drafts/ingredient-names/:id')
   @UseGuards(ReviewerSessionGuard)
+  @Answers(IngredientNameReviewSlice)
   async getIngredientNameSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
@@ -258,8 +276,10 @@ export class ReviewController {
     return toIngredientNameReviewSlice(await this.drafts.ingredientNameFor(id, locale, reviewerOf(req)), locale);
   }
 
+  /** Change the text of a name in the language. */
   @Patch('drafts/ingredient-names/:id')
   @UseGuards(ReviewerSessionGuard)
+  @Answers(IngredientNameReviewSlice)
   async patchIngredientNameSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
@@ -269,8 +289,10 @@ export class ReviewController {
     return toIngredientNameReviewSlice(await this.drafts.editIngredientNameText(id, locale, patch, reviewerOf(req)), locale);
   }
 
+  /** Approve a name in the language. */
   @Post('drafts/ingredient-names/:id/approve')
   @UseGuards(ReviewerSessionGuard)
+  @Answers(IngredientNameReviewSlice)
   approveIngredientNameSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
@@ -280,8 +302,10 @@ export class ReviewController {
     return this.reviewIngredientName(req, id, locale, body, 'APPROVE');
   }
 
+  /** Reject a name in the language, with a reason. */
   @Post('drafts/ingredient-names/:id/reject')
   @UseGuards(ReviewerSessionGuard)
+  @Answers(IngredientNameReviewSlice)
   rejectIngredientNameSlice(
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,

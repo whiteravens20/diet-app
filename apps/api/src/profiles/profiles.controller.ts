@@ -1,8 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
-import { CaloriePreviewRequest, ProfileInput, ProfilePreferencesPatch, ProfileUpdate } from '@diet-app/shared';
+import { CalorieCalculation, CaloriePreview, CaloriePreviewRequest, Profile, ProfileInput, ProfilePreferencesPatch, ProfileUpdate } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { ProfilesService } from './profiles.service.js';
@@ -12,18 +13,23 @@ import { ProfilesService } from './profiles.service.js';
 export class ProfilesController {
   constructor(private readonly profiles: ProfilesService) {}
 
+  /** The profiles of the account. */
   @Get()
+  @AnswersListOf(Profile)
   list(@CurrentUser() user: RequestUser) {
     return this.profiles.list(user.id);
   }
 
+  /** One profile. */
   @Get(':id')
+  @Answers(Profile)
   get(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     return this.profiles.get(user.id, id);
   }
 
-  /** Deterministic calorie + macro breakdown for the profile. */
+  /** What the profile's figures come to: its calorie target and how it is worked out, and the protein, fat and carbohydrate of it. */
   @Get(':id/calories')
+  @Answers(CalorieCalculation)
   calories(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     return this.profiles.calories(user.id, id);
   }
@@ -35,11 +41,14 @@ export class ProfilesController {
    */
   @Post('calories')
   @HttpCode(200)
+  @Answers(CaloriePreview)
   previewCalories(@Body(new ZodValidationPipe(CaloriePreviewRequest)) dto: CaloriePreviewRequest) {
     return this.profiles.previewCalories(dto);
   }
 
+  /** Add a profile to the account. */
   @Post()
+  @Answers(Profile)
   create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(ProfileInput)) dto: ProfileInput,
@@ -49,6 +58,7 @@ export class ProfilesController {
 
   /** The profile as it is from now on: every part of it. A part that is left out is refused. */
   @Put(':id')
+  @Answers(Profile)
   update(
     @CurrentUser() user: RequestUser,
     @Param('id', requiredUuid) id: string,
@@ -59,6 +69,7 @@ export class ProfilesController {
 
   /** Change some of the profile's preferences: what is left out stays as it is. */
   @Patch(':id/preferences')
+  @Answers(Profile)
   patchPreferences(
     @CurrentUser() user: RequestUser,
     @Param('id', requiredUuid) id: string,
@@ -67,6 +78,7 @@ export class ProfilesController {
     return this.profiles.patchPreferences(user.id, id, dto);
   }
 
+  /** Delete a profile, with its plans, lists and pantry. */
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {

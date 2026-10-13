@@ -32,42 +32,50 @@ import {
   DraftBulkRejectBody,
   DraftLocaleQuery,
   DraftReviewBody,
+  DraftRunnerState,
   DryRunQuery,
+  IngredientNameDraft,
   IngredientNameDraftListQuery,
+  IngredientNameDraftPage,
   IngredientNameDraftPatchBody,
   IngredientNameGenerateSpec,
   MarkShippedRequest,
+  OverridesPulled,
+  OverridesPushed,
   PullOverridesRequest,
+  RecipeDraft,
   RecipeDraftListQuery,
+  RecipeDraftPage,
   RecipeDraftPatch,
   RecipeGenerateSpec,
   RecipeImportRequest,
+  RecipeImportResult,
+  RecipeRunState,
+  RejectedDrafts,
+  RestoredFromInstanceData,
+  ShipConfig,
   ShipRequest,
+  ShipResult,
+  StoredImportRejection,
   TargetLocaleQuery,
   TranslationGenerateSpec,
-  type DraftRunnerState,
-  type IngredientNameDraft,
+  Updated,
   type Locale,
-  type RecipeDraft,
-  type RecipeImportResult,
   type ReviewAction,
-  type StoredImportRejection,
   type TargetLocale,
 } from '@diet-app/shared';
+import { Answers, AnswersListOf, AnswersWithAFile } from '../../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Env } from '../../config/env.js';
 import { AdminSessionGuard } from '../admin-session.guard.js';
-import { DraftService, invalid, type Actor, type Page } from './draft.service.js';
+import { DraftService, invalid, type Actor } from './draft.service.js';
 import { toIngredientNameDraftDto, toRecipeDraftDto } from './drafts.mapper.js';
 import {
   IngredientNamerRunner,
   type IngredientNamerStartSpec,
 } from './ingredient-namer.runner.js';
-import {
-  RecipeGeneratorRunner,
-  type RecipeRunnerState,
-} from './recipe-generator.runner.js';
+import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
 import { AdminModelService } from './admin-model.service.js';
 import { RecipeImportService } from './external/recipe-import.service.js';
 import { TranslationRunner } from './translation.runner.js';
@@ -76,7 +84,6 @@ import {
   shipRecipeDraftLocal,
   shipRecipesLocal,
   writeRecipeSidecar,
-  type LocalShipResult,
 } from './ship/local-mode.js';
 import {
   findRepoRoot,
@@ -85,52 +92,25 @@ import {
   shipRecipesUpstream,
   upstreamBlockedReason,
   UpstreamShipError,
-  type CurrentOverridesPushResult,
   type UpstreamShipConfig,
-  type UpstreamShipResult,
 } from './ship/upstream-mode.js';
 import { buildCurrentIngredientOverrides } from './ship/current-overrides.js';
 import {
   pullOverrides,
   PullOverridesError,
-  type PullOverridesResult,
   type PullPolicy,
 } from './ship/pull-overrides.js';
 import { NothingShips } from './ship/shippable.js';
-import { instanceDataState, restoreInstanceData, type InstanceDataState, type RestoreResult } from './ship/restore.js';
+import { instanceDataState, restoreInstanceData } from './ship/restore.js';
 import {
   markBundleShipped,
   shipIngredientNamesBundle,
   shipRecipesBundle,
-  type BundleShipResult,
 } from './ship/bundle-mode.js';
 
 /** The administrator acting on a draft; a review carries the name they gave instead of this one. */
 const ADMIN: Actor = { role: 'ADMIN', label: 'admin' };
 
-
-interface ShipConfigDto {
-  modes: {
-    local: { available: true };
-    upstreamPr: {
-      available: boolean;
-      enabled: boolean;
-      reason: string | null;
-      baseBranch: string;
-      remote: string;
-    };
-    bundle: { available: true };
-  };
-  pull: { available: true; defaultSource: string; tokenSet: boolean };
-  /** The instance's own data directory: what a local ship has copied there, and whether it still can. */
-  instanceData: InstanceDataState;
-  approvedCounts: { recipe: number; ingredientName: number };
-}
-
-type ShipResponseDto =
-  | ({ mode: 'local' } & LocalShipResult)
-  | ({ mode: 'upstream-pr' } & UpstreamShipResult)
-  | ({ mode: 'bundle' } & BundleShipResult);
 
 @Controller('admin/drafts')
 @UseGuards(AdminSessionGuard)
@@ -150,11 +130,13 @@ export class DraftsController {
 
   // ── Ingredient-name generation ──────────────────────────────────────────────
 
+  /** Start the run that asks a model for names of ingredients. 409 while one is running. */
   // Kicks off an expensive batched AI run. Admin-gated already; the explicit
   // cap stops an authenticated admin from queuing many costly batches at once.
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('ingredient-names/generate')
   @HttpCode(202)
+  @Answers(DraftRunnerState)
   async startNamerRun(@Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec): Promise<DraftRunnerState> {
     const spec: IngredientNamerStartSpec = { scope: body.scope, slugs: body.slugs, targetLocales: body.targetLocales };
     const started = await this.namer.start(spec);
@@ -167,13 +149,17 @@ export class DraftsController {
     return this.namerRunnerState();
   }
 
+  /** Where the run of names stands. */
   @Get('ingredient-names/generate/status')
+  @Answers(DraftRunnerState)
   namerStatus(): Promise<DraftRunnerState> {
     return this.namerRunnerState();
   }
 
+  /** Stop the run of names. What it has written stays. */
   @Post('ingredient-names/generate/stop')
   @HttpCode(202)
+  @Answers(DraftRunnerState)
   async stopNamer(): Promise<DraftRunnerState> {
     await this.namer.cancel();
     return this.namerRunnerState();
@@ -181,22 +167,28 @@ export class DraftsController {
 
   // ── List + read ─────────────────────────────────────────────────────────────
 
+  /** The drafts of names for ingredients, a page at a time, narrowed as asked. */
   @Get('ingredient-names')
+  @Answers(IngredientNameDraftPage)
   async listIngredientNameDrafts(
     @Query(new ZodValidationPipe(IngredientNameDraftListQuery)) query: IngredientNameDraftListQuery,
-  ): Promise<Page<IngredientNameDraft>> {
+  ): Promise<IngredientNameDraftPage> {
     const found = await this.drafts.listIngredientNames(query);
     return { ...found, items: found.items.map(toIngredientNameDraftDto) };
   }
 
+  /** One draft of a name. */
   @Get('ingredient-names/:id')
+  @Answers(IngredientNameDraft)
   async getIngredientNameDraft(@Param('id', requiredUuid) id: string): Promise<IngredientNameDraft> {
     return toIngredientNameDraftDto(await this.drafts.ingredientName(id));
   }
 
   // ── Edit / approve / reject / delete (ingredient names) ────────────────────
 
+  /** Change what a draft of a name suggests. */
   @Patch('ingredient-names/:id')
+  @Answers(IngredientNameDraft)
   async patchIngredientNameDraft(
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(IngredientNameDraftPatchBody)) { suggestions }: IngredientNameDraftPatchBody,
@@ -204,7 +196,9 @@ export class DraftsController {
     return toIngredientNameDraftDto(await this.drafts.editIngredientName(id, suggestions, ADMIN));
   }
 
+  /** Approve a draft of a name, in the language asked for. */
   @Post('ingredient-names/:id/approve')
+  @Answers(IngredientNameDraft)
   approveIngredientNameDraft(
     @Param('id', requiredUuid) id: string,
     @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
@@ -213,7 +207,9 @@ export class DraftsController {
     return this.reviewIngredientName(id, locale, body, 'APPROVE');
   }
 
+  /** Reject a draft of a name, in the language asked for, with a reason. */
   @Post('ingredient-names/:id/reject')
+  @Answers(IngredientNameDraft)
   rejectIngredientNameDraft(
     @Param('id', requiredUuid) id: string,
     @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
@@ -222,6 +218,7 @@ export class DraftsController {
     return this.reviewIngredientName(id, locale, body, 'REJECT');
   }
 
+  /** Remove a draft of a name. */
   @Delete('ingredient-names/:id')
   @HttpCode(204)
   deleteIngredientNameDraft(@Param('id', requiredUuid) id: string): Promise<void> {
@@ -230,11 +227,13 @@ export class DraftsController {
 
   // ── Recipe generation ──────────────────────────────────────────────────────
 
+  /** Start the run that asks a model for recipe drafts. 409 while one is running. */
   // Same rationale as ingredient-name generation: cap the costly AI batch start.
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('recipes/generate')
   @HttpCode(202)
-  async startRecipeRun(@Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec): Promise<RecipeRunnerStateDto> {
+  @Answers(RecipeRunState)
+  async startRecipeRun(@Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec): Promise<RecipeRunState> {
     const started = await this.recipeGen.start(spec);
     if (!started) {
       throw new ConflictException({
@@ -245,14 +244,18 @@ export class DraftsController {
     return this.recipeRunnerState();
   }
 
+  /** Where the run of recipes stands. */
   @Get('recipes/generate/status')
-  recipeRunStatus(): Promise<RecipeRunnerStateDto> {
+  @Answers(RecipeRunState)
+  recipeRunStatus(): Promise<RecipeRunState> {
     return this.recipeRunnerState();
   }
 
+  /** Stop the run of recipes. What it has written stays. */
   @Post('recipes/generate/stop')
   @HttpCode(202)
-  async stopRecipeRun(): Promise<RecipeRunnerStateDto> {
+  @Answers(RecipeRunState)
+  async stopRecipeRun(): Promise<RecipeRunState> {
     await this.recipeGen.cancel();
     return this.recipeRunnerState();
   }
@@ -269,15 +272,19 @@ export class DraftsController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('recipes/import')
   @HttpCode(200)
+  @Answers(RecipeImportResult)
   importRecipes(@Body(new ZodValidationPipe(RecipeImportRequest)) body: RecipeImportRequest): Promise<RecipeImportResult> {
     return this.imports.import(body);
   }
 
+  /** The recipes that imports refused, each with the reasons. */
   @Get('recipes/import/rejections')
+  @AnswersListOf(StoredImportRejection)
   importRejections(): Promise<StoredImportRejection[]> {
     return this.imports.rejections();
   }
 
+  /** Forget the recipes that imports refused. */
   @Delete('recipes/import/rejections')
   @HttpCode(204)
   clearImportRejections(): Promise<void> {
@@ -294,6 +301,7 @@ export class DraftsController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('translations/generate')
   @HttpCode(202)
+  @Answers(DraftRunnerState)
   async startTranslations(@Body(new ZodValidationPipe(TranslationGenerateSpec)) body: TranslationGenerateSpec): Promise<DraftRunnerState> {
     if (!(await this.translations.start(body))) {
       throw new ConflictException({ error: 'TRANSLATIONS_IN_PROGRESS', message: 'A run that fills a language is already in progress.' });
@@ -301,13 +309,17 @@ export class DraftsController {
     return this.translationRunnerState();
   }
 
+  /** Where the run that fills a language stands. */
   @Get('translations/generate/status')
+  @Answers(DraftRunnerState)
   translationsStatus(): Promise<DraftRunnerState> {
     return this.translationRunnerState();
   }
 
+  /** Stop the run that fills a language. What it has written stays. */
   @Post('translations/generate/stop')
   @HttpCode(202)
+  @Answers(DraftRunnerState)
   async stopTranslations(): Promise<DraftRunnerState> {
     await this.translations.cancel();
     return this.translationRunnerState();
@@ -315,13 +327,17 @@ export class DraftsController {
 
   // ── Recipe list + read ─────────────────────────────────────────────────────
 
+  /** The recipe drafts, a page at a time, narrowed as asked. */
   @Get('recipes')
-  async listRecipeDrafts(@Query(new ZodValidationPipe(RecipeDraftListQuery)) query: RecipeDraftListQuery): Promise<Page<RecipeDraft>> {
+  @Answers(RecipeDraftPage)
+  async listRecipeDrafts(@Query(new ZodValidationPipe(RecipeDraftListQuery)) query: RecipeDraftListQuery): Promise<RecipeDraftPage> {
     const found = await this.drafts.listRecipes(query);
     return { ...found, items: found.items.map(toRecipeDraftDto) };
   }
 
+  /** One recipe draft. */
   @Get('recipes/:id')
+  @Answers(RecipeDraft)
   async getRecipeDraft(@Param('id', requiredUuid) id: string): Promise<RecipeDraft> {
     return toRecipeDraftDto(await this.drafts.recipe(id));
   }
@@ -329,10 +345,11 @@ export class DraftsController {
   // ── Recipe edit / approve / reject / delete ─────────────────────────────────
 
   /**
-   * Patch a recipe draft. `?dryRun=true` returns the result without storing
-   * it — the inline editor uses it for live nutrition feedback.
+   * Change a recipe draft. With `?dryRun=true` the result is answered and
+   * not stored: what the editor shows the nutrition of an edit with.
    */
   @Patch('recipes/:id')
+  @Answers(RecipeDraft)
   async patchRecipeDraft(
     @Param('id', requiredUuid) id: string,
     @Body(new ZodValidationPipe(RecipeDraftPatch)) patch: RecipeDraftPatch,
@@ -341,7 +358,9 @@ export class DraftsController {
     return toRecipeDraftDto(await this.drafts.editRecipe(id, patch, ADMIN, { dryRun }));
   }
 
+  /** Approve a recipe draft, in the language asked for. */
   @Post('recipes/:id/approve')
+  @Answers(RecipeDraft)
   approveRecipeDraft(
     @Param('id', requiredUuid) id: string,
     @Query(new ZodValidationPipe(DraftLocaleQuery)) { locale }: DraftLocaleQuery,
@@ -358,13 +377,16 @@ export class DraftsController {
    */
   @Post('recipes/reject')
   @HttpCode(200)
+  @Answers(RejectedDrafts)
   rejectRecipeDrafts(
     @Body(new ZodValidationPipe(DraftBulkRejectBody)) { ids, reviewedByLabel, reason }: DraftBulkRejectBody,
-  ): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
+  ): Promise<RejectedDrafts> {
     return this.drafts.rejectRecipes(ids, reason, { ...ADMIN, label: reviewedByLabel });
   }
 
+  /** Reject a recipe draft, in the language asked for, with a reason. */
   @Post('recipes/:id/reject')
+  @Answers(RecipeDraft)
   rejectRecipeDraft(
     @Param('id', requiredUuid) id: string,
     @Query(new ZodValidationPipe(DraftLocaleQuery)) { locale }: DraftLocaleQuery,
@@ -373,6 +395,7 @@ export class DraftsController {
     return this.reviewRecipe(id, locale, body, 'REJECT');
   }
 
+  /** Remove a recipe draft. */
   @Delete('recipes/:id')
   @HttpCode(204)
   deleteRecipeDraft(@Param('id', requiredUuid) id: string): Promise<void> {
@@ -386,6 +409,7 @@ export class DraftsController {
    * left as they are; whoever makes the recipe again is given the shared one.
    */
   @Post('recipes/:id/promote')
+  @Answers(RecipeDraft)
   async promoteRecipeDraft(
     @Param('id', requiredUuid) id: string,
   ): Promise<RecipeDraft> {
@@ -421,8 +445,10 @@ export class DraftsController {
 
   // ── Ship ───────────────────────────────────────────────────────────────────
 
+  /** The ways drafts can be shipped on this instance, and how many are approved and wait. */
   @Get('ship/config')
-  async shipConfig(): Promise<ShipConfigDto> {
+  @Answers(ShipConfig)
+  async shipConfig(): Promise<ShipConfig> {
     const upstreamConfig = this.readUpstreamConfig();
     const recipeCount = await this.prisma.recipeDraft.count({
       where: { status: 'APPROVED' },
@@ -454,8 +480,10 @@ export class DraftsController {
     };
   }
 
+  /** Ship the approved drafts of a kind: into this instance, as a pull request, or as a file to save. */
   @Post('ship')
-  async ship(@Body(new ZodValidationPipe(ShipRequest)) { kind, mode, batchIds }: ShipRequest): Promise<ShipResponseDto> {
+  @Answers(ShipResult)
+  async ship(@Body(new ZodValidationPipe(ShipRequest)) { kind, mode, batchIds }: ShipRequest): Promise<ShipResult> {
 
     if (mode === 'local') {
       const instanceDataDir = this.resolveInstanceDataDir();
@@ -509,11 +537,13 @@ export class DraftsController {
     }
   }
 
-  /** Download the full current ingredient-override set, rebuilt from the live
-   *  DB (every MANUAL translation). Available any time — independent of draft
-   *  status — so the operator can lift the accumulated overrides into another
-   *  instance or repo even after everything has been shipped. */
+  /**
+   * The names this instance has given its ingredients, as the file `data/`
+   * keeps them: to carry them to another instance or repository at any time,
+   * whatever has shipped.
+   */
   @Get('ship/current-overrides')
+  @AnswersWithAFile('application/json')
   async downloadCurrentOverrides(@Res() res: Response): Promise<void> {
     const file = await buildCurrentIngredientOverrides(this.prisma);
     res
@@ -523,11 +553,14 @@ export class DraftsController {
       .send(JSON.stringify(file, null, 2) + '\n');
   }
 
-  /** Push the full current ingredient-override set to the configured upstream
-   *  repo as a gh PR (reuses the upstream-pr env config + plumbing). Not tied
-   *  to draft status. */
+  /**
+   * Open a pull request in the repository the instance ships to with the
+   * names this instance has given its ingredients, all of them, whatever has
+   * shipped.
+   */
   @Post('ship/current-overrides/push')
-  async pushCurrentOverrides(): Promise<CurrentOverridesPushResult> {
+  @Answers(OverridesPushed)
+  async pushCurrentOverrides(): Promise<OverridesPushed> {
     const { config, repoRoot, dataDir } = this.upstreamTarget();
     try {
       return await pushCurrentOverridesUpstream(this.prisma, { dataDir, repoRoot, config });
@@ -539,13 +572,15 @@ export class DraftsController {
     }
   }
 
-  /** Pull ingredient overrides from a repo the operator names (or the env
-   *  default) and apply them to this instance's DB as MANUAL translations. The
-   *  reverse of the local ship — sync overrides authored elsewhere (or the
-   *  canonical community set) without rebuilding the image. Public repos need
-   *  no auth; private GitHub repos use the env PAT. */
+  /**
+   * Take names of ingredients in from a repository the operator names, or
+   * from the one the instance is set up with, and give them to the
+   * ingredients of this instance. A public repository needs no token; a
+   * private one on GitHub is read with the token of the environment.
+   */
   @Post('ship/current-overrides/pull')
-  async pullCurrentOverrides(@Body(new ZodValidationPipe(PullOverridesRequest.prefault({}))) body: PullOverridesRequest): Promise<PullOverridesResult> {
+  @Answers(OverridesPulled)
+  async pullCurrentOverrides(@Body(new ZodValidationPipe(PullOverridesRequest.prefault({}))) body: PullOverridesRequest): Promise<OverridesPulled> {
     const source =
       body.source ??
       this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }) ??
@@ -592,12 +627,15 @@ export class DraftsController {
    */
   @Post('ship/restore')
   @HttpCode(200)
-  restoreFromInstanceData(): Promise<RestoreResult> {
+  @Answers(RestoredFromInstanceData)
+  restoreFromInstanceData(): Promise<RestoredFromInstanceData> {
     return restoreInstanceData(this.prisma, this.resolveInstanceDataDir());
   }
 
+  /** Mark drafts as shipped, once the file a bundle gave is where it belongs. */
   @Post('ship/mark-shipped')
-  async shipMarkShipped(@Body(new ZodValidationPipe(MarkShippedRequest)) { kind, draftIds }: MarkShippedRequest): Promise<{ updated: number }> {
+  @Answers(Updated)
+  async shipMarkShipped(@Body(new ZodValidationPipe(MarkShippedRequest)) { kind, draftIds }: MarkShippedRequest): Promise<Updated> {
     return markBundleShipped(this.prisma, kind, draftIds);
   }
 
@@ -653,16 +691,7 @@ export class DraftsController {
     return { ...(await this.translations.getState()), configured: this.adminModel.configured };
   }
 
-  private async recipeRunnerState(): Promise<RecipeRunnerStateDto> {
+  private async recipeRunnerState(): Promise<RecipeRunState> {
     return { ...(await this.recipeGen.getState()), configured: this.recipeGen.isConfigured() };
   }
-}
-
-export interface RecipeRunnerStateDto extends DraftRunnerState {
-  target: RecipeRunnerState['target'];
-  complexityCounts: RecipeRunnerState['complexityCounts'];
-  mixDrift: boolean;
-  lastRejectReason: string | null;
-  lastRejectKey: string | null;
-  lastRejectHead: string | null;
 }

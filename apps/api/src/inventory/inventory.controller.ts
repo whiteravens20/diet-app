@@ -12,9 +12,10 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { type Locale, PatchInventoryItem, UpsertInventoryItemRequest } from '@diet-app/shared';
+import { InventoryItem, PatchInventoryItem, UpsertInventoryItemRequest, type Locale } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
+import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { InventoryService } from './inventory.service.js';
@@ -24,7 +25,9 @@ import { InventoryService } from './inventory.service.js';
 export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}
 
+  /** What a profile's pantry holds. */
   @Get()
+  @AnswersListOf(InventoryItem)
   list(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -33,7 +36,9 @@ export class InventoryController {
     return this.inventory.list(user.id, locale, profileId);
   }
 
+  /** Put something into the pantry: added to the row of that ingredient and unit, or a new row. */
   @Post()
+  @Answers(InventoryItem)
   upsert(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -43,7 +48,9 @@ export class InventoryController {
     return this.inventory.upsert(user.id, locale, profileId, body);
   }
 
+  /** Change a row of the pantry. */
   @Patch(':id')
+  @Answers(InventoryItem)
   patch(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -53,6 +60,7 @@ export class InventoryController {
     return this.inventory.patch(user.id, locale, id, dto);
   }
 
+  /** Take a row out of the pantry. */
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {

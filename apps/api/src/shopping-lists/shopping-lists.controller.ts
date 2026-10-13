@@ -2,9 +2,10 @@
 
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { GenerateShoppingListRequest, type Locale, UpdateShoppingItemRequest, WeighRequest } from '@diet-app/shared';
+import { GenerateShoppingListRequest, ListProposals, ShoppingList, UpdateShoppingItemRequest, WeighRequest, type Locale } from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
+import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { ListProposalsService } from './list-proposals.service.js';
@@ -18,7 +19,9 @@ export class ShoppingListsController {
     private readonly proposals: ListProposalsService,
   ) {}
 
+  /** Make the shopping list of a plan, or of some of its days. The lists of the plan that share a day with it are replaced. */
   @Post('generate')
+  @Answers(ShoppingList)
   generate(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -27,8 +30,9 @@ export class ShoppingListsController {
     return this.lists.generate(user.id, locale, dto);
   }
 
-  /** Lists for one plan, newest first — drives the shopping-list page. */
+  /** The shopping lists of a plan, the newest first. */
   @Get()
+  @AnswersListOf(ShoppingList)
   list(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -37,7 +41,9 @@ export class ShoppingListsController {
     return this.lists.listForPlan(user.id, locale, planId);
   }
 
+  /** One shopping list. */
   @Get(':id')
+  @Answers(ShoppingList)
   get(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -56,6 +62,7 @@ export class ShoppingListsController {
   @Post(':id/proposals')
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(ListProposals)
   propose(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -65,13 +72,16 @@ export class ShoppingListsController {
     return this.proposals.propose(user.id, locale, id, dto);
   }
 
+  /** Delete a shopping list. What was obtained for days still ahead goes into the pantry. */
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     await this.lists.remove(user.id, id);
   }
 
+  /** Change a row of a list: how much of it is there, what was at home, or its tick. The pantry follows. */
   @Patch(':id/items/:itemId')
+  @Answers(ShoppingList)
   updateItem(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,

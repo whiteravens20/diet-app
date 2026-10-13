@@ -10,11 +10,12 @@ import {
   AdminSessionState,
   AdminSignInRequest,
   SecondFactorConfirmRequest,
-  type SecondFactorSetup,
+  SecondFactorSetup,
 } from '@diet-app/shared';
 import { alreadyOn, notOn, SecondFactors, wrongCode } from '../auth/second-factors.js';
 import { assertFromTheApplication } from '../auth/session-cookies.js';
 import { readCookie } from '../common/cookies.js';
+import { Answers } from '../common/answers.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { type Env, isAdminEnabled } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -41,6 +42,7 @@ export class AdminSessionController {
    * whether this browser is in, and whether signing in takes a code.
    */
   @Get()
+  @Answers(AdminSessionState)
   async state(@Req() req: Request): Promise<AdminSessionState> {
     const enabled = isAdminEnabled({ ADMIN_PASSWORD: this.config.get('ADMIN_PASSWORD', { infer: true }) });
     const token = readCookie(req.headers.cookie, ADMIN_COOKIE);
@@ -48,6 +50,7 @@ export class AdminSessionController {
     return { enabled, signedIn, secondFactor: enabled && (await this.factors.has('administrator')) };
   }
 
+  /** Sign the administrator in: the password, and a code where the second factor is on. The session is a cookie. */
   // One password for the instance, so there is no account to count attempts
   // against: ten a minute per client, and after five wrong ones in a row the
   // sign-in gate makes the client wait, thirty seconds at first and up to a
@@ -88,6 +91,7 @@ export class AdminSessionController {
   @HttpCode(200)
   @UseGuards(AdminSessionGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Answers(SecondFactorSetup)
   async proposeSecondFactor(
     @Body(new ZodValidationPipe(AdminSecondFactorSetupRequest)) body: AdminSecondFactorSetupRequest,
     @Req() req: Request,

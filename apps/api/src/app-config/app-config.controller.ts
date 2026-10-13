@@ -2,7 +2,8 @@
 
 import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { PublicConfig } from '@diet-app/shared';
+import { PublicConfig } from '@diet-app/shared';
+import { Answers } from '../common/answers.decorator.js';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import type { Env } from '../config/env.js';
 import { depthByMealCount } from '../engine/coverage.js';
@@ -28,7 +29,9 @@ export class AppConfigController {
     private readonly coverage: CatalogueCoverageService,
   ) {}
 
+  /** What a page has to know before anybody has signed in: whether signing up asks for a challenge, whether mail is on, what AI the instance offers and how deep its catalogue is. */
   @Get()
+  @Answers(PublicConfig)
   async get(): Promise<PublicConfig> {
     return {
       turnstile: {

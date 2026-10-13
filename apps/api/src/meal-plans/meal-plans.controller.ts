@@ -15,26 +15,40 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import {
   AddCustomMealRequest,
+  AiMealSwapPreview,
   AiSuggestIngredientRequest,
+  AiSuggestIngredientResponse,
   AiSwapMealRequest,
   ApplyMealSwapRequest,
+  DayVariations,
   GeneratePlanRequest,
+  MealPlan,
+  MealPlanPage,
+  MealSwapPreview,
+  PlanCalendar,
   PlanCalendarQuery,
   PlanListQuery,
+  PlanOverviewAnswer,
   PlanOverviewQuery,
-  type Locale,
   RebalanceRequest,
+  RebalanceResult,
   RegenerateDayRequest,
   RegenerateRequest,
   SetMealEatenRequest,
+  SubstituteSuggestion,
   SwapIngredientRequest,
+  SwapIngredientResponse,
   SwapMealRequest,
+  SwapPreview,
   TakeDayVariationRequest,
+  UseUpSuggestions,
   WeighRequest,
+  type Locale,
 } from '@diet-app/shared';
 import { ClientDate } from '../common/client-date.decorator.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
+import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredDate, requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { DayVariationsService } from './day-variations.service.js';
@@ -60,7 +74,9 @@ export class MealPlansController {
     private readonly variations: DayVariationsService,
   ) {}
 
+  /** The plans of a profile, a page at a time, narrowed by their days and by whether they are over. */
   @Get()
+  @Answers(MealPlanPage)
   list(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(PlanListQuery)) query: PlanListQuery,
@@ -69,8 +85,13 @@ export class MealPlansController {
     return this.plans.list(user.id, query, today);
   }
 
-  /** What the profile's plan of the moment comes to. Declared before the route of one plan, whose id it is not. */
+  /**
+   * What the profile's plan of the moment comes to.
+   *
+   * Declared before the route of one plan, whose id it is not.
+   */
   @Get('overview')
+  @Answers(PlanOverviewAnswer)
   overview(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -82,24 +103,36 @@ export class MealPlansController {
 
   /**
    * The days of the profile's plans in a span of days, for a calendar.
+   *
    * Declared before the route of one plan, whose id it is not. A calendar is
    * leafed through a month at a time, and a month is one request: the limit
    * is that of somebody who leafs fast.
    */
   @Get('calendar')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(PlanCalendar)
   calendar(@CurrentUser() user: RequestUser, @Query(new ZodValidationPipe(PlanCalendarQuery)) query: PlanCalendarQuery) {
     return this.calendars.calendar(user.id, query);
   }
 
+  /** One plan, with its days and their meals. */
   @Get(':id')
+  @Answers(MealPlan)
   get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string) {
     return this.plans.get(user.id, locale, id);
   }
 
-  /** Plan generation is rate-limited tighter — it is compute-heavy. */
+  /**
+   * Make a plan for a profile: the planner fills its days within the limits
+   * of the profile. 422 `PLAN_NEEDS_RELAXATION` when it cannot, with the
+   * limits that would have to give way.
+   *
+   * Limited more tightly than other routes: choosing the recipes is work of
+   * the API process.
+   */
   @Post('generate')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
   generate(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -111,6 +144,7 @@ export class MealPlansController {
   /** Make a plan again, or the days of it that the request names. */
   @Post(':id/regenerate')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
   regenerate(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -124,6 +158,7 @@ export class MealPlansController {
   /** Re-roll the meals of a single day. */
   @Post(':id/days/:dayId/regenerate')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
   regenerateDay(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -144,6 +179,7 @@ export class MealPlansController {
   @Post(':id/days/:dayId/variations')
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Answers(DayVariations)
   dayVariations(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -159,6 +195,7 @@ export class MealPlansController {
   @Post(':id/days/:dayId/variations/take')
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
   takeDayVariation(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -169,6 +206,7 @@ export class MealPlansController {
     return this.variations.take(user.id, locale, id, dayId, dto);
   }
 
+  /** Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. */
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
@@ -177,6 +215,7 @@ export class MealPlansController {
 
   /** A recipe to put in the place of a planned meal, with what the swap would do. Nothing is written. */
   @Post('swap-meal/preview')
+  @Answers(MealSwapPreview)
   previewSwap(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -187,6 +226,7 @@ export class MealPlansController {
 
   /** Make a swap that was offered, on the plan as it was when the offer was made. */
   @Post('swap-meal')
+  @Answers(RebalanceResult)
   applySwap(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -198,6 +238,7 @@ export class MealPlansController {
   /** Add a user-authored custom meal to a day. */
   @Post(':id/days/:date/custom-meal')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(RebalanceResult)
   addCustomMeal(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -210,6 +251,7 @@ export class MealPlansController {
 
   /** Mark a planned meal eaten or not eaten (rebalances the day). */
   @Patch(':id/meals/:mealId/eaten')
+  @Answers(RebalanceResult)
   setEaten(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -220,9 +262,10 @@ export class MealPlansController {
     return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten);
   }
 
-  /** Explicit rebalance (day / week) or undo via the `restore` map. */
+  /** Share what a day or a week has left among its meals again, or put servings back as the `restore` of an earlier answer says. */
   @Post(':id/rebalance')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(RebalanceResult)
   rebalance(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -234,11 +277,13 @@ export class MealPlansController {
   }
 
   /**
-   * The same offer, with a model asked which of the recipes the engine puts
+   * A recipe to put in the place of a planned meal, as `swap-meal/preview`
+   * offers one, with a model asked which of the recipes the engine puts
    * before it to take. `aiMeta` says who picked; nothing is written.
    */
   @Post('ai-swap-meal/preview')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Answers(AiMealSwapPreview)
   previewAiSwap(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -256,6 +301,7 @@ export class MealPlansController {
   @Post(':id/use-up')
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(UseUpSuggestions)
   useUpSuggestions(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -272,6 +318,7 @@ export class MealPlansController {
    */
   @Post('swap-ingredient/ai-suggest')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Answers(AiSuggestIngredientResponse)
   aiSuggestIngredient(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -282,11 +329,14 @@ export class MealPlansController {
 
   /** The substitutes the catalogue's own rules name for the ingredients of a planned meal. */
   @Get(':id/meals/:mealId/substitutes')
+  @AnswersListOf(SubstituteSuggestion)
   substitutes(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string, @Param('mealId', requiredUuid) mealId: string) {
     return this.ingredients.suggestions(user.id, locale, id, mealId);
   }
 
+  /** What swapping an ingredient of a meal for another would do to the meal. Nothing is written. */
   @Post('swap-ingredient/preview')
+  @Answers(SwapPreview)
   previewIngredientSwap(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,
@@ -295,9 +345,10 @@ export class MealPlansController {
     return this.ingredients.previewIngredientSwap(user.id, locale, dto);
   }
 
-  /** Apply a substitution: clone the recipe with the swap baked in, repoint the meal. */
+  /** Make a substitution: the meal gets a recipe of the account's own, the planned one with the ingredient swapped. */
   @Post('swap-ingredient/apply')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Answers(SwapIngredientResponse)
   applyIngredientSwap(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,

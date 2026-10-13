@@ -16,78 +16,20 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DietType, type Macros, UsdaImportQuery } from '@diet-app/shared';
+import { AdminConnection, AdminStats, AdminStatus, CatalogueUpdateState, DietType, FoodImportState, UsdaImportQuery } from '@diet-app/shared';
 import type { Request } from 'express';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
+import { Answers } from '../common/answers.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAdminEnabled, type Env } from '../config/env.js';
 import { parseTrustProxy } from '../config/trust-proxy.js';
-import { COVERAGE_TARGET, MACRO_OUT_OF_REACH, type CoverageMatrix, type MacroReach } from '../engine/coverage.js';
+import { COVERAGE_TARGET, MACRO_OUT_OF_REACH } from '../engine/coverage.js';
 import { macroSplitOf } from '../engine/nutrition.js';
 import { AdminSessionGuard } from './admin-session.guard.js';
 import { computeDataState, resolveDataDir } from './seed/data-hash.js';
-import { SeedRunner, type RunnerState } from './seed/runner.js';
-import { UsdaImportRunner, type ImportRunnerState } from './usda/runner.js';
-
-interface AdminStatusDto {
-  enabled: boolean;
-  /** Operator-facing hint when disabled — never exposes the configured password. */
-  message: string | null;
-}
-
-interface AdminStatsDto {
-  counts: { ingredients: number; recipes: number; substitutions: number };
-  /** How many recipes each diet has for each meal. */
-  coverage: CoverageMatrix;
-  /** How many a release needs for each: what a recipe run that fills the catalogue writes towards. */
-  coverageTarget: number;
-  /** How many recipe drafts wait in the queue for each: such a run counts them with the recipes. */
-  coverageWaiting: CoverageMatrix;
-  /**
-   * For each diet, what its plans aim at and what they reach with the recipes
-   * there are, as shares of a day's energy; `reached` is null where no plan
-   * can be made, and `distance` the share of the energy that is on the wrong
-   * side. A diet further than `outOfReach` needs recipes that fit it.
-   */
-  macros: { outOfReach: number; diets: Record<DietType, { target: Macros; reached: MacroReach | null }> };
-  seed: {
-    lastSeededAt: string | null;
-    storedHash: string | null;
-    currentHash: string;
-    updateAvailable: boolean;
-    /** Per-file presence/size so the UI can warn "run the importer first". */
-    files: { name: string; present: boolean; bytes: number }[];
-  };
-}
-
-/** How this request reached the API, for an operator setting up a reverse proxy. */
-interface AdminConnectionDto {
-  /** The address requests are counted against: the client's, as far as `TRUST_PROXY` lets it be known. */
-  clientAddress: string | null;
-  /** The address of the connection itself: the proxy nearest to the API, or the client when there is none. */
-  peerAddress: string | null;
-  /** `X-Forwarded-For` as it arrived, or null when the request carried none. */
-  forwardedFor: string | null;
-  /** How many addresses that header holds: one for every proxy that wrote into it. */
-  forwardedHops: number;
-  /** What `TRUST_PROXY` is set to: `false`, a number of proxies, or their addresses. */
-  trustProxy: false | number | string[];
-  /**
-   * True when the request came through a proxy and the address it is counted
-   * against is that proxy's: every client behind it then shares one allowance
-   * for everything that is limited by address.
-   */
-  countedAsProxy: boolean;
-  /**
-   * True when `TRUST_PROXY` counts more proxies than wrote into the header of
-   * this request. The API then takes an address further left for the client
-   * than any proxy wrote, which is one a visitor can write themselves: every
-   * limit by address can be walked around. The administrator's own browser
-   * writes no such header, so their request shows the chain as it is.
-   */
-  overTrusted: boolean;
-}
+import { SeedRunner } from './seed/runner.js';
+import { UsdaImportRunner } from './usda/runner.js';
 
 @Controller('admin')
 export class AdminController {
@@ -99,11 +41,13 @@ export class AdminController {
     private readonly coverage: CatalogueCoverageService,
   ) {}
 
+  /** Whether the panel is on. Anyone may ask: the page does, before there is a session. */
   // Public probe so the /admin UI can render a useful "set ADMIN_PASSWORD"
   // hint without first triggering a 403. Returns enabled-flag only — never
   // any credential material.
   @Get('status')
-  status(): AdminStatusDto {
+  @Answers(AdminStatus)
+  status(): AdminStatus {
     const adminPassword = this.config.get('ADMIN_PASSWORD', { infer: true });
     const enabled = isAdminEnabled({ ADMIN_PASSWORD: adminPassword });
     return {
@@ -122,7 +66,8 @@ export class AdminController {
    */
   @Get('connection')
   @UseGuards(AdminSessionGuard)
-  connection(@Req() req: Request): AdminConnectionDto {
+  @Answers(AdminConnection)
+  connection(@Req() req: Request): AdminConnection {
     const header = req.headers['x-forwarded-for'];
     const forwardedFor = Array.isArray(header) ? header.join(', ') : (header ?? null);
     const forwardedHops = (forwardedFor ?? '').split(',').filter((address) => address.trim().length > 0).length;
@@ -140,9 +85,11 @@ export class AdminController {
     };
   }
 
+  /** What the catalogue holds: its counts, how many recipes each diet has for each meal and how many drafts wait for each, what the plans of each diet reach, and whether the data files have changed since they were last loaded. */
   @Get('stats')
   @UseGuards(AdminSessionGuard)
-  async stats(): Promise<AdminStatsDto> {
+  @Answers(AdminStats)
+  async stats(): Promise<AdminStats> {
     // The catalogue as plans see it: no recipe a user made for themselves, nothing an update retired.
     // One after another, on one connection: the page is opened by one person now and then, and seven
     // connections at once for it would be seven that the requests of accounts wait for.
@@ -161,7 +108,7 @@ export class AdminController {
       coverageWaiting: waiting,
       macros: {
         outOfReach: MACRO_OUT_OF_REACH,
-        diets: Object.fromEntries(DietType.options.map((diet) => [diet, { target: macroSplitOf(diet), reached: reach[diet] }])) as AdminStatsDto['macros']['diets'],
+        diets: Object.fromEntries(DietType.options.map((diet) => [diet, { target: macroSplitOf(diet), reached: reach[diet] }])) as AdminStats['macros']['diets'],
       },
       seed: {
         lastSeededAt: meta?.seededAt.toISOString() ?? null,
@@ -174,14 +121,18 @@ export class AdminController {
   }
 
   /**
-   * Kicks off the updater in the background and returns immediately. The
-   * actual work takes minutes — far longer than any sensible HTTP timeout —
-   * so the panel polls {@link updateStatus} for progress.
+   * Start the catalogue update: the data files are loaded into the database,
+   * in the background. 409 while one is running; `db/update/status` says
+   * where it stands.
+   *
+   * The work takes minutes, far longer than a request may, so the answer is
+   * given at once and the panel asks for the state again and again.
    */
   @Post('db/update')
   @HttpCode(202)
   @UseGuards(AdminSessionGuard)
-  async startUpdate(): Promise<RunnerState> {
+  @Answers(CatalogueUpdateState)
+  async startUpdate(): Promise<CatalogueUpdateState> {
     const started = await this.runner.start();
     if (!started) {
       throw new ConflictException({
@@ -192,25 +143,28 @@ export class AdminController {
     return this.runner.getState();
   }
 
+  /** Where the catalogue update stands. */
   @Get('db/update/status')
   @UseGuards(AdminSessionGuard)
-  updateStatus(): Promise<RunnerState> {
+  @Answers(CatalogueUpdateState)
+  updateStatus(): Promise<CatalogueUpdateState> {
     return this.runner.getState();
   }
 
   /**
-   * Kick off a USDA FoodData Central bulk import. Writes
-   * `data/ingredients.generated.json` to the bind-mounted data dir; the
-   * operator then runs `db/update` to materialize the new rows. Optional
-   * `?dataTypes=` overrides FDC_DATA_TYPES (e.g. `Foundation,SR Legacy`)
-   * without an .env edit.
+   * Start an import of foods from USDA FoodData Central, in the background.
+   * It writes `ingredients.generated.json` into the data directory, and a
+   * catalogue update then loads what it wrote. `?dataTypes=` names the data
+   * types of this run (`Foundation,SR Legacy`) in the place of
+   * `FDC_DATA_TYPES`.
    */
   @Post('db/import-usda')
   @HttpCode(202)
   @UseGuards(AdminSessionGuard)
+  @Answers(FoodImportState)
   async startUsdaImport(
     @Query(new ZodValidationPipe(UsdaImportQuery)) query: UsdaImportQuery,
-  ): Promise<ImportRunnerState> {
+  ): Promise<FoodImportState> {
     const started = await this.importer.start(query.dataTypes);
     if (!started) {
       throw new ConflictException({
@@ -221,9 +175,11 @@ export class AdminController {
     return this.importer.getState();
   }
 
+  /** Where the import of foods stands. */
   @Get('db/import-usda/status')
   @UseGuards(AdminSessionGuard)
-  usdaImportStatus(): Promise<ImportRunnerState> {
+  @Answers(FoodImportState)
+  usdaImportStatus(): Promise<FoodImportState> {
     return this.importer.getState();
   }
 }

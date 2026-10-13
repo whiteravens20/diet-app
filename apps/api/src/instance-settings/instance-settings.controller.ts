@@ -11,23 +11,28 @@
  * earning their own module.
  */
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
-import { InstanceSettingsPatchBody } from '@diet-app/shared';
+import { InstanceSettingsDto, InstanceSettingsPatchBody } from '@diet-app/shared';
 import { AdminSessionGuard } from '../admin/admin-session.guard.js';
+import { Answers } from '../common/answers.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
-import { InstanceSettingsService, type InstanceSettingsState } from './instance-settings.service.js';
+import { InstanceSettingsService } from './instance-settings.service.js';
 
 @Controller('admin/instance-settings')
 @UseGuards(AdminSessionGuard)
 export class InstanceSettingsController {
   constructor(private readonly service: InstanceSettingsService) {}
 
+  /** What an administrator sets for the instance in the panel: whether reviewers may sign in, and whether their password is set. */
   @Get()
-  get(): Promise<InstanceSettingsState> {
+  @Answers(InstanceSettingsDto)
+  get(): Promise<InstanceSettingsDto> {
     return this.service.get();
   }
 
+  /** Change those settings. */
   @Patch()
-  patch(@Body(new ZodValidationPipe(InstanceSettingsPatchBody)) body: InstanceSettingsPatchBody): Promise<InstanceSettingsState> {
+  @Answers(InstanceSettingsDto)
+  patch(@Body(new ZodValidationPipe(InstanceSettingsPatchBody)) body: InstanceSettingsPatchBody): Promise<InstanceSettingsDto> {
     return this.service.patch(body);
   }
 }

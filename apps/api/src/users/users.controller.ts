@@ -14,14 +14,10 @@ import {
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ChangeEmailRequest,
-  ChangePasswordRequest,
-  DeleteAccountRequest,
-  UpdateUserSettings,
-} from '@diet-app/shared';
+import { AccountSession, ChangeEmailRequest, ChangePasswordRequest, DeleteAccountRequest, SessionUser, UpdateUserSettings } from '@diet-app/shared';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
+import { Answers, AnswersListOf, AnswersWithAFile } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { SessionsService } from '../auth/sessions.service.js';
@@ -45,7 +41,9 @@ export class UsersController {
     private readonly exports: AccountExportService,
   ) {}
 
+  /** The account: its address, its name and what it has chosen. */
   @Get()
+  @Answers(SessionUser)
   getMe(@CurrentUser() user: RequestUser) {
     return this.users.getMe(user.id);
   }
@@ -59,6 +57,7 @@ export class UsersController {
   @Get('export')
   @Throttle({ default: { limit: 6, ttl: 3_600_000 } })
   @Header('Cache-Control', 'no-store')
+  @AnswersWithAFile('application/json')
   exportData(@CurrentUser() user: RequestUser): StreamableFile {
     const now = new Date();
     return new StreamableFile(Readable.from(this.exports.pieces(user.id, now)), {
@@ -69,6 +68,7 @@ export class UsersController {
 
   /** The sessions of the account that are open: where it is signed in. */
   @Get('sessions')
+  @AnswersListOf(AccountSession)
   listSessions(@CurrentUser() user: RequestUser) {
     return this.sessions.list(user.id);
   }
@@ -80,13 +80,16 @@ export class UsersController {
     await this.sessions.endAll(user.id);
   }
 
+  /** End one session of the account. */
   @Delete('sessions/:id')
   @HttpCode(204)
   async endSession(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string) {
     await this.sessions.endOne(user.id, id);
   }
 
+  /** Change the account's name, language, look, AI mode or unit of weight. */
   @Patch()
+  @Answers(SessionUser)
   updateSettings(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(UpdateUserSettings)) dto: UpdateUserSettings,
@@ -94,6 +97,7 @@ export class UsersController {
     return this.users.updateSettings(user.id, dto);
   }
 
+  /** Change the password. Asks for the one the account has, and ends every session of the account, this one too. */
   @Post('password')
   @HttpCode(204)
   @Throttle(PASSWORD_CHECK)
@@ -104,6 +108,7 @@ export class UsersController {
     await this.users.changePassword(user.id, dto);
   }
 
+  /** Ask for another address: a mail with a link goes to the new one, and the change is made once the link is followed. */
   @Post('email')
   @HttpCode(202)
   @Throttle(PASSWORD_CHECK)
@@ -114,12 +119,14 @@ export class UsersController {
     await this.users.requestEmailChange(user.id, dto);
   }
 
+  /** Send the mail that confirms the account's address again. */
   @Post('email/resend-verification')
   @HttpCode(202)
   async resendVerification(@CurrentUser() user: RequestUser) {
     await this.users.resendVerification(user.id);
   }
 
+  /** Delete the account and everything it holds. Asks for the password. */
   @Delete()
   @HttpCode(204)
   @Throttle(PASSWORD_CHECK)

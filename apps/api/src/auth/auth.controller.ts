@@ -5,19 +5,21 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import {
-  type AuthResponse,
+  AuthResponse,
   ConfirmEmailChangeRequest,
-  type Locale,
   LoginRequest,
+  LoginResponse,
   PasswordResetConfirm,
   PasswordResetRequest,
   RefreshRequest,
   RegisterRequest,
   SecondFactorSignInRequest,
   VerifyEmailRequest,
+  type Locale,
 } from '@diet-app/shared';
 import { readCookie } from '../common/cookies.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
+import { Answers } from '../common/answers.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import type { Env } from '../config/env.js';
 import { byAccount, byAccountAndAddress, byRefreshToken, byToken, TriesCredential } from '../rate-limit/trackers.js';
@@ -67,7 +69,9 @@ export class AuthController {
     return token;
   }
 
+  /** Open an account, and a session with it. */
   @Post('register')
+  @Answers(AuthResponse)
   async register(
     @Body(new ZodValidationPipe(RegisterRequest)) dto: RegisterRequest,
     @RequestLocale() locale: Locale,
@@ -77,6 +81,7 @@ export class AuthController {
     return this.begun(req, res, await this.auth.register(dto, locale, sessionLabel(req.headers['user-agent'])));
   }
 
+  /** Sign in with an address and a password. An account with a second factor gets a challenge in the place of a session. */
   // Ten tries in a quarter of an hour at one account from one address: whoever
   // guesses uses up their own tries, not those of the owner at another
   // address. Fifty from everywhere together, so that changing address does not
@@ -86,18 +91,21 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: QUARTER_HOUR } })
   @TriesCredential({ by: byAccountAndAddress, limit: 10, ttl: QUARTER_HOUR }, { by: byAccount, limit: 50, ttl: QUARTER_HOUR })
+  @Answers(LoginResponse)
   async login(@Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const answer = await this.auth.login(dto, sessionLabel(req.headers['user-agent']));
     // An account with a second factor has no session yet: its second step is still to come.
     return 'secondFactor' in answer ? answer : this.begun(req, res, answer);
   }
 
+  /** The second step of signing in: the challenge of the first, and a code. */
   // The second step of signing in, for whoever got a challenge for the right
   // password. Ten tries at one challenge; how many wrong codes an account
   // may be given is counted with the account, wherever they come from.
   @Post('login/second-factor')
   @HttpCode(200)
   @TriesCredential({ by: byToken('challenge'), limit: 10, ttl: 5 * MINUTE })
+  @Answers(AuthResponse)
   async finishLogin(
     @Body(new ZodValidationPipe(SecondFactorSignInRequest)) dto: SecondFactorSignInRequest,
     @Req() req: Request,
@@ -106,12 +114,14 @@ export class AuthController {
     return this.begun(req, res, await this.auth.finishLogin(dto, sessionLabel(req.headers['user-agent'])));
   }
 
+  /** A new access token for a refresh token, which is replaced by a new one. */
   // Thirty a minute for one sender: many people behind one address refresh
   // their sessions through it.
   @Post('refresh')
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: MINUTE } })
   @TriesCredential({ by: byRefreshToken, limit: 10, ttl: MINUTE })
+  @Answers(AuthResponse)
   async refresh(@Body(new ZodValidationPipe(RefreshRequest.prefault({}))) dto: RefreshRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     // A client that keeps its own tokens sends one, and gets the next in the answer.
     if (dto.refreshToken) return this.sessions.refresh(dto.refreshToken);
@@ -128,6 +138,7 @@ export class AuthController {
     }
   }
 
+  /** End the session of the refresh token. */
   @Post('logout')
   @HttpCode(204)
   @Throttle({ default: { limit: 30, ttl: MINUTE } })
@@ -139,6 +150,7 @@ export class AuthController {
     res.setHeader('Set-Cookie', noSessionCookies(this.appUrl));
   }
 
+  /** Ask for a mail with a link to set a new password. The answer says nothing of whether the address has an account. */
   // Every accepted request sends a mail: five in a quarter of an hour for one
   // account is plenty for somebody who mistyped, and no way to flood a
   // mailbox. Counted by the account alone, wherever the requests come from:
@@ -151,6 +163,7 @@ export class AuthController {
     await this.auth.requestPasswordReset(dto);
   }
 
+  /** Set a new password with the token from the mail. */
   @Post('password-reset/confirm')
   @HttpCode(204)
   @TriesCredential({ by: byToken('token'), limit: 10, ttl: MINUTE })
@@ -158,6 +171,7 @@ export class AuthController {
     await this.auth.confirmPasswordReset(dto);
   }
 
+  /** Confirm the account's address with the token from the mail. */
   @Post('verify-email')
   @HttpCode(204)
   @TriesCredential({ by: byToken('token'), limit: 10, ttl: MINUTE })
@@ -165,6 +179,7 @@ export class AuthController {
     await this.auth.verifyEmail(dto.token);
   }
 
+  /** Confirm a new address with the token from the mail that was sent to it. */
   @Post('confirm-email-change')
   @HttpCode(204)
   @TriesCredential({ by: byToken('token'), limit: 10, ttl: MINUTE })

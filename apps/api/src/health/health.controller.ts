@@ -1,6 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Controller, Get, Res } from '@nestjs/common';
+import { Health } from '@diet-app/shared';
+import { Answers } from '../common/answers.decorator.js';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -18,10 +20,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Whether the API is up and reaches its database: 200, or 503 with the database down. */
   @Get()
+  @Answers(Health)
   async check(
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ status: string; db: 'up' | 'down'; time: string }> {
+  ): Promise<Health> {
     let db: 'up' | 'down';
     try {
       await this.prisma.$queryRaw`SELECT 1`;
