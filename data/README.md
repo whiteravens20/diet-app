@@ -39,7 +39,11 @@ carbohydrate, and the planner chooses recipes for it. How near a plan comes
 depends on what there is to choose from, so the lint also prints, for each diet,
 that split and what a week's plan reaches with the recipes here, and warns when
 the two are more than ten points of energy apart: such a diet needs recipes
-nearer its split, and no setting makes up for them. The weight the planner gives
+nearer its split, and no setting makes up for them. A low-carb day aims at a
+fifth of its energy from carbohydrate, three tenths from protein and half from
+fat: inside the limit above with room on both sides, and with protein inside the
+10 to 35 % that the reference intakes give for it. The splits are in
+[`apps/api/src/engine/nutrition.ts`](../apps/api/src/engine/nutrition.ts). The weight the planner gives
 the split was chosen with
 [`apps/api/scripts/tune-macro-weight.ts`](../apps/api/scripts/tune-macro-weight.ts),
 which prints what each weight does to the plans of every diet; run it again when

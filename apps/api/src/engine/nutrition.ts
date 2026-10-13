@@ -27,11 +27,17 @@ const KCAL_PER_GRAM = { protein: 4, fat: 9, carbs: 4 } as const;
 /**
  * Macro split per diet type, as fractions of total daily calories.
  * Order: protein / fat / carbs. Each row sums to 1.0.
+ *
+ * The low-carbohydrate day takes a fifth of its energy from carbohydrate:
+ * inside what the nutrition literature calls low-carbohydrate (under 26 %)
+ * with room on both sides, and above what it calls ketogenic (under 10 %).
+ * Its protein stays inside the 10 to 35 % the reference intakes give for
+ * protein, and fat carries the rest.
  */
 const MACRO_SPLIT: Record<DietType, Macros> = {
   balanced: { protein: 0.25, fat: 0.3, carbs: 0.45 },
   high_protein: { protein: 0.4, fat: 0.3, carbs: 0.3 },
-  low_carb: { protein: 0.35, fat: 0.4, carbs: 0.25 },
+  low_carb: { protein: 0.3, fat: 0.5, carbs: 0.2 },
   vegetarian: { protein: 0.22, fat: 0.3, carbs: 0.48 },
   vegan: { protein: 0.2, fat: 0.28, carbs: 0.52 },
   keto: { protein: 0.25, fat: 0.7, carbs: 0.05 },
