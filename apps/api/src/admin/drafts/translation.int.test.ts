@@ -56,6 +56,15 @@ describe('the run that fills a language recipes lack', () => {
     }
     throw new Error('the run did not finish');
   }
+  /** Where a run stands, asked over HTTP until it has counted what it takes on: a run is announced before it has. */
+  async function counted(): Promise<TranslationRunnerState> {
+    for (let asked = 0; asked < 100; asked += 1) {
+      const state = (await t.http().get('/api/admin/drafts/translations/generate/status').set(asAdmin).expect(200)).body as TranslationRunnerState;
+      if (state.total > 0 || state.status !== 'running') return state;
+      await new Promise((tick) => setTimeout(tick, 10));
+    }
+    throw new Error('the run did not count what it takes on');
+  }
   /** Over HTTP, which lets five runs a minute be asked for: the tests about the route itself go this way. */
   const start = (body: Record<string, unknown> = {}) => t.http().post('/api/admin/drafts/translations/generate').set(asAdmin).send({ locale: 'pl', ...body });
   const run = async (limit = 25): Promise<TranslationRunnerState> => {
@@ -280,8 +289,7 @@ describe('the run that fills a language recipes lack', () => {
       await start().expect(202);
       const second = await start().expect(409);
       expect(second.body).toMatchObject({ error: 'TRANSLATIONS_IN_PROGRESS' });
-      const standing = (await t.http().get('/api/admin/drafts/translations/generate/status').set(asAdmin).expect(200)).body;
-      expect(standing).toMatchObject({ status: 'running', total: 4, configured: true });
+      expect(await counted()).toMatchObject({ status: 'running', total: 4, configured: true });
 
       await t.http().post('/api/admin/drafts/translations/generate/stop').set(asAdmin).expect(202);
       const state = await finished();
