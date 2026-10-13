@@ -55,7 +55,7 @@ export interface Claimed {
   makings: Map<string, string>;
 }
 
-export const nothingClaimed = (): Claimed => ({ slugs: new Set(), titles: new Set(), makings: new Map() });
+const nothingClaimed = (): Claimed => ({ slugs: new Set(), titles: new Set(), makings: new Map() });
 
 export type Assessed = { ok: true; recipe: LibraryRecipe } | { ok: false; reason: string };
 

@@ -34,7 +34,7 @@ import {
   type IngredientNamerValidationReason,
 } from './ingredient-namer.validate.js';
 
-export type IngredientNamerScope = 'all-usda-missing' | 'specific-slugs';
+type IngredientNamerScope = 'all-usda-missing' | 'specific-slugs';
 
 export type DraftRunnerStatus = 'idle' | 'running' | 'done' | 'error';
 

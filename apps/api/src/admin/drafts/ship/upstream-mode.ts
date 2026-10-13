@@ -66,14 +66,14 @@ export type CommandRunner = (
 ) => { status: number | null; stdout: string; stderr: string };
 
 /** The runner outside tests: starts the tool and waits for it. */
-export const runCommand: CommandRunner = (command, args, options) => {
+const runCommand: CommandRunner = (command, args, options) => {
   const result = spawnSync(command, args, { ...options, encoding: 'utf8' });
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 };
 
 /** Resolve the URL `git remote get-url <remote>` returns. Null when git is
  *  unavailable, the repo isn't a working tree, or the remote is unknown. */
-export function resolveRemoteUrl(repoRoot: string, remote: string, run: CommandRunner = runCommand): string | null {
+function resolveRemoteUrl(repoRoot: string, remote: string, run: CommandRunner = runCommand): string | null {
   const r = run('git', ['remote', 'get-url', remote], { cwd: repoRoot });
   if (r.status !== 0) return null;
   const url = r.stdout.trim();
@@ -113,7 +113,7 @@ export class UpstreamShipError extends Error {
 
 /** True iff the gh CLI binary resolves on PATH. Used by the controller's
  *  /config endpoint so the UI can hide the option when gh isn't installed. */
-export function ghAvailable(run: CommandRunner = runCommand): boolean {
+function ghAvailable(run: CommandRunner = runCommand): boolean {
   return run('gh', ['--version'], {}).status === 0;
 }
 

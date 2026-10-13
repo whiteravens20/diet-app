@@ -22,7 +22,7 @@ const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
 const KCAL_PER_KG_FAT = 7700;
 
 /** kcal in 1 g of each macronutrient (Atwater factors). */
-export const KCAL_PER_GRAM = { protein: 4, fat: 9, carbs: 4 } as const;
+const KCAL_PER_GRAM = { protein: 4, fat: 9, carbs: 4 } as const;
 
 /**
  * Macro split per diet type, as fractions of total daily calories.
@@ -60,7 +60,7 @@ export interface CalorieEngineInput {
 }
 
 /** The most of maintenance a pace of loss may take away each day. */
-export const MAX_DEFICIT_SHARE = 0.25;
+const MAX_DEFICIT_SHARE = 0.25;
 
 /**
  * Basal Metabolic Rate via Mifflin-St Jeor.
@@ -195,8 +195,8 @@ function round(n: number): number {
  * deficit relative to the plan's base target, so tagging a day actually shapes
  * its calories. Defaults are ±15%.
  */
-export const TRAINING_DAY_FACTOR = 1.15;
-export const REST_DAY_FACTOR = 0.85;
+const TRAINING_DAY_FACTOR = 1.15;
+const REST_DAY_FACTOR = 0.85;
 
 /** The kind of day a plan day is: it shapes the day's target. */
 export type DayType = 'normal' | 'rest' | 'training';

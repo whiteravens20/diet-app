@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 /** One scripted answer. Replies are served oldest first. */
-export interface ModelReply {
+interface ModelReply {
   /** Only answer a request whose model name or prompt contains this text. */
   match?: string;
   /** The text the model "says", or a function of the request that produces it. */
@@ -46,7 +46,7 @@ export interface FakeModel {
 type QueuedReply = ModelReply & { times: number };
 
 /** The answer when nothing was scripted: not JSON, so a parser takes its fallback path. */
-export const UNSCRIPTED_REPLY = 'no reply was scripted for this request';
+const UNSCRIPTED_REPLY = 'no reply was scripted for this request';
 
 const sleep = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms));
 

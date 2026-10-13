@@ -119,7 +119,7 @@ function operatorNamed(url: URL, allowedHosts: readonly string[]): boolean {
 }
 
 /** Fetch the override file of `source` and check its shape. */
-export async function fetchOverrides(
+async function fetchOverrides(
   source: string,
   policy: PullPolicy,
   resolve?: Resolver,

@@ -15,7 +15,7 @@ import { createHmac } from 'node:crypto';
 import { decrypt, encrypt, inCurrentForm } from '../common/crypto.js';
 
 /** Why a stored key could not be opened; for the log, not for the user. */
-export type UnreadableKey = 'sealed under another secret' | 'damaged' | 'damaged, or sealed under another secret';
+type UnreadableKey = 'sealed under another secret' | 'damaged' | 'damaged, or sealed under another secret';
 
 export type OpenedKey = { ok: true; key: string } | { ok: false; why: UnreadableKey };
 

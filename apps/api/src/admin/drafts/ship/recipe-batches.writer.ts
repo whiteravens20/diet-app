@@ -23,7 +23,7 @@ import {
   LocaleStringsMap,
   RecipeDraftIngredientLine,
 } from '@diet-app/shared';
-import { Cuisine, Unit as UnitSchema, MealType as MealTypeSchema, WebAddress } from '@diet-app/shared';
+import { Cuisine, MealType as MealTypeSchema, WebAddress } from '@diet-app/shared';
 
 /** One recipe row as written to `data/recipes/<batchId>.json`. Matches the
  *  shape `data/recipes.json` already uses so the seeder can load both
@@ -45,9 +45,6 @@ export const ShippedRecipe = z.object({
   source: z.object({ url: WebAddress.optional(), license: z.string().min(1).max(200) }).optional(),
 });
 export type ShippedRecipe = z.infer<typeof ShippedRecipe>;
-
-export const ShippedRecipeBatch = z.array(ShippedRecipe);
-export type ShippedRecipeBatch = z.infer<typeof ShippedRecipeBatch>;
 
 export const RECIPE_BATCHES_DIR = 'recipes';
 
@@ -80,6 +77,3 @@ export function writeRecipeBatch(
   writeFileSync(path, JSON.stringify(rows, null, 2) + '\n', 'utf8');
   return { path, count: rows.length };
 }
-
-// Re-export shared Unit so the seeder's union types pick up the literal.
-export { UnitSchema };

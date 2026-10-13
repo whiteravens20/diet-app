@@ -777,7 +777,7 @@ function buildOverridesJson(o: DayOverride | undefined): DayOverridesJson | null
 }
 
 /** A random value for one generation: any 32-bit integer, which is what the column holds. */
-export function newSeed(): number {
+function newSeed(): number {
   return randomInt(-(2 ** 31), 2 ** 31);
 }
 

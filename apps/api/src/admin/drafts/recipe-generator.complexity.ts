@@ -70,7 +70,7 @@ export function classifyComplexity(input: {
 /** Normalise a `ComplexityMix` so it sums to 1.0. Zero-sum mix falls back
  *  to the default — protects the runner from accidentally generating
  *  zero recipes. */
-export function normaliseMix(mix: ComplexityMix): ComplexityMix {
+function normaliseMix(mix: ComplexityMix): ComplexityMix {
   const sum = mix.simple + mix.medium + mix.complex;
   if (sum <= 0) return DEFAULT_COMPLEXITY_MIX;
   return {

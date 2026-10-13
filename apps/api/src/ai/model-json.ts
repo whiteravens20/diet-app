@@ -17,7 +17,7 @@ export const MAX_MODEL_REPLY_CHARS = 64_000;
 export const MAX_BATCH_REPLY_CHARS = 1_000_000;
 
 /** Why a reply could not be used. */
-export type ReplyProblem = 'too_long' | 'no_json_object' | 'wrong_shape';
+type ReplyProblem = 'too_long' | 'no_json_object' | 'wrong_shape';
 
 export type ModelReply<T> = { ok: true; value: T } | { ok: false; problem: ReplyProblem };
 

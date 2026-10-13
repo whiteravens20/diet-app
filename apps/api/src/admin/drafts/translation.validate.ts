@@ -15,7 +15,7 @@ import { MAX_MODEL_REPLY_CHARS, readModelObject } from '../../ai/model-json.js';
 import { checkRecipeText, type RecipeRule } from '../../recipes/recipe-rules.js';
 import type { RecipeTextSource } from './translation.prompt.js';
 
-export type TranslationProblem =
+type TranslationProblem =
   | RecipeRule
   | 'malformed-json'
   | 'missing-keys'

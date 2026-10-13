@@ -67,7 +67,7 @@ export function substituteAmount(from: Sized, to: Sized, amount: number): { amou
 }
 
 /** A substitution may move what a serving holds by this share without being asked about. */
-export const SUBSTITUTION_TOLERANCE = 0.1;
+const SUBSTITUTION_TOLERANCE = 0.1;
 
 /** A change that is no more than this is no move, whatever share of the serving it is. */
 const TOO_LITTLE_TO_COUNT: Nutrition = { calories: 10, protein: 2, fat: 2, carbs: 2 };

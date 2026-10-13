@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-export const SEED_FILES = [
+const SEED_FILES = [
   'ingredients.json',
   'ingredients.generated.json',
   'ingredient-overrides.json',
@@ -26,7 +26,7 @@ export const SEED_FILES = [
  *  hash so newly-shipped batches flip the "update available" flag. */
 const SEED_DIRS = ['recipes'] as const;
 
-export interface SeedFileSnapshot {
+interface SeedFileSnapshot {
   name: (typeof SEED_FILES)[number];
   present: boolean;
   bytes: number;

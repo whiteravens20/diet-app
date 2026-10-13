@@ -40,7 +40,7 @@ import { fitsDiet, type Complexity, type DietType } from '@diet-app/shared';
 import { checkRecipe, type RecipeRule } from '../../recipes/recipe-rules.js';
 import { slugify } from '../seed/catalogue.js';
 
-export type RecipeValidationReason =
+type RecipeValidationReason =
   | RecipeRule
   | 'malformed-json'
   | 'no-recipes-key'
@@ -96,7 +96,7 @@ export interface RecipeDraftCandidate {
 }
 
 /** Why one recipe of an answer is not written. */
-export interface RecipeRefusal {
+interface RecipeRefusal {
   reason: RecipeValidationReason;
   /** Identifies the recipe (slug or index) and field that triggered the
    *  failure. */
@@ -109,14 +109,14 @@ export interface RecipeRefusal {
  * itself: one that breaks a rule is refused with its reason, and the others
  * of the answer are kept.
  */
-export interface RecipeValidationOk {
+interface RecipeValidationOk {
   ok: true;
   candidates: RecipeDraftCandidate[];
   /** The recipes of the answer that are not written, in the order they came. */
   refused: RecipeRefusal[];
 }
 /** An answer nothing can be written of: it could not be read, or every recipe of it was refused (the first refusal is said). */
-export interface RecipeValidationFail extends RecipeRefusal {
+interface RecipeValidationFail extends RecipeRefusal {
   ok: false;
 }
 export type RecipeValidationResult = RecipeValidationOk | RecipeValidationFail;

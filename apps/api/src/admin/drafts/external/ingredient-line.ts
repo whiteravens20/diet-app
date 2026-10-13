@@ -14,7 +14,7 @@
  */
 
 /** A line that was read. */
-export interface IngredientLine {
+interface IngredientLine {
   quantity: number;
   unit: 'g' | 'ml' | 'piece';
   /** What the line names, without its amount and without what follows a comma or stands in brackets. */

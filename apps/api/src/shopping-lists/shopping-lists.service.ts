@@ -459,7 +459,7 @@ async function settleRow(tx: Tx, profileId: string, item: StoredItem, effect: nu
  * and goes into the pantry (see `pantryEffectOnRemoval`). The lists
  * themselves are left for the caller to delete, in the same transaction.
  */
-export async function releaseLists(
+async function releaseLists(
   tx: Tx,
   profileId: string,
   listIds: readonly string[],

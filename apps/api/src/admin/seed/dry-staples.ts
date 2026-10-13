@@ -13,7 +13,7 @@
 export const LEAST_ENERGY_OF_A_DRY_STAPLE = 300;
 
 /** Grains and pulses that keep in their pack and are not dry, each with what it is. */
-export const KEEPS_BUT_IS_NOT_DRY: Readonly<Record<string, string>> = {
+const KEEPS_BUT_IS_NOT_DRY: Readonly<Record<string, string>> = {
   edamame: 'sold frozen',
 };
 

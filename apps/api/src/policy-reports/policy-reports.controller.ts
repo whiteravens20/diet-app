@@ -8,7 +8,7 @@ import { PolicyReportsService } from './policy-reports.service.js';
 import { violationsIn } from './violation.js';
 
 /** Where the web application tells browsers to send their reports, under `/api`. */
-export const POLICY_REPORTS_PATH = 'csp-reports';
+const POLICY_REPORTS_PATH = 'csp-reports';
 
 /**
  * Takes what a browser reports when a page broke the content security

@@ -89,13 +89,13 @@ const SubstitutionSeed = z.object({
 });
 
 /** An ingredient of the data, with the identity the database row is matched by. */
-export interface CatalogueIngredient extends IngredientSeed {
+interface CatalogueIngredient extends IngredientSeed {
   slug: string;
   enName: string;
 }
 
 /** A recipe of the data with its ingredient lines resolved and its facts computed. */
-export interface CatalogueRecipe {
+interface CatalogueRecipe {
   slug: string;
   seed: RecipeSeed;
   lines: { slug: string; quantity: number; unit: Unit; note?: string }[];

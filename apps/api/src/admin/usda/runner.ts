@@ -23,7 +23,7 @@ import { JobState } from '../job-state.js';
 import { resolveDataDir } from '../seed/data-hash.js';
 import { ImportFailure, runImport, type ImportFailureReason, type ImportProgress, type ImportResult } from './importer.js';
 
-export type ImportStatus = 'idle' | 'running' | 'done' | 'error';
+type ImportStatus = 'idle' | 'running' | 'done' | 'error';
 
 export interface ImportRunnerState {
   status: ImportStatus;

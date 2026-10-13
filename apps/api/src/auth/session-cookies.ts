@@ -11,7 +11,7 @@ import type { AuthResponse } from '@diet-app/shared';
  * the page finds nothing to carry off that outlasts the page. A client that
  * keeps its own tokens (an app) does not ask, and gets them in the answer.
  */
-export const SESSION_TRANSPORT_HEADER = 'x-session-transport';
+const SESSION_TRANSPORT_HEADER = 'x-session-transport';
 
 /** The refresh token of a browser's session. */
 export const REFRESH_COOKIE = 'diet_refresh';
@@ -20,7 +20,7 @@ export const REFRESH_COOKIE = 'diet_refresh';
  * Says that there is a session and nothing else: scripts and the route guard
  * of the web application read it to know whether to try a refresh at all.
  */
-export const SESSION_MARKER_COOKIE = 'diet_session';
+const SESSION_MARKER_COOKIE = 'diet_session';
 
 const REFRESH_PATH = '/api/auth';
 

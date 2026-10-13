@@ -53,7 +53,7 @@ export interface AggregatedGroup {
 }
 
 /** The order of the aisles: the order groups are shown in, on every read. */
-export const CATEGORY_ORDER: readonly ProductCategory[] = [
+const CATEGORY_ORDER: readonly ProductCategory[] = [
   'vegetables',
   'fruits',
   'meat',

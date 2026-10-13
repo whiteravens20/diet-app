@@ -58,7 +58,7 @@ import {
   planCalls,
 } from './recipe-generator.complexity.js';
 
-export type RecipeRunnerStatus = 'idle' | 'running' | 'done' | 'error';
+type RecipeRunnerStatus = 'idle' | 'running' | 'done' | 'error';
 
 /** What a new recipe is held against. */
 interface ExistingRecipes {
@@ -721,7 +721,7 @@ export class RecipeGeneratorRunner {
  * knows: "Middle Eastern" and "middle-eastern" are `middle_eastern`. A
  * direction in other words ("something light for summer") names none.
  */
-export function cuisineNamed(direction: string | undefined): Cuisine | null {
+function cuisineNamed(direction: string | undefined): Cuisine | null {
   if (!direction) return null;
   return Cuisine.safeParse(direction.trim().toLowerCase().replace(/[\s-]+/g, '_')).data ?? null;
 }

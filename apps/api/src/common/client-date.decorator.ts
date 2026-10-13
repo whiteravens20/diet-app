@@ -3,7 +3,7 @@
 import { BadRequestException, type ExecutionContext, createParamDecorator } from '@nestjs/common';
 
 /** The header a client names its day in, as `2026-03-01`. */
-export const CLIENT_DATE_HEADER = 'x-client-date';
+const CLIENT_DATE_HEADER = 'x-client-date';
 
 const DAY_MS = 86_400_000;
 

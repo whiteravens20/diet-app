@@ -83,7 +83,7 @@ export interface ExistingRecipeSummary {
 
 /** How many existing recipes a prompt shows, so that it does not grow with
  *  the library. They are the newest; the validator checks against all. */
-export const MAX_EXISTING_RECIPES_IN_PROMPT = 60;
+const MAX_EXISTING_RECIPES_IN_PROMPT = 60;
 
 interface FewShotRecipe {
   complexity: Complexity;

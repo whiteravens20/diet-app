@@ -20,7 +20,7 @@ import { JobState } from '../job-state.js';
 import { resolveDataDir } from './data-hash.js';
 import { updateDatabase, type SeedProgress, type UpdateResult } from './seeder.js';
 
-export type RunnerStatus = 'idle' | 'running' | 'done' | 'error';
+type RunnerStatus = 'idle' | 'running' | 'done' | 'error';
 
 export interface RunnerState {
   status: RunnerStatus;

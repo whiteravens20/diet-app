@@ -26,7 +26,7 @@ const KEEP_DELETED_DAYS = 7;
 const QUEUE_BATCH = 'personal-recipes';
 
 /** The text of a recipe in one language. */
-export interface RecipeText {
+interface RecipeText {
   title: string;
   description: string;
   steps: string[];

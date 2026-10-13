@@ -30,9 +30,9 @@ export function resolveReviewerSecret(config: ConfigService<Env, true>): string 
   );
 }
 /** 7 days, in seconds. */
-export const REVIEWER_COOKIE_TTL_SECONDS = 7 * 24 * 60 * 60;
+const REVIEWER_COOKIE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-export interface ReviewerClaims {
+interface ReviewerClaims {
   label: string;
   /** The epoch of the reviewer settings the session was begun in. */
   epoch: number;

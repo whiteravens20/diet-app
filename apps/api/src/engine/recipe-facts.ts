@@ -40,8 +40,8 @@ export interface RecipeFacts {
  * number of grams would not. Fibre is not in the data, so all carbohydrate
  * counts.
  */
-export const KETO_MAX_CARB_ENERGY = 0.1;
-export const LOW_CARB_MAX_CARB_ENERGY = 0.26;
+const KETO_MAX_CARB_ENERGY = 0.1;
+const LOW_CARB_MAX_CARB_ENERGY = 0.26;
 
 const KCAL_PER_GRAM_OF_CARBOHYDRATE = 4;
 

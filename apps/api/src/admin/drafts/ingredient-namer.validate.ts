@@ -33,13 +33,13 @@ export type IngredientNamerValidationReason =
   | 'length-blowup'
   | 'llm-yap';
 
-export interface IngredientNamerValidationOk {
+interface IngredientNamerValidationOk {
   ok: true;
   /** Sanitised suggestions keyed by the same slugs as the source. */
   suggestions: Record<string, IngredientNameSuggestion>;
 }
 
-export interface IngredientNamerValidationFail {
+interface IngredientNamerValidationFail {
   ok: false;
   reason: IngredientNamerValidationReason;
   /** The slug that triggered the failure when applicable. */

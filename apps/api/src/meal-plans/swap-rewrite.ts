@@ -51,7 +51,7 @@ const VARIANT_TITLE: Record<Locale, (base: string, replacement: string) => strin
  * when the AI is unavailable / the validator rejected its output. The text
  * Mode A made then stands.
  */
-export type ModeBRewriter = (
+type ModeBRewriter = (
   locale: Locale,
   source: { description: string; steps: string[]; oldName: string; newName: string },
 ) => Promise<{ description: string; steps: string[] } | null>;

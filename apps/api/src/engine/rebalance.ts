@@ -26,7 +26,7 @@ export interface RebalanceMeal {
   locked: boolean;
 }
 
-export type Feasibility = 'in-window' | 'best-effort';
+type Feasibility = 'in-window' | 'best-effort';
 
 export interface RebalanceResult {
   /** New quantityScale per meal id (unchanged meals keep their current scale). */

@@ -29,7 +29,7 @@ export const RequestLocale = createParamDecorator(
 );
 
 /** Pure helper for tests + non-controller call sites. */
-export function resolveLocale(acceptLanguage: string | undefined): LocaleType {
+function resolveLocale(acceptLanguage: string | undefined): LocaleType {
   if (!acceptLanguage) return 'en';
   // Accept-Language can be `pl,en;q=0.9` or just `pl-PL`; take the first
   // 2-letter prefix and match against the supported enum. Quality values

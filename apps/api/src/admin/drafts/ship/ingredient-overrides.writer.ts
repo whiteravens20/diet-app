@@ -42,7 +42,7 @@ export const INGREDIENT_OVERRIDES_FILE = 'ingredient-overrides.json';
 /** Read the override file at `path` if it exists, returning the parsed
  *  object (or `{}` when absent / malformed — operator-edited files mustn't
  *  brick the seeder). */
-export function readIngredientOverrides(path: string): IngredientOverrideFile {
+function readIngredientOverrides(path: string): IngredientOverrideFile {
   if (!existsSync(path)) return {};
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8'));

@@ -19,7 +19,7 @@ import { FdcDataTypes } from '@diet-app/shared';
 import { classify } from './classify.js';
 import { macrosOf, type SourceNutrient } from './nutrients.js';
 
-export type Category =
+type Category =
   | 'vegetables'
   | 'fruits'
   | 'dairy'

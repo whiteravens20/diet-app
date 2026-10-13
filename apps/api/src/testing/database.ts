@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
-export const TEST_DATABASE = 'diet_app_it';
+const TEST_DATABASE = 'diet_app_it';
 
 /** The PostgreSQL of the development Compose file, used when no URL is given. */
 const DEFAULT_SERVER_URL = 'postgresql://diet:diet@localhost:5432/postgres';

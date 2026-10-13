@@ -174,7 +174,7 @@ export interface OptimizerInput {
  * on one day, then days in a row, then the times a recipe is eaten in seven
  * days, and the most of one ingredient in seven days last.
  */
-export const RELAXATION_ORDER = PLAN_RELAXATIONS;
+const RELAXATION_ORDER = PLAN_RELAXATIONS;
 export type Relaxation = PlanRelaxation;
 
 /** A meal whose recipe is outside limits of the plan, and which. */
@@ -185,7 +185,7 @@ export interface RelaxedSlot {
 }
 
 /** What a run had to do to fill the plan, for whoever made it to read. */
-export interface OptimizerReport {
+interface OptimizerReport {
   /** Meals for which a limit gave way, and which. */
   relaxations: RelaxedSlot[];
   /** Meals for which the diet and the meal left one recipe to choose from. */
@@ -201,7 +201,7 @@ export function uniformDays(
   return Array.from({ length: days }, () => ({ mealSlots, dailyCalorieTarget }));
 }
 
-export interface OptimizerAssignment {
+interface OptimizerAssignment {
   dayIndex: number;
   slot: MealType;
   recipeId: string;
@@ -280,7 +280,7 @@ export class OptimizerError extends Error {
 }
 
 /** A meal inside this share of its budget, either way, costs nothing. */
-export const CALORIE_WINDOW = 0.1;
+const CALORIE_WINDOW = 0.1;
 /** A recipe that cannot reach this share of a meal's budget at the largest serving is no candidate for it. */
 const MIN_REACH = 0.7;
 /** How many draws a plan is tried with before limits are taken to have to give way. */
@@ -637,7 +637,7 @@ export function calorieFit(calories: number, budget: number): number {
 }
 
 /** Multi-factor score in [0, 1]. */
-export function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
+function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
   const servings = fitServings(recipe.caloriesPerServing, ctx.budget);
   const fit = calorieFit(recipe.caloriesPerServing * servings, ctx.budget);
 

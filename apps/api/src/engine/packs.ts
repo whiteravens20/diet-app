@@ -89,7 +89,7 @@ export function packPull(
 }
 
 /** A pack a plan opens and does not finish. */
-export interface OpenPack {
+interface OpenPack {
   ingredientId: string;
   packSize: number;
   /** How many packs the plan takes of the ingredient. */

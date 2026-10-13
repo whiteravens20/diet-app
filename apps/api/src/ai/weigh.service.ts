@@ -11,7 +11,7 @@ import type { Operation } from './operations.js';
 export const MAX_WEIGHED_CHARS = 200;
 
 /** An option the engine made, as a model is shown it: a short id, and what there is to know of it in one line. */
-export interface WeighedOption {
+interface WeighedOption {
   id: string;
   facts: string;
 }

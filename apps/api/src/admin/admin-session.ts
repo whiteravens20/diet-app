@@ -23,7 +23,7 @@ import type { Env } from '../config/env.js';
 
 export const ADMIN_COOKIE = 'admin_session';
 const ADMIN_PATH = '/api/admin';
-export const ADMIN_SESSION_SECONDS = 8 * 60 * 60;
+const ADMIN_SESSION_SECONDS = 8 * 60 * 60;
 
 const jwt = new JwtService({});
 const keyOf = (config: ConfigService<Env, true>): string => deriveKey(config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'admin-session');
