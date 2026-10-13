@@ -184,6 +184,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT
 
 See [SECURITY.md](SECURITY.md) for the disclosure policy.
 
+## Credits
+
+The photographs of the pages are by their authors, under the licences named in
+[apps/web/public/imagery/CREDITS.md](apps/web/public/imagery/CREDITS.md). The printed
+shopping list is set in [Inter](https://rsms.me/inter/) by The Inter Project Authors,
+under the SIL Open Font License 1.1; its files and the licence text are in
+[apps/web/public/fonts/](apps/web/public/fonts/).
+
 ## How the code is written and checked
 
 Diet App is built using AI coding tools. The tools write most of the code, tests and
