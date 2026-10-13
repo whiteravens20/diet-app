@@ -20,10 +20,10 @@ describe('meat and fish that are sold in a pack', () => {
     ]);
   });
 
-  it('are not what is bought ready, what an import brought without a pack, or another kind of food', () => {
+  it('are not a drained tin of fish, what an import brought without a pack, or another kind of food', () => {
     expect(
       givenAsCookedMeat([
-        { slug: 'canned-tuna', category: 'fish', packSize: 145, proteinPer100: 26 },
+        { slug: 'canned-tuna', category: 'fish', packSize: 145, proteinPer100: 19.4 },
         { slug: 'chicken-broiler-or-fryers-breast-cooked-braised', category: 'meat', proteinPer100: 32.1 },
         { slug: 'pumpkin-seeds', category: 'nuts_seeds', packSize: 200, proteinPer100: 30.2 },
       ]),

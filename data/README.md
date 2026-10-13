@@ -62,7 +62,8 @@ bought, because that is what a recipe weighs and what a shopping list buys.
 Rice, pasta, quinoa, couscous and lentils are dry: about 360 kcal in 100 g, from
 USDA FoodData Central. The cooked food holds about a third of that, and figures
 taken from a "cooked" row would give every dish made of it a third of its
-energy. Canned beans and chickpeas are given as they come out of the can.
+energy. Canned beans, chickpeas and tuna are given as they come out of the can,
+drained, and frozen edamame as it is in the bag.
 Meat, fish and shellfish are raw: a chicken breast holds 120 kcal and 22.5 g of
 protein in 100 g as it is bought, and 165 kcal and 31 g once it is roasted,
 because the pan drives water out of it while a recipe weighs it before.
@@ -77,9 +78,8 @@ ingredient in grams is converted with.
 under 300 kcal in 100 g. One that keeps and is not dry (frozen edamame) is named
 in [`apps/api/src/admin/seed/dry-staples.ts`](../apps/api/src/admin/seed/dry-staples.ts)
 with what it is. It also refuses meat or fish sold in a pack that holds more than
-25 g of protein in 100 g, which raw meat does not; what is bought ready (a drained
-tin of tuna) is named in
-[`apps/api/src/admin/seed/raw-meat.ts`](../apps/api/src/admin/seed/raw-meat.ts).
+25 g of protein in 100 g, which raw meat does not
+([`apps/api/src/admin/seed/raw-meat.ts`](../apps/api/src/admin/seed/raw-meat.ts)).
 
 ## What a model drafted
 
@@ -100,8 +100,9 @@ language models inside the application and shipped through its curation queue.
 ## Where the figures are from
 
 The figures of the ingredients below are those of
-[USDA FoodData Central](https://fdc.nal.usda.gov/), of its SR Legacy data set,
-each by the id of its food there. What is measured in millilitres was worked
+[USDA FoodData Central](https://fdc.nal.usda.gov/), of its SR Legacy data set
+(canned black beans of its Foundation set, which has them drained), each by the
+id of its food there. What is measured in millilitres was worked
 out from the figures of 100 g and from what the database says a cup of the food
 weighs; the weight of a lemon, of a lime and of a slice of rye bread are the
 database's as well.
@@ -112,6 +113,11 @@ database's as well.
 | `turkey-breast` | 174515 | Turkey, retail parts, breast, meat only, raw |
 | `ground-beef` | 171796 | Beef, ground, 85% lean meat / 15% fat, raw |
 | `shrimp` | 175179 | Crustaceans, shrimp, raw |
+| `canned-tuna` | 173709 | Fish, tuna, light, canned in water, drained solids |
+| `chickpeas` | 173800 | Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids |
+| `kidney-beans` | 174285 | Beans, kidney, red, mature seeds, canned, drained solids |
+| `black-beans` | 2644285 | Beans, black, canned, sodium added, drained and rinsed |
+| `edamame` | 168410 | Edamame, frozen, unprepared |
 | `tofu` | 172475 | Tofu, raw, firm, prepared with calcium sulfate |
 | `whole-milk` | 171265 | Milk, whole, 3.25% milkfat, with added vitamin D |
 | `olive-oil` | 171413 | Oil, olive, salad or cooking |

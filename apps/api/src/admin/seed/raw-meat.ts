@@ -9,15 +9,10 @@
  * of both than it has.
  *
  * Raw meat and fish hold no more than about 24 g of protein in a hundred
- * grams. What is sold in a pack and holds more is cooked, dried or drained;
- * what is bought that way says so here, with what it is.
+ * grams, and a drained tin of tuna under twenty. What is sold in a pack and
+ * holds more is cooked or dried.
  */
 export const MOST_PROTEIN_OF_RAW_MEAT = 25;
-
-/** Meat and fish that are bought ready and hold more protein than the raw food, each with what it is. */
-const BOUGHT_READY: Readonly<Record<string, string>> = {
-  'canned-tuna': 'canned and drained',
-};
 
 interface Bought {
   slug: string;
@@ -30,7 +25,6 @@ interface Bought {
 export function givenAsCookedMeat(ingredients: readonly Bought[]): string[] {
   return ingredients
     .filter((ingredient) => ingredient.category === 'meat' || ingredient.category === 'fish')
-    .filter((ingredient) => ingredient.packSize != null && !(ingredient.slug in BOUGHT_READY))
-    .filter((ingredient) => ingredient.proteinPer100 > MOST_PROTEIN_OF_RAW_MEAT)
+    .filter((ingredient) => ingredient.packSize != null && ingredient.proteinPer100 > MOST_PROTEIN_OF_RAW_MEAT)
     .map((ingredient) => ingredient.slug);
 }

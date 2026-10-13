@@ -48,7 +48,7 @@ if (cooked.length > 0) {
 const cookedMeat = givenAsCookedMeat(catalogue.ingredients);
 if (cookedMeat.length > 0) {
   console.error(`\n✗ ${cookedMeat.length} meat or fish with the figures of the cooked food (over ${MOST_PROTEIN_OF_RAW_MEAT} g of protein in 100 g):`);
-  for (const slug of cookedMeat) console.error(`  ${slug}: give it per 100 g as it is bought, or name it in BOUGHT_READY with what it is`);
+  for (const slug of cookedMeat) console.error(`  ${slug}: give it per 100 g as it is bought`);
   process.exit(1);
 }
 
