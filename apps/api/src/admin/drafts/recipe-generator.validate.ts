@@ -54,6 +54,7 @@ type RecipeValidationReason =
   | 'meal-not-asked-for'
   | 'meals-of-two-kinds'
   | 'names-what-its-list-lacks'
+  | 'steps-differ-between-languages'
   | 'title-names-a-diet-or-band'
   | 'ingredient-count-out-of-bands'
   | 'step-count-too-high'
@@ -289,6 +290,13 @@ export function validateRecipeBatch(
       return { ok: false, reason: first.rule, key: `${rowKey}.${first.path}`, details: first.message };
     }
     const { titles, descriptions, steps, servings, prepMinutes, cookMinutes, difficulty, mealTypes, ingredients } = checked.recipe;
+
+    // Each language tells the same dish step by step. A language with fewer
+    // steps than another lost some on the way: an answer that broke off.
+    const stepCounts = Object.entries(steps).map(([locale, list]) => `${locale} ${list.length}`);
+    if (new Set(Object.values(steps).map((list) => list.length)).size > 1) {
+      return { ok: false, reason: 'steps-differ-between-languages', key: `${rowKey}.steps`, details: stepCounts.join(', ') };
+    }
 
     const requiredMeals = opts.requiredMeals ?? [];
     if (requiredMeals.length > 0 && !mealTypes.some((meal) => requiredMeals.includes(meal))) {

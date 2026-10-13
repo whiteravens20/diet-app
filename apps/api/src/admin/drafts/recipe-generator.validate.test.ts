@@ -468,6 +468,17 @@ describe('validateRecipeBatch', () => {
     expect(forMeals(['breakfast', 'second_breakfast', 'snack'])).toBe('accepted');
   });
 
+  it('refuses a recipe that has more steps in one language than in another', () => {
+    const told = (pl: string[]) => {
+      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ steps: { en: ['Cook the rice.', 'Sear the chicken.', 'Serve with spinach.'], pl } })]), resolveSlug });
+      return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+    };
+
+    // An answer that broke off in its second language.
+    expect(told(['Ugotuj ryż.', 'Podsmaż kur'])).toBe('steps-differ-between-languages at chicken-rice-bowl.steps');
+    expect(told(['Ugotuj ryż.', 'Podsmaż kurczaka.', 'Podawaj ze szpinakiem.'])).toBe('accepted');
+  });
+
   describe('a title or a step that names an ingredient of the catalogue', () => {
     /** The catalogue by its English names: the four of these tests, and three more that a text can name. */
     const catalogueNames = [

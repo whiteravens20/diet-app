@@ -24,7 +24,7 @@ import { macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v7';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v8';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -324,7 +324,9 @@ single violation, so be precise:
    Larger only when the recipe genuinely scales that way (stews, bakes).
 9. Steps are imperative-form sentences. Number is implicit — do NOT
    prefix with "Step 1:" / "1." / "Krok 1:". The array order IS the
-   numbering.
+   numbering. Every locale has the same steps, one for one: as many of
+   them, in the same order. A recipe whose locales differ in the number
+   of their steps is rejected.
 10. Ingredient count and step count and total time (prep + cook) must
     ALL fall inside ONE complexity band from the table above. A recipe
     with fewer than ${COMPLEXITY_BANDS[0]!.minIngredients} ingredients or more than ${COMPLEXITY_BANDS.at(-1)!.maxIngredients}, with more than ${COMPLEXITY_BANDS.at(-1)!.maxSteps} steps,
