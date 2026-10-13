@@ -73,7 +73,10 @@ ingredient in grams is converted with.
 `npm run data:lint` refuses a grain or a pulse that keeps in its pack and holds
 under 300 kcal in 100 g. One that keeps and is not dry (frozen edamame) is named
 in [`apps/api/src/admin/seed/dry-staples.ts`](../apps/api/src/admin/seed/dry-staples.ts)
-with what it is.
+with what it is. It also refuses meat or fish sold in a pack that holds more than
+25 g of protein in 100 g, which raw meat does not; what is bought ready (a drained
+tin of tuna) is named in
+[`apps/api/src/admin/seed/raw-meat.ts`](../apps/api/src/admin/seed/raw-meat.ts).
 
 ## Where the figures are from
 

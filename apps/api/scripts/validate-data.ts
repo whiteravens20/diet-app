@@ -12,6 +12,7 @@ import { DietType, MealType } from '@diet-app/shared';
 import { IMPORT_ALIASES_FILE, readImportAliases } from '../src/admin/drafts/external/import-aliases.js';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
 import { givenAsCooked, LEAST_ENERGY_OF_A_DRY_STAPLE } from '../src/admin/seed/dry-staples.js';
+import { givenAsCookedMeat, MOST_PROTEIN_OF_RAW_MEAT } from '../src/admin/seed/raw-meat.js';
 import { COVERAGE_FLOOR, COVERAGE_TARGET, MACRO_OUT_OF_REACH, macroReachByDiet, recipesPerDietAndMeal } from '../src/engine/coverage.js';
 import { macroSplitOf } from '../src/engine/nutrition.js';
 import { plannable } from './catalogue-plans.js';
@@ -40,6 +41,14 @@ const cooked = givenAsCooked(catalogue.ingredients);
 if (cooked.length > 0) {
   console.error(`\n✗ ${cooked.length} dry food(s) with the figures of the cooked food (under ${LEAST_ENERGY_OF_A_DRY_STAPLE} kcal in 100 g):`);
   for (const slug of cooked) console.error(`  ${slug}: give it per 100 g as it is bought, or name it in KEEPS_BUT_IS_NOT_DRY with what it is`);
+  process.exit(1);
+}
+
+// Meat and fish are weighed and bought raw: figures of the cooked food would give their dishes a third more protein and energy than they have.
+const cookedMeat = givenAsCookedMeat(catalogue.ingredients);
+if (cookedMeat.length > 0) {
+  console.error(`\n✗ ${cookedMeat.length} meat or fish with the figures of the cooked food (over ${MOST_PROTEIN_OF_RAW_MEAT} g of protein in 100 g):`);
+  for (const slug of cookedMeat) console.error(`  ${slug}: give it per 100 g as it is bought, or name it in BOUGHT_READY with what it is`);
   process.exit(1);
 }
 
