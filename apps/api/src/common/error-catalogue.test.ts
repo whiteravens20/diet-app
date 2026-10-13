@@ -13,7 +13,7 @@
  */
 import { readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { readErrorCodes } from '../../scripts/contract/errors.js';
 
 const API_SRC = resolve(__dirname, '..');
@@ -21,10 +21,6 @@ const MESSAGES_DIR = resolve(API_SRC, '../../../apps/web/messages');
 
 /** What the web application says of failures the API did not name: no answer at all, a failure without a code, the fields of a failed check, a wait. */
 const OF_THE_WEB = ['GENERIC', 'NETWORK', 'VALIDATION_FAILED_FIELDS', 'HELD_UP_MINUTES', 'HELD_UP_SECONDS'];
-
-let codes: Set<string> | undefined;
-/** The codes of the API's source: read once, since reading them takes the compiler. */
-const loadCodes = (): Set<string> => (codes ??= new Set(readErrorCodes().map(({ code }) => code)));
 
 interface MessagesShape {
   errors?: Record<string, string>;
@@ -43,8 +39,15 @@ async function loadLocaleErrors(locale: 'en' | 'pl'): Promise<Set<string>> {
 }
 
 describe('error-code catalogue', () => {
+  /** The codes of the API's source. */
+  let thrown: Set<string>;
+
+  // Reading them takes the compiler: once, with time of its own.
+  beforeAll(() => {
+    thrown = new Set(readErrorCodes().map(({ code }) => code));
+  }, 60_000);
+
   it('every thrown code has a matching key in en.json AND pl.json', async () => {
-    const thrown = loadCodes();
     const [en, pl] = await Promise.all([loadLocaleErrors('en'), loadLocaleErrors('pl')]);
 
     // No messages dir found (running outside the repo) — skip gracefully.
@@ -57,7 +60,6 @@ describe('error-code catalogue', () => {
   });
 
   it('every sentence is for a code the API can answer with, or for one of the web application\'s own', async () => {
-    const thrown = loadCodes();
     const en = await loadLocaleErrors('en');
     if (en.size === 0) return;
 
@@ -66,8 +68,6 @@ describe('error-code catalogue', () => {
   });
 
   it('finds the codes that are handed on by a variable as well as the ones written where they are thrown', () => {
-    const thrown = loadCodes();
-
     expect(thrown.size).toBeGreaterThan(140);
     // Written in an exception; passed on from an error that was caught; handed to the function that throws.
     expect([...thrown]).toEqual(expect.arrayContaining(['PLAN_NOT_FOUND', 'OLLAMA_HOST_NOT_ALLOWED', 'PULL_FETCH_FAILED', 'INVALID_SUBSTITUTION']));
