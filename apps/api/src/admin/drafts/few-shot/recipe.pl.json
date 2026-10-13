@@ -35,12 +35,12 @@
   {
     "complexity": "simple",
     "title": {
-      "en": "Avocado egg keto plate",
-      "pl": "Talerz keto z awokado i jajkiem"
+      "en": "Avocado egg plate",
+      "pl": "Talerz z awokado i jajkiem"
     },
     "description": {
-      "en": "Halved avocado with soft-boiled eggs — fast, filling, keto-friendly.",
-      "pl": "Połówki awokado z jajkami na miękko — szybko, sycąco i przyjazne diecie keto."
+      "en": "Halved avocado with soft-boiled eggs — fast, filling, low in carbohydrate.",
+      "pl": "Połówki awokado z jajkami na miękko — szybko, sycąco i z małą ilością węglowodanów."
     },
     "servings": 1,
     "mealTypes": ["breakfast", "lunch"],
