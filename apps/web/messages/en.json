@@ -511,12 +511,11 @@
     "updatedSummary": "Updated {when} · removed {recipes, number} recipes and {ingredients, number} ingredients that nothing used · hid {retiredRecipes, number} recipes and {retiredIngredients, number} ingredients that are still in use · now {newIngredients, number} ingredients / {newRecipes, number} recipes.",
     "stages": {
       "starting": "Starting…",
-      "pruneRecipes": "Removing stale recipes…",
-      "pruneIngredients": "Removing unused ingredients…",
-      "allergens": "Seeding allergens…",
       "ingredientsStage": "Seeding ingredients",
       "recipesStage": "Seeding recipes",
       "substitutionsStage": "Seeding substitution rules…",
+      "retire": "Retiring what the data dropped…",
+      "recompute": "Working out the recipes outside the data again…",
       "done": "Done.",
       "working": "Working…"
     },

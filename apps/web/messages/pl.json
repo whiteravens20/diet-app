@@ -511,12 +511,11 @@
     "updatedSummary": "Zaktualizowano {when} · usunięto przepisy ({recipes, number}) i składniki ({ingredients, number}), z których nic nie korzystało · ukryto przepisy ({retiredRecipes, number}) i składniki ({retiredIngredients, number}), które są nadal w użyciu · obecnie {newIngredients, number} składników / {newRecipes, number} przepisów.",
     "stages": {
       "starting": "Uruchamianie…",
-      "pruneRecipes": "Usuwanie przestarzałych przepisów…",
-      "pruneIngredients": "Usuwanie nieużywanych składników…",
-      "allergens": "Wczytywanie alergenów…",
       "ingredientsStage": "Wczytywanie składników",
       "recipesStage": "Wczytywanie przepisów",
       "substitutionsStage": "Wczytywanie reguł zamian…",
+      "retire": "Wycofywanie tego, czego nie ma już w danych…",
+      "recompute": "Ponowne przeliczanie przepisów spoza danych…",
       "done": "Gotowe.",
       "working": "Pracuję…"
     },

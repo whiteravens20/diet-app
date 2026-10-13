@@ -29,12 +29,11 @@ type View = 'loading' | 'disabled' | 'unreachable' | 'login' | 'ready';
 /** Maps a server stage string to its translation key under admin.stages. */
 const STAGE_KEY: Record<string, string> = {
   starting: 'starting',
-  'prune-recipes': 'pruneRecipes',
-  'prune-ingredients': 'pruneIngredients',
-  allergens: 'allergens',
   ingredients: 'ingredientsStage',
   recipes: 'recipesStage',
   substitutions: 'substitutionsStage',
+  retire: 'retire',
+  recompute: 'recompute',
   done: 'done',
 };
 
