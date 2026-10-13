@@ -260,6 +260,21 @@ hyper-specific cut becomes a candidate the model has to filter past. The number
 of ingredients also drives seed time — Foundation seeds in seconds, the full
 SR Legacy corpus takes ~11 minutes.
 
+### What an import leaves out
+
+A food whose record lacks protein, fat or carbohydrate is left out and named in
+the report of the run: stored as zero, the missing one would make every recipe
+that uses the food wrong. About sixty of the four hundred foods of the
+`Foundation` set are left out so: records that hold no figures yet (bread,
+pasta, raisins) and fruit and vegetables without their carbohydrate.
+
+A fat is taken all the same. The set reports an oil's fat and nothing else, and
+butter's fat and water, because there is next to nothing else in them; what is
+fat for four fifths of its weight or more is taken with no protein and no
+carbohydrate where its record names none. An oil's row then holds the fat of a
+nutrition label, 93 to 95 g in 100 g: a few per cent under what the bottle
+holds, which is all fat.
+
 If a specific worldwide staple is missing (miso, tahini, plantain, kefir,
 specific European fish), add it to `ingredients.json` rather than enabling
 `SR Legacy` — you keep control of the name, density, allergen flags, and

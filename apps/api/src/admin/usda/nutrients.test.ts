@@ -33,10 +33,25 @@ describe('the energy and macronutrients of an imported food', () => {
     ['Beans, Dry, Black (0% moisture)', 'no value for carbohydrate'],
     ['Watermelon, seedless, flesh only, raw', 'no value for fat, carbohydrate'],
     ['Blackberries, raw', 'no value for fat, carbohydrate'],
-    ['Oil, olive, extra virgin', 'no value for protein, carbohydrate'],
     ['Bread, white, commercial', 'no value for protein, fat, carbohydrate'],
   ])('refuses "%s", which lacks a macronutrient, instead of taking it for zero', (description, reason) => {
     expect(of(description)).toEqual({ refused: reason });
+  });
+
+  it('takes a fat without protein and carbohydrate where its record names neither', () => {
+    // An oil is reported with the fat of a nutrition label alone, butter with its fat and its water.
+    expect(of('Oil, olive, extra virgin')).toEqual({ caloriesPer100: 843.3, proteinPer100: 0, fatPer100: 93.7, carbsPer100: 0 });
+    expect(of('Oil, peanut')).toMatchObject({ proteinPer100: 0, fatPer100: 93.4, carbsPer100: 0 });
+    expect(of('Butter, stick, salted')).toEqual({ caloriesPer100: 739.8, proteinPer100: 0, fatPer100: 82.2, carbsPer100: 0 });
+    // What a fat does report is kept as reported.
+    expect(of('Oil, coconut')).toEqual({ caloriesPer100: 833, proteinPer100: 0, fatPer100: 99.1, carbsPer100: 0.8 });
+  });
+
+  it('takes nothing for zero in a food that is not a fat, however much fat it holds', () => {
+    // Under four fifths fat there is room for protein and carbohydrate: a nut holds a fifth of each.
+    expect(macrosOf([nutrient('204', 79.9)])).toEqual({ refused: 'no value for protein, carbohydrate' });
+    expect(macrosOf([nutrient('204', 73), nutrient('203', 10)])).toEqual({ refused: 'no value for carbohydrate' });
+    expect(macrosOf([nutrient('204', 80)])).toEqual({ caloriesPer100: 720, proteinPer100: 0, fatPer100: 80, carbsPer100: 0 });
   });
 
   it('takes a measured zero for zero', () => {

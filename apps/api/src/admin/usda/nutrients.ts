@@ -10,6 +10,12 @@
  * imported: stored as zero it would look like a food without carbohydrate and
  * make every recipe that uses it wrong. Nor is one whose figures contradict
  * each other.
+ *
+ * A fat is the exception. The source reports an oil's fat and nothing else,
+ * and butter's fat and water, because there is next to nothing else in them:
+ * butter holds under a gram of protein in a hundred. What is fat for four
+ * fifths of its weight or more is taken with no protein and no carbohydrate
+ * where the record names none.
  */
 
 /** One nutrient of a food, in any of the shapes the source's endpoints use. */
@@ -39,6 +45,9 @@ const NUMBERS = {
   energy: ['208', '957', '958'],
 } as const;
 
+/** From this much fat in 100 g on, a food is a fat: an oil, butter, lard. */
+const FAT_AND_LITTLE_ELSE = 80;
+
 const round = (value: number): number => Math.max(0, Math.round(value * 10) / 10);
 
 function read(nutrients: readonly SourceNutrient[], numbers: readonly string[]): number | null {
@@ -59,9 +68,10 @@ const fromMacros = (protein: number, fat: number, carbs: number): number => roun
  * source's own general factors do.
  */
 export function macrosOf(nutrients: readonly SourceNutrient[]): Macros | { refused: string } {
-  const protein = read(nutrients, NUMBERS.protein);
   const fat = read(nutrients, NUMBERS.fat);
-  const carbs = read(nutrients, NUMBERS.carbs);
+  const isFat = fat !== null && fat >= FAT_AND_LITTLE_ELSE;
+  const protein = read(nutrients, NUMBERS.protein) ?? (isFat ? 0 : null);
+  const carbs = read(nutrients, NUMBERS.carbs) ?? (isFat ? 0 : null);
   const missing = [protein === null && 'protein', fat === null && 'fat', carbs === null && 'carbohydrate'].filter(Boolean);
   if (protein === null || fat === null || carbs === null) return { refused: `no value for ${missing.join(', ')}` };
 
