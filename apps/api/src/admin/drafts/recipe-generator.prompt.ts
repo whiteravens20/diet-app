@@ -20,9 +20,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Locale, MealType, DietType, Complexity } from '@diet-app/shared';
+import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v3';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v4';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -121,12 +122,29 @@ function stratify(pool: FewShotRecipe[]): FewShotRecipe[] {
   return out;
 }
 
+/** An example as a recipe of an answer: the keys an answer has, and the slug its English title makes. */
+function asAnswered(recipe: FewShotRecipe): Record<string, unknown> {
+  return {
+    slug: slugify(recipe.title.en ?? ''),
+    titles: recipe.title,
+    descriptions: recipe.description,
+    steps: recipe.steps,
+    servings: recipe.servings,
+    mealTypes: recipe.mealTypes,
+    prepMinutes: recipe.prepMinutes,
+    cookMinutes: recipe.cookMinutes,
+    difficulty: recipe.difficulty,
+    ingredients: recipe.ingredients,
+  };
+}
+
+/** The examples of a language, each written as one recipe of an answer, under the band it is an example of. */
 function renderFewShotForLocale(locale: string): string {
   const stratified = stratify(loadFewShot(locale));
   if (stratified.length === 0) return '';
   const label = LOCALE_LABEL[locale] ?? locale;
-  const blocks = stratified.map((r) => JSON.stringify(r, null, 2)).join('\n\n');
-  return `Exemplar recipes — ${label} (${locale}) — author your output in this exact shape:\n${blocks}\n\n`;
+  const blocks = stratified.map((r) => `${r.complexity}:\n${JSON.stringify(asAnswered(r), null, 2)}`).join('\n\n');
+  return `Exemplar recipes — ${label} (${locale}). Each is one entry of "recipes", written as yours must be; the word above it is its complexity band and no part of the entry:\n${blocks}\n\n`;
 }
 
 function renderCatalogue(catalogue: CatalogueRow[]): string {

@@ -86,7 +86,9 @@
       { "slug": "spinach", "quantity": 120, "unit": "g" },
       { "slug": "olive-oil", "quantity": 10, "unit": "ml" },
       { "slug": "lemon", "quantity": 1, "unit": "piece" },
-      { "slug": "garlic", "quantity": 2, "unit": "piece" }
+      { "slug": "garlic", "quantity": 2, "unit": "piece" },
+      { "slug": "salt", "quantity": 3, "unit": "g" },
+      { "slug": "black-pepper", "quantity": 1, "unit": "g" }
     ],
     "steps": {
       "en": [
@@ -168,7 +170,9 @@
       { "slug": "lemon", "quantity": 1, "unit": "piece" },
       { "slug": "garlic", "quantity": 2, "unit": "piece" },
       { "slug": "greek-yogurt", "quantity": 120, "unit": "g" },
-      { "slug": "spinach", "quantity": 40, "unit": "g" }
+      { "slug": "spinach", "quantity": 40, "unit": "g" },
+      { "slug": "salt", "quantity": 3, "unit": "g" },
+      { "slug": "black-pepper", "quantity": 1, "unit": "g" }
     ],
     "steps": {
       "en": [
@@ -200,8 +204,8 @@
       "pl": "Makaron z wołowiną i pieczoną papryką"
     },
     "description": {
-      "en": "Pasta tossed with seared beef, roasted peppers, tomatoes, and a parmesan finish.",
-      "pl": "Makaron z podsmażoną wołowiną, pieczoną papryką, pomidorami i parmezanem na koniec."
+      "en": "Pasta tossed with seared beef, roasted peppers and tomatoes, finished with torn mozzarella.",
+      "pl": "Makaron z podsmażoną wołowiną, pieczoną papryką i pomidorami, na koniec z porwaną mozzarellą."
     },
     "servings": 3,
     "mealTypes": ["dinner"],
@@ -209,15 +213,16 @@
     "cookMinutes": 40,
     "difficulty": "medium",
     "ingredients": [
-      { "slug": "beef-mince", "quantity": 350, "unit": "g" },
+      { "slug": "ground-beef", "quantity": 350, "unit": "g" },
       { "slug": "pasta", "quantity": 250, "unit": "g" },
       { "slug": "bell-pepper", "quantity": 2, "unit": "piece" },
       { "slug": "tomato", "quantity": 250, "unit": "g" },
       { "slug": "onion", "quantity": 1, "unit": "piece" },
       { "slug": "garlic", "quantity": 3, "unit": "piece" },
       { "slug": "olive-oil", "quantity": 15, "unit": "ml" },
-      { "slug": "parmesan", "quantity": 30, "unit": "g" },
-      { "slug": "spinach", "quantity": 80, "unit": "g" }
+      { "slug": "mozzarella", "quantity": 60, "unit": "g" },
+      { "slug": "spinach", "quantity": 80, "unit": "g" },
+      { "slug": "salt", "quantity": 5, "unit": "g" }
     ],
     "steps": {
       "en": [
@@ -230,7 +235,7 @@
         "Cook the pasta to al dente, then drain reserving a cup of water.",
         "Peel the roasted peppers, slice, and add to the sauce with spinach.",
         "Toss pasta into the sauce with a splash of pasta water.",
-        "Plate and finish with grated parmesan."
+        "Plate and finish with torn mozzarella."
       ],
       "pl": [
         "Rozgrzej piekarnik do 220°C i piecz przekrojone papryki skórą do góry przez 20 minut.",
@@ -242,7 +247,7 @@
         "Ugotuj makaron al dente, odcedź, zostaw szklankę wody.",
         "Obierz pieczone papryki, pokrój i dodaj do sosu razem ze szpinakiem.",
         "Wymieszaj makaron z sosem, dolewając trochę wody z gotowania.",
-        "Podawaj posypane startym parmezanem."
+        "Podawaj z porwaną mozzarellą."
       ]
     }
   }
