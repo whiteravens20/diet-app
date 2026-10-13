@@ -54,7 +54,7 @@ Two rules apply to every variable:
 | `AI_ADMIN_USER_MONTHLY_LIMIT` | `40` | AI calls per user in a rolling 30 days when the operator's provider is used. Only calls the provider completed are counted: an error, a refused connection or a timeout costs the user nothing. `0` denies that mode. Users with their own key are not counted. |
 | `AI_ADMIN_INSTANCE_MONTHLY_LIMIT` | `1000` | AI calls of all users together on the operator's provider in a rolling 30 days. This is the number that bounds the operator's bill, however many accounts are registered; once it is reached the provider is closed to everyone until calls age out, and users are told so. Counted like the per-user limit. |
 | `FDC_API_KEY` | `DEMO_KEY` | USDA importer key — see [ops/deployment.md](deployment.md). |
-| `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC data sets: `Foundation`, `SR Legacy` or both. Anything else is refused at start-up. Default ≈ 340 clean generic foods. Adding `SR Legacy` brings about 7,000 more, most of them brand names or cuts of one animal: each is put before the model that drafts recipes, and a catalogue update takes minutes. See [data/README.md](../../data/README.md#choosing-fdc_data_types). |
+| `FDC_DATA_TYPES` | `Foundation` | Comma-separated FDC data sets: `Foundation`, `SR Legacy` or both. Anything else is refused at start-up. Default ≈ 320 clean generic foods. Adding `SR Legacy` brings about 7,000 more, most of them brand names or cuts of one animal: each is put before the model that drafts recipes, and a catalogue update takes minutes. See [data/README.md](../../data/README.md#choosing-fdc_data_types). |
 
 ## Admin
 | Variable | Default | Purpose |

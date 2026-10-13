@@ -161,8 +161,8 @@ is something an administrator does, in the panel:
    ```bash
    FDC_API_KEY=<key> npm run import:usda
    ```
-   Defaults to USDA **Foundation** (~340 clean generic foods). Without an importer
-   run, only the hand-curated baseline (~55 ingredients) seeds. See
+   Defaults to USDA **Foundation** (~320 clean generic foods). Without an importer
+   run, only the hand-curated baseline (93 ingredients) seeds. See
    [data/README.md](data/README.md#choosing-fdc_data_types) before enabling
    `SR Legacy` — it adds ~7 k entries, but most are brand names or cuts of one
    animal: every one of them is put before the model that drafts recipes, and

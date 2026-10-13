@@ -61,9 +61,9 @@ Load them on the first run, in the admin panel:
 
 1. Browse to `http://localhost:3000/admin`, sign in with `ADMIN_USER` / `ADMIN_PASSWORD`.
 2. (Optional) On the host, fetch USDA whole foods:
-   `FDC_API_KEY=<key> npm run import:usda` (defaults to **Foundation**, ~340
+   `FDC_API_KEY=<key> npm run import:usda` (defaults to **Foundation**, ~320
    generic foods). Writes `data/ingredients.generated.json` — without it only the
-   hand-curated baseline (~55 ingredients) is available. `FDC_DATA_TYPES` can
+   hand-curated baseline (93 ingredients) is available. `FDC_DATA_TYPES` can
    include `SR Legacy` for the full ~7 k corpus, but see
    [data/README.md](../../data/README.md#choosing-fdc_data_types) for why that
    is rarely worth it.

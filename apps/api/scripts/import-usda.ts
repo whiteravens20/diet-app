@@ -9,7 +9,7 @@
  *
  * Usage:
  *   FDC_API_KEY=<key> npm run import:usda      # a free key from api.data.gov/signup;
- *                                              # Foundation only (~340 foods).
+ *                                              # Foundation only (~320 foods).
  *   npm run import:usda                        # the public DEMO_KEY, which allows
  *                                              # a few requests an hour: Foundation
  *                                              # at most.
