@@ -85,6 +85,27 @@ describe('what the catalogue can serve', () => {
     expect(macros.diets.keto.reached).toBeNull();
   });
 
+  it('measures what the plans reach once for the recipes as they are, and anew when one of them changes', async () => {
+    const coverage = t.app.get(CatalogueCoverageService);
+    const first = await coverage.macroReach();
+    // The same answer, not one worked out again: making the weeks holds the process up.
+    expect(await coverage.macroReach()).toBe(first);
+
+    // A dinner that takes more of something: what the plans reach is measured with it.
+    const line = await t.prisma.recipeIngredient.findFirstOrThrow({ where: { recipe: { createdByUserId: null, mealTypes: { has: 'dinner' } } }, orderBy: { id: 'asc' } });
+    await t.prisma.recipeIngredient.update({ where: { id: line.id }, data: { quantity: line.quantity * 3 } });
+    const second = await coverage.macroReach();
+    expect(second).not.toBe(first);
+    expect(await coverage.macroReach()).toBe(second);
+
+    // A recipe of a user's own is none of the recipes the measure reads.
+    await aPrivateRecipe(t, await aUser(t), { mealTypes: ['lunch'] });
+    expect(await coverage.macroReach()).toBe(second);
+
+    await t.prisma.recipeIngredient.update({ where: { id: line.id }, data: { quantity: line.quantity } });
+    expect(await coverage.macroReach()).toEqual(first);
+  });
+
   it('leaves out what a user made for themselves', async () => {
     const before = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body.coverage;
     await aPrivateRecipe(t, await aUser(t), { mealTypes: ['lunch'] });

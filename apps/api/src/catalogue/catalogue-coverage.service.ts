@@ -1,5 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { DietType, MealType } from '@diet-app/shared';
 import { macroReachByDiet, recipesPerDietAndMeal, type CoverageMatrix, type MacroReach } from '../engine/coverage.js';
@@ -18,6 +19,8 @@ const KEPT_FOR_MS = 60_000;
 export class CatalogueCoverageService {
   private kept: { at: number; matrix: CoverageMatrix } | null = null;
   private counting: Promise<CoverageMatrix> | null = null;
+  /** What the plans reached, and the recipes they reached it with. */
+  private reached: { with: string; reach: Record<DietType, MacroReach | null> } | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -46,10 +49,16 @@ export class CatalogueCoverageService {
    * What the plans of each diet reach of the diet's split, and how much they
    * use of the packs that do not keep, with the recipes any user's plan may
    * draw on.
+   *
+   * The measure makes weeks of plans for every diet, which is work of this
+   * process and holds up whoever else asks it something meanwhile. It is
+   * therefore done once for the recipes as they are: while what is read of
+   * them stays the same, to the last amount, the answer is the one kept.
    */
   async macroReach(): Promise<Record<DietType, MacroReach | null>> {
     const recipes = await this.prisma.recipe.findMany({
       where: { createdByUserId: null, retiredAt: null, deletedAt: null },
+      orderBy: { id: 'asc' },
       select: {
         id: true,
         servings: true,
@@ -60,6 +69,7 @@ export class CatalogueCoverageService {
         fatPerServing: true,
         carbsPerServing: true,
         ingredients: {
+          orderBy: { id: 'asc' },
           select: {
             ingredientId: true,
             quantity: true,
@@ -69,11 +79,14 @@ export class CatalogueCoverageService {
         },
       },
     });
+    const read = createHash('sha256').update(JSON.stringify(recipes)).digest('hex');
+    if (this.reached?.with === read) return this.reached.reach;
+
     const perishablePacks = new Map<string, number>();
     for (const line of recipes.flatMap((recipe) => recipe.ingredients)) {
       if (line.ingredient.perishable && line.ingredient.packSize) perishablePacks.set(line.ingredientId, line.ingredient.packSize);
     }
-    return macroReachByDiet(
+    const reach = macroReachByDiet(
       recipes.map(({ ingredients, mealTypes, servings, ...recipe }) => ({
         ...recipe,
         mealTypes: mealTypes as MealType[],
@@ -82,6 +95,8 @@ export class CatalogueCoverageService {
       })),
       perishablePacks,
     );
+    this.reached = { with: read, reach };
+    return reach;
   }
 
   /**
