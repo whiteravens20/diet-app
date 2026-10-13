@@ -54,6 +54,8 @@ describe('what a meal does to the packs of a plan', () => {
     // 150 g of 600: three quarters of the pack would be left, with no day to use them on.
     expect(packPull(meal({ chicken: 150 }), held({}), PACKS)).toBeLessThan(-0.6);
     expect(packPull(meal({ chicken: 150 }), held({}), PACKS, 0)).toBe(packPull(meal({ chicken: 150 }), held({}), PACKS));
+    // A meal of a serving and a half of a recipe is one that takes half as much again.
+    expect(packPull(meal({ chicken: 100 }), held({}), PACKS, 0, 1.5)).toBe(packPull(meal({ chicken: 150 }), held({}), PACKS));
   });
 
   it('holds it against no meal with a week of the plan to come, and the less the more days there are', () => {

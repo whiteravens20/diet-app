@@ -67,18 +67,21 @@ export function leftBeyondAccepted(need: number, packSize: number): number {
  *
  * `before` is what the plan holds of each ingredient so far, `meal` what the
  * meal would add, `packs` the pack of each ingredient whose opened pack does
- * not keep. All in the ingredient's own unit.
+ * not keep. All in the ingredient's own unit. `servings` is how many servings
+ * the meal is, where `meal` says what one of them takes.
  */
 export function packPull(
   meal: ReadonlyMap<string, number>,
   before: (ingredientId: string) => number,
   packs: ReadonlyMap<string, number>,
   daysToCome = 0,
+  servings = 1,
 ): number {
   const heldAgainst = 1 - Math.min(1, Math.max(0, daysToCome) / DAYS_TO_USE_A_PACK);
   let pull = 0;
-  for (const [ingredientId, amount] of meal) {
+  for (const [ingredientId, ofOne] of meal) {
     const packSize = packs.get(ingredientId);
+    const amount = ofOne * servings;
     if (packSize === undefined || amount <= 0) continue;
     const held = Math.max(0, before(ingredientId));
     const change = leftBeyondAccepted(held, packSize) - leftBeyondAccepted(held + amount, packSize);

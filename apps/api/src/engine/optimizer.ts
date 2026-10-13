@@ -508,7 +508,7 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
           jitterOf,
         });
         const gaveWay = pool.outside(recipe);
-        if (gaveWay.length > 0) report.relaxations.push({ dayIndex: day, slot, gaveWay });
+        if (gaveWay.length > 0) report.relaxations.push({ dayIndex: day, slot, gaveWay: [...gaveWay] });
       }
 
       const servings = fitServings(recipe.caloriesPerServing, budget);
@@ -535,22 +535,23 @@ function broken(
     /** The meals of the plan so far that hold a recipe. */
     usesOf: (recipeId: string) => readonly Use[];
     useCount: ReadonlyMap<string, number>;
-    held: ReadonlyMap<string, readonly Held[]>;
+    /** The most the meals of any seven days that hold this one hold of an ingredient, in its own unit. */
+    mostHeldInSevenDays: (ingredientId: string) => number;
     limits: { consecutive: number; perWeek: number; perPlan?: number; twiceADay: boolean; perIngredient?: number };
     cookTimeBudget?: number;
   },
-): Relaxation[] {
+): readonly Relaxation[] {
   const { day, limits } = at;
   const mine = at.usesOf(recipe.id);
-  const out: Relaxation[] = [];
-  if (limits.perPlan !== undefined && (at.useCount.get(recipe.id) ?? 0) >= limits.perPlan) out.push('variety_floor');
-  if (at.cookTimeBudget != null && recipe.totalMinutes > at.cookTimeBudget) out.push('cook_time');
+  let out = WITHIN_EVERY_LIMIT;
+  if (limits.perPlan !== undefined && (at.useCount.get(recipe.id) ?? 0) >= limits.perPlan) out = outside(out, 'variety_floor');
+  if (at.cookTimeBudget != null && recipe.totalMinutes > at.cookTimeBudget) out = outside(out, 'cook_time');
   // With this meal the recipe is on one day in a row and once in seven days, and on more where the plan holds it already.
   let streak = 1;
   let mostInSevenDays = 1;
   if (mine.length > 0) {
     const on = (d: number): boolean => mine.some((use) => use.day === d);
-    if (!limits.twiceADay && on(day)) out.push('same_day');
+    if (!limits.twiceADay && on(day)) out = outside(out, 'same_day');
     // The days in a row around this one, before it and after, on each of which the recipe is eaten at some meal.
     for (let d = day - 1; on(d); d--) streak += 1;
     for (let d = day + 1; on(d); d++) streak += 1;
@@ -561,25 +562,29 @@ function broken(
       mostInSevenDays = Math.max(mostInSevenDays, times);
     }
   }
-  if (streak > limits.consecutive) out.push('consecutive_days');
-  if (mostInSevenDays > limits.perWeek) out.push('weekly_cap');
+  if (streak > limits.consecutive) out = outside(out, 'consecutive_days');
+  if (mostInSevenDays > limits.perWeek) out = outside(out, 'weekly_cap');
   // The same seven days, for each ingredient of the recipe: what the meals in them hold of it, and this meal on top.
   const { perIngredient } = limits;
   if (perIngredient !== undefined && recipe.amounts) {
     const servings = fitServings(recipe.caloriesPerServing, at.budget);
     let over = false;
     for (const [ingredientId, perServing] of recipe.amounts) {
-      const entries = at.held.get(ingredientId) ?? NOTHING_HELD;
-      for (let first = day - 6; first <= day && !over; first += 1) {
-        let inThem = 0;
-        for (const entry of entries) if (entry.day >= first && entry.day <= first + 6) inThem += entry.amount;
-        over = inThem + perServing * servings > perIngredient;
-      }
+      // Over in some seven days is over in the seven days that hold the most.
+      over = at.mostHeldInSevenDays(ingredientId) + perServing * servings > perIngredient;
       if (over) break;
     }
-    if (over) out.push('ingredient_cap');
+    if (over) out = outside(out, 'ingredient_cap');
   }
   return out;
+}
+
+/** What a recipe inside every limit breaks: the same list for all of them, which nobody adds to. */
+const WITHIN_EVERY_LIMIT: readonly Relaxation[] = [];
+
+/** `broken` with one more limit: a list of its own from the first on. */
+function outside(broken: readonly Relaxation[], kind: Relaxation): readonly Relaxation[] {
+  return broken === WITHIN_EVERY_LIMIT ? [kind] : [...broken, kind];
 }
 
 /**
@@ -593,19 +598,39 @@ function broken(
  */
 function withinLimits(
   candidates: OptimizerRecipe[],
-  at: Parameters<typeof broken>[1] & { mayGiveWay: (kind: Relaxation) => boolean },
-): { recipes: OptimizerRecipe[]; outside: (recipe: OptimizerRecipe) => Relaxation[] } {
-  const breaks = new Map(candidates.map((recipe) => [recipe.id, broken(recipe, at)]));
-  const outside = (recipe: OptimizerRecipe): Relaxation[] => breaks.get(recipe.id) ?? [];
-  const inside = candidates.filter((recipe) => outside(recipe).length === 0);
-  if (inside.length > 0) return { recipes: inside, outside };
+  where: Omit<Parameters<typeof broken>[1], 'mostHeldInSevenDays'> & { held: ReadonlyMap<string, readonly Held[]>; mayGiveWay: (kind: Relaxation) => boolean },
+): { recipes: OptimizerRecipe[]; outside: (recipe: OptimizerRecipe) => readonly Relaxation[] } {
+  // The plan does not change while a meal is chosen: what it holds of an ingredient around the day is worked
+  // out once for all the recipes that take the ingredient, and what a recipe breaks is the same asked twice.
+  const most = new Map<string, number>();
+  const mostHeldInSevenDays = (ingredientId: string): number => {
+    let found = most.get(ingredientId);
+    if (found === undefined) {
+      const entries = where.held.get(ingredientId) ?? NOTHING_HELD;
+      found = 0;
+      for (let first = where.day - 6; first <= where.day; first += 1) {
+        let inThem = 0;
+        for (const entry of entries) if (entry.day >= first && entry.day <= first + 6) inThem += entry.amount;
+        found = Math.max(found, inThem);
+      }
+      most.set(ingredientId, found);
+    }
+    return found;
+  };
+  const at = { ...where, mostHeldInSevenDays };
+  // What each candidate breaks, in the order of the candidates.
+  const breaks = candidates.map((recipe) => broken(recipe, at));
+  const brokenBy = (recipe: OptimizerRecipe): readonly Relaxation[] => broken(recipe, at);
+  const inside = candidates.filter((_, index) => breaks[index]!.length === 0);
+  if (inside.length > 0) return { recipes: inside, outside: brokenBy };
 
-  const permitted = candidates.filter((recipe) => outside(recipe).every(at.mayGiveWay));
-  const pool = permitted.length > 0 ? permitted : candidates;
+  const some = candidates.map((recipe, index) => ({ recipe, breaks: breaks[index]! }));
+  const permitted = some.filter((candidate) => candidate.breaks.every(at.mayGiveWay));
+  const pool = permitted.length > 0 ? permitted : some;
   // One bit for each limit, the later the limit the higher the bit: the smaller number is the less far outside.
-  const weight = (recipe: OptimizerRecipe): number => outside(recipe).reduce((bits, kind) => bits | (1 << RELAXATION_ORDER.indexOf(kind)), 0);
+  const weight = (candidate: (typeof some)[number]): number => candidate.breaks.reduce((bits, kind) => bits | (1 << RELAXATION_ORDER.indexOf(kind)), 0);
   const least = Math.min(...pool.map(weight));
-  return { recipes: leastUsed(pool.filter((recipe) => weight(recipe) === least), at.useCount), outside };
+  return { recipes: leastUsed(pool.filter((candidate) => weight(candidate) === least).map((candidate) => candidate.recipe), at.useCount), outside: brokenBy };
 }
 
 function leastUsed(recipes: OptimizerRecipe[], useCount: ReadonlyMap<string, number>): OptimizerRecipe[] {
@@ -727,9 +752,7 @@ function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
         break;
       }
     }
-    if (takesFromAPack) {
-      packs = packPull(new Map([...recipe.amounts].map(([ingredientId, perServing]) => [ingredientId, perServing * servings])), ctx.heldOf, ctx.packs, ctx.daysToCome ?? 0);
-    }
+    if (takesFromAPack) packs = packPull(recipe.amounts, ctx.heldOf, ctx.packs, ctx.daysToCome ?? 0, servings);
   }
 
   // Cooking ahead: a recipe is cooked for two days, and then another. The day
