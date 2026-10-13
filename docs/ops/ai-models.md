@@ -141,8 +141,8 @@ what an account asks and for the runs of the administrator's panel alike.
 | The admin recipe batch, which writes the drafts of the shared catalogue | Wrote every recipe it was asked for, drew on the widest part of the catalogue, kept to the rules of the prompt, and cost the least of the models tried. |
 | The admin naming run, which names imported ingredients in a language | What it does least well. On a sample of 25 it kept the qualifiers of the description ("Kotlet schabowy ze środkowej części schabu") where `google/gemini-3.1-flash-lite` gave the name a shop shelf has ("Kotlet schabowy"). A name is a draft either way, and is shortened in the queue; of the other model's, about one in fifteen needed that as well. |
 
-A draft for the shared catalogue is held to the rules by the validator and
-ships only when it has been approved in every language it is written in.
+A draft for the shared catalogue is held to the rules by the validator, and
+approved by a person in each language before it ships.
 
 #### Measured for what an account asks
 
@@ -212,8 +212,8 @@ diet to six for every meal, in two runs and for under four cents, and after
 them the recipes asked for by diet and meal, every run complete.
 
 Whatever the model, a batch is held to the same rules by the validator: a
-recipe that breaks one is refused and asked for again, and no draft ships
-before it has been approved in the curation queue.
+recipe that breaks one is refused and asked for again, and a person approves
+every draft before it ships.
 
 ### Tier 2 — Self-hosted Ollama on a real GPU
 

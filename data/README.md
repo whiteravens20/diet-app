@@ -92,10 +92,9 @@ language models inside the application and shipped through its curation queue.
   engine, as those of every recipe are.
 - The names were written by `google/gemini-3.1-flash-lite` for the foods a
   `Foundation` import gave on 2026-10-13. 266 of them ship.
-- Every recipe was read in both languages, and every name against the
-  description of its food, before it was approved; what the reading found was
-  corrected first, in 24 of the 70 recipes and in 44 of the 266 names. Who read
-  them is said in the [README](../README.md#how-the-code-is-written-and-checked).
+- Every recipe was reviewed in both languages, and every name against the
+  description of its food, before it was approved; what the review found was
+  corrected first, in 24 of the 70 recipes and in 44 of the 266 names.
 
 ## Where the figures are from
 

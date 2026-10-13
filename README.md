@@ -34,8 +34,8 @@ The companion Android app lives in a separate repository:
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
   approved ingredients, then a validation layer recomputes every number. An operator can
   also take recipes in from a schema.org document they have: each line has to be an amount
-  of an ingredient the catalogue knows, every draft waits for the administrator's approval,
-  and the recipe says where it is from and under which licence.
+  of an ingredient the catalogue knows, a person approves every draft, and the recipe says
+  where it is from and under which licence.
 - **Shopping lists and a pantry** — merged and category-grouped, counted the way one
   shops (eggs and slices of bread in pieces, weights rounded up to 5 g, the packs a row
   takes), with what the pantry already holds taken off, what was bought beyond the need
@@ -236,20 +236,6 @@ testers will try the release candidate at the maintainer's request.
 - `apps/api/src/common/crypto.ts` and `apps/api/src/auth/auth.service.ts` (e-mail
   encryption, password peppering, blind-index lookups) are read line by line by the
   maintainer whenever they change.
-
-**What the catalogue's content went through**
-
-- Twenty-two recipes and the ninety-three ingredients were written with the AI coding
-  tools. For the ingredients that were added or corrected later,
-  [data/README.md](data/README.md#where-the-figures-are-from) names the record of the
-  food database each figure is from.
-- Seventy more recipes, and the Polish names of imported foods, were drafted by
-  language models inside the application ([data/README.md](data/README.md#what-a-model-drafted)
-  names them). A draft's figures are the engine's, and the generator's validator refuses
-  a draft that breaks its rules.
-- The AI coding tools read every one of those drafts, the recipes in English and in
-  Polish, corrected what the reading found, and recorded the approvals in the curation
-  queue on the maintainer's instruction. The maintainer has not read each of them.
 
 If something looks wrong, open an issue. For a vulnerability, follow
 [SECURITY.md](SECURITY.md).
