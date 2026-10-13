@@ -12,8 +12,9 @@
  *      are in: a changed password or a closed panel ended the ones before.
  *   4. A request that changes something comes from the application's pages.
  *
- * On success attaches `req.reviewer = { label, locale }` so controllers can
- * scope every operation to the cookie's locale.
+ * On success `req.reviewer` holds the session: the name the reviewer gave
+ * and when the session began. The language a request is about is in the
+ * request, not in the session.
  */
 import {
   ForbiddenException,
