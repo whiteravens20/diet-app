@@ -33,12 +33,26 @@ export type IngredientNamerValidationReason =
   | 'length-blowup'
   | 'llm-yap';
 
-interface IngredientNamerValidationOk {
-  ok: true;
-  /** Sanitised suggestions keyed by the same slugs as the source. */
-  suggestions: Record<string, IngredientNameSuggestion>;
+/** Why one name of an answer is not written, and the slug or the field it is about. */
+export interface NameRefusal {
+  reason: IngredientNamerValidationReason;
+  key: string;
 }
 
+/**
+ * An answer some of whose names can be written. A name is judged by itself:
+ * one that breaks a rule is refused with its reason, and the others of the
+ * answer are kept.
+ */
+interface IngredientNamerValidationOk {
+  ok: true;
+  /** The names that passed, cleaned, keyed by the slugs of the source. */
+  suggestions: Record<string, IngredientNameSuggestion>;
+  /** The names of the answer that are not written, in the order of the source. */
+  refused: NameRefusal[];
+}
+
+/** An answer nothing can be written of: it could not be read, or every name of it was refused (the first refusal is said). */
 interface IngredientNamerValidationFail {
   ok: false;
   reason: IngredientNamerValidationReason;
@@ -81,15 +95,8 @@ export function validateIngredientNamer(
   const out = reply.value;
   const outKeys = Object.keys(out);
 
-  for (const k of sourceKeys) {
-    if (!(k in out)) return { ok: false, reason: 'missing-keys', key: k };
-  }
-  for (const k of outKeys) {
-    if (!(k in source)) return { ok: false, reason: 'extra-keys', key: k };
-  }
-
-  const sanitised: Record<string, IngredientNameSuggestion> = {};
-  for (const slug of sourceKeys) {
+  /** One name of the answer: what is written of it, or why nothing is. */
+  const judge = (slug: string): IngredientNameSuggestion | IngredientNamerValidationFail => {
     const row = out[slug];
     if (typeof row !== 'object' || row === null) {
       return { ok: false, reason: 'name-not-object', key: slug };
@@ -155,10 +162,25 @@ export function validateIngredientNamer(
       const first = checked.problems[0]!;
       return { ok: false, reason: first.rule, key: `${slug}.${first.path}` };
     }
-    sanitised[slug] = checked.suggestion;
-  }
+    return checked.suggestion;
+  };
 
-  return { ok: true, suggestions: sanitised };
+  const sanitised: Record<string, IngredientNameSuggestion> = {};
+  const refused: NameRefusal[] = [];
+  for (const slug of sourceKeys) {
+    if (!(slug in out)) {
+      refused.push({ reason: 'missing-keys', key: slug });
+      continue;
+    }
+    const judged = judge(slug);
+    if ('ok' in judged) refused.push({ reason: judged.reason, key: judged.key ?? slug });
+    else sanitised[slug] = judged;
+  }
+  // A name for something that was not asked about names nothing.
+  for (const key of outKeys) if (!(key in source)) refused.push({ reason: 'extra-keys', key });
+
+  if (Object.keys(sanitised).length === 0) return { ok: false, ...(refused[0] ?? { reason: 'missing-keys' }) };
+  return { ok: true, suggestions: sanitised, refused };
 }
 
 interface CheckValueArgs {

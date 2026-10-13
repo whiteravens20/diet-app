@@ -1,11 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { RECIPE_LIMITS } from '@diet-app/shared';
 import { seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../../testing/database.js';
 import { aRecipeDraft, aReviewer, anIngredientNameDraft, asAdmin, race } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
+import { IngredientNamerRunner } from './ingredient-namer.runner.js';
 
 describe('the curation queue', () => {
   let t: TestApp;
@@ -543,19 +544,68 @@ describe('the curation queue', () => {
       expect(refused.body.error).toBe('VALIDATION_FAILED');
     });
 
-    describe('that has nothing to do', () => {
-      const start = (spec: Record<string, unknown>) => t.http().post('/api/admin/drafts/ingredient-names/generate').set(asAdmin).send({ targetLocales: ['pl'], ...spec }).expect(202);
-      /** The state of the run once it has ended. */
-      const ended = async () => {
-        for (let waited = 0; waited < 200; waited += 1) {
-          const state = (await t.http().get('/api/admin/drafts/ingredient-names/generate/status').set(asAdmin).expect(200)).body;
-          if (state.status !== 'running') return state;
-          await new Promise((tick) => setTimeout(tick, 25));
-        }
-        throw new Error('the run did not end');
-      };
-      const imported = (slug: string, tags: string[]) => t.prisma.ingredient.update({ where: { slug }, data: { tags } });
+    const start = (spec: Record<string, unknown>) => t.http().post('/api/admin/drafts/ingredient-names/generate').set(asAdmin).send({ targetLocales: ['pl'], ...spec }).expect(202);
+    /** The state of the run once it has ended. */
+    const ended = async () => {
+      for (let waited = 0; waited < 200; waited += 1) {
+        const state = (await t.http().get('/api/admin/drafts/ingredient-names/generate/status').set(asAdmin).expect(200)).body;
+        if (state.status !== 'running') return state;
+        await new Promise((tick) => setTimeout(tick, 25));
+      }
+      throw new Error('the run did not end');
+    };
+    const imported = (slug: string, tags: string[]) => t.prisma.ingredient.update({ where: { slug }, data: { tags } });
 
+    describe('that asks a model', () => {
+      /** Started on the runner itself: the route lets five runs a minute be asked for, and its own tests need them. */
+      const run = async () => {
+        expect(await t.app.get(IngredientNamerRunner).start({ scope: 'all-usda-missing', targetLocales: ['pl'] })).toBe(true);
+        return ended();
+      };
+
+      beforeEach(async () => {
+        t.model.reset();
+        await imported('banana', ['usda-imported']);
+        await imported('salmon', ['usda-imported']);
+      });
+
+      afterEach(async () => {
+        await imported('banana', []);
+        await imported('salmon', []);
+      });
+
+      it('judges each name by itself: what passes is written, and only what was refused is asked for again, with the reason', async () => {
+        // The first answer names the banana, and gives the salmon a figure its description does not hold.
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'Banan' } }, salmon: { name: { pl: 'Łosoś 300 kcal' } } }) });
+        t.model.reply({ text: JSON.stringify({ salmon: { name: { pl: 'Łosoś' } } }) });
+
+        const state = await run();
+
+        expect(state).toMatchObject({ status: 'done', error: null, total: 2, written: 2, failed: 0 });
+        const written = await t.prisma.ingredientNameDraft.findMany({ orderBy: { ingredientSlug: 'asc' }, select: { ingredientSlug: true, suggestions: true } });
+        expect(written).toEqual([
+          { ingredientSlug: 'banana', suggestions: { name: { pl: 'Banan' } } },
+          { ingredientSlug: 'salmon', suggestions: { name: { pl: 'Łosoś' } } },
+        ]);
+        expect(t.model.requests).toHaveLength(2);
+        const again = t.model.requests[1]!.prompt;
+        expect(again).toContain('invented-digits at "salmon.name.pl"');
+        expect(again.slice(again.indexOf('Rewrite this object:'))).not.toContain('banana');
+      });
+
+      it('writes the names that passed when one is refused every time, and counts that one as failed', async () => {
+        t.model.reply({ text: JSON.stringify({ banana: { name: { pl: 'Banan' } }, salmon: { name: { pl: 'Łosoś 300 kcal' } } }) });
+        t.model.reply({ text: JSON.stringify({ salmon: { name: { pl: 'Łosoś 300 kcal' } } }), times: 2 });
+
+        const state = await run();
+
+        expect(state).toMatchObject({ status: 'done', total: 2, written: 1, failed: 1 });
+        expect((await t.prisma.ingredientNameDraft.findMany({ select: { ingredientSlug: true } })).map((draft) => draft.ingredientSlug)).toEqual(['banana']);
+        expect(t.model.requests).toHaveLength(3);
+      });
+    });
+
+    describe('that has nothing to do', () => {
       it('says so when the catalogue has no imported ingredient to name', async () => {
         await start({ scope: 'all-usda-missing' });
 

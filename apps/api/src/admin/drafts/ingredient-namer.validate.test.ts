@@ -67,7 +67,7 @@ describe('validateIngredientNamer', () => {
     expect(result).toMatchObject({ ok: false, reason: 'malformed-json' });
   });
 
-  it('rejects a missing slug key', () => {
+  it('keeps the names that are there when one was left out, and says which', () => {
     const result = validateIngredientNamer({
       source,
       targetLocales,
@@ -75,10 +75,10 @@ describe('validateIngredientNamer', () => {
         'beef-tenderloin': { name: { pl: 'Polędwica wołowa' } },
       }),
     });
-    expect(result).toMatchObject({ ok: false, reason: 'missing-keys', key: 'pears-bartlett' });
+    expect(result).toMatchObject({ ok: true, suggestions: { 'beef-tenderloin': { name: { pl: 'Polędwica wołowa' } } }, refused: [{ reason: 'missing-keys', key: 'pears-bartlett' }] });
   });
 
-  it('rejects an extra slug key the source did not ask for', () => {
+  it('writes nothing for a slug the source did not ask about, and keeps the others', () => {
     const result = validateIngredientNamer({
       source,
       targetLocales,
@@ -88,7 +88,25 @@ describe('validateIngredientNamer', () => {
         'mystery-slug': { name: { pl: 'Tajemnica' } },
       }),
     });
-    expect(result).toMatchObject({ ok: false, reason: 'extra-keys', key: 'mystery-slug' });
+    expect(result).toMatchObject({ ok: true, refused: [{ reason: 'extra-keys', key: 'mystery-slug' }] });
+    expect(result.ok && Object.keys(result.suggestions)).toEqual(['beef-tenderloin', 'pears-bartlett']);
+  });
+
+  it('judges a name by itself: one that breaks a rule is refused, and the others of the answer are kept', () => {
+    const result = validateIngredientNamer({
+      source,
+      targetLocales,
+      rawOutput: happy({
+        'beef-tenderloin': { name: { pl: 'Polędwica wołowa 300 kcal' } },
+        'pears-bartlett': { name: { pl: 'Gruszki bartlett' } },
+      }),
+    });
+    expect(result).toMatchObject({ ok: true, suggestions: { 'pears-bartlett': { name: { pl: 'Gruszki bartlett' } } }, refused: [{ reason: 'invented-digits', key: 'beef-tenderloin.name.pl' }] });
+  });
+
+  it('says the first refusal of an answer nothing can be kept of', () => {
+    const result = validateIngredientNamer({ source, targetLocales, rawOutput: happy({ 'beef-tenderloin': { name: { pl: '' } } }) });
+    expect(result).toMatchObject({ ok: false, reason: 'empty-value', key: 'beef-tenderloin.name.pl' });
   });
 
   it('takes a short name of a long description, and refuses a single letter', () => {
@@ -118,7 +136,7 @@ describe('validateIngredientNamer', () => {
         'pears-bartlett': { name: { pl: 'Gruszki bartlett' } },
       }),
     });
-    expect(result).toMatchObject({ ok: false, reason: 'empty-value' });
+    expect(result).toMatchObject({ ok: true, refused: [{ reason: 'empty-value', key: 'beef-tenderloin.name.pl' }] });
   });
 
   it('rejects raw FDC passthrough', () => {
@@ -130,7 +148,7 @@ describe('validateIngredientNamer', () => {
         'pears-bartlett': { name: { pl: 'Gruszki bartlett' } },
       }),
     });
-    expect(result).toMatchObject({ ok: false, reason: 'raw-passthrough' });
+    expect(result).toMatchObject({ ok: true, refused: [{ reason: 'raw-passthrough', key: 'beef-tenderloin.name.pl' }] });
   });
 
   it('rejects invented digits', () => {
@@ -186,21 +204,20 @@ describe('validateIngredientNamer', () => {
     const answered = (beef: Record<string, unknown>) =>
       validateIngredientNamer({ source, targetLocales, rawOutput: happy({ 'beef-tenderloin': beef, 'pears-bartlett': { name: { pl: 'Gruszki bartlett' } } }) });
 
+    /** What an answer had refused: the name of beef, beside the pears that are kept. */
+    const refusedOf = (result: ReturnType<typeof answered>) => (result.ok ? result.refused : [{ reason: result.reason, key: result.key }]);
+
     it('refuse markup in a name or a storage hint', () => {
-      expect(answered({ name: { pl: '<b>Polędwica wołowa</b>' } })).toEqual({ ok: false, reason: 'markup', key: 'beef-tenderloin.name.pl' });
-      expect(answered({ name: { pl: 'Polędwica wołowa' }, storageHint: { pl: 'W lodówce, <i>szczelnie</i>' } })).toEqual({
-        ok: false,
-        reason: 'markup',
-        key: 'beef-tenderloin.storageHint.pl',
-      });
+      expect(refusedOf(answered({ name: { pl: '<b>Polędwica wołowa</b>' } }))).toEqual([{ reason: 'markup', key: 'beef-tenderloin.name.pl' }]);
+      expect(refusedOf(answered({ name: { pl: 'Polędwica wołowa' }, storageHint: { pl: 'W lodówce, <i>szczelnie</i>' } }))).toEqual([{ reason: 'markup', key: 'beef-tenderloin.storageHint.pl' }]);
     });
 
     it('refuse a hidden character that reorders what is read', () => {
-      expect(answered({ name: { pl: 'Polędwica \u202eawołow' } })).toMatchObject({ ok: false, reason: 'markup' });
+      expect(refusedOf(answered({ name: { pl: 'Polędwica \u202eawołow' } }))).toMatchObject([{ reason: 'markup' }]);
     });
 
     it('refuse a storage hint longer than a hint', () => {
-      expect(answered({ name: { pl: 'Polędwica wołowa' }, storageHint: { pl: 'x'.repeat(301) } })).toEqual({ ok: false, reason: 'text-too-long', key: 'beef-tenderloin.storageHint.pl' });
+      expect(refusedOf(answered({ name: { pl: 'Polędwica wołowa' }, storageHint: { pl: 'x'.repeat(301) } }))).toEqual([{ reason: 'text-too-long', key: 'beef-tenderloin.storageHint.pl' }]);
     });
 
     it('keep a name as one plain line', () => {

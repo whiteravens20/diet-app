@@ -280,8 +280,12 @@ export class IngredientNamerRunner {
     }
   }
 
-  /** Single batch with one retry + stricter reminder. Returns sanitised
-   *  suggestions or null when the whole batch failed validation. */
+  /**
+   * One batch, asked up to three times. A name is judged by itself: what
+   * passes is kept, and the next attempt asks only for the names still
+   * missing and says what was refused. Returns the names that passed, or
+   * null when none did.
+   */
   private async askWithRetry(
     adapter: AiProviderAdapter,
     source: Record<string, string>,
@@ -289,14 +293,18 @@ export class IngredientNamerRunner {
     temperature: number,
   ): Promise<Record<string, import('@diet-app/shared').IngredientNameSuggestion> | null> {
     const failures: { key: string; reason: IngredientNamerValidationReason | 'answer-cut-off' }[] = [];
-    const limits = ingredientNames(Object.keys(source).length, targetLocales.length, temperature);
+    const kept: Record<string, import('@diet-app/shared').IngredientNameSuggestion> = {};
+    let refused = '';
     for (const attempt of [0, 1, 2]) {
+      const missing = Object.fromEntries(Object.entries(source).filter(([slug]) => !(slug in kept)));
+      if (Object.keys(missing).length === 0) break;
+      const limits = ingredientNames(Object.keys(missing).length, targetLocales.length, temperature);
       try {
         const reminder = attempt === 0
           ? ''
-          : '\nReminder: respond with ONLY the COMPLETE JSON object. No prose, no fences, no notes.';
+          : `\nReminder: respond with ONLY the COMPLETE JSON object. No prose, no fences, no notes.${refused}`;
         const prompt =
-          buildIngredientNamerPrompt({ targetLocales, source }) + reminder;
+          buildIngredientNamerPrompt({ targetLocales, source: missing }) + reminder;
         const result = await adapter.chat(
           [{ role: 'user', content: prompt }],
           {
@@ -316,26 +324,32 @@ export class IngredientNamerRunner {
           continue;
         }
         const v = validateIngredientNamer({
-          source,
+          source: missing,
           targetLocales,
           rawOutput: result.text,
         });
-        if (v.ok) return v.suggestions;
-        failures.push({ key: v.key ?? '?', reason: v.reason });
+        const refusals = v.ok ? v.refused : [{ key: v.key ?? '?', reason: v.reason }];
+        if (v.ok) Object.assign(kept, v.suggestions);
+        if (refusals.length === 0) break;
+        failures.push(...refusals);
+        const said = refusals.map((refusal) => `${refusal.reason} at ${JSON.stringify(refusal.key)}`).join('; ');
+        refused = `\nOf your last answer these were refused: ${said}. Name them again, otherwise than before.`;
         const head = result.text.slice(0, 200).replace(/\s+/g, ' ');
-        this.logger.warn(`namer batch reject (${v.reason}): head="${head}"`);
+        this.logger.warn(`namer batch reject (${refusals[0]!.reason}), ${refusals.length} refused, ${Object.keys(kept).length} of ${Object.keys(source).length} kept: head="${head}"`);
       } catch (err) {
         this.logger.warn(`namer batch error: ${describe(err)}`);
       }
     }
-    if (failures.length > 0) {
+    const left = Object.keys(source).filter((slug) => !(slug in kept));
+    if (left.length > 0) {
       this.logger.warn(
-        `namer batch rejected after retries: ${failures
+        `namer batch: ${left.length} of ${Object.keys(source).length} not named after retries (${left.slice(0, 5).join(', ')}): ${failures
+          .slice(-8)
           .map((f) => `${f.key}=${f.reason}`)
           .join(', ')}`,
       );
     }
-    return null;
+    return Object.keys(kept).length > 0 ? kept : null;
   }
 
   private finish(error: string | null): void {
