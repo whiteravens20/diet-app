@@ -67,8 +67,18 @@ runs on a provider's defaults.
   was too slow, and the engine's own pick is used where there is one.
 - **An answer that reaches its cap is treated as cut off.** The caps are about
   twice a typical answer. Admin runs ask again and show `answer-cut-off`.
-  Models that think before they answer spend the cap on thinking: use one that
-  does not for swaps, or expect the engine's pick.
+- **What a user waits for is asked for without thinking.** A model that thinks
+  before it answers is billed for the thinking as output, and the thinking
+  counts against the cap: asked to weigh three options, `openai/gpt-6-luna`
+  spent all 700 tokens on it and answered nothing. The requests an account
+  makes (a swap, a substitute, a rewording, a recipe, a weighing) therefore
+  carry OpenRouter's setting for no thinking (`reasoning.effort: "none"`),
+  which it turns into each vendor's own and leaves out for a model that does
+  not think. A model whose thinking cannot be turned off refuses such a
+  request at once and unbilled; it is asked once more without the setting, in
+  the time that is left. The runs of the administrator's panel carry no such
+  setting, and neither do requests made to OpenAI, Anthropic or Ollama
+  directly: what a setting does there was not measured.
 - **A model that translates writes words and nothing else.** The run that
   fills a language recipes lack sends the title, the description and the steps
   of one recipe, and no ingredient, amount or figure. What comes back has to
@@ -121,24 +131,46 @@ and the cost is small (drafting a recipe is one short request).
 
 #### What the project uses
 
-The project is developed and checked against two models, through OpenRouter,
-each for what it was measured to do well:
+An instance has one operator model (`AI_DEFAULT_MODEL`), and the project is
+developed and checked against one: `openai/gpt-6-luna` through OpenRouter, for
+what an account asks and for the runs of the administrator's panel alike.
 
-| For | Model | Why |
+| For | What was measured of it |
+|---|---|
+| What an account asks: a swap, a substitute, a rewording, a recipe of its own, a weighing | Every call answered whole in one to five seconds, the seven of them for a tenth of a cent. It needs the setting for no thinking that these requests carry (see [Limits on every request](#limits-on-every-request)): without it every weighing was cut off. |
+| The admin recipe batch, which writes the drafts of the shared catalogue | Wrote every recipe it was asked for, drew on the widest part of the catalogue, kept to the rules of the prompt, and cost the least of the models tried. |
+| The admin naming run, which names imported ingredients in a language | What it does least well. On a sample of 25 it kept the qualifiers of the description ("Kotlet schabowy ze środkowej części schabu") where `google/gemini-3.1-flash-lite` gave the name a shop shelf has ("Kotlet schabowy"). A name is a draft either way, and is shortened in the queue; of the other model's, about one in fifteen needed that as well. |
+
+A draft for the shared catalogue is held to the rules by the validator and
+ships only when it has been approved in every language it is written in.
+
+#### Measured for what an account asks
+
+The six calls an account makes (a meal swap, a substitute, a recipe of its
+own and the three weighings), with the prompts the application sent, in
+Polish, on 2026-10-13 through OpenRouter. "As it is set up" is a request
+without the setting for no thinking; "asked not to think" carries it.
+
+| Model | Request | Answered whole | Time a call | The six cost |
+|---|---|---|---|---|
+| `openai/gpt-6-luna` | asked not to think | 6 of 6 | 1.5 to 4.6 s | $0.0009 |
+| `openai/gpt-6-luna` | as it is set up | 3 of 6: each weighing spent its 700 tokens on thinking | 4.5 to 11.6 s | $0.0019 |
+| `google/gemini-3.1-flash-lite` | either; it does not think | 6 of 6 | 1.0 to 5.9 s | $0.0032 |
+
+Two of the weighings were also put to the models that had failed the recipe
+batch by thinking:
+
+| Model | As it is set up | Asked not to think |
 |---|---|---|
-| What an account asks: a swap, a substitute, a rewording, a recipe of its own, a weighing | `google/gemini-3.1-flash-lite` | Every call answered in one to two seconds, in sound Polish, for a fraction of a cent. Nothing was cut off at the output cap. |
-| The admin recipe batch, which writes the drafts of the shared catalogue | `openai/gpt-6-luna` | Wrote every recipe it was asked for, drew on the widest part of the catalogue, kept to the rules of the prompt, and cost the least of the models tried. |
-| The admin naming run, which names imported ingredients in a language | `google/gemini-3.1-flash-lite` | Named 349 ingredients in Polish in two minutes for three cents. On a sample of 25 it gave the short names a shop shelf has, where `openai/gpt-6-luna` kept the qualifiers of the description ("Kotlet schabowy" against "Kotlet schabowy ze środkowej części schabu"). About one name in fifteen still needed a person: a cut of beef, cherries for sweet cherries, two ingredients under one name. |
+| `deepseek/deepseek-v4-pro` | cut off at the cap after 7 to 12 s | whole in 2.5 to 2.7 s |
+| `qwen/qwen3.7-plus` | cut off after 13 s | whole in 2.5 to 3.1 s |
+| `mistralai/mistral-large-4-0` | cut off after 10 to 32 s | whole in 6 to 12 s |
+| `openai/gpt-5.4-mini` | whole in 1.6 to 2.0 s | whole in 1.3 to 1.5 s |
+| `google/gemini-3.8-flash` | cut off after 6 s | refuses the setting ("Reasoning is mandatory for this endpoint"), so it is asked as it is set up, and is cut off |
 
-The drafts for the shared catalogue are written with the second, held to the
-rules by the validator, and approved by a person in each language before any
-of them ships.
-
-An instance has one operator model (`AI_DEFAULT_MODEL`). Keep the first as the
-default, and set the second for the length of a batch (see
-[How to switch](#how-to-switch)): asked what an account asks, `openai/gpt-6-luna`
-took three to nine seconds a call and reached the output cap on two of three
-weighings.
+On an instance with `openai/gpt-6-luna` as its model, the same calls and a
+rewording made through the application all completed, in 1.2 to 5.4 seconds
+each and none at its cap.
 
 #### Measured for the admin recipe batch
 
@@ -159,10 +191,10 @@ those of the day, per million tokens.
 
 - **A model that thinks before it answers may write nothing.** Four of the
   seven spent the output cap of a call on thinking and returned an empty
-  answer. The app sends a model no setting for how long it may think, so for
-  the recipe batch choose a model that answers directly or thinks briefly by
-  default. A run says so as `answer-cut-off`; stop it, since every call is
-  paid for.
+  answer. A run of the panel sends a model no setting for how long it may
+  think, so for the recipe batch choose a model that answers directly or
+  thinks briefly by default. A run says so as `answer-cut-off`; stop it, since
+  every call is paid for.
 - **Price is no guide.** The model that did best was the cheapest of the
   seven; the dearest one that answered wrote the least.
 - **What the table does not say.** Model ids and prices change within weeks:
@@ -180,8 +212,8 @@ diet to six for every meal, in two runs and for under four cents, and after
 them the recipes asked for by diet and meal, every run complete.
 
 Whatever the model, a batch is held to the same rules by the validator: a
-recipe that breaks one is refused and asked for again, and a person approves
-every draft before it ships.
+recipe that breaks one is refused and asked for again, and no draft ships
+before it has been approved in the curation queue.
 
 ### Tier 2 — Self-hosted Ollama on a real GPU
 
@@ -285,10 +317,6 @@ WARN lines showing prose preambles or missing locale keys.
   `AI_DEFAULT_MODEL` (and the matching `*_API_KEY` or `OLLAMA_BASE_URL`)
   in `.env`, then restart the api + worker containers. See
   [env-reference.md](env-reference.md).
-- **For one admin batch**: set `AI_DEFAULT_MODEL` to the model the batch is
-  to be written with, restart the api + worker containers, run the batch from
-  the administrator's panel, then set the model back and restart again. The
-  drafts keep the name of the model that wrote them.
 
 The router's failover means you can chain providers — e.g. a free
 OpenRouter primary with local Ollama secondary. When the primary times out
@@ -303,9 +331,7 @@ chain share the wait of the request, as described under
 If you don't want to read the table:
 
 - **You want it to work today, for cents** → OpenRouter with
-  `google/gemini-3.1-flash-lite` as the admin default.
-- **You are about to run an admin recipe batch** → set
-  `openai/gpt-6-luna` for the run.
+  `openai/gpt-6-luna` as the admin default, for everything.
 - **You have a 12 GB+ GPU** → local Ollama with `qwen2.5:14b`.
 - **You self-host and have no GPU** → a cloud model for recipe drafting and
   batches; local Ollama only for the lighter surfaces (Tier 3).
