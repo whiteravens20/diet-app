@@ -32,9 +32,11 @@ provider/model that clears the demand bar for the surface you actually use.
 "Strict JSON" means: locale-keyed nested shape, every required key present,
 every required locale populated, no markdown fences, no prose preamble. Small
 or aggressively-quantised models fail this consistently; the
-`AI_DRAFT_INVALID` toast traces back to this almost every time. The post-fix
-WARN log in [ai-recipe-draft.service.ts:209](../../apps/api/src/recipes/ai-recipe-draft.service.ts#L209)
-prints the model's raw response so you can diagnose without guessing.
+`AI_DRAFT_INVALID` toast traces back to this almost every time. The API then
+logs a warning that begins with `AI_DRAFT_INVALID`
+([ai-recipe-draft.service.ts](../../apps/api/src/recipes/ai-recipe-draft.service.ts)):
+the provider, the model, what was wrong and the first 500 characters of what the
+model answered, so the cause can be read and need not be guessed.
 
 ---
 

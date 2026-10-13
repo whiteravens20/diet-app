@@ -1,7 +1,9 @@
 # Curated seed data
 
-The source of truth for nutrition. Loaded by
-[`apps/api/prisma/seed.ts`](../apps/api/prisma/seed.ts).
+The source of truth for nutrition. Loaded into the database by the catalogue
+update of the administrator's panel, or by `npm run db:seed`
+([`apps/api/prisma/seed.ts`](../apps/api/prisma/seed.ts)); both read and check
+the files the same way ([`apps/api/src/admin/seed/`](../apps/api/src/admin/seed/)).
 
 | File | Role |
 |---|---|
