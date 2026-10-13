@@ -2,7 +2,8 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { Locale, type RecoveryCodes, type SecondFactorChallenge, type SecondFactorConfirmRequest, type SecondFactorProofRequest, type SecondFactorSetup, type SecondFactorSetupRequest, type SecondFactorSignInRequest, type SecondFactorState } from '@diet-app/shared';
+import { type RecoveryCodes, type SecondFactorChallenge, type SecondFactorConfirmRequest, type SecondFactorProofRequest, type SecondFactorSetup, type SecondFactorSetupRequest, type SecondFactorSignInRequest, type SecondFactorState } from '@diet-app/shared';
+import { storedLocale } from '../common/stored-settings.js';
 import { Passwords } from '../common/passwords.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -69,7 +70,7 @@ export class AccountSecondFactor {
       await tx.refreshToken.updateMany({ where: { userId, familyId: { not: sessionId }, revokedAt: null }, data: { revokedAt: now } });
     });
     const holder = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (holder) this.mail.sendSecondFactorOnNotice(this.addressOf(holder), Locale.parse(holder.locale));
+    if (holder) this.mail.sendSecondFactorOnNotice(this.addressOf(holder), storedLocale(holder.locale));
     return { recoveryCodes };
   }
 
@@ -78,7 +79,7 @@ export class AccountSecondFactor {
     const holder = await this.holderOf(userId, dto.currentPassword);
     await this.prove(holder, dto.code, notOn);
     await this.factors.remove({ userId });
-    this.mail.sendSecondFactorOffNotice(this.addressOf(holder), 'holder', Locale.parse(holder.locale));
+    this.mail.sendSecondFactorOffNotice(this.addressOf(holder), 'holder', storedLocale(holder.locale));
   }
 
   /** New recovery codes in the place of the ones the account had. */
@@ -100,7 +101,7 @@ export class AccountSecondFactor {
     if (!holder || !(await this.factors.remove({ userId: holder.id }))) {
       throw new NotFoundException({ error: 'SECOND_FACTOR_NOT_FOUND', message: 'No account with that address has a second factor.' });
     }
-    this.mail.sendSecondFactorOffNotice(this.addressOf(holder), 'operator', Locale.parse(holder.locale));
+    this.mail.sendSecondFactorOffNotice(this.addressOf(holder), 'operator', storedLocale(holder.locale));
   }
 
   /**
@@ -139,7 +140,7 @@ export class AccountSecondFactor {
   private async prove(holder: Holder, code: string, none: () => Error): Promise<void> {
     const check = await this.factors.check({ userId: holder.id }, code);
     if (check === null) throw none();
-    const locale = Locale.parse(holder.locale);
+    const locale = storedLocale(holder.locale);
     if (!check.accepted) {
       // Whoever got this far knows the password. If it is not the holder, the holder should hear of it.
       if (check.nowWaits) this.mail.sendSecondFactorFailedNotice(this.addressOf(holder), locale);

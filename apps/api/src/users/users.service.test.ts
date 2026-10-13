@@ -81,6 +81,15 @@ describe('UsersService', () => {
       expect(me.theme).toBe('system');
     });
 
+    it('reads a choice this version does not know as the one an account begins with, and the account goes on working', async () => {
+      // A language or a palette a later version dropped, or a value written into the row by hand.
+      prisma = makePrisma(makeUser({ locale: 'de', theme: 'sepia', palette: 'neon', aiMode: 'shared', weightUnit: 'stone' }));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      service = new UsersService(prisma as any, config as any, mail as any, auth as any, new AccountEmail(config as any), new Passwords(config as any));
+
+      expect(await service.getMe('user-1')).toMatchObject({ email: 'alice@example.com', locale: 'en', theme: 'system', palette: 'default', aiMode: 'none', weightUnit: null });
+    });
+
     it('throws USER_NOT_FOUND when missing', async () => {
       prisma = makePrisma(null);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise

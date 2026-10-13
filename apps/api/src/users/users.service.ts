@@ -17,6 +17,7 @@ import type {
 } from '@diet-app/shared';
 import { AiMode, Locale, Palette, Theme, WeightUnit } from '@diet-app/shared';
 import { Passwords } from '../common/passwords.js';
+import { storedAiMode, storedLocale, storedPalette, storedTheme, storedWeightUnit } from '../common/stored-settings.js';
 import type { Env } from '../config/env.js';
 import { carryUsageOfAccount } from '../ai/ai-quota.service.js';
 import { AccountEmail } from '../auth/account-email.js';
@@ -117,7 +118,7 @@ export class UsersService {
       await retirePendingLinks(tx, userId);
     });
     if (this.mail.enabled) {
-      this.mail.sendPasswordChangedNotice(this.emails.open(user.emailEncrypted, user.id), Locale.parse(user.locale));
+      this.mail.sendPasswordChangedNotice(this.emails.open(user.emailEncrypted, user.id), storedLocale(user.locale));
     }
   }
 
@@ -165,7 +166,7 @@ export class UsersService {
       }),
     ]);
     const link = `${this.config.get('APP_URL', { infer: true })}/confirm-email-change?token=${raw}`;
-    const locale = Locale.parse(user.locale);
+    const locale = storedLocale(user.locale);
     this.mail.sendEmailChange(newEmail, link, locale);
     // The address the account has is told: its holder may not be who asked.
     this.mail.sendEmailChangeRequestedNotice(this.emails.open(user.emailEncrypted, user.id), newEmail, locale);
@@ -181,7 +182,7 @@ export class UsersService {
         message: 'This email address is already verified.',
       });
     }
-    await this.auth.resendVerificationEmail(userId, this.emails.open(user.emailEncrypted, user.id), Locale.parse(user.locale));
+    await this.auth.resendVerificationEmail(userId, this.emails.open(user.emailEncrypted, user.id), storedLocale(user.locale));
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {
@@ -233,11 +234,11 @@ export class UsersService {
       displayName: user.displayName,
       role: user.role,
       emailVerified: user.emailVerified,
-      locale: Locale.parse(user.locale),
-      theme: Theme.parse(user.theme),
-      palette: Palette.parse(user.palette),
-      aiMode: AiMode.parse(user.aiMode),
-      weightUnit: WeightUnit.nullable().catch(null).parse(user.weightUnit),
+      locale: storedLocale(user.locale),
+      theme: storedTheme(user.theme),
+      palette: storedPalette(user.palette),
+      aiMode: storedAiMode(user.aiMode),
+      weightUnit: storedWeightUnit(user.weightUnit),
     };
   }
 }

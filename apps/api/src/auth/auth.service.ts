@@ -18,8 +18,9 @@ import type {
   SecondFactorChallenge,
   SecondFactorSignInRequest,
 } from '@diet-app/shared';
-import { Locale } from '@diet-app/shared';
+import type { Locale } from '@diet-app/shared';
 import { deriveKey } from '../common/crypto.js';
+import { storedLocale } from '../common/stored-settings.js';
 import { Passwords } from '../common/passwords.js';
 import { isUniqueViolation } from '../common/prisma-errors.js';
 import type { Env } from '../config/env.js';
@@ -199,7 +200,7 @@ export class AuthService {
     const link = `${this.config.get('APP_URL', { infer: true })}/reset-password?token=${raw}`;
     // Emails the link when SMTP is configured. Without SMTP, MailService logs
     // it outside production only. Use the user's stored locale.
-    this.mail.sendPasswordReset(email, link, Locale.parse(user.locale));
+    this.mail.sendPasswordReset(email, link, storedLocale(user.locale));
   }
 
   /** Confirms an email address from a verification link. */
@@ -257,7 +258,7 @@ export class AuthService {
       // Someone registered the address after the check above.
       .catch(rethrowAsEmailTaken);
     // The address the account had is told that it has another.
-    this.mail.sendEmailChangedNotice(this.emails.open(account.emailEncrypted, token.userId), newEmail, Locale.parse(account.locale));
+    this.mail.sendEmailChangedNotice(this.emails.open(account.emailEncrypted, token.userId), newEmail, storedLocale(account.locale));
   }
 
   async confirmPasswordReset(dto: PasswordResetConfirm): Promise<void> {
@@ -276,7 +277,7 @@ export class AuthService {
     });
     // As after a change by its holder: the account is told that its password is another now.
     const account = await this.prisma.user.findUnique({ where: { id: token.userId }, select: { emailEncrypted: true, locale: true } });
-    if (account) this.mail.sendPasswordChangedNotice(this.emails.open(account.emailEncrypted, token.userId), Locale.parse(account.locale));
+    if (account) this.mail.sendPasswordChangedNotice(this.emails.open(account.emailEncrypted, token.userId), storedLocale(account.locale));
   }
 
   private async assertHuman(token: string | undefined): Promise<void> {
