@@ -24,7 +24,7 @@ import { macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v5';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v6';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -337,10 +337,15 @@ single violation, so be precise:
     title or a slug: no "Keto ...", "Low-carb ...", "High-protein ...",
     "Vegan ...", "Simple ...", "Easy ...", "Quick ...", "Healthy ...". The
     diets a recipe suits are shown beside it, worked out from its ingredients.
-14. \`mealTypes\` lists EVERY meal the dish suits, out of breakfast,
-    second_breakfast, lunch, dinner and snack. A main dish is as a rule
-    both lunch and dinner; a small breakfast dish or a snack is often a
-    second_breakfast as well.
+14. \`mealTypes\` lists every meal the dish suits. A dish is EITHER a main
+    dish OR a small one, never both:
+    - a main dish is \`lunch\`, \`dinner\`, or as a rule both;
+    - a small dish is any of \`breakfast\`, \`second_breakfast\`, \`snack\`
+      that suit it (a breakfast is often a second_breakfast as well, and
+      so is a snack).
+    A recipe that mixes the two kinds is rejected. Asked for a snack, write
+    a snack: something small, eaten between meals. Asked for a breakfast,
+    write a breakfast. Every recipe is a meal of its own, never a side dish.
 
 Return ONLY a JSON object of this exact shape — no prose, no fences:
 

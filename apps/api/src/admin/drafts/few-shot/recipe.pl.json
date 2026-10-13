@@ -43,7 +43,7 @@
       "pl": "Połówki awokado z jajkami na miękko — szybko, sycąco i z małą ilością węglowodanów."
     },
     "servings": 1,
-    "mealTypes": ["breakfast", "lunch"],
+    "mealTypes": ["breakfast", "second_breakfast"],
     "prepMinutes": 4,
     "cookMinutes": 7,
     "difficulty": "easy",

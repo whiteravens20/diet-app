@@ -68,7 +68,7 @@ describe('the examples the recipe generator shows a model', () => {
     // No diet, band or praise in a title or in the slug made of it.
     expect(shown.filter(({ slug, titles }) => /\b(keto|low.carb|high.protein|vegan|vegetarian|simple|easy|quick|healthy)\b/i.test(`${slug} ${titles.en}`)).map(({ slug }) => slug)).toEqual([]);
     // A main dish is one at noon and in the evening.
-    expect(shown.filter(({ mealTypes }) => mealTypes.includes('lunch') !== mealTypes.includes('dinner') && !mealTypes.includes('breakfast')).map(({ slug }) => slug)).toEqual([]);
+    expect(shown.filter(({ mealTypes }) => mealTypes.includes('lunch') !== mealTypes.includes('dinner')).map(({ slug }) => slug)).toEqual([]);
   });
 });
 
@@ -88,6 +88,6 @@ describe('a prompt for a diet', () => {
 
   it('asks for a dish that suits the meal, and for every meal the dish suits', () => {
     expect(asked()).toContain('Every recipe MUST suit at least one of these meals: dinner.');
-    expect(asked()).toContain('`mealTypes` lists EVERY meal the dish suits');
+    expect(asked()).toContain('A dish is EITHER a main\n    dish OR a small one, never both');
   });
 });

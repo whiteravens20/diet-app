@@ -52,6 +52,7 @@ type RecipeValidationReason =
   | 'slug-taken'
   | 'title-taken'
   | 'meal-not-asked-for'
+  | 'meals-of-two-kinds'
   | 'ingredient-count-out-of-bands'
   | 'step-count-too-high'
   | 'total-time-too-high'
@@ -155,6 +156,9 @@ export function jaccard(a: readonly string[], b: readonly string[]): number {
   return union === 0 ? 0 : intersection / union;
 }
 
+/** The meals a main dish is eaten at. Every other meal is a small one. */
+const MAIN_MEALS: ReadonlySet<string> = new Set(['lunch', 'dinner']);
+
 const LLM_YAP_PATTERNS = [
   /\bnote\s*:/i,
   /\bas an ai\b/i,
@@ -231,6 +235,12 @@ export function validateRecipeBatch(
     const requiredMeals = opts.requiredMeals ?? [];
     if (requiredMeals.length > 0 && !mealTypes.some((meal) => requiredMeals.includes(meal))) {
       return { ok: false, reason: 'meal-not-asked-for', key: slug, details: `asked for ${requiredMeals.join(', ')}` };
+    }
+    // A dish is a main one or a small one. A main dish that also says it is
+    // a snack or a breakfast was stretched to fit the meal that was asked
+    // for, and a plan would serve half a dinner between meals.
+    if (mealTypes.some((meal) => MAIN_MEALS.has(meal)) && mealTypes.some((meal) => !MAIN_MEALS.has(meal))) {
+      return { ok: false, reason: 'meals-of-two-kinds', key: slug, details: `${mealTypes.join(', ')}: a main dish is no breakfast and no snack` };
     }
 
     // Nor may two recipes share an English title, however it is cased.

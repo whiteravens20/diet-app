@@ -454,6 +454,20 @@ describe('validateRecipeBatch', () => {
     expect(forMeals(['lunch'], [])).toBe('accepted');
   });
 
+  it('refuses a main dish that also says it is a small meal, whatever was asked for, and takes meals of one kind together', () => {
+    const forMeals = (mealTypes: string[], requiredMeals: string[] = []) => {
+      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ mealTypes })]), resolveSlug, requiredMeals });
+      return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+    };
+
+    // A dinner stretched to fit the snack that was asked for.
+    expect(forMeals(['lunch', 'dinner', 'snack'], ['snack'])).toBe('meals-of-two-kinds at chicken-rice-bowl');
+    expect(forMeals(['breakfast', 'lunch'])).toBe('meals-of-two-kinds at chicken-rice-bowl');
+    expect(forMeals(['second_breakfast', 'dinner'])).toBe('meals-of-two-kinds at chicken-rice-bowl');
+    expect(forMeals(['lunch', 'dinner'])).toBe('accepted');
+    expect(forMeals(['breakfast', 'second_breakfast', 'snack'])).toBe('accepted');
+  });
+
   describe('a slug or a title another recipe has', () => {
     /** A second recipe unlike the first: its own slug and title, other ingredients, quick enough for the simple band. */
     const other = {
