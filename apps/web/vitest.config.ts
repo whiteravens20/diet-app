@@ -32,6 +32,20 @@ export default defineConfig({
         'src/app/**/{layout,loading,error,not-found,template,default,manifest}.{ts,tsx}',
         'src/i18n/**',
       ],
+      // A floor is what the tests reach today, less a point. The pages are
+      // tested in a browser as well (`e2e/`), which is not counted here: what
+      // these floors hold is that the logic and the components stay tested
+      // without one. The primitives every page is built from are tested whole.
+      thresholds: {
+        lines: 59,
+        functions: 54,
+        branches: 60,
+        statements: 59,
+        'src/lib/**': { lines: 80, functions: 73, branches: 78, statements: 80 },
+        'src/components/**': { lines: 67, functions: 58, branches: 68, statements: 66 },
+        'src/components/ui/**': { lines: 100, functions: 100, branches: 100, statements: 100 },
+        'src/app/**': { lines: 52, functions: 49, branches: 54, statements: 52 },
+      },
     },
   },
 });

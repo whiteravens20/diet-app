@@ -243,7 +243,7 @@ These start the real API on PostgreSQL and exercise it over HTTP and through its
 npm run test:cov
 ```
 
-For the API this runs the unit and the integration tests together, so it needs the same PostgreSQL. The API's coverage floors live in `apps/api/vitest.config.ts` and only move up. New code should not decrease coverage. PRs that add testable logic without corresponding tests will be asked to add them.
+For the API this runs the unit and the integration tests together, so it needs the same PostgreSQL; for the web it runs the component tests. The floors are in `apps/api/vitest.config.ts` and `apps/web/vitest.config.ts`: one for the whole, one for each directory of the API and each area of the web, and every line and function of the files where a mistake costs the most. A floor is what the tests reach, less a point: it moves up when tests are added, and is not lowered to let a change through. PRs that add testable logic without corresponding tests will be asked to add them.
 
 ### Performance budgets
 

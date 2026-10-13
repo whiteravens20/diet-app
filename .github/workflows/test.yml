@@ -67,7 +67,9 @@ jobs:
       - run: npm ci
       - run: npm run lint -- --filter=@diet-app/web
       - run: npm run typecheck -- --filter=@diet-app/web
-      - run: npm run test -- --filter=@diet-app/web
+      # Coverage-gated like the API's: vitest fails the job when a floor in
+      # vitest.config.ts is not reached.
+      - run: npm run test:cov -- --filter=@diet-app/web
       - run: npm run build -- --filter=@diet-app/web
 
   markers:
