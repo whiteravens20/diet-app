@@ -24,11 +24,11 @@
     "title": "Nie znaleziono strony",
     "body": "Nie mogliśmy znaleźć tego, czego szukasz. Link może być nieaktualny lub strona została przeniesiona.",
     "home": "Wróć na stronę główną",
-    "back": "Cofnij"
+    "back": "Wstecz"
   },
   "nav": {
     "menu": "Menu",
-    "dashboard": "Panel",
+    "dashboard": "Pulpit",
     "profiles": "Profile",
     "calculator": "Kalkulator",
     "recipes": "Przepisy",
@@ -58,7 +58,7 @@
     "byokTooltip": "Używasz własnego klucza AI. Bez limitu.",
     "exhaustedLabel": "0/{limit, number}",
     "exhaustedTooltip": "Miesięczny limit AI wyczerpany. Następne zapytanie odblokuje się {date}.",
-    "instanceExhaustedTooltip": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. Kolejne miejsce zwolni się {date}."
+    "instanceExhaustedTooltip": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. Kolejne zapytanie odblokuje się {date}."
   },
   "aiOff": {
     "note": "AI jest wyłączone dla tego konta, więc akcje, które pytają model, są nieaktywne. <settings>Włącz AI w Ustawieniach</settings>, żeby z nich korzystać."
@@ -122,7 +122,7 @@
     },
     "devWarning": {
       "title": "Uwaga — wczesny etap rozwoju.",
-      "body": "To oprogramowanie przedpremierowe, wciąż intensywnie rozwijane. Coś może przestać działać, dane mogą zostać skasowane między aktualizacjami, a całość może po prostu wybuchnąć Ci w twarz. Nie polegaj na nim w ważnych sprawach."
+      "body": "To oprogramowanie przedpremierowe, wciąż intensywnie rozwijane. Coś może przestać działać, dane mogą zostać skasowane między aktualizacjami, a całość może się po prostu posypać. Nie polegaj na nim w ważnych sprawach."
     },
     "headline": "Planowanie posiłków, które naprawdę ma sens.",
     "subhead": "Plany dopasowane do celu kalorycznego, dokładne wartości odżywcze i listy zakupów, które piszą się same. AI do wyboru — nigdy obowiązkowe.",
@@ -160,9 +160,9 @@
     "resetTitle": "Zresetuj hasło",
     "resetSubmit": "Wyślij link resetujący",
     "resetSent": "Sprawdź pocztę",
-    "resetSentBody": "Jeśli konto istnieje dla tego adresu, link do resetu właśnie tam zmierza.",
+    "resetSentBody": "Jeśli z tym adresem jest powiązane konto, wysłaliśmy na niego link do zresetowania hasła.",
     "newPasswordTitle": "Ustaw nowe hasło",
-    "newPasswordSubmit": "Zaktualizuj hasło",
+    "newPasswordSubmit": "Zmień hasło",
     "newPasswordDone": "Hasło zresetowane",
     "newPasswordDoneBody": "Możesz się teraz zalogować nowym hasłem.",
     "tokenInvalid": "Ten link do resetu jest nieprawidłowy lub wygasł.",
@@ -174,8 +174,8 @@
     "newPasswordField": "Nowe hasło",
     "confirmPasswordField": "Potwierdź nowe hasło",
     "passwordsDontMatch": "Hasła nie są takie same.",
-    "missingTokenTitle": "Brak tokenu",
-    "missingTokenBody": "Ta strona wymaga tokenu w adresie URL. Poproś o nowy link na stronie <link>przypomnienia hasła</link>.",
+    "missingTokenTitle": "Niepełny link",
+    "missingTokenBody": "W adresie tej strony brakuje kodu z wiadomości e-mail. Poproś o nowy link na stronie <link>przypomnienia hasła</link>.",
     "resetFailed": "Nie udało się zresetować hasła. Link mógł wygasnąć.",
     "redirecting": "Przenosimy Cię do logowania…",
     "verifyTitle": "Potwierdzanie adresu e-mail…",
@@ -183,13 +183,13 @@
     "verifySuccessBody": "Twój adres e-mail został potwierdzony. Możesz dalej korzystać z Diet App.",
     "verifyFailed": "Potwierdzenie nie powiodło się",
     "verifyFailedBody": "Ten link potwierdzający jest nieprawidłowy lub wygasł. Możesz poprosić o nowy w ustawieniach.",
-    "verifyMissingToken": "Ta strona wymaga tokenu potwierdzającego w adresie URL.",
+    "verifyMissingToken": "W adresie tej strony brakuje kodu potwierdzającego. Otwórz jeszcze raz link z wiadomości e-mail.",
     "changeEmailTitle": "Potwierdzanie nowego adresu e-mail…",
     "changeEmailSuccess": "Adres e-mail zaktualizowany",
     "changeEmailSuccessBody": "Adres e-mail konta został zmieniony. Zaloguj się ponownie przy użyciu nowego adresu.",
     "changeEmailFailed": "Potwierdzenie nie powiodło się",
     "changeEmailFailedBody": "Ten link jest nieprawidłowy lub wygasł, albo adres jest już używany.",
-    "changeEmailMissingToken": "Ta strona wymaga tokenu potwierdzającego w adresie URL."
+    "changeEmailMissingToken": "W adresie tej strony brakuje kodu potwierdzającego. Otwórz jeszcze raz link z wiadomości e-mail."
   },
   "secondFactor": {
     "title": "Logowanie dwuetapowe",
@@ -402,7 +402,7 @@
     "label": "Powiadomienia",
     "title": "Powiadomienia",
     "empty": "Brak nowości.",
-    "dismiss": "Odrzuć",
+    "dismiss": "Ukryj",
     "markAllRead": "Oznacz wszystkie jako przeczytane",
     "toastTitle": "{count, plural, one {Nowe powiadomienie} few {# nowe powiadomienia} many {# nowych powiadomień} other {# nowego powiadomienia}}",
     "toastMarkRead": "{count, plural, one {Oznacz jako przeczytane} other {Oznacz wszystkie jako przeczytane}}",
@@ -413,7 +413,7 @@
     "preferences_review": "Części składników lub przepisów, które były u Ciebie oznaczone, nie ma już w katalogu. Sprawdź unikane i ulubione składniki oraz zestawy ulubionych."
   },
   "dashboard": {
-    "title": "Panel",
+    "title": "Pulpit",
     "welcome": "Witaj w Diet App",
     "createFirstProfile": "Utwórz pierwszy profil, aby wyliczyć cel kaloryczny i wygenerować plan posiłków.",
     "createFirstProfileCta": "Utwórz profil",
@@ -529,7 +529,7 @@
       "macrosOff": "{points, plural, one {# punkt różnicy} few {# punkty różnicy} many {# punktów różnicy} other {# punktu różnicy}}",
       "packsUsed": "Zużycie opakowań",
       "packsUsedShare": "{percent}%",
-      "packsExplain": "Zużycie opakowań: ile z tego, co te plany kupują w opakowaniach nieprzechowujących się po otwarciu, zostaje zużyte. Podnoszą je przepisy, które dzielą takie składniki."
+      "packsExplain": "Zużycie opakowań: ile z tego, co te plany kupują w opakowaniach nietrwałych po otwarciu, zostaje zużyte. Podnoszą je przepisy, które dzielą takie składniki."
     },
     "usda": {
       "title": "Importer USDA",
@@ -555,7 +555,7 @@
       "explain": "AI proponuje przyjazne nazwy dla składników USDA; Ty akceptujesz, edytujesz lub odrzucasz. Zatwierdzone trafiają do tej instancji, do pliku albo do pull requesta.",
       "generate": "Wygeneruj propozycje",
       "running": "Generuję… {processed, number}/{total, number}",
-      "lastRun": "Ostatnie uruchomienie: zapisano {written}, pominięto {failed}",
+      "lastRun": "Ostatni przebieg: zapisano {written}, pominięto {failed}",
       "progress": "{processed, number} / {total, number} · {failed, number} pominiętych",
       "stop": "Zatrzymaj",
       "notConfigured": "Ustaw AI_DEFAULT_PROVIDER i AI_DEFAULT_MODEL w .env, aby włączyć generowanie propozycji.",
@@ -919,7 +919,7 @@
     "noProfileBody": "Najpierw utwórz profil i wygeneruj plan posiłków — lista zakupów powstaje z planu.",
     "noProfileCta": "Utwórz profil",
     "generate": "Wygeneruj listę",
-    "noPlansTitle": "Nie ma jeszcze planu, do którego robić zakupy",
+    "noPlansTitle": "Nie ma jeszcze planu, do którego można zrobić zakupy",
     "noPlans": "Listę zakupów tworzy się z planu posiłków. Najpierw ułóż plan dla tego profilu.",
     "noPlansCta": "Ułóż plan posiłków",
     "plan": "Plan",
@@ -952,7 +952,7 @@
     "copyByHandHint": "Przeglądarka nie udostępnia tej stronie schowka. Zaznacz tekst i skopiuj go.",
     "aisleEnergy": "około {kcal, number} kcal",
     "atHome": "w domu",
-    "bestBefore": "najlepiej przed {date}",
+    "bestBefore": "najlepiej spożyć przed {date}",
     "packsHint": "Przy tym, co sprzedaje się w opakowaniach, wiersz podaje, ile ich trzeba. Po zakupie naciśnij tę liczbę: to, czego plan z nich nie potrzebuje, trafi do spiżarni.",
     "buyPacks": "Kupione w opakowaniach: {packs}, {name}",
     "buyPacksTitle": "Kupione w opakowaniach: to, czego plan z nich nie potrzebuje, trafi do spiżarni.",
@@ -981,7 +981,7 @@
       "merge": "<strong>{to}</strong> (zamiast: {from}) w {count, plural, one {# posiłku} few {# posiłkach} many {# posiłkach} other {# posiłku}} — do kupienia {packs, plural, one {o # opakowanie} few {o # opakowania} many {o # opakowań} other {o # opakowania}} mniej",
       "mergeHow": "Zamień to w planie.",
       "mergeThen": "Ta lista powie wtedy, że nie odpowiada już planowi, i będzie można ją zaktualizować.",
-      "leftover": "<strong>{name}</strong>: z opakowania {size} zostanie {left}, a otwarte się nie przechowuje",
+      "leftover": "<strong>{name}</strong>: z opakowania {size} zostanie {left}, a po otwarciu szybko się psuje",
       "leftoverHow": "Zobacz w planie, co by to zużyło.",
       "none": "Nic: żaden wiersz nie zastąpi innego i z żadnego opakowania nie zostanie ponad trzy dziesiąte.",
       "errLoad": "Nie udało się przejrzeć listy."
@@ -1009,7 +1009,7 @@
     "title": "Plany posiłków",
     "subhead": "Plany dopasowane do celu kalorycznego — układane osobno dla każdego profilu.",
     "noProfile": "Brak profilu",
-    "noProfileBody": "Najpierw utwórz profil — plan posiłków jest generowany względem jego celu kalorycznego.",
+    "noProfileBody": "Najpierw utwórz profil — plan posiłków układa się pod jego cel kaloryczny.",
     "noProfileCta": "Utwórz profil",
     "generateFor": "Wygeneruj plan: {name}",
     "generate": "Wygeneruj plan",
@@ -1023,14 +1023,14 @@
     "calorieTargetHint": "Puste: cel z profilu, {kcal, number} kcal dziennie.",
     "planChoicesHint": "Dieta, liczba posiłków i cel kalorii dotyczą tylko tego planu. Profil zostaje bez zmian.",
     "mealPrepFriendly": "Gotowanie na zapas",
-    "mealPrepFriendlyHint": "Danie gotuje się raz na dwa dni z rzędu.",
+    "mealPrepFriendlyHint": "Jedno gotowanie wystarcza na dwa kolejne dni.",
     "applyPrefs": "Zastosuj preferencje",
-    "applyPrefsHint": "Działają niezależnie — zaznacz dowolne z nich albo żadnego. Alergeny zawsze są pomijane.",
+    "applyPrefsHint": "Działają niezależnie: możesz zaznaczyć dowolne z nich albo żadnej. Alergeny zawsze są pomijane.",
     "honourAvoid": "Pomijaj składniki z mojej listy unikanych",
     "preferFavorites": "Preferuj moje ulubione składniki",
     "preferInventory": "Preferuj przepisy korzystające ze spiżarni",
     "swapWithPantry": "Zamiany preferują to, co masz w spiżarni",
-    "swapWithPantryTooltip": "Gdy włączone, każda zamiana — także ta przez AI — preferuje przepisy (lub składniki zastępcze), które masz już w spiżarni.",
+    "swapWithPantryTooltip": "Gdy włączone, każda zamiana — także ta przez AI — preferuje przepisy (lub zamienniki) z tego, co masz już w spiżarni.",
     "generating": "Generowanie…",
     "generateButton": "Wygeneruj plan",
     "plansFor": "Plany: {name}",
@@ -1085,9 +1085,9 @@
     "includePastAndRetry": "Ułóż ponownie także dni, które już minęły",
     "reroll": {
       "title": "Ułóż plan ponownie",
-      "scope": "Co dostaje inne posiłki",
+      "scope": "Co ułożyć ponownie",
       "whole": "Cały plan",
-      "wholeHint": "Układany od nowa tak, jak został zamówiony, z profilem takim, jaki jest teraz: dieta i cel kaloryczny, które plan zostawił profilowi, idą za profilem.",
+      "wholeHint": "Układany od nowa z tymi samymi ustawieniami i z profilem w obecnym kształcie: dieta i cel kaloryczny, których plan nie nadpisał, są brane z profilu.",
       "fromToday": "Od dziś do końca planu",
       "fromTodayNotBegun": "Plan jeszcze się nie zaczął, więc to cały plan.",
       "fromTodayOver": "Wszystkie dni tego planu już minęły.",
@@ -1113,7 +1113,7 @@
       "keptEaten": "{count, plural, one {# posiłek oznaczony jako zjedzony} few {# posiłki oznaczone jako zjedzone} many {# posiłków oznaczonych jako zjedzone} other {# posiłku oznaczonego jako zjedzony}}",
       "keptCustom": "{count, plural, one {# własny posiłek} few {# własne posiłki} many {# własnych posiłków} other {# własnego posiłku}}",
       "keptLocked": "{count, plural, one {# posiłek przypięty do swojego przepisu} few {# posiłki przypięte do swoich przepisów} many {# posiłków przypiętych do swoich przepisów} other {# posiłku przypiętego do swojego przepisu}}",
-      "nothingPast": "Wybrane dni już minęły, a dni, które minęły, zostają bez zmian. Zaznacz je powyżej, żeby ułożyć ponownie także je.",
+      "nothingPast": "Wybrane dni już minęły, a dni, które minęły, zostają bez zmian. Zaznacz powyżej „Dni, które już minęły”, żeby ułożyć ponownie również je.",
       "nothingKept": "W wybranych dniach nic by się nie zmieniło.",
       "confirm": "Ułóż ponownie"
     },
@@ -1154,7 +1154,7 @@
     "customMacrosNote": "Własny posiłek — makroskładniki wpisane przez Ciebie.",
     "dietOverrideChip": "Spoza diety",
     "dietOverrideHint": "Ten przepis nie pasuje do diety planu ({diet}). Zostaje, dopóki go nie zamienisz.",
-    "dislikedChip": "Wolę nie",
+    "dislikedChip": "Nielubiane",
     "dislikedHint": "Zawiera: {foods}. Ten profil woli tego nie jeść: przy układaniu nic innego nie pasowało do posiłku albo profil dodał to później. Zamień posiłek, żeby to zmienić.",
     "conflictChip": {
       "allergen": "Alergen",
@@ -1180,7 +1180,7 @@
     "customCarbs": "Węglowodany (g)",
     "customServings": "Porcje",
     "customPerServing": "Jedna porcja zawiera",
-    "customServingsHint": "Posiłek liczy się jako tyle takich porcji.",
+    "customServingsHint": "Ile takich porcji składa się na posiłek.",
     "customTotal": "Posiłek doda do dnia: {calories, number} kcal · białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g.",
     "customTotalPending": "Tu pojawi się to, co posiłek doda do dnia, gdy wpiszesz jedną porcję i liczbę porcji.",
     "customSubmit": "Dodaj posiłek",
@@ -1268,7 +1268,7 @@
       "sheetDay": "{kcal, number} z {target, number} kcal"
     },
     "packs": {
-      "line": "Opakowania, które po otwarciu się nie przechowują: jadłospis zużywa {percent}% tego, co kupuje{wasted, plural, =0 {.} one {, a z # opakowania zostaje ponad trzy dziesiąte.} few {, a z # opakowań zostaje ponad trzy dziesiąte.} many {, a z # opakowań zostaje ponad trzy dziesiąte.} other {, a z # opakowania zostaje ponad trzy dziesiąte.}}",
+      "line": "Produkty nietrwałe po otwarciu: jadłospis zużywa {percent}% tego, co kupuje{wasted, plural, =0 {.} one {, a z # opakowania zostaje ponad trzy dziesiąte.} few {, a z # opakowań zostaje ponad trzy dziesiąte.} many {, a z # opakowań zostaje ponad trzy dziesiąte.} other {, a z # opakowania zostaje ponad trzy dziesiąte.}}",
       "left": "{name}: zostaje {left} z opakowania {size}",
       "leftMuch": "{name}: zostaje {left} z opakowania {size}, ponad trzy dziesiąte",
       "allFinished": "Każde otwarte opakowanie jest zużyte do końca.",
@@ -1284,18 +1284,18 @@
       "errLoad": "Nie udało się poszukać zamian."
     },
     "variations": {
-      "title": "Inne sposoby na {date}",
+      "title": "Inne warianty dnia {date}",
       "intro": "Każdy z nich to dzień, który planer ułożyłby dla tego planu: w jego limitach, wokół tego, co w dniu zostaje. Nic się nie zmienia, dopóki żadnego nie wybierzesz.",
-      "loading": "Układam inne sposoby…",
+      "loading": "Układam inne warianty…",
       "now": "Obecnie: {kcal, number} z {target, number} kcal. {wasted, plural, =0 {Plan nie zostawia żadnego otwartego opakowania, z którego zostaje ponad trzy dziesiąte.} one {Plan zostawia # otwarte opakowanie, z którego zostaje ponad trzy dziesiąte.} few {Plan zostawia # otwarte opakowania, z których zostaje ponad trzy dziesiąte.} many {Plan zostawia # otwartych opakowań, z których zostaje ponad trzy dziesiąte.} other {Plan zostawia # otwartego opakowania, z którego zostaje ponad trzy dziesiąte.}}",
-      "way": "Sposób {n}",
+      "way": "Wariant {n}",
       "take": "Wybierz ten dzień",
       "stays": "zostaje",
       "mealEnergy": "{kcal, number} kcal",
       "dayLine": "{kcal, number} z {target, number} kcal · białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g",
       "packsLine": "{wasted, plural, =0 {Z nim plan nie zostawiłby żadnego otwartego opakowania, z którego zostaje ponad trzy dziesiąte.} one {Z nim plan zostawiłby # otwarte opakowanie, z którego zostaje ponad trzy dziesiąte.} few {Z nim plan zostawiłby # otwarte opakowania, z których zostaje ponad trzy dziesiąte.} many {Z nim plan zostawiłby # otwartych opakowań, z których zostaje ponad trzy dziesiąte.} other {Z nim plan zostawiłby # otwartego opakowania, z którego zostaje ponad trzy dziesiąte.}}",
-      "none": "Katalog nie zostawia innego sposobu na ten dzień w limitach planu.",
-      "errLoad": "Nie udało się ułożyć innych sposobów na ten dzień.",
+      "none": "W limitach planu katalog nie daje innego wariantu tego dnia.",
+      "errLoad": "Nie udało się ułożyć innych wariantów tego dnia.",
       "errTake": "Nie udało się zmienić dnia."
     }
   },
@@ -1336,7 +1336,7 @@
     "weightUnitByRegion": "Według mojego regionu",
     "weightUnitKg": "Kilogramy",
     "weightUnitLb": "Funty",
-    "weightUnitHint": "Jednostka, w której waga ciała jest pokazywana i wpisywana, na pulpicie i w profilu. „Według mojego regionu” kieruje się przeglądarką: funty w krajach, które w nich ważą, kilogramy wszędzie indziej.",
+    "weightUnitHint": "Jednostka, w której waga ciała jest pokazywana i wpisywana, na pulpicie i w profilu. „Według mojego regionu” kieruje się przeglądarką: funty w krajach, w których się ich używa, kilogramy wszędzie indziej.",
     "weightUnitFailed": "Nie udało się zapisać jednostki.",
     "themeLight": "Jasny",
     "themeDark": "Ciemny",
@@ -1368,7 +1368,7 @@
     "aiModeFailed": "Nie udało się zaktualizować trybu AI.",
     "aiQuotaHeading": "Miesięczne użycie",
     "aiQuotaUsed": "Wykorzystano {used, number}/{limit, number} zapytań w tym miesiącu",
-    "aiQuotaResetAt": "Najbliższe miejsce zwolni się {date}",
+    "aiQuotaResetAt": "Następne zapytanie odblokuje się {date}",
     "aiQuotaUnused": "Nie użyto jeszcze żadnych zapytań — licznik resetuje się 30 dni po pierwszym wywołaniu.",
     "aiTestConnection": "Sprawdź połączenie",
     "aiTesting": "Sprawdzanie…",
@@ -1401,9 +1401,9 @@
     "password": "Hasło",
     "currentPassword": "Aktualne hasło",
     "newPasswordLabel": "Nowe hasło",
-    "changePassword": "Zaktualizuj hasło",
-    "changingPassword": "Aktualizacja…",
-    "passwordChanged": "Hasło zaktualizowane. Zaloguj się ponownie nowym hasłem.",
+    "changePassword": "Zmień hasło",
+    "changingPassword": "Zmienianie…",
+    "passwordChanged": "Hasło zmienione. Zaloguj się ponownie nowym hasłem.",
     "passwordFailed": "Nie udało się zmienić hasła.",
     "sessions": "Aktywne sesje",
     "sessionsBody": "Każda przeglądarka i aplikacja zalogowana na Twoje konto. Wyloguj te, których nie używasz albo nie znasz.",
@@ -1420,7 +1420,7 @@
     "emailHint": "Używany do logowania i odzyskiwania konta.",
     "emailVerified": "Zweryfikowany",
     "emailUnverified": "Niezweryfikowany",
-    "danger": "Strefa zagrożenia",
+    "danger": "Usuwanie konta",
     "dangerSubhead": "Trwale usuń swoje konto wraz z każdym profilem, planem posiłków, ulubionym przepisem, listą zakupów i kluczem AI. Tej operacji nie można cofnąć.",
     "deleteAccount": "Usuń konto",
     "deleteAccountConfirmTitle": "Usuń konto",
@@ -1455,7 +1455,7 @@
     "search": "Szukaj",
     "searchPlaceholder": "Tytuł przepisu…",
     "dietType": "Typ diety",
-    "mealType": "Typ posiłku",
+    "mealType": "Pora posiłku",
     "difficulty": "Trudność",
     "any": "Dowolny",
     "maxCalories": "Maks. kcal/porcję",
@@ -1627,7 +1627,7 @@
     "nameHint": "Nazwa profilu: Twoje imię albo imię osoby, dla której planujesz.",
     "age": "Wiek",
     "sex": "Płeć",
-    "sexHint": "Wymaga jej wzór na energię zużywaną przez organizm. Bez niej wynik leży pośrodku.",
+    "sexHint": "Wymaga jej wzór na energię zużywaną przez organizm. Bez niej przyjmujemy wartość pośrednią.",
     "preferNotToSay": "Wolę nie podawać",
     "heightCm": "Wzrost (cm)",
     "weight": "Waga ({unit})",
@@ -1648,7 +1648,7 @@
     "paceComesTo": "{kcal, number} kcal dziennie",
     "paceSlowed": "spowolnione",
     "paceHeld": "wstrzymane",
-    "paceSlowedNote": "Tempo oznaczone jako „spowolnione” odebrałoby więcej niż jedną czwartą Twojego zapotrzebowania albo zeszło poniżej najniższego celu, jaki wylicza plan, więc plan odbiera mniej.",
+    "paceSlowedNote": "Tempo oznaczone jako „spowolnione” odebrałoby więcej niż jedną czwartą Twojego zapotrzebowania albo zeszło poniżej najniższego celu, jaki wylicza plan, więc plan odejmuje mniej.",
     "manualKcalOverride": "Cel kcal wpisany ręcznie (opcjonalnie)",
     "manualKcalHint": "Zostaw puste, a zdecyduje tempo.",
     "auto": "auto",
@@ -1681,7 +1681,7 @@
     "createProfile": "Utwórz profil",
     "wizard": {
       "title": "Ustaw swój profil",
-      "intro": "Trzy krótkie kroki. Liczby pod „Co z tego wynika” podążają za tym, co wpisujesz, a przed ostatnim krokiem nic nie jest zapisywane.",
+      "intro": "Trzy krótkie kroki. Liczby pod „Co z tego wynika” zmieniają się wraz z tym, co wpisujesz, a przed ostatnim krokiem nic nie jest zapisywane.",
       "progress": "Krok {step} z {of}: {name}",
       "steps": {
         "body": "O Tobie",
@@ -1689,7 +1689,7 @@
         "food": "Jak jesz"
       },
       "bodyLead": "Wiek, wzrost, waga i to, ile się ruszasz, decydują o tym, ile energii Twój organizm zużywa w ciągu dnia.",
-      "goalLead": "Wybierz tempo. Przy każdym widać, ile dziennie z niego wynika dla opisanego ciała.",
+      "goalLead": "Wybierz tempo. Przy każdym widać, ile kalorii dziennie z niego wynika przy podanych danych.",
       "foodLead": "Dieta decyduje o tym, z których przepisów może korzystać plan i jak dzieli się energia dnia. Przepis z którymś z Twoich alergenów nigdy nie jest planowany.",
       "made": "Profil „{name}” jest gotowy",
       "madeNext": "Teraz pora na pierwszy plan posiłków. Ulubione produkty, kuchnie i produkty do unikania są niżej na tej stronie i mogą poczekać.",
@@ -1724,7 +1724,7 @@
     "title": "Co z tego wynika",
     "pending": "Wpisz wiek, wzrost i wagę, aby zobaczyć, co z nich wynika.",
     "waiting": "Liczę wartości…",
-    "failed": "Nie udało się teraz policzyć wartości. Nic nie stoi na przeszkodzie, aby iść dalej.",
+    "failed": "Nie udało się teraz policzyć wartości. Możesz mimo to przejść dalej.",
     "dailyTarget": "Cel dzienny",
     "maintenance": "Zapotrzebowanie",
     "atRest": "W spoczynku",
@@ -1738,7 +1738,7 @@
   },
   "calculator": {
     "title": "Kalkulator",
-    "subhead": "Ile dziennie wynika z danych ciała, aktywności, tempa i diety — liczone na bieżąco.",
+    "subhead": "Dzienny cel kaloryczny liczony na bieżąco z Twoich danych, aktywności, tempa i diety.",
     "startFrom": "Zacznij od",
     "empty": "Pusty formularz",
     "notKept": "Nic z tego, co tu wpiszesz, nie jest zapisywane i żaden plan się nie zmienia. Aby zmienić cel swoich planów, edytuj <profiles>profil</profiles>."
@@ -1762,7 +1762,7 @@
     "applyFailed": "Nie udało się zastosować zamiany.",
     "invalid": "Ta zamiana narusza ograniczenia profilu — nie można jej zastosować.",
     "sizing": {
-      "energy": "{fromName} ({fromAmount}) → {toName} ({toAmount}): tyle, ile ma tę samą energię.",
+      "energy": "{fromName} ({fromAmount}) → {toName} ({toAmount}): ilość dobrana tak, by energia była ta sama.",
       "capped": "{fromName} ({fromAmount}) → {toName} ({toAmount}): zamiennika jest najwyżej trzy razy tyle, więc posiłek ma mniej energii.",
       "mass": "{fromName} ({fromAmount}) → {toName} ({toAmount}): ta sama ilość, bo jeden z nich nie ma energii, według której można by przeliczyć."
     },
@@ -1817,9 +1817,9 @@
   },
   "planOverview": {
     "title": {
-      "active": "Plan w toku",
-      "upcoming": "Plan, który zaczyna się jako następny",
-      "past": "Plan, który skończył się ostatnio"
+      "active": "Trwający plan",
+      "upcoming": "Najbliższy plan",
+      "past": "Ostatnio zakończony plan"
     },
     "span": "{dates} · {diet}",
     "open": "Otwórz plan",
@@ -1844,7 +1844,7 @@
     "shoppingHint": "Odhaczono {ticked, number} z {entries, plural, one {# pozycji} few {# pozycji} many {# pozycji} other {# pozycji}} na listach planu.",
     "shoppingNone": "—",
     "shoppingNoneHint": "Plan nie ma jeszcze listy zakupów.",
-    "macros": "Co zawiera dzień, a w co celuje",
+    "macros": "Makroskładniki dnia: zaplanowane i cel",
     "macroValue": "{planned, number} z {target, number} g",
     "days": "Dzień po dniu",
     "day": "Dzień",
@@ -1918,7 +1918,7 @@
       "dairy": "Nabiał",
       "meat": "Mięso",
       "fish": "Ryby",
-      "grains": "Zboża",
+      "grains": "Produkty zbożowe",
       "legumes": "Rośliny strączkowe",
       "nuts_seeds": "Orzechy i nasiona",
       "fats_oils": "Tłuszcze i oleje",
@@ -1990,7 +1990,7 @@
     },
     "section9": {
       "title": "Zmiany",
-      "body": "Niniejszy regulamin może ulegać zmianom. O istotnych zmianach informujemy w informacjach o wydaniach projektu. Dalsze korzystanie po opublikowaniu zmiany oznacza jej akceptację."
+      "body": "Niniejszy regulamin może ulegać zmianom. O istotnych zmianach piszemy w opisach wydań projektu. Dalsze korzystanie po opublikowaniu zmiany oznacza jej akceptację."
     },
     "section10": {
       "title": "Kontakt",
