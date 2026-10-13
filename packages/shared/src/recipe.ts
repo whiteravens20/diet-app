@@ -254,6 +254,17 @@ export const AddFavoriteRequest = z.object({
 });
 export type AddFavoriteRequest = z.infer<typeof AddFavoriteRequest>;
 
+/** A mark as it is kept: what marking a recipe answers with. */
+export const FavoriteMark = z.object({
+  id: z.string().uuid(),
+  profileId: z.string().uuid(),
+  recipeId: z.string().uuid(),
+  tags: z.array(z.string()),
+  sentiment: FavoriteSentiment,
+  createdAt: z.string().datetime(),
+});
+export type FavoriteMark = z.infer<typeof FavoriteMark>;
+
 /** The order a profile's marked recipes are listed in. */
 export const FavoriteSort = z.enum(['newest', 'title', 'calories']);
 export type FavoriteSort = z.infer<typeof FavoriteSort>;

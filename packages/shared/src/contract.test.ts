@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { CaloriePreviewRequest, DietType, FdcDataTypes, MacroChange, Macros, MacroSplit, MEAL_SLOTS_BY_COUNT, PACES_OF_LOSS, ProfileInput, ProfileUpdate, RecipeDietTag, RegisterRequest, fitsDiet } from './index.js';
+import { CaloriePreviewRequest, DietType, FdcDataTypes, MacroChange, Macros, MacroSplit, MEAL_SLOTS_BY_COUNT, PACES_OF_LOSS, ProfileInput, ProfileUpdate, RecipeDietTag, RegisterRequest, ShipResult, fitsDiet } from './index.js';
 
 describe('fitsDiet', () => {
   it.each(RecipeDietTag.options)('admits a recipe to a %s plan only when it carries that tag', (diet) => {
@@ -163,5 +163,14 @@ describe('what a change of protein, fat and carbohydrate may be', () => {
     const less = { protein: -4.5, fat: 0, carbs: 12 };
     expect(MacroChange.safeParse(less).success).toBe(true);
     expect(Macros.safeParse(less).success).toBe(false);
+  });
+});
+
+describe('what a ship answers with', () => {
+  it('is told apart by the mode it was made in', () => {
+    const local = { mode: 'local', kind: 'recipe', shippedDraftIds: ['a'], skipped: [], sidecarPaths: [] };
+    expect(ShipResult.parse(local)).toEqual(local);
+    expect(ShipResult.safeParse({ ...local, mode: 'upstream-pr' }).success).toBe(false);
+    expect(ShipResult.safeParse({ mode: 'bundle', kind: 'ingredient-name', batchId: 'b', draftIds: [], skipped: [{ draftId: 'd', slug: 's', reason: 'r' }], fileName: 'f.json', content: {} }).success).toBe(true);
   });
 });

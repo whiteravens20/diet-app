@@ -273,6 +273,21 @@ export const DraftRunnerState = z.object({
 });
 export type DraftRunnerState = z.infer<typeof DraftRunnerState>;
 
+/** Where a run that writes recipe drafts stands. */
+export const RecipeRunState = DraftRunnerState.extend({
+  /** The diet and the meal the run is writing for, when it chooses them itself. */
+  target: z.object({ diet: DietType, meal: MealType }).nullable(),
+  /** How many drafts of each complexity the run has written. */
+  complexityCounts: z.record(Complexity, z.number().int().min(0)),
+  /** The mix the run reached is more than a quarter off the mix it was asked for, in some band. */
+  mixDrift: z.boolean(),
+  /** Why the last answer of the model was refused, which key it was about, and how the answer began. */
+  lastRejectReason: z.string().nullable(),
+  lastRejectKey: z.string().nullable(),
+  lastRejectHead: z.string().nullable(),
+});
+export type RecipeRunState = z.infer<typeof RecipeRunState>;
+
 // ── Recipe drafts ─────────────────────────────────────────────────────────────
 
 /** Locale-keyed string-array map — used for `steps` where every entry is an
@@ -562,3 +577,158 @@ export const ReviewerReasonBody = z
   .object({ reason: z.string().max(500).optional() })
   .strict();
 export type ReviewerReasonBody = z.infer<typeof ReviewerReasonBody>;
+
+/** A page of the queue: its rows, how many there are in all, and where the page is. */
+const pageOf = <T extends z.ZodType>(row: T) =>
+  z.object({
+    items: z.array(row),
+    total: z.number().int().min(0),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+  });
+
+export const RecipeDraftPage = pageOf(RecipeDraft);
+export type RecipeDraftPage = z.infer<typeof RecipeDraftPage>;
+
+export const IngredientNameDraftPage = pageOf(IngredientNameDraft);
+export type IngredientNameDraftPage = z.infer<typeof IngredientNameDraftPage>;
+
+export const RecipeReviewSlicePage = pageOf(RecipeReviewSlice);
+export type RecipeReviewSlicePage = z.infer<typeof RecipeReviewSlicePage>;
+
+export const IngredientNameReviewSlicePage = pageOf(IngredientNameReviewSlice);
+export type IngredientNameReviewSlicePage = z.infer<typeof IngredientNameReviewSlicePage>;
+
+/** What rejecting several drafts at once did: those rejected, and those left as they were, with why. */
+export const RejectedDrafts = z.object({
+  rejected: z.array(z.string()),
+  skipped: z.array(z.object({ id: z.string(), error: z.string() })),
+});
+export type RejectedDrafts = z.infer<typeof RejectedDrafts>;
+
+/** Whether reviewers may sign in, and the languages there are to review. Never the password. */
+export const ReviewStatus = z.object({
+  enabled: z.boolean(),
+  passwordSet: z.boolean(),
+  locales: z.array(Locale),
+});
+export type ReviewStatus = z.infer<typeof ReviewStatus>;
+
+/** The reviewer's session, or none. */
+export const ReviewerSessionAnswer = z.object({ session: ReviewerSessionDto.nullable() });
+export type ReviewerSessionAnswer = z.infer<typeof ReviewerSessionAnswer>;
+
+/** A draft that did not ship: which one, and why, as `<rule>` or `<rule>: <detail>`. */
+export const SkippedDraft = z.object({
+  draftId: z.string(),
+  /** The draft's slug, or the slug of the ingredient it names. */
+  slug: z.string(),
+  reason: z.string(),
+});
+export type SkippedDraft = z.infer<typeof SkippedDraft>;
+
+/** What the instance's own data directory holds, as far as it can be read. */
+export const InstanceDataState = z.object({
+  /** Whether the API can write there: a ship that cannot leaves no copy to restore from. */
+  writable: z.boolean(),
+  recipeFiles: z.number().int().min(0),
+  recipes: z.number().int().min(0),
+  names: z.number().int().min(0),
+});
+export type InstanceDataState = z.infer<typeof InstanceDataState>;
+
+/** The ways approved drafts can be shipped on this instance, and how many wait. */
+export const ShipConfig = z.object({
+  modes: z.object({
+    local: z.object({ available: z.literal(true) }),
+    upstreamPr: z.object({
+      available: z.boolean(),
+      enabled: z.boolean(),
+      /** Why the mode is not available, when it is not. */
+      reason: z.string().nullable(),
+      baseBranch: z.string(),
+      remote: z.string(),
+    }),
+    bundle: z.object({ available: z.literal(true) }),
+  }),
+  pull: z.object({ available: z.literal(true), defaultSource: z.string(), tokenSet: z.boolean() }),
+  instanceData: InstanceDataState,
+  approvedCounts: z.object({ recipe: z.number().int().min(0), ingredientName: z.number().int().min(0) }),
+});
+export type ShipConfig = z.infer<typeof ShipConfig>;
+
+/** What a ship did, by the mode it was made in. */
+export const ShipResult = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('local'),
+    kind: ShipKind,
+    shippedDraftIds: z.array(z.string()),
+    skipped: z.array(SkippedDraft),
+    /** The files of the instance's data directory that were written. */
+    sidecarPaths: z.array(z.string()),
+    /** Why those files could not be written, when they could not. The ship itself stands. */
+    sidecarError: z.string().optional(),
+  }),
+  z.object({
+    mode: z.literal('upstream-pr'),
+    prUrl: z.string(),
+    branch: z.string(),
+    shippedDraftIds: z.array(z.string()),
+    skipped: z.array(SkippedDraft),
+  }),
+  z.object({
+    mode: z.literal('bundle'),
+    kind: ShipKind,
+    batchId: z.string(),
+    /** The drafts the bundle holds, and the approved ones left out, each with the reason. */
+    draftIds: z.array(z.string()),
+    skipped: z.array(SkippedDraft),
+    /** The name to save the file under, and what the file holds: a batch of recipes or the names of ingredients, as `data/` keeps them. */
+    fileName: z.string(),
+    content: z.unknown(),
+  }),
+]);
+export type ShipResult = z.infer<typeof ShipResult>;
+
+/** The pull request that carries this instance's names of ingredients. */
+export const OverridesPushed = z.object({
+  prUrl: z.string(),
+  branch: z.string(),
+  rowCount: z.number().int().min(0),
+});
+export type OverridesPushed = z.infer<typeof OverridesPushed>;
+
+/** What taking names of ingredients in from a file did. */
+export const OverridesPulled = z.object({
+  source: z.string(),
+  resolvedUrl: z.string(),
+  /** Ingredients whose names were written, and the rows written for them. */
+  applied: z.number().int().min(0),
+  rowsWritten: z.number().int().min(0),
+  /** Ingredients of the file that this instance does not have. */
+  skippedSlugs: z.array(z.string()),
+  /** Entries that break a rule for names, each with the reason. Nothing of them was stored. */
+  refused: z.array(z.object({ slug: z.string(), reason: z.string() })),
+  /** How many ingredients the file names. */
+  total: z.number().int().min(0),
+});
+export type OverridesPulled = z.infer<typeof OverridesPulled>;
+
+/** What restoring from the instance's data directory did. */
+export const RestoredFromInstanceData = z.object({
+  recipes: z.object({
+    added: z.number().int().min(0),
+    rewritten: z.number().int().min(0),
+    /** Recipes left out, with the file they are in and the reason. */
+    skipped: z.array(z.object({ file: z.string(), slug: z.string(), reason: z.string() })),
+  }),
+  names: z.object({
+    applied: z.number().int().min(0),
+    /** Names for ingredients the catalogue does not have, and names that break a rule. */
+    skippedSlugs: z.array(z.string()),
+    refused: z.array(z.object({ slug: z.string(), reason: z.string() })),
+  }),
+  /** Files that could not be read at all, with the reason. */
+  unreadable: z.array(z.object({ file: z.string(), reason: z.string() })),
+});
+export type RestoredFromInstanceData = z.infer<typeof RestoredFromInstanceData>;

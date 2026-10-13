@@ -23,6 +23,7 @@ export * from './shopping-list.js';
 export * from './inventory.js';
 export * from './ai.js';
 export * from './drafts.js';
+export * from './admin.js';
 export * from './recipe-import.js';
 export * from './weight.js';
 export * from './notification.js';
