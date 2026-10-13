@@ -60,6 +60,25 @@ test.describe('a shopping list, taken out of the application', () => {
     expect(rows).toHaveLength(entries + 1);
   });
 
+  test('is made into a document set in the typeface the application carries, and in no other', async ({ session, messages }) => {
+    const page = session.page;
+    const lists = messages.shoppingLists as Texts;
+    await page.goto('/shopping-lists');
+    await settled(page);
+    await expect(page.getByRole('main').getByRole('checkbox').first()).toBeVisible();
+
+    const saved = page.waitForEvent('download');
+    await page.getByRole('button', { name: lists.printPdf!, exact: true }).first().click();
+    const file = await saved;
+
+    expect(file.suggestedFilename()).toMatch(/^shopping-list-\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}\.pdf$/);
+    // A document names the fonts it holds. A character the application's typeface lacked would be drawn in a
+    // built-in one, which would then be named beside it.
+    const bytes = readFileSync(await file.path(), 'latin1');
+    const fonts = [...new Set([...bytes.matchAll(/\/BaseFont\s*\/(?:[A-Z]{6}\+)?([A-Za-z-]+)/g)].map((found) => found[1]))].sort();
+    expect(fonts).toEqual(['Inter-Bold', 'Inter-Regular']);
+  });
+
   test('says what each aisle comes to, and takes what the user says is at home', async ({ session, messages }) => {
     const page = session.page;
     const lists = messages.shoppingLists as Texts;

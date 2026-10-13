@@ -22,9 +22,12 @@ import { packsStand, packsText } from './packs';
 /*
  * Self-hosted PDF generator for the shopping list. The default @react-pdf
  * built-in fonts (Helvetica/Times/Courier) cover only basic Latin and
- * mangle Polish diacritics. We register Inter (latin-ext) from /public so
- * the PDF renders correctly without any third-party font CDN call at
- * runtime — important for offline self-hosted instances.
+ * mangle Polish diacritics. We register Inter from /public, the complete
+ * files (public/fonts/CREDITS.md), so the PDF is set in one typeface
+ * without any third-party font CDN call at runtime — important for offline
+ * self-hosted instances. A character the files lack is drawn in a built-in
+ * font, one character at a time: pdf-fonts.test.ts holds the files to every
+ * character the application writes.
  *
  * Registration is deferred + absolute-URL because @react-pdf internally
  * `fetch()`es the src at render time; with a relative path the resolution
