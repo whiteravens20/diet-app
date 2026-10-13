@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { catalogueDirectory } from '../../../testing/catalogue.js';
+import { readCatalogue } from '../../seed/catalogue.js';
 import { recipeOfBatchRow, shippableIngredientName, shippableRecipe, sortForShipping, type RecipeDraftContent } from './shippable.js';
 
 const draft = (over: Partial<RecipeDraftContent> = {}): RecipeDraftContent => ({
@@ -35,12 +40,35 @@ describe('a recipe draft that is about to ship', () => {
         cookMinutes: 5,
         difficulty: 'easy',
         ingredients: [
-          { slug: 'rolled-oats', quantity: 60, unit: 'g', note: null },
-          { slug: 'banana', quantity: 120, unit: 'g', note: null },
+          { slug: 'rolled-oats', quantity: 60, unit: 'g' },
+          { slug: 'banana', quantity: 120, unit: 'g' },
         ],
         steps: { en: ['Warm the drink.', 'Stir.'], pl: ['Podgrzej napój.', 'Wymieszaj.'] },
       },
     });
+  });
+
+  it('ships a line with the note it has, and without the field when it has none', () => {
+    const shipped = shippableRecipe(draft({ ingredientsJson: [{ slug: 'rolled-oats', quantity: 60, unit: 'g', note: 'the coarse kind' }, { slug: 'banana', quantity: 120, unit: 'g', note: null }] }));
+
+    expect(shipped.ok && shipped.content.ingredients).toEqual([
+      { slug: 'rolled-oats', quantity: 60, unit: 'g', note: 'the coarse kind' },
+      { slug: 'banana', quantity: 120, unit: 'g' },
+    ]);
+  });
+
+  it('ships as a row the reader of the data files takes, when it is saved as a batch', () => {
+    // What a bundle or a pull request puts into data/recipes/ is read by the next update of a catalogue.
+    const shipped = shippableRecipe(draft({ slug: 'oats-with-a-banana-and-nothing-else', titles: { en: 'Oats with a banana and nothing else' }, descriptions: { en: 'Oats with a banana.' }, steps: { en: ['Warm the drink.', 'Stir.'] }, locales: ['en'] }));
+    const dir = mkdtempSync(join(tmpdir(), 'diet-app-shipped-batch-'));
+    cpSync(catalogueDirectory(), dir, { recursive: true });
+    mkdirSync(join(dir, 'recipes'), { recursive: true });
+    writeFileSync(join(dir, 'recipes', 'bundle-of-a-test.json'), JSON.stringify([shipped.ok ? shipped.content : null]));
+
+    const { catalogue, problems } = readCatalogue(dir);
+
+    expect(problems).toEqual([]);
+    expect(catalogue?.recipes.map((recipe) => recipe.slug)).toContain('oats-with-a-banana-and-nothing-else');
   });
 
   it('ships with the cuisine it was tagged with, and without the field when it was tagged with none or with one nobody knows', () => {

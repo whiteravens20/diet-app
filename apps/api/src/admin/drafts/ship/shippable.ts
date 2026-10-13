@@ -79,7 +79,8 @@ function inDataShape(recipe: CheckedRecipe, tagged: unknown, from: unknown): Shi
     difficulty: recipe.difficulty,
     // Left out for a recipe of no cuisine in particular, as the curated file leaves it out.
     ...(cuisine ? { cuisine } : {}),
-    ingredients: recipe.ingredients,
+    // A line without a note leaves the field out, as the curated file does: the catalogue's reader takes a text there or nothing.
+    ingredients: recipe.ingredients.map(({ note, ...line }) => (note ? { ...line, note } : line)),
     steps: recipe.steps,
     ...(source ? { source } : {}),
   };
