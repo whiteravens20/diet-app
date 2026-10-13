@@ -44,7 +44,8 @@ the two are more than ten points of energy apart: such a diet needs recipes
 nearer its split, and no setting makes up for them. A low-carb day aims at a
 fifth of its energy from carbohydrate, three tenths from protein and half from
 fat: inside the limit above with room on both sides, and with protein inside the
-10 to 35 % that the reference intakes give for it. The splits are in
+10 to 35 % that the reference intakes give for it. A high-protein day stands at
+the top of that range, 35 %, with three tenths from fat. The splits are in
 [`apps/api/src/engine/nutrition.ts`](../apps/api/src/engine/nutrition.ts). The weight the planner gives
 the split was chosen with
 [`apps/api/scripts/tune-macro-weight.ts`](../apps/api/scripts/tune-macro-weight.ts),

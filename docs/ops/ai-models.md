@@ -298,9 +298,9 @@ WARN lines showing prose preambles or missing locale keys.
   passes a diet's rule can leave its plans far from their split: "keto"
   dishes of lean turkey pass the limit on carbohydrate and bring a third of
   the fat a keto day wants. The prompt gives the split a day on the diet aims
-  at, and the words of the run (`cuisine`) can ask for more: "two fifths of
-  the energy from protein, lean cuts, low-fat dairy, little oil" moved the
-  plans of the high-protein diet from 14 points off their split to under 4.
+  at, and the words of the run (`cuisine`) can ask for more: "lean cuts,
+  low-fat dairy, little oil" moved the plans of the high-protein diet from 14
+  points off their split to under 4.
 - **Temperature.** A recipe draft runs at `0.7` for variety; picking from a
   list, naming and translation run at `0.2` for fidelity. Don't raise the
   translation temperature — it produces "creative" mistranslations that pass

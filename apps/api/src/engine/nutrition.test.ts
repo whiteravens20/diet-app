@@ -242,8 +242,8 @@ describe('the split of energy between protein, fat and carbohydrate', () => {
     const balanced = macroSplitOf('balanced');
 
     expect(splitDistance(balanced, balanced)).toBe(0);
-    // 15 points from carbohydrate to protein.
-    expect(splitDistance(balanced, macroSplitOf('high_protein'))).toBeCloseTo(0.15);
+    // 10 points from carbohydrate to protein.
+    expect(splitDistance(balanced, macroSplitOf('high_protein'))).toBeCloseTo(0.1);
     expect(splitDistance({ protein: 1, fat: 0, carbs: 0 }, { protein: 0, fat: 1, carbs: 0 })).toBe(1);
   });
 

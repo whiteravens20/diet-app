@@ -136,15 +136,15 @@ describe('the calorie target of a profile, and of the days of its plans', () => 
     };
 
     it('is the split of its diet over the target of the plan, and over the target of each day', async () => {
-      // Two fifths of the energy from protein, three tenths from fat and from carbohydrate.
+      // Seven twentieths of the energy from protein and from carbohydrate, three tenths from fat.
       const profile = await aProfile(t, user, { dietType: 'high_protein', manualCalorieTarget: 2000 });
 
       const plan = await aPlan(t, user, profile, { durationDays: 2, dayOverrides: [{ date: '2026-01-06', calorieTarget: 2400 }] });
 
-      expect(plan.targetMacros).toEqual({ protein: 200, fat: 67, carbs: 150 });
+      expect(plan.targetMacros).toEqual({ protein: 175, fat: 67, carbs: 175 });
       expect(plan.days.map((day) => day.targetMacros)).toEqual([
-        { protein: 200, fat: 67, carbs: 150 },
-        { protein: 240, fat: 80, carbs: 180 },
+        { protein: 175, fat: 67, carbs: 175 },
+        { protein: 210, fat: 80, carbs: 210 },
       ]);
     });
 

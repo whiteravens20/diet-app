@@ -74,13 +74,13 @@ describe('what the catalogue can serve', () => {
     const { macros } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
 
     expect(macros.outOfReach).toBe(0.1);
-    expect(macros.diets.high_protein.target).toEqual({ protein: 0.4, fat: 0.3, carbs: 0.3 });
-    // The catalogue has what a balanced plan needs, and too little that is rich in protein for a high-protein one.
+    expect(macros.diets.high_protein.target).toEqual({ protein: 0.35, fat: 0.3, carbs: 0.35 });
+    // The catalogue has what a balanced plan needs, and less of what a high-protein one does: its plans end further from their aim.
     const { balanced, high_protein: highProtein } = macros.diets;
     expect(balanced.reached.protein + balanced.reached.fat + balanced.reached.carbs).toBeCloseTo(1);
     expect(balanced.reached.distance).toBeLessThan(0.1);
     expect(highProtein.reached.protein).toBeGreaterThan(balanced.reached.protein);
-    expect(highProtein.reached.distance).toBeGreaterThan(0.1);
+    expect(highProtein.reached.distance).toBeGreaterThan(balanced.reached.distance + 0.03);
     // No plan can be made where a meal of the day has no recipe for the diet.
     expect(macros.diets.keto.reached).toBeNull();
   });

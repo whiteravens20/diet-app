@@ -69,20 +69,20 @@ describe('what the plans of a diet reach of its split, with the recipes there ar
 
     // Both kinds are there: a balanced plan and a high-protein one each find their own.
     expect(reach.balanced!.distance).toBeLessThan(0.05);
-    expect(reach.high_protein!.protein).toBeGreaterThan(0.36);
+    expect(reach.high_protein!.protein).toBeGreaterThan(reach.balanced!.protein + 0.05);
     expect(reach.high_protein!.distance).toBeLessThan(MACRO_OUT_OF_REACH);
     const { protein, fat, carbs } = reach.balanced!;
     expect(protein + fat + carbs).toBeCloseTo(1);
   });
 
   it('says how far short a catalogue leaves a diet that it has no recipes for', () => {
-    // Nothing but dishes of the balanced kind: a high-protein plan gets a quarter of its energy from protein, not two fifths.
-    const reach = macroReachByDiet(allOf('even', [0.25, 0.3, 0.45]));
+    // Nothing but dishes with a fifth of their energy from protein: a high-protein plan gets a fifth, not seven twentieths.
+    const reach = macroReachByDiet(allOf('starchy', [0.2, 0.3, 0.5]));
 
-    expect(reach.high_protein!.protein).toBeCloseTo(0.25, 2);
+    expect(reach.high_protein!.protein).toBeCloseTo(0.2, 2);
     expect(reach.high_protein!.distance).toBeCloseTo(0.15, 2);
     expect(reach.high_protein!.distance).toBeGreaterThan(MACRO_OUT_OF_REACH);
-    expect(reach.balanced!.distance).toBeCloseTo(0, 2);
+    expect(reach.balanced!.distance).toBeCloseTo(0.05, 2);
   });
 
   it('says how much the weeks use of what they buy in packs that do not keep, where it is told the packs', () => {
