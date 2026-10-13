@@ -9,8 +9,7 @@
  *
  *   npx tsx scripts/tune-macro-weight.ts [data directory]
  */
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { DietType, MEAL_SLOTS_BY_COUNT } from '@diet-app/shared';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
 import { energyShares, macroSplitOf, splitDistance } from '../src/engine/nutrition.js';
@@ -22,7 +21,7 @@ const SEEDS = 20;
 const DAYS = 7;
 const TARGET = 2000;
 
-const dataDir = process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '../../../data');
+const dataDir = process.argv[2] ?? join(__dirname, '../../../data');
 const { catalogue, problems } = readCatalogue(dataDir);
 if (!catalogue) {
   console.error(`The data in ${dataDir} does not load: ${problems.length} problem(s). Run the data lint.`);

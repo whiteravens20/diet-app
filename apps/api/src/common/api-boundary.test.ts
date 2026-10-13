@@ -17,7 +17,7 @@ import * as shared from '@diet-app/shared';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-const SOURCE = join(import.meta.dirname, '..');
+const SOURCE = join(__dirname, '..');
 
 /** The checks a single value of a path or of a query may go through. */
 const NAMED_CHECKS = new Set(['requiredUuid', 'requiredDate']);

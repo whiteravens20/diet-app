@@ -7,8 +7,7 @@
  * passes here can be seeded; what fails is reported with its file and path, and
  * the script exits non-zero.
  */
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { DietType, MealType } from '@diet-app/shared';
 import { IMPORT_ALIASES_FILE, readImportAliases } from '../src/admin/drafts/external/import-aliases.js';
 import { readCatalogue } from '../src/admin/seed/catalogue.js';
@@ -17,7 +16,7 @@ import { COVERAGE_FLOOR, COVERAGE_TARGET, MACRO_OUT_OF_REACH, macroReachByDiet, 
 import { macroSplitOf } from '../src/engine/nutrition.js';
 import { plannable } from './catalogue-plans.js';
 
-const dataDir = join(dirname(fileURLToPath(import.meta.url)), '../../../data');
+const dataDir = join(__dirname, '../../../data');
 
 console.log('Validating curated seed data…');
 const { catalogue, problems } = readCatalogue(dataDir);

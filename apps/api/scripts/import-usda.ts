@@ -18,11 +18,10 @@
  * of them are brand names or cuts of one animal, and each is put before the
  * model that drafts recipes: see `data/README.md` before enabling it.
  */
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { runImport, settingsFromEnvironment } from '../src/admin/usda/importer.js';
 
-const outDir = join(dirname(fileURLToPath(import.meta.url)), '../../../data');
+const outDir = join(__dirname, '../../../data');
 
 async function main(): Promise<void> {
   const { apiKey, dataTypes } = settingsFromEnvironment(process.env);
