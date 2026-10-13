@@ -62,7 +62,7 @@ describe('an access token', () => {
   });
 
   it('is not what the reviewer panel hands out, even where the two were signed with one key', async () => {
-    const { token } = signReviewerCookie(jwt, ACCESS_SECRET, { label: 'translator' });
+    const { token } = signReviewerCookie(jwt, ACCESS_SECRET, { label: 'translator', epoch: 0 });
 
     await me(token).expect(401);
   });
@@ -150,19 +150,21 @@ describe('the token of a reviewer session', () => {
   });
 
   it('is read back as the session it was made for', () => {
-    const { token } = signReviewerCookie(jwt, secret, { label: 'translator' });
+    const { token } = signReviewerCookie(jwt, secret, { label: 'translator', epoch: 3 });
 
-    expect(verifyReviewerCookie(jwt, secret, token)).toMatchObject({ label: 'translator' });
-    expect(Object.keys(claimsOf(token)).sort()).toEqual(['aud', 'exp', 'iat', 'label']);
+    expect(verifyReviewerCookie(jwt, secret, token, 3)).toMatchObject({ label: 'translator' });
+    expect(Object.keys(claimsOf(token)).sort()).toEqual(['aud', 'epoch', 'exp', 'iat', 'label']);
+    // A changed password or a closed panel begins another epoch: the sessions of the one before are over.
+    expect(verifyReviewerCookie(jwt, secret, token, 4)).toBeNull();
   });
 
   it.each([
-    ['an access token of an account, signed with the same key', () => jwt.sign({ sub: 'user-1', label: 'translator' }, { secret, algorithm: 'HS256', audience: 'diet-app/account' })],
-    ['a token that says nothing of what it is for', () => jwt.sign({ label: 'translator' }, { secret, algorithm: 'HS256' })],
-    ['a token signed in another way with the same key', () => jwt.sign({ label: 'translator' }, { secret, algorithm: 'HS512', audience: claimsOf(signReviewerCookie(jwt, secret, { label: 'x' }).token).aud as string })],
-    ['a token signed with another key', () => signReviewerCookie(jwt, 'another-secret-0123456789abcdef', { label: 'translator' }).token],
+    ['an access token of an account, signed with the same key', () => jwt.sign({ sub: 'user-1', label: 'translator', epoch: 3 }, { secret, algorithm: 'HS256', audience: 'diet-app/account' })],
+    ['a token that says nothing of what it is for', () => jwt.sign({ label: 'translator', epoch: 3 }, { secret, algorithm: 'HS256' })],
+    ['a token signed in another way with the same key', () => jwt.sign({ label: 'translator', epoch: 3 }, { secret, algorithm: 'HS512', audience: claimsOf(signReviewerCookie(jwt, secret, { label: 'x', epoch: 3 }).token).aud as string })],
+    ['a token signed with another key', () => signReviewerCookie(jwt, 'another-secret-0123456789abcdef', { label: 'translator', epoch: 3 }).token],
     ['text that is no token', () => 'not-a-token'],
   ])('is not %s', (_name, make) => {
-    expect(verifyReviewerCookie(jwt, secret, make())).toBeNull();
+    expect(verifyReviewerCookie(jwt, secret, make(), 3)).toBeNull();
   });
 });
