@@ -99,3 +99,49 @@ test.describe('what a profile says of how it eats', () => {
     await expect(list.getByRole('button', { name: remove })).toHaveCount(0);
   });
 });
+
+test.describe('the profiles of an account', () => {
+  test('are as many as the instance gives an account: another is made in the page, and taken away again', async ({ session, messages, account, request }) => {
+    const page = session.page;
+    const profile = textsOf(messages, 'profile');
+    const common = textsOf(messages, 'common');
+    const most = ((await (await page.request.get('/api/config')).json()) as { accounts: { maxProfiles: number } }).accounts.maxProfiles;
+    test.skip(most < 2, 'this instance gives an account one profile');
+    await page.goto('/profile');
+    await settled(page);
+    const add = page.getByRole('button', { name: profile.addProfile!, exact: true });
+
+    await add.click();
+    await page.getByLabel(new RegExp(`^${profile.name!}`)).fill('A second one');
+    await page.getByLabel(profile.age!, { exact: true }).fill('41');
+    await page.getByLabel(profile.heightCm!, { exact: true }).fill('168');
+    const weight = page.getByRole('spinbutton', { name: /^(Weight|Waga) \((kg|lb)\)$/ });
+    await weight.fill((await page.getByText(/^(Weight|Waga) \(lb\)$/).count()) > 0 ? '141' : '64');
+    const made = page.waitForResponse((res) => res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/profiles');
+    await page.getByRole('button', { name: profile.createProfile!, exact: true }).click();
+    const answered = await made;
+    expect(answered.status()).toBe(201);
+    const second = ((await answered.json()) as { id: string }).id;
+
+    try {
+      // The account has one more profile, with a row of its own; at the most it may have, the way to add one is gone.
+      const remove = page.getByRole('button', { name: common.delete!, exact: true });
+      const row = page.locator('div').filter({ has: page.getByText('A second one', { exact: true }) }).filter({ has: remove }).last();
+      await expect(row).toBeVisible();
+      await expect(remove).toHaveCount(2);
+      if (most === 2) await expect(add).toHaveCount(0);
+
+      page.once('dialog', (asked) => void asked.accept());
+      const gone = page.waitForResponse((res) => res.request().method() === 'DELETE' && new URL(res.url()).pathname === `/api/profiles/${second}`);
+      await row.getByRole('button', { name: common.delete!, exact: true }).click();
+      expect((await gone).ok()).toBe(true);
+      await expect(remove).toHaveCount(1);
+      await expect(add).toBeVisible();
+    } finally {
+      // Whatever became of the page, the account is left with the one profile the other tests count on.
+      const signedIn = await request.post('/api/auth/login', { data: { email: account.email, password: account.password } });
+      const token = ((await signedIn.json()) as { tokens?: { accessToken: string } }).tokens?.accessToken;
+      if (token) await request.delete(`/api/profiles/${second}`, { headers: { authorization: `Bearer ${token}` } });
+    }
+  });
+});
