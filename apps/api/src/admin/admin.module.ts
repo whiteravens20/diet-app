@@ -1,7 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Module } from '@nestjs/common';
-import { AiModule } from '../ai/ai.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { CatalogueModule } from '../catalogue/catalogue.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -19,7 +18,7 @@ import { UsdaImportRunner } from './usda/runner.js';
  * cookie (`AdminSessionController`), which `AdminSessionGuard` asks for.
  */
 @Module({
-  imports: [PrismaModule, AiModule, AuthModule, CatalogueModule],
+  imports: [PrismaModule, AuthModule, CatalogueModule],
   controllers: [AdminController, AdminAccountsController, AdminSessionController],
   providers: [AdminSecondFactorReset, AdminSessionGuard, SeedRunner, UsdaImportRunner],
 })

@@ -63,7 +63,6 @@ function solve(meals: RebalanceMeal[], target: number): Map<string, number> {
 
   while (active.length > 0) {
     const base = active.reduce((s, m) => s + m.calories * m.servings, 0);
-    if (base <= 0) break;
     const f = remaining / base;
 
     const clamped = active.filter((m) => {
