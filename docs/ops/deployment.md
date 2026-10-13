@@ -496,16 +496,15 @@ sees to.
 
 ### Server clock
 
-Rolling-window features (e.g. the monthly AI quota, refresh-token TTLs,
-password-reset expiry) anchor on **the database's `NOW()`**, not the api
-container's wall clock — Postgres is the single source of truth for "now",
-so a drifting api container can't expire a user's quota early or late. The
-only requirement is that **Postgres itself runs on a sane clock**:
+Two clocks tell an instance the time, and both have to be right:
 
-- The official `postgres:*` image inherits the host's clock. Make sure the
-  Docker host runs NTP (`systemd-timesyncd`, `chrony`, etc.).
-- All `TIMESTAMP` columns store UTC. Don't set `TZ=` on the `postgres`
-  service unless you understand the consequences for `NOW()` vs.
-  `CURRENT_TIMESTAMP` — leave it default (`UTC`).
-- The web client renders rolling-window times via `Intl.DateTimeFormat`, so
-  the user always sees their browser-local time.
+- **The API's.** When a session ends and how long a link from a mail is good for are
+  worked out by the API: it writes the moment something ends, and compares it with its
+  own clock when the session or the link is used.
+- **The database's.** The monthly AI allowance is counted over the last thirty days as
+  the database's `NOW()` has them, the same for every process of the API.
+
+In the Compose stack both containers take the time from the host, so what it takes is a
+host that keeps time (`systemd-timesyncd`, `chrony`). With the database on another
+machine, both machines have to. Every moment is stored in UTC: leave `TZ` unset on the
+`postgres` service. The web application shows a time in the zone of the browser.
