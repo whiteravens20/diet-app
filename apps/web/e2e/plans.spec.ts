@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Locator, Page } from '@playwright/test';
-import { expect, settled, test, type Messages } from './fixtures';
+import { barriers, expect, settled, test, type Messages } from './fixtures';
 
 type Texts = Record<string, string>;
 const plansOf = (messages: Messages): Texts => messages.mealPlans as Texts;
@@ -173,5 +173,118 @@ test.describe('a meal of a plan', () => {
     await expect(dialog.getByText(plans.customTotalPending!)).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
+  });
+});
+
+test.describe('the plans of a profile, by when they are and by how their days stand', () => {
+  test('are narrowed to those of a time: none that is over yet, and the one under way', async ({ session, messages }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    await page.goto('/meal-plans');
+    await settled(page);
+    await expect(page.getByRole('button', { name: plans.showPlan! }).first()).toBeVisible();
+
+    const over = page.waitForResponse((res) => new URL(res.url()).pathname === '/api/meal-plans' && new URL(res.url()).searchParams.get('status') === 'past');
+    await page.getByRole('button', { name: plans.statusPast!, exact: true }).click();
+    expect(((await (await over).json()) as { items: unknown[] }).items).toEqual([]);
+    await expect(page.getByRole('heading', { name: plans.noPlansTitle!, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: plans.showPlan! })).toHaveCount(0);
+
+    const underWay = page.waitForResponse((res) => new URL(res.url()).pathname === '/api/meal-plans' && new URL(res.url()).searchParams.get('status') === 'active');
+    await page.getByRole('button', { name: plans.statusActive!, exact: true }).click();
+    expect(((await (await underWay).json()) as { items: unknown[] }).items.length).toBeGreaterThan(0);
+    await expect(page.getByRole('button', { name: plans.showPlan! }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: plans.noPlansTitle!, exact: true })).toHaveCount(0);
+
+    await page.getByRole('button', { name: plans.statusAll!, exact: true }).click();
+    await expect(page.getByRole('button', { name: plans.showPlan! }).first()).toBeVisible();
+  });
+
+  test('are made with a day filled from a favourite set, chosen for that day in the advanced view', async ({ session, messages, account, request }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    const advanced = (messages.mealPlans as unknown as { advanced: Texts }).advanced;
+    const common = messages.common as Texts;
+
+    // The set is the account's to have, made over the API as an app of the account would make it: the recipe the
+    // account marked, for the meal the account's own plan has it at.
+    const signedIn = await request.post('/api/auth/login', { data: { email: account.email, password: account.password } });
+    expect(signedIn.ok()).toBe(true);
+    const headers = { authorization: `Bearer ${((await signedIn.json()) as { tokens: { accessToken: string } }).tokens.accessToken}` };
+    const own = (await (await request.get(`/api/meal-plans/${account.planId}`, { headers })).json()) as { days: { meals: { mealType: string }[] }[] };
+    const marked = (await (await request.get(`/api/recipes/${account.recipeId}`, { headers })).json()) as { mealTypes: string[] };
+    // A meal the recipe is for, among the meals a day of this account's plans has.
+    const meal = marked.mealTypes.find((one) => own.days[0]!.meals.some((planned) => planned.mealType === one));
+    test.skip(meal === undefined, 'the marked recipe is for none of the meals of a day');
+    const kept = await request.post('/api/favorite-sets', { headers, data: { profileId: account.profileId, label: 'A day I like', slots: { [meal!]: account.recipeId } } });
+    expect(kept.status()).toBe(201);
+    const set = (await kept.json()) as { id: string };
+
+    try {
+      await page.goto('/meal-plans');
+      await settled(page);
+      await page.getByText(advanced.toggle!, { exact: true }).click();
+      // One choice of a set for each day of the plan: the first day gets this one.
+      await page.getByRole('combobox', { name: advanced.favoriteSet!, exact: true }).first().selectOption(set.id);
+
+      const asked = page.waitForRequest((req) => req.method() === 'POST' && new URL(req.url()).pathname === '/api/meal-plans/generate');
+      const made = page.waitForResponse((res) => new URL(res.url()).pathname === '/api/meal-plans/generate');
+      await page.getByRole('button', { name: plans.generateButton!, exact: true }).click();
+      const sent = (await asked).postDataJSON() as { dayOverrides?: { lockedSlots?: { mealType: string; recipeId: string }[] }[] };
+      expect(sent.dayOverrides?.[0]?.lockedSlots).toEqual([{ mealType: meal, recipeId: account.recipeId }]);
+      const answered = await made;
+      expect(answered.status()).toBe(201);
+      const plan = (await answered.json()) as { id: string; days: { meals: { mealType: string; recipe: { id: string } | null }[] }[] };
+      // The first day holds the set's recipe at its meal; the planner filled the rest of the day around it.
+      expect(plan.days[0]!.meals.find((one) => one.mealType === meal)?.recipe?.id).toBe(account.recipeId);
+
+      const head = page.getByRole('button', { name: plans.hidePlan! });
+      await expect(head).toBeVisible();
+      page.once('dialog', (confirmation) => void confirmation.accept());
+      const gone = page.waitForResponse((res) => res.request().method() === 'DELETE' && new URL(res.url()).pathname === `/api/meal-plans/${plan.id}`);
+      await head.locator('xpath=../..').getByRole('button', { name: common.delete!, exact: true }).click();
+      expect((await gone).ok()).toBe(true);
+    } finally {
+      await request.delete(`/api/favorite-sets/${set.id}`, { headers });
+    }
+  });
+
+  test('say on a day that it stands over its target, once a meal of one\'s own took it there and no portion could make up for it', async ({ session, messages }) => {
+    const page = session.page;
+    const plans = plansOf(messages);
+    const common = messages.common as Texts;
+    await page.goto('/meal-plans');
+    await settled(page);
+
+    // A plan made for this test and taken away after it: the account's own plan stays what the other tests find.
+    const made = page.waitForResponse((res) => new URL(res.url()).pathname === '/api/meal-plans/generate');
+    await page.getByRole('button', { name: plans.generateButton!, exact: true }).click();
+    const plan = (await (await made).json()) as { id: string };
+    const head = page.getByRole('button', { name: plans.hidePlan! });
+    await expect(head).toBeVisible();
+    const card = head.locator('xpath=../..');
+    await expect(card.getByText(plans.dayOver!, { exact: true })).toHaveCount(0);
+
+    await card.getByRole('button', { name: plans.addCustomMeal! }).first().click();
+    const dialog = page.getByRole('dialog', { name: plans.customModalTitle! });
+    await dialog.getByLabel(plans.customName!, { exact: true }).fill('A feast');
+    await dialog.getByLabel(plans.customCalories!, { exact: true }).fill('2500');
+    await dialog.getByLabel(plans.customProtein!, { exact: true }).fill('80');
+    await dialog.getByLabel(plans.customFat!, { exact: true }).fill('90');
+    await dialog.getByLabel(plans.customCarbs!, { exact: true }).fill('300');
+    const added = page.waitForResponse((res) => res.request().method() === 'POST' && new URL(res.url()).pathname.startsWith(`/api/meal-plans/${plan.id}/`));
+    await dialog.getByRole('button', { name: plans.customSubmit!, exact: true }).click();
+    expect((await added).ok()).toBe(true);
+    await expect(dialog).toBeHidden();
+
+    // The other meals of the day are as small as they may be made, and the day still holds more than a tenth over.
+    await expect(card.getByText(plans.dayOver!, { exact: true }).first()).toBeVisible();
+    await expect(card.getByText(plans.dayOverHint!, { exact: true }).first()).toBeVisible();
+    expect(await barriers(page), 'a plan with a day over its target').toEqual([]);
+
+    page.once('dialog', (asked) => void asked.accept());
+    const gone = page.waitForResponse((res) => res.request().method() === 'DELETE' && new URL(res.url()).pathname === `/api/meal-plans/${plan.id}`);
+    await card.getByRole('button', { name: common.delete!, exact: true }).click();
+    expect((await gone).ok()).toBe(true);
   });
 });
