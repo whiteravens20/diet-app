@@ -11,6 +11,8 @@
  */
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { z } from 'zod';
+import { readRoutes, type Route } from '../../scripts/contract/routes.js';
 import { sealKey } from '../ai/key-cipher.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase } from '../testing/database.js';
@@ -75,6 +77,7 @@ const ASKS: Ask[] = [
 
   ['list the plans of a profile', 'get', (ids) => `/api/meal-plans?profileId=${ids.profile}`],
   ['read what the plan of a profile comes to', 'get', (ids) => `/api/meal-plans/overview?profileId=${ids.profile}`],
+  ['read the days a profile has plans for', 'get', (ids) => `/api/meal-plans/calendar?profileId=${ids.profile}&from=2026-01-01&to=2026-01-31`],
   ['make a plan for a profile', 'post', () => '/api/meal-plans/generate', (ids) => ({ profileId: ids.profile, startDate: '2026-02-02', durationDays: 1 })],
   ['read a plan', 'get', (ids) => `/api/meal-plans/${ids.plan}`],
   ['make a plan again', 'post', (ids) => `/api/meal-plans/${ids.plan}/regenerate`, () => ({ includePast: true })],
@@ -124,11 +127,40 @@ const ASKS: Ask[] = [
 
   ['mark a notification as read', 'post', (ids) => `/api/notifications/${ids.notification}/read`],
   ['remove a provider\'s key', 'delete', (ids) => `/api/ai/providers/${ids.provider}`],
+  ['read the recipes a profile marked', 'get', (ids) => `/api/recipes?profileId=${ids.profile}&marked=marked`],
+  ['have a model write a recipe for a profile', 'post', () => '/api/recipes/drafts/from-prompt', (ids) => ({ profileId: ids.profile })],
   ['read a recipe of somebody\'s own', 'get', (ids) => `/api/recipes/${ids.ownRecipe}`],
   ['send a recipe of somebody\'s own to the queue', 'post', (ids) => `/api/recipes/${ids.ownRecipe}/submit`],
   ['delete a recipe of somebody\'s own', 'delete', (ids) => `/api/recipes/${ids.ownRecipe}`],
   ['end a session', 'delete', (ids) => `/api/users/me/sessions/${ids.session}`],
 ];
+
+const nameOf = (route: Route): string => `${route.method} ${route.path}`;
+
+/** What a request names of an account's in its body or its query; in its path, whatever it names. */
+const OF_AN_ACCOUNT = ['profileId', 'planId', 'plannedMealId'];
+
+/** Whether a route names something an account has: by a part of its path, or by one of the ids above. */
+function namesWhatAnAccountHas(route: Route): boolean {
+  const named = [route.body, route.query].flatMap((schema) => (schema ? [JSON.stringify(z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }))] : []));
+  return (
+    route.pathValues.length > 0 ||
+    route.queryValues.some((value) => OF_AN_ACCOUNT.includes(value.name)) ||
+    OF_AN_ACCOUNT.some((id) => named.some((schema) => schema.includes(`"${id}"`)))
+  );
+}
+
+/** The route a request goes to: of those its path fits, the one with the most parts spelled out. */
+function routeOf(routes: Route[], method: Method, asked: string): string {
+  const parts = asked.split('?')[0]!.split('/');
+  const fitting = routes
+    .filter((route) => route.method === method.toUpperCase())
+    .map((route) => route.path.split('/'))
+    .filter((route) => route.length === parts.length && route.every((part, index) => part.startsWith(':') || part === parts[index]))
+    .sort((a, b) => a.filter((part) => part.startsWith(':')).length - b.filter((part) => part.startsWith(':')).length);
+  if (fitting.length === 0) throw new Error(`No route answers ${method.toUpperCase()} ${asked}.`);
+  return `${method.toUpperCase()} ${fitting[0]!.join('/')}`;
+}
 
 describe('what belongs to another account', () => {
   let t: TestApp;
@@ -223,6 +255,13 @@ describe('what belongs to another account', () => {
     expect(forTheirs).toEqual(forNothing);
     expect(forTheirs[0]).toBe(404);
     expect(await held()).toEqual(before);
+  });
+
+  it('is asked for on every route that names something an account has', async () => {
+    const routes = (await readRoutes()).filter((route) => route.asks === 'account');
+    const asked = new Set(ASKS.map(([, method, path]) => routeOf(routes, method, path(theirs))));
+
+    expect(routes.filter(namesWhatAnAccountHas).map(nameOf).filter((route) => !asked.has(route))).toEqual([]);
   });
 
   it('is there for its owner, so that the answers above say something', async () => {
