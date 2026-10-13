@@ -55,3 +55,19 @@ describe('the examples the recipe generator shows a model', () => {
     expect(judged.candidates.map(({ slug, complexity }) => `${slug}: ${complexity}`)).toEqual(shown.map(({ band, recipe }) => `${recipe.slug}: ${band}`));
   });
 });
+
+describe('a prompt for a diet', () => {
+  const asked = (dietTags?: ('keto' | 'vegan' | 'custom')[]): string =>
+    buildRecipeGeneratorPrompt({ targetLocales: ['en', 'pl'], targets: { simple: 1, medium: 1, complex: 1 }, catalogue, dietTags, mealTypes: ['dinner'] });
+
+  it('says what a day on that diet aims at, as the planner has it', () => {
+    expect(asked(['keto'])).toContain('A day on the keto diet aims at about 25 % of its energy from protein, 70 % from fat and 5 % from carbohydrate.');
+    expect(asked(['vegan'])).toContain('A day on the vegan diet aims at about 20 % of its energy from protein, 28 % from fat and 52 % from carbohydrate.');
+  });
+
+  it('says nothing of a split when no diet is asked for, or the one a profile sets for itself', () => {
+    expect(asked()).not.toContain('aims at about');
+    expect(asked(['custom'])).not.toContain('aims at about');
+  });
+});
+});

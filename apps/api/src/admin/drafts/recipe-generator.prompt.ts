@@ -20,10 +20,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Locale, MealType, DietType, Complexity } from '@diet-app/shared';
+import { macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v4';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v5';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -216,6 +217,16 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
   if (input.dietTags && input.dietTags.length > 0) {
     constraints.push(
       `- Diets every recipe MUST qualify for: ${input.dietTags.join(', ')}. For vegetarian, vegan and mediterranean, every ingredient must list the diet in its diets column. For low_carb at most 26 % of the recipe's calories may come from carbohydrate, for keto at most 10 %: build those recipes around protein, fat and low-carbohydrate vegetables. The validator works this out from your ingredient list and rejects a recipe that misses.`,
+    );
+  }
+  // What the plans of a diet aim at is what its recipes are for: a dish that only passes the diet's rule leaves its plans far from their split.
+  for (const diet of input.dietTags ?? []) {
+    // The custom diet aims at what a profile says, which no run knows.
+    if (diet === 'custom') continue;
+    const aim = macroSplitOf(diet);
+    const percent = (share: number): number => Math.round(share * 100);
+    constraints.push(
+      `- A day on the ${diet} diet aims at about ${percent(aim.protein)} % of its energy from protein, ${percent(aim.fat)} % from fat and ${percent(aim.carbs)} % from carbohydrate. Write dishes whose own energy is split near that; the engine works a dish's split out from your ingredient list.`,
     );
   }
   if (input.mealTypes && input.mealTypes.length > 0) {
