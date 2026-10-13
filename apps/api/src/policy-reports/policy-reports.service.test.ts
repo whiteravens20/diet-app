@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Logger } from '@nestjs/common';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { MOST_KINDS, PolicyReportsService, WINDOW_MINUTES } from './policy-reports.service.js';
 import type { Violation } from './violation.js';
 
@@ -9,8 +9,8 @@ const inline: Violation = { disposition: 'enforce', directive: 'script-src-elem'
 const evaluated: Violation = { disposition: 'enforce', directive: 'script-src', blocked: 'eval', page: '/login', source: '/_next/static/chunks/a.js:3:20249' };
 
 describe('what the log says of the reports against the content security policy', () => {
-  let warned: ReturnType<typeof vi.spyOn>;
-  let logged: ReturnType<typeof vi.spyOn>;
+  let warned: MockInstance<Logger['warn']>;
+  let logged: MockInstance<Logger['log']>;
   let reports: PolicyReportsService;
 
   beforeEach(() => {

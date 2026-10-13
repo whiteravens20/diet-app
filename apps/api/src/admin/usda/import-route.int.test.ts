@@ -12,7 +12,7 @@ describe('starting an import of foods', () => {
   let t: TestApp;
   const basic = asAdmin;
   /** Start the import without letting it run: no test asks the real source. */
-  const started = () => vi.spyOn(t.app.get(UsdaImportRunner), 'start').mockReturnValue(true);
+  const started = () => vi.spyOn(t.app.get(UsdaImportRunner), 'start').mockResolvedValue(true);
 
   beforeAll(async () => {
     t = await createTestApp();

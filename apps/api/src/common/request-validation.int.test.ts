@@ -114,20 +114,20 @@ describe('a request that says something wrongly', () => {
 
   describe('to the administrator\'s queue and the reviewers\'', () => {
     it.each([
-      ['a review in a language there is not', 'post', () => `/api/admin/drafts/recipes/${draft}/approve?locale=xx`, { reviewedByLabel: 'Pavlo' }, 'locale'],
-      ['a review without a language', 'post', () => `/api/admin/drafts/recipes/${draft}/approve`, { reviewedByLabel: 'Pavlo' }, 'locale'],
-      ['a review by nobody', 'post', () => `/api/admin/drafts/recipes/${draft}/approve?locale=en`, {}, 'reviewedByLabel'],
-      ['a reason of a thousand characters', 'post', () => `/api/admin/drafts/recipes/${draft}/reject?locale=en`, { reviewedByLabel: 'Pavlo', reason: 'x'.repeat(1000) }, 'reason'],
-      ['an edit with servings by the million', 'patch', () => `/api/admin/drafts/recipes/${draft}`, { servings: 1_000_000 }, 'servings'],
-      ['a dry run that is neither yes nor no', 'patch', () => `/api/admin/drafts/recipes/${draft}?dryRun=maybe`, { servings: 2 }, 'dryRun'],
-      ['a shipment of a kind there is not', 'post', () => '/api/admin/drafts/ship', { kind: 'allergen', mode: 'local' }, 'kind'],
-      ['a shipment in a way there is not', 'post', () => '/api/admin/drafts/ship', { kind: 'recipe', mode: 'by-post' }, 'mode'],
-      ['drafts marked as shipped that are no ids', 'post', () => '/api/admin/drafts/ship/mark-shipped', { kind: 'recipe', draftIds: ['first'] }, 'draftIds.0'],
-      ['a source to pull from of a thousand characters', 'post', () => '/api/admin/drafts/ship/current-overrides/pull', { source: 'x'.repeat(1000) }, 'source'],
-      ['a run of names for no ingredient', 'post', () => '/api/admin/drafts/ingredient-names/generate', { scope: 'specific-slugs', slugs: [] }, 'slugs'],
-      ['a run of a thousand recipes', 'post', () => '/api/admin/drafts/recipes/generate', { count: 1000 }, 'count'],
-      ['a draft that is named by no id', 'get', () => '/api/admin/drafts/recipes/first', undefined, 'id'],
-      ['an import of a data set there is not', 'post', () => '/api/admin/db/import-usda?dataTypes=Branded', undefined, 'dataTypes.0'],
+      ['a review in a language there is not', 'post', (): string => `/api/admin/drafts/recipes/${draft}/approve?locale=xx`, { reviewedByLabel: 'Pavlo' }, 'locale'],
+      ['a review without a language', 'post', (): string => `/api/admin/drafts/recipes/${draft}/approve`, { reviewedByLabel: 'Pavlo' }, 'locale'],
+      ['a review by nobody', 'post', (): string => `/api/admin/drafts/recipes/${draft}/approve?locale=en`, {}, 'reviewedByLabel'],
+      ['a reason of a thousand characters', 'post', (): string => `/api/admin/drafts/recipes/${draft}/reject?locale=en`, { reviewedByLabel: 'Pavlo', reason: 'x'.repeat(1000) }, 'reason'],
+      ['an edit with servings by the million', 'patch', (): string => `/api/admin/drafts/recipes/${draft}`, { servings: 1_000_000 }, 'servings'],
+      ['a dry run that is neither yes nor no', 'patch', (): string => `/api/admin/drafts/recipes/${draft}?dryRun=maybe`, { servings: 2 }, 'dryRun'],
+      ['a shipment of a kind there is not', 'post', (): string => '/api/admin/drafts/ship', { kind: 'allergen', mode: 'local' }, 'kind'],
+      ['a shipment in a way there is not', 'post', (): string => '/api/admin/drafts/ship', { kind: 'recipe', mode: 'by-post' }, 'mode'],
+      ['drafts marked as shipped that are no ids', 'post', (): string => '/api/admin/drafts/ship/mark-shipped', { kind: 'recipe', draftIds: ['first'] }, 'draftIds.0'],
+      ['a source to pull from of a thousand characters', 'post', (): string => '/api/admin/drafts/ship/current-overrides/pull', { source: 'x'.repeat(1000) }, 'source'],
+      ['a run of names for no ingredient', 'post', (): string => '/api/admin/drafts/ingredient-names/generate', { scope: 'specific-slugs', slugs: [] }, 'slugs'],
+      ['a run of a thousand recipes', 'post', (): string => '/api/admin/drafts/recipes/generate', { count: 1000 }, 'count'],
+      ['a draft that is named by no id', 'get', (): string => '/api/admin/drafts/recipes/first', undefined, 'id'],
+      ['an import of a data set there is not', 'post', (): string => '/api/admin/db/import-usda?dataTypes=Branded', undefined, 'dataTypes.0'],
     ] as const)('refuses the administrator %s', async (_name, method, path, body, part) => {
       const request = t.http()[method](path()).set(asAdmin);
 
@@ -135,11 +135,11 @@ describe('a request that says something wrongly', () => {
     });
 
     it.each([
-      ['a draft in English, which is not theirs to review', 'get', () => `/api/review/drafts/recipes/${draft}?locale=en`, undefined, 'locale'],
-      ['a draft without a language', 'get', () => `/api/review/drafts/recipes/${draft}`, undefined, 'locale'],
-      ['an edit with a part there is not', 'patch', () => `/api/review/drafts/recipes/${draft}?locale=pl`, { servings: 2 }, ''],
-      ['a rejection with a reason of a thousand characters', 'post', () => `/api/review/drafts/recipes/${draft}/reject?locale=pl`, { reason: 'x'.repeat(1000) }, 'reason'],
-      ['a draft that is named by no id', 'get', () => '/api/review/drafts/recipes/first?locale=pl', undefined, 'id'],
+      ['a draft in English, which is not theirs to review', 'get', (): string => `/api/review/drafts/recipes/${draft}?locale=en`, undefined, 'locale'],
+      ['a draft without a language', 'get', (): string => `/api/review/drafts/recipes/${draft}`, undefined, 'locale'],
+      ['an edit with a part there is not', 'patch', (): string => `/api/review/drafts/recipes/${draft}?locale=pl`, { servings: 2 }, ''],
+      ['a rejection with a reason of a thousand characters', 'post', (): string => `/api/review/drafts/recipes/${draft}/reject?locale=pl`, { reason: 'x'.repeat(1000) }, 'reason'],
+      ['a draft that is named by no id', 'get', (): string => '/api/review/drafts/recipes/first?locale=pl', undefined, 'id'],
     ] as const)('refuses a reviewer %s', async (_name, method, path, body, part) => {
       const request = t.http()[method](path()).set(reviewer);
 

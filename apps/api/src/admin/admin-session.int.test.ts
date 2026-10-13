@@ -2,6 +2,7 @@
 
 import { ConfigService } from '@nestjs/config';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import type { Env } from '../config/env.js';
 import { resolveReviewerSecret, signReviewerCookie } from '../review/session.js';
 import { JwtService } from '@nestjs/jwt';
 import { resetDatabase } from '../testing/database.js';
@@ -14,11 +15,11 @@ const CREDENTIALS = { user: 'admin', password: 'integration-test-admin-password'
 
 describe('the administrator\'s way in', () => {
   let t: TestApp;
-  let config: ConfigService;
+  let config: ConfigService<Env, true>;
 
   beforeAll(async () => {
     t = await createTestApp();
-    config = t.app.get(ConfigService);
+    config = t.app.get<ConfigService<Env, true>>(ConfigService);
   });
 
   afterAll(async () => {
@@ -32,8 +33,8 @@ describe('the administrator\'s way in', () => {
   const stats = (cookie?: string) => (cookie ? t.http().get('/api/admin/stats').set('Cookie', cookie) : t.http().get('/api/admin/stats'));
   const cookieOf = (res: { headers: Record<string, unknown> }): string => /admin_session=[^;]*/.exec(String(res.headers['set-cookie']))![0];
   /** A session signed with other settings than the instance's: `over` replaces what the instance has. */
-  const signedWith = (over: Record<string, string>, epoch = 0, lifetime?: number): string =>
-    `admin_session=${signAdminSession({ get: (key: string) => over[key] ?? config.get(key) } as never, epoch, lifetime)}`;
+  const signedWith = (over: Partial<Record<keyof Env, string>>, epoch = 0, lifetime?: number): string =>
+    `admin_session=${signAdminSession({ get: (key: keyof Env) => over[key] ?? config.get(key, { infer: true }) } as never, epoch, lifetime)}`;
 
   describe('signing in', () => {
     const signIn = (body: object = CREDENTIALS, headers: Record<string, string> = { Origin: WEB }) => t.http().post('/api/admin/session').set(headers).send(body);

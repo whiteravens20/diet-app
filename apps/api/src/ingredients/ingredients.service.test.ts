@@ -8,7 +8,9 @@
 import { describe, expect, it } from 'vitest';
 import { toIngredientDto } from './ingredients.service.js';
 
-function row(overrides: Record<string, unknown> = {}) {
+type Row = Parameters<typeof toIngredientDto>[0];
+
+function row(overrides: Partial<Row> = {}): Row {
   return {
     id: 'ing-1',
     name: 'Olive oil',
@@ -20,10 +22,12 @@ function row(overrides: Record<string, unknown> = {}) {
     carbsPer100: 0,
     gramsPerPiece: null,
     density: 0.91,
+    displayUnit: null,
     allergens: [],
     dietCompatibility: [],
     tags: [],
     packSize: null,
+    perishable: false,
     brand: null,
     storageHint: 'Cool, dark place',
     translations: [],

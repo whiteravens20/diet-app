@@ -154,8 +154,7 @@ describe('AuthService.login', () => {
   it('issues tokens on correct credentials', async () => {
     const deps = makeDeps(makeUser());
     const res = await makeService(deps).login({ email: 'alice@example.com', password: 'CorrectHorse1' } as never);
-    expect(res.user.email).toBe('alice@example.com');
-    expect(res.tokens.refreshToken).toBeTypeOf('string');
+    expect(res).toMatchObject({ user: { email: 'alice@example.com' }, tokens: { refreshToken: expect.any(String) } });
     expect(deps.prisma.refreshToken.create).toHaveBeenCalledTimes(1);
   });
 });

@@ -83,10 +83,10 @@ describe('settings left blank in the environment', () => {
     expect(res.status).toBe(204);
     const cookie = /reviewer_session=([^;]+)/.exec(String(res.headers['set-cookie']))![1]!;
     const jwt = t.app.get(JwtService, { strict: false });
-    const config = t.app.get(ConfigService);
-    const own = deriveKey(config.get('DATA_ENCRYPTION_SECRET'), 'reviewer-session');
+    const config = t.app.get<ConfigService<Env, true>>(ConfigService);
+    const own = deriveKey(config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'reviewer-session');
     expect(jwt.verify(decodeURIComponent(cookie), { secret: own })).toMatchObject({ aud: 'diet-app/reviewer', label: 'pl reviewer' });
     // Never the key of users' access tokens.
-    expect(() => jwt.verify(decodeURIComponent(cookie), { secret: config.get('JWT_ACCESS_SECRET') })).toThrow();
+    expect(() => jwt.verify(decodeURIComponent(cookie), { secret: config.get('JWT_ACCESS_SECRET', { infer: true }) })).toThrow();
   });
 });

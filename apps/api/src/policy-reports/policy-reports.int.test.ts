@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Logger } from '@nestjs/common';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { PolicyReportsService } from './policy-reports.service.js';
 
@@ -18,7 +18,7 @@ const A_REPORT = {
 
 describe('the route browsers send their reports against the content security policy to', () => {
   let t: TestApp;
-  let warned: ReturnType<typeof vi.spyOn>;
+  let warned: MockInstance<Logger['warn']>;
 
   beforeAll(async () => {
     t = await createTestApp();

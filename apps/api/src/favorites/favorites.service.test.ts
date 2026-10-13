@@ -7,6 +7,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { MAX_FAVORITES_PER_PROFILE } from '@diet-app/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FavoritesService } from './favorites.service.js';
 
 // toRecipeDto is exercised by recipes.service tests; here we only need it not to
 // blow up on the mocked recipe shape.
@@ -14,8 +15,6 @@ vi.mock('../recipes/recipes.service.js', () => ({
   searchMatch: (q: string) => ({ title: { contains: q } }),
   toRecipeDto: (r: { id: string }) => ({ id: r.id, title: 'mock' }),
 }));
-
-const { FavoritesService } = await import('./favorites.service.js');
 
 function makePrisma(owner: string | null = 'user-1') {
   const prisma = {
