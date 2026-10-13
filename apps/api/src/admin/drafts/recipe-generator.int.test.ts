@@ -299,8 +299,8 @@ describe('generating recipe drafts', () => {
           const plate = lowCarb[written % lowCarb.length]!;
           written += 1;
           return {
-            slug: `low-carb-plate-${written}`,
-            titles: { en: `Low-carb plate ${written}` },
+            slug: `plate-of-the-house-${written}`,
+            titles: { en: `Plate of the house ${written}` },
             descriptions: { en: 'A plate with next to no carbohydrate.' },
             steps: { en: ['Prepare the ingredients.', 'Cook everything together until done.'] },
             servings: 1,

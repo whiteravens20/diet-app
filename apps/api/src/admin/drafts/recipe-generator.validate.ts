@@ -53,6 +53,7 @@ type RecipeValidationReason =
   | 'title-taken'
   | 'meal-not-asked-for'
   | 'meals-of-two-kinds'
+  | 'title-names-a-diet-or-band'
   | 'ingredient-count-out-of-bands'
   | 'step-count-too-high'
   | 'total-time-too-high'
@@ -156,6 +157,14 @@ export function jaccard(a: readonly string[], b: readonly string[]): number {
   return union === 0 ? 0 : intersection / union;
 }
 
+/**
+ * What the title of a recipe a model wrote may not say, nor the slug made of
+ * it: a diet, which stops being true when the figures of an ingredient move;
+ * a complexity band; praise. The diets a recipe suits are worked out and shown
+ * beside it.
+ */
+const TITLE_SAYS_MORE = /\b(keto|ketogenic|low[- ]carb|high[- ]protein|vegan|vegetarian|simple|easy|quick|healthy)\b/i;
+
 /** The meals a main dish is eaten at. Every other meal is a small one. */
 const MAIN_MEALS: ReadonlySet<string> = new Set(['lunch', 'dinner']);
 
@@ -241,6 +250,10 @@ export function validateRecipeBatch(
     // for, and a plan would serve half a dinner between meals.
     if (mealTypes.some((meal) => MAIN_MEALS.has(meal)) && mealTypes.some((meal) => !MAIN_MEALS.has(meal))) {
       return { ok: false, reason: 'meals-of-two-kinds', key: slug, details: `${mealTypes.join(', ')}: a main dish is no breakfast and no snack` };
+    }
+
+    if (TITLE_SAYS_MORE.test(`${slug} ${titles.en ?? ''}`)) {
+      return { ok: false, reason: 'title-names-a-diet-or-band', key: slug, details: 'a title names the dish: what it is made of and how' };
     }
 
     // Nor may two recipes share an English title, however it is cased.

@@ -468,6 +468,21 @@ describe('validateRecipeBatch', () => {
     expect(forMeals(['breakfast', 'second_breakfast', 'snack'])).toBe('accepted');
   });
 
+  it('refuses a title that names a diet, a band or praise, in the title or in the slug made of it', () => {
+    const titled = (slug: string, en: string) => {
+      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ slug, titles: { en, pl: 'Miska ryżu z kurczakiem' } })]), resolveSlug });
+      return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+    };
+
+    expect(titled('keto-chicken-bowl', 'Keto chicken bowl')).toBe('title-names-a-diet-or-band at keto-chicken-bowl');
+    expect(titled('chicken-bowl', 'Simple chicken bowl')).toBe('title-names-a-diet-or-band at chicken-bowl');
+    expect(titled('low-carb-chicken-bowl', 'Chicken bowl')).toBe('title-names-a-diet-or-band at low-carb-chicken-bowl');
+    expect(titled('chicken-bowl', 'High-protein chicken bowl')).toBe('title-names-a-diet-or-band at chicken-bowl');
+    expect(titled('chicken-rice-bowl', 'Chicken rice bowl')).toBe('accepted');
+    // A word that only holds one of them is another word.
+    expect(titled('quickbread-with-chicken', 'Quickbread with chicken')).toBe('accepted');
+  });
+
   describe('a slug or a title another recipe has', () => {
     /** A second recipe unlike the first: its own slug and title, other ingredients, quick enough for the simple band. */
     const other = {
@@ -515,7 +530,7 @@ describe('validateRecipeBatch', () => {
       targetLocales: ['en', 'pl'],
       rawOutput: wrap([
         recipeShell({
-          slug: 'quick-rice',
+          slug: 'rice-with-chicken-and-spinach',
           ingredients: [
             { slug: 'white-rice', quantity: 120, unit: 'g' },
             { slug: 'spinach', quantity: 80, unit: 'g' },

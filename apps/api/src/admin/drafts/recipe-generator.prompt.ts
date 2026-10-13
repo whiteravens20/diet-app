@@ -333,10 +333,13 @@ single violation, so be precise:
 12. Each recipe MUST have a stable \`slug\` (kebab-case, ASCII, lowercase,
     derived from the English title). Slugs are unique within the batch.
 13. A title names the dish as a cookbook would: what it is made of and
-    how it is made. NEVER put a diet, a complexity band or praise into a
-    title or a slug: no "Keto ...", "Low-carb ...", "High-protein ...",
-    "Vegan ...", "Simple ...", "Easy ...", "Quick ...", "Healthy ...". The
-    diets a recipe suits are shown beside it, worked out from its ingredients.
+    how it is made, and names nothing the ingredient list does not hold.
+    NEVER put a diet, a complexity band or praise into a title or a slug:
+    no "Keto ...", "Low-carb ...", "High-protein ...", "Vegan ...",
+    "Vegetarian ...", "Simple ...", "Easy ...", "Quick ...", "Healthy ...".
+    A recipe with such a title is rejected. The diets a recipe suits are
+    shown beside it, worked out from its ingredients; a description says
+    what the dish is like, not which diet it is for.
 14. \`mealTypes\` lists every meal the dish suits. A dish is EITHER a main
     dish OR a small one, never both:
     - a main dish is \`lunch\`, \`dinner\`, or as a rule both;
