@@ -55,6 +55,12 @@ USDA FoodData Central. The cooked food holds about a third of that, and figures
 taken from a "cooked" row would give every dish made of it a third of its
 energy. Canned beans and chickpeas are given as they come out of the can.
 
+What is poured is measured in millilitres (milk, an oil), and its
+figures are for 100 ml: those of 100 g times its `density`, the weight of one
+millilitre in grams. A litre of oil weighs about 920 g, so 100 ml of it hold 92 g
+of fat and not 100. The `density` is also what a recipe that weighs such an
+ingredient in grams is converted with.
+
 `npm run data:lint` refuses a grain or a pulse that keeps in its pack and holds
 under 300 kcal in 100 g. One that keeps and is not dry (frozen edamame) is named
 in [`apps/api/src/admin/seed/dry-staples.ts`](../apps/api/src/admin/seed/dry-staples.ts)
