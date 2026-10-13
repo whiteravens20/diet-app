@@ -40,9 +40,9 @@
     "husky": "9.1.7",
     "knip": "6.39.0",
     "prettier": "^3.9.9",
-    "turbo": "^2.11.5",
+    "turbo": "^2.11.7",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.70.1"
+    "typescript-eslint": "^8.71.1"
   },
   "engines": {
     "node": ">=24"
