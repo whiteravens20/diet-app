@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { CaloriePreviewRequest, DietType, FdcDataTypes, MacroSplit, MEAL_SLOTS_BY_COUNT, PACES_OF_LOSS, ProfileInput, ProfileUpdate, RecipeDietTag, RegisterRequest, fitsDiet } from './index.js';
+import { CaloriePreviewRequest, DietType, FdcDataTypes, MacroChange, Macros, MacroSplit, MEAL_SLOTS_BY_COUNT, PACES_OF_LOSS, ProfileInput, ProfileUpdate, RecipeDietTag, RegisterRequest, fitsDiet } from './index.js';
 
 describe('fitsDiet', () => {
   it.each(RecipeDietTag.options)('admits a recipe to a %s plan only when it carries that tag', (diet) => {
@@ -155,5 +155,13 @@ describe("somebody's own split of a day's energy", () => {
     const withoutIt = Object.fromEntries(Object.entries(whole).filter(([part]) => part !== 'customMacroSplit'));
     expect(ProfileUpdate.safeParse(withoutIt).success).toBe(false);
     expect(ProfileUpdate.safeParse({ ...whole, dietType: 'custom' }).success).toBe(false);
+  });
+});
+
+describe('what a change of protein, fat and carbohydrate may be', () => {
+  it('is under nothing where a substitution takes some away, which an amount never is', () => {
+    const less = { protein: -4.5, fat: 0, carbs: 12 };
+    expect(MacroChange.safeParse(less).success).toBe(true);
+    expect(Macros.safeParse(less).success).toBe(false);
   });
 });

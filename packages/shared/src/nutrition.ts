@@ -10,6 +10,14 @@ export const Macros = z.object({
 });
 export type Macros = z.infer<typeof Macros>;
 
+/** How much the protein, fat and carbohydrate of something change, in grams: under nothing for less. */
+export const MacroChange = z.object({
+  protein: z.number(),
+  fat: z.number(),
+  carbs: z.number(),
+});
+export type MacroChange = z.infer<typeof MacroChange>;
+
 /**
  * The least and the most of a day's energy that somebody's own split may
  * give to protein, to fat and to carbohydrate, in per cent. Under the least

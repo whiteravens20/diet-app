@@ -4,7 +4,7 @@ import * as z from './zod.js';
 import { AiGenerationMeta, ModelPickNote } from './ai.js';
 import { CalendarDay, dayAfter, DietType, DisplayAmount, LAST_DAY, MealType, Unit } from './enums.js';
 import { Ingredient } from './ingredient.js';
-import { EnteredNutrition, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET, Macros, Nutrition } from './nutrition.js';
+import { EnteredNutrition, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET, MacroChange, Macros, Nutrition } from './nutrition.js';
 import { Recipe } from './recipe.js';
 
 /**
@@ -855,7 +855,7 @@ export const SwapPreview = z.object({
   before: Nutrition,
   after: Nutrition,
   calorieDelta: z.number(),
-  macroDelta: Macros,
+  macroDelta: MacroChange,
   /** What the meal takes of the ingredient that leaves, all its lines together. */
   from: PlannedIngredient,
   /** What it would take of the one that comes in its place. */
