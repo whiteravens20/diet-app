@@ -5,7 +5,7 @@
  * the last one it opens.
  *
  * The rule the planner goes by is the cook's, not the factory's: a pack that
- * is used to about seven tenths is used. What is left of it is no reason to
+ * is used to about four fifths is used. What is left of it is no reason to
  * plan another meal, and a meal that would need a little more than the pack
  * holds is a reason against that meal: it opens a second pack for the sake of
  * a spoonful. A pack that is opened and mostly left is what a plan does well
@@ -17,7 +17,7 @@
  */
 
 /** The share of a pack that may be left without that counting as waste. */
-export const ACCEPTED_LEFT = 0.3;
+export const ACCEPTED_LEFT = 0.2;
 
 /**
  * A need that runs over whole packs by no more than this share of one takes
@@ -45,7 +45,7 @@ export function leftOf(need: number, packSize: number): number {
 
 /**
  * How much more of the last pack is left than is accepted, as a share of a
- * pack: nothing while the pack is used to seven tenths or more, and nothing
+ * pack: nothing while the pack is used to four fifths or more, and nothing
  * where no pack was opened.
  */
 export function leftBeyondAccepted(need: number, packSize: number): number {
@@ -58,7 +58,7 @@ export function leftBeyondAccepted(need: number, packSize: number): number {
  * takes from a pack that was mostly left. Under nothing: it opens a pack that
  * will be mostly left, a first one or another after one that was used well.
  * Nothing: it leaves the packs as well used as they were, as a meal does that
- * takes the last of a pack used to seven tenths.
+ * takes the last of a pack used to four fifths.
  *
  * A pack that is opened early has the rest of the plan to be used in, so how
  * much opening one is held against a meal goes by `daysToCome`, the days of

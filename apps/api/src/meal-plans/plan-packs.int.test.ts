@@ -65,7 +65,7 @@ describe('the packs a plan\'s menu opens that do not keep', () => {
       ['Wholegrain bread', 'g', 500, 1, 430, true],
       ['Whole milk', 'ml', 1000, 1, 500, true],
       ['Salmon', 'g', 250, 1, 110, true],
-      // What is left of the chicken is under the three tenths of a pack that a plan accepts.
+      // What is left of the chicken is under the fifth of a pack that a plan accepts.
       ['Chicken breast', 'g', 500, 1, 20, false],
     ]);
   });

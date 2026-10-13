@@ -14,20 +14,20 @@ describe('what a menu comes to in packs that do not keep', () => {
   it('adds up what the meals take of each, scaled to the meal, and counts whole packs against it', () => {
     const packs = planPacks(
       [
-        // A recipe for two that takes 300 g of chicken, planned as one serving and as one and a half.
-        { factor: 0.5, lines: [line('chicken', chicken, 300), line('rice', rice, 160)] },
-        { factor: 0.75, lines: [line('chicken', chicken, 300), line('tomato', tomato, 2, 'piece')] },
+        // A recipe for two that takes 340 g of chicken, planned as one serving and as one and a half.
+        { factor: 0.5, lines: [line('chicken', chicken, 340), line('rice', rice, 160)] },
+        { factor: 0.75, lines: [line('chicken', chicken, 340), line('tomato', tomato, 2, 'piece')] },
         { factor: 1, lines: [line('milk', milk, 250)] },
       ],
       'en',
     );
 
-    // 375 g of chicken from one pack of 500, 250 ml of milk from a litre: the rice keeps and the tomatoes are loose.
+    // 425 g of chicken from one pack of 500, 250 ml of milk from a litre: the rice keeps and the tomatoes are loose.
     expect(packs.bought).toBe(1500);
-    expect(packs.used).toBe(625);
+    expect(packs.used).toBe(675);
     expect(packs.open).toEqual([
       { ingredientId: 'milk', name: 'Milk', unit: 'ml', packSize: 1000, packs: 1, left: 750, wasted: true },
-      { ingredientId: 'chicken', name: 'Chicken breast', unit: 'g', packSize: 500, packs: 1, left: 125, wasted: false },
+      { ingredientId: 'chicken', name: 'Chicken breast', unit: 'g', packSize: 500, packs: 1, left: 75, wasted: false },
     ]);
   });
 

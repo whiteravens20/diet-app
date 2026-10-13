@@ -183,10 +183,10 @@ export class DayVariationsService {
         choice:
           `Ways to fill ${date} of a ${plan.dietType.replace('_', ' ')} meal plan. The day aims at ${Math.round(day.calorieTarget)} kcal, ` +
           `${aims.protein} g of protein, ${aims.fat} g of fat and ${aims.carbs} g of carbohydrate. ` +
-          `As it is now the day holds ${current.dayNutrition.calories} kcal, and the plan leaves ${current.packs.wasted} opened packs of food that does not keep more than three tenths full.`,
+          `As it is now the day holds ${current.dayNutrition.calories} kcal, and the plan leaves ${current.packs.wasted} opened packs of food that does not keep more than a fifth full.`,
         matters: [
           'How near the day comes to what it aims at, energy first, then protein.',
-          'How few opened packs the plan would leave more than three tenths full.',
+          'How few opened packs the plan would leave more than a fifth full.',
           'How well the meals of the day go together, and how much there is to cook.',
         ],
         options: variations.map((variation, index) => ({
@@ -194,7 +194,7 @@ export class DayVariationsService {
           facts:
             `${variation.meals.map((meal) => `${meal.mealType.replace('_', ' ')}: ${meal.title}${meal.stays ? ' (stays)' : ''}`).join('; ')} | ` +
             `${variation.dayNutrition.calories} kcal, protein ${variation.dayNutrition.protein} g, fat ${variation.dayNutrition.fat} g, carbohydrate ${variation.dayNutrition.carbs} g | ` +
-            `opened packs left more than three tenths full: ${variation.packs.wasted}`,
+            `opened packs left more than a fifth full: ${variation.packs.wasted}`,
         })),
         language: LANGUAGE[locale],
       });

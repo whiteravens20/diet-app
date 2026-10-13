@@ -39,12 +39,12 @@ describe('the packs a need takes', () => {
     expect(leftOf(0, 600)).toBe(0);
   });
 
-  it('count as used when about seven tenths of the last is', () => {
-    expect(ACCEPTED_LEFT).toBe(0.3);
-    expect(leftBeyondAccepted(420, 600)).toBe(0);
+  it('count as used when about four fifths of the last is', () => {
+    expect(ACCEPTED_LEFT).toBe(0.2);
+    expect(leftBeyondAccepted(480, 600)).toBe(0);
     expect(leftBeyondAccepted(550, 600)).toBe(0);
-    // A third used: two thirds left, of which three tenths are accepted.
-    expect(leftBeyondAccepted(200, 600)).toBeCloseTo(2 / 3 - 0.3, 6);
+    // A third used: two thirds left, of which a fifth is accepted.
+    expect(leftBeyondAccepted(200, 600)).toBeCloseTo(2 / 3 - 0.2, 6);
     expect(leftBeyondAccepted(0, 600)).toBe(0);
   });
 });
@@ -69,7 +69,7 @@ describe('what a meal does to the packs of a plan', () => {
   });
 
   it('holds nothing against a meal that opens a pack and uses it well', () => {
-    expect(packPull(meal({ chicken: 450 }), held({}), PACKS)).toBe(0);
+    expect(packPull(meal({ chicken: 500 }), held({}), PACKS)).toBe(0);
   });
 
   it('is nothing for an ingredient that is bought loose, or whose pack keeps', () => {

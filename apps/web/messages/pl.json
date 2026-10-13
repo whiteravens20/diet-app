@@ -983,7 +983,7 @@
       "mergeThen": "Ta lista powie wtedy, że nie odpowiada już planowi, i będzie można ją zaktualizować.",
       "leftover": "<strong>{name}</strong>: z opakowania {size} zostanie {left}, a po otwarciu szybko się psuje",
       "leftoverHow": "Zobacz w planie, co by to zużyło.",
-      "none": "Nic: żaden wiersz nie zastąpi innego i z żadnego opakowania nie zostanie ponad trzy dziesiąte.",
+      "none": "Nic: żaden wiersz nie zastąpi innego i z żadnego opakowania nie zostanie ponad jedna piąta.",
       "errLoad": "Nie udało się przejrzeć listy."
     }
   },
@@ -1268,11 +1268,11 @@
       "sheetDay": "{kcal, number} z {target, number} kcal"
     },
     "packs": {
-      "line": "Produkty nietrwałe po otwarciu: jadłospis zużywa {percent}% tego, co kupuje{wasted, plural, =0 {.} one {, a z # opakowania zostaje ponad trzy dziesiąte.} few {, a z # opakowań zostaje ponad trzy dziesiąte.} many {, a z # opakowań zostaje ponad trzy dziesiąte.} other {, a z # opakowania zostaje ponad trzy dziesiąte.}}",
+      "line": "Produkty nietrwałe po otwarciu: jadłospis zużywa {percent}% tego, co kupuje{wasted, plural, =0 {.} one {, a z # opakowania zostaje ponad jedna piąta.} few {, a z # opakowań zostaje ponad jedna piąta.} many {, a z # opakowań zostaje ponad jedna piąta.} other {, a z # opakowania zostaje ponad jedna piąta.}}",
       "left": "{name}: zostaje {left} z opakowania {size}",
-      "leftMuch": "{name}: zostaje {left} z opakowania {size}, ponad trzy dziesiąte",
+      "leftMuch": "{name}: zostaje {left} z opakowania {size}, ponad jedna piąta",
       "allFinished": "Każde otwarte opakowanie jest zużyte do końca.",
-      "explain": "Policzone z samego jadłospisu; to, co jest w domu, liczy lista zakupów. Opakowanie zużyte w siedmiu dziesiątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku."
+      "explain": "Policzone z samego jadłospisu; to, co jest w domu, liczy lista zakupów. Opakowanie zużyte w czterech piątych uznaje się za zużyte: to, co z niego zostaje, nie jest powodem do kolejnego posiłku."
     },
     "useUp": {
       "ask": "Co by je zużyło?",
@@ -1287,13 +1287,13 @@
       "title": "Inne warianty dnia {date}",
       "intro": "Każdy z nich to dzień, który planer ułożyłby dla tego planu: w jego limitach, wokół tego, co w dniu zostaje. Nic się nie zmienia, dopóki żadnego nie wybierzesz.",
       "loading": "Układam inne warianty…",
-      "now": "Obecnie: {kcal, number} z {target, number} kcal. {wasted, plural, =0 {Plan nie zostawia żadnego otwartego opakowania, z którego zostaje ponad trzy dziesiąte.} one {Plan zostawia # otwarte opakowanie, z którego zostaje ponad trzy dziesiąte.} few {Plan zostawia # otwarte opakowania, z których zostaje ponad trzy dziesiąte.} many {Plan zostawia # otwartych opakowań, z których zostaje ponad trzy dziesiąte.} other {Plan zostawia # otwartego opakowania, z którego zostaje ponad trzy dziesiąte.}}",
+      "now": "Obecnie: {kcal, number} z {target, number} kcal. {wasted, plural, =0 {Plan nie zostawia żadnego otwartego opakowania, z którego zostaje ponad jedna piąta.} one {Plan zostawia # otwarte opakowanie, z którego zostaje ponad jedna piąta.} few {Plan zostawia # otwarte opakowania, z których zostaje ponad jedna piąta.} many {Plan zostawia # otwartych opakowań, z których zostaje ponad jedna piąta.} other {Plan zostawia # otwartego opakowania, z którego zostaje ponad jedna piąta.}}",
       "way": "Wariant {n}",
       "take": "Wybierz ten dzień",
       "stays": "zostaje",
       "mealEnergy": "{kcal, number} kcal",
       "dayLine": "{kcal, number} z {target, number} kcal · białko {protein, number} g · tłuszcz {fat, number} g · węglowodany {carbs, number} g",
-      "packsLine": "{wasted, plural, =0 {Z nim plan nie zostawiłby żadnego otwartego opakowania, z którego zostaje ponad trzy dziesiąte.} one {Z nim plan zostawiłby # otwarte opakowanie, z którego zostaje ponad trzy dziesiąte.} few {Z nim plan zostawiłby # otwarte opakowania, z których zostaje ponad trzy dziesiąte.} many {Z nim plan zostawiłby # otwartych opakowań, z których zostaje ponad trzy dziesiąte.} other {Z nim plan zostawiłby # otwartego opakowania, z którego zostaje ponad trzy dziesiąte.}}",
+      "packsLine": "{wasted, plural, =0 {Z nim plan nie zostawiłby żadnego otwartego opakowania, z którego zostaje ponad jedna piąta.} one {Z nim plan zostawiłby # otwarte opakowanie, z którego zostaje ponad jedna piąta.} few {Z nim plan zostawiłby # otwarte opakowania, z których zostaje ponad jedna piąta.} many {Z nim plan zostawiłby # otwartych opakowań, z których zostaje ponad jedna piąta.} other {Z nim plan zostawiłby # otwartego opakowania, z którego zostaje ponad jedna piąta.}}",
       "none": "W limitach planu katalog nie daje innego wariantu tego dnia.",
       "errLoad": "Nie udało się ułożyć innych wariantów tego dnia.",
       "errTake": "Nie udało się zmienić dnia."

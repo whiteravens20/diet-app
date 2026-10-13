@@ -50,7 +50,7 @@ test.describe('what the planner proposes for a plan', () => {
     await expect(dialog).toBeHidden();
     await settled(page);
 
-    // What would use up what the plan opens, where it leaves a pack more than three tenths full.
+    // What would use up what the plan opens, where it leaves a pack more than a fifth full.
     const line = card.locator('summary').filter({ hasText: start(packs.line!) }).first();
     if (await line.isVisible()) {
       await line.click();

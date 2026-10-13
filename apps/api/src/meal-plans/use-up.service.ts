@@ -169,7 +169,7 @@ export class UseUpService {
     // The model sees each swap under a letter, with what the engine counted: it writes no figure of its own.
     const letter = (index: number): string => String.fromCharCode(97 + index);
     const weighed = await this.weigher.weigh(userId, USE_UP_SWAPS, {
-      choice: `A ${plan.dietType.replace('_', ' ')} meal plan opens packs of food that do not keep once they are opened, and leaves more than three tenths of some of them. Each option swaps one meal for a recipe that takes from such a pack.`,
+      choice: `A ${plan.dietType.replace('_', ' ')} meal plan opens packs of food that do not keep once they are opened, and leaves more than a fifth of some of them. Each option swaps one meal for a recipe that takes from such a pack.`,
       matters: ['How much less of the opened packs is left to go to waste.', 'How little the meal changes in energy and in protein.', 'How different the dish is from what was planned: say so plainly.'],
       options: suggestions.map((suggestion, index) => ({
         id: letter(index),
@@ -177,7 +177,7 @@ export class UseUpService {
           `${suggestion.date} ${suggestion.mealType.replace('_', ' ')}: "${suggestion.to.title}" in place of "${suggestion.from.title}" | ` +
           `meal ${suggestion.before.calories} -> ${suggestion.after.calories} kcal, protein ${suggestion.before.protein} -> ${suggestion.after.protein} g | ` +
           `takes ${suggestion.takes.map((taken) => `${taken.amount} ${taken.unit} more of ${taken.name}, leaving ${taken.left} ${taken.unit} of its pack`).join(', ')} | ` +
-          `packs left more than three tenths full: ${suggestion.packs.before.wasted} -> ${suggestion.packs.after.wasted}`,
+          `packs left more than a fifth full: ${suggestion.packs.before.wasted} -> ${suggestion.packs.after.wasted}`,
       })),
       language: LANGUAGE[locale],
     });

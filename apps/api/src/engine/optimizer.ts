@@ -247,7 +247,7 @@ export const SCORE_WEIGHTS = {
   complexity: 0.05,
   // What a meal does to the packs of the plan, from -1 to 1. Chosen with
   // `scripts/tune-pack-weight.ts`: at this weight a week leaves about a third
-  // fewer packs more than three tenths full where the catalogue gives it a
+  // fewer packs more than a fifth full where the catalogue gives it a
   // choice, and a day is at most a point further from its split. More weight
   // goes on taking from the split and from the variety of a week.
   packs: 0.15,

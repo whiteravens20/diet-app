@@ -208,7 +208,7 @@ describe('other ways to fill a day of a plan', () => {
       const { prompt } = t.model.requests[0]!;
       expect(prompt).toContain(`Ways to fill ${day().date} of a balanced meal plan. The day aims at ${Math.round(day().calorieTarget)} kcal`);
       expect(prompt).toContain(`breakfast: ${ways.find((way) => way.offer)!.meals[0]!.title}`);
-      expect(prompt).toContain('opened packs left more than three tenths full: ');
+      expect(prompt).toContain('opened packs left more than a fifth full: ');
       expect(prompt).not.toContain(plan.id);
     });
 

@@ -4,7 +4,7 @@
  * What the weight of the pack term in the optimiser's score does to plans, on
  * a catalogue: for each diet and each weight, how much the weeks use of what
  * they buy in packs that do not keep, how many packs they open and how many
- * of those they leave more than three tenths of, how far their days are from
+ * of those they leave more than a fifth of, how far their days are from
  * the diet's split, and how many different recipes a week holds. The weight
  * in `SCORE_WEIGHTS` was chosen from this table; run it again when the
  * catalogue has grown.
@@ -40,7 +40,7 @@ console.log(
 for (const diet of DietType.options.filter((option) => option !== 'custom')) {
   const split = macroSplitOf(diet);
   console.log(diet);
-  console.log('  weight   packs used %   packs opened   left more than three tenths of   off the split   recipes in a week');
+  console.log('  weight   packs used %   packs opened   left more than a fifth of   off the split   recipes in a week');
   for (const packs of WEIGHTS) {
     let bought = 0;
     let used = 0;

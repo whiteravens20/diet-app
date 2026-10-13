@@ -31,7 +31,7 @@ export interface UseUpMeal {
   candidates: readonly UseUpCandidate[];
 }
 
-/** What a menu buys in packs that do not keep, against what it uses, and how many of them it leaves more than three tenths of. */
+/** What a menu buys in packs that do not keep, against what it uses, and how many of them it leaves more than a fifth of. */
 export interface PackTally {
   bought: number;
   used: number;
@@ -47,11 +47,11 @@ export interface UseUpSwap {
   servings: number;
   before: PackTally;
   after: PackTally;
-  /** Of the packs the menu leaves more than three tenths of: how much more of each the swap takes, and what is then left of the last pack. */
+  /** Of the packs the menu leaves more than a fifth of: how much more of each the swap takes, and what is then left of the last pack. */
   takes: Map<string, { amount: number; left: number }>;
 }
 
-/** How much of the packs a menu leaves beyond the three tenths that are accepted, in packs. */
+/** How much of the packs a menu leaves beyond the fifth that is accepted, in packs. */
 function leftBeyond(needs: ReadonlyMap<string, number>, packs: ReadonlyMap<string, number>): number {
   let beyond = 0;
   for (const [ingredientId, need] of needs) {
@@ -65,7 +65,7 @@ function leftBeyond(needs: ReadonlyMap<string, number>, packs: ReadonlyMap<strin
  * The swaps after which the menu leaves less of its packs: one for a meal,
  * the one that leaves the least first, `most` at most. A swap counts when it
  * takes at least a spoonful of a pack off what is left beyond the accepted
- * three tenths, over all packs together: one that finishes a pack by opening
+ * fifth, over all packs together: one that finishes a pack by opening
  * another and leaving as much of that is no gain.
  *
  * `fixed` is what the meals that cannot be changed take (eaten, of days that
@@ -79,7 +79,7 @@ export function useUpSwaps(meals: readonly UseUpMeal[], fixed: ReadonlyMap<strin
   const before = tallyOf(packUse(needs, packs));
   const beyondBefore = leftBeyond(needs, packs);
   if (beyondBefore <= 0) return [];
-  // The packs of which more than three tenths are left now: what a swap is looked at for.
+  // The packs of which more than a fifth are left now: what a swap is looked at for.
   const leftOpen = new Set([...needs].filter(([ingredientId, need]) => leftBeyondAccepted(need, packs.get(ingredientId) ?? 0) > 0).map(([ingredientId]) => ingredientId));
 
   const found: (UseUpSwap & { beyond: number })[] = [];

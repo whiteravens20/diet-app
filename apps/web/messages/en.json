@@ -983,7 +983,7 @@
       "mergeThen": "This list then says that it no longer matches the plan, and can be updated.",
       "leftover": "<strong>{name}</strong>: {left} of a pack of {size} will be left, and an opened pack of it does not keep",
       "leftoverHow": "See in the plan what would use it up.",
-      "none": "Nothing: no row could stand for another, and no pack would be left more than three tenths full.",
+      "none": "Nothing: no row could stand for another, and no pack would be left more than a fifth full.",
       "errLoad": "Could not look the list over."
     }
   },
@@ -1268,11 +1268,11 @@
       "sheetDay": "{kcal, number} of {target, number} kcal"
     },
     "packs": {
-      "line": "Packs that do not keep once opened: the menu uses {percent}% of what it buys{wasted, plural, =0 {.} one {, and leaves more than three tenths of # pack.} other {, and leaves more than three tenths of # packs.}}",
+      "line": "Packs that do not keep once opened: the menu uses {percent}% of what it buys{wasted, plural, =0 {.} one {, and leaves more than a fifth of # pack.} other {, and leaves more than a fifth of # packs.}}",
       "left": "{name}: {left} left of a pack of {size}",
-      "leftMuch": "{name}: {left} left of a pack of {size}, more than three tenths of it",
+      "leftMuch": "{name}: {left} left of a pack of {size}, more than a fifth of it",
       "allFinished": "Every pack the menu opens is used up.",
-      "explain": "Counted from the menu alone; what is at home is for the shopping list to count. A pack used to seven tenths counts as used: what is left of it is no reason for another meal."
+      "explain": "Counted from the menu alone; what is at home is for the shopping list to count. A pack used to four fifths counts as used: what is left of it is no reason for another meal."
     },
     "useUp": {
       "ask": "What would use them up?",
@@ -1287,13 +1287,13 @@
       "title": "Other ways to fill {date}",
       "intro": "Each of these is a day the planner would make for this plan: inside its limits, around what stays on the day. Nothing changes until you take one.",
       "loading": "Working out other ways…",
-      "now": "As it is: {kcal, number} of {target, number} kcal. The plan leaves {wasted, plural, =0 {no opened pack} one {# opened pack} other {# opened packs}} more than three tenths full.",
+      "now": "As it is: {kcal, number} of {target, number} kcal. The plan leaves {wasted, plural, =0 {no opened pack} one {# opened pack} other {# opened packs}} more than a fifth full.",
       "way": "Way {n}",
       "take": "Take this day",
       "stays": "stays",
       "mealEnergy": "{kcal, number} kcal",
       "dayLine": "{kcal, number} of {target, number} kcal · protein {protein, number} g · fat {fat, number} g · carbs {carbs, number} g",
-      "packsLine": "With it the plan would leave {wasted, plural, =0 {no opened pack} one {# opened pack} other {# opened packs}} more than three tenths full.",
+      "packsLine": "With it the plan would leave {wasted, plural, =0 {no opened pack} one {# opened pack} other {# opened packs}} more than a fifth full.",
       "none": "The catalogue leaves no other way to fill this day inside the limits of the plan.",
       "errLoad": "Could not work out other ways for this day.",
       "errTake": "Could not change the day."

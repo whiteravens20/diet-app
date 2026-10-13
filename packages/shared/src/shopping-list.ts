@@ -152,7 +152,7 @@ export type UpdateShoppingItemRequest = z.infer<typeof UpdateShoppingItemRequest
  * packs. The substitution itself is made in the plan, meal
  * by meal (`SwapIngredientRequest`), after which the list says it is stale.
  *
- * `leftover`: a row whose packs leave more than three tenths of a pack that
+ * `leftover`: a row whose packs leave more than a fifth of a pack that
  * does not keep once it is opened. What would use it up is the plan's to say
  * (`UseUpSuggestions`).
  */

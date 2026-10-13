@@ -351,7 +351,7 @@ export const PlanOpenPack = z.object({
   packs: z.number().int().min(1),
   /** What the menu leaves of the last of them, to the gram or millilitre. */
   left: z.number().int().min(1),
-  /** More of it is left than the three tenths of a pack that a plan accepts. */
+  /** More of it is left than the fifth of a pack that a plan accepts. */
   wasted: z.boolean(),
 });
 export type PlanOpenPack = z.infer<typeof PlanOpenPack>;
@@ -640,7 +640,7 @@ export type WeighRequest = z.infer<typeof WeighRequest>;
 
 /**
  * What a menu buys in packs that do not keep against what it uses of them,
- * and how many of those packs it leaves more than three tenths of (see
+ * and how many of those packs it leaves more than a fifth of (see
  * `PlanPacks`).
  */
 export const PackTally = z.object({ bought: z.number().min(0), used: z.number().min(0), wasted: z.number().int().min(0) });
@@ -730,7 +730,7 @@ export const UseUpSuggestion = z.object({
   before: Nutrition,
   after: Nutrition,
   /**
-   * The packs the menu leaves more than three tenths of that the recipe takes
+   * The packs the menu leaves more than a fifth of that the recipe takes
    * from: how much more of each the menu would use, and what would then be
    * left of its last pack, to the gram or millilitre.
    */

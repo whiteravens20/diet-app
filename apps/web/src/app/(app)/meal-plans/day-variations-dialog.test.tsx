@@ -73,13 +73,13 @@ describe('the window that offers other ways to fill a day', () => {
   it('shows each way with its meals, what the day would hold, and what the plan would leave of its packs', async () => {
     const { dialog } = await opened(theWays([aWay('offer-1', 'Lentil soup'), aWay('offer-2', 'Tofu bowl', { packs: { bought: 1500, used: 650, wasted: 0 } })]));
 
-    expect(await dialog.findByText('As it is: 1,950 of 2,000 kcal. The plan leaves 2 opened packs more than three tenths full.')).toBeInTheDocument();
+    expect(await dialog.findByText('As it is: 1,950 of 2,000 kcal. The plan leaves 2 opened packs more than a fifth full.')).toBeInTheDocument();
     const [first, second] = ways(dialog);
     expect(within(first!).getByRole('heading', { level: 3 })).toHaveTextContent('Way 1');
     expect(within(first!).getAllByRole('listitem').map((meal) => meal.textContent)).toEqual(['breakfast · Oat porridge · 450 kcal', 'lunch · A slice of cake · 250 kcalstays', 'dinner · Lentil soup · 700 kcal']);
     expect(within(first!).getByText('1,400 of 2,000 kcal · protein 90 g · fat 60 g · carbs 180 g')).toBeInTheDocument();
-    expect(within(first!).getByText('With it the plan would leave 1 opened pack more than three tenths full.')).toBeInTheDocument();
-    expect(within(second!).getByText('With it the plan would leave no opened pack more than three tenths full.')).toBeInTheDocument();
+    expect(within(first!).getByText('With it the plan would leave 1 opened pack more than a fifth full.')).toBeInTheDocument();
+    expect(within(second!).getByText('With it the plan would leave no opened pack more than a fifth full.')).toBeInTheDocument();
   });
 
   it('takes the way that is chosen with the note that came with it, tells the page and closes', async () => {

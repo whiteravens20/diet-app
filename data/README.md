@@ -157,7 +157,7 @@ apple, garlic) has no `packSize`.
 fish, dairy, bread, tofu, a punnet of berries, a head of broccoli, an opened
 tin. What a plan leaves of such a pack is what it wastes, so the planner leans
 towards meals that use an opened pack up, and a plan says what it buys of these
-packs against what it uses. A pack used to seven tenths counts as used: what is
+packs against what it uses. A pack used to four fifths counts as used: what is
 left of it is no reason for another meal. Rice, pasta, oil, nuts and eggs keep,
 and are left unmarked. The lint refuses `perishable` without a `packSize`.
 

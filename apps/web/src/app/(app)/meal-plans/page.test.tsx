@@ -915,17 +915,17 @@ describe('the plan page, on how a day stands against its target', () => {
     const milk = { ingredientId: '77777777-7777-4777-8777-777777777777', name: 'Whole milk', unit: 'ml', packSize: 1000, packs: 1, left: 500, wasted: true } as const;
     const feta = { ingredientId: '88888888-8888-4888-8888-888888888888', name: 'Feta cheese', unit: 'g', packSize: 200, packs: 1, left: 160, wasted: true } as const;
 
-    it('says how much of what the menu buys it uses, and how many packs it leaves more than three tenths of', async () => {
+    it('says how much of what the menu buys it uses, and how many packs it leaves more than a fifth of', async () => {
       await opened(aPlan({ packs: { bought: 2200, used: 1520, open: [feta, milk, chicken] } }));
 
-      const line = screen.getByText('Packs that do not keep once opened: the menu uses 69% of what it buys, and leaves more than three tenths of 2 packs.');
+      const line = screen.getByText('Packs that do not keep once opened: the menu uses 69% of what it buys, and leaves more than a fifth of 2 packs.');
       expect(line).toBeVisible();
       // Unfolded, it names every pack that is not finished: the ones with much left as such.
       await userEvent.click(line);
       const packs = within(line.closest('details')!).getAllByRole('listitem').map((pack) => pack.textContent);
       expect(packs).toEqual([
-        'Feta cheese: 160 g left of a pack of 200 g, more than three tenths of it',
-        'Whole milk: 500 ml left of a pack of 1000 ml, more than three tenths of it',
+        'Feta cheese: 160 g left of a pack of 200 g, more than a fifth of it',
+        'Whole milk: 500 ml left of a pack of 1000 ml, more than a fifth of it',
         'Chicken breast: 20 g left of a pack of 500 g',
       ]);
       expect(screen.getByText(messages.mealPlans.packs.explain)).toBeInTheDocument();
@@ -934,7 +934,7 @@ describe('the plan page, on how a day stands against its target', () => {
     it('says so when one pack is left much of, and when none is', async () => {
       await opened(aPlan({ packs: { bought: 1500, used: 980, open: [milk, chicken] } }));
 
-      expect(screen.getByText('Packs that do not keep once opened: the menu uses 65% of what it buys, and leaves more than three tenths of 1 pack.')).toBeVisible();
+      expect(screen.getByText('Packs that do not keep once opened: the menu uses 65% of what it buys, and leaves more than a fifth of 1 pack.')).toBeVisible();
     });
 
     it('says that every pack is used up when the menu finishes them all', async () => {
@@ -1328,7 +1328,7 @@ describe('the plan page, on what the planner proposes for a plan', () => {
     expect(screen.queryByRole('button', { name: messages.mealPlans.otherWays })).toBeNull();
   });
 
-  it('offers, with the packs a plan leaves more than three tenths of, to look for what would use them up', async () => {
+  it('offers, with the packs a plan leaves more than a fifth of, to look for what would use them up', async () => {
     const plan = aPlan({ packs: { bought: 500, used: 150, open: [chicken] } });
     await opened(plan);
     const post = vi.spyOn(api, 'post').mockResolvedValue({ revision: 0, suggestions: [], aiMeta: null } as never);
