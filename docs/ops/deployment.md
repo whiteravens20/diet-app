@@ -55,10 +55,9 @@ docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 > explanation.
 
 The `db-init` one-shot service applies pending Prisma migrations before `api`
-and `worker` start, then exits. **The curated ingredient/recipe database is
-not seeded automatically** — boot would otherwise stall for minutes loading
-~7 k ingredients × ~30 k composed recipes. Populate it on first run via the
-admin panel:
+and `worker` start, then exits. **The curated ingredients and recipes are not
+loaded by themselves**: a start only brings the database to the current schema.
+Load them on the first run, in the admin panel:
 
 1. Browse to `http://localhost:3000/admin`, sign in with `ADMIN_USER` / `ADMIN_PASSWORD`.
 2. (Optional) On the host, fetch USDA whole foods:

@@ -142,9 +142,10 @@ below to populate the curated ingredient database from the admin panel.
 
 ## First-run: populate the curated database
 
-The stack boots empty by design — only `prisma migrate deploy` runs at startup
-(seeding ~7 k ingredients × ~30 k composed recipes would block boot for
-minutes). Loading the curated database is a one-click admin action:
+The stack starts with an empty catalogue: starting it only brings the database
+to the current schema. Loading the curated data (the ingredients and recipes of
+[`data/`](data/README.md), with what a food import and the curation queue added)
+is something an administrator does, in the panel:
 
 1. Set `ADMIN_PASSWORD` in `.env` (and optionally `ADMIN_USER`, defaults to `admin`).
 2. (Optional) Run the USDA importer to add public-domain whole foods:
@@ -154,8 +155,9 @@ minutes). Loading the curated database is a one-click admin action:
    Defaults to USDA **Foundation** (~340 clean generic foods). Without an importer
    run, only the hand-curated baseline (~55 ingredients) seeds. See
    [data/README.md](data/README.md#choosing-fdc_data_types) before enabling
-   `SR Legacy` — it adds ~7 k entries but most are brand SKUs or hyper-specific
-   cuts that inflate template-generated recipes with nonsense.
+   `SR Legacy` — it adds ~7 k entries, but most are brand names or cuts of one
+   animal: every one of them is put before the model that drafts recipes, and
+   the catalogue update takes minutes where it took seconds.
 3. Open <http://localhost:3000/admin>, sign in, click **Update Database**.
 
 The admin panel surfaces ingredient/recipe/substitution counts and a

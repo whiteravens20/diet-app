@@ -14,9 +14,9 @@
  *                                              # a few requests an hour: Foundation
  *                                              # at most.
  *
- * `FDC_DATA_TYPES` can include `SR Legacy` to pull the ~7 k legacy corpus, but
- * the result is dominated by brand SKUs and cut-specific entries that pollute
- * the template-generated recipe set — see `data/README.md` before enabling.
+ * `FDC_DATA_TYPES` can include `SR Legacy` for about 7,000 more foods, but most
+ * of them are brand names or cuts of one animal, and each is put before the
+ * model that drafts recipes: see `data/README.md` before enabling it.
  */
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
