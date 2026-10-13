@@ -21,7 +21,7 @@ provider/model that clears the demand bar for the surface you actually use.
 | Surface | Endpoint / file | Input | Output | JSON strictness | Locale-keyed |
 |---|---|---|---|---|---|
 | **Recipe draft from prompt** | `POST /api/recipes/drafts/from-prompt` ([ai-recipe-draft.service.ts](../../apps/api/src/recipes/ai-recipe-draft.service.ts)) | ~2.5k tok (up to 60 ingredients, named by slug, + rules) | ~1.5k tok per locale | strict, nested | yes |
-| **Admin recipe batch** | `POST /api/admin/drafts/recipes/generate` ([recipe-generator.runner.ts](../../apps/api/src/admin/drafts/recipe-generator.runner.ts)) | ~3k tok (full catalogue) | ~1.5k tok per locale | strict, nested | yes |
+| **Admin recipe batch** | `POST /api/admin/drafts/recipes/generate` ([recipe-generator.runner.ts](../../apps/api/src/admin/drafts/recipe-generator.runner.ts)) | ~9k tok a call (the rules, six examples, the curated catalogue with its names in each language) | ~1.5k tok per locale | strict, nested | yes |
 | **AI meal swap** | `POST /api/meal-plans/ai-swap-meal` | ~1k tok (candidate pool) | ~100 tok (pick + reason) | lenient | no |
 | **AI ingredient swap suggest** | `POST /api/meal-plans/swap-ingredient/ai-suggest` | ~800 tok | ~100 tok | lenient | no |
 | **Swap rewrite** | `POST /api/meal-plans/swap-ingredient/apply` with `rewriteWithAi: true`, only when the user ticks it | ~500 tok (sentences only) | ~500 tok | strict (two keys) | no: one call, in the user's language |
@@ -119,23 +119,68 @@ unless you have real GPU hardware on hand.** The strict-JSON + 2-locale
 prompt is the single most demanding thing this app ever asks a model to do,
 and the cost is small (drafting a recipe is one short request).
 
-| Provider | Model | Why |
+#### What the project uses
+
+The project is developed and checked against two models, through OpenRouter,
+each for what it was measured to do well:
+
+| For | Model | Why |
 |---|---|---|
-| **OpenRouter (free tier)** | `meta-llama/llama-3.3-70b-instruct:free` | Free, returns valid 2-locale JSON, Polish is usable. Best free option for self-hosters. |
-| | `deepseek/deepseek-chat-v3.1:free` | Free, very strong at structured output, decent Polish. |
-| | `mistralai/mistral-small-3.1-24b-instruct:free` | Free, faster than 70b, weaker Polish prose. |
-| **OpenAI** | `gpt-4o-mini` | Cheap, near-instant, reliable JSON. Best default for paid drafting. |
-| | `gpt-4o` | Higher-quality Polish, ~10× cost. Use for the admin recipe-batch generator if Tier 1's free models miss too often. |
-| **Anthropic** | `claude-haiku-4-5` | Cheap, fast, excellent JSON discipline. |
-| | `claude-sonnet-4-6` | Best Polish prose of any provider tested. Use sparingly for high-value batches. |
+| What an account asks: a swap, a substitute, a rewording, a recipe of its own, a weighing | `google/gemini-3.1-flash-lite` | Every call answered in one to two seconds, in sound Polish, for a fraction of a cent. Nothing was cut off at the output cap. |
+| The admin recipe batch, which writes the drafts of the shared catalogue | `openai/gpt-6-luna` | Wrote every recipe it was asked for, drew on the widest part of the catalogue, kept to the rules of the prompt, and cost the least of the models tried. |
 
-For **AI meal/ingredient swap** and the **admin's missing language**, the demand is
-much lower — `gpt-4o-mini` or any free OpenRouter 8B+ model is fine.
+The drafts for the shared catalogue are written with the second, held to the
+rules by the validator, and approved by a person in each language before any
+of them ships.
 
-OpenRouter free tier is rate-limited (~20 req/min, ~200/day per account).
-That is plenty for personal use and small instances. The admin recipe batch
-generator is the only surface that will plausibly run into it; switch to a
-paid model for large batches.
+An instance has one operator model (`AI_DEFAULT_MODEL`). Keep the first as the
+default, and set the second for the length of a batch (see
+[How to switch](#how-to-switch)): asked what an account asks, `openai/gpt-6-luna`
+took three to nine seconds a call and reached the output cap on two of three
+weighings.
+
+#### Measured for the admin recipe batch
+
+The same run on 2026-10-13, through OpenRouter: twelve recipes in English and
+Polish for the diets and meals the catalogue had fewest of (low-carb and keto
+mostly), from an empty queue, against the 93 curated ingredients. Prices are
+those of the day, per million tokens.
+
+| Model | Price, in / out | Recipes written | Time | The run cost | What came back |
+|---|---|---|---|---|---|
+| `openai/gpt-6-luna` | $0.10 / $0.50 | 12 of 12 | 171 s | $0.014 | 35 different ingredients, fat-rich keto dishes, each dish filed under the meals it is, natural Polish. One recipe seasoned with salt its list did not hold. |
+| `google/gemini-3.1-flash-lite` | $0.25 / $1.50 | 11 of 12 | 56 s | $0.025 | The fastest. 22 ingredients, the same few dishes over again, and a title that named an ingredient the catalogue does not have. |
+| `openai/gpt-5.4-mini` | $0.75 / $4.50 | 7 of 12 | 80 s | $0.116 | Nine recipes refused for missing the diet they were asked for. |
+| `deepseek/deepseek-v4-pro` | $0.44 / $0.87 | 3, stopped after 8 min | | $0.020 | Answers cut off at the output cap. |
+| `qwen/qwen3.7-plus` | $0.32 / $1.28 | none, stopped after 11 min | | $0.060 | Every answer cut off. |
+| `mistralai/mistral-large-4-0` | $0.68 / $2.09 | none in 13 min | | $0.080 | Cut off, then timed out. |
+| `google/gemini-3.8-flash` | $0.75 / $3.75 | none, stopped after 3 min | | $0.042 | Every answer cut off. |
+
+- **A model that thinks before it answers may write nothing.** Four of the
+  seven spent the output cap of a call on thinking and returned an empty
+  answer. The app sends a model no setting for how long it may think, so for
+  the recipe batch choose a model that answers directly or thinks briefly by
+  default. A run says so as `answer-cut-off`; stop it, since every call is
+  paid for.
+- **Price is no guide.** The model that did best was the cheapest of the
+  seven; the dearest one that answered wrote the least.
+- **What the table does not say.** Model ids and prices change within weeks:
+  read the provider's list before copying one. No model of Anthropic and no
+  free model was measured. The free models this guide used to name have left
+  OpenRouter's list, and the one tried on that day
+  (`google/gemma-4-31b-it:free`) answered 429 at once. A whole batch on a paid
+  model costs one to three cents.
+- **A direct OpenAI or Anthropic key works the same way**: set the provider
+  and one of its models. The figures above are for the models named, not for
+  a provider.
+
+On the same day `openai/gpt-6-luna` wrote the thirty recipes that brought every
+diet to six for every meal, in two runs and for under four cents, and after
+them the recipes asked for by diet and meal, every run complete.
+
+Whatever the model, a batch is held to the same rules by the validator: a
+recipe that breaks one is refused and asked for again, and a person approves
+every draft before it ships.
 
 ### Tier 2 — Self-hosted Ollama on a real GPU
 
@@ -205,6 +250,23 @@ WARN lines showing prose preambles or missing locale keys.
   English and Polish written in a minute and a half for about seven US cents,
   and no answer cut off by the output cap. The lighter surfaces (a swap, a
   substitute, a rewording, a weighing) answered in one to two seconds each.
+- **A model fills what it was asked for the cheapest way it can.** Asked for
+  a snack on a diet that has few, it files a dinner under "lunch, dinner,
+  snack". It puts the diet or the band into the title ("Keto ...",
+  "Simple ..."), names in a title or a step what its ingredient list does not
+  hold (a "parmesan crust" of feta, "season with salt" without salt), and
+  breaks off its second language halfway. The validator refuses each of
+  these: a dish is a main one or a small one, a title names the dish and no
+  diet, a title or a step names no ingredient of the catalogue that the list
+  lacks, and every language has as many steps as the others. A refused
+  recipe is asked for again with the reason.
+- **A run for a diet is told what the diet aims at.** A recipe that only
+  passes a diet's rule can leave its plans far from their split: "keto"
+  dishes of lean turkey pass the limit on carbohydrate and bring a third of
+  the fat a keto day wants. The prompt gives the split a day on the diet aims
+  at, and the words of the run (`cuisine`) can ask for more: "two fifths of
+  the energy from protein, lean cuts, low-fat dairy, little oil" moved the
+  plans of the high-protein diet from 14 points off their split to under 4.
 - **Temperature.** A recipe draft runs at `0.7` for variety; picking from a
   list, naming and translation run at `0.2` for fidelity. Don't raise the
   translation temperature — it produces "creative" mistranslations that pass
@@ -221,6 +283,10 @@ WARN lines showing prose preambles or missing locale keys.
   `AI_DEFAULT_MODEL` (and the matching `*_API_KEY` or `OLLAMA_BASE_URL`)
   in `.env`, then restart the api + worker containers. See
   [env-reference.md](env-reference.md).
+- **For one admin batch**: set `AI_DEFAULT_MODEL` to the model the batch is
+  to be written with, restart the api + worker containers, run the batch from
+  the administrator's panel, then set the model back and restart again. The
+  drafts keep the name of the model that wrote them.
 
 The router's failover means you can chain providers — e.g. a free
 OpenRouter primary with local Ollama secondary. When the primary times out
@@ -234,8 +300,10 @@ chain share the wait of the request, as described under
 
 If you don't want to read the table:
 
-- **You self-host and have no GPU** → OpenRouter free tier with
-  `meta-llama/llama-3.3-70b-instruct:free` as BYOK or admin default.
+- **You want it to work today, for cents** → OpenRouter with
+  `google/gemini-3.1-flash-lite` as the admin default.
+- **You are about to run an admin recipe batch** → set
+  `openai/gpt-6-luna` for the run.
 - **You have a 12 GB+ GPU** → local Ollama with `qwen2.5:14b`.
-- **You want zero-friction paid** → OpenAI `gpt-4o-mini`.
-- **You want the best Polish output** → Anthropic `claude-sonnet-4-6`.
+- **You self-host and have no GPU** → a cloud model for recipe drafting and
+  batches; local Ollama only for the lighter surfaces (Tier 3).
