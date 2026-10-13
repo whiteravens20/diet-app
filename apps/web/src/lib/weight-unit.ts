@@ -8,10 +8,10 @@ import type { SessionUser, WeightUnit } from '@diet-app/shared';
 import { api } from './api';
 
 /** One pound in kilograms, as the pound is defined. */
-export const KG_PER_LB = 0.45359237;
+const KG_PER_LB = 0.45359237;
 
 /** The least and the most a body weight may be, in kilograms: the bounds of the API. */
-export const WEIGHT_BOUNDS_KG = { min: 30, max: 400 } as const;
+const WEIGHT_BOUNDS_KG = { min: 30, max: 400 } as const;
 
 /** A weight the API holds in kilograms, in the unit it is shown in. */
 export function shownWeight(kg: number, unit: WeightUnit): number {

@@ -21,10 +21,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
  * The cookies of a session go with requests to the application's own address
  * by themselves; an API at another address has to be told.
  */
-export const WITH_COOKIES: RequestCredentials = API_URL ? 'include' : 'same-origin';
+const WITH_COOKIES: RequestCredentials = API_URL ? 'include' : 'same-origin';
 
 /** The address of a path of the API, as `fetch` takes it. */
-export const apiUrl = (path: string): string => `${API_URL}/api${path}`;
+const apiUrl = (path: string): string => `${API_URL}/api${path}`;
 
 export interface ApiErrorIssue {
   path: string;
@@ -67,7 +67,7 @@ export function waitOf(status: number, retryAfterSeconds: number | undefined): {
 }
 
 /** `Retry-After` in seconds, as the API writes it; a date or nothing at all is no number. */
-export function retryAfterOf(res: Response): number | undefined {
+function retryAfterOf(res: Response): number | undefined {
   const seconds = Number(res.headers.get('retry-after'));
   return seconds > 0 ? seconds : undefined;
 }

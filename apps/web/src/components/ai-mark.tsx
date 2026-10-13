@@ -27,7 +27,7 @@ export const partInMeal = (meal: Pick<PlannedMeal, 'modelPick'> & { recipe: Pick
   meal.modelPick ? { kind: 'picked', reason: meal.modelPick.reason } : partInRecipe(meal.recipe);
 
 /** The sentence that says what a model did. */
-export function useModelPartText(): (part: ModelPart) => string {
+function useModelPartText(): (part: ModelPart) => string {
   const t = useTranslations('aiMark');
   return (part) =>
     part.kind === 'picked' ? (part.reason ? t('pickedWhy', { reason: part.reason }) : t('picked')) : part.kind === 'weighed' ? t('weighed', { reason: part.reason }) : t(part.kind);

@@ -4,7 +4,7 @@
 import { PACES_OF_LOSS, type CalorieCalculation, type CaloriePreview } from '@diet-app/shared';
 
 /** The calculation of a man of 30, 180 cm and 80 kg who moves moderately and loses half a kilogram a week; a test overrides what it is about. */
-export function aCalculation(over: Partial<CalorieCalculation> = {}): CalorieCalculation {
+function aCalculation(over: Partial<CalorieCalculation> = {}): CalorieCalculation {
   return {
     bmr: 1780,
     maintenance: 2759,

@@ -232,7 +232,7 @@ type BuildOpts = {
  * module stays decoupled from next-intl (which would not work inside the PDF
  * worker context anyway).
  */
-export function buildShoppingListPdf(opts: BuildOpts) {
+function buildShoppingListPdf(opts: BuildOpts) {
   ensureFontRegistered();
   return opts.mode === 'foldable-a4' ? buildFoldable(opts) : buildPretty(opts);
 }

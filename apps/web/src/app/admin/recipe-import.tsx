@@ -16,7 +16,7 @@ import { useFormat } from '@/lib/use-format';
  * with what it is about. A reason this version has no words for is shown as
  * the API wrote it.
  */
-export function useImportReasonText(): (reason: string) => string {
+function useImportReasonText(): (reason: string) => string {
   const t = useTranslations('admin.curation.import.reasons');
   const problemLine = useProblemLine();
   return useCallback(

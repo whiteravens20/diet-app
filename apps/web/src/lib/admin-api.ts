@@ -70,7 +70,7 @@ export interface AdminStats {
   };
 }
 
-export interface DbUpdateResult {
+interface DbUpdateResult {
   deletedRecipes: number;
   deletedIngredients: number;
   /** Dropped from the data but still used by someone: kept, hidden from search and planning. */
@@ -81,7 +81,7 @@ export interface DbUpdateResult {
   seededAt: string;
 }
 
-export type DbUpdateStatus = 'idle' | 'running' | 'done' | 'error';
+type DbUpdateStatus = 'idle' | 'running' | 'done' | 'error';
 
 /** Mirrors `RunnerState` on the API. */
 export interface DbUpdateState {
@@ -95,7 +95,7 @@ export interface DbUpdateState {
   error: string | null;
 }
 
-export type UsdaImportStatus = 'idle' | 'running' | 'done' | 'error';
+type UsdaImportStatus = 'idle' | 'running' | 'done' | 'error';
 
 export interface UsdaImportRunnerState {
   status: UsdaImportStatus;
@@ -210,7 +210,7 @@ export interface IngredientNameGenerateSpec {
 
 // ── Recipe drafts ─────────────────────────────────────────────────────────────
 
-export type RecipeComplexity = 'simple' | 'medium' | 'complex';
+type RecipeComplexity = 'simple' | 'medium' | 'complex';
 
 export interface RecipeDraftIngredientLine {
   slug: string;

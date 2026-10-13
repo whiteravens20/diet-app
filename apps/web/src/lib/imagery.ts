@@ -18,5 +18,3 @@ export const IMAGERY = {
   emptyMealPlans: '/imagery/empty-meal-plans.webp',
   emptyInventory: '/imagery/empty-inventory.webp',
 } as const;
-
-export type ImageryKey = keyof typeof IMAGERY;
