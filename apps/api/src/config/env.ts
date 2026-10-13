@@ -99,6 +99,10 @@ export const envSchema = z.object({
   // their addresses. See config/trust-proxy.ts.
   TRUST_PROXY: z.string().optional(),
 
+  // Log a statement the database took this many milliseconds or longer over,
+  // without its values. Unset: no statement is timed.
+  SLOW_QUERY_MS: z.coerce.number().int().min(1).max(600_000).optional(),
+
   // How many profiles an account may hold. An account that has more than a
   // lowered number keeps them, and can add none.
   MAX_PROFILES_PER_ACCOUNT: z.coerce.number().int().min(1).max(MOST_PROFILES_PER_ACCOUNT).default(DEFAULT_PROFILES_PER_ACCOUNT),

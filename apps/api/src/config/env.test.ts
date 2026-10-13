@@ -58,6 +58,12 @@ describe('validateEnv', () => {
     expect(validateEnv(valid({ MAX_PROFILES_PER_ACCOUNT: '' })).MAX_PROFILES_PER_ACCOUNT).toBe(2);
   });
 
+  it('times the statements of the database only when it is told from how many milliseconds one is slow', () => {
+    expect(validateEnv(valid({ SLOW_QUERY_MS: '50' })).SLOW_QUERY_MS).toBe(50);
+    expect(validateEnv(valid({ SLOW_QUERY_MS: '' })).SLOW_QUERY_MS).toBeUndefined();
+    expect(validateEnv(valid()).SLOW_QUERY_MS).toBeUndefined();
+  });
+
   it('takes the most a recipe repeats in a plan that names no number from the operator, and none when it is left out', () => {
     expect(validateEnv(valid({ DEFAULT_MAX_REPEATS_PER_RECIPE: '3' })).DEFAULT_MAX_REPEATS_PER_RECIPE).toBe(3);
     expect(validateEnv(valid({ DEFAULT_MAX_REPEATS_PER_RECIPE: '' })).DEFAULT_MAX_REPEATS_PER_RECIPE).toBeUndefined();
@@ -83,6 +89,10 @@ describe('validateEnv', () => {
     ['DEFAULT_MAX_REPEATS_PER_RECIPE', '0'],
     ['DEFAULT_MAX_REPEATS_PER_RECIPE', '29'],
     ['DEFAULT_MAX_REPEATS_PER_RECIPE', '1.5'],
+    // A statement is slow from a whole millisecond on, and not from more than ten minutes.
+    ['SLOW_QUERY_MS', '0'],
+    ['SLOW_QUERY_MS', '600001'],
+    ['SLOW_QUERY_MS', '2.5'],
   ])('refuses %s=%s', (key, value) => {
     expect(() => validateEnv(valid({ [key]: value }))).toThrow(new RegExp(key));
   });

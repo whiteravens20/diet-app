@@ -29,6 +29,7 @@ Two rules apply to every variable:
 |---|---|---|
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | — | Postgres credentials. |
 | `DATABASE_URL` | — | Full Postgres connection string. |
+| `SLOW_QUERY_MS` | (unset) | Log every statement the database took this many milliseconds or longer over (1 to 600000), as a warning of the API that says how long it took and gives the statement with its placeholders. The values that went with a statement are data of the instance's accounts and are never logged. Unset, no statement is timed. `50` is the budget a statement of this application is held to, so it is the number to set when a page is slow. |
 
 ## Auth
 | Variable | Default | Purpose |
