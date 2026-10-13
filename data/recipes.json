@@ -70,7 +70,7 @@
       "pl": "Ciepła owsianka gotowana na mleku, wykończona bananem i masłem orzechowym."
     },
     "servings": 1,
-    "mealTypes": ["breakfast"],
+    "mealTypes": ["breakfast", "second_breakfast"],
     "prepMinutes": 3,
     "cookMinutes": 6,
     "difficulty": "easy",
@@ -443,7 +443,7 @@
       "pl": "Prosta roślinna przekąska z banana i migdałów."
     },
     "servings": 1,
-    "mealTypes": ["snack"],
+    "mealTypes": ["snack", "second_breakfast"],
     "prepMinutes": 2,
     "cookMinutes": 0,
     "difficulty": "easy",
@@ -486,7 +486,7 @@
       "pl": "Pieczone muffinki jajeczne z cheddarem i szpinakiem — przekąska keto."
     },
     "servings": 2,
-    "mealTypes": ["snack", "breakfast"],
+    "mealTypes": ["snack", "breakfast", "second_breakfast"],
     "prepMinutes": 8,
     "cookMinutes": 18,
     "difficulty": "easy",
@@ -517,7 +517,7 @@
       "pl": "Rozgnieciona ciecierzyca z oliwą i pomidorem."
     },
     "servings": 1,
-    "mealTypes": ["snack"],
+    "mealTypes": ["snack", "second_breakfast"],
     "prepMinutes": 6,
     "cookMinutes": 0,
     "difficulty": "easy",
@@ -601,7 +601,7 @@
       "pl": "Płatki owsiane gotowane na wodzie z tartym jabłkiem, posypane orzechami włoskimi i nasionami chia."
     },
     "servings": 1,
-    "mealTypes": ["breakfast"],
+    "mealTypes": ["breakfast", "second_breakfast"],
     "prepMinutes": 5,
     "cookMinutes": 6,
     "difficulty": "easy",
