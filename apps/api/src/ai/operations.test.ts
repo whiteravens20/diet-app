@@ -13,6 +13,7 @@ import {
   namesPerCall,
   recipeBatch,
   recipeDraft,
+  recipeTranslation,
   recipesPerCall,
 } from './operations.js';
 
@@ -41,6 +42,15 @@ describe('the limits of a user request', () => {
 
   it('allows a draft more tokens for every language it is written in', () => {
     expect(recipeDraft(2).maxTokens).toBeGreaterThan(recipeDraft(1).maxTokens);
+  });
+
+  it('asks for an answer without thinking, which a run of the panel does not', () => {
+    for (const operation of operations) {
+      expect(operation.direct, operation.name).toBe(true);
+    }
+    for (const run of [recipeBatch(3, 2, 0.2), ingredientNames(20, 1, 0.2), recipeTranslation(6, 0.2)]) {
+      expect(run.direct, run.name).toBeUndefined();
+    }
   });
 });
 

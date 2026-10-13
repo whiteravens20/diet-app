@@ -170,3 +170,72 @@ describe('asking for a JSON object', () => {
     expect(sent[0]!.body.messages).toEqual([{ role: 'user', content: 'hello' }]);
   });
 });
+
+describe('asking for an answer without thinking first', () => {
+  const openrouter = cases.openrouter!.adapter;
+  const refusal = { error: { message: 'Reasoning is mandatory for this endpoint and cannot be disabled.' } };
+
+  it('says so to OpenRouter in the field it has for that, and not otherwise', async () => {
+    transport(() => json(200, openAiAnswer('{}')));
+
+    await openrouter.chat(messages, options({ direct: true }));
+    await openrouter.chat(messages, options());
+
+    expect(sent[0]!.body.reasoning).toEqual({ effort: 'none' });
+    expect(sent[1]!.body).not.toHaveProperty('reasoning');
+  });
+
+  it('asks a model that refuses the setting once more without it, and gives that answer', async () => {
+    // A model whose thinking cannot be turned off answers 400 to the request that asks for it.
+    transport((request) => (request.body.reasoning ? json(400, refusal) : json(200, openAiAnswer('thought it over'))));
+
+    await expect(openrouter.chat(messages, options({ direct: true }))).resolves.toMatchObject({ text: 'thought it over' });
+    expect(sent).toHaveLength(2);
+    expect(sent[1]!.body).not.toHaveProperty('reasoning');
+    expect(sent[1]!.body).toMatchObject({ model: 'some-model', max_tokens: 321 });
+  });
+
+  it('reports a request that is refused either way, after asking twice', async () => {
+    transport(() => json(400, { error: { message: 'no such model' } }));
+
+    const failed = await failure(openrouter.chat(messages, options({ direct: true })));
+    expect(failed.message).toContain('no such model');
+    expect(failed.timedOut).toBe(false);
+    expect(sent).toHaveLength(2);
+  });
+
+  it('asks once when the failure is another, or when the request did not carry the setting', async () => {
+    transport(() => json(503, { error: { message: 'not now' } }));
+    await failure(openrouter.chat(messages, options({ direct: true })));
+    expect(sent).toHaveLength(1);
+
+    sent.length = 0;
+    transport(() => json(400, refusal));
+    await failure(openrouter.chat(messages, options()));
+    expect(sent).toHaveLength(1);
+  });
+
+  it('gives the second request what is left of the wait, not the whole of it again', async () => {
+    // The refusal comes late, and the second request is never answered: the call ends when the one wait does.
+    transport(async (request, signal) => {
+      if (!request.body.reasoning) return hang(request, signal);
+      await new Promise((tick) => setTimeout(tick, 200));
+      return json(400, refusal);
+    });
+
+    const started = performance.now();
+    const slow = await failure(openrouter.chat(messages, options({ direct: true, timeoutMs: 500 })));
+    expect(slow.timedOut).toBe(true);
+    expect(performance.now() - started).toBeLessThan(900);
+  });
+
+  it.each(['openai', 'anthropic'])('changes nothing of what %s is sent', async (name) => {
+    const { adapter, answer } = cases[name]!;
+    transport(() => json(200, answer('{}')));
+
+    await adapter.chat(messages, options({ direct: true }));
+    await adapter.chat(messages, options());
+
+    expect(sent[0]!.body).toEqual(sent[1]!.body);
+  });
+});

@@ -144,6 +144,19 @@ describe('AiRouterService.chat', () => {
     expect(calls[0]!.opts.timeoutMs).toBeLessThanOrEqual(6_000);
   });
 
+  it('asks for an answer without thinking when the operation does, and not otherwise', async () => {
+    const { router, calls } = setup({
+      chain: [{ provider: 'openrouter' }],
+      behaviour: { openrouter: async () => answer('ok') },
+    });
+
+    await router.chat('user-1', MESSAGES, { ...OPERATION, direct: true });
+    await router.chat('user-1', MESSAGES, OPERATION);
+
+    expect(calls[0]!.opts.direct).toBe(true);
+    expect(calls[1]!.opts.direct).toBeUndefined();
+  });
+
   it('moves on to the next provider when one fails, in the order of the chain', async () => {
     const { router, calls, usage } = setup({
       chain: [{ provider: 'openai' }, { provider: 'anthropic' }, { provider: 'openrouter' }],

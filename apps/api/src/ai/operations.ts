@@ -18,6 +18,14 @@ export interface Operation {
    * covers the whole failover chain, not each provider in it.
    */
   timeoutMs: number;
+  /**
+   * The model is asked to answer without thinking first, where its provider
+   * has a setting for that: what a user waits for is short, and a model that
+   * thinks about it spends the cap, and the user's time, on the thinking.
+   * The runs of the administrator's panel leave a model as its provider sets
+   * it up: they wait longer and their caps are wider.
+   */
+  direct?: boolean;
 }
 
 /**
@@ -33,6 +41,7 @@ export const MEAL_SWAP: Operation = {
   maxTokens: 400,
   temperature: 0.2,
   timeoutMs: USER_WAIT_MS,
+  direct: true,
 };
 
 export const INGREDIENT_SWAP: Operation = {
@@ -40,6 +49,7 @@ export const INGREDIENT_SWAP: Operation = {
   maxTokens: 400,
   temperature: 0.2,
   timeoutMs: USER_WAIT_MS,
+  direct: true,
 };
 
 /**
@@ -47,7 +57,7 @@ export const INGREDIENT_SWAP: Operation = {
  * other ways to fill a day, swaps that use up what a plan opens, what a
  * shopping list could do without.
  */
-const weighing = (name: string): Operation => ({ name, maxTokens: 700, temperature: 0.2, timeoutMs: USER_WAIT_MS });
+const weighing = (name: string): Operation => ({ name, maxTokens: 700, temperature: 0.2, timeoutMs: USER_WAIT_MS, direct: true });
 export const DAY_VARIATIONS = weighing('day-variations');
 export const USE_UP_SWAPS = weighing('use-up-swaps');
 export const LIST_PROPOSALS = weighing('list-proposals');
@@ -62,6 +72,7 @@ export const SWAP_REWRITE: Operation = {
   maxTokens: 3_000,
   temperature: 0.3,
   timeoutMs: 20_000,
+  direct: true,
 };
 
 /** One recipe, written in `locales` languages. */
@@ -71,6 +82,7 @@ export function recipeDraft(locales: number): Operation {
     maxTokens: 600 + 1_200 * locales,
     temperature: 0.7,
     timeoutMs: USER_WAIT_MS,
+    direct: true,
   };
 }
 

@@ -34,6 +34,13 @@ export interface CompletionOptions {
   temperature: number;
   /** The call is abandoned after this long and reported as timed out. */
   timeoutMs: number;
+  /**
+   * Ask for the answer without the model thinking first, where the provider
+   * has a setting for that. What a model thinks is billed as output and
+   * counts against `maxTokens`: a model that thinks about a short answer can
+   * spend the whole cap before it writes a word.
+   */
+  direct?: boolean;
 }
 
 export interface CompletionResult {
