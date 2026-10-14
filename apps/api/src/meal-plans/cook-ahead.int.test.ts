@@ -7,6 +7,7 @@ import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { MealPlansService } from './meal-plans.service.js';
+import { PlanGenerationService } from './plan-generation.service.js';
 
 /** The fixture recipes the menus below are made of. */
 const PORRIDGE = 'milk-porridge';
@@ -73,25 +74,29 @@ describe('what a plan made for cooking ahead cooks once for two meals', () => {
     expect(marks(await fourDays(false)).flat().every((mark) => mark === null)).toBe(true);
   });
 
-  it('is what a plan made for cooking ahead comes to by itself: a dish on two days running, and another after it', async () => {
-    const plan = await aPlan(t, user, profile, { durationDays: 6, mealPrepFriendly: true });
-
-    const all = marks(plan).flat();
-    expect(all.filter((mark) => mark === 'cook').length).toBeGreaterThanOrEqual(3);
-    // Which meals are paired is the planner's to choose: a lunch may be eaten again at the next day's dinner, and a meal
-    // that would break a limit is not paired. What holds of every plan is what the marks say.
-    const marked = (day: number, recipeId: string, mark: string): boolean => (plan.days[day]?.meals ?? []).some((meal) => meal.recipe?.id === recipeId && meal.cookAhead === mark);
-    plan.days.forEach((day, index) => {
-      for (const meal of day.meals) {
-        const recipeId = meal.recipe!.id;
-        // A dish cooked ahead is eaten the next day.
-        if (meal.cookAhead === 'cook') expect(marked(index + 1, recipeId, 'cooked'), `${day.date} ${meal.mealType}`).toBe(true);
-        // A dish eaten as cooked ahead was cooked the day before, and is not eaten a third day running.
-        if (meal.cookAhead === 'cooked') {
-          expect(marked(index - 1, recipeId, 'cook'), `${day.date} ${meal.mealType}`).toBe(true);
-          expect(marked(index - 1, recipeId, 'cooked'), `${day.date} ${meal.mealType}`).toBe(false);
+  it('is what a plan made for cooking ahead comes to by itself: each meal a dish cooked for two days, and then another', async () => {
+    const generation = t.app.get(PlanGenerationService);
+    const pinned = generation.nextSeed;
+    try {
+      // Forty draws, each its own plan: a planner that pairs most meals and not all of them fails some of them.
+      for (let seed = 1; seed <= 40; seed += 1) {
+        generation.nextSeed = () => seed;
+        const plan = await aPlan(t, user, profile, { durationDays: 6, mealPrepFriendly: true });
+        const meal = (day: number, slot: string) => plan.days[day]!.meals.find((one) => one.mealType === slot)!;
+        for (const first of [0, 2, 4]) {
+          for (const cooked of plan.days[first]!.meals) {
+            const where = `seed ${seed}, day ${first + 1}, ${cooked.mealType}`;
+            const eaten = meal(first + 1, cooked.mealType);
+            expect(cooked.cookAhead, where).toBe('cook');
+            expect(eaten.recipe?.id, where).toBe(cooked.recipe!.id);
+            expect(eaten.cookAhead, where).toBe('cooked');
+          }
         }
+        // And then another: the third day's meals are not those of the first two.
+        for (const cooked of plan.days[0]!.meals) expect(meal(2, cooked.mealType).recipe?.id, `seed ${seed}, day 3, ${cooked.mealType}`).not.toBe(cooked.recipe!.id);
       }
-    });
+    } finally {
+      generation.nextSeed = pinned;
+    }
   });
 });
