@@ -66,30 +66,49 @@ test.describe('a plan and what it is made for', () => {
 });
 
 test.describe('a plan that is made again', () => {
-  test('is asked for in one window that says what would be replaced before it asks, and one day of it gets other meals', async ({ session, messages }) => {
+  test('is asked for in one window that says what would be replaced before it asks, and one day of it gets other meals', async ({ session, messages, account, request }) => {
     const page = session.page;
     const plans = plansOf(messages);
     const reroll = rerollOf(messages);
-    await anOpenPlan(page, messages);
+    // A plan that begins on the page's own day, made for this test: the account's plan was made when the run began, and
+    // in a run that goes on past midnight it began the day before. The newest plan of the latest day is the first listed.
+    const today = await page.evaluate(() => {
+      const now = new Date();
+      const two = (n: number): string => String(n).padStart(2, '0');
+      return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+    });
+    const signedIn = await request.post('/api/auth/login', { data: { email: account.email, password: account.password } });
+    expect(signedIn.ok()).toBe(true);
+    const headers = { authorization: `Bearer ${((await signedIn.json()) as { tokens: { accessToken: string } }).tokens.accessToken}`, 'x-client-date': today };
+    const made = await request.post('/api/meal-plans/generate', { headers, data: { profileId: account.profileId, startDate: today, durationDays: 3 } });
+    expect(made.status()).toBe(201);
+    const plan = (await made.json()) as { id: string };
 
-    await page.getByRole('button', { name: plans.recalculate!, exact: true }).first().click();
-    const dialog = page.getByRole('dialog', { name: reroll.title! });
-    const confirm = dialog.getByRole('button', { name: reroll.confirm!, exact: true });
-    await expect(confirm).toBeEnabled();
-    // The plan begins today: nothing of it has passed, and what is left of it is the whole of it.
-    await expect(dialog.getByText(new RegExp(`^${reroll.replaced!.split(':')[0]}:`))).toBeVisible();
-    await expect(dialog.getByLabel(reroll.fromToday!, { exact: true })).toBeDisabled();
-    await expect(dialog.getByText(reroll.fromTodayNotBegun!)).toBeVisible();
-    await expect(dialog.getByLabel(reroll.includePast!, { exact: true })).toHaveCount(0);
+    try {
+      await anOpenPlan(page, messages);
 
-    await dialog.getByLabel(reroll.day!, { exact: true }).check();
-    await expect(dialog.getByLabel(reroll.dayWhich!, { exact: true })).toBeVisible();
-    const asked = page.waitForResponse((res) => /^\/api\/meal-plans\/[^/]+\/days\/[^/]+\/regenerate$/.test(new URL(res.url()).pathname));
-    await confirm.click();
+      await page.getByRole('button', { name: plans.recalculate!, exact: true }).first().click();
+      const dialog = page.getByRole('dialog', { name: reroll.title! });
+      const confirm = dialog.getByRole('button', { name: reroll.confirm!, exact: true });
+      await expect(confirm).toBeEnabled();
+      // The plan begins today: nothing of it has passed, and what is left of it is the whole of it.
+      await expect(dialog.getByText(new RegExp(`^${reroll.replaced!.split(':')[0]}:`))).toBeVisible();
+      await expect(dialog.getByLabel(reroll.fromToday!, { exact: true })).toBeDisabled();
+      await expect(dialog.getByText(reroll.fromTodayNotBegun!)).toBeVisible();
+      await expect(dialog.getByLabel(reroll.includePast!, { exact: true })).toHaveCount(0);
 
-    expect((await asked).ok()).toBe(true);
-    await expect(dialog).toBeHidden();
-    await expect(page.getByRole('button', { name: plans.addCustomMeal! }).first()).toBeVisible();
+      await dialog.getByLabel(reroll.day!, { exact: true }).check();
+      await expect(dialog.getByLabel(reroll.dayWhich!, { exact: true })).toBeVisible();
+      const asked = page.waitForResponse((res) => /^\/api\/meal-plans\/[^/]+\/days\/[^/]+\/regenerate$/.test(new URL(res.url()).pathname));
+      await confirm.click();
+
+      expect((await asked).ok()).toBe(true);
+      await expect(dialog).toBeHidden();
+      await expect(page.getByRole('button', { name: plans.addCustomMeal! }).first()).toBeVisible();
+    } finally {
+      // The plan goes again, so that the tests after this one find what the account had.
+      await request.delete(`/api/meal-plans/${plan.id}`, { headers });
+    }
   });
 
   test('opens on the day whose own button was pressed', async ({ session, messages }) => {
