@@ -1,18 +1,19 @@
 # ── Diet App — Snapshot Build ─────────────────────────────────────────────────
 #
-# Manually-triggered build of the Docker image from `dev`. Publishes to GHCR
-# with the `:dev` tag so a snapshot can be pulled and tested without building
-# locally. It is NOT a production release — a semver tag and the release
-# workflow are for that.
+# Builds the Docker image ON DEMAND (manual workflow_dispatch) from the branch
+# it is run from and publishes it to GHCR, so a snapshot can be pulled and
+# tested without building locally. Nothing is built automatically, and a
+# snapshot is NOT a release: a semver tag and the release workflow are for that.
 #
-# Run it:  Actions → "Snapshot build" → Run workflow (pick the `dev` branch).
+# Run it:  Actions → "Snapshot build" → Run workflow, from `dev` or `main`.
 #
-# Tags produced:
-#   ghcr.io/whiteravens20/diet-app:dev
-#   ghcr.io/whiteravens20/diet-app:dev-<7-char-sha>
+# Tags and scan, by the branch it is run from:
+#   dev   → :dev  + :dev-<7-char-sha>   the scan REPORTS ONLY
+#   main  → :edge + :edge-<7-char-sha>  the scan FAILS on HIGH/CRITICAL: the
+#                                       last check before a release tag
+# Any other branch is refused, so nothing but `main` can move `:edge`.
 #
-# Pull to test:  docker pull ghcr.io/whiteravens20/diet-app:dev
-# Run it with IMAGE_TAG=dev in the .env of infra/docker-compose.prod.yml.
+# Pull to test:  set IMAGE_TAG=<tag> in the .env of infra/docker-compose.prod.yml.
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -23,17 +24,21 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 permissions:
   contents: read
 
 jobs:
   build-push:
-    name: Build snapshot
+    name: Build ${{ github.ref_name }} snapshot
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+
+    outputs:
+      image-ref: ${{ steps.img-ref.outputs.ref }}
 
     steps:
       - name: Checkout
@@ -41,13 +46,19 @@ jobs:
 
       - name: Compute snapshot tags
         id: tag
+        env:
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
         run: |
-          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          IMG="${{ env.REGISTRY }}/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          case "$BRANCH" in
+            dev) PREFIX=dev ;;
+            main) PREFIX=edge ;;
+            *) echo "::error::A snapshot is built from dev or main, not from ${BRANCH}."; exit 1 ;;
+          esac
           {
             echo "value<<EOF"
-            echo "${IMG}:dev"
-            echo "${IMG}:dev-${SHA}"
+            echo "${REGISTRY}/${IMAGE_NAME}:${PREFIX}"
+            echo "${REGISTRY}/${IMAGE_NAME}:${PREFIX}-${SHA:0:7}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -76,9 +87,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Resolve image ref for scan
+        id: img-ref
+        # The scan reads the digest this run pushed, never a tag that another
+        # run can move in the meantime.
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "ref=${REGISTRY}/${IMAGE_NAME}@${DIGEST}" >> "$GITHUB_OUTPUT"
+
   # ── Trivy scan ────────────────────────────────────────────────────────────────
-  # Snapshot scans REPORT ONLY — findings land in the Security tab but never
-  # block the dev snapshot. The image scan in security.yml is the blocking one.
+  #   dev   → exit-code 0  findings reported to the Security tab; the run stays green
+  #   main  → exit-code 1  fails on any finding .trivyignore does not acknowledge
+  # Add CVE IDs to .trivyignore (with justification) to acknowledge and unblock.
   scan:
     name: Trivy scan
     needs: build-push
@@ -99,22 +119,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve lowercase image ref
-        id: img
-        run: |
-          IMG="${{ env.REGISTRY }}/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
-          echo "ref=${IMG}:dev" >> "$GITHUB_OUTPUT"
-
       - name: Scan for CVEs
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
-          image-ref: ${{ steps.img.outputs.ref }}
+          image-ref: ${{ needs.build-push.outputs.image-ref }}
           severity: HIGH,CRITICAL
           trivyignores: .trivyignore
           limit-severities-for-sarif: true
-          # Snapshot builds report only — do not block dev iteration.
-          exit-code: '0'
+          exit-code: ${{ github.ref_name == 'main' && '1' || '0' }}
           format: sarif
           output: trivy-snapshot.sarif
 
