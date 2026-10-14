@@ -12,9 +12,16 @@ import { CatalogueCoverageService } from './catalogue-coverage.service.js';
 describe('what the catalogue can serve', () => {
   let t: TestApp;
   const basic = asAdmin;
+  // The statements the service asks while one test counts them. SLOW_QUERY_MS
+  // is what makes the client report its statements; set this high, it warns of none.
+  let counting = false;
+  let asked: string[] = [];
 
   beforeAll(async () => {
-    t = await createTestApp();
+    t = await createTestApp({ SLOW_QUERY_MS: '600000' });
+    t.prisma.onStatement((event) => {
+      if (counting) asked.push(event.query);
+    });
     await resetDatabase(t.prisma);
     await seedCatalogue(t.prisma);
   });
@@ -104,6 +111,48 @@ describe('what the catalogue can serve', () => {
 
     await t.prisma.recipeIngredient.update({ where: { id: line.id }, data: { quantity: line.quantity } });
     expect(await coverage.macroReach()).toEqual(first);
+  });
+
+  it('keeps the measure while a shared recipe changes only in what the measure does not read', async () => {
+    const coverage = t.app.get(CatalogueCoverageService);
+    const first = await coverage.macroReach();
+    const recipe = await t.prisma.recipe.findFirstOrThrow({ where: { createdByUserId: null }, orderBy: { id: 'asc' } });
+
+    await t.prisma.recipe.update({ where: { id: recipe.id }, data: { description: `${recipe.description} Serve warm.` } });
+    expect(await coverage.macroReach()).toBe(first);
+
+    await t.prisma.recipe.update({ where: { id: recipe.id }, data: { description: recipe.description } });
+  });
+
+  it('measures anew when an ingredient changes how a line of it is bought', async () => {
+    const coverage = t.app.get(CatalogueCoverageService);
+    const first = await coverage.macroReach();
+    const line = await t.prisma.recipeIngredient.findFirstOrThrow({
+      where: { recipe: { createdByUserId: null } },
+      orderBy: { id: 'asc' },
+      include: { ingredient: true },
+    });
+    const { perishable, packSize } = line.ingredient;
+
+    await t.prisma.ingredient.update({ where: { id: line.ingredientId }, data: { perishable: !perishable, packSize: packSize ?? 100 } });
+    expect(await coverage.macroReach()).not.toBe(first);
+
+    await t.prisma.ingredient.update({ where: { id: line.ingredientId }, data: { perishable, packSize } });
+    expect(await coverage.macroReach()).toEqual(first);
+  });
+
+  it('reads one row of the database, and no recipe, while the recipes stay as they are', async () => {
+    const coverage = t.app.get(CatalogueCoverageService);
+    await coverage.macroReach();
+
+    asked = [];
+    counting = true;
+    await coverage.macroReach();
+    counting = false;
+
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toContain('"CatalogueVersion"');
+    expect(asked[0]).not.toContain('"Recipe"');
   });
 
   it('leaves out what a user made for themselves', async () => {

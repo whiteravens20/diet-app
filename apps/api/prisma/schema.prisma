@@ -1078,6 +1078,15 @@ model InstanceSettings {
 
 // ── Seed bookkeeping ──────────────────────────────────────────────────────────
 
+// Which state of the shared recipes a measure of them was made from. Database
+// triggers (migration `20261014180000_catalogue_version`) replace the token in
+// the same transaction whenever a column the measure of what each diet's plans
+// reach reads changes in a shared recipe, in a line of one or in an ingredient.
+model CatalogueVersion {
+  id    Int    @id @default(1)
+  token String
+}
+
 // Tracks the curated DB version that last ran through the seeder. A single
 // row keyed by 'data'; `hash` is sha256 of the concatenated seed files. The
 // /admin DB-update flow uses it to surface "update available" when the current

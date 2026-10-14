@@ -18,7 +18,7 @@ const KEPT_FOR_MS = 60_000;
 export class CatalogueCoverageService {
   private kept: { at: number; matrix: CoverageMatrix } | null = null;
   private counting: Promise<CoverageMatrix> | null = null;
-  /** What the plans reached, and the recipes they reached it with. */
+  /** What the plans reached, and the state of the recipes they reached it with. */
   private reached: { with: string; reach: Record<DietType, MacroReach | null> } | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
@@ -51,14 +51,15 @@ export class CatalogueCoverageService {
    *
    * The measure makes weeks of plans for every diet, which is work of this
    * process and holds up whoever else asks it something meanwhile. It is
-   * therefore done once for the recipes as they are: the database is asked
-   * for one line that changes when anything the measure reads changes, to
-   * the last amount, and while that line stays the same the answer is the
-   * one kept.
+   * therefore done once for the recipes as they are: the database keeps a
+   * token that changes, in the same transaction, when anything the measure
+   * reads changes, to the last amount, and while the token stays the same the
+   * answer is the one kept. The token is read before the recipes, so that a
+   * measure is never kept under a token newer than what it read.
    */
   async macroReach(): Promise<Record<DietType, MacroReach | null>> {
-    const read = await this.whatTheMeasureReads();
-    if (this.reached?.with === read) return this.reached.reach;
+    const read = await this.catalogueVersion();
+    if (read !== null && this.reached?.with === read) return this.reached.reach;
 
     const recipes = await this.prisma.recipe.findMany({
       where: { createdByUserId: null, retiredAt: null, deletedAt: null },
@@ -94,39 +95,19 @@ export class CatalogueCoverageService {
       })),
       perishablePacks,
     );
-    this.reached = { with: read, reach };
+    this.reached = read === null ? null : { with: read, reach };
     return reach;
   }
 
   /**
-   * A digest of everything `macroReach` reads: of each recipe a plan may draw
-   * on, what a serving holds and which meals and diets it is for, and of each
-   * of its lines the amount and what its ingredient is converted and bought
-   * by. Worked out by the database, so that asking costs no reading of the
-   * recipes.
+   * The token of the shared recipes as they are: database triggers replace it
+   * whenever a column `macroReach` reads changes in a shared recipe, in a line
+   * of one or in an ingredient, whichever path writes. Null only where the row
+   * is gone, and then nothing is kept.
    */
-  private async whatTheMeasureReads(): Promise<string> {
-    // The lines are put together once for all recipes and joined to them: asked recipe by recipe, the same takes seven times as long.
-    const [{ digest }] = await this.prisma.$queryRaw<[{ digest: string }]>`
-      SELECT md5(coalesce(string_agg(
-               concat_ws('|', r."id", r."servings", r."mealTypes"::text, r."dietTags"::text,
-                 r."caloriesPerServing", r."proteinPerServing", r."fatPerServing", r."carbsPerServing", of."held"),
-               ';' ORDER BY r."id"), '')) AS "digest"
-        FROM "Recipe" r
-        LEFT JOIN (
-          SELECT l."recipeId",
-                 string_agg(
-                   concat_ws(':', l."ingredientId", l."quantity", l."unit", i."canonicalUnit",
-                     coalesce(i."gramsPerPiece"::text, '-'), coalesce(i."density"::text, '-'),
-                     coalesce(i."packSize"::text, '-'), i."perishable"),
-                   ',' ORDER BY l."id") AS "held"
-            FROM "RecipeIngredient" l
-            JOIN "Ingredient" i ON i."id" = l."ingredientId"
-           WHERE l."recipeId" IN (SELECT "id" FROM "Recipe" WHERE "createdByUserId" IS NULL AND "retiredAt" IS NULL AND "deletedAt" IS NULL)
-           GROUP BY l."recipeId"
-        ) of ON of."recipeId" = r."id"
-       WHERE r."createdByUserId" IS NULL AND r."retiredAt" IS NULL AND r."deletedAt" IS NULL`;
-    return digest;
+  private async catalogueVersion(): Promise<string | null> {
+    const version = await this.prisma.catalogueVersion.findUnique({ where: { id: 1 }, select: { token: true } });
+    return version?.token ?? null;
   }
 
   /**

@@ -20,8 +20,12 @@ const TEST_DATABASE = 'diet_app_it';
 /** The PostgreSQL of the development Compose file, used when no URL is given. */
 const DEFAULT_SERVER_URL = 'postgresql://diet:diet@localhost:5432/postgres';
 
-/** Tables the catalogue seed fills; everything else is created by users. */
+/**
+ * Tables the catalogue seed fills, and the token its writes leave in
+ * `CatalogueVersion`; everything else is created by users.
+ */
 const CATALOGUE_TABLES = [
+  'CatalogueVersion',
   'Ingredient',
   'IngredientTranslation',
   'Recipe',
