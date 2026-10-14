@@ -83,9 +83,10 @@ with what it is. It also refuses meat or fish sold in a pack that holds more tha
 
 ## What a model drafted
 
-Seventy of the recipes (`recipes/bundle-2026-10-13T19-25-49-341Z.json`) and the
-Polish names of the imported foods (`ingredient-overrides.json`) were drafted by
-language models inside the application and shipped through its curation queue.
+109 of the recipes (the two files of `recipes/`: seventy of 2026-10-13, and
+thirty-nine vegan and keto dishes of 2026-10-14) and the Polish names of the
+imported foods (`ingredient-overrides.json`) were drafted by language models
+inside the application and shipped through its curation queue.
 
 - The recipes were written by `openai/gpt-6-luna`, in English and Polish, from
   the ingredients of `ingredients.json` alone, and held to the generator's rules
@@ -97,7 +98,7 @@ language models inside the application and shipped through its curation queue.
   food of an import that the catalogue does not hold already.
 - Every recipe was reviewed in both languages, and every name against the
   description of its food, before it was approved; what the review found was
-  corrected first, in 24 of the 70 recipes and in 44 of the 272 names.
+  corrected first, in 43 of the 109 recipes and in 44 of the 272 names.
 
 ## Where the figures are from
 
