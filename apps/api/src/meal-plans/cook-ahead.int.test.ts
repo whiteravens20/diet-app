@@ -78,9 +78,20 @@ describe('what a plan made for cooking ahead cooks once for two meals', () => {
 
     const all = marks(plan).flat();
     expect(all.filter((mark) => mark === 'cook').length).toBeGreaterThanOrEqual(3);
-    // Every lunch of the first day is on the second as well, and not on the third.
-    const lunch = (day: number): string => plan.days[day]!.meals.find((meal) => meal.mealType === 'lunch')!.recipe!.id;
-    expect(lunch(1)).toBe(lunch(0));
-    expect(lunch(2)).not.toBe(lunch(0));
+    // Which meals are paired is the planner's to choose: a lunch may be eaten again at the next day's dinner, and a meal
+    // that would break a limit is not paired. What holds of every plan is what the marks say.
+    const marked = (day: number, recipeId: string, mark: string): boolean => (plan.days[day]?.meals ?? []).some((meal) => meal.recipe?.id === recipeId && meal.cookAhead === mark);
+    plan.days.forEach((day, index) => {
+      for (const meal of day.meals) {
+        const recipeId = meal.recipe!.id;
+        // A dish cooked ahead is eaten the next day.
+        if (meal.cookAhead === 'cook') expect(marked(index + 1, recipeId, 'cooked'), `${day.date} ${meal.mealType}`).toBe(true);
+        // A dish eaten as cooked ahead was cooked the day before, and is not eaten a third day running.
+        if (meal.cookAhead === 'cooked') {
+          expect(marked(index - 1, recipeId, 'cook'), `${day.date} ${meal.mealType}`).toBe(true);
+          expect(marked(index - 1, recipeId, 'cooked'), `${day.date} ${meal.mealType}`).toBe(false);
+        }
+      }
+    });
   });
 });
