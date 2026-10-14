@@ -209,20 +209,38 @@ under the SIL Open Font License 1.1; its files and the licence text are in
 
 Diet App is built using AI coding tools. The tools write most of the code, tests and
 documentation; the maintainer decides what gets built and is responsible for everything
-that lands here. The project is in early development: there is no release yet and no
-independent security review. Before the first release is published, a group of human
-testers will try the release candidate at the maintainer's request.
+that lands here. The project relies on checks that anyone can inspect, and before the
+first release is published, a group of human testers will try the release candidate at
+the maintainer's request. The project is in early development: there is no release yet
+and no independent security review.
 
 **What a change goes through**
 
-- Every push and pull request runs lint with no warnings allowed, type checking, the
-  unit tests and a build for the API and for the web app, checks that the database
-  migrations match the schema, and builds the Docker image
-  ([test.yml](.github/workflows/test.yml)).
+- Every push and pull request to `dev` and `main` runs lint with no warnings allowed, type
+  checking, a build, and the unit and integration tests of the API and of the web app, the
+  integration tests against PostgreSQL, with coverage floors that fail the run when they
+  are not reached. The same run checks that the database migrations match the schema, that
+  no export, file or dependency goes unused, that the curated data in `data/` can be
+  seeded, and that the API stays within its budgets of time and of database statements on
+  a catalogue of 2,000 recipes. Another job builds the stack, starts it from a freshly
+  generated `.env`, runs the browser tests against it and checks that a start on the
+  unedited template is refused; the links between the documents and the shell scripts are
+  checked as well ([test.yml](.github/workflows/test.yml)).
 - CodeQL, `npm audit`, package signature checks and Trivy scans of the repository and of
-  the image run on every push and pull request, and again every week
+  the image run on every push and pull request, and again every week. Every action a
+  workflow uses is pinned to a commit: a run fails when a pin is not the commit its version
+  tag names, and the pinned versions are looked up in GitHub's advisory database
   ([codeql.yml](.github/workflows/codeql.yml),
   [security.yml](.github/workflows/security.yml)).
+- On a pull request, a dependency review fails when the change brings in a dependency
+  with a known high-severity vulnerability, or one under a licence AGPL-3.0 cannot be
+  combined with ([security.yml](.github/workflows/security.yml)).
+- The jobs of [test.yml](.github/workflows/test.yml) are required checks on `dev` and
+  `main`, and on `main` so are CodeQL, `npm audit` and both Trivy scans: a pull request is
+  merged only when they pass.
+- The image a release candidate is tested from is built from `main`, and its scan fails
+  on a high or critical finding
+  ([docker-snapshot.yml](.github/workflows/docker-snapshot.yml)).
 - Commits are signed, and the [OpenSSF
   Scorecard](https://scorecard.dev/viewer/?uri=github.com/whiteravens20/diet-app)
   results are public.
