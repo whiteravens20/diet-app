@@ -25,7 +25,7 @@ export default defineConfig({
           globals: true,
           globalSetup: ['src/testing/global-setup.ts'],
           // Every answer of a test application is held to what its route declares.
-          setupFiles: ['src/testing/hold-answers.ts'],
+          setupFiles: ['src/testing/hold-answers.ts', 'src/testing/pinned-seeds.ts'],
           fileParallelism: false,
           testTimeout: 30_000,
           hookTimeout: 60_000,

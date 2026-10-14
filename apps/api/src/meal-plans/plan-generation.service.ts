@@ -100,7 +100,7 @@ export class PlanGenerationService {
       dayOverrides: req.dayOverrides,
     });
 
-    const seed = newSeed();
+    const seed = this.nextSeed();
     const result = await this.optimiseFor(userId, profile, {
       days: resolvedDays,
       dietType,
@@ -138,6 +138,9 @@ export class PlanGenerationService {
 
   /** The server's own day, as the API writes dates, for a request that names none; replaceable in a test. */
   today: () => string = () => isoDate(new Date());
+
+  /** The seed of one generation: random, so that making a plan again gives another; replaceable in a test. */
+  nextSeed: () => number = newSeed;
 
   /** Make a plan again, or the days of it that the request names. `clientToday` is the day it is for whoever asks. */
   async regenerate(
@@ -300,7 +303,7 @@ export class PlanGenerationService {
   private async reroll(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest, clientToday: string | null): Promise<void> {
     const prepared = await this.prepare(userId, planId, range, options, clientToday);
     const { plan, made, dates, whole, days, filled, allowRelaxations, base, dietType, macroSplit, modelsPickStays } = prepared;
-    const seed = newSeed();
+    const seed = this.nextSeed();
     const result = await this.draw(userId, prepared, seed);
 
     // What the report said of the days filled again gives place to what this
