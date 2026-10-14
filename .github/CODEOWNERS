@@ -1,6 +1,8 @@
 # ── Code Owners ───────────────────────────────────────────────────────────────
-# At least one owner must approve any PR touching these paths.
-# Paths are checked most-specific to least-specific; last matching rule wins.
+# A pull request that touches these paths asks their owner for a review, and
+# the list says where a change reaches furthest. The review is requested, not
+# required: the merge gate is the required status checks of branch protection.
+# When several rules match a path, the last one in the file wins.
 
 # Default owner for everything.
 * @pavlojs
