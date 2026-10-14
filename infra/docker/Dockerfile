@@ -18,10 +18,8 @@
 
 FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS base
 WORKDIR /app
-# Prisma needs OpenSSL at build and runtime. Upgrade the alpine ssl libs to pull
-# the patched libcrypto3/libssl3 (CVE-2026-45447, OpenSSL PKCS7_verify UAF).
-RUN apk add --no-cache openssl \
- && apk upgrade --no-cache libcrypto3 libssl3 openssl
+# Prisma needs OpenSSL at build and runtime.
+RUN apk add --no-cache openssl
 
 # ── build: everything, with dev dependencies ──────────────────────────────────
 FROM base AS build
@@ -67,6 +65,12 @@ RUN npm run db:generate --workspace @diet-app/api
 FROM base AS runtime
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# The OS packages of what ships are brought up to date, not left as the base
+# image had them. CACHE_BUST_APK keeps this layer out of the build cache: the
+# snapshot workflow, the one build that restores a cache, sets it to the run's
+# id, so the upgrade runs on every snapshot too.
+ARG CACHE_BUST_APK=""
+RUN apk upgrade --no-cache
 # No package manager ships. Every role starts plain `node` or the Prisma CLI
 # binary, so npm, corepack and yarn are build-time tools here; each carries a
 # dependency tree of its own that an image scan reads like the app's.

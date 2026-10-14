@@ -69,6 +69,10 @@ jobs:
           file: infra/docker/Dockerfile
           push: true
           tags: ${{ steps.tag.outputs.value }}
+          # Different on every run, so the layer that upgrades the OS packages
+          # is built again and not restored from the cache below.
+          build-args: |
+            CACHE_BUST_APK=${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

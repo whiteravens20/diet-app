@@ -79,6 +79,7 @@ What the code guarantees today, and what it deliberately does not protect agains
 - [x] One multi-stage, Alpine-based image, running as a non-root user
 - [x] No package manager in the image
 - [x] Base image pinned by version and digest
+- [x] OS packages brought up to date at every build of the image, not left as the base image had them
 - [x] Install scripts off in the image build, except Prisma's engine download
 
 ### Supply Chain
