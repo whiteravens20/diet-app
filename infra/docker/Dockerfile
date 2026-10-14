@@ -66,11 +66,17 @@ FROM base AS runtime
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 # The OS packages of what ships are brought up to date, not left as the base
-# image had them. CACHE_BUST_APK keeps this layer out of the build cache: the
-# snapshot workflow, the one build that restores a cache, sets it to the run's
-# id, so the upgrade runs on every snapshot too.
+# image had them, and then the package manager removes itself: nothing installs
+# a package in a running container. With apk-tools go the packages only it
+# needed; OpenSSL stays, since Prisma asked for it above. Node carries its own
+# TLS stack and CA store, and the health checks speak plain HTTP. The package
+# database stays, and it is what image scanners read.
+#
+# CACHE_BUST_APK keeps this layer out of the build cache: the snapshot
+# workflow, the one build that restores a cache, sets it to the run's id, so
+# the upgrade runs on every snapshot too.
 ARG CACHE_BUST_APK=""
-RUN apk upgrade --no-cache
+RUN apk upgrade --no-cache && apk del --no-network apk-tools
 # No package manager ships. Every role starts plain `node` or the Prisma CLI
 # binary, so npm, corepack and yarn are build-time tools here; each carries a
 # dependency tree of its own that an image scan reads like the app's.
