@@ -115,6 +115,12 @@ describe('validateIngredientNamer', () => {
     expect(named('P')).toMatchObject({ ok: false, reason: 'length-blowup' });
   });
 
+  it('takes a name that is longer than a short description and short all the same, and refuses one padded past that', () => {
+    const named = (pl: string) => validateIngredientNamer({ source: { 'oil-corn': 'Oil, corn' }, targetLocales, rawOutput: happy({ 'oil-corn': { name: { pl } } }) });
+    expect(named('Olej kukurydziany')).toMatchObject({ ok: true, suggestions: { 'oil-corn': { name: { pl: 'Olej kukurydziany' } } } });
+    expect(named('Olej kukurydziany rafinowany')).toMatchObject({ ok: false, reason: 'length-blowup' });
+  });
+
   it('rejects a missing target locale', () => {
     const result = validateIngredientNamer({
       source,

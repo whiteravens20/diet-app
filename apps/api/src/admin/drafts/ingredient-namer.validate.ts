@@ -183,6 +183,9 @@ export function validateIngredientNamer(
   return { ok: true, suggestions: sanitised, refused };
 }
 
+/** Up to this many characters a name is short, whatever the length of the description it names. */
+const SHORT_NAME = 20;
+
 interface CheckValueArgs {
   slug: string;
   locale: string;
@@ -221,12 +224,14 @@ function checkValue({
   // Length: friendly names should *shrink* the raw FDC description, not
   // explode. We allow modest growth (e.g. "Pears, raw, bartlett" →
   // "Gruszki bartlett" is similar length) but anything > 1.8× is the AI
-  // padding. A single letter is a truncation; a short name of a long
-  // description is not ("Por" for "Leeks, bulb and greens, root removed,
-  // raw"), so the least a name holds is counted in letters, not as a share.
+  // padding. A name that is short in itself is not padding, however short
+  // the description it is longer than ("Olej kukurydziany" for "Oil, corn").
+  // A single letter is a truncation; a short name of a long description is
+  // not ("Por" for "Leeks, bulb and greens, root removed, raw"), so the least
+  // a name holds is counted in letters, not as a share.
   if (field === 'name' && rawSource.length > 0) {
-    const ratio = translated.length / rawSource.length;
-    if (translated.length < 2 || ratio > 1.8) {
+    const padded = translated.length > SHORT_NAME && translated.length / rawSource.length > 1.8;
+    if (translated.length < 2 || padded) {
       return { ok: false, reason: 'length-blowup', key: `${slug}.${field}.${locale}` };
     }
   }
