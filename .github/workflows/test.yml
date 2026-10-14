@@ -85,6 +85,9 @@ jobs:
         run: |
           node --test scripts/check-markers.test.mjs
           node scripts/check-markers.mjs
+      # init-env.sh is the first thing an installation runs.
+      - name: ShellCheck
+        run: shellcheck scripts/*.sh .github/scripts/*.sh
 
   docker:
     name: docker
