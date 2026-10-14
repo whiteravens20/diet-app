@@ -238,8 +238,8 @@ and no independent security review.
   ([codeql.yml](.github/workflows/codeql.yml),
   [security.yml](.github/workflows/security.yml)).
 - On a pull request, a dependency review fails when the change brings in a dependency
-  with a known high-severity vulnerability, or one under a licence AGPL-3.0 cannot be
-  combined with ([security.yml](.github/workflows/security.yml)).
+  with a known high-severity vulnerability, or one whose licence is not on the list of
+  licences that combine with AGPL-3.0 ([security.yml](.github/workflows/security.yml)).
 - The jobs of [test.yml](.github/workflows/test.yml) are required checks on `dev` and
   `main`, and on `main` so are CodeQL, `npm audit` and both Trivy scans: a pull request is
   merged only when they pass.
