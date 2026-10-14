@@ -92,10 +92,12 @@ language models inside the application and shipped through its curation queue.
   by its validator. Their figures, allergens and diets are worked out by the
   engine, as those of every recipe are.
 - The names were written by `google/gemini-3.1-flash-lite` for the foods a
-  `Foundation` import gave on 2026-10-13. 266 of them ship.
+  `Foundation` import gave on 2026-10-13, and by `openai/gpt-6-luna` for the six
+  fats an import has given besides since it takes fats. 272 ship: one for every
+  food of an import that the catalogue does not hold already.
 - Every recipe was reviewed in both languages, and every name against the
   description of its food, before it was approved; what the review found was
-  corrected first, in 24 of the 70 recipes and in 44 of the 266 names.
+  corrected first, in 24 of the 70 recipes and in 44 of the 272 names.
 
 ## Where the figures are from
 

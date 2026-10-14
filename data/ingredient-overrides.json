@@ -222,6 +222,11 @@
       "pl": "Kasza bulgur sucha"
     }
   },
+  "butter-stick-salted": {
+    "name": {
+      "pl": "Masło solone"
+    }
+  },
   "buttermilk-low-fat": {
     "name": {
       "pl": "Maślanka niskotłuszczowa"
@@ -956,6 +961,31 @@
   "oats-whole-grain-steel-cut": {
     "name": {
       "pl": "Owies łamany (steel cut)"
+    }
+  },
+  "oil-corn": {
+    "name": {
+      "pl": "Olej kukurydziany"
+    }
+  },
+  "oil-olive-extra-light": {
+    "name": {
+      "pl": "Oliwa z oliwek extra light"
+    }
+  },
+  "oil-peanut": {
+    "name": {
+      "pl": "Olej arachidowy"
+    }
+  },
+  "oil-safflower": {
+    "name": {
+      "pl": "Olej krokoszowy"
+    }
+  },
+  "oil-soybean": {
+    "name": {
+      "pl": "Olej sojowy"
     }
   },
   "olives-green-manzanilla-stuffed-with-pimiento": {
