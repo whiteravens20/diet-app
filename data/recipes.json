@@ -47,7 +47,8 @@
       { "slug": "large-egg", "quantity": 3, "unit": "piece" },
       { "slug": "whole-grain-bread", "quantity": 2, "unit": "piece" },
       { "slug": "olive-oil", "quantity": 5, "unit": "ml" },
-      { "slug": "spinach", "quantity": 40, "unit": "g" }
+      { "slug": "spinach", "quantity": 40, "unit": "g" },
+      { "slug": "salt", "quantity": 1, "unit": "g" }
     ],
     "steps": {
       "en": [
@@ -145,12 +146,12 @@
     "steps": {
       "en": [
         "Cook the rice according to package directions.",
-        "Season and grill the chicken until cooked through.",
+        "Brush the chicken with the olive oil, season it and grill until cooked through.",
         "Steam the broccoli and assemble the bowls."
       ],
       "pl": [
         "Ugotuj ryż zgodnie z instrukcją na opakowaniu.",
-        "Dopraw kurczaka i grilluj, aż będzie w środku gotowy.",
+        "Posmaruj kurczaka oliwą, dopraw i grilluj, aż będzie w środku gotowy.",
         "Ugotuj brokuły na parze i złóż miski."
       ]
     }
@@ -242,13 +243,13 @@
     "steps": {
       "en": [
         "Cook the rice.",
-        "Fry cubed tofu until golden, set aside.",
-        "Stir-fry the vegetables, return tofu and combine."
+        "Fry the cubed tofu in half the olive oil until golden, then set it aside.",
+        "Stir-fry the sliced pepper and carrot in the rest of the oil, return the tofu and combine."
       ],
       "pl": [
         "Ugotuj ryż.",
-        "Smaż pokrojone tofu, aż będzie złociste, odłóż.",
-        "Podsmaż warzywa, dodaj tofu i wymieszaj."
+        "Smaż pokrojone w kostkę tofu na połowie oliwy, aż będzie złociste, i odłóż.",
+        "Podsmaż na reszcie oliwy pokrojoną paprykę i marchewkę, dodaj tofu i wymieszaj."
       ]
     }
   },
@@ -275,12 +276,12 @@
     "steps": {
       "en": [
         "Boil the pasta until al dente.",
-        "Brown the beef with onion, add tomato and simmer.",
+        "Brown the beef with the onion in the olive oil, add the tomato and simmer.",
         "Toss the sauce through the pasta."
       ],
       "pl": [
         "Ugotuj makaron al dente.",
-        "Podsmaż wołowinę z cebulą, dodaj pomidory i duś.",
+        "Podsmaż wołowinę z cebulą na oliwie, dodaj pomidory i duś.",
         "Wymieszaj sos z makaronem."
       ]
     }
@@ -372,12 +373,12 @@
       "en": [
         "Cook and cool the quinoa.",
         "Dice the pepper and tomato.",
-        "Toss everything with olive oil and season."
+        "Toss the quinoa, the black beans and the vegetables with the olive oil and season."
       ],
       "pl": [
         "Ugotuj komosę i ostudź.",
         "Pokrój paprykę i pomidora w kostkę.",
-        "Wymieszaj wszystko z oliwą i dopraw."
+        "Wymieszaj komosę, czarną fasolę i warzywa z oliwą i dopraw."
       ]
     }
   },
