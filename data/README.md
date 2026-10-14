@@ -249,7 +249,7 @@ are documented here mostly so the choice doesn't get re-litigated:
 
 | dataType | Size | What you get | Use it? |
 |---|---|---|---|
-| **`Foundation`** (default) | ~320 | Clean generic names — `Beef, ground, raw`, `Spinach, raw`. USDA's modern curated subset. | **Yes.** |
+| **`Foundation`** (default) | ~330 | Clean generic names — `Beef, ground, raw`, `Spinach, raw`. USDA's modern curated subset. | **Yes.** |
 | `SR Legacy` | ~7 000 | The retired (2019) Standard Reference release. Dominated by brand SKUs (`HERSHEY'S POT OF GOLD Almond Bar`, `Cereals ready-to-eat, POST, Shredded Wheat`) and hyper-specific cuts (`Beef, New Zealand, imported, brisket point end, separable lean and fat, trimmed to 0" fat, choice, cooked, grilled`). | **No, unless you have a reason.** |
 | `Branded` | ~1.5 M | Entirely brand-name packaged products. | No — not a whole-food source. |
 | `Survey (FNDDS)` | ~7 000 | Composed meals / mixed dishes for dietary recall surveys, not ingredients. | No. |
