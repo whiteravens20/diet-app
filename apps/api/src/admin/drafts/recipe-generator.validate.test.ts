@@ -508,13 +508,43 @@ describe('validateRecipeBatch', () => {
 
     it('is taken when the list holds it, or an ingredient whose own name holds the word', () => {
       expect(judged(steps('Cook the rice.', 'Sear the chicken.', 'Serve with spinach.'))).toBe('accepted');
-      const withPeanutButter = { prepMinutes: 5, cookMinutes: 15, ingredients: [{ slug: 'chicken-breast', quantity: 300, unit: 'g' }, { slug: 'white-rice', quantity: 160, unit: 'g' }, { slug: 'peanut-butter', quantity: 20, unit: 'g' }] };
+      const withPeanutButter = { prepMinutes: 5, cookMinutes: 15, descriptions: { en: 'Chicken on rice with a peanut glaze.', pl: 'Kurczak na ryżu z glazurą orzechową.' }, ingredients: [{ slug: 'chicken-breast', quantity: 300, unit: 'g' }, { slug: 'white-rice', quantity: 160, unit: 'g' }, { slug: 'peanut-butter', quantity: 20, unit: 'g' }] };
       expect(judged({ ...withPeanutButter, ...steps('Cook the rice.', 'Sear the chicken.', 'Stir the butter through.') })).toBe('accepted');
+    });
+
+    it('is refused in the description as well', () => {
+      expect(judged({ descriptions: { en: 'Lean chicken on rice with spinach and mushrooms.', pl: 'Chudy kurczak na ryżu ze szpinakiem.' } })).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
     });
 
     it('is no matter of a word that only holds the name, nor of a run that was given no names', () => {
       expect(judged(steps('Cook the rice in salted water.', 'Sear the chicken until buttery.', 'Serve with spinach.'))).toBe('accepted');
       expect(judged(steps('Cook the rice.', 'Season the chicken with salt.', 'Serve with spinach.'), null)).toBe('accepted');
+    });
+  });
+
+  describe('an ingredient of the list that no step uses', () => {
+    /** The catalogue by its English names: the six ingredients of the recipe these tests change. */
+    const catalogueNames = [
+      { slug: 'chicken-breast', name: 'Chicken breast' },
+      { slug: 'white-rice', name: 'White rice' },
+      { slug: 'spinach', name: 'Spinach' },
+      { slug: 'olive-oil', name: 'Olive oil' },
+      { slug: 'garlic', name: 'Garlic' },
+      { slug: 'lemon', name: 'Lemon' },
+    ];
+    const judged = (...en: string[]) => {
+      const told = { steps: { en, pl: en.map(() => 'Krok.') } };
+      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell(told)]), resolveSlug, catalogueNames });
+      return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
+    };
+
+    it('is refused: the figures would count what the dish as told does not hold', () => {
+      expect(judged('Cook the rice.', 'Sear the chicken in the olive oil with the garlic.', 'Serve with spinach.')).toBe('listed-but-not-used at chicken-rice-bowl.lemon');
+    });
+
+    it('is used where a step names a word of its name, and not by a word that only says what it is like', () => {
+      expect(judged('Cook the rice.', 'Sear the chicken in the oil with the garlic.', 'Serve with spinach and a squeeze of lemon.')).toBe('accepted');
+      expect(judged('Sear the chicken in the oil with the garlic.', 'Wilt the spinach.', 'Serve on a white plate with lemon.')).toBe('listed-but-not-used at chicken-rice-bowl.white-rice');
     });
   });
 

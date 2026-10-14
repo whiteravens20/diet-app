@@ -24,7 +24,7 @@ import { macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
 
-export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v9';
+export const RECIPE_GENERATOR_PROMPT_VERSION = 'recipe-generator.v10';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
@@ -358,8 +358,9 @@ single violation, so be precise:
 15. A step uses nothing the ingredient list does not hold, water alone
     excepted. If a step seasons with salt and pepper, \`salt\` and
     \`black-pepper\` are in the list with their amounts; if it finishes with
-    lemon juice, \`lemon\` is. A recipe whose title or steps name a catalogue
-    ingredient that its list lacks is rejected.
+    lemon juice, \`lemon\` is. A recipe whose title, description or steps
+    name a catalogue ingredient that its list lacks is rejected, and so is
+    one whose list holds an ingredient that no step uses.
 
 Return ONLY a JSON object of this exact shape — no prose, no fences:
 

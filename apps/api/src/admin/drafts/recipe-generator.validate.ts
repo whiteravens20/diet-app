@@ -54,6 +54,7 @@ type RecipeValidationReason =
   | 'meal-not-asked-for'
   | 'meals-of-two-kinds'
   | 'names-what-its-list-lacks'
+  | 'listed-but-not-used'
   | 'steps-differ-between-languages'
   | 'title-names-a-diet-or-band'
   | 'ingredient-count-out-of-bands'
@@ -177,7 +178,7 @@ const TITLE_SAYS_MORE = /\b(keto|ketogenic|low[- ]carb|high[- ]protein|vegan|veg
 const MAIN_MEALS: ReadonlySet<string> = new Set(['lunch', 'dinner']);
 
 /** An ingredient the catalogue calls by one word, and how that word is found in a text, one of it or several. */
-interface NamedByOneWord {
+export interface NamedByOneWord {
   slug: string;
   /** The word without its plural ending: what the name of an ingredient that stands in for it holds. */
   stem: string;
@@ -190,7 +191,7 @@ interface NamedByOneWord {
  * pepper", "Olive oil") is left out: its last word alone ("pepper", "oil")
  * names other things too.
  */
-function namedByOneWord(names: readonly { slug: string; name: string }[]): NamedByOneWord[] {
+export function namedByOneWord(names: readonly { slug: string; name: string }[]): NamedByOneWord[] {
   return names
     .map(({ slug, name }) => ({ slug, word: name.trim().toLowerCase() }))
     .filter(({ word }) => /^[a-z]{3,}$/.test(word))
@@ -206,12 +207,32 @@ function namedByOneWord(names: readonly { slug: string; name: string }[]): Named
  * word answers for it: peanut butter for "butter", canned tomatoes for
  * "tomato".
  */
-function namedButNotListed(text: string, listed: readonly string[], named: readonly NamedByOneWord[], nameOf: ReadonlyMap<string, string>): string | null {
+export function namedButNotListed(text: string, listed: readonly string[], named: readonly NamedByOneWord[], nameOf: ReadonlyMap<string, string>): string | null {
   const lower = text.toLowerCase();
   const have = listed.map((slug) => (nameOf.get(slug) ?? slug).toLowerCase());
   for (const { slug, stem, found } of named) {
     if (listed.includes(slug) || !found.test(lower)) continue;
     if (!have.some((name) => name.includes(stem))) return slug;
+  }
+  return null;
+}
+
+/** Words of an ingredient's name that say what it is like, not what it is: "white" rice, a "large" egg. */
+const DESCRIBING = new Set(['large', 'small', 'whole', 'grain', 'white', 'black', 'red', 'green', 'yellow', 'brown', 'sweet', 'sour', 'heavy', 'light', 'smoked', 'canned', 'rolled', 'dried', 'fresh', 'frozen', 'ground', 'extra', 'virgin', 'raw', 'cooked', 'plain', 'wild', 'baby', 'fillet', 'breast', 'thigh']);
+
+/**
+ * The first ingredient of the list that no step uses, or null. An ingredient
+ * is used where a step names a word of its English name ("the oil" for olive
+ * oil, "the eggs" for a large egg); a word that only says what it is like
+ * ("white", "large") uses nothing. An ingredient without a name is passed over.
+ */
+export function listedButNotUsed(steps: string, listed: readonly string[], nameOf: ReadonlyMap<string, string>): string | null {
+  const lower = steps.toLowerCase();
+  for (const slug of listed) {
+    const words = (nameOf.get(slug) ?? '').toLowerCase().split(/[^a-z]+/).filter((word) => word.length >= 3 && !DESCRIBING.has(word));
+    if (words.length === 0) continue;
+    const used = words.some((word) => new RegExp(`\\b${word.endsWith('ies') ? word.slice(0, -3) : word.endsWith('s') ? word.slice(0, -1) : word}`).test(lower));
+    if (!used) return slug;
   }
   return null;
 }
@@ -326,10 +347,13 @@ export function validateRecipeBatch(
     }
 
     // The figures, the allergens and the shopping list of a recipe are all
-    // worked out from its list. A title or a step that names an ingredient
-    // the list does not hold describes another dish than the one that is counted.
-    const lacking = namedButNotListed([titles.en ?? '', ...(steps.en ?? [])].join(' '), ingredients.map((line) => line.slug), named, nameOf);
+    // worked out from its list. A title, a description or a step that names an
+    // ingredient the list does not hold describes another dish than the one
+    // that is counted, and so does a list with an ingredient no step uses.
+    const lacking = namedButNotListed([titles.en ?? '', descriptions.en ?? '', ...(steps.en ?? [])].join(' '), ingredients.map((line) => line.slug), named, nameOf);
     if (lacking) return { ok: false, reason: 'names-what-its-list-lacks', key: `${rowKey}.${lacking}` };
+    const unused = listedButNotUsed((steps.en ?? []).join(' '), ingredients.map((line) => line.slug), nameOf);
+    if (unused) return { ok: false, reason: 'listed-but-not-used', key: `${rowKey}.${unused}` };
 
     // The band the recipe falls into by its ingredients, steps and time. One
     // that is outside every band is not written.

@@ -34,7 +34,10 @@ al., *Nutrition* 31, 2015). Balanced and high-protein plans take any recipe. A
 and fails when a diet has fewer than six for a meal: a week without the same dish
 twice, and room to swap
 ([`apps/api/src/engine/coverage.ts`](../apps/api/src/engine/coverage.ts)). It also refuses two recipes of the same making: the
-same ingredients and amounts, for the same meals and servings, under two names.
+same ingredients and amounts, for the same meals and servings, under two names;
+and a recipe whose English text tells another dish than its list holds: a title,
+a description or a step that names an ingredient the list lacks ("a pinch of
+salt" without salt), or an ingredient of the list that no step uses.
 
 Every diet aims at a split of a day's energy between protein, fat and
 carbohydrate, and the planner chooses recipes for it. How near a plan comes

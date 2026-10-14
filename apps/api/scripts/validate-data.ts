@@ -10,7 +10,8 @@
 import { join } from 'node:path';
 import { DietType, MealType } from '@diet-app/shared';
 import { IMPORT_ALIASES_FILE, readImportAliases } from '../src/admin/drafts/external/import-aliases.js';
-import { readCatalogue } from '../src/admin/seed/catalogue.js';
+import { en, readCatalogue } from '../src/admin/seed/catalogue.js';
+import { listedButNotUsed, namedButNotListed, namedByOneWord } from '../src/admin/drafts/recipe-generator.validate.js';
 import { givenAsCooked, LEAST_ENERGY_OF_A_DRY_STAPLE } from '../src/admin/seed/dry-staples.js';
 import { givenAsCookedMeat, MOST_PROTEIN_OF_RAW_MEAT } from '../src/admin/seed/raw-meat.js';
 import { COVERAGE_TARGET, MACRO_OUT_OF_REACH, macroReachByDiet, recipesPerDietAndMeal } from '../src/engine/coverage.js';
@@ -49,6 +50,23 @@ const cookedMeat = givenAsCookedMeat(catalogue.ingredients);
 if (cookedMeat.length > 0) {
   console.error(`\n✗ ${cookedMeat.length} meat or fish with the figures of the cooked food (over ${MOST_PROTEIN_OF_RAW_MEAT} g of protein in 100 g):`);
   for (const slug of cookedMeat) console.error(`  ${slug}: give it per 100 g as it is bought`);
+  process.exit(1);
+}
+
+// A recipe tells the dish its list holds: the figures, the allergens and the shopping list come from the list. A title, a
+// description or a step that names an ingredient the list lacks, or a list with an ingredient no step uses, tells another dish.
+const englishNames = catalogue.ingredients.map((ingredient) => ({ slug: ingredient.slug, name: en(ingredient.name) }));
+const named = namedByOneWord(englishNames);
+const nameOf = new Map(englishNames.map(({ slug, name }) => [slug, name]));
+const untold = catalogue.recipes.flatMap(({ slug, lines, seed }) => {
+  const listed = lines.map((line) => line.slug);
+  const lacking = namedButNotListed([en(seed.title), en(seed.description), ...en(seed.steps)].join(' '), listed, named, nameOf);
+  const unused = listedButNotUsed(en(seed.steps).join(' '), listed, nameOf);
+  return [...(lacking ? [`${slug}: names ${lacking}, which its list does not hold`] : []), ...(unused ? [`${slug}: lists ${unused}, which no step uses`] : [])];
+});
+if (untold.length > 0) {
+  console.error(`\n✗ ${untold.length} recipe(s) whose text does not tell the dish of their list:`);
+  for (const line of untold) console.error(`  ${line}`);
   process.exit(1);
 }
 

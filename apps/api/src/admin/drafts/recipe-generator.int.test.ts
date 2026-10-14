@@ -33,6 +33,9 @@ const unusedTriples: string[][] = (() => {
   return triples;
 })();
 
+/** A first step that uses every ingredient of a list, by the name the catalogue of these tests gives it. */
+const preparing = (slugs: readonly string[]): string => `Prepare the ${slugs.map((slug) => slug.replace(/-/g, ' ')).join(', ')}.`;
+
 /** A scripted author: every recipe it writes is valid and unlike any before it. */
 function author() {
   let written = 0;
@@ -43,7 +46,7 @@ function author() {
       slug: `generated-recipe-${written}`,
       titles: { en: `Generated recipe ${written}` },
       descriptions: { en: 'A quick plate from three things in the cupboard.' },
-      steps: { en: ['Prepare the ingredients.', 'Cook everything together until done.'] },
+      steps: { en: [preparing(triple), 'Cook everything together until done.'] },
       servings: 2,
       mealTypes: ['lunch'],
       dietTags: [],
@@ -302,7 +305,7 @@ describe('generating recipe drafts', () => {
             slug: `plate-of-the-house-${written}`,
             titles: { en: `Plate of the house ${written}` },
             descriptions: { en: 'A plate with next to no carbohydrate.' },
-            steps: { en: ['Prepare the ingredients.', 'Cook everything together until done.'] },
+            steps: { en: [preparing(plate), 'Cook everything together until done.'] },
             servings: 1,
             mealTypes: [meal],
             prepMinutes: 5,
@@ -557,7 +560,7 @@ describe('generating recipe drafts', () => {
         slug: 'crafted-dish',
         titles: { en: 'Crafted dish', pl: 'Danie spreparowane' },
         descriptions: { en: 'A plate written to test the queue.', pl: 'Danie napisane, by sprawdzić kolejkę.' },
-        steps: { en: ['Prepare the ingredients.', 'Cook everything together.'], pl: ['Przygotuj składniki.', 'Ugotuj wszystko razem.'] },
+        steps: { en: [preparing(triple), 'Cook everything together.'], pl: ['Przygotuj składniki.', 'Ugotuj wszystko razem.'] },
         servings: 2,
         mealTypes: ['lunch'],
         prepMinutes: 5,
@@ -627,13 +630,16 @@ describe('generating recipe drafts', () => {
       const existing = RECIPES[0]!;
       const copy = existing.lines.map(([slug, quantity]) => ({ slug, quantity, unit: INGREDIENTS.find((i) => i.slug === slug)!.canonicalUnit }));
 
-      const state = await answeredWith(batch({ ingredients: copy }));
+      const told = { en: [preparing(copy.map(({ slug }) => slug)), 'Cook everything together.'], pl: ['Przygotuj składniki.', 'Ugotuj wszystko razem.'] };
+      const state = await answeredWith(batch({ ingredients: copy, steps: told }));
 
       expect(state).toMatchObject({ written: 0, failed: 1, lastRejectReason: 'duplicate-of-existing' });
     });
 
     it('with a recipe that does not qualify for the diet asked for is refused', async () => {
-      const state = await answeredWith(batch({ ingredients: firstLine({ slug: 'chicken-breast' }) }), { dietTags: ['vegan'] });
+      const lines = firstLine({ slug: 'chicken-breast' });
+      const told = { en: [preparing(lines.map((line) => String(line.slug))), 'Cook everything together.'], pl: ['Przygotuj składniki.', 'Ugotuj wszystko razem.'] };
+      const state = await answeredWith(batch({ ingredients: lines, steps: told }), { dietTags: ['vegan'] });
 
       expect(state).toMatchObject({ written: 0, failed: 1, lastRejectReason: 'diet-conflict' });
     });
