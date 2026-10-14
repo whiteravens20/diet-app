@@ -5,30 +5,53 @@
 # tag starts it. It stays here as the scaffold for v1.0.0: enable it with
 # `gh workflow enable release.yml` as part of that release.
 #
-# Triggered by a semver tag (v1.2.3). Builds the production image, pushes it to
-# GitHub Container Registry, and creates a GitHub Release whose notes are
-# generated from .github/release.yml.
+# Triggered by a semver tag (v1.2.3) that points at a commit of `main`; the first
+# job refuses a tag anywhere else. Builds the production image, pushes it to
+# GitHub Container Registry, scans what was pushed, and creates a GitHub Release
+# whose notes are generated from .github/release.yml.
 #
 # Image: ghcr.io/whiteravens20/diet-app — the one image every service of
-# infra/docker-compose.prod.yml runs from.
+# infra/docker-compose.prod.yml runs from. Only a release tag moves `latest`; a
+# snapshot of `main` is `:edge` (docker-snapshot.yml).
 name: Release
 
 on:
   push:
-    tags: ['v*.*.*']
+    # A release, never a pre-release: a tag such as v1.0.0-rc.1 would move `latest`.
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
 
 permissions:
   contents: read
 
 jobs:
+  # github.event.base_ref is not set reliably for a tag pushed with
+  # `git push origin <tag>`, so git is asked whether `main` holds the commit.
+  check-branch:
+    name: Verify tag is on main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Check branch containment
+        run: |
+          git branch -r --contains "$GITHUB_SHA" | grep -qE '^\s*origin/main$' && exit 0
+          echo "::error::Tag ${GITHUB_REF_NAME} does not point to a commit on main. Release skipped."
+          exit 1
+
   image:
     name: Build & push image
+    needs: check-branch
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       id-token: write       # Sign the provenance attestation
       attestations: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -61,10 +84,52 @@ jobs:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+          # No artifact storage record: it needs the artifact-metadata:write
+          # permission and only feeds the org's Linked Artifacts page.
+          create-storage-record: false
+
+  # Reads the image that was pushed, by its digest, and fails on a HIGH or
+  # CRITICAL finding that .trivyignore does not acknowledge. The release waits
+  # for it; the findings land in the Security tab either way.
+  scan:
+    name: Trivy image scan
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read          # Pull the image from ghcr.io
+      security-events: write  # Upload SARIF to the Security tab
+    steps:
+      - name: Checkout (for .trivyignore)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Scan for HIGH/CRITICAL CVEs
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository }}@${{ needs.image.outputs.digest }}
+          severity: HIGH,CRITICAL
+          trivyignores: .trivyignore
+          exit-code: '1'
+          format: sarif
+          output: trivy-release.sarif
+          # Without this, trivy-action widens the severity to ALL for SARIF, and
+          # exit-code 1 then trips on MEDIUM and LOW findings too.
+          limit-severities-for-sarif: true
+      - name: Upload SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        if: always()
+        with:
+          sarif_file: trivy-release.sarif
+          category: trivy-release
 
   release:
     name: GitHub Release
-    needs: image
+    needs: [image, scan]
     runs-on: ubuntu-latest
     permissions:
       contents: write       # Create the release
