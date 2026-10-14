@@ -108,6 +108,10 @@ compose file at [`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml)
   scheduled-tasks worker, the migration job and the Next.js frontend; each
   service starts it with its own command
 
+There is no release yet, so there is no `latest` tag either. Until the first
+release, set `IMAGE_TAG=edge` in `.env` to run the release candidate built from
+`main`, or `IMAGE_TAG=edge-<7-char-sha>` to hold one build of it.
+
 On the target server:
 
 ```bash

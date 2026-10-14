@@ -17,8 +17,13 @@ never be from a different version than the API it talks to.
 | Web front-end | `node /web/apps/web/server.js` (Next.js standalone output) |
 
 Build context is the repo root. The `release.yml` workflow builds the image on a
-`vX.Y.Z` tag and pushes it to GHCR with provenance + SBOM; it is disabled while the
-project is in development.
+`vX.Y.Z` tag of `main`, pushes it to GHCR with provenance + SBOM and scans it before
+the release is published; it is disabled while the project is in development. Until
+then the image is built on demand by the "Snapshot build" workflow
+(`docker-snapshot.yml`): run from `dev` it is pushed as `:dev`, run from `main` as
+`:edge`, each also under its commit (`:edge-<7-char-sha>`), and the scan of an `:edge`
+build fails on a high or critical finding. Every build brings the OS packages of the
+image up to date.
 
 ## Compose files
 
