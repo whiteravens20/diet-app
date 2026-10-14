@@ -535,7 +535,7 @@
       "title": "USDA importer",
       "explain": "Pulls public-domain food data from the USDA FoodData Central API into data/ingredients.generated.json. Click \"Update database\" afterwards to load the new rows.",
       "dataSets": "Data sets",
-      "foundationOnly": "Foundation (~340)",
+      "foundationOnly": "Foundation (~330)",
       "foundationPlusSr": "Foundation + SR Legacy (~8k)",
       "runImport": "Run import",
       "running": "Importing…",

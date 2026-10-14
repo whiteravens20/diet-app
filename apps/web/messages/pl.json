@@ -535,7 +535,7 @@
       "title": "Importer USDA",
       "explain": "Pobiera publiczne dane o żywności z API USDA FoodData Central do data/ingredients.generated.json. Następnie kliknij „Zaktualizuj bazę”, aby załadować nowe wiersze.",
       "dataSets": "Zbiory danych",
-      "foundationOnly": "Foundation (~340)",
+      "foundationOnly": "Foundation (~330)",
       "foundationPlusSr": "Foundation + SR Legacy (~8 tys.)",
       "runImport": "Uruchom import",
       "running": "Importuję…",
