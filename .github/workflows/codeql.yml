@@ -43,8 +43,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The API is typed against the Prisma client, which is generated from the
+      # schema and not kept in the repository; without it the build fails.
+      - name: Generate the Prisma client
+        run: npm run db:generate
+
       - name: Build workspaces
-        run: npm run build || true
+        run: npm run build
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
