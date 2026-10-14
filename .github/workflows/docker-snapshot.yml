@@ -13,6 +13,10 @@
 #                                       last check before a release tag
 # Any other branch is refused, so nothing but `main` can move `:edge`.
 #
+# The image is pushed by its digest alone and scanned there; the tags are put
+# on it only after the scan, and from `main` only when the scan passed. A pull
+# of a tag never meets an image the scan has not read.
+#
 # Pull to test:  set IMAGE_TAG=<tag> in the .env of infra/docker-compose.prod.yml.
 #
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +42,8 @@ jobs:
       packages: write
 
     outputs:
-      image-ref: ${{ steps.img-ref.outputs.ref }}
+      digest: ${{ steps.build.outputs.digest }}
+      tags: ${{ steps.tag.outputs.value }}
 
     steps:
       - name: Checkout
@@ -72,28 +77,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push, by digest alone
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: infra/docker/Dockerfile
-          push: true
-          tags: ${{ steps.tag.outputs.value }}
+          # No tag yet: the `tag` job puts the tags on this digest after the scan.
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
           # Different on every run, so the layer that upgrades the OS packages
           # is built again and not restored from the cache below.
           build-args: |
             CACHE_BUST_APK=${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Resolve image ref for scan
-        id: img-ref
-        # The scan reads the digest this run pushed, never a tag that another
-        # run can move in the meantime.
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-        run: echo "ref=${REGISTRY}/${IMAGE_NAME}@${DIGEST}" >> "$GITHUB_OUTPUT"
 
   # ── Trivy scan ────────────────────────────────────────────────────────────────
   #   dev   → exit-code 0  findings reported to the Security tab; the run stays green
@@ -123,7 +121,7 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
-          image-ref: ${{ needs.build-push.outputs.image-ref }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-push.outputs.digest }}
           severity: HIGH,CRITICAL
           trivyignores: .trivyignore
           limit-severities-for-sarif: true
@@ -137,3 +135,40 @@ jobs:
         with:
           sarif_file: trivy-snapshot.sarif
           category: trivy-snapshot
+
+  # ── Tags ──────────────────────────────────────────────────────────────────────
+  # Runs only once the scan has: from `main` only when it passed, from `dev`
+  # whatever it reported. Each tag must then name the very digest that was scanned.
+  tag:
+    name: Tag the scanned image
+    needs: [build-push, scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Put the tags on the scanned digest
+        env:
+          TAGS: ${{ needs.build-push.outputs.tags }}
+          DIGEST: ${{ needs.build-push.outputs.digest }}
+        run: |
+          args=()
+          while IFS= read -r tag; do [ -n "$tag" ] && args+=(--tag "$tag"); done <<< "$TAGS"
+          docker buildx imagetools create "${args[@]}" "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            got=$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')
+            [ "$got" = "$DIGEST" ] || { echo "::error::$tag names $got, not the scanned $DIGEST"; exit 1; }
+            echo "$tag -> $got"
+          done <<< "$TAGS"

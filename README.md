@@ -243,9 +243,9 @@ and no independent security review.
 - The jobs of [test.yml](.github/workflows/test.yml) are required checks on `dev` and
   `main`, and on `main` so are CodeQL, `npm audit` and both Trivy scans: a pull request is
   merged only when they pass.
-- The image a release candidate is tested from is built from `main`, and its scan fails
-  on a high or critical finding
-  ([docker-snapshot.yml](.github/workflows/docker-snapshot.yml)).
+- The image a release candidate is tested from is built from `main` and pushed by its
+  digest alone; it gets its tags only after its scan passed, and a high or critical
+  finding stops it ([docker-snapshot.yml](.github/workflows/docker-snapshot.yml)).
 - Commits are signed, and the [OpenSSF
   Scorecard](https://scorecard.dev/viewer/?uri=github.com/whiteravens20/diet-app)
   results are public.

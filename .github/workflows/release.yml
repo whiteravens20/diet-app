@@ -6,9 +6,10 @@
 # `gh workflow enable release.yml` as part of that release.
 #
 # Triggered by a semver tag (v1.2.3) that points at a commit of `main`; the first
-# job refuses a tag anywhere else. Builds the production image, pushes it to
-# GitHub Container Registry, scans what was pushed, and creates a GitHub Release
-# whose notes are generated from .github/release.yml.
+# job refuses a tag anywhere else. Builds the production image and pushes it to
+# GitHub Container Registry by its digest alone, scans that digest, and only
+# when the scan passed puts the version tags and `latest` on it and creates a
+# GitHub Release whose notes are generated from .github/release.yml.
 #
 # Image: ghcr.io/whiteravens20/diet-app — the one image every service of
 # infra/docker-compose.prod.yml runs from. Only a release tag moves `latest`; a
@@ -52,6 +53,7 @@ jobs:
       attestations: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+      tags: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -73,8 +75,9 @@ jobs:
         with:
           context: .
           file: infra/docker/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          # No tag yet: the `tag` job puts the tags on this digest after the scan.
+          tags: ghcr.io/${{ github.repository }}
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.meta.outputs.labels }}
           provenance: true
           sbom: true
@@ -89,8 +92,8 @@ jobs:
           create-storage-record: false
 
   # Reads the image that was pushed, by its digest, and fails on a HIGH or
-  # CRITICAL finding that .trivyignore does not acknowledge. The release waits
-  # for it; the findings land in the Security tab either way.
+  # CRITICAL finding that .trivyignore does not acknowledge. The tags and the
+  # release wait for it; the findings land in the Security tab either way.
   scan:
     name: Trivy image scan
     needs: image
@@ -127,9 +130,41 @@ jobs:
           sarif_file: trivy-release.sarif
           category: trivy-release
 
+  # Only an image the scan passed gets its tags, and each tag must then name the
+  # very digest that was scanned.
+  tag:
+    name: Tag the scanned image
+    needs: [image, scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Put the tags on the scanned digest
+        env:
+          TAGS: ${{ needs.image.outputs.tags }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          args=()
+          while IFS= read -r tag; do [ -n "$tag" ] && args+=(--tag "$tag"); done <<< "$TAGS"
+          docker buildx imagetools create "${args[@]}" "${IMAGE}@${DIGEST}"
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            got=$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')
+            [ "$got" = "$DIGEST" ] || { echo "::error::$tag names $got, not the scanned $DIGEST"; exit 1; }
+            echo "$tag -> $got"
+          done <<< "$TAGS"
+
   release:
     name: GitHub Release
-    needs: [image, scan]
+    needs: [image, scan, tag]
     runs-on: ubuntu-latest
     permissions:
       contents: write       # Create the release
