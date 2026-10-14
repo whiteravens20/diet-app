@@ -131,8 +131,9 @@ docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Web app → `http://<host>:3000`, API → `http://<host>:4000`. Front them with
-your own reverse proxy (Traefik / Caddy / nginx) and terminate TLS there.
+The web app listens on `127.0.0.1:3000` of the host and passes every `/api`
+request on to the API, which is reached only inside the stack. Put your own
+reverse proxy (Traefik / Caddy / nginx) in front of it and terminate TLS there.
 
 **Updating** — re-pull and restart; migrations apply automatically on boot:
 
