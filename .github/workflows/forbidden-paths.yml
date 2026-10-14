@@ -10,6 +10,12 @@ name: Forbidden Paths
 #     make tampering visible. Maintainer edits to these go through the
 #     `allow-forbidden-path` label bypass.
 #
+# Dependabot's pull requests are not checked. They change manifests, lockfiles
+# and the `uses:` lines of workflows, and an update of the actions touches the
+# workflows above, so this check would close every one of them. The author of
+# the pull request decides it, not the actor of the event: a fork cannot open
+# a pull request as `dependabot[bot]`.
+#
 # Self-defence note: this uses `pull_request_target`, which runs the
 # workflow from the BASE branch's `.github/workflows/`, not the PR head.
 # Even if a malicious PR deletes this file, the base-branch version still
@@ -35,6 +41,7 @@ jobs:
   check:
     name: Reject forbidden paths
     if: |
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
       !contains(github.event.pull_request.labels.*.name, 'allow-forbidden-path')
     runs-on: ubuntu-latest
     timeout-minutes: 5
