@@ -231,6 +231,11 @@ and no independent security review.
   generated `.env`, runs the browser tests against it and checks that a start on the
   unedited template is refused; the links between the documents and the shell scripts are
   checked as well ([test.yml](.github/workflows/test.yml)).
+- A change of the API, of the package it shares with the web app or of the contract in
+  `docs/api/` is also checked against the [Android
+  client](https://github.com/whiteravens20/diet-app-android): every call of the client is
+  held to the contract the change publishes, and the run fails when one no longer fits
+  ([android-client.yml](.github/workflows/android-client.yml)).
 - CodeQL, `npm audit`, package signature checks and Trivy scans of the repository and of
   the image run on every push and pull request, and again every week. Every action a
   workflow uses is pinned to a commit: a run fails when a pin is not the commit its version

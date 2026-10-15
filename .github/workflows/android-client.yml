@@ -1,0 +1,66 @@
+# ── Android client ────────────────────────────────────────────────────────────
+# A change of the API is checked against the Android client: every call of the
+# client (whiteravens20/diet-app-android, its `dev`) is held to the contract the
+# change publishes in docs/api/. The run fails when a call no longer fits, so a
+# change that would break the client is seen where it is made. A code of refusal
+# the client has no text for yet is a warning alone: the client then shows the
+# API's own words for it.
+name: Android client
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'apps/api/**'
+      - 'packages/shared/**'
+      - 'docs/api/**'
+      - '.github/workflows/android-client.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'apps/api/**'
+      - 'packages/shared/**'
+      - 'docs/api/**'
+      - '.github/workflows/android-client.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  calls:
+    name: Android client's calls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check out the Android client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: whiteravens20/diet-app-android
+          ref: dev
+          path: android
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Hold the client's calls to this contract
+        working-directory: android
+        run: |
+          mkdir -p build/diet-app-contract
+          cp ../docs/api/openapi.json ../docs/api/errors.json build/diet-app-contract/
+          echo "Android client at $(git rev-parse --short HEAD), held to API $(jq -r .info.version build/diet-app-contract/openapi.json)"
+          ./gradlew testDebugUnitTest --tests '*ContractTest*' -PcontractDir=build/diet-app-contract
+
+      - name: Look for codes the client has no text for
+        working-directory: android
+        run: |
+          if ! ./gradlew testDebugUnitTest --tests '*ErrorTextsTest*' -PcontractDir=build/diet-app-contract; then
+            echo "::warning::The Android client has no text of its own for every code in docs/api/errors.json, or one for a code no longer there; it shows the API's words for a code it does not know."
+          fi
