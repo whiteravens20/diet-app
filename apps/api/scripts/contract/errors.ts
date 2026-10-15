@@ -136,12 +136,15 @@ export function readErrorCodes(): ErrorCode[] {
   return [...found].sort(([a], [b]) => (a < b ? -1 : 1)).map(([code, statuses]) => ({ code, statuses: [...statuses].sort((a, b) => a - b) }));
 }
 
+/** The sentence the catalogue of `locale` has for each code. */
+function sentences(locale: string): Record<string, string> {
+  return (JSON.parse(readFileSync(join(MESSAGES, `${locale}.json`), 'utf8')) as { errors: Record<string, string> }).errors;
+}
+
 /** The codes with their sentences, as a document to read. */
-export function errorsDocument(): string {
-  const sentences = (locale: string): Record<string, string> => (JSON.parse(readFileSync(join(MESSAGES, `${locale}.json`), 'utf8')) as { errors: Record<string, string> }).errors;
+export function errorsDocument(codes: ErrorCode[] = readErrorCodes()): string {
   const [en, pl] = [sentences('en'), sentences('pl')];
   const cell = (text: string | undefined): string => (text ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ');
-  const codes = readErrorCodes();
   return [
     '# The codes a request is refused with',
     '',
@@ -149,9 +152,25 @@ export function errorsDocument(): string {
     '',
     `A refusal is an \`ApiError\`: its \`error\` is one of the ${codes.length} codes below, and its \`message\` an English sentence for a log. What a person is shown is the sentence of their language: \`errors.<code>\` in the catalogue of that language, which has one for every code. A text in braces is filled in from the \`details\` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.`,
     '',
+    'The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.',
+    '',
     '| Code | Status | In English | In Polish |',
     '|---|---|---|---|',
     ...codes.map(({ code, statuses }) => `| \`${code}\` | ${statuses.join(', ')} | ${cell(en[code])} | ${cell(pl[code])} |`),
     '',
   ].join('\n');
+}
+
+/**
+ * The same codes as data a client copies: each code, in the order of the
+ * alphabet, with the statuses it comes with and its sentence in each language
+ * of the catalogue.
+ */
+export function errorsData(codes: ErrorCode[] = readErrorCodes()): string {
+  const locales = readdirSync(MESSAGES).filter((name) => name.endsWith('.json')).map((name) => name.slice(0, -'.json'.length)).sort();
+  const catalogue = Object.fromEntries(locales.map((locale) => [locale, sentences(locale)]));
+  const data = Object.fromEntries(
+    codes.map(({ code, statuses }) => [code, { statuses, messages: Object.fromEntries(locales.map((locale) => [locale, catalogue[locale]![code] ?? null])) }]),
+  );
+  return `${JSON.stringify(data, null, 2)}\n`;
 }

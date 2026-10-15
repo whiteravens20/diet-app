@@ -4,6 +4,8 @@ Written by `npm run contract` from the source of the API and from the message ca
 
 A refusal is an `ApiError`: its `error` is one of the 146 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
+The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
+
 | Code | Status | In English | In Polish |
 |---|---|---|---|
 | `ADMIN_DISABLED` | 403 | The admin panel is disabled on this instance. | Panel administracyjny jest wyłączony na tej instancji. |

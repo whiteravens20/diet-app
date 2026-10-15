@@ -7,12 +7,13 @@ What a client of the API builds on: the Android application, a script, another f
 | [`openapi.json`](openapi.json) | An OpenAPI 3.1 description: every route with who may ask it, its limit, what it takes and what it answers with, and every schema in full. |
 | [`routes.md`](routes.md) | The same routes as a list to read. |
 | [`errors.md`](errors.md) | Every code a request is refused with, the status it comes with, and its sentence in each language. |
+| [`errors.json`](errors.json) | The same codes as data for a client to copy: each with its statuses and its sentence in each language. |
 | [`apps/web/messages/`](../../apps/web/messages/) | The message catalogue: one file a language, with the same keys in each. A client that speaks a language shows the texts of that file. |
 | [`packages/shared/`](../../packages/shared/) | The schemas themselves (Zod, with their TypeScript types), as the API checks requests with them and the web application reads answers with them. |
 
 ## What holds
 
-- **The three files here are written from the code**, by `npm run contract`: the routes from the controllers, the schemas from `packages/shared`, the codes from the source and the catalogue. A test fails when a file is not what the command writes, so a route, a schema or a text that changes shows as a change of these files in the same commit.
+- **The four files here are written from the code**, by `npm run contract`: the routes from the controllers, the schemas from `packages/shared`, the codes from the source and the catalogue. A test fails when a file is not what the command writes, so a route, a schema or a text that changes shows as a change of these files in the same commit.
 - **Every answer is checked.** A route declares the schema it answers with, and the integration tests hold every answer of every route to it: one the schema refuses, a field the schema does not name, and a field it names that is missing each fail the test in which they appear.
 - **Every request is checked before a handler sees it**: a body, a query string and a value in a path each go through a schema, and what a client may send has an upper bound.
 - **The routes the running application answers are the routes listed**, no more and no fewer: a test compares the two.

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 /**
- * The published contract (`docs/api/`) is what the API says now: the three
+ * The published contract (`docs/api/`) is what the API says now: the four
  * files are what `npm run contract` would write, every route declares what it
  * answers with and says what it does, and the description holds together.
  */
@@ -20,7 +20,7 @@ describe('the published contract of the API', () => {
     files = await contractFiles();
   }, 60_000);
 
-  it.each(['openapi.json', 'routes.md', 'errors.md'])('docs/api/%s is what `npm run contract` writes', (name) => {
+  it.each(['openapi.json', 'routes.md', 'errors.md', 'errors.json'])('docs/api/%s is what `npm run contract` writes', (name) => {
     // A difference is a route, a schema, a comment above a handler or a text of the catalogue that changed: run the command and commit the result.
     expect(readFileSync(join(CONTRACT_DIRECTORY, name), 'utf8') === files[name], `docs/api/${name} is stale`).toBe(true);
   });

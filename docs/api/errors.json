@@ -1,0 +1,1318 @@
+{
+  "ADMIN_DISABLED": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "The admin panel is disabled on this instance.",
+      "pl": "Panel administracyjny jest wyłączony na tej instancji."
+    }
+  },
+  "ADMIN_SECOND_FACTOR_RESET_SET": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "ADMIN_SECOND_FACTOR_RESET is on: a second step would be removed at the next start. Switch it off and restart the API first.",
+      "pl": "ADMIN_SECOND_FACTOR_RESET jest włączone: drugi etap zostałby usunięty przy następnym starcie. Najpierw wyłącz tę opcję i zrestartuj API."
+    }
+  },
+  "AI_CONFIG_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "AI provider configuration not found.",
+      "pl": "Nie znaleziono konfiguracji dostawcy AI."
+    }
+  },
+  "AI_DRAFT_DAILY_LIMIT": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "AI has written as many recipes for you as it may in one day. Try again tomorrow.",
+      "pl": "AI napisało już dla Ciebie tyle przepisów, ile może w ciągu jednego dnia. Spróbuj ponownie jutro."
+    }
+  },
+  "AI_DRAFT_INVALID": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "AI returned a malformed recipe draft — try again, or change what you chose.",
+      "pl": "AI zwróciło niepoprawny szkic przepisu — spróbuj ponownie albo zmień wybrane opcje."
+    }
+  },
+  "AI_DRAFT_OFF_DIET": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "The AI's recipe does not fit the diet you asked for — try again.",
+      "pl": "Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie."
+    }
+  },
+  "AI_DRAFT_OFF_TARGET": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "The AI's recipe came out far from the calories you asked for — try again.",
+      "pl": "Przepis od AI wyszedł daleko od kaloryczności, o którą prosisz — spróbuj ponownie."
+    }
+  },
+  "AI_DRAFT_UNKNOWN_INGREDIENT": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "AI proposed an ingredient it was not offered — try again.",
+      "pl": "AI zaproponowało składnik, którego nie było na liście — spróbuj ponownie."
+    }
+  },
+  "AI_INSTANCE_LIMIT_REACHED": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "This instance's shared AI requests for the month are used up.",
+      "pl": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana."
+    }
+  },
+  "AI_KEY_UNREADABLE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A saved AI provider key can no longer be read — enter it again in Settings.",
+      "pl": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach."
+    }
+  },
+  "AI_MONTHLY_LIMIT_REACHED": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "You've used your AI requests for this month.",
+      "pl": "Skończył się Twój miesięczny limit zapytań AI."
+    }
+  },
+  "AI_NOT_CONFIGURED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "No AI provider is set up for your account — choose one in Settings.",
+      "pl": "Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach."
+    }
+  },
+  "AI_PROVIDER_TIMEOUT": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "AI provider was too slow — try a smaller model or a cloud provider.",
+      "pl": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze."
+    }
+  },
+  "AI_UNAVAILABLE": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "The AI provider didn't respond — try again in a moment.",
+      "pl": "Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę."
+    }
+  },
+  "AUTH_REQUIRED": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Sign in to continue.",
+      "pl": "Zaloguj się, aby kontynuować."
+    }
+  },
+  "BAD_REQUEST": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "The request could not be understood.",
+      "pl": "Nie udało się zrozumieć żądania."
+    }
+  },
+  "BYOK_NO_PROVIDER": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Add at least one provider key before switching to bring-your-own.",
+      "pl": "Dodaj co najmniej jeden klucz dostawcy, zanim przełączysz się na własny klucz."
+    }
+  },
+  "CONFLICT": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "That already exists.",
+      "pl": "Taki wpis już istnieje."
+    }
+  },
+  "CUSTOM_MEAL_INVALID_MACROS": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Custom meal macros must be non-negative numbers.",
+      "pl": "Makroskładniki własnego posiłku muszą być liczbami nieujemnymi."
+    }
+  },
+  "CUSTOM_MEAL_NOT_SWAPPABLE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Custom meals can't be swapped or have ingredients substituted.",
+      "pl": "Własnego posiłku nie można zamienić na inny ani zamienić w nim składnika."
+    }
+  },
+  "CUSTOM_SPLIT_MISSING": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first.",
+      "pl": "Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu."
+    }
+  },
+  "DAY_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Day not found in this plan.",
+      "pl": "Nie znaleziono dnia w tym planie."
+    }
+  },
+  "DRAFT_INVALID": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "The draft would break the rules for recipe text and quantities. Nothing was saved.",
+      "pl": "Szkic złamałby zasady dotyczące tekstu i ilości w przepisie. Nic nie zostało zapisane."
+    }
+  },
+  "DRAFT_NOT_APPROVED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Draft must be approved in every locale before it can be promoted.",
+      "pl": "Szkic musi być zatwierdzony w każdym języku, zanim trafi do biblioteki."
+    }
+  },
+  "DRAFT_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Draft not found.",
+      "pl": "Nie znaleziono szkicu."
+    }
+  },
+  "DRAFT_NOT_PROMOTABLE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Only user-drafted (AI_USER) recipes can be promoted to curated.",
+      "pl": "Do biblioteki można przenieść tylko przepisy napisane dla użytkownika przez AI (AI_USER)."
+    }
+  },
+  "DRAFT_NOT_SHIPPABLE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This draft cannot go into the library as it is:",
+      "pl": "Ten szkic nie może w tej postaci trafić do biblioteki:"
+    }
+  },
+  "DRAFT_REJECTED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This draft was rejected. Only the administrator can reopen it.",
+      "pl": "Ten szkic został odrzucony. Ponownie otworzyć może go tylko administrator."
+    }
+  },
+  "DRAFT_SHIPPED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This draft has already shipped and can't be changed.",
+      "pl": "Ten szkic został już wysłany i nie można go zmieniać."
+    }
+  },
+  "DRAFT_STRUCTURAL_EDIT_FORBIDDEN": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "User-drafted recipes accept translation edits only — promote first to restructure.",
+      "pl": "W przepisach użytkowników można zmieniać tylko tłumaczenia — żeby zmienić resztę, najpierw przenieś przepis do biblioteki."
+    }
+  },
+  "EMAIL_ALREADY_VERIFIED": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This email address is already verified.",
+      "pl": "Ten adres e-mail jest już potwierdzony."
+    }
+  },
+  "EMAIL_CHANGE_REQUIRES_SMTP": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Changing your email isn't available on this instance — the operator hasn't configured email.",
+      "pl": "Zmiana adresu e-mail nie jest dostępna na tej instancji — operator nie skonfigurował poczty."
+    }
+  },
+  "EMAIL_TAKEN": {
+    "statuses": [
+      400,
+      409
+    ],
+    "messages": {
+      "en": "That email is already registered.",
+      "pl": "Ten adres e-mail jest już zarejestrowany."
+    }
+  },
+  "EMPTY_SET": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This favourite set has no slots — add at least one before applying.",
+      "pl": "Ten zestaw ulubionych jest pusty — dodaj do niego co najmniej jeden posiłek, zanim go zastosujesz."
+    }
+  },
+  "EMPTY_UPDATE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Nothing to update.",
+      "pl": "Brak zmian do zapisania."
+    }
+  },
+  "FAVORITE_LIMIT_REACHED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This profile already has as many marked recipes as it can hold. Remove a mark first.",
+      "pl": "Ten profil ma już tyle oznaczonych przepisów, ile może mieć. Najpierw usuń jedno oznaczenie."
+    }
+  },
+  "FAVORITE_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "That recipe is not marked for this profile.",
+      "pl": "Ten przepis nie jest oznaczony dla tego profilu."
+    }
+  },
+  "FAVORITE_SET_ALLERGEN_CONFLICT": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This favourite set contains a recipe with an allergen this profile avoids — it can't be applied.",
+      "pl": "Ten zestaw ulubionych zawiera przepis z alergenem, którego ten profil unika — nie można go zastosować."
+    }
+  },
+  "FAVORITE_SET_LIMIT_REACHED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This profile already has as many favorite sets as it can hold. Delete one first.",
+      "pl": "Ten profil ma już tyle zestawów ulubionych, ile może mieć. Najpierw usuń jeden z nich."
+    }
+  },
+  "FAVORITE_SET_NOT_ELIGIBLE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This set holds a recipe that can't go into this plan: it doesn't fit the diet or the meal, uses an ingredient the profile skips, or is marked to avoid.",
+      "pl": "Ten zestaw zawiera przepis, którego nie można dodać do tego planu: nie pasuje do diety lub posiłku, zawiera pomijany składnik albo jest oznaczony do unikania."
+    }
+  },
+  "FORBIDDEN": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "You don't have access to that.",
+      "pl": "Brak dostępu."
+    }
+  },
+  "GH_MODE_UNAVAILABLE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "`gh` CLI not found on PATH.",
+      "pl": "Nie znaleziono polecenia `gh` w PATH."
+    }
+  },
+  "GH_PR_CREATE_FAILED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Opening the pull request via gh failed.",
+      "pl": "Utworzenie pull requesta przez gh nie powiodło się."
+    }
+  },
+  "GIT_FAILED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A git command failed during the upstream-PR ship.",
+      "pl": "Polecenie git zakończyło się błędem podczas wysyłki przez pull request."
+    }
+  },
+  "IMPORT_IN_PROGRESS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A USDA import is already in progress.",
+      "pl": "Import USDA już trwa."
+    }
+  },
+  "IMPORT_NOT_JSON": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This is not a JSON document of recipes.",
+      "pl": "To nie jest dokument JSON z przepisami."
+    }
+  },
+  "INGREDIENT_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Ingredient not found.",
+      "pl": "Nie znaleziono składnika."
+    }
+  },
+  "INGREDIENT_NOT_IN_RECIPE": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "This ingredient is not part of the recipe.",
+      "pl": "Ten składnik nie należy do przepisu."
+    }
+  },
+  "INTERNAL_ERROR": {
+    "statuses": [
+      500
+    ],
+    "messages": {
+      "en": "An unexpected server error occurred.",
+      "pl": "Nieoczekiwany błąd serwera."
+    }
+  },
+  "INVALID_ACCESS_TOKEN": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Your session is invalid. Please sign in again.",
+      "pl": "Sesja jest nieprawidłowa. Zaloguj się ponownie."
+    }
+  },
+  "INVALID_ADMIN_SESSION": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "The admin session has ended. Sign in again.",
+      "pl": "Sesja administratora wygasła. Zaloguj się ponownie."
+    }
+  },
+  "INVALID_CREDENTIALS": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Email or password is incorrect.",
+      "pl": "Nieprawidłowy e-mail lub hasło."
+    }
+  },
+  "INVALID_EMAIL_CHANGE_TOKEN": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This email-change link is invalid or has expired.",
+      "pl": "Ten link zmiany adresu e-mail jest nieprawidłowy lub wygasł."
+    }
+  },
+  "INVALID_LOCKED_SLOT": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "A locked meal doesn't fit the meals chosen for that day.",
+      "pl": "Przypięty posiłek nie pasuje do posiłków wybranych na ten dzień."
+    }
+  },
+  "INVALID_PASSWORD": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Current password is incorrect.",
+      "pl": "Aktualne hasło jest nieprawidłowe."
+    }
+  },
+  "INVALID_PULL_SOURCE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "That's not a repo (owner/repo) or a raw URL.",
+      "pl": "To nie jest ani repozytorium (owner/repo), ani bezpośredni adres pliku."
+    }
+  },
+  "INVALID_REFRESH": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Your session expired. Please sign in again.",
+      "pl": "Sesja wygasła. Zaloguj się ponownie."
+    }
+  },
+  "INVALID_RESET_TOKEN": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This reset link is invalid or has expired.",
+      "pl": "Ten link do resetu jest nieprawidłowy lub wygasł."
+    }
+  },
+  "INVALID_REVIEWER_PASSWORD": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Wrong reviewer password.",
+      "pl": "Nieprawidłowe hasło recenzenta."
+    }
+  },
+  "INVALID_REVIEWER_SESSION": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Your reviewer session expired. Please sign in again.",
+      "pl": "Sesja recenzenta wygasła. Zaloguj się ponownie."
+    }
+  },
+  "INVALID_SECOND_FACTOR_CODE": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "That code is not right. Codes change every half a minute, and each works once.",
+      "pl": "Ten kod jest nieprawidłowy. Kody zmieniają się co pół minuty, a każdy działa tylko raz."
+    }
+  },
+  "INVALID_SIGN_IN_CHALLENGE": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "This sign-in took too long. Sign in with your password again.",
+      "pl": "Logowanie trwało zbyt długo. Zaloguj się ponownie hasłem."
+    }
+  },
+  "INVALID_SUBSTITUTION": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This substitution isn't valid.",
+      "pl": "Ta zamiana jest nieprawidłowa."
+    }
+  },
+  "INVALID_VERIFICATION_TOKEN": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This confirmation link is invalid or has expired.",
+      "pl": "Ten link potwierdzający jest nieprawidłowy lub wygasł."
+    }
+  },
+  "INVENTORY_ITEM_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Inventory item not found.",
+      "pl": "Nie znaleziono pozycji w spiżarni."
+    }
+  },
+  "ITEM_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Shopping list item not found.",
+      "pl": "Nie znaleziono pozycji listy zakupów."
+    }
+  },
+  "LIST_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Shopping list not found.",
+      "pl": "Nie znaleziono listy zakupów."
+    }
+  },
+  "LOCALE_NOT_IN_DRAFT": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This draft wasn't generated for that locale.",
+      "pl": "Ten szkic nie został przygotowany w wybranym języku."
+    }
+  },
+  "LOCKED_RECIPE_INELIGIBLE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "A locked recipe can't go into this plan: it is unavailable, or the profile's diet, allergens, skipped ingredients or avoided recipes rule it out.",
+      "pl": "Przypiętego przepisu nie można dodać do tego planu: jest niedostępny albo wyklucza go dieta, alergeny, pomijane składniki lub oznaczenie do unikania."
+    }
+  },
+  "MEAL_EATEN": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This meal is marked as eaten and can't be changed. Unmark it first.",
+      "pl": "Ten posiłek jest oznaczony jako zjedzony i nie można go zmienić. Najpierw cofnij oznaczenie."
+    }
+  },
+  "MEAL_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Meal not found in this plan.",
+      "pl": "Nie znaleziono posiłku w tym planie."
+    }
+  },
+  "MEAL_NOT_REBALANCEABLE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Custom and eaten meals are never rebalanced.",
+      "pl": "Własne i zjedzone posiłki nie są przeliczane."
+    }
+  },
+  "METHOD_NOT_ALLOWED": {
+    "statuses": [
+      405
+    ],
+    "messages": {
+      "en": "That action is not available here.",
+      "pl": "Ta operacja nie jest tutaj dostępna."
+    }
+  },
+  "MODEL_PICK_INVALID": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This suggestion is no longer good for what it was made for. Ask for another.",
+      "pl": "Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową."
+    }
+  },
+  "NAMER_IN_PROGRESS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "An ingredient-namer run is already in progress.",
+      "pl": "Generowanie nazw składników już trwa."
+    }
+  },
+  "NOTHING_TO_REGENERATE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Every one of those days is before today. Days in the past are made again only when you say so.",
+      "pl": "Wszystkie te dni już minęły. Minione dni są układane ponownie tylko wtedy, gdy o to poprosisz."
+    }
+  },
+  "NOTIFICATION_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Notification not found.",
+      "pl": "Nie znaleziono powiadomienia."
+    }
+  },
+  "NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "That does not exist.",
+      "pl": "Nie znaleziono."
+    }
+  },
+  "NO_ALTERNATIVE": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "No alternative recipe found.",
+      "pl": "Nie znaleziono alternatywnego przepisu."
+    }
+  },
+  "NO_APPROVED_DRAFTS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "There are no approved drafts to ship.",
+      "pl": "Brak zatwierdzonych szkiców do wysłania."
+    }
+  },
+  "NO_CURRENT_OVERRIDES": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This instance has no ingredient overrides to export or push yet.",
+      "pl": "Ta instancja nie ma jeszcze żadnych nadpisań składników do eksportu lub wysyłki."
+    }
+  },
+  "NO_ELIGIBLE_INGREDIENTS": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "No ingredients match your diet and allergen settings.",
+      "pl": "Żadne składniki nie pasują do diety i alergenów profilu."
+    }
+  },
+  "NO_ELIGIBLE_RECIPE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "No recipe matches the current constraints.",
+      "pl": "Żaden przepis nie spełnia obecnych ograniczeń."
+    }
+  },
+  "NO_FAVORITE_INGREDIENTS": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Add favourite ingredients on the profile before swapping by them.",
+      "pl": "Najpierw dodaj w profilu ulubione składniki — dopiero wtedy da się dobrać zamianę według nich."
+    }
+  },
+  "NO_FAVORITE_INGREDIENT_MATCH": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "No recipe matches your favourite ingredients.",
+      "pl": "Żaden przepis nie pasuje do Twoich ulubionych składników."
+    }
+  },
+  "NO_REVIEWER_SESSION": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Sign in to continue reviewing.",
+      "pl": "Zaloguj się, aby kontynuować recenzowanie."
+    }
+  },
+  "NO_VALID_DRAFTS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "None of the approved drafts can ship as they are.",
+      "pl": "Żaden z zatwierdzonych szkiców nie może zostać wysłany w obecnej postaci."
+    }
+  },
+  "OFFER_INVALID": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This offer is no longer good for what it was made for. Ask for another.",
+      "pl": "Ta propozycja nie pasuje już do tego, dla czego powstała. Poproś o nową."
+    }
+  },
+  "OFF_DIET_FAVORITE_NOT_ALLOWED": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "That favourite can't go into this slot: it doesn't fit the meal or the diet, or the profile's allergens, skipped ingredients or avoid mark rule it out.",
+      "pl": "Tego ulubionego przepisu nie można tu wstawić: nie pasuje do posiłku lub diety albo wykluczają go alergeny, pomijane składniki lub oznaczenie do unikania."
+    }
+  },
+  "OLLAMA_HOST_NOT_ALLOWED": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "That Ollama address isn't allowed on this instance. Ask the operator to add it to OLLAMA_ALLOWED_HOSTS.",
+      "pl": "Ten adres Ollama nie jest dozwolony na tej instancji. Poproś operatora o dodanie go do OLLAMA_ALLOWED_HOSTS."
+    }
+  },
+  "OLLAMA_USER_DISABLED": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Bring-your-own Ollama is turned off on this instance.",
+      "pl": "Własny serwer Ollama jest wyłączony na tej instancji."
+    }
+  },
+  "ORIGIN_NOT_ALLOWED": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "This request has to come from the application itself. Reload the page and try again.",
+      "pl": "To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie."
+    }
+  },
+  "OUT_OF_COMPLEXITY_BAND": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Recipe is outside every complexity band — adjust ingredients, steps, or time.",
+      "pl": "Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas."
+    }
+  },
+  "OVERRIDE_DATE_OUT_OF_RANGE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "An advanced day option falls outside the plan's date range.",
+      "pl": "Ustawienie dnia wykracza poza zakres dat planu."
+    }
+  },
+  "PANTRY_FULL": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The pantry already holds as many items as it can. Remove one first.",
+      "pl": "Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich."
+    }
+  },
+  "PAYLOAD_TOO_LARGE": {
+    "statuses": [
+      413
+    ],
+    "messages": {
+      "en": "The request is too large.",
+      "pl": "Żądanie jest zbyt duże."
+    }
+  },
+  "PERSONAL_RECIPE_LIMIT": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "You have as many recipes of your own as an account can hold. Delete some you no longer use.",
+      "pl": "Masz już tyle własnych przepisów, ile mieści jedno konto. Usuń te, których już nie używasz."
+    }
+  },
+  "PLAN_CHANGED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The plan changed in the meantime. It has been reloaded; try again.",
+      "pl": "Plan zmienił się w międzyczasie. Został odświeżony — spróbuj ponownie."
+    }
+  },
+  "PLAN_NEEDS_RELAXATION": {
+    "statuses": [
+      422
+    ],
+    "messages": {
+      "en": "The plan cannot be filled inside its limits. Let the limits that stand in the way give way, or change what the plan is asked for.",
+      "pl": "Planu nie da się ułożyć w jego limitach. Pozwól przekroczyć limity, które stoją na przeszkodzie, albo zmień to, o co prosisz w planie."
+    }
+  },
+  "PLAN_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Meal plan not found.",
+      "pl": "Nie znaleziono planu posiłków."
+    }
+  },
+  "PROFILE_LIMIT_REACHED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "You've reached the maximum number of profiles.",
+      "pl": "Osiągnięto maksymalną liczbę profili."
+    }
+  },
+  "PROFILE_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Profile not found.",
+      "pl": "Nie znaleziono profilu."
+    }
+  },
+  "PULL_ADDRESS_NOT_PUBLIC": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "That source is not at a public address. A source inside your own network is fetched only when its host is named in OVERRIDES_PULL_ALLOWED_HOSTS.",
+      "pl": "To źródło nie jest pod adresem publicznym. Źródło w sieci wewnętrznej jest pobierane tylko wtedy, gdy jego host jest wpisany w OVERRIDES_PULL_ALLOWED_HOSTS."
+    }
+  },
+  "PULL_FETCH_FAILED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Could not fetch the overrides file. Check the repo, the branch and the access token; a redirect is not followed, and a file over 2 MB is not read.",
+      "pl": "Nie udało się pobrać pliku nadpisań. Sprawdź repo, gałąź i token dostępu; przekierowania nie są obsługiwane, a plik większy niż 2 MB nie jest czytany."
+    }
+  },
+  "PULL_SHAPE_INVALID": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The fetched file is not a valid ingredient-overrides.json.",
+      "pl": "Pobrany plik nie jest prawidłowym ingredient-overrides.json."
+    }
+  },
+  "QUANTITY_TOO_LARGE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "That quantity is larger than a kitchen holds. Check the number.",
+      "pl": "Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę."
+    }
+  },
+  "RANGE_OUTSIDE_PLAN": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Those days are not days of this plan, or the first is after the last.",
+      "pl": "Te dni nie należą do tego planu albo pierwszy jest późniejszy niż ostatni."
+    }
+  },
+  "RATE_LIMITED": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "Too many requests. Try again in a moment.",
+      "pl": "Zbyt wiele żądań. Spróbuj ponownie za chwilę."
+    }
+  },
+  "RECIPE_GEN_IN_PROGRESS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A recipe-generator run is already in progress.",
+      "pl": "Generowanie przepisów już trwa."
+    }
+  },
+  "RECIPE_NOT_ELIGIBLE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "That recipe can't go into this plan.",
+      "pl": "Tego przepisu nie można dodać do tego planu."
+    }
+  },
+  "RECIPE_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Recipe not found.",
+      "pl": "Nie znaleziono przepisu."
+    }
+  },
+  "RECIPE_NOT_SUBMITTABLE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library.",
+      "pl": "Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki."
+    }
+  },
+  "REFERENCE_CONFLICT": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The request refers to something that does not exist or is still in use.",
+      "pl": "Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane."
+    }
+  },
+  "REVIEWER_DISABLED": {
+    "statuses": [
+      401,
+      403
+    ],
+    "messages": {
+      "en": "Reviewer interface is disabled.",
+      "pl": "Panel recenzenta jest wyłączony."
+    }
+  },
+  "SAME_INGREDIENT": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "An ingredient cannot take its own place. Choose another one.",
+      "pl": "Składnik nie może zastąpić samego siebie. Wybierz inny."
+    }
+  },
+  "SCALE_OUT_OF_RANGE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "That would leave a meal with less than half a serving or more than three.",
+      "pl": "Posiłek miałby wtedy mniej niż pół porcji albo więcej niż trzy."
+    }
+  },
+  "SECOND_FACTOR_ALREADY_ON": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Two-step sign-in is switched on already. Switch it off before you set it up again.",
+      "pl": "Logowanie dwuetapowe jest już włączone. Wyłącz je, zanim skonfigurujesz je ponownie."
+    }
+  },
+  "SECOND_FACTOR_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "No account with that address uses two-step sign-in.",
+      "pl": "Żadne konto z tym adresem nie używa logowania dwuetapowego."
+    }
+  },
+  "SECOND_FACTOR_NOT_ON": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Two-step sign-in is not switched on.",
+      "pl": "Logowanie dwuetapowe nie jest włączone."
+    }
+  },
+  "SECOND_FACTOR_SETUP_EXPIRED": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This set-up has run out. Begin again.",
+      "pl": "Ta konfiguracja wygasła. Zacznij od nowa."
+    }
+  },
+  "SERVER_BUSY": {
+    "statuses": [
+      503
+    ],
+    "messages": {
+      "en": "The server is busy right now. Try again in a moment.",
+      "pl": "Serwer jest teraz zajęty. Spróbuj ponownie za chwilę."
+    }
+  },
+  "SESSION_JUST_REFRESHED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Your session was refreshed in another tab a moment ago. Try again.",
+      "pl": "Sesja została przed chwilą odświeżona w innej karcie. Spróbuj ponownie."
+    }
+  },
+  "SESSION_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "That session is no longer open.",
+      "pl": "Ta sesja nie jest już otwarta."
+    }
+  },
+  "SET_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Favourite set not found.",
+      "pl": "Nie znaleziono zestawu ulubionych."
+    }
+  },
+  "SHIP_NO_APPROVED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "No approved drafts to ship.",
+      "pl": "Brak zatwierdzonych szkiców do wysłania."
+    }
+  },
+  "SHIP_REPO_ROOT_NOT_FOUND": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Could not find the git repo root for the upstream PR mode.",
+      "pl": "Nie znaleziono katalogu .git potrzebnego do wysyłki przez pull request."
+    }
+  },
+  "SHIP_UPSTREAM_BLOCKED_CANONICAL": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes.",
+      "pl": "Skonfigurowane zdalne repozytorium to główne repozytorium diet-app. Treść napisana przez AI nigdy tam nie trafia — nawet z instancji opiekuna projektu. Ustaw SHIP_UPSTREAM_REMOTE na prywatną kopię repozytorium albo wyślij szkice do tej instancji lub jako pakiet."
+    }
+  },
+  "SHIP_UPSTREAM_DISABLED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Upstream PR mode is disabled on this instance.",
+      "pl": "Wysyłka przez pull request jest wyłączona na tej instancji."
+    }
+  },
+  "SHIP_UPSTREAM_NO_TOKEN": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Upstream PR mode is missing a gh token.",
+      "pl": "Brakuje tokenu gh do wysyłki przez pull request."
+    }
+  },
+  "SHOPPING_LIST_LIMIT": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This plan already has as many shopping lists as it can hold. Delete one first.",
+      "pl": "Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich."
+    }
+  },
+  "SHOPPING_RANGE_OUTSIDE_PLAN": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Those dates are not within the plan. Pick dates the plan covers.",
+      "pl": "Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje."
+    }
+  },
+  "SUBSTITUTION_MOVES_NUTRITION": {
+    "statuses": [
+      422
+    ],
+    "messages": {
+      "en": "This substitution changes what a serving holds by more than a tenth. Confirm that you want it all the same.",
+      "pl": "Ta zamiana zmienia wartości porcji o więcej niż jedną dziesiątą. Potwierdź, że mimo to chcesz ją wykonać."
+    }
+  },
+  "TOO_MANY_ATTEMPTS": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "Too many failed sign-ins. Wait a moment before you try again.",
+      "pl": "Zbyt wiele nieudanych prób logowania. Odczekaj chwilę, zanim spróbujesz ponownie."
+    }
+  },
+  "TRANSLATIONS_IN_PROGRESS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A run that fills a missing language is already in progress.",
+      "pl": "Uzupełnianie brakującego języka już trwa."
+    }
+  },
+  "TURNSTILE_FAILED": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Anti-abuse check failed. Please try again.",
+      "pl": "Weryfikacja chroniąca przed nadużyciami nie powiodła się. Spróbuj ponownie."
+    }
+  },
+  "UNAUTHORIZED": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "Sign in to continue.",
+      "pl": "Zaloguj się, aby kontynuować."
+    }
+  },
+  "UNIT_CONVERSION_FAILED": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Could not convert the recipe's quantities — missing density or grams-per-piece.",
+      "pl": "Nie udało się przeliczyć jednostek — brak gęstości lub gramów na sztukę."
+    }
+  },
+  "UNIT_NOT_CONVERTIBLE": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "This ingredient can't be kept in that unit. Use the unit it is weighed or measured in.",
+      "pl": "Tego składnika nie można trzymać w tej jednostce. Użyj jednostki, w której się go waży lub mierzy."
+    }
+  },
+  "UNKNOWN_SLUG": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Ingredient slug not found in the curated catalogue.",
+      "pl": "Składnik nie istnieje w katalogu — podaj inny slug."
+    }
+  },
+  "UNSUPPORTED_MEDIA_TYPE": {
+    "statuses": [
+      415
+    ],
+    "messages": {
+      "en": "The server does not accept that format.",
+      "pl": "Serwer nie obsługuje tego formatu."
+    }
+  },
+  "UPDATE_IN_PROGRESS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A database update is already in progress.",
+      "pl": "Aktualizacja bazy już trwa."
+    }
+  },
+  "USER_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Account not found.",
+      "pl": "Nie znaleziono konta."
+    }
+  },
+  "VALIDATION_FAILED": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "Some fields need attention.",
+      "pl": "Niektóre pola wymagają poprawy."
+    }
+  },
+  "VERIFICATION_SENT_RECENTLY": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "A verification mail was sent a moment ago. Look for it, or ask again in a couple of minutes.",
+      "pl": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
+    }
+  },
+  "WEIGHT_ENTRY_NOT_FOUND": {
+    "statuses": [
+      404
+    ],
+    "messages": {
+      "en": "Weight entry not found.",
+      "pl": "Nie znaleziono wpisu wagi."
+    }
+  },
+  "WRITE_CONFLICT": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "The data changed while the request was running. Try again.",
+      "pl": "Dane zmieniły się w trakcie operacji. Spróbuj ponownie."
+    }
+  }
+}

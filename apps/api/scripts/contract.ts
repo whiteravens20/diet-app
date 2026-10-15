@@ -2,15 +2,16 @@
 
 /**
  * Writes the contract of the API into `docs/api/`: the OpenAPI description,
- * the list of routes and the list of the codes a request is refused with.
+ * the list of routes and the list of the codes a request is refused with, as a
+ * document to read and as data a client copies.
  *
- *   npm run contract            write the three files
+ *   npm run contract            write the four files
  *   npm run contract -- --check say which of them is not what would be written, and fail if one is
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openApiDocument, routesDocument } from './contract/document.js';
-import { errorsDocument } from './contract/errors.js';
+import { errorsData, errorsDocument, readErrorCodes } from './contract/errors.js';
 import { readRoutes } from './contract/routes.js';
 
 const ROOT = join(__dirname, '../../..');
@@ -19,11 +20,13 @@ export const CONTRACT_DIRECTORY = join(ROOT, 'docs/api');
 /** The files of the contract as they would be written now: name → text. */
 export async function contractFiles(): Promise<Record<string, string>> {
   const routes = await readRoutes();
+  const codes = readErrorCodes();
   const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string };
   return {
     'openapi.json': `${JSON.stringify(openApiDocument(routes, version), null, 2)}\n`,
     'routes.md': routesDocument(routes),
-    'errors.md': errorsDocument(),
+    'errors.md': errorsDocument(codes),
+    'errors.json': errorsData(codes),
   };
 }
 
