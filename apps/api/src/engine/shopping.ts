@@ -111,7 +111,8 @@ export function aggregateShoppingList(
     });
   }
 
-  return groupByAisle(items);
+  // The names here are the catalogue's own, which are English.
+  return groupByAisle(items, 'en');
 }
 
 /** Something a list shows: under its aisle, by its name. */
@@ -130,13 +131,12 @@ export function inAisleOrder(locale: Locale): (a: Listed, b: Listed) => number {
   return (a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || byName(a.name, b.name);
 }
 
-/** Items under their category, the categories in aisle order, the items by name. */
-export function groupByAisle<T extends { category: ProductCategory; name: string }>(
-  items: readonly T[],
-): { category: ProductCategory; items: T[] }[] {
+/** Items under their category, the categories in aisle order, the items by name as the reader's language sorts names. */
+export function groupByAisle<T extends Listed>(items: readonly T[], locale: Locale): { category: ProductCategory; items: T[] }[] {
+  const order = inAisleOrder(locale);
   return CATEGORY_ORDER.map((category) => ({
     category,
-    items: items.filter((i) => i.category === category).sort((a, b) => a.name.localeCompare(b.name)),
+    items: items.filter((i) => i.category === category).sort(order),
   })).filter((g) => g.items.length > 0);
 }
 

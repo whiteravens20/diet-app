@@ -311,7 +311,7 @@ export class ShoppingListsService {
         planId: list.planId,
         fromDate: isoDate(list.fromDate),
         toDate: isoDate(list.toDate),
-        groups: groupByAisle(items).map((group) => ({ ...group, estimatedCalories: energyOf(group.items) })),
+        groups: groupByAisle(items, locale).map((group) => ({ ...group, estimatedCalories: energyOf(group.items) })),
         totalEstimatedCalories: energyOf(list.items),
         stale: isStale(list, lines, ingredients),
         createdAt: list.createdAt.toISOString(),

@@ -209,10 +209,17 @@ describe('the aisles', () => {
       { name: 'Broccoli', category: 'vegetables' as const },
     ];
 
-    const grouped = groupByAisle([...rows].reverse());
+    const grouped = groupByAisle([...rows].reverse(), 'en');
 
     expect(grouped.map((g) => g.category)).toEqual(['vegetables', 'fruits', 'dairy']);
     expect(grouped[0]!.items.map((i) => i.name)).toEqual(['Broccoli', 'Tomato']);
+  });
+
+  it('hold their names in the order of the reader\'s language', () => {
+    const fish = ['Szprot', 'Śledź', 'Makrela', 'Łosoś', 'Lin'].map((name) => ({ name, category: 'fish' as const }));
+
+    expect(groupByAisle(fish, 'pl')[0]!.items.map((i) => i.name)).toEqual(['Lin', 'Łosoś', 'Makrela', 'Szprot', 'Śledź']);
+    expect(groupByAisle(fish, 'en')[0]!.items.map((i) => i.name)).toEqual(['Lin', 'Łosoś', 'Makrela', 'Śledź', 'Szprot']);
   });
 });
 
