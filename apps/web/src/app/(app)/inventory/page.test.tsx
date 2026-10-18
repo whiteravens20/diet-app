@@ -5,7 +5,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Ingredient, type Profile } from '@diet-app/shared';
+import { Ingredient, InventoryItem, type Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import messages from '../../../../messages/en.json';
 import InventoryPage from './page';
@@ -41,10 +41,25 @@ const dumplings = Ingredient.parse({
   gramsPerPiece: 25,
 });
 
-/** The pantry page of an account with one profile and nothing in its pantry; a search finds `found`. */
-async function open(found: Ingredient[]) {
+/** A row of the pantry: `quantity` pieces of `ingredient`, best before `bestBefore`. */
+const aRow = (ingredient: Ingredient, quantity: number, bestBefore: string | null): InventoryItem =>
+  InventoryItem.parse({
+    id: ingredient.id.replace('2dad81f3', '7c0ffee0'),
+    ingredient,
+    quantity,
+    unit: 'piece',
+    display: { quantity, unit: ingredient.displayUnit ?? 'piece' },
+    bestBefore,
+    createdAt: '2026-10-18T00:00:00.000Z',
+    updatedAt: '2026-10-18T00:00:00.000Z',
+  });
+
+/** The pantry page of an account with one profile whose pantry holds `rows`; a search finds `found`. */
+async function open(found: Ingredient[], rows: InventoryItem[] = []) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
-    Promise.resolve((path === '/profiles' ? [profile] : path.startsWith('/ingredients?') ? found : []) as never),
+    Promise.resolve(
+      (path === '/profiles' ? [profile] : path.startsWith('/ingredients?') ? found : path.startsWith('/inventory?') ? rows : []) as never,
+    ),
   );
   const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -55,7 +70,7 @@ async function open(found: Ingredient[]) {
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  await screen.findByText(texts.emptyTitle);
+  await screen.findByText(rows.length > 0 ? rows[0]!.ingredient.name : texts.emptyTitle);
   return { post };
 }
 
@@ -95,5 +110,21 @@ describe('the form that puts an ingredient into the pantry', () => {
 
     expect(unitsOffered()).toEqual(['g', 'piece']);
     expect(screen.getByLabelText(texts.unitLabel)).toHaveValue('piece');
+  });
+});
+
+describe('a row of the pantry', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('names its amount and its day after its ingredient, so that one row is told from another', async () => {
+    const garlic = Ingredient.parse({ ...dumplings, id: '2dad81f3-0d9d-44e1-9ef3-000000000003', name: 'Garlic', canonicalUnit: 'g', gramsPerPiece: 5, displayUnit: 'clove' });
+    await open([], [aRow(dumplings, 12, '2026-11-05'), aRow(garlic, 3, null)]);
+
+    expect(screen.getByLabelText(texts.quantityOf.replace('{name}', dumplings.name))).toHaveValue(12);
+    expect(screen.getByLabelText(texts.bestBeforeOf.replace('{name}', dumplings.name))).toHaveValue('2026-11-05');
+    expect(screen.getByLabelText(texts.quantityOf.replace('{name}', 'Garlic'))).toHaveValue(3);
+    expect(screen.getByLabelText(texts.bestBeforeOf.replace('{name}', 'Garlic'))).toHaveValue('');
   });
 });

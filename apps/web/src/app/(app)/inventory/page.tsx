@@ -195,7 +195,7 @@ export default function InventoryPage() {
                           min="0"
                           defaultValue={item.display.quantity}
                           className="w-24"
-                          aria-label={t('quantityLabel')}
+                          aria-label={t('quantityOf', { name: item.ingredient.name })}
                           onBlur={(e) => {
                             const next = Number(e.currentTarget.value);
                             if (!Number.isFinite(next) || next < 0 || next === item.display.quantity) return;
@@ -210,7 +210,7 @@ export default function InventoryPage() {
                           type="date"
                           defaultValue={item.bestBefore ?? ''}
                           className="w-40"
-                          aria-label={t('bestBeforeLabel')}
+                          aria-label={t('bestBeforeOf', { name: item.ingredient.name })}
                           onBlur={(e) => {
                             const next = e.currentTarget.value || null;
                             if (next === (item.bestBefore ?? null)) return;
