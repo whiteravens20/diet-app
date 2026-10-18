@@ -9,7 +9,7 @@
  * canonical unit otherwise), rounds the need up to what one buys and groups by
  * product category.
  */
-import type { DisplayUnit, ProductCategory, Unit } from '@diet-app/shared';
+import type { DisplayUnit, Locale, ProductCategory, Unit } from '@diet-app/shared';
 import { quantityToBuy, shoppingUnit } from './display.js';
 import { packsFor } from './packs.js';
 import { convertUnit, nutritionFor, toCanonical, UnitConversionError } from './units.js';
@@ -112,6 +112,22 @@ export function aggregateShoppingList(
   }
 
   return groupByAisle(items);
+}
+
+/** Something a list shows: under its aisle, by its name. */
+interface Listed {
+  category: ProductCategory;
+  name: string;
+}
+
+/**
+ * The order a list shows things in: by aisle, then by name as the reader's
+ * language sorts names. Polish puts "Śledź" after every other word in S, where
+ * English puts it among them.
+ */
+export function inAisleOrder(locale: Locale): (a: Listed, b: Listed) => number {
+  const byName = new Intl.Collator(locale).compare;
+  return (a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || byName(a.name, b.name);
 }
 
 /** Items under their category, the categories in aisle order, the items by name. */

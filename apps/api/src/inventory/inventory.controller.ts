@@ -25,7 +25,7 @@ import { InventoryService } from './inventory.service.js';
 export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}
 
-  /** What a profile's pantry holds. */
+  /** What a profile's pantry holds, by aisle and by name as the request's language sorts names. */
   @Get()
   @AnswersListOf(InventoryItem)
   list(

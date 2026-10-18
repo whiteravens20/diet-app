@@ -134,7 +134,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
-| `GET /api/inventory` | an account | What a profile's pantry holds. | `?profileId=` | 200 a list of `InventoryItem` |  |
+| `GET /api/inventory` | an account | What a profile's pantry holds, by aisle and by name as the request's language sorts names. | `?profileId=` | 200 a list of `InventoryItem` |  |
 | `POST /api/inventory` | an account | Put something into the pantry: added to the row of that ingredient and unit, or a new row. | `UpsertInventoryItemRequest` | 201 `InventoryItem` |  |
 | `DELETE /api/inventory/:id` | an account | Take a row out of the pantry. |  | 204 |  |
 | `PATCH /api/inventory/:id` | an account | Change a row of the pantry. | `PatchInventoryItem` | 200 `InventoryItem` |  |

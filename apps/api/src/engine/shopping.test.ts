@@ -9,6 +9,7 @@ import {
   editRow,
   energyOf,
   groupByAisle,
+  inAisleOrder,
   heldForPlan,
   intendedPantryEffect,
   packsToBuy,
@@ -212,6 +213,16 @@ describe('the aisles', () => {
 
     expect(grouped.map((g) => g.category)).toEqual(['vegetables', 'fruits', 'dairy']);
     expect(grouped[0]!.items.map((i) => i.name)).toEqual(['Broccoli', 'Tomato']);
+  });
+});
+
+describe('the order of a list', () => {
+  it('is by aisle, then by name as the reader\'s language sorts names', () => {
+    const rows = [...['Szprot', 'Śledź', 'Makrela', 'Łosoś', 'Lin'].map((name) => ({ name, category: 'fish' as const })), { name: 'Ziemniak', category: 'vegetables' as const }];
+
+    // Polish has Ś as a letter of its own, after S; English sorts it as an S.
+    expect([...rows].sort(inAisleOrder('pl')).map((row) => row.name)).toEqual(['Ziemniak', 'Lin', 'Łosoś', 'Makrela', 'Szprot', 'Śledź']);
+    expect([...rows].sort(inAisleOrder('en')).map((row) => row.name)).toEqual(['Ziemniak', 'Lin', 'Łosoś', 'Makrela', 'Śledź', 'Szprot']);
   });
 });
 

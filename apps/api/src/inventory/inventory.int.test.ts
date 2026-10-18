@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { randomUUID } from 'node:crypto';
-import { MAX_QUANTITY, type Profile } from '@diet-app/shared';
+import { MAX_QUANTITY, type InventoryItem, type Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
@@ -55,6 +55,28 @@ describe('the pantry', () => {
     const rows = await t.http().get(`/api/inventory?profileId=${profile.id}`).set(as(user)).expect(200);
 
     expect(rows.body.map((row: { quantity: number; unit: string }) => `${row.quantity} ${row.unit}`).sort()).toEqual(['200 g', '6 piece']);
+  });
+
+  it('lists the rows by aisle, then by name as the reader\'s language sorts names, then by unit', async () => {
+    for (const [slug, quantity, unit] of [
+      ['rolled-oats', 500, 'g'],
+      ['large-egg', 6, 'piece'],
+      ['large-egg', 100, 'g'],
+      ['greek-yogurt', 400, 'g'],
+      ['wholegrain-bread', 4, 'piece'],
+      ['banana', 2, 'piece'],
+      ['tomato', 300, 'g'],
+      ['salmon', 250, 'g'],
+    ] as const) {
+      await add(slug, quantity, unit);
+    }
+    const listed = async (locale: string): Promise<string[]> =>
+      ((await t.http().get(`/api/inventory?profileId=${profile.id}`).set(as(user)).set('Accept-Language', locale).expect(200)).body as InventoryItem[]).map(
+        (row) => `${row.ingredient.name} ${row.unit}`,
+      );
+
+    expect(await listed('pl')).toEqual(['Pomidor g', 'Banan piece', 'Łosoś g', 'Jajko g', 'Jajko piece', 'Jogurt grecki g', 'Chleb pełnoziarnisty piece', 'Płatki owsiane g']);
+    expect(await listed('en')).toEqual(['Tomato g', 'Banana piece', 'Salmon g', 'Greek yogurt g', 'Large egg g', 'Large egg piece', 'Rolled oats g', 'Wholegrain bread piece']);
   });
 
   it('answers 404 when a row names an ingredient that does not exist', async () => {

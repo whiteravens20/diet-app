@@ -3060,8 +3060,8 @@
         "tags": [
           "inventory"
         ],
-        "summary": "What a profile's pantry holds.",
-        "description": "What a profile's pantry holds.\n\nAsked by an account.",
+        "summary": "What a profile's pantry holds, by aisle and by name as the request's language sorts names.",
+        "description": "What a profile's pantry holds, by aisle and by name as the request's language sorts names.\n\nAsked by an account.",
         "security": [
           {
             "account": []

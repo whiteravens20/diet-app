@@ -1,8 +1,8 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { InventoryItem, Locale, PatchInventoryItem, UpsertInventoryItem } from '@diet-app/shared';
-import { convertUnit, displayStock, UnitConversionError } from '../engine/index.js';
+import { Unit, type InventoryItem, type Locale, type PatchInventoryItem, type UpsertInventoryItem } from '@diet-app/shared';
+import { convertUnit, displayStock, inAisleOrder, UnitConversionError } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry } from './pantry-store.js';
@@ -22,12 +22,17 @@ export class InventoryService {
 
   async list(userId: string, locale: Locale, profileId: string): Promise<InventoryItem[]> {
     await this.assertProfile(userId, profileId);
-    const rows = await this.prisma.inventoryItem.findMany({
-      where: { profileId },
-      include: this.withIngredient(locale),
-      orderBy: [{ ingredient: { name: 'asc' } }, { unit: 'asc' }],
-    });
-    return rows.map((r) => this.toDto(r, locale));
+    const rows = await this.prisma.inventoryItem.findMany({ where: { profileId }, include: this.withIngredient(locale) });
+    // Ordered here, not by the database: the names are those of the reader's language.
+    const order = inAisleOrder(locale);
+    return rows
+      .map((r) => this.toDto(r, locale))
+      .sort(
+        (a, b) =>
+          order(a.ingredient, b.ingredient) ||
+          Unit.options.indexOf(a.unit) - Unit.options.indexOf(b.unit) ||
+          a.id.localeCompare(b.id),
+      );
   }
 
   /**
