@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, Trash } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import type { Ingredient, InventoryItem, Profile } from '@diet-app/shared';
+import { pantryUnits, Unit, type Ingredient, type InventoryItem, type Profile } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,24 +20,6 @@ import { useErrorText } from '@/lib/use-error-text';
 import { LoadFailed } from '@/components/load-failed';
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
-
-type UnitChoice = 'g' | 'ml' | 'piece';
-
-/**
- * The units an ingredient can be kept in: the one it is weighed or measured
- * in, pieces when a piece has a weight, and the other of grams and millilitres
- * when it has a density.
- */
-function unitsFor(ingredient: Ingredient | null): UnitChoice[] {
-  if (!ingredient) return ['g', 'ml', 'piece'];
-  const units = new Set<UnitChoice>([ingredient.canonicalUnit]);
-  if (ingredient.gramsPerPiece) units.add('piece');
-  if (ingredient.density) {
-    units.add('g');
-    units.add('ml');
-  }
-  return (['g', 'ml', 'piece'] as const).filter((unit) => units.has(unit));
-}
 
 /**
  * Best-before urgency: an item is "expiring soon" if today is within
@@ -85,7 +67,7 @@ export default function InventoryPage() {
       profileId: string;
       ingredientId: string;
       quantity: number;
-      unit: UnitChoice;
+      unit: Unit;
       bestBefore?: string | null;
       note?: string | null;
     }) => api.post<InventoryItem>('/inventory', body),
@@ -270,7 +252,7 @@ function AddInventoryForm({
     profileId: string;
     ingredientId: string;
     quantity: number;
-    unit: UnitChoice;
+    unit: Unit;
     bestBefore?: string | null;
     note?: string | null;
   }) => void;
@@ -284,7 +266,7 @@ function AddInventoryForm({
   const id = useId();
   const ids = { ingredient: `${id}-ingredient`, quantity: `${id}-quantity`, unit: `${id}-unit`, bestBefore: `${id}-best-before` };
   const [quantity, setQuantity] = useState('');
-  const [unit, setUnit] = useState<UnitChoice>('g');
+  const [unit, setUnit] = useState<Unit>('g');
   const [bestBefore, setBestBefore] = useState('');
 
   const results = useQuery({
@@ -357,7 +339,7 @@ function AddInventoryForm({
                             setPickedIngredient(i);
                             setSearch('');
                             // What is counted is kept in pieces of its own, the rest as it is weighed or measured.
-                            setUnit(i.displayUnit && i.gramsPerPiece ? 'piece' : i.canonicalUnit);
+                            setUnit(i.displayUnit && pantryUnits(i).includes('piece') ? 'piece' : i.canonicalUnit);
                           }}
                         >
                           {i.name}
@@ -392,10 +374,10 @@ function AddInventoryForm({
               id={ids.unit}
               className={selectClass + ' w-24'}
               value={unit}
-              onChange={(e) => setUnit(e.target.value as UnitChoice)}
+              onChange={(e) => setUnit(e.target.value as Unit)}
             >
               {/* Only what the ingredient can be converted from: stock in any other unit would count as nothing. */}
-              {unitsFor(pickedIngredient).map((choice) => (
+              {(pickedIngredient ? pantryUnits(pickedIngredient) : Unit.options).map((choice) => (
                 <option key={choice} value={choice}>
                   {choice === 'piece' ? unitName(pickedIngredient?.displayUnit ?? 'piece') : choice}
                 </option>

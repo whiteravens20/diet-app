@@ -1,5 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import { pantryUnits, Unit } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import { UnitConversionError, convertUnit, nutritionFor, toCanonical } from './units.js';
 
@@ -82,5 +83,28 @@ describe('convertUnit', () => {
 
   it('refuses a conversion the ingredient has no factor for', () => {
     expect(() => convertUnit(100, 'g', 'ml', egg)).toThrow(UnitConversionError);
+  });
+});
+
+describe('the units the contract lets a pantry keep an ingredient in', () => {
+  it('are the ones this converts into the unit the ingredient is measured in, whatever factors it has', () => {
+    for (const canonicalUnit of Unit.options) {
+      for (const gramsPerPiece of [null, 0, 55]) {
+        for (const density of [null, 0, 1.03]) {
+          const ingredient = { canonicalUnit, gramsPerPiece, density };
+          const converted = Unit.options.filter((unit) => {
+            try {
+              convertUnit(1, unit, canonicalUnit, ingredient);
+              return true;
+            } catch (err) {
+              if (err instanceof UnitConversionError) return false;
+              throw err;
+            }
+          });
+
+          expect(pantryUnits(ingredient), JSON.stringify(ingredient)).toEqual(converted);
+        }
+      }
+    }
   });
 });

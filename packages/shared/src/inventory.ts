@@ -54,6 +54,25 @@ export const UpsertInventoryItem = z.object({
 });
 export type UpsertInventoryItem = z.infer<typeof UpsertInventoryItem>;
 
+/**
+ * The units an ingredient can be kept in: those the API converts into the unit
+ * it is measured in. Pieces go by the weight of a piece, grams and millilitres
+ * by the density, and pieces of what is measured in millilitres, or the other
+ * way round, by both. A row in any other unit is refused with
+ * `UNIT_NOT_CONVERTIBLE`.
+ */
+export function pantryUnits(ingredient: Pick<Ingredient, 'canonicalUnit' | 'gramsPerPiece' | 'density'>): Unit[] {
+  const weighsPerPiece = (ingredient.gramsPerPiece ?? 0) > 0;
+  const weighsPerMillilitre = (ingredient.density ?? 0) > 0;
+  return Unit.options.filter((unit) => {
+    if (unit === ingredient.canonicalUnit) return true;
+    if (unit === 'piece' || ingredient.canonicalUnit === 'piece') {
+      return weighsPerPiece && (unit === 'g' || ingredient.canonicalUnit === 'g' || weighsPerMillilitre);
+    }
+    return weighsPerMillilitre;
+  });
+}
+
 /** The upsert as it is sent: for which profile's pantry. */
 export const UpsertInventoryItemRequest = UpsertInventoryItem.extend({ profileId: z.string().uuid() });
 export type UpsertInventoryItemRequest = z.infer<typeof UpsertInventoryItemRequest>;
