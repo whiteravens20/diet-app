@@ -638,6 +638,7 @@ export class PlanGenerationService {
       },
       select: {
         id: true,
+        slug: true,
         servings: true,
         mealTypes: true,
         dietTags: true,
@@ -680,6 +681,7 @@ export class PlanGenerationService {
 
     const optimizerRecipes: OptimizerRecipe[] = filteredRecipes.map((r) => ({
       id: r.id,
+      slug: r.slug,
       mealTypes: r.mealTypes as MealType[],
       dietTags: r.dietTags,
       caloriesPerServing: r.caloriesPerServing,

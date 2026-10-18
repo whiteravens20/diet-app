@@ -90,6 +90,22 @@ describe('optimisePlan', () => {
     expect(differs).toBe(true);
   });
 
+  it('draws one plan from a seed and a catalogue, whatever ids a database gave the recipes', () => {
+    // The same catalogue installed twice: its recipes keep their slugs and get other ids.
+    const installed = (as: string): OptimizerInput => ({
+      ...baseInput,
+      recipes: baseInput.recipes.map((r) => ({ ...r, id: `${as}-${r.id}`, slug: r.id })),
+    });
+    const drawn = (input: OptimizerInput): string[] => {
+      const slugOf = new Map(input.recipes.map((r) => [r.id, r.slug]));
+      return optimisePlan(input).assignments.map((a) => `${a.dayIndex} ${a.slot} ${slugOf.get(a.recipeId)}`);
+    };
+
+    for (let seed = 1; seed <= 20; seed++) {
+      expect(drawn({ ...installed('here'), seed }), `seed ${seed}`).toEqual(drawn({ ...installed('elsewhere'), seed }));
+    }
+  });
+
   it('reports an ingredient-reuse score in [0, 1]', () => {
     const { ingredientReuseScore } = optimisePlan(baseInput);
     expect(ingredientReuseScore).toBeGreaterThan(0); // every recipe shares "shared"

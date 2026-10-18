@@ -5,7 +5,10 @@
  *
  * A plan is filled day by day, and a day meal by meal. For each meal the
  * recipes that may go there are scored, and the best one is placed. Given the
- * same input the result is the same plan; another `seed` gives another.
+ * same input the result is the same plan; another `seed` gives another. The
+ * draw of a seed goes by the recipes' slugs, which name them alike on every
+ * instance, so one catalogue and one seed give one plan whatever ids a
+ * database gave the recipes.
  *
  * How a day keeps to its target. A meal has a budget: its share of what is
  * still left of the day. After every meal that is placed, the meals still to
@@ -31,6 +34,8 @@ import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './
 
 export interface OptimizerRecipe {
   id: string;
+  /** What names the recipe on every instance: the draw of a seed, and a tie, go by it. The id stands in where there is none. */
+  slug?: string | null;
   mealTypes: MealType[];
   /** The diets the recipe qualifies for; see `fitsDiet` for the ones that need no tag. */
   dietTags: string[];
@@ -406,11 +411,11 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
   const heldOf = (ingredientId: string): number => heldInAll.get(ingredientId) ?? 0;
   // What the draw adds to a recipe's score is the same at every meal of the run.
   const jitters = new Map<string, number>();
-  const jitterOf = (recipeId: string): number => {
-    let jitter = jitters.get(recipeId);
+  const jitterOf = (recipe: OptimizerRecipe): number => {
+    let jitter = jitters.get(recipe.id);
     if (jitter === undefined) {
-      jitter = seededJitter(recipeId, seed);
-      jitters.set(recipeId, jitter);
+      jitter = seededJitter(nameOf(recipe), seed);
+      jitters.set(recipe.id, jitter);
     }
     return jitter;
   };
@@ -709,7 +714,7 @@ interface PickContext {
   preferredCuisines?: ReadonlySet<string>;
   inventoryCoverage?: ReadonlyMap<string, number>;
   /** What the draw of the run adds to a recipe's score, so that another draw gives another plan. */
-  jitterOf: (recipeId: string) => number;
+  jitterOf: (recipe: OptimizerRecipe) => number;
 }
 
 function pickBest(candidates: OptimizerRecipe[], ctx: PickContext): OptimizerRecipe {
@@ -718,8 +723,8 @@ function pickBest(candidates: OptimizerRecipe[], ctx: PickContext): OptimizerRec
   for (const recipe of candidates) {
     // Seed jitter lets "regenerate" explore alternative near-optimal plans
     // without breaking determinism for a fixed seed.
-    const score = scoreRecipe(recipe, ctx) + ctx.jitterOf(recipe.id);
-    if (score > bestScore || (score === bestScore && best !== null && recipe.id < best.id)) {
+    const score = scoreRecipe(recipe, ctx) + ctx.jitterOf(recipe);
+    if (score > bestScore || (score === bestScore && best !== null && nameOf(recipe) < nameOf(best))) {
       best = recipe;
       bestScore = score;
     }
@@ -727,11 +732,14 @@ function pickBest(candidates: OptimizerRecipe[], ctx: PickContext): OptimizerRec
   return best!;
 }
 
-/** Deterministic pseudo-random offset in [0, 0.12) from (recipeId, seed), all in 32-bit integers. */
-export function seededJitter(recipeId: string, seed: number): number {
+/** What a recipe is known by on every instance: its slug, or its id where it has none. */
+const nameOf = (recipe: OptimizerRecipe): string => recipe.slug ?? recipe.id;
+
+/** Deterministic pseudo-random offset in [0, 0.12) from (name, seed), all in 32-bit integers. */
+export function seededJitter(name: string, seed: number): number {
   let h = (seed | 0) ^ 0x9e3779b9;
-  for (let i = 0; i < recipeId.length; i++) h = Math.imul(h ^ recipeId.charCodeAt(i), 0x01000193);
-  // The finishing steps of a 32-bit mix: every bit of the seed and of the id reaches every bit of the result.
+  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 0x01000193);
+  // The finishing steps of a 32-bit mix: every bit of the seed and of the name reaches every bit of the result.
   h ^= h >>> 16;
   h = Math.imul(h, 0x85ebca6b);
   h ^= h >>> 13;
