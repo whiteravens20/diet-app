@@ -708,8 +708,9 @@ model FavoriteSet {
 // recipes the pantry can cover; see `engine/optimizer.ts`.
 //
 // A quantity is stored in the `unit` it was entered in (g / ml / piece), one
-// row per `(profile, ingredient, unit)`: six eggs as pieces next to 200 g of
-// egg white as grams. Everything that reads or changes the stock of an
+// row per `(profile, ingredient, unit)`: three tomatoes as pieces next to
+// 200 g of them as grams. What is counted (eggs, slices, cloves) is stored in
+// its pieces alone. Everything that reads or changes the stock of an
 // ingredient adds its rows up in the canonical unit through `engine/pantry.ts`.
 model InventoryItem {
   id           String     @id @default(uuid())

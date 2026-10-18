@@ -3111,8 +3111,8 @@
         "tags": [
           "inventory"
         ],
-        "summary": "Put something into the pantry: added to the row of that ingredient and unit, or a new row.",
-        "description": "Put something into the pantry: added to the row of that ingredient and unit, or a new row.\n\nAsked by an account.",
+        "summary": "Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces.",
+        "description": "Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces.\n\nAsked by an account.",
         "security": [
           {
             "account": []

@@ -36,7 +36,7 @@ export class InventoryController {
     return this.inventory.list(user.id, locale, profileId);
   }
 
-  /** Put something into the pantry: added to the row of that ingredient and unit, or a new row. */
+  /** Put something into the pantry: added to the row of that ingredient and unit, or a new row; what is counted, to its row in pieces. */
   @Post()
   @Answers(InventoryItem)
   upsert(

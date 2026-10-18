@@ -49,22 +49,36 @@ describe('the pantry', () => {
   });
 
   it('keeps one ingredient in more than one unit, a row for each', async () => {
-    await add('large-egg', 6, 'piece');
-    await add('large-egg', 200, 'g');
+    // Bananas are weighed, and a banana has a weight.
+    await add('banana', 3, 'piece');
+    await add('banana', 200, 'g');
 
     const rows = await t.http().get(`/api/inventory?profileId=${profile.id}`).set(as(user)).expect(200);
 
-    expect(rows.body.map((row: { quantity: number; unit: string }) => `${row.quantity} ${row.unit}`).sort()).toEqual(['200 g', '6 piece']);
+    expect(rows.body.map((row: { quantity: number; unit: string }) => `${row.quantity} ${row.unit}`).sort()).toEqual(['200 g', '3 piece']);
+  });
+
+  it('keeps what is counted in its pieces alone, turning an amount in grams into them', async () => {
+    // An egg weighs 55 g: 110 g are two of them.
+    await add('large-egg', 6, 'piece');
+    const weighed = await add('large-egg', 110, 'g');
+    const first = await add('wholegrain-bread', 70, 'g');
+
+    expect(weighed.status).toBe(201);
+    expect(weighed.body).toMatchObject({ quantity: 8, unit: 'piece', display: { quantity: 8, unit: 'piece' } });
+    expect(first.body).toMatchObject({ quantity: 2, unit: 'piece', display: { quantity: 2, unit: 'slice' } });
+    const rows = await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id }, orderBy: { quantity: 'asc' } });
+    expect(rows.map((row) => `${row.quantity} ${row.unit}`)).toEqual(['2 piece', '8 piece']);
   });
 
   it('lists the rows by aisle, then by name as the reader\'s language sorts names, then by unit', async () => {
     for (const [slug, quantity, unit] of [
       ['rolled-oats', 500, 'g'],
       ['large-egg', 6, 'piece'],
-      ['large-egg', 100, 'g'],
       ['greek-yogurt', 400, 'g'],
       ['wholegrain-bread', 4, 'piece'],
       ['banana', 2, 'piece'],
+      ['banana', 200, 'g'],
       ['tomato', 300, 'g'],
       ['salmon', 250, 'g'],
     ] as const) {
@@ -75,8 +89,8 @@ describe('the pantry', () => {
         (row) => `${row.ingredient.name} ${row.unit}`,
       );
 
-    expect(await listed('pl')).toEqual(['Pomidor g', 'Banan piece', 'Łosoś g', 'Jajko g', 'Jajko piece', 'Jogurt grecki g', 'Chleb pełnoziarnisty piece', 'Płatki owsiane g']);
-    expect(await listed('en')).toEqual(['Tomato g', 'Banana piece', 'Salmon g', 'Greek yogurt g', 'Large egg g', 'Large egg piece', 'Rolled oats g', 'Wholegrain bread piece']);
+    expect(await listed('pl')).toEqual(['Pomidor g', 'Banan g', 'Banan piece', 'Łosoś g', 'Jajko piece', 'Jogurt grecki g', 'Chleb pełnoziarnisty piece', 'Płatki owsiane g']);
+    expect(await listed('en')).toEqual(['Tomato g', 'Banana g', 'Banana piece', 'Salmon g', 'Greek yogurt g', 'Large egg piece', 'Rolled oats g', 'Wholegrain bread piece']);
   });
 
   it('answers 404 when a row names an ingredient that does not exist', async () => {

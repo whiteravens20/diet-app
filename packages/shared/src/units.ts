@@ -16,21 +16,28 @@ export const UNITS = ['g', 'ml', 'piece'] as const;
  * The units an ingredient can be kept in: those the API converts into the unit
  * it is measured in. Pieces go by the weight of a piece, grams and millilitres
  * by the density, and pieces of what is measured in millilitres, or the other
- * way round, by both. A row in any other unit is refused with
+ * way round, by both. An amount in any other unit is refused with
  * `UNIT_NOT_CONVERTIBLE`.
+ *
+ * What is counted (eggs, slices of bread, cloves of garlic) is kept in its
+ * pieces alone: the API turns an amount of it in grams or millilitres into
+ * pieces, so that it is never in the pantry twice.
  */
 export function pantryUnits(ingredient: {
   canonicalUnit: (typeof UNITS)[number];
   gramsPerPiece: number | null;
   density: number | null;
+  displayUnit: string | null;
 }): (typeof UNITS)[number][] {
   const weighsPerPiece = (ingredient.gramsPerPiece ?? 0) > 0;
   const weighsPerMillilitre = (ingredient.density ?? 0) > 0;
-  return UNITS.filter((unit) => {
+  const converts = (unit: (typeof UNITS)[number]): boolean => {
     if (unit === ingredient.canonicalUnit) return true;
     if (unit === 'piece' || ingredient.canonicalUnit === 'piece') {
       return weighsPerPiece && (unit === 'g' || ingredient.canonicalUnit === 'g' || weighsPerMillilitre);
     }
     return weighsPerMillilitre;
-  });
+  };
+  if (ingredient.displayUnit !== null && converts('piece')) return ['piece'];
+  return UNITS.filter(converts);
 }

@@ -4,8 +4,8 @@
  * The pantry of one ingredient, and the one way anything but its owner's own
  * hand changes it.
  *
- * A profile holds an ingredient in at most one row per unit: six eggs as
- * pieces next to 200 g of egg white as grams. What counts as "how much is
+ * A profile holds an ingredient in at most one row per unit: three tomatoes
+ * as pieces next to 200 g of them as grams. What counts as "how much is
  * there" is the sum of those rows in the ingredient's canonical unit. A row
  * in a unit the ingredient cannot be converted from (pieces of something that
  * has no weight per piece) counts as nothing and is never touched.

@@ -2,6 +2,7 @@
 
 import { pantryUnits, Unit } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
+import { isCounted } from './display.js';
 import { UnitConversionError, convertUnit, nutritionFor, toCanonical } from './units.js';
 
 const milk = { canonicalUnit: 'ml' as const, gramsPerPiece: null, density: 1.03 };
@@ -87,22 +88,24 @@ describe('convertUnit', () => {
 });
 
 describe('the units the contract lets a pantry keep an ingredient in', () => {
-  it('are the ones this converts into the unit the ingredient is measured in, whatever factors it has', () => {
+  it('are the ones this converts into the unit the ingredient is measured in, and pieces alone for what is counted', () => {
     for (const canonicalUnit of Unit.options) {
       for (const gramsPerPiece of [null, 0, 55]) {
         for (const density of [null, 0, 1.03]) {
-          const ingredient = { canonicalUnit, gramsPerPiece, density };
-          const converted = Unit.options.filter((unit) => {
-            try {
-              convertUnit(1, unit, canonicalUnit, ingredient);
-              return true;
-            } catch (err) {
-              if (err instanceof UnitConversionError) return false;
-              throw err;
-            }
-          });
+          for (const displayUnit of [null, 'clove']) {
+            const ingredient = { canonicalUnit, gramsPerPiece, density, displayUnit };
+            const converted = Unit.options.filter((unit) => {
+              try {
+                convertUnit(1, unit, canonicalUnit, ingredient);
+                return true;
+              } catch (err) {
+                if (err instanceof UnitConversionError) return false;
+                throw err;
+              }
+            });
 
-          expect(pantryUnits(ingredient), JSON.stringify(ingredient)).toEqual(converted);
+            expect(pantryUnits(ingredient), JSON.stringify(ingredient)).toEqual(isCounted(ingredient) ? ['piece'] : converted);
+          }
         }
       }
     }

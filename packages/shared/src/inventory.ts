@@ -9,9 +9,10 @@ export const MAX_PANTRY_ROWS = 1000;
 
 /**
  * A pantry row — what a profile actually has on hand. Quantity is in `unit`.
- * A profile can hold the same ingredient in more than one unit (six eggs as
- * pieces next to 200 g of egg white as grams); adding more in a unit that is
- * already there adds to that row. Whatever reads the pantry (shopping lists,
+ * A profile can hold the same ingredient in more than one unit (three tomatoes
+ * as pieces next to 200 g of them as grams); adding more in a unit that is
+ * already there adds to that row. What is counted (eggs, slices, cloves) is
+ * held in its pieces alone. Whatever reads the pantry (shopping lists,
  * plan generation) adds the rows of an ingredient up in its canonical unit,
  * so the unit must be one the ingredient can be converted from.
  *
@@ -36,7 +37,9 @@ export type InventoryItem = z.infer<typeof InventoryItem>;
  * Upsert payload. Posting with an `ingredientId + unit` that already exists
  * for this profile aggregates (`quantity += body.quantity`). Posting a fresh
  * combination creates a new row. `bestBefore` overwrites when supplied; when
- * it is omitted, the existing row keeps its own on aggregate.
+ * it is omitted, the existing row keeps its own on aggregate. An amount of
+ * what is counted, given in grams or millilitres, is turned into pieces and
+ * goes to its row in pieces.
  *
  * Refused with 400 `UNIT_NOT_CONVERTIBLE` when the ingredient cannot be
  * converted from `unit` (pieces of something that has no weight per piece;

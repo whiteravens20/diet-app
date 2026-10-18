@@ -2,7 +2,7 @@
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Unit, type InventoryItem, type Locale, type PatchInventoryItem, type UpsertInventoryItem } from '@diet-app/shared';
-import { convertUnit, displayStock, inAisleOrder, UnitConversionError } from '../engine/index.js';
+import { convertUnit, displayStock, inAisleOrder, isCounted, UnitConversionError } from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry } from './pantry-store.js';
@@ -38,13 +38,14 @@ export class InventoryService {
   /**
    * Upsert: posting `(profileId, ingredientId, unit)` that already exists
    * aggregates the quantity; otherwise creates a new row. `bestBefore`
-   * overwrites when supplied so the latest update wins.
+   * overwrites when supplied so the latest update wins. What is counted goes
+   * into its row in pieces, whatever unit it is given in.
    */
   async upsert(userId: string, locale: Locale, profileId: string, body: UpsertInventoryItem): Promise<InventoryItem> {
     await this.assertProfile(userId, profileId);
     const ingredient = await this.prisma.ingredient.findUnique({
       where: { id: body.ingredientId },
-      select: { id: true, canonicalUnit: true, gramsPerPiece: true, density: true },
+      select: { id: true, canonicalUnit: true, gramsPerPiece: true, density: true, displayUnit: true },
     });
     if (!ingredient) {
       throw new NotFoundException({ error: 'INGREDIENT_NOT_FOUND', message: 'Ingredient not found.' });
@@ -61,23 +62,27 @@ export class InventoryService {
       });
     }
 
-    const key = { profileId_ingredientId_unit: { profileId, ingredientId: body.ingredientId, unit: body.unit } };
+    // Eggs, slices and cloves are counted, not weighed: never in the pantry twice.
+    const unit = isCounted(ingredient) ? 'piece' : body.unit;
+    const quantity = convertUnit(body.quantity, body.unit, unit, ingredient);
+
+    const key = { profileId_ingredientId_unit: { profileId, ingredientId: body.ingredientId, unit } };
     const saved = await this.prisma.$transaction(async (tx) => {
       await lockPantry(tx, profileId, body.ingredientId);
       const existing = await tx.inventoryItem.findUnique({ where: key });
-      assertWithinCeiling((existing?.quantity ?? 0) + body.quantity, body.unit);
+      assertWithinCeiling((existing?.quantity ?? 0) + quantity, unit);
       if (!existing) await assertRoomInPantry(tx, profileId);
       return tx.inventoryItem.upsert({
         where: key,
         create: {
           profileId,
           ingredientId: body.ingredientId,
-          quantity: body.quantity,
-          unit: body.unit,
+          quantity,
+          unit,
           bestBefore: this.parseDate(body.bestBefore),
         },
         update: {
-          quantity: { increment: body.quantity },
+          quantity: { increment: quantity },
           ...(body.bestBefore !== undefined ? { bestBefore: this.parseDate(body.bestBefore) } : {}),
         },
         include: this.withIngredient(locale),

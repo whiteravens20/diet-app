@@ -103,12 +103,22 @@ describe('the form that puts an ingredient into the pantry', () => {
     expect(post).toHaveBeenCalledWith('/inventory', expect.objectContaining({ ingredientId: bottled.id, quantity: 500, unit: 'ml' }));
   });
 
-  it('offers grams of what is counted in pieces of a known weight', async () => {
+  it('offers grams of what is kept in pieces of a known weight', async () => {
     await open([dumplings]);
 
     await pick(dumplings);
 
     expect(unitsOffered()).toEqual(['g', 'piece']);
+    expect(screen.getByLabelText(texts.unitLabel)).toHaveValue('piece');
+  });
+
+  it('offers nothing but pieces for what is counted', async () => {
+    const egg = Ingredient.parse({ ...dumplings, id: '2dad81f3-0d9d-44e1-9ef3-000000000004', name: 'Large egg', canonicalUnit: 'g', gramsPerPiece: 55, displayUnit: 'piece' });
+    await open([egg]);
+
+    await pick(egg);
+
+    expect(unitsOffered()).toEqual(['piece']);
     expect(screen.getByLabelText(texts.unitLabel)).toHaveValue('piece');
   });
 });
