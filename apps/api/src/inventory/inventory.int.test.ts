@@ -105,13 +105,13 @@ describe('the pantry', () => {
     });
 
     it('gives the best-before date as a date, keeps it when a later post leaves it out and replaces it when one names another', async () => {
-      const first = await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-05', note: 'opened' });
+      const first = await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-05' });
       const second = await add('whole-milk', 500, 'ml');
-      const third = await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-20', note: null });
+      const third = await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-20' });
 
-      expect(first.body).toMatchObject({ bestBefore: '2026-11-05', note: 'opened' });
-      expect(second.body).toMatchObject({ quantity: 1000, bestBefore: '2026-11-05', note: 'opened' });
-      expect(third.body).toMatchObject({ quantity: 1500, bestBefore: '2026-11-20', note: null });
+      expect(first.body).toMatchObject({ bestBefore: '2026-11-05' });
+      expect(second.body).toMatchObject({ quantity: 1000, bestBefore: '2026-11-05' });
+      expect(third.body).toMatchObject({ quantity: 1500, bestBefore: '2026-11-20' });
     });
   });
 
@@ -167,11 +167,13 @@ describe('the pantry', () => {
     });
 
     it('keeps what a patch does not name', async () => {
-      const row = (await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-05', note: 'opened' })).body as { id: string };
+      const row = (await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-05' })).body as { id: string };
 
-      const patched = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ note: 'half left' }).expect(200);
+      const halved = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ quantity: 250 }).expect(200);
+      const undated = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ bestBefore: null }).expect(200);
 
-      expect(patched.body).toMatchObject({ quantity: 500, bestBefore: '2026-11-05', note: 'half left' });
+      expect(halved.body).toMatchObject({ quantity: 250, bestBefore: '2026-11-05' });
+      expect(undated.body).toMatchObject({ quantity: 250, bestBefore: null });
     });
 
     it('can be deleted, after which it is not found', async () => {

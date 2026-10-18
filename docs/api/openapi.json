@@ -10338,18 +10338,6 @@
               }
             ]
           },
-          "note": {
-            "default": null,
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 280
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -10366,7 +10354,6 @@
           "unit",
           "display",
           "bestBefore",
-          "note",
           "createdAt",
           "updatedAt"
         ],
@@ -11572,17 +11559,6 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/CalendarDay"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 280
               },
               {
                 "type": "null"
@@ -16017,17 +15993,6 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/CalendarDay"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 280
               },
               {
                 "type": "null"

@@ -69,18 +69,16 @@ export default function InventoryPage() {
       quantity: number;
       unit: Unit;
       bestBefore?: string | null;
-      note?: string | null;
     }) => api.post<InventoryItem>('/inventory', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
     onError: (e) => setError(errorText(e, t('errAdd'))),
   });
 
   const patch = useMutation({
-    mutationFn: (v: { id: string; quantity?: number; bestBefore?: string | null; note?: string | null }) =>
+    mutationFn: (v: { id: string; quantity?: number; bestBefore?: string | null }) =>
       api.patch<InventoryItem>(`/inventory/${v.id}`, {
         ...(v.quantity !== undefined ? { quantity: v.quantity } : {}),
         ...(v.bestBefore !== undefined ? { bestBefore: v.bestBefore } : {}),
-        ...(v.note !== undefined ? { note: v.note } : {}),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', activeProfileId] }),
     onError: (e) => setError(errorText(e, t('errUpdate'))),
@@ -254,7 +252,6 @@ function AddInventoryForm({
     quantity: number;
     unit: Unit;
     bestBefore?: string | null;
-    note?: string | null;
   }) => void;
   submitting: boolean;
 }) {

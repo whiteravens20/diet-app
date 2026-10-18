@@ -721,9 +721,6 @@ model InventoryItem {
   quantity     Float
   unit         Unit
   bestBefore   DateTime?  @db.Date
-  // Optional free-form note (e.g. "leftover from Sunday roast"). Never sent
-  // to AI prompts; this column is read by the inventory page only.
-  note         String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

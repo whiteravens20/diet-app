@@ -37,8 +37,8 @@ export class InventoryService {
 
   /**
    * Upsert: posting `(profileId, ingredientId, unit)` that already exists
-   * aggregates the quantity; otherwise creates a new row. `bestBefore` and
-   * `note` overwrite when supplied so the latest update wins.
+   * aggregates the quantity; otherwise creates a new row. `bestBefore`
+   * overwrites when supplied so the latest update wins.
    */
   async upsert(userId: string, locale: Locale, profileId: string, body: UpsertInventoryItem): Promise<InventoryItem> {
     await this.assertProfile(userId, profileId);
@@ -75,12 +75,10 @@ export class InventoryService {
           quantity: body.quantity,
           unit: body.unit,
           bestBefore: this.parseDate(body.bestBefore),
-          note: body.note ?? null,
         },
         update: {
           quantity: { increment: body.quantity },
           ...(body.bestBefore !== undefined ? { bestBefore: this.parseDate(body.bestBefore) } : {}),
-          ...(body.note !== undefined ? { note: body.note } : {}),
         },
         include: this.withIngredient(locale),
       });
@@ -99,7 +97,6 @@ export class InventoryService {
         data: {
           ...(body.quantity !== undefined ? { quantity: body.quantity } : {}),
           ...(body.bestBefore !== undefined ? { bestBefore: this.parseDate(body.bestBefore) } : {}),
-          ...(body.note !== undefined ? { note: body.note } : {}),
         },
       });
       if (changed.count === 0) throw this.notFound();
@@ -150,7 +147,6 @@ export class InventoryService {
       quantity: number;
       unit: 'g' | 'ml' | 'piece';
       bestBefore: Date | null;
-      note: string | null;
       createdAt: Date;
       updatedAt: Date;
       ingredient: Parameters<typeof toIngredientDto>[0];
@@ -164,7 +160,6 @@ export class InventoryService {
       unit: row.unit,
       display: displayStock(row.quantity, row.unit, row.ingredient),
       bestBefore: row.bestBefore ? row.bestBefore.toISOString().slice(0, 10) : null,
-      note: row.note,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

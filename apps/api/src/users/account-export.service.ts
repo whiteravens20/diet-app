@@ -118,7 +118,6 @@ export class AccountExportService {
         quantity: row.quantity,
         unit: row.unit,
         bestBefore: day(row.bestBefore),
-        note: row.note,
         updatedAt: row.updatedAt.toISOString(),
       }),
     );

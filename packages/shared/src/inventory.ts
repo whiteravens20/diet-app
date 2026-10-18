@@ -27,8 +27,6 @@ export const InventoryItem = z.object({
   display: DisplayAmount,
   /** ISO date (yyyy-mm-dd). Null = no expiry tracked. */
   bestBefore: z.string().date().nullable().default(null),
-  /** Free-form, displayed on the inventory page only — never sent to AI prompts. */
-  note: z.string().max(280).nullable().default(null),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -37,8 +35,8 @@ export type InventoryItem = z.infer<typeof InventoryItem>;
 /**
  * Upsert payload. Posting with an `ingredientId + unit` that already exists
  * for this profile aggregates (`quantity += body.quantity`). Posting a fresh
- * combination creates a new row. `bestBefore` and `note` overwrite when
- * supplied; omitted fields preserve the existing row's values on aggregate.
+ * combination creates a new row. `bestBefore` overwrites when supplied; when
+ * it is omitted, the existing row keeps its own on aggregate.
  *
  * Refused with 400 `UNIT_NOT_CONVERTIBLE` when the ingredient cannot be
  * converted from `unit` (pieces of something that has no weight per piece),
@@ -50,7 +48,6 @@ export const UpsertInventoryItem = z.object({
   quantity: z.number().positive().max(Math.max(...Object.values(MAX_QUANTITY))),
   unit: Unit,
   bestBefore: CalendarDay.nullable().optional(),
-  note: z.string().max(280).nullable().optional(),
 });
 export type UpsertInventoryItem = z.infer<typeof UpsertInventoryItem>;
 
@@ -84,6 +81,5 @@ export type UpsertInventoryItemRequest = z.infer<typeof UpsertInventoryItemReque
 export const PatchInventoryItem = z.object({
   quantity: z.number().min(0).max(Math.max(...Object.values(MAX_QUANTITY))).optional(),
   bestBefore: CalendarDay.nullable().optional(),
-  note: z.string().max(280).nullable().optional(),
 });
 export type PatchInventoryItem = z.infer<typeof PatchInventoryItem>;

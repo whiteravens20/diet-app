@@ -74,7 +74,7 @@ describe('everything an account holds, as one file', () => {
     await t.prisma.notification.create({ data: { profileId: profile.id, type: 'weight_reminder', payload: { profileId: profile.id } } });
     await t.prisma.favorite.create({ data: { profileId: profile.id, recipeId: shared.id, sentiment: 'often', tags: ['quick'] } });
     await t.prisma.favoriteSet.create({ data: { profileId: profile.id, label: 'Workday', slots: { lunch: shared.id } } });
-    await t.prisma.inventoryItem.create({ data: { profileId: profile.id, ingredientId: rice.id, quantity: 500, unit: 'g', note: 'the big bag' } });
+    await t.prisma.inventoryItem.create({ data: { profileId: profile.id, ingredientId: rice.id, quantity: 500, unit: 'g' } });
     await t.prisma.aiProviderConfig.create({ data: { userId: of.id, provider: 'openai', model: 'gpt', encryptedKey: sealKey('sk-of-the-account', 'a1'.repeat(32), of.id) } });
     await t.prisma.aiUsageLog.create({ data: { userId: of.id, provider: 'openai', model: 'gpt', operation: 'meal-swap', mode: 'byok', outcome: 'COMPLETED', promptTokens: 120 } });
     return { profile, plan };
@@ -118,7 +118,7 @@ describe('everything an account holds, as one file', () => {
     expect(file.profiles[0]).toMatchObject({ id: profile.id, name: 'Anna', age: 30, heightCm: 180, weightKg: 80, dietType: 'balanced' });
     expect(file.profiles[0]!.preferences).toMatchObject({ allergens: ['peanuts'], preferredCuisines: ['asian'], maxTimesPerWeekSameMeal: 3 });
     expect(file.weights).toEqual([expect.objectContaining({ profileId: profile.id, kg: 79.5 })]);
-    expect(file.pantry).toEqual([expect.objectContaining({ ingredientSlug: 'white-rice', quantity: 500, unit: 'g', note: 'the big bag' })]);
+    expect(file.pantry).toEqual([expect.objectContaining({ ingredientSlug: 'white-rice', quantity: 500, unit: 'g' })]);
     expect(file.markedRecipes).toEqual([expect.objectContaining({ recipeSlug: 'tofu-rice-bowl', sentiment: 'often', tags: ['quick'] })]);
     expect(file.favoriteSets).toEqual([expect.objectContaining({ label: 'Workday' })]);
     expect(file.ownRecipes).toEqual([expect.objectContaining({ title: 'My variant' })]);
