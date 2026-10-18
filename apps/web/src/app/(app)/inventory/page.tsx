@@ -6,7 +6,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, Trash } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import { pantryUnits, Unit, type Ingredient, type InventoryItem, type Profile } from '@diet-app/shared';
+import type { Ingredient, InventoryItem, Profile, Unit } from '@diet-app/shared';
+import { pantryUnits, UNITS } from '@diet-app/shared/units';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -374,7 +375,7 @@ function AddInventoryForm({
               onChange={(e) => setUnit(e.target.value as Unit)}
             >
               {/* Only what the ingredient can be converted from: stock in any other unit would count as nothing. */}
-              {(pickedIngredient ? pantryUnits(pickedIngredient) : Unit.options).map((choice) => (
+              {(pickedIngredient ? pantryUnits(pickedIngredient) : UNITS).map((choice) => (
                 <option key={choice} value={choice}>
                   {choice === 'piece' ? unitName(pickedIngredient?.displayUnit ?? 'piece') : choice}
                 </option>

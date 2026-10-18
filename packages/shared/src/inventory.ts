@@ -39,9 +39,10 @@ export type InventoryItem = z.infer<typeof InventoryItem>;
  * it is omitted, the existing row keeps its own on aggregate.
  *
  * Refused with 400 `UNIT_NOT_CONVERTIBLE` when the ingredient cannot be
- * converted from `unit` (pieces of something that has no weight per piece),
- * and with 400 `QUANTITY_TOO_LARGE` when the row would hold more than its
- * unit's ceiling (`MAX_QUANTITY`).
+ * converted from `unit` (pieces of something that has no weight per piece;
+ * `pantryUnits` says which units are taken), and with 400
+ * `QUANTITY_TOO_LARGE` when the row would hold more than its unit's ceiling
+ * (`MAX_QUANTITY`).
  */
 export const UpsertInventoryItem = z.object({
   ingredientId: z.string().uuid(),
@@ -50,25 +51,6 @@ export const UpsertInventoryItem = z.object({
   bestBefore: CalendarDay.nullable().optional(),
 });
 export type UpsertInventoryItem = z.infer<typeof UpsertInventoryItem>;
-
-/**
- * The units an ingredient can be kept in: those the API converts into the unit
- * it is measured in. Pieces go by the weight of a piece, grams and millilitres
- * by the density, and pieces of what is measured in millilitres, or the other
- * way round, by both. A row in any other unit is refused with
- * `UNIT_NOT_CONVERTIBLE`.
- */
-export function pantryUnits(ingredient: Pick<Ingredient, 'canonicalUnit' | 'gramsPerPiece' | 'density'>): Unit[] {
-  const weighsPerPiece = (ingredient.gramsPerPiece ?? 0) > 0;
-  const weighsPerMillilitre = (ingredient.density ?? 0) > 0;
-  return Unit.options.filter((unit) => {
-    if (unit === ingredient.canonicalUnit) return true;
-    if (unit === 'piece' || ingredient.canonicalUnit === 'piece') {
-      return weighsPerPiece && (unit === 'g' || ingredient.canonicalUnit === 'g' || weighsPerMillilitre);
-    }
-    return weighsPerMillilitre;
-  });
-}
 
 /** The upsert as it is sent: for which profile's pantry. */
 export const UpsertInventoryItemRequest = UpsertInventoryItem.extend({ profileId: z.string().uuid() });

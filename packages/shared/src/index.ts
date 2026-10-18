@@ -9,6 +9,7 @@
  * schema is a contract change — bump it deliberately.
  */
 export * from './options.js';
+export * from './units.js';
 export * from './enums.js';
 export * from './nutrition.js';
 export * from './config.js';

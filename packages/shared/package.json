@@ -26,6 +26,16 @@
         "types": "./dist/options.d.ts",
         "default": "./dist/options.js"
       }
+    },
+    "./units": {
+      "import": {
+        "types": "./dist/esm/units.d.ts",
+        "default": "./dist/esm/units.js"
+      },
+      "require": {
+        "types": "./dist/units.d.ts",
+        "default": "./dist/units.js"
+      }
     }
   },
   "scripts": {

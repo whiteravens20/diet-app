@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
+import { UNITS } from './units.js';
 
 /** Biological sex — used only for the BMR formula; optional on profiles. */
 export const Sex = z.enum(['male', 'female']);
@@ -95,7 +96,7 @@ export const ProductCategory = z.enum([
 export type ProductCategory = z.infer<typeof ProductCategory>;
 
 /** Canonical measurement units. The engine normalises everything to these. */
-export const Unit = z.enum(['g', 'ml', 'piece']);
+export const Unit = z.enum(UNITS);
 export type Unit = z.infer<typeof Unit>;
 
 /**
