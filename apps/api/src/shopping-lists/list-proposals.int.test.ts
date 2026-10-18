@@ -17,6 +17,7 @@ import { ShoppingListsService } from './shopping-lists.service.js';
 const PORRIDGE = 'milk-porridge'; // 250 ml of milk
 const CHICKEN_RICE = 'chicken-rice-broccoli'; // 150 g of chicken
 const TOFU_BOWL = 'tofu-rice-bowl'; // 180 g of tofu
+const STEW = 'chickpea-tomato-stew'; // no chicken and no tofu
 
 describe('what a shopping list could do without', () => {
   let t: TestApp;
@@ -90,20 +91,48 @@ describe('what a shopping list could do without', () => {
       expect((await proposed()).proposals.map((proposal) => proposal.kind)).toEqual(['leftover', 'leftover']);
     });
 
-    it('proposes no merge that would change more than two meals: that is no small thing to do for a list', async () => {
-      // The chicken dish on three days: tofu could stand for the chicken in each, and that is a week's cooking changed.
-      const longer = await aPlan(t, user, profile, { durationDays: 3 });
-      const chicken = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: CHICKEN_RICE } });
-      const tofu = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: TOFU_BOWL } });
-      for (const day of longer.days) {
-        await t.prisma.plannedMeal.update({ where: { id: day.meals.find((meal) => meal.mealType === 'lunch')!.id }, data: { recipeId: chicken.id, servings: 1, quantityScale: 1 } });
-        await t.prisma.plannedMeal.update({ where: { id: day.meals.find((meal) => meal.mealType === 'dinner')!.id }, data: { recipeId: tofu.id, servings: 1, quantityScale: 1 } });
+    /** Set every meal of a plan to the recipe `recipeOf` names for its day and meal, as if the user had swapped them so. */
+    const setMeals = async (of: MealPlan, recipeOf: (day: number, mealType: string) => string): Promise<void> => {
+      for (const [day, { meals }] of of.days.entries()) {
+        for (const meal of meals) {
+          const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: recipeOf(day, meal.mealType) } });
+          await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: recipe.id, servings: 1, quantityScale: 1 } });
+        }
       }
+    };
+
+    it('proposes no merge that would change more than two meals: that is no small thing to do for a list', async () => {
+      // Every meal of three days is set: tofu could stand for the chicken of each lunch, and that is
+      // a week's cooking changed. Any other merge there could be would change three meals as well.
+      const longer = await aPlan(t, user, profile, { durationDays: 3 });
+      await setMeals(longer, (_day, mealType) => ({ breakfast: PORRIDGE, lunch: CHICKEN_RICE, dinner: TOFU_BOWL })[mealType]!);
       const whole = await lists.generate(user.id, 'en', { planId: longer.id });
 
       const found = (await proposals.propose(user.id, 'en', whole.id, { weigh: false })).proposals;
 
       expect(found.filter((proposal) => proposal.kind === 'merge')).toEqual([]);
+    });
+
+    it('proposes a merge that would change two meals, the most it may', async () => {
+      // The chicken dish on two of three days, and a lunch without chicken on the third.
+      const longer = await aPlan(t, user, profile, { durationDays: 3 });
+      await setMeals(longer, (day, mealType) => ({ breakfast: PORRIDGE, lunch: day < 2 ? CHICKEN_RICE : STEW, dinner: TOFU_BOWL })[mealType]!);
+      const whole = await lists.generate(user.id, 'en', { planId: longer.id });
+      const idOf = async (slug: string): Promise<string> => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+      const lunchOf = (day: number) => longer.days[day]!.meals.find((meal) => meal.mealType === 'lunch')!;
+
+      const found = (await proposals.propose(user.id, 'en', whole.id, { weigh: false })).proposals;
+
+      expect(found.filter((proposal) => proposal.kind === 'merge')).toEqual([
+        {
+          kind: 'merge',
+          from: { ingredientId: await idOf('chicken-breast'), name: 'Chicken breast' },
+          to: { ingredientId: await idOf('firm-tofu'), name: 'Firm tofu' },
+          meals: [0, 1].map((day) => ({ plannedMealId: lunchOf(day).id, date: longer.days[day]!.date, mealType: 'lunch', title: 'Chicken rice broccoli' })),
+          packsSaved: 1,
+          reason: null,
+        },
+      ]);
     });
 
     it('proposes no merge of a row the pantry covers in part', async () => {
