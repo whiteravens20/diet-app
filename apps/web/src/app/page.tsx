@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl';
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { ThemeChoice } from '@/components/theme-choice';
 
 const FEATURE_KEYS = [
   { icon: Utensils, titleKey: 'nutritionTitle', bodyKey: 'nutritionBody' },
@@ -39,8 +40,9 @@ export default function Landing() {
   const tFeatures = useTranslations('landing.features');
   return (
     <main className="mx-auto max-w-5xl px-6 py-20">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-2">
         <LanguageSwitcher />
+        <ThemeChoice />
       </div>
       <section className="mt-6 text-center">
         <div className="flex flex-wrap justify-center gap-2">

@@ -228,6 +228,7 @@
   },
   "themeToggle": {
     "ariaLabel": "Toggle theme",
+    "choice": "Theme",
     "light": "Light",
     "dark": "Dark",
     "system": "System"

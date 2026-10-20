@@ -228,6 +228,7 @@
   },
   "themeToggle": {
     "ariaLabel": "Przełącz motyw",
+    "choice": "Motyw",
     "light": "Jasny",
     "dark": "Ciemny",
     "system": "Systemowy"

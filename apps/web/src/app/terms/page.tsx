@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { OperatorContact } from '@/components/operator-contact';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { ThemeChoice } from '@/components/theme-choice';
 import { useFormat } from '@/lib/use-format';
 
 const LAST_UPDATED = '2026-10-12';
@@ -33,11 +34,14 @@ export default function TermsPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 lg:flex-row">
       <aside className="lg:sticky lg:top-10 lg:h-fit lg:w-56 lg:shrink-0">
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Link href="/" className="text-xs text-muted-foreground hover:text-foreground">
             {t('back')}
           </Link>
-          <LanguageSwitcher />
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <ThemeChoice />
+          </div>
         </div>
         <nav aria-label={t('toc')} className="hidden text-sm lg:block">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
