@@ -395,7 +395,7 @@
     "VERIFICATION_SENT_RECENTLY": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
   },
   "offline": {
-    "notice": "Nie można połączyć się z serwerem. Widzisz to, co zostało wczytane ostatnio, i teraz nic nie da się zmienić poza odhaczeniem pozycji listy zakupów: odhaczenie zostanie wysłane, gdy serwer będzie znów dostępny.",
+    "notice": "Nie można połączyć się z serwerem. Widzisz to, co zostało wczytane ostatnio i teraz nic nie da się zmienić poza odhaczeniem pozycji listy zakupów: odhaczenie zostanie wysłane, gdy serwer będzie znów dostępny.",
     "waiting": "{count, plural, one {# odhaczenie czeka} few {# odhaczenia czekają} many {# odhaczeń czeka} other {# odhaczenia czeka}} na wysłanie.",
     "sent": "Wysłano to, co odhaczono bez połączenia: {sent, plural, one {# pozycję} few {# pozycje} many {# pozycji} other {# pozycji}}.",
     "refused": "{refused, plural, one {# odhaczenie nie zostało przyjęte} few {# odhaczenia nie zostały przyjęte} many {# odhaczeń nie zostało przyjętych} other {# odhaczenia nie zostało przyjęte}}: lista w międzyczasie się zmieniła.",
@@ -553,7 +553,7 @@
       "overLimitWait": "Baza danych o żywności nie przyjmuje teraz więcej zapytań dla tego klucza. Spróbuj ponownie za około {unit, select, hours {{count, plural, one {# godzinę} few {# godziny} many {# godzin} other {# godziny}}} other {{count, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}}} albo ustaw w .env własny, darmowy klucz FDC_API_KEY: pozwala na znacznie więcej.",
       "keyRefused": "Baza danych o żywności odrzuciła klucz. Sprawdź FDC_API_KEY w .env, a potem uruchom API ponownie.",
       "unavailable": "Baza danych o żywności zgłosiła błąd albo nie odpowiedziała. Nic nie zostało zmienione; spróbuj ponownie później.",
-      "notWritable": "API nie może zapisywać w swoim katalogu danych, więc o nic nie pytało bazy danych o żywności. W stosie budowanym ze źródeł jest to katalog data/ w repozytorium: nadaj prawo zapisu użytkownikowi, jako który działa kontener (chown 1000 data), i uruchom import ponownie."
+      "notWritable": "API nie może zapisywać w swoim katalogu danych, więc o nic nie pytało bazy danych o żywności. W stosie budowanym ze źródeł jest to katalog data/ w repozytorium: nadaj prawo zapisu użytkownikowi, jako który działa kontener (chown 1000 data) i uruchom import ponownie."
     },
     "curation": {
       "title": "Kolejka kuratorska",
@@ -934,7 +934,7 @@
     "generating": "Generowanie…",
     "generateButton": "Wygeneruj",
     "noListsTitle": "Ten plan nie ma jeszcze listy zakupów",
-    "noLists": "Lista sumuje to, czego potrzebują posiłki planu, i pomija to, co jest już w spiżarni.",
+    "noLists": "Lista sumuje to, czego potrzebują posiłki planu i pomija to, co jest już w spiżarni.",
     "noListsCta": "Utwórz listę",
     "summary": "Odhaczone {checked}/{total} · łącznie {kcal, number} kcal",
     "deleteConfirm": "Usunąć tę listę zakupów?",
@@ -985,7 +985,7 @@
       "asking": "Szukam…",
       "merge": "<strong>{to}</strong> (zamiast: {from}) w {count, plural, one {# posiłku} few {# posiłkach} many {# posiłkach} other {# posiłku}} — do kupienia {packs, plural, one {o # opakowanie} few {o # opakowania} many {o # opakowań} other {o # opakowania}} mniej",
       "mergeHow": "Zamień to w planie.",
-      "mergeThen": "Ta lista powie wtedy, że nie odpowiada już planowi, i będzie można ją zaktualizować.",
+      "mergeThen": "Ta lista powie wtedy, że nie odpowiada już planowi i będzie można ją zaktualizować.",
       "leftover": "<strong>{name}</strong>: z opakowania {size} zostanie {left}, a po otwarciu szybko się psuje",
       "leftoverHow": "Zobacz w planie, co by to zużyło.",
       "none": "Nic: żaden wiersz nie zastąpi innego i z żadnego opakowania nie zostanie ponad jedna piąta.",
