@@ -130,17 +130,17 @@
     "signIn": "Sign in",
     "features": {
       "controlTitle": "Your diet, your rules",
-      "controlBody": "Control your diet and everything behind it. Pick one of eight diets or your own split of protein, fat and carbohydrate, two to five meals a day, the pace you lose weight at or a calorie target of your own. Rule out allergens and ingredients, mark what you would rather not eat, lean towards the cuisines you like and say how often a meal may come back. A single day can have its own target and number of meals, or be left out. Adjust it all your way: the plan follows.",
+      "controlBody": "Control your diet and its settings: one of eight diets or your own macro split, two to five meals a day, the pace you lose weight at or a calorie target of your own. Rule out allergens and ingredients, lean towards the cuisines you like and give a single day its own target. Adjust it all your way.",
       "plansTitle": "Smart meal plans",
-      "plansBody": "Plans of one day to four weeks that hit your calorie and macro targets, laid out on a calendar. The planner leans towards using up what it opens, so less goes to waste, and a plan for cooking ahead cooks a dish once for two days. Fill chosen days with a favourite set of meals, or pin a favourite recipe to a meal before the plan is made.",
+      "plansBody": "Plans of one day to four weeks that hit your calorie target, laid out on a calendar. The planner leans towards using up what it opens, so less goes to waste, and you can fill chosen days with a favourite set of meals.",
       "swapsTitle": "Swap what you don't fancy",
-      "swapsBody": "Swap a meal for another or for one of your favourites, or a single ingredient for one with the same calories, and see what it does to the macros. Make a day, a few days or the whole plan again, keeping what you have eaten and the meals you added yourself. The planner also proposes other ways to fill a day, swaps that use up an opened pack and what a shopping list could do without.",
+      "swapsBody": "Swap a meal for another, or an ingredient for one with the same calories, and see what it does to the macros. Make a day, a few days or the whole plan again and keep what you have already eaten.",
       "listsTitle": "Consolidated lists",
-      "listsBody": "A shopping list made from a plan, merged, grouped by aisle and counted the way you shop: eggs in pieces, weights rounded up, and the packs each row takes. What your pantry holds is taken off, and what you buy beyond the need goes into it. Share it as text, print it or take it to a spreadsheet.",
+      "listsBody": "A shopping list made from your plan, merged, grouped by aisle and counted the way you shop: eggs in pieces, with the packs each row takes. What your pantry holds is taken off.",
       "nutritionTitle": "Deterministic nutrition",
-      "nutritionBody": "Every calorie and macro comes from a curated ingredient database and is worked out by a deterministic engine: the same plan always gives the same numbers, never invented ones. Your daily target comes from your age, height, weight and activity, with a floor no calculated target goes below.",
+      "nutritionBody": "Every calorie and macro comes from a curated ingredient database and is worked out by a deterministic engine: the same inputs always give the same numbers, never invented ones.",
       "aiTitle": "AI only if you want it",
-      "aiBody": "Use the model your server offers, where its administrator has set one up, or bring your own OpenAI, Anthropic, OpenRouter or Ollama key. A model may draft a recipe from known ingredients and put the planner's proposals in order with a sentence on each, but every number comes from the database. Everything works without it."
+      "aiBody": "The model your server offers, where its administrator has set one up, or your own OpenAI, Anthropic, OpenRouter or Ollama key. A model may draft a recipe from known ingredients and order the planner's proposals, but never writes a number. Everything works without it."
     }
   },
   "auth": {

@@ -82,7 +82,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="mt-20 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mt-20 grid gap-4 sm:grid-cols-2">
         {FEATURE_KEYS.map((f) => (
           <Card key={f.titleKey} className="p-6">
             <span className="inline-flex rounded-md bg-muted p-2 text-primary">

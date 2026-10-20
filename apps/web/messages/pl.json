@@ -130,17 +130,17 @@
     "signIn": "Zaloguj się",
     "features": {
       "controlTitle": "Twoja dieta, Twoje zasady",
-      "controlBody": "Kontroluj swoją dietę i wszystko, co za nią stoi. Wybierz jedną z ośmiu diet albo własny podział białka, tłuszczu i węglowodanów, od dwóch do pięciu posiłków dziennie, tempo chudnięcia lub własny cel kaloryczny. Wyklucz alergeny i składniki, zaznacz, czego wolisz nie jeść, wskaż ulubione kuchnie i to, jak często posiłek może wracać. Pojedynczy dzień może mieć własny cel i liczbę posiłków albo zostać pominięty. Dostosuj wszystko po swojemu — plan się dopasuje.",
+      "controlBody": "Kontroluj swoją dietę i jej ustawienia: jedna z ośmiu diet lub własny podział makroskładników, od dwóch do pięciu posiłków dziennie, tempo chudnięcia albo własny cel kaloryczny. Wyklucz alergeny i składniki, wskaż ulubione kuchnie, a pojedynczemu dniowi nadaj własny cel. Dostosuj wszystko po swojemu.",
       "plansTitle": "Inteligentne plany posiłków",
-      "plansBody": "Plany od jednego dnia do czterech tygodni, dopasowane do celu kalorycznego i makroskładników, rozpisane w kalendarzu. Planer stara się zużyć to, co otworzy, żeby mniej się marnowało, a plan pod gotowanie na zapas gotuje danie raz na dwa dni. Wypełnij wybrane dni ulubionym zestawem posiłków albo przypnij ulubiony przepis do posiłku, zanim plan powstanie.",
+      "plansBody": "Plany od jednego dnia do czterech tygodni, dopasowane do celu kalorycznego i rozpisane w kalendarzu. Planer stara się zużyć to, co otworzy, żeby mniej się marnowało, a wybrane dni wypełnisz ulubionym zestawem posiłków.",
       "swapsTitle": "Wymień, co Ci nie pasuje",
-      "swapsBody": "Wymień posiłek na inny lub na jeden z ulubionych albo pojedynczy składnik na zamiennik o tej samej kaloryczności i zobacz, co to zmienia w makroskładnikach. Ułóż na nowo dzień, kilka dni albo cały plan, zachowując to, co już zjedzone i posiłki dodane przez Ciebie. Planer podsuwa też inne sposoby na dzień, zamiany, które zużyją otwarte opakowanie i to, bez czego lista zakupów może się obejść.",
+      "swapsBody": "Wymień posiłek na inny albo składnik na zamiennik o tej samej kaloryczności i zobacz, co to zmienia w makroskładnikach. Ułóż na nowo dzień, kilka dni albo cały plan i zachowaj to, co już zjedzone.",
       "listsTitle": "Gotowe listy zakupów",
-      "listsBody": "Lista zakupów z planu, scalona, pogrupowana według działów sklepu i policzona tak, jak się kupuje: jajka w sztukach, wagi zaokrąglone w górę, a przy każdej pozycji liczba opakowań. To, co jest w spiżarni, jest odliczane, a to, co kupisz ponad potrzebę, do niej trafia. Udostępnij ją jako tekst, wydrukuj albo przenieś do arkusza.",
+      "listsBody": "Lista zakupów z planu, scalona, pogrupowana według działów sklepu i policzona tak, jak się kupuje: jajka w sztukach, przy każdej pozycji liczba opakowań. To, co jest w spiżarni, jest odliczane.",
       "nutritionTitle": "Liczone, nie zmyślane",
-      "nutritionBody": "Każda kaloria i każdy makroskładnik pochodzą ze starannie prowadzonej bazy składników i są liczone przez deterministyczny silnik: ten sam plan zawsze daje te same liczby, nigdy zmyślone. Dzienny cel wynika z Twojego wieku, wzrostu, wagi i aktywności, z dolną granicą, poniżej której wyliczony cel nie zejdzie.",
+      "nutritionBody": "Każda kaloria i każdy makroskładnik pochodzą ze starannie prowadzonej bazy składników i są liczone przez deterministyczny silnik: te same dane zawsze dają te same liczby, nigdy zmyślone.",
       "aiTitle": "AI tylko, jeśli chcesz",
-      "aiBody": "Korzystaj z modelu udostępnionego na serwerze, jeśli administrator go włączył, albo z własnego klucza OpenAI, Anthropic, OpenRouter lub Ollama. Model może ułożyć przepis ze znanych składników i uszeregować propozycje planera, dodając zdanie do każdej, ale każda liczba pochodzi z bazy. Bez AI wszystko działa."
+      "aiBody": "Model udostępniony na serwerze, jeśli administrator go włączył, albo własny klucz OpenAI, Anthropic, OpenRouter lub Ollama. Model może ułożyć przepis ze znanych składników i uszeregować propozycje planera, ale żadnej liczby nie wymyśla. Bez AI wszystko działa."
     }
   },
   "auth": {
