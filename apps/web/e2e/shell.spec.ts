@@ -183,7 +183,7 @@ test.describe('on the narrowest screens the application is used on', () => {
       const wide: Record<string, string[]> = {};
       try {
         for (const [page, paths] of [
-          [anonymous, ['/', '/login', '/register', '/forgot-password', '/terms']],
+          [anonymous, ['/', '/login', '/register', '/forgot-password', '/from-the-app', '/terms']],
           [session.page, [...ACCOUNT_PAGES, `/recipes/${account.recipeId}`]],
         ] as const) {
           await page.setViewportSize({ width, height: size.height });

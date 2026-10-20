@@ -195,6 +195,19 @@
     "changeEmailFailedBody": "This link is invalid or has expired, or the address is already in use.",
     "changeEmailMissingToken": "This page expects a confirmation token in the URL."
   },
+  "fromTheApp": {
+    "title": "Sign in from the app",
+    "reading": "Checking the sign-in from the app…",
+    "question": "Sign this browser in as <b>{email}</b>?",
+    "onlyYours": "Sign in only if this is your own account: the owner of another one would see everything you enter.",
+    "replaces": "The account signed in to this browser now will be signed out of it. The browser stays signed in for a day.",
+    "signIn": "Sign in",
+    "cancel": "Cancel",
+    "signingIn": "Signing in…",
+    "missing": "This page signs a browser in from the app, and its address holds nothing to sign in with. Open the page from the app again, or sign in here.",
+    "failed": "The browser could not be signed in from the app. Open the page from the app again, or sign in here.",
+    "signInHere": "Sign in"
+  },
   "secondFactor": {
     "title": "Two-step sign-in",
     "body": "With two-step sign-in, signing in takes your password and a code from an authenticator app on your phone. Somebody who learns your password cannot sign in without the phone.",

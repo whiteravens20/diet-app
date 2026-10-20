@@ -218,6 +218,38 @@ describe('the session of the browser', () => {
       other.close();
     });
 
+    it('loads its page anew when another tab replaced the session, and leaves the cookies to the new one', async () => {
+      const session = await aPage(true);
+      session.begin(anAnswer('access-of-the-old-session'));
+      const other = anotherTab();
+      window.history.replaceState(null, '', '/settings?tab=sessions');
+
+      other.tab.postMessage({ type: 'replaced' });
+      await aMoment();
+
+      expect(session.accessToken).toBeNull();
+      expect(session.load).toHaveBeenCalledWith('/settings?tab=sessions');
+      expect(session.leave).not.toHaveBeenCalled();
+      expect(session.exists()).toBe(true);
+      other.close();
+      window.history.replaceState(null, '', '/');
+    });
+
+    it('tells the other tabs when this one replaced the session, and goes on with it', async () => {
+      const session = await aPage(true);
+      session.begin(anAnswer('access-of-the-old-session'));
+      const other = anotherTab();
+
+      session.replaced('/meal-plans?profile=p1');
+      await aMoment();
+
+      expect(other.heard).toContainEqual({ type: 'replaced' });
+      expect(session.accessToken).toBeNull();
+      expect(session.load).toHaveBeenCalledWith('/meal-plans?profile=p1');
+      expect(session.exists()).toBe(true);
+      other.close();
+    });
+
     it('is signed out in every tab when one signs out', async () => {
       const session = await aPage(true);
       session.begin(anAnswer('access-1'));

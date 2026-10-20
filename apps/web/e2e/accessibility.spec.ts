@@ -3,7 +3,7 @@
 import { barriers, expect, settled, test } from './fixtures';
 
 test.describe('a page anybody can open has nothing that keeps somebody from using it', () => {
-  for (const path of ['/', '/login', '/register', '/forgot-password', '/terms', '/offline', '/review', '/admin']) {
+  for (const path of ['/', '/login', '/register', '/forgot-password', '/from-the-app', '/terms', '/offline', '/review', '/admin']) {
     test(path, async ({ anonymous }) => {
       await anonymous.goto(path);
       await settled(anonymous);

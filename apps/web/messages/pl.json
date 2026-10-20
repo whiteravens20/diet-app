@@ -195,6 +195,19 @@
     "changeEmailFailedBody": "Ten link jest nieprawidłowy lub wygasł, albo adres jest już używany.",
     "changeEmailMissingToken": "W adresie tej strony brakuje kodu potwierdzającego. Otwórz jeszcze raz link z wiadomości e-mail."
   },
+  "fromTheApp": {
+    "title": "Logowanie z aplikacji",
+    "reading": "Sprawdzanie logowania z aplikacji…",
+    "question": "Zalogować tę przeglądarkę jako <b>{email}</b>?",
+    "onlyYours": "Zaloguj się tylko wtedy, gdy to Twoje konto: właściciel cudzego zobaczy wszystko, co wpiszesz.",
+    "replaces": "Konto zalogowane teraz w tej przeglądarce zostanie z niej wylogowane. Przeglądarka pozostanie zalogowana przez dobę.",
+    "signIn": "Zaloguj",
+    "cancel": "Anuluj",
+    "signingIn": "Logowanie…",
+    "missing": "Ta strona loguje przeglądarkę z aplikacji, a w jej adresie nie ma niczego, czym można się zalogować. Otwórz stronę z aplikacji jeszcze raz albo zaloguj się tutaj.",
+    "failed": "Nie udało się zalogować przeglądarki z aplikacji. Otwórz stronę z aplikacji jeszcze raz albo zaloguj się tutaj.",
+    "signInHere": "Zaloguj się"
+  },
   "secondFactor": {
     "title": "Logowanie dwuetapowe",
     "body": "Przy logowaniu dwuetapowym do zalogowania potrzebne jest hasło i kod z aplikacji uwierzytelniającej w telefonie. Ktoś, kto pozna Twoje hasło, nie zaloguje się bez telefonu.",

@@ -11,7 +11,7 @@
  *
  * Tabs share one session. Only one of them refreshes at a time (the Web
  * Locks API), and what it gets it tells the others over a broadcast channel,
- * as it tells them when the session is signed out of.
+ * as it tells them when the session is signed out of, or replaced by another.
  */
 import type { AuthResponse } from '@diet-app/shared';
 import { offline } from './offline';
@@ -22,7 +22,7 @@ const MARKER_COOKIE = 'diet_session';
 const CHANNEL = 'diet-app.session';
 const LOCK = 'diet-app.session.refresh';
 
-type Message = { type: 'token'; accessToken: string; sessionId: string } | { type: 'signed-out' };
+type Message = { type: 'token'; accessToken: string; sessionId: string } | { type: 'signed-out' } | { type: 'replaced' };
 
 let accessToken: string | null = null;
 let sessionId: string | null = null;
@@ -38,6 +38,13 @@ channel?.addEventListener('message', (event: MessageEvent<Message>) => {
     accessToken = event.data.accessToken;
     sessionId = event.data.sessionId;
     changed();
+  } else if (event.data.type === 'replaced') {
+    // Another tab signed the browser in to a session in the place of this
+    // one, perhaps of another account: the page is loaded anew with it. The
+    // cookies are the new session's, and stay.
+    accessToken = null;
+    sessionId = null;
+    session.load(`${window.location.pathname}${window.location.search}`);
   } else {
     forgotten();
     session.leave();
@@ -196,6 +203,18 @@ export const session = {
    */
   load(path: string): void {
     window.location.replace(here(path));
+  },
+
+  /**
+   * The browser was just signed in to a session in the place of the one it
+   * had (from the application): the other tabs load their pages anew with
+   * it, and this one goes on at `to`.
+   */
+  replaced(to: string): void {
+    accessToken = null;
+    sessionId = null;
+    channel?.postMessage({ type: 'replaced' } satisfies Message);
+    session.load(to);
   },
 
   /**
