@@ -269,6 +269,8 @@
     "INVALID_REFRESH": "Your session expired. Please sign in again.",
     "SESSION_JUST_REFRESHED": "Your session was refreshed in another tab a moment ago. Try again.",
     "SESSION_NOT_FOUND": "That session is no longer open.",
+    "INVALID_BROWSER_CODE": "This sign-in from the app has already been used or has run out. Open the page from the app again, or sign in here.",
+    "BROWSER_CODES_USED_UP": "The app has signed a browser in too many times in the last hour. Sign in here, or try again later.",
     "ORIGIN_NOT_ALLOWED": "This request has to come from the application itself. Reload the page and try again.",
     "INVALID_ADMIN_SESSION": "The admin session has ended. Sign in again.",
     "INVALID_SECOND_FACTOR_CODE": "That code is not right. Codes change every half a minute, and each works once.",

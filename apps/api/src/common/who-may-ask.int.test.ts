@@ -20,9 +20,10 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
 type Kind = Exclude<Asks, 'anyone'>;
 
 /**
- * The routes anybody may ask: what leads to a session of each kind and what
- * ends one, what a page needs before anybody signed in, the health of the
- * instance, and the reports a browser sends by itself.
+ * The routes anybody may ask: what leads to a session of each kind (a
+ * browser's from an application's among them) and what ends one, what a page
+ * needs before anybody signed in, the health of the instance, and the reports
+ * a browser sends by itself.
  */
 const FOR_ANYBODY = [
   'DELETE /api/admin/session',
@@ -33,6 +34,9 @@ const FOR_ANYBODY = [
   'GET /api/review/session',
   'GET /api/review/status',
   'POST /api/admin/session',
+  'POST /api/auth/browser-code',
+  'POST /api/auth/browser-sign-in',
+  'POST /api/auth/browser-sign-in/account',
   'POST /api/auth/confirm-email-change',
   'POST /api/auth/login',
   'POST /api/auth/login/second-factor',

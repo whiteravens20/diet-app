@@ -2114,6 +2114,144 @@
         }
       }
     },
+    "/api/auth/browser-code": {
+      "post": {
+        "operationId": "Auth_codeForABrowser",
+        "tags": [
+          "auth"
+        ],
+        "summary": "A code that signs a browser in to the account of a client that keeps its own tokens: for the refresh token of its session, which is replaced by a new one as a refresh replaces it.",
+        "description": "A code that signs a browser in to the account of a client that keeps its own tokens: for the refresh token of its session, which is replaced by a new one as a refresh replaces it. An account gets at most 30 codes in an hour.\n\nAsked by anyone.\n\nLimited to 30 in a minute; 10 in a minute for what it tries, for each sender.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserCode"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        },
+        "x-credential-limits": [
+          {
+            "times": 10,
+            "seconds": 60
+          }
+        ]
+      }
+    },
+    "/api/auth/browser-sign-in": {
+      "post": {
+        "operationId": "Auth_signInABrowser",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign this browser in with a code from an application: a session of its own for a day, in cookies, which takes the place of the session the browser had.",
+        "description": "Sign this browser in with a code from an application: a session of its own for a day, in cookies, which takes the place of the session the browser had. Only the application's own pages may ask.\n\nAsked by anyone.\n\nLimited to 10 in a minute; 10 in a minute for what it tries, for each sender.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserSignInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 10,
+          "seconds": 60
+        },
+        "x-credential-limits": [
+          {
+            "times": 10,
+            "seconds": 60
+          }
+        ]
+      }
+    },
+    "/api/auth/browser-sign-in/account": {
+      "post": {
+        "operationId": "Auth_accountOfABrowserCode",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Whose account a code from an application is for, without using the code.",
+        "description": "Whose account a code from an application is for, without using the code. Only the application's own pages may ask.\n\nAsked by anyone.\n\nLimited to 10 in a minute; 10 in a minute for what it tries, for each sender.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserSignInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserCodeAccount"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 10,
+          "seconds": 60
+        },
+        "x-credential-limits": [
+          {
+            "times": 10,
+            "seconds": 60
+          }
+        ]
+      }
+    },
     "/api/auth/confirm-email-change": {
       "post": {
         "operationId": "Auth_confirmEmailChange",
@@ -8275,6 +8413,77 @@
           "emailVerified"
         ],
         "additionalProperties": false
+      },
+      "BrowserCode": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/AuthUser"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/AuthTokens"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "codeExpiresIn": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user",
+          "tokens",
+          "sessionId",
+          "code",
+          "codeExpiresIn"
+        ],
+        "additionalProperties": false
+      },
+      "BrowserCodeAccount": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "displayName"
+        ],
+        "additionalProperties": false
+      },
+      "BrowserCodeRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "BrowserSignInRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "code"
+        ]
       },
       "CalendarDay": {
         "type": "string",

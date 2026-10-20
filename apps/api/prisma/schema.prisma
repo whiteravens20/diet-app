@@ -60,6 +60,7 @@ model User {
   recipes            Recipe[]
   secondFactor       SecondFactor?
   signInChallenges   SignInChallenge[]
+  browserSignInCodes BrowserSignInCode[]
 }
 
 // One refresh token of a session. A session is the chain of tokens that
@@ -87,6 +88,24 @@ model RefreshToken {
 
   @@index([userId])
   @@index([familyId])
+}
+
+// A code with which an application signs a browser in to its account: asked
+// for with a session's refresh token, good for a minute and once, kept as a
+// hash. A used or run-out code stays for a day, so that how many an account
+// asked for in the last hour can be counted.
+model BrowserSignInCode {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  codeHash  String    @unique
+  // The session of the application that asked: the code is good only while it is open.
+  sessionId String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // The second step of signing in: the secret an authenticator app makes its

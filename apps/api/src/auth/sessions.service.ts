@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Prisma } from '@prisma/client';
 import { type AccountSession, type AuthResponse, MAX_SESSIONS_LISTED } from '@diet-app/shared';
+import { holdAccount } from '../common/hold.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountEmail } from './account-email.js';
@@ -64,11 +65,12 @@ export class SessionsService {
    * Open a session for an account that has just proved who it is.
    * `secondFactor` says that it did so with the second step as well: the
    * session of an account that has a second factor counts only then.
+   * `lastsSeconds` ends it sooner than a session of the instance ends.
    */
-  async open(user: SessionAccount, email: string, label: string | null = null, { secondFactor = false } = {}): Promise<OpenedSession> {
+  async open(user: SessionAccount, email: string, label: string | null = null, { secondFactor = false, lastsSeconds = Infinity } = {}): Promise<OpenedSession> {
     const now = Date.now();
     const familyId = randomUUID();
-    const familyExpiresAt = new Date(now + this.config.get('JWT_SESSION_TTL', { infer: true }) * 1000);
+    const familyExpiresAt = new Date(now + Math.min(this.config.get('JWT_SESSION_TTL', { infer: true }), lastsSeconds) * 1000);
     const refreshToken = newToken();
     const expiresAt = this.tokenExpiry(now, familyExpiresAt);
     await this.prisma.refreshToken.create({
@@ -77,8 +79,12 @@ export class SessionsService {
     return this.answer(user, email, { refreshToken, expiresAt, now }, familyId);
   }
 
-  /** Exchange a refresh token for the next pair of its session. */
-  async refresh(refreshToken: string): Promise<OpenedSession> {
+  /**
+   * Exchange a refresh token for the next pair of its session. `alongside`
+   * is done in the same transaction, with the account held: what it refuses
+   * leaves the token as it was, for the client to go on with.
+   */
+  async refresh(refreshToken: string, alongside?: (tx: Prisma.TransactionClient, session: { userId: string; sessionId: string }) => Promise<void>): Promise<OpenedSession> {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: sha256(refreshToken) },
       include: { user: { include: { secondFactor: { select: { id: true } } } } },
@@ -96,6 +102,8 @@ export class SessionsService {
     const next = newToken();
     const expiresAt = this.tokenExpiry(now, stored.familyExpiresAt);
     const claimed = await this.prisma.$transaction(async (tx) => {
+      // The account is held before the token is taken, as a new password or address takes the account before it ends the sessions.
+      if (alongside) await holdAccount(tx, stored.userId);
       // Only one request gets to use a token, however many present it together.
       const claim = await tx.refreshToken.updateMany({ where: { id: stored.id, rotatedAt: null, revokedAt: null }, data: { rotatedAt: new Date(now) } });
       if (claim.count !== 1) return false;
@@ -110,6 +118,7 @@ export class SessionsService {
           expiresAt,
         },
       });
+      await alongside?.(tx, { userId: stored.userId, sessionId: stored.familyId });
       return true;
     });
     if (!claimed) {

@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 146 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 148 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -24,6 +24,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `AI_UNAVAILABLE` | 503 | The AI provider didn't respond — try again in a moment. | Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę. |
 | `AUTH_REQUIRED` | 401 | Sign in to continue. | Zaloguj się, aby kontynuować. |
 | `BAD_REQUEST` | 400 | The request could not be understood. | Nie udało się zrozumieć żądania. |
+| `BROWSER_CODES_USED_UP` | 429 | The app has signed a browser in too many times in the last hour. Sign in here, or try again later. | Aplikacja logowała przeglądarkę zbyt wiele razy w ostatniej godzinie. Zaloguj się tutaj albo spróbuj później. |
 | `BYOK_NO_PROVIDER` | 400 | Add at least one provider key before switching to bring-your-own. | Dodaj co najmniej jeden klucz dostawcy, zanim przełączysz się na własny klucz. |
 | `CONFLICT` | 409 | That already exists. | Taki wpis już istnieje. |
 | `CUSTOM_MEAL_INVALID_MACROS` | 400 | Custom meal macros must be non-negative numbers. | Makroskładniki własnego posiłku muszą być liczbami nieujemnymi. |
@@ -59,6 +60,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `INTERNAL_ERROR` | 500 | An unexpected server error occurred. | Nieoczekiwany błąd serwera. |
 | `INVALID_ACCESS_TOKEN` | 401 | Your session is invalid. Please sign in again. | Sesja jest nieprawidłowa. Zaloguj się ponownie. |
 | `INVALID_ADMIN_SESSION` | 401 | The admin session has ended. Sign in again. | Sesja administratora wygasła. Zaloguj się ponownie. |
+| `INVALID_BROWSER_CODE` | 401 | This sign-in from the app has already been used or has run out. Open the page from the app again, or sign in here. | To logowanie z aplikacji zostało już użyte albo minęła jego minuta. Otwórz stronę z aplikacji jeszcze raz albo zaloguj się tutaj. |
 | `INVALID_CREDENTIALS` | 401 | Email or password is incorrect. | Nieprawidłowy e-mail lub hasło. |
 | `INVALID_EMAIL_CHANGE_TOKEN` | 400 | This email-change link is invalid or has expired. | Ten link zmiany adresu e-mail jest nieprawidłowy lub wygasł. |
 | `INVALID_LOCKED_SLOT` | 400 | A locked meal doesn't fit the meals chosen for that day. | Przypięty posiłek nie pasuje do posiłków wybranych na ten dzień. |

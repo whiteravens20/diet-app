@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-156 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+159 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -78,6 +78,9 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
+| `POST /api/auth/browser-code` | anyone | A code that signs a browser in to the account of a client that keeps its own tokens: for the refresh token of its session, which is replaced by a new one as a refresh replaces it. An account gets at most 30 codes in an hour. | `BrowserCodeRequest` | 200 `BrowserCode` | 30 in a minute; 10 in a minute for what it tries |
+| `POST /api/auth/browser-sign-in` | anyone | Sign this browser in with a code from an application: a session of its own for a day, in cookies, which takes the place of the session the browser had. Only the application's own pages may ask. | `BrowserSignInRequest` | 200 `AuthResponse` | 10 in a minute; 10 in a minute for what it tries |
+| `POST /api/auth/browser-sign-in/account` | anyone | Whose account a code from an application is for, without using the code. Only the application's own pages may ask. | `BrowserSignInRequest` | 200 `BrowserCodeAccount` | 10 in a minute; 10 in a minute for what it tries |
 | `POST /api/auth/confirm-email-change` | anyone | Confirm a new address with the token from the mail that was sent to it. | `ConfirmEmailChangeRequest` | 204 | 10 in a minute; 10 in a minute for what it tries |
 | `POST /api/auth/login` | anyone | Sign in with an address and a password. An account with a second factor gets a challenge in the place of a session. | `LoginRequest` | 200 `LoginResponse` | 30 in 15 minutes; 10 in 15 minutes for what it tries; 50 in 15 minutes for what it tries |
 | `POST /api/auth/login/second-factor` | anyone | The second step of signing in: the challenge of the first, and a code. | `SecondFactorSignInRequest` | 200 `AuthResponse` | 10 in a minute; 10 in 5 minutes for what it tries |

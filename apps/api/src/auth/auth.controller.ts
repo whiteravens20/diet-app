@@ -6,6 +6,10 @@ import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import {
   AuthResponse,
+  BrowserCode,
+  BrowserCodeAccount,
+  BrowserCodeRequest,
+  BrowserSignInRequest,
   ConfirmEmailChangeRequest,
   LoginRequest,
   LoginResponse,
@@ -24,6 +28,7 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import type { Env } from '../config/env.js';
 import { byAccount, byAccountAndAddress, byRefreshToken, byToken, TriesCredential } from '../rate-limit/trackers.js';
 import { AuthService } from './auth.service.js';
+import { BrowserSignIn } from './browser-sign-in.service.js';
 import { asksForCookies, assertFromTheApplication, noSessionCookies, REFRESH_COOKIE, sessionCookies, withoutRefreshToken } from './session-cookies.js';
 import { sessionLabel } from './session-label.js';
 import { SessionsService } from './sessions.service.js';
@@ -49,6 +54,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly sessions: SessionsService,
+    private readonly browsers: BrowserSignIn,
     config: ConfigService<Env, true>,
   ) {
     this.appUrl = config.get('APP_URL', { infer: true });
@@ -148,6 +154,48 @@ export class AuthController {
 
     await this.sessions.end(this.cookieOf(req));
     res.setHeader('Set-Cookie', noSessionCookies(this.appUrl));
+  }
+
+  /**
+   * A code that signs a browser in to the account of a client that keeps its
+   * own tokens: for the refresh token of its session, which is replaced by a
+   * new one as a refresh replaces it. An account gets at most 30 codes in an
+   * hour.
+   */
+  // Counted as a refresh is: for the refresh token, and for one sender.
+  @Post('browser-code')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: MINUTE } })
+  @TriesCredential({ by: byRefreshToken, limit: 10, ttl: MINUTE })
+  @Answers(BrowserCode)
+  codeForABrowser(@Body(new ZodValidationPipe(BrowserCodeRequest)) dto: BrowserCodeRequest) {
+    return this.browsers.codeFor(dto.refreshToken);
+  }
+
+  /** Whose account a code from an application is for, without using the code. Only the application's own pages may ask. */
+  @Post('browser-sign-in/account')
+  @HttpCode(200)
+  @TriesCredential({ by: byToken('code'), limit: 10, ttl: MINUTE })
+  @Answers(BrowserCodeAccount)
+  accountOfABrowserCode(@Body(new ZodValidationPipe(BrowserSignInRequest)) dto: BrowserSignInRequest, @Req() req: Request) {
+    assertFromTheApplication(req.headers.origin, this.appUrl);
+    return this.browsers.accountOf(dto.code);
+  }
+
+  /**
+   * Sign this browser in with a code from an application: a session of its
+   * own for a day, in cookies, which takes the place of the session the
+   * browser had. Only the application's own pages may ask.
+   */
+  @Post('browser-sign-in')
+  @HttpCode(200)
+  @TriesCredential({ by: byToken('code'), limit: 10, ttl: MINUTE })
+  @Answers(AuthResponse)
+  async signInABrowser(@Body(new ZodValidationPipe(BrowserSignInRequest)) dto: BrowserSignInRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    assertFromTheApplication(req.headers.origin, this.appUrl);
+    const answer = await this.browsers.signIn(dto.code, readCookie(req.headers.cookie, REFRESH_COOKIE), sessionLabel(req.headers['user-agent']));
+    res.setHeader('Set-Cookie', sessionCookies(answer.tokens, this.appUrl));
+    return withoutRefreshToken(answer);
   }
 
   /** Ask for a mail with a link to set a new password. The answer says nothing of whether the address has an account. */

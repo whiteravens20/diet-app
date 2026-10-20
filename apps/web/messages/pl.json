@@ -269,6 +269,8 @@
     "INVALID_REFRESH": "Sesja wygasła. Zaloguj się ponownie.",
     "SESSION_JUST_REFRESHED": "Sesja została przed chwilą odświeżona w innej karcie. Spróbuj ponownie.",
     "SESSION_NOT_FOUND": "Ta sesja nie jest już otwarta.",
+    "INVALID_BROWSER_CODE": "To logowanie z aplikacji zostało już użyte albo minęła jego minuta. Otwórz stronę z aplikacji jeszcze raz albo zaloguj się tutaj.",
+    "BROWSER_CODES_USED_UP": "Aplikacja logowała przeglądarkę zbyt wiele razy w ostatniej godzinie. Zaloguj się tutaj albo spróbuj później.",
     "ORIGIN_NOT_ALLOWED": "To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie.",
     "INVALID_ADMIN_SESSION": "Sesja administratora wygasła. Zaloguj się ponownie.",
     "INVALID_SECOND_FACTOR_CODE": "Ten kod jest nieprawidłowy. Kody zmieniają się co pół minuty, a każdy działa tylko raz.",

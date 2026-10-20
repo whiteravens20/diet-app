@@ -143,6 +143,15 @@
       "pl": "Nie udało się zrozumieć żądania."
     }
   },
+  "BROWSER_CODES_USED_UP": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "The app has signed a browser in too many times in the last hour. Sign in here, or try again later.",
+      "pl": "Aplikacja logowała przeglądarkę zbyt wiele razy w ostatniej godzinie. Zaloguj się tutaj albo spróbuj później."
+    }
+  },
   "BYOK_NO_PROVIDER": {
     "statuses": [
       400
@@ -457,6 +466,15 @@
     "messages": {
       "en": "The admin session has ended. Sign in again.",
       "pl": "Sesja administratora wygasła. Zaloguj się ponownie."
+    }
+  },
+  "INVALID_BROWSER_CODE": {
+    "statuses": [
+      401
+    ],
+    "messages": {
+      "en": "This sign-in from the app has already been used or has run out. Open the page from the app again, or sign in here.",
+      "pl": "To logowanie z aplikacji zostało już użyte albo minęła jego minuta. Otwórz stronę z aplikacji jeszcze raz albo zaloguj się tutaj."
     }
   },
   "INVALID_CREDENTIALS": {

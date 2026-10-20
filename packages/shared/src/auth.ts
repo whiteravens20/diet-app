@@ -155,6 +155,44 @@ export type SecondFactorChallenge = z.infer<typeof SecondFactorChallenge>;
 export const LoginResponse = z.union([AuthResponse, SecondFactorChallenge]);
 export type LoginResponse = z.infer<typeof LoginResponse>;
 
+/**
+ * A client that keeps its own tokens asks for a code that signs a browser in
+ * to its account (`POST /auth/browser-code`). It shows its refresh token,
+ * which is used up as a refresh uses it.
+ */
+export const BrowserCodeRequest = z.object({
+  refreshToken: token,
+});
+export type BrowserCodeRequest = z.infer<typeof BrowserCodeRequest>;
+
+/**
+ * The next pair of the session that asked, as a refresh gives it, and the
+ * code: good for `codeExpiresIn` seconds and once. The client hands the code
+ * to the web application's page `/from-the-app` in the address's fragment.
+ */
+export const BrowserCode = AuthResponse.extend({
+  code: z.string(),
+  codeExpiresIn: z.number().int(),
+});
+export type BrowserCode = z.infer<typeof BrowserCode>;
+
+/**
+ * The web application's page asks whose a code is (`POST /auth/browser-sign-in/account`)
+ * and, once its reader has said that it is theirs, signs its browser in with it
+ * (`POST /auth/browser-sign-in`).
+ */
+export const BrowserSignInRequest = z.object({
+  code: token,
+});
+export type BrowserSignInRequest = z.infer<typeof BrowserSignInRequest>;
+
+/** The account a code would sign a browser in to, for its reader to recognise before the code is used. */
+export const BrowserCodeAccount = z.object({
+  email: z.string(),
+  displayName: z.string(),
+});
+export type BrowserCodeAccount = z.infer<typeof BrowserCodeAccount>;
+
 /** The second step of signing in: the challenge of the first, and a code. */
 export const SecondFactorSignInRequest = z.object({
   challenge: z.string().min(1).max(200),
