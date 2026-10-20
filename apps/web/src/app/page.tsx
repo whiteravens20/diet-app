@@ -8,6 +8,8 @@ import {
   ListChecks,
   Server,
   ShieldCheck,
+  Shuffle,
+  SlidersHorizontal,
   Sparkles,
   TriangleAlert,
   Utensils,
@@ -19,9 +21,11 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeChoice } from '@/components/theme-choice';
 
 const FEATURE_KEYS = [
-  { icon: Utensils, titleKey: 'nutritionTitle', bodyKey: 'nutritionBody' },
+  { icon: SlidersHorizontal, titleKey: 'controlTitle', bodyKey: 'controlBody' },
   { icon: CalendarRange, titleKey: 'plansTitle', bodyKey: 'plansBody' },
+  { icon: Shuffle, titleKey: 'swapsTitle', bodyKey: 'swapsBody' },
   { icon: ListChecks, titleKey: 'listsTitle', bodyKey: 'listsBody' },
+  { icon: Utensils, titleKey: 'nutritionTitle', bodyKey: 'nutritionBody' },
   { icon: Sparkles, titleKey: 'aiTitle', bodyKey: 'aiBody' },
 ] as const;
 
@@ -78,7 +82,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="mt-20 grid gap-4 sm:grid-cols-2">
+      <section className="mt-20 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURE_KEYS.map((f) => (
           <Card key={f.titleKey} className="p-6">
             <span className="inline-flex rounded-md bg-muted p-2 text-primary">
