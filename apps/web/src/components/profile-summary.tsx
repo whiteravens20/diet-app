@@ -38,13 +38,6 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
   });
 
   const c = calories.data;
-  const macroData = c
-    ? [
-        { name: t('protein'), value: c.targetMacros.protein },
-        { name: t('fat'), value: c.targetMacros.fat },
-        { name: t('carbs'), value: c.targetMacros.carbs },
-      ]
-    : [];
 
   const kcal = t('kcal');
 
@@ -99,9 +92,9 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
             <CardTitle>{t('macroSplit')}</CardTitle>
           </CardHeader>
           <CardContent>
-            {macroData.length > 0 ? (
+            {c ? (
               <div className="h-64">
-                <MacroChart data={macroData} />
+                <MacroChart grams={c.targetMacros} />
               </div>
             ) : (
               <Skeleton className="h-64" />
