@@ -153,6 +153,7 @@ anybody else's tries.
 |---|---|---|
 | With a valid sign-in | The user | `RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW` and route; less on AI routes |
 | Without one | The client's address | The same; 10 a minute for sign-up |
+| Sign-up | The address ¹ | 3 accounts a day; a sign-up that opened none is not counted |
 | Sign-in | The account and the address together | 10 in 15 minutes |
 | | The account, from everywhere together | 50 in 15 minutes |
 | | The address, whatever the account ¹ | 30 in 15 minutes |
@@ -335,6 +336,49 @@ docker compose exec ollama ollama pull llama3.1:8b
 Set `AI_DEFAULT_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://ollama:11434`. GPU mode needs
 the NVIDIA Container Toolkit on the host.
 
+## The instance's AI provider
+
+An instance can lend its own AI provider to its users: set `AI_DEFAULT_PROVIDER`,
+`AI_DEFAULT_MODEL` and the provider's key (see [env-reference.md](env-reference.md)). A
+user then picks "Use the instance default" in Settings, and every request is counted
+against the limits below. Who may pick it is `AI_ADMIN_ACCESS`:
+
+- `approved`, the default: the accounts you approve. In the admin panel, under "AI of the
+  instance", enter the address of the account and approve it; take an approval back the
+  same way. An account that is not approved sees the option switched off, with the address
+  of `OPERATOR_CONTACT` to ask you at.
+- `confirmed`: the accounts that confirmed their address by mail. Without mail every
+  address counts as confirmed when its account is made, so this lets every account in,
+  and the API warns when it starts. An address with `+` in it is an address of its own:
+  one mailbox can confirm many accounts.
+- `everyone`: every account.
+
+An account that loses its access keeps its mode, and its next request is refused with the
+reason. Only requests the provider answered are counted, whether or not the answer could
+be used; a failure or a timeout is not. All of it is counted over the last thirty days:
+
+| Limit | Setting | Default |
+|---|---|---|
+| Each account | `AI_ADMIN_USER_MONTHLY_LIMIT` | 40 |
+| All accounts together | `AI_ADMIN_INSTANCE_MONTHLY_LIMIT` | 1000 |
+| The new accounts together | `AI_ADMIN_NEW_ACCOUNTS_PERCENT` of the instance's limit, for accounts younger than `AI_ADMIN_NEW_ACCOUNT_DAYS` | 10 %, 7 days |
+
+The instance's limit is what bounds the bill, and once it is reached the provider is
+closed to every account until calls age out. The new accounts' part keeps accounts opened
+in a batch from reaching it in one sitting: together they reach their part, and the rest
+stays with the accounts that were there. Deleting an account does not hand its calls
+back, to either. With [`TRUST_PROXY`](#telling-the-api-who-the-client-is) set, one address
+opens at most three accounts a day.
+
+On an instance anyone can sign up to, none of these stops one determined person
+altogether: with enough addresses and patience they can open accounts, wait until those
+are no longer new and use what is left. Approving accounts does. Where the provider lets
+a key have a spending limit, set one as well: it holds whatever the application does.
+
+An instance that lent its provider to every account before `AI_ADMIN_ACCESS` existed lends
+it only to approved accounts after the upgrade. Set `AI_ADMIN_ACCESS=everyone` to keep it
+as it was, or approve the accounts that use it.
+
 ## Anti-abuse (Turnstile)
 
 Cloudflare Turnstile is **optional** and **off by default** (`TURNSTILE_ENABLED=false`);
@@ -434,6 +478,7 @@ Three things are kept in the memory of each process, and so count once for each:
 |---|---|
 | The [rate limits](#rate-limits), and the waits after wrong administrator and reviewer passwords | A client whose requests are spread over the processes is allowed up to N times as much |
 | The 10 mails a day one address is sent | Up to N times as many |
+| The 3 accounts a day one client address may open | Up to N times as many |
 | The 64 password checks that may wait at once | 64 for each process |
 
 A process that restarts begins its counts anew.

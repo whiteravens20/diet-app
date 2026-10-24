@@ -52,7 +52,10 @@ The companion Android app lives in a separate repository:
   pack, and what a shopping list could do without: worked out by the planner, and put in
   order with a sentence on each by a model when the account has one and is asked.
 - **BYOK AI** — per-user OpenAI / Anthropic / OpenRouter / Ollama keys with failover, and a
-  full deterministic fallback so the app works with **no AI key at all**.
+  full deterministic fallback so the app works with **no AI key at all**. An operator can
+  also lend the instance's own provider: to the accounts they approve, by default, within a
+  monthly limit for each account, a smaller one for new accounts together and one for the
+  whole instance.
 - **Self-hosted, Docker-first** — `docker compose up` boots the whole stack.
 
 ## What it looks like
