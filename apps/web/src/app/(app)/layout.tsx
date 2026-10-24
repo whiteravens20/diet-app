@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { ReactNode } from 'react';
-import { ConfirmEmailNotice } from '@/components/confirm-email-notice';
+import { LazyConfirmEmailNotice } from '@/components/lazy-confirm-email-notice';
 import { NotificationToast } from '@/components/notification-toast';
 import { SessionGate } from '@/components/session-gate';
 import { Sidebar } from '@/components/sidebar';
@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <Sidebar />
       <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10">
         <SessionGate>
-          <ConfirmEmailNotice />
+          <LazyConfirmEmailNotice />
           {children}
         </SessionGate>
       </main>
