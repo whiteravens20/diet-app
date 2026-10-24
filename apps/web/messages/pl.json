@@ -62,6 +62,13 @@
     "newAccountsExhaustedTooltip": "Nowe konta wykorzystały swoją część zapytań AI instancji. Kolejne zapytanie odblokuje się {date}.",
     "noAccessTooltip": "AI instancji nie jest dostępne dla tego konta. Szczegóły w Ustawieniach."
   },
+  "confirmEmail": {
+    "notice": "Potwierdź adres e-mail {email}: kliknij link z wiadomości otrzymanej na podany adres. Link jest ważny godzinę.",
+    "resend": "Wyślij nowy link",
+    "sending": "Wysyłanie…",
+    "sent": "Nowy link jest w drodze.",
+    "failed": "Nie udało się wysłać linku."
+  },
   "aiOff": {
     "note": "AI jest wyłączone dla tego konta, więc akcje, które pytają model, są nieaktywne. <settings>Włącz AI w Ustawieniach</settings>, żeby z nich korzystać."
   },

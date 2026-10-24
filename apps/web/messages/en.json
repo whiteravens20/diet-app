@@ -62,6 +62,13 @@
     "newAccountsExhaustedTooltip": "New accounts have used their part of the instance's AI requests. Next slot frees up {date}.",
     "noAccessTooltip": "The instance's AI is not open to this account. See Settings."
   },
+  "confirmEmail": {
+    "notice": "Confirm your email address {email}: follow the link in the message received at that address. A link lasts an hour.",
+    "resend": "Send a new link",
+    "sending": "Sending…",
+    "sent": "A new link is on its way.",
+    "failed": "The link could not be sent."
+  },
   "aiOff": {
     "note": "AI is turned off for this account, so the actions that ask a model are switched off. <settings>Turn AI on in Settings</settings> to use them."
   },
