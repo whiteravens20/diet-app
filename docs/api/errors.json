@@ -1234,6 +1234,15 @@
       "pl": "Zbyt wiele nieudanych prób logowania. Odczekaj chwilę, zanim spróbujesz ponownie."
     }
   },
+  "TOO_MANY_SIGN_UPS": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "This address has opened as many accounts as it may in a day. Try again later, at most a day from now.",
+      "pl": "Z tego adresu założono już tyle kont, ile można w ciągu doby. Spróbuj ponownie później, najpóźniej za dobę."
+    }
+  },
   "TRANSLATIONS_IN_PROGRESS": {
     "statuses": [
       409

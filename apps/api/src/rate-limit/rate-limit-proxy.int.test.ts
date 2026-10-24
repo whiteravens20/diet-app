@@ -108,12 +108,29 @@ describe('rate limits behind one trusted proxy', () => {
     });
   });
 
-  it('gives two clients an allowance each', async () => {
-    const first: number[] = [];
-    for (let i = 0; i < 11; i += 1) first.push((await register('203.0.113.7')).status);
+  it('gives two clients an allowance each, of accounts in a day and of requests in a minute', async () => {
+    const first: string[] = [];
+    let held: number | undefined;
+    for (let i = 0; i < 11; i += 1) {
+      const res = await register('203.0.113.7');
+      first.push(res.status === 201 ? 'opened' : (res.body as { error: string }).error);
+      held ??= res.status === 429 ? Number(res.headers['retry-after']) : undefined;
+    }
 
-    expect(first).toEqual([...Array(10).fill(201), 429]);
+    expect(first).toEqual([...Array(3).fill('opened'), ...Array(7).fill('TOO_MANY_SIGN_UPS'), 'RATE_LIMITED']);
+    // Until the first of the three is a day old.
+    expect(held).toBeGreaterThan(86_000);
     expect((await register('203.0.113.8')).status).toBe(201);
+  });
+
+  it('counts only the sign-ups that opened an account', async () => {
+    const taken = await aUser(t);
+    for (let i = 0; i < 3; i += 1) {
+      const again = await t.http().post('/api/auth/register').set('X-Forwarded-For', '203.0.113.9').send({ email: taken.email, password: 'Integration-Passw0rd', displayName: 'Again' });
+      expect(again.status).toBe(409);
+    }
+
+    for (let i = 0; i < 3; i += 1) expect((await register('203.0.113.9')).status).toBe(201);
   });
 
   it('counts the health probe for each client on its own', async () => {

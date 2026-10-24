@@ -91,7 +91,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/auth/password-reset/confirm` | anyone | Set a new password with the token from the mail. | `PasswordResetConfirm` | 204 | 10 in a minute; 10 in a minute for what it tries |
 | `POST /api/auth/password-reset/request` | anyone | Ask for a mail with a link to set a new password. The answer says nothing of whether the address has an account. | `PasswordResetRequest` | 202 | 15 in 15 minutes; 5 in 15 minutes for what it tries |
 | `POST /api/auth/refresh` | anyone | A new access token for a refresh token, which is replaced by a new one. | `RefreshRequest` | 200 `AuthResponse` | 30 in a minute; 10 in a minute for what it tries |
-| `POST /api/auth/register` | anyone | Open an account, and a session with it. | `RegisterRequest` | 201 `AuthResponse` | 10 in a minute |
+| `POST /api/auth/register` | anyone | Open an account, and a session with it. An address opens at most three accounts a day, where the instance knows the client's address (`TRUST_PROXY`); the fourth is 429 `TOO_MANY_SIGN_UPS`. | `RegisterRequest` | 201 `AuthResponse` | 10 in a minute |
 | `POST /api/auth/verify-email` | anyone | Confirm the account's address with the token from the mail. | `VerifyEmailRequest` | 204 | 10 in a minute; 10 in a minute for what it tries |
 
 ## config

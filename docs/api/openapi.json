@@ -2659,7 +2659,7 @@
           "auth"
         ],
         "summary": "Open an account, and a session with it.",
-        "description": "Open an account, and a session with it.\n\nAsked by anyone.\n\nLimited to 10 in a minute, for each sender.",
+        "description": "Open an account, and a session with it. An address opens at most three accounts a day, where the instance knows the client's address (`TRUST_PROXY`); the fourth is 429 `TOO_MANY_SIGN_UPS`.\n\nAsked by anyone.\n\nLimited to 10 in a minute, for each sender.",
         "security": [],
         "parameters": [
           {

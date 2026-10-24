@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 150 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 151 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -145,6 +145,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `SHOPPING_RANGE_OUTSIDE_PLAN` | 400 | Those dates are not within the plan. Pick dates the plan covers. | Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje. |
 | `SUBSTITUTION_MOVES_NUTRITION` | 422 | This substitution changes what a serving holds by more than a tenth. Confirm that you want it all the same. | Ta zamiana zmienia wartości porcji o więcej niż jedną dziesiątą. Potwierdź, że mimo to chcesz ją wykonać. |
 | `TOO_MANY_ATTEMPTS` | 429 | Too many failed sign-ins. Wait a moment before you try again. | Zbyt wiele nieudanych prób logowania. Odczekaj chwilę, zanim spróbujesz ponownie. |
+| `TOO_MANY_SIGN_UPS` | 429 | This address has opened as many accounts as it may in a day. Try again later, at most a day from now. | Z tego adresu założono już tyle kont, ile można w ciągu doby. Spróbuj ponownie później, najpóźniej za dobę. |
 | `TRANSLATIONS_IN_PROGRESS` | 409 | A run that fills a missing language is already in progress. | Uzupełnianie brakującego języka już trwa. |
 | `TURNSTILE_FAILED` | 400 | Anti-abuse check failed. Please try again. | Weryfikacja chroniąca przed nadużyciami nie powiodła się. Spróbuj ponownie. |
 | `UNAUTHORIZED` | 401 | Sign in to continue. | Zaloguj się, aby kontynuować. |

@@ -26,6 +26,7 @@ import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers } from '../common/answers.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import type { Env } from '../config/env.js';
+import { SignUps } from '../rate-limit/sign-ups.js';
 import { byAccount, byAccountAndAddress, byRefreshToken, byToken, TriesCredential } from '../rate-limit/trackers.js';
 import { AuthService } from './auth.service.js';
 import { BrowserSignIn } from './browser-sign-in.service.js';
@@ -44,7 +45,7 @@ const QUARTER_HOUR = 15 * MINUTE;
  * for a refresh or a link from a mail. Attempts on one account, or with one
  * token, therefore never use up anybody else's, and one sender cannot go
  * through account after account. Creating an account has no identity yet and
- * is counted against its sender alone.
+ * is counted against its sender alone, by the minute and by the day.
  */
 @Controller('auth')
 @Throttle({ default: { limit: 10, ttl: MINUTE } })
@@ -55,6 +56,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly sessions: SessionsService,
     private readonly browsers: BrowserSignIn,
+    private readonly signUps: SignUps,
     config: ConfigService<Env, true>,
   ) {
     this.appUrl = config.get('APP_URL', { infer: true });
@@ -75,7 +77,7 @@ export class AuthController {
     return token;
   }
 
-  /** Open an account, and a session with it. */
+  /** Open an account, and a session with it. An address opens at most three accounts a day, where the instance knows the client's address (`TRUST_PROXY`); the fourth is 429 `TOO_MANY_SIGN_UPS`. */
   @Post('register')
   @Answers(AuthResponse)
   async register(
@@ -84,7 +86,13 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.begun(req, res, await this.auth.register(dto, locale, sessionLabel(req.headers['user-agent'])));
+    const giveBack = this.signUps.take(req.ip);
+    try {
+      return this.begun(req, res, await this.auth.register(dto, locale, sessionLabel(req.headers['user-agent'])));
+    } catch (err) {
+      giveBack();
+      throw err;
+    }
   }
 
   /** Sign in with an address and a password. An account with a second factor gets a challenge in the place of a session. */
