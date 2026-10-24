@@ -58,6 +58,9 @@ export interface PersonalRecipe {
   facts: RecipeFacts;
 }
 
+/** What a recipe is recognised by. */
+type Fingerprinted = Pick<PersonalRecipe, 'ingredients' | 'mealTypes' | 'servings'>;
+
 /** Hold, until the transaction ends, the lock named `key`. */
 const lock = (tx: Prisma.TransactionClient, key: string): Promise<number> =>
   tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
@@ -105,24 +108,14 @@ export class PersonalRecipesService {
       }
       await lock(tx, fingerprint);
 
-      const shared = await tx.recipe.findFirst({
-        where: { fingerprint, createdByUserId: null, deletedAt: null, retiredAt: null, id: { notIn: [...avoid] } },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        select: { id: true },
-      });
-      if (shared) return shared.id;
-
-      const own = await tx.recipe.findFirst({
-        where: { fingerprint, createdByUserId: recipe.userId },
-        select: { id: true, deletedAt: true },
-      });
-      if (own) {
-        if (own.deletedAt) {
+      const found = await this.existing(tx, recipe.userId, fingerprint, avoid);
+      if (found) {
+        if (found.deleted) {
           // Brought back, it takes a place again.
           await this.assertRoom(tx, recipe.userId, 'user');
-          await tx.recipe.update({ where: { id: own.id }, data: { deletedAt: null } });
+          await tx.recipe.update({ where: { id: found.id }, data: { deletedAt: null } });
         }
-        return own.id;
+        return found.id;
       }
 
       await this.assertRoom(tx, recipe.userId, recipe.origin);
@@ -137,6 +130,21 @@ export class PersonalRecipesService {
       if (others.length > 0) await this.mirror(tx, id, fingerprint, [id, ...others.map((other) => other.id)]);
       return id;
     });
+  }
+
+  /**
+   * Whether `save` would write `recipe` as a new one, with the text it is
+   * given: false where the shared library or the user has it already, whose
+   * text then stays as it is. Refuses as `save` would where the account has no
+   * room for it. Asked before a model is put to work on text that might not
+   * be stored.
+   */
+  async wouldWrite(recipe: Fingerprinted & Pick<PersonalRecipe, 'userId' | 'origin'>, avoid: readonly string[] = []): Promise<boolean> {
+    const fingerprint = await this.fingerprintOf(recipe);
+    const found = fingerprint === null ? null : await this.existing(this.prisma, recipe.userId, fingerprint, avoid);
+    if (found && !found.deleted) return false;
+    await this.assertRoom(this.prisma, recipe.userId, found ? 'user' : recipe.origin);
+    return found === null;
   }
 
   /** Put the user's own recipe before the curators, as a candidate for the shared library. */
@@ -207,8 +215,28 @@ export class PersonalRecipesService {
     return removed;
   }
 
+  /**
+   * The recipe that stands for one with this fingerprint already: the shared
+   * library's, or else the user's own, which may be deleted.
+   */
+  private async existing(
+    db: Pick<Prisma.TransactionClient, 'recipe'>,
+    userId: string,
+    fingerprint: string,
+    avoid: readonly string[],
+  ): Promise<{ id: string; deleted: boolean } | null> {
+    const shared = await db.recipe.findFirst({
+      where: { fingerprint, createdByUserId: null, deletedAt: null, retiredAt: null, id: { notIn: [...avoid] } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+    if (shared) return { id: shared.id, deleted: false };
+    const own = await db.recipe.findFirst({ where: { fingerprint, createdByUserId: userId }, select: { id: true, deletedAt: true } });
+    return own ? { id: own.id, deleted: own.deletedAt !== null } : null;
+  }
+
   /** The fingerprint of a recipe, or null when one of its ingredients has no slug. */
-  private async fingerprintOf(recipe: PersonalRecipe): Promise<string | null> {
+  private async fingerprintOf(recipe: Fingerprinted): Promise<string | null> {
     const rows = await this.prisma.ingredient.findMany({
       where: { id: { in: recipe.ingredients.map((line) => line.ingredientId) } },
       select: { id: true, slug: true },

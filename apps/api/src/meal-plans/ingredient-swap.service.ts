@@ -123,24 +123,24 @@ export class IngredientSwapService {
 
     // The text of the variant: the substitute's name in place of the old one,
     // by plain replacement, or reworded by a model when the user asked for it.
-    const variant = await this.buildVariantTranslations(userId, locale, recipe, s.from, s.to, req.rewriteWithAi);
+    // A model is asked only for text that is stored: a recipe the shared
+    // library or the user has already keeps the text it has.
+    const recognised = { userId, origin: 'user' as const, servings: recipe.servings, mealTypes: recipe.mealTypes, ingredients: lines };
+    const reword = req.rewriteWithAi && (await this.personalRecipes.wouldWrite(recognised, restrictions.avoidedRecipeIds));
+    const variant = await this.buildVariantTranslations(userId, locale, recipe, s.from, s.to, reword);
 
     // Stored as the user's own recipe, or recognised as one that exists
     // already. A shared recipe the profile avoids is not handed back for it.
     const variantId = await this.personalRecipes.save(
       {
-        userId,
-        origin: 'user',
+        ...recognised,
         text: variant.text,
         modelWrote: variant.modelWrote,
         modelAssisted: picked !== null || variant.modelWrote.size > 0,
-        servings: recipe.servings,
-        mealTypes: recipe.mealTypes,
         prepMinutes: recipe.prepMinutes,
         cookMinutes: recipe.cookMinutes,
         difficulty: recipe.difficulty,
         cuisine: recipe.cuisine,
-        ingredients: lines,
         facts,
       },
       restrictions.avoidedRecipeIds,

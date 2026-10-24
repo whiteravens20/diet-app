@@ -768,7 +768,10 @@ export const SwapIngredientRequest = z.object({
    * Have a model reword the description and the steps around the substitute,
    * in the language of the request: one call on the caller's AI allowance.
    * Off by default: the substitute's name then simply replaces the old one in
-   * the text, as it does in every other language either way.
+   * the text, as it does in every other language either way. No model is
+   * asked where the substitution gives a recipe the shared library or the
+   * caller has already: that recipe keeps its text, and the answer carries no
+   * AI metadata.
    */
   rewriteWithAi: z.boolean().default(false),
   /**

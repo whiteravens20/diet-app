@@ -2,6 +2,7 @@
 
 import { SwapIngredientRequest, type Locale, type MealPlan, type SwapIngredientResponse } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { MAX_PERSONAL_RECIPES } from '../recipes/personal-recipes.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
 import { aPlan, aProfile, aUser, as, type TestUser } from '../testing/factories.js';
@@ -307,6 +308,69 @@ describe('the text of a recipe after an ingredient swap', () => {
 
       expect(answer.aiMeta?.usedDeterministicFallback).toBe(true);
       expect(text.en!.steps).toEqual(['Combine firm tofu, white rice, tomato, olive oil.']);
+    });
+  });
+
+  describe('when the swap gives a recipe that is there already', () => {
+    /** Put the bowl back in the meal, as it was before the swap. */
+    async function theBowlAgain(): Promise<void> {
+      const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
+      await t.prisma.plannedMeal.update({ where: { id: mealId }, data: { recipeId: bowl.id } });
+    }
+
+    it('asks no model for a recipe the user has, and the meal holds it with the text it has', async () => {
+      const polish = {
+        description: 'Miska ryżu z tofu, a do niej pomidor, dla jednej osoby.',
+        steps: ['Połącz: tofu twarde, ryż biały i pokrojony pomidor, a na koniec oliwa z oliwek.'],
+      };
+      t.model.reply({ match: REWORDING, text: JSON.stringify(polish), times: 5 });
+      const first = await broccoliForTomato({ locale: 'pl', rewriteWithAi: true });
+      await theBowlAgain();
+
+      const again = await broccoliForTomato({ locale: 'pl', rewriteWithAi: true });
+
+      expect(t.model.requests).toHaveLength(1);
+      expect(await t.prisma.aiUsageLog.count({ where: { userId: user.id } })).toBe(1);
+      expect(again.text).toEqual(first.text);
+      expect(again.answer.aiMeta).toBeNull();
+    });
+
+    it('asks no model for a recipe of the shared library, and the meal holds that recipe', async () => {
+      await broccoliForTomato();
+      const { recipeId: variant } = await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: mealId } });
+      // The same recipe is in the library now: the swap is recognised as it.
+      await t.prisma.recipe.update({ where: { id: variant! }, data: { createdByUserId: null } });
+      try {
+        await theBowlAgain();
+
+        const { answer } = await broccoliForTomato({ rewriteWithAi: true });
+
+        expect(t.model.requests).toHaveLength(0);
+        expect(answer.aiMeta).toBeNull();
+        expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: mealId } })).recipeId).toBe(variant);
+      } finally {
+        // The user's again, so that it goes with the user's data and no later test finds it in the library.
+        await t.prisma.recipe.update({ where: { id: variant! }, data: { createdByUserId: user.id } });
+      }
+    });
+
+    it('asks no model when the account has no room for another recipe, and refuses the swap', async () => {
+      await t.prisma.recipe.createMany({
+        data: Array.from({ length: MAX_PERSONAL_RECIPES }, (_, index) => ({
+          title: `Filler ${index}`,
+          description: '',
+          servings: 1,
+          prepMinutes: 1,
+          cookMinutes: 1,
+          origin: 'user' as const,
+          createdByUserId: user.id,
+        })),
+      });
+
+      await expect(broccoliForTomato({ rewriteWithAi: true })).rejects.toMatchObject({ status: 403, response: { error: 'PERSONAL_RECIPE_LIMIT' } });
+
+      expect(t.model.requests).toHaveLength(0);
+      expect(await t.prisma.aiUsageLog.count({ where: { userId: user.id } })).toBe(0);
     });
   });
 });
