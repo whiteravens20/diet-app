@@ -2,7 +2,8 @@
 
 /**
  * The units a quantity is kept in, and those of them an ingredient can be
- * kept in. The schema that checks a unit is built on this list (`enums.ts`).
+ * kept in, and the energy a gram of each macronutrient gives. The schema that
+ * checks a unit is built on this list (`enums.ts`).
  *
  * This file needs nothing else of the contract. A page that only has to know
  * them takes them from `@diet-app/shared/units`, and loads no schema and no
@@ -41,3 +42,6 @@ export function pantryUnits(ingredient: {
   if (ingredient.displayUnit !== null && converts('piece')) return ['piece'];
   return UNITS.filter(converts);
 }
+
+/** kcal in 1 g of each macronutrient (Atwater factors): how a target is split into grams, and grams into shares of energy. */
+export const KCAL_PER_GRAM = { protein: 4, fat: 9, carbs: 4 } as const;

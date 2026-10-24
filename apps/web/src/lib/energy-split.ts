@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { KCAL_PER_GRAM, type Macros } from '@diet-app/shared';
+import type { Macros } from '@diet-app/shared';
+import { KCAL_PER_GRAM } from '@diet-app/shared/units';
 
 /** One macronutrient's part of the energy: its grams, the kcal they give and its whole-percent share. */
 export interface EnergyPart {
