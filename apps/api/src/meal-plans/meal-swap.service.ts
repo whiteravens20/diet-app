@@ -123,7 +123,6 @@ export class MealSwapService {
       currentTitle: slot.current.title,
       currentKcal: Math.round(slot.current.caloriesPerServing),
       candidates: pool,
-      hint: req.hint,
       locale,
     });
     const { text, meta } = await this.ai.chat(
@@ -415,7 +414,6 @@ function buildSwapPrompt(input: {
   currentTitle: string;
   currentKcal: number;
   candidates: SwapPromptCandidate[];
-  hint?: string;
   locale: Locale;
 }): { system: string; user: string } {
   const lines = input.candidates.map((c) => {
@@ -439,20 +437,16 @@ function buildSwapPrompt(input: {
     `Slot: ${input.slot}`,
     `Slot calorie budget: ~${Math.round(input.budget)} kcal`,
     `Currently planned: ${input.currentTitle} (${input.currentKcal} kcal per serving)`,
-    input.hint ? `User hint: ${input.hint}` : null,
     '',
     'Pick the candidate that:',
     '1. stays closest to the slot calorie budget at one serving,',
-    '2. honours the user hint if any,',
-    '3. is meaningfully different from the currently planned meal.',
+    '2. is meaningfully different from the currently planned meal.',
     '',
     'Candidates:',
     ...lines,
     '',
     'Respond with the JSON object only.',
-  ]
-    .filter((s): s is string => s !== null)
-    .join('\n');
+  ].join('\n');
 
   return { system, user };
 }

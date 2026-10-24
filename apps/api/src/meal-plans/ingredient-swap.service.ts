@@ -555,7 +555,6 @@ export class IngredientSwapService {
       currentCategory: from.category,
       currentKcalPer100: Math.round(from.caloriesPer100),
       candidates: pool,
-      hint: req.hint,
       locale,
     });
     const { text, meta } = await this.ai.chat(
@@ -643,7 +642,6 @@ function buildIngredientSwapPrompt(input: {
   currentCategory: string;
   currentKcalPer100: number;
   candidates: IngredientSwapPromptCandidate[];
-  hint?: string;
   locale: Locale;
 }): { system: string; user: string } {
   const lines = input.candidates.map(
@@ -663,20 +661,16 @@ function buildIngredientSwapPrompt(input: {
   const user = [
     `Category: ${input.currentCategory}`,
     `Currently using: ${input.currentName} (${input.currentKcalPer100} kcal/100g)`,
-    input.hint ? `User hint: ${input.hint}` : null,
     '',
     'Pick the candidate that:',
     '1. is the closest culinary substitute,',
-    '2. honours the user hint if any,',
-    '3. has macros in the same ballpark unless the hint says otherwise.',
+    '2. has macros in the same ballpark.',
     '',
     'Candidates:',
     ...lines,
     '',
     'Respond with the JSON object only.',
-  ]
-    .filter((s): s is string => s !== null)
-    .join('\n');
+  ].join('\n');
 
   return { system, user };
 }

@@ -8083,10 +8083,6 @@
             "type": "string",
             "format": "uuid"
           },
-          "hint": {
-            "type": "string",
-            "maxLength": 200
-          },
           "respectInventory": {
             "default": true,
             "type": "boolean"
@@ -8135,10 +8131,6 @@
           "plannedMealId": {
             "type": "string",
             "format": "uuid"
-          },
-          "hint": {
-            "type": "string",
-            "maxLength": 200
           },
           "respectInventory": {
             "default": true,

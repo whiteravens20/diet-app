@@ -565,12 +565,6 @@ export type SwapMealRequest = z.infer<typeof SwapMealRequest>;
 export const AiSwapMealRequest = z.object({
   planId: z.string().uuid(),
   plannedMealId: z.string().uuid(),
-  /**
-   * Optional free-form user hint surfaced in the prompt
-   * (e.g. *"something lighter"*, *"more protein"*, *"no fish today"*).
-   * Capped to keep the prompt cost predictable.
-   */
-  hint: z.string().trim().max(200).optional(),
   /** Put before the model first what the pantry covers. */
   respectInventory: z.boolean().default(true),
   /** Recipes offered for this meal already in this sitting. */
@@ -803,8 +797,6 @@ export const AiSuggestIngredientRequest = z.object({
   planId: z.string().uuid(),
   plannedMealId: z.string().uuid(),
   fromIngredientId: z.string().uuid(),
-  /** Optional free-form user hint, e.g. *"cheaper"*, *"higher protein"*. */
-  hint: z.string().trim().max(200).optional(),
   /** Bias the AI-ranked candidate pool toward ingredients in the pantry. */
   respectInventory: z.boolean().default(true),
 });
