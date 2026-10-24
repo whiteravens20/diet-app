@@ -44,6 +44,10 @@ model User {
   // so a fresh account never makes outbound AI calls until the user opts in.
   // Constrained at the API layer via the AiMode enum in packages/shared.
   aiMode         String   @default("none")
+  // When the operator approved the account for its AI provider, in the admin
+  // panel. Null while it is not approved; it matters while AI_ADMIN_ACCESS is
+  // `approved`.
+  operatorAiApprovedAt DateTime?
   // The unit the account reads and types a body weight in: "kg" or "lb". Null
   // until it chooses; a client then goes by where its reader is.
   weightUnit     String?

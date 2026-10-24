@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 148 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 149 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -20,6 +20,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `AI_KEY_UNREADABLE` | 409 | A saved AI provider key can no longer be read — enter it again in Settings. | Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach. |
 | `AI_MONTHLY_LIMIT_REACHED` | 403 | You've used your AI requests for this month. | Skończył się Twój miesięczny limit zapytań AI. |
 | `AI_NOT_CONFIGURED` | 409 | No AI provider is set up for your account — choose one in Settings. | Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach. |
+| `AI_NOT_PERMITTED` | 403 | The instance's AI is not open to your account. | AI instancji nie jest dostępne dla Twojego konta. |
 | `AI_PROVIDER_TIMEOUT` | 503 | AI provider was too slow — try a smaller model or a cloud provider. | Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze. |
 | `AI_UNAVAILABLE` | 503 | The AI provider didn't respond — try again in a moment. | Dostawca AI nie odpowiedział — spróbuj ponownie za chwilę. |
 | `AUTH_REQUIRED` | 401 | Sign in to continue. | Zaloguj się, aby kontynuować. |

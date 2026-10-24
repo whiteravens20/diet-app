@@ -91,10 +91,14 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  *                           application could use (no JSON, the wrong shape,
  *                           an id that was not on offer). `provider` and
  *                           `model` name who answered.
+ * - `not_permitted`       — the operator does not let this account use its
+ *                           provider now (`AI_ADMIN_ACCESS`): the address is
+ *                           not confirmed, or the account is not approved.
  */
 export const AiFallbackReason = z.enum([
   'quota_exhausted',
   'instance_quota_exhausted',
+  'not_permitted',
   'no_provider',
   'all_providers_failed',
   'provider_timeout',
@@ -137,6 +141,22 @@ export const ModelPickNote = z.string().min(1).max(2048);
 export type ModelPickNote = z.infer<typeof ModelPickNote>;
 
 /**
+ * Who the operator lets use its provider (`AI_ADMIN_ACCESS`): every account,
+ * the accounts whose address is confirmed, or the accounts the operator
+ * approved in the admin panel.
+ */
+export const OperatorAiAccess = z.enum(['everyone', 'confirmed', 'approved']);
+export type OperatorAiAccess = z.infer<typeof OperatorAiAccess>;
+
+/**
+ * Whether an account may use the operator's provider now: `granted`, or what
+ * it lacks for it under `AI_ADMIN_ACCESS`, a confirmed address or the
+ * operator's approval.
+ */
+export const AdminAiAccess = z.enum(['granted', 'email_unconfirmed', 'not_approved']);
+export type AdminAiAccess = z.infer<typeof AdminAiAccess>;
+
+/**
  * Snapshot of the caller's AI routing state. The app-shell chip and the
  * Settings AI card both render from this. `providerConfigured` flags whether
  * the operator has set `AI_DEFAULT_PROVIDER` — when false the `admin` mode
@@ -154,7 +174,8 @@ export const AiQuotaStatus = z.object({
   used: z.number().int().nonnegative(),
   /**
    * Calls the caller can still make: `limit - used`, clamped at 0, and 0 while
-   * `instanceLimitReached`. `null` when no quota applies to the caller.
+   * `instanceLimitReached`, or while `adminAccess` is not `granted`.
+   * `null` when no quota applies to the caller.
    */
   remaining: z.number().int().nonnegative().nullable(),
   /**
@@ -172,6 +193,8 @@ export const AiQuotaStatus = z.object({
   instanceLimitReached: z.boolean(),
   /** Whether `AI_DEFAULT_PROVIDER` is set (gates the `admin` mode option). */
   adminProviderConfigured: z.boolean(),
+  /** Whether the account may use the operator's provider, whatever its mode: the `admin` option is offered only when it is `granted`. */
+  adminAccess: AdminAiAccess,
 });
 export type AiQuotaStatus = z.infer<typeof AiQuotaStatus>;
 

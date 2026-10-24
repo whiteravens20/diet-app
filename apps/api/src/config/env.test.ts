@@ -199,6 +199,17 @@ describe('the data sets the food import reads', () => {
   });
 });
 
+describe("who may use the operator's AI provider", () => {
+  it('is the accounts the operator approved, unless the instance says otherwise', () => {
+    expect(validateEnv(valid())).toMatchObject({ AI_ADMIN_ACCESS: 'approved' });
+    expect(validateEnv(valid({ AI_ADMIN_ACCESS: 'everyone' })).AI_ADMIN_ACCESS).toBe('everyone');
+  });
+
+  it('is refused at start-up when it is not one of the three', () => {
+    expect(() => validateEnv(valid({ AI_ADMIN_ACCESS: 'all' }))).toThrow(/AI_ADMIN_ACCESS/);
+  });
+});
+
 describe('describePosture', () => {
   const env = () => validateEnv(valid({ APP_URL: 'https://diet.example.org', ADMIN_PASSWORD: 'a-real-admin-password', TRUST_PROXY: '1' }));
 
@@ -206,11 +217,23 @@ describe('describePosture', () => {
     expect(describePosture(env()).filter((line) => line.startsWith('!'))).toEqual([]);
   });
 
-  it('states both limits on the operator\'s AI provider when there is one', () => {
+  it('states who may use the operator\'s AI provider and its limits when there is one', () => {
     expect(describePosture(env())).toContain('operator AI provider: none');
     expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai' })).toContain(
-      'operator AI provider: openai, at most 40 calls per user and 1000 for the whole instance in 30 days',
+      'operator AI provider: openai, for the accounts approved in the admin panel, at most 40 calls per user and 1000 for the whole instance in 30 days',
     );
+    expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai', AI_ADMIN_ACCESS: 'everyone' })).toContain(
+      'operator AI provider: openai, for every account, at most 40 calls per user and 1000 for the whole instance in 30 days',
+    );
+  });
+
+  it('warns that a confirmed address lets every account in where there is no mail to confirm it with', () => {
+    const confirmed = { ...env(), AI_DEFAULT_PROVIDER: 'openai' as const, AI_ADMIN_ACCESS: 'confirmed' as const };
+
+    expect(describePosture(confirmed).filter((line) => line.startsWith('!'))).toEqual([
+      '! operator AI provider: AI_ADMIN_ACCESS=confirmed without mail lets every account in, since an address counts as confirmed at sign-up',
+    ]);
+    expect(describePosture({ ...confirmed, SMTP_HOST: 'mail.example.org', SMTP_REQUIRE_TLS: true }).filter((line) => line.startsWith('!'))).toEqual([]);
   });
 
   it('warns about a public origin that is not https and about Swagger in production', () => {

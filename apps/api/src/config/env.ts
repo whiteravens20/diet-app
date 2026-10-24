@@ -8,7 +8,7 @@
  * optional keys as `KEY=`, and such a line must mean "use the default", never
  * "the value is an empty string".
  */
-import { DEFAULT_PROFILES_PER_ACCOUNT, FdcDataTypes, MAX_PLAN_DAYS, MOST_PROFILES_PER_ACCOUNT } from '@diet-app/shared';
+import { DEFAULT_PROFILES_PER_ACCOUNT, FdcDataTypes, MAX_PLAN_DAYS, MOST_PROFILES_PER_ACCOUNT, OperatorAiAccess } from '@diet-app/shared';
 import { z } from 'zod';
 import { describeTrustProxy, parseTrustProxy } from './trust-proxy.js';
 
@@ -59,6 +59,10 @@ export const envSchema = z.object({
   // The same window for all users together: the one number that bounds what
   // the operator's provider can be asked for, however many accounts exist.
   AI_ADMIN_INSTANCE_MONTHLY_LIMIT: z.coerce.number().int().min(0).max(100_000_000).default(1000),
+  // Which accounts may use the operator's provider at all: every account, the
+  // ones whose address is confirmed (without mail every address is, at
+  // sign-up), or the ones the operator approved in the admin panel.
+  AI_ADMIN_ACCESS: OperatorAiAccess.default('approved'),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
@@ -294,6 +298,13 @@ export function validateEnv(raw: Record<string, unknown>): Env {
   };
 }
 
+/** Who `AI_ADMIN_ACCESS` lets use the operator's provider, as the start-up summary says it. */
+const ACCESS_WORDS: Record<OperatorAiAccess, string> = {
+  everyone: 'every account',
+  confirmed: 'the accounts with a confirmed address',
+  approved: 'the accounts approved in the admin panel',
+};
+
 /**
  * What an operator should know about how this instance is set up, one line per
  * point, logged once at boot. Lines that start with `!` deserve attention.
@@ -311,6 +322,7 @@ export function describePosture(
     | 'AI_DEFAULT_PROVIDER'
     | 'AI_ADMIN_USER_MONTHLY_LIMIT'
     | 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT'
+    | 'AI_ADMIN_ACCESS'
     | 'SWAGGER_ENABLED'
     | 'TRUST_PROXY'
   >,
@@ -335,8 +347,11 @@ export function describePosture(
         ? `mail: ${env.SMTP_HOST}:${env.SMTP_PORT}, encrypted`
         : `! mail: ${env.SMTP_HOST}:${env.SMTP_PORT} without TLS (SMTP_REQUIRE_TLS=false): the mail password and every reset link cross that path in the clear`,
     env.AI_DEFAULT_PROVIDER
-      ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days`
+      ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}, for ${ACCESS_WORDS[env.AI_ADMIN_ACCESS]}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days`
       : 'operator AI provider: none',
+    ...(env.AI_DEFAULT_PROVIDER && env.AI_ADMIN_ACCESS === 'confirmed' && !env.SMTP_HOST
+      ? ['! operator AI provider: AI_ADMIN_ACCESS=confirmed without mail lets every account in, since an address counts as confirmed at sign-up']
+      : []),
     env.SWAGGER_ENABLED && env.NODE_ENV === 'production'
       ? '! API documentation is served at /api/docs on a production instance'
       : `API documentation: ${env.SWAGGER_ENABLED ? 'served at /api/docs' : 'off'}`,

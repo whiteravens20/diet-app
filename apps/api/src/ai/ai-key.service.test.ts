@@ -23,6 +23,7 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
     OLLAMA_ALLOWED_HOSTS: undefined,
     AI_DEFAULT_PROVIDER: undefined,
     AI_DEFAULT_MODEL: undefined,
+    AI_ADMIN_ACCESS: 'approved',
     OPENAI_API_KEY: undefined,
     ANTHROPIC_API_KEY: undefined,
     OPENROUTER_API_KEY: undefined,
@@ -34,8 +35,11 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
 const withoutUndefined = (data: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
 
-function makePrisma(overrides: Record<string, unknown> = {}) {
+function makePrisma(overrides: Record<string, unknown> = {}, account: { emailVerified: boolean; operatorAiApprovedAt: Date | null } = { emailVerified: true, operatorAiApprovedAt: null }) {
+  const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   return {
+    /** How the account was changed in the transaction. */
+    accountUpdates: updateMany,
     aiProviderConfig: {
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn().mockResolvedValue(null),
@@ -54,7 +58,7 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
           delete: vi.fn().mockResolvedValue({}),
           count: vi.fn().mockResolvedValue(0),
         },
-        user: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        user: { updateMany, findUnique: vi.fn().mockResolvedValue(account) },
       });
     }),
     ...overrides,
@@ -203,6 +207,18 @@ describe('AiKeyService.remove', () => {
     const service = makeService(prisma);
     await expect(service.remove('user-1', 'cfg-1')).resolves.toBeUndefined();
     expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it("puts an account whose last config went on the operator's provider where the operator lets it, and turns AI off where not", async () => {
+    const approved = makePrisma({}, { emailVerified: false, operatorAiApprovedAt: new Date() });
+    const unapproved = makePrisma({}, { emailVerified: true, operatorAiApprovedAt: null });
+    for (const prisma of [approved, unapproved]) prisma.aiProviderConfig.findUnique = vi.fn().mockResolvedValue({ id: 'cfg-1', userId: 'user-1' });
+
+    await makeService(approved).remove('user-1', 'cfg-1');
+    await makeService(unapproved).remove('user-1', 'cfg-1');
+
+    expect(approved.accountUpdates).toHaveBeenCalledWith({ where: { id: 'user-1', aiMode: 'byok' }, data: { aiMode: 'admin' } });
+    expect(unapproved.accountUpdates).toHaveBeenCalledWith({ where: { id: 'user-1', aiMode: 'byok' }, data: { aiMode: 'none' } });
   });
 });
 

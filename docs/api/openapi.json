@@ -10,6 +10,106 @@
     }
   },
   "paths": {
+    "/api/admin/accounts/operator-ai": {
+      "get": {
+        "operationId": "AdminAccounts_operatorAi",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Who may use the operator's AI provider (`AI_ADMIN_ACCESS`), and how many accounts are approved for it.",
+        "description": "Who may use the operator's AI provider (`AI_ADMIN_ACCESS`), and how many accounts are approved for it.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOperatorAi"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      },
+      "put": {
+        "operationId": "AdminAccounts_approve",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Approve the account of an address for the operator's AI provider.",
+        "description": "Approve the account of an address for the operator's AI provider. It counts while `AI_ADMIN_ACCESS` is `approved`. Approving it again changes nothing; an address without an account is 404.\n\nAsked by the administrator.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorAiApproval"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      },
+      "delete": {
+        "operationId": "AdminAccounts_revoke",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Take the approval of the account of an address back.",
+        "description": "Take the approval of the account of an address back. An address without an account is 404.\n\nAsked by the administrator.\n\nLimited to 30 in a minute, for each sender.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorAiApproval"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done; the answer has no body."
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 30,
+          "seconds": 60
+        }
+      }
+    },
     "/api/admin/accounts/second-factor": {
       "delete": {
         "operationId": "AdminAccounts_removeSecondFactor",
@@ -7405,6 +7505,14 @@
           "recipeId"
         ]
       },
+      "AdminAiAccess": {
+        "type": "string",
+        "enum": [
+          "granted",
+          "email_unconfirmed",
+          "not_approved"
+        ]
+      },
       "AdminConnection": {
         "type": "object",
         "properties": {
@@ -7462,6 +7570,27 @@
           "trustProxy",
           "countedAsProxy",
           "overTrusted"
+        ],
+        "additionalProperties": false
+      },
+      "AdminOperatorAi": {
+        "type": "object",
+        "properties": {
+          "access": {
+            "$ref": "#/components/schemas/OperatorAiAccess"
+          },
+          "mailConfigured": {
+            "type": "boolean"
+          },
+          "approved": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "access",
+          "mailConfigured",
+          "approved"
         ],
         "additionalProperties": false
       },
@@ -7788,6 +7917,7 @@
         "enum": [
           "quota_exhausted",
           "instance_quota_exhausted",
+          "not_permitted",
           "no_provider",
           "all_providers_failed",
           "provider_timeout",
@@ -8055,6 +8185,9 @@
           },
           "adminProviderConfigured": {
             "type": "boolean"
+          },
+          "adminAccess": {
+            "$ref": "#/components/schemas/AdminAiAccess"
           }
         },
         "required": [
@@ -8064,7 +8197,8 @@
           "remaining",
           "resetAt",
           "instanceLimitReached",
-          "adminProviderConfigured"
+          "adminProviderConfigured",
+          "adminAccess"
         ],
         "additionalProperties": false
       },
@@ -11546,6 +11680,26 @@
           "allowlist",
           "public"
         ]
+      },
+      "OperatorAiAccess": {
+        "type": "string",
+        "enum": [
+          "everyone",
+          "confirmed",
+          "approved"
+        ]
+      },
+      "OperatorAiApproval": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/emailAddress"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false
       },
       "OverridesPulled": {
         "type": "object",

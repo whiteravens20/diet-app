@@ -107,6 +107,15 @@
       "pl": "Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach."
     }
   },
+  "AI_NOT_PERMITTED": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "The instance's AI is not open to your account.",
+      "pl": "AI instancji nie jest dostępne dla Twojego konta."
+    }
+  },
   "AI_PROVIDER_TIMEOUT": {
     "statuses": [
       503

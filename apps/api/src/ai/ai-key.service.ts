@@ -6,6 +6,7 @@ import type { AiMode, AiProviderConfig, AiProviderConfigInput } from '@diet-app/
 import { CURRENT_FORM_PREFIX } from '../common/crypto.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { adminAccessOf } from './ai-quota.service.js';
 import { isSealedForOwner, openKey, sealKey } from './key-cipher.js';
 import { assertAllowedOllamaUrl, isOperatorOllama, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
 
@@ -103,12 +104,15 @@ export class AiKeyService {
       // If this was the user's last BYOK config, flip them back to admin mode
       // — leaving aiMode='byok' with no providers would route every AI call to
       // an empty chain → deterministic fallback on every operation, no signal
-      // to the user that their setup is broken. Admin mode is the safe default.
+      // to the user that their setup is broken. Admin mode is the safe default
+      // where the operator lets the account use its provider; AI is off otherwise.
       const remaining = await tx.aiProviderConfig.count({ where: { userId } });
       if (remaining === 0) {
+        const account = await tx.user.findUnique({ where: { id: userId }, select: { emailVerified: true, operatorAiApprovedAt: true } });
+        const granted = account !== null && adminAccessOf(this.config.get('AI_ADMIN_ACCESS', { infer: true }), account) === 'granted';
         await tx.user.updateMany({
           where: { id: userId, aiMode: 'byok' },
-          data: { aiMode: 'admin' },
+          data: { aiMode: granted ? 'admin' : 'none' },
         });
       }
     });

@@ -2,12 +2,15 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-159 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+162 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
+| `GET /api/admin/accounts/operator-ai` | the administrator | Who may use the operator's AI provider (`AI_ADMIN_ACCESS`), and how many accounts are approved for it. |  | 200 `AdminOperatorAi` |  |
+| `PUT /api/admin/accounts/operator-ai` | the administrator | Approve the account of an address for the operator's AI provider. It counts while `AI_ADMIN_ACCESS` is `approved`. Approving it again changes nothing; an address without an account is 404. | `OperatorAiApproval` | 204 | 30 in a minute |
+| `DELETE /api/admin/accounts/operator-ai` | the administrator | Take the approval of the account of an address back. An address without an account is 404. | `OperatorAiApproval` | 204 | 30 in a minute |
 | `DELETE /api/admin/accounts/second-factor` | the administrator | Take the second factor off the account of an address: for a holder who lost the authenticator app and the recovery codes. The account signs in with its password alone afterwards, and is told so by mail. Whether the one who asks is the holder is for the operator to make sure of. | `AccountSecondFactorRemoval` | 204 | 10 in a minute |
 | `GET /api/admin/connection` | the administrator | What the API sees of the connection the administrator is on. Opened through the public address of the instance, it shows whether the reverse proxy passes the client's address on and whether `TRUST_PROXY` is set to believe it. |  | 200 `AdminConnection` |  |
 | `POST /api/admin/db/import-usda` | the administrator | Start an import of foods from USDA FoodData Central, in the background. It writes `ingredients.generated.json` into the data directory, and a catalogue update then loads what it wrote. `?dataTypes=` names the data types of this run (`Foundation,SR Legacy`) in the place of `FDC_DATA_TYPES`. | query `UsdaImportQuery` | 202 `FoodImportState` |  |

@@ -3,6 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -18,7 +19,7 @@ import type {
 import { Passwords } from '../common/passwords.js';
 import { storedAiMode, storedLocale, storedPalette, storedTheme, storedWeightUnit } from '../common/stored-settings.js';
 import type { Env } from '../config/env.js';
-import { carryUsageOfAccount } from '../ai/ai-quota.service.js';
+import { adminAccessOf, carryUsageOfAccount } from '../ai/ai-quota.service.js';
 import { AccountEmail } from '../auth/account-email.js';
 import { AuthService } from '../auth/auth.service.js';
 import { hashOfLink, retirePendingLinks } from '../auth/one-time-links.js';
@@ -68,6 +69,13 @@ export class UsersService {
           error: 'BYOK_NO_PROVIDER',
           message: 'Add at least one provider key before switching to bring-your-own.',
         });
+      }
+    }
+    // The operator's provider is for the accounts the operator lets use it.
+    if (dto.aiMode === 'admin') {
+      const account = await this.prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true, operatorAiApprovedAt: true } });
+      if (account && adminAccessOf(this.config.get('AI_ADMIN_ACCESS', { infer: true }), account) !== 'granted') {
+        throw new ForbiddenException({ error: 'AI_NOT_PERMITTED', message: "This instance's AI is not open to this account." });
       }
     }
     const user = await this.prisma.user.update({

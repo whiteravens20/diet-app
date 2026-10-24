@@ -2,11 +2,13 @@
 
 /**
  * What the administrator's panel is told: whether it is on, how a request
- * reached the API, what the catalogue holds and what its plans reach, and
+ * reached the API, who may use the operator's AI provider, what the catalogue holds and what its plans reach, and
  * where the two long jobs of the panel stand (the catalogue update and the
  * food import).
  */
 import * as z from './zod.js';
+import { OperatorAiAccess } from './ai.js';
+import { emailAddress } from './auth.js';
 import { DietType, MealType } from './enums.js';
 import { Macros } from './nutrition.js';
 
@@ -16,6 +18,21 @@ export const AdminStatus = z.object({
   message: z.string().nullable(),
 });
 export type AdminStatus = z.infer<typeof AdminStatus>;
+
+/** Who may use the operator's AI provider, as the admin panel shows it. */
+export const AdminOperatorAi = z.object({
+  /** `AI_ADMIN_ACCESS`. */
+  access: OperatorAiAccess,
+  /** Whether mail is set up: without it every address counts as confirmed when its account is made. */
+  mailConfigured: z.boolean(),
+  /** How many accounts the operator has approved. */
+  approved: z.number().int().min(0),
+});
+export type AdminOperatorAi = z.infer<typeof AdminOperatorAi>;
+
+/** The account whose use of the operator's AI provider is approved, or no longer approved. */
+export const OperatorAiApproval = z.object({ email: emailAddress }).strict();
+export type OperatorAiApproval = z.infer<typeof OperatorAiApproval>;
 
 /** How a request reached the API, for an operator setting up a reverse proxy. */
 export const AdminConnection = z.object({

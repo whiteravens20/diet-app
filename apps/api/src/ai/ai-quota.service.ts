@@ -3,7 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import type { AiFallbackReason, AiMode, AiQuotaStatus } from '@diet-app/shared';
+import type { AdminAiAccess, AiFallbackReason, AiMode, AiQuotaStatus, OperatorAiAccess } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -45,6 +45,19 @@ const CARRIED = Prisma.sql`"day" >= (NOW() - INTERVAL '30 days')::date`;
 
 type Db = Pick<Prisma.TransactionClient, '$queryRaw'>;
 
+/** What says whether an account may use the operator's provider. */
+interface AccessHolder {
+  emailVerified: boolean;
+  operatorAiApprovedAt: Date | null;
+}
+
+/** Whether `account` may use the operator's provider under `level`, or what it lacks for it. */
+export function adminAccessOf(level: OperatorAiAccess, account: AccessHolder): AdminAiAccess {
+  if (level === 'confirmed' && !account.emailVerified) return 'email_unconfirmed';
+  if (level === 'approved' && account.operatorAiApprovedAt === null) return 'not_approved';
+  return 'granted';
+}
+
 /**
  * Before an account is deleted: its rows of the usage log go, and what its
  * calls count for in the instance's allowance stays, by day and without the
@@ -68,6 +81,8 @@ export async function carryUsageOfAccount(tx: Prisma.TransactionClient, userId: 
  * The log of calls to AI providers, and the two monthly allowances on the
  * operator's provider that are counted from it: one per user, one for all
  * users together. Calls on a user's own provider are logged but never limited.
+ * Who may use the operator's provider at all is the operator's setting
+ * (`AI_ADMIN_ACCESS`).
  *
  * **Time source.** All rolling-window arithmetic uses the database's `NOW()`
  * rather than JS `Date.now()`. The api container's wall clock is allowed to
@@ -107,6 +122,11 @@ export class AiQuotaService {
     return this.config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true });
   }
 
+  /** Who the operator lets use its provider. */
+  access(): OperatorAiAccess {
+    return this.config.get('AI_ADMIN_ACCESS', { infer: true });
+  }
+
   /**
    * Snapshot the user's quota — what the app-shell chip and Settings card
    * render. `limit` is the operator's env-configured monthly cap and is
@@ -121,35 +141,25 @@ export class AiQuotaService {
     const instanceLimitReached = (await this.countUsed(this.prisma, null)) >= this.instanceLimit();
     const adminProviderConfigured = this.isAdminProviderConfigured();
     const limit = this.monthlyLimit();
-    if (mode !== 'admin') {
-      return {
-        mode,
-        limit,
-        used,
-        remaining: null,
-        resetAt: null,
-        instanceLimitReached,
-        adminProviderConfigured,
-      };
-    }
+    const asker = await this.asker(this.prisma, userId);
+    const adminAccess = asker ? adminAccessOf(this.access(), asker) : 'not_approved';
+    const common = { mode, limit, used, instanceLimitReached, adminProviderConfigured, adminAccess };
+    if (mode !== 'admin') return { ...common, remaining: null, resetAt: null };
+    if (adminAccess !== 'granted') return { ...common, remaining: 0, resetAt: null };
     return {
-      mode,
-      limit,
-      used,
+      ...common,
       remaining: instanceLimitReached ? 0 : Math.max(0, limit - used),
       // While the instance is full, a place comes free when its oldest call ages out.
       resetAt: await this.oldestCountedAt(instanceLimitReached ? null : userId),
-      instanceLimitReached,
-      adminProviderConfigured,
     };
   }
 
   /**
    * Record that a provider is about to be asked, and return the row to settle
-   * when it answers. For the operator's provider this is also where the
-   * allowances are enforced, the user's and the instance's: the counts and
-   * the new row are written under one lock, so calls started at the same
-   * moment cannot all take the last place.
+   * when it answers. For the operator's provider this is also where who may
+   * use it and its allowances are enforced, the user's and the instance's:
+   * the counts and the new row are written under one lock, so calls started
+   * at the same moment cannot all take the last place.
    */
   async begin(userId: string, call: UsageCall): Promise<{ id: string } | { refused: AiFallbackReason }> {
     const data = { userId, ...call, outcome: 'PENDING' as const };
@@ -158,6 +168,10 @@ export class AiQuotaService {
     }
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('ai-allowance'))`;
+      const asker = await this.asker(tx, userId);
+      if (!asker || adminAccessOf(this.access(), asker) !== 'granted') {
+        return { refused: 'not_permitted' as const };
+      }
       const limit = this.monthlyLimit();
       if (limit === 0 || (await this.countUsed(tx, userId)) >= limit) {
         return { refused: 'quota_exhausted' as const };
@@ -197,6 +211,12 @@ export class AiQuotaService {
         : Prisma.sql`SELECT COUNT(*)::bigint AS count FROM "AiUsageLog" WHERE ${COUNTED} AND "userId" = ${userId}`,
     );
     return Number(rows[0]?.count ?? 0n);
+  }
+
+  /** The account, as an allowance judges it; null when it is gone. */
+  private async asker(db: Db, userId: string): Promise<AccessHolder | null> {
+    const rows = await db.$queryRaw<AccessHolder[]>`SELECT "emailVerified", "operatorAiApprovedAt" FROM "User" WHERE "id" = ${userId}`;
+    return rows[0] ?? null;
   }
 
   /** When the oldest counted call stops counting: of one user, or of the instance when `userId` is null. */
