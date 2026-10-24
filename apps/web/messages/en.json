@@ -2026,7 +2026,7 @@
     },
     "section3": {
       "title": "BYOK keys and admin AI mode",
-      "body": "When you enable BYOK (\"bring your own key\") in Settings you provide an API key for a third-party AI provider. The operator stores that key AES-encrypted at rest but does not insulate you from the provider's terms of service or pricing. When you use admin AI mode the operator is paying for your model calls within their configured monthly quota; abuse of that mode is grounds for the operator to disable your account."
+      "body": "When you enable BYOK (\"bring your own key\") in Settings you provide an API key for a third-party AI provider. The operator stores that key AES-encrypted at rest but does not insulate you from the provider's terms of service or pricing. When you use admin AI mode the operator is paying for your model calls within their configured monthly quota; abuse of that mode is grounds for the operator to disable your account. The operator decides which accounts may use it, and may take that back."
     },
     "section4": {
       "title": "Nutrition is not medical advice",

@@ -2026,7 +2026,7 @@
     },
     "section3": {
       "title": "Własne klucze (BYOK) i AI operatora",
-      "body": "Włączając w Ustawieniach BYOK („przynieś własny klucz”), podajesz klucz API zewnętrznego dostawcy AI. Operator przechowuje ten klucz zaszyfrowany algorytmem AES, ale nie zwalnia Cię to z regulaminu ani opłat dostawcy. Korzystając z AI operatora, używasz jego puli w ramach ustawionego miesięcznego limitu; nadużywanie jej może być dla operatora podstawą do wyłączenia konta."
+      "body": "Włączając w Ustawieniach BYOK („przynieś własny klucz”), podajesz klucz API zewnętrznego dostawcy AI. Operator przechowuje ten klucz zaszyfrowany algorytmem AES, ale nie zwalnia Cię to z regulaminu ani opłat dostawcy. Korzystając z AI operatora, używasz jego puli w ramach ustawionego miesięcznego limitu; nadużywanie jej może być dla operatora podstawą do wyłączenia konta. Operator decyduje, które konta mogą z niej korzystać. Może też tę zgodę cofnąć."
     },
     "section4": {
       "title": "Wartości odżywcze to nie porada medyczna",
