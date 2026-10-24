@@ -795,6 +795,24 @@
       },
       "shipDismiss": "Dismiss"
     },
+    "operatorAi": {
+      "title": "AI of the instance",
+      "access": {
+        "everyone": "Every account may use the operator's AI provider (AI_ADMIN_ACCESS=everyone).",
+        "confirmed": "The accounts with a confirmed email address may use the operator's AI provider (AI_ADMIN_ACCESS=confirmed).",
+        "approved": "Only the accounts approved here may use the operator's AI provider (AI_ADMIN_ACCESS=approved)."
+      },
+      "confirmedWithoutMail": "Mail is not set up, so every address counts as confirmed when its account is made: every account gets in.",
+      "approvedCount": "{count, plural, =0 {No account is approved yet.} one {One account is approved.} other {# accounts are approved.}}",
+      "approvalsWait": "{count, plural, =0 {Approvals count once AI_ADMIN_ACCESS is approved.} one {One account is approved, which counts once AI_ADMIN_ACCESS is approved.} other {# accounts are approved, which counts once AI_ADMIN_ACCESS is approved.}}",
+      "email": "Email address of the account",
+      "approve": "Approve",
+      "revoke": "Take the approval back",
+      "approved": "{email} may use the instance's AI.",
+      "revoked": "{email} is no longer approved for the instance's AI.",
+      "loadFailed": "Could not read who may use the instance's AI.",
+      "failed": "The change did not go through."
+    },
     "connection": {
       "title": "Connection",
       "intro": "What the API sees of the connection you are on. Open this page through the instance's public address to check a reverse proxy.",

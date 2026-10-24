@@ -795,6 +795,24 @@
       },
       "shipDismiss": "Zamknij"
     },
+    "operatorAi": {
+      "title": "AI instancji",
+      "access": {
+        "everyone": "Z dostawcy AI operatora może korzystać każde konto (AI_ADMIN_ACCESS=everyone).",
+        "confirmed": "Z dostawcy AI operatora mogą korzystać konta z potwierdzonym adresem e-mail (AI_ADMIN_ACCESS=confirmed).",
+        "approved": "Z dostawcy AI operatora mogą korzystać tylko konta zatwierdzone tutaj (AI_ADMIN_ACCESS=approved)."
+      },
+      "confirmedWithoutMail": "Poczta nie jest skonfigurowana, więc każdy adres jest potwierdzony już przy zakładaniu konta: dostęp ma każde konto.",
+      "approvedCount": "{count, plural, =0 {Nie zatwierdzono jeszcze żadnego konta.} one {Zatwierdzono jedno konto.} few {Zatwierdzono # konta.} many {Zatwierdzono # kont.} other {Zatwierdzono # konta.}}",
+      "approvalsWait": "{count, plural, =0 {Zatwierdzenia zaczną działać po ustawieniu AI_ADMIN_ACCESS=approved.} one {Zatwierdzono jedno konto; zacznie to działać po ustawieniu AI_ADMIN_ACCESS=approved.} few {Zatwierdzono # konta; zacznie to działać po ustawieniu AI_ADMIN_ACCESS=approved.} many {Zatwierdzono # kont; zacznie to działać po ustawieniu AI_ADMIN_ACCESS=approved.} other {Zatwierdzono # konta; zacznie to działać po ustawieniu AI_ADMIN_ACCESS=approved.}}",
+      "email": "Adres e-mail konta",
+      "approve": "Zatwierdź",
+      "revoke": "Cofnij zatwierdzenie",
+      "approved": "Konto {email} może korzystać z AI instancji.",
+      "revoked": "Konto {email} nie jest już zatwierdzone do AI instancji.",
+      "loadFailed": "Nie udało się odczytać, kto może korzystać z AI instancji.",
+      "failed": "Nie udało się wprowadzić zmiany."
+    },
     "connection": {
       "title": "Połączenie",
       "intro": "To, co API widzi z połączenia, przez które tu jesteś. Otwórz tę stronę przez publiczny adres instancji, żeby sprawdzić reverse proxy.",

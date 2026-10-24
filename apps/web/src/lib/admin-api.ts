@@ -8,6 +8,7 @@
  */
 import type {
   AdminConnection,
+  AdminOperatorAi,
   AdminSessionState,
   AdminStats,
   AdminStatus,
@@ -41,7 +42,7 @@ import type {
 import { apiClient } from './http';
 
 // What the API answers with is a type of the contract, under the name the panel has for it.
-export type { AdminConnection, AdminStats, AdminStatus, DraftRunnerState, IngredientNameDraft, InstanceDataState, InstanceSettingsDto, RecipeDraft, RecipeDraftIngredientLine, ShipKind, ShipMode };
+export type { AdminConnection, AdminOperatorAi, AdminStats, AdminStatus, DraftRunnerState, IngredientNameDraft, InstanceDataState, InstanceSettingsDto, RecipeDraft, RecipeDraftIngredientLine, ShipKind, ShipMode };
 export type IngredientNameSuggestionMap = IngredientNameSuggestion;
 export type DraftLocaleReview = LocaleReview;
 export type DraftPastReview = PastReview;
@@ -143,6 +144,12 @@ export const adminApi = {
   endSecondFactor: (password: string, code: string) => adminFetch<void>('/session/second-factor', { method: 'DELETE', body: JSON.stringify({ password, code }) }),
   /** Take the second factor off the account of an address, for a holder who lost it. */
   removeAccountSecondFactor: (email: string) => adminFetch<void>('/accounts/second-factor', { method: 'DELETE', body: JSON.stringify({ email }) }),
+  /** Who may use the operator's AI provider, and how many accounts are approved for it. */
+  operatorAi: () => adminFetch<AdminOperatorAi>('/accounts/operator-ai'),
+  /** Approve the account of an address for the operator's AI provider. */
+  approveOperatorAi: (email: string) => adminFetch<void>('/accounts/operator-ai', { method: 'PUT', body: JSON.stringify({ email }) }),
+  /** Take the approval of the account of an address back. */
+  revokeOperatorAi: (email: string) => adminFetch<void>('/accounts/operator-ai', { method: 'DELETE', body: JSON.stringify({ email }) }),
   signOut: () => adminFetch<void>('/session', { method: 'DELETE' }),
   /** End every admin session there is, this one too. */
   endAllSessions: () => adminFetch<void>('/session/end-all', { method: 'POST' }),
