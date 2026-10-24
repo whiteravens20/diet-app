@@ -438,6 +438,15 @@ links expire after 1 hour and work once. A link to reset the password or to conf
 address also stops working when another one is asked for, and when the account's password
 or address changes in the meantime.
 
+An account whose address is not confirmed sees a notice over every page, with a button
+that sends the link again; the account's Email card in Settings has the same button. It
+can be asked for two minutes after the last mail: while the last link has more than ten
+minutes left the same link goes out, otherwise a new one, and the ones before stop
+working. An unconfirmed address blocks nothing but the instance's AI provider, where
+`AI_ADMIN_ACCESS=confirmed` (see [The instance's AI provider](#the-instances-ai-provider)).
+Accounts made while mail was not configured were confirmed when they were made, and stay
+so once it is: they are not asked to confirm.
+
 ## The worker
 
 The worker is the same image started as `node apps/api/dist/worker.js`. It serves no
