@@ -7,11 +7,18 @@ import { useTranslations } from 'next-intl';
 import { ApiClientError, waitOf } from './http';
 
 /**
+ * Refusals whose own words say what to do better than a count of minutes
+ * would: a wait of a day, and a mail that is on its way.
+ */
+const SAYS_ITS_OWN_WAIT = new Set(['TOO_MANY_SIGN_UPS', 'VERIFICATION_SENT_RECENTLY']);
+
+/**
  * A request that failed, in the reader's language. Every screen words a
  * failure through this, whoever asked (an account, the administrator, a
  * reviewer):
  *
- *  - a request that was held up says for how long, when the server said;
+ *  - a request that was held up says for how long, when the server said,
+ *    unless its refusal says that in words of its own;
  *  - a refusal says what its code stands for, with the fields a refused form
  *    named;
  *  - a code this version has no words for is shown as the API put it, which
@@ -27,7 +34,7 @@ export function useErrorText(): (err: unknown, fallback?: string) => string {
   return useCallback(
     (err, fallback) => {
       if (!(err instanceof ApiClientError)) return fallback ?? t('GENERIC');
-      const wait = waitOf(err.status, err.retryAfterSeconds);
+      const wait = SAYS_ITS_OWN_WAIT.has(err.code) ? null : waitOf(err.status, err.retryAfterSeconds);
       if (wait) return t(wait.unit === 'minutes' ? 'HELD_UP_MINUTES' : 'HELD_UP_SECONDS', { count: wait.count });
       if (err.code === 'VALIDATION_FAILED' && err.issues && err.issues.length > 0) {
         const fields = [...new Set(err.issues.map((issue) => issue.path).filter(Boolean))];

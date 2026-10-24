@@ -45,6 +45,15 @@ describe('what anybody is told when a request failed', () => {
     expect(told(held(undefined))).toBe(en.errors.TOO_MANY_ATTEMPTS);
   });
 
+  it('is the refusal\'s own words where they say what to do better than minutes would', () => {
+    const signUps = new ApiClientError(429, 'TOO_MANY_SIGN_UPS', 'This address has opened 3 accounts in the last day.', undefined, 86_220);
+
+    expect(told(signUps)).toBe(en.errors.TOO_MANY_SIGN_UPS);
+    expect(told(signUps, { locale: 'pl' })).toBe(pl.errors.TOO_MANY_SIGN_UPS);
+    // A link that went out a moment ago is better looked for than waited for.
+    expect(told(new ApiClientError(429, 'VERIFICATION_SENT_RECENTLY', 'A verification mail was sent a moment ago.', undefined, 75))).toBe(en.errors.VERIFICATION_SENT_RECENTLY);
+  });
+
   it('names the fields a refused form got wrong', () => {
     const refused = new ApiClientError(400, 'VALIDATION_FAILED', 'Request payload failed validation.', [
       { path: 'weightKg', message: 'Too big: expected number to be <=400' },
