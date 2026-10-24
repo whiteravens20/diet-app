@@ -36,10 +36,10 @@ export function MacroChart({ grams, kcal }: { grams: Macros; kcal: number }) {
 
   return (
     <div className="space-y-3">
-      {/* The ring says nothing the legend does not: the legend is what is read out. */}
+      {/* The ring says nothing the legend does not: the legend is what is read out, and the ring takes no focus either. */}
       <div className="relative h-64" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%" onResize={(width) => setWide(width >= LABELS_FROM_WIDTH)}>
-          <PieChart>
+          <PieChart accessibilityLayer={false}>
             <Pie
               data={parts}
               dataKey="kcal"
@@ -48,6 +48,7 @@ export function MacroChart({ grams, kcal }: { grams: Macros; kcal: number }) {
               outerRadius={84}
               paddingAngle={parts.length > 1 ? 2 : 0}
               stroke="none"
+              rootTabIndex={-1}
               animationDuration={700}
               label={wide ? FloatingLabel : false}
               labelLine={false}
