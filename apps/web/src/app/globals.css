@@ -256,6 +256,12 @@ body {
     opacity: 0;
   }
 }
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .dialog[open] {
     animation: dialog-in 160ms ease-out;
@@ -277,6 +283,10 @@ body {
   /* A page of the app that takes the place of another. */
   .page-in {
     animation: page-in 160ms ease-out;
+  }
+  /* A label that floats out beside a chart once the chart is drawn. */
+  .float-in {
+    animation: float-in 420ms ease-out both;
   }
 }
 

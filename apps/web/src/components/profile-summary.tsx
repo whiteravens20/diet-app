@@ -22,7 +22,7 @@ import { useFormat } from '@/lib/use-format';
 /** Fetched when a ring is first shown: the charting library is the heaviest thing the dashboard has. */
 const MacroChart = dynamic(() => import('@/components/macro-chart').then((chart) => chart.MacroChart), {
   ssr: false,
-  loading: () => <Skeleton className="h-64" />,
+  loading: () => <Skeleton className="h-80" />,
 });
 
 /**
@@ -92,13 +92,7 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
             <CardTitle>{t('macroSplit')}</CardTitle>
           </CardHeader>
           <CardContent>
-            {c ? (
-              <div className="h-64">
-                <MacroChart grams={c.targetMacros} />
-              </div>
-            ) : (
-              <Skeleton className="h-64" />
-            )}
+            {c ? <MacroChart grams={c.targetMacros} kcal={c.dailyTarget} /> : <Skeleton className="h-80" />}
           </CardContent>
         </Card>
 
