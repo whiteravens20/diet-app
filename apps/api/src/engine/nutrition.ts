@@ -7,7 +7,7 @@
  * profile inputs alone — no randomness, no AI, no I/O: every calorie and macro
  * calculation is deterministic.
  */
-import { MIN_CALORIE_TARGET, riskOfLosingWeight, type ActivityLevel, type CalorieCalculation, type DietType, type Macros, type Sex } from '@diet-app/shared';
+import { KCAL_PER_GRAM, MIN_CALORIE_TARGET, riskOfLosingWeight, type ActivityLevel, type CalorieCalculation, type DietType, type Macros, type Sex } from '@diet-app/shared';
 
 /** Mifflin-St Jeor activity multipliers (BMR → TDEE / maintenance). */
 const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
@@ -20,9 +20,6 @@ const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
 
 /** Energy density of body fat — 1 kg ≈ 7700 kcal. */
 const KCAL_PER_KG_FAT = 7700;
-
-/** kcal in 1 g of each macronutrient (Atwater factors). */
-const KCAL_PER_GRAM = { protein: 4, fat: 9, carbs: 4 } as const;
 
 /**
  * Macro split per diet type, as fractions of total daily calories.

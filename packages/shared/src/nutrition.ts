@@ -10,6 +10,9 @@ export const Macros = z.object({
 });
 export type Macros = z.infer<typeof Macros>;
 
+/** kcal in 1 g of each macronutrient (Atwater factors): how a target is split into grams, and grams into shares of energy. */
+export const KCAL_PER_GRAM = { protein: 4, fat: 9, carbs: 4 } as const;
+
 /** How much the protein, fat and carbohydrate of something change, in grams: under nothing for less. */
 export const MacroChange = z.object({
   protein: z.number(),
