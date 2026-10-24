@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MailModule } from '../mail/mail.module.js';
+import { SignUps } from '../rate-limit/sign-ups.js';
 import { AccountEmail } from './account-email.js';
 import { AccountSecondFactor } from './account-second-factor.service.js';
 import { AddressResealService } from './address-reseal.service.js';
@@ -18,7 +19,7 @@ import { TurnstileService } from './turnstile.service.js';
 @Module({
   imports: [PassportModule, JwtModule.register({}), MailModule],
   controllers: [AuthController],
-  providers: [AuthService, AccountEmail, AccountSecondFactor, AddressResealService, BrowserSignIn, SecondFactors, SessionsService, JwtStrategy, TurnstileService],
+  providers: [AuthService, AccountEmail, AccountSecondFactor, AddressResealService, BrowserSignIn, SecondFactors, SessionsService, JwtStrategy, TurnstileService, SignUps],
   exports: [AuthService, AccountEmail, AccountSecondFactor, AddressResealService, BrowserSignIn, SecondFactors, SessionsService],
 })
 export class AuthModule {}
