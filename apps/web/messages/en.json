@@ -58,7 +58,9 @@
     "byokTooltip": "Using your own AI provider key. No quota.",
     "exhaustedLabel": "0/{limit, number}",
     "exhaustedTooltip": "Monthly AI requests exhausted. Next slot frees up {date}.",
-    "instanceExhaustedTooltip": "This instance's shared AI requests for the month are used up. Next slot frees up {date}."
+    "instanceExhaustedTooltip": "This instance's shared AI requests for the month are used up. Next slot frees up {date}.",
+    "newAccountsExhaustedTooltip": "New accounts have used their part of the instance's AI requests. Next slot frees up {date}.",
+    "noAccessTooltip": "The instance's AI is not open to this account. See Settings."
   },
   "aiOff": {
     "note": "AI is turned off for this account, so the actions that ask a model are switched off. <settings>Turn AI on in Settings</settings> to use them."
@@ -1387,6 +1389,9 @@
     "aiModeAdminHint": "Borrow the operator's provider, capped at {limit, number} requests per month.",
     "aiModeAdminUnavailable": "The operator hasn't configured a default provider.",
     "aiModeAdminDisabled": "The operator has not enabled shared AI for users on this instance.",
+    "aiModeAdminConfirmEmail": "Confirm your email address to use the instance's AI. You can send a new link from the Email card.",
+    "aiModeAdminNotApproved": "The operator opens the instance's AI to the accounts they approve. Write to the operator to ask for it:",
+    "aiModeAdminNoContact": "This instance has published no contact.",
     "aiModeByok": "Bring your own key",
     "aiModeByokHint": "Use your own OpenAI / Anthropic / OpenRouter key or Ollama instance. No quota — you own the cost.",
     "aiModeByokUnavailable": "Add at least one provider key below before switching to bring-your-own.",
@@ -1397,6 +1402,9 @@
     "aiQuotaUsed": "{used, number}/{limit, number} requests used this month",
     "aiQuotaResetAt": "Next request frees up {date}",
     "aiQuotaUnused": "No requests used yet — the counter resets thirty days after your first call.",
+    "aiQuotaNoAccess": "The instance's AI is not open to this account now.",
+    "aiQuotaNewAccount": "Until {date} this account is new: it shares a smaller part of the instance's requests with the other new accounts.",
+    "aiQuotaNewAccountsUsedUp": "New accounts have used their part of the instance's requests for now. From {date} this account has its full limit.",
     "aiTestConnection": "Test connection",
     "aiTesting": "Testing…",
     "aiTestOk": "Connected. Pick a model below.",

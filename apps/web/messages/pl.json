@@ -58,7 +58,9 @@
     "byokTooltip": "Używasz własnego klucza AI. Bez limitu.",
     "exhaustedLabel": "0/{limit, number}",
     "exhaustedTooltip": "Miesięczny limit AI wyczerpany. Następne zapytanie odblokuje się {date}.",
-    "instanceExhaustedTooltip": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. Kolejne zapytanie odblokuje się {date}."
+    "instanceExhaustedTooltip": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana. Kolejne zapytanie odblokuje się {date}.",
+    "newAccountsExhaustedTooltip": "Nowe konta wykorzystały swoją część zapytań AI instancji. Kolejne zapytanie odblokuje się {date}.",
+    "noAccessTooltip": "AI instancji nie jest dostępne dla tego konta. Szczegóły w Ustawieniach."
   },
   "aiOff": {
     "note": "AI jest wyłączone dla tego konta, więc akcje, które pytają model, są nieaktywne. <settings>Włącz AI w Ustawieniach</settings>, żeby z nich korzystać."
@@ -1387,6 +1389,9 @@
     "aiModeAdminHint": "Korzystasz z dostawcy operatora, z limitem {limit, number} zapytań na miesiąc.",
     "aiModeAdminUnavailable": "Operator nie skonfigurował domyślnego dostawcy.",
     "aiModeAdminDisabled": "Operator nie udostępnił współdzielonego AI użytkownikom tej instancji.",
+    "aiModeAdminConfirmEmail": "Potwierdź adres e-mail, żeby korzystać z AI instancji. Nowy link możesz wysłać w karcie E-mail.",
+    "aiModeAdminNotApproved": "Operator udostępnia AI instancji kontom, które zatwierdzi. Napisz do operatora, żeby poprosić o dostęp:",
+    "aiModeAdminNoContact": "Ta instancja nie podała kontaktu do operatora.",
     "aiModeByok": "Użyj własnego klucza",
     "aiModeByokHint": "Twój klucz OpenAI / Anthropic / OpenRouter lub instancja Ollama. Bez limitu — koszty zużycia po Twojej stronie.",
     "aiModeByokUnavailable": "Dodaj co najmniej jeden klucz dostawcy poniżej, zanim przełączysz się na własny klucz.",
@@ -1397,6 +1402,9 @@
     "aiQuotaUsed": "Wykorzystano {used, number}/{limit, number} zapytań w tym miesiącu",
     "aiQuotaResetAt": "Następne zapytanie odblokuje się {date}",
     "aiQuotaUnused": "Nie użyto jeszcze żadnych zapytań — licznik resetuje się 30 dni po pierwszym wywołaniu.",
+    "aiQuotaNoAccess": "AI instancji nie jest teraz dostępne dla tego konta.",
+    "aiQuotaNewAccount": "Do {date} to konto jest nowe: dzieli mniejszą część puli instancji z innymi nowymi kontami.",
+    "aiQuotaNewAccountsUsedUp": "Nowe konta wykorzystały na razie swoją część puli instancji. Od {date} to konto ma pełny limit.",
     "aiTestConnection": "Sprawdź połączenie",
     "aiTesting": "Sprawdzanie…",
     "aiTestOk": "Połączono. Wybierz model poniżej.",

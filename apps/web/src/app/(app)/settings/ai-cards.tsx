@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { DisclaimerNotice } from '@/components/disclaimer-notice';
+import { OperatorContact } from '@/components/operator-contact';
 import { cn } from '@/lib/utils';
 import { useFormat } from '@/lib/use-format';
 
@@ -65,6 +66,9 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
   const adminProviderConfigured = status?.adminProviderConfigured === true;
   const adminSharingEnabled = (status?.limit ?? 0) > 0;
   const adminAvailable = quota.isSuccess && adminProviderConfigured && adminSharingEnabled;
+  // The operator decides which accounts may use its provider: the option is
+  // there, and off, for one that may not, with what it takes to get it.
+  const adminAccess = status?.adminAccess ?? 'granted';
   // Same idea for BYOK: only meaningful once the providers list resolved.
   // When the user has zero enabled keys the radio is disabled so they can't
   // flip into a mode that would silently fall back to deterministic.
@@ -81,6 +85,7 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
 
   function isModeDisabled(mode: AiMode): boolean {
     if (mode === 'byok') return !byokAvailable;
+    if (mode === 'admin') return adminAccess !== 'granted';
     return false;
   }
 
@@ -145,6 +150,12 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
                 : t('aiModeAdminUnavailable')}
             </p>
           )}
+          {adminAvailable && adminAccess !== 'granted' && (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p className="italic">{adminAccess === 'email_unconfirmed' ? t('aiModeAdminConfirmEmail') : t('aiModeAdminNotApproved')}</p>
+              {adminAccess === 'not_approved' && <OperatorContact notPublished={t('aiModeAdminNoContact')} />}
+            </div>
+          )}
         </fieldset>
 
         {me.aiMode !== 'none' && <DisclaimerNotice bodyKey="aiActivated" />}
@@ -158,7 +169,9 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
                 limit: status.limit,
               })}
             </p>
-            {status.resetAt ? (
+            {status.adminAccess !== 'granted' ? (
+              <p className="text-xs text-muted-foreground">{t('aiQuotaNoAccess')}</p>
+            ) : status.resetAt ? (
               <p className="text-xs text-muted-foreground">
                 {t('aiQuotaResetAt', {
                   date: fmt.moment(status.resetAt),
@@ -166,6 +179,11 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">{t('aiQuotaUnused')}</p>
+            )}
+            {status.adminAccess === 'granted' && status.newUntil && (
+              <p className="text-xs text-muted-foreground">
+                {t(status.newAccountsLimitReached ? 'aiQuotaNewAccountsUsedUp' : 'aiQuotaNewAccount', { date: fmt.moment(status.newUntil) })}
+              </p>
             )}
           </div>
         )}
