@@ -42,7 +42,7 @@ export class AccountExportService {
   async *pieces(userId: string, now: Date = new Date()): AsyncGenerator<string> {
     const account = await this.users.getMe(userId);
     const [user, secondFactor, providers, profiles] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { createdAt: true } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { createdAt: true, operatorAiApprovedAt: true } }),
       this.prisma.secondFactor.findUnique({ where: { userId }, select: { createdAt: true } }),
       this.prisma.aiProviderConfig.findMany({ where: { userId }, orderBy: { provider: 'asc' } }),
       this.prisma.profile.findMany({ where: { userId }, include: { preferences: true }, orderBy: { createdAt: 'asc' } }),
@@ -63,6 +63,8 @@ export class AccountExportService {
       createdAt: user.createdAt.toISOString(),
       // Whether sign-in takes a second step, and since when. Its secret and its recovery codes stay where they are.
       secondFactorSince: secondFactor?.createdAt.toISOString() ?? null,
+      // When the operator approved the account for its AI provider, where it did.
+      operatorAiApprovedAt: user.operatorAiApprovedAt?.toISOString() ?? null,
     })}`;
     yield `,${field('sessions', await this.sessions.list(userId))}`;
     yield `,${field(

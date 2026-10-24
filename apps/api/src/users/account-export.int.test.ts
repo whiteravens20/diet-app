@@ -101,6 +101,7 @@ describe('everything an account holds, as one file', () => {
       weightUnit: null,
       createdAt: expect.any(String),
       secondFactorSince: null,
+      operatorAiApprovedAt: null,
     });
     expect(file.sessions).toHaveLength(1);
     for (const list of ['aiProviders', 'profiles', 'weights', 'pantry', 'markedRecipes', 'favoriteSets', 'ownRecipes', 'plans', 'notifications', 'aiCalls'] as const) expect(file[list], list).toEqual([]);
@@ -158,6 +159,15 @@ describe('everything an account holds, as one file', () => {
     // That there is a key, and that sign-in takes a second step, it does say.
     expect(file.aiProviders).toEqual([expect.objectContaining({ provider: 'openai', model: 'gpt', hasKey: true })]);
     expect(file.account.secondFactorSince).toEqual(expect.any(String));
+  });
+
+  it("says since when the operator has let the account use its AI provider", async () => {
+    const approvedAt = new Date('2026-10-20T08:00:00.000Z');
+    await t.prisma.user.update({ where: { id: user.id }, data: { operatorAiApprovedAt: approvedAt } });
+
+    const { file } = await fileOf();
+
+    expect(file.account.operatorAiApprovedAt).toBe(approvedAt.toISOString());
   });
 
   it('holds nothing of another account', async () => {
