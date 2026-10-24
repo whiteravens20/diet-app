@@ -877,6 +877,10 @@ model AiUsageLog {
 model AiUsageOfDeletedAccounts {
   day   DateTime @id @db.Date
   calls Int
+  // Of `calls`, the ones made by accounts that were still new when they were
+  // deleted (AI_ADMIN_NEW_ACCOUNT_DAYS): they still count for the new
+  // accounts' part, or deleting one would give the part back.
+  newAccountCalls Int @default(0)
 }
 
 // ── Curation queue (drafts) ───────────────────────────────────────────────────

@@ -186,7 +186,7 @@ export class UsersService {
         // Its own recipes, and what the curation queue holds of them.
         await removePersonalRecipesOf(tx, userId);
         // The record of its AI calls; what they count for stays, without the account.
-        await carryUsageOfAccount(tx, userId);
+        await carryUsageOfAccount(tx, userId, this.config.get('AI_ADMIN_NEW_ACCOUNT_DAYS', { infer: true }));
         // With the account itself: its profiles (their weights, notifications,
         // preferences and pantry), its provider keys and every token of it.
         await tx.user.delete({ where: { id: userId } });

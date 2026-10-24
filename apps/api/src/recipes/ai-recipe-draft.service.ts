@@ -434,6 +434,11 @@ function draftUnavailable(reason: AiFallbackReason | null): HttpException {
         error: 'AI_INSTANCE_LIMIT_REACHED',
         message: "This instance's shared AI requests for the month are used up.",
       });
+    case 'new_accounts_quota_exhausted':
+      return new ForbiddenException({
+        error: 'AI_NEW_ACCOUNTS_LIMIT_REACHED',
+        message: "The part of this instance's AI requests that new accounts share is used up for now.",
+      });
     case 'not_permitted':
       return new ForbiddenException({
         error: 'AI_NOT_PERMITTED',

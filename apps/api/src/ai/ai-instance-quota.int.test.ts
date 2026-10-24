@@ -92,7 +92,7 @@ describe("the instance's monthly allowance on the operator's provider", () => {
     expect((await ask(second)).meta.fallbackReason).toBe('instance_quota_exhausted');
     // The rows of the calls went with the account; the day they were made on is all that is left.
     expect(await t.prisma.aiUsageLog.count()).toBe(0);
-    expect(await t.prisma.aiUsageOfDeletedAccounts.findMany()).toEqual([{ day: expect.any(Date), calls: 2 }]);
+    expect(await t.prisma.aiUsageOfDeletedAccounts.findMany()).toEqual([{ day: expect.any(Date), calls: 2, newAccountCalls: 0 }]);
     // A place comes free when that day is thirty days gone.
     const status = await quota(second);
     expect(status).toMatchObject({ instanceLimitReached: true, remaining: 0 });
@@ -108,7 +108,7 @@ describe("the instance's monthly allowance on the operator's provider", () => {
     await ask(second);
     await t.http().delete('/api/users/me').set(as(second)).send({ currentPassword: second.password }).expect(204);
 
-    expect(await t.prisma.aiUsageOfDeletedAccounts.findMany()).toEqual([{ day: expect.any(Date), calls: 2 }]);
+    expect(await t.prisma.aiUsageOfDeletedAccounts.findMany()).toEqual([{ day: expect.any(Date), calls: 2, newAccountCalls: 0 }]);
     const third = await aUser(t);
     await t.prisma.user.update({ where: { id: third.id }, data: { aiMode: 'admin' } });
     expect((await ask(third)).meta.fallbackReason).toBe('instance_quota_exhausted');

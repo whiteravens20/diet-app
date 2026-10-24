@@ -98,6 +98,15 @@
       "pl": "Skończył się Twój miesięczny limit zapytań AI."
     }
   },
+  "AI_NEW_ACCOUNTS_LIMIT_REACHED": {
+    "statuses": [
+      403
+    ],
+    "messages": {
+      "en": "New accounts have used their part of this instance's AI requests for now. Once your account is no longer new, it has its full limit.",
+      "pl": "Nowe konta wykorzystały na razie swoją część zapytań AI tej instancji. Gdy konto przestanie być nowe, dostanie pełny limit."
+    }
+  },
   "AI_NOT_CONFIGURED": {
     "statuses": [
       409

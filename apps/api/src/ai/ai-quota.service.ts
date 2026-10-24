@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { AdminAiAccess, AiFallbackReason, AiMode, AiQuotaStatus, OperatorAiAccess } from '@diet-app/shared';
-import type { Env } from '../config/env.js';
+import { newAccountsLimit, type Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** A call to a provider, as the usage log records it. */
@@ -62,27 +62,47 @@ export function adminAccessOf(level: OperatorAiAccess, account: AccessHolder): A
  * Before an account is deleted: its rows of the usage log go, and what its
  * calls count for in the instance's allowance stays, by day and without the
  * account. Otherwise an account that used up its allowance could be deleted
- * and made again, and the instance's own limit would never be reached.
+ * and made again, and the instance's own limit would never be reached. The
+ * calls of an account that is still new, younger than `newAccountDays`,
+ * stay counted for the new accounts' part as well, for the same reason.
  */
-export async function carryUsageOfAccount(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+export async function carryUsageOfAccount(tx: Prisma.TransactionClient, userId: string, newAccountDays: number): Promise<void> {
+  const [account] = await tx.$queryRaw<Array<{ isNew: boolean }>>`
+    SELECT "createdAt" > NOW() - make_interval(days => ${newAccountDays}::int) AS "isNew" FROM "User" WHERE "id" = ${userId}`;
+  const ofNew = account?.isNew ? Prisma.sql`COUNT(*)` : Prisma.sql`0`;
   await tx.$executeRaw`
-    INSERT INTO "AiUsageOfDeletedAccounts" ("day", "calls")
-    SELECT "createdAt"::date, COUNT(*)
+    INSERT INTO "AiUsageOfDeletedAccounts" ("day", "calls", "newAccountCalls")
+    SELECT "createdAt"::date, COUNT(*), ${ofNew}
     FROM "AiUsageLog"
     WHERE "userId" = ${userId} AND "mode" = 'admin' AND "outcome" = 'COMPLETED' AND "createdAt" >= NOW() - INTERVAL '30 days'
     GROUP BY 1
-    ON CONFLICT ("day") DO UPDATE SET "calls" = "AiUsageOfDeletedAccounts"."calls" + EXCLUDED."calls"`;
+    ON CONFLICT ("day") DO UPDATE SET
+      "calls" = "AiUsageOfDeletedAccounts"."calls" + EXCLUDED."calls",
+      "newAccountCalls" = "AiUsageOfDeletedAccounts"."newAccountCalls" + EXCLUDED."newAccountCalls"`;
   await tx.aiUsageLog.deleteMany({ where: { userId } });
   // Days that count for nothing any more.
   await tx.$executeRaw`DELETE FROM "AiUsageOfDeletedAccounts" WHERE NOT (${CARRIED})`;
 }
 
+/** An account as an allowance judges it. */
+interface Asker extends AccessHolder {
+  /** Younger than `AI_ADMIN_NEW_ACCOUNT_DAYS`. */
+  isNew: boolean;
+  /** When it stops being new. */
+  newUntil: Date;
+}
+
 /**
- * The log of calls to AI providers, and the two monthly allowances on the
+ * The log of calls to AI providers, and the monthly allowances on the
  * operator's provider that are counted from it: one per user, one for all
- * users together. Calls on a user's own provider are logged but never limited.
- * Who may use the operator's provider at all is the operator's setting
- * (`AI_ADMIN_ACCESS`).
+ * users together, and a part of the latter for the accounts that are new.
+ * Calls on a user's own provider are logged but never limited. Who may use
+ * the operator's provider at all is the operator's setting (`AI_ADMIN_ACCESS`).
+ *
+ * The new accounts' part keeps a wave of accounts made for the purpose from
+ * using up what the instance allows, and with it every other user's AI: what
+ * they can take together is a share, and an account that keeps to the rules
+ * has its own allowance whole once it is no longer new.
  *
  * **Time source.** All rolling-window arithmetic uses the database's `NOW()`
  * rather than JS `Date.now()`. The api container's wall clock is allowed to
@@ -127,6 +147,19 @@ export class AiQuotaService {
     return this.config.get('AI_ADMIN_ACCESS', { infer: true });
   }
 
+  /** How many days an account counts as new. */
+  newAccountDays(): number {
+    return this.config.get('AI_ADMIN_NEW_ACCOUNT_DAYS', { infer: true });
+  }
+
+  /** How many calls of the instance's limit the new accounts may make together. */
+  newAccountsLimit(): number {
+    return newAccountsLimit({
+      AI_ADMIN_INSTANCE_MONTHLY_LIMIT: this.instanceLimit(),
+      AI_ADMIN_NEW_ACCOUNTS_PERCENT: this.config.get('AI_ADMIN_NEW_ACCOUNTS_PERCENT', { infer: true }),
+    });
+  }
+
   /**
    * Snapshot the user's quota — what the app-shell chip and Settings card
    * render. `limit` is the operator's env-configured monthly cap and is
@@ -143,23 +176,42 @@ export class AiQuotaService {
     const limit = this.monthlyLimit();
     const asker = await this.asker(this.prisma, userId);
     const adminAccess = asker ? adminAccessOf(this.access(), asker) : 'not_approved';
-    const common = { mode, limit, used, instanceLimitReached, adminProviderConfigured, adminAccess };
+    const isNew = asker?.isNew ?? false;
+    const newAccountsLimitReached = this.newAccountDays() > 0 && (await this.countNew(this.prisma)) >= this.newAccountsLimit();
+    const common = {
+      mode,
+      limit,
+      used,
+      instanceLimitReached,
+      adminProviderConfigured,
+      adminAccess,
+      newUntil: isNew ? asker!.newUntil.toISOString() : null,
+      newAccountsLimitReached,
+    };
     if (mode !== 'admin') return { ...common, remaining: null, resetAt: null };
     if (adminAccess !== 'granted') return { ...common, remaining: 0, resetAt: null };
+    const heldAsNew = isNew && newAccountsLimitReached;
+    // While the instance is full, a place comes free when its oldest call ages out.
+    let resetAt = await this.oldestCountedAt(instanceLimitReached ? null : userId);
+    if (heldAsNew && !instanceLimitReached) {
+      // The account's own place, once it is no longer new, unless its own limit holds it longer.
+      const ownFull = used >= limit;
+      const newUntil = asker!.newUntil.toISOString();
+      resetAt = ownFull && resetAt !== null && resetAt > newUntil ? resetAt : newUntil;
+    }
     return {
       ...common,
-      remaining: instanceLimitReached ? 0 : Math.max(0, limit - used),
-      // While the instance is full, a place comes free when its oldest call ages out.
-      resetAt: await this.oldestCountedAt(instanceLimitReached ? null : userId),
+      remaining: instanceLimitReached || heldAsNew ? 0 : Math.max(0, limit - used),
+      resetAt,
     };
   }
 
   /**
    * Record that a provider is about to be asked, and return the row to settle
    * when it answers. For the operator's provider this is also where who may
-   * use it and its allowances are enforced, the user's and the instance's:
-   * the counts and the new row are written under one lock, so calls started
-   * at the same moment cannot all take the last place.
+   * use it and its allowances are enforced, the user's, the instance's and
+   * the new accounts': the counts and the new row are written under one lock,
+   * so calls started at the same moment cannot all take the last place.
    */
   async begin(userId: string, call: UsageCall): Promise<{ id: string } | { refused: AiFallbackReason }> {
     const data = { userId, ...call, outcome: 'PENDING' as const };
@@ -178,6 +230,9 @@ export class AiQuotaService {
       }
       if ((await this.countUsed(tx, null)) >= this.instanceLimit()) {
         return { refused: 'instance_quota_exhausted' as const };
+      }
+      if (asker.isNew && (await this.countNew(tx)) >= this.newAccountsLimit()) {
+        return { refused: 'new_accounts_quota_exhausted' as const };
       }
       return tx.aiUsageLog.create({ data, select: { id: true } });
     });
@@ -214,9 +269,27 @@ export class AiQuotaService {
   }
 
   /** The account, as an allowance judges it; null when it is gone. */
-  private async asker(db: Db, userId: string): Promise<AccessHolder | null> {
-    const rows = await db.$queryRaw<AccessHolder[]>`SELECT "emailVerified", "operatorAiApprovedAt" FROM "User" WHERE "id" = ${userId}`;
+  private async asker(db: Db, userId: string): Promise<Asker | null> {
+    const rows = await db.$queryRaw<Asker[]>`
+      SELECT "emailVerified", "operatorAiApprovedAt",
+        "createdAt" + make_interval(days => ${this.newAccountDays()}::int) > NOW() AS "isNew",
+        "createdAt" + make_interval(days => ${this.newAccountDays()}::int) AS "newUntil"
+      FROM "User" WHERE "id" = ${userId}`;
     return rows[0] ?? null;
+  }
+
+  /**
+   * Counted calls of the accounts that are new now, and of the ones that were
+   * new when they were deleted, on the days they could still have been.
+   */
+  private async countNew(db: Db): Promise<number> {
+    const days = this.newAccountDays();
+    const rows = await db.$queryRaw<Array<{ count: bigint }>>`
+      SELECT ((SELECT COUNT(*) FROM "AiUsageLog" WHERE ${COUNTED}
+          AND "userId" IN (SELECT "id" FROM "User" WHERE "createdAt" > NOW() - make_interval(days => ${days}::int)))
+        + (SELECT COALESCE(SUM("newAccountCalls"), 0) FROM "AiUsageOfDeletedAccounts"
+          WHERE ${CARRIED} AND "day" >= (NOW() - make_interval(days => ${days}::int))::date))::bigint AS count`;
+    return Number(rows[0]?.count ?? 0n);
   }
 
   /** When the oldest counted call stops counting: of one user, or of the instance when `userId` is null. */

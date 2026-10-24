@@ -44,9 +44,10 @@ function environment(modelUrl: string): Record<string, string> {
     AI_DEFAULT_PROVIDER: 'ollama',
     AI_DEFAULT_MODEL: 'test-model',
     OLLAMA_BASE_URL: modelUrl,
-    // Every account may use the operator's provider: who may is tested in a
-    // file of its own.
+    // Every account may use the operator's provider and none is new: who may,
+    // and what new accounts share, are tested in files of their own.
     AI_ADMIN_ACCESS: 'everyone',
+    AI_ADMIN_NEW_ACCOUNT_DAYS: '0',
     TURNSTILE_ENABLED: 'false',
     // High enough that a test never meets the global limit by accident.
     RATE_LIMIT_MAX: '100000',

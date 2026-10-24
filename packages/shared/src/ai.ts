@@ -94,10 +94,15 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfig>;
  * - `not_permitted`       — the operator does not let this account use its
  *                           provider now (`AI_ADMIN_ACCESS`): the address is
  *                           not confirmed, or the account is not approved.
+ * - `new_accounts_quota_exhausted` — the account is new, and the new accounts
+ *                           together have used their part of the instance's
+ *                           allowance; it is the account's own once it is no
+ *                           longer new.
  */
 export const AiFallbackReason = z.enum([
   'quota_exhausted',
   'instance_quota_exhausted',
+  'new_accounts_quota_exhausted',
   'not_permitted',
   'no_provider',
   'all_providers_failed',
@@ -174,15 +179,17 @@ export const AiQuotaStatus = z.object({
   used: z.number().int().nonnegative(),
   /**
    * Calls the caller can still make: `limit - used`, clamped at 0, and 0 while
-   * `instanceLimitReached`, or while `adminAccess` is not `granted`.
+   * `instanceLimitReached`, while the account is new and
+   * `newAccountsLimitReached`, or while `adminAccess` is not `granted`.
    * `null` when no quota applies to the caller.
    */
   remaining: z.number().int().nonnegative().nullable(),
   /**
    * ISO timestamp of when a place comes free again: the oldest call counted
    * against the limit that binds (the caller's own, or the instance's while
-   * `instanceLimitReached`) drops out of the rolling window. Null when nothing
-   * is counted or quota does not apply.
+   * `instanceLimitReached`) drops out of the rolling window, or, for a new
+   * account while the new accounts' part is used up, `newUntil`. Null when
+   * nothing is counted or quota does not apply.
    */
   resetAt: z.string().datetime().nullable(),
   /**
@@ -195,6 +202,14 @@ export const AiQuotaStatus = z.object({
   adminProviderConfigured: z.boolean(),
   /** Whether the account may use the operator's provider, whatever its mode: the `admin` option is offered only when it is `granted`. */
   adminAccess: AdminAiAccess,
+  /**
+   * Until when the account is new: the accounts younger than
+   * `AI_ADMIN_NEW_ACCOUNT_DAYS` share a part of the instance's allowance
+   * (`AI_ADMIN_NEW_ACCOUNTS_PERCENT`). Null for an account that is not new.
+   */
+  newUntil: z.string().datetime().nullable(),
+  /** True when the new accounts together have used their part of the instance's allowance. */
+  newAccountsLimitReached: z.boolean(),
 });
 export type AiQuotaStatus = z.infer<typeof AiQuotaStatus>;
 

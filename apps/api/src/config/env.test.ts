@@ -200,13 +200,14 @@ describe('the data sets the food import reads', () => {
 });
 
 describe("who may use the operator's AI provider", () => {
-  it('is the accounts the operator approved, unless the instance says otherwise', () => {
-    expect(validateEnv(valid())).toMatchObject({ AI_ADMIN_ACCESS: 'approved' });
+  it('is the accounts the operator approved, unless the instance says otherwise, and no account is new for longer than a week', () => {
+    expect(validateEnv(valid())).toMatchObject({ AI_ADMIN_ACCESS: 'approved', AI_ADMIN_NEW_ACCOUNT_DAYS: 7, AI_ADMIN_NEW_ACCOUNTS_PERCENT: 10 });
     expect(validateEnv(valid({ AI_ADMIN_ACCESS: 'everyone' })).AI_ADMIN_ACCESS).toBe('everyone');
   });
 
   it('is refused at start-up when it is not one of the three', () => {
     expect(() => validateEnv(valid({ AI_ADMIN_ACCESS: 'all' }))).toThrow(/AI_ADMIN_ACCESS/);
+    expect(() => validateEnv(valid({ AI_ADMIN_NEW_ACCOUNTS_PERCENT: '101' }))).toThrow(/AI_ADMIN_NEW_ACCOUNTS_PERCENT/);
   });
 });
 
@@ -220,9 +221,9 @@ describe('describePosture', () => {
   it('states who may use the operator\'s AI provider and its limits when there is one', () => {
     expect(describePosture(env())).toContain('operator AI provider: none');
     expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai' })).toContain(
-      'operator AI provider: openai, for the accounts approved in the admin panel, at most 40 calls per user and 1000 for the whole instance in 30 days',
+      'operator AI provider: openai, for the accounts approved in the admin panel, at most 40 calls per user and 1000 for the whole instance in 30 days, 100 of them for the accounts younger than 7 days together',
     );
-    expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai', AI_ADMIN_ACCESS: 'everyone' })).toContain(
+    expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai', AI_ADMIN_ACCESS: 'everyone', AI_ADMIN_NEW_ACCOUNT_DAYS: 0 })).toContain(
       'operator AI provider: openai, for every account, at most 40 calls per user and 1000 for the whole instance in 30 days',
     );
   });

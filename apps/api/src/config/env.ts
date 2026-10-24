@@ -63,6 +63,12 @@ export const envSchema = z.object({
   // ones whose address is confirmed (without mail every address is, at
   // sign-up), or the ones the operator approved in the admin panel.
   AI_ADMIN_ACCESS: OperatorAiAccess.default('approved'),
+  // Accounts younger than this many days share a part of the instance's limit
+  // between them, so that a wave of new accounts cannot use all of it. 0 makes
+  // no account new.
+  AI_ADMIN_NEW_ACCOUNT_DAYS: z.coerce.number().int().min(0).max(365).default(7),
+  // That part, in percent of AI_ADMIN_INSTANCE_MONTHLY_LIMIT.
+  AI_ADMIN_NEW_ACCOUNTS_PERCENT: z.coerce.number().int().min(0).max(100).default(10),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
@@ -305,6 +311,11 @@ const ACCESS_WORDS: Record<OperatorAiAccess, string> = {
   approved: 'the accounts approved in the admin panel',
 };
 
+/** How many calls of the instance's limit the new accounts may make together. */
+export function newAccountsLimit(env: Pick<Env, 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT' | 'AI_ADMIN_NEW_ACCOUNTS_PERCENT'>): number {
+  return Math.floor((env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT * env.AI_ADMIN_NEW_ACCOUNTS_PERCENT) / 100);
+}
+
 /**
  * What an operator should know about how this instance is set up, one line per
  * point, logged once at boot. Lines that start with `!` deserve attention.
@@ -323,6 +334,8 @@ export function describePosture(
     | 'AI_ADMIN_USER_MONTHLY_LIMIT'
     | 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT'
     | 'AI_ADMIN_ACCESS'
+    | 'AI_ADMIN_NEW_ACCOUNT_DAYS'
+    | 'AI_ADMIN_NEW_ACCOUNTS_PERCENT'
     | 'SWAGGER_ENABLED'
     | 'TRUST_PROXY'
   >,
@@ -347,7 +360,10 @@ export function describePosture(
         ? `mail: ${env.SMTP_HOST}:${env.SMTP_PORT}, encrypted`
         : `! mail: ${env.SMTP_HOST}:${env.SMTP_PORT} without TLS (SMTP_REQUIRE_TLS=false): the mail password and every reset link cross that path in the clear`,
     env.AI_DEFAULT_PROVIDER
-      ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}, for ${ACCESS_WORDS[env.AI_ADMIN_ACCESS]}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days`
+      ? `operator AI provider: ${env.AI_DEFAULT_PROVIDER}, for ${ACCESS_WORDS[env.AI_ADMIN_ACCESS]}, at most ${env.AI_ADMIN_USER_MONTHLY_LIMIT} calls per user and ${env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT} for the whole instance in 30 days` +
+        (env.AI_ADMIN_NEW_ACCOUNT_DAYS > 0
+          ? `, ${newAccountsLimit(env)} of them for the accounts younger than ${env.AI_ADMIN_NEW_ACCOUNT_DAYS} days together`
+          : '')
       : 'operator AI provider: none',
     ...(env.AI_DEFAULT_PROVIDER && env.AI_ADMIN_ACCESS === 'confirmed' && !env.SMTP_HOST
       ? ['! operator AI provider: AI_ADMIN_ACCESS=confirmed without mail lets every account in, since an address counts as confirmed at sign-up']

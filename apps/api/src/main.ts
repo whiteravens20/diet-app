@@ -60,6 +60,8 @@ async function bootstrap(): Promise<void> {
     AI_ADMIN_USER_MONTHLY_LIMIT: config.get('AI_ADMIN_USER_MONTHLY_LIMIT', { infer: true }),
     AI_ADMIN_INSTANCE_MONTHLY_LIMIT: config.get('AI_ADMIN_INSTANCE_MONTHLY_LIMIT', { infer: true }),
     AI_ADMIN_ACCESS: config.get('AI_ADMIN_ACCESS', { infer: true }),
+    AI_ADMIN_NEW_ACCOUNT_DAYS: config.get('AI_ADMIN_NEW_ACCOUNT_DAYS', { infer: true }),
+    AI_ADMIN_NEW_ACCOUNTS_PERCENT: config.get('AI_ADMIN_NEW_ACCOUNTS_PERCENT', { infer: true }),
     SWAGGER_ENABLED: config.get('SWAGGER_ENABLED', { infer: true }),
     TRUST_PROXY: config.get('TRUST_PROXY', { infer: true }),
   });

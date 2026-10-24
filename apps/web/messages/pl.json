@@ -66,6 +66,7 @@
   "aiFallback": {
     "quota_exhausted": "Miesięczny limit AI wyczerpany — przełączam się na wbudowany silnik.",
     "instance_quota_exhausted": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana — przełączam się na wbudowany silnik.",
+    "new_accounts_quota_exhausted": "Nowe konta wykorzystały na razie swoją część zapytań AI tej instancji — przełączam się na wbudowany silnik.",
     "not_permitted": "AI instancji nie jest dostępne dla Twojego konta — przełączam się na wbudowany silnik.",
     "no_provider": "Brak skonfigurowanego dostawcy AI dla Twojego konta — przełączam się na wbudowany silnik.",
     "all_providers_failed": "Dostawca AI nie odpowiada — przełączam się na wbudowany silnik.",
@@ -363,6 +364,7 @@
     "AI_NOT_CONFIGURED": "Nie masz skonfigurowanego dostawcy AI — wybierz go w Ustawieniach.",
     "AI_KEY_UNREADABLE": "Zapisanego klucza dostawcy AI nie da się już odczytać — wprowadź go ponownie w Ustawieniach.",
     "AI_INSTANCE_LIMIT_REACHED": "Wspólna pula zapytań AI tej instancji na ten miesiąc została wykorzystana.",
+    "AI_NEW_ACCOUNTS_LIMIT_REACHED": "Nowe konta wykorzystały na razie swoją część zapytań AI tej instancji. Gdy konto przestanie być nowe, dostanie pełny limit.",
     "AI_NOT_PERMITTED": "AI instancji nie jest dostępne dla Twojego konta.",
     "AI_PROVIDER_TIMEOUT": "Dostawca AI był zbyt wolny — wybierz mniejszy model lub usługę w chmurze.",
     "AI_DRAFT_INVALID": "AI zwróciło niepoprawny szkic przepisu — spróbuj ponownie albo zmień wybrane opcje.",
