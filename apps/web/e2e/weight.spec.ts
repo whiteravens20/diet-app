@@ -34,7 +34,8 @@ const BUDGETS: Record<string, number> = {
   '/calculator': 235,
   '/recipes': 245,
   '/favorites': 245,
-  '/meal-plans': 260,
+  // The schemas of the contract every page carries grew with who may use the instance's AI (2026-10).
+  '/meal-plans': 261,
   '/admin': 255,
   '/review': 235,
 };
