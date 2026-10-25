@@ -101,7 +101,8 @@ describe('who may ask a route', () => {
   /** How a route answers a request with these headers: its status and its code. Whatever the path names, the route's guard answers first. */
   const answered = async (route: Route, headers: Record<string, string>): Promise<string> => {
     const path = route.path.replace(/:[A-Za-z]+/g, () => randomUUID());
-    const res = await t.http()[route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete'](path).set(headers);
+    const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete';
+    const res = await t.http()[method](path).set(headers);
     return `${res.status} ${String((res.body as { error?: unknown }).error)}`;
   };
 

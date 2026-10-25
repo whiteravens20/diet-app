@@ -1,5 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- partial test doubles */
+
 /**
  * Unit tests for AuthService. Prisma / JWT / Turnstile / Mail are mocked. Focus
  * on the security-sensitive behaviours: anti-abuse gate, duplicate-email
@@ -82,27 +84,19 @@ function makeDeps(user: ReturnType<typeof makeUser> | null) {
 }
 
 function makeSessions(deps: ReturnType<typeof makeDeps>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
   return new SessionsService(deps.prisma as any, deps.jwt as any, makeConfig() as any, new AccountEmail(makeConfig() as any));
 }
 
 function makeService(deps: ReturnType<typeof makeDeps>) {
   return new AuthService(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     deps.prisma as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     makeConfig() as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     deps.turnstile as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     deps.mail as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     new AccountEmail(makeConfig() as any),
     makeSessions(deps),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     new Passwords(makeConfig() as any),
     // An account without a second factor: signing in with one is tested against the database.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     { isOn: vi.fn().mockResolvedValue(false) } as any,
   );
 }
