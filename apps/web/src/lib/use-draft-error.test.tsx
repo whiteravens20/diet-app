@@ -141,9 +141,6 @@ describe('what the administrator is told about a draft that did not ship', () =>
       'the recipe it adds a language to has changed since (oat-bowl); reject the draft and fill the language again',
     );
     expect(heldBack('not-approved: PENDING')).toBe('is not approved any more');
-    expect(heldBack('changed-while-shipping')).toBe(
-      'changed while it was being shipped; the pull request holds it as it was',
-    );
   });
 
   it('names each rule a draft breaks by its field, as a refused edit does', () => {

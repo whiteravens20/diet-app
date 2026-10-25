@@ -31,9 +31,6 @@ const BLANK = [
   'ANTHROPIC_API_KEY',
   'OPENROUTER_API_KEY',
   'OVERRIDES_PULL_TOKEN',
-  'SHIP_UPSTREAM_GH_TOKEN',
-  'SHIP_UPSTREAM_GIT_AUTHOR_NAME',
-  'SHIP_UPSTREAM_GIT_AUTHOR_EMAIL',
 ];
 
 describe('settings left blank in the environment', () => {

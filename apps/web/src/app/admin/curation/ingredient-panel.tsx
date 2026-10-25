@@ -274,7 +274,6 @@ function IngredientDraftRow({
           expectedLocales={draft.locales}
           localeReviews={draft.localeReviews}
           status={draft.status}
-          shippedPRUrl={draft.shippedPRUrl}
           compact
         />
       </div>
@@ -302,7 +301,6 @@ function IngredientDraftRow({
         localeReviews={draft.localeReviews}
         pastReviews={draft.pastReviews}
         status={draft.status}
-        shippedPRUrl={draft.shippedPRUrl}
       />
 
       {error && (

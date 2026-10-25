@@ -24,7 +24,6 @@ import type {
   Macros,
   MealType,
   OverridesPulled,
-  OverridesPushed,
   PastReview,
   RecipeDraft,
   RecipeDraftIngredientLine,
@@ -62,7 +61,6 @@ export type DraftPastReview = PastReview;
 export type RecipeRunnerState = RecipeRunState;
 export type ShipConfigDto = ShipConfig;
 export type RestoreResponse = RestoredFromInstanceData;
-export type CurrentOverridesPushResponse = OverridesPushed;
 export type CurrentOverridesPullResponse = OverridesPulled;
 export type ShipSkipped = SkippedDraft;
 export type ShipResponse = ShipResult;
@@ -360,10 +358,6 @@ export const adminApi = {
     a.remove();
     URL.revokeObjectURL(url);
   },
-  pushCurrentOverrides: () =>
-    adminFetch<CurrentOverridesPushResponse>('/drafts/ship/current-overrides/push', {
-      method: 'POST',
-    }),
   pullCurrentOverrides: (source?: string) =>
     adminFetch<CurrentOverridesPullResponse>('/drafts/ship/current-overrides/pull', {
       method: 'POST',

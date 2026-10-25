@@ -2,8 +2,8 @@
 
 /**
  * A draft as it leaves the queue. Whichever way it ships (into this
- * instance's own tables, into a bundle, into a pull request) it is held to
- * the rules of every recipe once more, and what ships is the checked content:
+ * instance's own tables or into a bundle) it is held to the rules of every
+ * recipe once more, and what ships is the checked content:
  * text made plain, and only in the languages the draft was reviewed in. A
  * draft that was stored before a rule existed, or was changed behind the
  * queue's back, stays where it is and the reason is reported.

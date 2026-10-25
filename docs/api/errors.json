@@ -405,33 +405,6 @@
       "pl": "Brak dostępu."
     }
   },
-  "GH_MODE_UNAVAILABLE": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "`gh` CLI not found on PATH.",
-      "pl": "Nie znaleziono polecenia `gh` w PATH."
-    }
-  },
-  "GH_PR_CREATE_FAILED": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Opening the pull request via gh failed.",
-      "pl": "Utworzenie pull requesta przez gh nie powiodło się."
-    }
-  },
-  "GIT_FAILED": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "A git command failed during the upstream-PR ship.",
-      "pl": "Polecenie git zakończyło się błędem podczas wysyłki przez pull request."
-    }
-  },
   "IMPORT_IN_PROGRESS": {
     "statuses": [
       409
@@ -763,15 +736,6 @@
     "messages": {
       "en": "There are no approved drafts to ship.",
       "pl": "Brak zatwierdzonych szkiców do wysłania."
-    }
-  },
-  "NO_CURRENT_OVERRIDES": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "This instance has no ingredient overrides to export or push yet.",
-      "pl": "Ta instancja nie ma jeszcze żadnych nadpisań składników do eksportu lub wysyłki."
     }
   },
   "NO_ELIGIBLE_INGREDIENTS": {
@@ -1169,42 +1133,6 @@
     "messages": {
       "en": "No approved drafts to ship.",
       "pl": "Brak zatwierdzonych szkiców do wysłania."
-    }
-  },
-  "SHIP_REPO_ROOT_NOT_FOUND": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Could not find the git repo root for the upstream PR mode.",
-      "pl": "Nie znaleziono katalogu .git potrzebnego do wysyłki przez pull request."
-    }
-  },
-  "SHIP_UPSTREAM_BLOCKED_CANONICAL": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes.",
-      "pl": "Skonfigurowane zdalne repozytorium to główne repozytorium diet-app. Treść napisana przez AI nigdy tam nie trafia — nawet z instancji opiekuna projektu. Ustaw SHIP_UPSTREAM_REMOTE na prywatną kopię repozytorium albo wyślij szkice do tej instancji lub jako pakiet."
-    }
-  },
-  "SHIP_UPSTREAM_DISABLED": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Upstream PR mode is disabled on this instance.",
-      "pl": "Wysyłka przez pull request jest wyłączona na tej instancji."
-    }
-  },
-  "SHIP_UPSTREAM_NO_TOKEN": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Upstream PR mode is missing a gh token.",
-      "pl": "Brakuje tokenu gh do wysyłki przez pull request."
     }
   },
   "SHOPPING_LIST_LIMIT": {

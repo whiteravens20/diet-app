@@ -106,7 +106,6 @@ export function shipRecipeDraftLocal(
       data: {
         status: 'SHIPPED',
         shippedAt: new Date(),
-        shippedPRUrl: null,
         promotedRecipeId: recipeId,
       },
       include: { localeReviews: true },
@@ -199,7 +198,7 @@ function shipIngredientNameDraftLocal(
     }
     await tx.ingredientNameDraft.update({
       where: { id },
-      data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: null },
+      data: { status: 'SHIPPED', shippedAt: new Date() },
     });
     return { ok: true as const, entry };
   });

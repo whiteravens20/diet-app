@@ -911,8 +911,8 @@ model AiUsageOfDeletedAccounts {
 // ── Curation queue (drafts) ───────────────────────────────────────────────────
 
 // A model or a user proposes, people approve, and what is approved ships: into
-// this instance's own tables, into a file, or into a pull request. A draft is
-// no recipe: nothing plans with it until it has shipped.
+// this instance's own tables, or into a file. A draft is no recipe: nothing
+// plans with it until it has shipped.
 
 enum DraftStatus {
   PENDING
@@ -976,7 +976,6 @@ model RecipeDraft {
   // EXTERNAL only — source URL + license for the imported row.
   provenanceUrl      String?
   provenanceLicense  String?
-  shippedPRUrl       String?
   shippedAt          DateTime?
   // The fingerprint of the recipe the draft describes (see
   // admin/drafts/fingerprint.ts): one draft per recipe, however many personal
@@ -1067,7 +1066,6 @@ model IngredientNameDraft {
   modelUsed       String?
   // Prompt version tag, e.g. "ingredient-namer.v1".
   generatorPrompt String?
-  shippedPRUrl    String?
   shippedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

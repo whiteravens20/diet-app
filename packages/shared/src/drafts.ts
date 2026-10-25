@@ -132,7 +132,6 @@ export const IngredientNameDraft = z.object({
   batchId: z.string(),
   modelUsed: z.string().nullable(),
   generatorPrompt: z.string().nullable(),
-  shippedPRUrl: z.string().nullable(),
   shippedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -196,7 +195,7 @@ export const ShipKind = z.enum(['recipe', 'ingredient-name']);
 export type ShipKind = z.infer<typeof ShipKind>;
 
 /** How approved drafts leave the queue. */
-export const ShipMode = z.enum(['local', 'upstream-pr', 'bundle']);
+export const ShipMode = z.enum(['local', 'bundle']);
 export type ShipMode = z.infer<typeof ShipMode>;
 
 /** The most drafts one shipment can name. */
@@ -364,7 +363,6 @@ export const RecipeDraft = z.object({
   generationSpec: z.unknown().nullable(),
   provenanceUrl: z.string().nullable(),
   provenanceLicense: z.string().nullable(),
-  shippedPRUrl: z.string().nullable(),
   shippedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -659,14 +657,6 @@ export type InstanceDataState = z.infer<typeof InstanceDataState>;
 export const ShipConfig = z.object({
   modes: z.object({
     local: z.object({ available: z.literal(true) }),
-    upstreamPr: z.object({
-      available: z.boolean(),
-      enabled: z.boolean(),
-      /** Why the mode is not available, when it is not. */
-      reason: z.string().nullable(),
-      baseBranch: z.string(),
-      remote: z.string(),
-    }),
     bundle: z.object({ available: z.literal(true) }),
   }),
   pull: z.object({ available: z.literal(true), defaultSource: z.string(), tokenSet: z.boolean() }),
@@ -691,13 +681,6 @@ export const ShipResult = z.discriminatedUnion('mode', [
     sidecarError: z.string().optional(),
   }),
   z.object({
-    mode: z.literal('upstream-pr'),
-    prUrl: z.string(),
-    branch: z.string(),
-    shippedDraftIds: z.array(z.string()),
-    skipped: z.array(SkippedDraft),
-  }),
-  z.object({
     mode: z.literal('bundle'),
     kind: ShipKind,
     batchId: z.string(),
@@ -710,14 +693,6 @@ export const ShipResult = z.discriminatedUnion('mode', [
   }),
 ]);
 export type ShipResult = z.infer<typeof ShipResult>;
-
-/** The pull request that carries this instance's names of ingredients. */
-export const OverridesPushed = z.object({
-  prUrl: z.string(),
-  branch: z.string(),
-  rowCount: z.number().int().min(0),
-});
-export type OverridesPushed = z.infer<typeof OverridesPushed>;
 
 /** What taking names of ingredients in from a file did. */
 export const OverridesPulled = z.object({

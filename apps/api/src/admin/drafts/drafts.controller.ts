@@ -41,7 +41,6 @@ import {
   IngredientNameGenerateSpec,
   MarkShippedRequest,
   OverridesPulled,
-  OverridesPushed,
   PullOverridesRequest,
   RecipeDraft,
   RecipeDraftListQuery,
@@ -82,15 +81,6 @@ import {
   shipRecipesLocal,
   writeRecipeSidecar,
 } from './ship/local-mode.js';
-import {
-  findRepoRoot,
-  pushCurrentOverridesUpstream,
-  shipIngredientNamesUpstream,
-  shipRecipesUpstream,
-  upstreamBlockedReason,
-  UpstreamShipError,
-  type UpstreamShipConfig,
-} from './ship/upstream-mode.js';
 import { buildCurrentIngredientOverrides } from './ship/current-overrides.js';
 import { pullOverrides, PullOverridesError, type PullPolicy } from './ship/pull-overrides.js';
 import { NothingShips } from './ship/shippable.js';
@@ -463,25 +453,15 @@ export class DraftsController {
   @Get('ship/config')
   @Answers(ShipConfig)
   async shipConfig(): Promise<ShipConfig> {
-    const upstreamConfig = this.readUpstreamConfig();
     const recipeCount = await this.prisma.recipeDraft.count({
       where: { status: 'APPROVED' },
     });
     const ingredientCount = await this.prisma.ingredientNameDraft.count({
       where: { status: 'APPROVED' },
     });
-    const repoRoot = findRepoRoot(process.cwd());
-    const upstreamReason = upstreamBlockedReason(upstreamConfig, repoRoot);
     return {
       modes: {
         local: { available: true },
-        upstreamPr: {
-          available: upstreamReason === null,
-          enabled: upstreamConfig.enabled,
-          reason: upstreamReason,
-          baseBranch: upstreamConfig.baseBranch,
-          remote: upstreamConfig.remote,
-        },
         bundle: { available: true },
       },
       pull: {
@@ -494,7 +474,7 @@ export class DraftsController {
     };
   }
 
-  /** Ship the approved drafts of a kind: into this instance, as a pull request, or as a file to save. */
+  /** Ship the approved drafts of a kind: into this instance, or as a file to save. */
   @Post('ship')
   @Answers(ShipResult)
   async ship(
@@ -513,32 +493,6 @@ export class DraftsController {
         });
       }
       return { mode: 'local', ...result };
-    }
-
-    if (mode === 'upstream-pr') {
-      const { config, repoRoot, dataDir } = this.upstreamTarget();
-      try {
-        const result =
-          kind === 'recipe'
-            ? await shipRecipesUpstream(this.prisma, { kind, batchIds, dataDir, repoRoot, config })
-            : await shipIngredientNamesUpstream(this.prisma, {
-                kind,
-                batchIds,
-                dataDir,
-                repoRoot,
-                config,
-              });
-        return { mode: 'upstream-pr', ...result };
-      } catch (err) {
-        if (err instanceof UpstreamShipError) {
-          throw new ConflictException({
-            error: err.code,
-            message: err.message,
-            ...(err.details ? { details: err.details } : {}),
-          });
-        }
-        throw err;
-      }
     }
 
     // bundle: the file itself comes back, to whoever asked with the administrator's credentials
@@ -583,25 +537,6 @@ export class DraftsController {
   }
 
   /**
-   * Open a pull request in the repository the instance ships to with the
-   * names this instance has given its ingredients, all of them, whatever has
-   * shipped.
-   */
-  @Post('ship/current-overrides/push')
-  @Answers(OverridesPushed)
-  async pushCurrentOverrides(): Promise<OverridesPushed> {
-    const { config, repoRoot, dataDir } = this.upstreamTarget();
-    try {
-      return await pushCurrentOverridesUpstream(this.prisma, { dataDir, repoRoot, config });
-    } catch (err) {
-      if (err instanceof UpstreamShipError) {
-        throw new ConflictException({ error: err.code, message: err.message });
-      }
-      throw err;
-    }
-  }
-
-  /**
    * Take names of ingredients in from a repository the operator names, or
    * from the one the instance is set up with, and give them to the
    * ingredients of this instance. A public repository needs no token; a
@@ -626,14 +561,9 @@ export class DraftsController {
     }
   }
 
-  /** PAT for pulling from a private repo: the dedicated var, falling back to
-   *  the upstream-push token. Null when neither is set (public-only). */
+  /** The token for pulling from a private repository; null when none is set (public sources only). */
   private pullToken(): string | null {
-    return (
-      this.config.get('OVERRIDES_PULL_TOKEN', { infer: true }) ??
-      this.config.get('SHIP_UPSTREAM_GH_TOKEN', { infer: true }) ??
-      null
-    );
+    return this.config.get('OVERRIDES_PULL_TOKEN', { infer: true }) ?? null;
   }
 
   /**
@@ -674,36 +604,6 @@ export class DraftsController {
   }
 
   // ── Internals ───────────────────────────────────────────────────────────────
-
-  /**
-   * Where a pull-request ship would write and push, or the refusal that
-   * stands in its way: what the settings decide first, then the tool, then
-   * the checkout and its remote.
-   */
-  private upstreamTarget(): { config: UpstreamShipConfig; repoRoot: string; dataDir: string } {
-    const config = this.readUpstreamConfig();
-    const repoRoot = findRepoRoot(process.cwd());
-    const blocked = upstreamBlockedReason(config, repoRoot);
-    if (blocked !== null || repoRoot === null) {
-      const code = blocked ?? 'SHIP_REPO_ROOT_NOT_FOUND';
-      throw new ConflictException({
-        error: code,
-        message: `Shipping as a pull request is refused: ${code}.`,
-      });
-    }
-    return { config, repoRoot, dataDir: resolvePath(repoRoot, 'data') };
-  }
-
-  private readUpstreamConfig(): UpstreamShipConfig {
-    return {
-      enabled: Boolean(this.config.get('SHIP_UPSTREAM_ENABLED', { infer: true })),
-      remote: this.config.get('SHIP_UPSTREAM_REMOTE', { infer: true }) ?? 'origin',
-      baseBranch: this.config.get('SHIP_UPSTREAM_BASE_BRANCH', { infer: true }) ?? 'main',
-      ghToken: this.config.get('SHIP_UPSTREAM_GH_TOKEN', { infer: true }) ?? null,
-      authorName: this.config.get('SHIP_UPSTREAM_GIT_AUTHOR_NAME', { infer: true }) ?? null,
-      authorEmail: this.config.get('SHIP_UPSTREAM_GIT_AUTHOR_EMAIL', { infer: true }) ?? null,
-    };
-  }
 
   private resolveInstanceDataDir(): string {
     const raw = this.config.get('INSTANCE_DATA_DIR', { infer: true }) ?? 'instance-data';

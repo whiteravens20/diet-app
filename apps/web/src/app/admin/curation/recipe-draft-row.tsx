@@ -205,7 +205,6 @@ export function RecipeDraftRow({
             expectedLocales={draft.locales}
             localeReviews={draft.localeReviews}
             status={draft.status}
-            shippedPRUrl={draft.shippedPRUrl}
             compact
           />
         </div>
@@ -256,7 +255,6 @@ export function RecipeDraftRow({
             localeReviews={draft.localeReviews}
             pastReviews={draft.pastReviews}
             status={draft.status}
-            shippedPRUrl={draft.shippedPRUrl}
           />
 
           <div className="flex flex-wrap items-center gap-2">

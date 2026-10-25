@@ -50,8 +50,8 @@ export interface LibraryRecipe {
 }
 
 /**
- * What a batch has claimed so far. A bundle and a pull request write nothing
- * to the library, so two of their recipes are told apart here.
+ * What a batch has claimed so far. A bundle writes nothing to the library,
+ * so two of its recipes are told apart here.
  */
 export interface Claimed {
   slugs: Set<string>;

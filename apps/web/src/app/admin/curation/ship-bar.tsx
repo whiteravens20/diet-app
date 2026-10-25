@@ -2,13 +2,12 @@
 
 'use client';
 
-/** Shipping what was approved: into this instance, as a file for a repository or as a pull request, with what the instance keeps in its own files. */
+/** Shipping what was approved: into this instance or as a file for a repository, with what the instance keeps in its own files. */
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import {
   CloudDownload,
   Download,
-  GitPullRequest,
   LoaderCircle,
   RotateCcwClock,
   Send,
@@ -46,8 +45,7 @@ export function ShipBar({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ShipResponse | null>(null);
   const [heldBack, setHeldBack] = useState<ShipSkipped[]>([]);
-  const [currentBusy, setCurrentBusy] = useState<'download' | 'push' | 'pull' | null>(null);
-  const [currentPushUrl, setCurrentPushUrl] = useState<string | null>(null);
+  const [currentBusy, setCurrentBusy] = useState<'download' | 'pull' | null>(null);
   const [pullResult, setPullResult] = useState<CurrentOverridesPullResponse | null>(null);
   const [pullSource, setPullSource] = useState('');
 
@@ -115,20 +113,6 @@ export function ShipBar({
     }
   };
 
-  const pushCurrent = async () => {
-    setCurrentBusy('push');
-    setError(null);
-    setCurrentPushUrl(null);
-    try {
-      const res = await adminApi.pushCurrentOverrides();
-      setCurrentPushUrl(res.prUrl);
-    } catch (err) {
-      setError(errorText(err, String(err)));
-    } finally {
-      setCurrentBusy(null);
-    }
-  };
-
   const pullCurrent = async () => {
     setCurrentBusy('pull');
     setError(null);
@@ -147,23 +131,6 @@ export function ShipBar({
   if (!config) return null;
   const disabled = approvedCount === 0 || busyMode !== null;
   const currentDisabled = busyMode !== null || currentBusy !== null;
-
-  // Explain why the upstream-PR option (approved-draft ship + current-overrides
-  // push) isn't usable, instead of silently hiding the button. Drives off the
-  // same config the backend computed: `available` means every precondition is
-  // met; otherwise `reason` says which one failed.
-  const up = config.modes.upstreamPr;
-  const upstreamStatus = up.available ? null : !up.enabled ? (
-    <p className="mt-2 text-xs text-muted-foreground">{t('shipUpstreamDisabledInfo')}</p>
-  ) : up.reason === 'SHIP_UPSTREAM_BLOCKED_CANONICAL' ? (
-    <p className="mt-2 rounded border border-warning/40 bg-warning/10 px-2 py-1 text-xs text-warning">
-      {t('shipUpstreamCanonicalWarning', { remote: up.remote })}
-    </p>
-  ) : (
-    <p className="mt-2 text-xs text-muted-foreground">
-      {t('shipUpstreamUnavailable', { reason: up.reason ?? '' })}
-    </p>
-  );
 
   return (
     <div className="rounded-md border border-border bg-muted/30 p-3">
@@ -189,23 +156,6 @@ export function ShipBar({
           )}
           {t('shipModeLocal')}
         </Button>
-        {up.available && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={disabled}
-            onClick={() => run('upstream-pr')}
-            className="gap-2"
-            title={t('shipModeUpstreamHint', { remote: up.remote, branch: up.baseBranch })}
-          >
-            {busyMode === 'upstream-pr' ? (
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <GitPullRequest className="h-3.5 w-3.5" />
-            )}
-            {t('shipModeUpstream')}
-          </Button>
-        )}
         <Button
           size="sm"
           variant="outline"
@@ -222,7 +172,6 @@ export function ShipBar({
         </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t('shipExplain')}</p>
-      {upstreamStatus}
 
       {kind === 'ingredient-name' && (
         <div className="mt-3 border-t border-border pt-3">
@@ -245,23 +194,6 @@ export function ShipBar({
               )}
               {t('shipCurrentDownload')}
             </Button>
-            {up.available && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={currentDisabled}
-                onClick={pushCurrent}
-                className="gap-2"
-                title={t('shipModeUpstreamHint', { remote: up.remote, branch: up.baseBranch })}
-              >
-                {currentBusy === 'push' ? (
-                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <GitPullRequest className="h-3.5 w-3.5" />
-                )}
-                {t('shipCurrentPush')}
-              </Button>
-            )}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{t('shipCurrentExplain')}</p>
 
@@ -321,19 +253,6 @@ export function ShipBar({
                 </div>
               )}
             </div>
-          )}
-          {currentPushUrl && (
-            <p className="mt-2 rounded border border-success/40 bg-success/5 px-2 py-1 text-xs">
-              {t('shipCurrentPushSuccess')}{' '}
-              <a
-                href={currentPushUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline"
-              >
-                {currentPushUrl}
-              </a>
-            </p>
           )}
         </div>
       )}
@@ -560,24 +479,6 @@ function ShipSuccess({
             {t('shipSidecarWarning', { error: result.sidecarError })}
           </p>
         )}
-        <SkippedDrafts skipped={result.skipped} heading="shipSkipped" />
-      </div>
-    );
-  }
-  if (result.mode === 'upstream-pr') {
-    return (
-      <div className="mt-2 rounded border border-success/40 bg-success/5 px-3 py-2 text-xs">
-        <div className="flex items-center gap-2">
-          <GitPullRequest className="h-3.5 w-3.5" />
-          <strong>{t('shipSuccessUpstream', { count: result.shippedDraftIds.length })}</strong>
-          <span className="flex-1" />
-          <button onClick={onDismiss} className="text-muted-foreground hover:underline">
-            {t('shipDismiss')}
-          </button>
-        </div>
-        <a href={result.prUrl} target="_blank" rel="noreferrer" className="text-primary underline">
-          {result.prUrl}
-        </a>
         <SkippedDrafts skipped={result.skipped} heading="shipSkipped" />
       </div>
     );

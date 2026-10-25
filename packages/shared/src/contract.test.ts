@@ -236,7 +236,7 @@ describe('what a ship answers with', () => {
       sidecarPaths: [],
     };
     expect(ShipResult.parse(local)).toEqual(local);
-    expect(ShipResult.safeParse({ ...local, mode: 'upstream-pr' }).success).toBe(false);
+    expect(ShipResult.safeParse({ ...local, mode: 'bundle' }).success).toBe(false);
     expect(
       ShipResult.safeParse({
         mode: 'bundle',

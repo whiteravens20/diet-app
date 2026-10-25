@@ -2,7 +2,7 @@
 
 'use client';
 import { useTranslations } from 'next-intl';
-import { Check, Clock, ExternalLink, X } from 'lucide-react';
+import { Check, Clock, X } from 'lucide-react';
 import { type DraftLocaleReview, type DraftPastReview } from '@/lib/admin-api';
 import { useFormat } from '@/lib/use-format';
 
@@ -25,7 +25,6 @@ export function LocaleReviewMatrix({
   localeReviews,
   pastReviews = [],
   status,
-  shippedPRUrl,
   compact = false,
 }: {
   expectedLocales: string[];
@@ -33,7 +32,6 @@ export function LocaleReviewMatrix({
   /** What was decided before: reviews a later review or an edit took the place of. */
   pastReviews?: DraftPastReview[];
   status: DraftStatus;
-  shippedPRUrl?: string | null;
   compact?: boolean;
 }) {
   const t = useTranslations('admin.curation');
@@ -99,17 +97,6 @@ export function LocaleReviewMatrix({
             <span className="inline-flex items-center gap-1 text-muted-foreground">
               <Check className="h-3 w-3" />
               {t('shipStateShipped')}
-              {shippedPRUrl ? (
-                <a
-                  href={shippedPRUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 underline"
-                >
-                  {t('shipStatePrLink')}
-                  <ExternalLink className="h-2.5 w-2.5" />
-                </a>
-              ) : null}
             </span>
           )}
           {shipState === 'ready' && (

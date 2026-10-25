@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 152 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 144 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -53,9 +53,6 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `FAVORITE_SET_LIMIT_REACHED` | 409 | This profile already has as many favorite sets as it can hold. Delete one first. | Ten profil ma już tyle zestawów ulubionych, ile może mieć. Najpierw usuń jeden z nich. |
 | `FAVORITE_SET_NOT_ELIGIBLE` | 400 | This set holds a recipe that can't go into this plan: it doesn't fit the diet or the meal, uses an ingredient the profile skips, or is marked to avoid. | Ten zestaw zawiera przepis, którego nie można dodać do tego planu: nie pasuje do diety lub posiłku, zawiera pomijany składnik albo jest oznaczony do unikania. |
 | `FORBIDDEN` | 403 | You don't have access to that. | Brak dostępu. |
-| `GH_MODE_UNAVAILABLE` | 409 | `gh` CLI not found on PATH. | Nie znaleziono polecenia `gh` w PATH. |
-| `GH_PR_CREATE_FAILED` | 409 | Opening the pull request via gh failed. | Utworzenie pull requesta przez gh nie powiodło się. |
-| `GIT_FAILED` | 409 | A git command failed during the upstream-PR ship. | Polecenie git zakończyło się błędem podczas wysyłki przez pull request. |
 | `IMPORT_IN_PROGRESS` | 409 | A USDA import is already in progress. | Import USDA już trwa. |
 | `IMPORT_NOT_JSON` | 400 | This is not a JSON document of recipes. | To nie jest dokument JSON z przepisami. |
 | `INGREDIENT_NOT_FOUND` | 404 | Ingredient not found. | Nie znaleziono składnika. |
@@ -93,7 +90,6 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `NOT_FOUND` | 404 | That does not exist. | Nie znaleziono. |
 | `NO_ALTERNATIVE` | 404 | No alternative recipe found. | Nie znaleziono alternatywnego przepisu. |
 | `NO_APPROVED_DRAFTS` | 409 | There are no approved drafts to ship. | Brak zatwierdzonych szkiców do wysłania. |
-| `NO_CURRENT_OVERRIDES` | 409 | This instance has no ingredient overrides to export or push yet. | Ta instancja nie ma jeszcze żadnych nadpisań składników do eksportu lub wysyłki. |
 | `NO_ELIGIBLE_INGREDIENTS` | 400 | No ingredients match your diet and allergen settings. | Żadne składniki nie pasują do diety i alergenów profilu. |
 | `NO_ELIGIBLE_RECIPE` | 400 | No recipe matches the current constraints. | Żaden przepis nie spełnia obecnych ograniczeń. |
 | `NO_FAVORITE_INGREDIENTS` | 400 | Add favourite ingredients on the profile before swapping by them. | Najpierw dodaj w profilu ulubione składniki — dopiero wtedy da się dobrać zamianę według nich. |
@@ -138,10 +134,6 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `SESSION_NOT_FOUND` | 404 | That session is no longer open. | Ta sesja nie jest już otwarta. |
 | `SET_NOT_FOUND` | 404 | Favourite set not found. | Nie znaleziono zestawu ulubionych. |
 | `SHIP_NO_APPROVED` | 409 | No approved drafts to ship. | Brak zatwierdzonych szkiców do wysłania. |
-| `SHIP_REPO_ROOT_NOT_FOUND` | 409 | Could not find the git repo root for the upstream PR mode. | Nie znaleziono katalogu .git potrzebnego do wysyłki przez pull request. |
-| `SHIP_UPSTREAM_BLOCKED_CANONICAL` | 409 | The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes. | Skonfigurowane zdalne repozytorium to główne repozytorium diet-app. Treść napisana przez AI nigdy tam nie trafia — nawet z instancji opiekuna projektu. Ustaw SHIP_UPSTREAM_REMOTE na prywatną kopię repozytorium albo wyślij szkice do tej instancji lub jako pakiet. |
-| `SHIP_UPSTREAM_DISABLED` | 409 | Upstream PR mode is disabled on this instance. | Wysyłka przez pull request jest wyłączona na tej instancji. |
-| `SHIP_UPSTREAM_NO_TOKEN` | 409 | Upstream PR mode is missing a gh token. | Brakuje tokenu gh do wysyłki przez pull request. |
 | `SHOPPING_LIST_LIMIT` | 409 | This plan already has as many shopping lists as it can hold. Delete one first. | Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich. |
 | `SHOPPING_RANGE_OUTSIDE_PLAN` | 400 | Those dates are not within the plan. Pick dates the plan covers. | Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje. |
 | `SUBSTITUTION_MOVES_NUTRITION` | 422 | This substitution changes what a serving holds by more than a tenth. Confirm that you want it all the same. | Ta zamiana zmienia wartości porcji o więcej niż jedną dziesiątą. Potwierdź, że mimo to chcesz ją wykonać. |

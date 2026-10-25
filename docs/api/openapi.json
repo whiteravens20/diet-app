@@ -1354,8 +1354,8 @@
         "tags": [
           "admin/drafts"
         ],
-        "summary": "Ship the approved drafts of a kind: into this instance, as a pull request, or as a file to save.",
-        "description": "Ship the approved drafts of a kind: into this instance, as a pull request, or as a file to save.\n\nAsked by the administrator.",
+        "summary": "Ship the approved drafts of a kind: into this instance, or as a file to save.",
+        "description": "Ship the approved drafts of a kind: into this instance, or as a file to save.\n\nAsked by the administrator.",
         "security": [
           {
             "administrator": []
@@ -1484,36 +1484,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OverridesPulled"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/Refused"
-          }
-        }
-      }
-    },
-    "/api/admin/drafts/ship/current-overrides/push": {
-      "post": {
-        "operationId": "Drafts_pushCurrentOverrides",
-        "tags": [
-          "admin/drafts"
-        ],
-        "summary": "Open a pull request in the repository the instance ships to with the names this instance has given its ingredients, all of them, whatever has shipped.",
-        "description": "Open a pull request in the repository the instance ships to with the names this instance has given its ingredients, all of them, whatever has shipped.\n\nAsked by the administrator.",
-        "security": [
-          {
-            "administrator": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "What was asked for.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OverridesPushed"
                 }
               }
             }
@@ -10811,12 +10781,6 @@
               "null"
             ]
           },
-          "shippedPRUrl": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "shippedAt": {
             "type": [
               "string",
@@ -10854,7 +10818,6 @@
           "batchId",
           "modelUsed",
           "generatorPrompt",
-          "shippedPRUrl",
           "shippedAt",
           "createdAt",
           "updatedAt",
@@ -12352,27 +12315,6 @@
           "skippedSlugs",
           "refused",
           "total"
-        ],
-        "additionalProperties": false
-      },
-      "OverridesPushed": {
-        "type": "object",
-        "properties": {
-          "prUrl": {
-            "type": "string"
-          },
-          "branch": {
-            "type": "string"
-          },
-          "rowCount": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        "required": [
-          "prUrl",
-          "branch",
-          "rowCount"
         ],
         "additionalProperties": false
       },
@@ -14648,12 +14590,6 @@
               "null"
             ]
           },
-          "shippedPRUrl": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "shippedAt": {
             "type": [
               "string",
@@ -14708,7 +14644,6 @@
           "generationSpec",
           "provenanceUrl",
           "provenanceLicense",
-          "shippedPRUrl",
           "shippedAt",
           "createdAt",
           "updatedAt",
@@ -16144,37 +16079,6 @@
                 ],
                 "additionalProperties": false
               },
-              "upstreamPr": {
-                "type": "object",
-                "properties": {
-                  "available": {
-                    "type": "boolean"
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "reason": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "baseBranch": {
-                    "type": "string"
-                  },
-                  "remote": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "available",
-                  "enabled",
-                  "reason",
-                  "baseBranch",
-                  "remote"
-                ],
-                "additionalProperties": false
-              },
               "bundle": {
                 "type": "object",
                 "properties": {
@@ -16191,7 +16095,6 @@
             },
             "required": [
               "local",
-              "upstreamPr",
               "bundle"
             ],
             "additionalProperties": false
@@ -16258,7 +16161,6 @@
         "type": "string",
         "enum": [
           "local",
-          "upstream-pr",
           "bundle"
         ]
       },
@@ -16326,41 +16228,6 @@
               "shippedDraftIds",
               "skipped",
               "sidecarPaths"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "mode": {
-                "type": "string",
-                "const": "upstream-pr"
-              },
-              "prUrl": {
-                "type": "string"
-              },
-              "branch": {
-                "type": "string"
-              },
-              "shippedDraftIds": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "skipped": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/SkippedDraft"
-                }
-              }
-            },
-            "required": [
-              "mode",
-              "prUrl",
-              "branch",
-              "shippedDraftIds",
-              "skipped"
             ],
             "additionalProperties": false
           },

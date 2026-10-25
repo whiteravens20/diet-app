@@ -5,13 +5,12 @@ where they end up. A mode is picked per ship; an instance may use one today and
 another next month. What is written has the same shape in every mode: the shape
 of the catalogue's data files.
 
-## The three modes
+## The two modes
 
-| Mode                  | What happens                                                                                      | Needs                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `local` (the default) | The drafts become rows of this instance at once, and are copied to the instance's data directory. | Nothing.                                                           |
-| `bundle`              | The panel is given a file to save; you put it into a repository's `data/` by hand.                | Nothing.                                                           |
-| `upstream-pr`         | The file is committed on a branch of a git checkout, pushed, and offered as a pull request.       | A checkout with `git` and `gh`, a token, and the mode switched on. |
+| Mode                  | What happens                                                                                      | Needs    |
+| --------------------- | ------------------------------------------------------------------------------------------------- | -------- |
+| `local` (the default) | The drafts become rows of this instance at once, and are copied to the instance's data directory. | Nothing. |
+| `bundle`              | The panel is given a file to save; you put it into a repository's `data/` by hand.                | Nothing. |
 
 The catalogue's own data (`data/recipes.json`, `data/recipes/*.json`,
 `data/ingredients*.json`, `data/ingredient-overrides.json`) comes from the
@@ -65,9 +64,8 @@ A recipe is taken when all of it can be answered for:
 A recipe that is taken becomes a draft in English, with where it is from. Its
 figures are the engine's, worked out from the catalogue. It is reviewed and
 shipped like any other draft, gets its other languages from "Fill a missing
-language", and carries its source into the library, into a bundle and into a
-pull request. Whoever reads the recipe is told where it is from and under which
-licence.
+language", and carries its source into the library and into a bundle. Whoever
+reads the recipe is told where it is from and under which licence.
 
 A recipe that is not taken never reaches the queue. The import names every
 reason, and keeps the refusals (the latest five hundred) under "What earlier
@@ -96,8 +94,8 @@ and ships like any other.
   it gives the recipe the new language and writes nothing else of it. If the
   recipe has changed since the draft was made, the draft does not ship: reject
   it and fill the language again.
-- Such a draft does not go into a bundle or a pull request, which hold whole
-  recipes; the panel names it with the reason.
+- Such a draft does not go into a bundle, which holds whole recipes; the panel
+  names it with the reason.
 - The recipes of the catalogue's own data are left alone. Their text is written
   by hand in the repository's data files.
 - The names of ingredients are not part of this run. An imported ingredient
@@ -128,35 +126,6 @@ and ships like any other.
   draft, so a download taken by mistake changes nothing.
 - The recipes are not in this instance until the repository you committed the
   file to is the one this instance is built from, and its database is updated.
-
-### `upstream-pr`
-
-- Runs `git` and `gh` in the checkout the API was started from: it checks out
-  `drafts/<kind>/<batch>-<stamp>` from `SHIP_UPSTREAM_BASE_BRANCH` of
-  `SHIP_UPSTREAM_REMOTE`, writes the batch into `data/recipes/` (or merges the
-  names into `data/ingredient-overrides.json`), commits that one file, pushes
-  the branch and opens a pull request with `gh`. Only then are the drafts
-  marked as shipped, with the address of the pull request. A draft that was
-  edited while the branch was pushed is not marked.
-- **The published container image cannot use this mode**: it holds no git
-  checkout and neither tool. It is for an instance started from a clone of a
-  repository, on a machine that has `git` and `gh`.
-- The remote is never the project's own repository
-  (`whiteravens20/diet-app`): text a model wrote is not pushed there from any
-  instance. Point `SHIP_UPSTREAM_REMOTE` at a fork or a private mirror.
-- Like a bundle, it writes nothing into this instance's own tables.
-
-The mode is off unless `SHIP_UPSTREAM_ENABLED=true`. When it cannot run, the
-panel says why, and a request answers `409` with the same code:
-
-| Code                                | Meaning                                     |
-| ----------------------------------- | ------------------------------------------- |
-| `SHIP_UPSTREAM_DISABLED`            | `SHIP_UPSTREAM_ENABLED` is not `true`.      |
-| `SHIP_UPSTREAM_NO_TOKEN`            | `SHIP_UPSTREAM_GH_TOKEN` is empty.          |
-| `GH_MODE_UNAVAILABLE`               | The `gh` tool is not installed.             |
-| `SHIP_REPO_ROOT_NOT_FOUND`          | The API does not run inside a git checkout. |
-| `SHIP_UPSTREAM_BLOCKED_CANONICAL`   | The remote is the project's own repository. |
-| `GIT_FAILED`, `GH_PR_CREATE_FAILED` | A command failed; the drafts stay approved. |
 
 ## Backing up what the instance added
 
@@ -214,17 +183,11 @@ The reverse of shipping names: the panel fetches an
 
 ## Settings
 
-| Variable                                                           | Default                  | Purpose                                                                                                    |
-| ------------------------------------------------------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `INSTANCE_DATA_DIR`                                                | `instance-data`          | Where `local` ships copy what they shipped, and what a restore reads. Keep it on a volume.                 |
-| `SHIP_UPSTREAM_ENABLED`                                            | `false`                  | Switches the `upstream-pr` mode on.                                                                        |
-| `SHIP_UPSTREAM_REMOTE`                                             | `origin`                 | The git remote the branch is pushed to. Never the project's own repository.                                |
-| `SHIP_UPSTREAM_BASE_BRANCH`                                        | `main`                   | The branch the pull request is opened against.                                                             |
-| `SHIP_UPSTREAM_GH_TOKEN`                                           | —                        | The token `gh` pushes and opens the pull request with. Handed to `gh` through its environment.             |
-| `SHIP_UPSTREAM_GIT_AUTHOR_NAME` / `SHIP_UPSTREAM_GIT_AUTHOR_EMAIL` | —                        | Author of the commit. Without them git's own configuration decides.                                        |
-| `OVERRIDES_PULL_SOURCE`                                            | `whiteravens20/diet-app` | The source the panel offers for a pull of names.                                                           |
-| `OVERRIDES_PULL_TOKEN`                                             | `SHIP_UPSTREAM_GH_TOKEN` | Token for a private GitHub repository.                                                                     |
-| `OVERRIDES_PULL_ALLOWED_HOSTS`                                     | —                        | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public. |
+| Variable                | Default                        | Purpose                                                                                    |
+| ----------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `INSTANCE_DATA_DIR`     | `instance-data`                | Where `local` ships copy what they shipped, and what a restore reads. Keep it on a volume. |
+| `OVERRIDES_PULL_SOURCE` | `whiteravens20/diet-app`       | The source the panel offers for a pull of names.                                           |
+| `OVERRIDES_PULL_TOKEN`  | `OVERRIDES_PULL_ALLOWED_HOSTS` | —                                                                                          | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public. |
 
 `bundle` reads no setting. `local` reads only `INSTANCE_DATA_DIR`.
 

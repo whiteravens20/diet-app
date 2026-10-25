@@ -168,18 +168,8 @@ export const envSchema = z.object({
 
   // How approved drafts leave the curation queue. `local` makes them rows of
   // this instance and copies them to INSTANCE_DATA_DIR, which a restore reads
-  // back; `bundle` hands the administrator a file; `upstream-pr` commits the
-  // file in the git checkout the API runs from and opens a pull request.
-  // `local` and `bundle` are always on offer; `upstream-pr` only when it is
-  // switched on, a token is set, the `gh` tool is installed and a checkout
-  // is found.
+  // back; `bundle` hands the administrator a file.
   INSTANCE_DATA_DIR: z.string().default('instance-data'),
-  SHIP_UPSTREAM_ENABLED: boolFromString,
-  SHIP_UPSTREAM_REMOTE: z.string().default('origin'),
-  SHIP_UPSTREAM_BASE_BRANCH: z.string().default('main'),
-  SHIP_UPSTREAM_GH_TOKEN: z.string().optional(),
-  SHIP_UPSTREAM_GIT_AUTHOR_NAME: z.string().optional(),
-  SHIP_UPSTREAM_GIT_AUTHOR_EMAIL: z.string().optional(),
 
   // "Pull ingredient overrides from a repo" — the reverse of the local ship.
   // The admin panel fetches a repo's `data/ingredient-overrides.json` and
@@ -189,8 +179,7 @@ export const envSchema = z.object({
   // `owner/repo[@branch]` (GitHub) or a full raw URL (e.g. gitea/gitlab).
   // Public repos need no auth; private GitHub repos use OVERRIDES_PULL_TOKEN.
   OVERRIDES_PULL_SOURCE: z.string().default('whiteravens20/diet-app'),
-  // PAT for pulling from a PRIVATE repo. Only ever sent to GitHub hosts. Falls
-  // back to SHIP_UPSTREAM_GH_TOKEN when unset.
+  // PAT for pulling from a PRIVATE repo. Only ever sent to GitHub hosts.
   OVERRIDES_PULL_TOKEN: z.string().optional(),
   // Hosts a pull may fetch from even when their address is not public, as
   // `host` or `host:port`, comma-separated: a Gitea on the operator's own

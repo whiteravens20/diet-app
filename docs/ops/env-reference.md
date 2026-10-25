@@ -103,18 +103,13 @@ Two rules apply to every variable:
 
 ## Curation queue shipping
 
-See [curation-shipping.md](curation-shipping.md) for the three ship modes.
+See [curation-shipping.md](curation-shipping.md) for the two ship modes.
 
-| Variable                                                           | Default                  | Purpose                                                                                                                                                                                                                       |
-| ------------------------------------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `INSTANCE_DATA_DIR`                                                | `instance-data`          | Where the local ship mode copies what it shipped, and what a restore in the admin panel reads back. Private to the instance; keep it on a volume.                                                                             |
-| `SHIP_UPSTREAM_ENABLED`                                            | `false`                  | Offer the "open a pull request" ship mode. Also needs a token and the `gh` binary.                                                                                                                                            |
-| `SHIP_UPSTREAM_REMOTE` / `SHIP_UPSTREAM_BASE_BRANCH`               | `origin` / `main`        | The git remote and branch a ship opens its pull request against.                                                                                                                                                              |
-| `SHIP_UPSTREAM_GH_TOKEN`                                           | —                        | Token the `gh` CLI uses to push and open the pull request.                                                                                                                                                                    |
-| `SHIP_UPSTREAM_GIT_AUTHOR_NAME` / `SHIP_UPSTREAM_GIT_AUTHOR_EMAIL` | —                        | Author of the commits a ship creates.                                                                                                                                                                                         |
-| `OVERRIDES_PULL_SOURCE`                                            | `whiteravens20/diet-app` | Default repository (`owner/repo[@branch]`) or raw URL the admin panel pulls ingredient name overrides from.                                                                                                                   |
-| `OVERRIDES_PULL_TOKEN`                                             | `SHIP_UPSTREAM_GH_TOKEN` | Token for pulling from a private GitHub repository. Sent to GitHub hosts only.                                                                                                                                                |
-| `OVERRIDES_PULL_ALLOWED_HOSTS`                                     | —                        | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public, such as a Gitea on your own network. Every other source must be at a public address; a redirect is never followed. |
+| Variable                | Default                        | Purpose                                                                                                                                           |
+| ----------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INSTANCE_DATA_DIR`     | `instance-data`                | Where the local ship mode copies what it shipped, and what a restore in the admin panel reads back. Private to the instance; keep it on a volume. |
+| `OVERRIDES_PULL_SOURCE` | `whiteravens20/diet-app`       | Default repository (`owner/repo[@branch]`) or raw URL the admin panel pulls ingredient name overrides from.                                       |
+| `OVERRIDES_PULL_TOKEN`  | `OVERRIDES_PULL_ALLOWED_HOSTS` | —                                                                                                                                                 | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public, such as a Gitea on your own network. Every other source must be at a public address; a redirect is never followed. |
 
 ## What the instance publishes
 

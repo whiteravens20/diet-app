@@ -71,7 +71,7 @@ describe('a recipe draft that is about to ship', () => {
   });
 
   it('ships as a row the reader of the data files takes, when it is saved as a batch', () => {
-    // What a bundle or a pull request puts into data/recipes/ is read by the next update of a catalogue.
+    // What a bundle puts into data/recipes/ is read by the next update of a catalogue.
     const shipped = shippableRecipe(
       draft({
         slug: 'oats-with-a-banana-and-nothing-else',

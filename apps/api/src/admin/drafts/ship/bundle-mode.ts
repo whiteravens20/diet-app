@@ -116,7 +116,7 @@ export async function markBundleShipped(
 ): Promise<{ updated: number }> {
   if (draftIds.length === 0) return { updated: 0 };
   const where = { id: { in: draftIds }, status: 'APPROVED' as const };
-  const data = { status: 'SHIPPED' as const, shippedAt: new Date(), shippedPRUrl: null };
+  const data = { status: 'SHIPPED' as const, shippedAt: new Date() };
   const result =
     kind === 'recipe'
       ? await prisma.recipeDraft.updateMany({ where, data })
