@@ -30,6 +30,7 @@ import { CustomMealModal } from './custom-meal-modal';
 import { DayVariationsDialog } from './day-variations-dialog';
 import { RerollDialog, type RerollAsked, type RerollStart } from './reroll-dialog';
 import { CSV_DIALECTS, csvOf } from '@/lib/csv';
+import { localDate } from '@/lib/http';
 import { saveText } from '@/lib/save-file';
 import { useFormat } from '@/lib/use-format';
 import { cn } from '@/lib/utils';
@@ -101,6 +102,7 @@ export function PlanCard({
   onToggleEaten,
   onIngredientSwapped,
   onAddCustomMeal,
+  onSpread,
   onSwapped,
   onChanged,
 }: {
@@ -133,6 +135,8 @@ export function PlanCard({
   onToggleEaten: (mealId: string, eaten: boolean) => void;
   onIngredientSwapped: (result: SwapIngredientResponse) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
+  /** Spread what the days from `date` are off their targets by over the remaining days of the plan. */
+  onSpread: (date: string) => void;
   /** Told what a swap that the card made itself came to: one that uses up what the plan opens. */
   onSwapped: (result: RebalanceResult) => void;
   /** Told when the plan is no longer what the card shows: a day was filled another way, or the plan had changed under an offer. */
@@ -160,6 +164,8 @@ export function PlanCard({
   const [reroll, setReroll] = useState<RerollStart | null>(null);
   // The day whose other ways are on offer in a window, while it is open.
   const [waysFor, setWaysFor] = useState<{ id: string; date: string } | null>(null);
+  // Today by the reader's clock: a day before it is history.
+  const today = localDate();
   // An account has a model to ask where the page was given the way to ask one.
   const aiEnabled = onAiSwapMeal !== undefined;
   const mealName = (type: string): string => (tMeal.has(type) ? tMeal(type) : type.replace('_', ' '));
@@ -317,10 +323,31 @@ export function PlanCard({
               </div>
               {/* Said for as long as it is so, in words anybody can read: a notice that goes away is easy to miss, and a text that shows on hover says nothing to a finger. */}
               {!day.skipped && day.offTarget && (
-                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-warning">
-                  <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">{t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}</span>
-                  <span>{t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}</span>
-                </p>
+                <div className="space-y-1 text-xs">
+                  <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-warning">
+                    <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">{t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}</span>
+                    <span>{t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}</span>
+                  </p>
+                  {/* What spreading does is said beside the button that does it, before it is pressed; it is offered where another day from today on can take a part. */}
+                  {plan.days.some((other) => other.id !== day.id && other.date >= today && !other.skipped) && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        // The remaining days of the plan take it: from today, or from the day itself where it is over already.
+                        onClick={() => onSpread(day.date < today ? day.date : today)}
+                        disabled={busy}
+                        aria-describedby={`${day.id}-spread`}
+                      >
+                        {t('spread')}
+                      </Button>
+                      <span id={`${day.id}-spread`} className="text-muted-foreground">
+                        {t(day.offTarget === 'over' ? 'spreadNoteOver' : 'spreadNoteUnder')}
+                      </span>
+                    </div>
+                  )}
+                </div>
               )}
               {!day.skipped && (
                 <p className="text-xs text-muted-foreground">

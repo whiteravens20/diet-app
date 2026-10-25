@@ -1238,9 +1238,9 @@
     "customSubmit": "Dodaj posiłek",
     "rebalanceTitle": "Zaktualizowano makro dnia",
     "rebalanceSummary": "{before, number} → {after, number} kcal · przeliczono posiłki: {count}.",
-    "rebalanceBestEffort": "Dzień nadal przekracza cel — rozważ edycję.",
-    "rebalanceLeftOver": "Tydzień nadal ma {kcal, number} kcal nadwyżki: pozostałe dni nie mają już zapasu w granicach własnych celów.",
-    "rebalanceLeftUnder": "W tygodniu nadal brakuje {kcal, number} kcal: pozostałe dni nie mają już zapasu w granicach własnych celów.",
+    "rebalanceBestEffort": "Dzień nadal jest poza celem: dopasowanie porcji nie wystarczyło.",
+    "rebalanceLeftOver": "Reszta planu nadal ma {kcal, number} kcal nadwyżki: pozostałe dni nie mają już zapasu w granicach własnych celów.",
+    "rebalanceLeftUnder": "W reszcie planu nadal brakuje {kcal, number} kcal: pozostałe dni nie mają już zapasu w granicach własnych celów.",
     "dayOver": "Ponad cel",
     "dayOverHint": "Ten dzień ma o ponad jedną dziesiątą więcej kalorii niż jego cel, a dopasowanie porcji nie wystarczyło, by to wyrównać. Zamień posiłek albo usuń jeden, żeby wrócić do celu.",
     "dayUnder": "Poniżej celu",
@@ -1250,7 +1250,6 @@
     "daySkipped": "Pominięty",
     "dayBelowFloor": "Cel tego dnia jest niższy niż najniższy, jaki wylicza plan.",
     "rebalanceUndo": "Cofnij ostatnie przeliczenie",
-    "rebalanceWeek": "Przelicz resztę tygodnia",
     "rebalanceDismiss": "Zamknij",
     "advanced": {
       "toggle": "Pokaż opcje zaawansowane",
@@ -1349,7 +1348,14 @@
       "none": "W limitach planu katalog nie daje innego wariantu tego dnia.",
       "errLoad": "Nie udało się ułożyć innych wariantów tego dnia.",
       "errTake": "Nie udało się zmienić dnia."
-    }
+    },
+    "spread": "Rozłóż na resztę planu",
+    "spreadNoteOver": "Porcje pozostałych dni planu, od dziś do jego końca, zmniejszą się, każdy dzień najwyżej o jedną dziesiątą swojego celu. Dni minione, pominięte i zjedzone posiłki zostają bez zmian.",
+    "spreadNoteUnder": "Porcje pozostałych dni planu, od dziś do jego końca, zwiększą się, każdy dzień najwyżej o jedną dziesiątą swojego celu. Dni minione, pominięte i zjedzone posiłki zostają bez zmian.",
+    "rebalanceRest": "Rozłóż na resztę planu",
+    "rebalanceRestNote": "Rozłożenie zmienia porcje pozostałych dni planu, od dziś do jego końca, każdego najwyżej o jedną dziesiątą jego celu.",
+    "rebalanceTitlePlan": "Rozłożono na resztę planu",
+    "rebalanceSummaryPlan": "Przeliczono posiłki pozostałych dni planu: {count, number}."
   },
   "inventory": {
     "title": "Spiżarnia",

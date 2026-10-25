@@ -1238,9 +1238,9 @@
     "customSubmit": "Add meal",
     "rebalanceTitle": "Day macros updated",
     "rebalanceSummary": "{before, number} → {after, number} kcal · {count} meal(s) rescaled.",
-    "rebalanceBestEffort": "Day still over target — consider editing.",
-    "rebalanceLeftOver": "The week is still {kcal, number} kcal over: the other days have no more room inside their own targets.",
-    "rebalanceLeftUnder": "The week is still {kcal, number} kcal short: the other days have no more room inside their own targets.",
+    "rebalanceBestEffort": "The day is still off its target: sizing its meals could not close the gap.",
+    "rebalanceLeftOver": "The rest of the plan is still {kcal, number} kcal over: the other days have no more room inside their own targets.",
+    "rebalanceLeftUnder": "The rest of the plan is still {kcal, number} kcal short: the other days have no more room inside their own targets.",
     "dayOver": "Over target",
     "dayOverHint": "This day holds more than a tenth over its target, and sizing its meals could not close the gap. Swap a meal, or take one out, to bring it back.",
     "dayUnder": "Under target",
@@ -1250,7 +1250,6 @@
     "daySkipped": "Skipped",
     "dayBelowFloor": "The target of this day is under the lowest a calculated plan goes.",
     "rebalanceUndo": "Undo last rebalance",
-    "rebalanceWeek": "Rebalance the rest of the week",
     "rebalanceDismiss": "Dismiss",
     "advanced": {
       "toggle": "Show advanced options",
@@ -1349,7 +1348,14 @@
       "none": "The catalogue leaves no other way to fill this day inside the limits of the plan.",
       "errLoad": "Could not work out other ways for this day.",
       "errTake": "Could not change the day."
-    }
+    },
+    "spread": "Spread over the rest of the plan",
+    "spreadNoteOver": "The portions of the plan's remaining days, from today to its end, get smaller, each day by a tenth of its target at most. Past days, skipped days and eaten meals stay as they are.",
+    "spreadNoteUnder": "The portions of the plan's remaining days, from today to its end, get larger, each day by a tenth of its target at most. Past days, skipped days and eaten meals stay as they are.",
+    "rebalanceRest": "Spread over the rest of the plan",
+    "rebalanceRestNote": "Spreading changes the portions of the plan's remaining days, from today to its end, each by a tenth of its target at most.",
+    "rebalanceTitlePlan": "Spread over the rest of the plan",
+    "rebalanceSummaryPlan": "Meals rescaled on the plan's remaining days: {count, number}."
   },
   "inventory": {
     "title": "Inventory",

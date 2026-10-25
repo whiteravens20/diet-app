@@ -4114,8 +4114,8 @@
         "tags": [
           "meal-plans"
         ],
-        "summary": "Share what a day or a week has left among its meals again, or put servings back as the `restore` of an earlier answer says.",
-        "description": "Share what a day or a week has left among its meals again, or put servings back as the `restore` of an earlier answer says.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "summary": "Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says.",
+        "description": "Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -13579,7 +13579,7 @@
             "type": "string",
             "enum": [
               "day",
-              "week"
+              "plan"
             ]
           },
           "date": {
@@ -13627,7 +13627,7 @@
                     "type": "string",
                     "enum": [
                       "day",
-                      "week"
+                      "plan"
                     ]
                   },
                   "feasibility": {
@@ -16043,7 +16043,7 @@
                     "type": "string",
                     "enum": [
                       "day",
-                      "week"
+                      "plan"
                     ]
                   },
                   "feasibility": {

@@ -27,7 +27,7 @@ import {
   macrosForCalories,
   sharesOf,
   rebalanceDay,
-  rebalanceWeek,
+  rebalanceDays,
   type RebalanceMeal,
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
@@ -241,10 +241,10 @@ export class MealPlansService {
   }
 
   /**
-   * Explicit rebalance. `day` rebalances one date; `week` shares the
-   * surplus/deficit across the plan week. `restore` is the undo path: it writes
-   * the supplied scales verbatim (the toast's pre-edit `before` map) and skips
-   * the solver.
+   * Explicit rebalance. `day` rebalances one date; `plan` shares the
+   * surplus/deficit across the days from that date to the end of the plan.
+   * `restore` is the undo path: it writes the supplied scales verbatim (the
+   * toast's pre-edit `before` map) and skips the solver.
    */
   async rebalance(
     userId: string,
@@ -262,11 +262,10 @@ export class MealPlansService {
       return this.buildRebalanceResult(userId, locale, planId, req.scope, null);
     }
 
-    if (req.scope === 'week') {
-      const summary = await writePlan(this.prisma, planId, revision, (tx) =>
-        this.rebalanceWeekInternal(planId, tx, req.date ?? clientToday ?? isoDate(new Date())),
-      );
-      return this.buildRebalanceResult(userId, locale, planId, 'week', summary);
+    if (req.scope === 'plan') {
+      const today = clientToday ?? isoDate(new Date());
+      const summary = await writePlan(this.prisma, planId, revision, (tx) => this.rebalanceRestInternal(planId, tx, req.date ?? today, today));
+      return this.buildRebalanceResult(userId, locale, planId, 'plan', summary);
     }
 
     // The contract refuses a single day without its date before it gets here.
@@ -353,11 +352,17 @@ export class MealPlansService {
     return { feasibility, changes, macrosBefore, macrosAfter };
   }
 
-  /** Week-aware variant: share the surplus/deficit across the plan week. */
-  private async rebalanceWeekInternal(
+  /**
+   * Share the surplus/deficit across the days from `from` to the end of the
+   * plan. A day before `today` is done with: its meals stay as they are, and
+   * what it is off by is made up for by the days from today on. A skipped day
+   * takes no part.
+   */
+  private async rebalanceRestInternal(
     planId: string,
     tx: Prisma.TransactionClient,
     from: string,
+    today: string,
   ): Promise<RebalanceSummary | null> {
     const plan = await tx.mealPlan.findUnique({
       where: { id: planId },
@@ -369,15 +374,13 @@ export class MealPlansService {
       },
     });
     if (!plan) return null;
-    // From the day asked for to the end of its week of the plan. What lies
-    // before it is done with, and is not changed after the fact.
-    const first = plan.days.findIndex((d) => isoDate(d.date) >= from);
-    const days = first === -1 ? [] : plan.days.slice(first, (Math.floor(first / 7) + 1) * 7);
-    const dayRows = days.map((d) => ({ target: d.calorieTarget, rows: d.meals.map(toRebalanceRow) }));
+    // What lies before the day asked for is not changed after the fact.
+    const days = plan.days.filter((d) => isoDate(d.date) >= from && !isSkipped(d));
+    const dayRows = days.map((d) => ({ target: d.calorieTarget, past: isoDate(d.date) < today, rows: d.meals.map(toRebalanceRow) }));
     const allRows = dayRows.flatMap((d) => d.rows);
     const macrosBefore = rowsMacros(allRows, (r) => r.quantityScale);
-    const { scales, feasibility, unabsorbed } = rebalanceWeek(
-      dayRows.map((d) => ({ target: d.target, meals: d.rows.map(toEngineMeal) })),
+    const { scales, feasibility, unabsorbed } = rebalanceDays(
+      dayRows.map((d) => ({ target: d.target, meals: d.rows.map((row) => ({ ...toEngineMeal(row), locked: toEngineMeal(row).locked || d.past })) })),
     );
     const changes = await this.persistScales(allRows, scales, tx);
     const macrosAfter = rowsMacros(allRows, (r) => scales.get(r.id) ?? r.quantityScale);
@@ -447,7 +450,7 @@ export class MealPlansService {
     userId: string,
     locale: Locale,
     planId: string,
-    scope: 'day' | 'week',
+    scope: 'day' | 'plan',
     summary: RebalanceSummary | null,
   ): Promise<RebalanceResult> {
     const plan = await this.get(userId, locale, planId);
@@ -660,7 +663,7 @@ interface RebalanceSummary {
   changes: RebalanceChange[];
   macrosBefore: MacroQuad;
   macrosAfter: MacroQuad;
-  /** What a week is still off by after its rebalance; a day's rebalance leaves it out. */
+  /** What the days are still off by after a rebalance of the rest of a plan; a day's rebalance leaves it out. */
   unabsorbedKcal?: number;
 }
 
@@ -715,7 +718,7 @@ const toEngineMeal = (r: RebalanceRow): RebalanceMeal => ({
   locked: r.locked,
 });
 
-/** Sum a day/week's effective macros given a per-meal scale lookup. */
+/** Sum the effective macros of meals given a per-meal scale lookup. */
 function rowsMacros(rows: RebalanceRow[], scaleOf: (r: RebalanceRow) => number): MacroQuad {
   return rows.reduce(
     (acc, r) => {

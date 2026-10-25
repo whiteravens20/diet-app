@@ -262,7 +262,7 @@ export class MealPlansController {
     return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten);
   }
 
-  /** Share what a day or a week has left among its meals again, or put servings back as the `restore` of an earlier answer says. */
+  /** Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. */
   @Post(':id/rebalance')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Answers(RebalanceResult)

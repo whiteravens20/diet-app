@@ -338,7 +338,7 @@ function MealPlansContent() {
   const rebalance = useMutation({
     mutationFn: (v: {
       planId: string;
-      scope: 'day' | 'week';
+      scope: 'day' | 'plan';
       date?: string;
       restore?: { mealId: string; scale: number }[];
     }) =>
@@ -348,7 +348,7 @@ function MealPlansContent() {
         ...(v.restore ? { restore: v.restore } : {}),
       }),
     onSuccess: (res, v) => {
-      // Undo / week re-runs replace the toast (undo simply clears it).
+      // Undo / rest-of-plan re-runs replace the toast (undo simply clears it).
       if (v.restore) {
         invalidate();
         setRebalanceToast(null);
@@ -807,6 +807,10 @@ function MealPlansContent() {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
               }}
+              onSpread={(date) => {
+                setError(null);
+                rebalance.mutate({ planId: plan.id, scope: 'plan', date });
+              }}
               onSwapped={(res) => showRebalance(plan.id, res)}
               onChanged={() => void invalidate()}
               favorites={liked}
@@ -841,8 +845,8 @@ function MealPlansContent() {
               })),
             })
           }
-          onRebalanceWeek={() =>
-            rebalance.mutate({ planId: rebalanceToast.planId, scope: 'week' })
+          onRebalanceRest={() =>
+            rebalance.mutate({ planId: rebalanceToast.planId, scope: 'plan' })
           }
           onDismiss={() => setRebalanceToast(null)}
         />

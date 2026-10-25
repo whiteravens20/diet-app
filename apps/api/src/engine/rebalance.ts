@@ -110,15 +110,15 @@ export function rebalanceDay(
   return { scales, feasibility: feasible ? 'in-window' : 'best-effort' };
 }
 
-export interface RebalanceWeekDay {
+export interface DayToRebalance {
   target: number;
   /** The day's meals; none for a day the user skips. */
   meals: RebalanceMeal[];
 }
 
-export interface WeekRebalanceResult extends RebalanceResult {
+export interface DaysRebalanceResult extends RebalanceResult {
   /**
-   * The kcal the week is still off by after everything that can move has
+   * The kcal the days are still off by after everything that can move has
    * moved: positive when more was eaten than the targets allow, negative when
    * less. Zero when the other days took it all.
    */
@@ -126,7 +126,7 @@ export interface WeekRebalanceResult extends RebalanceResult {
 }
 
 /**
- * Rebalance the days of a week together, in two steps.
+ * Rebalance a run of days together, in two steps.
  *
  *  1. A day that is outside its window is brought back with its own meals,
  *     as `rebalanceDay` would. A day inside its window is not touched.
@@ -137,18 +137,18 @@ export interface WeekRebalanceResult extends RebalanceResult {
  *
  * A day without meals is one the user skips: it is neither a target to fill
  * nor a day to test. `in-window` says that every day with meals ended inside
- * its own window; `unabsorbed` is what the week could not make up for.
+ * its own window; `unabsorbed` is what the days could not make up for.
  */
-export function rebalanceWeek(
-  days: RebalanceWeekDay[],
+export function rebalanceDays(
+  days: DayToRebalance[],
   tolerance: number = REBALANCE_TOLERANCE,
-): WeekRebalanceResult {
+): DaysRebalanceResult {
   const live = days.filter((d) => d.meals.length > 0);
   const scales = new Map(live.flatMap((d) => d.meals).map((m) => [m.id, m.quantityScale]));
-  const total = (d: RebalanceWeekDay) => totalKcal(d.meals, scales);
-  const inside = (d: RebalanceWeekDay) => within(total(d), d.target, tolerance);
+  const total = (d: DayToRebalance) => totalKcal(d.meals, scales);
+  const inside = (d: DayToRebalance) => within(total(d), d.target, tolerance);
   /** Solve one day against `target` with the scales it has now, and keep the result. */
-  const settle = (d: RebalanceWeekDay, target: number): void => {
+  const settle = (d: DayToRebalance, target: number): void => {
     const now = d.meals.map((m) => ({ ...m, quantityScale: scales.get(m.id)! }));
     for (const [id, scale] of solve(now, target)) scales.set(id, scale);
   };
