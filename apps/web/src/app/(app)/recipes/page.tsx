@@ -503,7 +503,7 @@ export default function RecipesPage() {
                     </div>
                   </Card>
                 </Link>
-                {tab === 'mine' && (
+                {tab === 'mine' && r.origin !== 'swap' && (
                   <button
                     type="button"
                     title={t('submit')}

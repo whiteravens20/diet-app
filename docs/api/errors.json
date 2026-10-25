@@ -1017,6 +1017,15 @@
       "pl": "Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki."
     }
   },
+  "RECIPE_SWAP_NOT_SUBMITTABLE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library.",
+      "pl": "Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki."
+    }
+  },
   "REFERENCE_CONFLICT": {
     "statuses": [
       409

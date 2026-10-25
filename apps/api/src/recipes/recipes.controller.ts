@@ -97,7 +97,8 @@ export class RecipesController {
   /**
    * Put a recipe of one's own before the curators, as a candidate for the
    * library everyone shares. They see what the recipe says and is made of,
-   * not who sent it. Repeating the request changes nothing.
+   * not who sent it. Repeating the request changes nothing. A recipe made by
+   * swapping an ingredient stays its owner's (409).
    */
   @Post(':id/submit')
   @HttpCode(204)

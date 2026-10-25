@@ -105,9 +105,9 @@ runs on a provider's defaults.
   deleted is removed for good by the worker a week later, once no plan,
   favourite or pending curation draft uses it.
 - **Users' recipes stay out of the curation queue** unless the owner sends one
-  in ("Suggest for the shared library" on their recipes), or a second user
-  comes to own the same recipe. The draft in the queue shows the recipe, not
-  who made it.
+  in ("Suggest for the shared library" on their recipes). A recipe made by
+  swapping an ingredient cannot be sent in. The draft in the queue shows the
+  recipe, not who made it.
 - **An ingredient swap asks no model unless the user ticks the box.** The
   substitute's name then replaces the old one in the text of every language.
   With the box ticked, one call rewords the text in the language the user

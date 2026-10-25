@@ -382,6 +382,7 @@
     "AI_DRAFT_OFF_DIET": "Przepis od AI nie pasuje do diety, o którą prosisz — spróbuj ponownie.",
     "AI_DRAFT_DAILY_LIMIT": "AI napisało już dla Ciebie tyle przepisów, ile może w ciągu jednego dnia. Spróbuj ponownie jutro.",
     "PERSONAL_RECIPE_LIMIT": "Masz już tyle własnych przepisów, ile mieści jedno konto. Usuń te, których już nie używasz.",
+    "RECIPE_SWAP_NOT_SUBMITTABLE": "Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki.",
     "RECIPE_NOT_SUBMITTABLE": "Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki.",
     "AI_DRAFT_UNKNOWN_INGREDIENT": "AI zaproponowało składnik, którego nie było na liście — spróbuj ponownie.",
     "NO_ELIGIBLE_INGREDIENTS": "Żadne składniki nie pasują do diety i alergenów profilu.",

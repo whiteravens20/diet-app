@@ -5722,7 +5722,7 @@
           "recipes"
         ],
         "summary": "Put a recipe of one's own before the curators, as a candidate for the library everyone shares.",
-        "description": "Put a recipe of one's own before the curators, as a candidate for the library everyone shares. They see what the recipe says and is made of, not who sent it. Repeating the request changes nothing.\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "description": "Put a recipe of one's own before the curators, as a candidate for the library everyone shares. They see what the recipe says and is made of, not who sent it. Repeating the request changes nothing. A recipe made by swapping an ingredient stays its owner's (409).\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
         "security": [
           {
             "account": []

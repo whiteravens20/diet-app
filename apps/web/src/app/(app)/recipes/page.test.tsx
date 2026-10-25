@@ -17,26 +17,34 @@ const TOFU = '7b0e6a52-0d0a-4d6f-9d3e-3f5f0a1b2c3d';
 /** What the page asked the library for, last: the parts of the query by name. */
 let asked: URLSearchParams = new URLSearchParams();
 
-/** The page of an account with `profiles` profiles, the first favouring `favoured` ingredients. */
-async function renderPage(profiles = 1, favoured: string[] = [TOFU]) {
+/** The page of an account with `profiles` profiles, the first favouring `favoured` ingredients, and `mine` its own recipes. */
+async function renderPage(profiles = 1, favoured: string[] = [TOFU], mine: unknown[] = []) {
   vi.spyOn(api, 'get').mockImplementation((path: string) => {
     if (path.startsWith('/recipes?')) asked = new URLSearchParams(path.slice('/recipes?'.length));
     return Promise.resolve(
       (path === '/users/me'
         ? { aiMode: 'none' }
-        : path === '/profiles'
-          ? Array.from({ length: profiles }, (_, i) => ({
-              id: i === 0 ? PROFILE : `${PROFILE.slice(0, -1)}${i}`,
-              name: i === 0 ? 'Me' : `Other ${i}`,
-              preferences: { favoriteIngredientIds: i === 0 ? favoured : [] },
-            }))
-          : path.startsWith('/recipes?')
-            ? { items: [], page: 1, pageSize: 36, total: 0, totalPages: 0 }
-            : path.startsWith('/ingredients?search=')
-              ? [{ id: TOFU, name: 'Firm tofu' }]
-              : path.startsWith('/ingredients?ids=')
+        : path.startsWith('/recipes/mine?')
+          ? {
+              items: mine,
+              page: 1,
+              pageSize: 36,
+              total: mine.length,
+              totalPages: mine.length ? 1 : 0,
+            }
+          : path === '/profiles'
+            ? Array.from({ length: profiles }, (_, i) => ({
+                id: i === 0 ? PROFILE : `${PROFILE.slice(0, -1)}${i}`,
+                name: i === 0 ? 'Me' : `Other ${i}`,
+                preferences: { favoriteIngredientIds: i === 0 ? favoured : [] },
+              }))
+            : path.startsWith('/recipes?')
+              ? { items: [], page: 1, pageSize: 36, total: 0, totalPages: 0 }
+              : path.startsWith('/ingredients?search=')
                 ? [{ id: TOFU, name: 'Firm tofu' }]
-                : []) as never,
+                : path.startsWith('/ingredients?ids=')
+                  ? [{ id: TOFU, name: 'Firm tofu' }]
+                  : []) as never,
     );
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -187,5 +195,52 @@ describe("the recipes of one's own, while there are none", () => {
 
     expect(await screen.findByRole('heading', { name: texts.mineEmptyTitle })).toBeInTheDocument();
     expect(screen.queryByText(texts.noneFiltered)).not.toBeInTheDocument();
+  });
+});
+
+describe("the recipes of one's own", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** A recipe of the account's own, as the API lists it. */
+  const own = (id: string, title: string, origin: 'ai' | 'swap') => ({
+    id,
+    title,
+    description: '',
+    servings: 1,
+    mealTypes: ['dinner'],
+    dietTags: [],
+    ingredients: [],
+    steps: ['Cook.'],
+    prepMinutes: 10,
+    cookMinutes: 10,
+    difficulty: 'easy',
+    cuisine: null,
+    allergens: [],
+    nutritionPerServing: { calories: 500, protein: 30, fat: 20, carbs: 50 },
+    origin,
+    byModel: origin === 'ai' ? 'written' : null,
+    source: null,
+  });
+
+  it('offer to submit one a model wrote, and not one made by swapping an ingredient', async () => {
+    await renderPage(
+      1,
+      [TOFU],
+      [
+        own('2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f01', 'A dinner a model wrote', 'ai'),
+        own('2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f02', 'My bowl with chicken for tofu', 'swap'),
+      ],
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: texts.tabs.mine }));
+
+    const written = (await screen.findByText('A dinner a model wrote')).closest('div.relative')!;
+    const swapped = screen.getByText('My bowl with chicken for tofu').closest('div.relative')!;
+    expect(
+      within(written as HTMLElement).getByRole('button', { name: texts.submit }),
+    ).toBeInTheDocument();
+    expect(within(swapped as HTMLElement).queryByRole('button', { name: texts.submit })).toBeNull();
   });
 });

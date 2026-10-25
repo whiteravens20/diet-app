@@ -69,6 +69,50 @@ async function tofuForChicken(account: Account): Promise<string> {
   return (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId!;
 }
 
+/** A recipe of the account's own that a model wrote, as it is stored: no recipe of the library is made the same way. */
+async function aRecipeOfTheirOwn(account: Account): Promise<string> {
+  const lines = await Promise.all(
+    (
+      [
+        ['chicken-breast', 120],
+        ['tomato', 150],
+        ['white-rice', 60],
+      ] as const
+    ).map(async ([slug, quantity]) => ({
+      ingredient: await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } }),
+      quantity,
+      unit: 'g' as const,
+    })),
+  );
+  return personal.save({
+    userId: account.user.id,
+    origin: 'ai',
+    text: new Map([
+      [
+        'en',
+        {
+          title: 'Chicken with tomato and rice',
+          description: 'A dinner of my own.',
+          steps: ['Cook the rice.', 'Fry the chicken with the tomato.'],
+        },
+      ],
+    ]),
+    modelWrote: new Set(['en']),
+    servings: 1,
+    mealTypes: ['dinner'],
+    prepMinutes: 10,
+    cookMinutes: 20,
+    difficulty: 'easy',
+    ingredients: lines.map((line) => ({
+      ingredientId: line.ingredient.id,
+      quantity: line.quantity,
+      unit: line.unit,
+      note: null,
+    })),
+    facts: recipeFacts(lines, 1),
+  });
+}
+
 /** A draft a model writes the same way every time it is asked. */
 const sameDraft = (request: ModelRequest): string => {
   const offered = [...request.prompt.matchAll(/^- ([a-z0-9-]+): /gm)].map((match) => match[1]!);
@@ -131,32 +175,10 @@ describe('two users who make the same recipe', () => {
     await t.http().get(`/api/recipes/${two.recipe.id}`).set(as(first.user)).expect(404);
   });
 
-  it('put the recipe before the curators once, as one draft that stands for both', async () => {
+  it('keep a recipe made by swapping an ingredient from the curators, however many make it', async () => {
     const [first, second] = [await anAccount(), await anAccount()];
 
-    const firstVariant = await tofuForChicken(first);
-    // One user alone is nobody's business but theirs.
-    expect(await t.prisma.recipeDraft.count()).toBe(0);
-    const secondVariant = await tofuForChicken(second);
-
-    const queue = await t.prisma.recipeDraft.findMany();
-    expect(queue).toHaveLength(1);
-    expect(queue[0]).toMatchObject({
-      source: 'AI_USER',
-      status: 'PENDING',
-      batchId: 'personal-recipes',
-    });
-    expect([...queue[0]!.sourceRecipeIds].sort()).toEqual([firstVariant, secondVariant].sort());
-    // Nothing in what a reviewer sees says who made it or when.
-    const shown = JSON.stringify(queue[0]);
-    for (const account of [first, second]) expect(shown).not.toContain(account.user.id.slice(0, 8));
-  });
-
-  it('are not two owners when the first has deleted theirs', async () => {
-    const [first, second] = [await anAccount(), await anAccount()];
-    const firstVariant = await tofuForChicken(first);
-    await t.http().delete(`/api/recipes/${firstVariant}`).set(as(first.user)).expect(204);
-
+    await tofuForChicken(first);
     await tofuForChicken(second);
 
     expect(await t.prisma.recipeDraft.count()).toBe(0);
@@ -360,7 +382,7 @@ describe('the number of recipes an account may hold', () => {
 describe("submitting a recipe of one's own", () => {
   it('puts it before the curators, once', async () => {
     const account = await anAccount();
-    const variant = await tofuForChicken(account);
+    const variant = await aRecipeOfTheirOwn(account);
 
     await personal.submit(account.user.id, variant);
     await personal.submit(account.user.id, variant);
@@ -373,7 +395,7 @@ describe("submitting a recipe of one's own", () => {
 
   it('can be done again after the curators deleted the draft', async () => {
     const account = await anAccount();
-    const variant = await tofuForChicken(account);
+    const variant = await aRecipeOfTheirOwn(account);
     await personal.submit(account.user.id, variant);
     const [first] = await t.prisma.recipeDraft.findMany();
 
@@ -388,7 +410,7 @@ describe("submitting a recipe of one's own", () => {
 
   it("is refused for another user's recipe as if it did not exist", async () => {
     const [owner, other] = [await anAccount(), await anAccount()];
-    const variant = await tofuForChicken(owner);
+    const variant = await aRecipeOfTheirOwn(owner);
 
     await expect(personal.submit(other.user.id, variant)).rejects.toMatchObject({ status: 404 });
     expect(await t.prisma.recipeDraft.count()).toBe(0);
@@ -396,7 +418,7 @@ describe("submitting a recipe of one's own", () => {
 
   it('is a request of its own, which may be repeated', async () => {
     const [owner, other] = [await anAccount(), await anAccount()];
-    const variant = await tofuForChicken(owner);
+    const variant = await aRecipeOfTheirOwn(owner);
     const path = `/api/recipes/${variant}/submit`;
 
     await t.http().post(path).set(as(owner.user)).expect(204);
@@ -411,7 +433,7 @@ describe("submitting a recipe of one's own", () => {
 
   it('is refused for a deleted recipe, and for a recipe of the library', async () => {
     const owner = await anAccount();
-    const variant = await tofuForChicken(owner);
+    const variant = await aRecipeOfTheirOwn(owner);
     await t.http().delete(`/api/recipes/${variant}`).set(as(owner.user)).expect(204);
     const library = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'milk-porridge' } });
 
@@ -429,7 +451,7 @@ describe("submitting a recipe of one's own", () => {
         servings: 1,
         prepMinutes: 1,
         cookMinutes: 1,
-        origin: 'swap',
+        origin: 'ai',
         createdByUserId: owner.user.id,
       },
     });
@@ -441,6 +463,20 @@ describe("submitting a recipe of one's own", () => {
       .expect(409);
 
     expect(refused.body.error).toBe('RECIPE_NOT_SUBMITTABLE');
+  });
+
+  it("is refused for a recipe made by swapping an ingredient, which stays its owner's", async () => {
+    const owner = await anAccount();
+    const variant = await tofuForChicken(owner);
+
+    const refused = await t
+      .http()
+      .post(`/api/recipes/${variant}/submit`)
+      .set(as(owner.user))
+      .expect(409);
+
+    expect(refused.body.error).toBe('RECIPE_SWAP_NOT_SUBMITTABLE');
+    expect(await t.prisma.recipeDraft.count()).toBe(0);
   });
 });
 
@@ -491,14 +527,9 @@ describe('deleted recipes nobody uses any more', () => {
 
   it('wait for the curators while a draft that stands for them is undecided, and leave no pointer behind after', async () => {
     const account = await anAccount();
-    const variant = await tofuForChicken(account);
+    const variant = await aRecipeOfTheirOwn(account);
     await personal.submit(account.user.id, variant);
-    // Out of the plan, and deleted long ago.
-    const bowl = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
-    await t.prisma.plannedMeal.updateMany({
-      where: { recipeId: variant },
-      data: { recipeId: bowl.id },
-    });
+    // In no plan, and deleted long ago.
     await t.prisma.recipe.update({
       where: { id: variant },
       data: { deletedAt: new Date(Date.now() - 30 * 86_400_000) },

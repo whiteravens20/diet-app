@@ -81,9 +81,9 @@ const lock = (tx: Prisma.TransactionClient, key: string): Promise<number> =>
  * them cannot both take the last place the account has; then the saves of one
  * recipe take turns, so two requests for it cannot both write it.
  *
- * A personal recipe reaches the curation queue in two ways only: its owner
- * submits it, or a second user comes to own the same recipe, which is the
- * sign that it may be worth sharing.
+ * A personal recipe reaches the curation queue only when its owner submits
+ * it, and a recipe made by swapping an ingredient never does: it stays its
+ * owner's.
  */
 @Injectable()
 export class PersonalRecipesService {
@@ -119,22 +119,7 @@ export class PersonalRecipesService {
       }
 
       await this.assertRoom(tx, recipe.userId, recipe.origin);
-      const id = await this.write(tx, recipe, fingerprint);
-
-      // A second owner is the sign that the recipe may be worth sharing. One
-      // who deleted theirs is no owner any more.
-      const others = await tx.recipe.findMany({
-        where: {
-          fingerprint,
-          createdByUserId: { not: null },
-          NOT: { createdByUserId: recipe.userId },
-          deletedAt: null,
-        },
-        select: { id: true },
-      });
-      if (others.length > 0)
-        await this.mirror(tx, id, fingerprint, [id, ...others.map((other) => other.id)]);
-      return id;
+      return this.write(tx, recipe, fingerprint);
     });
   }
 
@@ -159,14 +144,24 @@ export class PersonalRecipesService {
     return found === null;
   }
 
-  /** Put the user's own recipe before the curators, as a candidate for the shared library. */
+  /**
+   * Put the user's own recipe before the curators, as a candidate for the
+   * shared library. A recipe made by swapping an ingredient stays its owner's.
+   */
   async submit(userId: string, recipeId: string): Promise<void> {
     const recipe = await this.prisma.recipe.findUnique({
       where: { id: recipeId },
-      select: { id: true, createdByUserId: true, deletedAt: true, fingerprint: true },
+      select: { id: true, createdByUserId: true, deletedAt: true, fingerprint: true, origin: true },
     });
     if (!recipe || recipe.deletedAt || recipe.createdByUserId !== userId) {
       throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+    }
+    if (recipe.origin === 'swap') {
+      throw new ConflictException({
+        error: 'RECIPE_SWAP_NOT_SUBMITTABLE',
+        message:
+          "A recipe made by swapping an ingredient stays its owner's and cannot be submitted.",
+      });
     }
     if (!recipe.fingerprint) {
       throw new ConflictException({
