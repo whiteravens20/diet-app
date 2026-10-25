@@ -1,6 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { INGREDIENT_NAME_LIMITS, RECIPE_LIMITS } from '@diet-app/shared';
+import { INGREDIENT_NAME_LIMITS, RECIPE_LIMITS } from '@diet-app/shared/constants';
 
 /**
  * What the API found wrong with the content of a draft: where, and which

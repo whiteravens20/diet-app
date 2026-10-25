@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
+import { ALLERGENS, CUISINES, DIET_TYPES, MEAL_TYPES, RECIPE_DIET_TAGS } from './constants.js';
 import { UNITS } from './units.js';
 
 /** Biological sex — used only for the BMR formula; optional on profiles. */
@@ -18,16 +19,7 @@ export const ActivityLevel = z.enum([
 export type ActivityLevel = z.infer<typeof ActivityLevel>;
 
 /** Supported diet types. `custom` defers entirely to explicit preferences. */
-export const DietType = z.enum([
-  'balanced',
-  'high_protein',
-  'low_carb',
-  'vegetarian',
-  'vegan',
-  'keto',
-  'mediterranean',
-  'custom',
-]);
+export const DietType = z.enum(DIET_TYPES);
 export type DietType = z.infer<typeof DietType>;
 
 /**
@@ -36,7 +28,7 @@ export type DietType = z.infer<typeof DietType>;
  * The remaining diets (balanced, high-protein, custom) take any recipe: they
  * are a matter of how a day is put together, not of what a single recipe is.
  */
-export const RecipeDietTag = z.enum(['vegetarian', 'vegan', 'mediterranean', 'low_carb', 'keto']);
+export const RecipeDietTag = z.enum(RECIPE_DIET_TAGS);
 export type RecipeDietTag = z.infer<typeof RecipeDietTag>;
 
 /** True when a recipe with these tags may be planned for someone on `diet`. */
@@ -49,7 +41,7 @@ export const WeeklyLossTarget = z.enum(['0.25', '0.5', '0.75', '1.0']);
 export type WeeklyLossTarget = z.infer<typeof WeeklyLossTarget>;
 
 /** Meal slot within a day. The active set depends on the profile meal count (2-5). */
-export const MealType = z.enum(['breakfast', 'lunch', 'dinner', 'snack', 'second_breakfast']);
+export const MealType = z.enum(MEAL_TYPES);
 export type MealType = z.infer<typeof MealType>;
 
 /** The first and the last day a request may name. */
@@ -130,17 +122,7 @@ export type DisplayAmount = z.infer<typeof DisplayAmount>;
 export const MAX_QUANTITY: Record<Unit, number> = { g: 100_000, ml: 100_000, piece: 1_000 };
 
 /** Recognised allergen flags. */
-export const Allergen = z.enum([
-  'gluten',
-  'dairy',
-  'eggs',
-  'nuts',
-  'peanuts',
-  'soy',
-  'fish',
-  'shellfish',
-  'sesame',
-]);
+export const Allergen = z.enum(ALLERGENS);
 export type Allergen = z.infer<typeof Allergen>;
 
 /** The data sets of USDA FoodData Central the importer can read. */
@@ -180,16 +162,7 @@ export type AiProvider = z.infer<typeof AiProvider>;
  * kitchen in particular. A preference leans the planner towards a recipe, and
  * a request leans a model towards a cuisine; neither rules anything out.
  */
-export const Cuisine = z.enum([
-  'polish',
-  'italian',
-  'asian',
-  'mediterranean',
-  'middle_eastern',
-  'mexican',
-  'american',
-  'indian',
-]);
+export const Cuisine = z.enum(CUISINES);
 export type Cuisine = z.infer<typeof Cuisine>;
 
 /** Cooking-method hint for the AI recipe drafter. Soft preference. */

@@ -3,7 +3,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { DietType, MEAL_SLOTS_BY_COUNT, VARIETY_DEPTH } from '@diet-app/shared';
+import { DIET_TYPES, MEAL_SLOTS_BY_COUNT, VARIETY_DEPTH } from '@diet-app/shared/constants';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AdminStats, MacroShares } from '@/lib/admin-api';
 import { cn } from '@/lib/utils';
@@ -42,11 +42,11 @@ export function CoverageCard({
 }) {
   const t = useTranslations('admin.coverage');
   // A diet that takes any recipe has no pair of its own to fill.
-  const pairs = DietType.options.filter((diet) => diet !== 'custom').flatMap((diet) => MEALS.map((meal) => ({ recipes: coverage[diet][meal], drafts: waiting[diet][meal] })));
+  const pairs = DIET_TYPES.filter((diet) => diet !== 'custom').flatMap((diet) => MEALS.map((meal) => ({ recipes: coverage[diet][meal], drafts: waiting[diet][meal] })));
   const below = pairs.filter((pair) => pair.recipes < target).length;
   // The pairs that stay short once every draft that waits has shipped.
   const belowWithDrafts = pairs.filter((pair) => pair.recipes + pair.drafts < target).length;
-  const anyWaits = DietType.options.some((diet) => MEALS.some((meal) => waiting[diet][meal] > 0));
+  const anyWaits = DIET_TYPES.some((diet) => MEALS.some((meal) => waiting[diet][meal] > 0));
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
   return (
@@ -71,7 +71,7 @@ export function CoverageCard({
               </tr>
             </thead>
             <tbody>
-              {DietType.options.map((diet) => (
+              {DIET_TYPES.map((diet) => (
                 <tr key={diet} className="border-t border-border">
                   <th scope="row" className="py-1.5 pr-3 text-left font-normal">
                     {tDiet(diet)}
@@ -133,7 +133,7 @@ export function CoverageCard({
               </tr>
             </thead>
             <tbody>
-              {DietType.options
+              {DIET_TYPES
                 .filter((diet) => diet !== 'custom')
                 .map((diet) => {
                   const { target: aim, reached } = macros.diets[diet];

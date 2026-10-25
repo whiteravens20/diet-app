@@ -4,7 +4,8 @@
 
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { AddCustomMealRequest, EnteredNutrition, MealType } from '@diet-app/shared';
+import { AddCustomMealRequest, EnteredNutrition, type MealType } from '@diet-app/shared';
+import { MEAL_TYPES } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 import { useFormat } from '@/lib/use-format';
@@ -36,7 +37,7 @@ export function CustomMealModal({
 
   const [name, setName] = useState('');
   const [mealType, setMealType] = useState<MealType>('lunch');
-  const mealTypeOptions = MealType.options;
+  const mealTypeOptions = MEAL_TYPES;
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
   const [fat, setFat] = useState('');

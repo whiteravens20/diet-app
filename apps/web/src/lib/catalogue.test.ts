@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { VARIETY_DEPTH } from '@diet-app/shared';
+import { VARIETY_DEPTH } from '@diet-app/shared/constants';
 import { aDepth } from '@/testing/public-config';
 import { supplyOf } from './catalogue';
 

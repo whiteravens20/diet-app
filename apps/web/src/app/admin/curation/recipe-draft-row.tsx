@@ -5,7 +5,8 @@
 /** One recipe draft: what it is, as it is read and as it is edited, with its reviews. */
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { Cuisine } from '@diet-app/shared';
+import type { Cuisine } from '@diet-app/shared';
+import { CUISINES } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -325,7 +326,7 @@ export function RecipeDraftRow({
                   onChange={(e) => onChangeCuisine(e.target.value ? (e.target.value as Cuisine) : null)}
                 >
                   <option value="">{t('cuisineNone')}</option>
-                  {Cuisine.options.map((cuisine) => (
+                  {CUISINES.map((cuisine) => (
                     <option key={cuisine} value={cuisine}>
                       {t('cuisineOf', { cuisine: tCuisine(cuisine) })}
                     </option>

@@ -19,13 +19,6 @@ import { MOST_PROFILES_PER_ACCOUNT } from './profile.js';
 export const OllamaUserPolicy = z.enum(['off', 'allowlist', 'public']);
 export type OllamaUserPolicy = z.infer<typeof OllamaUserPolicy>;
 
-/**
- * The recipes a meal needs before a week of it stays inside the default limit
- * on repeats: the same recipe at most three times in seven days. With fewer, a
- * plan is still made and repeats a dish more often than a profile asks.
- */
-export const VARIETY_DEPTH = 3;
-
 /** A number of meals a day, as the key of an object. */
 export const MealCountKey = z.enum(['2', '3', '4', '5']);
 export type MealCountKey = z.infer<typeof MealCountKey>;

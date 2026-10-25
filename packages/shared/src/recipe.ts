@@ -2,6 +2,7 @@
 
 import * as z from './zod.js';
 import { AiGenerationMeta } from './ai.js';
+import { FAVORITE_SENTIMENTS, MAX_SEARCHED_INGREDIENTS } from './constants.js';
 import {
   Allergen,
   CookingMethod,
@@ -14,31 +15,6 @@ import {
   Unit,
 } from './enums.js';
 import { Nutrition } from './nutrition.js';
-
-/**
- * What a recipe may hold, whoever wrote it. The text is plain text: no markup,
- * one line per field. A quantity has a ceiling for one serving, because beyond
- * it the line is a mistake, not an ingredient of a meal.
- */
-export const RECIPE_LIMITS = {
-  /** Characters. */
-  title: 120,
-  description: 600,
-  step: 300,
-  note: 120,
-  slug: 80,
-  /** How many of each a recipe may have. */
-  steps: 25,
-  ingredients: 30,
-  servings: 12,
-  /** Preparing and cooking, each, in minutes. */
-  minutes: 480,
-  /** Of one ingredient in one serving, in the line's own unit. */
-  perServing: { g: 1500, ml: 1500, piece: 20 },
-} as const;
-
-/** What the name of an ingredient and its storage hint may hold, in characters. */
-export const INGREDIENT_NAME_LIMITS = { name: 120, storageHint: 300 } as const;
 
 /** One ingredient line in a recipe, with an exact quantity. */
 export const RecipeIngredient = z.object({
@@ -182,9 +158,6 @@ export const PageQuery = z.object({
 });
 export type PageQuery = z.infer<typeof PageQuery>;
 
-/** The most ingredients a search of the library may name at once. */
-export const MAX_SEARCHED_INGREDIENTS = 10;
-
 /** How a search of the library may be narrowed to what a profile marked. */
 export const MarkedFilter = z.enum(['marked', 'often', 'avoid']);
 export type MarkedFilter = z.infer<typeof MarkedFilter>;
@@ -242,7 +215,7 @@ export type RecipeSearchQuery = z.infer<typeof RecipeSearchQuery>;
 export const MAX_FAVORITES_PER_PROFILE = 500;
 
 /** How a profile feels about a recipe it marked. */
-export const FavoriteSentiment = z.enum(['favorite', 'often', 'avoid']);
+export const FavoriteSentiment = z.enum(FAVORITE_SENTIMENTS);
 export type FavoriteSentiment = z.infer<typeof FavoriteSentiment>;
 
 /** Marks a recipe for a profile. Marking it again replaces what was said before. */

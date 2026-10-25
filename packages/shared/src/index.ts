@@ -10,6 +10,7 @@
  */
 export * from './options.js';
 export * from './units.js';
+export * from './constants.js';
 export * from './enums.js';
 export * from './nutrition.js';
 export * from './config.js';

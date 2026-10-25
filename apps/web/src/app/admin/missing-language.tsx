@@ -5,7 +5,7 @@
 import { Languages, LoaderCircle, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { MOST_TRANSLATIONS_PER_RUN, NON_CANONICAL_LOCALES } from '@diet-app/shared';
+import { MOST_TRANSLATIONS_PER_RUN, NON_CANONICAL_LOCALES } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { adminApi, type DraftRunnerState } from '@/lib/admin-api';
 import { useDraftErrorText } from '@/lib/use-draft-error';

@@ -16,9 +16,6 @@ import { LOCALES, PALETTES } from './options.js';
 export const Locale = z.enum(LOCALES);
 export type Locale = z.infer<typeof Locale>;
 
-/** All non-canonical locales — handy for "translate all" loops. */
-export const NON_CANONICAL_LOCALES = Locale.options.filter((l) => l !== 'en');
-
 export const Theme = z.enum(['light', 'dark', 'system']);
 export type Theme = z.infer<typeof Theme>;
 

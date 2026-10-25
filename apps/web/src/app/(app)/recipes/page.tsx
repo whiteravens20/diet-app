@@ -7,7 +7,8 @@ import { Send, Soup, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import { Cuisine, MAX_SEARCHED_INGREDIENTS, RecipeDietTag, type Allergen, type MarkedFilter, type Profile, type RecipeSearchPage, type SessionUser } from '@diet-app/shared';
+import type { Allergen, MarkedFilter, Profile, RecipeSearchPage, SessionUser } from '@diet-app/shared';
+import { CUISINES, MAX_SEARCHED_INGREDIENTS, RECIPE_DIET_TAGS } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
 import { AllergenPicker } from '@/components/allergen-picker';
@@ -28,7 +29,7 @@ const selectClass = 'h-10 w-full rounded-md border border-input bg-background px
 
 // Only the diets a recipe has to qualify for narrow the library; any recipe
 // may appear in a balanced or a high-protein plan.
-const DIET_TYPES = RecipeDietTag.options;
+const DIET_TYPES = RECIPE_DIET_TAGS;
 const MEAL_TYPES = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'] as const;
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 
@@ -258,7 +259,7 @@ export default function RecipesPage() {
           <Field label={t('cuisine')}>
             <select className={selectClass} value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
               <option value="">{t('any')}</option>
-              {Cuisine.options.map((c) => (
+              {CUISINES.map((c) => (
                 <option key={c} value={c}>
                   {tCuisine(c)}
                 </option>

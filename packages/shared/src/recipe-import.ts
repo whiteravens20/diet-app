@@ -1,14 +1,9 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
+import { MOST_IMPORT_BYTES } from './constants.js';
 import { MealType } from './enums.js';
 import { WebAddress } from './recipe.js';
-
-/** The most recipes one import looks at: the first of its document. */
-export const MOST_RECIPES_PER_IMPORT = 100;
-
-/** How large the request of one import may be, in bytes: what the API takes in one request. The document in it is a text no longer. */
-export const MOST_IMPORT_BYTES = 90_000;
 
 /**
  * What `POST /api/admin/drafts/recipes/import` is given: the text of a JSON

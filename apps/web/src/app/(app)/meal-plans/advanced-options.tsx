@@ -3,7 +3,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { MEAL_SLOTS_BY_COUNT, PLAN_RELAXATIONS, type DayOverride, type FavoriteSet, type MealType, type PlanRelaxation } from '@diet-app/shared';
+import { PLAN_RELAXATIONS, type DayOverride, type FavoriteSet, type MealType, type PlanRelaxation } from '@diet-app/shared';
+import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { useFormat } from '@/lib/use-format';
 
 /** A favourite recipe usable as a lock target. */

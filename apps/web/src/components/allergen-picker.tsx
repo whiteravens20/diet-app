@@ -4,9 +4,8 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
-import { Allergen } from '@diet-app/shared';
-
-const ALLERGENS = Allergen.options;
+import type { Allergen } from '@diet-app/shared';
+import { ALLERGENS } from '@diet-app/shared/constants';
 
 /**
  * A dropdown-with-checkboxes picker for the profile allergen list. The list is

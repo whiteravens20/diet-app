@@ -7,7 +7,8 @@ import { Star } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import { FavoriteSentiment, MealType, type FavoriteSort, type MarkedRecipe, type Profile } from '@diet-app/shared';
+import type { FavoriteSort, MarkedRecipe, Profile } from '@diet-app/shared';
+import { FAVORITE_SENTIMENTS, MEAL_TYPES } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
@@ -156,7 +157,7 @@ export default function FavoritesPage() {
         <Field label={t('mealType')}>
           <select className={selectClass} value={mealType} onChange={(e) => setMealType(e.target.value)}>
             <option value="">{t('any')}</option>
-            {MealType.options.map((meal) => (
+            {MEAL_TYPES.map((meal) => (
               <option key={meal} value={meal}>
                 {tMeal(meal)}
               </option>
@@ -166,7 +167,7 @@ export default function FavoritesPage() {
         <Field label={t('marked')}>
           <select className={selectClass} value={sentiment} onChange={(e) => setSentiment(e.target.value)}>
             <option value="">{t('any')}</option>
-            {FavoriteSentiment.options.map((kind) => (
+            {FAVORITE_SENTIMENTS.map((kind) => (
               <option key={kind} value={kind}>
                 {t(`sentiment.${kind}`)}
               </option>
@@ -248,7 +249,7 @@ export default function FavoritesPage() {
                             disabled={busy}
                             onChange={(e) => change(kept, { sentiment: e.target.value as MarkedRecipe['sentiment'] })}
                           >
-                            {FavoriteSentiment.options.map((kind) => (
+                            {FAVORITE_SENTIMENTS.map((kind) => (
                               <option key={kind} value={kind}>
                                 {t(`sentiment.${kind}`)}
                               </option>

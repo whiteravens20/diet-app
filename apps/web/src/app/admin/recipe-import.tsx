@@ -5,7 +5,8 @@
 import { FileUp, ListChecks, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useState } from 'react';
-import { MealType, MOST_IMPORT_BYTES, MOST_RECIPES_PER_IMPORT, type ImportRejection, type RecipeImportResult, type StoredImportRejection } from '@diet-app/shared';
+import type { ImportRejection, MealType, RecipeImportResult, StoredImportRejection } from '@diet-app/shared';
+import { MEAL_TYPES, MOST_IMPORT_BYTES, MOST_RECIPES_PER_IMPORT } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { adminApi } from '@/lib/admin-api';
 import { useDraftErrorText, useProblemLine } from '@/lib/use-draft-error';
@@ -193,7 +194,7 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
       <fieldset>
         <legend className="text-xs font-medium">{t('meals')}</legend>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-          {MealType.options.map((meal) => (
+          {MEAL_TYPES.map((meal) => (
             <label key={meal} className="flex min-h-6 items-center gap-1 text-xs">
               <input type="checkbox" className="h-4 w-4" checked={meals.includes(meal)} onChange={(e) => setMeals(e.target.checked ? [...meals, meal] : meals.filter((other) => other !== meal))} />
               {tMeal(meal)}

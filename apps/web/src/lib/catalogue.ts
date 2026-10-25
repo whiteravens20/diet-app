@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { VARIETY_DEPTH, type CatalogueDepth, type DietType, type MealCountKey } from '@diet-app/shared';
+import type { CatalogueDepth, DietType, MealCountKey } from '@diet-app/shared';
+import { VARIETY_DEPTH } from '@diet-app/shared/constants';
 
 /**
  * The diets that have a split of protein, fat and carbohydrate of their own.

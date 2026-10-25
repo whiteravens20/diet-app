@@ -5,7 +5,8 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Check, ChevronLeft, ChevronRight, Keyboard, LoaderCircle, X } from 'lucide-react';
-import { Allergen, type IngredientNameReviewSlice, type Locale, type RecipeReviewSlice, type ReviewAction } from '@diet-app/shared';
+import type { Allergen, IngredientNameReviewSlice, Locale, RecipeReviewSlice, ReviewAction } from '@diet-app/shared';
+import { ALLERGENS } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { reviewApi } from '@/lib/review-api';
@@ -380,7 +381,7 @@ function RecipeReviewCard({
   };
 
   // A code this version has no name for is shown as it is.
-  const allergens = slice.allergens.map((code) => (Allergen.safeParse(code).success ? tAllergen(code as Allergen) : code));
+  const allergens = slice.allergens.map((code) => ((ALLERGENS as readonly string[]).includes(code) ? tAllergen(code as Allergen) : code));
 
   return (
     <DraftRegion

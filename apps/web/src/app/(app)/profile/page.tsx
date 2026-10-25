@@ -8,7 +8,6 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState } from 'react';
 import {
-  Cuisine,
   DEFAULT_PROFILES_PER_ACCOUNT,
   DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   MAX_WEEKLY_AMOUNT_PER_INGREDIENT,
@@ -18,6 +17,7 @@ import {
   type ProfilePreferencesPatch,
   type WeightReminderCadence,
 } from '@diet-app/shared';
+import { CUISINES } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { figuresOf, riskOf } from '@/lib/typed-figures';
 import { useProfileForm } from '@/lib/use-profile-form';
@@ -468,7 +468,7 @@ export default function ProfilePage() {
                   <legend className="text-sm font-medium">{t('cuisinesLabel')}</legend>
                   <p className="text-xs text-muted-foreground">{t('cuisinesHint')}</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {Cuisine.options.map((cuisine) => (
+                    {CUISINES.map((cuisine) => (
                       <label key={cuisine} className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
@@ -477,7 +477,7 @@ export default function ProfilePage() {
                           disabled={savePrefs.isPending}
                           onChange={(e) =>
                             // In the order the application lists them, whatever order they were ticked in.
-                            changePrefs(p, { preferredCuisines: Cuisine.options.filter((other) => (other === cuisine ? e.target.checked : preferencesOf(p).preferredCuisines.includes(other))) })
+                            changePrefs(p, { preferredCuisines: CUISINES.filter((other) => (other === cuisine ? e.target.checked : preferencesOf(p).preferredCuisines.includes(other))) })
                           }
                         />
                         {tCuisine(cuisine)}

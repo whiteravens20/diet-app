@@ -1,7 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
-import { ActivityLevel, Allergen, Cuisine, DietType, MealType, Sex, WeeklyLossTarget } from './enums.js';
+import { ActivityLevel, Allergen, Cuisine, DietType, Sex, WeeklyLossTarget } from './enums.js';
 import { MAX_INGREDIENT_IDS } from './ingredient.js';
 import { CalorieCalculation, MacroSplit, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
@@ -227,11 +227,3 @@ export const Profile = newProfile.omit({ acknowledgeRisk: true }).extend({
   updatedAt: z.string().datetime(),
 });
 export type Profile = z.infer<typeof Profile>;
-
-/** The set of active meal slots for a given meal count. */
-export const MEAL_SLOTS_BY_COUNT: Record<number, MealType[]> = {
-  2: ['breakfast', 'dinner'],
-  3: ['breakfast', 'lunch', 'dinner'],
-  4: ['breakfast', 'lunch', 'dinner', 'snack'],
-  5: ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'],
-};

@@ -36,6 +36,16 @@
         "types": "./dist/units.d.ts",
         "default": "./dist/units.js"
       }
+    },
+    "./constants": {
+      "import": {
+        "types": "./dist/esm/constants.d.ts",
+        "default": "./dist/esm/constants.js"
+      },
+      "require": {
+        "types": "./dist/constants.d.ts",
+        "default": "./dist/constants.js"
+      }
     }
   },
   "scripts": {

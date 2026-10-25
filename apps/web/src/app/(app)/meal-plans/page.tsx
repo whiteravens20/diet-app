@@ -11,7 +11,6 @@ import { CalendarRange, UserRound } from 'lucide-react';
 import {
   CalendarDay,
   MAX_CALORIE_TARGET,
-  MEAL_SLOTS_BY_COUNT,
   MIN_CALORIE_TARGET,
   PLAN_RELAXATIONS,
   RelaxationNeeded,
@@ -28,6 +27,7 @@ import {
   type RebalanceResult,
   type SessionUser,
 } from '@diet-app/shared';
+import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { ApiClientError, localDate } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';

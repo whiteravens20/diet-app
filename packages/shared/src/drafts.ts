@@ -13,6 +13,7 @@
  * the recipe pipeline) and recipe drafts (spec / preview / patch shapes).
  */
 import * as z from './zod.js';
+import { MOST_TRANSLATIONS_PER_RUN } from './constants.js';
 import { Locale } from './settings.js';
 import { Complexity, Cuisine, Difficulty, Unit, MealType, DietType } from './enums.js';
 export { Complexity };
@@ -156,9 +157,6 @@ export const IngredientNameGenerateSpec = z
     message: 'Name the ingredients to write for.',
   });
 export type IngredientNameGenerateSpec = z.infer<typeof IngredientNameGenerateSpec>;
-
-/** The most one run that fills a language takes on. */
-export const MOST_TRANSLATIONS_PER_RUN = 200;
 
 /**
  * What `POST /api/admin/drafts/translations/generate` is asked for: the
