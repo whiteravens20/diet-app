@@ -210,6 +210,55 @@ describe('drafting a recipe with a model', () => {
     expect(polish.recipe.title).toBe('Gulasz ze skryptu');
   });
 
+  describe('the curators', () => {
+    it("are given a recipe the instance's model wrote, with nothing that names who asked for it", async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+
+      const { recipe } = await ask();
+
+      const queue = await t.prisma.recipeDraft.findMany();
+      expect(queue).toHaveLength(1);
+      expect(queue[0]).toMatchObject({
+        status: 'PENDING',
+        source: 'AI_USER',
+        batchId: 'personal-recipes',
+        sourceRecipeIds: [recipe.id],
+        titles: { en: 'Scripted bowl' },
+      });
+      expect(JSON.stringify(queue[0])).not.toContain(user.id);
+      expect(JSON.stringify(queue[0])).not.toContain(user.email);
+      // The user keeps it as their own all the same.
+      expect(await stored()).toBe(1);
+    });
+
+    it('are given it once, however often the model writes it', async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
+
+      const one = await ask();
+      const two = await ask();
+
+      expect(two.recipe.id).toBe(one.recipe.id);
+      const queue = await t.prisma.recipeDraft.findMany();
+      expect(queue.map((row) => row.sourceRecipeIds)).toEqual([[one.recipe.id]]);
+    });
+
+    it("are not given what the user's own model wrote, even on the operator's server", async () => {
+      await t
+        .http()
+        .put('/api/ai/providers')
+        .set(as(user))
+        .send({ provider: 'ollama', baseUrl: t.model.url, model: 'test-model' })
+        .expect(200);
+      await t.http().patch('/api/users/me').set(as(user)).send({ aiMode: 'byok' }).expect(200);
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+
+      await ask();
+
+      expect(await stored()).toBe(1);
+      expect(await t.prisma.recipeDraft.count()).toBe(0);
+    });
+  });
+
   describe('the diets of a drafted recipe', () => {
     const named = (request: ModelRequest, ...slugs: string[]): Record<string, unknown>[] => {
       const available = offered(request);

@@ -173,6 +173,11 @@ describe('two users who make the same recipe', () => {
     // Neither can open the other's.
     await t.http().get(`/api/recipes/${one.recipe.id}`).set(as(second.user)).expect(404);
     await t.http().get(`/api/recipes/${two.recipe.id}`).set(as(first.user)).expect(404);
+    // The instance's model wrote both: the curators are given the recipe once, for both.
+    const queue = await t.prisma.recipeDraft.findMany();
+    expect(queue.map((row) => row.sourceRecipeIds.sort())).toEqual([
+      [one.recipe.id, two.recipe.id].sort(),
+    ]);
   });
 
   it('keep a recipe made by swapping an ingredient from the curators, however many make it', async () => {

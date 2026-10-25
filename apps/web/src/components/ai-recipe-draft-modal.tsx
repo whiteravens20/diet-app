@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -15,6 +15,7 @@ import type {
   DietType,
   MealType,
   Profile,
+  SessionUser,
 } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
@@ -56,7 +57,8 @@ const selectClass = 'h-10 w-full rounded-md border border-input bg-background px
  * the live `Ingredient` table. Filters are soft hints — the backend lets the
  * model broaden when an intersection is too narrow. Allergens are always
  * respected; everything else is optional and may stay blank, in which case
- * the AI picks freely.
+ * the AI picks freely. A recipe the instance's model writes goes before the
+ * curators as well, and the window says so to an account that uses it.
  */
 export function AiRecipeDraftModal({
   profile,
@@ -89,6 +91,10 @@ export function AiRecipeDraftModal({
   const [respectExclusions, setRespectExclusions] = useState(true);
   const [addToFavorites, setAddToFavorites] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const session = useQuery({
+    queryKey: ['session'],
+    queryFn: () => api.get<SessionUser>('/users/me'),
+  });
 
   const draft = useMutation({
     mutationFn: () => {
@@ -297,9 +303,10 @@ export function AiRecipeDraftModal({
           {t('addToFavorites')}
         </label>
 
-        <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          {t('determinismHint')}
-        </p>
+        <div className="space-y-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <p>{t('determinismHint')}</p>
+          {session.data?.aiMode === 'admin' && <p>{t('curatorsNote')}</p>}
+        </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 

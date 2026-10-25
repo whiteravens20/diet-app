@@ -192,6 +192,27 @@ describe('AiRouterService.chat', () => {
     ]);
   });
 
+  it("says whose entry answered: the operator's, the user's own, or nobody's", async () => {
+    const answers = { openai: async () => answer('ok'), ollama: async () => answer('ok') };
+    const operators = setup({
+      mode: 'admin',
+      chain: [{ provider: 'openai', mode: 'admin' }],
+      behaviour: answers,
+    });
+    const own = setup({ chain: [{ provider: 'openai' }], behaviour: answers });
+    // The user's own entry that points at the operator's server is still the user's.
+    const ownOnOperators = setup({
+      chain: [{ provider: 'ollama', mode: 'admin', owner: 'user', baseUrl: 'http://ollama:11434' }],
+      behaviour: answers,
+    });
+    const nobody = setup({ chain: [{ provider: 'openai' }], behaviour: { openai: fails('500') } });
+
+    expect((await operators.router.chat('user-1', MESSAGES, OPERATION)).owner).toBe('operator');
+    expect((await own.router.chat('user-1', MESSAGES, OPERATION)).owner).toBe('user');
+    expect((await ownOnOperators.router.chat('user-1', MESSAGES, OPERATION)).owner).toBe('user');
+    expect((await nobody.router.chat('user-1', MESSAGES, OPERATION)).owner).toBeNull();
+  });
+
   it('hands the decision back to the engine when every provider fails', async () => {
     const { router } = setup({
       chain: [{ provider: 'openai' }, { provider: 'anthropic' }],

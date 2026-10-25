@@ -120,6 +120,7 @@
     "allergensAlwaysRespected": "{count, plural, one {# alergen z profilu jest zawsze wykluczony.} few {# alergeny z profilu są zawsze wykluczone.} many {# alergenów z profilu jest zawsze wykluczonych.} other {# alergenu z profilu jest zawsze wykluczone.}}",
     "addToFavorites": "Dodaj do ulubionych tego profilu",
     "determinismHint": "Wartości odżywcze są przeliczane z bazy składników po wygenerowaniu — AI nigdy nie pisze kalorii ani makro.",
+    "curatorsNote": "Korzystasz z AI instancji, więc wygenerowany przepis trafi też do kuratorów biblioteki, z której korzystają wszyscy. Zobaczą jego treść i składniki, ale nie to, kto o niego poprosił. Jeśli go przyjmą, stanie się przepisem biblioteki. W Twoich przepisach zostaje tak czy inaczej.",
     "submit": "Wygeneruj przepis",
     "drafting": "Generowanie…",
     "failed": "Nie udało się zaproponować przepisu — spróbuj ponownie."
@@ -2135,7 +2136,7 @@
     },
     "section6": {
       "title": "Licencja treści katalogu",
-      "body": "Przepisy w data/recipes/ i składniki w data/ingredients.json, które tworzą katalog, są udostępniane na licencji projektu, czyli GNU Affero General Public License w wersji 3. Przepisy zgłoszone przez użytkowników i przyjęte do biblioteki przez kolejkę kuratorską są wnoszone na tej samej licencji w chwili zgłoszenia."
+      "body": "Przepisy w data/recipes/ i składniki w data/ingredients.json, które tworzą katalog, są udostępniane na licencji projektu, czyli GNU Affero General Public License w wersji 3. Przepisy zgłoszone przez użytkowników i przyjęte do biblioteki przez kolejkę kuratorską są wnoszone na tej samej licencji w chwili zgłoszenia. Przepis, który napisze dla Ciebie AI instancji, trafia do kolejki kuratorskiej sam i anonimowo, a jeśli kuratorzy go przyjmą, jest wnoszony na tej samej licencji."
     },
     "section7": {
       "title": "Lokalizacja danych",

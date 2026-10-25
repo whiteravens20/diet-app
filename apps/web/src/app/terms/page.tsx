@@ -8,7 +8,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeChoice } from '@/components/theme-choice';
 import { useFormat } from '@/lib/use-format';
 
-const LAST_UPDATED = '2026-10-24';
+const LAST_UPDATED = '2026-10-25';
 
 const SECTION_KEYS = [
   'section1',

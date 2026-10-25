@@ -40,8 +40,9 @@ const ALLOWED_MEALS = MealType.options as readonly string[];
  * recomputes per-serving nutrition before the row is persisted. The recipe is
  * private to the requester (`origin='ai'` + `createdByUserId`) and lives in
  * the database only: nothing about a user is written to the instance's data
- * files. It is stored, and kept out of the curation queue, the way
- * `PersonalRecipesService` describes.
+ * files. It is stored the way `PersonalRecipesService` describes, and one the
+ * instance's model wrote goes before the curators as well, with nothing that
+ * names who asked for it.
  */
 @Injectable()
 export class AiRecipeDraftService {
@@ -147,7 +148,7 @@ export class AiRecipeDraftService {
       favouriteIds,
       targetLocales,
     });
-    const { text, meta } = await this.ai.chat(
+    const { text, meta, owner } = await this.ai.chat(
       userId,
       [
         { role: 'system', content: prompt.system },
@@ -284,6 +285,8 @@ export class AiRecipeDraftService {
         ),
         // Every word of it is the model's.
         modelWrote: new Set(targetLocales),
+        // What the instance's model writes, the operator paid for.
+        forCurators: owner === 'operator',
         servings: payload.servings,
         mealTypes: payload.mealTypes,
         prepMinutes: payload.prepMinutes,

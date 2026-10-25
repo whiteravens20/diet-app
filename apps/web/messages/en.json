@@ -120,6 +120,7 @@
     "allergensAlwaysRespected": "{count, plural, one {# allergen on this profile is always excluded.} other {# allergens on this profile are always excluded.}}",
     "addToFavorites": "Add to favourites for this profile",
     "determinismHint": "Nutrition is recomputed from the ingredient database after the draft — AI never writes calorie or macro values.",
+    "curatorsNote": "You are using the instance's AI, so the drafted recipe also goes to the curators of the library everyone uses. They will see its text and ingredients, not who asked for it. If they accept it, it becomes a recipe of the library. It stays in your recipes either way.",
     "submit": "Draft recipe",
     "drafting": "Drafting…",
     "failed": "Could not draft a recipe — try again."
@@ -2135,7 +2136,7 @@
     },
     "section6": {
       "title": "Curated content licence",
-      "body": "Curated recipes under data/recipes/ and curated ingredients under data/ingredients.json ship under the repository's licence, the GNU Affero General Public License, version 3. Recipes promoted from user contributions through the curation queue are contributed under the same licence by the act of submission."
+      "body": "Curated recipes under data/recipes/ and curated ingredients under data/ingredients.json ship under the repository's licence, the GNU Affero General Public License, version 3. Recipes promoted from user contributions through the curation queue are contributed under the same licence by the act of submission. A recipe the instance's AI writes for you goes to the curation queue by itself, anonymously, and is contributed under the same licence if the curators accept it."
     },
     "section7": {
       "title": "Data residency",

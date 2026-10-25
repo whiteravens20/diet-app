@@ -104,8 +104,11 @@ runs on a provider's defaults.
   whoever pays for the calls. Neither number is a setting. A recipe its owner
   deleted is removed for good by the worker a week later, once no plan,
   favourite or pending curation draft uses it.
-- **Users' recipes stay out of the curation queue** unless the owner sends one
-  in ("Suggest for the shared library" on their recipes). A recipe made by
+- **Which users' recipes reach the curation queue.** A recipe a user drafts
+  with the instance's own model (the setting "Use the instance default") goes
+  there as soon as it is written, and the drafting window says so beforehand.
+  Any other recipe of a user's own reaches it only when the owner sends it in
+  ("Suggest for the shared library" on their recipes); a recipe made by
   swapping an ingredient cannot be sent in. The draft in the queue shows the
   recipe, not who made it.
 - **An ingredient swap asks no model unless the user ticks the box.** The

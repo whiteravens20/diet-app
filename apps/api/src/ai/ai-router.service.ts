@@ -6,7 +6,7 @@ import type { AiFallbackReason, AiGenerationMeta, AiMode, AiProvider } from '@di
 import { AiMode as AiModeSchema } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AiKeyService } from './ai-key.service.js';
+import { AiKeyService, type ResolvedProviderConfig } from './ai-key.service.js';
 import { AiQuotaService, type UsageResult } from './ai-quota.service.js';
 import { assertAllowedOllamaUrl, parseAllowedHosts } from './ollama-url.js';
 import type { Operation } from './operations.js';
@@ -23,6 +23,8 @@ const SHORTEST_ATTEMPT_MS = 1_000;
 export interface RoutedResult {
   text: string | null;
   meta: AiGenerationMeta;
+  /** Who set up the entry that answered: the operator, or the user. Null when none did. */
+  owner: ResolvedProviderConfig['owner'] | null;
 }
 
 /**
@@ -151,6 +153,7 @@ export class AiRouterService {
         });
         return {
           text: result.text,
+          owner: cfg.owner,
           meta: {
             provider: cfg.provider,
             model: cfg.model,
@@ -221,6 +224,7 @@ export function withUnusableAnswer(meta: AiGenerationMeta): AiGenerationMeta {
 function fallback(reason: AiFallbackReason, failoverChain: AiProvider[] = []): RoutedResult {
   return {
     text: null,
+    owner: null,
     meta: {
       provider: null,
       model: null,

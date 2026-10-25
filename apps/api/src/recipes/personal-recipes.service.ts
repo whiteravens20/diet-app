@@ -46,6 +46,12 @@ export interface PersonalRecipe {
   modelWrote?: ReadonlySet<string>;
   /** A model chose the ingredient that was swapped in, or reworded the text around it. */
   modelAssisted?: boolean;
+  /**
+   * Written by the instance's model, which the operator pays for: a recipe
+   * that is written anew goes before the curators at once, as a submitted one
+   * does.
+   */
+  forCurators?: boolean;
   servings: number;
   mealTypes: string[];
   prepMinutes: number;
@@ -81,9 +87,9 @@ const lock = (tx: Prisma.TransactionClient, key: string): Promise<number> =>
  * them cannot both take the last place the account has; then the saves of one
  * recipe take turns, so two requests for it cannot both write it.
  *
- * A personal recipe reaches the curation queue only when its owner submits
- * it, and a recipe made by swapping an ingredient never does: it stays its
- * owner's.
+ * A personal recipe reaches the curation queue when its owner submits it, or
+ * as soon as it is written when the instance's model wrote it. A recipe made
+ * by swapping an ingredient never does: it stays its owner's.
  */
 @Injectable()
 export class PersonalRecipesService {
@@ -119,7 +125,9 @@ export class PersonalRecipesService {
       }
 
       await this.assertRoom(tx, recipe.userId, recipe.origin);
-      return this.write(tx, recipe, fingerprint);
+      const id = await this.write(tx, recipe, fingerprint);
+      if (recipe.forCurators) await this.mirror(tx, id, fingerprint, [id]);
+      return id;
     });
   }
 
