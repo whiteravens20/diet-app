@@ -168,7 +168,7 @@ export class IngredientSwapService {
     // library or the user has already keeps the text it has.
     const recognised = {
       userId,
-      origin: 'user' as const,
+      origin: 'swap' as const,
       servings: recipe.servings,
       mealTypes: recipe.mealTypes,
       ingredients: lines,

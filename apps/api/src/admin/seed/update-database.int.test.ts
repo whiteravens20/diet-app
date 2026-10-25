@@ -344,7 +344,7 @@ describe('updating the curated database', () => {
             mealTypes: ['lunch'],
             prepMinutes: 1,
             cookMinutes: 10,
-            origin: 'user',
+            origin: 'swap',
             createdByUserId: userId,
             ingredients: { create: [{ ingredientId: rice, quantity: 100, unit: 'g' }] },
             ...data,

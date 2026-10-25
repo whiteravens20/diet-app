@@ -641,7 +641,7 @@ describe('drafting a recipe with a model', () => {
   describe('how many recipes a model may write for one account', () => {
     const plant = (
       count: number,
-      data: { origin: 'ai' | 'user'; createdAt?: Date; deletedAt?: Date | null },
+      data: { origin: 'ai' | 'swap'; createdAt?: Date; deletedAt?: Date | null },
     ) =>
       t.prisma.recipe.createMany({
         data: Array.from({ length: count }, (_, index) => ({
@@ -683,14 +683,14 @@ describe('drafting a recipe with a model', () => {
     });
 
     it('does not count the recipes the user made by hand', async () => {
-      await plant(MAX_AI_DRAFTS_PER_DAY, { origin: 'user' });
+      await plant(MAX_AI_DRAFTS_PER_DAY, { origin: 'swap' });
       t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
 
       expect((await ask()).recipe.title).toBe('Scripted bowl');
     });
 
     it('ends where the account is full, and the model is not asked then either', async () => {
-      await plant(MAX_PERSONAL_RECIPES, { origin: 'user' });
+      await plant(MAX_PERSONAL_RECIPES, { origin: 'swap' });
 
       expect(await refusal(ask())).toMatchObject({ status: 403, error: 'PERSONAL_RECIPE_LIMIT' });
       expect(t.model.requests).toHaveLength(0);

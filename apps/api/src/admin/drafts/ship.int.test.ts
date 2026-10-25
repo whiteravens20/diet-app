@@ -455,7 +455,7 @@ describe('shipping approved drafts', () => {
 
       const given = await t.app.get(PersonalRecipesService).save({
         userId: user.id,
-        origin: 'user',
+        origin: 'swap',
         text: new Map([
           ['en', { title: 'My oats', description: 'The same thing.', steps: ['Stir.'] }],
         ]),

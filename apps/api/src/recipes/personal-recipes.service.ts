@@ -35,7 +35,7 @@ interface RecipeText {
 /** A recipe one user made for themselves: an ingredient swap, or a draft a model wrote. */
 export interface PersonalRecipe {
   userId: string;
-  origin: 'user' | 'ai';
+  origin: 'swap' | 'ai';
   /** The text by locale; `en` is required and is what the recipe row itself carries. */
   text: ReadonlyMap<string, RecipeText>;
   /**
@@ -112,7 +112,7 @@ export class PersonalRecipesService {
       if (found) {
         if (found.deleted) {
           // Brought back, it takes a place again.
-          await this.assertRoom(tx, recipe.userId, 'user');
+          await this.assertRoom(tx, recipe.userId, 'swap');
           await tx.recipe.update({ where: { id: found.id }, data: { deletedAt: null } });
         }
         return found.id;
@@ -155,7 +155,7 @@ export class PersonalRecipesService {
         ? null
         : await this.existing(this.prisma, recipe.userId, fingerprint, avoid);
     if (found && !found.deleted) return false;
-    await this.assertRoom(this.prisma, recipe.userId, found ? 'user' : recipe.origin);
+    await this.assertRoom(this.prisma, recipe.userId, found ? 'swap' : recipe.origin);
     return found === null;
   }
 

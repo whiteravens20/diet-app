@@ -285,7 +285,7 @@ describe('a recipe the shared library already has', () => {
 
     const id = await personal.save({
       userId: account.user.id,
-      origin: 'user',
+      origin: 'swap',
       text: new Map([
         ['en', { title: 'My porridge', description: 'The same thing.', steps: ['Cook.', 'Eat.'] }],
       ]),
@@ -318,7 +318,7 @@ describe('the number of recipes an account may hold', () => {
       servings: 1,
       prepMinutes: 1,
       cookMinutes: 1,
-      origin: 'user' as const,
+      origin: 'swap' as const,
       createdByUserId: account.user.id,
       deletedAt: deleted ? new Date() : null,
     });
@@ -429,7 +429,7 @@ describe("submitting a recipe of one's own", () => {
         servings: 1,
         prepMinutes: 1,
         cookMinutes: 1,
-        origin: 'user',
+        origin: 'swap',
         createdByUserId: owner.user.id,
       },
     });
@@ -456,7 +456,7 @@ describe('deleted recipes nobody uses any more', () => {
           servings: 1,
           prepMinutes: 1,
           cookMinutes: 1,
-          origin: 'user',
+          origin: 'swap',
           createdByUserId: account.user.id,
           deletedAt,
         },

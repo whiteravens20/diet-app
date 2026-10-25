@@ -75,9 +75,9 @@ export const Recipe = z.object({
    * Where the recipe came from. Shared with everybody: `seed`, from the
    * catalogue's data files, and `curated`, approved in this instance's
    * curation queue. The user's own: `ai`, written for them by a model, and
-   * `user`, made by them, by hand or by swapping an ingredient.
+   * `swap`, made by swapping an ingredient of another recipe.
    */
-  origin: z.enum(['seed', 'ai', 'user', 'curated']),
+  origin: z.enum(['seed', 'ai', 'swap', 'curated']),
   /**
    * What a model had to do with the recipe, for the mark it carries wherever
    * it is shown: `written`, a model wrote it for the user (from the

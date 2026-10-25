@@ -14405,7 +14405,7 @@
             "enum": [
               "seed",
               "ai",
-              "user",
+              "swap",
               "curated"
             ]
           },

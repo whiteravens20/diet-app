@@ -329,7 +329,7 @@ export function toRecipeDto(
     difficulty: 'easy' | 'medium' | 'hard';
     cuisine: string | null;
     allergens: string[];
-    origin: 'seed' | 'ai' | 'user' | 'curated';
+    origin: 'seed' | 'ai' | 'swap' | 'curated';
     modelAssisted: boolean;
     sourceUrl: string | null;
     sourceLicense: string | null;

@@ -187,7 +187,7 @@ describe('the text of a recipe after an ingredient swap', () => {
 
       await swap().then((res) => expect(res.status).toBe(201));
 
-      expect((await theMeal()).recipe).toMatchObject({ origin: 'user', byModel: null });
+      expect((await theMeal()).recipe).toMatchObject({ origin: 'swap', byModel: null });
     });
 
     it('is "changed" when a model reworded the text around the substitute', async () => {
@@ -467,7 +467,7 @@ describe('the text of a recipe after an ingredient swap', () => {
           servings: 1,
           prepMinutes: 1,
           cookMinutes: 1,
-          origin: 'user' as const,
+          origin: 'swap' as const,
           createdByUserId: user.id,
         })),
       });

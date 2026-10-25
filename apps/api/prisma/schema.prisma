@@ -491,8 +491,8 @@ enum RecipeOrigin {
   seed
   // A personal recipe a model wrote for its owner.
   ai
-  // A personal recipe its owner made, by hand or by swapping an ingredient.
-  user
+  // A personal recipe its owner made by swapping an ingredient of another one.
+  swap
   // Approved in this instance's curation queue and shipped into its own
   // library, whether a batch run or a user wrote it. An update of the
   // catalogue leaves it alone; the instance's data directory holds its copy.
