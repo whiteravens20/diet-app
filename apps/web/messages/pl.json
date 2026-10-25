@@ -1183,7 +1183,8 @@
       "same_day": "ten sam przepis raz dziennie",
       "consecutive_days": "dni z rzędu z tym samym przepisem",
       "weekly_cap": "liczba powtórzeń jednego przepisu w tygodniu",
-      "ingredient_cap": "największa ilość jednego składnika w tygodniu"
+      "ingredient_cap": "posiłki z tym samym rodzajem białka w siedmiu dniach",
+      "kind_same_day": "posiłki z tym samym rodzajem białka w jednym dniu"
     },
     "outsideLimitChip": "Poza limitem",
     "outsideLimitHint": "Dla tego posiłku nie było już przepisu mieszczącego się w limicie: {limits}.",
@@ -1278,7 +1279,8 @@
         "same_day": "Stała reguła planera, bez ustawienia. Nie obowiązuje w planie z gotowaniem na zapas.",
         "consecutive_days": "Ustawiasz w profilu: Maks. dni z rzędu tego samego dania.",
         "weekly_cap": "Ustawiasz w profilu: Maks. powtórzeń tego samego dania w tygodniu.",
-        "ingredient_cap": "Ustawiasz w profilu: Największa ilość jednego składnika w tygodniu (g lub ml)."
+        "ingredient_cap": "Ustawiasz w profilu: Najwięcej posiłków z tym samym rodzajem białka w siedmiu dniach, także w wyjątkach dla rodzajów.",
+        "kind_same_day": "Ustawiasz w profilu: Najwięcej posiłków z tym samym rodzajem białka w jednym dniu, także w wyjątkach dla rodzajów."
       },
       "perDay": "Ustawienia poszczególnych dni",
       "mealCount": "Posiłki",
@@ -1815,8 +1817,20 @@
     "maxConsecutiveDaysSameMealHint": "Po tylu dniach pod rząd planer musi wybrać inny przepis.",
     "maxTimesPerWeekSameMeal": "Maks. powtórzeń tego samego dania w tygodniu",
     "maxTimesPerWeekSameMealHint": "Sztywny limit w każdych kolejnych siedmiu dniach. Plan z gotowaniem na zapas go łagodzi.",
-    "maxWeeklyAmountPerIngredient": "Największa ilość jednego składnika w tygodniu (g lub ml)",
-    "maxWeeklyAmountPerIngredientHint": "W każdych siedmiu dniach planu, we wszystkich posiłkach łącznie. Dzięki temu plan nie opiera się na jednym produkcie.",
+    "maxMealsPerDaySameKind": "Najwięcej posiłków z tym samym rodzajem białka w jednym dniu",
+    "maxMealsPerWeekSameKind": "Najwięcej posiłków z tym samym rodzajem białka w siedmiu dniach",
+    "sameKindHint": "Rodzaje białka: kurczak, indyk, wołowina, wieprzowina (z boczkiem), ryby, owoce morza, jajka, nabiał i strączki (z tofu). Posiłek liczy się do każdego rodzaju, który daje co najmniej piątą część jego białka. Puste pole oznacza brak limitu.",
+    "sameKindBlocksHint": "Gdy przepisy diety nie pozwolą zmieścić się w limicie (najczęściej na diecie wegańskiej, wegetariańskiej i keto), plan powstanie dopiero wtedy, gdy pozwolisz go przekroczyć.",
+    "noLimit": "bez limitu",
+    "kindLimits": "Wyjątki dla rodzajów białka",
+    "kindLimitsHint": "Własne liczby dla jednego rodzaju, np. ryby najwyżej raz dziennie. Puste pole w wyjątku oznacza liczbę ustawioną wyżej.",
+    "kindLimitKind": "Rodzaj białka",
+    "kindLimitPerDay": "W jednym dniu",
+    "kindLimitPerWeek": "W siedmiu dniach",
+    "sameAsAbove": "jak wyżej",
+    "addKindLimit": "Dodaj wyjątek",
+    "removeKindLimitShort": "Usuń",
+    "removeKindLimit": "Usuń wyjątek: {kind}",
     "inventoryBiasResetEvery": "Przerwa od spiżarni (co ile planów)",
     "inventoryBiasResetEveryHint": "Po tylu kolejnych planach opartych o spiżarnię następny pomija preferencję spiżarni dla urozmaicenia. 0 wyłącza przerwę.",
     "saving": "Zapisywanie…",
@@ -2084,6 +2098,17 @@
     "sex": {
       "male": "Mężczyzna",
       "female": "Kobieta"
+    },
+    "proteinKind": {
+      "chicken": "Kurczak",
+      "turkey": "Indyk",
+      "beef": "Wołowina",
+      "pork": "Wieprzowina",
+      "fish": "Ryby",
+      "seafood": "Owoce morza",
+      "eggs": "Jajka",
+      "dairy": "Nabiał",
+      "legumes": "Strączki"
     },
     "activityLevel": {
       "sedentary": "Siedzący",

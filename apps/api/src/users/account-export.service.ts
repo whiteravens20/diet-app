@@ -110,7 +110,9 @@ export class AccountExportService {
                 preferredCuisines: preferences.preferredCuisines,
                 maxConsecutiveDaysSameMeal: preferences.maxConsecutiveDaysSameMeal,
                 maxTimesPerWeekSameMeal: preferences.maxTimesPerWeekSameMeal,
-                maxWeeklyAmountPerIngredient: preferences.maxWeeklyAmountPerIngredient,
+                maxMealsPerDaySameKind: preferences.maxMealsPerDaySameKind,
+                maxMealsPerWeekSameKind: preferences.maxMealsPerWeekSameKind,
+                kindLimits: preferences.kindLimits,
                 inventoryBiasResetEvery: preferences.inventoryBiasResetEvery,
               }
             : null,

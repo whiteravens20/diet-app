@@ -1,10 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import type { ProteinKind } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import {
   OptimizerError,
   fitServings,
   optimisePlan,
+  proteinKindsOf,
   recipeCoverage,
   requirementsPerServing,
   slotBudgets,
@@ -786,5 +788,65 @@ describe('what one serving of a recipe needs', () => {
     });
 
     expect(needs).toEqual([{ ingredientId: 'chicken', canonicalQuantity: 300 }]);
+  });
+});
+
+describe('the kinds of protein a recipe counts as', () => {
+  const food = (
+    proteinPer100: number,
+    proteinKind: ProteinKind | null,
+    gramsPerPiece?: number,
+  ) => ({
+    canonicalUnit: 'g' as const,
+    gramsPerPiece: gramsPerPiece ?? null,
+    density: null,
+    proteinPer100,
+    proteinKind,
+  });
+  const chicken = food(22.5, 'chicken');
+  const yogurt = food(10, 'dairy');
+  const cheese = food(25, 'dairy');
+  const egg = food(13, 'eggs', 50);
+  const bread = food(13, null);
+  const rice = food(7.1, null);
+
+  it('are those that give at least a fifth of its protein', () => {
+    // 33.75 g of protein from the chicken, 5 g from the yogurt and 7.1 g from the rice: the yogurt gives about a tenth.
+    expect(
+      proteinKindsOf({
+        ingredients: [
+          { quantity: 150, unit: 'g', ingredient: chicken },
+          { quantity: 50, unit: 'g', ingredient: yogurt },
+          { quantity: 100, unit: 'g', ingredient: rice },
+        ],
+      }),
+    ).toEqual(['chicken']);
+  });
+
+  it('may be more than one', () => {
+    // 13 g from two eggs, 7.5 g from the cheese and 7.8 g from the bread.
+    expect(
+      proteinKindsOf({
+        ingredients: [
+          { quantity: 2, unit: 'piece', ingredient: egg },
+          { quantity: 30, unit: 'g', ingredient: cheese },
+          { quantity: 60, unit: 'g', ingredient: bread },
+        ],
+      }),
+    ).toEqual(['eggs', 'dairy']);
+  });
+
+  it('leave out a line that cannot be converted, and are none where there is no protein', () => {
+    expect(
+      proteinKindsOf({
+        ingredients: [
+          { quantity: 2, unit: 'piece', ingredient: chicken },
+          { quantity: 100, unit: 'g', ingredient: rice },
+        ],
+      }),
+    ).toEqual([]);
+    expect(
+      proteinKindsOf({ ingredients: [{ quantity: 10, unit: 'g', ingredient: food(0, 'dairy') }] }),
+    ).toEqual([]);
   });
 });

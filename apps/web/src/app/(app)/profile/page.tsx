@@ -9,9 +9,6 @@ import Link from 'next/link';
 import { useId, useState } from 'react';
 import {
   DEFAULT_PROFILES_PER_ACCOUNT,
-  DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
-  MAX_WEEKLY_AMOUNT_PER_INGREDIENT,
-  MIN_WEEKLY_AMOUNT_PER_INGREDIENT,
   type Profile,
   type ProfileInput,
   type ProfilePreferencesPatch,
@@ -42,6 +39,7 @@ import {
 import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
+import { KindLimitFields, kindLimitsIn } from './kind-limit-fields';
 
 /** Fetched for an account that has no profile yet: nobody else is shown the steps. */
 const FirstProfile = dynamic(() => import('./first-profile').then((steps) => steps.FirstProfile), {
@@ -215,13 +213,14 @@ export default function ProfilePage() {
           preferredCuisines: [],
           maxConsecutiveDaysSameMeal: 2,
           maxTimesPerWeekSameMeal: 3,
-          maxWeeklyAmountPerIngredient: DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+          maxMealsPerDaySameKind: null,
+          maxMealsPerWeekSameKind: null,
+          kindLimits: [],
           inventoryBiasResetEvery: 5,
         }),
         maxConsecutiveDaysSameMeal: Number(f.get('maxConsecutiveDaysSameMeal')) || 2,
         maxTimesPerWeekSameMeal: Number(f.get('maxTimesPerWeekSameMeal')) || 3,
-        maxWeeklyAmountPerIngredient:
-          Number(f.get('maxWeeklyAmountPerIngredient')) || DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+        ...kindLimitsIn(f),
         inventoryBiasResetEvery: Math.max(
           0,
           Math.min(20, Number(f.get('inventoryBiasResetEvery')) || 0),
@@ -456,23 +455,15 @@ export default function ProfilePage() {
                     defaultValue={editing?.preferences.maxTimesPerWeekSameMeal ?? 3}
                   />
                 </Field>
-                <Field
-                  label={t('maxWeeklyAmountPerIngredient')}
-                  hint={t('maxWeeklyAmountPerIngredientHint')}
-                >
-                  <Input
-                    name="maxWeeklyAmountPerIngredient"
-                    type="number"
-                    required
-                    min={MIN_WEEKLY_AMOUNT_PER_INGREDIENT}
-                    max={MAX_WEEKLY_AMOUNT_PER_INGREDIENT}
-                    step={100}
-                    defaultValue={
-                      editing?.preferences.maxWeeklyAmountPerIngredient ??
-                      DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT
+                <KindLimitFields
+                  initial={
+                    editing?.preferences ?? {
+                      maxMealsPerDaySameKind: null,
+                      maxMealsPerWeekSameKind: null,
+                      kindLimits: [],
                     }
-                  />
-                </Field>
+                  }
+                />
                 <Field label={t('inventoryBiasResetEvery')} hint={t('inventoryBiasResetEveryHint')}>
                   <Input
                     name="inventoryBiasResetEvery"

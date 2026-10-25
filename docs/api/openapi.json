@@ -8686,7 +8686,7 @@
             "maximum": 2147483647
           },
           "allowRelaxations": {
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
@@ -10473,7 +10473,7 @@
           },
           "allowRelaxations": {
             "default": [],
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
@@ -11216,6 +11216,81 @@
           "running",
           "done",
           "error"
+        ]
+      },
+      "KindLimit": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ProteinKind"
+          },
+          "perDay": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perWeek": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "perDay",
+          "perWeek"
+        ],
+        "additionalProperties": false
+      },
+      "KindLimitInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ProteinKind"
+          },
+          "perDay": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perWeek": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "perDay",
+          "perWeek"
         ]
       },
       "ListProposal": {
@@ -12892,12 +12967,13 @@
       "PlanRelaxation": {
         "type": "string",
         "enum": [
+          "ingredient_cap",
+          "kind_same_day",
           "variety_floor",
           "cook_time",
           "same_day",
           "consecutive_days",
-          "weekly_cap",
-          "ingredient_cap"
+          "weekly_cap"
         ]
       },
       "PlanStatus": {
@@ -13271,7 +13347,9 @@
               "preferredCuisines": [],
               "maxConsecutiveDaysSameMeal": 2,
               "maxTimesPerWeekSameMeal": 3,
-              "maxWeeklyAmountPerIngredient": 3000,
+              "maxMealsPerDaySameKind": null,
+              "maxMealsPerWeekSameKind": null,
+              "kindLimits": [],
               "inventoryBiasResetEvery": 5
             },
             "$ref": "#/components/schemas/ProfilePreferences"
@@ -13439,7 +13517,9 @@
               "preferredCuisines": [],
               "maxConsecutiveDaysSameMeal": 2,
               "maxTimesPerWeekSameMeal": 3,
-              "maxWeeklyAmountPerIngredient": 3000,
+              "maxMealsPerDaySameKind": null,
+              "maxMealsPerWeekSameKind": null,
+              "kindLimits": [],
               "inventoryBiasResetEvery": 5
             },
             "$ref": "#/components/schemas/ProfilePreferencesInput"
@@ -13510,11 +13590,39 @@
             "minimum": 1,
             "maximum": 7
           },
-          "maxWeeklyAmountPerIngredient": {
-            "default": 3000,
-            "type": "integer",
-            "minimum": 500,
-            "maximum": 10000
+          "maxMealsPerDaySameKind": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxMealsPerWeekSameKind": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kindLimits": {
+            "default": [],
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KindLimit"
+            }
           },
           "inventoryBiasResetEvery": {
             "default": 5,
@@ -13531,7 +13639,9 @@
           "preferredCuisines",
           "maxConsecutiveDaysSameMeal",
           "maxTimesPerWeekSameMeal",
-          "maxWeeklyAmountPerIngredient",
+          "maxMealsPerDaySameKind",
+          "maxMealsPerWeekSameKind",
+          "kindLimits",
           "inventoryBiasResetEvery"
         ],
         "additionalProperties": false
@@ -13594,11 +13704,39 @@
             "minimum": 1,
             "maximum": 7
           },
-          "maxWeeklyAmountPerIngredient": {
-            "default": 3000,
-            "type": "integer",
-            "minimum": 500,
-            "maximum": 10000
+          "maxMealsPerDaySameKind": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxMealsPerWeekSameKind": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kindLimits": {
+            "default": [],
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KindLimitInput"
+            }
           },
           "inventoryBiasResetEvery": {
             "default": 5,
@@ -13659,10 +13797,36 @@
             "minimum": 1,
             "maximum": 7
           },
-          "maxWeeklyAmountPerIngredient": {
-            "type": "integer",
-            "minimum": 500,
-            "maximum": 10000
+          "maxMealsPerDaySameKind": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxMealsPerWeekSameKind": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kindLimits": {
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KindLimitInput"
+            }
           },
           "inventoryBiasResetEvery": {
             "type": "integer",
@@ -13817,10 +13981,36 @@
                 "minimum": 1,
                 "maximum": 7
               },
-              "maxWeeklyAmountPerIngredient": {
-                "type": "integer",
-                "minimum": 500,
-                "maximum": 10000
+              "maxMealsPerDaySameKind": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxMealsPerWeekSameKind": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 35
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "kindLimits": {
+                "maxItems": 9,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/KindLimitInput"
+                }
               },
               "inventoryBiasResetEvery": {
                 "type": "integer",
@@ -13836,7 +14026,9 @@
               "preferredCuisines",
               "maxConsecutiveDaysSameMeal",
               "maxTimesPerWeekSameMeal",
-              "maxWeeklyAmountPerIngredient",
+              "maxMealsPerDaySameKind",
+              "maxMealsPerWeekSameKind",
+              "kindLimits",
               "inventoryBiasResetEvery"
             ]
           }
@@ -13856,6 +14048,20 @@
           "weightReminderCadence",
           "customMacroSplit",
           "preferences"
+        ]
+      },
+      "ProteinKind": {
+        "type": "string",
+        "enum": [
+          "chicken",
+          "turkey",
+          "beef",
+          "pork",
+          "fish",
+          "seafood",
+          "eggs",
+          "dairy",
+          "legumes"
         ]
       },
       "PublicConfig": {
@@ -15352,7 +15558,7 @@
             "type": "boolean"
           },
           "allowRelaxations": {
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
@@ -15381,7 +15587,7 @@
             "type": "boolean"
           },
           "allowRelaxations": {
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"

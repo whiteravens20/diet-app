@@ -67,7 +67,6 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
               mealPrepFriendly: false,
               maxConsecutiveDaysSameMeal: 2,
               maxTimesPerWeekSameMeal: 3,
-              maxIngredientPerWeek: 3000,
               perishablePacks,
               seed,
             },

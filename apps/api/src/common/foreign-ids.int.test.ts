@@ -68,7 +68,9 @@ const WHOLE_PROFILE = {
     preferredCuisines: [],
     maxConsecutiveDaysSameMeal: 2,
     maxTimesPerWeekSameMeal: 3,
-    maxWeeklyAmountPerIngredient: 3000,
+    maxMealsPerDaySameKind: null,
+    maxMealsPerWeekSameKind: null,
+    kindLimits: [],
     inventoryBiasResetEvery: 5,
   },
 };

@@ -306,7 +306,6 @@ describe('the budgets of the server, at the reference catalogue', () => {
       mealPrepFriendly: false,
       maxConsecutiveDaysSameMeal: 2,
       maxTimesPerWeekSameMeal: 3,
-      maxIngredientPerWeek: 3000,
       perishablePacks,
       seed: 0,
     });
@@ -320,7 +319,6 @@ describe('the budgets of the server, at the reference catalogue', () => {
           mealPrepFriendly: false,
           maxConsecutiveDaysSameMeal: 2,
           maxTimesPerWeekSameMeal: 3,
-          maxIngredientPerWeek: 3000,
           perishablePacks,
           seed: index + 1,
         });

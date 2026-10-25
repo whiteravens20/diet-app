@@ -1183,7 +1183,8 @@
       "same_day": "a recipe once a day",
       "consecutive_days": "days in a row with one recipe",
       "weekly_cap": "times a week for one recipe",
-      "ingredient_cap": "the most of one ingredient in a week"
+      "ingredient_cap": "meals with the same kind of protein in seven days",
+      "kind_same_day": "meals with the same kind of protein in a day"
     },
     "outsideLimitChip": "Outside a limit",
     "outsideLimitHint": "No recipe was left for this meal inside: {limits}.",
@@ -1278,7 +1279,8 @@
         "same_day": "A fixed rule of the planner, with no setting. A plan to cook ahead is not held to it.",
         "consecutive_days": "Set in the profile: Max same recipe in a row (days).",
         "weekly_cap": "Set in the profile: Max times the same recipe per week.",
-        "ingredient_cap": "Set in the profile: Most of one ingredient in a week (g or ml)."
+        "ingredient_cap": "Set in the profile: Most meals with the same kind of protein in seven days, exceptions for kinds included.",
+        "kind_same_day": "Set in the profile: Most meals with the same kind of protein in a day, exceptions for kinds included."
       },
       "perDay": "Per-day options",
       "mealCount": "Meals",
@@ -1815,8 +1817,20 @@
     "maxConsecutiveDaysSameMealHint": "Forces a different recipe after this many consecutive days.",
     "maxTimesPerWeekSameMeal": "Max times the same recipe per week",
     "maxTimesPerWeekSameMealHint": "Hard cap inside any rolling 7-day window. A plan made for cooking ahead relaxes it.",
-    "maxWeeklyAmountPerIngredient": "Most of one ingredient in a week (g or ml)",
-    "maxWeeklyAmountPerIngredientHint": "Over every seven days of a plan, all meals together. It keeps a plan from resting on one food.",
+    "maxMealsPerDaySameKind": "Most meals with the same kind of protein in a day",
+    "maxMealsPerWeekSameKind": "Most meals with the same kind of protein in seven days",
+    "sameKindHint": "Kinds of protein: chicken, turkey, beef, pork (bacon included), fish, seafood, eggs, dairy and legumes (tofu included). A meal counts towards every kind that gives at least a fifth of its protein. An empty field means no limit.",
+    "sameKindBlocksHint": "When the recipes of the diet cannot keep within a limit (most often on the vegan, vegetarian and keto diets), a plan is made only once you let it be exceeded.",
+    "noLimit": "no limit",
+    "kindLimits": "Exceptions for kinds of protein",
+    "kindLimitsHint": "Numbers of its own for one kind, such as fish at most once a day. An empty field in an exception means the number set above.",
+    "kindLimitKind": "Kind of protein",
+    "kindLimitPerDay": "In a day",
+    "kindLimitPerWeek": "In seven days",
+    "sameAsAbove": "as above",
+    "addKindLimit": "Add an exception",
+    "removeKindLimitShort": "Remove",
+    "removeKindLimit": "Remove the exception: {kind}",
     "inventoryBiasResetEvery": "Pantry-bias cool-down (plans)",
     "inventoryBiasResetEveryHint": "After this many consecutive plans that leaned on the pantry, the next round skips the pantry preference for variety. 0 disables the cool-down.",
     "saving": "Saving…",
@@ -2084,6 +2098,17 @@
     "sex": {
       "male": "Male",
       "female": "Female"
+    },
+    "proteinKind": {
+      "chicken": "Chicken",
+      "turkey": "Turkey",
+      "beef": "Beef",
+      "pork": "Pork",
+      "fish": "Fish",
+      "seafood": "Seafood",
+      "eggs": "Eggs",
+      "dairy": "Dairy",
+      "legumes": "Legumes"
     },
     "activityLevel": {
       "sedentary": "Sedentary",

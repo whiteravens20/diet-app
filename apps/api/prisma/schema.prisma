@@ -331,8 +331,12 @@ model ProfilePreference {
   // See ProfilePreferences zod schema in packages/shared for semantics.
   maxConsecutiveDaysSameMeal Int      @default(2)
   maxTimesPerWeekSameMeal    Int      @default(3)
-  // The most of one ingredient, in grams or millilitres, in any seven days.
-  maxWeeklyAmountPerIngredient Int    @default(3000)
+  // The most meals of a day, and of any seven days, with the same kind of
+  // protein (null: no such limit), and the kinds held to numbers of their own
+  // ([{ kind, perDay, perWeek }], KindLimit in packages/shared).
+  maxMealsPerDaySameKind     Int?
+  maxMealsPerWeekSameKind    Int?
+  kindLimits                 Json     @default("[]")
   // Anti-monotony rotation. After N consecutive inventory-biased plan
   // generations the optimiser drops the pantry bias for the next round and
   // resets the counter, so a long run of leftover-heavy weeks can't lock the

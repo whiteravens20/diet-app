@@ -11,10 +11,10 @@ import { ConfigService } from '@nestjs/config';
 import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import {
-  DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
   fitsDiet,
   MEAL_SLOTS_BY_COUNT,
   PlanOptions,
+  ProteinKind,
   RegenerateDayRequest,
   RegenerateRequest,
   type DayOverride,
@@ -36,6 +36,7 @@ import {
   optimisePlan,
   sharesOf,
   OptimizerError,
+  proteinKindsOf,
   recipeCoverage,
   requirementsPerServing,
   type CalorieEngineInput,
@@ -47,6 +48,7 @@ import {
 import type { Env } from '../config/env.js';
 import { stockByIngredient, stockExpiringBetween } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { storedKindLimits } from '../common/stored-kind-limits.js';
 import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -538,7 +540,9 @@ export class PlanGenerationService {
         preferredCuisines: string[];
         maxConsecutiveDaysSameMeal: number;
         maxTimesPerWeekSameMeal: number;
-        maxWeeklyAmountPerIngredient: number;
+        maxMealsPerDaySameKind: number | null;
+        maxMealsPerWeekSameKind: number | null;
+        kindLimits: unknown;
       } | null;
     },
     opts: {
@@ -672,8 +676,7 @@ export class PlanGenerationService {
         maxRepeatsPerRecipe:
           opts.maxRepeatsPerRecipe ??
           this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
-        maxIngredientPerWeek:
-          profile.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+        maxMealsPerKind: mealsPerKind(profile.preferences),
         perishablePacks,
         allowRelaxations: new Set(opts.allowRelaxations),
         seed: opts.seed,
@@ -834,6 +837,8 @@ export class PlanGenerationService {
                 density: true,
                 packSize: true,
                 perishable: true,
+                proteinPer100: true,
+                proteinKind: true,
               },
             },
           },
@@ -878,6 +883,7 @@ export class PlanGenerationService {
       carbsPerServing: r.carbsPerServing,
       ingredientIds: r.ingredients.map((i) => i.ingredientId),
       amounts: amountsPerServing(requirementsByRecipe.get(r.id) ?? []),
+      proteinKinds: proteinKindsOf(r),
       difficulty: r.difficulty,
       cuisine: r.cuisine,
       isFavorite: favoriteIds.has(r.id),
@@ -1123,6 +1129,31 @@ function dropLock(day: ResolvedDay, lock: { slot: MealType; recipeId: string }):
   const next: DayOverridesJson = { ...day.overrides, lockedSlots: kept };
   if (kept.length === 0) delete next.lockedSlots;
   day.overrides = Object.keys(next).length > 0 ? next : null;
+}
+
+/**
+ * The most meals of a day and of seven days that may hold each kind of
+ * protein: a kind's own numbers where the profile gives it some, the
+ * profile's two for every kind where it does not. A kind with neither is left
+ * out, and with it the limit.
+ */
+function mealsPerKind(
+  preferences: {
+    maxMealsPerDaySameKind: number | null;
+    maxMealsPerWeekSameKind: number | null;
+    kindLimits: unknown;
+  } | null,
+): Map<ProteinKind, { perDay?: number; perWeek?: number }> {
+  const own = new Map(
+    storedKindLimits(preferences?.kindLimits).map((limit) => [limit.kind, limit]),
+  );
+  const limits = new Map<ProteinKind, { perDay?: number; perWeek?: number }>();
+  for (const kind of ProteinKind.options) {
+    const perDay = own.get(kind)?.perDay ?? preferences?.maxMealsPerDaySameKind ?? undefined;
+    const perWeek = own.get(kind)?.perWeek ?? preferences?.maxMealsPerWeekSameKind ?? undefined;
+    if (perDay !== undefined || perWeek !== undefined) limits.set(kind, { perDay, perWeek });
+  }
+  return limits;
 }
 
 /**

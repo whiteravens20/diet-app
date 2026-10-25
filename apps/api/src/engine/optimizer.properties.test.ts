@@ -5,7 +5,7 @@
  * days keep to their targets, the limits hold across meals, and limits give
  * way in one order and only when they may.
  */
-import type { MealType } from '@diet-app/shared';
+import { ProteinKind, type MealType } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import { energyShares, splitDistance } from './nutrition.js';
 import {
@@ -644,78 +644,71 @@ describe('meals that are in the plan already and stay', () => {
   });
 });
 
-describe('the most of one ingredient in seven days', () => {
-  const amounts = (lines: Record<string, number>) => ({
-    amounts: new Map(Object.entries(lines)),
-    ingredientIds: Object.keys(lines),
-  });
-  /** Three dishes with 200 g of eggs in a serving and three without, for every meal of the day. */
+describe('the meals with one kind of protein', () => {
   const meals: MealType[] = ['breakfast', 'lunch', 'dinner'];
+  /** Three egg dishes and three of beans, for every meal of the day. */
   const dishes = [
-    ...[0, 1, 2].map((i) =>
-      dish(`eggs-${i}`, meals, 620 + 20 * i, amounts({ eggs: 200, [`bread-${i}`]: 80 })),
-    ),
-    ...[0, 1, 2].map((i) =>
-      dish(`beans-${i}`, meals, 600 + 20 * i, amounts({ [`beans-${i}`]: 250, [`rice-${i}`]: 70 })),
-    ),
+    ...[0, 1, 2].map((i) => dish(`eggs-${i}`, meals, 620 + 20 * i, { proteinKinds: ['eggs'] })),
+    ...[0, 1, 2].map((i) => dish(`beans-${i}`, meals, 600 + 20 * i, { proteinKinds: ['legumes'] })),
   ];
-  /** How much of the ingredient the meals of each seven days of the plan hold, at most. */
-  const mostInSevenDays = (result: OptimizerResult, ingredient: string, days: number): number => {
-    const perDay = Array.from({ length: days }, (_, day) =>
-      result.assignments
-        .filter((a) => a.dayIndex === day)
-        .reduce(
-          (sum, a) =>
-            sum +
-            (dishes.find((d) => d.id === a.recipeId)!.amounts!.get(ingredient) ?? 0) * a.servings,
-          0,
-        ),
+  /** How many meals of each day of the plan are of eggs. */
+  const eggMeals = (result: OptimizerResult, days: number): number[] =>
+    Array.from(
+      { length: days },
+      (_, day) =>
+        result.assignments.filter((a) => a.dayIndex === day && a.recipeId.startsWith('eggs'))
+          .length,
     );
-    return Math.max(
+  /** The most of them in any seven days. */
+  const mostInSevenDays = (perDay: number[]): number =>
+    Math.max(
       ...perDay.map((_, first) =>
-        perDay.slice(first, first + 7).reduce((sum, grams) => sum + grams, 0),
+        perDay.slice(first, first + 7).reduce((sum, count) => sum + count, 0),
       ),
     );
-  };
+  /** Eggs held to these numbers, a number left out being no limit. */
+  const eggsAt = (perDay?: number, perWeek?: number) =>
+    new Map<ProteinKind, { perDay?: number; perWeek?: number }>([['eggs', { perDay, perWeek }]]);
   const limited = (over: Partial<OptimizerInput> = {}) =>
     plan({
       recipes: dishes,
       days: uniformDays(14, meals, 1900),
-      maxIngredientPerWeek: 1500,
+      maxMealsPerKind: eggsAt(1, 4),
       maxConsecutiveDaysSameMeal: 7,
       maxTimesPerWeekSameMeal: 7,
       allowRelaxations: new Set(),
       ...over,
     });
 
-  it('holds over all meals, with the servings they are given', () => {
-    let without = 0;
+  it('hold on every day and in every seven days, over all meals', () => {
+    let withoutTheDay = 0;
+    let withoutTheWeek = 0;
     for (let seed = 1; seed <= 20; seed += 1) {
-      expect(
-        mostInSevenDays(optimisePlan(limited({ seed })), 'eggs', 14),
-        `seed ${seed}`,
-      ).toBeLessThanOrEqual(1500);
-      without = Math.max(
-        without,
-        mostInSevenDays(
-          optimisePlan(limited({ seed, maxIngredientPerWeek: undefined })),
-          'eggs',
-          14,
-        ),
+      const perDay = eggMeals(optimisePlan(limited({ seed })), 14);
+      expect(Math.max(...perDay), `seed ${seed}`).toBeLessThanOrEqual(1);
+      expect(mostInSevenDays(perDay), `seed ${seed}`).toBeLessThanOrEqual(4);
+      withoutTheDay = Math.max(
+        withoutTheDay,
+        ...eggMeals(optimisePlan(limited({ seed, maxMealsPerKind: undefined })), 14),
+      );
+      withoutTheWeek = Math.max(
+        withoutTheWeek,
+        mostInSevenDays(eggMeals(optimisePlan(limited({ seed, maxMealsPerKind: eggsAt(1) })), 14)),
       );
     }
-    // Without the limit the same plans hold more than that: the limit is what kept them under.
-    expect(without).toBeGreaterThan(1500);
+    // Without them the same plans have more egg meals on a day and in a week: the limits are what kept them down.
+    expect(withoutTheDay).toBeGreaterThan(1);
+    expect(withoutTheWeek).toBeGreaterThan(4);
   });
 
-  it('counts what stays in the plan, with its servings', () => {
-    // Six days hold an egg dish of one and a half servings: 1800 g. With the smallest serving of another, the week would hold 1900.
+  it('count the meals that stay in the plan', () => {
+    // Six days of the week hold an egg meal already: with eggs at six meals a week the seventh gets none.
     const stay = {
       mealSlots: [] as MealType[],
       dailyCalorieTarget: 1900,
-      kept: [{ recipeId: 'eggs-0', calories: 930, servings: 1.5 }],
+      kept: [{ recipeId: 'eggs-0', calories: 640 }],
     };
-    const days = [
+    const week = [
       stay,
       stay,
       stay,
@@ -724,24 +717,100 @@ describe('the most of one ingredient in seven days', () => {
       stay,
       stay,
     ];
+    // A day whose breakfast of eggs stays gets no more of them, with eggs at one meal a day.
+    const morning = {
+      mealSlots: ['lunch', 'dinner'] as MealType[],
+      dailyCalorieTarget: 1900,
+      kept: [{ recipeId: 'eggs-1', calories: 640 }],
+    };
 
     for (let seed = 1; seed <= 20; seed += 1) {
-      const result = optimisePlan(
-        limited({ days, maxIngredientPerWeek: 1850, allowRelaxations: 'all', seed }),
-      );
-      expect(
-        result.assignments.map((a) => a.recipeId).filter((id) => id.startsWith('eggs')),
-        `seed ${seed}`,
-      ).toEqual([]);
-      expect(result.report.relaxations).toEqual([]);
+      for (const result of [
+        optimisePlan(
+          limited({
+            days: week,
+            maxMealsPerKind: eggsAt(undefined, 6),
+            allowRelaxations: 'all',
+            seed,
+          }),
+        ),
+        optimisePlan(
+          limited({
+            days: [morning, morning],
+            maxMealsPerKind: eggsAt(1),
+            allowRelaxations: 'all',
+            seed,
+          }),
+        ),
+      ]) {
+        expect(
+          result.assignments.map((a) => a.recipeId).filter((id) => id.startsWith('eggs')),
+          `seed ${seed}`,
+        ).toEqual([]);
+        expect(result.report.relaxations).toEqual([]);
+      }
     }
   });
 
-  it('gives way last, and only when it may', () => {
-    // Nothing but egg dishes, one of them slow: by the last day every dish would take the week over the limit.
+  it('count a recipe of two kinds as a meal of each', () => {
+    const recipes = [
+      dish('yogurt', ['breakfast'], 500, { proteinKinds: ['dairy'] }),
+      dish('chicken-in-cream', ['dinner'], 700, { proteinKinds: ['chicken', 'dairy'] }),
+      dish('chicken-grilled', ['dinner'], 650, { proteinKinds: ['chicken'] }),
+    ];
+    const day = {
+      mealSlots: ['dinner'] as MealType[],
+      dailyCalorieTarget: 1200,
+      kept: [{ recipeId: 'yogurt', calories: 500 }],
+    };
+
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const result = optimisePlan(
+        plan({
+          recipes,
+          days: [day],
+          maxMealsPerKind: new Map([['dairy', { perDay: 1, perWeek: 7 }]]),
+          allowRelaxations: new Set(),
+          seed,
+        }),
+      );
+      expect(
+        result.assignments.map((a) => a.recipeId),
+        `seed ${seed}`,
+      ).toEqual(['chicken-grilled']);
+    }
+  });
+
+  it('let a dish be cooked ahead only where its second day keeps inside them', () => {
+    const recipes = [
+      dish('eggs', ['lunch'], 700, { proteinKinds: ['eggs'] }),
+      dish('beans', ['lunch'], 700, { proteinKinds: ['legumes'] }),
+    ];
+
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const result = optimisePlan(
+        plan({
+          recipes,
+          days: uniformDays(2, ['lunch'], 700),
+          mealPrepFriendly: true,
+          maxMealsPerKind: eggsAt(1, 1),
+          allowRelaxations: new Set(),
+          seed,
+        }),
+      );
+      // Eggs cooked on the first day could not be eaten on the second.
+      expect(
+        result.assignments.map((a) => a.recipeId),
+        `seed ${seed}`,
+      ).toEqual(['beans', 'beans']);
+    }
+  });
+
+  it('give way before every other limit, those of seven days before those of one day, and only when they may', () => {
+    // Nothing but egg dishes, one of them slow: by the last day every dish would be a fourth egg meal in the week.
     const onlyEggs = [
-      dish('eggs-quick', ['lunch'], 700, amounts({ eggs: 200 })),
-      dish('eggs-slow', ['lunch'], 700, { ...amounts({ eggs: 200 }), totalMinutes: 90 }),
+      dish('eggs-quick', ['lunch'], 700, { proteinKinds: ['eggs'] }),
+      dish('eggs-slow', ['lunch'], 700, { proteinKinds: ['eggs'], totalMinutes: 90 }),
     ];
     const days = Array.from({ length: 4 }, () => ({
       mealSlots: ['lunch' as const],
@@ -751,7 +820,7 @@ describe('the most of one ingredient in seven days', () => {
     const input = plan({
       recipes: onlyEggs,
       days,
-      maxIngredientPerWeek: 600,
+      maxMealsPerKind: eggsAt(1, 3),
       maxConsecutiveDaysSameMeal: 7,
       maxTimesPerWeekSameMeal: 7,
     });
@@ -775,16 +844,77 @@ describe('the most of one ingredient in seven days', () => {
       refusal = err as OptimizerError;
     }
     expect(refusal?.blocked?.needs).toEqual(['ingredient_cap']);
+
+    // Fish has had its meal of the week and eggs theirs of the day: a dinner of fish is outside the first limit, one of eggs outside the second.
+    const recipes = [
+      dish('fish-breakfast', ['breakfast'], 500, { proteinKinds: ['fish'] }),
+      dish('eggs-breakfast', ['breakfast'], 500, { proteinKinds: ['eggs'] }),
+      dish('fish-dinner', ['dinner'], 700, { proteinKinds: ['fish'] }),
+      dish('eggs-dinner', ['dinner'], 700, { proteinKinds: ['eggs'] }),
+    ];
+    const day = {
+      mealSlots: ['dinner'] as MealType[],
+      dailyCalorieTarget: 1700,
+      kept: [
+        { recipeId: 'fish-breakfast', calories: 500 },
+        { recipeId: 'eggs-breakfast', calories: 500 },
+      ],
+    };
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const either = optimisePlan(
+        plan({
+          recipes,
+          days: [day],
+          maxMealsPerKind: new Map<ProteinKind, { perDay: number; perWeek: number }>([
+            ['fish', { perDay: 5, perWeek: 1 }],
+            ['eggs', { perDay: 1, perWeek: 35 }],
+          ]),
+          seed,
+        }),
+      );
+      expect(
+        either.assignments.map((a) => a.recipeId),
+        `seed ${seed}`,
+      ).toEqual(['fish-dinner']);
+      expect(either.report.relaxations).toEqual([
+        { dayIndex: 0, slot: 'dinner', gaveWay: ['ingredient_cap'] },
+      ]);
+    }
+
+    // A dish without a kind and two of beans, each dish once a week and beans once: the third lunch is the second
+    // dish of beans, not the first dish again.
+    const lunches = [
+      dish('salad', ['lunch'], 700),
+      dish('beans-a', ['lunch'], 700, { proteinKinds: ['legumes'] }),
+      dish('beans-b', ['lunch'], 700, { proteinKinds: ['legumes'] }),
+    ];
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const third = optimisePlan(
+        plan({
+          recipes: lunches,
+          days: uniformDays(3, ['lunch'], 700),
+          maxMealsPerKind: new Map([['legumes', { perWeek: 1 }]]),
+          maxTimesPerWeekSameMeal: 1,
+          seed,
+        }),
+      );
+      expect(new Set(third.assignments.map((a) => a.recipeId)).size, `seed ${seed}`).toBe(3);
+      expect(third.report.relaxations).toEqual([
+        { dayIndex: 2, slot: 'lunch', gaveWay: ['ingredient_cap'] },
+      ]);
+    }
   });
 
-  it('does not see a recipe whose amounts are not known', () => {
+  it('do not see a recipe whose kinds are not known', () => {
     const unknown = [dish('a', ['lunch'], 700), dish('b', ['lunch'], 700)];
 
     const result = optimisePlan(
       plan({
         recipes: unknown,
         days: uniformDays(7, ['lunch'], 700),
-        maxIngredientPerWeek: 1,
+        maxMealsPerKind: new Map(
+          ProteinKind.options.map((kind) => [kind, { perDay: 1, perWeek: 1 }]),
+        ),
         allowRelaxations: new Set(),
         maxConsecutiveDaysSameMeal: 7,
         maxTimesPerWeekSameMeal: 7,

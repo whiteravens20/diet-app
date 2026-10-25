@@ -67,18 +67,21 @@ export type UnfilledMeal = z.infer<typeof UnfilledMeal>;
 
 /**
  * A limit of a plan that can give way when no recipe is left for a meal
- * inside it, in the order in which they do: the most a recipe appears in the
- * plan, the day's cooking time, a recipe twice on one day, days in a row, the
- * times a recipe is eaten in seven days, and the most of one ingredient in
- * seven days last.
+ * inside it, in the order in which they do: the meals of seven days that hold
+ * the same kind of protein first, then those of one day, so that a kind comes
+ * again before a dish does; then the most a recipe appears in the plan, the
+ * day's cooking time, a recipe twice on one day, days in a row, and the times
+ * a recipe is eaten in seven days last. `ingredient_cap` keeps the name it had
+ * when it counted the grams of one ingredient: plans made then hold it.
  */
 export const PLAN_RELAXATIONS = [
+  'ingredient_cap',
+  'kind_same_day',
   'variety_floor',
   'cook_time',
   'same_day',
   'consecutive_days',
   'weekly_cap',
-  'ingredient_cap',
 ] as const;
 export const PlanRelaxation = z.enum(PLAN_RELAXATIONS);
 export type PlanRelaxation = z.infer<typeof PlanRelaxation>;

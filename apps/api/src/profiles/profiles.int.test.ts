@@ -47,7 +47,9 @@ describe('changing a profile', () => {
         preferredCuisines: ['asian', 'polish'],
         maxConsecutiveDaysSameMeal: 4,
         maxTimesPerWeekSameMeal: 5,
-        maxWeeklyAmountPerIngredient: 2000,
+        maxMealsPerDaySameKind: 3,
+        maxMealsPerWeekSameKind: 10,
+        kindLimits: [{ kind: 'eggs', perDay: 1, perWeek: null }],
         inventoryBiasResetEvery: 9,
       },
     });
@@ -271,7 +273,7 @@ describe('changing a profile', () => {
         await patch({
           favoriteIngredientIds: [],
           excludedIngredientIds: [rice, oats],
-          maxWeeklyAmountPerIngredient: 5000,
+          kindLimits: [{ kind: 'fish', perDay: null, perWeek: 3 }],
         }).expect(200)
       ).body;
 
@@ -279,7 +281,7 @@ describe('changing a profile', () => {
         ...profile.preferences,
         favoriteIngredientIds: [],
         excludedIngredientIds: [rice, oats],
-        maxWeeklyAmountPerIngredient: 5000,
+        kindLimits: [{ kind: 'fish', perDay: null, perWeek: 3 }],
       });
     });
 

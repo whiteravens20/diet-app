@@ -218,70 +218,129 @@ describe('the limits of a plan', () => {
     });
   });
 
-  describe('the most of one ingredient in a week', () => {
-    const halfAKilo = () =>
-      t.prisma.profilePreference.update({
-        where: { profileId: profile.id },
-        data: { maxWeeklyAmountPerIngredient: 500 },
-      });
-    /** The most of any one ingredient that the meals of a plan hold together. */
-    const mostOfOne = (plan: MealPlan): number => {
-      const held = new Map<string, number>();
-      for (const day of plan.days) {
-        for (const meal of day.meals)
-          for (const line of meal.ingredients)
-            held.set(line.ingredientId, (held.get(line.ingredientId) ?? 0) + line.quantity);
-      }
-      return Math.max(...held.values());
+  describe('the meals with one kind of protein', () => {
+    /** The recipes of the catalogue that are chicken meals: chicken gives most of their protein. */
+    const CHICKEN = ['chicken-rice-broccoli', 'chicken-sandwich', 'chicken-tomato-skillet'];
+    const save = (preferences: Record<string, unknown>) =>
+      t
+        .http()
+        .put(`/api/profiles/${profile.id}`)
+        .set(as(user))
+        .send({
+          ...ProfileInput.parse(profile),
+          preferences: { ...profile.preferences, ...preferences },
+        });
+    /** How many meals of each day of a plan are chicken meals. */
+    const chickenMeals = async (plan: MealPlan): Promise<number[]> => {
+      const chicken = new Set(
+        (await t.prisma.recipe.findMany({ where: { slug: { in: CHICKEN } } })).map(
+          (recipe) => recipe.id,
+        ),
+      );
+      return plan.days.map(
+        (day) => day.meals.filter((meal) => chicken.has(meal.recipe?.id ?? '')).length,
+      );
     };
-    // Breakfast and dinner take a whole day's energy between them, so most dishes are served in amounts over half a kilogram of something.
-    const oneDay = { durationDays: 1, mealCount: 2 };
+    /** The profile avoids every lunch and dinner that is no chicken meal. */
+    const nothingButChicken = async () => {
+      const others = await t.prisma.recipe.findMany({
+        where: { slug: { notIn: CHICKEN }, mealTypes: { hasSome: ['lunch', 'dinner'] } },
+      });
+      await t.prisma.favorite.createMany({
+        data: others.map((recipe) => ({
+          profileId: profile.id,
+          recipeId: recipe.id,
+          sentiment: 'avoid' as const,
+        })),
+      });
+    };
 
-    it('is part of the profile, within what it may be set to', async () => {
-      expect(profile.preferences.maxWeeklyAmountPerIngredient).toBe(3000);
-      const save = (amount: number) =>
-        t
-          .http()
-          .put(`/api/profiles/${profile.id}`)
-          .set(as(user))
-          .send({
-            ...ProfileInput.parse(profile),
-            preferences: { ...profile.preferences, maxWeeklyAmountPerIngredient: amount },
-          });
+    it('are part of the profile, which starts without them, within what they may be set to', async () => {
+      expect(profile.preferences).toMatchObject({
+        maxMealsPerDaySameKind: null,
+        maxMealsPerWeekSameKind: null,
+        kindLimits: [],
+      });
+      const own = [
+        { kind: 'eggs', perDay: null, perWeek: 2 },
+        { kind: 'fish', perDay: 1, perWeek: null },
+      ];
 
-      expect((await save(800).expect(200)).body.preferences.maxWeeklyAmountPerIngredient).toBe(800);
-      await save(100).expect(400);
-      await save(20_000).expect(400);
+      expect(
+        (
+          await save({
+            maxMealsPerDaySameKind: 1,
+            maxMealsPerWeekSameKind: 4,
+            kindLimits: own,
+          }).expect(200)
+        ).body.preferences,
+      ).toMatchObject({ maxMealsPerDaySameKind: 1, maxMealsPerWeekSameKind: 4, kindLimits: own });
+      expect(
+        (await save({ maxMealsPerDaySameKind: null, maxMealsPerWeekSameKind: null }).expect(200))
+          .body.preferences,
+      ).toMatchObject({ maxMealsPerDaySameKind: null, maxMealsPerWeekSameKind: null });
+      await save({ maxMealsPerDaySameKind: 0 }).expect(400);
+      await save({ maxMealsPerDaySameKind: 6 }).expect(400);
+      await save({ maxMealsPerWeekSameKind: 36 }).expect(400);
+      await save({ kindLimits: [{ kind: 'eggs', perDay: null, perWeek: null }] }).expect(400);
+      await save({ kindLimits: [own[0], { ...own[1], kind: 'eggs' }] }).expect(400);
+      await save({ kindLimits: [{ kind: 'nuts', perDay: 1, perWeek: null }] }).expect(400);
     });
 
-    it('keeps the meals of a plan under it, where the recipes allow', async () => {
-      let without = 0;
-      for (let i = 0; i < 10; i += 1)
-        without = Math.max(without, mostOfOne(await aPlan(t, user, profile, oneDay)));
-      // Left to themselves, plans hold more than half a kilogram of something.
-      expect(without).toBeGreaterThan(500);
+    it('keep the meals of a plan inside them, where the recipes allow', async () => {
+      const aWeek = { durationDays: 7, mealCount: 3 };
+      let mostOnADay = 0;
+      let mostInTheWeek = 0;
+      for (let i = 0; i < 6; i += 1) {
+        const meals = await chickenMeals(await aPlan(t, user, profile, aWeek));
+        mostOnADay = Math.max(mostOnADay, ...meals);
+        mostInTheWeek = Math.max(
+          mostInTheWeek,
+          meals.reduce((sum, count) => sum + count, 0),
+        );
+      }
+      // Without limits, which a new profile has none of, plans have more chicken than one meal a day and two a week.
+      expect(mostOnADay).toBeGreaterThan(1);
+      expect(mostInTheWeek).toBeGreaterThan(2);
 
-      await halfAKilo();
-      for (let i = 0; i < 10; i += 1)
-        expect(mostOfOne(await aPlan(t, user, profile, oneDay))).toBeLessThanOrEqual(500);
+      await save({ kindLimits: [{ kind: 'chicken', perDay: 1, perWeek: 2 }] }).expect(200);
+      for (let i = 0; i < 6; i += 1) {
+        const meals = await chickenMeals(await aPlan(t, user, profile, aWeek));
+        expect(Math.max(...meals)).toBeLessThanOrEqual(1);
+        expect(meals.reduce((sum, count) => sum + count, 0)).toBeLessThanOrEqual(2);
+      }
     });
 
-    it('stands in the way of a week that cannot stay under it, and gives way when the request says it may', async () => {
-      await halfAKilo();
+    it('stand in the way of a day that cannot keep inside them, and give way when the request says they may', async () => {
+      await nothingButChicken();
+      await save({ maxMealsPerDaySameKind: 1 }).expect(200);
+      const aDay = { durationDays: 1, mealCount: 3 };
 
-      const refused = await generate({ durationDays: 7, mealCount: 2 }).expect(422);
+      const refused = await generate(aDay).expect(422);
+      expect(refused.body.details.needs).toEqual(['kind_same_day']);
+
+      const made: MealPlan = (
+        await generate({ ...aDay, allowRelaxations: ['kind_same_day'] }).expect(201)
+      ).body;
+      expect(made.report!.relaxations).toEqual([
+        { date: '2026-01-05', slot: 'dinner', gaveWay: ['kind_same_day'] },
+      ]);
+    });
+
+    it('stand in the way of a week that cannot keep inside them, and give way when the request says they may', async () => {
+      await nothingButChicken();
+      await save({ maxMealsPerWeekSameKind: 4 }).expect(200);
+      const threeDays = { durationDays: 3, mealCount: 3 };
+
+      const refused = await generate(threeDays).expect(422);
       expect(refused.body.details.needs).toContain('ingredient_cap');
 
       const made: MealPlan = (
-        await generate({
-          durationDays: 7,
-          mealCount: 2,
-          allowRelaxations: [...PLAN_RELAXATIONS],
-        }).expect(201)
+        await generate({ ...threeDays, allowRelaxations: [...PLAN_RELAXATIONS] }).expect(201)
       ).body;
-      expect(made.report!.relaxations.some((meal) => meal.gaveWay.includes('ingredient_cap'))).toBe(
-        true,
-      );
+      expect(
+        made.report!.relaxations.filter((meal) => meal.gaveWay.includes('ingredient_cap')),
+      ).toHaveLength(2);
     });
   });
 

@@ -1,7 +1,15 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
-import { ActivityLevel, Allergen, Cuisine, DietType, Sex, WeeklyLossTarget } from './enums.js';
+import {
+  ActivityLevel,
+  Allergen,
+  Cuisine,
+  DietType,
+  ProteinKind,
+  Sex,
+  WeeklyLossTarget,
+} from './enums.js';
 import { MAX_INGREDIENT_IDS } from './ingredient.js';
 import {
   CalorieCalculation,
@@ -19,10 +27,25 @@ import { WeightReminderCadence } from './weight.js';
 export const DEFAULT_PROFILES_PER_ACCOUNT = 2;
 export const MOST_PROFILES_PER_ACCOUNT = 20;
 
-/** The most of one ingredient a plan may hold in seven days: what a profile starts with, and what it may be set to. */
-export const DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT = 3000;
-export const MIN_WEEKLY_AMOUNT_PER_INGREDIENT = 500;
-export const MAX_WEEKLY_AMOUNT_PER_INGREDIENT = 10_000;
+/**
+ * The most a limit on meals of one day, and of any seven days, with the same
+ * kind of protein may be set to: every meal of a day of five, every meal of a
+ * week.
+ */
+export const MAX_MEALS_PER_DAY_SAME_KIND = 5;
+export const MAX_MEALS_PER_WEEK_SAME_KIND = 35;
+
+/** A kind of protein held to numbers of its own, for a day, for seven days or both; a number it leaves out is the profile's own for every kind. */
+export const KindLimit = z
+  .object({
+    kind: ProteinKind,
+    perDay: z.number().int().min(1).max(MAX_MEALS_PER_DAY_SAME_KIND).nullable(),
+    perWeek: z.number().int().min(1).max(MAX_MEALS_PER_WEEK_SAME_KIND).nullable(),
+  })
+  .refine((limit) => limit.perDay !== null || limit.perWeek !== null, {
+    message: 'Give the kind a number for a day, for seven days or both.',
+  });
+export type KindLimit = z.infer<typeof KindLimit>;
 
 /** What a profile's preferences hold, each part as it is checked. */
 const preferenceFields = {
@@ -55,15 +78,21 @@ const preferenceFields = {
    */
   maxTimesPerWeekSameMeal: z.number().int().min(1).max(7),
   /**
-   * The most of one ingredient, in grams or millilitres, that the meals of
-   * any seven days of a plan may hold together. It keeps a plan from resting
-   * on one food, however the recipes that use it are spread.
+   * The most meals of one day, and of any seven days of a plan, that may hold
+   * the same kind of protein (`ProteinKind`: eggs, chicken, fish and so on);
+   * null for no such limit, which is what a profile starts with. A kind counts
+   * in a meal where it gives at least a fifth of the meal's protein, so a
+   * spoon of yogurt in a sauce does not make a dairy meal.
    */
-  maxWeeklyAmountPerIngredient: z
-    .number()
-    .int()
-    .min(MIN_WEEKLY_AMOUNT_PER_INGREDIENT)
-    .max(MAX_WEEKLY_AMOUNT_PER_INGREDIENT),
+  maxMealsPerDaySameKind: z.number().int().min(1).max(MAX_MEALS_PER_DAY_SAME_KIND).nullable(),
+  maxMealsPerWeekSameKind: z.number().int().min(1).max(MAX_MEALS_PER_WEEK_SAME_KIND).nullable(),
+  /** Kinds held to numbers of their own: fish at one meal a day, eggs at three in a week. Each kind once. */
+  kindLimits: z
+    .array(KindLimit)
+    .max(ProteinKind.options.length)
+    .refine((limits) => new Set(limits.map((limit) => limit.kind)).size === limits.length, {
+      message: 'Name each kind of protein once.',
+    }),
   /**
    * Anti-monotony rotation threshold. After this many consecutive
    * plan-level generations actually applied the inventory bias, the next
@@ -83,7 +112,9 @@ const PREFERENCE_DEFAULTS = {
   preferredCuisines: [],
   maxConsecutiveDaysSameMeal: 2,
   maxTimesPerWeekSameMeal: 3,
-  maxWeeklyAmountPerIngredient: DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+  maxMealsPerDaySameKind: null,
+  maxMealsPerWeekSameKind: null,
+  kindLimits: [],
   inventoryBiasResetEvery: 5,
 } satisfies { [Key in keyof typeof preferenceFields]: z.infer<(typeof preferenceFields)[Key]> };
 
@@ -108,9 +139,13 @@ export const ProfilePreferences = z.object({
   maxTimesPerWeekSameMeal: preferenceFields.maxTimesPerWeekSameMeal.default(
     PREFERENCE_DEFAULTS.maxTimesPerWeekSameMeal,
   ),
-  maxWeeklyAmountPerIngredient: preferenceFields.maxWeeklyAmountPerIngredient.default(
-    PREFERENCE_DEFAULTS.maxWeeklyAmountPerIngredient,
+  maxMealsPerDaySameKind: preferenceFields.maxMealsPerDaySameKind.default(
+    PREFERENCE_DEFAULTS.maxMealsPerDaySameKind,
   ),
+  maxMealsPerWeekSameKind: preferenceFields.maxMealsPerWeekSameKind.default(
+    PREFERENCE_DEFAULTS.maxMealsPerWeekSameKind,
+  ),
+  kindLimits: preferenceFields.kindLimits.default(PREFERENCE_DEFAULTS.kindLimits),
   inventoryBiasResetEvery: preferenceFields.inventoryBiasResetEvery.default(
     PREFERENCE_DEFAULTS.inventoryBiasResetEvery,
   ),

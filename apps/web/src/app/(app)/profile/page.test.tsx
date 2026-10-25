@@ -38,7 +38,9 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
     preferredCuisines: [],
     maxConsecutiveDaysSameMeal: 2,
     maxTimesPerWeekSameMeal: 3,
-    maxWeeklyAmountPerIngredient: 3000,
+    maxMealsPerDaySameKind: null,
+    maxMealsPerWeekSameKind: null,
+    kindLimits: [],
     inventoryBiasResetEvery: 5,
   },
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -194,6 +196,106 @@ describe('the profile form, on the custom diet', () => {
       dietType: 'vegan',
       customMacroSplit: { protein: 30, fat: 40, carbs: 30 },
     });
+  });
+});
+
+describe('the profile form, on the meals with one kind of protein', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const texts = messages.profile;
+  const kinds = messages.enums.proteinKind;
+  /** The form of the account's one profile, open. */
+  const editing = async (profile: Profile) => {
+    await renderPage([profile], 2);
+    await userEvent.click(screen.getByRole('button', { name: messages.common.edit }));
+    const put = vi.spyOn(api, 'put').mockResolvedValue(profile as never);
+    return {
+      put,
+      save: () => userEvent.click(screen.getByRole('button', { name: texts.saveChanges })),
+      sent: () => (put.mock.calls[0]![1] as Profile).preferences,
+    };
+  };
+  const kindFields = () => screen.getAllByLabelText(texts.kindLimitKind) as HTMLSelectElement[];
+  const dayFields = () => screen.getAllByLabelText(texts.kindLimitPerDay) as HTMLInputElement[];
+  const weekFields = () => screen.getAllByLabelText(texts.kindLimitPerWeek) as HTMLInputElement[];
+
+  it('are part of the variety of a plan, start without a limit and send none for fields left empty', async () => {
+    const { save, sent } = await editing(aProfile('Me'));
+
+    const variety = screen.getByRole('region', { name: texts.section.variety });
+    const perDay = within(variety).getByLabelText(texts.maxMealsPerDaySameKind);
+    expect(perDay).toHaveValue(null);
+    expect(perDay).toHaveAttribute('placeholder', texts.noLimit);
+    expect(within(variety).getByLabelText(texts.maxMealsPerWeekSameKind)).toHaveValue(null);
+    expect(screen.queryByLabelText(texts.kindLimitKind)).toBeNull();
+    await save();
+
+    expect(sent()).toMatchObject({
+      maxMealsPerDaySameKind: null,
+      maxMealsPerWeekSameKind: null,
+      kindLimits: [],
+    });
+  });
+
+  it('send the two numbers and the exceptions typed, leaving out an exception with no number', async () => {
+    const { save, sent } = await editing(aProfile('Me'));
+    await userEvent.type(screen.getByLabelText(texts.maxMealsPerDaySameKind), '2');
+    await userEvent.type(screen.getByLabelText(texts.maxMealsPerWeekSameKind), '7');
+
+    await userEvent.click(screen.getByRole('button', { name: texts.addKindLimit }));
+    await userEvent.selectOptions(kindFields()[0]!, 'fish');
+    await userEvent.type(dayFields()[0]!, '1');
+    // A second exception, with nothing typed in it.
+    await userEvent.click(screen.getByRole('button', { name: texts.addKindLimit }));
+    expect(kindFields()[1]).toHaveValue('chicken');
+    await save();
+
+    expect(sent()).toMatchObject({
+      maxMealsPerDaySameKind: 2,
+      maxMealsPerWeekSameKind: 7,
+      kindLimits: [{ kind: 'fish', perDay: 1, perWeek: null }],
+    });
+  });
+
+  it('show the exceptions a profile has, offer each kind once, and take one out', async () => {
+    const { save, sent } = await editing(
+      aProfile('Me', {
+        preferences: {
+          ...aProfile('Me').preferences,
+          kindLimits: [
+            { kind: 'eggs', perDay: null, perWeek: 2 },
+            { kind: 'fish', perDay: 1, perWeek: null },
+          ],
+        },
+      }),
+    );
+
+    expect(kindFields().map((field) => field.value)).toEqual(['eggs', 'fish']);
+    expect(dayFields().map((field) => field.value)).toEqual(['', '1']);
+    expect(weekFields().map((field) => field.value)).toEqual(['2', '']);
+    expect(dayFields()[0]).toHaveAttribute('placeholder', texts.sameAsAbove);
+    // The kind of the other exception cannot be chosen twice.
+    expect(within(kindFields()[0]!).getByRole('option', { name: kinds.fish })).toBeDisabled();
+    expect(within(kindFields()[0]!).getByRole('option', { name: kinds.beef })).toBeEnabled();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: `Remove the exception: ${kinds.eggs}` }),
+    );
+    await save();
+
+    expect(sent().kindLimits).toEqual([{ kind: 'fish', perDay: 1, perWeek: null }]);
+  });
+
+  it('offer no other exception once every kind has one', async () => {
+    await editing(aProfile('Me'));
+
+    for (let added = 0; added < 9; added += 1)
+      await userEvent.click(screen.getByRole('button', { name: texts.addKindLimit }));
+
+    expect(new Set(kindFields().map((field) => field.value)).size).toBe(9);
+    expect(screen.queryByRole('button', { name: texts.addKindLimit })).toBeNull();
   });
 });
 

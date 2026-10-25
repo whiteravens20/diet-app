@@ -21,7 +21,9 @@
  * is used at most so many days in a row and so many times in any seven days,
  * counted over all meals; not twice on one day unless the plan is for
  * cooking ahead; at most so many times in the plan; within the day's cooking
- * time. When no recipe is left for a meal inside the limits, one limit after
+ * time; and a kind of protein (eggs, chicken, fish and so on) is in at most
+ * so many meals of a day and of any seven days. When no recipe is left for a
+ * meal inside the limits, one limit after
  * another gives way in a fixed order, if the caller allows it; what gave way
  * is reported, and the recipe used least so far is preferred. When it may
  * not give way, the plan is not made and the caller is told what stood in
@@ -34,6 +36,7 @@ import {
   type Macros,
   type MealType,
   type PlanRelaxation,
+  type ProteinKind,
   type Unit,
 } from '@diet-app/shared';
 import { energyShares, splitDistance } from './nutrition.js';
@@ -54,10 +57,12 @@ export interface OptimizerRecipe {
   ingredientIds: string[];
   /**
    * What one serving takes of each ingredient, in the ingredient's own unit
-   * (grams or millilitres). Left out: the limit on one ingredient in seven
-   * days does not see the recipe.
+   * (grams or millilitres). Left out: the packs of the plan do not see the
+   * recipe.
    */
   amounts?: ReadonlyMap<string, number>;
+  /** The kinds of protein the recipe counts as (`proteinKindsOf`). Left out: the limits on one kind do not see it. */
+  proteinKinds?: readonly ProteinKind[];
   difficulty: 'easy' | 'medium' | 'hard';
   isFavorite: boolean;
   /** The user marked the recipe as one they eat often: it counts on top of being a favourite. */
@@ -158,10 +163,11 @@ export interface OptimizerInput {
    */
   maxRepeatsPerRecipe?: number;
   /**
-   * The most of one ingredient, in its own unit (grams or millilitres), that
-   * the meals of any seven days may hold together. Omitted: no such limit.
+   * For each kind of protein, the most meals of one day and of any seven days
+   * that may hold it, over all meals. A number left out, a kind it does not
+   * name, or the map omitted: no such limit.
    */
-  maxIngredientPerWeek?: number;
+  maxMealsPerKind?: ReadonlyMap<ProteinKind, { perDay?: number; perWeek?: number }>;
   /**
    * The pack of each ingredient whose opened pack does not keep, in the
    * ingredient's own unit. A recipe that takes from a pack the plan has
@@ -182,10 +188,10 @@ export interface OptimizerInput {
 }
 
 /**
- * A limit that can give way, in the order in which they do: the most a recipe
- * appears in the plan first, then the day's cooking time, then a recipe twice
- * on one day, then days in a row, then the times a recipe is eaten in seven
- * days, and the most of one ingredient in seven days last.
+ * A limit that can give way, in the order in which they do: the meals of seven
+ * days with the same kind of protein first, then those of one day, then the
+ * most a recipe appears in the plan, the day's cooking time, a recipe twice on
+ * one day, days in a row, and the times a recipe is eaten in seven days last.
  */
 const RELAXATION_ORDER = PLAN_RELAXATIONS;
 export type Relaxation = PlanRelaxation;
@@ -323,31 +329,27 @@ interface Use {
   recipeId: string;
 }
 
-/** How much of one ingredient the meals of a day hold. */
-interface Held {
-  day: number;
-  amount: number;
+/** What a recipe that is on no day of the plan has for meals, and what a kind of protein no meal of the plan holds has for days. */
+const NO_USES: readonly Use[] = [];
+const NO_DAYS: readonly number[] = [];
+
+/** How many meals of a day hold a kind of protein, and the most that the meals of any seven days that hold the day do. */
+interface KindMeals {
+  onTheDay: number;
+  inSevenDays: number;
 }
 
-/** What a recipe that is on no day of the plan has for meals, and what the plan holds of an ingredient no meal of it takes. */
-const NO_USES: readonly Use[] = [];
-const NOTHING_HELD: readonly Held[] = [];
-
-/** The most the meals of any seven days that hold `day` hold of an ingredient. */
-function mostHeldAround(
-  held: ReadonlyMap<string, readonly Held[]>,
-  day: number,
-  ingredientId: string,
-): number {
-  const entries = held.get(ingredientId) ?? NOTHING_HELD;
-  let found = 0;
+/** `KindMeals` for `day`, from the day of each meal that holds the kind. */
+function kindMealsAround(days: readonly number[], day: number): KindMeals {
+  let onTheDay = 0;
+  for (const d of days) if (d === day) onTheDay += 1;
+  let inSevenDays = 0;
   for (let first = day - 6; first <= day; first += 1) {
     let inThem = 0;
-    for (const entry of entries)
-      if (entry.day >= first && entry.day <= first + 6) inThem += entry.amount;
-    found = Math.max(found, inThem);
+    for (const d of days) if (d >= first && d <= first + 6) inThem += 1;
+    inSevenDays = Math.max(inSevenDays, inThem);
   }
-  return found;
+  return { onTheDay, inSevenDays };
 }
 
 /**
@@ -424,8 +426,8 @@ function fill(
   const usesByRecipe = new Map<string, Use[]>();
   const usesOf = (recipeId: string): readonly Use[] => usesByRecipe.get(recipeId) ?? NO_USES;
   const useCount = new Map<string, number>();
-  const held = new Map<string, Held[]>(); // ingredientId → what the meals placed so far hold of it
-  const heldInAll = new Map<string, number>(); // ingredientId → what they hold of it together
+  const heldInAll = new Map<string, number>(); // ingredientId → what the meals placed so far hold of it together
+  const kindDays = new Map<ProteinKind, number[]>(); // kind of protein → the day of each meal placed so far that holds it
   const place = (day: number, recipeId: string, servings: number): void => {
     const use = { day, recipeId };
     uses.push(use);
@@ -435,11 +437,12 @@ function fill(
     useCount.set(recipeId, (useCount.get(recipeId) ?? 0) + 1);
     const recipe = recipeById.get(recipeId);
     recipe?.ingredientIds.forEach((id) => planIngredients.add(id));
-    for (const [ingredientId, perServing] of recipe?.amounts ?? []) {
-      const entries = held.get(ingredientId) ?? [];
-      entries.push({ day, amount: perServing * servings });
-      held.set(ingredientId, entries);
+    for (const [ingredientId, perServing] of recipe?.amounts ?? [])
       heldInAll.set(ingredientId, (heldInAll.get(ingredientId) ?? 0) + perServing * servings);
+    for (const kind of recipe?.proteinKinds ?? []) {
+      const days = kindDays.get(kind);
+      if (days) days.push(day);
+      else kindDays.set(kind, [day]);
     }
   };
   const heldOf = (ingredientId: string): number => heldInAll.get(ingredientId) ?? 0;
@@ -464,7 +467,7 @@ function fill(
     perWeek: input.maxTimesPerWeekSameMeal ?? 7,
     perPlan: input.maxRepeatsPerRecipe,
     twiceADay: input.mealPrepFriendly,
-    perIngredient: input.maxIngredientPerWeek,
+    perKind: input.maxMealsPerKind,
   };
 
   const disliked = input.dislikedIngredientIds;
@@ -521,16 +524,21 @@ function fill(
     );
   };
   /** Whether a recipe on this meal today could be on it again tomorrow, inside every limit. */
-  const forTwoDays = (recipe: OptimizerRecipe, day: number, budget: number): boolean => {
+  const forTwoDays = (recipe: OptimizerRecipe, day: number): boolean => {
     const today: Use = { day, recipeId: recipe.id };
     return (
       broken(recipe, {
         day: day + 1,
-        budget,
         usesOf: (recipeId) =>
           recipeId === recipe.id ? [...usesOf(recipeId), today] : usesOf(recipeId),
         useCount: new Map([[recipe.id, (useCount.get(recipe.id) ?? 0) + 1]]),
-        mostHeldInSevenDays: (ingredientId) => mostHeldAround(held, day + 1, ingredientId),
+        mealsOfKind: (kind) => {
+          const days = kindDays.get(kind) ?? NO_DAYS;
+          return kindMealsAround(
+            recipe.proteinKinds?.includes(kind) ? [...days, day] : days,
+            day + 1,
+          );
+        },
         limits,
         cookTimeBudget: input.days[day + 1]?.cookTimeBudgetMinutes,
       }).length === 0
@@ -589,10 +597,9 @@ function fill(
         if (candidates.length === 1) report.singleCandidate.push({ dayIndex: day, slot });
         const pool = withinLimits(candidates, {
           day,
-          budget,
           usesOf,
           useCount,
-          held,
+          kindDays,
           limits,
           cookTimeBudget: spec.cookTimeBudgetMinutes,
           mayGiveWay,
@@ -628,7 +635,7 @@ function fill(
         const fresh = another.length > 0 ? another : choosable;
         const lasting =
           input.mealPrepFriendly && repeated === undefined && filledTomorrow(slot, day)
-            ? fresh.filter((r) => forTwoDays(r, day, budget))
+            ? fresh.filter((r) => forTwoDays(r, day))
             : [];
         recipe =
           repeated ??
@@ -681,19 +688,17 @@ function broken(
   recipe: OptimizerRecipe,
   at: {
     day: number;
-    /** What the meal has to spend: it decides the servings, and with them how much of each ingredient the meal holds. */
-    budget: number;
     /** The meals of the plan so far that hold a recipe. */
     usesOf: (recipeId: string) => readonly Use[];
     useCount: ReadonlyMap<string, number>;
-    /** The most the meals of any seven days that hold this one hold of an ingredient, in its own unit. */
-    mostHeldInSevenDays: (ingredientId: string) => number;
+    /** The meals of the plan so far around this one that hold a kind of protein. */
+    mealsOfKind: (kind: ProteinKind) => KindMeals;
     limits: {
       consecutive: number;
       perWeek: number;
       perPlan?: number;
       twiceADay: boolean;
-      perIngredient?: number;
+      perKind?: ReadonlyMap<ProteinKind, { perDay?: number; perWeek?: number }>;
     };
     cookTimeBudget?: number;
   },
@@ -723,17 +728,22 @@ function broken(
   }
   if (streak > limits.consecutive) out = outside(out, 'consecutive_days');
   if (mostInSevenDays > limits.perWeek) out = outside(out, 'weekly_cap');
-  // The same seven days, for each ingredient of the recipe: what the meals in them hold of it, and this meal on top.
-  const { perIngredient } = limits;
-  if (perIngredient !== undefined && recipe.amounts) {
-    const servings = fitServings(recipe.caloriesPerServing, at.budget);
-    let over = false;
-    for (const [ingredientId, perServing] of recipe.amounts) {
+  // For each kind of protein of the recipe: the meals of the day and of the seven days around it that hold the kind, and this meal on top.
+  const { perKind } = limits;
+  if (perKind !== undefined && recipe.proteinKinds) {
+    let overInSevenDays = false;
+    let overOnTheDay = false;
+    for (const kind of recipe.proteinKinds) {
+      const limit = perKind.get(kind);
+      if (limit === undefined) continue;
+      const meals = at.mealsOfKind(kind);
       // Over in some seven days is over in the seven days that hold the most.
-      over = at.mostHeldInSevenDays(ingredientId) + perServing * servings > perIngredient;
-      if (over) break;
+      if (limit.perWeek !== undefined && meals.inSevenDays + 1 > limit.perWeek)
+        overInSevenDays = true;
+      if (limit.perDay !== undefined && meals.onTheDay + 1 > limit.perDay) overOnTheDay = true;
     }
-    if (over) out = outside(out, 'ingredient_cap');
+    if (overInSevenDays) out = outside(out, 'ingredient_cap');
+    if (overOnTheDay) out = outside(out, 'kind_same_day');
   }
   return out;
 }
@@ -757,23 +767,23 @@ function outside(broken: readonly Relaxation[], kind: Relaxation): readonly Rela
  */
 function withinLimits(
   candidates: OptimizerRecipe[],
-  where: Omit<Parameters<typeof broken>[1], 'mostHeldInSevenDays'> & {
-    held: ReadonlyMap<string, readonly Held[]>;
+  where: Omit<Parameters<typeof broken>[1], 'mealsOfKind'> & {
+    kindDays: ReadonlyMap<ProteinKind, readonly number[]>;
     mayGiveWay: (kind: Relaxation) => boolean;
   },
 ): { recipes: OptimizerRecipe[]; outside: (recipe: OptimizerRecipe) => readonly Relaxation[] } {
-  // The plan does not change while a meal is chosen: what it holds of an ingredient around the day is worked
-  // out once for all the recipes that take the ingredient, and what a recipe breaks is the same asked twice.
-  const most = new Map<string, number>();
-  const mostHeldInSevenDays = (ingredientId: string): number => {
-    let found = most.get(ingredientId);
+  // The plan does not change while a meal is chosen: the meals around the day that hold a kind of protein are
+  // counted once for all the recipes of the kind, and what a recipe breaks is the same asked twice.
+  const counted = new Map<ProteinKind, KindMeals>();
+  const mealsOfKind = (kind: ProteinKind): KindMeals => {
+    let found = counted.get(kind);
     if (found === undefined) {
-      found = mostHeldAround(where.held, where.day, ingredientId);
-      most.set(ingredientId, found);
+      found = kindMealsAround(where.kindDays.get(kind) ?? NO_DAYS, where.day);
+      counted.set(kind, found);
     }
     return found;
   };
-  const at = { ...where, mostHeldInSevenDays };
+  const at = { ...where, mealsOfKind };
   // What each candidate breaks, in the order of the candidates.
   const breaks = candidates.map((recipe) => broken(recipe, at));
   const brokenBy = (recipe: OptimizerRecipe): readonly Relaxation[] => broken(recipe, at);
@@ -997,6 +1007,44 @@ export function requirementsPerServing(recipe: {
     }
   }
   return needs;
+}
+
+/** The share of a recipe's protein a kind of protein has to give for the recipe to count as a meal of that kind. */
+const KIND_SHARE = 0.2;
+
+/**
+ * The kinds of protein a recipe counts as, for the limits on one kind: each
+ * that gives at least a fifth (`KIND_SHARE`) of the protein of the recipe's
+ * ingredients. Chicken in a yogurt sauce is a chicken meal, and the spoon of
+ * yogurt does not make it a dairy one as well. A line that cannot be
+ * converted counts for nothing.
+ */
+export function proteinKindsOf(recipe: {
+  ingredients: readonly {
+    quantity: number;
+    unit: Unit;
+    ingredient: ConvertibleIngredient & { proteinPer100: number; proteinKind: ProteinKind | null };
+  }[];
+}): ProteinKind[] {
+  let protein = 0;
+  const byKind = new Map<ProteinKind, number>();
+  for (const line of recipe.ingredients) {
+    let grams: number;
+    try {
+      grams =
+        (toCanonical(line.quantity, line.unit, line.ingredient) * line.ingredient.proteinPer100) /
+        100;
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      continue;
+    }
+    protein += grams;
+    const kind = line.ingredient.proteinKind;
+    if (kind !== null) byKind.set(kind, (byKind.get(kind) ?? 0) + grams);
+  }
+  return [...byKind]
+    .filter(([, grams]) => grams > 0 && grams >= KIND_SHARE * protein)
+    .map(([kind]) => kind);
 }
 
 /** What one serving of a recipe takes of each ingredient, in the ingredient's own unit: `requirementsPerServing`, with an ingredient that is on two lines added up. */
