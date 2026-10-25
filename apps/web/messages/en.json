@@ -1822,6 +1822,12 @@
     "saving": "Saving…",
     "saveChanges": "Save changes",
     "createProfile": "Create profile",
+    "section": {
+      "body": "About you",
+      "goal": "Your goal",
+      "food": "How you eat",
+      "variety": "Plan variety"
+    },
     "wizard": {
       "title": "Set up your profile",
       "intro": "Three short steps. The figures under “What this comes to” follow what you type, and nothing is saved before the last step.",

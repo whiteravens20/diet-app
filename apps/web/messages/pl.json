@@ -1822,6 +1822,12 @@
     "saving": "Zapisywanie…",
     "saveChanges": "Zapisz zmiany",
     "createProfile": "Utwórz profil",
+    "section": {
+      "body": "O Tobie",
+      "goal": "Twój cel",
+      "food": "Jak jesz",
+      "variety": "Różnorodność planu"
+    },
     "wizard": {
       "title": "Ustaw swój profil",
       "intro": "Trzy krótkie kroki. Liczby pod „Co z tego wynika” zmieniają się wraz z tym, co wpisujesz, a przed ostatnim krokiem nic nie jest zapisywane.",

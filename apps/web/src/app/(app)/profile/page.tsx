@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import {
   DEFAULT_PROFILES_PER_ACCOUNT,
   DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
@@ -48,6 +48,22 @@ const FirstProfile = dynamic(() => import('./first-profile').then((steps) => ste
   ssr: false,
   loading: () => <Skeleton className="h-96 max-w-4xl" />,
 });
+
+/** A part of the profile form, under a heading of its own. */
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const id = useId();
+  return (
+    <section
+      aria-labelledby={id}
+      className="space-y-3 border-t border-border/60 pt-5 first:border-t-0 first:pt-0"
+    >
+      <h3 id={id} className="text-base font-semibold">
+        {title}
+      </h3>
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
 
 /** Profile manager — create, edit and delete the account's profiles. */
 export default function ProfilePage() {
@@ -354,110 +370,120 @@ export default function ProfilePage() {
               ref={form}
               onSubmit={onSubmit}
               onChange={onChange}
-              className="grid gap-4 sm:grid-cols-2"
+              className="space-y-6"
             >
-              <Field label={t('name')} hint={t('nameHint')}>
-                <Input
-                  name="name"
-                  required
-                  pattern=".*\S.*"
-                  maxLength={80}
-                  defaultValue={editing?.name}
+              <FormSection title={t('section.body')}>
+                <Field label={t('name')} hint={t('nameHint')}>
+                  <Input
+                    name="name"
+                    required
+                    pattern=".*\S.*"
+                    maxLength={80}
+                    defaultValue={editing?.name}
+                  />
+                </Field>
+                <BodyFields initial={editing ?? undefined} unit={unit} />
+              </FormSection>
+              <FormSection title={t('section.goal')}>
+                <PaceChoice
+                  initial={editing ? editing.weeklyLossTarget : '0.5'}
+                  paces={shown.preview?.paces}
+                  unit={unit}
+                  className="sm:col-span-2"
                 />
-              </Field>
-              <BodyFields initial={editing ?? undefined} unit={unit} />
-              <DietFields
-                diet={editing?.dietType ?? 'balanced'}
-                mealCount={editing?.mealCount ?? 3}
-                split={editing?.customMacroSplit ?? null}
-              />
-              <PaceChoice
-                initial={editing ? editing.weeklyLossTarget : '0.5'}
-                paces={shown.preview?.paces}
-                unit={unit}
-                className="sm:col-span-2"
-              />
-              <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
-                <Input
-                  key={unit}
-                  name="targetWeight"
-                  type="number"
-                  inputMode="decimal"
-                  min={weightBounds.min}
-                  max={weightBounds.max}
-                  step="0.1"
-                  defaultValue={
-                    editing?.targetWeightKg != null ? shownToOne(editing.targetWeightKg, unit) : ''
-                  }
+                <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
+                  <Input
+                    key={unit}
+                    name="targetWeight"
+                    type="number"
+                    inputMode="decimal"
+                    min={weightBounds.min}
+                    max={weightBounds.max}
+                    step="0.1"
+                    defaultValue={
+                      editing?.targetWeightKg != null
+                        ? shownToOne(editing.targetWeightKg, unit)
+                        : ''
+                    }
+                  />
+                </Field>
+                <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />
+                <RiskBox
+                  reasons={risk}
+                  acknowledged={editing?.riskAcknowledgedAt != null}
+                  className="sm:col-span-2"
                 />
-              </Field>
-              <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />
-              <RiskBox
-                reasons={risk}
-                acknowledged={editing?.riskAcknowledgedAt != null}
-                className="sm:col-span-2"
-              />
-              <Field label={t('weightReminderCadence')} hint={t('weightReminderCadenceHint')}>
-                <select
-                  name="weightReminderCadence"
-                  defaultValue={editing?.weightReminderCadence ?? 'weekly'}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                <Field label={t('weightReminderCadence')} hint={t('weightReminderCadenceHint')}>
+                  <select
+                    name="weightReminderCadence"
+                    defaultValue={editing?.weightReminderCadence ?? 'weekly'}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="off">{t('weightReminderOff')}</option>
+                    <option value="daily">{t('weightReminderDaily')}</option>
+                    <option value="weekly">{t('weightReminderWeekly')}</option>
+                  </select>
+                </Field>
+              </FormSection>
+              <FormSection title={t('section.food')}>
+                <DietFields
+                  diet={editing?.dietType ?? 'balanced'}
+                  mealCount={editing?.mealCount ?? 3}
+                  split={editing?.customMacroSplit ?? null}
+                />
+              </FormSection>
+              <FormSection title={t('section.variety')}>
+                <Field
+                  label={t('maxConsecutiveDaysSameMeal')}
+                  hint={t('maxConsecutiveDaysSameMealHint')}
                 >
-                  <option value="off">{t('weightReminderOff')}</option>
-                  <option value="daily">{t('weightReminderDaily')}</option>
-                  <option value="weekly">{t('weightReminderWeekly')}</option>
-                </select>
-              </Field>
-              <Field
-                label={t('maxConsecutiveDaysSameMeal')}
-                hint={t('maxConsecutiveDaysSameMealHint')}
-              >
-                <Input
-                  name="maxConsecutiveDaysSameMeal"
-                  type="number"
-                  required
-                  min={1}
-                  max={7}
-                  defaultValue={editing?.preferences.maxConsecutiveDaysSameMeal ?? 2}
-                />
-              </Field>
-              <Field label={t('maxTimesPerWeekSameMeal')} hint={t('maxTimesPerWeekSameMealHint')}>
-                <Input
-                  name="maxTimesPerWeekSameMeal"
-                  type="number"
-                  required
-                  min={1}
-                  max={7}
-                  defaultValue={editing?.preferences.maxTimesPerWeekSameMeal ?? 3}
-                />
-              </Field>
-              <Field
-                label={t('maxWeeklyAmountPerIngredient')}
-                hint={t('maxWeeklyAmountPerIngredientHint')}
-              >
-                <Input
-                  name="maxWeeklyAmountPerIngredient"
-                  type="number"
-                  required
-                  min={MIN_WEEKLY_AMOUNT_PER_INGREDIENT}
-                  max={MAX_WEEKLY_AMOUNT_PER_INGREDIENT}
-                  step={100}
-                  defaultValue={
-                    editing?.preferences.maxWeeklyAmountPerIngredient ??
-                    DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT
-                  }
-                />
-              </Field>
-              <Field label={t('inventoryBiasResetEvery')} hint={t('inventoryBiasResetEveryHint')}>
-                <Input
-                  name="inventoryBiasResetEvery"
-                  type="number"
-                  required
-                  min={0}
-                  max={20}
-                  defaultValue={editing?.preferences.inventoryBiasResetEvery ?? 5}
-                />
-              </Field>
+                  <Input
+                    name="maxConsecutiveDaysSameMeal"
+                    type="number"
+                    required
+                    min={1}
+                    max={7}
+                    defaultValue={editing?.preferences.maxConsecutiveDaysSameMeal ?? 2}
+                  />
+                </Field>
+                <Field label={t('maxTimesPerWeekSameMeal')} hint={t('maxTimesPerWeekSameMealHint')}>
+                  <Input
+                    name="maxTimesPerWeekSameMeal"
+                    type="number"
+                    required
+                    min={1}
+                    max={7}
+                    defaultValue={editing?.preferences.maxTimesPerWeekSameMeal ?? 3}
+                  />
+                </Field>
+                <Field
+                  label={t('maxWeeklyAmountPerIngredient')}
+                  hint={t('maxWeeklyAmountPerIngredientHint')}
+                >
+                  <Input
+                    name="maxWeeklyAmountPerIngredient"
+                    type="number"
+                    required
+                    min={MIN_WEEKLY_AMOUNT_PER_INGREDIENT}
+                    max={MAX_WEEKLY_AMOUNT_PER_INGREDIENT}
+                    step={100}
+                    defaultValue={
+                      editing?.preferences.maxWeeklyAmountPerIngredient ??
+                      DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT
+                    }
+                  />
+                </Field>
+                <Field label={t('inventoryBiasResetEvery')} hint={t('inventoryBiasResetEveryHint')}>
+                  <Input
+                    name="inventoryBiasResetEvery"
+                    type="number"
+                    required
+                    min={0}
+                    max={20}
+                    defaultValue={editing?.preferences.inventoryBiasResetEvery ?? 5}
+                  />
+                </Field>
+              </FormSection>
               <CaloriePreviewPanel {...shown} className="sm:col-span-2" />
               <div className="flex items-center gap-3 sm:col-span-2">
                 <Button type="submit" disabled={save.isPending}>
