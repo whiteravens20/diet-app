@@ -53,6 +53,7 @@
     "js-yaml": "^4.2.0",
     "mysql2": "^3.23.1",
     "deepmerge-ts": "^8.0.0",
+    "vite": "^8.2.4",
     "next": {
       "postcss": "^8.5.10"
     }
