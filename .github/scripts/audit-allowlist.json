@@ -9,6 +9,8 @@
     "",
     "Entries are checked by .github/scripts/audit-check.mjs. An expired entry is a",
     "hard failure, so every suppression comes back for review on its own.",
+    "The ID of an entry goes into `allow-ghsas` of the dependency review in",
+    ".github/workflows/security.yml as well.",
     "",
     "`workspaces` names the directory an entry was justified for. This repo has",
     "one lockfile, at the root, so it is always [\".\"].",
@@ -16,14 +18,5 @@
     "Shape of an entry:",
     "  { \"ghsa\": \"GHSA-xxxx-xxxx-xxxx\", \"reason\": \"...\", \"expires\": \"YYYY-MM-DD\", \"workspaces\": [\".\"] }"
   ],
-  "allow": [
-    {
-      "ghsa": "GHSA-vfj7-8cjw-p6xm",
-      "reason": "braces 3.0.3 reaches the tree only through eslint-config-next (fast-glob, micromatch), a development dependency of the linter. It is not in the image, and the glob patterns it expands come from the lint configuration in this repository, never from a request. No patched release exists: the advisory covers every published version, up to the latest, 3.0.3. Remove when a patched braces is released.",
-      "expires": "2027-01-05",
-      "workspaces": [
-        "."
-      ]
-    }
-  ]
+  "allow": []
 }

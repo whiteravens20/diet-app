@@ -77,9 +77,6 @@ jobs:
           # Studio inside the Prisma CLI, a program the image runs for its
           # migrations; nothing of the application is combined with it.
           allow-dependencies-licenses: pkg:npm/elkjs
-          # The IDs of .github/scripts/audit-allowlist.json, where each one has
-          # its justification and expiry. Keep the two in sync.
-          allow-ghsas: GHSA-vfj7-8cjw-p6xm
 
   trivy-fs:
     name: Trivy filesystem scan
