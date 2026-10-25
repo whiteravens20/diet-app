@@ -7,11 +7,25 @@ const ascii = (text: string): Buffer => Buffer.from(text, 'ascii');
 
 describe('one-time codes by counter (RFC 4226, appendix D)', () => {
   const secret = ascii('12345678901234567890');
-  const expected = ['755224', '287082', '359152', '969429', '338314', '254676', '287922', '162583', '399871', '520489'];
+  const expected = [
+    '755224',
+    '287082',
+    '359152',
+    '969429',
+    '338314',
+    '254676',
+    '287922',
+    '162583',
+    '399871',
+    '520489',
+  ];
 
-  it.each(expected.map((code, counter) => [counter, code] as const))('counter %i gives %s', (counter, code) => {
-    expect(hotp(secret, counter)).toBe(code);
-  });
+  it.each(expected.map((code, counter) => [counter, code] as const))(
+    'counter %i gives %s',
+    (counter, code) => {
+      expect(hotp(secret, counter)).toBe(code);
+    },
+  );
 });
 
 describe('one-time codes by time (RFC 6238, appendix B)', () => {
@@ -72,9 +86,12 @@ describe('which step a code belongs to', () => {
     expect(matchingStep(ascii('09876543210987654321'), codeAt(secret, at), at)).toBeNull();
   });
 
-  it.each(['', '08180', '0818044', 'abcdef', '081 804', '８１８０４０'])('is none for %j, which is no code', (code) => {
-    expect(matchingStep(secret, code, at)).toBeNull();
-  });
+  it.each(['', '08180', '0818044', 'abcdef', '081 804', '８１８０４０'])(
+    'is none for %j, which is no code',
+    (code) => {
+      expect(matchingStep(secret, code, at)).toBeNull();
+    },
+  );
 });
 
 describe('a secret as an authenticator reads it (RFC 4648, base 32)', () => {
@@ -97,7 +114,13 @@ describe('a secret as an authenticator reads it (RFC 4648, base 32)', () => {
 
 describe('what an authenticator scans', () => {
   it('names the application and the account, and says how the codes are made', () => {
-    const uri = new URL(otpauthUri({ secret: ascii('12345678901234567890'), issuer: 'Diet App (diet.example)', account: 'anna+test@example.com' }));
+    const uri = new URL(
+      otpauthUri({
+        secret: ascii('12345678901234567890'),
+        issuer: 'Diet App (diet.example)',
+        account: 'anna+test@example.com',
+      }),
+    );
     expect(uri.protocol).toBe('otpauth:');
     expect(uri.host).toBe('totp');
     expect(decodeURIComponent(uri.pathname)).toBe('/Diet App (diet.example):anna+test@example.com');
@@ -111,7 +134,11 @@ describe('what an authenticator scans', () => {
   });
 
   it('keeps a colon out of the names, where it would part them', () => {
-    const uri = otpauthUri({ secret: ascii('12345678901234567890'), issuer: 'Diet: App', account: 'a:b' });
+    const uri = otpauthUri({
+      secret: ascii('12345678901234567890'),
+      issuer: 'Diet: App',
+      account: 'a:b',
+    });
     expect(decodeURIComponent(new URL(uri).pathname)).toBe('/Diet App:ab');
     expect(new URL(uri).searchParams.get('issuer')).toBe('Diet App');
   });

@@ -13,7 +13,15 @@ import { useErrorText } from '@/lib/use-error-text';
 import { boundsIn, toKilograms, useWeightUnit } from '@/lib/weight-unit';
 import { AllergenPicker } from '@/components/allergen-picker';
 import { CaloriePreviewPanel, useCaloriePreview } from '@/components/calorie-preview';
-import { BodyFields, DietFields, OwnTargetField, PaceChoice, RiskBox, splitAddsUp, splitIn } from '@/components/profile-fields';
+import {
+  BodyFields,
+  DietFields,
+  OwnTargetField,
+  PaceChoice,
+  RiskBox,
+  splitAddsUp,
+  splitIn,
+} from '@/components/profile-fields';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
@@ -63,7 +71,11 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
 
   /** The first field of a step that the browser would refuse, if there is one. */
   const refusedIn = (index: number): HTMLInputElement | HTMLSelectElement | undefined =>
-    [...(form.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement>(`[data-step="${index}"] input, [data-step="${index}"] select`) ?? [])].find((field) => !field.checkValidity());
+    [
+      ...(form.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+        `[data-step="${index}"] input, [data-step="${index}"] select`,
+      ) ?? []),
+    ].find((field) => !field.checkValidity());
 
   /**
    * Show a step. It is on the screen before this returns: the browser says
@@ -109,7 +121,9 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
       dietType: f.get('dietType') as ProfileInput['dietType'],
       customMacroSplit: splitIn(f, null),
       weeklyLossTarget: (f.get('weeklyLossTarget') as ProfileInput['weeklyLossTarget']) || null,
-      manualCalorieTarget: f.get('manualCalorieTarget') ? Number(f.get('manualCalorieTarget')) : null,
+      manualCalorieTarget: f.get('manualCalorieTarget')
+        ? Number(f.get('manualCalorieTarget'))
+        : null,
       // Sent only by a form that showed the warning: ticked is yes, not ticked is no.
       ...(risk.length > 0 ? { acknowledgeRisk: f.get('acknowledgeRisk') === 'on' } : {}),
       mealCount: Number(f.get('mealCount')),
@@ -127,8 +141,24 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
       <CardContent className="space-y-6">
         <ol className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           {STEPS.map((name, index) => (
-            <li key={name} aria-current={index === step ? 'step' : undefined} className={cn('flex items-center gap-2', index === step ? 'font-medium text-foreground' : 'text-muted-foreground')}>
-              <span className={cn('flex h-6 w-6 items-center justify-center rounded-full border text-xs tabular-nums', index === step ? 'border-primary bg-primary text-primary-foreground' : index < step ? 'border-primary text-primary' : 'border-border')}>
+            <li
+              key={name}
+              aria-current={index === step ? 'step' : undefined}
+              className={cn(
+                'flex items-center gap-2',
+                index === step ? 'font-medium text-foreground' : 'text-muted-foreground',
+              )}
+            >
+              <span
+                className={cn(
+                  'flex h-6 w-6 items-center justify-center rounded-full border text-xs tabular-nums',
+                  index === step
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : index < step
+                      ? 'border-primary text-primary'
+                      : 'border-border',
+                )}
+              >
                 {index + 1}
               </span>
               {tWizard(`steps.${name}`)}
@@ -139,8 +169,16 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
           {/* The browser's own check is asked for step by step: it has nothing to say of a field on a step that is not shown. */}
           <form ref={form} noValidate onSubmit={onSubmit} onChange={onChange} className="space-y-4">
-            <h4 ref={heading} tabIndex={-1} className="text-base font-semibold tracking-tight focus:outline-none">
-              {tWizard('progress', { step: step + 1, of: STEPS.length, name: tWizard(`steps.${STEPS[step]!}`) })}
+            <h4
+              ref={heading}
+              tabIndex={-1}
+              className="text-base font-semibold tracking-tight focus:outline-none"
+            >
+              {tWizard('progress', {
+                step: step + 1,
+                of: STEPS.length,
+                name: tWizard(`steps.${STEPS[step]!}`),
+              })}
             </h4>
 
             <fieldset data-step={0} hidden={step !== 0} className="space-y-4">
@@ -148,7 +186,13 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
               <p className="text-sm text-muted-foreground">{tWizard('bodyLead')}</p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t('name')} hint={t('nameHint')}>
-                  <Input name="name" required pattern=".*\S.*" maxLength={80} autoComplete="given-name" />
+                  <Input
+                    name="name"
+                    required
+                    pattern=".*\S.*"
+                    maxLength={80}
+                    autoComplete="given-name"
+                  />
                 </Field>
                 <BodyFields unit={unit} />
               </div>
@@ -161,7 +205,15 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
               <RiskBox reasons={risk} acknowledged={false} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
-                  <Input key={unit} name="targetWeight" type="number" inputMode="decimal" min={weightBounds.min} max={weightBounds.max} step="0.1" />
+                  <Input
+                    key={unit}
+                    name="targetWeight"
+                    type="number"
+                    inputMode="decimal"
+                    min={weightBounds.min}
+                    max={weightBounds.max}
+                    step="0.1"
+                  />
                 </Field>
                 <OwnTargetField initial={null} />
               </div>
@@ -173,14 +225,25 @@ export function FirstProfile({ onMade }: { onMade: (made: Profile) => void }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <DietFields diet="balanced" mealCount={3} split={null} />
                 <div className="sm:col-span-2">
-                  <AllergenPicker label={t('allergensLabel')} hint={t('allergensHint')} selected={allergens} disabled={save.isPending} onChange={setAllergens} />
+                  <AllergenPicker
+                    label={t('allergensLabel')}
+                    hint={t('allergensHint')}
+                    selected={allergens}
+                    disabled={save.isPending}
+                    onChange={setAllergens}
+                  />
                 </div>
               </div>
             </fieldset>
 
             <div className="flex flex-wrap items-center gap-3">
               {step > 0 && (
-                <Button type="button" variant="outline" onClick={() => go(step - 1)} disabled={save.isPending}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => go(step - 1)}
+                  disabled={save.isPending}
+                >
                   {tCommon('back')}
                 </Button>
               )}

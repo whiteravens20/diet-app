@@ -15,10 +15,16 @@ const LONGEST_RUN_MS = 2 * 60 * 60_000;
  * and with the connection when the process dies: nothing is left to clear
  * up. Returns false when the job was left to whoever runs it.
  */
-export function runAlone(prisma: PrismaService, name: string, job: () => Promise<void>): Promise<boolean> {
+export function runAlone(
+  prisma: PrismaService,
+  name: string,
+  job: () => Promise<void>,
+): Promise<boolean> {
   return prisma.$transaction(
     async (tx) => {
-      const [held] = await tx.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_xact_lock(hashtext(${`diet-app job: ${name}`})) AS locked`;
+      const [held] = await tx.$queryRaw<
+        { locked: boolean }[]
+      >`SELECT pg_try_advisory_xact_lock(hashtext(${`diet-app job: ${name}`})) AS locked`;
       if (!held?.locked) return false;
       await job();
       return true;

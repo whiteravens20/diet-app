@@ -5,7 +5,18 @@
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { DaySettings, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET, RelaxationNeeded, type DayMealFate, type DaySettingsPreview, type MealPlan, type MealPlanDay, type MealType, type PlanRelaxation } from '@diet-app/shared';
+import {
+  DaySettings,
+  MAX_CALORIE_TARGET,
+  MIN_CALORIE_TARGET,
+  RelaxationNeeded,
+  type DayMealFate,
+  type DaySettingsPreview,
+  type MealPlan,
+  type MealPlanDay,
+  type MealType,
+  type PlanRelaxation,
+} from '@diet-app/shared';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input } from '@/components/ui/input';
@@ -23,7 +34,10 @@ const COUNTS = [2, 3, 4, 5] as const;
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /** What becomes of a meal, as the window says it: the fate, and why where there is more to it than the day's new target. */
-const FATE_WORDS: Record<DayMealFate['fate'], Partial<Record<NonNullable<DayMealFate['because']> | 'plain', string>>> = {
+const FATE_WORDS: Record<
+  DayMealFate['fate'],
+  Partial<Record<NonNullable<DayMealFate['because']> | 'plain', string>>
+> = {
   stays: { plain: 'fateStays', eaten: 'fateStaysEaten', own: 'fateStaysOwn' },
   resized: { plain: 'fateResized' },
   redrawn: { over_cook_time: 'fateRedrawnCookTime', use_up: 'fateRedrawnUseUp' },
@@ -62,7 +76,9 @@ export function DaySettingsDialog({
   const tCommon = useTranslations('common');
   const fmt = useFormat();
   const errorText = useErrorText();
-  const [kind, setKind] = useState<Kind>(day.overrides?.skip ? 'skip' : (day.overrides?.dayType ?? 'normal'));
+  const [kind, setKind] = useState<Kind>(
+    day.overrides?.skip ? 'skip' : (day.overrides?.dayType ?? 'normal'),
+  );
   const [mealCount, setMealCount] = useState(day.mealCount);
   const [target, setTarget] = useState(day.overrides?.calorieTarget?.toString() ?? '');
   const [cookTime, setCookTime] = useState(day.overrides?.cookTimeBudgetMinutes?.toString() ?? '');
@@ -85,7 +101,8 @@ export function DaySettingsDialog({
   const path = `/meal-plans/${planId}/days/${day.id}/settings`;
   const preview = useQuery({
     queryKey: ['day-settings', planId, day.id, settled],
-    queryFn: () => api.post<DaySettingsPreview>(`${path}/preview`, JSON.parse(settled!) as DaySettings),
+    queryFn: () =>
+      api.post<DaySettingsPreview>(`${path}/preview`, JSON.parse(settled!) as DaySettings),
     enabled: settled !== null,
     placeholderData: keepPreviousData,
     gcTime: 0,
@@ -93,13 +110,20 @@ export function DaySettingsDialog({
   });
   const save = useMutation({
     mutationFn: (allowRelaxations: PlanRelaxation[] | undefined) =>
-      api.put<MealPlan>(path, { ...(JSON.parse(settled!) as DaySettings), revision: preview.data!.revision, ...(allowRelaxations ? { allowRelaxations } : {}) }),
+      api.put<MealPlan>(path, {
+        ...(JSON.parse(settled!) as DaySettings),
+        revision: preview.data!.revision,
+        ...(allowRelaxations ? { allowRelaxations } : {}),
+      }),
     onSuccess: () => {
       onSaved();
       onClose();
     },
     onError: (e: unknown) => {
-      const needed = e instanceof ApiClientError && e.code === 'PLAN_NEEDS_RELAXATION' ? RelaxationNeeded.safeParse(e.details) : null;
+      const needed =
+        e instanceof ApiClientError && e.code === 'PLAN_NEEDS_RELAXATION'
+          ? RelaxationNeeded.safeParse(e.details)
+          : null;
       if (needed?.success) {
         setError(null);
         setInTheWay(needed.data);
@@ -116,7 +140,10 @@ export function DaySettingsDialog({
 
   // What is shown is for the settings on the screen only: while a newer question is on its way, the older answer is greyed.
   const shown = preview.data;
-  const current = shown !== undefined && !preview.isPlaceholderData && settled === (asked.success ? JSON.stringify(asked.data) : null);
+  const current =
+    shown !== undefined &&
+    !preview.isPlaceholderData &&
+    settled === (asked.success ? JSON.stringify(asked.data) : null);
   const busy = save.isPending;
 
   return (
@@ -139,7 +166,11 @@ export function DaySettingsDialog({
         }}
       >
         <Field label={t('kind')} hint={t('kindHint')}>
-          <select className={selectClass} value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
+          <select
+            className={selectClass}
+            value={kind}
+            onChange={(e) => setKind(e.target.value as Kind)}
+          >
             {KINDS.map((option) => (
               <option key={option} value={option}>
                 {t(`kinds.${option}`)}
@@ -150,7 +181,11 @@ export function DaySettingsDialog({
         {kind !== 'skip' && (
           <>
             <Field label={t('mealCount')}>
-              <select className={selectClass} value={mealCount} onChange={(e) => setMealCount(Number(e.target.value))}>
+              <select
+                className={selectClass}
+                value={mealCount}
+                onChange={(e) => setMealCount(Number(e.target.value))}
+              >
                 {COUNTS.map((count) => (
                   <option key={count} value={count}>
                     {t('mealCountOption', { count })}
@@ -159,13 +194,34 @@ export function DaySettingsDialog({
               </select>
             </Field>
             <Field label={t('ownTarget')} hint={t('ownTargetHint')}>
-              <Input type="number" inputMode="numeric" min={MIN_CALORIE_TARGET} max={MAX_CALORIE_TARGET} step={1} value={target} onChange={(e) => setTarget(e.target.value)} />
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={MIN_CALORIE_TARGET}
+                max={MAX_CALORIE_TARGET}
+                step={1}
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+              />
             </Field>
             <Field label={t('cookTime')} hint={t('cookTimeHint')}>
-              <Input type="number" inputMode="numeric" min={0} max={600} step={1} value={cookTime} onChange={(e) => setCookTime(e.target.value)} />
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={600}
+                step={1}
+                value={cookTime}
+                onChange={(e) => setCookTime(e.target.value)}
+              />
             </Field>
             <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" className="mt-0.5 h-4 w-4" checked={useUp} onChange={(e) => setUseUp(e.target.checked)} />
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4"
+                checked={useUp}
+                onChange={(e) => setUseUp(e.target.checked)}
+              />
               <span>
                 {t('useUp')}
                 <span className="block text-xs text-muted-foreground">{t('useUpHint')}</span>
@@ -175,9 +231,18 @@ export function DaySettingsDialog({
         )}
 
         {/* What the change would do, said before it is made: the API works it out, this says it. */}
-        <div aria-live="polite" className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs">
+        <div
+          aria-live="polite"
+          className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs"
+        >
           {shown === undefined ? (
-            preview.isError ? <p role="alert">{errorText(preview.error, t('errPreview'))}</p> : asked.success ? <Skeleton className="h-16" /> : <p>{t('fixFields')}</p>
+            preview.isError ? (
+              <p role="alert">{errorText(preview.error, t('errPreview'))}</p>
+            ) : asked.success ? (
+              <Skeleton className="h-16" />
+            ) : (
+              <p>{t('fixFields')}</p>
+            )
           ) : (
             <div className={current ? undefined : 'opacity-60'}>
               <Outcome preview={shown} skip={kind === 'skip'} mealName={mealName} />
@@ -186,8 +251,16 @@ export function DaySettingsDialog({
         </div>
 
         {inTheWay && (
-          <div role="alert" className="space-y-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs">
-            <p>{tPlans('limitsInTheWay', { count: inTheWay.meals.length, limits: limitNames(inTheWay.needs) })}</p>
+          <div
+            role="alert"
+            className="space-y-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs"
+          >
+            <p>
+              {tPlans('limitsInTheWay', {
+                count: inTheWay.meals.length,
+                limits: limitNames(inTheWay.needs),
+              })}
+            </p>
             <ul className="list-disc pl-5">
               {inTheWay.meals.map((meal) => (
                 <li key={meal.slot}>
@@ -195,7 +268,13 @@ export function DaySettingsDialog({
                 </li>
               ))}
             </ul>
-            <Button type="button" size="sm" variant="outline" disabled={busy || !current} onClick={() => save.mutate(inTheWay.needs)}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy || !current}
+              onClick={() => save.mutate(inTheWay.needs)}
+            >
               {tPlans('letGiveWay', { count: inTheWay.needs.length })}
             </Button>
           </div>
@@ -220,7 +299,15 @@ export function DaySettingsDialog({
 }
 
 /** What a change of a day's settings would do, line by line. */
-function Outcome({ preview, skip, mealName }: { preview: DaySettingsPreview; skip: boolean; mealName: (mealType: string) => string }) {
+function Outcome({
+  preview,
+  skip,
+  mealName,
+}: {
+  preview: DaySettingsPreview;
+  skip: boolean;
+  mealName: (mealType: string) => string;
+}) {
   const t = useTranslations('mealPlans.daySettings');
   const fmt = useFormat();
   if (preview.unchanged) return <p>{t('unchanged')}</p>;
@@ -232,9 +319,17 @@ function Outcome({ preview, skip, mealName }: { preview: DaySettingsPreview; ski
         <p>{t('skipNote')}</p>
       ) : (
         <>
-          <p className="font-medium">{now === then ? t('targetSame', { kcal: fmt.number(now) }) : t('targetChange', { from: fmt.number(now), to: fmt.number(then) })}</p>
+          <p className="font-medium">
+            {now === then
+              ? t('targetSame', { kcal: fmt.number(now) })
+              : t('targetChange', { from: fmt.number(now), to: fmt.number(then) })}
+          </p>
           <p className="text-muted-foreground">
-            {t('targetMacros', { protein: preview.targetMacros.then.protein, fat: preview.targetMacros.then.fat, carbs: preview.targetMacros.then.carbs })}
+            {t('targetMacros', {
+              protein: preview.targetMacros.then.protein,
+              fat: preview.targetMacros.then.fat,
+              carbs: preview.targetMacros.then.carbs,
+            })}
           </p>
           {preview.belowSafetyFloor && <p className="text-warning">{t('belowFloor')}</p>}
         </>
@@ -242,15 +337,22 @@ function Outcome({ preview, skip, mealName }: { preview: DaySettingsPreview; ski
       <ul className="space-y-0.5">
         {preview.meals.map((meal) => (
           <li key={meal.mealId}>
-            <span className="text-muted-foreground">{mealName(meal.mealType)}:</span> {t(FATE_WORDS[meal.fate][meal.because ?? 'plain']!)}
+            <span className="text-muted-foreground">{mealName(meal.mealType)}:</span>{' '}
+            {t(FATE_WORDS[meal.fate][meal.because ?? 'plain']!)}
           </li>
         ))}
-        {preview.added.length > 0 && <li>{t('added', { meals: fmt.list(preview.added.map((slot: MealType) => mealName(slot))) })}</li>}
+        {preview.added.length > 0 && (
+          <li>
+            {t('added', { meals: fmt.list(preview.added.map((slot: MealType) => mealName(slot))) })}
+          </li>
+        )}
       </ul>
       {drawn && <p className="text-muted-foreground">{t('drawnNote')}</p>}
       {preview.dayCalories !== null && !skip && (
         <p className={preview.fits ? 'text-muted-foreground' : 'text-warning'}>
-          {t(preview.fits ? 'dayCalories' : 'dayCaloriesOff', { kcal: fmt.number(preview.dayCalories) })}
+          {t(preview.fits ? 'dayCalories' : 'dayCaloriesOff', {
+            kcal: fmt.number(preview.dayCalories),
+          })}
         </p>
       )}
       {preview.listOutOfDate && <p className="text-muted-foreground">{t('listOutOfDate')}</p>}

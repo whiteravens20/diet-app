@@ -13,7 +13,14 @@ import { useFormat } from '@/lib/use-format';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fromTodayRefused, rerollOutcome, whatCouldGo, type Reroll, type RerollChoice, type RerollScope } from './reroll';
+import {
+  fromTodayRefused,
+  rerollOutcome,
+  whatCouldGo,
+  type Reroll,
+  type RerollChoice,
+  type RerollScope,
+} from './reroll';
 
 /** What the window opens on: how much of the plan, which day for one day, and whether every limit is to hold. */
 export interface RerollStart {
@@ -28,7 +35,14 @@ export type RerollAsked = Omit<Reroll, 'planId'>;
 const selectClass = 'rounded-md border border-input bg-background px-2 py-1 text-sm';
 
 /** The parts of a plan a re-roll leaves as they are, in the order they are named. */
-const KEPT = ['keptOutside', 'keptPast', 'keptSkipped', 'keptEaten', 'keptCustom', 'keptLocked'] as const;
+const KEPT = [
+  'keptOutside',
+  'keptPast',
+  'keptSkipped',
+  'keptEaten',
+  'keptCustom',
+  'keptLocked',
+] as const;
 
 /**
  * The window in which a plan is made again: how much of it, what of it may be
@@ -55,7 +69,10 @@ export function RerollDialog({
   const tCommon = useTranslations('common');
   const errorText = useErrorText();
   // The plan as it is now: the window says what a re-roll would do to it, also when the card it was opened from is closed.
-  const plan = useQuery({ queryKey: ['meal-plan', planId], queryFn: () => api.get<MealPlan>(`/meal-plans/${planId}`) });
+  const plan = useQuery({
+    queryKey: ['meal-plan', planId],
+    queryFn: () => api.get<MealPlan>(`/meal-plans/${planId}`),
+  });
 
   return (
     <Dialog open onClose={onClose} label={t('title')} className="max-w-lg">
@@ -69,7 +86,13 @@ export function RerollDialog({
         </Button>
       </div>
       {plan.data ? (
-        <RerollForm plan={plan.data} start={start} limitNames={limitNames} onClose={onClose} onSubmit={onSubmit} />
+        <RerollForm
+          plan={plan.data}
+          start={start}
+          limitNames={limitNames}
+          onClose={onClose}
+          onSubmit={onSubmit}
+        />
       ) : plan.isError ? (
         <div className="space-y-3 p-4">
           <p role="alert" className="text-sm">
@@ -116,18 +139,34 @@ function RerollForm({
   // Dates in this form sort as text.
   const [from, setFrom] = useState(today > first && today <= last ? today : first);
   const [to, setTo] = useState(last);
-  const [day, setDay] = useState(start.day ?? (days.find((d) => !d.skipped && d.date >= today) ?? days.find((d) => !d.skipped) ?? days[0]!).date);
+  const [day, setDay] = useState(
+    start.day ??
+      (days.find((d) => !d.skipped && d.date >= today) ?? days.find((d) => !d.skipped) ?? days[0]!)
+        .date,
+  );
   const [includePast, setIncludePast] = useState(false);
   const [replaceEaten, setReplaceEaten] = useState(false);
   const [replaceCustom, setReplaceCustom] = useState(false);
   const [holdLimits, setHoldLimits] = useState(start.holdLimits ?? false);
 
   // What is asked about is what the days chosen hold: a tick for something they do not hold says nothing.
-  const nothingMore = { scope, from, to, day, includePast: false, replaceEaten: false, replaceCustom: false };
+  const nothingMore = {
+    scope,
+    from,
+    to,
+    day,
+    includePast: false,
+    replaceEaten: false,
+    replaceCustom: false,
+  };
   const past = whatCouldGo(days, nothingMore, today).past;
   const withPast = { ...nothingMore, includePast: past && includePast };
   const couldGo = whatCouldGo(days, withPast, today);
-  const choice: RerollChoice = { ...withPast, replaceEaten: couldGo.eaten && replaceEaten, replaceCustom: couldGo.custom && replaceCustom };
+  const choice: RerollChoice = {
+    ...withPast,
+    replaceEaten: couldGo.eaten && replaceEaten,
+    replaceCustom: couldGo.custom && replaceCustom,
+  };
   const outcome = rerollOutcome(days, choice, today);
   const mayGiveWay = plan.options.allowRelaxations;
 
@@ -136,10 +175,17 @@ function RerollForm({
     {
       scope: 'from_today',
       label: t('fromToday'),
-      hint: notFromToday === 'not_begun' ? t('fromTodayNotBegun') : notFromToday === 'over' ? t('fromTodayOver') : t('partHint'),
+      hint:
+        notFromToday === 'not_begun'
+          ? t('fromTodayNotBegun')
+          : notFromToday === 'over'
+            ? t('fromTodayOver')
+            : t('partHint'),
       off: notFromToday !== null,
     },
-    ...(days.length > 1 ? [{ scope: 'range' as const, label: t('range'), hint: t('partHint') }] : []),
+    ...(days.length > 1
+      ? [{ scope: 'range' as const, label: t('range'), hint: t('partHint') }]
+      : []),
     { scope: 'day', label: t('day'), hint: t('partHint') },
   ];
 
@@ -165,7 +211,9 @@ function RerollForm({
         <legend className="font-medium">{t('scope')}</legend>
         {scopes.map((option) => (
           <div key={option.scope} className="space-y-1">
-            <label className={`flex items-center gap-2 ${option.off ? 'text-muted-foreground' : ''}`}>
+            <label
+              className={`flex items-center gap-2 ${option.off ? 'text-muted-foreground' : ''}`}
+            >
               <input
                 type="radio"
                 name={`${id}-scope`}
@@ -199,7 +247,12 @@ function RerollForm({
                   ))}
                 </select>
                 {t('rangeUntil')}
-                <select aria-label={t('rangeTo')} className={selectClass} value={to} onChange={(e) => setTo(e.target.value)}>
+                <select
+                  aria-label={t('rangeTo')}
+                  className={selectClass}
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                >
                   {days
                     .filter((d) => d.date >= from)
                     .map((d) => (
@@ -212,7 +265,12 @@ function RerollForm({
             )}
             {option.scope === 'day' && scope === 'day' && (
               <p className="ml-6">
-                <select aria-label={t('dayWhich')} className={selectClass} value={day} onChange={(e) => setDay(e.target.value)}>
+                <select
+                  aria-label={t('dayWhich')}
+                  className={selectClass}
+                  value={day}
+                  onChange={(e) => setDay(e.target.value)}
+                >
                   {days.map((d) => (
                     <option key={d.id} value={d.date} disabled={d.skipped}>
                       {d.skipped ? t('daySkipped', { day: fmt.day(d.date) }) : fmt.day(d.date)}
@@ -230,19 +288,34 @@ function RerollForm({
           <legend className="font-medium">{t('also')}</legend>
           {past && (
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="h-4 w-4" checked={includePast} onChange={(e) => setIncludePast(e.target.checked)} />
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={includePast}
+                onChange={(e) => setIncludePast(e.target.checked)}
+              />
               {t('includePast')}
             </label>
           )}
           {couldGo.eaten && (
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="h-4 w-4" checked={replaceEaten} onChange={(e) => setReplaceEaten(e.target.checked)} />
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={replaceEaten}
+                onChange={(e) => setReplaceEaten(e.target.checked)}
+              />
               {t('replaceEaten')}
             </label>
           )}
           {couldGo.custom && (
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="h-4 w-4" checked={replaceCustom} onChange={(e) => setReplaceCustom(e.target.checked)} />
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={replaceCustom}
+                onChange={(e) => setReplaceCustom(e.target.checked)}
+              />
               {t('replaceCustom')}
             </label>
           )}
@@ -250,17 +323,27 @@ function RerollForm({
       )}
       {mayGiveWay.length > 0 && (
         <label className="flex items-start gap-2">
-          <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0" checked={holdLimits} onChange={(e) => setHoldLimits(e.target.checked)} />
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0"
+            checked={holdLimits}
+            onChange={(e) => setHoldLimits(e.target.checked)}
+          />
           <span>{t('holdLimits', { limits: limitNames(mayGiveWay) })}</span>
         </label>
       )}
 
       {/* Said before anything is asked of the API, and again whenever the choice changes. */}
-      <div aria-live="polite" className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs">
+      <div
+        aria-live="polite"
+        className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs"
+      >
         {outcome.days === 0 ? (
           <p className="text-warning">{t(outcome.keptPast > 0 ? 'nothingPast' : 'nothingKept')}</p>
         ) : (
-          <p className="font-medium">{t('replaced', { meals: outcome.replaced, days: outcome.days })}</p>
+          <p className="font-medium">
+            {t('replaced', { meals: outcome.replaced, days: outcome.days })}
+          </p>
         )}
         {KEPT.some((part) => outcome[part] > 0) ? (
           <>

@@ -23,7 +23,9 @@ describe("the split of a day's energy", () => {
 
   it('shows the split a target was made from, within the rounding of its grams', () => {
     // 2000 kcal at 30/30/40 is 150 g, 67 g and 200 g.
-    expect(energySplit({ protein: 150, fat: 67, carbs: 200 })!.map((part) => part.percent)).toEqual([30, 30, 40]);
+    expect(energySplit({ protein: 150, fat: 67, carbs: 200 })!.map((part) => part.percent)).toEqual(
+      [30, 30, 40],
+    );
   });
 
   it('is nothing for nothing', () => {

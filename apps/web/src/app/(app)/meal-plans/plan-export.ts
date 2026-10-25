@@ -19,10 +19,12 @@ export interface PlanWords {
 }
 
 /** What a meal is called: the title of its recipe, or the name the user gave a meal of their own. */
-export const dishOf = (meal: Meal, words: Pick<PlanWords, 'ownMeal'>): string => meal.recipe?.title ?? meal.customName ?? words.ownMeal;
+export const dishOf = (meal: Meal, words: Pick<PlanWords, 'ownMeal'>): string =>
+  meal.recipe?.title ?? meal.customName ?? words.ownMeal;
 
 /** The servings a meal is, with what a rebalance left on it. */
-export const servingsOf = (meal: Meal): number => Math.round(meal.servings * meal.quantityScale * 100) / 100;
+export const servingsOf = (meal: Meal): number =>
+  Math.round(meal.servings * meal.quantityScale * 100) / 100;
 
 /**
  * A plan as a table for a spreadsheet: a row for each meal, under a row of
@@ -51,4 +53,5 @@ export function planTable(plan: MealPlan, words: PlanWords): Cell[][] {
 }
 
 /** The last day of a plan, as the API writes days. */
-export const lastDayOf = (plan: Pick<MealPlan, 'days' | 'startDate'>): string => plan.days.at(-1)?.date ?? plan.startDate;
+export const lastDayOf = (plan: Pick<MealPlan, 'days' | 'startDate'>): string =>
+  plan.days.at(-1)?.date ?? plan.startDate;

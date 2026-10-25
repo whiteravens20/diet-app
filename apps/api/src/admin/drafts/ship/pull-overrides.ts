@@ -23,7 +23,11 @@
  * ingredient this instance does not have is skipped and reported, and neither
  * stops the rest.
  */
-import { outboundRequest, OutboundRequestError, type Resolver } from '../../../common/outbound-http.js';
+import {
+  outboundRequest,
+  OutboundRequestError,
+  type Resolver,
+} from '../../../common/outbound-http.js';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import { IngredientOverrideFile } from './ingredient-overrides.writer.js';
 import { shippableIngredientName } from './shippable.js';
@@ -45,7 +49,8 @@ export interface PullPolicy {
 }
 
 /** The codes a pull of name overrides is refused with. */
-export type PullOverridesCode = 'INVALID_PULL_SOURCE' | 'PULL_ADDRESS_NOT_PUBLIC' | 'PULL_FETCH_FAILED' | 'PULL_SHAPE_INVALID';
+export type PullOverridesCode =
+  'INVALID_PULL_SOURCE' | 'PULL_ADDRESS_NOT_PUBLIC' | 'PULL_FETCH_FAILED' | 'PULL_SHAPE_INVALID';
 
 export class PullOverridesError extends Error {
   constructor(
@@ -168,7 +173,10 @@ async function fetchOverrides(
     );
   }
   if (res.status >= 300 && res.status < 400) {
-    throw new PullOverridesError('PULL_FETCH_FAILED', `${resolved.url} answered with a redirect (HTTP ${res.status}), which is not followed: name the address of the file itself`);
+    throw new PullOverridesError(
+      'PULL_FETCH_FAILED',
+      `${resolved.url} answered with a redirect (HTTP ${res.status}), which is not followed: name the address of the file itself`,
+    );
   }
   if (res.status < 200 || res.status >= 300) {
     throw new PullOverridesError(
@@ -180,10 +188,7 @@ async function fetchOverrides(
   try {
     raw = JSON.parse(res.text);
   } catch {
-    throw new PullOverridesError(
-      'PULL_SHAPE_INVALID',
-      `${resolved.url} did not return valid JSON`,
-    );
+    throw new PullOverridesError('PULL_SHAPE_INVALID', `${resolved.url} did not return valid JSON`);
   }
   const parsed = IngredientOverrideFile.safeParse(raw);
   if (!parsed.success) {
@@ -206,7 +211,12 @@ async function fetchOverrides(
 export async function applyOverridesToDb(
   prisma: PrismaService,
   file: IngredientOverrideFile,
-): Promise<{ applied: number; rowsWritten: number; skippedSlugs: string[]; refused: { slug: string; reason: string }[] }> {
+): Promise<{
+  applied: number;
+  rowsWritten: number;
+  skippedSlugs: string[];
+  refused: { slug: string; reason: string }[];
+}> {
   const skippedSlugs: string[] = [];
   const refused: { slug: string; reason: string }[] = [];
   let applied = 0;
@@ -215,7 +225,10 @@ export async function applyOverridesToDb(
   await prisma.$transaction(
     async (tx) => {
       for (const [slug, entry] of Object.entries(file)) {
-        const checked = shippableIngredientName({ suggestions: entry, locales: Object.keys(entry.name) });
+        const checked = shippableIngredientName({
+          suggestions: entry,
+          locales: Object.keys(entry.name),
+        });
         if (!checked.ok) {
           refused.push({ slug, reason: checked.reason });
           continue;
@@ -252,5 +265,10 @@ export async function pullOverrides(
   resolve?: Resolver,
 ): Promise<PullOverridesResult> {
   const { file, resolvedUrl } = await fetchOverrides(source, policy, resolve);
-  return { source, resolvedUrl, total: Object.keys(file).length, ...(await applyOverridesToDb(prisma, file)) };
+  return {
+    source,
+    resolvedUrl,
+    total: Object.keys(file).length,
+    ...(await applyOverridesToDb(prisma, file)),
+  };
 }

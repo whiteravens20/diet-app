@@ -51,7 +51,9 @@ describe('settings left blank in the environment', () => {
 
   it('are the ones the template leaves blank', () => {
     const template = readFileSync(resolve(__dirname, '../../../../.env.example'), 'utf8');
-    const blankInTemplate = [...template.matchAll(/^([A-Z0-9_]+)=[ \t]*$/gm)].map((match) => match[1]);
+    const blankInTemplate = [...template.matchAll(/^([A-Z0-9_]+)=[ \t]*$/gm)].map(
+      (match) => match[1],
+    );
 
     expect(blankInTemplate).toEqual(expect.arrayContaining(BLANK));
   });
@@ -59,7 +61,9 @@ describe('settings left blank in the environment', () => {
   it('read as if they were not there at all, every one of them', () => {
     const config = t.app.get(ConfigService);
     // What validation makes of the same environment without them: nothing, or the setting's default.
-    const without = validateEnv(Object.fromEntries(Object.entries(process.env).filter(([key]) => !BLANK.includes(key))));
+    const without = validateEnv(
+      Object.fromEntries(Object.entries(process.env).filter(([key]) => !BLANK.includes(key))),
+    );
 
     for (const key of BLANK) expect(config.get(key), key).toBe(without[key as keyof Env]);
     expect(config.get('REVIEWER_SESSION_SECRET')).toBeUndefined();
@@ -67,7 +71,9 @@ describe('settings left blank in the environment', () => {
   });
 
   it('publish nothing about the operator, and the package version', async () => {
-    const { version } = JSON.parse(readFileSync(resolve(__dirname, '../../../../package.json'), 'utf8')) as { version: string };
+    const { version } = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../../package.json'), 'utf8'),
+    ) as { version: string };
 
     const { body } = await t.http().get('/api/config').expect(200);
 
@@ -76,17 +82,36 @@ describe('settings left blank in the environment', () => {
   });
 
   it('let a reviewer sign in, with a cookie signed by a key of its own', async () => {
-    await t.http().patch('/api/admin/instance-settings').set(basic).send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' }).expect(200);
+    await t
+      .http()
+      .patch('/api/admin/instance-settings')
+      .set(basic)
+      .send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' })
+      .expect(200);
 
-    const res = await t.http().post('/api/review/auth').set({ Origin: 'http://localhost:3000' }).send({ password: 'Reviewers-Passw0rd', label: 'pl reviewer' });
+    const res = await t
+      .http()
+      .post('/api/review/auth')
+      .set({ Origin: 'http://localhost:3000' })
+      .send({ password: 'Reviewers-Passw0rd', label: 'pl reviewer' });
 
     expect(res.status).toBe(204);
     const cookie = /reviewer_session=([^;]+)/.exec(String(res.headers['set-cookie']))![1]!;
     const jwt = t.app.get(JwtService, { strict: false });
     const config = t.app.get<ConfigService<Env, true>>(ConfigService);
-    const own = deriveKey(config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'reviewer-session');
-    expect(jwt.verify(decodeURIComponent(cookie), { secret: own })).toMatchObject({ aud: 'diet-app/reviewer', label: 'pl reviewer' });
+    const own = deriveKey(
+      config.get('DATA_ENCRYPTION_SECRET', { infer: true }),
+      'reviewer-session',
+    );
+    expect(jwt.verify(decodeURIComponent(cookie), { secret: own })).toMatchObject({
+      aud: 'diet-app/reviewer',
+      label: 'pl reviewer',
+    });
     // Never the key of users' access tokens.
-    expect(() => jwt.verify(decodeURIComponent(cookie), { secret: config.get('JWT_ACCESS_SECRET', { infer: true }) })).toThrow();
+    expect(() =>
+      jwt.verify(decodeURIComponent(cookie), {
+        secret: config.get('JWT_ACCESS_SECRET', { infer: true }),
+      }),
+    ).toThrow();
   });
 });

@@ -45,12 +45,22 @@ describe('what a plan made for cooking ahead cooks once for two meals', () => {
     for (const [index, mealType] of (['breakfast', 'lunch', 'dinner'] as const).entries()) {
       const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: slugs[index]! } });
       const meal = plan.days[day]!.meals.find((planned) => planned.mealType === mealType)!;
-      await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: recipe.id, servings: 1, quantityScale: 1, source: 'CATALOGUE', eatenAt: null } });
+      await t.prisma.plannedMeal.update({
+        where: { id: meal.id },
+        data: {
+          recipeId: recipe.id,
+          servings: 1,
+          quantityScale: 1,
+          source: 'CATALOGUE',
+          eatenAt: null,
+        },
+      });
     }
   }
   const read = (plan: MealPlan): Promise<MealPlan> => plans.get(user.id, 'en', plan.id);
 
-  const marks = (plan: MealPlan): (string | null)[][] => plan.days.map((day) => day.meals.map((meal) => meal.cookAhead));
+  const marks = (plan: MealPlan): (string | null)[][] =>
+    plan.days.map((day) => day.meals.map((meal) => meal.cookAhead));
   const fourDays = async (mealPrepFriendly: boolean): Promise<MealPlan> => {
     const plan = await aPlan(t, user, profile, { durationDays: 4, mealPrepFriendly });
     await menu(plan, 0, [PORRIDGE, CHICKEN_RICE, TOFU_BOWL]);
@@ -71,7 +81,11 @@ describe('what a plan made for cooking ahead cooks once for two meals', () => {
   });
 
   it('is not marked in a plan that was not made for cooking ahead', async () => {
-    expect(marks(await fourDays(false)).flat().every((mark) => mark === null)).toBe(true);
+    expect(
+      marks(await fourDays(false))
+        .flat()
+        .every((mark) => mark === null),
+    ).toBe(true);
   });
 
   it('is what a plan made for cooking ahead comes to by itself: each meal a dish cooked for two days, and then another', async () => {
@@ -82,7 +96,8 @@ describe('what a plan made for cooking ahead cooks once for two meals', () => {
       for (let seed = 1; seed <= 40; seed += 1) {
         generation.nextSeed = () => seed;
         const plan = await aPlan(t, user, profile, { durationDays: 6, mealPrepFriendly: true });
-        const meal = (day: number, slot: string) => plan.days[day]!.meals.find((one) => one.mealType === slot)!;
+        const meal = (day: number, slot: string) =>
+          plan.days[day]!.meals.find((one) => one.mealType === slot)!;
         for (const first of [0, 2, 4]) {
           for (const cooked of plan.days[first]!.meals) {
             const where = `seed ${seed}, day ${first + 1}, ${cooked.mealType}`;
@@ -93,7 +108,11 @@ describe('what a plan made for cooking ahead cooks once for two meals', () => {
           }
         }
         // And then another: the third day's meals are not those of the first two.
-        for (const cooked of plan.days[0]!.meals) expect(meal(2, cooked.mealType).recipe?.id, `seed ${seed}, day 3, ${cooked.mealType}`).not.toBe(cooked.recipe!.id);
+        for (const cooked of plan.days[0]!.meals)
+          expect(
+            meal(2, cooked.mealType).recipe?.id,
+            `seed ${seed}, day 3, ${cooked.mealType}`,
+          ).not.toBe(cooked.recipe!.id);
       }
     } finally {
       generation.nextSeed = pinned;

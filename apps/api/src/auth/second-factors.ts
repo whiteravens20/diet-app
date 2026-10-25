@@ -1,7 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
-import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
 import type { SecondFactorSetup, SecondFactorState } from '@diet-app/shared';
@@ -39,18 +46,22 @@ const RECOVERY_LENGTH = 10;
 const withoutGaps = (code: string): string => code.replace(/[\s-]/g, '');
 
 /** A recovery code as it is compared: however it was typed, with the letters that look like digits read as those digits. */
-const asTyped = (code: string): string => withoutGaps(code).toUpperCase().replaceAll('O', '0').replace(/[IL]/g, '1');
+const asTyped = (code: string): string =>
+  withoutGaps(code).toUpperCase().replaceAll('O', '0').replace(/[IL]/g, '1');
 
 /** A recovery code as it is shown: in two halves, which is easier to copy by hand. */
-const asShown = (code: string): string => `${code.slice(0, RECOVERY_LENGTH / 2)}-${code.slice(RECOVERY_LENGTH / 2)}`;
+const asShown = (code: string): string =>
+  `${code.slice(0, RECOVERY_LENGTH / 2)}-${code.slice(RECOVERY_LENGTH / 2)}`;
 
 function newRecoveryCode(): string {
   // Thirty-two symbols: five bits of every byte, and none more likely than another.
   return Array.from(randomBytes(RECOVERY_LENGTH), (byte) => RECOVERY_ALPHABET[byte & 31]).join('');
 }
 
-const whereOf = (owner: FactorOwner): { id: string } | { userId: string } => (owner === ADMINISTRATOR ? { id: ADMINISTRATOR } : { userId: owner.userId });
-const nameOf = (owner: FactorOwner): string => (owner === ADMINISTRATOR ? ADMINISTRATOR : owner.userId);
+const whereOf = (owner: FactorOwner): { id: string } | { userId: string } =>
+  owner === ADMINISTRATOR ? { id: ADMINISTRATOR } : { userId: owner.userId };
+const nameOf = (owner: FactorOwner): string =>
+  owner === ADMINISTRATOR ? ADMINISTRATOR : owner.userId;
 
 /**
  * The second step of signing in: a code that an authenticator app makes from
@@ -93,15 +104,27 @@ export class SecondFactors {
   }
 
   async has(owner: FactorOwner): Promise<boolean> {
-    return (await this.prisma.secondFactor.findUnique({ where: whereOf(owner), select: { id: true } })) !== null;
+    return (
+      (await this.prisma.secondFactor.findUnique({
+        where: whereOf(owner),
+        select: { id: true },
+      })) !== null
+    );
   }
 
   async stateOf(userId: string): Promise<SecondFactorState> {
     const factor = await this.prisma.secondFactor.findUnique({
       where: { userId },
-      select: { createdAt: true, _count: { select: { recoveryCodes: { where: { usedAt: null } } } } },
+      select: {
+        createdAt: true,
+        _count: { select: { recoveryCodes: { where: { usedAt: null } } } },
+      },
     });
-    return { enabled: factor !== null, since: factor?.createdAt.toISOString() ?? null, recoveryCodesLeft: factor?._count.recoveryCodes ?? 0 };
+    return {
+      enabled: factor !== null,
+      since: factor?.createdAt.toISOString() ?? null,
+      recoveryCodesLeft: factor?._count.recoveryCodes ?? 0,
+    };
   }
 
   /**
@@ -113,10 +136,17 @@ export class SecondFactors {
    */
   propose(owner: FactorOwner, account: string): SecondFactorSetup {
     const secret = randomBytes(SECRET_BYTES);
-    const pending = JSON.stringify({ secret: secret.toString('hex'), expiresAt: this.now() + SETUP_SECONDS * 1000 });
+    const pending = JSON.stringify({
+      secret: secret.toString('hex'),
+      expiresAt: this.now() + SETUP_SECONDS * 1000,
+    });
     return {
       secret: base32(secret),
-      uri: otpauthUri({ secret, issuer: `Diet App${owner === ADMINISTRATOR ? ' admin' : ''} (${this.host})`, account }),
+      uri: otpauthUri({
+        secret,
+        issuer: `Diet App${owner === ADMINISTRATOR ? ' admin' : ''} (${this.host})`,
+        account,
+      }),
       enrolment: encrypt(pending, this.key, `second-factor-setup:${nameOf(owner)}`),
       expiresIn: SETUP_SECONDS,
     };
@@ -128,23 +158,37 @@ export class SecondFactors {
    * all. Returns the recovery codes of an account, which nobody can be shown
    * a second time.
    */
-  async begin(owner: FactorOwner, enrolment: string, code: string, also?: (tx: Prisma.TransactionClient) => Promise<void>): Promise<string[]> {
+  async begin(
+    owner: FactorOwner,
+    enrolment: string,
+    code: string,
+    also?: (tx: Prisma.TransactionClient) => Promise<void>,
+  ): Promise<string[]> {
     const secret = this.proposed(owner, enrolment);
     const step = matchingStep(secret, withoutGaps(code), this.now());
     if (step === null) throw wrongCode();
 
     const id = owner === ADMINISTRATOR ? ADMINISTRATOR : randomUUID();
-    const recoveryCodes = owner === ADMINISTRATOR ? [] : Array.from({ length: RECOVERY_CODES }, newRecoveryCode);
+    const recoveryCodes =
+      owner === ADMINISTRATOR ? [] : Array.from({ length: RECOVERY_CODES }, newRecoveryCode);
     await this.prisma
       .$transaction(async (tx) => {
         await tx.secondFactor.create({
           data: {
             id,
             userId: owner === ADMINISTRATOR ? null : owner.userId,
-            secretEncrypted: encrypt(secret.toString('hex'), this.key, `second-factor:${nameOf(owner)}`),
+            secretEncrypted: encrypt(
+              secret.toString('hex'),
+              this.key,
+              `second-factor:${nameOf(owner)}`,
+            ),
             // The code that set the factor up is used, like any that is accepted.
             lastStep: step,
-            recoveryCodes: { create: recoveryCodes.map((recoveryCode) => ({ codeHash: this.recoveryHash(id, recoveryCode) })) },
+            recoveryCodes: {
+              create: recoveryCodes.map((recoveryCode) => ({
+                codeHash: this.recoveryHash(id, recoveryCode),
+              })),
+            },
           },
         });
         await also?.(tx);
@@ -164,46 +208,71 @@ export class SecondFactors {
     const code = withoutGaps(given);
     const fromApp = /^[0-9]{6}$/.test(code);
 
-    const outcome = await this.prisma.$transaction(async (tx): Promise<CodeCheck | { waitSeconds: number } | null> => {
-      const factor = await tx.secondFactor.findUnique({ where: whereOf(owner) });
-      if (!factor) return null;
-      if (!fromApp) {
-        // Too long to guess: not counted, and not kept waiting.
-        if (factor.userId === null) return { accepted: false, nowWaits: false };
-        const used = await tx.recoveryCode.updateMany({
-          where: { secondFactorId: factor.id, codeHash: this.recoveryHash(factor.id, asTyped(given)), usedAt: null },
-          data: { usedAt: new Date(this.now()) },
+    const outcome = await this.prisma.$transaction(
+      async (tx): Promise<CodeCheck | { waitSeconds: number } | null> => {
+        const factor = await tx.secondFactor.findUnique({ where: whereOf(owner) });
+        if (!factor) return null;
+        if (!fromApp) {
+          // Too long to guess: not counted, and not kept waiting.
+          if (factor.userId === null) return { accepted: false, nowWaits: false };
+          const used = await tx.recoveryCode.updateMany({
+            where: {
+              secondFactorId: factor.id,
+              codeHash: this.recoveryHash(factor.id, asTyped(given)),
+              usedAt: null,
+            },
+            data: { usedAt: new Date(this.now()) },
+          });
+          if (used.count !== 1) return { accepted: false, nowWaits: false };
+          await tx.secondFactor.update({
+            where: { id: factor.id },
+            data: { failures: 0, blockedUntil: null },
+          });
+          return { accepted: true, by: 'recovery-code' };
+        }
+
+        // One code at a time for one factor: the next waits here until this one
+        // has been counted, and then sees the count it left.
+        await tx.$queryRaw`SELECT 1 FROM "SecondFactor" WHERE "id" = ${factor.id} FOR UPDATE`;
+        const locked = await tx.secondFactor.findUnique({ where: { id: factor.id } });
+        if (!locked) return null;
+        const now = this.now();
+        const waitMs = (locked.blockedUntil?.getTime() ?? 0) - now;
+        // While the factor waits, a right guess is worth as little as a wrong one.
+        if (waitMs > 0) return { waitSeconds: Math.ceil(waitMs / 1000) };
+
+        const secret = Buffer.from(
+          decrypt(locked.secretEncrypted, this.key, `second-factor:${nameOf(owner)}`),
+          'hex',
+        );
+        const step = matchingStep(secret, code, now);
+        // A code that was accepted once is not accepted again, nor is one from before it.
+        if (step !== null && step > locked.lastStep) {
+          await tx.secondFactor.update({
+            where: { id: locked.id },
+            data: { lastStep: step, failures: 0, blockedUntil: null },
+          });
+          return { accepted: true, by: 'app' };
+        }
+        const failures = locked.failures + 1;
+        const beyond = failures - CODES_BEFORE_WAIT;
+        const blockedUntil =
+          beyond >= 0
+            ? new Date(now + Math.min(LONGEST_WAIT_MS, FIRST_WAIT_MS * 2 ** beyond))
+            : null;
+        await tx.secondFactor.update({
+          where: { id: locked.id },
+          data: { failures, blockedUntil },
         });
-        if (used.count !== 1) return { accepted: false, nowWaits: false };
-        await tx.secondFactor.update({ where: { id: factor.id }, data: { failures: 0, blockedUntil: null } });
-        return { accepted: true, by: 'recovery-code' };
-      }
-
-      // One code at a time for one factor: the next waits here until this one
-      // has been counted, and then sees the count it left.
-      await tx.$queryRaw`SELECT 1 FROM "SecondFactor" WHERE "id" = ${factor.id} FOR UPDATE`;
-      const locked = await tx.secondFactor.findUnique({ where: { id: factor.id } });
-      if (!locked) return null;
-      const now = this.now();
-      const waitMs = (locked.blockedUntil?.getTime() ?? 0) - now;
-      // While the factor waits, a right guess is worth as little as a wrong one.
-      if (waitMs > 0) return { waitSeconds: Math.ceil(waitMs / 1000) };
-
-      const secret = Buffer.from(decrypt(locked.secretEncrypted, this.key, `second-factor:${nameOf(owner)}`), 'hex');
-      const step = matchingStep(secret, code, now);
-      // A code that was accepted once is not accepted again, nor is one from before it.
-      if (step !== null && step > locked.lastStep) {
-        await tx.secondFactor.update({ where: { id: locked.id }, data: { lastStep: step, failures: 0, blockedUntil: null } });
-        return { accepted: true, by: 'app' };
-      }
-      const failures = locked.failures + 1;
-      const beyond = failures - CODES_BEFORE_WAIT;
-      const blockedUntil = beyond >= 0 ? new Date(now + Math.min(LONGEST_WAIT_MS, FIRST_WAIT_MS * 2 ** beyond)) : null;
-      await tx.secondFactor.update({ where: { id: locked.id }, data: { failures, blockedUntil } });
-      const next = blockedUntil ? `; the next code in ${Math.ceil((blockedUntil.getTime() - now) / 1000)} s` : '';
-      this.logger.warn(`wrong code for the second factor of ${nameOf(owner)} (${failures} in a row${next})`);
-      return { accepted: false, nowWaits: failures === CODES_BEFORE_WAIT };
-    });
+        const next = blockedUntil
+          ? `; the next code in ${Math.ceil((blockedUntil.getTime() - now) / 1000)} s`
+          : '';
+        this.logger.warn(
+          `wrong code for the second factor of ${nameOf(owner)} (${failures} in a row${next})`,
+        );
+        return { accepted: false, nowWaits: failures === CODES_BEFORE_WAIT };
+      },
+    );
 
     if (outcome === null) return null;
     if ('waitSeconds' in outcome) throw mustWait(outcome.waitSeconds);
@@ -217,12 +286,20 @@ export class SecondFactors {
 
   /** New recovery codes for an account in the place of the ones it had, used or not. Null when it has no second factor. */
   async replaceRecoveryCodes(userId: string): Promise<string[] | null> {
-    const factor = await this.prisma.secondFactor.findUnique({ where: { userId }, select: { id: true } });
+    const factor = await this.prisma.secondFactor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
     if (!factor) return null;
     const recoveryCodes = Array.from({ length: RECOVERY_CODES }, newRecoveryCode);
     await this.prisma.$transaction([
       this.prisma.recoveryCode.deleteMany({ where: { secondFactorId: factor.id } }),
-      this.prisma.recoveryCode.createMany({ data: recoveryCodes.map((code) => ({ secondFactorId: factor.id, codeHash: this.recoveryHash(factor.id, code) })) }),
+      this.prisma.recoveryCode.createMany({
+        data: recoveryCodes.map((code) => ({
+          secondFactorId: factor.id,
+          codeHash: this.recoveryHash(factor.id, code),
+        })),
+      }),
     ]);
     return recoveryCodes.map(asShown);
   }
@@ -236,33 +313,59 @@ export class SecondFactors {
   private proposed(owner: FactorOwner, enrolment: string): Buffer {
     let pending: { secret?: unknown; expiresAt?: unknown };
     try {
-      pending = JSON.parse(decrypt(enrolment, this.key, `second-factor-setup:${nameOf(owner)}`)) as typeof pending;
+      pending = JSON.parse(
+        decrypt(enrolment, this.key, `second-factor-setup:${nameOf(owner)}`),
+      ) as typeof pending;
     } catch {
       throw setupExpired();
     }
-    if (typeof pending.secret !== 'string' || typeof pending.expiresAt !== 'number' || pending.expiresAt < this.now()) throw setupExpired();
+    if (
+      typeof pending.secret !== 'string' ||
+      typeof pending.expiresAt !== 'number' ||
+      pending.expiresAt < this.now()
+    )
+      throw setupExpired();
     return Buffer.from(pending.secret, 'hex');
   }
 
   /** What is kept of a recovery code: a keyed hash, bound to the factor the code belongs to. */
   private recoveryHash(factorId: string, code: string): string {
-    return createHmac('sha256', Buffer.from(this.recoveryKey, 'hex')).update(`${factorId}:${code}`).digest('hex');
+    return createHmac('sha256', Buffer.from(this.recoveryKey, 'hex'))
+      .update(`${factorId}:${code}`)
+      .digest('hex');
   }
 }
 
 export const wrongCode = (): HttpException =>
-  new HttpException({ error: 'INVALID_SECOND_FACTOR_CODE', message: 'That code is not right. Codes change every half a minute, and each works once.' }, HttpStatus.UNAUTHORIZED);
+  new HttpException(
+    {
+      error: 'INVALID_SECOND_FACTOR_CODE',
+      message: 'That code is not right. Codes change every half a minute, and each works once.',
+    },
+    HttpStatus.UNAUTHORIZED,
+  );
 
 export const alreadyOn = (): ConflictException =>
-  new ConflictException({ error: 'SECOND_FACTOR_ALREADY_ON', message: 'A second factor is set up already. Switch it off before setting up another.' });
+  new ConflictException({
+    error: 'SECOND_FACTOR_ALREADY_ON',
+    message: 'A second factor is set up already. Switch it off before setting up another.',
+  });
 
-export const notOn = (): ConflictException => new ConflictException({ error: 'SECOND_FACTOR_NOT_ON', message: 'No second factor is set up.' });
+export const notOn = (): ConflictException =>
+  new ConflictException({ error: 'SECOND_FACTOR_NOT_ON', message: 'No second factor is set up.' });
 
 const setupExpired = (): BadRequestException =>
-  new BadRequestException({ error: 'SECOND_FACTOR_SETUP_EXPIRED', message: 'This set-up has run out or is not one that was begun here. Begin again.' });
+  new BadRequestException({
+    error: 'SECOND_FACTOR_SETUP_EXPIRED',
+    message: 'This set-up has run out or is not one that was begun here. Begin again.',
+  });
 
 const mustWait = (seconds: number): HttpException =>
   new HttpException(
-    { error: 'TOO_MANY_ATTEMPTS', message: `Too many wrong codes. Try again in ${seconds} seconds.`, retryAfterSeconds: seconds },
+    {
+      error: 'TOO_MANY_ATTEMPTS',
+      message: `Too many wrong codes. Try again in ${seconds} seconds.`,
+      retryAfterSeconds: seconds,
+    },
     HttpStatus.TOO_MANY_REQUESTS,
   );

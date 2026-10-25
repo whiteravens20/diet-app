@@ -1,10 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   type CalorieCalculation,
   type CaloriePreview,
@@ -104,7 +100,11 @@ export class ProfilesService {
    * when it is made; one from before that was so gets them here, with what a
    * new profile starts with for the parts the change does not name.
    */
-  async patchPreferences(userId: string, id: string, patch: ProfilePreferencesPatch): Promise<Profile> {
+  async patchPreferences(
+    userId: string,
+    id: string,
+    patch: ProfilePreferencesPatch,
+  ): Promise<Profile> {
     await this.load(userId, id);
     const row = await this.prisma.profile.update({
       where: { id },
@@ -178,14 +178,24 @@ export class ProfilesService {
       riskAcknowledged: typed.acknowledgeRisk,
     };
     return {
-      calculation: calculateCalories({ ...body, weeklyLossTarget: typed.weeklyLossTarget, manualCalorieTarget: typed.manualCalorieTarget }),
-      paces: PACES_OF_LOSS.map((pace) => calculateCalories({ ...body, weeklyLossTarget: pace, manualCalorieTarget: null })),
+      calculation: calculateCalories({
+        ...body,
+        weeklyLossTarget: typed.weeklyLossTarget,
+        manualCalorieTarget: typed.manualCalorieTarget,
+      }),
+      paces: PACES_OF_LOSS.map((pace) =>
+        calculateCalories({ ...body, weeklyLossTarget: pace, manualCalorieTarget: null }),
+      ),
     };
   }
 
   private async load(userId: string, id: string) {
-    const row = await this.prisma.profile.findUnique({ where: { id }, include: { preferences: true } });
-    if (!row || row.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+    const row = await this.prisma.profile.findUnique({
+      where: { id },
+      include: { preferences: true },
+    });
+    if (!row || row.userId !== userId)
+      throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
     return row;
   }
 
@@ -243,10 +253,13 @@ export class ProfilesService {
         excludedIngredientIds: row.preferences?.excludedIngredientIds ?? [],
         allergens: (row.preferences?.allergens ?? []) as Profile['preferences']['allergens'],
         dislikedIngredientIds: row.preferences?.dislikedIngredientIds ?? [],
-        preferredCuisines: (row.preferences?.preferredCuisines ?? []).filter((kept): kept is Cuisine => Cuisine.safeParse(kept).success),
+        preferredCuisines: (row.preferences?.preferredCuisines ?? []).filter(
+          (kept): kept is Cuisine => Cuisine.safeParse(kept).success,
+        ),
         maxConsecutiveDaysSameMeal: row.preferences?.maxConsecutiveDaysSameMeal ?? 2,
         maxTimesPerWeekSameMeal: row.preferences?.maxTimesPerWeekSameMeal ?? 3,
-        maxWeeklyAmountPerIngredient: row.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+        maxWeeklyAmountPerIngredient:
+          row.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
         inventoryBiasResetEvery: row.preferences?.inventoryBiasResetEvery ?? 5,
       },
       createdAt: row.createdAt.toISOString(),

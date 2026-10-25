@@ -15,11 +15,17 @@ const c = messages.confirmEmail;
 /** The notice for an account whose address is `emailVerified`, on an instance that does or does not send mail. */
 function shown(emailVerified: boolean, mail = true) {
   vi.spyOn(api, 'get').mockImplementation(((path: string) =>
-    Promise.resolve(path === '/users/me' ? { email: 'reader@example.test', emailVerified } : { email: { enabled: mail } })) as never);
+    Promise.resolve(
+      path === '/users/me'
+        ? { email: 'reader@example.test', emailVerified }
+        : { email: { enabled: mail } },
+    )) as never);
   const post = vi.spyOn(api, 'post');
   const { container } = render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <ConfirmEmailNotice />
       </QueryClientProvider>
     </NextIntlClientProvider>,
@@ -36,7 +42,11 @@ describe('the notice of an address that is not confirmed', () => {
     const { post } = shown(false);
     post.mockResolvedValue(undefined as never);
 
-    expect(await screen.findByText('Confirm your email address reader@example.test: follow the link in the message received at that address. A link lasts an hour.')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'Confirm your email address reader@example.test: follow the link in the message received at that address. A link lasts an hour.',
+      ),
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: c.resend }));
 
     expect(post).toHaveBeenCalledWith('/users/me/email/resend-verification');
@@ -45,7 +55,15 @@ describe('the notice of an address that is not confirmed', () => {
 
   it('says that a link went out a moment ago, when it did', async () => {
     const { post } = shown(false);
-    post.mockRejectedValue(new ApiClientError(429, 'VERIFICATION_SENT_RECENTLY', 'A verification mail was sent a moment ago.', undefined, 75));
+    post.mockRejectedValue(
+      new ApiClientError(
+        429,
+        'VERIFICATION_SENT_RECENTLY',
+        'A verification mail was sent a moment ago.',
+        undefined,
+        75,
+      ),
+    );
 
     await userEvent.click(await screen.findByRole('button', { name: c.resend }));
 

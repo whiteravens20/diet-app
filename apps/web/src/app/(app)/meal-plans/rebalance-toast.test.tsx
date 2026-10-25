@@ -25,7 +25,13 @@ function shown(rebalance: Rebalance) {
   const onRebalanceRest = vi.fn();
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <RebalanceToast rebalance={rebalance} busy={false} onUndo={() => {}} onRebalanceRest={onRebalanceRest} onDismiss={() => {}} />
+      <RebalanceToast
+        rebalance={rebalance}
+        busy={false}
+        onUndo={() => {}}
+        onRebalanceRest={onRebalanceRest}
+        onDismiss={() => {}}
+      />
     </NextIntlClientProvider>,
   );
   return onRebalanceRest;
@@ -49,11 +55,28 @@ describe('the card that says what a rebalance did', () => {
   });
 
   it('speaks of the rest of the plan once it was spread over, and of what it could not take', () => {
-    shown(aRebalance({ scope: 'plan', feasibility: 'best-effort', unabsorbedKcal: 168, changes: Array.from({ length: 11 }, (_, i) => ({ mealId: `meal-${i}`, before: 1, after: 0.9 })) }));
+    shown(
+      aRebalance({
+        scope: 'plan',
+        feasibility: 'best-effort',
+        unabsorbedKcal: 168,
+        changes: Array.from({ length: 11 }, (_, i) => ({
+          mealId: `meal-${i}`,
+          before: 1,
+          after: 0.9,
+        })),
+      }),
+    );
 
     expect(screen.getByText(texts.rebalanceTitlePlan)).toBeInTheDocument();
-    expect(screen.getByText("Meals rescaled on the plan's remaining days: 11.")).toBeInTheDocument();
-    expect(screen.getByText('The rest of the plan is still 168 kcal over: the other days have no more room inside their own targets.')).toBeInTheDocument();
+    expect(
+      screen.getByText("Meals rescaled on the plan's remaining days: 11."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The rest of the plan is still 168 kcal over: the other days have no more room inside their own targets.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText(texts.rebalanceTitle)).toBeNull();
     expect(screen.queryByText(texts.rebalanceBestEffort)).toBeNull();
     expect(screen.queryByRole('button', { name: texts.rebalanceRest })).toBeNull();

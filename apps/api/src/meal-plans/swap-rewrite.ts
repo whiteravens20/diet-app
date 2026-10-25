@@ -219,11 +219,17 @@ export function rewriteSwapModeA(input: SwapRewriteInput): Map<Locale, RecipeLoc
  * names the new one in its place: left standing it would promise an
  * ingredient the recipe no longer has.
  */
-function applyTitleTemplate(locale: Locale, base: string, replacement: string, replaced?: string): string {
+function applyTitleTemplate(
+  locale: Locale,
+  base: string,
+  replacement: string,
+  replaced?: string,
+): string {
   if (replaced) {
     const earlier = VARIANT_TITLE[locale]('', replaced);
     const at = base.lastIndexOf(earlier);
-    if (at > 0) return `${base.slice(0, at)}${VARIANT_TITLE[locale]('', replacement)}${base.slice(at + earlier.length)}`;
+    if (at > 0)
+      return `${base.slice(0, at)}${VARIANT_TITLE[locale]('', replacement)}${base.slice(at + earlier.length)}`;
   }
   return VARIANT_TITLE[locale](base, replacement);
 }
@@ -237,11 +243,7 @@ function applyTitleTemplate(locale: Locale, base: string, replacement: string, r
  * metacharacters in `oldName` defensively (ingredient names usually don't
  * carry any, but USDA descriptions sometimes do).
  */
-export function substituteCaseAware(
-  text: string,
-  oldName: string,
-  newName: string,
-): string {
+export function substituteCaseAware(text: string, oldName: string, newName: string): string {
   if (!oldName) return text;
   const escaped = escapeForRegex(oldName);
   // Two-pass substitution. The first pass uses a strict word boundary so

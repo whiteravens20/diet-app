@@ -55,7 +55,9 @@ export const LAST_DAY = '2100-12-31';
 export const CalendarDay = z
   .string()
   .date()
-  .refine((day) => day >= FIRST_DAY && day <= LAST_DAY, { message: `Must be a day from ${FIRST_DAY} to ${LAST_DAY}.` });
+  .refine((day) => day >= FIRST_DAY && day <= LAST_DAY, {
+    message: `Must be a day from ${FIRST_DAY} to ${LAST_DAY}.`,
+  });
 export type CalendarDay = z.infer<typeof CalendarDay>;
 
 /** The day `days` days after `day`, in the same form. */
@@ -144,7 +146,9 @@ export const FdcDataTypes = z
     z
       .array(FdcDataType)
       .min(1)
-      .refine((list) => new Set(list).size === list.length, { message: 'A data set is named twice.' }),
+      .refine((list) => new Set(list).size === list.length, {
+        message: 'A data set is named twice.',
+      }),
   )
   .transform((list) => list.join(','));
 

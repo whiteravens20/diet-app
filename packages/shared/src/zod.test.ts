@@ -28,8 +28,15 @@ async function loaded(inABrowser: boolean) {
     }),
   );
   const contract = await import('./index.js');
-  const parsed = contract.LoginRequest.safeParse({ email: 'holder@example.test', password: 'a-password' });
-  return { jitless: config().jitless === true, compiled: compiled.mock.calls.length, parsed: parsed.success };
+  const parsed = contract.LoginRequest.safeParse({
+    email: 'holder@example.test',
+    password: 'a-password',
+  });
+  return {
+    jitless: config().jitless === true,
+    compiled: compiled.mock.calls.length,
+    parsed: parsed.success,
+  };
 }
 
 describe('how the contract checks its input', () => {
@@ -38,7 +45,7 @@ describe('how the contract checks its input', () => {
     asAtTheStart();
   });
 
-  it('makes no code at run time in a browser, where the page\'s content security policy forbids it, and checks all the same', async () => {
+  it("makes no code at run time in a browser, where the page's content security policy forbids it, and checks all the same", async () => {
     const browser = await loaded(true);
 
     expect(browser.jitless).toBe(true);

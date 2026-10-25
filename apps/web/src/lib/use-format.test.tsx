@@ -56,7 +56,7 @@ describe('dates, numbers and units, as the language of the application writes th
     expect(shown((f) => f.weekday('2026-01-05', 'long'), 'pl')).toBe('poniedziałek');
   });
 
-  it('writes a moment by the clock of the reader, not by the server\'s', () => {
+  it("writes a moment by the clock of the reader, not by the server's", () => {
     const moment = '2026-01-05T23:30:00.000Z';
 
     process.env.TZ = 'Europe/Warsaw';

@@ -8,7 +8,17 @@ type Day = MealPlan['days'][number];
 type Meal = Day['meals'][number];
 
 const words: PlanWords = {
-  head: ['Date', 'Meal', 'Dish', 'Servings', 'kcal', 'Protein (g)', 'Fat (g)', 'Carbohydrate (g)', 'Eaten'],
+  head: [
+    'Date',
+    'Meal',
+    'Dish',
+    'Servings',
+    'kcal',
+    'Protein (g)',
+    'Fat (g)',
+    'Carbohydrate (g)',
+    'Eaten',
+  ],
   meal: (type) => type.toUpperCase(),
   ownMeal: 'A meal of my own',
   yes: 'Yes',
@@ -29,12 +39,26 @@ const aMeal = (over: Partial<Meal> = {}): Meal =>
     ...over,
   }) as Meal;
 
-const aDay = (date: string, meals: Meal[], skipped = false): Day => ({ id: date, date, meals, skipped }) as Day;
-const aPlan = (days: Day[]): MealPlan => ({ startDate: days[0]?.date ?? '2026-01-05', days }) as MealPlan;
+const aDay = (date: string, meals: Meal[], skipped = false): Day =>
+  ({ id: date, date, meals, skipped }) as Day;
+const aPlan = (days: Day[]): MealPlan =>
+  ({ startDate: days[0]?.date ?? '2026-01-05', days }) as MealPlan;
 
 describe('a plan as a table', () => {
   it('has a row for each meal under the heads, with the numbers the API worked out', () => {
-    const table = planTable(aPlan([aDay('2026-01-05', [aMeal(), aMeal({ mealType: 'dinner', recipe: { title: 'Tofu bowl' } as Meal['recipe'], nutrition: { calories: 640, protein: 31, fat: 22, carbs: 70 } })])]), words);
+    const table = planTable(
+      aPlan([
+        aDay('2026-01-05', [
+          aMeal(),
+          aMeal({
+            mealType: 'dinner',
+            recipe: { title: 'Tofu bowl' } as Meal['recipe'],
+            nutrition: { calories: 640, protein: 31, fat: 22, carbs: 70 },
+          }),
+        ]),
+      ]),
+      words,
+    );
 
     expect(table).toEqual([
       [...words.head],
@@ -44,12 +68,19 @@ describe('a plan as a table', () => {
   });
 
   it('says of a meal that it was eaten, and how many servings a rebalance left it at', () => {
-    const [, row] = planTable(aPlan([aDay('2026-01-05', [aMeal({ servings: 2, quantityScale: 0.85, eatenAt: '2026-01-05T08:00:00.000Z' })])]), words);
+    const [, row] = planTable(
+      aPlan([
+        aDay('2026-01-05', [
+          aMeal({ servings: 2, quantityScale: 0.85, eatenAt: '2026-01-05T08:00:00.000Z' }),
+        ]),
+      ]),
+      words,
+    );
 
     expect(row).toEqual(['2026-01-05', 'BREAKFAST', 'Oat porridge', 1.7, 230, 8, 4, 40, 'Yes']);
   });
 
-  it('names a meal of the user\'s own by the name it was given, or as such a meal', () => {
+  it("names a meal of the user's own by the name it was given, or as such a meal", () => {
     const own = aMeal({ recipe: null, customName: 'Soup from the canteen' });
     const unnamed = aMeal({ recipe: null, customName: null });
 
@@ -58,7 +89,10 @@ describe('a plan as a table', () => {
   });
 
   it('has one row for a day the plan skips, which says so', () => {
-    const table = planTable(aPlan([aDay('2026-01-05', [aMeal()]), aDay('2026-01-06', [], true)]), words);
+    const table = planTable(
+      aPlan([aDay('2026-01-05', [aMeal()]), aDay('2026-01-06', [], true)]),
+      words,
+    );
 
     expect(table[2]).toEqual(['2026-01-06', 'Skipped', null, null, null, null, null, null, null]);
     expect(table).toHaveLength(3);

@@ -31,7 +31,8 @@ describe('the address of an account, as the database holds it', () => {
     user = await aUser(t);
   });
 
-  const stored = async (id: string): Promise<string> => (await t.prisma.user.findUniqueOrThrow({ where: { id } })).emailEncrypted;
+  const stored = async (id: string): Promise<string> =>
+    (await t.prisma.user.findUniqueOrThrow({ where: { id } })).emailEncrypted;
   const me = (who: TestUser) => t.http().get('/api/users/me').set(as(who));
 
   it('is a ciphertext sealed for that account, and reads back as the address', async () => {
@@ -52,7 +53,10 @@ describe('the address of an account, as the database holds it', () => {
 
   it('still reads where it was written before addresses were sealed for their account', async () => {
     const key = deriveKey('b2'.repeat(32), 'email-encryption');
-    await t.prisma.user.update({ where: { id: user.id }, data: { emailEncrypted: ciphertextWrittenBefore(user.email, key) } });
+    await t.prisma.user.update({
+      where: { id: user.id },
+      data: { emailEncrypted: ciphertextWrittenBefore(user.email, key) },
+    });
 
     expect((await me(user).expect(200)).body.email).toBe(user.email);
   });
@@ -61,11 +65,18 @@ describe('the address of an account, as the database holds it', () => {
     const NEW = 'moved@example.test';
 
     beforeEach(async () => {
-      await t.http().post('/api/users/me/email').set(as(user)).send({ newEmail: NEW, currentPassword: user.password }).expect(202);
+      await t
+        .http()
+        .post('/api/users/me/email')
+        .set(as(user))
+        .send({ newEmail: NEW, currentPassword: user.password })
+        .expect(202);
     });
 
     it('waits as another kind of value than the address of the account', async () => {
-      const token = await t.prisma.emailChangeToken.findFirstOrThrow({ where: { userId: user.id } });
+      const token = await t.prisma.emailChangeToken.findFirstOrThrow({
+        where: { userId: user.id },
+      });
 
       expect(token.newEmailEncrypted).toMatch(/^v2:/);
       expect(emails.openPending(token.newEmailEncrypted, user.id)).toBe(NEW);
@@ -74,10 +85,18 @@ describe('the address of an account, as the database holds it', () => {
     });
 
     it('becomes the address of the account when the link is followed', async () => {
-      await t.http().post('/api/auth/confirm-email-change').send({ token: await mailbox.tokenFor(NEW) }).expect(204);
+      await t
+        .http()
+        .post('/api/auth/confirm-email-change')
+        .send({ token: await mailbox.tokenFor(NEW) })
+        .expect(204);
 
       expect(emails.open(await stored(user.id), user.id)).toBe(NEW);
-      const again = await t.http().post('/api/auth/login').send({ email: NEW, password: user.password }).expect(200);
+      const again = await t
+        .http()
+        .post('/api/auth/login')
+        .send({ email: NEW, password: user.password })
+        .expect(200);
       expect(again.body.user.email).toBe(NEW);
     });
   });

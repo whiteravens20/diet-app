@@ -1,7 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { dislikedIn, pickIndex, violations, welcome, type Candidate, type Restrictions } from './eligibility.js';
+import {
+  dislikedIn,
+  pickIndex,
+  violations,
+  welcome,
+  type Candidate,
+  type Restrictions,
+} from './eligibility.js';
 
 const restrictions = (overrides: Partial<Restrictions> = {}): Restrictions => ({
   userId: 'me',
@@ -34,49 +41,86 @@ describe('violations', () => {
     ['another meal', {}, {}, ['wrong_meal']],
     ['a diet it does not qualify for', {}, { diet: 'vegan' }, ['off_diet']],
     ['an allergen of the profile', {}, { allergens: ['dairy', 'soy'] }, ['allergen']],
-    ['an ingredient the profile skips', {}, { excludedIngredientIds: ['rice'] }, ['excluded_ingredient']],
+    [
+      'an ingredient the profile skips',
+      {},
+      { excludedIngredientIds: ['rice'] },
+      ['excluded_ingredient'],
+    ],
     ['a mark to avoid it', {}, { avoidedRecipeIds: ['recipe'] }, ['avoided']],
     ["another user's ownership", { createdByUserId: 'someone-else' }, {}, ['not_available']],
-    ['having been deleted', { createdByUserId: 'me', deletedAt: new Date() }, {}, ['not_available']],
+    [
+      'having been deleted',
+      { createdByUserId: 'me', deletedAt: new Date() },
+      {},
+      ['not_available'],
+    ],
     ['having been retired', { retiredAt: new Date() }, {}, ['not_available']],
   ])('names %s', (name, recipeChange, restrictionChange, expected) => {
     const meal = name === 'another meal' ? 'breakfast' : 'lunch';
-    expect(violations(recipe(recipeChange), restrictions(restrictionChange), meal)).toEqual(expected);
+    expect(violations(recipe(recipeChange), restrictions(restrictionChange), meal)).toEqual(
+      expected,
+    );
   });
 
   it('names every reason at once', () => {
     const found = violations(
       recipe({ createdByUserId: 'someone-else' }),
-      restrictions({ diet: 'keto', allergens: ['dairy'], excludedIngredientIds: ['cheese'], avoidedRecipeIds: ['recipe'] }),
+      restrictions({
+        diet: 'keto',
+        allergens: ['dairy'],
+        excludedIngredientIds: ['cheese'],
+        avoidedRecipeIds: ['recipe'],
+      }),
       'snack',
     );
-    expect(found).toEqual(['not_available', 'wrong_meal', 'off_diet', 'allergen', 'excluded_ingredient', 'avoided']);
+    expect(found).toEqual([
+      'not_available',
+      'wrong_meal',
+      'off_diet',
+      'allergen',
+      'excluded_ingredient',
+      'avoided',
+    ]);
   });
 
   it("admits the user's own recipe", () => {
     expect(violations(recipe({ createdByUserId: 'me' }), restrictions(), 'lunch')).toEqual([]);
   });
 
-  it.each(['balanced', 'high_protein', 'custom'] as const)('holds no recipe to a tag on a %s plan', (diet) => {
-    expect(violations(recipe({ dietTags: [] }), restrictions({ diet }), 'lunch')).toEqual([]);
-  });
+  it.each(['balanced', 'high_protein', 'custom'] as const)(
+    'holds no recipe to a tag on a %s plan',
+    (diet) => {
+      expect(violations(recipe({ dietTags: [] }), restrictions({ diet }), 'lunch')).toEqual([]);
+    },
+  );
 
   describe('when the user asked for this very recipe', () => {
     const waived = { diet: true, meal: true };
 
     it('lets the diet and the meal go', () => {
-      expect(violations(recipe(), restrictions({ diet: 'vegan' }), 'breakfast', waived)).toEqual([]);
+      expect(violations(recipe(), restrictions({ diet: 'vegan' }), 'breakfast', waived)).toEqual(
+        [],
+      );
     });
 
     it('lets the diet go alone when only the diet was waived', () => {
-      expect(violations(recipe(), restrictions({ diet: 'vegan' }), 'breakfast', { diet: true })).toEqual(['wrong_meal']);
-      expect(violations(recipe(), restrictions({ diet: 'vegan' }), 'lunch', { diet: true })).toEqual([]);
+      expect(
+        violations(recipe(), restrictions({ diet: 'vegan' }), 'breakfast', { diet: true }),
+      ).toEqual(['wrong_meal']);
+      expect(
+        violations(recipe(), restrictions({ diet: 'vegan' }), 'lunch', { diet: true }),
+      ).toEqual([]);
     });
 
     it('still holds to allergens, skipped ingredients, the avoid mark and availability', () => {
       const found = violations(
         recipe({ retiredAt: new Date() }),
-        restrictions({ allergens: ['dairy'], excludedIngredientIds: ['rice'], avoidedRecipeIds: ['recipe'] }),
+        restrictions({
+          allergens: ['dairy'],
+          excludedIngredientIds: ['rice'],
+          avoidedRecipeIds: ['recipe'],
+        }),
         'breakfast',
         waived,
       );
@@ -87,16 +131,29 @@ describe('violations', () => {
 
 describe('what a profile would rather not eat', () => {
   const withCheese = recipe({ id: 'with-cheese' });
-  const withoutIt = recipe({ id: 'without', ingredients: [{ ingredientId: 'rice' }, { ingredientId: 'beans' }] });
+  const withoutIt = recipe({
+    id: 'without',
+    ingredients: [{ ingredientId: 'rice' }, { ingredientId: 'beans' }],
+  });
 
   it('is no reason to refuse a recipe', () => {
-    expect(violations(withCheese, restrictions({ dislikedIngredientIds: ['cheese'] }), 'lunch')).toEqual([]);
+    expect(
+      violations(withCheese, restrictions({ dislikedIngredientIds: ['cheese'] }), 'lunch'),
+    ).toEqual([]);
   });
 
   it('is named for a recipe that holds it, each ingredient once', () => {
-    const twice = recipe({ ingredients: [{ ingredientId: 'cheese' }, { ingredientId: 'rice' }, { ingredientId: 'cheese' }] });
+    const twice = recipe({
+      ingredients: [
+        { ingredientId: 'cheese' },
+        { ingredientId: 'rice' },
+        { ingredientId: 'cheese' },
+      ],
+    });
 
-    expect(dislikedIn(twice, restrictions({ dislikedIngredientIds: ['cheese', 'liver'] }))).toEqual(['cheese']);
+    expect(dislikedIn(twice, restrictions({ dislikedIngredientIds: ['cheese', 'liver'] }))).toEqual(
+      ['cheese'],
+    );
     expect(dislikedIn(withoutIt, restrictions({ dislikedIngredientIds: ['cheese'] }))).toEqual([]);
   });
 

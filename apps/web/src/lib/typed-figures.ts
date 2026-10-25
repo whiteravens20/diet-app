@@ -1,12 +1,23 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { CaloriePreviewRequest, riskOfLosingWeight, type Profile, type WeightUnit } from '@diet-app/shared';
+import {
+  CaloriePreviewRequest,
+  riskOfLosingWeight,
+  type Profile,
+  type WeightUnit,
+} from '@diet-app/shared';
 import { toKilograms } from './weight-unit';
 
 export type Risk = ReturnType<typeof riskOfLosingWeight>[number];
 
 /** The risk a loss goal carries for a body, or none when no loss is asked for. */
-export function riskOf(body: { age: number; heightCm: number; weightKg: number; weeklyLossTarget: string | null; manualCalorieTarget: number | null }): Risk[] {
+export function riskOf(body: {
+  age: number;
+  heightCm: number;
+  weightKg: number;
+  weeklyLossTarget: string | null;
+  manualCalorieTarget: number | null;
+}): Risk[] {
   const asksForLoss = body.weeklyLossTarget !== null || body.manualCalorieTarget !== null;
   if (!asksForLoss || !(body.age > 0 && body.heightCm > 0 && body.weightKg > 0)) return [];
   return riskOfLosingWeight(body);
@@ -63,7 +74,13 @@ export function figuresIn(form: HTMLFormElement, unit: WeightUnit): CaloriePrevi
     activityLevel: fields.get('activityLevel') ?? undefined,
     dietType: fields.get('dietType') ?? undefined,
     customMacroSplit:
-      fields.get('dietType') === 'custom' ? { protein: typed(fields, 'splitProtein'), fat: typed(fields, 'splitFat'), carbs: typed(fields, 'splitCarbs') } : null,
+      fields.get('dietType') === 'custom'
+        ? {
+            protein: typed(fields, 'splitProtein'),
+            fat: typed(fields, 'splitFat'),
+            carbs: typed(fields, 'splitCarbs'),
+          }
+        : null,
     weeklyLossTarget: fields.get('weeklyLossTarget') || null,
     manualCalorieTarget: typed(fields, 'manualCalorieTarget') ?? null,
     acknowledgeRisk: fields.get('acknowledgeRisk') === 'on',

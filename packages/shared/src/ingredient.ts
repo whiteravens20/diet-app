@@ -74,4 +74,3 @@ export const IngredientListQuery = z.object({
     .optional(),
 });
 export type IngredientListQuery = z.infer<typeof IngredientListQuery>;
-

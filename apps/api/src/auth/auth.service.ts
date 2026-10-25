@@ -51,10 +51,17 @@ export class AuthService {
     private readonly passwords: Passwords,
     private readonly secondFactor: AccountSecondFactor,
   ) {
-    this.linkKey = deriveKey(this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'verification-link');
+    this.linkKey = deriveKey(
+      this.config.get('DATA_ENCRYPTION_SECRET', { infer: true }),
+      'verification-link',
+    );
   }
 
-  async register(dto: RegisterRequest, locale: Locale = 'en', openedFrom: string | null = null): Promise<OpenedSession> {
+  async register(
+    dto: RegisterRequest,
+    locale: Locale = 'en',
+    openedFrom: string | null = null,
+  ): Promise<OpenedSession> {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
     const emailIndex = this.emails.indexOf(email);
@@ -95,19 +102,36 @@ export class AuthService {
    */
   async sendVerificationEmail(userId: string, email: string, locale: Locale): Promise<void> {
     const now = Date.now();
-    const latest = await this.prisma.emailVerificationToken.findFirst({ where: { userId, usedAt: null }, orderBy: { createdAt: 'desc' } });
+    const latest = await this.prisma.emailVerificationToken.findFirst({
+      where: { userId, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
     // A link made before links could be sent again holds a token nobody can work out from the row.
-    const sameAgain = latest && latest.expiresAt.getTime() - now > VERIFICATION_LINK_WORTH_SENDING_MS && hashOfLink(this.verificationToken(latest.id)) === latest.tokenHash;
+    const sameAgain =
+      latest &&
+      latest.expiresAt.getTime() - now > VERIFICATION_LINK_WORTH_SENDING_MS &&
+      hashOfLink(this.verificationToken(latest.id)) === latest.tokenHash;
     let id: string;
     if (sameAgain) {
       id = latest.id;
-      await this.prisma.emailVerificationToken.update({ where: { id }, data: { lastSentAt: new Date(now) } });
+      await this.prisma.emailVerificationToken.update({
+        where: { id },
+        data: { lastSentAt: new Date(now) },
+      });
     } else {
       id = randomUUID();
       await this.prisma.$transaction([
-        this.prisma.emailVerificationToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date(now) } }),
+        this.prisma.emailVerificationToken.updateMany({
+          where: { userId, usedAt: null },
+          data: { usedAt: new Date(now) },
+        }),
         this.prisma.emailVerificationToken.create({
-          data: { id, userId, tokenHash: hashOfLink(this.verificationToken(id)), expiresAt: new Date(now + 3_600_000) },
+          data: {
+            id,
+            userId,
+            tokenHash: hashOfLink(this.verificationToken(id)),
+            expiresAt: new Date(now + 3_600_000),
+          },
         }),
       ]);
     }
@@ -122,12 +146,21 @@ export class AuthService {
    * mailbox.
    */
   async resendVerificationEmail(userId: string, email: string, locale: Locale): Promise<void> {
-    const latest = await this.prisma.emailVerificationToken.findFirst({ where: { userId, usedAt: null }, orderBy: { lastSentAt: 'desc' } });
-    const wait = latest ? latest.lastSentAt.getTime() + VERIFICATION_RESEND_WAIT_MS - Date.now() : 0;
+    const latest = await this.prisma.emailVerificationToken.findFirst({
+      where: { userId, usedAt: null },
+      orderBy: { lastSentAt: 'desc' },
+    });
+    const wait = latest
+      ? latest.lastSentAt.getTime() + VERIFICATION_RESEND_WAIT_MS - Date.now()
+      : 0;
     if (wait > 0) {
       const seconds = Math.ceil(wait / 1000);
       throw new HttpException(
-        { error: 'VERIFICATION_SENT_RECENTLY', message: `A verification mail was sent a moment ago. Ask again in ${seconds} seconds.`, retryAfterSeconds: seconds },
+        {
+          error: 'VERIFICATION_SENT_RECENTLY',
+          message: `A verification mail was sent a moment ago. Ask again in ${seconds} seconds.`,
+          retryAfterSeconds: seconds,
+        },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -140,17 +173,24 @@ export class AuthService {
    * link, and the same link can still be sent a second time.
    */
   private verificationToken(id: string): string {
-    return createHmac('sha256', Buffer.from(this.linkKey, 'hex')).update(`email-verification:${id}`).digest('hex');
+    return createHmac('sha256', Buffer.from(this.linkKey, 'hex'))
+      .update(`email-verification:${id}`)
+      .digest('hex');
   }
 
   /**
    * The password of an account: for a session, or, where the account has a
    * second factor, for the challenge of the second step.
    */
-  async login(dto: LoginRequest, openedFrom: string | null = null): Promise<OpenedSession | SecondFactorChallenge> {
+  async login(
+    dto: LoginRequest,
+    openedFrom: string | null = null,
+  ): Promise<OpenedSession | SecondFactorChallenge> {
     await this.assertHuman(dto.turnstileToken);
     const email = this.emails.normalise(dto.email);
-    const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });
+    const user = await this.prisma.user.findUnique({
+      where: { emailIndex: this.emails.indexOf(email) },
+    });
     // The check is made for an account that does not exist too, so that the answer takes as long.
     const ok = await this.passwords.matches(dto.password, user?.passwordHash);
     if (!user || !ok) {
@@ -164,9 +204,14 @@ export class AuthService {
   }
 
   /** The second step: a code for the challenge the password was answered with. */
-  async finishLogin(dto: SecondFactorSignInRequest, openedFrom: string | null = null): Promise<OpenedSession> {
+  async finishLogin(
+    dto: SecondFactorSignInRequest,
+    openedFrom: string | null = null,
+  ): Promise<OpenedSession> {
     const user = await this.secondFactor.answer(dto);
-    return this.sessions.open(user, this.emails.open(user.emailEncrypted, user.id), openedFrom, { secondFactor: true });
+    return this.sessions.open(user, this.emails.open(user.emailEncrypted, user.id), openedFrom, {
+      secondFactor: true,
+    });
   }
 
   /**
@@ -182,13 +227,18 @@ export class AuthService {
 
   /** Make a reset link for the account of `email`, if there is one, and mail it. */
   private async sendResetLink(email: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(email) } });
+    const user = await this.prisma.user.findUnique({
+      where: { emailIndex: this.emails.indexOf(email) },
+    });
     if (!user) return;
 
     const raw = randomBytes(32).toString('hex');
     await this.prisma.$transaction([
       // One link at a time: asking again makes the earlier one stop working.
-      this.prisma.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } }),
+      this.prisma.passwordResetToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      }),
       this.prisma.passwordResetToken.create({
         data: {
           userId: user.id,
@@ -238,7 +288,10 @@ export class AuthService {
     if (!token || token.usedAt || token.expiresAt < new Date()) throw invalid();
     const clash = await this.prisma.user.findUnique({ where: { emailIndex: token.newEmailIndex } });
     if (clash && clash.id !== token.userId) throw emailTaken();
-    const account = await this.prisma.user.findUniqueOrThrow({ where: { id: token.userId }, select: { emailEncrypted: true, locale: true } });
+    const account = await this.prisma.user.findUniqueOrThrow({
+      where: { id: token.userId },
+      select: { emailEncrypted: true, locale: true },
+    });
     const newEmail = this.emails.openPending(token.newEmailEncrypted, token.userId);
     await this.prisma
       .$transaction(async (tx) => {
@@ -252,37 +305,61 @@ export class AuthService {
             emailVerified: true,
           },
         });
-        await tx.refreshToken.updateMany({ where: { userId: token.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+        await tx.refreshToken.updateMany({
+          where: { userId: token.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
         await retirePendingLinks(tx, token.userId, { addressToo: true });
       })
       // Someone registered the address after the check above.
       .catch(rethrowAsEmailTaken);
     // The address the account had is told that it has another.
-    this.mail.sendEmailChangedNotice(this.emails.open(account.emailEncrypted, token.userId), newEmail, storedLocale(account.locale));
+    this.mail.sendEmailChangedNotice(
+      this.emails.open(account.emailEncrypted, token.userId),
+      newEmail,
+      storedLocale(account.locale),
+    );
   }
 
   async confirmPasswordReset(dto: PasswordResetConfirm): Promise<void> {
     const token = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash: hashOfLink(dto.token) },
     });
-    const invalid = () => new BadRequestException({ error: 'INVALID_RESET_TOKEN', message: 'Reset link is invalid or expired.' });
+    const invalid = () =>
+      new BadRequestException({
+        error: 'INVALID_RESET_TOKEN',
+        message: 'Reset link is invalid or expired.',
+      });
     if (!token || token.usedAt || token.expiresAt < new Date()) throw invalid();
     const passwordHash = await this.passwords.hash(dto.password);
     await this.prisma.$transaction(async (tx) => {
       if (!(await usedNow(tx.passwordResetToken, token.id))) throw invalid();
       await tx.user.update({ where: { id: token.userId }, data: { passwordHash } });
       // Invalidate every active session.
-      await tx.refreshToken.updateMany({ where: { userId: token.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.refreshToken.updateMany({
+        where: { userId: token.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
       await retirePendingLinks(tx, token.userId);
     });
     // As after a change by its holder: the account is told that its password is another now.
-    const account = await this.prisma.user.findUnique({ where: { id: token.userId }, select: { emailEncrypted: true, locale: true } });
-    if (account) this.mail.sendPasswordChangedNotice(this.emails.open(account.emailEncrypted, token.userId), storedLocale(account.locale));
+    const account = await this.prisma.user.findUnique({
+      where: { id: token.userId },
+      select: { emailEncrypted: true, locale: true },
+    });
+    if (account)
+      this.mail.sendPasswordChangedNotice(
+        this.emails.open(account.emailEncrypted, token.userId),
+        storedLocale(account.locale),
+      );
   }
 
   private async assertHuman(token: string | undefined): Promise<void> {
     if (!(await this.turnstile.verify(token))) {
-      throw new BadRequestException({ error: 'TURNSTILE_FAILED', message: 'Anti-abuse check failed.' });
+      throw new BadRequestException({
+        error: 'TURNSTILE_FAILED',
+        message: 'Anti-abuse check failed.',
+      });
     }
   }
 }
@@ -294,10 +371,18 @@ export class AuthService {
  * gets to mark it.
  */
 async function usedNow(
-  links: { updateMany(args: { where: { id: string; usedAt: null }; data: { usedAt: Date } }): Promise<{ count: number }> },
+  links: {
+    updateMany(args: {
+      where: { id: string; usedAt: null };
+      data: { usedAt: Date };
+    }): Promise<{ count: number }>;
+  },
   id: string,
 ): Promise<boolean> {
-  return (await links.updateMany({ where: { id, usedAt: null }, data: { usedAt: new Date() } })).count === 1;
+  return (
+    (await links.updateMany({ where: { id, usedAt: null }, data: { usedAt: new Date() } }))
+      .count === 1
+  );
 }
 
 function emailTaken(): ConflictException {

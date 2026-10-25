@@ -1,8 +1,20 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Unit, type InventoryItem, type Locale, type PatchInventoryItem, type UpsertInventoryItem } from '@diet-app/shared';
-import { convertUnit, displayStock, inAisleOrder, isCounted, UnitConversionError } from '../engine/index.js';
+import {
+  Unit,
+  type InventoryItem,
+  type Locale,
+  type PatchInventoryItem,
+  type UpsertInventoryItem,
+} from '@diet-app/shared';
+import {
+  convertUnit,
+  displayStock,
+  inAisleOrder,
+  isCounted,
+  UnitConversionError,
+} from '../engine/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toIngredientDto } from '../ingredients/ingredients.service.js';
 import { assertRoomInPantry, assertWithinCeiling, lockPantry } from './pantry-store.js';
@@ -22,7 +34,10 @@ export class InventoryService {
 
   async list(userId: string, locale: Locale, profileId: string): Promise<InventoryItem[]> {
     await this.assertProfile(userId, profileId);
-    const rows = await this.prisma.inventoryItem.findMany({ where: { profileId }, include: this.withIngredient(locale) });
+    const rows = await this.prisma.inventoryItem.findMany({
+      where: { profileId },
+      include: this.withIngredient(locale),
+    });
     // Ordered here, not by the database: the names are those of the reader's language.
     const order = inAisleOrder(locale);
     return rows
@@ -41,14 +56,28 @@ export class InventoryService {
    * overwrites when supplied so the latest update wins. What is counted goes
    * into its row in pieces, whatever unit it is given in.
    */
-  async upsert(userId: string, locale: Locale, profileId: string, body: UpsertInventoryItem): Promise<InventoryItem> {
+  async upsert(
+    userId: string,
+    locale: Locale,
+    profileId: string,
+    body: UpsertInventoryItem,
+  ): Promise<InventoryItem> {
     await this.assertProfile(userId, profileId);
     const ingredient = await this.prisma.ingredient.findUnique({
       where: { id: body.ingredientId },
-      select: { id: true, canonicalUnit: true, gramsPerPiece: true, density: true, displayUnit: true },
+      select: {
+        id: true,
+        canonicalUnit: true,
+        gramsPerPiece: true,
+        density: true,
+        displayUnit: true,
+      },
     });
     if (!ingredient) {
-      throw new NotFoundException({ error: 'INGREDIENT_NOT_FOUND', message: 'Ingredient not found.' });
+      throw new NotFoundException({
+        error: 'INGREDIENT_NOT_FOUND',
+        message: 'Ingredient not found.',
+      });
     }
     // Stock that cannot be added up with the rest would count as nothing
     // everywhere: no list would see it and no plan would use it.
@@ -66,7 +95,9 @@ export class InventoryService {
     const unit = isCounted(ingredient) ? 'piece' : body.unit;
     const quantity = convertUnit(body.quantity, body.unit, unit, ingredient);
 
-    const key = { profileId_ingredientId_unit: { profileId, ingredientId: body.ingredientId, unit } };
+    const key = {
+      profileId_ingredientId_unit: { profileId, ingredientId: body.ingredientId, unit },
+    };
     const saved = await this.prisma.$transaction(async (tx) => {
       await lockPantry(tx, profileId, body.ingredientId);
       const existing = await tx.inventoryItem.findUnique({ where: key });
@@ -91,7 +122,12 @@ export class InventoryService {
     return this.toDto(saved, locale);
   }
 
-  async patch(userId: string, locale: Locale, id: string, body: PatchInventoryItem): Promise<InventoryItem> {
+  async patch(
+    userId: string,
+    locale: Locale,
+    id: string,
+    body: PatchInventoryItem,
+  ): Promise<InventoryItem> {
     const row = await this.loadOwned(userId, id);
     if (body.quantity !== undefined) assertWithinCeiling(body.quantity, row.unit);
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -105,7 +141,10 @@ export class InventoryService {
         },
       });
       if (changed.count === 0) throw this.notFound();
-      return tx.inventoryItem.findUniqueOrThrow({ where: { id: row.id }, include: this.withIngredient(locale) });
+      return tx.inventoryItem.findUniqueOrThrow({
+        where: { id: row.id },
+        include: this.withIngredient(locale),
+      });
     });
     return this.toDto(updated, locale);
   }
@@ -120,11 +159,15 @@ export class InventoryService {
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {
     const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
-    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+    if (!profile || profile.userId !== userId)
+      throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
   }
 
   private notFound(): NotFoundException {
-    return new NotFoundException({ error: 'INVENTORY_ITEM_NOT_FOUND', message: 'Inventory item not found.' });
+    return new NotFoundException({
+      error: 'INVENTORY_ITEM_NOT_FOUND',
+      message: 'Inventory item not found.',
+    });
   }
 
   private async loadOwned(userId: string, id: string) {
@@ -138,7 +181,9 @@ export class InventoryService {
 
   private withIngredient(locale: Locale) {
     const locales = locale === 'en' ? ['en'] : [locale, 'en'];
-    return { ingredient: { include: { translations: { where: { locale: { in: locales } } } } } } as const;
+    return {
+      ingredient: { include: { translations: { where: { locale: { in: locales } } } } },
+    } as const;
   }
 
   private parseDate(iso: string | null | undefined): Date | null {

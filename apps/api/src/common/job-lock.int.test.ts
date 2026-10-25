@@ -41,7 +41,9 @@ describe('a scheduled job', () => {
     await first.started;
     let ranMeanwhile = false;
 
-    expect(await runAlone(t.prisma, 'the scan', async () => void (ranMeanwhile = true))).toBe(false);
+    expect(await runAlone(t.prisma, 'the scan', async () => void (ranMeanwhile = true))).toBe(
+      false,
+    );
     expect(ranMeanwhile).toBe(false);
 
     first.release();
@@ -61,7 +63,9 @@ describe('a scheduled job', () => {
   });
 
   it('gives its lock back when it fails', async () => {
-    await expect(runAlone(t.prisma, 'a job that fails', () => Promise.reject(new Error('no luck')))).rejects.toThrow('no luck');
+    await expect(
+      runAlone(t.prisma, 'a job that fails', () => Promise.reject(new Error('no luck'))),
+    ).rejects.toThrow('no luck');
 
     expect(await runAlone(t.prisma, 'a job that fails', async () => undefined)).toBe(true);
   });

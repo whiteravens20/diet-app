@@ -50,7 +50,11 @@ export class SignInGate {
    * Refuse a client that has to wait, before its credential is looked at:
    * while it waits, a right guess is worth as little as a wrong one.
    */
-  assertOpen(door: string, client: string, res?: { setHeader(name: string, value: string): void }): void {
+  assertOpen(
+    door: string,
+    client: string,
+    res?: { setHeader(name: string, value: string): void },
+  ): void {
     const entry = this.clients.get(`${door}:${countedAddress(client)}`);
     if (!entry) return;
     const wait = entry.blockedUntil - this.now();
@@ -58,7 +62,10 @@ export class SignInGate {
     const seconds = Math.ceil(wait / 1000);
     res?.setHeader('Retry-After', String(seconds));
     throw new HttpException(
-      { error: 'TOO_MANY_ATTEMPTS', message: `Too many failed sign-ins. Try again in ${seconds} seconds.` },
+      {
+        error: 'TOO_MANY_ATTEMPTS',
+        message: `Too many failed sign-ins. Try again in ${seconds} seconds.`,
+      },
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
@@ -73,11 +80,13 @@ export class SignInGate {
     entry.failures += 1;
     entry.lastFailure = now;
     const beyond = entry.failures - ATTEMPTS_BEFORE_WAIT;
-    if (beyond >= 0) entry.blockedUntil = now + Math.min(LONGEST_WAIT_MS, FIRST_WAIT_MS * 2 ** beyond);
+    if (beyond >= 0)
+      entry.blockedUntil = now + Math.min(LONGEST_WAIT_MS, FIRST_WAIT_MS * 2 ** beyond);
     // Re-inserted, so that the map stays ordered by the latest failure.
     this.clients.delete(key);
     this.clients.set(key, entry);
-    const wait = beyond >= 0 ? `; next attempt in ${Math.ceil((entry.blockedUntil - now) / 1000)} s` : '';
+    const wait =
+      beyond >= 0 ? `; next attempt in ${Math.ceil((entry.blockedUntil - now) / 1000)} s` : '';
     this.logger.warn(`failed ${door} sign-in from ${name} (${entry.failures} in a row${wait})`);
   }
 

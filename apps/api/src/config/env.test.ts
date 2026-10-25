@@ -31,7 +31,13 @@ function template(): Record<string, string> {
 describe('validateEnv', () => {
   it('accepts a generated configuration and applies the defaults', () => {
     const env = validateEnv(valid());
-    expect(env).toMatchObject({ API_PORT: 4000, RATE_LIMIT_MAX: 120, FDC_API_KEY: 'DEMO_KEY', SWAGGER_ENABLED: false, MAX_PROFILES_PER_ACCOUNT: 2 });
+    expect(env).toMatchObject({
+      API_PORT: 4000,
+      RATE_LIMIT_MAX: 120,
+      FDC_API_KEY: 'DEMO_KEY',
+      SWAGGER_ENABLED: false,
+      MAX_PROFILES_PER_ACCOUNT: 2,
+    });
   });
 
   it('reads a blank optional key as not set', () => {
@@ -65,8 +71,12 @@ describe('validateEnv', () => {
   });
 
   it('takes the most a recipe repeats in a plan that names no number from the operator, and none when it is left out', () => {
-    expect(validateEnv(valid({ DEFAULT_MAX_REPEATS_PER_RECIPE: '3' })).DEFAULT_MAX_REPEATS_PER_RECIPE).toBe(3);
-    expect(validateEnv(valid({ DEFAULT_MAX_REPEATS_PER_RECIPE: '' })).DEFAULT_MAX_REPEATS_PER_RECIPE).toBeUndefined();
+    expect(
+      validateEnv(valid({ DEFAULT_MAX_REPEATS_PER_RECIPE: '3' })).DEFAULT_MAX_REPEATS_PER_RECIPE,
+    ).toBe(3);
+    expect(
+      validateEnv(valid({ DEFAULT_MAX_REPEATS_PER_RECIPE: '' })).DEFAULT_MAX_REPEATS_PER_RECIPE,
+    ).toBeUndefined();
     expect(validateEnv(valid()).DEFAULT_MAX_REPEATS_PER_RECIPE).toBeUndefined();
   });
 
@@ -104,22 +114,34 @@ describe('validateEnv', () => {
     ['DATA_ENCRYPTION_SECRET', '1'.repeat(64)],
     ['REVIEWER_SESSION_SECRET', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
   ])('refuses to start on a weak or template %s', (key, value) => {
-    expect(() => validateEnv(valid({ [key]: value }))).toThrow(new RegExp(`not secret[\\s\\S]*${key}`));
-    expect(() => validateEnv(valid({ [key]: value, NODE_ENV: 'development' }))).toThrow(/not secret/);
+    expect(() => validateEnv(valid({ [key]: value }))).toThrow(
+      new RegExp(`not secret[\\s\\S]*${key}`),
+    );
+    expect(() => validateEnv(valid({ [key]: value, NODE_ENV: 'development' }))).toThrow(
+      /not secret/,
+    );
   });
 
   it('refuses two purposes sharing one secret', () => {
     const base = valid();
-    expect(() => validateEnv({ ...base, AI_KEY_ENCRYPTION_SECRET: base.DATA_ENCRYPTION_SECRET })).toThrow(/must differ/);
-    expect(() => validateEnv({ ...base, REVIEWER_SESSION_SECRET: base.JWT_ACCESS_SECRET })).toThrow(/must differ/);
+    expect(() =>
+      validateEnv({ ...base, AI_KEY_ENCRYPTION_SECRET: base.DATA_ENCRYPTION_SECRET }),
+    ).toThrow(/must differ/);
+    expect(() => validateEnv({ ...base, REVIEWER_SESSION_SECRET: base.JWT_ACCESS_SECRET })).toThrow(
+      /must differ/,
+    );
   });
 
   it('lets a test run use fixed secrets', () => {
-    expect(() => validateEnv(valid({ NODE_ENV: 'test', AI_KEY_ENCRYPTION_SECRET: 'a1'.repeat(32) }))).not.toThrow();
+    expect(() =>
+      validateEnv(valid({ NODE_ENV: 'test', AI_KEY_ENCRYPTION_SECRET: 'a1'.repeat(32) })),
+    ).not.toThrow();
   });
 
   it('does not start in production with an admin password an account could not have', () => {
-    expect(() => validateEnv(valid({ ADMIN_PASSWORD: 'elevenchars' }))).toThrow(/ADMIN_PASSWORD: is shorter than 12 characters/);
+    expect(() => validateEnv(valid({ ADMIN_PASSWORD: 'elevenchars' }))).toThrow(
+      /ADMIN_PASSWORD: is shorter than 12 characters/,
+    );
     // The message says what to do, and not what the password is.
     try {
       validateEnv(valid({ ADMIN_PASSWORD: 'elevenchars' }));
@@ -129,19 +151,25 @@ describe('validateEnv', () => {
     expect(() => validateEnv(valid({ ADMIN_PASSWORD: 'twelve-chars' }))).not.toThrow();
     // An empty one keeps the panel closed, and is no problem; neither is a short one while developing.
     expect(() => validateEnv(valid({ ADMIN_PASSWORD: '' }))).not.toThrow();
-    expect(() => validateEnv(valid({ NODE_ENV: 'development', ADMIN_PASSWORD: 'short' }))).not.toThrow();
+    expect(() =>
+      validateEnv(valid({ NODE_ENV: 'development', ADMIN_PASSWORD: 'short' })),
+    ).not.toThrow();
   });
 
   it('turns Swagger on outside production unless told otherwise', () => {
     expect(validateEnv(valid({ NODE_ENV: 'development' })).SWAGGER_ENABLED).toBe(true);
-    expect(validateEnv(valid({ NODE_ENV: 'development', SWAGGER_ENABLED: 'false' })).SWAGGER_ENABLED).toBe(false);
+    expect(
+      validateEnv(valid({ NODE_ENV: 'development', SWAGGER_ENABLED: 'false' })).SWAGGER_ENABLED,
+    ).toBe(false);
     expect(validateEnv(valid({ SWAGGER_ENABLED: 'true' })).SWAGGER_ENABLED).toBe(true);
   });
 });
 
 describe('the shipped .env.example', () => {
   it('does not start as it is: it carries no secret', () => {
-    expect(() => validateEnv(template())).toThrow(/JWT_ACCESS_SECRET|AI_KEY_ENCRYPTION_SECRET|DATA_ENCRYPTION_SECRET/);
+    expect(() => validateEnv(template())).toThrow(
+      /JWT_ACCESS_SECRET|AI_KEY_ENCRYPTION_SECRET|DATA_ENCRYPTION_SECRET/,
+    );
     // Each of the three is named as what it is, with the way to make one.
     const refusal = (() => {
       try {
@@ -152,7 +180,9 @@ describe('the shipped .env.example', () => {
       return '';
     })();
     for (const key of ['JWT_ACCESS_SECRET', 'AI_KEY_ENCRYPTION_SECRET', 'DATA_ENCRYPTION_SECRET']) {
-      expect(refusal).toContain(`  ${key}: is not set. Run \`sh scripts/init-env.sh\` for a new install`);
+      expect(refusal).toContain(
+        `  ${key}: is not set. Run \`sh scripts/init-env.sh\` for a new install`,
+      );
     }
     expect(refusal).not.toContain('received undefined');
   });
@@ -179,7 +209,9 @@ describe('the shipped .env.example', () => {
       'IMAGE_TAG',
     ]);
     const known = new Set(Object.keys(envSchema.shape));
-    expect(Object.keys(template()).filter((key) => !known.has(key) && !elsewhere.has(key))).toEqual([]);
+    expect(Object.keys(template()).filter((key) => !known.has(key) && !elsewhere.has(key))).toEqual(
+      [],
+    );
   });
 
   it('names every setting the application reads', () => {
@@ -190,55 +222,93 @@ describe('the shipped .env.example', () => {
 
 describe('the data sets the food import reads', () => {
   it('are taken as a list, each of the two the importer knows', () => {
-    expect(validateEnv(valid({ FDC_DATA_TYPES: 'Foundation, SR Legacy' })).FDC_DATA_TYPES).toBe('Foundation,SR Legacy');
+    expect(validateEnv(valid({ FDC_DATA_TYPES: 'Foundation, SR Legacy' })).FDC_DATA_TYPES).toBe(
+      'Foundation,SR Legacy',
+    );
     expect(validateEnv(valid()).FDC_DATA_TYPES).toBe('Foundation');
   });
 
   it('are refused at start-up when one is not a data set the importer knows', () => {
-    expect(() => validateEnv(valid({ FDC_DATA_TYPES: 'Foundation,Branded' }))).toThrow(/FDC_DATA_TYPES/);
+    expect(() => validateEnv(valid({ FDC_DATA_TYPES: 'Foundation,Branded' }))).toThrow(
+      /FDC_DATA_TYPES/,
+    );
   });
 });
 
 describe("who may use the operator's AI provider", () => {
   it('is the accounts the operator approved, unless the instance says otherwise, and no account is new for longer than a week', () => {
-    expect(validateEnv(valid())).toMatchObject({ AI_ADMIN_ACCESS: 'approved', AI_ADMIN_NEW_ACCOUNT_DAYS: 7, AI_ADMIN_NEW_ACCOUNTS_PERCENT: 10 });
+    expect(validateEnv(valid())).toMatchObject({
+      AI_ADMIN_ACCESS: 'approved',
+      AI_ADMIN_NEW_ACCOUNT_DAYS: 7,
+      AI_ADMIN_NEW_ACCOUNTS_PERCENT: 10,
+    });
     expect(validateEnv(valid({ AI_ADMIN_ACCESS: 'everyone' })).AI_ADMIN_ACCESS).toBe('everyone');
   });
 
   it('is refused at start-up when it is not one of the three', () => {
     expect(() => validateEnv(valid({ AI_ADMIN_ACCESS: 'all' }))).toThrow(/AI_ADMIN_ACCESS/);
-    expect(() => validateEnv(valid({ AI_ADMIN_NEW_ACCOUNTS_PERCENT: '101' }))).toThrow(/AI_ADMIN_NEW_ACCOUNTS_PERCENT/);
+    expect(() => validateEnv(valid({ AI_ADMIN_NEW_ACCOUNTS_PERCENT: '101' }))).toThrow(
+      /AI_ADMIN_NEW_ACCOUNTS_PERCENT/,
+    );
   });
 });
 
 describe('describePosture', () => {
-  const env = () => validateEnv(valid({ APP_URL: 'https://diet.example.org', ADMIN_PASSWORD: 'a-real-admin-password', TRUST_PROXY: '1' }));
+  const env = () =>
+    validateEnv(
+      valid({
+        APP_URL: 'https://diet.example.org',
+        ADMIN_PASSWORD: 'a-real-admin-password',
+        TRUST_PROXY: '1',
+      }),
+    );
 
   it('reports a sound setup without a warning', () => {
     expect(describePosture(env()).filter((line) => line.startsWith('!'))).toEqual([]);
   });
 
-  it('states who may use the operator\'s AI provider and its limits when there is one', () => {
+  it("states who may use the operator's AI provider and its limits when there is one", () => {
     expect(describePosture(env())).toContain('operator AI provider: none');
     expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai' })).toContain(
       'operator AI provider: openai, for the accounts approved in the admin panel, at most 40 calls per user and 1000 for the whole instance in 30 days, 100 of them for the accounts younger than 7 days together',
     );
-    expect(describePosture({ ...env(), AI_DEFAULT_PROVIDER: 'openai', AI_ADMIN_ACCESS: 'everyone', AI_ADMIN_NEW_ACCOUNT_DAYS: 0 })).toContain(
+    expect(
+      describePosture({
+        ...env(),
+        AI_DEFAULT_PROVIDER: 'openai',
+        AI_ADMIN_ACCESS: 'everyone',
+        AI_ADMIN_NEW_ACCOUNT_DAYS: 0,
+      }),
+    ).toContain(
       'operator AI provider: openai, for every account, at most 40 calls per user and 1000 for the whole instance in 30 days',
     );
   });
 
   it('warns that a confirmed address lets every account in where there is no mail to confirm it with', () => {
-    const confirmed = { ...env(), AI_DEFAULT_PROVIDER: 'openai' as const, AI_ADMIN_ACCESS: 'confirmed' as const };
+    const confirmed = {
+      ...env(),
+      AI_DEFAULT_PROVIDER: 'openai' as const,
+      AI_ADMIN_ACCESS: 'confirmed' as const,
+    };
 
     expect(describePosture(confirmed).filter((line) => line.startsWith('!'))).toEqual([
       '! operator AI provider: AI_ADMIN_ACCESS=confirmed without mail lets every account in, since an address counts as confirmed at sign-up',
     ]);
-    expect(describePosture({ ...confirmed, SMTP_HOST: 'mail.example.org', SMTP_REQUIRE_TLS: true }).filter((line) => line.startsWith('!'))).toEqual([]);
+    expect(
+      describePosture({
+        ...confirmed,
+        SMTP_HOST: 'mail.example.org',
+        SMTP_REQUIRE_TLS: true,
+      }).filter((line) => line.startsWith('!')),
+    ).toEqual([]);
   });
 
   it('warns about a public origin that is not https and about Swagger in production', () => {
-    const lines = describePosture({ ...env(), APP_URL: 'http://192.0.2.10:3000', SWAGGER_ENABLED: true });
+    const lines = describePosture({
+      ...env(),
+      APP_URL: 'http://192.0.2.10:3000',
+      SWAGGER_ENABLED: true,
+    });
     expect(lines.filter((line) => line.startsWith('!'))).toHaveLength(2);
   });
 
@@ -252,7 +322,7 @@ describe('describePosture', () => {
     expect(lines.join('\n')).not.toMatch(/\b8 characters/);
   });
 
-  it('warns while the switch that removes the administrator\'s second factor is left on', () => {
+  it("warns while the switch that removes the administrator's second factor is left on", () => {
     expect(env().ADMIN_SECOND_FACTOR_RESET).toBe(false);
 
     const lines = describePosture({ ...env(), ADMIN_SECOND_FACTOR_RESET: true });
@@ -269,11 +339,15 @@ describe('describePosture', () => {
     expect(lines).toContain('admin panel: enabled');
   });
 
-  it('says whose word is taken for a client\'s address', () => {
-    expect(describePosture(env()).at(-1)).toBe('client address: from X-Forwarded-For, written by 1 trusted proxy');
-    expect(describePosture({ ...env(), APP_URL: 'http://192.0.2.10:3000', TRUST_PROXY: undefined }).at(-1)).toMatch(
-      /^client address: that of the connection/,
+  it("says whose word is taken for a client's address", () => {
+    expect(describePosture(env()).at(-1)).toBe(
+      'client address: from X-Forwarded-For, written by 1 trusted proxy',
     );
+    expect(
+      describePosture({ ...env(), APP_URL: 'http://192.0.2.10:3000', TRUST_PROXY: undefined }).at(
+        -1,
+      ),
+    ).toMatch(/^client address: that of the connection/);
   });
 
   it('warns when the public origin is https, which only a proxy can serve, and no proxy is believed', () => {
@@ -287,20 +361,31 @@ describe('describePosture', () => {
 
 describe('TRUST_PROXY in the environment', () => {
   it('is refused with a reason when it is not a number of proxies or their addresses', () => {
-    expect(() => validateEnv(valid({ TRUST_PROXY: 'true' }))).toThrow(/TRUST_PROXY: "true" would believe/);
-    expect(() => validateEnv(valid({ TRUST_PROXY: 'traefik' }))).toThrow(/TRUST_PROXY: "traefik" is neither/);
+    expect(() => validateEnv(valid({ TRUST_PROXY: 'true' }))).toThrow(
+      /TRUST_PROXY: "true" would believe/,
+    );
+    expect(() => validateEnv(valid({ TRUST_PROXY: 'traefik' }))).toThrow(
+      /TRUST_PROXY: "traefik" is neither/,
+    );
   });
 
   it('is accepted as a number, as a list, and left out', () => {
     expect(validateEnv(valid({ TRUST_PROXY: '1' })).TRUST_PROXY).toBe('1');
-    expect(validateEnv(valid({ TRUST_PROXY: '10.0.0.0/8, loopback' })).TRUST_PROXY).toBe('10.0.0.0/8, loopback');
+    expect(validateEnv(valid({ TRUST_PROXY: '10.0.0.0/8, loopback' })).TRUST_PROXY).toBe(
+      '10.0.0.0/8, loopback',
+    );
     expect(validateEnv(valid({})).TRUST_PROXY).toBeUndefined();
   });
 });
 
 describe('the environment reference', () => {
   it('documents every setting the application reads', () => {
-    const reference = readFileSync(resolve(__dirname, '../../../../docs/ops/env-reference.md'), 'utf8');
-    expect(Object.keys(envSchema.shape).filter((key) => !reference.includes(`\`${key}\``))).toEqual([]);
+    const reference = readFileSync(
+      resolve(__dirname, '../../../../docs/ops/env-reference.md'),
+      'utf8',
+    );
+    expect(Object.keys(envSchema.shape).filter((key) => !reference.includes(`\`${key}\``))).toEqual(
+      [],
+    );
   });
 });

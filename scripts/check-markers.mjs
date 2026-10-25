@@ -21,7 +21,8 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Text files worth reading; everything else (images, fonts, lockfiles) is skipped. */
-const TEXT_FILE = /(\.(c|m)?js|\.tsx?|\.json|\.md|\.ya?ml|\.prisma|\.css|\.sh|\.toml|\.example|\.conf|(^|\/)Dockerfile|(^|\/)\.[a-z]+rc|(^|\/)\.gitignore|(^|\/)\.husky\/[a-z-]+)$/;
+const TEXT_FILE =
+  /(\.(c|m)?js|\.tsx?|\.json|\.md|\.ya?ml|\.prisma|\.css|\.sh|\.toml|\.example|\.conf|(^|\/)Dockerfile|(^|\/)\.[a-z]+rc|(^|\/)\.gitignore|(^|\/)\.husky\/[a-z-]+)$/;
 
 const SKIPPED = [
   /^package-lock\.json$/,
@@ -43,8 +44,16 @@ const RULES = [
     pattern: /\bprinciple #\d+|\bplan [A-Z]\d+\b|§\s?\d+ invariant|\bper §\s?\d+/,
     only: (file) => SOURCE.test(file),
   },
-  { name: 'phase label', pattern: /\bphase [a-z0-9]/i, only: (file) => SOURCE.test(file) && !TEST.test(file) },
-  { name: 'unfinished-work note', pattern: /\bTODO\b|\bFIXME\b|coming soon/i, only: (file) => SOURCE.test(file) && !TEST.test(file) },
+  {
+    name: 'phase label',
+    pattern: /\bphase [a-z0-9]/i,
+    only: (file) => SOURCE.test(file) && !TEST.test(file),
+  },
+  {
+    name: 'unfinished-work note',
+    pattern: /\bTODO\b|\bFIXME\b|coming soon/i,
+    only: (file) => SOURCE.test(file) && !TEST.test(file),
+  },
 ];
 
 /** A decision-record reference, flagged while the records are not in the repository. */
@@ -75,7 +84,8 @@ export function findMarkers(file, text, { ignored, recordsPublished }) {
       if (rule.only && !rule.only(file)) continue;
       if (rule.pattern.test(line)) report(rule.name);
     }
-    if (!recordsPublished && DECISION_RECORD.test(line)) report('decision record that is not in the repository');
+    if (!recordsPublished && DECISION_RECORD.test(line))
+      report('decision record that is not in the repository');
     // `.gitignore` is where the ignored documents are named.
     if (file === '.gitignore') return;
     for (const [path] of line.matchAll(DOCS_PATH)) {
@@ -90,20 +100,27 @@ export function findMarkers(file, text, { ignored, recordsPublished }) {
 
 function main() {
   const root = resolve(fileURLToPath(import.meta.url), '..', '..');
-  const tracked = execSync('git ls-files', { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
+  const tracked = execSync('git ls-files', { cwd: root, encoding: 'utf8' })
+    .split('\n')
+    .filter(Boolean);
   const ignored = ignoredDocs(readFileSync(join(root, '.gitignore'), 'utf8'));
   const recordsPublished = tracked.some((file) => file.startsWith('docs/adr/'));
 
   const problems = tracked
     .filter((file) => TEXT_FILE.test(file) && !SKIPPED.some((skip) => skip.test(file)))
-    .flatMap((file) => findMarkers(file, readFileSync(join(root, file), 'utf8'), { ignored, recordsPublished }));
+    .flatMap((file) =>
+      findMarkers(file, readFileSync(join(root, file), 'utf8'), { ignored, recordsPublished }),
+    );
 
   if (problems.length === 0) {
     console.log('No planning labels or dangling references.');
     return;
   }
-  for (const p of problems) console.error(`${p.file}:${p.line}: ${p.rule}: ${p.text.slice(0, 140)}`);
-  console.error(`\n${problems.length} problem(s). Say what the code does instead of naming a plan item, and point only at documents in the repository.`);
+  for (const p of problems)
+    console.error(`${p.file}:${p.line}: ${p.rule}: ${p.text.slice(0, 140)}`);
+  console.error(
+    `\n${problems.length} problem(s). Say what the code does instead of naming a plan item, and point only at documents in the repository.`,
+  );
   process.exit(1);
 }
 

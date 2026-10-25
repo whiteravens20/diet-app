@@ -17,27 +17,65 @@ describe('the recipe library, as a client pages through it', () => {
     await seedCatalogue(t.prisma);
     user = await aUser(t);
     // Polish titles that are nowhere near their English ones in the alphabet, some with letters of Polish alone.
-    const titles = ['Żurek', 'Ananas pieczony', 'Łosoś z pieca', 'Ćwikła', 'Zupa jarzynowa', 'Lody', 'Ąkacz'];
-    const recipes = await t.prisma.recipe.findMany({ where: { createdByUserId: null }, orderBy: { title: 'asc' }, take: titles.length });
-    await Promise.all(recipes.map((recipe, index) => t.prisma.recipeTranslation.update({ where: { recipeId_locale: { recipeId: recipe.id, locale: 'pl' } }, data: { title: titles[index]! } })));
+    const titles = [
+      'Żurek',
+      'Ananas pieczony',
+      'Łosoś z pieca',
+      'Ćwikła',
+      'Zupa jarzynowa',
+      'Lody',
+      'Ąkacz',
+    ];
+    const recipes = await t.prisma.recipe.findMany({
+      where: { createdByUserId: null },
+      orderBy: { title: 'asc' },
+      take: titles.length,
+    });
+    await Promise.all(
+      recipes.map((recipe, index) =>
+        t.prisma.recipeTranslation.update({
+          where: { recipeId_locale: { recipeId: recipe.id, locale: 'pl' } },
+          data: { title: titles[index]! },
+        }),
+      ),
+    );
     // One recipe with no Polish title at all: it is shown, and sorted, by its English one.
-    await t.prisma.recipeTranslation.deleteMany({ where: { locale: 'pl', recipe: { title: { startsWith: 'T' } } } });
+    await t.prisma.recipeTranslation.deleteMany({
+      where: { locale: 'pl', recipe: { title: { startsWith: 'T' } } },
+    });
   });
 
   afterAll(async () => {
     await t.close();
   });
 
-  const page = async (query: Record<string, string | number> = {}, locale = 'en'): Promise<RecipeSearchPage> =>
-    (await t.http().get('/api/recipes').query(query).set(as(user)).set('Accept-Language', locale).expect(200)).body;
-  const titles = async (query: Record<string, string | number>, locale: string): Promise<string[]> => (await page(query, locale)).items.map((recipe) => recipe.title);
+  const page = async (
+    query: Record<string, string | number> = {},
+    locale = 'en',
+  ): Promise<RecipeSearchPage> =>
+    (
+      await t
+        .http()
+        .get('/api/recipes')
+        .query(query)
+        .set(as(user))
+        .set('Accept-Language', locale)
+        .expect(200)
+    ).body;
+  const titles = async (
+    query: Record<string, string | number>,
+    locale: string,
+  ): Promise<string[]> => (await page(query, locale)).items.map((recipe) => recipe.title);
 
-  it.each(['en', 'pl'])('is sorted by the titles it shows, in the alphabet of the language (%s)', async (locale) => {
-    const shown = await titles({ pageSize: 100 }, locale);
+  it.each(['en', 'pl'])(
+    'is sorted by the titles it shows, in the alphabet of the language (%s)',
+    async (locale) => {
+      const shown = await titles({ pageSize: 100 }, locale);
 
-    expect(shown.length).toBeGreaterThan(15);
-    expect(shown).toEqual([...shown].sort(new Intl.Collator(locale).compare));
-  });
+      expect(shown.length).toBeGreaterThan(15);
+      expect(shown).toEqual([...shown].sort(new Intl.Collator(locale).compare));
+    },
+  );
 
   it('puts the letters of Polish where Polish has them, and a recipe without a Polish title by its English one', async () => {
     const shown = await titles({ pageSize: 100 }, 'pl');
@@ -48,7 +86,9 @@ describe('the recipe library, as a client pages through it', () => {
     expect(at('Lody')).toBeLessThan(at('Łosoś z pieca'));
     expect(at('Zupa jarzynowa')).toBeLessThan(at('Żurek'));
     expect(shown.at(-1)).toBe('Żurek');
-    expect(shown.filter((title) => title.startsWith('T') && !title.endsWith('(pl)')).length).toBeGreaterThan(0);
+    expect(
+      shown.filter((title) => title.startsWith('T') && !title.endsWith('(pl)')).length,
+    ).toBeGreaterThan(0);
   });
 
   it('cuts its pages from that order: no recipe twice, none left out', async () => {
@@ -57,8 +97,15 @@ describe('the recipe library, as a client pages through it', () => {
     const second = await page({ pageSize: 8, page: 2 }, 'pl');
     const third = await page({ pageSize: 8, page: 3 }, 'pl');
 
-    expect([...first.items, ...second.items, ...third.items].map((recipe) => recipe.title)).toEqual(whole.slice(0, 24));
-    expect(first).toMatchObject({ page: 1, pageSize: 8, total: whole.length, totalPages: Math.ceil(whole.length / 8) });
+    expect([...first.items, ...second.items, ...third.items].map((recipe) => recipe.title)).toEqual(
+      whole.slice(0, 24),
+    );
+    expect(first).toMatchObject({
+      page: 1,
+      pageSize: 8,
+      total: whole.length,
+      totalPages: Math.ceil(whole.length / 8),
+    });
     expect((await page({ pageSize: 8, page: 99 }, 'pl')).items).toEqual([]);
   });
 
@@ -69,7 +116,9 @@ describe('the recipe library, as a client pages through it', () => {
     expect(lunches.total).toBeGreaterThan(0);
     expect(lunches.items.every((recipe) => recipe.mealTypes.includes('lunch'))).toBe(true);
     expect(quick.items.every((recipe) => recipe.prepMinutes <= 5)).toBe(true);
-    expect((await page({ search: 'żurek' }, 'pl')).items.map((recipe) => recipe.title)).toEqual(['Żurek']);
+    expect((await page({ search: 'żurek' }, 'pl')).items.map((recipe) => recipe.title)).toEqual([
+      'Żurek',
+    ]);
     expect((await page({ search: 'no recipe is called this' })).total).toBe(0);
   });
 
@@ -90,10 +139,21 @@ describe('the recipe library, as a client pages through it', () => {
     expect(refused.body.issues[0].path).toBe(part);
   });
 
-  it('refuses a part of the question that is given twice, and the same on the list of one\'s own recipes', async () => {
-    expect((await t.http().get('/api/recipes?search=a&search=b').set(as(user)).expect(400)).body.error).toBe('VALIDATION_FAILED');
-    expect((await t.http().get('/api/recipes?mealType=lunch&mealType=dinner').set(as(user)).expect(400)).body.error).toBe('VALIDATION_FAILED');
-    expect((await t.http().get('/api/recipes/mine?page=abc').set(as(user)).expect(400)).body.issues[0].path).toBe('page');
-    expect((await t.http().get('/api/recipes/mine?pageSize=1.5').set(as(user)).expect(400)).body.issues[0].path).toBe('pageSize');
+  it("refuses a part of the question that is given twice, and the same on the list of one's own recipes", async () => {
+    expect(
+      (await t.http().get('/api/recipes?search=a&search=b').set(as(user)).expect(400)).body.error,
+    ).toBe('VALIDATION_FAILED');
+    expect(
+      (await t.http().get('/api/recipes?mealType=lunch&mealType=dinner').set(as(user)).expect(400))
+        .body.error,
+    ).toBe('VALIDATION_FAILED');
+    expect(
+      (await t.http().get('/api/recipes/mine?page=abc').set(as(user)).expect(400)).body.issues[0]
+        .path,
+    ).toBe('page');
+    expect(
+      (await t.http().get('/api/recipes/mine?pageSize=1.5').set(as(user)).expect(400)).body
+        .issues[0].path,
+    ).toBe('pageSize');
   });
 });

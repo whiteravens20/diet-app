@@ -24,12 +24,20 @@ export interface TypedForm {
  * another profile) is not this one's: `typed` is null until this one is
  * typed into, and whoever shows the form falls back on what it began with.
  */
-export function useProfileForm(formKey: string, unit: WeightUnit): { form: RefObject<HTMLFormElement | null>; typed: TypedForm | null; onChange: () => void } {
+export function useProfileForm(
+  formKey: string,
+  unit: WeightUnit,
+): { form: RefObject<HTMLFormElement | null>; typed: TypedForm | null; onChange: () => void } {
   const form = useRef<HTMLFormElement>(null);
   const [changed, setChanged] = useState<{ form: string; times: number } | null>(null);
   const [read, setRead] = useState<(TypedForm & { form: string }) | null>(null);
   useEffect(() => {
-    if (changed && form.current) setRead({ form: changed.form, figures: figuresIn(form.current, unit), reasons: riskIn(form.current, unit) });
+    if (changed && form.current)
+      setRead({
+        form: changed.form,
+        figures: figuresIn(form.current, unit),
+        reasons: riskIn(form.current, unit),
+      });
   }, [changed, unit]);
   return {
     form,

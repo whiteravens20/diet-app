@@ -21,19 +21,33 @@ async function aCatalogue(baseURL: string): Promise<void> {
   const password = process.env.E2E_ADMIN_PASSWORD;
   if (!user || !password) return;
   // The panel takes a sign-in only from the application's own pages.
-  const admin = await request.newContext({ baseURL, extraHTTPHeaders: { origin: new URL(baseURL).origin } });
+  const admin = await request.newContext({
+    baseURL,
+    extraHTTPHeaders: { origin: new URL(baseURL).origin },
+  });
   try {
     const signedIn = await admin.post('/api/admin/session', { data: { user, password } });
-    if (!signedIn.ok()) throw new Error(`The administrator's sign-in answered ${signedIn.status()}: ${await signedIn.text()}`);
-    const stats = (await (await admin.get('/api/admin/stats')).json()) as { counts: { recipes: number }; seed: { updateAvailable: boolean } };
+    if (!signedIn.ok())
+      throw new Error(
+        `The administrator's sign-in answered ${signedIn.status()}: ${await signedIn.text()}`,
+      );
+    const stats = (await (await admin.get('/api/admin/stats')).json()) as {
+      counts: { recipes: number };
+      seed: { updateAvailable: boolean };
+    };
     if (stats.counts.recipes > 0 && !stats.seed.updateAvailable) return;
 
     const started = await admin.post('/api/admin/db/update');
-    if (!started.ok()) throw new Error(`The catalogue update answered ${started.status()}: ${await started.text()}`);
+    if (!started.ok())
+      throw new Error(`The catalogue update answered ${started.status()}: ${await started.text()}`);
     for (let waited = 0; ; waited += 1) {
-      const state = (await (await admin.get('/api/admin/db/update/status')).json()) as { status: string; error: string | null };
+      const state = (await (await admin.get('/api/admin/db/update/status')).json()) as {
+        status: string;
+        error: string | null;
+      };
       if (state.status === 'done') return;
-      if (state.status === 'error' || waited === CATALOGUE_WAIT) throw new Error(`The catalogue update did not finish: ${state.error ?? state.status}`);
+      if (state.status === 'error' || waited === CATALOGUE_WAIT)
+        throw new Error(`The catalogue update did not finish: ${state.error ?? state.status}`);
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   } finally {

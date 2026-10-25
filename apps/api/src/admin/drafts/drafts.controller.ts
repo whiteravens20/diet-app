@@ -71,10 +71,7 @@ import type { Env } from '../../config/env.js';
 import { AdminSessionGuard } from '../admin-session.guard.js';
 import { DraftService, invalid, type Actor } from './draft.service.js';
 import { toIngredientNameDraftDto, toRecipeDraftDto } from './drafts.mapper.js';
-import {
-  IngredientNamerRunner,
-  type IngredientNamerStartSpec,
-} from './ingredient-namer.runner.js';
+import { IngredientNamerRunner, type IngredientNamerStartSpec } from './ingredient-namer.runner.js';
 import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
 import { AdminModelService } from './admin-model.service.js';
 import { RecipeImportService } from './external/recipe-import.service.js';
@@ -95,11 +92,7 @@ import {
   type UpstreamShipConfig,
 } from './ship/upstream-mode.js';
 import { buildCurrentIngredientOverrides } from './ship/current-overrides.js';
-import {
-  pullOverrides,
-  PullOverridesError,
-  type PullPolicy,
-} from './ship/pull-overrides.js';
+import { pullOverrides, PullOverridesError, type PullPolicy } from './ship/pull-overrides.js';
 import { NothingShips } from './ship/shippable.js';
 import { instanceDataState, restoreInstanceData } from './ship/restore.js';
 import {
@@ -110,7 +103,6 @@ import {
 
 /** The administrator acting on a draft; a review carries the name they gave instead of this one. */
 const ADMIN: Actor = { role: 'ADMIN', label: 'admin' };
-
 
 @Controller('admin/drafts')
 @UseGuards(AdminSessionGuard)
@@ -137,8 +129,14 @@ export class DraftsController {
   @Post('ingredient-names/generate')
   @HttpCode(202)
   @Answers(DraftRunnerState)
-  async startNamerRun(@Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec): Promise<DraftRunnerState> {
-    const spec: IngredientNamerStartSpec = { scope: body.scope, slugs: body.slugs, targetLocales: body.targetLocales };
+  async startNamerRun(
+    @Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec,
+  ): Promise<DraftRunnerState> {
+    const spec: IngredientNamerStartSpec = {
+      scope: body.scope,
+      slugs: body.slugs,
+      targetLocales: body.targetLocales,
+    };
     const started = await this.namer.start(spec);
     if (!started) {
       throw new ConflictException({
@@ -180,7 +178,9 @@ export class DraftsController {
   /** One draft of a name. */
   @Get('ingredient-names/:id')
   @Answers(IngredientNameDraft)
-  async getIngredientNameDraft(@Param('id', requiredUuid) id: string): Promise<IngredientNameDraft> {
+  async getIngredientNameDraft(
+    @Param('id', requiredUuid) id: string,
+  ): Promise<IngredientNameDraft> {
     return toIngredientNameDraftDto(await this.drafts.ingredientName(id));
   }
 
@@ -191,7 +191,8 @@ export class DraftsController {
   @Answers(IngredientNameDraft)
   async patchIngredientNameDraft(
     @Param('id', requiredUuid) id: string,
-    @Body(new ZodValidationPipe(IngredientNameDraftPatchBody)) { suggestions }: IngredientNameDraftPatchBody,
+    @Body(new ZodValidationPipe(IngredientNameDraftPatchBody))
+    { suggestions }: IngredientNameDraftPatchBody,
   ): Promise<IngredientNameDraft> {
     return toIngredientNameDraftDto(await this.drafts.editIngredientName(id, suggestions, ADMIN));
   }
@@ -233,7 +234,9 @@ export class DraftsController {
   @Post('recipes/generate')
   @HttpCode(202)
   @Answers(RecipeRunState)
-  async startRecipeRun(@Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec): Promise<RecipeRunState> {
+  async startRecipeRun(
+    @Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec,
+  ): Promise<RecipeRunState> {
     const started = await this.recipeGen.start(spec);
     if (!started) {
       throw new ConflictException({
@@ -273,7 +276,9 @@ export class DraftsController {
   @Post('recipes/import')
   @HttpCode(200)
   @Answers(RecipeImportResult)
-  importRecipes(@Body(new ZodValidationPipe(RecipeImportRequest)) body: RecipeImportRequest): Promise<RecipeImportResult> {
+  importRecipes(
+    @Body(new ZodValidationPipe(RecipeImportRequest)) body: RecipeImportRequest,
+  ): Promise<RecipeImportResult> {
     return this.imports.import(body);
   }
 
@@ -302,9 +307,14 @@ export class DraftsController {
   @Post('translations/generate')
   @HttpCode(202)
   @Answers(DraftRunnerState)
-  async startTranslations(@Body(new ZodValidationPipe(TranslationGenerateSpec)) body: TranslationGenerateSpec): Promise<DraftRunnerState> {
+  async startTranslations(
+    @Body(new ZodValidationPipe(TranslationGenerateSpec)) body: TranslationGenerateSpec,
+  ): Promise<DraftRunnerState> {
     if (!(await this.translations.start(body))) {
-      throw new ConflictException({ error: 'TRANSLATIONS_IN_PROGRESS', message: 'A run that fills a language is already in progress.' });
+      throw new ConflictException({
+        error: 'TRANSLATIONS_IN_PROGRESS',
+        message: 'A run that fills a language is already in progress.',
+      });
     }
     return this.translationRunnerState();
   }
@@ -330,7 +340,9 @@ export class DraftsController {
   /** The recipe drafts, a page at a time, narrowed as asked. */
   @Get('recipes')
   @Answers(RecipeDraftPage)
-  async listRecipeDrafts(@Query(new ZodValidationPipe(RecipeDraftListQuery)) query: RecipeDraftListQuery): Promise<RecipeDraftPage> {
+  async listRecipeDrafts(
+    @Query(new ZodValidationPipe(RecipeDraftListQuery)) query: RecipeDraftListQuery,
+  ): Promise<RecipeDraftPage> {
     const found = await this.drafts.listRecipes(query);
     return { ...found, items: found.items.map(toRecipeDraftDto) };
   }
@@ -379,7 +391,8 @@ export class DraftsController {
   @HttpCode(200)
   @Answers(RejectedDrafts)
   rejectRecipeDrafts(
-    @Body(new ZodValidationPipe(DraftBulkRejectBody)) { ids, reviewedByLabel, reason }: DraftBulkRejectBody,
+    @Body(new ZodValidationPipe(DraftBulkRejectBody))
+    { ids, reviewedByLabel, reason }: DraftBulkRejectBody,
   ): Promise<RejectedDrafts> {
     return this.drafts.rejectRecipes(ids, reason, { ...ADMIN, label: reviewedByLabel });
   }
@@ -410,9 +423,7 @@ export class DraftsController {
    */
   @Post('recipes/:id/promote')
   @Answers(RecipeDraft)
-  async promoteRecipeDraft(
-    @Param('id', requiredUuid) id: string,
-  ): Promise<RecipeDraft> {
+  async promoteRecipeDraft(@Param('id', requiredUuid) id: string): Promise<RecipeDraft> {
     const existing = await this.drafts.recipe(id);
     if (existing.source !== 'AI_USER') {
       throw new BadRequestException({
@@ -439,7 +450,10 @@ export class DraftsController {
       });
     }
     const { sidecarError } = writeRecipeSidecar(this.resolveInstanceDataDir(), [outcome.content]);
-    if (sidecarError) this.logger.warn(`Promoted ${outcome.content.slug}, but its copy in the instance's data directory was not written: ${sidecarError}`);
+    if (sidecarError)
+      this.logger.warn(
+        `Promoted ${outcome.content.slug}, but its copy in the instance's data directory was not written: ${sidecarError}`,
+      );
     return toRecipeDraftDto(outcome.draft);
   }
 
@@ -483,8 +497,9 @@ export class DraftsController {
   /** Ship the approved drafts of a kind: into this instance, as a pull request, or as a file to save. */
   @Post('ship')
   @Answers(ShipResult)
-  async ship(@Body(new ZodValidationPipe(ShipRequest)) { kind, mode, batchIds }: ShipRequest): Promise<ShipResult> {
-
+  async ship(
+    @Body(new ZodValidationPipe(ShipRequest)) { kind, mode, batchIds }: ShipRequest,
+  ): Promise<ShipResult> {
     if (mode === 'local') {
       const instanceDataDir = this.resolveInstanceDataDir();
       const result =
@@ -516,7 +531,11 @@ export class DraftsController {
         return { mode: 'upstream-pr', ...result };
       } catch (err) {
         if (err instanceof UpstreamShipError) {
-          throw new ConflictException({ error: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) });
+          throw new ConflictException({
+            error: err.code,
+            message: err.message,
+            ...(err.details ? { details: err.details } : {}),
+          });
         }
         throw err;
       }
@@ -524,14 +543,24 @@ export class DraftsController {
 
     // bundle: the file itself comes back, to whoever asked with the administrator's credentials
     try {
-      const result = kind === 'recipe' ? await shipRecipesBundle(this.prisma, { kind, batchIds }) : await shipIngredientNamesBundle(this.prisma, { kind, batchIds });
+      const result =
+        kind === 'recipe'
+          ? await shipRecipesBundle(this.prisma, { kind, batchIds })
+          : await shipIngredientNamesBundle(this.prisma, { kind, batchIds });
       return { mode: 'bundle', ...result };
     } catch (err) {
       if (err instanceof NothingShips) {
-        throw new ConflictException({ error: 'NO_VALID_DRAFTS', message: 'None of the approved drafts can ship as they are.', details: { skipped: err.skipped } });
+        throw new ConflictException({
+          error: 'NO_VALID_DRAFTS',
+          message: 'None of the approved drafts can ship as they are.',
+          details: { skipped: err.skipped },
+        });
       }
       if (err instanceof Error && err.message === 'NO_APPROVED_DRAFTS') {
-        throw new ConflictException({ error: 'NO_APPROVED_DRAFTS', message: 'There are no approved drafts to ship.' });
+        throw new ConflictException({
+          error: 'NO_APPROVED_DRAFTS',
+          message: 'There are no approved drafts to ship.',
+        });
       }
       throw err;
     }
@@ -580,7 +609,9 @@ export class DraftsController {
    */
   @Post('ship/current-overrides/pull')
   @Answers(OverridesPulled)
-  async pullCurrentOverrides(@Body(new ZodValidationPipe(PullOverridesRequest.prefault({}))) body: PullOverridesRequest): Promise<OverridesPulled> {
+  async pullCurrentOverrides(
+    @Body(new ZodValidationPipe(PullOverridesRequest.prefault({}))) body: PullOverridesRequest,
+  ): Promise<OverridesPulled> {
     const source =
       body.source ??
       this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }) ??
@@ -616,7 +647,8 @@ export class DraftsController {
       .map((host) => host.trim())
       .filter((host) => host.length > 0);
     const preset = this.config.get('OVERRIDES_PULL_SOURCE', { infer: true });
-    const presetHost = /^https?:\/\//i.test(preset) && URL.canParse(preset) ? [new URL(preset).host] : [];
+    const presetHost =
+      /^https?:\/\//i.test(preset) && URL.canParse(preset) ? [new URL(preset).host] : [];
     return { token: this.pullToken(), allowedHosts: [...listed, ...presetHost] };
   }
 
@@ -635,7 +667,9 @@ export class DraftsController {
   /** Mark drafts as shipped, once the file a bundle gave is where it belongs. */
   @Post('ship/mark-shipped')
   @Answers(Updated)
-  async shipMarkShipped(@Body(new ZodValidationPipe(MarkShippedRequest)) { kind, draftIds }: MarkShippedRequest): Promise<Updated> {
+  async shipMarkShipped(
+    @Body(new ZodValidationPipe(MarkShippedRequest)) { kind, draftIds }: MarkShippedRequest,
+  ): Promise<Updated> {
     return markBundleShipped(this.prisma, kind, draftIds);
   }
 
@@ -652,7 +686,10 @@ export class DraftsController {
     const blocked = upstreamBlockedReason(config, repoRoot);
     if (blocked !== null || repoRoot === null) {
       const code = blocked ?? 'SHIP_REPO_ROOT_NOT_FOUND';
-      throw new ConflictException({ error: code, message: `Shipping as a pull request is refused: ${code}.` });
+      throw new ConflictException({
+        error: code,
+        message: `Shipping as a pull request is refused: ${code}.`,
+      });
     }
     return { config, repoRoot, dataDir: resolvePath(repoRoot, 'data') };
   }
@@ -674,13 +711,35 @@ export class DraftsController {
   }
 
   /** The administrator reviews the languages reviewers review: the name of an ingredient has no English. */
-  private async reviewIngredientName(id: string, locale: TargetLocale, { reviewedByLabel, reason }: DraftReviewBody, action: ReviewAction): Promise<IngredientNameDraft> {
-    return toIngredientNameDraftDto(await this.drafts.reviewIngredientName(id, { locale, action, reason }, { ...ADMIN, label: reviewedByLabel }));
+  private async reviewIngredientName(
+    id: string,
+    locale: TargetLocale,
+    { reviewedByLabel, reason }: DraftReviewBody,
+    action: ReviewAction,
+  ): Promise<IngredientNameDraft> {
+    return toIngredientNameDraftDto(
+      await this.drafts.reviewIngredientName(
+        id,
+        { locale, action, reason },
+        { ...ADMIN, label: reviewedByLabel },
+      ),
+    );
   }
 
   /** The administrator reviews any language of a recipe, and is the one who reviews English. */
-  private async reviewRecipe(id: string, locale: Locale, { reviewedByLabel, reason }: DraftReviewBody, action: ReviewAction): Promise<RecipeDraft> {
-    return toRecipeDraftDto(await this.drafts.reviewRecipe(id, { locale, action, reason }, { ...ADMIN, label: reviewedByLabel }));
+  private async reviewRecipe(
+    id: string,
+    locale: Locale,
+    { reviewedByLabel, reason }: DraftReviewBody,
+    action: ReviewAction,
+  ): Promise<RecipeDraft> {
+    return toRecipeDraftDto(
+      await this.drafts.reviewRecipe(
+        id,
+        { locale, action, reason },
+        { ...ADMIN, label: reviewedByLabel },
+      ),
+    );
   }
 
   private async namerRunnerState(): Promise<DraftRunnerState> {

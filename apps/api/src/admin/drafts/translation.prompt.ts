@@ -19,7 +19,13 @@ export const TRANSLATION_PROMPT_VERSION = 'translation.v1';
 
 const FEW_SHOT_DIR = join(__dirname, 'few-shot');
 
-const LANGUAGE: Record<string, string> = { pl: 'Polish', de: 'German', fr: 'French', es: 'Spanish', en: 'English' };
+const LANGUAGE: Record<string, string> = {
+  pl: 'Polish',
+  de: 'German',
+  fr: 'French',
+  es: 'Spanish',
+  en: 'English',
+};
 const languageOf = (locale: string): string => `${LANGUAGE[locale] ?? locale} (${locale})`;
 
 /** The text of a recipe that is translated. */
@@ -42,9 +48,16 @@ function readExamples<T>(file: string): T[] {
 
 /** Up to two curated recipes in English and in `locale`, as the model is to answer. */
 function recipeExamples(locale: string): string {
-  type Curated = { title?: Record<string, string>; description?: Record<string, string>; steps?: Record<string, string[]> };
+  type Curated = {
+    title?: Record<string, string>;
+    description?: Record<string, string>;
+    steps?: Record<string, string[]>;
+  };
   const pairs = readExamples<Curated>(`recipe.${locale}.json`)
-    .filter((recipe) => recipe.title?.en && recipe.title[locale] && recipe.steps?.en && recipe.steps[locale])
+    .filter(
+      (recipe) =>
+        recipe.title?.en && recipe.title[locale] && recipe.steps?.en && recipe.steps[locale],
+    )
     .slice(0, 2)
     .map(
       (recipe) =>

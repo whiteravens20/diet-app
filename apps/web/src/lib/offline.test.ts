@@ -39,17 +39,43 @@ describe('what a browser keeps of an account for when the server cannot be reach
   });
 
   it('is the answers to what the plan and the shopping pages read, and to nothing else', () => {
-    for (const kept of ['/users/me', '/config', '/profiles', '/profiles/abc/calories', '/meal-plans?profileId=abc&page=1', PLAN, '/meal-plans/calendar?profileId=abc&from=2026-01-01&to=2026-02-01', '/meal-plans/overview?profileId=abc', '/weights?profileId=abc', '/shopping-lists?planId=abc', '/favorites?profileId=abc', '/favorite-sets?profileId=abc', '/recipes/abc']) {
+    for (const kept of [
+      '/users/me',
+      '/config',
+      '/profiles',
+      '/profiles/abc/calories',
+      '/meal-plans?profileId=abc&page=1',
+      PLAN,
+      '/meal-plans/calendar?profileId=abc&from=2026-01-01&to=2026-02-01',
+      '/meal-plans/overview?profileId=abc',
+      '/weights?profileId=abc',
+      '/shopping-lists?planId=abc',
+      '/favorites?profileId=abc',
+      '/favorite-sets?profileId=abc',
+      '/recipes/abc',
+    ]) {
       expect(offline.keeps(kept), kept).toBe(true);
     }
-    for (const left of ['/users/me/sessions', '/users/me/export', '/ai/providers', '/inventory?profileId=abc', '/notifications/unread', '/recipes?search=rice', '/meal-plans/abc/meals/def/substitutes', '/profiles/abc']) {
+    for (const left of [
+      '/users/me/sessions',
+      '/users/me/export',
+      '/ai/providers',
+      '/inventory?profileId=abc',
+      '/notifications/unread',
+      '/recipes?search=rice',
+      '/meal-plans/abc/meals/def/substitutes',
+      '/profiles/abc',
+    ]) {
       expect(offline.keeps(left), left).toBe(false);
     }
   });
 
   it('gives back the answer the API gave last, once the API cannot be reached', async () => {
     await offline.belongsTo(ANNA);
-    const ask = vi.fn<() => Promise<unknown>>().mockResolvedValueOnce({ id: 'plan', days: 3 }).mockRejectedValue(noAnswer());
+    const ask = vi
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce({ id: 'plan', days: 3 })
+      .mockRejectedValue(noAnswer());
 
     expect(await offline.through(PLAN, ask)).toEqual({ id: 'plan', days: 3 });
     expect(offline.serving).toBe(false);
@@ -69,8 +95,12 @@ describe('what a browser keeps of an account for when the server cannot be reach
     const refused = new ApiClientError(404, 'PLAN_NOT_FOUND', 'gone');
 
     await expect(offline.through(PLAN, () => Promise.reject(refused))).rejects.toBe(refused);
-    await expect(offline.through('/meal-plans/another', () => Promise.reject(noAnswer()))).rejects.toMatchObject({ code: 'NETWORK' });
-    await expect(offline.through('/users/me/sessions', () => Promise.reject(noAnswer()))).rejects.toMatchObject({ code: 'NETWORK' });
+    await expect(
+      offline.through('/meal-plans/another', () => Promise.reject(noAnswer())),
+    ).rejects.toMatchObject({ code: 'NETWORK' });
+    await expect(
+      offline.through('/users/me/sessions', () => Promise.reject(noAnswer())),
+    ).rejects.toMatchObject({ code: 'NETWORK' });
     expect(offline.serving).toBe(false);
   });
 
@@ -122,15 +152,22 @@ describe('what a browser keeps of an account for when the server cannot be reach
 
   it('keeps the answers read last when there are more than it holds', async () => {
     await offline.belongsTo(ANNA);
-    for (let plan = 0; plan < 85; plan += 1) await offline.remember(`/meal-plans/plan-${plan}`, { plan });
+    for (let plan = 0; plan < 85; plan += 1)
+      await offline.remember(`/meal-plans/plan-${plan}`, { plan });
     // The first is read again: it is no longer the oldest.
     await offline.remember('/meal-plans/plan-5', { plan: 5 });
     await offline.remember('/meal-plans/plan-85', { plan: 85 });
 
     expect(await stores.held(stores.names()[0]!)).toHaveLength(80);
     expect(await offline.recall('/meal-plans/plan-0')).toEqual({ found: false });
-    expect(await offline.recall('/meal-plans/plan-5')).toEqual({ found: true, answer: { plan: 5 } });
-    expect(await offline.recall('/meal-plans/plan-85')).toEqual({ found: true, answer: { plan: 85 } });
+    expect(await offline.recall('/meal-plans/plan-5')).toEqual({
+      found: true,
+      answer: { plan: 5 },
+    });
+    expect(await offline.recall('/meal-plans/plan-85')).toEqual({
+      found: true,
+      answer: { plan: 85 },
+    });
   });
 });
 
@@ -157,7 +194,8 @@ describe('the ticks of a shopping list that wait for the server', () => {
   });
 
   it('are not kept for nobody, nor beyond the most that can wait', async () => {
-    for (let row = 0; row < MOST_WAITING; row += 1) expect(offline.wait(tick(`row-${row}`))).toBe(true);
+    for (let row = 0; row < MOST_WAITING; row += 1)
+      expect(offline.wait(tick(`row-${row}`))).toBe(true);
     expect(offline.wait(tick('one-more'))).toBe(false);
     // A row that waits already can still change its mind.
     expect(offline.wait(tick('row-3', false))).toBe(true);
@@ -181,7 +219,10 @@ describe('the ticks of a shopping list that wait for the server', () => {
     offline.wait(tick('rice'));
     offline.wait(tick('oats'));
     offline.wait(tick('tofu'));
-    const send = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValue(new ApiClientError(0, 'NETWORK', 'no answer'));
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValue(new ApiClientError(0, 'NETWORK', 'no answer'));
 
     expect(await offline.replay(send)).toEqual({ sent: 1, refused: 0, left: 2 });
     expect(send).toHaveBeenCalledTimes(2);
@@ -191,7 +232,10 @@ describe('the ticks of a shopping list that wait for the server', () => {
   it('are dropped when the server refuses them, and the ones after them are sent', async () => {
     offline.wait(tick('rice'));
     offline.wait(tick('oats'));
-    const send = vi.fn().mockRejectedValueOnce(new ApiClientError(404, 'LIST_NOT_FOUND', 'gone')).mockResolvedValue(undefined);
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(new ApiClientError(404, 'LIST_NOT_FOUND', 'gone'))
+      .mockResolvedValue(undefined);
 
     expect(await offline.replay(send)).toEqual({ sent: 1, refused: 1, left: 0 });
     expect(offline.waiting).toEqual([]);

@@ -144,7 +144,9 @@ function renderFewShotForLocale(locale: string): string {
   const stratified = stratify(loadFewShot(locale));
   if (stratified.length === 0) return '';
   const label = LOCALE_LABEL[locale] ?? locale;
-  const blocks = stratified.map((r) => `${r.complexity}:\n${JSON.stringify(asAnswered(r), null, 2)}`).join('\n\n');
+  const blocks = stratified
+    .map((r) => `${r.complexity}:\n${JSON.stringify(asAnswered(r), null, 2)}`)
+    .join('\n\n');
   return `Exemplar recipes — ${label} (${locale}). Each is one entry of "recipes", written as yours must be; the word above it is its complexity band and no part of the entry:\n${blocks}\n\n`;
 }
 
@@ -155,7 +157,19 @@ function renderCatalogue(catalogue: CatalogueRow[], targetLocales: readonly stri
   // a text that calls it something else than the shopping list does reads as
   // another ingredient.
   const others = targetLocales.filter((locale) => locale !== 'en');
-  const header = ['slug', 'name_en', ...others.map((locale) => `name_${locale}`), 'category', 'unit', 'kcal/100', 'P/100', 'F/100', 'C/100', 'allergens', 'diets'].join('\t');
+  const header = [
+    'slug',
+    'name_en',
+    ...others.map((locale) => `name_${locale}`),
+    'category',
+    'unit',
+    'kcal/100',
+    'P/100',
+    'F/100',
+    'C/100',
+    'allergens',
+    'diets',
+  ].join('\t');
   const rows = catalogue.map((row) => {
     const enName = row.names.en ?? row.slug;
     const allergens = row.allergens.length > 0 ? row.allergens.join(',') : '-';
@@ -181,7 +195,9 @@ function renderExistingRecipes(existing: ExistingRecipeSummary[] | undefined): s
   if (!existing || existing.length === 0) return '';
   const trimmed = existing.slice(0, MAX_EXISTING_RECIPES_IN_PROMPT);
   // Data, not prose: one JSON object a line, made of slugs alone.
-  const lines = trimmed.map((r) => JSON.stringify({ slug: r.slug, ingredients: r.ingredientSlugs }));
+  const lines = trimmed.map((r) =>
+    JSON.stringify({ slug: r.slug, ingredients: r.ingredientSlugs }),
+  );
   const suffix =
     existing.length > trimmed.length
       ? `\n(+ ${existing.length - trimmed.length} more not shown)`
@@ -209,9 +225,7 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
   const targetLocales = input.targetLocales.includes('en' as Locale)
     ? input.targetLocales
     : (['en', ...input.targetLocales] as Locale[]);
-  const localeList = targetLocales
-    .map((l) => `${LOCALE_LABEL[l] ?? l} (${l})`)
-    .join(', ');
+  const localeList = targetLocales.map((l) => `${LOCALE_LABEL[l] ?? l} (${l})`).join(', ');
   const targetCounts = input.targets;
   const count = targetCounts.simple + targetCounts.medium + targetCounts.complex;
   const fewShot = targetLocales.map((l) => renderFewShotForLocale(l)).join('');
@@ -234,7 +248,9 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
     );
   }
   if (input.mealTypes && input.mealTypes.length > 0) {
-    constraints.push(`- Every recipe MUST suit at least one of these meals: ${input.mealTypes.join(', ')}. It names the other meals it suits as well (rule 14).`);
+    constraints.push(
+      `- Every recipe MUST suit at least one of these meals: ${input.mealTypes.join(', ')}. It names the other meals it suits as well (rule 14).`,
+    );
   }
   if (input.cuisine) {
     constraints.push(`- Cuisine direction: ${input.cuisine}.`);
@@ -255,9 +271,7 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
   const constraintsBlock =
     constraints.length > 0 ? `\nAdditional constraints:\n${constraints.join('\n')}\n` : '';
 
-  const localeKeyHints = targetLocales
-    .map((l) => `      "${l}": "..."`)
-    .join(',\n');
+  const localeKeyHints = targetLocales.map((l) => `      "${l}": "..."`).join(',\n');
   const localeStepsHints = targetLocales
     .map((l) => `      "${l}": ["step 1", "step 2"]`)
     .join(',\n');

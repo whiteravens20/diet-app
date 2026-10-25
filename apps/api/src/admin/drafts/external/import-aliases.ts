@@ -22,7 +22,10 @@ export const IMPORT_ALIASES_FILE = 'import-aliases.json';
  * no alias and nothing wrong. With `slugs`, an alias for an ingredient the
  * catalogue does not have is named: it would never be used.
  */
-export function readImportAliases(dataDir: string, slugs?: ReadonlySet<string>): { aliases: Record<string, string>; problems: string[] } {
+export function readImportAliases(
+  dataDir: string,
+  slugs?: ReadonlySet<string>,
+): { aliases: Record<string, string>; problems: string[] } {
   const path = join(dataDir, IMPORT_ALIASES_FILE);
   if (!existsSync(path)) return { aliases: {}, problems: [] };
   let parsed: unknown;
@@ -31,13 +34,19 @@ export function readImportAliases(dataDir: string, slugs?: ReadonlySet<string>):
   } catch (err) {
     return { aliases: {}, problems: [`invalid JSON: ${(err as Error).message}`] };
   }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return { aliases: {}, problems: ['expected an object of names, each with the slug of an ingredient'] };
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+    return {
+      aliases: {},
+      problems: ['expected an object of names, each with the slug of an ingredient'],
+    };
 
   const aliases: Record<string, string> = {};
   const problems: string[] = [];
   for (const [name, slug] of Object.entries(parsed)) {
-    if (typeof slug !== 'string' || slug === '') problems.push(`"${name}": expected the slug of an ingredient`);
-    else if (slugs && !slugs.has(slug)) problems.push(`"${name}": the catalogue has no ingredient "${slug}"`);
+    if (typeof slug !== 'string' || slug === '')
+      problems.push(`"${name}": expected the slug of an ingredient`);
+    else if (slugs && !slugs.has(slug))
+      problems.push(`"${name}": the catalogue has no ingredient "${slug}"`);
     else aliases[name] = slug;
   }
   return { aliases, problems };

@@ -27,7 +27,9 @@ const TARGET = 2000;
 const dataDir = process.argv[2] ?? join(__dirname, '../../../data');
 const { catalogue, problems } = readCatalogue(dataDir);
 if (!catalogue) {
-  console.error(`The data in ${dataDir} does not load: ${problems.length} problem(s). Run the data lint.`);
+  console.error(
+    `The data in ${dataDir} does not load: ${problems.length} problem(s). Run the data lint.`,
+  );
   process.exit(1);
 }
 
@@ -40,7 +42,9 @@ console.log(
 for (const diet of DietType.options.filter((option) => option !== 'custom')) {
   const split = macroSplitOf(diet);
   console.log(diet);
-  console.log('  weight   packs used %   packs opened   left more than a fifth of   off the split   recipes in a week');
+  console.log(
+    '  weight   packs used %   packs opened   left more than a fifth of   off the split   recipes in a week',
+  );
   for (const packs of WEIGHTS) {
     let bought = 0;
     let used = 0;
@@ -76,7 +80,8 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
         distinct += new Set(result.assignments.map((placed) => placed.recipeId)).size;
         const needs = new Map<string, number>();
         for (const placed of result.assignments) {
-          for (const [ingredientId, perServing] of byId.get(placed.recipeId)!.amounts ?? []) needs.set(ingredientId, (needs.get(ingredientId) ?? 0) + perServing * placed.servings);
+          for (const [ingredientId, perServing] of byId.get(placed.recipeId)!.amounts ?? [])
+            needs.set(ingredientId, (needs.get(ingredientId) ?? 0) + perServing * placed.servings);
         }
         const week = packUse(needs, perishablePacks);
         bought += week.bought;

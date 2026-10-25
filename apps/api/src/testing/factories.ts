@@ -30,7 +30,11 @@ import { MealSwapService } from '../meal-plans/meal-swap.service.js';
 import { PlanGenerationService } from '../meal-plans/plan-generation.service.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { ADMIN_COOKIE, signAdminSession } from '../admin/admin-session.js';
-import { REVIEWER_COOKIE_NAME, resolveReviewerSecret, signReviewerCookie } from '../review/session.js';
+import {
+  REVIEWER_COOKIE_NAME,
+  resolveReviewerSecret,
+  signReviewerCookie,
+} from '../review/session.js';
 import type { TestApp } from './test-app.js';
 
 export interface TestUser {
@@ -49,14 +53,23 @@ export const as = (user: TestUser): { Authorization: string } => ({
 });
 
 /** A registered account. */
-export async function aUser(t: TestApp, overrides: Partial<Pick<TestUser, 'email' | 'password'>> = {}): Promise<TestUser> {
+export async function aUser(
+  t: TestApp,
+  overrides: Partial<Pick<TestUser, 'email' | 'password'>> = {},
+): Promise<TestUser> {
   sequence += 1;
   const email = overrides.email ?? `user-${sequence}-${Date.now().toString(36)}@example.test`;
   const password = overrides.password ?? 'Integration-Passw0rd';
   const { user, tokens } = await t.app
     .get(AuthService)
     .register({ email, password, displayName: `User ${sequence}` });
-  return { id: user.id, email, password, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+  return {
+    id: user.id,
+    email,
+    password,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+  };
 }
 
 /**
@@ -64,15 +77,30 @@ export async function aUser(t: TestApp, overrides: Partial<Pick<TestUser, 'email
  * second step: one that has it is answered with a challenge, which is no
  * session.
  */
-export async function aSession(t: TestApp, user: Pick<TestUser, 'email' | 'password'>): Promise<OpenedSession> {
+export async function aSession(
+  t: TestApp,
+  user: Pick<TestUser, 'email' | 'password'>,
+): Promise<OpenedSession> {
   const answer = await t.app.get(AuthService).login({ email: user.email, password: user.password });
-  if ('secondFactor' in answer) throw new Error('The account signs in with a second step: there is no session yet.');
+  if ('secondFactor' in answer)
+    throw new Error('The account signs in with a second step: there is no session yet.');
   return answer;
 }
 
 /** A profile of `user`: a 30-year-old on a balanced diet with three meals unless overridden. */
-export function aProfile(t: TestApp, user: TestUser, overrides: Partial<z.input<typeof ProfileInput>> = {}): Promise<Profile> {
-  const input = ProfileInput.parse({ name: 'Me', age: 30, sex: 'male', heightCm: 180, weightKg: 80, ...overrides });
+export function aProfile(
+  t: TestApp,
+  user: TestUser,
+  overrides: Partial<z.input<typeof ProfileInput>> = {},
+): Promise<Profile> {
+  const input = ProfileInput.parse({
+    name: 'Me',
+    age: 30,
+    sex: 'male',
+    heightCm: 180,
+    weightKg: 80,
+    ...overrides,
+  });
   return t.app.get(ProfilesService).create(user.id, input);
 }
 
@@ -93,11 +121,22 @@ export function aPlan(
 }
 
 /** Ask for a recipe in the place of a meal and take what is offered: a swap as a user makes one. */
-export async function aSwap(t: TestApp, user: TestUser, request: z.input<typeof SwapMealRequest>): Promise<RebalanceResult> {
+export async function aSwap(
+  t: TestApp,
+  user: TestUser,
+  request: z.input<typeof SwapMealRequest>,
+): Promise<RebalanceResult> {
   const swaps = t.app.get(MealSwapService);
   const asked = SwapMealRequest.parse(request);
   const offer = await swaps.preview(user.id, 'en', asked);
-  return swaps.apply(user.id, 'en', { planId: asked.planId, plannedMealId: asked.plannedMealId, recipeId: offer.recipe.id, revision: offer.revision, strategy: asked.strategy, allowOffDiet: asked.allowOffDiet });
+  return swaps.apply(user.id, 'en', {
+    planId: asked.planId,
+    plannedMealId: asked.plannedMealId,
+    recipeId: offer.recipe.id,
+    revision: offer.revision,
+    strategy: asked.strategy,
+    allowOffDiet: asked.allowOffDiet,
+  });
 }
 
 /** The same with a model asked which recipe to take; `aiMeta` is what the offer said of the pick. */
@@ -110,12 +149,22 @@ export async function anAiSwap(
   const swaps = t.app.get(MealSwapService);
   const asked = AiSwapMealRequest.parse(request);
   const offer = await swaps.previewWithAi(user.id, locale, asked);
-  const made = await swaps.apply(user.id, locale, { planId: asked.planId, plannedMealId: asked.plannedMealId, recipeId: offer.recipe.id, revision: offer.revision, strategy: 'random', allowOffDiet: false });
+  const made = await swaps.apply(user.id, locale, {
+    planId: asked.planId,
+    plannedMealId: asked.plannedMealId,
+    recipeId: offer.recipe.id,
+    revision: offer.revision,
+    strategy: 'random',
+    allowOffDiet: false,
+  });
   return { ...made, aiMeta: offer.aiMeta };
 }
 
 /** Run `n` calls of `fn` at the same time and report how each ended. */
-export function race<T>(n: number, fn: (index: number) => Promise<T>): Promise<PromiseSettledResult<T>[]> {
+export function race<T>(
+  n: number,
+  fn: (index: number) => Promise<T>,
+): Promise<PromiseSettledResult<T>[]> {
   return Promise.allSettled(Array.from({ length: n }, (_, index) => fn(index)));
 }
 
@@ -157,7 +206,14 @@ export async function aPrivateRecipe(
  */
 export const asAdmin = {
   Cookie: `${ADMIN_COOKIE}=${signAdminSession(
-    { get: (key: string) => ({ DATA_ENCRYPTION_SECRET: 'b2'.repeat(32), ADMIN_USER: 'admin', ADMIN_PASSWORD: 'integration-test-admin-password' })[key] } as never,
+    {
+      get: (key: string) =>
+        ({
+          DATA_ENCRYPTION_SECRET: 'b2'.repeat(32),
+          ADMIN_USER: 'admin',
+          ADMIN_PASSWORD: 'integration-test-admin-password',
+        })[key],
+    } as never,
     0,
   )}`,
   Origin: 'http://localhost:3000',
@@ -169,17 +225,32 @@ export const asAdmin = {
  * asked for over HTTP, so that a file with many tests does not meet the limit
  * on reviewer sign-ins.
  */
-export async function aReviewer(t: TestApp, label = 'pl reviewer'): Promise<{ Cookie: string; Origin: string }> {
+export async function aReviewer(
+  t: TestApp,
+  label = 'pl reviewer',
+): Promise<{ Cookie: string; Origin: string }> {
   const settings = t.app.get(InstanceSettingsService);
   await settings.patch({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' });
   return aReviewerSession(t, label);
 }
 
 /** The headers of a reviewer's session under the settings as they are now: the cookie, and where the request comes from. */
-export async function aReviewerSession(t: TestApp, label = 'pl reviewer'): Promise<{ Cookie: string; Origin: string }> {
-  const { reviewerSessionEpoch } = await t.app.get(InstanceSettingsService).readReviewerCredentials();
-  const { token } = signReviewerCookie(t.app.get(JwtService, { strict: false }), resolveReviewerSecret(t.app.get(ConfigService)), { label, epoch: reviewerSessionEpoch });
-  return { Cookie: `${REVIEWER_COOKIE_NAME}=${token}`, Origin: t.app.get<ConfigService<Env, true>>(ConfigService).get('APP_URL', { infer: true }) };
+export async function aReviewerSession(
+  t: TestApp,
+  label = 'pl reviewer',
+): Promise<{ Cookie: string; Origin: string }> {
+  const { reviewerSessionEpoch } = await t.app
+    .get(InstanceSettingsService)
+    .readReviewerCredentials();
+  const { token } = signReviewerCookie(
+    t.app.get(JwtService, { strict: false }),
+    resolveReviewerSecret(t.app.get(ConfigService)),
+    { label, epoch: reviewerSessionEpoch },
+  );
+  return {
+    Cookie: `${REVIEWER_COOKIE_NAME}=${token}`,
+    Origin: t.app.get<ConfigService<Env, true>>(ConfigService).get('APP_URL', { infer: true }),
+  };
 }
 
 /**
@@ -197,14 +268,22 @@ export async function aRecipeDraft(
   ],
 ) {
   sequence += 1;
-  const rows = await t.prisma.ingredient.findMany({ where: { slug: { in: lines.map((line) => line.slug) } } });
-  const facts = recipeFacts(lines.map((line) => ({ ...line, ingredient: rows.find((row) => row.slug === line.slug)! })), 1);
+  const rows = await t.prisma.ingredient.findMany({
+    where: { slug: { in: lines.map((line) => line.slug) } },
+  });
+  const facts = recipeFacts(
+    lines.map((line) => ({ ...line, ingredient: rows.find((row) => row.slug === line.slug)! })),
+    1,
+  );
   return t.prisma.recipeDraft.create({
     data: {
       slug: `draft-dish-${sequence}`,
       titles: { en: 'Oat bowl', pl: 'Owsianka' },
       descriptions: { en: 'Oats with a banana.', pl: 'Płatki z bananem.' },
-      steps: { en: ['Warm the drink.', 'Stir in the oats and the banana.'], pl: ['Podgrzej napój.', 'Wmieszaj płatki i banana.'] },
+      steps: {
+        en: ['Warm the drink.', 'Stir in the oats and the banana.'],
+        pl: ['Podgrzej napój.', 'Wmieszaj płatki i banana.'],
+      },
       locales: ['en', 'pl'],
       servings: 1,
       mealTypes: ['breakfast'],
@@ -227,7 +306,10 @@ export async function aRecipeDraft(
 }
 
 /** A draft of a Polish name for an ingredient of the test catalogue, pending. */
-export function anIngredientNameDraft(t: TestApp, overrides: Partial<Prisma.IngredientNameDraftUncheckedCreateInput> = {}) {
+export function anIngredientNameDraft(
+  t: TestApp,
+  overrides: Partial<Prisma.IngredientNameDraftUncheckedCreateInput> = {},
+) {
   return t.prisma.ingredientNameDraft.create({
     data: {
       ingredientSlug: 'chicken-breast',

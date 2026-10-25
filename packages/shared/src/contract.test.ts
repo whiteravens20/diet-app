@@ -1,19 +1,45 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { CaloriePreviewRequest, DietType, FdcDataTypes, MacroChange, Macros, MacroSplit, MEAL_SLOTS_BY_COUNT, PACES_OF_LOSS, ProfileInput, ProfileUpdate, RecipeDietTag, RegisterRequest, ShipResult, fitsDiet } from './index.js';
+import {
+  CaloriePreviewRequest,
+  DietType,
+  FdcDataTypes,
+  MacroChange,
+  Macros,
+  MacroSplit,
+  MEAL_SLOTS_BY_COUNT,
+  PACES_OF_LOSS,
+  ProfileInput,
+  ProfileUpdate,
+  RecipeDietTag,
+  RegisterRequest,
+  ShipResult,
+  fitsDiet,
+} from './index.js';
 
 describe('fitsDiet', () => {
-  it.each(RecipeDietTag.options)('admits a recipe to a %s plan only when it carries that tag', (diet) => {
-    expect(fitsDiet([diet], diet)).toBe(true);
-    expect(fitsDiet([], diet)).toBe(false);
-    expect(fitsDiet(RecipeDietTag.options.filter((tag) => tag !== diet), diet)).toBe(false);
-  });
+  it.each(RecipeDietTag.options)(
+    'admits a recipe to a %s plan only when it carries that tag',
+    (diet) => {
+      expect(fitsDiet([diet], diet)).toBe(true);
+      expect(fitsDiet([], diet)).toBe(false);
+      expect(
+        fitsDiet(
+          RecipeDietTag.options.filter((tag) => tag !== diet),
+          diet,
+        ),
+      ).toBe(false);
+    },
+  );
 
-  it.each(['balanced', 'high_protein', 'custom'] as const)('admits any recipe to a %s plan', (diet) => {
-    expect(fitsDiet([], diet)).toBe(true);
-    expect(fitsDiet(['keto'], diet)).toBe(true);
-  });
+  it.each(['balanced', 'high_protein', 'custom'] as const)(
+    'admits any recipe to a %s plan',
+    (diet) => {
+      expect(fitsDiet([], diet)).toBe(true);
+      expect(fitsDiet(['keto'], diet)).toBe(true);
+    },
+  );
 
   it('knows every diet as one that needs a tag or one that does not', () => {
     const needsTag = DietType.options.filter((diet) => !fitsDiet([], diet));
@@ -31,12 +57,18 @@ describe('the data sets of the food database an import may name', () => {
     expect(FdcDataTypes.parse(given)).toBe(parsed);
   });
 
-  it.each(['', ' , ', 'Branded', 'Foundation,Branded', 'Foundation,Foundation', 'foundation', ['Foundation', 'Survey (FNDDS)'], 42])(
-    'refuses %j',
-    (given) => {
-      expect(FdcDataTypes.safeParse(given).success).toBe(false);
-    },
-  );
+  it.each([
+    '',
+    ' , ',
+    'Branded',
+    'Foundation,Branded',
+    'Foundation,Foundation',
+    'foundation',
+    ['Foundation', 'Survey (FNDDS)'],
+    42,
+  ])('refuses %j', (given) => {
+    expect(FdcDataTypes.safeParse(given).success).toBe(false);
+  });
 });
 
 describe('API contract schemas', () => {
@@ -107,8 +139,12 @@ describe('the figures a calorie target is worked out from before there is a prof
   it('are held to the bounds of a profile', () => {
     expect(CaloriePreviewRequest.safeParse({ ...typed, age: 12 }).success).toBe(false);
     expect(CaloriePreviewRequest.safeParse({ ...typed, weightKg: 29 }).success).toBe(false);
-    expect(CaloriePreviewRequest.safeParse({ ...typed, manualCalorieTarget: 1 }).success).toBe(false);
-    expect(CaloriePreviewRequest.safeParse({ ...typed, dietType: 'custom' }).error?.issues[0]?.path).toEqual(['customMacroSplit']);
+    expect(CaloriePreviewRequest.safeParse({ ...typed, manualCalorieTarget: 1 }).success).toBe(
+      false,
+    );
+    expect(
+      CaloriePreviewRequest.safeParse({ ...typed, dietType: 'custom' }).error?.issues[0]?.path,
+    ).toEqual(['customMacroSplit']);
   });
 
   it('are worked out at every pace a profile may choose, beginning with no loss', () => {
@@ -126,10 +162,20 @@ describe("somebody's own split of a day's energy", () => {
 
   it('gives each of the three at least what a diet needs of it and at most what leaves room for the others', () => {
     // The splits of the diets the application names all fit.
-    for (const split of [{ protein: 25, fat: 70, carbs: 5 }, { protein: 40, fat: 30, carbs: 30 }, { protein: 20, fat: 28, carbs: 52 }]) {
+    for (const split of [
+      { protein: 25, fat: 70, carbs: 5 },
+      { protein: 40, fat: 30, carbs: 30 },
+      { protein: 20, fat: 28, carbs: 52 },
+    ]) {
       expect(MacroSplit.safeParse(split).success).toBe(true);
     }
-    for (const split of [{ protein: 9, fat: 41, carbs: 50 }, { protein: 46, fat: 24, carbs: 30 }, { protein: 30, fat: 14, carbs: 56 }, { protein: 20, fat: 76, carbs: 4 }, { protein: 15, fat: 15, carbs: 70 + 1 }]) {
+    for (const split of [
+      { protein: 9, fat: 41, carbs: 50 },
+      { protein: 46, fat: 24, carbs: 30 },
+      { protein: 30, fat: 14, carbs: 56 },
+      { protein: 20, fat: 76, carbs: 4 },
+      { protein: 15, fat: 15, carbs: 70 + 1 },
+    ]) {
       expect(MacroSplit.safeParse(split).success).toBe(false);
     }
   });
@@ -141,18 +187,32 @@ describe("somebody's own split of a day's energy", () => {
     expect(without.success).toBe(false);
     expect(without.error?.issues[0]?.path).toEqual(['customMacroSplit']);
 
-    expect(ProfileInput.parse({ ...aProfile, dietType: 'custom', customMacroSplit: { protein: 30, fat: 40, carbs: 30 } }).customMacroSplit).toEqual({ protein: 30, fat: 40, carbs: 30 });
+    expect(
+      ProfileInput.parse({
+        ...aProfile,
+        dietType: 'custom',
+        customMacroSplit: { protein: 30, fat: 40, carbs: 30 },
+      }).customMacroSplit,
+    ).toEqual({ protein: 30, fat: 40, carbs: 30 });
   });
 
   it('is nothing a profile on another diet has to say, and something it may keep', () => {
     expect(ProfileInput.parse(aProfile).customMacroSplit).toBeNull();
-    expect(ProfileInput.parse({ ...aProfile, dietType: 'vegan', customMacroSplit: { protein: 30, fat: 40, carbs: 30 } }).customMacroSplit).toEqual({ protein: 30, fat: 40, carbs: 30 });
+    expect(
+      ProfileInput.parse({
+        ...aProfile,
+        dietType: 'vegan',
+        customMacroSplit: { protein: 30, fat: 40, carbs: 30 },
+      }).customMacroSplit,
+    ).toEqual({ protein: 30, fat: 40, carbs: 30 });
   });
 
   it('is a part of a profile that a change of the whole profile names like every other', () => {
     const whole = { ...ProfileInput.parse(aProfile) };
     expect(ProfileUpdate.safeParse(whole).success).toBe(true);
-    const withoutIt = Object.fromEntries(Object.entries(whole).filter(([part]) => part !== 'customMacroSplit'));
+    const withoutIt = Object.fromEntries(
+      Object.entries(whole).filter(([part]) => part !== 'customMacroSplit'),
+    );
     expect(ProfileUpdate.safeParse(withoutIt).success).toBe(false);
     expect(ProfileUpdate.safeParse({ ...whole, dietType: 'custom' }).success).toBe(false);
   });
@@ -168,9 +228,25 @@ describe('what a change of protein, fat and carbohydrate may be', () => {
 
 describe('what a ship answers with', () => {
   it('is told apart by the mode it was made in', () => {
-    const local = { mode: 'local', kind: 'recipe', shippedDraftIds: ['a'], skipped: [], sidecarPaths: [] };
+    const local = {
+      mode: 'local',
+      kind: 'recipe',
+      shippedDraftIds: ['a'],
+      skipped: [],
+      sidecarPaths: [],
+    };
     expect(ShipResult.parse(local)).toEqual(local);
     expect(ShipResult.safeParse({ ...local, mode: 'upstream-pr' }).success).toBe(false);
-    expect(ShipResult.safeParse({ mode: 'bundle', kind: 'ingredient-name', batchId: 'b', draftIds: [], skipped: [{ draftId: 'd', slug: 's', reason: 'r' }], fileName: 'f.json', content: {} }).success).toBe(true);
+    expect(
+      ShipResult.safeParse({
+        mode: 'bundle',
+        kind: 'ingredient-name',
+        batchId: 'b',
+        draftIds: [],
+        skipped: [{ draftId: 'd', slug: 's', reason: 'r' }],
+        fileName: 'f.json',
+        content: {},
+      }).success,
+    ).toBe(true);
   });
 });

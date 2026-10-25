@@ -47,15 +47,29 @@ const aListOf = (grains: Entry[], vegetables: Entry[]): ShoppingList => ({
   fromDate: '2026-01-05',
   toDate: '2026-01-07',
   groups: [
-    { category: 'grains', items: grains, estimatedCalories: grains.reduce((sum, entry) => sum + entry.estimatedCalories, 0) },
-    { category: 'vegetables', items: vegetables, estimatedCalories: vegetables.reduce((sum, entry) => sum + entry.estimatedCalories, 0) },
+    {
+      category: 'grains',
+      items: grains,
+      estimatedCalories: grains.reduce((sum, entry) => sum + entry.estimatedCalories, 0),
+    },
+    {
+      category: 'vegetables',
+      items: vegetables,
+      estimatedCalories: vegetables.reduce((sum, entry) => sum + entry.estimatedCalories, 0),
+    },
   ],
-  totalEstimatedCalories: [...grains, ...vegetables].reduce((sum, entry) => sum + entry.estimatedCalories, 0),
+  totalEstimatedCalories: [...grains, ...vegetables].reduce(
+    (sum, entry) => sum + entry.estimatedCalories,
+    0,
+  ),
   stale: false,
   createdAt: '2026-01-01T00:00:00.000Z',
 });
 
-const aList = aListOf([anEntry('White rice', 'grains'), anEntry('Rolled oats', 'grains')], [anEntry('Broccoli', 'vegetables')]);
+const aList = aListOf(
+  [anEntry('White rice', 'grains'), anEntry('Rolled oats', 'grains')],
+  [anEntry('Broccoli', 'vegetables')],
+);
 
 async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' = 'none') {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
@@ -64,11 +78,19 @@ async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' =
         ? [{ id: 'profile', name: 'Me' }]
         : path === '/users/me'
           ? { aiMode }
-        : path.startsWith('/meal-plans?')
-          ? { items: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }], page: 1, pageSize: 50, total: 1, totalPages: 1 }
-          : path.startsWith('/shopping-lists?')
-            ? [list]
-            : []) as never,
+          : path.startsWith('/meal-plans?')
+            ? {
+                items: [
+                  { id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' },
+                ],
+                page: 1,
+                pageSize: 50,
+                total: 1,
+                totalPages: 1,
+              }
+            : path.startsWith('/shopping-lists?')
+              ? [list]
+              : []) as never,
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -84,7 +106,8 @@ async function renderPage(list: ShoppingList = aList, aiMode: 'none' | 'admin' =
 }
 
 /** The entries on screen, by the name each is ticked by. */
-const entries = (): string[] => screen.getAllByRole('checkbox').map((box) => box.getAttribute('aria-label') ?? '');
+const entries = (): string[] =>
+  screen.getAllByRole('checkbox').map((box) => box.getAttribute('aria-label') ?? '');
 
 describe('a shopping list, looked through for an entry', () => {
   afterEach(() => {
@@ -95,7 +118,9 @@ describe('a shopping list, looked through for an entry', () => {
     await renderPage();
 
     expect(entries()).toEqual(['White rice', 'Rolled oats', 'Broccoli']);
-    expect(screen.getAllByRole('heading', { level: 3 }).map((aisle) => aisle.textContent)).toEqual(expect.arrayContaining(['Grains', 'Vegetables']));
+    expect(screen.getAllByRole('heading', { level: 3 }).map((aisle) => aisle.textContent)).toEqual(
+      expect.arrayContaining(['Grains', 'Vegetables']),
+    );
   });
 
   it('keeps the entries whose name holds the words, whatever their case, and the aisles that still have one', async () => {
@@ -126,16 +151,29 @@ describe('a shopping list, looked over for what it could do without', () => {
   });
 
   const texts = messages.shoppingLists.proposals;
-  const leftover = { kind: 'leftover', ingredientId: 'beef', name: 'Ground beef', unit: 'g', left: 320, packSize: 500, reason: null } as const;
+  const leftover = {
+    kind: 'leftover',
+    ingredientId: 'beef',
+    name: 'Ground beef',
+    unit: 'g',
+    left: 320,
+    packSize: 500,
+    reason: null,
+  } as const;
 
   it('is asked of the API for the list that is shown, and what comes back leads to the plan of the profile', async () => {
     await renderPage();
-    const post = vi.spyOn(api, 'post').mockResolvedValue({ planId: PLAN, proposals: [leftover], aiMeta: null } as never);
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ planId: PLAN, proposals: [leftover], aiMeta: null } as never);
 
     await userEvent.click(screen.getByRole('button', { name: texts.ask }));
 
     expect(post).toHaveBeenCalledWith(`/shopping-lists/${aList.id}/proposals`, { weigh: false });
-    expect(await screen.findByRole('link', { name: texts.leftoverHow })).toHaveAttribute('href', `/meal-plans?profile=profile&plan=${PLAN}&day=2026-01-05`);
+    expect(await screen.findByRole('link', { name: texts.leftoverHow })).toHaveAttribute(
+      'href',
+      `/meal-plans?profile=profile&plan=${PLAN}&day=2026-01-05`,
+    );
   });
 
   it('says beside it, on an account with AI off, why no model can be asked', async () => {
@@ -148,7 +186,9 @@ describe('a shopping list, looked over for what it could do without', () => {
     await renderPage(aList, 'admin');
     await screen.findByRole('button', { name: texts.ask });
 
-    await vi.waitFor(() => expect(screen.queryByText(/AI is turned off for this account/)).toBeNull());
+    await vi.waitFor(() =>
+      expect(screen.queryByText(/AI is turned off for this account/)).toBeNull(),
+    );
   });
 });
 
@@ -173,12 +213,22 @@ describe('a shopping list, taken somewhere else', () => {
 
   /** A list of which the oats are done with, and of the rice 50 g are at home. */
   const underWay = aListOf(
-    [anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150 }), anEntry('Rolled oats', 'grains', { purchasedQuantity: 200, checked: true })],
+    [
+      anEntry('White rice', 'grains', {
+        alreadyHaveQuantity: 50,
+        purchasedQuantity: 50,
+        toBuyQuantity: 150,
+      }),
+      anEntry('Rolled oats', 'grains', { purchasedQuantity: 200, checked: true }),
+    ],
     [anEntry('Broccoli', 'vegetables', { name: '=Broccoli' })],
   );
 
   /** The lines of the text that was put on the clipboard. A language may write a range of days with spaces narrower than the one of a keyboard. */
-  const copiedBy = (writeText: ReturnType<typeof vi.fn>): string[] => String(writeText.mock.calls[0]![0]).replace(/[\u2009\u202f\u00a0]/g, ' ').split('\n');
+  const copiedBy = (writeText: ReturnType<typeof vi.fn>): string[] =>
+    String(writeText.mock.calls[0]![0])
+      .replace(/[\u2009\u202f\u00a0]/g, ' ')
+      .split('\n');
 
   it('is copied as a text of what is still to buy, under its aisles, and says so', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -187,8 +237,18 @@ describe('a shopping list, taken somewhere else', () => {
 
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
-    expect(copiedBy(writeText)).toEqual(['Shopping list, Jan 5 – 7, 2026', '', 'Grains', '- White rice: 150 g', '', 'Vegetables', '- =Broccoli: 200 g']);
-    expect(await screen.findByText('Copied: 2 entries still to buy, under their aisles.')).toBeInTheDocument();
+    expect(copiedBy(writeText)).toEqual([
+      'Shopping list, Jan 5 – 7, 2026',
+      '',
+      'Grains',
+      '- White rice: 150 g',
+      '',
+      'Vegetables',
+      '- =Broccoli: 200 g',
+    ]);
+    expect(
+      await screen.findByText('Copied: 2 entries still to buy, under their aisles.'),
+    ).toBeInTheDocument();
   });
 
   it('is shown to be copied by hand where the browser gives the page no clipboard', async () => {
@@ -199,13 +259,17 @@ describe('a shopping list, taken somewhere else', () => {
 
     const byHand = within(await screen.findByRole('dialog', { name: texts.copyByHand }));
     expect(byHand.getByText(texts.copyByHandHint)).toBeInTheDocument();
-    expect((byHand.getByRole('textbox', { name: texts.copyByHand }) as HTMLTextAreaElement).value).toContain('- White rice: 150 g');
+    expect(
+      (byHand.getByRole('textbox', { name: texts.copyByHand }) as HTMLTextAreaElement).value,
+    ).toContain('- White rice: 150 g');
   });
 
   it('says that nothing is left to buy of a list that is all ticked', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
-    await renderPage(aListOf([anEntry('White rice', 'grains', { purchasedQuantity: 200, checked: true })], []));
+    await renderPage(
+      aListOf([anEntry('White rice', 'grains', { purchasedQuantity: 200, checked: true })], []),
+    );
 
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
@@ -233,10 +297,27 @@ describe('a shopping list, taken somewhere else', () => {
 
   /** Salmon to buy in two packs; eggs at home in part, in a carton of ten; bread of which a part was bought already. */
   const inPacks = aListOf(
-    [anEntry('Wholegrain bread', 'grains', { totalQuantity: 8, unit: 'piece', displayUnit: 'slice', purchasedQuantity: 3, toBuyQuantity: 8, packs: { count: 1, size: 500, sizeUnit: 'g', quantity: 14 } })],
+    [
+      anEntry('Wholegrain bread', 'grains', {
+        totalQuantity: 8,
+        unit: 'piece',
+        displayUnit: 'slice',
+        purchasedQuantity: 3,
+        toBuyQuantity: 8,
+        packs: { count: 1, size: 500, sizeUnit: 'g', quantity: 14 },
+      }),
+    ],
     [
       anEntry('Salmon', 'vegetables', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }),
-      anEntry('Large egg', 'vegetables', { totalQuantity: 6, unit: 'piece', displayUnit: 'piece', alreadyHaveQuantity: 2, purchasedQuantity: 2, toBuyQuantity: 4, packs: { count: 1, size: 10, sizeUnit: 'piece', quantity: 10 } }),
+      anEntry('Large egg', 'vegetables', {
+        totalQuantity: 6,
+        unit: 'piece',
+        displayUnit: 'piece',
+        alreadyHaveQuantity: 2,
+        purchasedQuantity: 2,
+        toBuyQuantity: 4,
+        packs: { count: 1, size: 10, sizeUnit: 'piece', quantity: 10 },
+      }),
     ],
   );
 
@@ -247,7 +328,14 @@ describe('a shopping list, taken somewhere else', () => {
 
     await userEvent.click(screen.getByRole('button', { name: texts.copy }));
 
-    expect(copiedBy(writeText).slice(2)).toEqual(['Grains', '- Wholegrain bread: 5 slices', '', 'Vegetables', '- Salmon: 435 g (2 × 250 g)', '- Large egg: 4 pieces (1 × 10 pieces)']);
+    expect(copiedBy(writeText).slice(2)).toEqual([
+      'Grains',
+      '- Wholegrain bread: 5 slices',
+      '',
+      'Vegetables',
+      '- Salmon: 435 g (2 × 250 g)',
+      '- Large egg: 4 pieces (1 × 10 pieces)',
+    ]);
   });
 
   it('has a column for the packs in the table', async () => {
@@ -278,7 +366,13 @@ describe('a row of a shopping list', () => {
   }
 
   it('shows what is at home and what was bought as two numbers, and what is left to buy of the need', async () => {
-    await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 120, toBuyQuantity: 150 }));
+    await aRow(
+      anEntry('White rice', 'grains', {
+        alreadyHaveQuantity: 50,
+        purchasedQuantity: 120,
+        toBuyQuantity: 150,
+      }),
+    );
 
     expect(atHome()).toHaveValue(50);
     expect(bought()).toHaveValue(70);
@@ -301,11 +395,19 @@ describe('a row of a shopping list', () => {
     expect(screen.getByText('120 g')).toBeInTheDocument();
     await userEvent.tab();
 
-    expect(patch).toHaveBeenCalledWith(expect.stringMatching(/\/items\/entry-White rice$/), { alreadyHaveQuantity: 80 });
+    expect(patch).toHaveBeenCalledWith(expect.stringMatching(/\/items\/entry-White rice$/), {
+      alreadyHaveQuantity: 80,
+    });
   });
 
   it('sends nothing at home for a field that is emptied', async () => {
-    const patch = await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150 }));
+    const patch = await aRow(
+      anEntry('White rice', 'grains', {
+        alreadyHaveQuantity: 50,
+        purchasedQuantity: 50,
+        toBuyQuantity: 150,
+      }),
+    );
 
     await userEvent.clear(atHome());
     await userEvent.tab();
@@ -314,7 +416,13 @@ describe('a row of a shopping list', () => {
   });
 
   it('sends what was bought as everything the user has for the row: the part at home with it', async () => {
-    const patch = await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150 }));
+    const patch = await aRow(
+      anEntry('White rice', 'grains', {
+        alreadyHaveQuantity: 50,
+        purchasedQuantity: 50,
+        toBuyQuantity: 150,
+      }),
+    );
 
     await userEvent.type(bought(), '100');
     await userEvent.tab();
@@ -323,7 +431,13 @@ describe('a row of a shopping list', () => {
   });
 
   it('sends nothing when a field is left as it was', async () => {
-    const patch = await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 120, toBuyQuantity: 150 }));
+    const patch = await aRow(
+      anEntry('White rice', 'grains', {
+        alreadyHaveQuantity: 50,
+        purchasedQuantity: 120,
+        toBuyQuantity: 150,
+      }),
+    );
 
     await userEvent.click(atHome());
     await userEvent.tab();
@@ -339,14 +453,20 @@ describe('a row of a shopping list', () => {
     // The box is clicked while the field still has the focus: the field is left by the same click.
     await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }));
 
-    expect(patch.mock.calls.map(([, body]) => body)).toContainEqual({ checked: true, alreadyHaveQuantity: 80 });
+    expect(patch.mock.calls.map(([, body]) => body)).toContainEqual({
+      checked: true,
+      alreadyHaveQuantity: 80,
+    });
   });
 
   describe('of something sold in packs', () => {
-    const packsOf = (name: string) => screen.queryByRole('button', { name: new RegExp(`^Bought in packs: .* of ${name}$`) });
+    const packsOf = (name: string) =>
+      screen.queryByRole('button', { name: new RegExp(`^Bought in packs: .* of ${name}$`) });
 
     it('says how many packs what is left to buy comes to, and what pressing that does', async () => {
-      await aRow(anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }));
+      await aRow(
+        anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }),
+      );
 
       expect(packsOf('Salmon')).toHaveTextContent('2 × 250 g');
       expect(packsOf('Salmon')).toHaveAccessibleName('Bought in packs: 2 × 250 g of Salmon');
@@ -354,11 +474,24 @@ describe('a row of a shopping list', () => {
     });
 
     it('takes whoever presses it to have what was at home and what the packs hold, and the row for done', async () => {
-      const patch = await aRow(anEntry('Large egg', 'grains', { totalQuantity: 6, unit: 'piece', displayUnit: 'piece', alreadyHaveQuantity: 2, purchasedQuantity: 2, toBuyQuantity: 4, packs: { count: 1, size: 10, sizeUnit: 'piece', quantity: 10 } }));
+      const patch = await aRow(
+        anEntry('Large egg', 'grains', {
+          totalQuantity: 6,
+          unit: 'piece',
+          displayUnit: 'piece',
+          alreadyHaveQuantity: 2,
+          purchasedQuantity: 2,
+          toBuyQuantity: 4,
+          packs: { count: 1, size: 10, sizeUnit: 'piece', quantity: 10 },
+        }),
+      );
 
       await userEvent.click(packsOf('Large egg')!);
 
-      expect(patch).toHaveBeenCalledWith(expect.stringMatching(/\/items\/entry-Large egg$/), { purchasedQuantity: 12, checked: true });
+      expect(patch).toHaveBeenCalledWith(expect.stringMatching(/\/items\/entry-Large egg$/), {
+        purchasedQuantity: 12,
+        checked: true,
+      });
     });
 
     it('says nothing of packs on a row that is not sold in them, and nothing of what pressing does on a list without one', async () => {
@@ -371,8 +504,23 @@ describe('a row of a shopping list', () => {
     it('says nothing of packs on a row that is ticked, or of which a part was bought', async () => {
       await renderPage(
         aListOf(
-          [anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, purchasedQuantity: 435, checked: true, packs: TWO_PACKS })],
-          [anEntry('Cod', 'vegetables', { totalQuantity: 435, toBuyQuantity: 435, purchasedQuantity: 100, packs: TWO_PACKS })],
+          [
+            anEntry('Salmon', 'grains', {
+              totalQuantity: 435,
+              toBuyQuantity: 435,
+              purchasedQuantity: 435,
+              checked: true,
+              packs: TWO_PACKS,
+            }),
+          ],
+          [
+            anEntry('Cod', 'vegetables', {
+              totalQuantity: 435,
+              toBuyQuantity: 435,
+              purchasedQuantity: 100,
+              packs: TWO_PACKS,
+            }),
+          ],
         ),
       );
 
@@ -380,7 +528,9 @@ describe('a row of a shopping list', () => {
     });
 
     it('takes the packs back while what is at home is typed anew: the server counts them from that', async () => {
-      await aRow(anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }));
+      await aRow(
+        anEntry('Salmon', 'grains', { totalQuantity: 435, toBuyQuantity: 435, packs: TWO_PACKS }),
+      );
 
       await userEvent.type(atHome(), '200');
 
@@ -389,7 +539,14 @@ describe('a row of a shopping list', () => {
   });
 
   it('says until when what the pantry held for the row is good', async () => {
-    await aRow(anEntry('White rice', 'grains', { alreadyHaveQuantity: 50, purchasedQuantity: 50, toBuyQuantity: 150, pantryBestBefore: '2026-02-01' }));
+    await aRow(
+      anEntry('White rice', 'grains', {
+        alreadyHaveQuantity: 50,
+        purchasedQuantity: 50,
+        toBuyQuantity: 150,
+        pantryBestBefore: '2026-02-01',
+      }),
+    );
 
     expect(screen.getByText('best before Feb 1, 2026')).toBeInTheDocument();
   });
@@ -403,7 +560,12 @@ describe('a tick on a row of a shopping list', () => {
   const box = (name: string) => screen.getByRole('checkbox', { name });
   const ticked = (list: ShoppingList, ...names: string[]): ShoppingList => ({
     ...list,
-    groups: list.groups.map((group) => ({ ...group, items: group.items.map((entry) => (names.includes(entry.name) ? { ...entry, checked: true } : entry)) })),
+    groups: list.groups.map((group) => ({
+      ...group,
+      items: group.items.map((entry) =>
+        names.includes(entry.name) ? { ...entry, checked: true } : entry,
+      ),
+    })),
   });
   /** A request whose answer the test gives when it chooses to. */
   function anAnswerToGive() {
@@ -424,20 +586,30 @@ describe('a tick on a row of a shopping list', () => {
     await userEvent.click(box('White rice'));
 
     expect(box('White rice')).toBeChecked();
-    expect(patch).toHaveBeenCalledWith(`/shopping-lists/${aList.id}/items/entry-White rice`, { checked: true });
+    expect(patch).toHaveBeenCalledWith(`/shopping-lists/${aList.id}/items/entry-White rice`, {
+      checked: true,
+    });
     expect(box('Rolled oats')).toBeEnabled();
     expect(box('Broccoli')).toBeEnabled();
     // What the server works out of a row waits for its answer.
-    expect(screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0]).toBeDisabled();
+    expect(
+      screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0],
+    ).toBeDisabled();
 
     first.give(ticked(aList, 'White rice'));
-    await vi.waitFor(() => expect(screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0]).toBeEnabled());
+    await vi.waitFor(() =>
+      expect(
+        screen.getAllByRole('spinbutton', { name: new RegExp(`^${texts.atHome}`) })[0],
+      ).toBeEnabled(),
+    );
     expect(box('White rice')).toBeChecked();
   });
 
   it('is taken back when the server refuses it, and the page says so', async () => {
     await renderPage();
-    vi.spyOn(api, 'patch').mockRejectedValue(new ApiClientError(409, 'CONFLICT', 'That already exists.'));
+    vi.spyOn(api, 'patch').mockRejectedValue(
+      new ApiClientError(409, 'CONFLICT', 'That already exists.'),
+    );
 
     await userEvent.click(box('White rice'));
 
@@ -449,7 +621,8 @@ describe('a tick on a row of a shopping list', () => {
   it('stays shown beside a second one whose answer comes first, and the list is read from the server once both are through', async () => {
     const get = await renderPage().then(() => vi.mocked(api.get));
     const [rice, oats] = [anAnswerToGive(), anAnswerToGive()];
-    vi.spyOn(api, 'patch').mockImplementation(((path: string) => (path.endsWith('White rice') ? rice.answer : oats.answer)) as never);
+    vi.spyOn(api, 'patch').mockImplementation(((path: string) =>
+      path.endsWith('White rice') ? rice.answer : oats.answer) as never);
 
     await userEvent.click(box('White rice'));
     await userEvent.click(box('Rolled oats'));
@@ -457,13 +630,19 @@ describe('a tick on a row of a shopping list', () => {
     expect(box('Rolled oats')).toBeChecked();
 
     // The answer to the second tick was made before the server had the first: it knows of one tick only.
-    const readBefore = get.mock.calls.filter(([path]) => String(path).startsWith('/shopping-lists?')).length;
+    const readBefore = get.mock.calls.filter(([path]) =>
+      String(path).startsWith('/shopping-lists?'),
+    ).length;
     oats.give(ticked(aList, 'Rolled oats'));
     await Promise.resolve();
     expect(box('White rice')).toBeChecked();
 
     rice.give(ticked(aList, 'White rice'));
-    await vi.waitFor(() => expect(get.mock.calls.filter(([path]) => String(path).startsWith('/shopping-lists?')).length).toBeGreaterThan(readBefore));
+    await vi.waitFor(() =>
+      expect(
+        get.mock.calls.filter(([path]) => String(path).startsWith('/shopping-lists?')).length,
+      ).toBeGreaterThan(readBefore),
+    );
   });
 });
 
@@ -490,22 +669,35 @@ describe('a row of a shopping list, while the server cannot be reached', () => {
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }));
 
-    await vi.waitFor(() => expect(offline.waiting).toEqual([{ listId: aList.id, itemId: 'entry-White rice', checked: true }]));
+    await vi.waitFor(() =>
+      expect(offline.waiting).toEqual([
+        { listId: aList.id, itemId: 'entry-White rice', checked: true },
+      ]),
+    );
     expect(screen.getByRole('checkbox', { name: 'White rice' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Rolled oats' })).not.toBeChecked();
     expect(screen.queryByText(texts.errUpdate)).toBeNull();
     // The list as it is shown is what a page loaded next will find.
     const kept = await offline.recall<ShoppingList[]>(`/shopping-lists?planId=${PLAN}`);
-    expect(kept.found && kept.answer[0]!.groups[0]!.items.find((entry) => entry.name === 'White rice')!.checked).toBe(true);
+    expect(
+      kept.found &&
+        kept.answer[0]!.groups[0]!.items.find((entry) => entry.name === 'White rice')!.checked,
+    ).toBe(true);
   });
 
   it('takes a tick back the same way', async () => {
-    await renderPage(aListOf([anEntry('White rice', 'grains', { purchasedQuantity: 200, checked: true })], []));
+    await renderPage(
+      aListOf([anEntry('White rice', 'grains', { purchasedQuantity: 200, checked: true })], []),
+    );
     vi.spyOn(api, 'patch').mockRejectedValue(noAnswer);
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'White rice' }));
 
-    await vi.waitFor(() => expect(offline.waiting).toEqual([{ listId: aList.id, itemId: 'entry-White rice', checked: false }]));
+    await vi.waitFor(() =>
+      expect(offline.waiting).toEqual([
+        { listId: aList.id, itemId: 'entry-White rice', checked: false },
+      ]),
+    );
     expect(screen.getByRole('checkbox', { name: 'White rice' })).not.toBeChecked();
   });
 
@@ -539,7 +731,11 @@ describe('the shopping page with nothing to show yet', () => {
   });
 
   /** The page of an account with these profiles, plans and lists. */
-  function renderWith({ profiles = [{ id: 'profile', name: 'Me' }], plans = [] as unknown[], lists = [] as ShoppingList[] }) {
+  function renderWith({
+    profiles = [{ id: 'profile', name: 'Me' }],
+    plans = [] as unknown[],
+    lists = [] as ShoppingList[],
+  }) {
     vi.spyOn(api, 'get').mockImplementation((path: string) =>
       Promise.resolve(
         (path === '/profiles'
@@ -568,7 +764,10 @@ describe('the shopping page with nothing to show yet', () => {
     renderWith({ profiles: [] });
 
     expect(await screen.findByRole('heading', { name: texts.noProfile })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: texts.noProfileCta })).toHaveAttribute('href', '/profile');
+    expect(screen.getByRole('link', { name: texts.noProfileCta })).toHaveAttribute(
+      'href',
+      '/profile',
+    );
   });
 
   it('says that a list is made from a plan where the profile has none, and leads to the plans: there is no form to fill in', async () => {
@@ -576,18 +775,29 @@ describe('the shopping page with nothing to show yet', () => {
 
     expect(await screen.findByRole('heading', { name: texts.noPlansTitle })).toBeInTheDocument();
     expect(screen.getByText(texts.noPlans)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: texts.noPlansCta })).toHaveAttribute('href', '/meal-plans');
+    expect(screen.getByRole('link', { name: texts.noPlansCta })).toHaveAttribute(
+      'href',
+      '/meal-plans',
+    );
     expect(screen.queryByRole('button', { name: texts.generateButton })).not.toBeInTheDocument();
   });
 
   it('offers the list of a plan that has none, and makes it with what the form names', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue(aList as never);
-    renderWith({ plans: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }] });
+    renderWith({
+      plans: [{ id: PLAN, startDate: '2026-01-05', durationDays: 3, dietType: 'balanced' }],
+    });
 
     expect(await screen.findByRole('heading', { name: texts.noListsTitle })).toBeInTheDocument();
     expect(screen.getByText(texts.noLists)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: texts.noListsCta }));
 
-    await vi.waitFor(() => expect(post).toHaveBeenCalledExactlyOnceWith('/shopping-lists/generate', { planId: PLAN, fromDate: '2026-01-05', toDate: '2026-01-07' }));
+    await vi.waitFor(() =>
+      expect(post).toHaveBeenCalledExactlyOnceWith('/shopping-lists/generate', {
+        planId: PLAN,
+        fromDate: '2026-01-05',
+        toDate: '2026-01-07',
+      }),
+    );
   });
 });

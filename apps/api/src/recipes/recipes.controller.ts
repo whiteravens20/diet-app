@@ -1,8 +1,26 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AiDraftRecipeRequest, AiDraftRecipeResponse, PageQuery, Recipe, RecipeSearchPage, RecipeSearchQuery, type Locale } from '@diet-app/shared';
+import {
+  AiDraftRecipeRequest,
+  AiDraftRecipeResponse,
+  PageQuery,
+  Recipe,
+  RecipeSearchPage,
+  RecipeSearchQuery,
+  type Locale,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers } from '../common/answers.decorator.js';
@@ -68,7 +86,11 @@ export class RecipesController {
   /** One recipe, with its ingredients and steps. */
   @Get(':id')
   @Answers(Recipe)
-  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string) {
+  get(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+  ) {
     return this.recipes.get(user.id, locale, id);
   }
 

@@ -22,7 +22,9 @@ import { Locale, type Locale as LocaleType } from '@diet-app/shared';
  */
 export const RequestLocale = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): LocaleType => {
-    const request = ctx.switchToHttp().getRequest<{ headers: Record<string, string | undefined> }>();
+    const request = ctx
+      .switchToHttp()
+      .getRequest<{ headers: Record<string, string | undefined> }>();
     const header = request.headers['accept-language'];
     return resolveLocale(header);
   },

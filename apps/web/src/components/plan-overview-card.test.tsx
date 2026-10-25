@@ -17,9 +17,18 @@ const texts = messages.planOverview;
 const profile = { id: '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f', name: 'Me' } as Profile;
 
 const anOverview = (over: Partial<PlanOverview> = {}): PlanOverview => ({
-  plan: { id: '11111111-1111-4111-8111-111111111111', startDate: '2026-01-05', durationDays: 3, dietType: 'vegan', status: 'active' },
+  plan: {
+    id: '11111111-1111-4111-8111-111111111111',
+    startDate: '2026-01-05',
+    durationDays: 3,
+    dietType: 'vegan',
+    status: 'active',
+  },
   energy: { planned: 1880, target: 1900 },
-  macros: { planned: { protein: 104, fat: 70, carbs: 190 }, target: { protein: 119, fat: 63, carbs: 214 } },
+  macros: {
+    planned: { protein: 104, fat: 70, carbs: 190 },
+    target: { protein: 119, fat: 63, carbs: 214 },
+  },
   eaten: { meals: 3, of: 6 },
   onDiet: { meals: 8, of: 9 },
   favourites: { meals: 2, of: 9 },
@@ -34,10 +43,16 @@ const anOverview = (over: Partial<PlanOverview> = {}): PlanOverview => ({
 });
 
 function shown(answer: PlanOverview | null | Error) {
-  vi.spyOn(api, 'get').mockImplementation(() => (answer instanceof Error ? Promise.reject(answer) : Promise.resolve({ overview: answer } as never)));
+  vi.spyOn(api, 'get').mockImplementation(() =>
+    answer instanceof Error
+      ? Promise.reject(answer)
+      : Promise.resolve({ overview: answer } as never),
+  );
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <PlanOverviewCard profile={profile} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
@@ -45,7 +60,8 @@ function shown(answer: PlanOverview | null | Error) {
 }
 
 /** What a figure of the card says: its number and the sentence under it. */
-const figure = (label: string): string => (screen.getByText(label).closest('div')?.querySelector('dd')?.textContent ?? '').trim();
+const figure = (label: string): string =>
+  (screen.getByText(label).closest('div')?.querySelector('dd')?.textContent ?? '').trim();
 
 describe('what the plan of the moment comes to, on the dashboard', () => {
   afterEach(() => {
@@ -57,7 +73,10 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
 
     expect(await screen.findByRole('heading', { name: texts.title.active })).toBeInTheDocument();
     expect(screen.getByText('Jan 5 – 7, 2026 · Vegan')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: texts.open })).toHaveAttribute('href', `/meal-plans?profile=${profile.id}`);
+    expect(screen.getByRole('link', { name: texts.open })).toHaveAttribute(
+      'href',
+      `/meal-plans?profile=${profile.id}`,
+    );
   });
 
   it('says each figure with what it is a share of', async () => {
@@ -67,7 +86,9 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
     expect(figure(texts.energy)).toBe('1,880 kcalOn average, against a target of 1,900 kcal.');
     expect(figure(texts.eaten)).toBe('50%3 of the 6 meals that were due by today.');
     expect(figure(texts.onDiet)).toBe('89%8 of 9 meals fit the diet of the plan (Vegan).');
-    expect(figure(texts.favourites)).toBe('22%2 of 9 meals are of a recipe marked as a favourite or as eaten often.');
+    expect(figure(texts.favourites)).toBe(
+      '22%2 of 9 meals are of a recipe marked as a favourite or as eaten often.',
+    );
     expect(figure(texts.reuse)).toBe(`58%${texts.reuseHint}`);
     expect(figure(texts.shopping)).toBe('25%5 of 20 entries ticked on the plan’s lists.');
   });
@@ -85,7 +106,9 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
     shown(anOverview());
 
     const rows = within(await screen.findByRole('table', { name: texts.days })).getAllByRole('row');
-    expect(rows.map((row) => [...row.querySelectorAll('th, td')].map((cell) => cell.textContent))).toEqual([
+    expect(
+      rows.map((row) => [...row.querySelectorAll('th, td')].map((cell) => cell.textContent)),
+    ).toEqual([
       ['Day', 'Planned', 'Target'],
       ['Mon, Jan 5', '1,868 kcal', '1,900 kcal'],
       ['Tue, Jan 6', 'Skipped', ''],
@@ -94,7 +117,13 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
   });
 
   it('names no share of what was eaten before a day of the plan has come, and none of a shopping the plan has no list for', async () => {
-    shown(anOverview({ plan: { ...anOverview().plan, status: 'upcoming' }, eaten: { meals: 0, of: 0 }, shopping: { lists: 0, entries: 0, ticked: 0 } }));
+    shown(
+      anOverview({
+        plan: { ...anOverview().plan, status: 'upcoming' },
+        eaten: { meals: 0, of: 0 },
+        shopping: { lists: 0, entries: 0, ticked: 0 },
+      }),
+    );
 
     expect(await screen.findByRole('heading', { name: texts.title.upcoming })).toBeInTheDocument();
     expect(figure(texts.eaten)).toBe(`—${texts.eatenNotYetHint}`);
@@ -105,10 +134,13 @@ describe('what the plan of the moment comes to, on the dashboard', () => {
     shown(null);
 
     expect(await screen.findByRole('heading', { name: texts.none })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: texts.noneCta })).toHaveAttribute('href', `/meal-plans?profile=${profile.id}`);
+    expect(screen.getByRole('link', { name: texts.noneCta })).toHaveAttribute(
+      'href',
+      `/meal-plans?profile=${profile.id}`,
+    );
   });
 
-  it('says that it could not be read, in the place of figures that would be nobody\'s', async () => {
+  it("says that it could not be read, in the place of figures that would be nobody's", async () => {
     shown(new ApiClientError(500, 'INTERNAL', 'the text of the API'));
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();

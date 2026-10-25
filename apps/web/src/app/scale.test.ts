@@ -36,12 +36,25 @@ function sources(dir: string = SRC): { path: string; text: string }[] {
 
 const all = sources();
 /** The pages of a signed-in account, one for each entry of its navigation. */
-const PAGES = ['dashboard', 'profile', 'calculator', 'recipes', 'favorites', 'meal-plans', 'shopping-lists', 'inventory', 'settings'];
-const page = (name: string): string => all.find((source) => source.path === `app/(app)/${name}/page.tsx`)!.text;
+const PAGES = [
+  'dashboard',
+  'profile',
+  'calculator',
+  'recipes',
+  'favorites',
+  'meal-plans',
+  'shopping-lists',
+  'inventory',
+  'settings',
+];
+const page = (name: string): string =>
+  all.find((source) => source.path === `app/(app)/${name}/page.tsx`)!.text;
 
 describe('the sizes text is set in', () => {
   it('are all on the scale: none is written out in pixels or rems', () => {
-    const written = all.flatMap(({ path, text }) => (text.match(/\btext-\[[\d.]+(?:px|rem|em)\]/g) ?? []).map((size) => `${path}: ${size}`));
+    const written = all.flatMap(({ path, text }) =>
+      (text.match(/\btext-\[[\d.]+(?:px|rem|em)\]/g) ?? []).map((size) => `${path}: ${size}`),
+    );
 
     expect(written).toEqual([]);
   });
@@ -56,7 +69,13 @@ describe('the sizes text is set in', () => {
 
     expect(off).toEqual([]);
     // The scale is in use from end to end: a step nothing is set in would be a step too many.
-    const used = new Set(all.flatMap(({ text }) => [...text.matchAll(/(?<![\w-])text-(\d?x[sl]|sm|base|lg)(?![\w-])/g)].map((found) => found[1]!)));
+    const used = new Set(
+      all.flatMap(({ text }) =>
+        [...text.matchAll(/(?<![\w-])text-(\d?x[sl]|sm|base|lg)(?![\w-])/g)].map(
+          (found) => found[1]!,
+        ),
+      ),
+    );
     expect([...used].filter((size) => SCALE.includes(size)).sort()).toEqual([...SCALE].sort());
   });
 
@@ -87,6 +106,9 @@ describe('a page of the app', () => {
     // What the page returns stands four spaces in: the element that holds its sections.
     const holders = page(name).match(/^ {4}<div className="[^"]*">$/gm) ?? [];
 
-    expect(holders.some((holder) => /[" ](?:space-y-8|gap-8)[" ]/.test(holder)), holders.join(' | ')).toBe(true);
+    expect(
+      holders.some((holder) => /[" ](?:space-y-8|gap-8)[" ]/.test(holder)),
+      holders.join(' | '),
+    ).toBe(true);
   });
 });

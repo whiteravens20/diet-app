@@ -96,7 +96,14 @@ export function ListView({
   // What somebody in a shop is looking for on the list: the entries whose name holds the words, under the aisles they are in.
   const [find, setFind] = useState('');
   const wanted = find.trim().toLocaleLowerCase();
-  const groups = wanted ? list.groups.map((g) => ({ ...g, items: g.items.filter((i) => i.name.toLocaleLowerCase().includes(wanted)) })).filter((g) => g.items.length > 0) : list.groups;
+  const groups = wanted
+    ? list.groups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((i) => i.name.toLocaleLowerCase().includes(wanted)),
+        }))
+        .filter((g) => g.items.length > 0)
+    : list.groups;
   const fmt = useFormat();
   const dateRangeLabel = fmt.dates(list.fromDate, list.toDate);
   const tCommon = useTranslations('common');
@@ -104,7 +111,8 @@ export function ListView({
   const locale = useLocale();
 
   /** What is still to be obtained for a row: its need less everything the user has for it. */
-  const stillToBuy = (item: ShoppingListItem): number => Math.max(0, item.totalQuantity - (item.purchasedQuantity ?? item.alreadyHaveQuantity));
+  const stillToBuy = (item: ShoppingListItem): number =>
+    Math.max(0, item.totalQuantity - (item.purchasedQuantity ?? item.alreadyHaveQuantity));
   const everyItem = list.groups.flatMap((group) => group.items);
   const open = everyItem.filter((item) => !item.checked);
 
@@ -120,7 +128,10 @@ export function ListView({
           '',
           categoryLabel(group.category),
           // What is sold in packs says how many, for whoever stands at the shelf.
-          ...left.map((item) => `- ${item.name}: ${formatQty(stillToBuy(item), item.displayUnit)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`),
+          ...left.map(
+            (item) =>
+              `- ${item.name}: ${formatQty(stillToBuy(item), item.displayUnit)}${packsStand(item) ? ` (${packsText(item.packs, formatQty)})` : ''}`,
+          ),
         ]),
     ].join('\n');
   // What happened to the last copy: it is on the clipboard, or it is shown to be copied by hand.
@@ -135,7 +146,20 @@ export function ListView({
 
   // The whole list as a table for a spreadsheet: every row, ticked or not, with its numbers as numbers.
   function downloadCsv() {
-    const head = (['csvAisle', 'csvEntry', 'csvNeeded', 'csvUnit', 'csvAtHome', 'csvHave', 'csvToBuy', 'csvPacks', 'csvTicked', 'csvEnergy'] as const).map((column) => t(column));
+    const head = (
+      [
+        'csvAisle',
+        'csvEntry',
+        'csvNeeded',
+        'csvUnit',
+        'csvAtHome',
+        'csvHave',
+        'csvToBuy',
+        'csvPacks',
+        'csvTicked',
+        'csvEnergy',
+      ] as const
+    ).map((column) => t(column));
     const rows = list.groups.flatMap((group) =>
       group.items.map((item) => [
         categoryLabel(group.category),
@@ -150,7 +174,11 @@ export function ListView({
         item.estimatedCalories,
       ]),
     );
-    saveText(csvOf([head, ...rows], CSV_DIALECTS[locale] ?? CSV_DIALECTS.en!), `shopping-list-${list.fromDate}_${list.toDate}.csv`, 'text/csv');
+    saveText(
+      csvOf([head, ...rows], CSV_DIALECTS[locale] ?? CSV_DIALECTS.en!),
+      `shopping-list-${list.fromDate}_${list.toDate}.csv`,
+      'text/csv',
+    );
   }
 
   // Two PDF flavours from the same generator:
@@ -243,16 +271,19 @@ export function ListView({
           </Button>
         </div>
       </div>
-      {pdfError && (
-        <p className="px-4 py-2 text-sm text-destructive">
-          {pdfError}
-        </p>
-      )}
+      {pdfError && <p className="px-4 py-2 text-sm text-destructive">{pdfError}</p>}
       {/* Said where it happened, and read out: a text on the clipboard cannot be seen. */}
       <p role="status" className={copied ? 'px-4 py-2 text-sm text-muted-foreground' : 'sr-only'}>
-        {copied ? t(copied.entries === 0 ? 'copiedNothing' : 'copied', { count: copied.entries }) : ''}
+        {copied
+          ? t(copied.entries === 0 ? 'copiedNothing' : 'copied', { count: copied.entries })
+          : ''}
       </p>
-      <Dialog open={byHand !== null} onClose={() => setByHand(null)} label={t('copyByHand')} className="max-w-md">
+      <Dialog
+        open={byHand !== null}
+        onClose={() => setByHand(null)}
+        label={t('copyByHand')}
+        className="max-w-md"
+      >
         <div className="space-y-3 p-4">
           <h2 className="font-semibold">{t('copyByHand')}</h2>
           <p className="text-sm text-muted-foreground">{t('copyByHandHint')}</p>
@@ -279,7 +310,13 @@ export function ListView({
           <p>
             {staleLabel} <span className="text-xs">{staleUpdateHint}</span>
           </p>
-          <Button type="button" size="sm" variant="outline" onClick={() => onUpdate(list)} disabled={busy}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onUpdate(list)}
+            disabled={busy}
+          >
             {staleUpdateLabel}
           </Button>
         </div>
@@ -287,22 +324,43 @@ export function ListView({
       <CardContent className="space-y-5 pt-4">
         {/* Asked of the list as it is: another list, or the same list made anew, begins without an answer. */}
         <div className="space-y-2">
-          <ListProposals key={`${list.id}-${list.createdAt}`} list={list} profileId={profileId} aiEnabled={aiEnabled} aiOffNote={aiOffNote} />
+          <ListProposals
+            key={`${list.id}-${list.createdAt}`}
+            list={list}
+            profileId={profileId}
+            aiEnabled={aiEnabled}
+            aiOffNote={aiOffNote}
+          />
           {aiOffNote && <AiOffNote id={aiOffNote} />}
         </div>
         <div className="max-w-sm">
           <Field label={t('findEntry')}>
-            <Input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={t('findEntryPlaceholder')} />
+            <Input
+              type="search"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
+              placeholder={t('findEntryPlaceholder')}
+            />
           </Field>
         </div>
-        {everyItem.some(packsStand) && <p className="text-xs text-muted-foreground">{t('packsHint')}</p>}
-        {wanted && groups.length === 0 && <p className="text-sm text-muted-foreground">{t('findEntryNone', { words: find.trim() })}</p>}
+        {everyItem.some(packsStand) && (
+          <p className="text-xs text-muted-foreground">{t('packsHint')}</p>
+        )}
+        {wanted && groups.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            {t('findEntryNone', { words: find.trim() })}
+          </p>
+        )}
         {groups.map((g) => (
           <div key={g.category}>
             <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{categoryLabel(g.category)}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                {categoryLabel(g.category)}
+              </h3>
               {/* What the whole aisle comes to, whatever part of it is looked for. */}
-              <p className="text-xs text-muted-foreground">{t('aisleEnergy', { kcal: g.estimatedCalories })}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('aisleEnergy', { kcal: g.estimatedCalories })}
+              </p>
             </div>
             <ul className="divide-y divide-border">
               {g.items.map((i) => (
@@ -333,7 +391,8 @@ export interface RowPatch {
 }
 
 /** A number somebody typed into a field of a row: nothing for an empty field, never under nothing. */
-const typed = (field: string): number | null => (field.trim() === '' ? null : Math.max(0, Number(field) || 0));
+const typed = (field: string): number | null =>
+  field.trim() === '' ? null : Math.max(0, Number(field) || 0);
 
 /**
  * A row of the list: what is still to be bought of it, how much of it is at
@@ -364,11 +423,16 @@ function ItemRow({
   const fmt = useFormat();
   const unitName = useUnitName();
   // What was bought beyond what was at home, as the API has it.
-  const boughtBefore = Math.max(0, (item.purchasedQuantity ?? item.alreadyHaveQuantity) - item.alreadyHaveQuantity);
+  const boughtBefore = Math.max(
+    0,
+    (item.purchasedQuantity ?? item.alreadyHaveQuantity) - item.alreadyHaveQuantity,
+  );
   // Local copies of the two fields, so that they can be typed in without a
   // request for every key. They are sent when the field is left. The parent
   // makes the row anew when the server changed it, so these begin fresh then.
-  const [home, setHome] = useState(item.alreadyHaveQuantity > 0 ? String(item.alreadyHaveQuantity) : '');
+  const [home, setHome] = useState(
+    item.alreadyHaveQuantity > 0 ? String(item.alreadyHaveQuantity) : '',
+  );
   const [bought, setBought] = useState(boughtBefore > 0 ? String(boughtBefore) : '');
   // Eggs come whole; half a loaf's slice is as fine as it gets.
   const step = item.unit === 'piece' ? 0.5 : 1;
@@ -401,16 +465,33 @@ function ItemRow({
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 text-sm">
       {/* A tick does not wait for the one before it: only a list that is being replaced takes none. */}
-      <input type="checkbox" aria-label={item.name} className="h-4 w-4 shrink-0" checked={item.checked} disabled={locked} onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })} />
-      <span className={item.checked ? 'min-w-32 flex-1 text-muted-foreground line-through' : 'min-w-32 flex-1'}>
+      <input
+        type="checkbox"
+        aria-label={item.name}
+        className="h-4 w-4 shrink-0"
+        checked={item.checked}
+        disabled={locked}
+        onChange={(e) => onPatch({ checked: e.target.checked, ...pending() })}
+      />
+      <span
+        className={
+          item.checked ? 'min-w-32 flex-1 text-muted-foreground line-through' : 'min-w-32 flex-1'
+        }
+      >
         {item.name}
         {item.pantryBestBefore != null && item.alreadyHaveQuantity > 0 && (
-          <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">{t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}</span>
+          <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground no-underline">
+            {t('bestBefore', { date: fmt.date(item.pantryBestBefore) })}
+          </span>
         )}
       </span>
       <span className="tabular-nums text-muted-foreground">
         {formatQty(remainingToBuy, item.displayUnit)}
-        {showOfTotal && <span className="ml-1 text-xs">{ofLabel(formatQty(item.totalQuantity, item.displayUnit))}</span>}
+        {showOfTotal && (
+          <span className="ml-1 text-xs">
+            {ofLabel(formatQty(item.totalQuantity, item.displayUnit))}
+          </span>
+        )}
       </span>
       {/* The packs are counted by the server from what it knows is at home: while that is being typed anew, they are not said. */}
       {packsStand(item) && homeNow === item.alreadyHaveQuantity && boughtNow === 0 && (
@@ -421,7 +502,12 @@ function ItemRow({
           aria-label={t('buyPacks', { packs: packsText(item.packs, formatQty), name: item.name })}
           title={t('buyPacksTitle')}
           // Everything the user has for the row then: what was at home, and what the packs give it. That is the need at least, so the row is done.
-          onClick={() => onPatch({ purchasedQuantity: item.alreadyHaveQuantity + item.packs.quantity, checked: true })}
+          onClick={() =>
+            onPatch({
+              purchasedQuantity: item.alreadyHaveQuantity + item.packs.quantity,
+              checked: true,
+            })
+          }
         >
           <Package size={12} aria-hidden />
           {packsText(item.packs, formatQty)}
@@ -438,7 +524,9 @@ function ItemRow({
             value={home}
             disabled={busy}
             // A number under nothing is not taken; an empty field is.
-            onChange={(e) => (e.target.value === '' || Number(e.target.value) >= 0) && setHome(e.target.value)}
+            onChange={(e) =>
+              (e.target.value === '' || Number(e.target.value) >= 0) && setHome(e.target.value)
+            }
             onBlur={send}
           />
           {unitName(item.displayUnit)}
@@ -452,7 +540,9 @@ function ItemRow({
             className={field}
             value={bought}
             disabled={busy}
-            onChange={(e) => (e.target.value === '' || Number(e.target.value) >= 0) && setBought(e.target.value)}
+            onChange={(e) =>
+              (e.target.value === '' || Number(e.target.value) >= 0) && setBought(e.target.value)
+            }
             onBlur={send}
           />
           {unitName(item.displayUnit)}

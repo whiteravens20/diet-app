@@ -51,7 +51,15 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
   return (
     <>
       <Field label={t('age')}>
-        <Input name="age" type="number" inputMode="numeric" required min={13} max={120} defaultValue={initial?.age ?? ''} />
+        <Input
+          name="age"
+          type="number"
+          inputMode="numeric"
+          required
+          min={13}
+          max={120}
+          defaultValue={initial?.age ?? ''}
+        />
       </Field>
       <Field label={t('sex')} hint={t('sexHint')}>
         <select name="sex" className={selectClass} defaultValue={initial?.sex ?? ''}>
@@ -61,7 +69,16 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
         </select>
       </Field>
       <Field label={t('heightCm')}>
-        <Input name="heightCm" type="number" inputMode="decimal" required min={100} max={250} step="any" defaultValue={initial?.heightCm ?? ''} />
+        <Input
+          name="heightCm"
+          type="number"
+          inputMode="decimal"
+          required
+          min={100}
+          max={250}
+          step="any"
+          defaultValue={initial?.heightCm ?? ''}
+        />
       </Field>
       {/* Typed in the unit of the account. The field is made anew when the unit is known or changes: a number under another unit's name would be another weight. */}
       <Field label={t('weight', { unit })}>
@@ -78,7 +95,12 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
         />
       </Field>
       <Field label={t('activityLevel')} hint={t(`activityHint.${activity}`)}>
-        <select name="activityLevel" className={selectClass} defaultValue={initial?.activityLevel ?? 'moderate'} onChange={(e) => setActivity(e.target.value as ActivityLevel)}>
+        <select
+          name="activityLevel"
+          className={selectClass}
+          defaultValue={initial?.activityLevel ?? 'moderate'}
+          onChange={(e) => setActivity(e.target.value as ActivityLevel)}
+        >
           {ActivityLevel.options.map((level) => (
             <option key={level} value={level}>
               {tActivity(level)}
@@ -96,10 +118,21 @@ export function BodyFields({ initial, unit }: { initial?: Body; unit: WeightUnit
  * choices, once they are known). A pace that a limit slowed, or that is held
  * until a risk is acknowledged, says so on its row.
  */
-export function PaceChoice({ initial, paces, unit, className }: { initial: Profile['weeklyLossTarget']; paces: CalorieCalculation[] | undefined; unit: WeightUnit; className?: string }) {
+export function PaceChoice({
+  initial,
+  paces,
+  unit,
+  className,
+}: {
+  initial: Profile['weeklyLossTarget'];
+  paces: CalorieCalculation[] | undefined;
+  unit: WeightUnit;
+  className?: string;
+}) {
   const t = useTranslations('profile');
   const fmt = useFormat();
-  const slowed = (at: CalorieCalculation): boolean => at.deficitCapped || at.safetyFloorApplied || at.maintenanceUnderFloor;
+  const slowed = (at: CalorieCalculation): boolean =>
+    at.deficitCapped || at.safetyFloorApplied || at.maintenanceUnderFloor;
   return (
     <fieldset className={className}>
       <legend className="text-sm font-medium">{t('pace')}</legend>
@@ -112,20 +145,41 @@ export function PaceChoice({ initial, paces, unit, className }: { initial: Profi
               key={pace ?? 'none'}
               className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md border border-input px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
             >
-              <input type="radio" name="weeklyLossTarget" value={pace ?? ''} defaultChecked={pace === initial} className="h-4 w-4" />
+              <input
+                type="radio"
+                name="weeklyLossTarget"
+                value={pace ?? ''}
+                defaultChecked={pace === initial}
+                className="h-4 w-4"
+              />
               {/* A quarter of a kilogram is said to the hundredth; in pounds, where no pace is a round number, to the tenth. */}
-              <span>{pace === null ? t('paceNone') : t('paceLose', { amount: unit === 'lb' ? fmt.unit(shownWeight(Number(pace), unit), 'pound', 1) : fmt.unit(Number(pace), 'kilogram', 2) })}</span>
+              <span>
+                {pace === null
+                  ? t('paceNone')
+                  : t('paceLose', {
+                      amount:
+                        unit === 'lb'
+                          ? fmt.unit(shownWeight(Number(pace), unit), 'pound', 1)
+                          : fmt.unit(Number(pace), 'kilogram', 2),
+                    })}
+              </span>
               {at && (
                 <span className="col-start-2 text-muted-foreground tabular-nums sm:col-start-3 sm:text-right">
                   {t('paceComesTo', { kcal: at.dailyTarget })}
-                  {pace !== null && at.goalHeld ? ` · ${t('paceHeld')}` : pace !== null && slowed(at) ? ` · ${t('paceSlowed')}` : ''}
+                  {pace !== null && at.goalHeld
+                    ? ` · ${t('paceHeld')}`
+                    : pace !== null && slowed(at)
+                      ? ` · ${t('paceSlowed')}`
+                      : ''}
                 </span>
               )}
             </label>
           );
         })}
       </div>
-      {paces?.some((at, index) => PACES_OF_LOSS[index] !== null && !at.goalHeld && slowed(at)) && <p className="mt-1.5 text-xs text-muted-foreground">{t('paceSlowedNote')}</p>}
+      {paces?.some((at, index) => PACES_OF_LOSS[index] !== null && !at.goalHeld && slowed(at)) && (
+        <p className="mt-1.5 text-xs text-muted-foreground">{t('paceSlowedNote')}</p>
+      )}
     </fieldset>
   );
 }
@@ -135,7 +189,15 @@ export function OwnTargetField({ initial }: { initial: number | null }) {
   const t = useTranslations('profile');
   return (
     <Field label={t('manualKcalOverride')} hint={t('manualKcalHint')}>
-      <Input name="manualCalorieTarget" type="number" inputMode="numeric" min={MIN_CALORIE_TARGET} max={MAX_CALORIE_TARGET} placeholder={t('auto')} defaultValue={initial ?? ''} />
+      <Input
+        name="manualCalorieTarget"
+        type="number"
+        inputMode="numeric"
+        min={MIN_CALORIE_TARGET}
+        max={MAX_CALORIE_TARGET}
+        placeholder={t('auto')}
+        defaultValue={initial ?? ''}
+      />
     </Field>
   );
 }
@@ -146,17 +208,34 @@ export function OwnTargetField({ initial }: { initial: number | null }) {
  * kept, and plans follow maintenance. A form that keeps nothing (`kept`
  * false) says what the box does to the figures it shows, and no more.
  */
-export function RiskBox({ reasons, acknowledged, kept = true, className }: { reasons: Risk[]; acknowledged: boolean; kept?: boolean; className?: string }) {
+export function RiskBox({
+  reasons,
+  acknowledged,
+  kept = true,
+  className,
+}: {
+  reasons: Risk[];
+  acknowledged: boolean;
+  kept?: boolean;
+  className?: string;
+}) {
   const t = useTranslations('profile.risk');
   if (reasons.length === 0) return null;
   return (
-    <div className={`space-y-2 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm ${className ?? ''}`}>
+    <div
+      className={`space-y-2 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm ${className ?? ''}`}
+    >
       {reasons.map((reason) => (
         <p key={reason}>{t(reason)}</p>
       ))}
       <p className="text-muted-foreground">{t(kept ? 'held' : 'heldHere')}</p>
       <label className="flex items-start gap-2 font-medium">
-        <input type="checkbox" name="acknowledgeRisk" className="mt-1" defaultChecked={acknowledged} />
+        <input
+          type="checkbox"
+          name="acknowledgeRisk"
+          className="mt-1"
+          defaultChecked={acknowledged}
+        />
         {t(kept ? 'acknowledge' : 'acknowledgeHere')}
       </label>
     </div>
@@ -168,12 +247,24 @@ const A_FIRST_SPLIT: MacroSplit = { protein: 25, fat: 30, carbs: 45 };
 
 /** Whether the three shares a form holds for the custom diet add up; true on every other diet. */
 export function splitAddsUp(fields: FormData): boolean {
-  return fields.get('dietType') !== 'custom' || Number(fields.get('splitProtein')) + Number(fields.get('splitFat')) + Number(fields.get('splitCarbs')) === 100;
+  return (
+    fields.get('dietType') !== 'custom' ||
+    Number(fields.get('splitProtein')) +
+      Number(fields.get('splitFat')) +
+      Number(fields.get('splitCarbs')) ===
+      100
+  );
 }
 
 /** The split a form holds for the custom diet; `kept` (the one a profile has for when it goes back) on every other. */
 export function splitIn(fields: FormData, kept: MacroSplit | null): MacroSplit | null {
-  return fields.get('dietType') === 'custom' ? { protein: Number(fields.get('splitProtein')), fat: Number(fields.get('splitFat')), carbs: Number(fields.get('splitCarbs')) } : kept;
+  return fields.get('dietType') === 'custom'
+    ? {
+        protein: Number(fields.get('splitProtein')),
+        fat: Number(fields.get('splitFat')),
+        carbs: Number(fields.get('splitCarbs')),
+      }
+    : kept;
 }
 
 /**
@@ -183,7 +274,17 @@ export function splitIn(fields: FormData, kept: MacroSplit | null): MacroSplit |
  * plan. The custom diet asks for its split: how much of a day's energy comes
  * from protein, fat and carbohydrate.
  */
-export function DietFields({ diet: firstDiet, mealCount: firstMealCount, split: firstSplit, meals = true }: { diet: DietType; mealCount?: number; split: MacroSplit | null; meals?: boolean }) {
+export function DietFields({
+  diet: firstDiet,
+  mealCount: firstMealCount,
+  split: firstSplit,
+  meals = true,
+}: {
+  diet: DietType;
+  mealCount?: number;
+  split: MacroSplit | null;
+  meals?: boolean;
+}) {
   const t = useTranslations('profile');
   const tCatalogue = useTranslations('catalogue');
   const tDiet = useTranslations('enums.dietType');
@@ -201,12 +302,21 @@ export function DietFields({ diet: firstDiet, mealCount: firstMealCount, split: 
   return (
     <>
       <Field label={t('dietType')}>
-        <select name="dietType" className={selectClass} defaultValue={firstDiet} onChange={(e) => setDiet(e.target.value as DietType)}>
+        <select
+          name="dietType"
+          className={selectClass}
+          defaultValue={firstDiet}
+          onChange={(e) => setDiet(e.target.value as DietType)}
+        >
           {diets.map((d) => {
             const supply = meals ? supplyOf(depth, d, mealCount)?.supply : undefined;
             return (
               <option key={d} value={d}>
-                {supply === 'none' ? tCatalogue('dietNone', { diet: tDiet(d) }) : supply === 'thin' ? tCatalogue('dietThin', { diet: tDiet(d) }) : tDiet(d)}
+                {supply === 'none'
+                  ? tCatalogue('dietNone', { diet: tDiet(d) })
+                  : supply === 'thin'
+                    ? tCatalogue('dietThin', { diet: tDiet(d) })
+                    : tDiet(d)}
               </option>
             );
           })}
@@ -215,7 +325,16 @@ export function DietFields({ diet: firstDiet, mealCount: firstMealCount, split: 
       {meals && (
         <>
           <Field label={t('mealsPerDay')}>
-            <Input name="mealCount" type="number" inputMode="numeric" required min={2} max={5} defaultValue={firstMealCount ?? 3} onChange={(e) => setMealCount(e.target.valueAsNumber)} />
+            <Input
+              name="mealCount"
+              type="number"
+              inputMode="numeric"
+              required
+              min={2}
+              max={5}
+              defaultValue={firstMealCount ?? 3}
+              onChange={(e) => setMealCount(e.target.valueAsNumber)}
+            />
           </Field>
           <SupplyNote diet={diet} mealCount={mealCount} className="sm:col-span-2" />
         </>
@@ -242,7 +361,10 @@ export function DietFields({ diet: firstDiet, mealCount: firstMealCount, split: 
             ))}
           </div>
           {/* Said while it is typed: a form that is refused for its sum should have said the sum. */}
-          <p aria-live="polite" className={sum === 100 ? 'text-xs text-muted-foreground' : 'text-xs text-warning'}>
+          <p
+            aria-live="polite"
+            className={sum === 100 ? 'text-xs text-muted-foreground' : 'text-xs text-warning'}
+          >
             {t(sum === 100 ? 'splitSum' : 'splitSumOff', { sum })}
           </p>
         </fieldset>

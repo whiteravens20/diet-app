@@ -40,7 +40,15 @@ const STATUS: Record<string, number> = {
 function sources(dir = SOURCE): string[] {
   return readdirSync(dir, { withFileTypes: true })
     .flatMap((entry) =>
-      entry.isDirectory() ? (entry.name === 'testing' ? [] : sources(join(dir, entry.name))) : entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.bench.ts') ? [join(dir, entry.name)] : [],
+      entry.isDirectory()
+        ? entry.name === 'testing'
+          ? []
+          : sources(join(dir, entry.name))
+        : entry.name.endsWith('.ts') &&
+            !entry.name.endsWith('.test.ts') &&
+            !entry.name.endsWith('.bench.ts')
+          ? [join(dir, entry.name)]
+          : [],
     )
     .sort();
 }
@@ -56,7 +64,11 @@ const CODE = /^[A-Z][A-Z0-9_]+$/;
 /** The API's source as the compiler reads it: what tells which codes a value can be. */
 function program(): ts.Program {
   const root = join(SOURCE, '..');
-  const { options } = ts.parseJsonConfigFileContent(ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile).config, ts.sys, root);
+  const { options } = ts.parseJsonConfigFileContent(
+    ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile).config,
+    ts.sys,
+    root,
+  );
   return ts.createProgram(sources(), { ...options, noEmit: true });
 }
 
@@ -64,7 +76,11 @@ function program(): ts.Program {
 function statusIn(node: ts.Expression | undefined): number | null {
   if (!node) return null;
   if (ts.isNumericLiteral(node)) return Number(node.text);
-  if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'HttpStatus') {
+  if (
+    ts.isPropertyAccessExpression(node) &&
+    ts.isIdentifier(node.expression) &&
+    node.expression.text === 'HttpStatus'
+  ) {
     const named = (HttpStatus as unknown as Record<string, unknown>)[node.name.text];
     return typeof named === 'number' ? named : null;
   }
@@ -75,18 +91,30 @@ function statusIn(node: ts.Expression | undefined): number | null {
 function statusOf(object: ts.ObjectLiteralExpression): number | null {
   // Written into the object itself.
   for (const property of object.properties) {
-    if (ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && (property.name.text === 'status' || property.name.text === 'statusCode')) {
+    if (
+      ts.isPropertyAssignment(property) &&
+      ts.isIdentifier(property.name) &&
+      (property.name.text === 'status' || property.name.text === 'statusCode')
+    ) {
       const written = statusIn(property.initializer);
       if (written !== null) return written;
     }
   }
   const holder = object.parent;
   // The first argument of an exception: the status is the exception's, or its second argument.
-  if (ts.isNewExpression(holder) && holder.arguments?.[0] === object && ts.isIdentifier(holder.expression)) {
-    return STATUS[holder.expression.text] ?? (holder.expression.text === 'HttpException' ? statusIn(holder.arguments[1]) : null);
+  if (
+    ts.isNewExpression(holder) &&
+    holder.arguments?.[0] === object &&
+    ts.isIdentifier(holder.expression)
+  ) {
+    return (
+      STATUS[holder.expression.text] ??
+      (holder.expression.text === 'HttpException' ? statusIn(holder.arguments[1]) : null)
+    );
   }
   // The answer a table keeps for a status: `429: { error: … }`.
-  if (ts.isPropertyAssignment(holder) && ts.isNumericLiteral(holder.name)) return Number(holder.name.text);
+  if (ts.isPropertyAssignment(holder) && ts.isNumericLiteral(holder.name))
+    return Number(holder.name.text);
   return null;
 }
 
@@ -107,7 +135,12 @@ export function readErrorCodes(): ErrorCode[] {
     const visit = (node: ts.Node): void => {
       if (ts.isObjectLiteralExpression(node)) {
         for (const property of node.properties) {
-          if (!(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) || !ts.isIdentifier(property.name) || property.name.text !== 'error') continue;
+          if (
+            !(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) ||
+            !ts.isIdentifier(property.name) ||
+            property.name.text !== 'error'
+          )
+            continue;
           const value = ts.isPropertyAssignment(property) ? property.initializer : property.name;
           if (ts.isStringLiteralLike(value)) {
             if (CODE.test(value.text)) note(value.text, statusOf(node));
@@ -115,9 +148,14 @@ export function readErrorCodes(): ErrorCode[] {
           }
           // Anything else is a code only where the object is what an exception is thrown with.
           if (!ts.isNewExpression(node.parent) || node.parent.arguments?.[0] !== node) continue;
-          const type = ts.isShorthandPropertyAssignment(property) ? checker.getShorthandAssignmentValueSymbol(property) && checker.getTypeAtLocation(property.name) : checker.getTypeAtLocation(value);
+          const type = ts.isShorthandPropertyAssignment(property)
+            ? checker.getShorthandAssignmentValueSymbol(property) &&
+              checker.getTypeAtLocation(property.name)
+            : checker.getTypeAtLocation(value);
           const parts = type ? (type.isUnion() ? type.types : [type]) : [];
-          const codes = parts.flatMap((part) => (part.isStringLiteral() && CODE.test(part.value) ? [part.value] : []));
+          const codes = parts.flatMap((part) =>
+            part.isStringLiteral() && CODE.test(part.value) ? [part.value] : [],
+          );
           if (codes.length === 0 || codes.length !== parts.length) {
             const { line } = file.getLineAndCharacterOfPosition(property.getStart());
             unnamed.push(`${path.slice(SOURCE.length + 1)}:${line + 1}`);
@@ -131,20 +169,29 @@ export function readErrorCodes(): ErrorCode[] {
     visit(file);
   }
   if (unnamed.length > 0) {
-    throw new Error(`A refusal is thrown with a code its type does not name, so the list of codes cannot hold it. Give the value a type that names its codes: ${unnamed.join(', ')}`);
+    throw new Error(
+      `A refusal is thrown with a code its type does not name, so the list of codes cannot hold it. Give the value a type that names its codes: ${unnamed.join(', ')}`,
+    );
   }
-  return [...found].sort(([a], [b]) => (a < b ? -1 : 1)).map(([code, statuses]) => ({ code, statuses: [...statuses].sort((a, b) => a - b) }));
+  return [...found]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([code, statuses]) => ({ code, statuses: [...statuses].sort((a, b) => a - b) }));
 }
 
 /** The sentence the catalogue of `locale` has for each code. */
 function sentences(locale: string): Record<string, string> {
-  return (JSON.parse(readFileSync(join(MESSAGES, `${locale}.json`), 'utf8')) as { errors: Record<string, string> }).errors;
+  return (
+    JSON.parse(readFileSync(join(MESSAGES, `${locale}.json`), 'utf8')) as {
+      errors: Record<string, string>;
+    }
+  ).errors;
 }
 
 /** The codes with their sentences, as a document to read. */
 export function errorsDocument(codes: ErrorCode[] = readErrorCodes()): string {
   const [en, pl] = [sentences('en'), sentences('pl')];
-  const cell = (text: string | undefined): string => (text ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ');
+  const cell = (text: string | undefined): string =>
+    (text ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ');
   return [
     '# The codes a request is refused with',
     '',
@@ -156,7 +203,10 @@ export function errorsDocument(codes: ErrorCode[] = readErrorCodes()): string {
     '',
     '| Code | Status | In English | In Polish |',
     '|---|---|---|---|',
-    ...codes.map(({ code, statuses }) => `| \`${code}\` | ${statuses.join(', ')} | ${cell(en[code])} | ${cell(pl[code])} |`),
+    ...codes.map(
+      ({ code, statuses }) =>
+        `| \`${code}\` | ${statuses.join(', ')} | ${cell(en[code])} | ${cell(pl[code])} |`,
+    ),
     '',
   ].join('\n');
 }
@@ -167,10 +217,21 @@ export function errorsDocument(codes: ErrorCode[] = readErrorCodes()): string {
  * of the catalogue.
  */
 export function errorsData(codes: ErrorCode[] = readErrorCodes()): string {
-  const locales = readdirSync(MESSAGES).filter((name) => name.endsWith('.json')).map((name) => name.slice(0, -'.json'.length)).sort();
+  const locales = readdirSync(MESSAGES)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => name.slice(0, -'.json'.length))
+    .sort();
   const catalogue = Object.fromEntries(locales.map((locale) => [locale, sentences(locale)]));
   const data = Object.fromEntries(
-    codes.map(({ code, statuses }) => [code, { statuses, messages: Object.fromEntries(locales.map((locale) => [locale, catalogue[locale]![code] ?? null])) }]),
+    codes.map(({ code, statuses }) => [
+      code,
+      {
+        statuses,
+        messages: Object.fromEntries(
+          locales.map((locale) => [locale, catalogue[locale]![code] ?? null]),
+        ),
+      },
+    ]),
   );
   return `${JSON.stringify(data, null, 2)}\n`;
 }

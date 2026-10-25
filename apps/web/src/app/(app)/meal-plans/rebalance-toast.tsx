@@ -52,13 +52,17 @@ export function RebalanceToast({
               count: rebalance.changes.length,
             })}
           </p>
-          {rebalance.feasibility === 'best-effort' && <p className="mt-1 text-xs text-warning">{t('rebalanceBestEffort')}</p>}
+          {rebalance.feasibility === 'best-effort' && (
+            <p className="mt-1 text-xs text-warning">{t('rebalanceBestEffort')}</p>
+          )}
         </>
       ) : (
         // Spread over the rest of the plan: what is left over, if anything, is said below.
         <>
           <p className="text-sm font-medium">{t('rebalanceTitlePlan')}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{t('rebalanceSummaryPlan', { count: rebalance.changes.length })}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('rebalanceSummaryPlan', { count: rebalance.changes.length })}
+          </p>
         </>
       )}
       {rebalance.scope === 'day' && (
@@ -68,7 +72,9 @@ export function RebalanceToast({
       )}
       {rebalance.unabsorbedKcal !== 0 && (
         <p className="mt-1 text-xs text-warning">
-          {t(rebalance.unabsorbedKcal > 0 ? 'rebalanceLeftOver' : 'rebalanceLeftUnder', { kcal: Math.abs(rebalance.unabsorbedKcal) })}
+          {t(rebalance.unabsorbedKcal > 0 ? 'rebalanceLeftOver' : 'rebalanceLeftUnder', {
+            kcal: Math.abs(rebalance.unabsorbedKcal),
+          })}
         </p>
       )}
       <div className="mt-2 flex flex-wrap gap-2">
@@ -76,7 +82,14 @@ export function RebalanceToast({
           {t('rebalanceUndo')}
         </Button>
         {rebalance.scope === 'day' && (
-          <Button type="button" variant="outline" size="sm" onClick={onRebalanceRest} disabled={busy} aria-describedby="rebalance-rest-note">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onRebalanceRest}
+            disabled={busy}
+            aria-describedby="rebalance-rest-note"
+          >
             {t('rebalanceRest')}
           </Button>
         )}

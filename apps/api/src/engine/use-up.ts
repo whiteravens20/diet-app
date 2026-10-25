@@ -38,7 +38,11 @@ export interface PackTally {
   wasted: number;
 }
 
-export const tallyOf = (use: PackUse): PackTally => ({ bought: use.bought, used: use.used, wasted: use.open.filter((pack) => pack.wasted).length });
+export const tallyOf = (use: PackUse): PackTally => ({
+  bought: use.bought,
+  used: use.used,
+  wasted: use.open.filter((pack) => pack.wasted).length,
+});
 
 /** A recipe in the place of a meal, and what that does to the packs. */
 export interface UseUpSwap {
@@ -52,7 +56,10 @@ export interface UseUpSwap {
 }
 
 /** How much of the packs a menu leaves beyond the fifth that is accepted, in packs. */
-function leftBeyond(needs: ReadonlyMap<string, number>, packs: ReadonlyMap<string, number>): number {
+function leftBeyond(
+  needs: ReadonlyMap<string, number>,
+  packs: ReadonlyMap<string, number>,
+): number {
   let beyond = 0;
   for (const [ingredientId, need] of needs) {
     const packSize = packs.get(ingredientId);
@@ -73,14 +80,25 @@ function leftBeyond(needs: ReadonlyMap<string, number>, packs: ReadonlyMap<strin
  * opened pack does not keep. A recipe is sized to what the meal holds, as a
  * swap sizes it.
  */
-export function useUpSwaps(meals: readonly UseUpMeal[], fixed: ReadonlyMap<string, number>, packs: ReadonlyMap<string, number>, most = 5): UseUpSwap[] {
+export function useUpSwaps(
+  meals: readonly UseUpMeal[],
+  fixed: ReadonlyMap<string, number>,
+  packs: ReadonlyMap<string, number>,
+  most = 5,
+): UseUpSwap[] {
   const needs = new Map(fixed);
-  for (const meal of meals) for (const [ingredientId, amount] of meal.amounts) needs.set(ingredientId, (needs.get(ingredientId) ?? 0) + amount);
+  for (const meal of meals)
+    for (const [ingredientId, amount] of meal.amounts)
+      needs.set(ingredientId, (needs.get(ingredientId) ?? 0) + amount);
   const before = tallyOf(packUse(needs, packs));
   const beyondBefore = leftBeyond(needs, packs);
   if (beyondBefore <= 0) return [];
   // The packs of which more than a fifth are left now: what a swap is looked at for.
-  const leftOpen = new Set([...needs].filter(([ingredientId, need]) => leftBeyondAccepted(need, packs.get(ingredientId) ?? 0) > 0).map(([ingredientId]) => ingredientId));
+  const leftOpen = new Set(
+    [...needs]
+      .filter(([ingredientId, need]) => leftBeyondAccepted(need, packs.get(ingredientId) ?? 0) > 0)
+      .map(([ingredientId]) => ingredientId),
+  );
 
   const found: (UseUpSwap & { beyond: number })[] = [];
   for (const meal of meals) {
@@ -88,27 +106,50 @@ export function useUpSwaps(meals: readonly UseUpMeal[], fixed: ReadonlyMap<strin
     for (const candidate of meal.candidates) {
       if (candidate.recipeId === meal.recipeId) continue;
       // Only a recipe that takes from a pack that is left open can use one up.
-      if (![...candidate.amounts.keys()].some((ingredientId) => leftOpen.has(ingredientId))) continue;
+      if (![...candidate.amounts.keys()].some((ingredientId) => leftOpen.has(ingredientId)))
+        continue;
       const servings = fitServings(candidate.caloriesPerServing, meal.held);
       const with_ = new Map(needs);
-      for (const [ingredientId, amount] of meal.amounts) with_.set(ingredientId, Math.max(0, (with_.get(ingredientId) ?? 0) - amount));
-      for (const [ingredientId, perServing] of candidate.amounts) with_.set(ingredientId, (with_.get(ingredientId) ?? 0) + perServing * servings);
+      for (const [ingredientId, amount] of meal.amounts)
+        with_.set(ingredientId, Math.max(0, (with_.get(ingredientId) ?? 0) - amount));
+      for (const [ingredientId, perServing] of candidate.amounts)
+        with_.set(ingredientId, (with_.get(ingredientId) ?? 0) + perServing * servings);
       const beyond = leftBeyond(with_, packs);
       if (beyondBefore - beyond < SPOONFUL) continue;
       const after = tallyOf(packUse(with_, packs));
-      const better = best === null || beyond < best.beyond - 1e-9 || (Math.abs(beyond - best.beyond) <= 1e-9 && (after.bought < best.after.bought || (after.bought === best.after.bought && candidate.recipeId < best.recipeId)));
+      const better =
+        best === null ||
+        beyond < best.beyond - 1e-9 ||
+        (Math.abs(beyond - best.beyond) <= 1e-9 &&
+          (after.bought < best.after.bought ||
+            (after.bought === best.after.bought && candidate.recipeId < best.recipeId)));
       if (!better) continue;
       const takes = new Map<string, { amount: number; left: number }>();
       for (const ingredientId of leftOpen) {
         const more = (with_.get(ingredientId) ?? 0) - (needs.get(ingredientId) ?? 0);
-        if (more > 1e-6) takes.set(ingredientId, { amount: more, left: leftOf(with_.get(ingredientId)!, packs.get(ingredientId)!) });
+        if (more > 1e-6)
+          takes.set(ingredientId, {
+            amount: more,
+            left: leftOf(with_.get(ingredientId)!, packs.get(ingredientId)!),
+          });
       }
-      best = { mealId: meal.id, recipeId: candidate.recipeId, servings, before, after, takes, beyond };
+      best = {
+        mealId: meal.id,
+        recipeId: candidate.recipeId,
+        servings,
+        before,
+        after,
+        takes,
+        beyond,
+      };
     }
     if (best) found.push(best);
   }
   return found
-    .sort((a, b) => a.beyond - b.beyond || a.after.bought - b.after.bought || (a.mealId < b.mealId ? -1 : 1))
+    .sort(
+      (a, b) =>
+        a.beyond - b.beyond || a.after.bought - b.after.bought || (a.mealId < b.mealId ? -1 : 1),
+    )
     .slice(0, most)
     .map(({ beyond: _beyond, ...swap }) => swap);
 }

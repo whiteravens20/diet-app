@@ -203,10 +203,7 @@ function Logo({ size = 22 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
       <Rect width={64} height={64} rx={14} fill="#2f9e6f" />
-      <Path
-        d="M32 14c8 6 12 13 12 21a12 12 0 1 1-24 0c0-8 4-15 12-21Z"
-        fill="#ffffff"
-      />
+      <Path d="M32 14c8 6 12 13 12 21a12 12 0 1 1-24 0c0-8 4-15 12-21Z" fill="#ffffff" />
       <Circle cx={32} cy={36} r={5} fill="#2f9e6f" />
     </Svg>
   );
@@ -258,7 +255,17 @@ function splitGroups(list: ShoppingList) {
 }
 
 function buildPretty(opts: BuildOpts) {
-  const { list, appName, planTitle, dateRangeLabel, categoryLabel, formatQty, ofLabel, haveLabel, boughtLabel } = opts;
+  const {
+    list,
+    appName,
+    planTitle,
+    dateRangeLabel,
+    categoryLabel,
+    formatQty,
+    ofLabel,
+    haveLabel,
+    boughtLabel,
+  } = opts;
   const { leftGroups, rightGroups } = splitGroups(list);
 
   function renderItem(i: ShoppingList['groups'][number]['items'][number]) {
@@ -270,7 +277,13 @@ function buildPretty(opts: BuildOpts) {
     return (
       <View key={i.id} style={prettyStyles.item} wrap={false}>
         <View style={prettyStyles.itemTopRow}>
-          <View style={isChecked ? [prettyStyles.checkbox, prettyStyles.checkboxFilled] : prettyStyles.checkbox} />
+          <View
+            style={
+              isChecked
+                ? [prettyStyles.checkbox, prettyStyles.checkboxFilled]
+                : prettyStyles.checkbox
+            }
+          />
           <View style={prettyStyles.itemMain}>
             <Text style={prettyStyles.itemName}>
               {i.name}
@@ -282,9 +295,14 @@ function buildPretty(opts: BuildOpts) {
           <Text style={prettyStyles.qty}>
             {formatQty(i.toBuyQuantity, i.displayUnit)}
             {i.alreadyHaveQuantity > 0 && (
-              <Text style={prettyStyles.qtyOf}> {ofLabel(formatQty(i.totalQuantity, i.displayUnit))}</Text>
+              <Text style={prettyStyles.qtyOf}>
+                {' '}
+                {ofLabel(formatQty(i.totalQuantity, i.displayUnit))}
+              </Text>
             )}
-            {packsStand(i) && <Text style={prettyStyles.qtyOf}> · {packsText(i.packs, formatQty)}</Text>}
+            {packsStand(i) && (
+              <Text style={prettyStyles.qtyOf}> · {packsText(i.packs, formatQty)}</Text>
+            )}
           </Text>
         </View>
         <View style={prettyStyles.writeInRow}>
@@ -327,7 +345,18 @@ function buildPretty(opts: BuildOpts) {
 }
 
 function buildFoldable(opts: BuildOpts) {
-  const { list, appName, planTitle, dateRangeLabel, notesLabel, foldHereLabel, categoryLabel, formatQty, ofLabel, haveLabel } = opts;
+  const {
+    list,
+    appName,
+    planTitle,
+    dateRangeLabel,
+    notesLabel,
+    foldHereLabel,
+    categoryLabel,
+    formatQty,
+    ofLabel,
+    haveLabel,
+  } = opts;
   const { leftGroups, rightGroups } = splitGroups(list);
 
   function renderItem(i: ShoppingList['groups'][number]['items'][number]) {
@@ -335,7 +364,13 @@ function buildFoldable(opts: BuildOpts) {
     const isChecked = i.checked || isCovered;
     return (
       <View key={i.id} style={foldableStyles.item} wrap={false}>
-        <View style={isChecked ? [foldableStyles.checkbox, foldableStyles.checkboxFilled] : foldableStyles.checkbox} />
+        <View
+          style={
+            isChecked
+              ? [foldableStyles.checkbox, foldableStyles.checkboxFilled]
+              : foldableStyles.checkbox
+          }
+        />
         <View style={foldableStyles.itemMain}>
           <Text style={foldableStyles.itemName}>
             {i.name}
@@ -347,9 +382,14 @@ function buildFoldable(opts: BuildOpts) {
         <Text style={foldableStyles.qty}>
           {formatQty(i.toBuyQuantity, i.displayUnit)}
           {i.alreadyHaveQuantity > 0 && (
-            <Text style={foldableStyles.qtyOf}> {ofLabel(formatQty(i.totalQuantity, i.displayUnit))}</Text>
+            <Text style={foldableStyles.qtyOf}>
+              {' '}
+              {ofLabel(formatQty(i.totalQuantity, i.displayUnit))}
+            </Text>
           )}
-          {packsStand(i) && <Text style={foldableStyles.qtyOf}> · {packsText(i.packs, formatQty)}</Text>}
+          {packsStand(i) && (
+            <Text style={foldableStyles.qtyOf}> · {packsText(i.packs, formatQty)}</Text>
+          )}
         </Text>
       </View>
     );

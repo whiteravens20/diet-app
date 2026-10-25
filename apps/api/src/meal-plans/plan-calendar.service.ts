@@ -35,7 +35,12 @@ export class PlanCalendarService {
       ORDER BY d."date", p."createdAt" DESC, p."id"`;
     const plansOn = new Map(held.map((day) => [day.id, day.plans]));
 
-    const amount = { caloriesPerServing: true, proteinPerServing: true, fatPerServing: true, carbsPerServing: true } as const;
+    const amount = {
+      caloriesPerServing: true,
+      proteinPerServing: true,
+      fatPerServing: true,
+      carbsPerServing: true,
+    } as const;
     const days = await this.prisma.mealPlanDay.findMany({
       where: { id: { in: held.map((day) => day.id) } },
       select: {
@@ -44,7 +49,16 @@ export class PlanCalendarService {
         planId: true,
         calorieTarget: true,
         overrides: true,
-        meals: { select: { servings: true, quantityScale: true, source: true, customMacros: true, eatenAt: true, recipe: { select: amount } } },
+        meals: {
+          select: {
+            servings: true,
+            quantityScale: true,
+            source: true,
+            customMacros: true,
+            eatenAt: true,
+            recipe: { select: amount },
+          },
+        },
       },
       orderBy: { date: 'asc' },
     });
@@ -61,7 +75,10 @@ export class PlanCalendarService {
           calories,
           target: day.calorieTarget,
           offTarget: standingOf(calories, day.calorieTarget, skipped).offTarget,
-          eaten: { meals: day.meals.filter((meal) => meal.eatenAt !== null).length, of: day.meals.length },
+          eaten: {
+            meals: day.meals.filter((meal) => meal.eatenAt !== null).length,
+            of: day.meals.length,
+          },
           skipped,
         };
       }),

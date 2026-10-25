@@ -1,10 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import {
-  type DietType,
-  type MealPlan,
-  type Profile,
-} from '@diet-app/shared';
+import { type DietType, type MealPlan, type Profile } from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { FavoriteSetsService } from '../favorite-sets/favorite-sets.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
@@ -27,7 +23,11 @@ interface Kind {
   violator: string;
   meal: 'lunch' | 'dinner';
   /** Whether a recipe breaks the restriction. */
-  breaks(recipe: { slug: string | null; allergens: string[]; ingredients: { ingredient: { slug: string | null; dietCompatibility: string[] } }[] }): boolean;
+  breaks(recipe: {
+    slug: string | null;
+    allergens: string[];
+    ingredients: { ingredient: { slug: string | null; dietCompatibility: string[] } }[];
+  }): boolean;
 }
 
 const KINDS: Record<string, Kind> = {
@@ -39,7 +39,8 @@ const KINDS: Record<string, Kind> = {
     avoided: null,
     violator: 'chicken-rice-broccoli',
     meal: 'lunch',
-    breaks: (recipe) => recipe.ingredients.some((line) => !line.ingredient.dietCompatibility.includes('vegan')),
+    breaks: (recipe) =>
+      recipe.ingredients.some((line) => !line.ingredient.dietCompatibility.includes('vegan')),
   },
   'an allergen of the profile': {
     diet: 'balanced',
@@ -98,7 +99,8 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
 
   const ingredientIds = async (slugs: string[]): Promise<string[]> =>
     (await t.prisma.ingredient.findMany({ where: { slug: { in: slugs } } })).map((row) => row.id);
-  const recipeId = async (slug: string): Promise<string> => (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).id;
+  const recipeId = async (slug: string): Promise<string> =>
+    (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).id;
 
   beforeEach(async () => {
     await resetUserData(t.prisma);
@@ -134,13 +136,24 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
       include: { recipe: { include: { ingredients: { include: { ingredient: true } } } } },
     });
     expect(meals.length).toBeGreaterThan(0);
-    return [...new Set(meals.filter((meal) => kind.breaks(meal.recipe!)).map((meal) => meal.recipe!.slug ?? meal.recipe!.id))];
+    return [
+      ...new Set(
+        meals
+          .filter((meal) => kind.breaks(meal.recipe!))
+          .map((meal) => meal.recipe!.slug ?? meal.recipe!.id),
+      ),
+    ];
   }
 
   const fresh = async (): Promise<MealPlan> => plans.get(user.id, 'en', plan.id);
-  const mealOf = async (mealType: string) => (await fresh()).days[0]!.meals.find((m) => m.mealType === mealType)!;
+  const mealOf = async (mealType: string) =>
+    (await fresh()).days[0]!.meals.find((m) => m.mealType === mealType)!;
   /** Run an edit that may find nothing to offer; a refusal writes nothing, which is fine here. */
-  const attempt = async (edit: () => Promise<unknown>): Promise<boolean> => edit().then(() => true, () => false);
+  const attempt = async (edit: () => Promise<unknown>): Promise<boolean> =>
+    edit().then(
+      () => true,
+      () => false,
+    );
 
   it('is generated without it', async () => {
     expect(await intruders()).toEqual([]);
@@ -163,7 +176,11 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     for (const mealType of ['breakfast', 'lunch', 'dinner']) {
       for (let round = 0; round < 8; round += 1) {
         const meal = await mealOf(mealType);
-        if (await attempt(() => aSwap(t, user, { planId: plan.id, plannedMealId: meal.id, strategy: 'random' }))) {
+        if (
+          await attempt(() =>
+            aSwap(t, user, { planId: plan.id, plannedMealId: meal.id, strategy: 'random' }),
+          )
+        ) {
           swapped += 1;
         }
       }
@@ -177,17 +194,27 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     for (let round = 0; round < 6; round += 1) {
       const meal = await mealOf(kind.meal);
       outcomes.push(
-        await aSwap(t, user, { planId: plan.id, plannedMealId: meal.id, strategy: 'favorite_ingredients' })
-          .then(() => 'swapped', (err: { response?: { error?: string } }) => err.response?.error ?? String(err)),
+        await aSwap(t, user, {
+          planId: plan.id,
+          plannedMealId: meal.id,
+          strategy: 'favorite_ingredients',
+        }).then(
+          () => 'swapped',
+          (err: { response?: { error?: string } }) => err.response?.error ?? String(err),
+        ),
       );
     }
     // Either another recipe with a favourite ingredient was found, or none is left once the violator is out.
-    for (const outcome of outcomes) expect(['swapped', 'NO_FAVORITE_INGREDIENT_MATCH']).toContain(outcome);
+    for (const outcome of outcomes)
+      expect(['swapped', 'NO_FAVORITE_INGREDIENT_MATCH']).toContain(outcome);
     expect(await intruders()).toEqual([]);
   });
 
   it('stays without it when a model is asked, whether the model names it or answers nonsense', async () => {
-    t.model.reply({ text: JSON.stringify({ recipeId: violatorId, reason: 'It looked tasty.' }), times: 4 });
+    t.model.reply({
+      text: JSON.stringify({ recipeId: violatorId, reason: 'It looked tasty.' }),
+      times: 4,
+    });
     t.model.reply({ text: 'no idea', times: 4 });
     for (let round = 0; round < 8; round += 1) {
       const meal = await mealOf(kind.meal);
@@ -195,7 +222,8 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     }
     // The model was asked every time, and never shown the recipe.
     expect(t.model.requests).toHaveLength(8);
-    for (const request of t.model.requests) expect(request.prompt).not.toContain(`id=${violatorId}`);
+    for (const request of t.model.requests)
+      expect(request.prompt).not.toContain(`id=${violatorId}`);
     expect(await intruders()).toEqual([]);
   });
 
@@ -203,7 +231,12 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     const meal = await mealOf(kind.meal);
 
     await expect(
-      aSwap(t, user, { planId: plan.id, plannedMealId: meal.id, strategy: 'favorite', favoriteRecipeId: violatorId }),
+      aSwap(t, user, {
+        planId: plan.id,
+        plannedMealId: meal.id,
+        strategy: 'favorite',
+        favoriteRecipeId: violatorId,
+      }),
     ).rejects.toMatchObject({ status: 400 });
 
     expect(await intruders()).toEqual([]);
@@ -213,12 +246,19 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     // Saved before the restriction existed, as far as the set knows.
     const other = await recipeId('banana-oat-shake');
     const set = await t.prisma.favoriteSet.create({
-      data: { profileId: profile.id, label: 'From before', slots: { [kind.meal]: violatorId, snack: other } },
+      data: {
+        profileId: profile.id,
+        label: 'From before',
+        slots: { [kind.meal]: violatorId, snack: other },
+      },
     });
     const before = await fresh();
 
     await expect(
-      sets.apply(user.id, 'en', set.id, { planId: plan.id, dayDates: [plan.days[1]!.date.slice(0, 10)] }),
+      sets.apply(user.id, 'en', set.id, {
+        planId: plan.id,
+        dayDates: [plan.days[1]!.date.slice(0, 10)],
+      }),
     ).rejects.toMatchObject({ status: 400 });
 
     expect(await intruders()).toEqual([]);
@@ -229,7 +269,9 @@ describe.each(Object.entries(KINDS))('a plan under %s', (_name, kind) => {
     await expect(
       aPlan(t, user, profile, {
         startDate: '2026-02-02',
-        dayOverrides: [{ date: '2026-02-03', lockedSlots: [{ mealType: kind.meal, recipeId: violatorId }] }],
+        dayOverrides: [
+          { date: '2026-02-03', lockedSlots: [{ mealType: kind.meal, recipeId: violatorId }] },
+        ],
       }),
     ).rejects.toMatchObject({ status: 400 });
   });

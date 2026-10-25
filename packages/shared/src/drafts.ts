@@ -80,7 +80,10 @@ export const IngredientNameDraftListQuery = z.object({
 export type IngredientNameDraftListQuery = z.infer<typeof IngredientNameDraftListQuery>;
 
 /** The administrator's list of recipe drafts. `source` narrows it to where the drafts came from: `AI_USER` are the ones users sent. */
-export const RecipeDraftListQuery = IngredientNameDraftListQuery.extend({ complexity: Complexity.optional(), source: DraftSource.optional() });
+export const RecipeDraftListQuery = IngredientNameDraftListQuery.extend({
+  complexity: Complexity.optional(),
+  source: DraftSource.optional(),
+});
 export type RecipeDraftListQuery = z.infer<typeof RecipeDraftListQuery>;
 
 /** What waits for a reviewer in one language; with `includeReviewed`, also what that language already approved. */
@@ -183,7 +186,9 @@ export const DraftReviewBody = z.object({
 export type DraftReviewBody = z.infer<typeof DraftReviewBody>;
 
 /** Up to a hundred drafts rejected with one reason. */
-export const DraftBulkRejectBody = DraftReviewBody.extend({ ids: z.array(z.string().uuid()).min(1).max(100) });
+export const DraftBulkRejectBody = DraftReviewBody.extend({
+  ids: z.array(z.string().uuid()).min(1).max(100),
+});
 export type DraftBulkRejectBody = z.infer<typeof DraftBulkRejectBody>;
 
 /** Which queue a shipment is taken from. */
@@ -213,7 +218,9 @@ export const MarkShippedRequest = z.object({
 export type MarkShippedRequest = z.infer<typeof MarkShippedRequest>;
 
 /** Where shipped data is pulled from: a repository (`owner/repo[@branch]`) or an address; the instance's own source when it is left out. */
-export const PullOverridesRequest = z.object({ source: z.string().trim().min(1).max(500).optional() });
+export const PullOverridesRequest = z.object({
+  source: z.string().trim().min(1).max(500).optional(),
+});
 export type PullOverridesRequest = z.infer<typeof PullOverridesRequest>;
 
 /** `?dryRun=true`: say what an edit would give, and store nothing. */
@@ -241,7 +248,13 @@ export type DraftRunnerStatus = z.infer<typeof DraftRunnerStatus>;
  *  - `coverage-reached`: every diet has enough recipes for every meal;
  *  - `nothing-to-translate`: nothing lacks the language that was asked for.
  */
-export const DraftRunNote = z.enum(['nothing-imported', 'not-imported', 'all-have-drafts', 'coverage-reached', 'nothing-to-translate']);
+export const DraftRunNote = z.enum([
+  'nothing-imported',
+  'not-imported',
+  'all-have-drafts',
+  'coverage-reached',
+  'nothing-to-translate',
+]);
 export type DraftRunNote = z.infer<typeof DraftRunNote>;
 
 export const DraftRunnerState = z.object({
@@ -293,7 +306,10 @@ export type RecipeRunState = z.infer<typeof RecipeRunState>;
  *  it uses `partialRecord`: drafts are generated for a locale subset
  *  (`targetLocales`), so Zod v4's exhaustive `z.record` over the enum key would
  *  wrongly reject a `{ pl: … }` map for the missing `en` key. */
-export const LocaleStringsMap = z.partialRecord(Locale, z.array(z.string().min(1).max(5_000)).min(1).max(200));
+export const LocaleStringsMap = z.partialRecord(
+  Locale,
+  z.array(z.string().min(1).max(5_000)).min(1).max(200),
+);
 export type LocaleStringsMap = z.infer<typeof LocaleStringsMap>;
 
 /** One ingredient line as the AI returns it inside a recipe draft. Slug must
@@ -383,39 +399,45 @@ export type ComplexityMix = z.infer<typeof ComplexityMix>;
 export const CatalogueScope = z.enum(['curated', 'all']);
 export type CatalogueScope = z.infer<typeof CatalogueScope>;
 
-export const RecipeGenerateSpec = z.object({
-  /** How many recipes to write; with `fillCoverage`, how many at most. */
-  count: z.number().int().min(1).max(25),
-  targetLocales: z.array(Locale).min(1).max(Locale.options.length).optional(),
-  catalogueScope: CatalogueScope.optional(),
-  /**
-   * Write for the diet and meal that have the fewest recipes, call after
-   * call, and stop when every diet has enough for every meal. The run then
-   * chooses the diet and the meal itself: `dietTags` and `mealTypes` may not
-   * be sent with it.
-   */
-  fillCoverage: z.boolean().optional(),
-  dietTags: z.array(DietType).max(DietType.options.length).optional(),
-  mealTypes: z.array(MealType).max(MealType.options.length).optional(),
-  /**
-   * The direction the model is given, in words. When it names a cuisine the
-   * application knows (`Cuisine`), the drafts of the run are tagged with it.
-   */
-  cuisine: z.string().min(1).max(80).optional(),
-  kcalRange: z
-    .object({
-      min: z.number().int().min(0).max(5000),
-      max: z.number().int().min(1).max(5000),
-    })
-    .refine((r) => r.max >= r.min, { message: 'kcalRange.max must be >= min' })
-    .optional(),
-  avoidSlugs: z.array(z.string().min(1).max(200)).max(200).optional(),
-  preferSlugs: z.array(z.string().min(1).max(200)).max(200).optional(),
-  complexityMix: ComplexityMix.optional(),
-}).refine((spec) => !spec.fillCoverage || (spec.dietTags === undefined && spec.mealTypes === undefined), {
-  message: 'fillCoverage chooses the diet and the meal: dietTags and mealTypes may not be sent with it',
-  path: ['fillCoverage'],
-});
+export const RecipeGenerateSpec = z
+  .object({
+    /** How many recipes to write; with `fillCoverage`, how many at most. */
+    count: z.number().int().min(1).max(25),
+    targetLocales: z.array(Locale).min(1).max(Locale.options.length).optional(),
+    catalogueScope: CatalogueScope.optional(),
+    /**
+     * Write for the diet and meal that have the fewest recipes, call after
+     * call, and stop when every diet has enough for every meal. The run then
+     * chooses the diet and the meal itself: `dietTags` and `mealTypes` may not
+     * be sent with it.
+     */
+    fillCoverage: z.boolean().optional(),
+    dietTags: z.array(DietType).max(DietType.options.length).optional(),
+    mealTypes: z.array(MealType).max(MealType.options.length).optional(),
+    /**
+     * The direction the model is given, in words. When it names a cuisine the
+     * application knows (`Cuisine`), the drafts of the run are tagged with it.
+     */
+    cuisine: z.string().min(1).max(80).optional(),
+    kcalRange: z
+      .object({
+        min: z.number().int().min(0).max(5000),
+        max: z.number().int().min(1).max(5000),
+      })
+      .refine((r) => r.max >= r.min, { message: 'kcalRange.max must be >= min' })
+      .optional(),
+    avoidSlugs: z.array(z.string().min(1).max(200)).max(200).optional(),
+    preferSlugs: z.array(z.string().min(1).max(200)).max(200).optional(),
+    complexityMix: ComplexityMix.optional(),
+  })
+  .refine(
+    (spec) => !spec.fillCoverage || (spec.dietTags === undefined && spec.mealTypes === undefined),
+    {
+      message:
+        'fillCoverage chooses the diet and the meal: dietTags and mealTypes may not be sent with it',
+      path: ['fillCoverage'],
+    },
+  );
 export type RecipeGenerateSpec = z.infer<typeof RecipeGenerateSpec>;
 
 /** PATCH body for a recipe draft. All fields optional; what is sent is merged
@@ -571,9 +593,7 @@ export const IngredientNameReviewPatchBody = z
   .strict();
 export type IngredientNameReviewPatchBody = z.infer<typeof IngredientNameReviewPatchBody>;
 
-export const ReviewerReasonBody = z
-  .object({ reason: z.string().max(500).optional() })
-  .strict();
+export const ReviewerReasonBody = z.object({ reason: z.string().max(500).optional() }).strict();
 export type ReviewerReasonBody = z.infer<typeof ReviewerReasonBody>;
 
 /** A page of the queue: its rows, how many there are in all, and where the page is. */
@@ -651,7 +671,10 @@ export const ShipConfig = z.object({
   }),
   pull: z.object({ available: z.literal(true), defaultSource: z.string(), tokenSet: z.boolean() }),
   instanceData: InstanceDataState,
-  approvedCounts: z.object({ recipe: z.number().int().min(0), ingredientName: z.number().int().min(0) }),
+  approvedCounts: z.object({
+    recipe: z.number().int().min(0),
+    ingredientName: z.number().int().min(0),
+  }),
 });
 export type ShipConfig = z.infer<typeof ShipConfig>;
 

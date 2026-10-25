@@ -9,7 +9,8 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 const DAY_MS = 86_400_000;
 /** The day `offset` days from today: the API takes a client's date only near its own. */
-const day = (offset: number): string => new Date(Date.now() + offset * DAY_MS).toISOString().slice(0, 10);
+const day = (offset: number): string =>
+  new Date(Date.now() + offset * DAY_MS).toISOString().slice(0, 10);
 /** The day whose settings are changed: tomorrow, in a plan that began the day before yesterday. */
 const DATE = day(1);
 
@@ -34,7 +35,8 @@ describe('the settings of a day of a running plan', () => {
     await t.close();
   });
 
-  const dayOf = (of: MealPlan, date = DATE): MealPlanDay => of.days.find((day) => day.date === date)!;
+  const dayOf = (of: MealPlan, date = DATE): MealPlanDay =>
+    of.days.find((day) => day.date === date)!;
   /** The settings a day has, as a window opens on them. */
   const settingsOf = (day: MealPlanDay): DaySettings => ({
     dayType: day.overrides?.dayType ?? 'normal',
@@ -54,7 +56,10 @@ describe('the settings of a day of a running plan', () => {
         .send({ ...settingsOf(dayOf(of)), ...change })
         .expect(200)
     ).body as DaySettingsPreview;
-  const apply = async (of: MealPlan, change: Partial<DaySettings> & { allowRelaxations?: string[] }) =>
+  const apply = async (
+    of: MealPlan,
+    change: Partial<DaySettings> & { allowRelaxations?: string[] },
+  ) =>
     (
       await t
         .http()
@@ -65,12 +70,20 @@ describe('the settings of a day of a running plan', () => {
         .expect(200)
     ).body as MealPlan;
   /** The recipe of each meal of the catalogue on a day, by its meal. */
-  const dishes = (day: MealPlanDay) => Object.fromEntries(day.meals.filter((meal) => meal.recipe).map((meal) => [meal.mealType, meal.recipe!.id]));
-  const insideItsWindow = (day: MealPlanDay) => Math.abs(day.dayNutrition.calories - day.calorieTarget) <= day.calorieTarget * 0.1;
+  const dishes = (day: MealPlanDay) =>
+    Object.fromEntries(
+      day.meals.filter((meal) => meal.recipe).map((meal) => [meal.mealType, meal.recipe!.id]),
+    );
+  const insideItsWindow = (day: MealPlanDay) =>
+    Math.abs(day.dayNutrition.calories - day.calorieTarget) <= day.calorieTarget * 0.1;
 
   it('says that the settings the day has change nothing, and changes nothing for them', async () => {
     const said = await preview(plan, {});
-    expect(said).toMatchObject({ unchanged: true, added: [], calorieTarget: { now: dayOf(plan).calorieTarget, then: dayOf(plan).calorieTarget } });
+    expect(said).toMatchObject({
+      unchanged: true,
+      added: [],
+      calorieTarget: { now: dayOf(plan).calorieTarget, then: dayOf(plan).calorieTarget },
+    });
     expect(said.meals.every((meal) => meal.fate === 'stays')).toBe(true);
 
     const after = await apply(plan, {});
@@ -81,12 +94,16 @@ describe('the settings of a day of a running plan', () => {
     it('keeps the dishes in larger portions on a training day, at the target its kind gives', async () => {
       const day = dayOf(plan);
       // A training day aims fifteen in a hundred over the plan's base, to ten kilocalories.
-      const { calorieTarget: base } = await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } });
+      const { calorieTarget: base } = await t.prisma.mealPlan.findUniqueOrThrow({
+        where: { id: plan.id },
+      });
       const target = Math.round((base * 1.15) / 10) * 10;
 
       const said = await preview(plan, { dayType: 'training' });
       expect(said.calorieTarget).toEqual({ now: day.calorieTarget, then: target });
-      expect(said.meals.map((meal) => [meal.fate, meal.because])).toEqual(day.meals.map(() => ['resized', null]));
+      expect(said.meals.map((meal) => [meal.fate, meal.because])).toEqual(
+        day.meals.map(() => ['resized', null]),
+      );
       expect(said).toMatchObject({ added: [], fits: true, unchanged: false });
       expect(said.targetMacros.then.carbs).toBeGreaterThan(said.targetMacros.now.carbs);
 
@@ -99,7 +116,7 @@ describe('the settings of a day of a running plan', () => {
       expect(insideItsWindow(after)).toBe(true);
     });
 
-    it('takes a target of the day\'s own in place of its kind, and says when it goes under the floor', async () => {
+    it("takes a target of the day's own in place of its kind, and says when it goes under the floor", async () => {
       // A man's floor is 1500.
       const said = await preview(plan, { dayType: 'training', calorieTarget: 1400 });
       expect(said).toMatchObject({ calorieTarget: { then: 1400 }, belowSafetyFloor: true });
@@ -121,7 +138,12 @@ describe('the settings of a day of a running plan', () => {
       expect(said).toMatchObject({ dayCalories: null, fits: null });
 
       const after = dayOf(await apply(plan, { mealCount: 4 }));
-      expect(after.meals.map((meal) => meal.mealType)).toEqual(['breakfast', 'lunch', 'snack', 'dinner']);
+      expect(after.meals.map((meal) => meal.mealType)).toEqual([
+        'breakfast',
+        'lunch',
+        'snack',
+        'dinner',
+      ]);
       expect(dishes(after)).toMatchObject(dishes(day));
       expect(after).toMatchObject({ mealCount: 4, overrides: { mealCount: 4 } });
       expect(insideItsWindow(after)).toBe(true);
@@ -152,8 +174,14 @@ describe('the settings of a day of a running plan', () => {
   describe('a skipped day', () => {
     it('keeps what was eaten of it and nothing else, and is no shortfall', async () => {
       const breakfast = dayOf(plan).meals.find((meal) => meal.mealType === 'breakfast')!;
-      await t.http().patch(`/api/meal-plans/${plan.id}/meals/${breakfast.id}/eaten`).set(as(user)).send({ eaten: true }).expect(200);
-      const eaten = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body as MealPlan;
+      await t
+        .http()
+        .patch(`/api/meal-plans/${plan.id}/meals/${breakfast.id}/eaten`)
+        .set(as(user))
+        .send({ eaten: true })
+        .expect(200);
+      const eaten = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200))
+        .body as MealPlan;
 
       const said = await preview(eaten, { skip: true });
       expect(said.meals.map((meal) => [meal.mealType, meal.fate, meal.because])).toEqual([
@@ -168,12 +196,16 @@ describe('the settings of a day of a running plan', () => {
       expect(dayOf(after).meals.map((meal) => meal.id)).toEqual([breakfast.id]);
       // The day is left out of what a day of the plan holds on average.
       const others = after.days.filter((day) => day.date !== DATE);
-      const average = others.reduce((sum, day) => sum + day.dayNutrition.calories, 0) / others.length;
+      const average =
+        others.reduce((sum, day) => sum + day.dayNutrition.calories, 0) / others.length;
       expect(Math.abs(after.averageDailyNutrition.calories - average)).toBeLessThanOrEqual(1);
     });
 
     it('gets the meals of its number again once it is no longer skipped', async () => {
-      const skipped = await aPlan(t, user, await aProfile(t, user), { startDate: day(-2), dayOverrides: [{ date: DATE, skip: true }] });
+      const skipped = await aPlan(t, user, await aProfile(t, user), {
+        startDate: day(-2),
+        dayOverrides: [{ date: DATE, skip: true }],
+      });
       expect(dayOf(skipped).meals).toEqual([]);
 
       const said = await preview(skipped, { skip: false });
@@ -196,21 +228,33 @@ describe('the settings of a day of a running plan', () => {
 
       const said = await preview(plan, { cookTimeBudgetMinutes: limit });
       for (const meal of said.meals) {
-        expect([meal.fate, meal.because], meal.mealType).toEqual(over.includes(meal.mealId) ? ['redrawn', 'over_cook_time'] : ['stays', null]);
+        expect([meal.fate, meal.because], meal.mealType).toEqual(
+          over.includes(meal.mealId) ? ['redrawn', 'over_cook_time'] : ['stays', null],
+        );
       }
 
       // The catalogue may have no other recipe inside the limit: it may then give way, and says so.
-      const after = dayOf(await apply(plan, { cookTimeBudgetMinutes: limit, allowRelaxations: ['cook_time'] }));
+      const after = dayOf(
+        await apply(plan, { cookTimeBudgetMinutes: limit, allowRelaxations: ['cook_time'] }),
+      );
       const ids = new Set(after.meals.map((meal) => meal.id));
       expect(over.every((id) => !ids.has(id))).toBe(true);
-      expect(day.meals.filter((meal) => !over.includes(meal.id)).every((meal) => ids.has(meal.id))).toBe(true);
+      expect(
+        day.meals.filter((meal) => !over.includes(meal.id)).every((meal) => ids.has(meal.id)),
+      ).toBe(true);
       expect(after.overrides).toEqual({ cookTimeBudgetMinutes: limit });
     });
 
     it('draws again every meal not yet eaten to use up what the pantry has, and keeps what was eaten', async () => {
       const lunch = dayOf(plan).meals.find((meal) => meal.mealType === 'lunch')!;
-      await t.http().patch(`/api/meal-plans/${plan.id}/meals/${lunch.id}/eaten`).set(as(user)).send({ eaten: true }).expect(200);
-      const eaten = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body as MealPlan;
+      await t
+        .http()
+        .patch(`/api/meal-plans/${plan.id}/meals/${lunch.id}/eaten`)
+        .set(as(user))
+        .send({ eaten: true })
+        .expect(200);
+      const eaten = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200))
+        .body as MealPlan;
 
       const said = await preview(eaten, { useUpBy: true });
       expect(said.meals.map((meal) => [meal.mealType, meal.fate, meal.because])).toEqual([
@@ -223,8 +267,14 @@ describe('the settings of a day of a running plan', () => {
 
   it('says that a shopping list of the plan goes out of date, where one covers the day', async () => {
     expect((await preview(plan, { dayType: 'rest' })).listOutOfDate).toBe(false);
-    await t.http().post('/api/shopping-lists/generate').set(as(user)).send({ planId: plan.id }).expect(201);
-    const withList = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body as MealPlan;
+    await t
+      .http()
+      .post('/api/shopping-lists/generate')
+      .set(as(user))
+      .send({ planId: plan.id })
+      .expect(201);
+    const withList = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200))
+      .body as MealPlan;
 
     expect((await preview(withList, { dayType: 'rest' })).listOutOfDate).toBe(true);
     // A change that leaves the meals as they are does nothing to a list.
@@ -234,8 +284,16 @@ describe('the settings of a day of a running plan', () => {
   it('refuses a day before today, and a change asked of a plan that changed since', async () => {
     const yesterday = dayOf(plan, day(-1));
     for (const asked of [
-      () => t.http().post(`/api/meal-plans/${plan.id}/days/${yesterday.id}/settings/preview`).send(settingsOf(yesterday)),
-      () => t.http().put(`/api/meal-plans/${plan.id}/days/${yesterday.id}/settings`).send({ ...settingsOf(yesterday), dayType: 'rest', revision: plan.revision }),
+      () =>
+        t
+          .http()
+          .post(`/api/meal-plans/${plan.id}/days/${yesterday.id}/settings/preview`)
+          .send(settingsOf(yesterday)),
+      () =>
+        t
+          .http()
+          .put(`/api/meal-plans/${plan.id}/days/${yesterday.id}/settings`)
+          .send({ ...settingsOf(yesterday), dayType: 'rest', revision: plan.revision }),
     ]) {
       const past = await asked().set(as(user)).set('X-Client-Date', day(0)).expect(409);
       expect(past.body.error).toBe('DAY_IN_THE_PAST');
@@ -249,7 +307,8 @@ describe('the settings of a day of a running plan', () => {
       .send({ ...settingsOf(dayOf(plan)), dayType: 'rest', revision: plan.revision + 1 })
       .expect(409);
     expect(stale.body.error).toBe('PLAN_CHANGED');
-    const after = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body as MealPlan;
+    const after = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200))
+      .body as MealPlan;
     expect([dayOf(after), dayOf(after, day(-1))]).toMatchObject([
       { calorieTarget: dayOf(plan).calorieTarget, overrides: null },
       { calorieTarget: yesterday.calorieTarget, overrides: null },

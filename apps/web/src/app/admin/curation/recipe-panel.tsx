@@ -5,11 +5,7 @@
 /** The drafts of recipes: the run that writes them, taking recipes in from elsewhere, filling a language, and the list. */
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import {
-  LoaderCircle,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { LoaderCircle, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -77,10 +73,14 @@ export function RecipePanel() {
   }, [errorText]);
 
   useEffect(() => {
-    void (async () => { await loadRunner(); })();
+    void (async () => {
+      await loadRunner();
+    })();
   }, [loadRunner]);
   useEffect(() => {
-    void (async () => { await loadDrafts(); })();
+    void (async () => {
+      await loadDrafts();
+    })();
   }, [loadDrafts]);
 
   const startPolling = useCallback(() => {
@@ -98,7 +98,9 @@ export function RecipePanel() {
   }, [loadDrafts, loadRunner]);
 
   useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
   const onGenerate = async () => {
@@ -117,14 +119,20 @@ export function RecipePanel() {
   };
 
   /** The drafts on this page that can still be rejected. */
-  const open = (data?.items ?? []).filter((draft) => draft.status === 'PENDING' || draft.status === 'APPROVED');
+  const open = (data?.items ?? []).filter(
+    (draft) => draft.status === 'PENDING' || draft.status === 'APPROVED',
+  );
   // What users sent and nobody will ship, rejected in one go with one reason.
   const onRejectShown = async () => {
     const label = window.prompt(t('reviewLabelPrompt'));
     if (!label) return;
     const reason = window.prompt(t('rejectReasonPrompt')) ?? undefined;
     try {
-      const res = await adminApi.rejectRecipeDrafts(open.map((draft) => draft.id), label, reason);
+      const res = await adminApi.rejectRecipeDrafts(
+        open.map((draft) => draft.id),
+        label,
+        reason,
+      );
       setRejected({ rejected: res.rejected.length, skipped: res.skipped.length });
       await loadDrafts();
     } catch (err) {
@@ -180,11 +188,20 @@ export function RecipePanel() {
           <option value="all">{t('scopeAll')}</option>
         </select>
         <label className="flex items-center gap-1.5 text-xs" title={t('fillCoverageHint')}>
-          <input type="checkbox" checked={fillCoverage} onChange={(e) => setFillCoverage(e.target.checked)} disabled={running} />
+          <input
+            type="checkbox"
+            checked={fillCoverage}
+            onChange={(e) => setFillCoverage(e.target.checked)}
+            disabled={running}
+          />
           {t('fillCoverage')}
         </label>
         <Button onClick={onGenerate} disabled={!configured || running} className="gap-2">
-          {running ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {running ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
           {running
             ? t('runningRecipes', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })
             : t('generateRecipes')}
@@ -216,7 +233,11 @@ export function RecipePanel() {
             {t('runTarget', { diet: tDiet(runner.target.diet), meal: tMeal(runner.target.meal) })}
           </span>
         )}
-        {!running && runner?.note && <span className="text-xs text-muted-foreground">{t(`runNotes.${runner.note}`, { skipped: runner.skipped })}</span>}
+        {!running && runner?.note && (
+          <span className="text-xs text-muted-foreground">
+            {t(`runNotes.${runner.note}`, { skipped: runner.skipped })}
+          </span>
+        )}
         {runner?.mixDrift && !running && (
           <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs text-warning">
             {t('mixDriftWarning')}
@@ -255,14 +276,21 @@ export function RecipePanel() {
 
       <FilterStrip
         status={statusFilter}
-        onStatusChange={(s) => { setStatusFilter(s); setPage(1); }}
+        onStatusChange={(s) => {
+          setStatusFilter(s);
+          setPage(1);
+        }}
       />
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="text-muted-foreground">{t('filterSource')}:</span>
         {SOURCE_FILTERS.map((source) => (
           <button
             key={source}
-            onClick={() => { setSourceFilter(source); setPage(1); setRejected(null); }}
+            onClick={() => {
+              setSourceFilter(source);
+              setPage(1);
+              setRejected(null);
+            }}
             className={
               source === sourceFilter
                 ? 'rounded-full bg-primary px-2 py-0.5 text-primary-foreground'
@@ -277,7 +305,9 @@ export function RecipePanel() {
             {t('rejectShown', { count: open.length })}
           </Button>
         )}
-        {rejected && <span className="text-muted-foreground">{t('rejectShownDone', rejected)}</span>}
+        {rejected && (
+          <span className="text-muted-foreground">{t('rejectShownDone', rejected)}</span>
+        )}
       </div>
 
       {data === null ? (

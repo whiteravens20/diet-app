@@ -19,7 +19,12 @@ const DIGITS = 6;
 export const SECRET_BYTES = 20;
 
 /** The code of `counter` (RFC 4226, section 5.3). */
-export function hotp(secret: Buffer, counter: number, digits = DIGITS, algorithm: CodeAlgorithm = 'sha1'): string {
+export function hotp(
+  secret: Buffer,
+  counter: number,
+  digits = DIGITS,
+  algorithm: CodeAlgorithm = 'sha1',
+): string {
   const message = Buffer.alloc(8);
   message.writeBigUInt64BE(BigInt(counter));
   const mac = createHmac(algorithm, secret).update(message).digest();
@@ -82,11 +87,25 @@ export function base32(bytes: Buffer): string {
  * it is, and how its codes are made. `issuer` and `account` are what the app
  * shows next to the code.
  */
-export function otpauthUri({ secret, issuer, account }: { secret: Buffer; issuer: string; account: string }): string {
+export function otpauthUri({
+  secret,
+  issuer,
+  account,
+}: {
+  secret: Buffer;
+  issuer: string;
+  account: string;
+}): string {
   // A colon parts the issuer from the account in the label.
   const plain = (text: string): string => text.replaceAll(':', '').replace(/\s+/g, ' ').trim();
   const label = `${encodeURIComponent(plain(issuer))}:${encodeURIComponent(plain(account))}`;
-  const params = new URLSearchParams({ secret: base32(secret), issuer: plain(issuer), algorithm: 'SHA1', digits: String(DIGITS), period: String(PERIOD_SECONDS) });
+  const params = new URLSearchParams({
+    secret: base32(secret),
+    issuer: plain(issuer),
+    algorithm: 'SHA1',
+    digits: String(DIGITS),
+    period: String(PERIOD_SECONDS),
+  });
   // Spaces as %20: not every app reads a plus sign as one.
   return `otpauth://totp/${label}?${params.toString().replaceAll('+', '%20')}`;
 }

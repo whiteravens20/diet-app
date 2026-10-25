@@ -58,7 +58,13 @@ const aRow = (ingredient: Ingredient, quantity: number, bestBefore: string | nul
 async function open(found: Ingredient[], rows: InventoryItem[] = []) {
   vi.spyOn(api, 'get').mockImplementation((path: string) =>
     Promise.resolve(
-      (path === '/profiles' ? [profile] : path.startsWith('/ingredients?') ? found : path.startsWith('/inventory?') ? rows : []) as never,
+      (path === '/profiles'
+        ? [profile]
+        : path.startsWith('/ingredients?')
+          ? found
+          : path.startsWith('/inventory?')
+            ? rows
+            : []) as never,
     ),
   );
   const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
@@ -100,7 +106,10 @@ describe('the form that puts an ingredient into the pantry', () => {
     expect(screen.getByLabelText(texts.unitLabel)).toHaveValue('ml');
     await userEvent.type(screen.getByLabelText(texts.quantityLabel), '500');
     await userEvent.click(screen.getByRole('button', { name: texts.addButton }));
-    expect(post).toHaveBeenCalledWith('/inventory', expect.objectContaining({ ingredientId: bottled.id, quantity: 500, unit: 'ml' }));
+    expect(post).toHaveBeenCalledWith(
+      '/inventory',
+      expect.objectContaining({ ingredientId: bottled.id, quantity: 500, unit: 'ml' }),
+    );
   });
 
   it('offers grams of what is kept in pieces of a known weight', async () => {
@@ -113,7 +122,14 @@ describe('the form that puts an ingredient into the pantry', () => {
   });
 
   it('offers nothing but pieces for what is counted', async () => {
-    const egg = Ingredient.parse({ ...dumplings, id: '2dad81f3-0d9d-44e1-9ef3-000000000004', name: 'Large egg', canonicalUnit: 'g', gramsPerPiece: 55, displayUnit: 'piece' });
+    const egg = Ingredient.parse({
+      ...dumplings,
+      id: '2dad81f3-0d9d-44e1-9ef3-000000000004',
+      name: 'Large egg',
+      canonicalUnit: 'g',
+      gramsPerPiece: 55,
+      displayUnit: 'piece',
+    });
     await open([egg]);
 
     await pick(egg);
@@ -129,11 +145,22 @@ describe('a row of the pantry', () => {
   });
 
   it('names its amount and its day after its ingredient, so that one row is told from another', async () => {
-    const garlic = Ingredient.parse({ ...dumplings, id: '2dad81f3-0d9d-44e1-9ef3-000000000003', name: 'Garlic', canonicalUnit: 'g', gramsPerPiece: 5, displayUnit: 'clove' });
+    const garlic = Ingredient.parse({
+      ...dumplings,
+      id: '2dad81f3-0d9d-44e1-9ef3-000000000003',
+      name: 'Garlic',
+      canonicalUnit: 'g',
+      gramsPerPiece: 5,
+      displayUnit: 'clove',
+    });
     await open([], [aRow(dumplings, 12, '2026-11-05'), aRow(garlic, 3, null)]);
 
-    expect(screen.getByLabelText(texts.quantityOf.replace('{name}', dumplings.name))).toHaveValue(12);
-    expect(screen.getByLabelText(texts.bestBeforeOf.replace('{name}', dumplings.name))).toHaveValue('2026-11-05');
+    expect(screen.getByLabelText(texts.quantityOf.replace('{name}', dumplings.name))).toHaveValue(
+      12,
+    );
+    expect(screen.getByLabelText(texts.bestBeforeOf.replace('{name}', dumplings.name))).toHaveValue(
+      '2026-11-05',
+    );
     expect(screen.getByLabelText(texts.quantityOf.replace('{name}', 'Garlic'))).toHaveValue(3);
     expect(screen.getByLabelText(texts.bestBeforeOf.replace('{name}', 'Garlic'))).toHaveValue('');
   });

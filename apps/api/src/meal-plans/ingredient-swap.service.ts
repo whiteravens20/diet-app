@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { z } from 'zod';
 import {
   fitsDiet,
@@ -41,7 +46,12 @@ import { toPlannedIngredients } from '../recipes/recipes.service.js';
 import { assertMayEnter, pickIndex, restrictionsFor, violations } from './eligibility.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { writePlan } from './plan-write.js';
-import { rewriteSwapModeA, rewriteSwapModeB, validateModeBOutput, type RecipeLocaleSlice } from './swap-rewrite.js';
+import {
+  rewriteSwapModeA,
+  rewriteSwapModeB,
+  validateModeBOutput,
+  type RecipeLocaleSlice,
+} from './swap-rewrite.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
 
 // What each prompt asks the model to answer with. A reason is welcome and
@@ -68,7 +78,11 @@ export class IngredientSwapService {
   ) {}
 
   /** What a substitution would do to the meal, for the user to decide on. Nothing is written. */
-  async previewIngredientSwap(userId: string, locale: Locale, req: SwapIngredientRequest): Promise<SwapPreview> {
+  async previewIngredientSwap(
+    userId: string,
+    locale: Locale,
+    req: SwapIngredientRequest,
+  ): Promise<SwapPreview> {
     const s = await this.substitution(userId, req);
     // The servings of the recipe that are on the plate.
     const portion = s.meal.servings * s.meal.quantityScale;
@@ -82,7 +96,15 @@ export class IngredientSwapService {
     const after = held(s.facts.perServing);
     const taken = (ingredient: typeof s.from, amount: number): PlannedIngredient =>
       toPlannedIngredients(
-        [{ ingredientId: ingredient.id, quantity: amount, unit: ingredient.canonicalUnit, note: null, ingredient }],
+        [
+          {
+            ingredientId: ingredient.id,
+            quantity: amount,
+            unit: ingredient.canonicalUnit,
+            note: null,
+            ingredient,
+          },
+        ],
         portion / s.recipe.servings,
         locale,
       )[0]!;
@@ -90,7 +112,11 @@ export class IngredientSwapService {
       before,
       after,
       calorieDelta: after.calories - before.calories,
-      macroDelta: { protein: after.protein - before.protein, fat: after.fat - before.fat, carbs: after.carbs - before.carbs },
+      macroDelta: {
+        protein: after.protein - before.protein,
+        fat: after.fat - before.fat,
+        carbs: after.carbs - before.carbs,
+      },
       from: taken(s.from, s.amountLeaving),
       to: taken(s.to, s.amountComing),
       sizing: s.sizing,
@@ -106,13 +132,28 @@ export class IngredientSwapService {
    * is: the meal gets a recipe of the user's own with the substitute in it,
    * whose figures follow from its ingredients.
    */
-  async applyIngredientSwap(userId: string, locale: Locale, req: SwapIngredientRequest): Promise<SwapIngredientResponse> {
+  async applyIngredientSwap(
+    userId: string,
+    locale: Locale,
+    req: SwapIngredientRequest,
+  ): Promise<SwapIngredientResponse> {
     const s = await this.substitution(userId, req);
     const { meal, recipe, facts, lines, restrictions } = s;
     // A substitute a model suggested is taken with the note that came with it, and with no other.
-    const picked = this.picks.taken(userId, req.pick, { kind: 'ingredient', meal: req.plannedMealId, from: req.fromIngredientId, to: req.toIngredientId });
+    const picked = this.picks.taken(userId, req.pick, {
+      kind: 'ingredient',
+      meal: req.plannedMealId,
+      from: req.fromIngredientId,
+      to: req.toIngredientId,
+    });
     // The gate refuses in its own words what the preview listed.
-    assertMayEnter(s.candidate, { ...restrictions, avoidedRecipeIds: [] }, meal.mealType, 'INVALID_SUBSTITUTION', s.waived);
+    assertMayEnter(
+      s.candidate,
+      { ...restrictions, avoidedRecipeIds: [] },
+      meal.mealType,
+      'INVALID_SUBSTITUTION',
+      s.waived,
+    );
     if (s.moved.length > 0 && !req.acceptChange) {
       throw new UnprocessableEntityException({
         error: 'SUBSTITUTION_MOVES_NUTRITION',
@@ -125,9 +166,24 @@ export class IngredientSwapService {
     // by plain replacement, or reworded by a model when the user asked for it.
     // A model is asked only for text that is stored: a recipe the shared
     // library or the user has already keeps the text it has.
-    const recognised = { userId, origin: 'user' as const, servings: recipe.servings, mealTypes: recipe.mealTypes, ingredients: lines };
-    const reword = req.rewriteWithAi && (await this.personalRecipes.wouldWrite(recognised, restrictions.avoidedRecipeIds));
-    const variant = await this.buildVariantTranslations(userId, locale, recipe, s.from, s.to, reword);
+    const recognised = {
+      userId,
+      origin: 'user' as const,
+      servings: recipe.servings,
+      mealTypes: recipe.mealTypes,
+      ingredients: lines,
+    };
+    const reword =
+      req.rewriteWithAi &&
+      (await this.personalRecipes.wouldWrite(recognised, restrictions.avoidedRecipeIds));
+    const variant = await this.buildVariantTranslations(
+      userId,
+      locale,
+      recipe,
+      s.from,
+      s.to,
+      reword,
+    );
 
     // Stored as the user's own recipe, or recognised as one that exists
     // already. A shared recipe the profile avoids is not handed back for it.
@@ -168,9 +224,17 @@ export class IngredientSwapService {
    * about), the substitute that may come into this plan and moves a serving
    * least. No model is asked.
    */
-  async suggestions(userId: string, locale: Locale, planId: string, plannedMealId: string, only?: string): Promise<SubstituteSuggestion[]> {
+  async suggestions(
+    userId: string,
+    locale: Locale,
+    planId: string,
+    plannedMealId: string,
+    only?: string,
+  ): Promise<SubstituteSuggestion[]> {
     const subject = await this.subject(userId, planId, plannedMealId);
-    const sources = [...new Set(subject.recipe.ingredients.map((line) => line.ingredientId))].filter((source) => only === undefined || source === only);
+    const sources = [
+      ...new Set(subject.recipe.ingredients.map((line) => line.ingredientId)),
+    ].filter((source) => only === undefined || source === only);
     const rules = await this.prisma.substitutionRule.findMany({
       where: { fromIngredientId: { in: sources }, toIngredient: { retiredAt: null } },
       include: { toIngredient: { include: { translations: true } } },
@@ -178,8 +242,15 @@ export class IngredientSwapService {
 
     const suggestions: SubstituteSuggestion[] = [];
     for (const fromIngredientId of sources) {
-      let best: { to: (typeof rules)[number]['toIngredient']; moved: MovedNutrient[]; far: number; unwelcome: boolean } | null = null;
-      for (const rule of rules.filter((candidate) => candidate.fromIngredientId === fromIngredientId)) {
+      let best: {
+        to: (typeof rules)[number]['toIngredient'];
+        moved: MovedNutrient[];
+        far: number;
+        unwelcome: boolean;
+      } | null = null;
+      for (const rule of rules.filter(
+        (candidate) => candidate.fromIngredientId === fromIngredientId,
+      )) {
         let worked;
         try {
           worked = this.workOut(subject, fromIngredientId, rule.toIngredient);
@@ -197,10 +268,17 @@ export class IngredientSwapService {
         const better =
           !best ||
           (best.unwelcome && !unwelcome) ||
-          (best.unwelcome === unwelcome && (worked.moved.length < best.moved.length || (worked.moved.length === best.moved.length && far < best.far)));
+          (best.unwelcome === unwelcome &&
+            (worked.moved.length < best.moved.length ||
+              (worked.moved.length === best.moved.length && far < best.far)));
         if (better) best = { to: rule.toIngredient, moved: worked.moved, far, unwelcome };
       }
-      if (best) suggestions.push({ fromIngredientId, to: toIngredientDto(best.to, locale), moved: best.moved });
+      if (best)
+        suggestions.push({
+          fromIngredientId,
+          to: toIngredientDto(best.to, locale),
+          moved: best.moved,
+        });
     }
     return suggestions;
   }
@@ -213,18 +291,34 @@ export class IngredientSwapService {
    * what the recipe becomes, or a unit cannot be converted. Nothing is
    * written: this is what a proposal is checked with before it is made.
    */
-  async wouldCome(userId: string, planId: string, plannedMealId: string, fromIngredientId: string, toIngredientId: string): Promise<number | null> {
+  async wouldCome(
+    userId: string,
+    planId: string,
+    plannedMealId: string,
+    fromIngredientId: string,
+    toIngredientId: string,
+  ): Promise<number | null> {
     const subject = await this.subject(userId, planId, plannedMealId);
-    if (fromIngredientId === toIngredientId || !subject.recipe.ingredients.some((line) => line.ingredientId === fromIngredientId)) return null;
+    if (
+      fromIngredientId === toIngredientId ||
+      !subject.recipe.ingredients.some((line) => line.ingredientId === fromIngredientId)
+    )
+      return null;
     const to =
       subject.recipe.ingredients.find((line) => line.ingredientId === toIngredientId)?.ingredient ??
-      (await this.prisma.ingredient.findFirst({ where: { id: toIngredientId, retiredAt: null }, include: { translations: true } }));
+      (await this.prisma.ingredient.findFirst({
+        where: { id: toIngredientId, retiredAt: null },
+        include: { translations: true },
+      }));
     if (!to) return null;
     try {
       const worked = this.workOut(subject, fromIngredientId, to);
       if (worked.violations.length > 0) return null;
       // The recipe's lines are for all its servings; the meal takes its own share of them.
-      return (worked.amountComing * subject.meal.servings * subject.meal.quantityScale) / Math.max(1, subject.recipe.servings);
+      return (
+        (worked.amountComing * subject.meal.servings * subject.meal.quantityScale) /
+        Math.max(1, subject.recipe.servings)
+      );
     } catch (err) {
       if (!(err instanceof UnitConversionError)) throw err;
       return null;
@@ -236,9 +330,17 @@ export class IngredientSwapService {
     const meal = await this.plans.loadPlannedMeal(userId, planId, plannedMealId);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: swappableRecipeOf(meal) },
-      include: { ingredients: { include: { ingredient: { include: { translations: true } } } }, translations: true },
+      include: {
+        ingredients: { include: { ingredient: { include: { translations: true } } } },
+        translations: true,
+      },
     });
-    return { userId, meal, recipe, restrictions: await restrictionsFor(this.prisma, meal.day.plan) };
+    return {
+      userId,
+      meal,
+      recipe,
+      restrictions: await restrictionsFor(this.prisma, meal.day.plan),
+    };
   }
 
   /**
@@ -249,15 +351,29 @@ export class IngredientSwapService {
   private async substitution(userId: string, req: SwapIngredientRequest) {
     const subject = await this.subject(userId, req.planId, req.plannedMealId);
     if (req.fromIngredientId === req.toIngredientId) {
-      throw new BadRequestException({ error: 'SAME_INGREDIENT', message: 'An ingredient cannot take its own place.' });
+      throw new BadRequestException({
+        error: 'SAME_INGREDIENT',
+        message: 'An ingredient cannot take its own place.',
+      });
     }
     if (!subject.recipe.ingredients.some((line) => line.ingredientId === req.fromIngredientId)) {
-      throw new NotFoundException({ error: 'INGREDIENT_NOT_IN_RECIPE', message: 'Ingredient not in recipe.' });
+      throw new NotFoundException({
+        error: 'INGREDIENT_NOT_IN_RECIPE',
+        message: 'Ingredient not in recipe.',
+      });
     }
     const to =
-      subject.recipe.ingredients.find((line) => line.ingredientId === req.toIngredientId)?.ingredient ??
-      (await this.prisma.ingredient.findFirst({ where: { id: req.toIngredientId, retiredAt: null }, include: { translations: true } }));
-    if (!to) throw new NotFoundException({ error: 'INGREDIENT_NOT_FOUND', message: 'Ingredient not found.' });
+      subject.recipe.ingredients.find((line) => line.ingredientId === req.toIngredientId)
+        ?.ingredient ??
+      (await this.prisma.ingredient.findFirst({
+        where: { id: req.toIngredientId, retiredAt: null },
+        include: { translations: true },
+      }));
+    if (!to)
+      throw new NotFoundException({
+        error: 'INGREDIENT_NOT_FOUND',
+        message: 'Ingredient not found.',
+      });
     try {
       return this.workOut(subject, req.fromIngredientId, to);
     } catch (err) {
@@ -307,19 +423,36 @@ export class IngredientSwapService {
         if (!placed) lines.push(substitute);
         placed = true;
       } else if (!leaves) {
-        lines.push({ ingredientId: line.ingredientId, quantity: line.quantity, unit: line.unit, note: line.note });
+        lines.push({
+          ingredientId: line.ingredientId,
+          quantity: line.quantity,
+          unit: line.unit,
+          note: line.note,
+        });
       }
     }
 
     // The variant's nutrition, allergens and diets follow from its own
     // ingredients: the one that left may have been the only source of an
     // allergen, and the one that came may not suit a diet the recipe did.
-    const ingredientOf = new Map([...recipe.ingredients.map((line) => [line.ingredientId, line.ingredient] as const), [to.id, to] as const]);
+    const ingredientOf = new Map([
+      ...recipe.ingredients.map((line) => [line.ingredientId, line.ingredient] as const),
+      [to.id, to] as const,
+    ]);
     const facts: RecipeFacts = recipeFacts(
-      lines.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: ingredientOf.get(line.ingredientId)! })),
+      lines.map((line) => ({
+        quantity: line.quantity,
+        unit: line.unit,
+        ingredient: ingredientOf.get(line.ingredientId)!,
+      })),
       recipe.servings,
     );
-    const before: Nutrition = { calories: recipe.caloriesPerServing, protein: recipe.proteinPerServing, fat: recipe.fatPerServing, carbs: recipe.carbsPerServing };
+    const before: Nutrition = {
+      calories: recipe.caloriesPerServing,
+      protein: recipe.proteinPerServing,
+      fat: recipe.fatPerServing,
+      carbs: recipe.carbsPerServing,
+    };
 
     // The gate judges what the meal becomes. A recipe can stop fitting a diet
     // through quantities alone: a low-carbohydrate dish with rice in place of
@@ -337,8 +470,16 @@ export class IngredientSwapService {
       retiredAt: null,
       ingredients: lines,
     };
-    const waived = { diet: !fitsDiet(recipe.dietTags, meal.day.plan.dietType), meal: !recipe.mealTypes.includes(meal.mealType) };
-    const found = violations(candidate, { ...restrictions, avoidedRecipeIds: [] }, meal.mealType, waived);
+    const waived = {
+      diet: !fitsDiet(recipe.dietTags, meal.day.plan.dietType),
+      meal: !recipe.mealTypes.includes(meal.mealType),
+    };
+    const found = violations(
+      candidate,
+      { ...restrictions, avoidedRecipeIds: [] },
+      meal.mealType,
+      waived,
+    );
 
     return {
       meal,
@@ -370,11 +511,20 @@ export class IngredientSwapService {
   private async buildVariantTranslations(
     userId: string,
     locale: Locale,
-    source: { title: string; description: string; steps: string[]; translations: { locale: string; title: string; description: string; steps: string[] }[] },
+    source: {
+      title: string;
+      description: string;
+      steps: string[];
+      translations: { locale: string; title: string; description: string; steps: string[] }[];
+    },
     oldIngredient: { name: string; translations: { locale: string; name: string }[] },
     newIngredient: { name: string; translations: { locale: string; name: string }[] },
     rewriteWithAi: boolean,
-  ): Promise<{ text: Map<Locale, RecipeLocaleSlice>; aiMeta: AiGenerationMeta | null; modelWrote: Set<Locale> }> {
+  ): Promise<{
+    text: Map<Locale, RecipeLocaleSlice>;
+    aiMeta: AiGenerationMeta | null;
+    modelWrote: Set<Locale>;
+  }> {
     const localeOptions = LocaleEnum.options;
     // The recipe row itself holds the English text; a translation row for `en` wins over it.
     const sourceSlices = new Map<Locale, RecipeLocaleSlice>([
@@ -396,7 +546,8 @@ export class IngredientSwapService {
 
     // A model rewords the text only when the user asked for it in this
     // request: it costs them a call and time they did not otherwise spend.
-    if (!rewriteWithAi) return { text: rewriteSwapModeA(input), aiMeta: null, modelWrote: new Set() };
+    if (!rewriteWithAi)
+      return { text: rewriteSwapModeA(input), aiMeta: null, modelWrote: new Set() };
 
     // One call, for the language the user reads the recipe in: their own, or
     // English when the recipe is not written in it. Where the model delivers
@@ -459,7 +610,8 @@ export class IngredientSwapService {
     );
     if (!text) return { text: null, aiMeta: meta };
     const parsed = parseSwapRewritePayload(text);
-    if (!parsed || !validateModeBOutput(source, parsed)) return { text: null, aiMeta: withUnusableAnswer(meta) };
+    if (!parsed || !validateModeBOutput(source, parsed))
+      return { text: null, aiMeta: withUnusableAnswer(meta) };
     return { text: parsed, aiMeta: meta };
   }
 
@@ -568,14 +720,27 @@ export class IngredientSwapService {
     );
 
     const withoutModel = async (): Promise<string> => {
-      const [suggested] = await this.suggestions(userId, locale, req.planId, req.plannedMealId, req.fromIngredientId);
-      return suggested?.to.id ?? pool[pickIndex(`${req.plannedMealId}:${req.fromIngredientId}`, pool.length)]!.id;
+      const [suggested] = await this.suggestions(
+        userId,
+        locale,
+        req.planId,
+        req.plannedMealId,
+        req.fromIngredientId,
+      );
+      return (
+        suggested?.to.id ??
+        pool[pickIndex(`${req.plannedMealId}:${req.fromIngredientId}`, pool.length)]!.id
+      );
     };
 
     const offered = text === null ? null : parseAiIngredientPick(text);
     const pick = offered && pool.some((c) => c.id === offered.id) ? offered : null;
     const toIngredientId = pick?.id ?? (await withoutModel());
-    const aiMeta = pick ? { ...meta, reason: pick.reason } : text === null ? meta : withUnusableAnswer(meta);
+    const aiMeta = pick
+      ? { ...meta, reason: pick.reason }
+      : text === null
+        ? meta
+        : withUnusableAnswer(meta);
 
     const locales = locale === 'en' ? ['en'] : [locale, 'en'];
     const toIngredient = await this.prisma.ingredient.findUniqueOrThrow({
@@ -583,7 +748,15 @@ export class IngredientSwapService {
       include: { translations: { where: { locale: { in: locales } } } },
     });
     // What the model picked goes out with a note of it, which the request that makes the substitution hands back.
-    const note = pick ? this.picks.sign(userId, { kind: 'ingredient', meal: req.plannedMealId, from: req.fromIngredientId, to: toIngredientId, reason: pick.reason }) : null;
+    const note = pick
+      ? this.picks.sign(userId, {
+          kind: 'ingredient',
+          meal: req.plannedMealId,
+          from: req.fromIngredientId,
+          to: toIngredientId,
+          reason: pick.reason,
+        })
+      : null;
     return { toIngredient: toIngredientDto(toIngredient, locale), aiMeta, pick: note };
   }
 
@@ -600,7 +773,9 @@ export class IngredientSwapService {
     respectInventory: boolean,
   ): Promise<Set<string> | null> {
     if (!respectInventory || ingredientIds.length === 0) return null;
-    const stock = await stockByIngredient(this.prisma, profileId, { ingredientId: { in: ingredientIds } });
+    const stock = await stockByIngredient(this.prisma, profileId, {
+      ingredientId: { in: ingredientIds },
+    });
     return stock.size === 0 ? null : new Set(stock.keys());
   }
 }
@@ -618,9 +793,14 @@ function parseSwapRewritePayload(text: string): { description: string; steps: st
  * What to call an ingredient in each locale: its translation, or its English
  * name where it has none. The second-best name is still the right ingredient.
  */
-function nameByLocale(ingredient: { name: string; translations: { locale: string; name: string }[] }): ReadonlyMap<Locale, string> {
+function nameByLocale(ingredient: {
+  name: string;
+  translations: { locale: string; name: string }[];
+}): ReadonlyMap<Locale, string> {
   const translated = new Map(ingredient.translations.map((tr) => [tr.locale, tr.name]));
-  return new Map(LocaleEnum.options.map((locale) => [locale, translated.get(locale) ?? ingredient.name]));
+  return new Map(
+    LocaleEnum.options.map((locale) => [locale, translated.get(locale) ?? ingredient.name]),
+  );
 }
 
 interface IngredientSwapPromptCandidate {

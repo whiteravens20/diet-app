@@ -64,9 +64,7 @@ export function buildIngredientNamerPrompt({
   targetLocales,
   source,
 }: IngredientNamerPromptInput): string {
-  const localeList = targetLocales
-    .map((l) => `${LOCALE_LABEL[l] ?? l} (${l})`)
-    .join(', ');
+  const localeList = targetLocales.map((l) => `${LOCALE_LABEL[l] ?? l} (${l})`).join(', ');
   const fewShot = targetLocales.map((l) => renderFewShot(l, loadFewShot(l))).join('');
   const shapeExample = renderShapeExample(targetLocales);
   return `You are a culinary editor for a self-hosted diet and meal-planning

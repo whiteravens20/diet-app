@@ -11,7 +11,8 @@ const SOURCE = readFileSync(join(__dirname, '..', 'public', 'sw.js'), 'utf8');
 type Listener = (event: Record<string, unknown>) => void;
 
 /** A page as the web server answers it, naming the files it is built from. */
-const aPage = (name: string): string => `<html><head><link rel="stylesheet" href="/_next/static/css/${name}.css"></head><body>${name}<script src="/_next/static/chunks/${name}.js" nonce="n"></script></body></html>`;
+const aPage = (name: string): string =>
+  `<html><head><link rel="stylesheet" href="/_next/static/css/${name}.css"></head><body>${name}<script src="/_next/static/chunks/${name}.js" nonce="n"></script></body></html>`;
 
 /**
  * The worker, run as a browser runs it: with a scope of its own to listen
@@ -24,7 +25,10 @@ function aWorker(server: Record<string, () => Response>) {
   const asked: string[] = [];
   let reachable = true;
   const fetchFrom = vi.fn(async (request: string | Request) => {
-    const path = typeof request === 'string' ? request : new URL(request.url).pathname + new URL(request.url).search;
+    const path =
+      typeof request === 'string'
+        ? request
+        : new URL(request.url).pathname + new URL(request.url).search;
     asked.push(path);
     // The server answers a page whatever it was asked with.
     const answer = reachable ? (server[path] ?? server[path.split('?')[0]!]) : undefined;
@@ -46,21 +50,41 @@ function aWorker(server: Record<string, () => Response>) {
     await Promise.all(waits);
   };
   /** What the worker answers a request with, or nothing when it leaves the request to the browser. */
-  const answerTo = async (path: string, init: { method?: string; mode?: string; origin?: string } = {}): Promise<Response | undefined> => {
+  const answerTo = async (
+    path: string,
+    init: { method?: string; mode?: string; origin?: string } = {},
+  ): Promise<Response | undefined> => {
     let answer: Promise<Response> | undefined;
-    const request = Object.assign(new Request(`${init.origin ?? ORIGIN}${path}`, { method: init.method ?? 'GET' }), {});
+    const request = Object.assign(
+      new Request(`${init.origin ?? ORIGIN}${path}`, { method: init.method ?? 'GET' }),
+      {},
+    );
     Object.defineProperty(request, 'mode', { value: init.mode ?? 'cors' });
     listeners.get('fetch')!({ request, respondWith: (work: Promise<Response>) => (answer = work) });
     return answer;
   };
-  return { stores, asked, scope, told, answerTo, offline: () => (reachable = false), online: () => (reachable = true) };
+  return {
+    stores,
+    asked,
+    scope,
+    told,
+    answerTo,
+    offline: () => (reachable = false),
+    online: () => (reachable = true),
+  };
 }
 
-const html = (body: string, init: ResponseInit = {}) => () => {
-  const response = new Response(body, { status: 200, headers: { 'content-type': 'text/html' }, ...init });
-  Object.defineProperty(response, 'type', { value: 'basic' });
-  return response;
-};
+const html =
+  (body: string, init: ResponseInit = {}) =>
+  () => {
+    const response = new Response(body, {
+      status: 200,
+      headers: { 'content-type': 'text/html' },
+      ...init,
+    });
+    Object.defineProperty(response, 'type', { value: 'basic' });
+    return response;
+  };
 const file = (body: string) => () => new Response(body, { status: 200 });
 
 describe('the service worker of the web application', () => {
@@ -85,7 +109,10 @@ describe('the service worker of the web application', () => {
     await worker.told('install');
 
     expect(await worker.stores.held('diet-app.pages.v1')).toEqual(['/offline']);
-    expect((await worker.stores.held('diet-app.files.v1')).sort()).toEqual(['/_next/static/chunks/offline.js', '/_next/static/css/offline.css']);
+    expect((await worker.stores.held('diet-app.files.v1')).sort()).toEqual([
+      '/_next/static/chunks/offline.js',
+      '/_next/static/css/offline.css',
+    ]);
     expect(worker.scope.skipWaiting).toHaveBeenCalled();
   });
 
@@ -97,10 +124,12 @@ describe('the service worker of the web application', () => {
     expect(worker.scope.skipWaiting).toHaveBeenCalled();
   });
 
-  it('removes what an earlier version of it kept, and nothing else of the browser\'s', async () => {
+  it("removes what an earlier version of it kept, and nothing else of the browser's", async () => {
     await (await worker.stores.open('diet-app.pages.v0')).put('/old', new Response('old'));
     await (await worker.stores.open('diet-app.files.v0')).put('/old.js', new Response('old'));
-    await (await worker.stores.open('diet-app.offline.an-account')).put('/kept', new Response('kept'));
+    await (
+      await worker.stores.open('diet-app.offline.an-account')
+    ).put('/kept', new Response('kept'));
 
     await worker.told('activate');
 
@@ -108,7 +137,7 @@ describe('the service worker of the web application', () => {
     expect(worker.scope.clients.claim).toHaveBeenCalled();
   });
 
-  it('answers a page with the server\'s, and keeps it for when the server cannot be reached', async () => {
+  it("answers a page with the server's, and keeps it for when the server cannot be reached", async () => {
     const first = await worker.answerTo('/shopping-lists?plan=1', { mode: 'navigate' });
     expect(await first!.text()).toContain('lists');
 
@@ -151,7 +180,11 @@ describe('the service worker of the web application', () => {
     worker.offline();
     const without = await worker.answerTo('/_next/static/chunks/lists.js');
 
-    expect([await first!.text(), await again!.text(), await without!.text()]).toEqual(['lists js', 'lists js', 'lists js']);
+    expect([await first!.text(), await again!.text(), await without!.text()]).toEqual([
+      'lists js',
+      'lists js',
+      'lists js',
+    ]);
     expect(worker.asked.filter((path) => path === '/_next/static/chunks/lists.js')).toHaveLength(1);
     // A picture is such a file too.
     expect(await (await worker.answerTo('/imagery/shopping.webp'))!.text()).toBe('a picture');
@@ -161,7 +194,11 @@ describe('the service worker of the web application', () => {
     ['a request to the API', '/api/shopping-lists?planId=1', {}],
     ['a request that changes something', '/shopping-lists', { method: 'POST', mode: 'navigate' }],
     ['a request of the page that is neither a page nor a file', '/meal-plans?_rsc=abc', {}],
-    ['a request to another site', '/shopping-lists', { mode: 'navigate', origin: 'https://elsewhere.example.test' }],
+    [
+      'a request to another site',
+      '/shopping-lists',
+      { mode: 'navigate', origin: 'https://elsewhere.example.test' },
+    ],
   ])('leaves %s to the browser', async (_what, path, init) => {
     expect(await worker.answerTo(path, init)).toBeUndefined();
     expect(worker.asked).toEqual([]);
@@ -171,33 +208,53 @@ describe('the service worker of the web application', () => {
     await worker.answerTo('/meal-plans', { mode: 'navigate' });
     worker.asked.length = 0;
 
-    await worker.told('message', { origin: ORIGIN, data: { type: 'keep-pages', pages: ['/shopping-lists', '/meal-plans'] } });
+    await worker.told('message', {
+      origin: ORIGIN,
+      data: { type: 'keep-pages', pages: ['/shopping-lists', '/meal-plans'] },
+    });
 
-    expect((await worker.stores.held('diet-app.pages.v1')).sort()).toEqual(['/meal-plans', '/shopping-lists']);
-    expect((await worker.stores.held('diet-app.files.v1')).sort()).toEqual(['/_next/static/chunks/lists.js', '/_next/static/css/lists.css']);
+    expect((await worker.stores.held('diet-app.pages.v1')).sort()).toEqual([
+      '/meal-plans',
+      '/shopping-lists',
+    ]);
+    expect((await worker.stores.held('diet-app.files.v1')).sort()).toEqual([
+      '/_next/static/chunks/lists.js',
+      '/_next/static/css/lists.css',
+    ]);
     expect(worker.asked).not.toContain('/meal-plans');
   });
 
   it.each([
-    ['is not a plain path of the application', ['/api/users/me', 'https://elsewhere.example.test/x', '/meal-plans/../api', '//elsewhere', 7]],
+    [
+      'is not a plain path of the application',
+      ['/api/users/me', 'https://elsewhere.example.test/x', '/meal-plans/../api', '//elsewhere', 7],
+    ],
     ['is no list', '/shopping-lists'],
   ])('keeps nothing ahead that %s', async (_why, pages) => {
     await worker.told('message', { origin: ORIGIN, data: { type: 'keep-pages', pages } });
-    await worker.told('message', { origin: ORIGIN, data: { type: 'something-else', pages: ['/shopping-lists'] } });
+    await worker.told('message', {
+      origin: ORIGIN,
+      data: { type: 'something-else', pages: ['/shopping-lists'] },
+    });
     await worker.told('message', { origin: ORIGIN, data: null });
 
     expect(worker.asked).toEqual([]);
   });
 
   it('takes no word from anything but a page of the application', async () => {
-    await worker.told('message', { origin: 'https://elsewhere.example.test', data: { type: 'keep-pages', pages: ['/shopping-lists'] } });
+    await worker.told('message', {
+      origin: 'https://elsewhere.example.test',
+      data: { type: 'keep-pages', pages: ['/shopping-lists'] },
+    });
     await worker.told('message', { data: { type: 'keep-pages', pages: ['/shopping-lists'] } });
 
     expect(worker.asked).toEqual([]);
   });
 
   it('holds no more pages than it has room for: the ones kept longest go first', async () => {
-    const many = Object.fromEntries(Array.from({ length: 65 }, (_, index) => [`/recipes/${index}`, html(`recipe ${index}`)]));
+    const many = Object.fromEntries(
+      Array.from({ length: 65 }, (_, index) => [`/recipes/${index}`, html(`recipe ${index}`)]),
+    );
     const full = aWorker(many);
 
     for (const path of Object.keys(many)) await full.answerTo(path, { mode: 'navigate' });

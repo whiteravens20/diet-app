@@ -29,7 +29,11 @@ export function ThemeChoice() {
   if (!mounted) return <div className="h-9 w-[100px]" />;
 
   return (
-    <div role="group" aria-label={t('choice')} className="inline-flex h-9 items-center gap-0.5 rounded-md border border-input p-0.5">
+    <div
+      role="group"
+      aria-label={t('choice')}
+      className="inline-flex h-9 items-center gap-0.5 rounded-md border border-input p-0.5"
+    >
       {CHOICES.map((choice) => {
         const chosen = (theme ?? 'system') === choice.value;
         return (
@@ -42,7 +46,9 @@ export function ThemeChoice() {
             className={cn(
               'inline-flex size-[30px] items-center justify-center rounded-sm transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              chosen ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              chosen
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
             <choice.icon size={16} aria-hidden />

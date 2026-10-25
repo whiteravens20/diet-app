@@ -22,7 +22,10 @@ const MARKER_COOKIE = 'diet_session';
 const CHANNEL = 'diet-app.session';
 const LOCK = 'diet-app.session.refresh';
 
-type Message = { type: 'token'; accessToken: string; sessionId: string } | { type: 'signed-out' } | { type: 'replaced' };
+type Message =
+  | { type: 'token'; accessToken: string; sessionId: string }
+  | { type: 'signed-out' }
+  | { type: 'replaced' };
 
 let accessToken: string | null = null;
 let sessionId: string | null = null;
@@ -65,7 +68,8 @@ function forgotten(): void {
   // What the browser kept of the account for when the server cannot be reached goes with the session.
   void offline.forget();
   // The marker is ours to drop; the refresh cookie is the API's, and is dead with the session.
-  if (typeof document !== 'undefined') document.cookie = `${MARKER_COOKIE}=; Max-Age=0; Path=/; SameSite=Strict`;
+  if (typeof document !== 'undefined')
+    document.cookie = `${MARKER_COOKIE}=; Max-Age=0; Path=/; SameSite=Strict`;
   changed();
 }
 
@@ -97,7 +101,11 @@ const here = (path: string): string => `${window.location.origin}/${path.replace
  * lose the session.
  */
 const onTheCookie = (path: string): Promise<Response> =>
-  fetch(`${API_URL}/api/auth/${path}`, { method: 'POST', credentials: API_URL ? 'include' : 'same-origin', keepalive: true });
+  fetch(`${API_URL}/api/auth/${path}`, {
+    method: 'POST',
+    credentials: API_URL ? 'include' : 'same-origin',
+    keepalive: true,
+  });
 
 /** How long to wait before asking again after another request used the cookie: its answer is still on its way. */
 const AFTER_ANOTHER_REQUEST_MS = [300, 700, 1500];
@@ -165,7 +173,9 @@ export const session = {
 
   /** True when the browser holds a session, as far as a script can tell: by the marker cookie. */
   exists(): boolean {
-    return typeof document !== 'undefined' && /(?:^|;\s*)diet_session=1(?:;|$)/.test(document.cookie);
+    return (
+      typeof document !== 'undefined' && /(?:^|;\s*)diet_session=1(?:;|$)/.test(document.cookie)
+    );
   },
 
   /** The session that an answer to a sign-in or a registration began. */

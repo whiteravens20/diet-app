@@ -59,7 +59,10 @@ export class ApiClientError extends Error {
  * "try again in a moment" would be wrong for either. Seconds up to a minute
  * and a half, whole minutes beyond.
  */
-export function waitOf(status: number, retryAfterSeconds: number | undefined): { unit: 'seconds' | 'minutes'; count: number } | null {
+export function waitOf(
+  status: number,
+  retryAfterSeconds: number | undefined,
+): { unit: 'seconds' | 'minutes'; count: number } | null {
   if (status !== 429 || retryAfterSeconds === undefined) return null;
   return retryAfterSeconds > 90
     ? { unit: 'minutes', count: Math.ceil(retryAfterSeconds / 60) }
@@ -125,7 +128,8 @@ interface Refusal {
   details?: Record<string, unknown>;
 }
 
-const json = (body: unknown): string | undefined => (body === undefined || body === null ? undefined : JSON.stringify(body));
+const json = (body: unknown): string | undefined =>
+  body === undefined || body === null ? undefined : JSON.stringify(body);
 
 /** A client for the part of the API under `base` (`''`, `/admin`, `/review`), asking as `who`. */
 export function apiClient(base: string, who: WhoAsks = {}): ApiClient {
@@ -144,13 +148,25 @@ export function apiClient(base: string, who: WhoAsks = {}): ApiClient {
       res = await fetch(apiUrl(`${base}${path}`), { ...init, headers, credentials: WITH_COOKIES });
     } catch {
       // fetch only rejects on a network-level failure (server down, DNS, CORS).
-      throw new ApiClientError(0, 'NETWORK', 'Cannot reach the server. Check your connection and that the API is running.');
+      throw new ApiClientError(
+        0,
+        'NETWORK',
+        'Cannot reach the server. Check your connection and that the API is running.',
+      );
     }
     if (res.ok) return res;
 
     const body = (await res.json().catch(() => ({}))) as Refusal;
-    if (res.status === 401 && again && who.renewed && (await who.renewed(body.error))) return answerTo(path, init, false);
-    throw new ApiClientError(res.status, body.error ?? 'ERROR', body.message ?? res.statusText, body.issues, retryAfterOf(res), body.details);
+    if (res.status === 401 && again && who.renewed && (await who.renewed(body.error)))
+      return answerTo(path, init, false);
+    throw new ApiClientError(
+      res.status,
+      body.error ?? 'ERROR',
+      body.message ?? res.statusText,
+      body.issues,
+      retryAfterOf(res),
+      body.details,
+    );
   }
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

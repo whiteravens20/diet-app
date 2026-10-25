@@ -110,7 +110,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? BY_DATABASE_CODE[exception.code]
         : undefined;
     if (database) {
-      this.logger.warn(`Database error ${(exception as Prisma.PrismaClientKnownRequestError).code} answered as ${database.status} ${database.error}`);
+      this.logger.warn(
+        `Database error ${(exception as Prisma.PrismaClientKnownRequestError).code} answered as ${database.status} ${database.error}`,
+      );
       res.status(database.status).json({
         statusCode: database.status,
         error: database.error,
@@ -126,7 +128,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return;
     }
 
-    this.logger.error('Unhandled exception', exception instanceof Error ? exception.stack : exception);
+    this.logger.error(
+      'Unhandled exception',
+      exception instanceof Error ? exception.stack : exception,
+    );
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: 500,
       error: 'INTERNAL_ERROR',

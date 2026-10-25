@@ -52,11 +52,7 @@ import {
   type RecipeDraftCandidate,
   type ResolvedIngredient,
 } from './recipe-generator.validate.js';
-import {
-  batchMixDrift,
-  DEFAULT_COMPLEXITY_MIX,
-  planCalls,
-} from './recipe-generator.complexity.js';
+import { batchMixDrift, DEFAULT_COMPLEXITY_MIX, planCalls } from './recipe-generator.complexity.js';
 
 type RecipeRunnerStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -146,7 +142,7 @@ export class RecipeGeneratorRunner {
   isConfigured(): boolean {
     return Boolean(
       this.config.get('AI_DEFAULT_PROVIDER', { infer: true }) &&
-        this.config.get('AI_DEFAULT_MODEL', { infer: true }),
+      this.config.get('AI_DEFAULT_MODEL', { infer: true }),
     );
   }
 
@@ -230,7 +226,10 @@ export class RecipeGeneratorRunner {
       const mix = spec.complexityMix ?? DEFAULT_COMPLEXITY_MIX;
 
       /** One call of the run: how many recipes it wrote, or `null` when the provider itself failed and the run is over. */
-      const call = async (targets: Record<Complexity, number>, asking: RecipeGenerateSpec): Promise<number | null> => {
+      const call = async (
+        targets: Record<Complexity, number>,
+        asking: RecipeGenerateSpec,
+      ): Promise<number | null> => {
         const asked = targets.simple + targets.medium + targets.complex;
         const answer = await this.askForRecipes({
           adapter,
@@ -262,7 +261,12 @@ export class RecipeGeneratorRunner {
           failed: this.state.failed + missing,
         };
         // The calls still to come must not repeat what this one wrote.
-        existing.recipes.unshift(...accepted.map((c) => ({ slug: c.slug, ingredientSlugs: c.ingredients.map((i) => i.slug) })));
+        existing.recipes.unshift(
+          ...accepted.map((c) => ({
+            slug: c.slug,
+            ingredientSlugs: c.ingredients.map((i) => i.slug),
+          })),
+        );
         for (const c of accepted) {
           existing.takenSlugs.add(c.slug);
           existing.takenTitles.add((c.titles.en ?? '').toLowerCase());
@@ -270,7 +274,8 @@ export class RecipeGeneratorRunner {
         return accepted.length;
       };
       const pause = async (): Promise<void> => {
-        if (tuning.interBatchDelayMs > 0 && !this.cancelRequested) await new Promise((waited) => setTimeout(waited, tuning.interBatchDelayMs));
+        if (tuning.interBatchDelayMs > 0 && !this.cancelRequested)
+          await new Promise((waited) => setTimeout(waited, tuning.interBatchDelayMs));
       };
 
       if (spec.fillCoverage) {
@@ -310,7 +315,12 @@ export class RecipeGeneratorRunner {
 
       this.summariseMix(spec, this.state.written);
       if (this.cancelRequested) this.finish('cancelled');
-      else this.finish(this.state.written === 0 && this.state.note === null ? 'batch rejected on every retry' : null);
+      else
+        this.finish(
+          this.state.written === 0 && this.state.note === null
+            ? 'batch rejected on every retry'
+            : null,
+        );
     } catch (err) {
       this.finishWithError(describe(err));
     }
@@ -340,9 +350,18 @@ export class RecipeGeneratorRunner {
     /** What passed so far: taken, for the attempts after it, like any recipe there is. */
     const kept: RecipeDraftCandidate[] = [];
     const known = (): ExistingRecipes => ({
-      recipes: [...existing.recipes, ...kept.map((recipe) => ({ slug: recipe.slug, ingredientSlugs: recipe.ingredients.map((line) => line.slug) }))],
+      recipes: [
+        ...existing.recipes,
+        ...kept.map((recipe) => ({
+          slug: recipe.slug,
+          ingredientSlugs: recipe.ingredients.map((line) => line.slug),
+        })),
+      ],
       takenSlugs: new Set([...existing.takenSlugs, ...kept.map((recipe) => recipe.slug)]),
-      takenTitles: new Set([...existing.takenTitles, ...kept.map((recipe) => (recipe.titles.en ?? '').toLowerCase())]),
+      takenTitles: new Set([
+        ...existing.takenTitles,
+        ...kept.map((recipe) => (recipe.titles.en ?? '').toLowerCase()),
+      ]),
     });
 
     let failure: string | null = null;
@@ -352,9 +371,10 @@ export class RecipeGeneratorRunner {
     let refused = '';
     for (let attempt = 0; attempt < 3; attempt += 1) {
       if (this.cancelRequested) break;
-      const reminder = attempt === 0
-        ? ''
-        : `\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.${refused}`;
+      const reminder =
+        attempt === 0
+          ? ''
+          : `\nReminder: respond with ONLY the COMPLETE JSON object containing {"recipes": [...]}. No prose, no fences, no notes.${refused}`;
       const promptText = buildRecipeGeneratorPrompt({
         targetLocales,
         targets: stillMissing(targets, kept),
@@ -401,18 +421,31 @@ export class RecipeGeneratorRunner {
         targetLocales,
         rawOutput: result.text,
         resolveSlug: opts.resolveSlug,
-        ...(({ recipes, takenSlugs, takenTitles }) => ({ existingRecipes: recipes, takenSlugs, takenTitles }))(known()),
+        ...(({ recipes, takenSlugs, takenTitles }) => ({
+          existingRecipes: recipes,
+          takenSlugs,
+          takenTitles,
+        }))(known()),
         requiredDiets: spec.dietTags,
         requiredMeals: spec.mealTypes,
-        catalogueNames: opts.catalogue.map((row) => ({ slug: row.slug, name: row.names.en ?? row.slug })),
+        catalogueNames: opts.catalogue.map((row) => ({
+          slug: row.slug,
+          name: row.names.en ?? row.slug,
+        })),
       });
       const refusals = validation.ok ? validation.refused : [validation];
       if (validation.ok) {
         kept.push(...validation.candidates.slice(0, asked - kept.length));
         // All that was asked for, or an answer nothing was wrong with: the call is done.
-        if (kept.length >= asked || refusals.length === 0) return { candidates: kept, failure: null };
+        if (kept.length >= asked || refusals.length === 0)
+          return { candidates: kept, failure: null };
       }
-      const said = refusals.map((refusal) => `${refusal.reason}${refusal.key ? ` at ${JSON.stringify(refusal.key)}` : ''}`).join('; ');
+      const said = refusals
+        .map(
+          (refusal) =>
+            `${refusal.reason}${refusal.key ? ` at ${JSON.stringify(refusal.key)}` : ''}`,
+        )
+        .join('; ');
       refused = validation.ok
         ? `\nOf your last answer these were refused: ${said}. Send ${asked - kept.length} other recipe(s), none of them one of those.`
         : `\nYour last answer was refused: ${said}. Send a corrected answer.`;
@@ -425,9 +458,7 @@ export class RecipeGeneratorRunner {
       this.state = {
         ...this.state,
         lastRejectReason: first.reason,
-        lastRejectKey: first.key
-          ? `${first.key}${detailsSuffix}`
-          : first.details ?? null,
+        lastRejectKey: first.key ? `${first.key}${detailsSuffix}` : (first.details ?? null),
         lastRejectHead: head,
       };
     }
@@ -499,7 +530,12 @@ export class RecipeGeneratorRunner {
     const library = await this.prisma.recipe.findMany({
       where: { slug: { not: null }, createdByUserId: null },
       orderBy: { createdAt: 'desc' },
-      select: { slug: true, title: true, retiredAt: true, ingredients: { select: { ingredient: { select: { slug: true } } } } },
+      select: {
+        slug: true,
+        title: true,
+        retiredAt: true,
+        ingredients: { select: { ingredient: { select: { slug: true } } } },
+      },
     });
     const queue = await this.prisma.recipeDraft.findMany({
       where: { status: { not: 'REJECTED' } },
@@ -515,7 +551,9 @@ export class RecipeGeneratorRunner {
       takenSlugs.add(recipe.slug!);
       if (recipe.retiredAt) continue;
       takenTitles.add(recipe.title.toLowerCase());
-      const slugs = recipe.ingredients.map((line) => line.ingredient.slug).filter((slug): slug is string => slug !== null);
+      const slugs = recipe.ingredients
+        .map((line) => line.ingredient.slug)
+        .filter((slug): slug is string => slug !== null);
       if (slugs.length > 0) recipes.push({ slug: recipe.slug!, ingredientSlugs: slugs });
     }
     for (const draft of queue) {
@@ -525,8 +563,12 @@ export class RecipeGeneratorRunner {
       takenSlugs.add(draft.slug);
       // A draft that shipped into this instance is in the library already.
       if (known || draft.status === 'SHIPPED') continue;
-      const lines = Array.isArray(draft.ingredientsJson) ? (draft.ingredientsJson as { slug?: unknown }[]) : [];
-      const slugs = lines.map((line) => line?.slug).filter((slug): slug is string => typeof slug === 'string');
+      const lines = Array.isArray(draft.ingredientsJson)
+        ? (draft.ingredientsJson as { slug?: unknown }[])
+        : [];
+      const slugs = lines
+        .map((line) => line?.slug)
+        .filter((slug): slug is string => typeof slug === 'string');
       if (slugs.length > 0) recipes.push({ slug: draft.slug, ingredientSlugs: slugs });
     }
     return { recipes, takenSlugs, takenTitles };
@@ -539,16 +581,24 @@ export class RecipeGeneratorRunner {
    * left out when a stricter one is as empty: a recipe written for the
    * stricter diet fills both.
    */
-  private async emptiestCell(setAside: ReadonlySet<string>): Promise<{ diet: DietType; meal: MealType; recipes: number } | null> {
+  private async emptiestCell(
+    setAside: ReadonlySet<string>,
+  ): Promise<{ diet: DietType; meal: MealType; recipes: number } | null> {
     const [library, waiting] = await Promise.all([this.coverage.count(), this.coverage.waiting()]);
     let emptiest: { diet: DietType; meal: MealType; recipes: number } | null = null;
     // The diets that need recipes of their own come first in the order of ties.
-    const diets = [...RecipeDietTag.options, ...DietType.options.filter((diet) => !RecipeDietTag.safeParse(diet).success && diet !== 'custom')];
+    const diets = [
+      ...RecipeDietTag.options,
+      ...DietType.options.filter(
+        (diet) => !RecipeDietTag.safeParse(diet).success && diet !== 'custom',
+      ),
+    ];
     for (const diet of diets) {
       for (const meal of MealType.options) {
         if (setAside.has(`${diet}:${meal}`)) continue;
         const recipes = library[diet][meal] + waiting[diet][meal];
-        if (recipes < COVERAGE_TARGET && (emptiest === null || recipes < emptiest.recipes)) emptiest = { diet, meal, recipes };
+        if (recipes < COVERAGE_TARGET && (emptiest === null || recipes < emptiest.recipes))
+          emptiest = { diet, meal, recipes };
       }
     }
     return emptiest;
@@ -724,7 +774,14 @@ export class RecipeGeneratorRunner {
  */
 function cuisineNamed(direction: string | undefined): Cuisine | null {
   if (!direction) return null;
-  return Cuisine.safeParse(direction.trim().toLowerCase().replace(/[\s-]+/g, '_')).data ?? null;
+  return (
+    Cuisine.safeParse(
+      direction
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, '_'),
+    ).data ?? null
+  );
 }
 
 /**
@@ -732,10 +789,18 @@ function cuisineNamed(direction: string | undefined): Cuisine | null {
  * was asked for less what was kept. A recipe kept in another band than any
  * that was asked for counts against the band with the most still missing.
  */
-function stillMissing(targets: Record<Complexity, number>, kept: readonly RecipeDraftCandidate[]): Record<Complexity, number> {
+function stillMissing(
+  targets: Record<Complexity, number>,
+  kept: readonly RecipeDraftCandidate[],
+): Record<Complexity, number> {
   const left = { ...targets };
   for (const recipe of kept) {
-    const band = left[recipe.complexity] > 0 ? recipe.complexity : (Object.keys(left) as Complexity[]).reduce((most, one) => (left[one] > left[most] ? one : most));
+    const band =
+      left[recipe.complexity] > 0
+        ? recipe.complexity
+        : (Object.keys(left) as Complexity[]).reduce((most, one) =>
+            left[one] > left[most] ? one : most,
+          );
     if (left[band] > 0) left[band] -= 1;
   }
   return left;

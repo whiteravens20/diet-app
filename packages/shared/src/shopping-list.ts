@@ -2,7 +2,14 @@
 
 import * as z from './zod.js';
 import { AiGenerationMeta } from './ai.js';
-import { CalendarDay, DisplayUnit, MAX_QUANTITY, MealType, ProductCategory, Unit } from './enums.js';
+import {
+  CalendarDay,
+  DisplayUnit,
+  MAX_QUANTITY,
+  MealType,
+  ProductCategory,
+  Unit,
+} from './enums.js';
 
 /** The most shopping lists one plan may have at a time. */
 export const MAX_LISTS_PER_PLAN = 10;
@@ -90,7 +97,12 @@ export const ShoppingListItem = z.object({
    * buy.
    */
   packs: z
-    .object({ count: z.number().int().min(1), size: z.number().positive(), sizeUnit: DisplayUnit, quantity: z.number().positive() })
+    .object({
+      count: z.number().int().min(1),
+      size: z.number().positive(),
+      sizeUnit: DisplayUnit,
+      quantity: z.number().positive(),
+    })
     .nullable(),
   checked: z.boolean().default(false),
 });
@@ -162,7 +174,17 @@ export const ListProposal = z.discriminatedUnion('kind', [
     from: z.object({ ingredientId: z.string().uuid(), name: z.string() }),
     to: z.object({ ingredientId: z.string().uuid(), name: z.string() }),
     /** The meals of the list's days that use `from`, in the order of the days. */
-    meals: z.array(z.object({ plannedMealId: z.string().uuid(), date: z.string().date(), mealType: MealType, title: z.string() })).min(1).max(2),
+    meals: z
+      .array(
+        z.object({
+          plannedMealId: z.string().uuid(),
+          date: z.string().date(),
+          mealType: MealType,
+          title: z.string(),
+        }),
+      )
+      .min(1)
+      .max(2),
     /** How many packs fewer the list would ask for. */
     packsSaved: z.number().int().min(1),
     /** A model's sentence on it. Null when no model was asked, or it said none. */

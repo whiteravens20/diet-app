@@ -7,7 +7,16 @@
  * profile inputs alone — no randomness, no AI, no I/O: every calorie and macro
  * calculation is deterministic.
  */
-import { KCAL_PER_GRAM, MIN_CALORIE_TARGET, riskOfLosingWeight, type ActivityLevel, type CalorieCalculation, type DietType, type Macros, type Sex } from '@diet-app/shared';
+import {
+  KCAL_PER_GRAM,
+  MIN_CALORIE_TARGET,
+  riskOfLosingWeight,
+  type ActivityLevel,
+  type CalorieCalculation,
+  type DietType,
+  type Macros,
+  type Sex,
+} from '@diet-app/shared';
 
 /** Mifflin-St Jeor activity multipliers (BMR → TDEE / maintenance). */
 const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
@@ -45,7 +54,9 @@ const MACRO_SPLIT: Record<DietType, Macros> = {
 
 /** A split in whole per cent, as a profile keeps it, as the shares of one the engine works with; null stays null. */
 export function sharesOf(split: Macros | null | undefined): Macros | null {
-  return split ? { protein: split.protein / 100, fat: split.fat / 100, carbs: split.carbs / 100 } : null;
+  return split
+    ? { protein: split.protein / 100, fat: split.fat / 100, carbs: split.carbs / 100 }
+    : null;
 }
 
 export interface CalorieEngineInput {
@@ -71,7 +82,9 @@ const MAX_DEFICIT_SHARE = 0.25;
  * Sex offset: +5 male, -161 female. When sex is unknown we use the midpoint
  * (-78) so the estimate is unbiased rather than defaulting to one sex.
  */
-export function calculateBmr(input: Pick<CalorieEngineInput, 'age' | 'sex' | 'heightCm' | 'weightKg'>): number {
+export function calculateBmr(
+  input: Pick<CalorieEngineInput, 'age' | 'sex' | 'heightCm' | 'weightKg'>,
+): number {
   const base = 10 * input.weightKg + 6.25 * input.heightCm - 5 * input.age;
   const sexOffset = input.sex === 'male' ? 5 : input.sex === 'female' ? -161 : -78;
   return round(base + sexOffset);
@@ -110,11 +123,17 @@ export function energyShares(grams: Macros): Macros | null {
 
 /** How far one split is from another: the share of the energy that would have to move, from 0 to 1. */
 export function splitDistance(a: Macros, b: Macros): number {
-  return (Math.abs(a.protein - b.protein) + Math.abs(a.fat - b.fat) + Math.abs(a.carbs - b.carbs)) / 2;
+  return (
+    (Math.abs(a.protein - b.protein) + Math.abs(a.fat - b.fat) + Math.abs(a.carbs - b.carbs)) / 2
+  );
 }
 
 /** Split a calorie target into target macros (grams) for a diet type; `own` is the split of the custom diet. */
-export function macrosForCalories(calories: number, dietType: DietType, own?: Macros | null): Macros {
+export function macrosForCalories(
+  calories: number,
+  dietType: DietType,
+  own?: Macros | null,
+): Macros {
   const split = macroSplitOf(dietType, own);
   return {
     protein: round((calories * split.protein) / KCAL_PER_GRAM.protein),
@@ -233,7 +252,8 @@ export function effectiveDayTarget(day: {
   const own = day.ownTarget ?? null;
   const held = own !== null && day.holdUnder != null && own < day.holdUnder;
   if (own !== null && !held) return { target: own, belowFloor: own < day.floor };
-  const factor = day.dayType === 'training' ? TRAINING_DAY_FACTOR : day.dayType === 'rest' ? REST_DAY_FACTOR : 1;
+  const factor =
+    day.dayType === 'training' ? TRAINING_DAY_FACTOR : day.dayType === 'rest' ? REST_DAY_FACTOR : 1;
   const shaped = Math.round((day.base * factor) / 10) * 10;
   const least = day.baseIsCalculated ? Math.min(day.floor, day.base) : MIN_CALORIE_TARGET;
   const target = Math.max(shaped, least);

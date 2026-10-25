@@ -9,4 +9,7 @@ import dynamic from 'next/dynamic';
  * drawn: it is for an account whose address waits, on an instance that sends
  * mail, and no first visit of anybody else waits for it.
  */
-export const LazyConfirmEmailNotice = dynamic(() => import('./confirm-email-notice').then((notice) => notice.ConfirmEmailNotice), { ssr: false });
+export const LazyConfirmEmailNotice = dynamic(
+  () => import('./confirm-email-notice').then((notice) => notice.ConfirmEmailNotice),
+  { ssr: false },
+);

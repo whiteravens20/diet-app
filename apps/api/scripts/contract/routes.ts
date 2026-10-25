@@ -71,7 +71,13 @@ export interface Route {
 
 function controllerFiles(dir = SOURCE): string[] {
   return readdirSync(dir, { withFileTypes: true })
-    .flatMap((entry) => (entry.isDirectory() ? controllerFiles(join(dir, entry.name)) : entry.name.endsWith('.controller.ts') ? [join(dir, entry.name)] : []))
+    .flatMap((entry) =>
+      entry.isDirectory()
+        ? controllerFiles(join(dir, entry.name))
+        : entry.name.endsWith('.controller.ts')
+          ? [join(dir, entry.name)]
+          : [],
+    )
     .sort();
 }
 
@@ -81,7 +87,10 @@ function factoryOf(decorator: () => ParameterDecorator): unknown {
     handler(_value: unknown): void {}
   }
   decorator()(Probe.prototype, 'handler', 0);
-  const kept = Reflect.getMetadata('__routeArguments__', Probe, 'handler') as Record<string, { factory?: unknown }>;
+  const kept = Reflect.getMetadata('__routeArguments__', Probe, 'handler') as Record<
+    string,
+    { factory?: unknown }
+  >;
   return Object.values(kept)[0]!.factory;
 }
 
@@ -90,7 +99,12 @@ function comments(path: string): Map<string, string> {
   const file = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true);
   const found = new Map<string, string>();
   const visit = (node: ts.Node): void => {
-    if (ts.isMethodDeclaration(node) && ts.isClassDeclaration(node.parent) && node.parent.name && ts.isIdentifier(node.name)) {
+    if (
+      ts.isMethodDeclaration(node) &&
+      ts.isClassDeclaration(node.parent) &&
+      node.parent.name &&
+      ts.isIdentifier(node.name)
+    ) {
       // The first paragraph says what the route does; what follows it is for whoever changes the handler.
       const text = (
         ts
@@ -110,9 +124,17 @@ function comments(path: string): Map<string, string> {
   return found;
 }
 
-const paths = (value: unknown): string[] => (Array.isArray(value) ? (value as string[]) : [typeof value === 'string' ? value : '/']);
-const joined = (...parts: string[]): string => `/${parts.flatMap((part) => part.split('/')).filter(Boolean).join('/')}`;
-const schemaOf = (pipes: unknown[] | undefined): ZodType | null => (pipes ?? []).flatMap((pipe) => (pipe instanceof ZodValidationPipe ? [pipe.schema as ZodType] : []))[0] ?? null;
+const paths = (value: unknown): string[] =>
+  Array.isArray(value) ? (value as string[]) : [typeof value === 'string' ? value : '/'];
+const joined = (...parts: string[]): string =>
+  `/${parts
+    .flatMap((part) => part.split('/'))
+    .filter(Boolean)
+    .join('/')}`;
+const schemaOf = (pipes: unknown[] | undefined): ZodType | null =>
+  (pipes ?? []).flatMap((pipe) =>
+    pipe instanceof ZodValidationPipe ? [pipe.schema as ZodType] : [],
+  )[0] ?? null;
 
 /** Every route of every controller under the source directory, in the order of their paths. */
 export async function readRoutes(): Promise<Route[]> {
@@ -130,15 +152,25 @@ export async function readRoutes(): Promise<Route[]> {
         const handler = prototype[name];
         if (typeof handler !== 'function' || !Reflect.hasMetadata('method', handler)) continue;
         const method = METHODS[Reflect.getMetadata('method', handler) as number];
-        if (!method) throw new Error(`${controller.name}.${name} answers a method the contract does not write: ${String(Reflect.getMetadata('method', handler))}`);
+        if (!method)
+          throw new Error(
+            `${controller.name}.${name} answers a method the contract does not write: ${String(Reflect.getMetadata('method', handler))}`,
+          );
 
-        const guards = [...((Reflect.getMetadata('__guards__', controller) as unknown[] | undefined) ?? []), ...((Reflect.getMetadata('__guards__', handler) as unknown[] | undefined) ?? [])];
+        const guards = [
+          ...((Reflect.getMetadata('__guards__', controller) as unknown[] | undefined) ?? []),
+          ...((Reflect.getMetadata('__guards__', handler) as unknown[] | undefined) ?? []),
+        ];
         const asking = guards.map((guard) => {
           const asks = GUARDS.get(guard);
-          if (!asks) throw new Error(`${controller.name}.${name} is guarded by something the contract cannot name.`);
+          if (!asks)
+            throw new Error(
+              `${controller.name}.${name} is guarded by something the contract cannot name.`,
+            );
           return asks;
         });
-        if (new Set(asking).size > 1) throw new Error(`${controller.name}.${name} asks for more than one kind of session.`);
+        if (new Set(asking).size > 1)
+          throw new Error(`${controller.name}.${name} asks for more than one kind of session.`);
 
         const limitOf = (target: object): { times: number; seconds: number } | null => {
           const times = Reflect.getMetadata('THROTTLER:LIMITdefault', target) as number | undefined;
@@ -146,7 +178,10 @@ export async function readRoutes(): Promise<Route[]> {
           return times !== undefined && ttl !== undefined ? { times, seconds: ttl / 1000 } : null;
         };
 
-        const kept = (Reflect.getMetadata('__routeArguments__', controller, name) as Record<string, { data?: unknown; pipes?: unknown[]; factory?: unknown }> | undefined) ?? {};
+        const kept =
+          (Reflect.getMetadata('__routeArguments__', controller, name) as
+            Record<string, { data?: unknown; pipes?: unknown[]; factory?: unknown }> | undefined) ??
+          {};
         const route: Route = {
           method,
           path: '',
@@ -154,9 +189,13 @@ export async function readRoutes(): Promise<Route[]> {
           handler: name,
           file: relative(SOURCE, path),
           asks: asking[0] ?? 'anyone',
-          status: (Reflect.getMetadata('__httpCode__', handler) as number | undefined) ?? (method === 'POST' ? 201 : 200),
+          status:
+            (Reflect.getMetadata('__httpCode__', handler) as number | undefined) ??
+            (method === 'POST' ? 201 : 200),
           limit: limitOf(handler) ?? limitOf(controller),
-          credentialLimits: ((Reflect.getMetadata(CREDENTIAL_COUNTS, handler) as CredentialCount[] | undefined) ?? []).map((count) => ({ times: count.limit, seconds: count.ttl / 1000 })),
+          credentialLimits: (
+            (Reflect.getMetadata(CREDENTIAL_COUNTS, handler) as CredentialCount[] | undefined) ?? []
+          ).map((count) => ({ times: count.limit, seconds: count.ttl / 1000 })),
           body: null,
           query: null,
           queryValues: [],
@@ -164,7 +203,8 @@ export async function readRoutes(): Promise<Route[]> {
           readsClientDate: false,
           readsLanguage: false,
           answers: (Reflect.getMetadata(ANSWERS, handler) as ZodType | undefined) ?? null,
-          answersWithAFile: (Reflect.getMetadata(ANSWERS_WITH_A_FILE, handler) as string | undefined) ?? null,
+          answersWithAFile:
+            (Reflect.getMetadata(ANSWERS_WITH_A_FILE, handler) as string | undefined) ?? null,
           description: described.get(`${controller.name}.${name}`) ?? '',
         };
         for (const [key, argument] of Object.entries(kept)) {
@@ -178,15 +218,24 @@ export async function readRoutes(): Promise<Route[]> {
           const named = typeof argument.data === 'string' ? argument.data : null;
           if (kind === 3) route.body = schemaOf(argument.pipes);
           else if (kind === 4 && named === null) route.query = schemaOf(argument.pipes);
-          else if (kind === 4 && named !== null) route.queryValues.push({ name: named, schema: schemaOf(argument.pipes) });
-          else if (kind === 5 && named !== null) route.pathValues.push({ name: named, schema: schemaOf(argument.pipes) });
+          else if (kind === 4 && named !== null)
+            route.queryValues.push({ name: named, schema: schemaOf(argument.pipes) });
+          else if (kind === 5 && named !== null)
+            route.pathValues.push({ name: named, schema: schemaOf(argument.pipes) });
         }
 
         for (const ofController of paths(Reflect.getMetadata('path', controller))) {
-          for (const ofHandler of paths(Reflect.getMetadata('path', handler))) routes.push({ ...route, path: joined(PREFIX, ofController, ofHandler) });
+          for (const ofHandler of paths(Reflect.getMetadata('path', handler)))
+            routes.push({ ...route, path: joined(PREFIX, ofController, ofHandler) });
         }
       }
     }
   }
-  return routes.sort((a, b) => (a.path === b.path ? METHODS.indexOf(a.method) - METHODS.indexOf(b.method) : a.path < b.path ? -1 : 1));
+  return routes.sort((a, b) =>
+    a.path === b.path
+      ? METHODS.indexOf(a.method) - METHODS.indexOf(b.method)
+      : a.path < b.path
+        ? -1
+        : 1,
+  );
 }

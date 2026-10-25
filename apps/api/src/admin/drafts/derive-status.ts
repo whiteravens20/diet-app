@@ -14,9 +14,7 @@ export function deriveDraftStatus(
   reviews: { locale: string; action: string }[],
 ): 'PENDING' | 'APPROVED' | 'REJECTED' {
   if (reviews.some((r) => r.action === 'REJECT')) return 'REJECTED';
-  const approved = new Set(
-    reviews.filter((r) => r.action === 'APPROVE').map((r) => r.locale),
-  );
+  const approved = new Set(reviews.filter((r) => r.action === 'APPROVE').map((r) => r.locale));
   if (expectedLocales.every((l) => approved.has(l))) return 'APPROVED';
   return 'PENDING';
 }

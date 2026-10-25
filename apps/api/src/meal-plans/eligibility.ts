@@ -32,7 +32,8 @@ export interface Restrictions {
 }
 
 /** Why a recipe may not go into a plan. */
-export type Violation = 'not_available' | 'wrong_meal' | 'off_diet' | 'allergen' | 'excluded_ingredient' | 'avoided';
+export type Violation =
+  'not_available' | 'wrong_meal' | 'off_diet' | 'allergen' | 'excluded_ingredient' | 'avoided';
 
 /**
  * What the user may waive by asking for it explicitly: the diet of the plan
@@ -77,11 +78,17 @@ export function violations(
 ): Violation[] {
   const found: Violation[] = [];
   const visible = recipe.createdByUserId === null || recipe.createdByUserId === restrictions.userId;
-  if (!visible || recipe.deletedAt !== null || recipe.retiredAt !== null) found.push('not_available');
+  if (!visible || recipe.deletedAt !== null || recipe.retiredAt !== null)
+    found.push('not_available');
   if (!waived.meal && !recipe.mealTypes.includes(meal)) found.push('wrong_meal');
   if (!waived.diet && !fitsDiet(recipe.dietTags, restrictions.diet)) found.push('off_diet');
-  if (recipe.allergens.some((allergen) => restrictions.allergens.includes(allergen))) found.push('allergen');
-  if (recipe.ingredients.some((line) => restrictions.excludedIngredientIds.includes(line.ingredientId))) {
+  if (recipe.allergens.some((allergen) => restrictions.allergens.includes(allergen)))
+    found.push('allergen');
+  if (
+    recipe.ingredients.some((line) =>
+      restrictions.excludedIngredientIds.includes(line.ingredientId),
+    )
+  ) {
     found.push('excluded_ingredient');
   }
   if (restrictions.avoidedRecipeIds.includes(recipe.id)) found.push('avoided');
@@ -123,7 +130,11 @@ export async function restrictionsFor(
     options: unknown;
     profile: {
       userId: string;
-      preferences: { allergens: string[]; excludedIngredientIds: string[]; dislikedIngredientIds: string[] } | null;
+      preferences: {
+        allergens: string[];
+        excludedIngredientIds: string[];
+        dislikedIngredientIds: string[];
+      } | null;
     };
   },
 ): Promise<Restrictions> {
@@ -136,15 +147,26 @@ export async function restrictionsFor(
     userId: plan.profile.userId,
     diet: plan.dietType as DietType,
     allergens: plan.profile.preferences?.allergens ?? [],
-    excludedIngredientIds: respectExclusions ? (plan.profile.preferences?.excludedIngredientIds ?? []) : [],
+    excludedIngredientIds: respectExclusions
+      ? (plan.profile.preferences?.excludedIngredientIds ?? [])
+      : [],
     avoidedRecipeIds: avoided.map((row) => row.recipeId),
     dislikedIngredientIds: plan.profile.preferences?.dislikedIngredientIds ?? [],
   };
 }
 
 /** The ingredients of `recipe` that the profile would rather not eat. */
-export function dislikedIn(recipe: Pick<Candidate, 'ingredients'>, restrictions: Pick<Restrictions, 'dislikedIngredientIds'>): string[] {
-  return [...new Set(recipe.ingredients.map((line) => line.ingredientId).filter((id) => restrictions.dislikedIngredientIds.includes(id)))];
+export function dislikedIn(
+  recipe: Pick<Candidate, 'ingredients'>,
+  restrictions: Pick<Restrictions, 'dislikedIngredientIds'>,
+): string[] {
+  return [
+    ...new Set(
+      recipe.ingredients
+        .map((line) => line.ingredientId)
+        .filter((id) => restrictions.dislikedIngredientIds.includes(id)),
+    ),
+  ];
 }
 
 /**
@@ -152,7 +174,10 @@ export function dislikedIn(recipe: Pick<Candidate, 'ingredients'>, restrictions:
  * and all of them when every one holds something: a dislike orders a choice
  * and rules nothing out.
  */
-export function welcome<Recipe extends Pick<Candidate, 'ingredients'>>(candidates: Recipe[], restrictions: Pick<Restrictions, 'dislikedIngredientIds'>): Recipe[] {
+export function welcome<Recipe extends Pick<Candidate, 'ingredients'>>(
+  candidates: Recipe[],
+  restrictions: Pick<Restrictions, 'dislikedIngredientIds'>,
+): Recipe[] {
   const liked = candidates.filter((candidate) => dislikedIn(candidate, restrictions).length === 0);
   return liked.length > 0 ? liked : candidates;
 }

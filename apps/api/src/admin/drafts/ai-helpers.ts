@@ -18,4 +18,3 @@ export const PROVIDER_TUNING: Record<
   openrouter: { temperature: 0.2, batchSize: 20, interBatchDelayMs: 3500 },
   ollama: { temperature: 0.2, batchSize: 20, interBatchDelayMs: 0 },
 };
-

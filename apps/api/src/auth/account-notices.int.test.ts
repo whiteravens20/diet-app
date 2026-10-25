@@ -36,10 +36,13 @@ describe('what the holder of an account is told when its credentials change', ()
     mailbox.sent.length = 0;
   });
 
-  const subjects = async (address: string): Promise<string[]> => (await mailbox.to(address)).map((mail) => mail.subject);
+  const subjects = async (address: string): Promise<string[]> =>
+    (await mailbox.to(address)).map((mail) => mail.subject);
 
   describe('when a change of its address is asked for', () => {
-    beforeEach(() => users.requestEmailChange(user.id, { newEmail: NEW, currentPassword: user.password }));
+    beforeEach(() =>
+      users.requestEmailChange(user.id, { newEmail: NEW, currentPassword: user.password }),
+    );
 
     it('the address it has is told, with enough of the new one to know it by and no way to act on the request', async () => {
       const [notice] = await mailbox.to(user.email);
@@ -58,9 +61,14 @@ describe('what the holder of an account is told when its credentials change', ()
     it('and what the notice says is true: changing the password ends the request', async () => {
       const link = await mailbox.tokenFor(NEW);
 
-      await users.changePassword(user.id, { currentPassword: user.password, newPassword: 'Another-Passw0rd-1' });
+      await users.changePassword(user.id, {
+        currentPassword: user.password,
+        newPassword: 'Another-Passw0rd-1',
+      });
 
-      await expect(auth.confirmEmailChange(link)).rejects.toMatchObject({ response: { error: 'INVALID_EMAIL_CHANGE_TOKEN' } });
+      await expect(auth.confirmEmailChange(link)).rejects.toMatchObject({
+        response: { error: 'INVALID_EMAIL_CHANGE_TOKEN' },
+      });
     });
   });
 
@@ -77,13 +85,22 @@ describe('what the holder of an account is told when its credentials change', ()
 
   it('when its password is set from a reset link, its address is told', async () => {
     await auth.requestPasswordReset({ email: user.email });
-    await auth.confirmPasswordReset({ token: await mailbox.tokenFor(user.email), password: 'Another-Passw0rd-1' });
+    await auth.confirmPasswordReset({
+      token: await mailbox.tokenFor(user.email),
+      password: 'Another-Passw0rd-1',
+    });
 
-    expect(await subjects(user.email)).toEqual(['Reset your Diet App password', 'Your Diet App password was changed']);
+    expect(await subjects(user.email)).toEqual([
+      'Reset your Diet App password',
+      'Your Diet App password was changed',
+    ]);
   });
 
   it('when its password is changed by its holder, its address is told', async () => {
-    await users.changePassword(user.id, { currentPassword: user.password, newPassword: 'Another-Passw0rd-1' });
+    await users.changePassword(user.id, {
+      currentPassword: user.password,
+      newPassword: 'Another-Passw0rd-1',
+    });
 
     expect(await subjects(user.email)).toEqual(['Your Diet App password was changed']);
   });
@@ -94,7 +111,10 @@ describe('what the holder of an account is told when its credentials change', ()
     await users.requestEmailChange(user.id, { newEmail: NEW, currentPassword: user.password });
     await auth.confirmEmailChange(await mailbox.tokenFor(NEW));
 
-    expect(await subjects(user.email)).toEqual(['Poproszono o zmianę adresu e-mail w Diet App', 'Adres e-mail w Diet App został zmieniony']);
+    expect(await subjects(user.email)).toEqual([
+      'Poproszono o zmianę adresu e-mail w Diet App',
+      'Adres e-mail w Diet App został zmieniony',
+    ]);
   });
 
   describe('a part of an address that is enough to know it by', () => {

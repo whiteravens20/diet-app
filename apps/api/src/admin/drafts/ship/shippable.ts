@@ -9,7 +9,12 @@
  * queue's back, stays where it is and the reason is reported.
  */
 import { Cuisine } from '@diet-app/shared';
-import { checkIngredientName, checkRecipe, type CheckedRecipe, type RecipeProblem } from '../../../recipes/recipe-rules.js';
+import {
+  checkIngredientName,
+  checkRecipe,
+  type CheckedRecipe,
+  type RecipeProblem,
+} from '../../../recipes/recipe-rules.js';
 import type { IngredientOverrideEntry } from './ingredient-overrides.writer.js';
 import { ShippedRecipe } from './recipe-batches.writer.js';
 
@@ -32,7 +37,8 @@ export interface RecipeDraftContent {
   provenanceLicense?: string | null;
 }
 
-export type Shippable<T> = { ok: true; content: T } | { ok: false; reason: string; problems: RecipeProblem[] };
+export type Shippable<T> =
+  { ok: true; content: T } | { ok: false; reason: string; problems: RecipeProblem[] };
 
 /** A draft that did not ship: which one, and why, as `<rule>` or `<rule>: <detail>`. */
 export interface Skipped {
@@ -49,7 +55,8 @@ export class NothingShips extends Error {
   }
 }
 
-const reasonOf = (problems: RecipeProblem[]): string => `invalid-draft: ${problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`;
+const reasonOf = (problems: RecipeProblem[]): string =>
+  `invalid-draft: ${problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`;
 
 /**
  * Where a recipe is from, as the data files say it: nothing for a recipe that
@@ -59,7 +66,8 @@ const reasonOf = (problems: RecipeProblem[]): string => `invalid-draft: ${proble
 function sourceOf(from: unknown): ShippedRecipe['source'] {
   const source = ShippedRecipe.shape.source.safeParse(from);
   if (source.success) return source.data;
-  const license = typeof from === 'object' && from !== null ? (from as { license?: unknown }).license : undefined;
+  const license =
+    typeof from === 'object' && from !== null ? (from as { license?: unknown }).license : undefined;
   const alone = ShippedRecipe.shape.source.safeParse({ license });
   return alone.success ? alone.data : undefined;
 }
@@ -103,8 +111,14 @@ export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRec
     },
     draft.locales,
   );
-  if (!checked.ok) return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
-  const from = draft.provenanceLicense ? { ...(draft.provenanceUrl ? { url: draft.provenanceUrl } : {}), license: draft.provenanceLicense } : undefined;
+  if (!checked.ok)
+    return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
+  const from = draft.provenanceLicense
+    ? {
+        ...(draft.provenanceUrl ? { url: draft.provenanceUrl } : {}),
+        license: draft.provenanceLicense,
+      }
+    : undefined;
   return { ok: true, content: inDataShape(checked.recipe, draft.cuisine, from) };
 }
 
@@ -114,23 +128,41 @@ export function shippableRecipe(draft: RecipeDraftContent): Shippable<ShippedRec
  * the languages its title is in, and it is held to the rules as a draft is.
  */
 export function recipeOfBatchRow(row: unknown): Shippable<ShippedRecipe> {
-  const fields: Record<string, unknown> = typeof row === 'object' && row !== null && !Array.isArray(row) ? (row as Record<string, unknown>) : {};
+  const fields: Record<string, unknown> =
+    typeof row === 'object' && row !== null && !Array.isArray(row)
+      ? (row as Record<string, unknown>)
+      : {};
   const title = fields.title;
-  const locales = typeof title === 'object' && title !== null && !Array.isArray(title) ? Object.keys(title) : [];
-  const checked = checkRecipe({ ...fields, titles: title, descriptions: fields.description }, locales.includes('en') ? locales : ['en', ...locales]);
-  if (!checked.ok) return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
+  const locales =
+    typeof title === 'object' && title !== null && !Array.isArray(title) ? Object.keys(title) : [];
+  const checked = checkRecipe(
+    { ...fields, titles: title, descriptions: fields.description },
+    locales.includes('en') ? locales : ['en', ...locales],
+  );
+  if (!checked.ok)
+    return { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
   if (checked.recipe.slug === null) {
-    const problems: RecipeProblem[] = [{ path: 'slug', rule: 'missing-field', message: 'slug is missing' }];
+    const problems: RecipeProblem[] = [
+      { path: 'slug', rule: 'missing-field', message: 'slug is missing' },
+    ];
     return { ok: false, reason: reasonOf(problems), problems };
   }
   return { ok: true, content: inDataShape(checked.recipe, fields.cuisine, fields.source) };
 }
 
 /** The names a draft ships, for its own languages and no other, or why it does not ship. */
-export function shippableIngredientName(draft: { suggestions: unknown; locales: string[] }): Shippable<IngredientOverrideEntry> {
-  const suggestions = typeof draft.suggestions === 'object' && draft.suggestions !== null ? (draft.suggestions as Record<string, unknown>) : {};
+export function shippableIngredientName(draft: {
+  suggestions: unknown;
+  locales: string[];
+}): Shippable<IngredientOverrideEntry> {
+  const suggestions =
+    typeof draft.suggestions === 'object' && draft.suggestions !== null
+      ? (draft.suggestions as Record<string, unknown>)
+      : {};
   const checked = checkIngredientName(suggestions, draft.locales);
-  return checked.ok ? { ok: true, content: checked.suggestion } : { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
+  return checked.ok
+    ? { ok: true, content: checked.suggestion }
+    : { ok: false, reason: reasonOf(checked.problems), problems: checked.problems };
 }
 
 /** Split `drafts` into what ships and what is held back, in their order. */

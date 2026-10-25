@@ -26,7 +26,14 @@ describe('the routes the running application answers', () => {
     const answered = [
       ...new Set(
         server.router.stack
-          .flatMap((layer) => (layer.route ? Object.keys(layer.route.methods).map((method) => `${method.toUpperCase()} ${layer.route!.path.replace(/(?<=.)\/$/, '')}`) : []))
+          .flatMap((layer) =>
+            layer.route
+              ? Object.keys(layer.route.methods).map(
+                  (method) =>
+                    `${method.toUpperCase()} ${layer.route!.path.replace(/(?<=.)\/$/, '')}`,
+                )
+              : [],
+          )
           .filter((route) => /^(GET|POST|PUT|PATCH|DELETE) \/api(\/|$)/.test(route)),
       ),
     ].sort();

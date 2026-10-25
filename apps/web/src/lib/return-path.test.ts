@@ -4,13 +4,28 @@ import { describe, expect, it } from 'vitest';
 import { ACCOUNT_PAGES, HOME, isAccountPage, returnPath, signInPath } from './return-path';
 
 describe('a page of an account', () => {
-  it.each(ACCOUNT_PAGES)('is %s, what lies under it, and either with what it was asked with', (page) => {
-    expect(isAccountPage(page)).toBe(true);
-    expect(isAccountPage(`${page}/0b1f`)).toBe(true);
-    expect(isAccountPage(`${page}?profile=0b1f`)).toBe(true);
-  });
+  it.each(ACCOUNT_PAGES)(
+    'is %s, what lies under it, and either with what it was asked with',
+    (page) => {
+      expect(isAccountPage(page)).toBe(true);
+      expect(isAccountPage(`${page}/0b1f`)).toBe(true);
+      expect(isAccountPage(`${page}?profile=0b1f`)).toBe(true);
+    },
+  );
 
-  it.each(['/', '/login', '/register', '/terms', '/admin', '/review', '/api/users/me', '/dashboards', '/settings.html', 'dashboard', ''])('is not %s', (path) => {
+  it.each([
+    '/',
+    '/login',
+    '/register',
+    '/terms',
+    '/admin',
+    '/review',
+    '/api/users/me',
+    '/dashboards',
+    '/settings.html',
+    'dashboard',
+    '',
+  ])('is not %s', (path) => {
     expect(isAccountPage(path)).toBe(false);
   });
 });
@@ -56,8 +71,14 @@ describe('the page a sign-in returns to', () => {
 
 describe('the sign-in page for a visitor who was on a page', () => {
   it('carries the page, so that signing in leads back to it', () => {
-    expect(signInPath('/meal-plans?profile=0b1f')).toBe('/login?next=%2Fmeal-plans%3Fprofile%3D0b1f');
-    expect(returnPath(new URLSearchParams(signInPath('/meal-plans?profile=0b1f').split('?')[1]).get('next'))).toBe('/meal-plans?profile=0b1f');
+    expect(signInPath('/meal-plans?profile=0b1f')).toBe(
+      '/login?next=%2Fmeal-plans%3Fprofile%3D0b1f',
+    );
+    expect(
+      returnPath(
+        new URLSearchParams(signInPath('/meal-plans?profile=0b1f').split('?')[1]).get('next'),
+      ),
+    ).toBe('/meal-plans?profile=0b1f');
   });
 
   it('says nothing of the home page, where a sign-in leads anyway', () => {

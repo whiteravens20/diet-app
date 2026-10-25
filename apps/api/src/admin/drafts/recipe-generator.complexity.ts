@@ -151,8 +151,13 @@ export function batchMixDrift(opts: {
 }): { drifted: boolean; deltas: Record<Complexity, number> } {
   const tolerance = opts.tolerancePp ?? 25;
   const asked = targetsForMix(opts.total, opts.target);
-  const off = (band: Complexity): number => (opts.total === 0 ? 0 : Math.round(((opts.realised[band] - asked[band]) / opts.total) * 100));
-  const deltas: Record<Complexity, number> = { simple: off('simple'), medium: off('medium'), complex: off('complex') };
+  const off = (band: Complexity): number =>
+    opts.total === 0 ? 0 : Math.round(((opts.realised[band] - asked[band]) / opts.total) * 100);
+  const deltas: Record<Complexity, number> = {
+    simple: off('simple'),
+    medium: off('medium'),
+    complex: off('complex'),
+  };
   const drifted = (Object.values(deltas) as number[]).some((d) => Math.abs(d) > tolerance);
   return { drifted, deltas };
 }

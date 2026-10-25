@@ -12,7 +12,11 @@ export type ModelPick =
   | { kind: 'ingredient'; meal: string; from: string; to: string; reason: string | null };
 
 /** What a request does with a pick: the pick itself, without the model's reason, which only the note knows. */
-export type PickTaken = ModelPick extends infer Pick ? (Pick extends unknown ? Omit<Pick, 'reason'> : never) : never;
+export type PickTaken = ModelPick extends infer Pick
+  ? Pick extends unknown
+    ? Omit<Pick, 'reason'>
+    : never
+  : never;
 
 /**
  * A way to fill a day of a plan that the engine made and offered: the meals
@@ -67,7 +71,10 @@ export class ModelPickService {
     const pick = this.read(userId, note) as (ModelPick & Record<string, unknown>) | null;
     const same = pick !== null && Object.entries(does).every(([key, value]) => pick[key] === value);
     if (!same) {
-      throw new BadRequestException({ error: 'MODEL_PICK_INVALID', message: 'This suggestion is no longer good for what it was made for. Ask for another.' });
+      throw new BadRequestException({
+        error: 'MODEL_PICK_INVALID',
+        message: 'This suggestion is no longer good for what it was made for. Ask for another.',
+      });
     }
     return pick;
   }
@@ -85,15 +92,28 @@ export class ModelPickService {
   /** The way a note offers, when the note is this account's and is for this day of this plan. Any other note is refused. */
   dayOffered(userId: string, note: string, of: { plan: string; day: string }): DayOffer {
     const offer = this.read(userId, note) as (ModelPick | DayOffer) | null;
-    if (offer === null || offer.kind !== 'day' || offer.plan !== of.plan || offer.day !== of.day || !Array.isArray(offer.meals)) {
-      throw new BadRequestException({ error: 'OFFER_INVALID', message: 'This offer is no longer good for what it was made for. Ask for another.' });
+    if (
+      offer === null ||
+      offer.kind !== 'day' ||
+      offer.plan !== of.plan ||
+      offer.day !== of.day ||
+      !Array.isArray(offer.meals)
+    ) {
+      throw new BadRequestException({
+        error: 'OFFER_INVALID',
+        message: 'This offer is no longer good for what it was made for. Ask for another.',
+      });
     }
     return offer;
   }
 
   private read(userId: string, note: string): ModelPick | null {
     try {
-      const claims = this.jwt.verify<ModelPick & { sub?: unknown }>(note, { secret: this.signing().secret, algorithms: [TOKEN_ALGORITHM], audience: MODEL_PICK_AUDIENCE });
+      const claims = this.jwt.verify<ModelPick & { sub?: unknown }>(note, {
+        secret: this.signing().secret,
+        algorithms: [TOKEN_ALGORITHM],
+        audience: MODEL_PICK_AUDIENCE,
+      });
       return claims.sub === userId ? claims : null;
     } catch {
       return null;
@@ -101,6 +121,10 @@ export class ModelPickService {
   }
 
   private signing(): { secret: string; algorithm: typeof TOKEN_ALGORITHM; audience: string } {
-    return { secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }), algorithm: TOKEN_ALGORITHM, audience: MODEL_PICK_AUDIENCE };
+    return {
+      secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }),
+      algorithm: TOKEN_ALGORITHM,
+      audience: MODEL_PICK_AUDIENCE,
+    };
   }
 }

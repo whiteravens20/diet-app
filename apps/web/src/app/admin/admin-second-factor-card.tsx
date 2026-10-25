@@ -26,7 +26,13 @@ type Step =
  * an authenticator app, setting that up, and switching it off again. `on` is
  * what the panel knows; `onChanged` tells it when that is no longer so.
  */
-export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChanged: (on: boolean) => void }) {
+export function AdminSecondFactorCard({
+  on,
+  onChanged,
+}: {
+  on: boolean;
+  onChanged: (on: boolean) => void;
+}) {
   const t = useTranslations('admin');
   const tSecond = useTranslations('secondFactor');
   const errorText = useErrorText();
@@ -52,12 +58,15 @@ export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChange
     }
   }
 
-  const field = (event: FormEvent<HTMLFormElement>, name: string): string => String(new FormData(event.currentTarget).get(name) ?? '');
+  const field = (event: FormEvent<HTMLFormElement>, name: string): string =>
+    String(new FormData(event.currentTarget).get(name) ?? '');
 
   function onPassword(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     const password = field(event, 'password');
-    void run(async () => setStep({ at: 'scan', setup: await adminApi.proposeSecondFactor(password) }));
+    void run(async () =>
+      setStep({ at: 'scan', setup: await adminApi.proposeSecondFactor(password) }),
+    );
   }
 
   function onFirstCode(event: FormEvent<HTMLFormElement>, setup: SecondFactorSetup): void {
@@ -104,7 +113,11 @@ export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChange
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {on ? <ShieldCheck className="h-5 w-5 text-success" /> : <ShieldOff className="h-5 w-5 text-muted-foreground" />}
+          {on ? (
+            <ShieldCheck className="h-5 w-5 text-success" />
+          ) : (
+            <ShieldOff className="h-5 w-5 text-muted-foreground" />
+          )}
           {t('secondFactorTitle')}
         </CardTitle>
       </CardHeader>
@@ -141,7 +154,13 @@ export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChange
         {step.at === 'password' && (
           <form onSubmit={onPassword} className="max-w-sm space-y-3">
             <Field label={t('adminPassword')}>
-              <Input name="password" type="password" required autoFocus autoComplete="current-password" />
+              <Input
+                name="password"
+                type="password"
+                required
+                autoFocus
+                autoComplete="current-password"
+              />
             </Field>
             {problem}
             <div className="flex gap-2">
@@ -157,7 +176,14 @@ export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChange
           <form onSubmit={(event) => onFirstCode(event, step.setup)} className="max-w-sm space-y-3">
             <AuthenticatorSetup setup={step.setup} />
             <Field label={tSecond('code')} hint={tSecond('codeHint')}>
-              <Input name="code" required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={12} />
+              <Input
+                name="code"
+                required
+                autoFocus
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={12}
+              />
             </Field>
             {problem}
             <div className="flex gap-2">
@@ -172,10 +198,22 @@ export function AdminSecondFactorCard({ on, onChanged }: { on: boolean; onChange
         {step.at === 'off' && (
           <form onSubmit={onOff} className="max-w-sm space-y-3">
             <Field label={t('adminPassword')}>
-              <Input name="password" type="password" required autoFocus autoComplete="current-password" />
+              <Input
+                name="password"
+                type="password"
+                required
+                autoFocus
+                autoComplete="current-password"
+              />
             </Field>
             <Field label={tSecond('code')}>
-              <Input name="code" required inputMode="numeric" autoComplete="one-time-code" maxLength={12} />
+              <Input
+                name="code"
+                required
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={12}
+              />
             </Field>
             {problem}
             <div className="flex gap-2">

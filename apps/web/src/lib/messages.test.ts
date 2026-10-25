@@ -115,12 +115,20 @@ const polish = texts(pl as Tree);
 
 describe('the texts of the application in its two languages', () => {
   it('are the same texts: no key that one language has and the other does not', () => {
-    expect([...english.keys()].filter((key) => !polish.has(key)), 'in English only').toEqual([]);
-    expect([...polish.keys()].filter((key) => !english.has(key)), 'in Polish only').toEqual([]);
+    expect(
+      [...english.keys()].filter((key) => !polish.has(key)),
+      'in English only',
+    ).toEqual([]);
+    expect(
+      [...polish.keys()].filter((key) => !english.has(key)),
+      'in Polish only',
+    ).toEqual([]);
   });
 
   it('are all written: none is empty', () => {
-    const empty = [...english, ...polish].filter(([, text]) => text.trim() === '').map(([key]) => key);
+    const empty = [...english, ...polish]
+      .filter(([, text]) => text.trim() === '')
+      .map(([key]) => key);
 
     expect(empty).toEqual([]);
   });
@@ -132,14 +140,19 @@ describe('the texts of the application in its two languages', () => {
       if (other === undefined) continue;
       const [a, b] = [needsOf(text), needsOf(other)];
       const names = (needs: Needs): string => [...needs.arguments.keys()].sort().join(', ');
-      if (names(a) !== names(b)) differing.push(`${key}: arguments {${names(a)}} in English, {${names(b)}} in Polish`);
+      if (names(a) !== names(b))
+        differing.push(`${key}: arguments {${names(a)}} in English, {${names(b)}} in Polish`);
       for (const [name, kind] of a.arguments) {
         const there = b.arguments.get(name);
         if (there === undefined || there === kind) continue;
-        if (!(TAKES_A_NUMBER.has(kind) && TAKES_A_NUMBER.has(there))) differing.push(`${key}: {${name}} is read as ${kind} in English and as ${there} in Polish`);
+        if (!(TAKES_A_NUMBER.has(kind) && TAKES_A_NUMBER.has(there)))
+          differing.push(
+            `${key}: {${name}} is read as ${kind} in English and as ${there} in Polish`,
+          );
       }
       const tags = (needs: Needs): string => [...needs.tags].sort().join(', ');
-      if (tags(a) !== tags(b)) differing.push(`${key}: tags <${tags(a)}> in English, <${tags(b)}> in Polish`);
+      if (tags(a) !== tags(b))
+        differing.push(`${key}: tags <${tags(a)}> in English, <${tags(b)}> in Polish`);
     }
 
     expect(differing).toEqual([]);
@@ -151,32 +164,57 @@ describe('the texts of the application in its two languages', () => {
   it.each([
     ['English', english, ['one', 'other'], ['one', 'other']],
     ['Polish', polish, ['one', 'other'], ['one', 'few', 'many', 'other']],
-  ] as const)('have a wording for every case %s counts in', (_language, all, always, withTheNumber) => {
-    const short: string[] = [];
-    for (const [key, text] of all) {
-      for (const [name, { kind, cases, showsNumber }] of needsOf(text).worded) {
-        if (kind !== 'plural') continue;
-        const missing = (showsNumber ? withTheNumber : always).filter((one) => !cases.has(one));
-        if (missing.length > 0) short.push(`${key}: {${name}} has no wording for ${missing.join(', ')}`);
+  ] as const)(
+    'have a wording for every case %s counts in',
+    (_language, all, always, withTheNumber) => {
+      const short: string[] = [];
+      for (const [key, text] of all) {
+        for (const [name, { kind, cases, showsNumber }] of needsOf(text).worded) {
+          if (kind !== 'plural') continue;
+          const missing = (showsNumber ? withTheNumber : always).filter((one) => !cases.has(one));
+          if (missing.length > 0)
+            short.push(`${key}: {${name}} has no wording for ${missing.join(', ')}`);
+        }
       }
-    }
 
-    expect(short).toEqual([]);
-  });
+      expect(short).toEqual([]);
+    },
+  );
 
   it('are read as the message format reads them', () => {
-    const read = needsOf('{count, plural, =0 {None of <strong>{name}</strong>} one {# day} other {{days, number} days}} until {date, date, short}, {role, select, ADMIN {an admin} other {a user}}');
+    const read = needsOf(
+      '{count, plural, =0 {None of <strong>{name}</strong>} one {# day} other {{days, number} days}} until {date, date, short}, {role, select, ADMIN {an admin} other {a user}}',
+    );
 
-    expect(Object.fromEntries(read.arguments)).toEqual({ count: 'plural', name: 'plain', days: 'number', date: 'date', role: 'select' });
+    expect(Object.fromEntries(read.arguments)).toEqual({
+      count: 'plural',
+      name: 'plain',
+      days: 'number',
+      date: 'date',
+      role: 'select',
+    });
     expect([...read.tags]).toEqual(['strong']);
-    expect(Object.fromEntries([...read.worded].map(([name, { kind, cases, showsNumber }]) => [name, [kind, [...cases].join(' '), showsNumber]]))).toEqual({
+    expect(
+      Object.fromEntries(
+        [...read.worded].map(([name, { kind, cases, showsNumber }]) => [
+          name,
+          [kind, [...cases].join(' '), showsNumber],
+        ]),
+      ),
+    ).toEqual({
       count: ['plural', '=0 one other', true],
       role: ['select', 'ADMIN other', false],
     });
     // The number can stand beside the wordings as well as in them.
-    expect(needsOf('{count} {count, plural, one {day} other {days}}').worded.get('count')).toMatchObject({ kind: 'plural', showsNumber: true });
-    expect(needsOf('{count, plural, one {this limit} other {these limits}}').worded.get('count')).toMatchObject({ showsNumber: false });
-    expect(needsOf('{count} {count, plural, one {day} other {days}}').arguments.get('count')).toBe('plural');
+    expect(
+      needsOf('{count} {count, plural, one {day} other {days}}').worded.get('count'),
+    ).toMatchObject({ kind: 'plural', showsNumber: true });
+    expect(
+      needsOf('{count, plural, one {this limit} other {these limits}}').worded.get('count'),
+    ).toMatchObject({ showsNumber: false });
+    expect(needsOf('{count} {count, plural, one {day} other {days}}').arguments.get('count')).toBe(
+      'plural',
+    );
     expect(() => needsOf('{count, plural, one {# day}')).toThrow(/do not pair up/);
   });
 });

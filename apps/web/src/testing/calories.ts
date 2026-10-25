@@ -32,7 +32,13 @@ export function aPreview(calculation: Partial<CalorieCalculation> = {}): Calorie
   return {
     calculation: aCalculation(calculation),
     paces: PACES_OF_LOSS.map((pace, index) =>
-      aCalculation({ weeklyLossTarget: pace, dailyTarget: AT_EACH_PACE[index]!, dailyDeficit: 2759 - AT_EACH_PACE[index]!, requestedDeficit: index * 275, deficitCapped: index > 2 }),
+      aCalculation({
+        weeklyLossTarget: pace,
+        dailyTarget: AT_EACH_PACE[index]!,
+        dailyDeficit: 2759 - AT_EACH_PACE[index]!,
+        requestedDeficit: index * 275,
+        deficitCapped: index > 2,
+      }),
     ),
   };
 }

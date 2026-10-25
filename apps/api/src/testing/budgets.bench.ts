@@ -22,7 +22,11 @@ import { loadCatalogue } from '../admin/seed/catalogue.js';
 import { runSeed } from '../admin/seed/seeder.js';
 import { macroSplitOf } from '../engine/nutrition.js';
 import { optimisePlan, uniformDays } from '../engine/optimizer.js';
-import { aggregateShoppingList, type PlanIngredientLine, type ShoppingIngredient } from '../engine/shopping.js';
+import {
+  aggregateShoppingList,
+  type PlanIngredientLine,
+  type ShoppingIngredient,
+} from '../engine/shopping.js';
 import { resetDatabase } from './database.js';
 import { aProfile, asAdmin, aUser, type TestUser } from './factories.js';
 import { REFERENCE_RECIPES, referenceCatalogueDirectory } from './reference-catalogue.js';
@@ -49,8 +53,18 @@ interface Budget {
 }
 
 /** The plans of the measurement: four weeks of five meals, and a week of three, at 2,000 kcal a day. */
-const FOUR_WEEKS = { startDate: '2026-01-05', durationDays: 28, mealCount: 5, calorieTargetOverride: 2000 };
-const ONE_WEEK = { startDate: '2026-01-05', durationDays: 7, mealCount: 3, calorieTargetOverride: 2000 };
+const FOUR_WEEKS = {
+  startDate: '2026-01-05',
+  durationDays: 28,
+  mealCount: 5,
+  calorieTargetOverride: 2000,
+};
+const ONE_WEEK = {
+  startDate: '2026-01-05',
+  durationDays: 7,
+  mealCount: 3,
+  calorieTargetOverride: 2000,
+};
 
 /** A page that is read: within 200 ms, and no more statements than a page of anything needs. */
 const READ: Budget = { ms: 200, statements: 30 };
@@ -88,22 +102,40 @@ describe('the budgets of the server, at the reference catalogue', () => {
   let list: ShoppingList;
   /** How many ingredients the list of four weeks names. */
   let named = 0;
-  const measured: { path: string; budget: Budget; median: number; nineteenOfTwenty: number; slowest: number; statements: number }[] = [];
+  const measured: {
+    path: string;
+    budget: Budget;
+    median: number;
+    nineteenOfTwenty: number;
+    slowest: number;
+    statements: number;
+  }[] = [];
   const statements = new Map<string, number[]>();
   let asked = 0;
   const over: string[] = [];
 
   /** One request as `user`; the answer is read to its end, and the time is what both took. */
-  async function ask(user: TestUser, method: 'GET' | 'POST', path: string, body?: unknown, language = 'en'): Promise<{ ms: number; body: unknown }> {
+  async function ask(
+    user: TestUser,
+    method: 'GET' | 'POST',
+    path: string,
+    body?: unknown,
+    language = 'en',
+  ): Promise<{ ms: number; body: unknown }> {
     const started = performance.now();
     const response = await fetch(`${address}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${user.accessToken}`, 'Accept-Language': language, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      headers: {
+        Authorization: `Bearer ${user.accessToken}`,
+        'Accept-Language': language,
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const text = await response.text();
     const ms = performance.now() - started;
-    if (!response.ok) throw new Error(`${method} ${path} answered ${response.status}: ${text.slice(0, 300)}`);
+    if (!response.ok)
+      throw new Error(`${method} ${path} answered ${response.status}: ${text.slice(0, 300)}`);
     return { ms, body: JSON.parse(text) as unknown };
   }
 
@@ -111,23 +143,50 @@ describe('the budgets of the server, at the reference catalogue', () => {
    * Run a path, note what it took and hold it to its budget. `run` answers
    * with the milliseconds of one run, and is told which run it is.
    */
-  async function measure(path: string, budget: Budget, run: (index: number) => Promise<number> | number): Promise<void> {
+  async function measure(
+    path: string,
+    budget: Budget,
+    run: (index: number) => Promise<number> | number,
+  ): Promise<void> {
     for (let index = 0; index < WARM_UP; index += 1) await run(index);
     const askedBefore = asked;
     const runsBefore = new Map([...statements].map(([shape, times]) => [shape, times.length]));
     const times: number[] = [];
     for (let index = 0; index < RUNS; index += 1) times.push(await run(WARM_UP + index));
-    const row = { path, budget, median: within(times, 0.5), nineteenOfTwenty: within(times, 0.95), slowest: Math.max(...times), statements: (asked - askedBefore) / RUNS };
+    const row = {
+      path,
+      budget,
+      median: within(times, 0.5),
+      nineteenOfTwenty: within(times, 0.95),
+      slowest: Math.max(...times),
+      statements: (asked - askedBefore) / RUNS,
+    };
     measured.push(row);
     if (LISTED && path.includes(LISTED)) {
       const asking = [...statements]
-        .map(([shape, all]) => ({ shape, aRun: (all.length - (runsBefore.get(shape) ?? 0)) / RUNS }))
+        .map(([shape, all]) => ({
+          shape,
+          aRun: (all.length - (runsBefore.get(shape) ?? 0)) / RUNS,
+        }))
         .filter(({ aRun }) => aRun > 0)
         .sort((a, b) => b.aRun - a.aRun);
-      console.log([path, ...asking.map(({ shape, aRun }) => `  ${aRun.toFixed(1)} x ${shape.slice(0, 150)}`)].join('\n'));
+      console.log(
+        [
+          path,
+          ...asking.map(({ shape, aRun }) => `  ${aRun.toFixed(1)} x ${shape.slice(0, 150)}`),
+        ].join('\n'),
+      );
     }
-    over.push(...(row.nineteenOfTwenty > budget.ms ? [`${path}: ${Math.round(row.nineteenOfTwenty)} ms, over ${budget.ms}`] : []));
-    over.push(...(row.statements > budget.statements ? [`${path}: ${Math.round(row.statements)} statements a run, over ${budget.statements}`] : []));
+    over.push(
+      ...(row.nineteenOfTwenty > budget.ms
+        ? [`${path}: ${Math.round(row.nineteenOfTwenty)} ms, over ${budget.ms}`]
+        : []),
+    );
+    over.push(
+      ...(row.statements > budget.statements
+        ? [`${path}: ${Math.round(row.statements)} statements a run, over ${budget.statements}`]
+        : []),
+    );
   }
 
   /** What `measure` found over its budget since this was last asked. */
@@ -175,14 +234,25 @@ describe('the budgets of the server, at the reference catalogue', () => {
       '',
       '| Path | Budget (ms) | Median | 19 of 20 | Slowest | Statements a run | At most |',
       '|---|---|---|---|---|---|---|',
-      ...measured.map((row) => `| ${row.path} | ${row.budget.ms} | ${ms(row.median)} | ${ms(row.nineteenOfTwenty)} | ${ms(row.slowest)} | ${Math.round(row.statements)} | ${row.budget.statements} |`),
+      ...measured.map(
+        (row) =>
+          `| ${row.path} | ${row.budget.ms} | ${ms(row.median)} | ${ms(row.nineteenOfTwenty)} | ${ms(row.slowest)} | ${Math.round(row.statements)} | ${row.budget.statements} |`,
+      ),
       '',
       'The statements that took longest (runs, 19 of 20, slowest):',
       ...[...statements.entries()]
-        .map(([shape, times]) => ({ shape, runs: times.length, nineteenOfTwenty: within(times, 0.95), slowest: Math.max(...times) }))
+        .map(([shape, times]) => ({
+          shape,
+          runs: times.length,
+          nineteenOfTwenty: within(times, 0.95),
+          slowest: Math.max(...times),
+        }))
         .sort((a, b) => b.slowest - a.slowest)
         .slice(0, 12)
-        .map((row) => `  ${row.runs} · ${ms(row.nineteenOfTwenty)} · ${ms(row.slowest)} · ${row.shape.slice(0, 160)}`),
+        .map(
+          (row) =>
+            `  ${row.runs} · ${ms(row.nineteenOfTwenty)} · ${ms(row.slowest)} · ${row.shape.slice(0, 160)}`,
+        ),
     ];
     console.log(lines.join('\n'));
     await t.close();
@@ -194,12 +264,19 @@ describe('the budgets of the server, at the reference catalogue', () => {
 
   it('makes a plan of four weeks and five meals a day within 1500 ms', async () => {
     // A plan is written a day at a time, two statements each.
-    await measure('POST /meal-plans/generate (28 days, 5 meals)', { ms: 1500, statements: 90 }, async (index) => {
-      const { user, profileId } = accounts[index % ACCOUNTS]!;
-      const made = await ask(user, 'POST', '/api/meal-plans/generate', { profileId, ...FOUR_WEEKS });
-      plans[index % ACCOUNTS] = made.body as MealPlan;
-      return made.ms;
-    });
+    await measure(
+      'POST /meal-plans/generate (28 days, 5 meals)',
+      { ms: 1500, statements: 90 },
+      async (index) => {
+        const { user, profileId } = accounts[index % ACCOUNTS]!;
+        const made = await ask(user, 'POST', '/api/meal-plans/generate', {
+          profileId,
+          ...FOUR_WEEKS,
+        });
+        plans[index % ACCOUNTS] = made.body as MealPlan;
+        return made.ms;
+      },
+    );
     fourWeeks = plans[0]!;
     expect(fourWeeks.days).toHaveLength(28);
     expect(fourWeeks.days.every((day) => day.meals.length === 5)).toBe(true);
@@ -207,20 +284,46 @@ describe('the budgets of the server, at the reference catalogue', () => {
   });
 
   it('makes a plan of a week and three meals a day within 800 ms', async () => {
-    await measure('POST /meal-plans/generate (7 days, 3 meals)', { ms: 800, statements: 45 }, async (index) => {
-      const { user, profileId } = accounts[index % ACCOUNTS]!;
-      return (await ask(user, 'POST', '/api/meal-plans/generate', { profileId, ...ONE_WEEK })).ms;
-    });
+    await measure(
+      'POST /meal-plans/generate (7 days, 3 meals)',
+      { ms: 800, statements: 45 },
+      async (index) => {
+        const { user, profileId } = accounts[index % ACCOUNTS]!;
+        return (await ask(user, 'POST', '/api/meal-plans/generate', { profileId, ...ONE_WEEK })).ms;
+      },
+    );
     expect(overBudget()).toEqual([]);
   });
 
   it('chooses the recipes of four weeks within 400 ms, and adds up what they take within 50 ms', async () => {
     const catalogue = loadCatalogue(referenceCatalogueDirectory(DATA));
     const { recipes, perishablePacks } = plannable(catalogue);
-    let chosen = optimisePlan({ recipes, days: uniformDays(28, MEAL_SLOTS_BY_COUNT[5]!, 2000), macroSplit: macroSplitOf('balanced'), dietType: 'balanced', mealPrepFriendly: false, maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, maxIngredientPerWeek: 3000, perishablePacks, seed: 0 });
+    let chosen = optimisePlan({
+      recipes,
+      days: uniformDays(28, MEAL_SLOTS_BY_COUNT[5]!, 2000),
+      macroSplit: macroSplitOf('balanced'),
+      dietType: 'balanced',
+      mealPrepFriendly: false,
+      maxConsecutiveDaysSameMeal: 2,
+      maxTimesPerWeekSameMeal: 3,
+      maxIngredientPerWeek: 3000,
+      perishablePacks,
+      seed: 0,
+    });
     await measure('optimisePlan (28 days, 5 meals)', { ms: 400, statements: 0 }, (index) =>
       timed(() => {
-        chosen = optimisePlan({ recipes, days: uniformDays(28, MEAL_SLOTS_BY_COUNT[5]!, 2000), macroSplit: macroSplitOf('balanced'), dietType: 'balanced', mealPrepFriendly: false, maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, maxIngredientPerWeek: 3000, perishablePacks, seed: index + 1 });
+        chosen = optimisePlan({
+          recipes,
+          days: uniformDays(28, MEAL_SLOTS_BY_COUNT[5]!, 2000),
+          macroSplit: macroSplitOf('balanced'),
+          dietType: 'balanced',
+          mealPrepFriendly: false,
+          maxConsecutiveDaysSameMeal: 2,
+          maxTimesPerWeekSameMeal: 3,
+          maxIngredientPerWeek: 3000,
+          perishablePacks,
+          seed: index + 1,
+        });
       }),
     );
     expect(chosen.assignments).toHaveLength(28 * 5);
@@ -228,12 +331,26 @@ describe('the budgets of the server, at the reference catalogue', () => {
     const bySlug = new Map(catalogue.recipes.map((recipe) => [recipe.slug, recipe]));
     const lines: PlanIngredientLine[] = chosen.assignments.flatMap((placed) => {
       const recipe = bySlug.get(placed.recipeId)!;
-      return recipe.lines.map((line) => ({ ingredientId: line.slug, quantity: line.quantity, unit: line.unit, recipeServings: recipe.seed.servings, plannedServings: placed.servings }));
+      return recipe.lines.map((line) => ({
+        ingredientId: line.slug,
+        quantity: line.quantity,
+        unit: line.unit,
+        recipeServings: recipe.seed.servings,
+        plannedServings: placed.servings,
+      }));
     });
     const ingredients = new Map<string, ShoppingIngredient>(
       catalogue.ingredients.map((ingredient) => [
         ingredient.slug,
-        { ...ingredient, id: ingredient.slug, name: ingredient.enName, gramsPerPiece: ingredient.gramsPerPiece ?? null, density: ingredient.density ?? null, displayUnit: ingredient.displayUnit ?? null, packSize: ingredient.packSize ?? null } as ShoppingIngredient,
+        {
+          ...ingredient,
+          id: ingredient.slug,
+          name: ingredient.enName,
+          gramsPerPiece: ingredient.gramsPerPiece ?? null,
+          density: ingredient.density ?? null,
+          displayUnit: ingredient.displayUnit ?? null,
+          packSize: ingredient.packSize ?? null,
+        } as ShoppingIngredient,
       ]),
     );
     let groups = aggregateShoppingList(lines, ingredients);
@@ -248,45 +365,114 @@ describe('the budgets of the server, at the reference catalogue', () => {
 
   it('reads a plan of four weeks, the plans of a profile and the days of a month within 200 ms each', async () => {
     const { user, profileId } = accounts[0]!;
-    await measure('GET /meal-plans/:id (28 days, 5 meals)', READ, async () => (await ask(user, 'GET', `/api/meal-plans/${fourWeeks.id}`)).ms);
-    await measure('GET /meal-plans', READ, async () => (await ask(user, 'GET', `/api/meal-plans?profileId=${profileId}`)).ms);
-    await measure('GET /meal-plans/calendar (a month)', READ, async () => (await ask(user, 'GET', `/api/meal-plans/calendar?profileId=${profileId}&from=2025-12-29&to=2026-02-08`)).ms);
-    await measure('GET /meal-plans/overview', READ, async () => (await ask(user, 'GET', `/api/meal-plans/overview?profileId=${profileId}`)).ms);
+    await measure(
+      'GET /meal-plans/:id (28 days, 5 meals)',
+      READ,
+      async () => (await ask(user, 'GET', `/api/meal-plans/${fourWeeks.id}`)).ms,
+    );
+    await measure(
+      'GET /meal-plans',
+      READ,
+      async () => (await ask(user, 'GET', `/api/meal-plans?profileId=${profileId}`)).ms,
+    );
+    await measure(
+      'GET /meal-plans/calendar (a month)',
+      READ,
+      async () =>
+        (
+          await ask(
+            user,
+            'GET',
+            `/api/meal-plans/calendar?profileId=${profileId}&from=2025-12-29&to=2026-02-08`,
+          )
+        ).ms,
+    );
+    await measure(
+      'GET /meal-plans/overview',
+      READ,
+      async () => (await ask(user, 'GET', `/api/meal-plans/overview?profileId=${profileId}`)).ms,
+    );
     expect(overBudget()).toEqual([]);
   });
 
   it('offers another recipe for a meal within 200 ms, and fills a day again or eight ways within 800 ms', async () => {
     // An offer writes nothing, so it is asked for before the days get other meals.
-    await measure('POST /meal-plans/swap-meal/preview', { ms: 200, statements: 40 }, async (index) => {
-      const { user } = accounts[0]!;
-      const meal = fourWeeks.days[index % 28]!.meals[index % 5]!;
-      return (await ask(user, 'POST', '/api/meal-plans/swap-meal/preview', { planId: fourWeeks.id, plannedMealId: meal.id, strategy: 'random' })).ms;
-    });
+    await measure(
+      'POST /meal-plans/swap-meal/preview',
+      { ms: 200, statements: 40 },
+      async (index) => {
+        const { user } = accounts[0]!;
+        const meal = fourWeeks.days[index % 28]!.meals[index % 5]!;
+        return (
+          await ask(user, 'POST', '/api/meal-plans/swap-meal/preview', {
+            planId: fourWeeks.id,
+            plannedMealId: meal.id,
+            strategy: 'random',
+          })
+        ).ms;
+      },
+    );
     // A day is made again twenty times a minute by one account, and offered other ways ten times.
-    await measure('POST /meal-plans/:id/days/:dayId/variations', { ms: 800, statements: 50 }, async (index) => {
-      const plan = plans[index % ACCOUNTS]!;
-      return (await ask(accounts[index % ACCOUNTS]!.user, 'POST', `/api/meal-plans/${plan.id}/days/${plan.days[index % 28]!.id}/variations`, {})).ms;
-    });
-    await measure('POST /meal-plans/:id/days/:dayId/regenerate', { ms: 800, statements: 45 }, async (index) => {
-      const plan = plans[index % ACCOUNTS]!;
-      return (await ask(accounts[index % ACCOUNTS]!.user, 'POST', `/api/meal-plans/${plan.id}/days/${plan.days[index % 28]!.id}/regenerate`, {})).ms;
-    });
+    await measure(
+      'POST /meal-plans/:id/days/:dayId/variations',
+      { ms: 800, statements: 50 },
+      async (index) => {
+        const plan = plans[index % ACCOUNTS]!;
+        return (
+          await ask(
+            accounts[index % ACCOUNTS]!.user,
+            'POST',
+            `/api/meal-plans/${plan.id}/days/${plan.days[index % 28]!.id}/variations`,
+            {},
+          )
+        ).ms;
+      },
+    );
+    await measure(
+      'POST /meal-plans/:id/days/:dayId/regenerate',
+      { ms: 800, statements: 45 },
+      async (index) => {
+        const plan = plans[index % ACCOUNTS]!;
+        return (
+          await ask(
+            accounts[index % ACCOUNTS]!.user,
+            'POST',
+            `/api/meal-plans/${plan.id}/days/${plan.days[index % 28]!.id}/regenerate`,
+            {},
+          )
+        ).ms;
+      },
+    );
     expect(overBudget()).toEqual([]);
   });
 
   it('makes the shopping list of four weeks within 250 ms, and reads it within 200 ms', async () => {
     const { user } = accounts[0]!;
     // However many ingredients the list names: the pantries are held, read and written with one statement each.
-    await measure('POST /shopping-lists/generate (28 days, 5 meals)', { ms: 250, statements: 45 }, async () => {
-      const made = await ask(user, 'POST', '/api/shopping-lists/generate', { planId: fourWeeks.id });
-      list = made.body as ShoppingList;
-      return made.ms;
-    });
+    await measure(
+      'POST /shopping-lists/generate (28 days, 5 meals)',
+      { ms: 250, statements: 45 },
+      async () => {
+        const made = await ask(user, 'POST', '/api/shopping-lists/generate', {
+          planId: fourWeeks.id,
+        });
+        list = made.body as ShoppingList;
+        return made.ms;
+      },
+    );
     named = list.groups.flatMap((group) => group.items).length;
     expect(named).toBeGreaterThan(50);
 
-    await measure('GET /shopping-lists/:id', READ, async () => (await ask(user, 'GET', `/api/shopping-lists/${list.id}`)).ms);
-    await measure('GET /shopping-lists (of a plan)', READ, async () => (await ask(user, 'GET', `/api/shopping-lists?planId=${fourWeeks.id}`)).ms);
+    await measure(
+      'GET /shopping-lists/:id',
+      READ,
+      async () => (await ask(user, 'GET', `/api/shopping-lists/${list.id}`)).ms,
+    );
+    await measure(
+      'GET /shopping-lists (of a plan)',
+      READ,
+      async () => (await ask(user, 'GET', `/api/shopping-lists?planId=${fourWeeks.id}`)).ms,
+    );
     expect(overBudget()).toEqual([]);
   });
 
@@ -304,12 +490,27 @@ describe('the budgets of the server, at the reference catalogue', () => {
       ['without allergens', '?withoutAllergens=gluten,dairy'],
     ];
     for (const [name, query, language] of searches) {
-      await measure(`GET /recipes (${name})`, READ, async () => (await ask(user, 'GET', `/api/recipes${query}`, undefined, language)).ms);
+      await measure(
+        `GET /recipes (${name})`,
+        READ,
+        async () => (await ask(user, 'GET', `/api/recipes${query}`, undefined, language)).ms,
+      );
     }
-    const first = (await ask(user, 'GET', '/api/recipes')).body as { items: { id: string }[]; total: number };
+    const first = (await ask(user, 'GET', '/api/recipes')).body as {
+      items: { id: string }[];
+      total: number;
+    };
     expect(first.total).toBe(REFERENCE_RECIPES);
-    await measure('GET /recipes/:id', READ, async () => (await ask(user, 'GET', `/api/recipes/${first.items[0]!.id}`)).ms);
-    await measure('GET /ingredients (a word of a name)', READ, async () => (await ask(user, 'GET', '/api/ingredients?search=rice')).ms);
+    await measure(
+      'GET /recipes/:id',
+      READ,
+      async () => (await ask(user, 'GET', `/api/recipes/${first.items[0]!.id}`)).ms,
+    );
+    await measure(
+      'GET /ingredients (a word of a name)',
+      READ,
+      async () => (await ask(user, 'GET', '/api/ingredients?search=rice')).ms,
+    );
     expect(overBudget()).toEqual([]);
   });
 
@@ -329,7 +530,10 @@ describe('the budgets of the server, at the reference catalogue', () => {
     const slow = [...statements.entries()]
       .filter(([shape]) => !TRANSACTION_CONTROL.test(shape))
       .filter(([, times]) => within(times, 0.95) >= STATEMENT_BUDGET)
-      .map(([shape, times]) => `${Math.round(within(times, 0.95))} ms in ${times.length} runs: ${shape.slice(0, 200)}`);
+      .map(
+        ([shape, times]) =>
+          `${Math.round(within(times, 0.95))} ms in ${times.length} runs: ${shape.slice(0, 200)}`,
+      );
     expect(slow).toEqual([]);
   });
 });

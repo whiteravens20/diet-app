@@ -26,10 +26,18 @@ export default async function OfflinePage() {
           <h1 className="text-lg font-semibold tracking-tight">{t('pageTitle')}</h1>
           <p className="max-w-sm text-sm text-muted-foreground">{t('pageBody')}</p>
           <div className="flex flex-wrap justify-center gap-2 pt-1">
-            <Link href="/shopping-lists" prefetch={false} className={buttonVariants({ size: 'md' })}>
+            <Link
+              href="/shopping-lists"
+              prefetch={false}
+              className={buttonVariants({ size: 'md' })}
+            >
               {tNav('shoppingLists')}
             </Link>
-            <Link href="/meal-plans" prefetch={false} className={buttonVariants({ variant: 'outline', size: 'md' })}>
+            <Link
+              href="/meal-plans"
+              prefetch={false}
+              className={buttonVariants({ variant: 'outline', size: 'md' })}
+            >
               {tNav('mealPlans')}
             </Link>
           </div>

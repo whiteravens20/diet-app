@@ -22,6 +22,12 @@ import { UsdaImportRunner } from './usda/runner.js';
 @Module({
   imports: [PrismaModule, AuthModule, CatalogueModule, MailModule],
   controllers: [AdminController, AdminAccountsController, AdminSessionController],
-  providers: [AdminSecondFactorReset, AdminSessionGuard, OperatorAiApprovals, SeedRunner, UsdaImportRunner],
+  providers: [
+    AdminSecondFactorReset,
+    AdminSessionGuard,
+    OperatorAiApprovals,
+    SeedRunner,
+    UsdaImportRunner,
+  ],
 })
 export class AdminModule {}

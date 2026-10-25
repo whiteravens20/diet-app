@@ -3,8 +3,13 @@
 import { describe, expect, it } from 'vitest';
 import { isAdminSession, isAdministrator, sameText, signAdminSession } from './admin-session.js';
 
-const configOf = (values: Record<string, string>) => ({ get: (key: string) => values[key] }) as never;
-const INSTANCE = { DATA_ENCRYPTION_SECRET: 'c3'.repeat(32), ADMIN_USER: 'admin', ADMIN_PASSWORD: 'a-long-admin-password' };
+const configOf = (values: Record<string, string>) =>
+  ({ get: (key: string) => values[key] }) as never;
+const INSTANCE = {
+  DATA_ENCRYPTION_SECRET: 'c3'.repeat(32),
+  ADMIN_USER: 'admin',
+  ADMIN_PASSWORD: 'a-long-admin-password',
+};
 
 describe('comparing a value that was given with the one the instance holds', () => {
   it('says yes for the same value, whatever is in it', () => {
@@ -51,15 +56,29 @@ describe('the credentials of the instance', () => {
     const session = signAdminSession(configOf(INSTANCE), 0);
 
     expect(isAdminSession(configOf({ ...INSTANCE }), session, 0)).toBe(true);
-    expect(isAdminSession(configOf({ ...INSTANCE, ADMIN_PASSWORD: 'another-admin-password' }), session, 0)).toBe(false);
+    expect(
+      isAdminSession(
+        configOf({ ...INSTANCE, ADMIN_PASSWORD: 'another-admin-password' }),
+        session,
+        0,
+      ),
+    ).toBe(false);
     expect(isAdminSession(configOf({ ...INSTANCE, ADMIN_USER: 'root' }), session, 0)).toBe(false);
     // The two values are kept apart: one moved into the other is not the same pair.
-    expect(isAdminSession(configOf({ ...INSTANCE, ADMIN_USER: 'admin","a', ADMIN_PASSWORD: '-long-admin-password' }), session, 0)).toBe(false);
+    expect(
+      isAdminSession(
+        configOf({ ...INSTANCE, ADMIN_USER: 'admin","a', ADMIN_PASSWORD: '-long-admin-password' }),
+        session,
+        0,
+      ),
+    ).toBe(false);
   });
 
   it('are nowhere in the session, nor is a plain digest of them', () => {
     const session = signAdminSession(configOf(INSTANCE), 0);
-    const claims = JSON.parse(Buffer.from(session.split('.')[1]!, 'base64url').toString()) as { credentials: string };
+    const claims = JSON.parse(Buffer.from(session.split('.')[1]!, 'base64url').toString()) as {
+      credentials: string;
+    };
 
     expect(claims.credentials).toMatch(/^[0-9a-f]{32}$/);
     expect(JSON.stringify(claims)).not.toContain('a-long-admin-password');

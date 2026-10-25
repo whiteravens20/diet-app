@@ -63,23 +63,40 @@ describe('a new account, from sign-up to deletion', () => {
 
     const first = plan.days[0]!.meals[0]!;
     const asked = { planId: plan.id, plannedMealId: first.id, strategy: 'random' };
-    const offer = await t.http().post('/api/meal-plans/swap-meal/preview').set(auth).send(asked).expect(201);
+    const offer = await t
+      .http()
+      .post('/api/meal-plans/swap-meal/preview')
+      .set(auth)
+      .send(asked)
+      .expect(201);
     const swapped = await t
       .http()
       .post('/api/meal-plans/swap-meal')
       .set(auth)
       .send({ ...asked, recipeId: offer.body.recipe.id, revision: offer.body.revision })
       .expect(201);
-    const replaced = (swapped.body as RebalanceResult).plan.days[0]!.meals.find((meal) => meal.id === first.id)!;
+    const replaced = (swapped.body as RebalanceResult).plan.days[0]!.meals.find(
+      (meal) => meal.id === first.id,
+    )!;
     expect(replaced.recipe!.id).not.toBe(first.recipe!.id);
     expect(replaced.mealType).toBe('breakfast');
 
-    const list = await t.http().post('/api/shopping-lists/generate').set(auth).send({ planId: plan.id }).expect(201);
+    const list = await t
+      .http()
+      .post('/api/shopping-lists/generate')
+      .set(auth)
+      .send({ planId: plan.id })
+      .expect(201);
     const items = (list.body as ShoppingList).groups.flatMap((group) => group.items);
     expect(items.length).toBeGreaterThan(0);
     expect(items.every((item) => item.totalQuantity > 0)).toBe(true);
 
-    await t.http().delete('/api/users/me').set(auth).send({ currentPassword: password }).expect(204);
+    await t
+      .http()
+      .delete('/api/users/me')
+      .set(auth)
+      .send({ currentPassword: password })
+      .expect(204);
     await t
       .http()
       .post('/api/auth/login')

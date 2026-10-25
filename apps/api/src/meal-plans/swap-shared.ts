@@ -17,7 +17,11 @@ export const LANGUAGE: Record<Locale, string> = { en: 'English', pl: 'Polish' };
  * The recipe a swap or a substitution would replace. A custom meal has none
  * and cannot be swapped; a meal that was eaten is a record of what was eaten.
  */
-export function swappableRecipeOf(meal: { recipeId: string | null; source: string; eatenAt: Date | null }): string {
+export function swappableRecipeOf(meal: {
+  recipeId: string | null;
+  source: string;
+  eatenAt: Date | null;
+}): string {
   if (!meal.recipeId || meal.source === 'USER_CUSTOM') {
     throw new BadRequestException({
       error: 'CUSTOM_MEAL_NOT_SWAPPABLE',

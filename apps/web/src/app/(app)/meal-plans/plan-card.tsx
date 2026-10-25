@@ -40,10 +40,15 @@ import { PlanPacksLine } from './plan-packs';
 import { UseUp } from './use-up';
 
 /** Fetched when a plan is printed: the sheet is drawn for the printer alone. */
-const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), { ssr: false });
+const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), {
+  ssr: false,
+});
 
 /** Fetched when the settings of a day are opened: no first visit of the page waits for the window. */
-const DaySettingsDialog = dynamic(() => import('./day-settings-dialog').then((dialog) => dialog.DaySettingsDialog), { ssr: false });
+const DaySettingsDialog = dynamic(
+  () => import('./day-settings-dialog').then((dialog) => dialog.DaySettingsDialog),
+  { ssr: false },
+);
 
 interface FavoriteOption {
   recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] };
@@ -72,11 +77,12 @@ export interface SwapOffer {
   seen: string[];
 }
 
-const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' | 'pantryUnused'>> = {
-  counted: 'pantryCounted',
-  left_out: 'pantryLeftOut',
-  unused: 'pantryUnused',
-};
+const PANTRY_LINE: Partial<Record<PantryUse, 'pantryCounted' | 'pantryLeftOut' | 'pantryUnused'>> =
+  {
+    counted: 'pantryCounted',
+    left_out: 'pantryLeftOut',
+    unused: 'pantryUnused',
+  };
 
 /** The name a day of a plan has on the page, for whatever leads to it. */
 export const dayAnchor = (planId: string, date: string): string => `plan-${planId}-${date}`;
@@ -166,7 +172,11 @@ export function PlanCard({
   // Which recipe is open in a window over the page, if any, with the
   // ingredient lines of the meal it was opened from, so the window shows what
   // that meal takes rather than the recipe's own servings.
-  const [openRecipe, setOpenRecipe] = useState<{ id: string; amounts: PlannedIngredient[]; picked: PlannedMealView['modelPick'] } | null>(null);
+  const [openRecipe, setOpenRecipe] = useState<{
+    id: string;
+    amounts: PlannedIngredient[];
+    picked: PlannedMealView['modelPick'];
+  } | null>(null);
   // What the window a plan is made again in opens on, while it is open.
   const [reroll, setReroll] = useState<RerollStart | null>(null);
   // The day whose other ways are on offer in a window, while it is open.
@@ -179,14 +189,25 @@ export function PlanCard({
   const today = localDate();
   // An account has a model to ask where the page was given the way to ask one.
   const aiEnabled = onAiSwapMeal !== undefined;
-  const mealName = (type: string): string => (tMeal.has(type) ? tMeal(type) : type.replace('_', ' '));
+  const mealName = (type: string): string =>
+    tMeal.has(type) ? tMeal(type) : type.replace('_', ' ');
   // The plan taken out of the application: as a table for a spreadsheet, or as a sheet for the printer.
   const tExport = useTranslations('mealPlans.export');
   const locale = useLocale();
   const [printing, setPrinting] = useState(false);
   const printed = useCallback(() => setPrinting(false), []);
   const words: PlanWords = {
-    head: [tExport('date'), tExport('meal'), tExport('dish'), tExport('servings'), tExport('energy'), tExport('protein'), tExport('fat'), tExport('carbs'), tExport('eaten')],
+    head: [
+      tExport('date'),
+      tExport('meal'),
+      tExport('dish'),
+      tExport('servings'),
+      tExport('energy'),
+      tExport('protein'),
+      tExport('fat'),
+      tExport('carbs'),
+      tExport('eaten'),
+    ],
     meal: (type) => (tMeal.has(type) ? tMeal(type) : type),
     ownMeal: t('customMeal'),
     yes: tCommon('yes'),
@@ -194,21 +215,37 @@ export function PlanCard({
     skipped: t('daySkipped'),
   };
   // The meals that hold something the profile has ruled out since the plan was made.
-  const conflicts = plan?.days.reduce((count, day) => count + day.meals.filter((meal) => meal.restrictionConflicts.length > 0).length, 0) ?? 0;
+  const conflicts =
+    plan?.days.reduce(
+      (count, day) =>
+        count + day.meals.filter((meal) => meal.restrictionConflicts.length > 0).length,
+      0,
+    ) ?? 0;
   // What the pantry had to do with the plan is said where it says something: not of an empty pantry, nor of one left aside on request.
   const pantryLine = plan?.report ? PANTRY_LINE[plan.report.pantry] : undefined;
   return (
     <Card className="relative w-full max-w-screen-2xl">
       {/* What the plan is opens it: one control, with the triangle of a list that unfolds beside what it names. On a narrow screen what can be done with the plan goes under it. */}
       <div className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
-        <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 basis-56 items-start gap-2 text-left">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 basis-56 items-start gap-2 text-left"
+        >
           {/* Drawn, not typed: a typed triangle comes out as a coloured picture where the font has one. */}
-          <ChevronRight size={16} aria-hidden className={cn('mt-1 shrink-0 text-muted-foreground', open && 'rotate-90')} />
+          <ChevronRight
+            size={16}
+            aria-hidden
+            className={cn('mt-1 shrink-0 text-muted-foreground', open && 'rotate-90')}
+          />
           <span className="min-w-0">
             <span className="sr-only">{t(open ? 'hidePlan' : 'showPlan')}: </span>
             <span className="block font-medium">
               {t('planSummary', { days: summary.durationDays, dietType: dietLabel })}
-              {summary.generationMode === 'ai_assisted' && <AiMark part={{ kind: 'plan' }} className="ml-2 align-middle" />}
+              {summary.generationMode === 'ai_assisted' && (
+                <AiMark part={{ kind: 'plan' }} className="ml-2 align-middle" />
+              )}
             </span>
             <span className="block text-sm text-muted-foreground">
               {t('planMeta', {
@@ -221,7 +258,13 @@ export function PlanCard({
         </button>
         <div className="flex flex-wrap items-center gap-2">
           <ApplyFavoriteSetButton plan={summary} profileId={summary.profileId} disabled={busy} />
-          <Button type="button" variant="outline" size="sm" onClick={() => setReroll({ scope: 'whole' })} disabled={busy}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setReroll({ scope: 'whole' })}
+            disabled={busy}
+          >
             {t('recalculate')}
           </Button>
           <Button
@@ -248,15 +291,29 @@ export function PlanCard({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => saveText(csvOf(planTable(plan, words), CSV_DIALECTS[locale] ?? CSV_DIALECTS.en!), `meal-plan-${plan.startDate}_${lastDayOf(plan)}.csv`, 'text/csv')}
+              onClick={() =>
+                saveText(
+                  csvOf(planTable(plan, words), CSV_DIALECTS[locale] ?? CSV_DIALECTS.en!),
+                  `meal-plan-${plan.startDate}_${lastDayOf(plan)}.csv`,
+                  'text/csv',
+                )
+              }
             >
               {tExport('csv')}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => setPrinting(true)} disabled={printing}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPrinting(true)}
+              disabled={printing}
+            >
               {tExport('print')}
             </Button>
           </div>
-          {printing && <PlanPrintSheet plan={plan} dietLabel={dietLabel} words={words} onDone={printed} />}
+          {printing && (
+            <PlanPrintSheet plan={plan} dietLabel={dietLabel} words={words} onDone={printed} />
+          )}
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
               {t('planMacros', {
@@ -271,7 +328,15 @@ export function PlanCard({
             {plan.packs.bought > 0 && (
               <PlanPacksLine packs={plan.packs}>
                 {plan.packs.open.some((pack) => pack.wasted) && (
-                  <UseUp planId={plan.id} aiEnabled={aiEnabled} aiOffNote={aiOffNote} mealName={mealName} busy={busy} onSwapped={onSwapped} onStale={onChanged} />
+                  <UseUp
+                    planId={plan.id}
+                    aiEnabled={aiEnabled}
+                    aiOffNote={aiOffNote}
+                    mealName={mealName}
+                    busy={busy}
+                    onSwapped={onSwapped}
+                    onStale={onChanged}
+                  />
                 )}
               </PlanPacksLine>
             )}
@@ -281,7 +346,13 @@ export function PlanCard({
               {plan.options.allowRelaxations.length > 0 && (
                 <p className="flex flex-wrap items-center gap-2">
                   {t('planMayGiveWay', { limits: limitNames(plan.options.allowRelaxations) })}
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setReroll({ scope: 'whole', holdLimits: true })} disabled={busy}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReroll({ scope: 'whole', holdLimits: true })}
+                    disabled={busy}
+                  >
                     {t('holdLimits')}
                   </Button>
                 </p>
@@ -290,18 +361,28 @@ export function PlanCard({
             </div>
           )}
           {conflicts > 0 && (
-            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               {t('conflictsNotice', { count: conflicts })}
             </p>
           )}
           {plan.days.map((day) => (
             // A day can be gone to from the calendar: it is named, and can take the focus.
-            <div key={day.id} id={dayAnchor(plan.id, day.date)} tabIndex={-1} className="scroll-mt-20 focus:outline-none">
+            <div
+              key={day.id}
+              id={dayAnchor(plan.id, day.date)}
+              tabIndex={-1}
+              className="scroll-mt-20 focus:outline-none"
+            >
               <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
                   {fmt.day(day.date)}
                   {(day.overrides?.dayType === 'training' || day.overrides?.dayType === 'rest') && (
-                    <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-normal text-foreground">{t(`dayKindChip.${day.overrides.dayType}`)}</span>
+                    <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-normal text-foreground">
+                      {t(`dayKindChip.${day.overrides.dayType}`)}
+                    </span>
                   )}
                 </span>
                 <div className="flex flex-wrap items-center gap-x-3">
@@ -323,7 +404,13 @@ export function PlanCard({
                           delta: fmt.signed(day.calorieDelta),
                         })}
                       </span>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setWaysFor({ id: day.id, date: day.date })} disabled={busy}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setWaysFor({ id: day.id, date: day.date })}
+                        disabled={busy}
+                      >
                         {t('otherWays')}
                       </Button>
                       <Button
@@ -339,7 +426,13 @@ export function PlanCard({
                   )}
                   {/* A day before today is history: its settings stay as they were. */}
                   {day.date >= today && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setSettingsFor(day)} disabled={busy}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSettingsFor(day)}
+                      disabled={busy}
+                    >
                       {t('daySettingsButton')}
                     </Button>
                   )}
@@ -350,11 +443,15 @@ export function PlanCard({
               {!day.skipped && day.offTarget && (
                 <div className="space-y-1 text-xs">
                   <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-warning">
-                    <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">{t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}</span>
+                    <span className="whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs font-medium">
+                      {t(day.offTarget === 'over' ? 'dayOver' : 'dayUnder')}
+                    </span>
                     <span>{t(day.offTarget === 'over' ? 'dayOverHint' : 'dayUnderHint')}</span>
                   </p>
                   {/* What spreading does is said beside the button that does it, before it is pressed; it is offered where another day from today on can take a part. */}
-                  {plan.days.some((other) => other.id !== day.id && other.date >= today && !other.skipped) && (
+                  {plan.days.some(
+                    (other) => other.id !== day.id && other.date >= today && !other.skipped,
+                  ) && (
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <Button
                         type="button"
@@ -391,20 +488,30 @@ export function PlanCard({
                 {day.meals.map((m) => {
                   const eaten = m.eatenAt !== null;
                   const isCustom = m.source === 'USER_CUSTOM' || m.recipe === null;
-                  const title = isCustom ? m.customName ?? t('customMeal') : m.recipe!.title;
+                  const title = isCustom ? (m.customName ?? t('customMeal')) : m.recipe!.title;
                   // A control of this meal by a name of its own: among the buttons of a plan, "Swap" alone is every meal's.
                   const named = (action: string): string => t('actionFor', { action, title });
                   const favOpen = openFav === m.id;
                   const actionsOpen = openActions === m.id;
-                  const mealLabel = tMeal.has(m.mealType) ? tMeal(m.mealType) : m.mealType.replace('_', ' ');
+                  const mealLabel = tMeal.has(m.mealType)
+                    ? tMeal(m.mealType)
+                    : m.mealType.replace('_', ' ');
                   // What the generation said of this meal: the report speaks of the recipes it placed.
-                  const said = <T extends { date: string; slot: string }>(entries: T[] | undefined): T | undefined =>
-                    isCustom ? undefined : entries?.find((entry) => entry.date === day.date && entry.slot === m.mealType);
+                  const said = <T extends { date: string; slot: string }>(
+                    entries: T[] | undefined,
+                  ): T | undefined =>
+                    isCustom
+                      ? undefined
+                      : entries?.find(
+                          (entry) => entry.date === day.date && entry.slot === m.mealType,
+                        );
                   const outside = said(plan.report?.relaxations);
                   const onlyRecipe = said(plan.report?.singleCandidate);
                   const byModel = partInMeal(m);
                   // What the meal holds that the profile would rather not eat, by name.
-                  const disliked = m.ingredients.filter((line) => m.dislikedIngredientIds.includes(line.ingredientId)).map((line) => line.name);
+                  const disliked = m.ingredients
+                    .filter((line) => m.dislikedIngredientIds.includes(line.ingredientId))
+                    .map((line) => line.name);
                   // The picker shows diet-matching, slot-matching favourites
                   // by default; "show all my favourites" drops BOTH the diet and the
                   // meal-time filter (allergens stay enforced server-side), so a
@@ -435,7 +542,11 @@ export function PlanCard({
                             <button
                               type="button"
                               onClick={() =>
-                                setOpenRecipe({ id: m.recipe!.id, amounts: m.ingredients, picked: m.modelPick })
+                                setOpenRecipe({
+                                  id: m.recipe!.id,
+                                  amounts: m.ingredients,
+                                  picked: m.modelPick,
+                                })
                               }
                               className="font-medium text-primary hover:underline"
                             >
@@ -455,12 +566,17 @@ export function PlanCard({
                             </span>
                           )}
                           {m.restrictionConflicts.map((conflict) => (
-                            <span key={conflict} className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive">
+                            <span
+                              key={conflict}
+                              className="ml-2 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-2xs font-medium text-destructive"
+                            >
                               {t(`conflictChip.${conflict}`)}
                             </span>
                           ))}
                           {disliked.length > 0 && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">{t('dislikedChip')}</span>
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                              {t('dislikedChip')}
+                            </span>
                           )}
                           {outside && (
                             <span className="ml-2 whitespace-nowrap rounded bg-warning/15 px-1.5 py-0.5 text-2xs text-warning">
@@ -478,14 +594,28 @@ export function PlanCard({
                             </span>
                           )}
                           {m.cookAhead && (
-                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">{t(m.cookAhead === 'cook' ? 'cookOnceChip' : 'cookedChip')}</span>
+                            <span className="ml-2 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-foreground">
+                              {t(m.cookAhead === 'cook' ? 'cookOnceChip' : 'cookedChip')}
+                            </span>
                           )}
                         </span>
                         <span className="flex flex-wrap items-center gap-x-4">
                           {(eaten || isCustom) && (
                             <>
-                              {eaten && <span className="text-xs font-medium text-muted-foreground">{t('eatenBadge')}</span>}
-                              <Button type="button" variant="ghost" size="sm" aria-label={named(t('remove'))} aria-expanded={removing === m.id} onClick={() => setRemoving(removing === m.id ? null : m.id)} disabled={busy}>
+                              {eaten && (
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  {t('eatenBadge')}
+                                </span>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label={named(t('remove'))}
+                                aria-expanded={removing === m.id}
+                                onClick={() => setRemoving(removing === m.id ? null : m.id)}
+                                disabled={busy}
+                              >
                                 {t('remove')}
                               </Button>
                             </>
@@ -509,7 +639,10 @@ export function PlanCard({
                                 id={`${m.id}-actions`}
                                 role="group"
                                 aria-label={t('mealActions', { title })}
-                                className={cn(actionsOpen ? 'flex' : 'hidden', 'basis-full flex-wrap items-center gap-x-4 sm:flex sm:basis-auto')}
+                                className={cn(
+                                  actionsOpen ? 'flex' : 'hidden',
+                                  'basis-full flex-wrap items-center gap-x-4 sm:flex sm:basis-auto',
+                                )}
                               >
                                 <Button
                                   type="button"
@@ -574,7 +707,15 @@ export function PlanCard({
                                 >
                                   {t('substituteIngr')} ⇄
                                 </Button>
-                                <Button type="button" variant="ghost" size="sm" aria-label={named(t('remove'))} aria-expanded={removing === m.id} onClick={() => setRemoving(removing === m.id ? null : m.id)} disabled={busy}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label={named(t('remove'))}
+                                  aria-expanded={removing === m.id}
+                                  onClick={() => setRemoving(removing === m.id ? null : m.id)}
+                                  disabled={busy}
+                                >
                                   {t('remove')}
                                 </Button>
                               </span>
@@ -583,7 +724,11 @@ export function PlanCard({
                         </span>
                       </div>
                       {removing === m.id && (
-                        <div className="ml-4 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs" role="group" aria-label={t('removeTitle', { title })}>
+                        <div
+                          className="ml-4 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs"
+                          role="group"
+                          aria-label={t('removeTitle', { title })}
+                        >
                           <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             <Button
@@ -598,16 +743,33 @@ export function PlanCard({
                             >
                               {t('removeConfirm')}
                             </Button>
-                            <Button type="button" size="sm" variant="ghost" onClick={() => setRemoving(null)}>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setRemoving(null)}
+                            >
                               {tCommon('cancel')}
                             </Button>
                           </div>
                         </div>
                       )}
                       {offer?.asked.plannedMealId === m.id && (
-                        <div className="ml-4 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs" role="group" aria-label={t('offerTitle')}>
+                        <div
+                          className="ml-4 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs"
+                          role="group"
+                          aria-label={t('offerTitle')}
+                        >
                           {/* A model's own pick says so, with its reason, before it is taken. */}
-                          {offer.preview.pick && <AiMark part={{ kind: 'picked', reason: offer.preview.aiMeta?.reason ?? null }} spelledOut />}
+                          {offer.preview.pick && (
+                            <AiMark
+                              part={{
+                                kind: 'picked',
+                                reason: offer.preview.aiMeta?.reason ?? null,
+                              }}
+                              spelledOut
+                            />
+                          )}
                           <p>
                             {t.rich('offerLine', {
                               title: offer.preview.recipe.title,
@@ -618,16 +780,31 @@ export function PlanCard({
                             })}
                           </p>
                           <p className="text-muted-foreground">
-                            {t('offerMacros', { protein: offer.preview.after.protein, fat: offer.preview.after.fat, carbs: offer.preview.after.carbs })}
+                            {t('offerMacros', {
+                              protein: offer.preview.after.protein,
+                              fat: offer.preview.after.fat,
+                              carbs: offer.preview.after.carbs,
+                            })}
                           </p>
-                          <p className="text-muted-foreground">{t('offerDay', { kcal: offer.preview.dayAfter.calories, target: offer.preview.calorieTarget })}</p>
+                          <p className="text-muted-foreground">
+                            {t('offerDay', {
+                              kcal: offer.preview.dayAfter.calories,
+                              target: offer.preview.calorieTarget,
+                            })}
+                          </p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             <Button type="button" size="sm" onClick={onTakeOffer} disabled={busy}>
                               {t('offerTake')}
                             </Button>
                             {/* A favourite picked by hand is the one the user asked for: there is no other to offer. */}
                             {offer.asked.strategy !== 'favorite' && (
-                              <Button type="button" size="sm" variant="outline" onClick={onAnotherOffer} disabled={busy}>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={onAnotherOffer}
+                                disabled={busy}
+                              >
                                 {t('offerAnother')}
                               </Button>
                             )}
@@ -647,11 +824,29 @@ export function PlanCard({
                           {t(`conflictHint.${conflict}`)}
                         </p>
                       ))}
-                      {m.dietOverride && <p className="ml-4 text-xs text-warning">{t('dietOverrideHint', { diet: dietLabel })}</p>}
-                      {disliked.length > 0 && <p className="ml-4 text-xs text-muted-foreground">{t('dislikedHint', { foods: fmt.list(disliked) })}</p>}
-                      {outside && <p className="ml-4 text-xs text-muted-foreground">{t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}</p>}
-                      {onlyRecipe && <p className="ml-4 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>}
-                      {m.cookAhead && <p className="ml-4 text-xs text-muted-foreground">{t(m.cookAhead === 'cook' ? 'cookOnceHint' : 'cookedHint')}</p>}
+                      {m.dietOverride && (
+                        <p className="ml-4 text-xs text-warning">
+                          {t('dietOverrideHint', { diet: dietLabel })}
+                        </p>
+                      )}
+                      {disliked.length > 0 && (
+                        <p className="ml-4 text-xs text-muted-foreground">
+                          {t('dislikedHint', { foods: fmt.list(disliked) })}
+                        </p>
+                      )}
+                      {outside && (
+                        <p className="ml-4 text-xs text-muted-foreground">
+                          {t('outsideLimitHint', { limits: limitNames(outside.gaveWay) })}
+                        </p>
+                      )}
+                      {onlyRecipe && (
+                        <p className="ml-4 text-xs text-muted-foreground">{t('onlyRecipeHint')}</p>
+                      )}
+                      {m.cookAhead && (
+                        <p className="ml-4 text-xs text-muted-foreground">
+                          {t(m.cookAhead === 'cook' ? 'cookOnceHint' : 'cookedHint')}
+                        </p>
+                      )}
                       {isCustom && (
                         <p className="ml-6 text-xs italic text-muted-foreground">
                           {t('customMacrosNote')}
@@ -732,10 +927,25 @@ export function PlanCard({
         </CardContent>
       )}
       {waysFor && (
-        <DayVariationsDialog planId={summary.id} day={waysFor} aiEnabled={aiEnabled} aiOffNote={aiOffNote} mealName={mealName} onClose={() => setWaysFor(null)} onChanged={onChanged} />
+        <DayVariationsDialog
+          planId={summary.id}
+          day={waysFor}
+          aiEnabled={aiEnabled}
+          aiOffNote={aiOffNote}
+          mealName={mealName}
+          onClose={() => setWaysFor(null)}
+          onChanged={onChanged}
+        />
       )}
       {settingsFor && (
-        <DaySettingsDialog planId={summary.id} day={settingsFor} mealName={mealName} limitNames={limitNames} onClose={() => setSettingsFor(null)} onSaved={onChanged} />
+        <DaySettingsDialog
+          planId={summary.id}
+          day={settingsFor}
+          mealName={mealName}
+          limitNames={limitNames}
+          onClose={() => setSettingsFor(null)}
+          onSaved={onChanged}
+        />
       )}
       {reroll && (
         <RerollDialog
@@ -794,7 +1004,9 @@ function DaySettingsLine({ day }: { day: MealPlanDay }) {
         : own.dayType === 'rest'
           ? t('lineRest')
           : null,
-    own.cookTimeBudgetMinutes !== undefined ? t('lineCookTime', { minutes: own.cookTimeBudgetMinutes }) : null,
+    own.cookTimeBudgetMinutes !== undefined
+      ? t('lineCookTime', { minutes: own.cookTimeBudgetMinutes })
+      : null,
     own.useUpBy ? t('lineUseUp') : null,
   ].filter((line): line is string => line !== null);
   return said.length > 0 ? <p className="text-xs text-muted-foreground">{said.join(' ')}</p> : null;
@@ -812,7 +1024,8 @@ function MacrosLine({
   const fmt = useFormat();
   return (
     <p className="ml-4 text-xs text-muted-foreground">
-      {t('protein')} {fmt.unit(nutrition.protein, 'gram')} · {t('fat')} {fmt.unit(nutrition.fat, 'gram')} · {t('carbs')} {fmt.unit(nutrition.carbs, 'gram')} ·{' '}
+      {t('protein')} {fmt.unit(nutrition.protein, 'gram')} · {t('fat')}{' '}
+      {fmt.unit(nutrition.fat, 'gram')} · {t('carbs')} {fmt.unit(nutrition.carbs, 'gram')} ·{' '}
       {fmt.number(nutrition.calories)} {t('kcal')}
     </p>
   );

@@ -15,7 +15,9 @@ export function useProblemLine(): (problem: DraftProblem) => string {
     (problem) => {
       const place = placeOf(problem.path);
       const where = t(`field.${place.field}`, { locale: place.locale, n: place.n });
-      const what = t.has(`rule.${problem.rule}`) ? t(`rule.${problem.rule}`, { max: limitOf(problem.rule, place.field) }) : problem.rule;
+      const what = t.has(`rule.${problem.rule}`)
+        ? t(`rule.${problem.rule}`, { max: limitOf(problem.rule, place.field) })
+        : problem.rule;
       return t('line', { where, what });
     },
     [t],
@@ -42,7 +44,9 @@ export function useSkipReasonText(): (reason: string) => string {
           .split('; ')
           .map((entry) => {
             const cut = entry.lastIndexOf(': ');
-            return cut === -1 ? entry : problemLine({ path: entry.slice(0, cut), rule: entry.slice(cut + 2) });
+            return cut === -1
+              ? entry
+              : problemLine({ path: entry.slice(0, cut), rule: entry.slice(cut + 2) });
           })
           .join('; ');
       }

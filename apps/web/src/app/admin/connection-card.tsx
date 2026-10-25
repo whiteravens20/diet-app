@@ -33,7 +33,11 @@ export function ConnectionCard() {
   }, [t, errorText]);
 
   const trust = (setting: AdminConnection['trustProxy']): string =>
-    setting === false ? t('trustOff') : typeof setting === 'number' ? t('trustHops', { count: setting }) : setting.join(', ');
+    setting === false
+      ? t('trustOff')
+      : typeof setting === 'number'
+        ? t('trustHops', { count: setting })
+        : setting.join(', ');
 
   return (
     <Card>
@@ -70,14 +74,18 @@ export function ConnectionCard() {
               <dt className="text-muted-foreground">{t('clientAddress')}</dt>
               <dd>
                 <code>{connection.clientAddress ?? '—'}</code>
-                <span className="block text-xs text-muted-foreground">{t('clientAddressHint')}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {t('clientAddressHint')}
+                </span>
               </dd>
               <dt className="text-muted-foreground">{t('peerAddress')}</dt>
               <dd>
                 <code>{connection.peerAddress ?? '—'}</code>
               </dd>
               <dt className="text-muted-foreground">{t('forwardedFor')}</dt>
-              <dd>{connection.forwardedFor ? <code>{connection.forwardedFor}</code> : t('notSent')}</dd>
+              <dd>
+                {connection.forwardedFor ? <code>{connection.forwardedFor}</code> : t('notSent')}
+              </dd>
               <dt className="text-muted-foreground">{t('trustProxy')}</dt>
               <dd>{trust(connection.trustProxy)}</dd>
             </dl>

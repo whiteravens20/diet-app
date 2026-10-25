@@ -7,11 +7,11 @@ of the catalogue's data files.
 
 ## The three modes
 
-| Mode | What happens | Needs |
-|---|---|---|
-| `local` (the default) | The drafts become rows of this instance at once, and are copied to the instance's data directory. | Nothing. |
-| `bundle` | The panel is given a file to save; you put it into a repository's `data/` by hand. | Nothing. |
-| `upstream-pr` | The file is committed on a branch of a git checkout, pushed, and offered as a pull request. | A checkout with `git` and `gh`, a token, and the mode switched on. |
+| Mode                  | What happens                                                                                      | Needs                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `local` (the default) | The drafts become rows of this instance at once, and are copied to the instance's data directory. | Nothing.                                                           |
+| `bundle`              | The panel is given a file to save; you put it into a repository's `data/` by hand.                | Nothing.                                                           |
+| `upstream-pr`         | The file is committed on a branch of a git checkout, pushed, and offered as a pull request.       | A checkout with `git` and `gh`, a token, and the mode switched on. |
 
 The catalogue's own data (`data/recipes.json`, `data/recipes/*.json`,
 `data/ingredients*.json`, `data/ingredient-overrides.json`) comes from the
@@ -149,13 +149,13 @@ and ships like any other.
 The mode is off unless `SHIP_UPSTREAM_ENABLED=true`. When it cannot run, the
 panel says why, and a request answers `409` with the same code:
 
-| Code | Meaning |
-|---|---|
-| `SHIP_UPSTREAM_DISABLED` | `SHIP_UPSTREAM_ENABLED` is not `true`. |
-| `SHIP_UPSTREAM_NO_TOKEN` | `SHIP_UPSTREAM_GH_TOKEN` is empty. |
-| `GH_MODE_UNAVAILABLE` | The `gh` tool is not installed. |
-| `SHIP_REPO_ROOT_NOT_FOUND` | The API does not run inside a git checkout. |
-| `SHIP_UPSTREAM_BLOCKED_CANONICAL` | The remote is the project's own repository. |
+| Code                                | Meaning                                     |
+| ----------------------------------- | ------------------------------------------- |
+| `SHIP_UPSTREAM_DISABLED`            | `SHIP_UPSTREAM_ENABLED` is not `true`.      |
+| `SHIP_UPSTREAM_NO_TOKEN`            | `SHIP_UPSTREAM_GH_TOKEN` is empty.          |
+| `GH_MODE_UNAVAILABLE`               | The `gh` tool is not installed.             |
+| `SHIP_REPO_ROOT_NOT_FOUND`          | The API does not run inside a git checkout. |
+| `SHIP_UPSTREAM_BLOCKED_CANONICAL`   | The remote is the project's own repository. |
 | `GIT_FAILED`, `GH_PR_CREATE_FAILED` | A command failed; the drafts stay approved. |
 
 ## Backing up what the instance added
@@ -214,17 +214,17 @@ The reverse of shipping names: the panel fetches an
 
 ## Settings
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `INSTANCE_DATA_DIR` | `instance-data` | Where `local` ships copy what they shipped, and what a restore reads. Keep it on a volume. |
-| `SHIP_UPSTREAM_ENABLED` | `false` | Switches the `upstream-pr` mode on. |
-| `SHIP_UPSTREAM_REMOTE` | `origin` | The git remote the branch is pushed to. Never the project's own repository. |
-| `SHIP_UPSTREAM_BASE_BRANCH` | `main` | The branch the pull request is opened against. |
-| `SHIP_UPSTREAM_GH_TOKEN` | — | The token `gh` pushes and opens the pull request with. Handed to `gh` through its environment. |
-| `SHIP_UPSTREAM_GIT_AUTHOR_NAME` / `SHIP_UPSTREAM_GIT_AUTHOR_EMAIL` | — | Author of the commit. Without them git's own configuration decides. |
-| `OVERRIDES_PULL_SOURCE` | `whiteravens20/diet-app` | The source the panel offers for a pull of names. |
-| `OVERRIDES_PULL_TOKEN` | `SHIP_UPSTREAM_GH_TOKEN` | Token for a private GitHub repository. |
-| `OVERRIDES_PULL_ALLOWED_HOSTS` | — | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public. |
+| Variable                                                           | Default                  | Purpose                                                                                                    |
+| ------------------------------------------------------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `INSTANCE_DATA_DIR`                                                | `instance-data`          | Where `local` ships copy what they shipped, and what a restore reads. Keep it on a volume.                 |
+| `SHIP_UPSTREAM_ENABLED`                                            | `false`                  | Switches the `upstream-pr` mode on.                                                                        |
+| `SHIP_UPSTREAM_REMOTE`                                             | `origin`                 | The git remote the branch is pushed to. Never the project's own repository.                                |
+| `SHIP_UPSTREAM_BASE_BRANCH`                                        | `main`                   | The branch the pull request is opened against.                                                             |
+| `SHIP_UPSTREAM_GH_TOKEN`                                           | —                        | The token `gh` pushes and opens the pull request with. Handed to `gh` through its environment.             |
+| `SHIP_UPSTREAM_GIT_AUTHOR_NAME` / `SHIP_UPSTREAM_GIT_AUTHOR_EMAIL` | —                        | Author of the commit. Without them git's own configuration decides.                                        |
+| `OVERRIDES_PULL_SOURCE`                                            | `whiteravens20/diet-app` | The source the panel offers for a pull of names.                                                           |
+| `OVERRIDES_PULL_TOKEN`                                             | `SHIP_UPSTREAM_GH_TOKEN` | Token for a private GitHub repository.                                                                     |
+| `OVERRIDES_PULL_ALLOWED_HOSTS`                                     | —                        | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public. |
 
 `bundle` reads no setting. `local` reads only `INSTANCE_DATA_DIR`.
 

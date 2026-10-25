@@ -50,7 +50,11 @@ const aProfile = (name: string, over: Partial<Profile> = {}): Profile => ({
 
 /** The calculator of an account with `profiles`, which weighs in kilograms. */
 async function open(profiles: Profile[]) {
-  vi.spyOn(api, 'get').mockImplementation((path: string) => Promise.resolve((path === '/profiles' ? profiles : path === '/users/me' ? { weightUnit: 'kg' } : []) as never));
+  vi.spyOn(api, 'get').mockImplementation((path: string) =>
+    Promise.resolve(
+      (path === '/profiles' ? profiles : path === '/users/me' ? { weightUnit: 'kg' } : []) as never,
+    ),
+  );
   const post = vi.spyOn(api, 'post').mockResolvedValue(aPreview() as never);
   const put = vi.spyOn(api, 'put');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -69,7 +73,9 @@ async function open(profiles: Profile[]) {
     /** Every request that was not for what figures come to. */
     kept: () => post.mock.calls.filter(([path]) => path !== '/profiles/calories'),
     /** The figures the last answer was asked with. */
-    asked: () => post.mock.calls.filter(([path]) => path === '/profiles/calories').at(-1)?.[1] as Record<string, unknown> | undefined,
+    asked: () =>
+      post.mock.calls.filter(([path]) => path === '/profiles/calories').at(-1)?.[1] as
+        Record<string, unknown> | undefined,
   };
 }
 
@@ -80,17 +86,33 @@ describe('the calculator', () => {
     vi.restoreAllMocks();
   });
 
-  it('begins with the figures of the account\'s first profile, and says what they come to', async () => {
-    const { asked } = await open([aProfile('Anna', { age: 41, activityLevel: 'light', dietType: 'vegan', weeklyLossTarget: '0.25' }), aProfile('Adam')]);
+  it("begins with the figures of the account's first profile, and says what they come to", async () => {
+    const { asked } = await open([
+      aProfile('Anna', {
+        age: 41,
+        activityLevel: 'light',
+        dietType: 'vegan',
+        weeklyLossTarget: '0.25',
+      }),
+      aProfile('Adam'),
+    ]);
 
-    expect(startFrom().getByRole('button', { name: 'Anna' })).toHaveAttribute('aria-pressed', 'true');
+    expect(startFrom().getByRole('button', { name: 'Anna' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getByLabelText(fields.age)).toHaveValue(41);
     expect(screen.getByLabelText('Weight (kg)')).toHaveValue(80);
     expect(screen.getByLabelText(new RegExp(`^${fields.activityLevel}`))).toHaveValue('light');
     expect(screen.getByLabelText(fields.dietType)).toHaveValue('vegan');
     expect(screen.getByRole('radio', { name: /Lose 0.25 kg a week/ })).toBeChecked();
     expect(await screen.findByText('2,209 kcal')).toBeInTheDocument();
-    expect(asked()).toMatchObject({ age: 41, activityLevel: 'light', dietType: 'vegan', weeklyLossTarget: '0.25' });
+    expect(asked()).toMatchObject({
+      age: 41,
+      activityLevel: 'light',
+      dietType: 'vegan',
+      weeklyLossTarget: '0.25',
+    });
     // The number of meals a day changes no figure, and is not asked for here.
     expect(screen.queryByLabelText(fields.mealsPerDay)).toBeNull();
   });
@@ -100,7 +122,10 @@ describe('the calculator', () => {
 
     await userEvent.click(startFrom().getByRole('button', { name: 'Adam' }));
 
-    expect(startFrom().getByRole('button', { name: 'Adam' })).toHaveAttribute('aria-pressed', 'true');
+    expect(startFrom().getByRole('button', { name: 'Adam' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getByLabelText(fields.age)).toHaveValue(52);
     await vi.waitFor(() => expect(asked()).toMatchObject({ age: 52, weightKg: 95 }));
   });
@@ -124,18 +149,32 @@ describe('the calculator', () => {
     expect(screen.getByText(messages.caloriePreview.pending)).toBeInTheDocument();
   });
 
-  it('works out what is typed over a profile\'s figures, and keeps none of it', async () => {
+  it("works out what is typed over a profile's figures, and keeps none of it", async () => {
     const { asked, kept, put } = await open([aProfile('Anna')]);
     await screen.findByText('2,209 kcal');
 
     await userEvent.clear(screen.getByLabelText('Weight (kg)'));
     await userEvent.type(screen.getByLabelText('Weight (kg)'), '72.5');
-    await userEvent.selectOptions(screen.getByLabelText(new RegExp(`^${fields.activityLevel}`)), 'very_active');
+    await userEvent.selectOptions(
+      screen.getByLabelText(new RegExp(`^${fields.activityLevel}`)),
+      'very_active',
+    );
     await userEvent.click(screen.getByRole('radio', { name: /Keep my weight/ }));
     // The field is named by its label and the line under it: it is found by how its name begins.
-    await userEvent.type(screen.getByRole('spinbutton', { name: (name) => name.startsWith(fields.manualKcalOverride) }), '{Enter}');
+    await userEvent.type(
+      screen.getByRole('spinbutton', {
+        name: (name) => name.startsWith(fields.manualKcalOverride),
+      }),
+      '{Enter}',
+    );
 
-    await vi.waitFor(() => expect(asked()).toMatchObject({ weightKg: 72.5, activityLevel: 'very_active', weeklyLossTarget: null }));
+    await vi.waitFor(() =>
+      expect(asked()).toMatchObject({
+        weightKg: 72.5,
+        activityLevel: 'very_active',
+        weeklyLossTarget: null,
+      }),
+    );
     expect(kept()).toEqual([]);
     expect(put).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'profile' })).toHaveAttribute('href', '/profile');
@@ -146,7 +185,12 @@ describe('the calculator', () => {
     await screen.findByText('2,209 kcal');
 
     await userEvent.selectOptions(screen.getByLabelText(fields.dietType), 'custom');
-    await vi.waitFor(() => expect(asked()).toMatchObject({ dietType: 'custom', customMacroSplit: { protein: 25, fat: 30, carbs: 45 } }));
+    await vi.waitFor(() =>
+      expect(asked()).toMatchObject({
+        dietType: 'custom',
+        customMacroSplit: { protein: 25, fat: 30, carbs: 45 },
+      }),
+    );
     await userEvent.clear(screen.getByLabelText(fields.split.protein));
     await userEvent.type(screen.getByLabelText(fields.split.protein), '30');
 

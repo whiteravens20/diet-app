@@ -33,7 +33,10 @@
   },
   {
     "slug": "scrambled-eggs-on-whole-grain-toast",
-    "title": { "en": "Scrambled eggs on whole-grain toast", "pl": "Jajecznica na pełnoziarnistym toście" },
+    "title": {
+      "en": "Scrambled eggs on whole-grain toast",
+      "pl": "Jajecznica na pełnoziarnistym toście"
+    },
     "description": {
       "en": "Soft scrambled eggs served on toasted whole-grain bread.",
       "pl": "Delikatna jajecznica podana na opieczonym chlebie pełnoziarnistym."
@@ -65,7 +68,10 @@
   },
   {
     "slug": "banana-peanut-butter-oatmeal",
-    "title": { "en": "Banana peanut-butter oatmeal", "pl": "Owsianka z bananem i masłem orzechowym" },
+    "title": {
+      "en": "Banana peanut-butter oatmeal",
+      "pl": "Owsianka z bananem i masłem orzechowym"
+    },
     "description": {
       "en": "Warm oats cooked with milk, finished with banana and peanut butter.",
       "pl": "Ciepła owsianka gotowana na mleku, wykończona bananem i masłem orzechowym."
@@ -127,7 +133,10 @@
   },
   {
     "slug": "grilled-chicken-rice-bowl",
-    "title": { "en": "Grilled chicken & rice bowl", "pl": "Miska z grillowanym kurczakiem i ryżem" },
+    "title": {
+      "en": "Grilled chicken & rice bowl",
+      "pl": "Miska z grillowanym kurczakiem i ryżem"
+    },
     "description": {
       "en": "Lean grilled chicken with white rice and steamed broccoli.",
       "pl": "Chude grillowane mięso z piersi kurczaka z białym ryżem i brokułami na parze."
@@ -320,7 +329,10 @@
   },
   {
     "slug": "chicken-broccoli-low-carb-skillet",
-    "title": { "en": "Chicken & broccoli low-carb skillet", "pl": "Niskowęglowodanowy kurczak z brokułami z patelni" },
+    "title": {
+      "en": "Chicken & broccoli low-carb skillet",
+      "pl": "Niskowęglowodanowy kurczak z brokułami z patelni"
+    },
     "description": {
       "en": "A grain-free skillet of chicken and broccoli in olive oil.",
       "pl": "Patelnia z kurczakiem i brokułami na oliwie, bez zbóż."
@@ -351,7 +363,10 @@
   },
   {
     "slug": "black-bean-quinoa-salad",
-    "title": { "en": "Black bean & quinoa salad", "pl": "Sałatka z czarnej fasoli i komosy ryżowej" },
+    "title": {
+      "en": "Black bean & quinoa salad",
+      "pl": "Sałatka z czarnej fasoli i komosy ryżowej"
+    },
     "description": {
       "en": "A protein-rich cold salad of black beans, quinoa and pepper.",
       "pl": "Bogata w białko zimna sałatka z czarnej fasoli, komosy ryżowej i papryki."
@@ -384,7 +399,10 @@
   },
   {
     "slug": "baked-salmon-with-potato-broccoli",
-    "title": { "en": "Baked salmon with potato & broccoli", "pl": "Pieczony łosoś z ziemniakami i brokułami" },
+    "title": {
+      "en": "Baked salmon with potato & broccoli",
+      "pl": "Pieczony łosoś z ziemniakami i brokułami"
+    },
     "description": {
       "en": "Oven-baked salmon with roast potato and steamed broccoli.",
       "pl": "Pieczony w piekarniku łosoś z pieczonymi ziemniakami i brokułami na parze."
@@ -415,7 +433,10 @@
   },
   {
     "slug": "greek-yogurt-with-almonds-honey",
-    "title": { "en": "Greek yogurt with almonds & honey", "pl": "Jogurt grecki z migdałami i miodem" },
+    "title": {
+      "en": "Greek yogurt with almonds & honey",
+      "pl": "Jogurt grecki z migdałami i miodem"
+    },
     "description": {
       "en": "A quick high-protein snack of yogurt, almonds and honey.",
       "pl": "Szybka wysokobiałkowa przekąska z jogurtu, migdałów i miodu."
@@ -512,7 +533,10 @@
   },
   {
     "slug": "hummus-style-chickpea-snack-bowl",
-    "title": { "en": "Hummus-style chickpea snack bowl", "pl": "Przekąska z ciecierzycy w stylu hummusu" },
+    "title": {
+      "en": "Hummus-style chickpea snack bowl",
+      "pl": "Przekąska z ciecierzycy w stylu hummusu"
+    },
     "description": {
       "en": "Smashed chickpeas with olive oil and tomato.",
       "pl": "Rozgnieciona ciecierzyca z oliwą i pomidorem."
@@ -535,7 +559,10 @@
   },
   {
     "slug": "tofu-scramble-on-whole-grain-toast",
-    "title": { "en": "Tofu scramble on whole-grain toast", "pl": "Tofucznica na pełnoziarnistym toście" },
+    "title": {
+      "en": "Tofu scramble on whole-grain toast",
+      "pl": "Tofucznica na pełnoziarnistym toście"
+    },
     "description": {
       "en": "Crumbled tofu fried with onion, spinach and tomato, served on toast.",
       "pl": "Pokruszone tofu smażone z cebulą, szpinakiem i pomidorem, podane na toście."
@@ -590,13 +617,24 @@
       { "slug": "chia-seeds", "quantity": 10, "unit": "g" }
     ],
     "steps": {
-      "en": ["Toast the bread.", "Spread it with peanut butter.", "Top with sliced banana and sprinkle with chia seeds."],
-      "pl": ["Opiecz chleb.", "Posmaruj go masłem orzechowym.", "Ułóż plasterki banana i posyp nasionami chia."]
+      "en": [
+        "Toast the bread.",
+        "Spread it with peanut butter.",
+        "Top with sliced banana and sprinkle with chia seeds."
+      ],
+      "pl": [
+        "Opiecz chleb.",
+        "Posmaruj go masłem orzechowym.",
+        "Ułóż plasterki banana i posyp nasionami chia."
+      ]
     }
   },
   {
     "slug": "oatmeal-with-apple-and-walnuts",
-    "title": { "en": "Oatmeal with apple and walnuts", "pl": "Owsianka z jabłkiem i orzechami włoskimi" },
+    "title": {
+      "en": "Oatmeal with apple and walnuts",
+      "pl": "Owsianka z jabłkiem i orzechami włoskimi"
+    },
     "description": {
       "en": "Oats cooked in water with grated apple, topped with walnuts and chia seeds.",
       "pl": "Płatki owsiane gotowane na wodzie z tartym jabłkiem, posypane orzechami włoskimi i nasionami chia."
@@ -627,7 +665,10 @@
   },
   {
     "slug": "boiled-eggs-with-feta-and-cucumber",
-    "title": { "en": "Boiled eggs with feta and cucumber", "pl": "Jajka na twardo z fetą i ogórkiem" },
+    "title": {
+      "en": "Boiled eggs with feta and cucumber",
+      "pl": "Jajka na twardo z fetą i ogórkiem"
+    },
     "description": {
       "en": "Two hard-boiled eggs with feta, cucumber and a drizzle of olive oil.",
       "pl": "Dwa jajka na twardo z fetą, ogórkiem i odrobiną oliwy."

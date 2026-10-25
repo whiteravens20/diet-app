@@ -17,10 +17,17 @@ const steps = texts.wizard.steps;
 
 /** The steps of a first profile, for an account that weighs in `unit`. `made` is what the API answers when the profile is made. */
 function open(over: { unit?: 'kg' | 'lb'; made?: () => Promise<unknown> } = {}) {
-  vi.spyOn(api, 'get').mockImplementation((path: string) => Promise.resolve((path === '/users/me' ? { weightUnit: over.unit ?? 'kg' } : []) as never));
+  vi.spyOn(api, 'get').mockImplementation((path: string) =>
+    Promise.resolve((path === '/users/me' ? { weightUnit: over.unit ?? 'kg' } : []) as never),
+  );
   const post = vi
     .spyOn(api, 'post')
-    .mockImplementation((path: string, body?: unknown) => (path === '/profiles/calories' ? Promise.resolve(aPreview()) : (over.made?.() ?? Promise.resolve({ id: 'made', ...(body as object) }))) as never);
+    .mockImplementation(
+      (path: string, body?: unknown) =>
+        (path === '/profiles/calories'
+          ? Promise.resolve(aPreview())
+          : (over.made?.() ?? Promise.resolve({ id: 'made', ...(body as object) }))) as never,
+    );
   const onMade = vi.fn();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['config'], aPublicConfig());
@@ -35,18 +42,25 @@ function open(over: { unit?: 'kg' | 'lb'; made?: () => Promise<unknown> } = {}) 
   return {
     onMade,
     /** What the profile was made with, once it was. */
-    sent: () => post.mock.calls.find(([path]) => path === '/profiles')?.[1] as Record<string, unknown> | undefined,
+    sent: () =>
+      post.mock.calls.find(([path]) => path === '/profiles')?.[1] as
+        Record<string, unknown> | undefined,
     /** The figures the last preview was asked with. */
-    asked: () => post.mock.calls.filter(([path]) => path === '/profiles/calories').at(-1)?.[1] as Record<string, unknown> | undefined,
+    asked: () =>
+      post.mock.calls.filter(([path]) => path === '/profiles/calories').at(-1)?.[1] as
+        Record<string, unknown> | undefined,
   };
 }
 
-const heading = (step: 1 | 2 | 3, name: string) => screen.getByRole('heading', { name: `Step ${step} of 3: ${name}` });
+const heading = (step: 1 | 2 | 3, name: string) =>
+  screen.getByRole('heading', { name: `Step ${step} of 3: ${name}` });
 const next = () => userEvent.click(screen.getByRole('button', { name: messages.common.next }));
 const back = () => userEvent.click(screen.getByRole('button', { name: messages.common.back }));
 
 /** Type the body of the first step: a name, an age, a height and a weight in the unit of the account. */
-async function aBody(of: { name?: string; age?: string; height?: string; weight?: string; unit?: 'kg' | 'lb' } = {}) {
+async function aBody(
+  of: { name?: string; age?: string; height?: string; weight?: string; unit?: 'kg' | 'lb' } = {},
+) {
   await userEvent.type(screen.getByLabelText(new RegExp(`^${texts.name}`)), of.name ?? 'Anna');
   await userEvent.type(screen.getByLabelText(texts.age), of.age ?? '30');
   await userEvent.type(screen.getByLabelText(texts.heightCm), of.height ?? '180');
@@ -62,7 +76,11 @@ describe('the steps a first profile is set up in', () => {
     open();
 
     expect(heading(1, steps.body)).toBeInTheDocument();
-    expect(screen.getAllByRole('listitem').map((step) => [step.textContent, step.getAttribute('aria-current')])).toEqual([
+    expect(
+      screen
+        .getAllByRole('listitem')
+        .map((step) => [step.textContent, step.getAttribute('aria-current')]),
+    ).toEqual([
       [`1${steps.body}`, 'step'],
       [`2${steps.goal}`, null],
       [`3${steps.food}`, null],
@@ -103,7 +121,10 @@ describe('the steps a first profile is set up in', () => {
   it('go back to a step with everything as it was left', async () => {
     open();
     await aBody({ name: 'Anna', age: '41' });
-    await userEvent.selectOptions(screen.getByLabelText(new RegExp(`^${texts.activityLevel}`)), 'active');
+    await userEvent.selectOptions(
+      screen.getByLabelText(new RegExp(`^${texts.activityLevel}`)),
+      'active',
+    );
     await next();
     await userEvent.click(screen.getByRole('radio', { name: /Lose 0.25 kg a week/ }));
     await next();
@@ -122,7 +143,10 @@ describe('the steps a first profile is set up in', () => {
     open();
     expect(screen.getByText(texts.activityHint.moderate)).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByLabelText(new RegExp(`^${texts.activityLevel}`)), 'sedentary');
+    await userEvent.selectOptions(
+      screen.getByLabelText(new RegExp(`^${texts.activityLevel}`)),
+      'sedentary',
+    );
 
     expect(screen.getByText(texts.activityHint.sedentary)).toBeInTheDocument();
     expect(screen.queryByText(texts.activityHint.moderate)).toBeNull();
@@ -171,7 +195,13 @@ describe('the figures beside the steps of a first profile', () => {
       'Lose 1 kg a week2,069 kcal a day · slowed',
     ]);
     // Half a kilogram a week is where a new profile begins.
-    expect(paces.map((pace) => (pace as HTMLInputElement).checked)).toEqual([false, false, true, false, false]);
+    expect(paces.map((pace) => (pace as HTMLInputElement).checked)).toEqual([
+      false,
+      false,
+      true,
+      false,
+      false,
+    ]);
     expect(screen.getByText(texts.paceSlowedNote)).toBeInTheDocument();
   });
 
@@ -194,7 +224,12 @@ describe('the figures beside the steps of a first profile', () => {
     await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'custom');
 
     // The fields of the split are drawn by the same change that the figures are read on: nothing more has to be typed.
-    await vi.waitFor(() => expect(asked()).toMatchObject({ dietType: 'custom', customMacroSplit: { protein: 25, fat: 30, carbs: 45 } }));
+    await vi.waitFor(() =>
+      expect(asked()).toMatchObject({
+        dietType: 'custom',
+        customMacroSplit: { protein: 25, fat: 30, carbs: 45 },
+      }),
+    );
     expect(await screen.findByText('2,209 kcal')).toBeInTheDocument();
   });
 
@@ -219,15 +254,23 @@ describe('the profile the steps make', () => {
     const { sent, onMade } = open();
     await aBody({ name: ' Anna ', age: '41', height: '168', weight: '70.5' });
     await userEvent.selectOptions(screen.getByLabelText(new RegExp(`^${texts.sex}`)), 'female');
-    await userEvent.selectOptions(screen.getByLabelText(new RegExp(`^${texts.activityLevel}`)), 'light');
+    await userEvent.selectOptions(
+      screen.getByLabelText(new RegExp(`^${texts.activityLevel}`)),
+      'light',
+    );
     await next();
     await userEvent.click(screen.getByRole('radio', { name: /Lose 0.25 kg a week/ }));
-    await userEvent.type(screen.getByRole('spinbutton', { name: /^Weight to work towards \(kg\)/ }), '64');
+    await userEvent.type(
+      screen.getByRole('spinbutton', { name: /^Weight to work towards \(kg\)/ }),
+      '64',
+    );
     await next();
     await userEvent.selectOptions(screen.getByLabelText(texts.dietType), 'vegetarian');
     await userEvent.clear(screen.getByLabelText(texts.mealsPerDay));
     await userEvent.type(screen.getByLabelText(texts.mealsPerDay), '4');
-    await userEvent.click(screen.getByRole('button', { name: messages.pickers.allergensPlaceholder }));
+    await userEvent.click(
+      screen.getByRole('button', { name: messages.pickers.allergensPlaceholder }),
+    );
     await userEvent.click(screen.getByRole('checkbox', { name: messages.enums.allergen.peanuts }));
 
     await userEvent.click(screen.getByRole('button', { name: texts.createProfile }));
@@ -248,7 +291,9 @@ describe('the profile the steps make', () => {
       weightReminderCadence: 'weekly',
       preferences: { allergens: ['peanuts'] },
     });
-    await vi.waitFor(() => expect(onMade).toHaveBeenCalledWith(expect.objectContaining({ id: 'made', name: 'Anna' })));
+    await vi.waitFor(() =>
+      expect(onMade).toHaveBeenCalledWith(expect.objectContaining({ id: 'made', name: 'Anna' })),
+    );
   });
 
   it('is not made by the second half of a double click that brought the reader to the last step', async () => {
@@ -285,7 +330,9 @@ describe('the profile the steps make', () => {
 
     await userEvent.click(screen.getByRole('button', { name: texts.createProfile }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.PROFILE_LIMIT_REACHED);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      messages.errors.PROFILE_LIMIT_REACHED,
+    );
     expect(heading(3, steps.food)).toBeInTheDocument();
   });
 });

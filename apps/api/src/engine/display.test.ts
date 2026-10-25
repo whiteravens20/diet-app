@@ -11,15 +11,55 @@ import {
   type DisplayedIngredient,
 } from './display.js';
 
-const CHICKEN: DisplayedIngredient = { canonicalUnit: 'g', gramsPerPiece: null, density: null, displayUnit: null };
-const MILK: DisplayedIngredient = { canonicalUnit: 'ml', gramsPerPiece: null, density: 1.03, displayUnit: null };
-const EGG: DisplayedIngredient = { canonicalUnit: 'g', gramsPerPiece: 55, density: null, displayUnit: 'piece' };
-const BREAD: DisplayedIngredient = { canonicalUnit: 'g', gramsPerPiece: 40, density: null, displayUnit: 'slice' };
-const GARLIC: DisplayedIngredient = { canonicalUnit: 'g', gramsPerPiece: 5, density: null, displayUnit: 'clove' };
-const SPINACH: DisplayedIngredient = { canonicalUnit: 'g', gramsPerPiece: 30, density: null, displayUnit: 'handful' };
-const ONION: DisplayedIngredient = { canonicalUnit: 'g', gramsPerPiece: 110, density: null, displayUnit: 'piece' };
+const CHICKEN: DisplayedIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: null,
+  density: null,
+  displayUnit: null,
+};
+const MILK: DisplayedIngredient = {
+  canonicalUnit: 'ml',
+  gramsPerPiece: null,
+  density: 1.03,
+  displayUnit: null,
+};
+const EGG: DisplayedIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: 55,
+  density: null,
+  displayUnit: 'piece',
+};
+const BREAD: DisplayedIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: 40,
+  density: null,
+  displayUnit: 'slice',
+};
+const GARLIC: DisplayedIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: 5,
+  density: null,
+  displayUnit: 'clove',
+};
+const SPINACH: DisplayedIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: 30,
+  density: null,
+  displayUnit: 'handful',
+};
+const ONION: DisplayedIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: 110,
+  density: null,
+  displayUnit: 'piece',
+};
 /** Has a weight per piece, but is weighed, not counted. */
-const TOMATO: DisplayedIngredient = { canonicalUnit: 'g', gramsPerPiece: 120, density: null, displayUnit: null };
+const TOMATO: DisplayedIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: 120,
+  density: null,
+  displayUnit: null,
+};
 
 describe('an amount to cook with', () => {
   it.each([
@@ -137,7 +177,10 @@ describe('a shopping row', () => {
     [700, 'g', 500, 500],
     [4.9, 'g', 500, 4],
     [-3, 'g', 500, 0],
-  ] as const)('counts on %s %s of the pantry for a need of %s as %s', (available, unit, need, claim) => {
-    expect(quantityToClaim(available, unit, need)).toBe(claim);
-  });
+  ] as const)(
+    'counts on %s %s of the pantry for a need of %s as %s',
+    (available, unit, need, claim) => {
+      expect(quantityToClaim(available, unit, need)).toBe(claim);
+    },
+  );
 });

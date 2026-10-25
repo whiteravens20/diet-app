@@ -75,5 +75,7 @@ export function readModelReply<T>(
   const object = readModelObject(reply, maxChars);
   if (!object.ok) return object;
   const checked = schema.safeParse(object.value);
-  return checked.success ? { ok: true, value: checked.data } : { ok: false, problem: 'wrong_shape' };
+  return checked.success
+    ? { ok: true, value: checked.data }
+    : { ok: false, problem: 'wrong_shape' };
 }

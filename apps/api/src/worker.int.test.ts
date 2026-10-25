@@ -39,7 +39,7 @@ describe('the worker', () => {
     vi.clearAllMocks();
   });
 
-  it('starts with what its jobs need, and without the plans and the administrator\'s runners', () => {
+  it("starts with what its jobs need, and without the plans and the administrator's runners", () => {
     expect(jobs.length).toBeGreaterThan(0);
     expect(() => worker.get(PlanGenerationService, { strict: false })).toThrow();
     expect(() => worker.get(SeedRunner, { strict: false })).toThrow();
@@ -58,12 +58,19 @@ describe('the worker', () => {
     await runJobs(prisma, jobs, logger);
 
     expect(log.error).not.toHaveBeenCalled();
-    expect(await t.prisma.notification.count({ where: { profileId: profile.id, type: 'weight_reminder' } })).toBe(1);
+    expect(
+      await t.prisma.notification.count({
+        where: { profileId: profile.id, type: 'weight_reminder' },
+      }),
+    ).toBe(1);
   });
 
   it('leaves a job that runs elsewhere to whoever runs it, and runs the others', async () => {
     const ran = vi.fn().mockResolvedValue(undefined);
-    const two: Job[] = [['a job that runs elsewhere', ran], ['the job after it', ran]];
+    const two: Job[] = [
+      ['a job that runs elsewhere', ran],
+      ['the job after it', ran],
+    ];
     let done: () => void = () => undefined;
     const elsewhere = new Promise<void>((resolve) => (done = resolve));
     let held: Promise<boolean> = Promise.resolve(false);
@@ -79,14 +86,23 @@ describe('the worker', () => {
 
     expect(await held).toBe(true);
     expect(ran).toHaveBeenCalledTimes(1);
-    expect(log.log).toHaveBeenCalledWith('a job that runs elsewhere: running elsewhere, left alone this time.');
+    expect(log.log).toHaveBeenCalledWith(
+      'a job that runs elsewhere: running elsewhere, left alone this time.',
+    );
     expect(log.error).not.toHaveBeenCalled();
   });
 
   it('goes on with the next job when one fails, and says which one failed', async () => {
     const after = vi.fn().mockResolvedValue(undefined);
 
-    await runJobs(prisma, [['a job that fails', () => Promise.reject(new Error('no'))], ['the job after it', after]], logger);
+    await runJobs(
+      prisma,
+      [
+        ['a job that fails', () => Promise.reject(new Error('no'))],
+        ['the job after it', after],
+      ],
+      logger,
+    );
 
     expect(log.error).toHaveBeenCalledWith('a job that fails failed: no');
     expect(after).toHaveBeenCalledTimes(1);

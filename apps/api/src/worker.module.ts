@@ -15,6 +15,14 @@ import { PersonalRecipesModule } from './recipes/personal-recipes.module.js';
  * administrator's runners and the limiter of requests are the API's.
  */
 @Module({
-  imports: [Configuration, PrismaModule, PasswordsModule, AuthModule, AiModule, PersonalRecipesModule, NotificationsModule],
+  imports: [
+    Configuration,
+    PrismaModule,
+    PasswordsModule,
+    AuthModule,
+    AiModule,
+    PersonalRecipesModule,
+    NotificationsModule,
+  ],
 })
 export class WorkerModule {}

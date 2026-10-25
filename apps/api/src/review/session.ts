@@ -53,7 +53,12 @@ export function signReviewerCookie(
 ): { token: string; maxAgeSeconds: number } {
   const token = jwt.sign(
     { label: payload.label, epoch: payload.epoch },
-    { secret, expiresIn: REVIEWER_COOKIE_TTL_SECONDS, algorithm: TOKEN_ALGORITHM, audience: REVIEWER_AUDIENCE },
+    {
+      secret,
+      expiresIn: REVIEWER_COOKIE_TTL_SECONDS,
+      algorithm: TOKEN_ALGORITHM,
+      audience: REVIEWER_AUDIENCE,
+    },
   );
   return { token, maxAgeSeconds: REVIEWER_COOKIE_TTL_SECONDS };
 }
@@ -70,7 +75,11 @@ export function verifyReviewerCookie(
   epoch: number,
 ): ReviewerSession | null {
   try {
-    const claims = jwt.verify<ReviewerClaims>(token, { secret, algorithms: [TOKEN_ALGORITHM], audience: REVIEWER_AUDIENCE });
+    const claims = jwt.verify<ReviewerClaims>(token, {
+      secret,
+      algorithms: [TOKEN_ALGORITHM],
+      audience: REVIEWER_AUDIENCE,
+    });
     if (typeof claims.label !== 'string' || claims.epoch !== epoch) return null;
     return {
       label: claims.label,
@@ -92,7 +101,7 @@ export function buildReviewerSetCookie(opts: {
   /** Set to `true` behind HTTPS so the browser only sends it over TLS. */
   secure: boolean;
 }): string {
-  const value = opts.clear ? '' : opts.token ?? '';
+  const value = opts.clear ? '' : (opts.token ?? '');
   const segments = [
     `${REVIEWER_COOKIE_NAME}=${encodeURIComponent(value)}`,
     'Path=/',

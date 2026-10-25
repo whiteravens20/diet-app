@@ -2,7 +2,14 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { Cuisine, type Locale, type PlannedIngredient, type Recipe, type RecipeSearchPage, type RecipeSearchQuery } from '@diet-app/shared';
+import {
+  Cuisine,
+  type Locale,
+  type PlannedIngredient,
+  type Recipe,
+  type RecipeSearchPage,
+  type RecipeSearchQuery,
+} from '@diet-app/shared';
 import { collatedFor } from '../common/collation.js';
 import { displayAmount, type DisplayedIngredient } from '../engine/display.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -56,8 +63,12 @@ export class RecipesService {
     const profile =
       filters.profileId === undefined
         ? null
-        : await this.prisma.profile.findFirst({ where: { id: filters.profileId, userId }, select: { id: true, preferences: { select: { favoriteIngredientIds: true } } } });
-    if (filters.profileId !== undefined && !profile) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+        : await this.prisma.profile.findFirst({
+            where: { id: filters.profileId, userId },
+            select: { id: true, preferences: { select: { favoriteIngredientIds: true } } },
+          });
+    if (filters.profileId !== undefined && !profile)
+      throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
     const favoured = profile?.preferences?.favoriteIngredientIds ?? [];
     // Two AND-ed groups: ownership AND the actual filters. We split them
     // because Prisma's top-level `OR` can't co-exist with a second `OR` for
@@ -82,23 +93,43 @@ export class RecipesService {
           : []),
         ...(filters.cuisine ? [{ cuisine: filters.cuisine }] : []),
         // Every ingredient that was named, not any of them: a search for rice and beans is for dishes of both.
-        ...(filters.ingredientIds ?? []).map((ingredientId) => ({ ingredients: { some: { ingredientId } } })),
-        ...(filters.withoutAllergens?.length ? [{ NOT: { allergens: { hasSome: filters.withoutAllergens } } }] : []),
-        ...(filters.minProtein !== undefined ? [{ proteinPerServing: { gte: filters.minProtein } }] : []),
+        ...(filters.ingredientIds ?? []).map((ingredientId) => ({
+          ingredients: { some: { ingredientId } },
+        })),
+        ...(filters.withoutAllergens?.length
+          ? [{ NOT: { allergens: { hasSome: filters.withoutAllergens } } }]
+          : []),
+        ...(filters.minProtein !== undefined
+          ? [{ proteinPerServing: { gte: filters.minProtein } }]
+          : []),
         ...(filters.maxFat !== undefined ? [{ fatPerServing: { lte: filters.maxFat } }] : []),
         ...(filters.maxCarbs !== undefined ? [{ carbsPerServing: { lte: filters.maxCarbs } }] : []),
         ...(filters.marked && profile
-          ? [{ favorites: { some: { profileId: profile.id, sentiment: filters.marked === 'marked' ? { in: ['favorite', 'often'] } : filters.marked } } }]
+          ? [
+              {
+                favorites: {
+                  some: {
+                    profileId: profile.id,
+                    sentiment:
+                      filters.marked === 'marked' ? { in: ['favorite', 'often'] } : filters.marked,
+                  },
+                },
+              },
+            ]
           : []),
         // A profile that favours no ingredient has no recipe with one.
-        ...(filters.favoriteIngredients ? [{ ingredients: { some: { ingredientId: { in: favoured } } } }] : []),
+        ...(filters.favoriteIngredients
+          ? [{ ingredients: { some: { ingredientId: { in: favoured } } } }]
+          : []),
       ],
     };
     // The page is cut from the list as it is shown: sorted by the title in the
     // language of the request, or the English one where there is none. Which
     // recipes match is asked first, as ids; the database then puts those in
     // order and hands back one page of them.
-    const matching = (await this.prisma.recipe.findMany({ where, select: { id: true } })).map((row) => row.id);
+    const matching = (await this.prisma.recipe.findMany({ where, select: { id: true } })).map(
+      (row) => row.id,
+    );
     const total = matching.length;
     const shown =
       total === 0
@@ -137,7 +168,8 @@ export class RecipesService {
         ...translationsFor(locale),
       },
     });
-    if (!row) throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+    if (!row)
+      throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
     // Owner-scoped privacy: a recipe with an owner is visible only to them.
     // Covers user-origin ingredient variants AND user-private AI drafts.
     // Soft-deleted rows are treated like "not found" for the user; the meal-
@@ -208,7 +240,10 @@ export class RecipesService {
     }
     // A recipe of the catalogue is everybody's to read and nobody's to delete.
     if (row.createdByUserId === null) {
-      throw new ForbiddenException({ error: 'FORBIDDEN', message: 'A recipe of the catalogue cannot be deleted.' });
+      throw new ForbiddenException({
+        error: 'FORBIDDEN',
+        message: 'A recipe of the catalogue cannot be deleted.',
+      });
     }
     if (row.deletedAt) return;
     await this.prisma.recipe.update({
@@ -224,11 +259,13 @@ export class RecipesService {
  *  but the API must never return blank strings). */
 function pickRecipe(
   locale: Locale,
-  translations: { locale: string; title: string; description: string; steps: string[] }[] | undefined,
+  translations:
+    { locale: string; title: string; description: string; steps: string[] }[] | undefined,
   fallback: { title: string; description: string; steps: string[] },
 ): { title: string; description: string; steps: string[] } {
   if (!translations || translations.length === 0) return fallback;
-  const match = translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en');
+  const match =
+    translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en');
   return match ?? fallback;
 }
 
@@ -238,7 +275,8 @@ export function pickIngredient(
   fallback: string,
 ): string {
   if (!translations || translations.length === 0) return fallback;
-  const match = translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en');
+  const match =
+    translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en');
   return match?.name ?? fallback;
 }
 
@@ -258,7 +296,11 @@ export interface RecipeLine {
  * The lines of a recipe in the amounts one planned meal takes: each scaled by
  * `factor` (the meal's servings over the recipe's), exact and as it is shown.
  */
-export function toPlannedIngredients(lines: readonly RecipeLine[], factor: number, locale: Locale): PlannedIngredient[] {
+export function toPlannedIngredients(
+  lines: readonly RecipeLine[],
+  factor: number,
+  locale: Locale,
+): PlannedIngredient[] {
   return lines.map((line) => {
     const quantity = line.quantity * factor;
     return {

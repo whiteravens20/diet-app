@@ -31,11 +31,19 @@ describe('the numbers on the admin page', () => {
 
   it('leave out what a catalogue update retired', async () => {
     const before = await counts();
-    const recipe = await t.prisma.recipe.findFirstOrThrow({ where: { createdByUserId: null, retiredAt: null } });
+    const recipe = await t.prisma.recipe.findFirstOrThrow({
+      where: { createdByUserId: null, retiredAt: null },
+    });
     const ingredient = await t.prisma.ingredient.findFirstOrThrow({ where: { retiredAt: null } });
     await t.prisma.recipe.update({ where: { id: recipe.id }, data: { retiredAt: new Date() } });
-    await t.prisma.ingredient.update({ where: { id: ingredient.id }, data: { retiredAt: new Date() } });
+    await t.prisma.ingredient.update({
+      where: { id: ingredient.id },
+      data: { retiredAt: new Date() },
+    });
 
-    expect(await counts()).toMatchObject({ recipes: before.recipes - 1, ingredients: before.ingredients - 1 });
+    expect(await counts()).toMatchObject({
+      recipes: before.recipes - 1,
+      ingredients: before.ingredients - 1,
+    });
   });
 });

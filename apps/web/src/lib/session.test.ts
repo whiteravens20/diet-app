@@ -3,13 +3,27 @@
 import type { AuthResponse } from '@diet-app/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const anAnswer = (accessToken: string, sessionId = '11111111-1111-4111-8111-111111111111'): AuthResponse => ({
-  user: { id: '22222222-2222-4222-8222-222222222222', email: 'user@example.test', displayName: 'User', role: 'user', emailVerified: true },
+const anAnswer = (
+  accessToken: string,
+  sessionId = '11111111-1111-4111-8111-111111111111',
+): AuthResponse => ({
+  user: {
+    id: '22222222-2222-4222-8222-222222222222',
+    email: 'user@example.test',
+    displayName: 'User',
+    role: 'user',
+    emailVerified: true,
+  },
   tokens: { accessToken, expiresIn: 900, refreshExpiresIn: 2_592_000 },
   sessionId,
 });
 const answered = (status: number, body: unknown = {}): Response =>
-  status === 204 ? new Response(null, { status }) : new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  status === 204
+    ? new Response(null, { status })
+    : new Response(JSON.stringify(body), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      });
 
 /** The module as a page that was just loaded has it, with the session cookie present or not. */
 async function aPage(signedIn: boolean) {
@@ -79,7 +93,11 @@ describe('the session of the browser', () => {
 
       expect(session.accessToken).toBe('access-2');
       // Finished by the browser even if the page goes away: its answer holds the next cookie.
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/refresh', { method: 'POST', credentials: 'same-origin', keepalive: true });
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive: true,
+      });
     });
 
     it('asks once, however many requests of the page want a token at the same moment', async () => {
@@ -94,7 +112,9 @@ describe('the session of the browser', () => {
 
     it('tries again a moment later when another request of the browser has just used the cookie', async () => {
       const session = await aPage(true);
-      fetchMock.mockResolvedValueOnce(answered(409, { error: 'SESSION_JUST_REFRESHED' })).mockResolvedValueOnce(answered(200, anAnswer('access-3')));
+      fetchMock
+        .mockResolvedValueOnce(answered(409, { error: 'SESSION_JUST_REFRESHED' }))
+        .mockResolvedValueOnce(answered(200, anAnswer('access-3')));
 
       expect(await session.refresh()).toBe(true);
 
@@ -106,7 +126,9 @@ describe('the session of the browser', () => {
       vi.useFakeTimers();
       try {
         const session = await aPage(true);
-        fetchMock.mockImplementation(() => Promise.resolve(answered(409, { error: 'SESSION_JUST_REFRESHED' })));
+        fetchMock.mockImplementation(() =>
+          Promise.resolve(answered(409, { error: 'SESSION_JUST_REFRESHED' })),
+        );
 
         const result = session.refresh();
         await vi.runAllTimersAsync();
@@ -141,17 +163,20 @@ describe('the session of the browser', () => {
       ['is asked to wait', () => Promise.resolve(answered(429))],
       ['fails', () => Promise.resolve(answered(503))],
       ['cannot be reached', () => Promise.reject(new TypeError('Failed to fetch'))],
-    ])('keeps the session when the server %s: that says nothing about the session', async (_name, respond) => {
-      const session = await aPage(true);
-      session.begin(anAnswer('access-1'));
-      fetchMock.mockImplementation(respond);
+    ])(
+      'keeps the session when the server %s: that says nothing about the session',
+      async (_name, respond) => {
+        const session = await aPage(true);
+        session.begin(anAnswer('access-1'));
+        fetchMock.mockImplementation(respond);
 
-      expect(await session.refresh()).toBe(false);
+        expect(await session.refresh()).toBe(false);
 
-      expect(session.accessToken).toBe('access-1');
-      expect(session.exists()).toBe(true);
-      expect(session.leave).not.toHaveBeenCalled();
-    });
+        expect(session.accessToken).toBe('access-1');
+        expect(session.exists()).toBe(true);
+        expect(session.leave).not.toHaveBeenCalled();
+      },
+    );
 
     it('says that the session could not be reached, to whoever watches, until a try gets through', async () => {
       const session = await aPage(true);
@@ -165,7 +190,9 @@ describe('the session of the browser', () => {
       expect(session.unreachable).toBe(true);
       expect(told).toHaveBeenCalledTimes(1);
 
-      fetchMock.mockResolvedValueOnce(answered(503)).mockResolvedValueOnce(answered(200, anAnswer('access-2')));
+      fetchMock
+        .mockResolvedValueOnce(answered(503))
+        .mockResolvedValueOnce(answered(200, anAnswer('access-2')));
       const again = session.refresh();
       expect(session.unreachable).toBe(true);
       await again;
@@ -179,7 +206,9 @@ describe('the session of the browser', () => {
 
     it('says nothing of the kind of a session that was refused: that one has ended', async () => {
       const session = await aPage(true);
-      fetchMock.mockResolvedValueOnce(answered(503)).mockResolvedValueOnce(answered(401, { error: 'INVALID_REFRESH' }));
+      fetchMock
+        .mockResolvedValueOnce(answered(503))
+        .mockResolvedValueOnce(answered(401, { error: 'INVALID_REFRESH' }));
       await session.refresh();
 
       await session.refresh();
@@ -196,7 +225,11 @@ describe('the session of the browser', () => {
       const told = vi.fn();
       session.subscribe(told);
 
-      other.tab.postMessage({ type: 'token', accessToken: 'from-the-other-tab', sessionId: '33333333-3333-4333-8333-333333333333' });
+      other.tab.postMessage({
+        type: 'token',
+        accessToken: 'from-the-other-tab',
+        sessionId: '33333333-3333-4333-8333-333333333333',
+      });
       await aMoment();
 
       expect(session.accessToken).toBe('from-the-other-tab');
@@ -214,7 +247,11 @@ describe('the session of the browser', () => {
       await session.refresh();
       await aMoment();
 
-      expect(other.heard).toContainEqual({ type: 'token', accessToken: 'access-2', sessionId: '11111111-1111-4111-8111-111111111111' });
+      expect(other.heard).toContainEqual({
+        type: 'token',
+        accessToken: 'access-2',
+        sessionId: '11111111-1111-4111-8111-111111111111',
+      });
       other.close();
     });
 
@@ -273,7 +310,11 @@ describe('the session of the browser', () => {
     await session.signOut();
     await aMoment();
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', credentials: 'same-origin', keepalive: true });
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+      keepalive: true,
+    });
     expect(session.accessToken).toBeNull();
     expect(session.exists()).toBe(false);
     expect(other.heard).toContainEqual({ type: 'signed-out' });
@@ -341,22 +382,27 @@ describe('the session of the browser', () => {
       ['@elsewhere.example', `${ORIGIN}/@elsewhere.example`],
       ['javascript:alert(1)', `${ORIGIN}/javascript:alert(1)`],
       ['', `${ORIGIN}/`],
-    ])('loads a page of the application whatever it is handed: "%s" is %s', async (handed, loaded) => {
-      const { session, location } = await aPageAt('/login');
+    ])(
+      'loads a page of the application whatever it is handed: "%s" is %s',
+      async (handed, loaded) => {
+        const { session, location } = await aPageAt('/login');
 
-      session.load(handed);
+        session.load(handed);
 
-      expect(location.replace).toHaveBeenCalledWith(loaded);
-      // The browser reads it as an address of the application, and of nowhere else.
-      expect(new URL(location.replace.mock.calls[0]![0] as string).origin).toBe(ORIGIN);
-    });
+        expect(location.replace).toHaveBeenCalledWith(loaded);
+        // The browser reads it as an address of the application, and of nowhere else.
+        expect(new URL(location.replace.mock.calls[0]![0] as string).origin).toBe(ORIGIN);
+      },
+    );
 
     it('leaves a page of an account whose session has ended for the sign-in page, which is told where to come back to', async () => {
       const { session, location } = await aPageAt('/meal-plans', '?profile=0b1f');
 
       session.leave();
 
-      expect(location.replace).toHaveBeenCalledWith(`${ORIGIN}/login?next=%2Fmeal-plans%3Fprofile%3D0b1f`);
+      expect(location.replace).toHaveBeenCalledWith(
+        `${ORIGIN}/login?next=%2Fmeal-plans%3Fprofile%3D0b1f`,
+      );
     });
 
     it('leaves the home page of the account for the plain sign-in page', async () => {
@@ -367,12 +413,15 @@ describe('the session of the browser', () => {
       expect(location.replace).toHaveBeenCalledWith(`${ORIGIN}/login`);
     });
 
-    it.each(['/login', '/', '/terms', '/admin', '/reset-password'])('stays on %s, a page anybody can open: it has nothing of the account to lose', async (pathname) => {
-      const { session, location } = await aPageAt(pathname, '?next=%2Fprofile');
+    it.each(['/login', '/', '/terms', '/admin', '/reset-password'])(
+      'stays on %s, a page anybody can open: it has nothing of the account to lose',
+      async (pathname) => {
+        const { session, location } = await aPageAt(pathname, '?next=%2Fprofile');
 
-      session.leave();
+        session.leave();
 
-      expect(location.replace).not.toHaveBeenCalled();
-    });
+        expect(location.replace).not.toHaveBeenCalled();
+      },
+    );
   });
 });

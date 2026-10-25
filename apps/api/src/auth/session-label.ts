@@ -11,7 +11,8 @@
 export function sessionLabel(userAgent: string | undefined): string | null {
   if (!userAgent) return null;
   const system = SYSTEMS.find(([pattern]) => pattern.test(userAgent))?.[1] ?? null;
-  const browser = BROWSERS.find(([pattern]) => pattern.test(userAgent))?.[1] ?? clientName(userAgent);
+  const browser =
+    BROWSERS.find(([pattern]) => pattern.test(userAgent))?.[1] ?? clientName(userAgent);
   if (browser && system) return `${browser} · ${system}`;
   return browser ?? system;
 }

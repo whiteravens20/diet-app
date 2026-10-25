@@ -52,7 +52,9 @@ const round = (value: number): number => Math.max(0, Math.round(value * 10) / 10
 
 function read(nutrients: readonly SourceNutrient[], numbers: readonly string[]): number | null {
   for (const number of numbers) {
-    const found = nutrients.find((n) => (n.nutrientNumber ?? n.number ?? n.nutrient?.number) === number);
+    const found = nutrients.find(
+      (n) => (n.nutrientNumber ?? n.number ?? n.nutrient?.number) === number,
+    );
     const raw = found?.value ?? found?.amount;
     if (typeof raw === 'number' && Number.isFinite(raw)) return round(raw);
   }
@@ -60,7 +62,8 @@ function read(nutrients: readonly SourceNutrient[], numbers: readonly string[]):
 }
 
 /** The energy the three macronutrients account for, at 4, 9 and 4 kcal per gram. */
-const fromMacros = (protein: number, fat: number, carbs: number): number => round(protein * 4 + fat * 9 + carbs * 4);
+const fromMacros = (protein: number, fat: number, carbs: number): number =>
+  round(protein * 4 + fat * 9 + carbs * 4);
 
 /**
  * The values of a food, or why it cannot be imported. Energy that the source
@@ -72,19 +75,28 @@ export function macrosOf(nutrients: readonly SourceNutrient[]): Macros | { refus
   const isFat = fat !== null && fat >= FAT_AND_LITTLE_ELSE;
   const protein = read(nutrients, NUMBERS.protein) ?? (isFat ? 0 : null);
   const carbs = read(nutrients, NUMBERS.carbs) ?? (isFat ? 0 : null);
-  const missing = [protein === null && 'protein', fat === null && 'fat', carbs === null && 'carbohydrate'].filter(Boolean);
-  if (protein === null || fat === null || carbs === null) return { refused: `no value for ${missing.join(', ')}` };
+  const missing = [
+    protein === null && 'protein',
+    fat === null && 'fat',
+    carbs === null && 'carbohydrate',
+  ].filter(Boolean);
+  if (protein === null || fat === null || carbs === null)
+    return { refused: `no value for ${missing.join(', ')}` };
 
   const expected = fromMacros(protein, fat, carbs);
   const energy = read(nutrients, NUMBERS.energy) ?? expected;
   if (energy === 0) return { refused: 'no energy' };
   if (protein + fat + carbs > 100.5) {
-    return { refused: `protein, fat and carbohydrate add up to ${round(protein + fat + carbs)} g in 100 g` };
+    return {
+      refused: `protein, fat and carbohydrate add up to ${round(protein + fat + carbs)} g in 100 g`,
+    };
   }
   // Fibre and rounding explain small gaps; alcohol or a wrong figure a large one.
   const gap = Math.abs(energy - expected);
   if (gap > Math.max(10, energy * 0.15)) {
-    return { refused: `${energy} kcal stated, ${expected} kcal from its protein, fat and carbohydrate` };
+    return {
+      refused: `${energy} kcal stated, ${expected} kcal from its protein, fat and carbohydrate`,
+    };
   }
   return { caloriesPer100: energy, proteinPer100: protein, fatPer100: fat, carbsPer100: carbs };
 }

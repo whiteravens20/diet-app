@@ -34,17 +34,23 @@ function painted([l, c, h]: Oklch): Rgb {
 }
 
 function luminance(rgb: Rgb): number {
-  const [r, g, b] = rgb.map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)) as Rgb;
+  const [r, g, b] = rgb.map((v) =>
+    v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4,
+  ) as Rgb;
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 function contrast(one: Rgb, other: Rgb): number {
-  const [lighter, darker] = [luminance(one), luminance(other)].sort((x, y) => y - x) as [number, number];
+  const [lighter, darker] = [luminance(one), luminance(other)].sort((x, y) => y - x) as [
+    number,
+    number,
+  ];
   return (lighter + 0.05) / (darker + 0.05);
 }
 
 /** `top` at `alpha` over `under`, blended as a browser blends: in sRGB. */
-const over = (top: Rgb, under: Rgb, alpha: number): Rgb => top.map((v, i) => v * alpha + under[i]! * (1 - alpha)) as Rgb;
+const over = (top: Rgb, under: Rgb, alpha: number): Rgb =>
+  top.map((v, i) => v * alpha + under[i]! * (1 - alpha)) as Rgb;
 
 const PALETTES = ['default', 'ocean', 'forest', 'sunset', 'mono', 'rose'] as const;
 const MODES = ['light', 'dark'] as const;
@@ -53,7 +59,9 @@ const MODES = ['light', 'dark'] as const;
 function blocks(): Record<string, Record<string, Oklch>> {
   const css = readFileSync(join(import.meta.dirname, 'globals.css'), 'utf8');
   const found: Record<string, Record<string, Oklch>> = {};
-  for (const block of css.matchAll(/^(:root|\.dark)(?:\[data-palette='(\w+)'\])?\s*\{([^}]*)\}/gm)) {
+  for (const block of css.matchAll(
+    /^(:root|\.dark)(?:\[data-palette='(\w+)'\])?\s*\{([^}]*)\}/gm,
+  )) {
     const tokens: Record<string, Oklch> = {};
     for (const token of block[3]!.matchAll(/--([\w-]+):\s*oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)/g)) {
       tokens[token[1]!] = [Number(token[2]), Number(token[3]), Number(token[4])];
@@ -73,12 +81,18 @@ function paletteIn(palette: string, mode: string): Record<string, Rgb> {
 const SURFACES = ['background', 'card', 'muted'] as const;
 
 /** Every pair that falls short of `least`, as `<palette> <mode>: <text> on <surface> <ratio>`. */
-function short(pairs: (colours: Record<string, Rgb>) => [name: string, text: Rgb, behind: Rgb][], least: number): string[] {
+function short(
+  pairs: (colours: Record<string, Rgb>) => [name: string, text: Rgb, behind: Rgb][],
+  least: number,
+): string[] {
   return PALETTES.flatMap((palette) =>
     MODES.flatMap((mode) =>
       pairs(paletteIn(palette, mode))
         .filter(([, text, behind]) => contrast(text, behind) < least)
-        .map(([name, text, behind]) => `${palette} ${mode}: ${name} ${contrast(text, behind).toFixed(2)}`),
+        .map(
+          ([name, text, behind]) =>
+            `${palette} ${mode}: ${name} ${contrast(text, behind).toFixed(2)}`,
+        ),
     ),
   );
 }
@@ -87,8 +101,25 @@ describe('the colour tokens', () => {
   it('are read: every palette has its light and its dark block', () => {
     const found = blocks();
 
-    for (const palette of PALETTES) for (const mode of MODES) expect(Object.keys(found[`${palette} ${mode}`] ?? {}), `${palette} ${mode}`).not.toEqual([]);
-    expect(Object.keys(found['default light']!)).toEqual(expect.arrayContaining(['background', 'card', 'muted', 'foreground', 'muted-foreground', 'primary', 'input', 'warning', 'success', 'destructive']));
+    for (const palette of PALETTES)
+      for (const mode of MODES)
+        expect(Object.keys(found[`${palette} ${mode}`] ?? {}), `${palette} ${mode}`).not.toEqual(
+          [],
+        );
+    expect(Object.keys(found['default light']!)).toEqual(
+      expect.arrayContaining([
+        'background',
+        'card',
+        'muted',
+        'foreground',
+        'muted-foreground',
+        'primary',
+        'input',
+        'warning',
+        'success',
+        'destructive',
+      ]),
+    );
   });
 
   it('keep text readable on every surface it is written on', () => {
@@ -126,7 +157,11 @@ describe('the colour tokens', () => {
       short(
         (c) =>
           (['warning', 'success', 'destructive'] as const).flatMap((tone) =>
-            (['background', 'card'] as const).map((surface): [string, Rgb, Rgb] => [`${tone} on its tint over ${surface}`, c[tone]!, over(c[tone]!, c[surface]!, 0.1)]),
+            (['background', 'card'] as const).map((surface): [string, Rgb, Rgb] => [
+              `${tone} on its tint over ${surface}`,
+              c[tone]!,
+              over(c[tone]!, c[surface]!, 0.1),
+            ]),
           ),
         4.5,
       ),

@@ -15,27 +15,40 @@ function directoryWith(content?: string): string {
 }
 const slugs = new Set(['zucchini', 'shrimp']);
 
-describe('the other names of the catalogue\'s ingredients', () => {
+describe("the other names of the catalogue's ingredients", () => {
   it('are none, and nothing is wrong, where there is no file', () => {
     expect(readImportAliases(directoryWith())).toEqual({ aliases: {}, problems: [] });
   });
 
   it('are read as they are written', () => {
-    expect(readImportAliases(directoryWith('{ "courgette": "zucchini", "prawns": "shrimp" }'), slugs)).toEqual({ aliases: { courgette: 'zucchini', prawns: 'shrimp' }, problems: [] });
+    expect(
+      readImportAliases(directoryWith('{ "courgette": "zucchini", "prawns": "shrimp" }'), slugs),
+    ).toEqual({ aliases: { courgette: 'zucchini', prawns: 'shrimp' }, problems: [] });
   });
 
   it('leave out a name for an ingredient the catalogue does not have, and say so, where the catalogue is known', () => {
     const file = directoryWith('{ "courgette": "zucchini", "scallion": "spring-onion" }');
 
-    expect(readImportAliases(file, slugs)).toEqual({ aliases: { courgette: 'zucchini' }, problems: ['"scallion": the catalogue has no ingredient "spring-onion"'] });
+    expect(readImportAliases(file, slugs)).toEqual({
+      aliases: { courgette: 'zucchini' },
+      problems: ['"scallion": the catalogue has no ingredient "spring-onion"'],
+    });
     // Without the catalogue to hold it against, the file is taken at its word.
-    expect(readImportAliases(file).aliases).toEqual({ courgette: 'zucchini', scallion: 'spring-onion' });
+    expect(readImportAliases(file).aliases).toEqual({
+      courgette: 'zucchini',
+      scallion: 'spring-onion',
+    });
   });
 
   it('leave out what is no slug, and say so', () => {
-    expect(readImportAliases(directoryWith('{ "courgette": 7, "prawns": "", "cod": "shrimp" }'), slugs)).toEqual({
+    expect(
+      readImportAliases(directoryWith('{ "courgette": 7, "prawns": "", "cod": "shrimp" }'), slugs),
+    ).toEqual({
       aliases: { cod: 'shrimp' },
-      problems: ['"courgette": expected the slug of an ingredient', '"prawns": expected the slug of an ingredient'],
+      problems: [
+        '"courgette": expected the slug of an ingredient',
+        '"prawns": expected the slug of an ingredient',
+      ],
     });
   });
 
@@ -53,21 +66,33 @@ describe('the other names of the catalogue\'s ingredients', () => {
 
 describe('the aliases the catalogue ships with', () => {
   const shipped = resolve(__dirname, '../../../../../../data');
-  const ingredients = JSON.parse(readFileSync(join(shipped, 'ingredients.json'), 'utf8')) as { slug: string; name: { en: string } }[];
+  const ingredients = JSON.parse(readFileSync(join(shipped, 'ingredients.json'), 'utf8')) as {
+    slug: string;
+    name: { en: string };
+  }[];
 
   it('each name an ingredient of the curated data, and none says what the catalogue says already', () => {
-    const { aliases, problems } = readImportAliases(shipped, new Set(ingredients.map((ingredient) => ingredient.slug)));
+    const { aliases, problems } = readImportAliases(
+      shipped,
+      new Set(ingredients.map((ingredient) => ingredient.slug)),
+    );
 
     expect(problems).toEqual([]);
     expect(Object.keys(aliases).length).toBeGreaterThan(20);
-    const own = new Set(ingredients.flatMap((ingredient) => [plainName(ingredient.name.en), plainName(ingredient.slug.replaceAll('-', ' '))]));
+    const own = new Set(
+      ingredients.flatMap((ingredient) => [
+        plainName(ingredient.name.en),
+        plainName(ingredient.slug.replaceAll('-', ' ')),
+      ]),
+    );
     expect(Object.keys(aliases).filter((name) => own.has(plainName(name)))).toEqual([]);
   });
 
   it('are each one plain name: two spellings that come to the same do not point at two ingredients', () => {
     const { aliases } = readImportAliases(shipped);
     const byPlain = new Map<string, Set<string>>();
-    for (const [name, slug] of Object.entries(aliases)) byPlain.set(plainName(name), (byPlain.get(plainName(name)) ?? new Set()).add(slug));
+    for (const [name, slug] of Object.entries(aliases))
+      byPlain.set(plainName(name), (byPlain.get(plainName(name)) ?? new Set()).add(slug));
 
     expect([...byPlain].filter(([, pointsAt]) => pointsAt.size > 1)).toEqual([]);
   });

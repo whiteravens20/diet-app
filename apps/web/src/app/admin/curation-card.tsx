@@ -18,9 +18,7 @@
  */
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import {
-  ClipboardCheck,
-} from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IngredientPanel } from './curation/ingredient-panel';
 import { RecipePanel } from './curation/recipe-panel';

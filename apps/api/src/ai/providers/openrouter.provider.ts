@@ -17,7 +17,9 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * that it turns into each vendor's setting for thinking and leaves out for a
  * model that has none.
  */
-type OpenRouterRequest = OpenAI.Chat.ChatCompletionCreateParamsNonStreaming & { reasoning?: { effort: 'none' } };
+type OpenRouterRequest = OpenAI.Chat.ChatCompletionCreateParamsNonStreaming & {
+  reasoning?: { effort: 'none' };
+};
 
 /** OpenRouter adapter — OpenAI-compatible API, routed across many models. */
 @Injectable()
@@ -36,7 +38,12 @@ export class OpenRouterProvider implements AiProviderAdapter {
         // in the time that is left: that is the same request made acceptable,
         // not another try of one that failed.
         if (!(opts.direct && err instanceof OpenAI.APIError && err.status === 400)) throw err;
-        return await this.ask(messages, opts, false, Math.max(1, opts.timeoutMs - (Date.now() - started)));
+        return await this.ask(
+          messages,
+          opts,
+          false,
+          Math.max(1, opts.timeoutMs - (Date.now() - started)),
+        );
       }
     } catch (err) {
       throw new AiProviderError(
@@ -47,7 +54,12 @@ export class OpenRouterProvider implements AiProviderAdapter {
     }
   }
 
-  private async ask(messages: ChatMessage[], opts: CompletionOptions, direct: boolean, timeoutMs: number): Promise<CompletionResult> {
+  private async ask(
+    messages: ChatMessage[],
+    opts: CompletionOptions,
+    direct: boolean,
+    timeoutMs: number,
+  ): Promise<CompletionResult> {
     const client = new OpenAI({
       apiKey: opts.apiKey,
       baseURL: OPENROUTER_BASE_URL,

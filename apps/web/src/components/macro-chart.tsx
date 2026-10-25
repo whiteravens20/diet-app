@@ -32,13 +32,22 @@ export function MacroChart({ grams, kcal }: { grams: Macros; kcal: number }) {
   const t = useTranslations('profileSummary');
   const fmt = useFormat();
   const [wide, setWide] = useState(false);
-  const parts = (energySplit(grams) ?? []).map((part) => ({ ...part, name: t(part.key), share: fmt.percent(part.percent / 100), color: MACRO_COLORS[part.key] }));
+  const parts = (energySplit(grams) ?? []).map((part) => ({
+    ...part,
+    name: t(part.key),
+    share: fmt.percent(part.percent / 100),
+    color: MACRO_COLORS[part.key],
+  }));
 
   return (
     <div className="space-y-3">
       {/* The ring says nothing the legend does not: the legend is what is read out, and the ring takes no focus either. */}
       <div className="relative h-64" aria-hidden="true">
-        <ResponsiveContainer width="100%" height="100%" onResize={(width) => setWide(width >= LABELS_FROM_WIDTH)}>
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          onResize={(width) => setWide(width >= LABELS_FROM_WIDTH)}
+        >
           <PieChart accessibilityLayer={false}>
             <Pie
               data={parts}
@@ -67,7 +76,11 @@ export function MacroChart({ grams, kcal }: { grams: Macros; kcal: number }) {
       <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
         {parts.map((part) => (
           <li key={part.key} className="flex items-center gap-2">
-            <span className="size-2.5 shrink-0 rounded-full" style={{ background: part.color }} aria-hidden="true" />
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ background: part.color }}
+              aria-hidden="true"
+            />
             <span className="font-medium tabular-nums">{fmt.unit(part.grams, 'gram')}</span>
             <span className="text-muted-foreground">
               {part.name} · {part.share}
@@ -85,13 +98,14 @@ export function MacroChart({ grams, kcal }: { grams: Macros; kcal: number }) {
  * part after another.
  */
 function FloatingLabel(props: PieLabelRenderProps) {
-  const { cx, cy, midAngle, outerRadius, x, y, textAnchor, index, payload } = props as PieLabelRenderProps & {
-    cx: number;
-    cy: number;
-    midAngle: number;
-    outerRadius: number;
-    payload: { share: string; name: string; color: string };
-  };
+  const { cx, cy, midAngle, outerRadius, x, y, textAnchor, index, payload } =
+    props as PieLabelRenderProps & {
+      cx: number;
+      cy: number;
+      midAngle: number;
+      outerRadius: number;
+      payload: { share: string; name: string; color: string };
+    };
   const cos = Math.cos(-midAngle * RADIAN);
   const sin = Math.sin(-midAngle * RADIAN);
   const from = { x: cx + (outerRadius + 3) * cos, y: cy + (outerRadius + 3) * sin };
@@ -99,9 +113,19 @@ function FloatingLabel(props: PieLabelRenderProps) {
   const textX = x + (textAnchor === 'start' ? 4 : textAnchor === 'end' ? -4 : 0);
   return (
     <g className="float-in" style={{ animationDelay: `${index * 90}ms` }}>
-      <path d={`M${from.x},${from.y}L${x},${y}`} stroke={payload.color} strokeWidth={1.5} fill="none" />
+      <path
+        d={`M${from.x},${from.y}L${x},${y}`}
+        stroke={payload.color}
+        strokeWidth={1.5}
+        fill="none"
+      />
       <circle cx={x} cy={y} r={2} fill={payload.color} />
-      <text x={textX} y={y} textAnchor={textAnchor} className="fill-foreground text-sm font-semibold tabular-nums">
+      <text
+        x={textX}
+        y={y}
+        textAnchor={textAnchor}
+        className="fill-foreground text-sm font-semibold tabular-nums"
+      >
         {payload.share}
         <tspan x={textX} dy="1.15em" className="fill-muted-foreground text-xs font-normal">
           {payload.name}

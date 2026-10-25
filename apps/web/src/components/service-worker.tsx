@@ -30,8 +30,13 @@ export function ServiceWorker() {
   }, []);
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'production' || !signedIn || !('serviceWorker' in navigator)) return;
-    void navigator.serviceWorker.ready.then((registration) => registration.active?.postMessage({ type: 'keep-pages', pages: KEPT_AHEAD })).catch(() => undefined);
+    if (process.env.NODE_ENV !== 'production' || !signedIn || !('serviceWorker' in navigator))
+      return;
+    void navigator.serviceWorker.ready
+      .then((registration) =>
+        registration.active?.postMessage({ type: 'keep-pages', pages: KEPT_AHEAD }),
+      )
+      .catch(() => undefined);
   }, [signedIn]);
 
   return null;

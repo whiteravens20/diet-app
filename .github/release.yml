@@ -9,41 +9,41 @@ changelog:
     labels:
       - skip-changelog
   categories:
-    - title: "🚨 Breaking Changes"
+    - title: '🚨 Breaking Changes'
       labels:
         - breaking
         - breaking-change
-    - title: "✨ New Features"
+    - title: '✨ New Features'
       labels:
         - enhancement
         - feature
-    - title: "🐛 Bug Fixes"
+    - title: '🐛 Bug Fixes'
       labels:
         - bug
         - fix
-    - title: "🔒 Security"
+    - title: '🔒 Security'
       labels:
         - security
-    - title: "⚡ Performance"
+    - title: '⚡ Performance'
       labels:
         - performance
-    - title: "📦 Dependencies"
+    - title: '📦 Dependencies'
       labels:
         - dependencies
         - deps
-    - title: "🔧 Maintenance"
+    - title: '🔧 Maintenance'
       labels:
         - chore
         - maintenance
         - refactor
-    - title: "📖 Documentation"
+    - title: '📖 Documentation'
       labels:
         - documentation
         - docs
-    - title: "🧪 Tests"
+    - title: '🧪 Tests'
       labels:
         - test
         - tests
-    - title: "Other Changes"
+    - title: 'Other Changes'
       labels:
-        - "*"
+        - '*'

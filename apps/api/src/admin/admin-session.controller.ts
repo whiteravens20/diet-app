@@ -1,6 +1,18 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, ConflictException, Controller, Delete, Get, HttpCode, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  ConflictException,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
@@ -20,7 +32,14 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { type Env, isAdminEnabled } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SignInGate } from '../rate-limit/sign-in-gate.js';
-import { ADMIN_COOKIE, adminCookie, isAdminSession, isAdministrator, sameText, signAdminSession } from './admin-session.js';
+import {
+  ADMIN_COOKIE,
+  adminCookie,
+  isAdminSession,
+  isAdministrator,
+  sameText,
+  signAdminSession,
+} from './admin-session.js';
 import { AdminSessionGuard, adminSessionEpoch, assertAdminEnabled } from './admin-session.guard.js';
 
 /** Where the administrator's session begins and ends. */
@@ -44,10 +63,19 @@ export class AdminSessionController {
   @Get()
   @Answers(AdminSessionState)
   async state(@Req() req: Request): Promise<AdminSessionState> {
-    const enabled = isAdminEnabled({ ADMIN_PASSWORD: this.config.get('ADMIN_PASSWORD', { infer: true }) });
+    const enabled = isAdminEnabled({
+      ADMIN_PASSWORD: this.config.get('ADMIN_PASSWORD', { infer: true }),
+    });
     const token = readCookie(req.headers.cookie, ADMIN_COOKIE);
-    const signedIn = enabled && Boolean(token) && isAdminSession(this.config, token!, await adminSessionEpoch(this.prisma));
-    return { enabled, signedIn, secondFactor: enabled && (await this.factors.has('administrator')) };
+    const signedIn =
+      enabled &&
+      Boolean(token) &&
+      isAdminSession(this.config, token!, await adminSessionEpoch(this.prisma));
+    return {
+      enabled,
+      signedIn,
+      secondFactor: enabled && (await this.factors.has('administrator')),
+    };
   }
 
   /** Sign the administrator in: the password, and a code where the second factor is on. The session is a cookie. */
@@ -62,7 +90,11 @@ export class AdminSessionController {
   @Post()
   @HttpCode(204)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  async signIn(@Body(new ZodValidationPipe(AdminSignInRequest)) body: AdminSignInRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
+  async signIn(
+    @Body(new ZodValidationPipe(AdminSignInRequest)) body: AdminSignInRequest,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
     assertAdminEnabled(this.config);
     // A page of another site cannot sign a visitor in to a session of its choosing.
     assertFromTheApplication(req.headers.origin, this.appUrl);
@@ -72,12 +104,21 @@ export class AdminSessionController {
     // The code is looked at only for the right password: wrong codes are
     // counted for everybody together, and a stranger must not be able to
     // run that count up.
-    if (!isAdministrator(this.config, body.user, body.password) || !(await this.passesSecondStep(body.code))) {
+    if (
+      !isAdministrator(this.config, body.user, body.password) ||
+      !(await this.passesSecondStep(body.code))
+    ) {
       this.gate.failed('admin', client);
-      throw new UnauthorizedException({ error: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' });
+      throw new UnauthorizedException({
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid credentials.',
+      });
     }
     this.gate.succeeded('admin', client);
-    res.setHeader('Set-Cookie', adminCookie(signAdminSession(this.config, await adminSessionEpoch(this.prisma)), this.appUrl));
+    res.setHeader(
+      'Set-Cookie',
+      adminCookie(signAdminSession(this.config, await adminSessionEpoch(this.prisma)), this.appUrl),
+    );
   }
 
   private async passesSecondStep(code: string | undefined): Promise<boolean> {
@@ -112,7 +153,10 @@ export class AdminSessionController {
   @HttpCode(204)
   @UseGuards(AdminSessionGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  async beginSecondFactor(@Body(new ZodValidationPipe(SecondFactorConfirmRequest)) body: SecondFactorConfirmRequest, @Res({ passthrough: true }) res: Response): Promise<void> {
+  async beginSecondFactor(
+    @Body(new ZodValidationPipe(SecondFactorConfirmRequest)) body: SecondFactorConfirmRequest,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
     this.assertNotBeingReset();
     let epoch = 0;
     await this.factors.begin('administrator', body.enrolment, body.code, async (tx) => {
@@ -150,14 +194,18 @@ export class AdminSessionController {
     this.gate.assertOpen('admin', client, res);
     if (sameText(password, this.config.get('ADMIN_PASSWORD', { infer: true }))) return;
     this.gate.failed('admin', client);
-    throw new UnauthorizedException({ error: 'INVALID_PASSWORD', message: 'Current password is incorrect.' });
+    throw new UnauthorizedException({
+      error: 'INVALID_PASSWORD',
+      message: 'Current password is incorrect.',
+    });
   }
 
   private assertNotBeingReset(): void {
     if (!this.config.get('ADMIN_SECOND_FACTOR_RESET', { infer: true })) return;
     throw new ConflictException({
       error: 'ADMIN_SECOND_FACTOR_RESET_SET',
-      message: 'ADMIN_SECOND_FACTOR_RESET is on: a second factor would be removed at the next start. Switch it off and restart, then set one up.',
+      message:
+        'ADMIN_SECOND_FACTOR_RESET is on: a second factor would be removed at the next start. Switch it off and restart, then set one up.',
     });
   }
 

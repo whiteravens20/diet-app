@@ -76,11 +76,54 @@ const UNITS: Record<string, { unit: 'g' | 'ml' | 'piece'; of: number }> = {
  * many pieces of "cloves garlic".
  */
 const NO_UNIT_OF_OURS = new Set([
-  'clove', 'cloves', 'can', 'cans', 'tin', 'tins', 'jar', 'jars', 'bunch', 'bunches', 'pinch', 'pinches', 'dash', 'dashes', 'handful', 'handfuls',
-  'slice', 'slices', 'stick', 'sticks', 'sprig', 'sprigs', 'head', 'heads', 'packet', 'packets', 'package', 'packages', 'pint', 'pints', 'quart', 'quarts', 'gallon', 'gallons',
+  'clove',
+  'cloves',
+  'can',
+  'cans',
+  'tin',
+  'tins',
+  'jar',
+  'jars',
+  'bunch',
+  'bunches',
+  'pinch',
+  'pinches',
+  'dash',
+  'dashes',
+  'handful',
+  'handfuls',
+  'slice',
+  'slices',
+  'stick',
+  'sticks',
+  'sprig',
+  'sprigs',
+  'head',
+  'heads',
+  'packet',
+  'packets',
+  'package',
+  'packages',
+  'pint',
+  'pints',
+  'quart',
+  'quarts',
+  'gallon',
+  'gallons',
 ]);
 
-const FRACTIONS: Record<string, string> = { '½': '1/2', '⅓': '1/3', '⅔': '2/3', '¼': '1/4', '¾': '3/4', '⅕': '1/5', '⅛': '1/8', '⅜': '3/8', '⅝': '5/8', '⅞': '7/8' };
+const FRACTIONS: Record<string, string> = {
+  '½': '1/2',
+  '⅓': '1/3',
+  '⅔': '2/3',
+  '¼': '1/4',
+  '¾': '3/4',
+  '⅕': '1/5',
+  '⅛': '1/8',
+  '⅜': '3/8',
+  '⅝': '5/8',
+  '⅞': '7/8',
+};
 
 /** `1`, `1.5`, `1,5`, `1/2` or `1 1/2` at the start of a text, and what follows it. */
 const AMOUNT = /^(?:(\d+)\s+(\d+)\/(\d+)|(\d+)\/(\d+)|(\d+(?:[.,]\d+)?))\s*/;
@@ -95,7 +138,12 @@ export function parseIngredientLine(text: string): ParsedLine {
   const amount = AMOUNT.exec(rest);
   if (!amount) return { ok: false, problem: 'no-quantity' };
   const [, whole, over, under, top, bottom, plain] = amount;
-  const quantity = plain !== undefined ? Number(plain.replace(',', '.')) : whole !== undefined ? Number(whole) + Number(over) / Number(under) : Number(top) / Number(bottom);
+  const quantity =
+    plain !== undefined
+      ? Number(plain.replace(',', '.'))
+      : whole !== undefined
+        ? Number(whole) + Number(over) / Number(under)
+        : Number(top) / Number(bottom);
   if (!Number.isFinite(quantity) || quantity <= 0) return { ok: false, problem: 'no-quantity' };
   rest = rest.slice(amount[0].length);
   // "2-3 apples", "2 to 3 apples": which of the two is nobody's to pick.
@@ -121,5 +169,8 @@ export function parseIngredientLine(text: string): ParsedLine {
     .replace(/\s*[,(].*$/, '')
     .trim();
   if (name === '') return { ok: false, problem: 'no-name' };
-  return { ok: true, line: { quantity: Math.round(quantity * measure.of * 10) / 10, unit: measure.unit, name } };
+  return {
+    ok: true,
+    line: { quantity: Math.round(quantity * measure.of * 10) / 10, unit: measure.unit, name },
+  };
 }

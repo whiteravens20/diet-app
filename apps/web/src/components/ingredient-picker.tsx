@@ -35,7 +35,8 @@ export function IngredientPicker({
   // Names of saved ids — one query that updates whenever ids change.
   const saved = useQuery({
     queryKey: ['ingredients-by-ids', ids.join(',')],
-    queryFn: () => (ids.length === 0 ? [] : api.get<Ingredient[]>(`/ingredients?ids=${ids.join(',')}`)),
+    queryFn: () =>
+      ids.length === 0 ? [] : api.get<Ingredient[]>(`/ingredients?ids=${ids.join(',')}`),
   });
 
   const results = useQuery({

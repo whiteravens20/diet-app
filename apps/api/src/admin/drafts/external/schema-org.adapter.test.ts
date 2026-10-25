@@ -42,10 +42,23 @@ describe('a document of schema.org recipes', () => {
   });
 
   it('is one recipe, a list of them, or a graph that holds some among other things', () => {
-    const page = { '@context': 'https://schema.org', '@graph': [{ '@type': 'WebSite', name: 'Recipes' }, oats, { '@type': ['Recipe', 'NewsArticle'], name: 'Porridge' }] };
+    const page = {
+      '@context': 'https://schema.org',
+      '@graph': [
+        { '@type': 'WebSite', name: 'Recipes' },
+        oats,
+        { '@type': ['Recipe', 'NewsArticle'], name: 'Porridge' },
+      ],
+    };
 
-    expect(read([oats, { ...oats, name: 'Porridge' }]).map((recipe) => recipe.title)).toEqual(['Overnight oats with blueberries', 'Porridge']);
-    expect(read(page).map((recipe) => recipe.title)).toEqual(['Overnight oats with blueberries', 'Porridge']);
+    expect(read([oats, { ...oats, name: 'Porridge' }]).map((recipe) => recipe.title)).toEqual([
+      'Overnight oats with blueberries',
+      'Porridge',
+    ]);
+    expect(read(page).map((recipe) => recipe.title)).toEqual([
+      'Overnight oats with blueberries',
+      'Porridge',
+    ]);
     expect(read([page, [oats]])).toHaveLength(3);
   });
 
@@ -57,22 +70,40 @@ describe('a document of schema.org recipes', () => {
     expect(read(nested)).toEqual([]);
 
     let steps: unknown = 'Serve.';
-    for (let depth = 0; depth < 20_000; depth += 1) steps = [{ '@type': 'HowToSection', itemListElement: steps }];
+    for (let depth = 0; depth < 20_000; depth += 1)
+      steps = [{ '@type': 'HowToSection', itemListElement: steps }];
     expect(read({ ...oats, recipeInstructions: steps })[0]!.steps).toEqual([]);
   });
 
   it('gives none for what holds no recipe', () => {
-    for (const document of [null, 'a recipe', 42, {}, [], { '@type': 'Article', name: 'Oats' }, { '@graph': 'none' }]) expect(read(document)).toEqual([]);
+    for (const document of [
+      null,
+      'a recipe',
+      42,
+      {},
+      [],
+      { '@type': 'Article', name: 'Oats' },
+      { '@graph': 'none' },
+    ])
+      expect(read(document)).toEqual([]);
   });
 
   it('reads the steps of a text of lines, of a list of texts and of sections of steps', () => {
     const steps = (recipeInstructions: unknown) => read({ ...oats, recipeInstructions })[0]!.steps;
 
-    expect(steps('Combine.\n\nRefrigerate.\r\nServe.')).toEqual(['Combine.', 'Refrigerate.', 'Serve.']);
+    expect(steps('Combine.\n\nRefrigerate.\r\nServe.')).toEqual([
+      'Combine.',
+      'Refrigerate.',
+      'Serve.',
+    ]);
     expect(steps(['Combine.', '  ', 'Serve.'])).toEqual(['Combine.', 'Serve.']);
     expect(
       steps([
-        { '@type': 'HowToSection', name: 'The night before', itemListElement: [{ '@type': 'HowToStep', text: 'Combine.' }, 'Refrigerate.'] },
+        {
+          '@type': 'HowToSection',
+          name: 'The night before',
+          itemListElement: [{ '@type': 'HowToStep', text: 'Combine.' }, 'Refrigerate.'],
+        },
         { '@type': 'HowToSection', itemListElement: [{ '@type': 'HowToStep', name: 'Serve.' }] },
       ]),
     ).toEqual(['Combine.', 'Refrigerate.', 'Serve.']);
@@ -80,17 +111,42 @@ describe('a document of schema.org recipes', () => {
   });
 
   it('says nothing where the source says nothing, or says it in a way that is no figure', () => {
-    const bare = read({ '@type': 'Recipe', name: 'Porridge', recipeYield: 'a potful', prepTime: '10 minutes', cookTime: 'P1D', license: { name: 'CC BY-SA 4.0' }, url: 'javascript:alert(1)' })[0]!;
+    const bare = read({
+      '@type': 'Recipe',
+      name: 'Porridge',
+      recipeYield: 'a potful',
+      prepTime: '10 minutes',
+      cookTime: 'P1D',
+      license: { name: 'CC BY-SA 4.0' },
+      url: 'javascript:alert(1)',
+    })[0]!;
 
-    expect(bare).toMatchObject({ description: '', ingredientLines: [], steps: [], servings: null, prepMinutes: null, cookMinutes: null, categories: [], url: null, license: 'CC BY-SA 4.0' });
+    expect(bare).toMatchObject({
+      description: '',
+      ingredientLines: [],
+      steps: [],
+      servings: null,
+      prepMinutes: null,
+      cookMinutes: null,
+      categories: [],
+      url: null,
+      license: 'CC BY-SA 4.0',
+    });
   });
 
   it('takes the number that leads a yield, and the address a recipe is known by when it gives no other', () => {
     expect(read({ ...oats, recipeYield: 4 })[0]!.servings).toBe(4);
     expect(read({ ...oats, recipeYield: ['6', '6 bowls'] })[0]!.servings).toBe(6);
     expect(read({ ...oats, recipeYield: 0 })[0]!.servings).toBeNull();
-    expect(read({ ...oats, url: undefined, '@id': 'https://recipes.example/#oats' })[0]!.url).toBe('https://recipes.example/#oats');
-    expect(read({ ...oats, license: { '@id': 'https://creativecommons.org/publicdomain/zero/1.0/' } })[0]!.license).toBe('https://creativecommons.org/publicdomain/zero/1.0/');
+    expect(read({ ...oats, url: undefined, '@id': 'https://recipes.example/#oats' })[0]!.url).toBe(
+      'https://recipes.example/#oats',
+    );
+    expect(
+      read({
+        ...oats,
+        license: { '@id': 'https://creativecommons.org/publicdomain/zero/1.0/' },
+      })[0]!.license,
+    ).toBe('https://creativecommons.org/publicdomain/zero/1.0/');
     expect(read({ ...oats, license: undefined })[0]!.license).toBeNull();
   });
 });

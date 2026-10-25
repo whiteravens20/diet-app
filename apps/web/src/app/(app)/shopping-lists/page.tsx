@@ -29,12 +29,26 @@ export const selectClass = 'h-10 w-full rounded-md border border-input bg-backgr
 const ROW_CHANGE = ['shopping-list-item'];
 
 /** A tick and nothing with it: the one change of a row the page can show before the server has it. */
-const plainTick = (patch: RowPatch): boolean | undefined => (Object.keys(patch).length === 1 ? patch.checked : undefined);
+const plainTick = (patch: RowPatch): boolean | undefined =>
+  Object.keys(patch).length === 1 ? patch.checked : undefined;
 
 /** The lists with one entry ticked, or not. */
-const withTick = (lists: ShoppingList[] | undefined, listId: string, itemId: string, checked: boolean): ShoppingList[] | undefined =>
+const withTick = (
+  lists: ShoppingList[] | undefined,
+  listId: string,
+  itemId: string,
+  checked: boolean,
+): ShoppingList[] | undefined =>
   lists?.map((list) =>
-    list.id !== listId ? list : { ...list, groups: list.groups.map((group) => ({ ...group, items: group.items.map((item) => (item.id === itemId ? { ...item, checked } : item)) })) },
+    list.id !== listId
+      ? list
+      : {
+          ...list,
+          groups: list.groups.map((group) => ({
+            ...group,
+            items: group.items.map((item) => (item.id === itemId ? { ...item, checked } : item)),
+          })),
+        },
   );
 
 /**
@@ -56,11 +70,17 @@ export default function ShoppingListsPage() {
   const [pickedPlan, setPickedPlan] = useState<string | null>(null);
   const [pickedList, setPickedList] = useState<string | null>(null);
 
-  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
   const profileList = profiles.data ?? [];
   const activeProfileId = pickedProfile ?? profileList[0]?.id ?? null;
   // Whether the account has a model to ask. Without one, what asks a model stays where it is, disabled, and one line says why.
-  const session = useQuery({ queryKey: ['session'], queryFn: () => api.get<SessionUser>('/users/me') });
+  const session = useQuery({
+    queryKey: ['session'],
+    queryFn: () => api.get<SessionUser>('/users/me'),
+  });
   const aiEnabled = Boolean(session.data?.aiMode && session.data.aiMode !== 'none');
   const aiOffNote = useId();
   // The form a list is made with, so that a button elsewhere on the page can send it.
@@ -97,8 +117,7 @@ export default function ShoppingListsPage() {
       qc.invalidateQueries({ queryKey: ['inventory'] });
       setPickedList(list.id);
     },
-    onError: (e) =>
-      setError(errorText(e, t('errGenerate'))),
+    onError: (e) => setError(errorText(e, t('errGenerate'))),
   });
 
   // Whether an answer to a change of a row was left unshown because a later change was on its way.
@@ -106,7 +125,8 @@ export default function ShoppingListsPage() {
   const updateItem = useMutation({
     mutationKey: ROW_CHANGE,
     // What a row sends is what changed of it, and nothing else.
-    mutationFn: ({ listId, itemId, ...patch }: { listId: string; itemId: string } & RowPatch) => api.patch<ShoppingList>(`/shopping-lists/${listId}/items/${itemId}`, patch),
+    mutationFn: ({ listId, itemId, ...patch }: { listId: string; itemId: string } & RowPatch) =>
+      api.patch<ShoppingList>(`/shopping-lists/${listId}/items/${itemId}`, patch),
     // A tick is shown at once: in a shop nobody waits for a connection between
     // two entries. What else it changes of the row (the pantry, the packs) is
     // the server's to work out, and comes with its answer.
@@ -115,7 +135,9 @@ export default function ShoppingListsPage() {
       if (tick === undefined) return;
       // A list that is being read again would put the row back as it was.
       await qc.cancelQueries({ queryKey: ['shopping-lists', activePlanId] });
-      qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (shown) => withTick(shown, listId, itemId, tick));
+      qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (shown) =>
+        withTick(shown, listId, itemId, tick),
+      );
     },
     // The answer is the list as the server has it (a row ticked by itself,
     // the totals): shown without another request. The pantry may have changed
@@ -129,8 +151,9 @@ export default function ShoppingListsPage() {
         answersLeftOut.current = true;
         return;
       }
-      qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (prev) =>
-        prev?.map((l) => (l.id === updated.id ? updated : l)) ?? [updated],
+      qc.setQueryData<ShoppingList[]>(
+        ['shopping-lists', activePlanId],
+        (prev) => prev?.map((l) => (l.id === updated.id ? updated : l)) ?? [updated],
       );
     },
     onError: (e, { listId, itemId, ...patch }) => {
@@ -146,7 +169,10 @@ export default function ShoppingListsPage() {
         }
       }
       // The tick did not hold: the row is shown as the server has it.
-      if (tick !== undefined) qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (shown) => withTick(shown, listId, itemId, !tick));
+      if (tick !== undefined)
+        qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (shown) =>
+          withTick(shown, listId, itemId, !tick),
+        );
       setError(errorText(e, t('errUpdate')));
     },
     // Once the last change is through, a list of which an answer was left out is read from the server.
@@ -164,8 +190,7 @@ export default function ShoppingListsPage() {
       qc.invalidateQueries({ queryKey: ['shopping-lists', activePlanId] });
       qc.invalidateQueries({ queryKey: ['inventory'] });
     },
-    onError: (e) =>
-      setError(errorText(e, t('errDelete'))),
+    onError: (e) => setError(errorText(e, t('errDelete'))),
   });
 
   function onGenerate(event: React.FormEvent<HTMLFormElement>) {
@@ -186,7 +211,8 @@ export default function ShoppingListsPage() {
   const formatItemQty = useAmount();
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
-  if (profiles.isError) return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
+  if (profiles.isError)
+    return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (profileList.length === 0) {
     return (
@@ -345,9 +371,7 @@ export default function ShoppingListsPage() {
               locked={remove.isPending || generate.isPending}
               formatQty={formatItemQty}
               categoryLabel={(c) => (tCategory.has(c) ? tCategory(c) : c)}
-              summaryLabel={(checked, total, kcal) =>
-                t('summary', { checked, total, kcal })
-              }
+              summaryLabel={(checked, total, kcal) => t('summary', { checked, total, kcal })}
               boughtLabel={t('bought')}
               ofLabel={(amount) => t('ofTotal', { amount })}
               deleteLabel={tCommon('delete')}
@@ -378,7 +402,11 @@ export default function ShoppingListsPage() {
               onDelete={remove.mutate}
               // A list for the same dates replaces this one, and counts what was obtained for it.
               onUpdate={(list) =>
-                generate.mutate({ planId: list.planId, fromDate: list.fromDate, toDate: list.toDate })
+                generate.mutate({
+                  planId: list.planId,
+                  fromDate: list.fromDate,
+                  toDate: list.toDate,
+                })
               }
             />
           )}

@@ -25,7 +25,11 @@ async function renderPage(profiles = 1, favoured: string[] = [TOFU]) {
       (path === '/users/me'
         ? { aiMode: 'none' }
         : path === '/profiles'
-          ? Array.from({ length: profiles }, (_, i) => ({ id: i === 0 ? PROFILE : `${PROFILE.slice(0, -1)}${i}`, name: i === 0 ? 'Me' : `Other ${i}`, preferences: { favoriteIngredientIds: i === 0 ? favoured : [] } }))
+          ? Array.from({ length: profiles }, (_, i) => ({
+              id: i === 0 ? PROFILE : `${PROFILE.slice(0, -1)}${i}`,
+              name: i === 0 ? 'Me' : `Other ${i}`,
+              preferences: { favoriteIngredientIds: i === 0 ? favoured : [] },
+            }))
           : path.startsWith('/recipes?')
             ? { items: [], page: 1, pageSize: 36, total: 0, totalPages: 0 }
             : path.startsWith('/ingredients?search=')
@@ -74,7 +78,12 @@ describe('the recipe library, narrowed', () => {
     await userEvent.type(screen.getByLabelText(texts.minProtein), '30');
     await userEvent.type(screen.getByLabelText(texts.maxCarbs), '40');
 
-    expect(await askedWith('maxCarbs', '40')).toMatchObject({ cuisine: 'asian', minProtein: '30', maxCarbs: '40', page: '1' });
+    expect(await askedWith('maxCarbs', '40')).toMatchObject({
+      cuisine: 'asian',
+      minProtein: '30',
+      maxCarbs: '40',
+      page: '1',
+    });
     expect(screen.getByText('More filters: 3 at work')).toBeInTheDocument();
   });
 
@@ -86,11 +95,15 @@ describe('the recipe library, narrowed', () => {
     await userEvent.click(await ingredients.findByRole('button', { name: 'Firm tofu' }));
     expect(await askedWith('ingredientIds', TOFU)).not.toHaveProperty('profileId');
 
-    await userEvent.click(screen.getByRole('button', { name: messages.pickers.allergensPlaceholder }));
+    await userEvent.click(
+      screen.getByRole('button', { name: messages.pickers.allergensPlaceholder }),
+    );
     await userEvent.click(screen.getByRole('checkbox', { name: messages.enums.allergen.gluten }));
     await userEvent.click(screen.getByRole('checkbox', { name: messages.enums.allergen.dairy }));
 
-    expect(await askedWith('withoutAllergens', 'gluten,dairy')).toMatchObject({ ingredientIds: TOFU });
+    expect(await askedWith('withoutAllergens', 'gluten,dairy')).toMatchObject({
+      ingredientIds: TOFU,
+    });
   });
 
   it('asks the API, with the profile, for what the profile marked and for what holds an ingredient it favours', async () => {
@@ -100,7 +113,10 @@ describe('the recipe library, narrowed', () => {
     expect(await askedWith('marked', 'often')).toMatchObject({ profileId: PROFILE });
 
     await userEvent.click(screen.getByLabelText(texts.usesFavorites));
-    expect(await askedWith('favoriteIngredients', 'true')).toMatchObject({ profileId: PROFILE, marked: 'often' });
+    expect(await askedWith('favoriteIngredients', 'true')).toMatchObject({
+      profileId: PROFILE,
+      marked: 'often',
+    });
   });
 
   it('says so when the profile favours no ingredient, and asks whose marks are meant only on an account with several profiles', async () => {
@@ -109,16 +125,23 @@ describe('the recipe library, narrowed', () => {
 
     await userEvent.click(screen.getByLabelText(texts.usesFavorites));
 
-    expect(await screen.findByText('Me has no favourites yet — set them on the profile page.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Me has no favourites yet — set them on the profile page.'),
+    ).toBeInTheDocument();
   });
 
   it('asks about the profile that was chosen, on an account with several', async () => {
     await renderPage(2);
 
     await userEvent.selectOptions(screen.getByLabelText(texts.marked), 'avoid');
-    await userEvent.selectOptions(screen.getByLabelText(texts.favoritesProfile), `${PROFILE.slice(0, -1)}1`);
+    await userEvent.selectOptions(
+      screen.getByLabelText(texts.favoritesProfile),
+      `${PROFILE.slice(0, -1)}1`,
+    );
 
-    expect(await askedWith('profileId', `${PROFILE.slice(0, -1)}1`)).toMatchObject({ marked: 'avoid' });
+    expect(await askedWith('profileId', `${PROFILE.slice(0, -1)}1`)).toMatchObject({
+      marked: 'avoid',
+    });
   });
 
   it('takes every filter away at once', async () => {
@@ -129,12 +152,14 @@ describe('the recipe library, narrowed', () => {
 
     await userEvent.click(screen.getByRole('button', { name: texts.clearFilters }));
 
-    await vi.waitFor(() => expect(Object.fromEntries(asked)).toEqual({ page: '1', pageSize: '36' }));
+    await vi.waitFor(() =>
+      expect(Object.fromEntries(asked)).toEqual({ page: '1', pageSize: '36' }),
+    );
     expect(screen.getByText(texts.moreFilters)).toBeInTheDocument();
   });
 });
 
-describe('the recipes of one\'s own, while there are none', () => {
+describe("the recipes of one's own, while there are none", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     asked = new URLSearchParams();
@@ -153,7 +178,7 @@ describe('the recipes of one\'s own, while there are none', () => {
     for (const draft of drafts) expect(draft).toBeDisabled();
   });
 
-  it('says the same whatever narrows the library: its filters are not asked of one\'s own recipes', async () => {
+  it("says the same whatever narrows the library: its filters are not asked of one's own recipes", async () => {
     await renderPage();
     await userEvent.type(screen.getByPlaceholderText(texts.searchPlaceholder), 'soup');
     expect(await screen.findByText(texts.noneFiltered)).toBeInTheDocument();

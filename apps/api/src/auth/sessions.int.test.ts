@@ -32,7 +32,11 @@ describe('the session of an account', () => {
   /** Sign in again: a second session of the same account. */
   const signIn = (): Promise<OpenedSession> => aSession(t, user);
   /** Let the moment in which a token was just used go by. */
-  const later = () => t.prisma.refreshToken.updateMany({ where: { rotatedAt: { not: null } }, data: { rotatedAt: new Date(Date.now() - 11_000) } });
+  const later = () =>
+    t.prisma.refreshToken.updateMany({
+      where: { rotatedAt: { not: null } },
+      data: { rotatedAt: new Date(Date.now() - 11_000) },
+    });
   const works = async (token: string): Promise<boolean> =>
     refresh(token).then(
       () => true,
@@ -85,7 +89,10 @@ describe('the session of an account', () => {
     it('used twice within a moment is two tabs, not a theft: the second is told so, and the session lives', async () => {
       const second = (await refresh(user.refreshToken)).tokens.refreshToken;
 
-      await expect(refresh(user.refreshToken)).rejects.toMatchObject({ status: 409, response: { error: 'SESSION_JUST_REFRESHED' } });
+      await expect(refresh(user.refreshToken)).rejects.toMatchObject({
+        status: 409,
+        response: { error: 'SESSION_JUST_REFRESHED' },
+      });
 
       expect(await works(second)).toBe(true);
     });
@@ -95,10 +102,18 @@ describe('the session of an account', () => {
 
       const won = results.filter((result) => result.status === 'fulfilled');
       expect(won).toHaveLength(1);
-      expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: refusedAs('SESSION_JUST_REFRESHED') });
+      expect(results.find((result) => result.status === 'rejected')).toMatchObject({
+        reason: refusedAs('SESSION_JUST_REFRESHED'),
+      });
       // One token of the session works, and it is the one that was handed out.
-      expect(await t.prisma.refreshToken.count({ where: { userId: user.id, rotatedAt: null, revokedAt: null } })).toBe(1);
-      expect(await works((won[0] as PromiseFulfilledResult<OpenedSession>).value.tokens.refreshToken)).toBe(true);
+      expect(
+        await t.prisma.refreshToken.count({
+          where: { userId: user.id, rotatedAt: null, revokedAt: null },
+        }),
+      ).toBe(1);
+      expect(
+        await works((won[0] as PromiseFulfilledResult<OpenedSession>).value.tokens.refreshToken),
+      ).toBe(true);
     });
 
     it('that nobody was given is refused, and ends nothing', async () => {
@@ -120,20 +135,32 @@ describe('the session of an account', () => {
 
     it('ends when it has lasted its longest, however often it was used', async () => {
       const opened = await signIn();
-      const row = await t.prisma.refreshToken.findFirstOrThrow({ where: { familyId: opened.sessionId } });
+      const row = await t.prisma.refreshToken.findFirstOrThrow({
+        where: { familyId: opened.sessionId },
+      });
       // Ninety days from when it began, by default.
       expect(Math.round((row.familyExpiresAt.getTime() - row.createdAt.getTime()) / DAY)).toBe(90);
 
       // On its last day, a token is good for no longer than the session.
       const lastDay = new Date(Date.now() + DAY / 2);
-      await t.prisma.refreshToken.updateMany({ where: { familyId: opened.sessionId }, data: { familyExpiresAt: lastDay } });
+      await t.prisma.refreshToken.updateMany({
+        where: { familyId: opened.sessionId },
+        data: { familyExpiresAt: lastDay },
+      });
       const next = await refresh(opened.tokens.refreshToken);
-      const nextRow = await t.prisma.refreshToken.findFirstOrThrow({ where: { familyId: opened.sessionId, rotatedAt: null } });
+      const nextRow = await t.prisma.refreshToken.findFirstOrThrow({
+        where: { familyId: opened.sessionId, rotatedAt: null },
+      });
       expect(nextRow.expiresAt.getTime()).toBe(lastDay.getTime());
 
       // And after it, none is good.
-      await t.prisma.refreshToken.updateMany({ where: { familyId: opened.sessionId }, data: { familyExpiresAt: new Date(Date.now() - 1000) } });
-      await expect(refresh(next.tokens.refreshToken)).rejects.toMatchObject(refusedAs('INVALID_REFRESH'));
+      await t.prisma.refreshToken.updateMany({
+        where: { familyId: opened.sessionId },
+        data: { familyExpiresAt: new Date(Date.now() - 1000) },
+      });
+      await expect(refresh(next.tokens.refreshToken)).rejects.toMatchObject(
+        refusedAs('INVALID_REFRESH'),
+      );
     });
 
     it('ends when it is signed out of, with every token it ever had', async () => {

@@ -9,7 +9,10 @@ function aBrowser(signedIn: boolean) {
   document.cookie = signedIn ? 'diet_session=1; Path=/' : 'diet_session=; Max-Age=0; Path=/';
   const postMessage = vi.fn();
   const register = vi.fn().mockResolvedValue(undefined);
-  vi.stubGlobal('navigator', { ...navigator, serviceWorker: { register, ready: Promise.resolve({ active: { postMessage } }) } });
+  vi.stubGlobal('navigator', {
+    ...navigator,
+    serviceWorker: { register, ready: Promise.resolve({ active: { postMessage } }) },
+  });
   return { register, postMessage };
 }
 
@@ -27,7 +30,9 @@ describe('handing the browser the service worker', () => {
     render(<ServiceWorker />);
 
     expect(register).toHaveBeenCalledWith('/sw.js');
-    await vi.waitFor(() => expect(postMessage).toHaveBeenCalledWith({ type: 'keep-pages', pages: KEPT_AHEAD }));
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith({ type: 'keep-pages', pages: KEPT_AHEAD }),
+    );
     expect(KEPT_AHEAD).toContain('/shopping-lists');
   });
 

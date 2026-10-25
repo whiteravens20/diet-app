@@ -15,7 +15,11 @@ function opts(policy: OllamaUserPolicy, allowedHosts: string[] = []) {
   return { policy, defaultBaseUrl: DEFAULT, allowedHosts };
 }
 
-const refused = (url: string, policy: OllamaUserPolicy, allowedHosts: string[] = []): OllamaUrlError => {
+const refused = (
+  url: string,
+  policy: OllamaUserPolicy,
+  allowedHosts: string[] = [],
+): OllamaUrlError => {
   try {
     assertAllowedOllamaUrl(url, opts(policy, allowedHosts));
   } catch (err) {
@@ -40,20 +44,22 @@ describe('parseAllowedHosts', () => {
 });
 
 describe("the operator's own instance in a user's configuration", () => {
-  it.each(['allowlist', 'public'] as const)('is allowed under "%s" and marked as the operator\'s to pay for', (policy) => {
-    expect(assertAllowedOllamaUrl('http://ollama:11434/api/tags', opts(policy))).toMatchObject({
-      operatorHost: true,
-      publicOnly: false,
-    });
-  });
+  it.each(['allowlist', 'public'] as const)(
+    'is allowed under "%s" and marked as the operator\'s to pay for',
+    (policy) => {
+      expect(assertAllowedOllamaUrl('http://ollama:11434/api/tags', opts(policy))).toMatchObject({
+        operatorHost: true,
+        publicOnly: false,
+      });
+    },
+  );
 
-  it.each([
-    'http://OLLAMA:11434',
-    'http://ollama.:11434',
-    'http://ollama:11434/some/path',
-  ])('is recognised when written as %s', (url) => {
-    expect(isOperatorOllama(url, DEFAULT)).toBe(true);
-  });
+  it.each(['http://OLLAMA:11434', 'http://ollama.:11434', 'http://ollama:11434/some/path'])(
+    'is recognised when written as %s',
+    (url) => {
+      expect(isOperatorOllama(url, DEFAULT)).toBe(true);
+    },
+  );
 
   it.each([
     'http://ollama:5432',
@@ -81,20 +87,26 @@ describe('policy off', () => {
 });
 
 describe('policy allowlist', () => {
-  it.each(['http://169.254.169.254/latest', 'http://10.0.0.1:9090', 'http://localhost:5432', 'https://ollama.example.com'])(
-    'refuses %s, which is not on the list',
-    (url) => {
-      expect(refused(url, 'allowlist').code).toBe('OLLAMA_HOST_NOT_ALLOWED');
-    },
-  );
+  it.each([
+    'http://169.254.169.254/latest',
+    'http://10.0.0.1:9090',
+    'http://localhost:5432',
+    'https://ollama.example.com',
+  ])('refuses %s, which is not on the list', (url) => {
+    expect(refused(url, 'allowlist').code).toBe('OLLAMA_HOST_NOT_ALLOWED');
+  });
 
-  it('refuses a different port on the operator\'s host (the port is part of the entry)', () => {
+  it("refuses a different port on the operator's host (the port is part of the entry)", () => {
     refused('http://ollama:5432', 'allowlist');
   });
 
   it('honours a bare-host entry across all ports', () => {
-    expect(() => assertAllowedOllamaUrl('http://gpu-box:1234', opts('allowlist', ['gpu-box']))).not.toThrow();
-    expect(() => assertAllowedOllamaUrl('http://gpu-box:5678', opts('allowlist', ['gpu-box']))).not.toThrow();
+    expect(() =>
+      assertAllowedOllamaUrl('http://gpu-box:1234', opts('allowlist', ['gpu-box'])),
+    ).not.toThrow();
+    expect(() =>
+      assertAllowedOllamaUrl('http://gpu-box:5678', opts('allowlist', ['gpu-box'])),
+    ).not.toThrow();
   });
 
   it('honours a host:port entry exactly', () => {
@@ -111,7 +123,9 @@ describe('policy allowlist', () => {
   });
 
   it('trusts where a listed name resolves: the operator vouched for it', () => {
-    expect(assertAllowedOllamaUrl('http://gpu-box.lan:11434', opts('allowlist', ['gpu-box.lan']))).toMatchObject({
+    expect(
+      assertAllowedOllamaUrl('http://gpu-box.lan:11434', opts('allowlist', ['gpu-box.lan'])),
+    ).toMatchObject({
       operatorHost: false,
       publicOnly: false,
     });
@@ -119,12 +133,16 @@ describe('policy allowlist', () => {
 });
 
 describe('policy public', () => {
-  it.each(['https://ollama.my-domain.com', 'http://203.0.113.7:11434', 'http://[2606:4700:4700::1111]:11434'])(
-    'allows %s, to be dialled only at a public address',
-    (url) => {
-      expect(assertAllowedOllamaUrl(url, opts('public'))).toMatchObject({ operatorHost: false, publicOnly: true });
-    },
-  );
+  it.each([
+    'https://ollama.my-domain.com',
+    'http://203.0.113.7:11434',
+    'http://[2606:4700:4700::1111]:11434',
+  ])('allows %s, to be dialled only at a public address', (url) => {
+    expect(assertAllowedOllamaUrl(url, opts('public'))).toMatchObject({
+      operatorHost: false,
+      publicOnly: true,
+    });
+  });
 
   it.each([
     // Private, loopback, link-local and carrier-grade ranges.
@@ -185,10 +203,13 @@ describe('policy public', () => {
 });
 
 describe('under every policy', () => {
-  it.each(['file:///etc/passwd', 'gopher://evil:70', 'ftp://ollama:11434'])('refuses the protocol of %s', (url) => {
-    refused(url, 'public');
-    refused(url, 'allowlist');
-  });
+  it.each(['file:///etc/passwd', 'gopher://evil:70', 'ftp://ollama:11434'])(
+    'refuses the protocol of %s',
+    (url) => {
+      refused(url, 'public');
+      refused(url, 'allowlist');
+    },
+  );
 
   it('refuses a malformed URL', () => {
     refused('not a url', 'allowlist');

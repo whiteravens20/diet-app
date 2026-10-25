@@ -3,7 +3,12 @@
 import * as z from './zod.js';
 import { ActivityLevel, Allergen, Cuisine, DietType, Sex, WeeklyLossTarget } from './enums.js';
 import { MAX_INGREDIENT_IDS } from './ingredient.js';
-import { CalorieCalculation, MacroSplit, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET } from './nutrition.js';
+import {
+  CalorieCalculation,
+  MacroSplit,
+  MAX_CALORIE_TARGET,
+  MIN_CALORIE_TARGET,
+} from './nutrition.js';
 import { WeightReminderCadence } from './weight.js';
 
 /**
@@ -54,7 +59,11 @@ const preferenceFields = {
    * any seven days of a plan may hold together. It keeps a plan from resting
    * on one food, however the recipes that use it are spread.
    */
-  maxWeeklyAmountPerIngredient: z.number().int().min(MIN_WEEKLY_AMOUNT_PER_INGREDIENT).max(MAX_WEEKLY_AMOUNT_PER_INGREDIENT),
+  maxWeeklyAmountPerIngredient: z
+    .number()
+    .int()
+    .min(MIN_WEEKLY_AMOUNT_PER_INGREDIENT)
+    .max(MAX_WEEKLY_AMOUNT_PER_INGREDIENT),
   /**
    * Anti-monotony rotation threshold. After this many consecutive
    * plan-level generations actually applied the inventory bias, the next
@@ -80,15 +89,31 @@ const PREFERENCE_DEFAULTS = {
 
 /** Free-form preference bundle attached to a profile. A part that a new profile leaves out starts at its default. */
 export const ProfilePreferences = z.object({
-  favoriteIngredientIds: preferenceFields.favoriteIngredientIds.default(PREFERENCE_DEFAULTS.favoriteIngredientIds),
-  excludedIngredientIds: preferenceFields.excludedIngredientIds.default(PREFERENCE_DEFAULTS.excludedIngredientIds),
+  favoriteIngredientIds: preferenceFields.favoriteIngredientIds.default(
+    PREFERENCE_DEFAULTS.favoriteIngredientIds,
+  ),
+  excludedIngredientIds: preferenceFields.excludedIngredientIds.default(
+    PREFERENCE_DEFAULTS.excludedIngredientIds,
+  ),
   allergens: preferenceFields.allergens.default(PREFERENCE_DEFAULTS.allergens),
-  dislikedIngredientIds: preferenceFields.dislikedIngredientIds.default(PREFERENCE_DEFAULTS.dislikedIngredientIds),
-  preferredCuisines: preferenceFields.preferredCuisines.default(PREFERENCE_DEFAULTS.preferredCuisines),
-  maxConsecutiveDaysSameMeal: preferenceFields.maxConsecutiveDaysSameMeal.default(PREFERENCE_DEFAULTS.maxConsecutiveDaysSameMeal),
-  maxTimesPerWeekSameMeal: preferenceFields.maxTimesPerWeekSameMeal.default(PREFERENCE_DEFAULTS.maxTimesPerWeekSameMeal),
-  maxWeeklyAmountPerIngredient: preferenceFields.maxWeeklyAmountPerIngredient.default(PREFERENCE_DEFAULTS.maxWeeklyAmountPerIngredient),
-  inventoryBiasResetEvery: preferenceFields.inventoryBiasResetEvery.default(PREFERENCE_DEFAULTS.inventoryBiasResetEvery),
+  dislikedIngredientIds: preferenceFields.dislikedIngredientIds.default(
+    PREFERENCE_DEFAULTS.dislikedIngredientIds,
+  ),
+  preferredCuisines: preferenceFields.preferredCuisines.default(
+    PREFERENCE_DEFAULTS.preferredCuisines,
+  ),
+  maxConsecutiveDaysSameMeal: preferenceFields.maxConsecutiveDaysSameMeal.default(
+    PREFERENCE_DEFAULTS.maxConsecutiveDaysSameMeal,
+  ),
+  maxTimesPerWeekSameMeal: preferenceFields.maxTimesPerWeekSameMeal.default(
+    PREFERENCE_DEFAULTS.maxTimesPerWeekSameMeal,
+  ),
+  maxWeeklyAmountPerIngredient: preferenceFields.maxWeeklyAmountPerIngredient.default(
+    PREFERENCE_DEFAULTS.maxWeeklyAmountPerIngredient,
+  ),
+  inventoryBiasResetEvery: preferenceFields.inventoryBiasResetEvery.default(
+    PREFERENCE_DEFAULTS.inventoryBiasResetEvery,
+  ),
 });
 export type ProfilePreferences = z.infer<typeof ProfilePreferences>;
 
@@ -100,7 +125,9 @@ export const ProfilePreferencesPatch = z
   .object(preferenceFields)
   .partial()
   .strict()
-  .refine((patch) => Object.keys(patch).length > 0, { message: 'Name at least one preference to change.' });
+  .refine((patch) => Object.keys(patch).length > 0, {
+    message: 'Name at least one preference to change.',
+  });
 export type ProfilePreferencesPatch = z.infer<typeof ProfilePreferencesPatch>;
 
 /** What a profile says of a person, each part as it is checked. */
@@ -130,8 +157,14 @@ const profileFields = {
 };
 
 /** A profile on the custom diet says which split it aims at: no other diet's stands in for it. */
-const hasItsSplit = (profile: { dietType: DietType; customMacroSplit: MacroSplit | null }): boolean => profile.dietType !== 'custom' || profile.customMacroSplit !== null;
-const SPLIT_MISSING = { path: ['customMacroSplit'], message: 'The custom diet needs its split of protein, fat and carbohydrate.' };
+const hasItsSplit = (profile: {
+  dietType: DietType;
+  customMacroSplit: MacroSplit | null;
+}): boolean => profile.dietType !== 'custom' || profile.customMacroSplit !== null;
+const SPLIT_MISSING = {
+  path: ['customMacroSplit'],
+  message: 'The custom diet needs its split of protein, fat and carbohydrate.',
+};
 
 /**
  * Sent as true by somebody under 18 or underweight who asks to lose weight

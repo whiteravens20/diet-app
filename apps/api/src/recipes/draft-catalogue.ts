@@ -27,9 +27,13 @@ export function draftCatalogue<T extends { id: string; slug: string; category: s
   size: number = DRAFT_CATALOGUE_SIZE,
 ): T[] {
   const bySlug = (a: T, b: T): number => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0);
-  const chosen = eligible.filter((ingredient) => favouriteIds.has(ingredient.id)).sort(bySlug).slice(0, size);
+  const chosen = eligible
+    .filter((ingredient) => favouriteIds.has(ingredient.id))
+    .sort(bySlug)
+    .slice(0, size);
 
-  const rank = (ingredient: T): string => createHash('sha256').update(`${seed}:${ingredient.slug}`).digest('hex');
+  const rank = (ingredient: T): string =>
+    createHash('sha256').update(`${seed}:${ingredient.slug}`).digest('hex');
   const piles = new Map<string, { ingredient: T; rank: string }[]>();
   for (const ingredient of eligible) {
     if (favouriteIds.has(ingredient.id)) continue;
@@ -38,7 +42,8 @@ export function draftCatalogue<T extends { id: string; slug: string; category: s
     piles.set(ingredient.category, pile);
   }
   const categories = [...piles.keys()].sort();
-  for (const pile of piles.values()) pile.sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0));
+  for (const pile of piles.values())
+    pile.sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0));
 
   for (let round = 0; chosen.length < size; round += 1) {
     let dealt = false;
@@ -51,5 +56,7 @@ export function draftCatalogue<T extends { id: string; slug: string; category: s
     if (!dealt) break;
   }
 
-  return chosen.sort((a, b) => (a.category < b.category ? -1 : a.category > b.category ? 1 : bySlug(a, b)));
+  return chosen.sort((a, b) =>
+    a.category < b.category ? -1 : a.category > b.category ? 1 : bySlug(a, b),
+  );
 }

@@ -24,7 +24,15 @@ import { TranslationRunner } from './translation.runner.js';
 @Module({
   imports: [PrismaModule, AiModule, CatalogueModule],
   controllers: [DraftsController],
-  providers: [AdminSessionGuard, IngredientNamerRunner, RecipeGeneratorRunner, TranslationRunner, AdminModelService, RecipeImportService, DraftService],
+  providers: [
+    AdminSessionGuard,
+    IngredientNamerRunner,
+    RecipeGeneratorRunner,
+    TranslationRunner,
+    AdminModelService,
+    RecipeImportService,
+    DraftService,
+  ],
   exports: [DraftService],
 })
 export class DraftsModule {}

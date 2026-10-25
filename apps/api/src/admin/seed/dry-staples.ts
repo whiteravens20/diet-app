@@ -29,7 +29,12 @@ interface Staple {
 export function givenAsCooked(ingredients: readonly Staple[]): string[] {
   return ingredients
     .filter((ingredient) => ingredient.category === 'grains' || ingredient.category === 'legumes')
-    .filter((ingredient) => ingredient.packSize != null && !ingredient.perishable && !(ingredient.slug in KEEPS_BUT_IS_NOT_DRY))
+    .filter(
+      (ingredient) =>
+        ingredient.packSize != null &&
+        !ingredient.perishable &&
+        !(ingredient.slug in KEEPS_BUT_IS_NOT_DRY),
+    )
     .filter((ingredient) => ingredient.caloriesPer100 < LEAST_ENERGY_OF_A_DRY_STAPLE)
     .map((ingredient) => ingredient.slug);
 }

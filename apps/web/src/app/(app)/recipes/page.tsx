@@ -7,7 +7,13 @@ import { Send, Soup, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import type { Allergen, MarkedFilter, Profile, RecipeSearchPage, SessionUser } from '@diet-app/shared';
+import type {
+  Allergen,
+  MarkedFilter,
+  Profile,
+  RecipeSearchPage,
+  SessionUser,
+} from '@diet-app/shared';
 import { CUISINES, MAX_SEARCHED_INGREDIENTS, RECIPE_DIET_TAGS } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
@@ -103,7 +109,23 @@ export default function RecipesPage() {
       if (usesFavorites) p.set('favoriteIngredients', 'true');
     }
     return p.toString();
-  }, [search, dietType, mealType, difficulty, maxCalories, maxPrepMinutes, cuisine, minProtein, maxFat, maxCarbs, ingredientIds, withoutAllergens, marked, usesFavorites, activeProfileId]);
+  }, [
+    search,
+    dietType,
+    mealType,
+    difficulty,
+    maxCalories,
+    maxPrepMinutes,
+    cuisine,
+    minProtein,
+    maxFat,
+    maxCarbs,
+    ingredientIds,
+    withoutAllergens,
+    marked,
+    usesFavorites,
+    activeProfileId,
+  ]);
 
   // Reset to page 1 whenever the filter set changes — React's "adjusting
   // state on prop change during render" pattern (preferred over useEffect
@@ -114,7 +136,10 @@ export default function RecipesPage() {
     setPage(1);
   }
   const queryString = `?${filters}${filters ? '&' : ''}page=${page}&pageSize=${PAGE_SIZE}`;
-  const more = [cuisine, minProtein, maxFat, maxCarbs].filter(Boolean).length + (ingredientIds.length > 0 ? 1 : 0) + (withoutAllergens.length > 0 ? 1 : 0);
+  const more =
+    [cuisine, minProtein, maxFat, maxCarbs].filter(Boolean).length +
+    (ingredientIds.length > 0 ? 1 : 0) +
+    (withoutAllergens.length > 0 ? 1 : 0);
 
   // Library vs My Recipes share the same card UI but hit different
   // endpoints. `mine` skips the filter sidebar's server params (the personal
@@ -149,7 +174,16 @@ export default function RecipesPage() {
   const totalPages = recipes.data?.totalPages ?? 0;
   const totalItems = recipes.data?.total ?? 0;
 
-  const anyServerFilter = Boolean(dietType || mealType || difficulty || maxCalories || maxPrepMinutes || more > 0 || marked || usesFavorites);
+  const anyServerFilter = Boolean(
+    dietType ||
+    mealType ||
+    difficulty ||
+    maxCalories ||
+    maxPrepMinutes ||
+    more > 0 ||
+    marked ||
+    usesFavorites,
+  );
 
   function resetFilters() {
     setDietType('');
@@ -170,7 +204,12 @@ export default function RecipesPage() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')}>
-        {session.data && activeProfile && <DraftButton aiEnabled={session.data.aiMode !== 'none'} onOpen={() => setDraftOpen(true)} />}
+        {session.data && activeProfile && (
+          <DraftButton
+            aiEnabled={session.data.aiMode !== 'none'}
+            onOpen={() => setDraftOpen(true)}
+          />
+        )}
       </PageBanner>
 
       <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-sm">
@@ -194,7 +233,9 @@ export default function RecipesPage() {
         ))}
       </div>
 
-      <div className={tab === 'mine' ? 'hidden' : 'grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3'}>
+      <div
+        className={tab === 'mine' ? 'hidden' : 'grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3'}
+      >
         <Field label={t('search')}>
           <Input
             value={search}
@@ -203,7 +244,11 @@ export default function RecipesPage() {
           />
         </Field>
         <Field label={t('dietType')}>
-          <select className={selectClass} value={dietType} onChange={(e) => setDietType(e.target.value)}>
+          <select
+            className={selectClass}
+            value={dietType}
+            onChange={(e) => setDietType(e.target.value)}
+          >
             <option value="">{t('any')}</option>
             {DIET_TYPES.map((d) => (
               <option key={d} value={d}>
@@ -213,7 +258,11 @@ export default function RecipesPage() {
           </select>
         </Field>
         <Field label={t('mealType')}>
-          <select className={selectClass} value={mealType} onChange={(e) => setMealType(e.target.value)}>
+          <select
+            className={selectClass}
+            value={mealType}
+            onChange={(e) => setMealType(e.target.value)}
+          >
             <option value="">{t('any')}</option>
             {MEAL_TYPES.map((m) => (
               <option key={m} value={m}>
@@ -223,7 +272,11 @@ export default function RecipesPage() {
           </select>
         </Field>
         <Field label={t('difficulty')}>
-          <select className={selectClass} value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+          <select
+            className={selectClass}
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value)}
+          >
             <option value="">{t('any')}</option>
             {DIFFICULTIES.map((d) => (
               <option key={d} value={d}>
@@ -253,11 +306,21 @@ export default function RecipesPage() {
       </div>
 
       {/* The narrower ways to look stay folded until they are wanted; the count says when one of them is at work. */}
-      <details className={tab === 'mine' ? 'hidden' : 'max-w-4xl rounded-md border border-border px-3 py-2'}>
-        <summary className="cursor-pointer text-sm font-medium">{more > 0 ? t('moreFiltersOn', { count: more }) : t('moreFilters')}</summary>
+      <details
+        className={
+          tab === 'mine' ? 'hidden' : 'max-w-4xl rounded-md border border-border px-3 py-2'
+        }
+      >
+        <summary className="cursor-pointer text-sm font-medium">
+          {more > 0 ? t('moreFiltersOn', { count: more }) : t('moreFilters')}
+        </summary>
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label={t('cuisine')}>
-            <select className={selectClass} value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
+            <select
+              className={selectClass}
+              value={cuisine}
+              onChange={(e) => setCuisine(e.target.value)}
+            >
               <option value="">{t('any')}</option>
               {CUISINES.map((c) => (
                 <option key={c} value={c}>
@@ -267,13 +330,31 @@ export default function RecipesPage() {
             </select>
           </Field>
           <Field label={t('minProtein')}>
-            <Input type="number" inputMode="decimal" min={0} value={minProtein} onChange={(e) => setMinProtein(e.target.value)} />
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              value={minProtein}
+              onChange={(e) => setMinProtein(e.target.value)}
+            />
           </Field>
           <Field label={t('maxFat')}>
-            <Input type="number" inputMode="decimal" min={0} value={maxFat} onChange={(e) => setMaxFat(e.target.value)} />
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              value={maxFat}
+              onChange={(e) => setMaxFat(e.target.value)}
+            />
           </Field>
           <Field label={t('maxCarbs')}>
-            <Input type="number" inputMode="decimal" min={0} value={maxCarbs} onChange={(e) => setMaxCarbs(e.target.value)} />
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              value={maxCarbs}
+              onChange={(e) => setMaxCarbs(e.target.value)}
+            />
           </Field>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">{t('perServing')}</p>
@@ -284,7 +365,12 @@ export default function RecipesPage() {
             ids={ingredientIds}
             onChange={(ids) => setIngredientIds(ids.slice(0, MAX_SEARCHED_INGREDIENTS))}
           />
-          <AllergenPicker label={t('withoutAllergens')} hint={t('withoutAllergensHint')} selected={withoutAllergens} onChange={setWithoutAllergens} />
+          <AllergenPicker
+            label={t('withoutAllergens')}
+            hint={t('withoutAllergensHint')}
+            selected={withoutAllergens}
+            onChange={setWithoutAllergens}
+          />
         </div>
       </details>
 
@@ -305,7 +391,12 @@ export default function RecipesPage() {
               />
               {t('usesFavorites')}
             </label>
-            <select aria-label={t('marked')} className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={marked} onChange={(e) => setMarked(e.target.value as MarkedFilter | '')}>
+            <select
+              aria-label={t('marked')}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              value={marked}
+              onChange={(e) => setMarked(e.target.value as MarkedFilter | '')}
+            >
               <option value="">{t('markedAny')}</option>
               <option value="marked">{t('markedMarked')}</option>
               <option value="often">{t('markedOften')}</option>
@@ -365,11 +456,23 @@ export default function RecipesPage() {
             icon={Soup}
             title={t('mineEmptyTitle')}
             description={t('mineEmpty')}
-            cta={session.data && activeProfile && <DraftButton aiEnabled={session.data.aiMode !== 'none'} onOpen={() => setDraftOpen(true)} />}
+            cta={
+              session.data &&
+              activeProfile && (
+                <DraftButton
+                  aiEnabled={session.data.aiMode !== 'none'}
+                  onOpen={() => setDraftOpen(true)}
+                />
+              )
+            }
           />
         ) : (
           <p className="text-sm text-muted-foreground">
-            {usesFavorites && favoriteCount > 0 ? t('noneFavorites') : anyServerFilter || search ? t('noneFiltered') : t('noneAtAll')}
+            {usesFavorites && favoriteCount > 0
+              ? t('noneFavorites')
+              : anyServerFilter || search
+                ? t('noneFiltered')
+                : t('noneAtAll')}
           </p>
         )
       ) : (
@@ -501,7 +604,13 @@ function Pagination({
         {t('pagination.summary', { start, end, total: totalItems })}
       </p>
       <div className="flex items-center gap-1">
-        <Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => onChange(page - 1)}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+        >
           {t('pagination.prev')}
         </Button>
         {pages.map((p, idx) =>

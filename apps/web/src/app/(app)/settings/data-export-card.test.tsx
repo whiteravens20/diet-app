@@ -24,7 +24,11 @@ function shown(answer: () => Promise<Blob>) {
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
-  return { download, saved, ask: () => userEvent.click(screen.getByRole('button', { name: texts.dataExportButton })) };
+  return {
+    download,
+    saved,
+    ask: () => userEvent.click(screen.getByRole('button', { name: texts.dataExportButton })),
+  };
 }
 
 const aFile = (text: string): Blob => new Blob([text], { type: 'application/json' });
@@ -43,12 +47,16 @@ describe('the card that hands an account everything it holds', () => {
     await ask();
 
     expect(download).toHaveBeenCalledWith('/users/me/export');
-    await vi.waitFor(() => expect(saved).toHaveBeenCalledWith(whole, 'diet-app-account-2026-01-05.json'));
+    await vi.waitFor(() =>
+      expect(saved).toHaveBeenCalledWith(whole, 'diet-app-account-2026-01-05.json'),
+    );
     expect(await screen.findByText(texts.dataExportSaved)).toBeInTheDocument();
   });
 
   it('does not hand on a file that was cut short on its way, and says so', async () => {
-    const { saved, ask } = shown(() => Promise.resolve(aFile('{"format":"diet-app/account/1","profiles":[{"id":"6f1c')));
+    const { saved, ask } = shown(() =>
+      Promise.resolve(aFile('{"format":"diet-app/account/1","profiles":[{"id":"6f1c')),
+    );
 
     await ask();
 
@@ -58,7 +66,9 @@ describe('the card that hands an account everything it holds', () => {
   });
 
   it('says how long to wait when the file was asked for too often', async () => {
-    const { saved, ask } = shown(() => Promise.reject(new ApiClientError(429, 'TOO_MANY_REQUESTS', 'slow down', undefined, 1500)));
+    const { saved, ask } = shown(() =>
+      Promise.reject(new ApiClientError(429, 'TOO_MANY_REQUESTS', 'slow down', undefined, 1500)),
+    );
 
     await ask();
 
@@ -69,7 +79,9 @@ describe('the card that hands an account everything it holds', () => {
   it('can be asked again after a failure', async () => {
     let fails = true;
     const whole = aFile('{"complete":true}');
-    const { saved, ask } = shown(() => (fails ? Promise.reject(new Error('no answer')) : Promise.resolve(whole)));
+    const { saved, ask } = shown(() =>
+      fails ? Promise.reject(new Error('no answer')) : Promise.resolve(whole),
+    );
 
     await ask();
     await screen.findByRole('alert');

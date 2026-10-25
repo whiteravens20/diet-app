@@ -14,8 +14,14 @@ const idOf = (secretHex: string): string => sealKey('x', secretHex, OWNER).split
 
 describe('a stored provider key', () => {
   it('opens under the secret that sealed it, for the account it was sealed for', () => {
-    expect(openKey(sealKey('sk-live-123', SECRET, OWNER), SECRET, OWNER)).toEqual({ ok: true, key: 'sk-live-123' });
-    expect(openKey(sealKey('sk-shared', SECRET, null), SECRET, null)).toEqual({ ok: true, key: 'sk-shared' });
+    expect(openKey(sealKey('sk-live-123', SECRET, OWNER), SECRET, OWNER)).toEqual({
+      ok: true,
+      key: 'sk-live-123',
+    });
+    expect(openKey(sealKey('sk-shared', SECRET, null), SECRET, null)).toEqual({
+      ok: true,
+      key: 'sk-shared',
+    });
   });
 
   it('is sealed differently every time and never holds the key in the clear', () => {
@@ -52,7 +58,10 @@ describe('a stored provider key', () => {
       const stored = `${idOf(SECRET)}:${writtenBefore('sk-mid-789', SECRET)}`;
 
       expect(openKey(stored, SECRET, OWNER)).toEqual({ ok: true, key: 'sk-mid-789' });
-      expect(openKey(stored, OTHER_SECRET, OWNER)).toEqual({ ok: false, why: 'sealed under another secret' });
+      expect(openKey(stored, OTHER_SECRET, OWNER)).toEqual({
+        ok: false,
+        why: 'sealed under another secret',
+      });
       expect(isSealedForOwner(stored)).toBe(false);
     });
 
@@ -70,6 +79,9 @@ describe('a stored provider key', () => {
     ['an empty value', ''],
     ['text', 'not a ciphertext'],
   ])('reports %s as unreadable instead of failing', (_name, stored) => {
-    expect(openKey(stored, SECRET, OWNER)).toEqual({ ok: false, why: 'damaged, or sealed under another secret' });
+    expect(openKey(stored, SECRET, OWNER)).toEqual({
+      ok: false,
+      why: 'damaged, or sealed under another secret',
+    });
   });
 });

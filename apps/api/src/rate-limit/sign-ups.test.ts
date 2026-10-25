@@ -10,7 +10,9 @@ const DAY_MS = 86_400_000;
 
 /** The limit as an instance sets it up: `TRUST_PROXY` as given. */
 const signUps = (trustProxy: string | undefined): SignUps =>
-  new SignUps({ get: (key: string) => (key === 'TRUST_PROXY' ? trustProxy : undefined) } as unknown as ConfigService<Env, true>);
+  new SignUps({
+    get: (key: string) => (key === 'TRUST_PROXY' ? trustProxy : undefined),
+  } as unknown as ConfigService<Env, true>);
 
 describe('the accounts one address may open in a day', () => {
   let limit: SignUps;
@@ -29,7 +31,10 @@ describe('the accounts one address may open in a day', () => {
       return null;
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
-      return { status: (err as HttpException).getStatus(), body: (err as HttpException).getResponse() };
+      return {
+        status: (err as HttpException).getStatus(),
+        body: (err as HttpException).getResponse(),
+      };
     }
   };
 
@@ -41,7 +46,10 @@ describe('the accounts one address may open in a day', () => {
 
     expect(refusal('203.0.113.7')).toEqual({
       status: 429,
-      body: expect.objectContaining({ error: 'TOO_MANY_SIGN_UPS', retryAfterSeconds: (DAY_MS - SIGN_UPS_PER_ADDRESS_A_DAY * 60_000) / 1000 }),
+      body: expect.objectContaining({
+        error: 'TOO_MANY_SIGN_UPS',
+        retryAfterSeconds: (DAY_MS - SIGN_UPS_PER_ADDRESS_A_DAY * 60_000) / 1000,
+      }),
     });
     time = 1_000_000_000 + DAY_MS + 1;
     expect(refusal('203.0.113.7')).toBeNull();
@@ -61,7 +69,7 @@ describe('the accounts one address may open in a day', () => {
     expect(refusal('203.0.113.7')).toBeNull();
   });
 
-  it('are not counted where the address is the proxy\'s for every visitor: one visitor would keep all others from signing up', () => {
+  it("are not counted where the address is the proxy's for every visitor: one visitor would keep all others from signing up", () => {
     limit = signUps(undefined);
 
     for (let i = 0; i < 10; i += 1) expect(refusal('172.18.0.5')).toBeNull();

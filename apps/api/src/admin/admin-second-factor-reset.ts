@@ -25,7 +25,9 @@ export class AdminSecondFactorReset implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     if (!this.config.get('ADMIN_SECOND_FACTOR_RESET', { infer: true })) return;
     if (await this.factors.remove('administrator')) {
-      this.logger.warn("ADMIN_SECOND_FACTOR_RESET is on: the administrator's second factor was removed. The panel opens with the password alone.");
+      this.logger.warn(
+        "ADMIN_SECOND_FACTOR_RESET is on: the administrator's second factor was removed. The panel opens with the password alone.",
+      );
     }
   }
 }

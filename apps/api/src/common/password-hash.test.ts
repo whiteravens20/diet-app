@@ -2,7 +2,12 @@
 
 import { ServiceUnavailableException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { hashPassword, hashPasswordAtStartup, MAX_PENDING, verifyPassword } from './password-hash.js';
+import {
+  hashPassword,
+  hashPasswordAtStartup,
+  MAX_PENDING,
+  verifyPassword,
+} from './password-hash.js';
 
 describe('password hashing', () => {
   it('checks what it hashed, and nothing else', async () => {
@@ -48,7 +53,9 @@ describe('password hashing', () => {
   it('refuses more checks at once than its bound, and takes them again when there is room', async () => {
     const running = Array.from({ length: MAX_PENDING }, () => hashPassword('x', 8));
 
-    await expect(verifyPassword('x', 'not-a-hash')).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(verifyPassword('x', 'not-a-hash')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
     await Promise.all(running);
 
     expect(await verifyPassword('x', await hashPassword('x', 8))).toBe(true);

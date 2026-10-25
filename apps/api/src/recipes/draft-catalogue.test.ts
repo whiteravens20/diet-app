@@ -41,7 +41,9 @@ describe('the ingredients offered for a draft', () => {
   });
 
   it('never exceed the size of a prompt, and are the whole catalogue when it is small', () => {
-    expect(draftCatalogue(catalogue(KINDS, 80), new Set(), 'seed')).toHaveLength(DRAFT_CATALOGUE_SIZE);
+    expect(draftCatalogue(catalogue(KINDS, 80), new Set(), 'seed')).toHaveLength(
+      DRAFT_CATALOGUE_SIZE,
+    );
 
     const small = catalogue(KINDS, 3);
     expect(slugs(draftCatalogue(small, new Set(), 'seed')).sort()).toEqual(slugs(small).sort());
@@ -62,7 +64,8 @@ describe('the ingredients offered for a draft', () => {
     const offered = draftCatalogue(rows, new Set(), 'seed');
 
     const perCategory = new Map<string, number>();
-    for (const row of offered) perCategory.set(row.category, (perCategory.get(row.category) ?? 0) + 1);
+    for (const row of offered)
+      perCategory.set(row.category, (perCategory.get(row.category) ?? 0) + 1);
 
     expect([...perCategory.keys()].sort()).toEqual([...KINDS, 'spices'].sort());
     // A category with two ingredients gives both; the others share the rest.

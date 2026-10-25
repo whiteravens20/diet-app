@@ -134,8 +134,9 @@ export function FavoriteSetsCard({ profileId }: { profileId: string }) {
                   <p className="font-medium">{s.label}</p>
                   <p className="text-xs text-muted-foreground">
                     {Object.entries(s.slots)
-                      .map(([slot, recipeId]) =>
-                        `${tMeal.has(slot) ? tMeal(slot as MealType) : slot}: ${recipeTitle(recipeId)}`,
+                      .map(
+                        ([slot, recipeId]) =>
+                          `${tMeal.has(slot) ? tMeal(slot as MealType) : slot}: ${recipeTitle(recipeId)}`,
                       )
                       .join(' · ')}
                   </p>

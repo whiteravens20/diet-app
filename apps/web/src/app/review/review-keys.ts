@@ -85,7 +85,11 @@ export interface ReviewKeys {
  * before; it is then no stop of the Tab key. A draft that takes the focus is
  * brought to the top of the view: it is read from its title.
  */
-export function useReviewKeys(keys: ReviewKeys): { ref: RefObject<HTMLDivElement | null>; tabIndex: 0 | -1; onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void } {
+export function useReviewKeys(keys: ReviewKeys): {
+  ref: RefObject<HTMLDivElement | null>;
+  tabIndex: 0 | -1;
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+} {
   const ref = useRef<HTMLDivElement>(null);
   // As it was when the draft came up: turning the keys on moves no focus.
   const takesFocus = useRef(keys.takesFocus);
@@ -103,7 +107,15 @@ export function useReviewKeys(keys: ReviewKeys): { ref: RefObject<HTMLDivElement
       return;
     }
     if (!onTheDraft || event.ctrlKey || event.metaKey || event.altKey || keys.busy) return;
-    const act = { a: keys.approve, r: keys.reject, s: keys.save, j: keys.next, arrowright: keys.next, k: keys.previous, arrowleft: keys.previous }[event.key.toLowerCase()];
+    const act = {
+      a: keys.approve,
+      r: keys.reject,
+      s: keys.save,
+      j: keys.next,
+      arrowright: keys.next,
+      k: keys.previous,
+      arrowleft: keys.previous,
+    }[event.key.toLowerCase()];
     if (!act) return;
     event.preventDefault();
     act();

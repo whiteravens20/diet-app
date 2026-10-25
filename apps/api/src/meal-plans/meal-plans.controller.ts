@@ -117,14 +117,21 @@ export class MealPlansController {
   @Get('calendar')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Answers(PlanCalendar)
-  calendar(@CurrentUser() user: RequestUser, @Query(new ZodValidationPipe(PlanCalendarQuery)) query: PlanCalendarQuery) {
+  calendar(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(PlanCalendarQuery)) query: PlanCalendarQuery,
+  ) {
     return this.calendars.calendar(user.id, query);
   }
 
   /** One plan, with its days and their meals. */
   @Get(':id')
   @Answers(MealPlan)
-  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string) {
+  get(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+  ) {
     return this.plans.get(user.id, locale, id);
   }
 
@@ -383,7 +390,12 @@ export class MealPlansController {
   /** The substitutes the catalogue's own rules name for the ingredients of a planned meal. */
   @Get(':id/meals/:mealId/substitutes')
   @AnswersListOf(SubstituteSuggestion)
-  substitutes(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string, @Param('mealId', requiredUuid) mealId: string) {
+  substitutes(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+  ) {
     return this.ingredients.suggestions(user.id, locale, id, mealId);
   }
 

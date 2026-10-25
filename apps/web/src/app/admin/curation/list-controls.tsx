@@ -65,7 +65,12 @@ export function Pagination({
         <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
           {t('prev')}
         </Button>
-        <Button variant="outline" size="sm" disabled={page >= last} onClick={() => onPage(page + 1)}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page >= last}
+          onClick={() => onPage(page + 1)}
+        >
           {t('next')}
         </Button>
       </div>

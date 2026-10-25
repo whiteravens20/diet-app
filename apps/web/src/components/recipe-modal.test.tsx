@@ -35,10 +35,14 @@ const oats = {
 
 /** The window of the recipe, opened; `answer` is what the API says of it. */
 function renderWindow(answer: () => Promise<unknown>) {
-  vi.spyOn(api, 'get').mockImplementation((path: string) => (path === `/recipes/${RECIPE}` ? (answer() as never) : Promise.resolve([] as never)));
+  vi.spyOn(api, 'get').mockImplementation((path: string) =>
+    path === `/recipes/${RECIPE}` ? (answer() as never) : Promise.resolve([] as never),
+  );
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <RecipeModal recipeId={RECIPE} onClose={() => undefined} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
@@ -51,10 +55,12 @@ describe('the window of a recipe', () => {
     vi.restoreAllMocks();
   });
 
-  it('has a place for the recipe\'s photo over its text, filled from the app\'s own photographs, and says nothing of it to a reader', async () => {
+  it("has a place for the recipe's photo over its text, filled from the app's own photographs, and says nothing of it to a reader", async () => {
     const dialog = renderWindow(() => Promise.resolve(oats));
 
-    expect(await dialog.findByRole('heading', { name: 'Oat bowl', hidden: true })).toBeInTheDocument();
+    expect(
+      await dialog.findByRole('heading', { name: 'Oat bowl', hidden: true }),
+    ).toBeInTheDocument();
     const photo = document.querySelector('[data-recipe-photo] img')!;
     expect(decodeURIComponent(photo.getAttribute('src') ?? '')).toContain(IMAGERY.recipes);
     expect(photo).toHaveAttribute('alt', '');
@@ -69,26 +75,47 @@ describe('the window of a recipe', () => {
   });
 
   it('says where a recipe that was taken in is from and under which licence, each as a link that tells the other site nothing', async () => {
-    const dialog = renderWindow(() => Promise.resolve({ ...oats, source: { url: 'https://recipes.example/oat-bowl?ref=1', license: 'https://creativecommons.org/licenses/by/4.0/' } }));
+    const dialog = renderWindow(() =>
+      Promise.resolve({
+        ...oats,
+        source: {
+          url: 'https://recipes.example/oat-bowl?ref=1',
+          license: 'https://creativecommons.org/licenses/by/4.0/',
+        },
+      }),
+    );
 
     const from = await dialog.findByRole('link', { name: 'recipes.example', hidden: true });
     expect(from).toHaveAttribute('href', 'https://recipes.example/oat-bowl?ref=1');
     expect(from).toHaveAttribute('rel', 'noopener noreferrer');
     expect(from).toHaveAttribute('target', '_blank');
-    expect(from.closest('p')).toHaveTextContent('From recipes.example · Licence: creativecommons.org');
-    expect(dialog.getByRole('link', { name: 'creativecommons.org', hidden: true })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
+    expect(from.closest('p')).toHaveTextContent(
+      'From recipes.example · Licence: creativecommons.org',
+    );
+    expect(dialog.getByRole('link', { name: 'creativecommons.org', hidden: true })).toHaveAttribute(
+      'href',
+      'https://creativecommons.org/licenses/by/4.0/',
+    );
   });
 
   it('writes a licence that is a name as a name, and makes no link of an address that is none of the web', async () => {
-    const dialog = renderWindow(() => Promise.resolve({ ...oats, source: { url: 'javascript:alert(1)', license: 'CC BY-SA 4.0' } }));
+    const dialog = renderWindow(() =>
+      Promise.resolve({ ...oats, source: { url: 'javascript:alert(1)', license: 'CC BY-SA 4.0' } }),
+    );
 
-    expect((await dialog.findByText('CC BY-SA 4.0')).closest('p')).toHaveTextContent(/^Licence: CC BY-SA 4\.0$/);
-    expect(dialog.queryAllByRole('link', { hidden: true }).map((link) => link.getAttribute('href'))).not.toContain('javascript:alert(1)');
+    expect((await dialog.findByText('CC BY-SA 4.0')).closest('p')).toHaveTextContent(
+      /^Licence: CC BY-SA 4\.0$/,
+    );
+    expect(
+      dialog.queryAllByRole('link', { hidden: true }).map((link) => link.getAttribute('href')),
+    ).not.toContain('javascript:alert(1)');
     expect(dialog.queryByText(/^From /)).not.toBeInTheDocument();
   });
 
   it('shows no photo over a recipe that is not there', async () => {
-    const dialog = renderWindow(() => Promise.reject(new ApiClientError(404, 'NOT_FOUND', 'No such recipe.')));
+    const dialog = renderWindow(() =>
+      Promise.reject(new ApiClientError(404, 'NOT_FOUND', 'No such recipe.')),
+    );
 
     expect(await dialog.findByText(messages.recipeDetail.notFound)).toBeInTheDocument();
     expect(document.querySelector('[data-recipe-photo]')).toBeNull();

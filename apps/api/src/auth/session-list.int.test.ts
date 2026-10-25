@@ -8,7 +8,8 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { SessionsService, type OpenedSession } from './sessions.service.js';
 
 const FIREFOX = 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0';
-const PHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
+const PHONE =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
 
 describe('the sessions of an account, as the account sees them', () => {
   let t: TestApp;
@@ -34,8 +35,16 @@ describe('the sessions of an account, as the account sees them', () => {
   });
 
   const signIn = async (userAgent: string, who = user): Promise<OpenedSession> =>
-    (await t.http().post('/api/auth/login').set('User-Agent', userAgent).send({ email: who.email, password: who.password }).expect(200)).body;
-  const listed = async (who = user): Promise<AccountSession[]> => (await t.http().get('/api/users/me/sessions').set(as(who)).expect(200)).body;
+    (
+      await t
+        .http()
+        .post('/api/auth/login')
+        .set('User-Agent', userAgent)
+        .send({ email: who.email, password: who.password })
+        .expect(200)
+    ).body;
+  const listed = async (who = user): Promise<AccountSession[]> =>
+    (await t.http().get('/api/users/me/sessions').set(as(who)).expect(200)).body;
   const works = async (token: string): Promise<boolean> =>
     sessions.refresh(token).then(
       () => true,
@@ -65,14 +74,18 @@ describe('the sessions of an account, as the account sees them', () => {
     const [first] = await listed();
     expect(first!.id).toBe(laptop.sessionId);
     expect(first!.startedAt).toBe(before.startedAt);
-    expect(new Date(first!.lastUsedAt).getTime()).toBeGreaterThan(new Date(before.lastUsedAt).getTime());
+    expect(new Date(first!.lastUsedAt).getTime()).toBeGreaterThan(
+      new Date(before.lastUsedAt).getTime(),
+    );
   });
 
-  it('are the account\'s own', async () => {
+  it("are the account's own", async () => {
     const other = await aUser(t);
 
     expect(await listed(other)).toHaveLength(1);
-    expect((await listed()).map((session) => session.id)).not.toContain((await listed(other))[0]!.id);
+    expect((await listed()).map((session) => session.id)).not.toContain(
+      (await listed(other))[0]!.id,
+    );
   });
 
   it('can be ended one at a time: that one stops, the others go on, and it leaves the list', async () => {
@@ -86,7 +99,15 @@ describe('the sessions of an account, as the account sees them', () => {
   it('cannot be ended by another account, nor twice', async () => {
     const other = await aUser(t);
 
-    expect((await t.http().delete(`/api/users/me/sessions/${phone.sessionId}`).set(as(other)).expect(404)).body.error).toBe('SESSION_NOT_FOUND');
+    expect(
+      (
+        await t
+          .http()
+          .delete(`/api/users/me/sessions/${phone.sessionId}`)
+          .set(as(other))
+          .expect(404)
+      ).body.error,
+    ).toBe('SESSION_NOT_FOUND');
     expect(await works(phone.tokens.refreshToken)).toBe(true);
 
     await t.http().delete(`/api/users/me/sessions/${laptop.sessionId}`).set(as(user)).expect(204);
@@ -107,16 +128,35 @@ describe('the sessions of an account, as the account sees them', () => {
   });
 
   it('are not listed once they have run out', async () => {
-    await t.prisma.refreshToken.updateMany({ where: { familyId: phone.sessionId }, data: { familyExpiresAt: new Date(Date.now() - 1000) } });
-    await t.prisma.refreshToken.updateMany({ where: { familyId: laptop.sessionId }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    await t.prisma.refreshToken.updateMany({
+      where: { familyId: phone.sessionId },
+      data: { familyExpiresAt: new Date(Date.now() - 1000) },
+    });
+    await t.prisma.refreshToken.updateMany({
+      where: { familyId: laptop.sessionId },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
 
     expect(await listed()).toHaveLength(1);
   });
 
   it('are named when an account is made, too', async () => {
-    const made = (await t.http().post('/api/auth/register').set('User-Agent', FIREFOX).send({ email: 'named@example.test', password: 'Brand-New-Passw0rd', displayName: 'Named' }).expect(201)).body as OpenedSession;
+    const made = (
+      await t
+        .http()
+        .post('/api/auth/register')
+        .set('User-Agent', FIREFOX)
+        .send({ email: 'named@example.test', password: 'Brand-New-Passw0rd', displayName: 'Named' })
+        .expect(201)
+    ).body as OpenedSession;
 
-    const list = (await t.http().get('/api/users/me/sessions').set({ Authorization: `Bearer ${made.tokens.accessToken}` }).expect(200)).body as AccountSession[];
+    const list = (
+      await t
+        .http()
+        .get('/api/users/me/sessions')
+        .set({ Authorization: `Bearer ${made.tokens.accessToken}` })
+        .expect(200)
+    ).body as AccountSession[];
     expect(list).toMatchObject([{ id: made.sessionId, label: 'Firefox · Linux' }]);
   });
 });

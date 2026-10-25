@@ -111,7 +111,10 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
 
       {open && (
         <div
-          className={cn('pop-in absolute top-full z-50 mt-2 w-72 max-w-[calc(100vw-1rem)] rounded-md border border-border bg-card text-card-foreground shadow-lg', align === 'end' ? 'right-0' : 'left-0')}
+          className={cn(
+            'pop-in absolute top-full z-50 mt-2 w-72 max-w-[calc(100vw-1rem)] rounded-md border border-border bg-card text-card-foreground shadow-lg',
+            align === 'end' ? 'right-0' : 'left-0',
+          )}
           role="dialog"
           aria-label={t('label')}
         >
@@ -132,9 +135,7 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
           </div>
           <ul className="max-h-72 overflow-y-auto">
             {count === 0 ? (
-              <li className="px-3 py-6 text-center text-xs text-muted-foreground">
-                {t('empty')}
-              </li>
+              <li className="px-3 py-6 text-center text-xs text-muted-foreground">{t('empty')}</li>
             ) : (
               list.map((n) => (
                 <li
@@ -153,7 +154,7 @@ export function NotificationsBell({ align = 'start' }: { align?: 'start' | 'end'
                 </li>
               ))
             )}
-            </ul>
+          </ul>
         </div>
       )}
     </div>

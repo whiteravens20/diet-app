@@ -40,7 +40,9 @@ export function packsFor(need: number, packSize: number): number {
 
 /** What is left of the last pack when a need is taken out of whole packs: nothing where the need takes them all and a spoonful more. */
 export function leftOf(need: number, packSize: number): number {
-  return need <= 0 || packSize <= 0 ? 0 : Math.max(0, clean(packsFor(need, packSize) * packSize - need));
+  return need <= 0 || packSize <= 0
+    ? 0
+    : Math.max(0, clean(packsFor(need, packSize) * packSize - need));
 }
 
 /**
@@ -118,7 +120,10 @@ export interface PackUse {
  * Grams and millilitres are added up as they are: the sum says how much of
  * what is bought is used, not what it weighs.
  */
-export function packUse(needs: ReadonlyMap<string, number>, packs: ReadonlyMap<string, number>): PackUse {
+export function packUse(
+  needs: ReadonlyMap<string, number>,
+  packs: ReadonlyMap<string, number>,
+): PackUse {
   const open: OpenPack[] = [];
   let bought = 0;
   let used = 0;
@@ -130,8 +135,19 @@ export function packUse(needs: ReadonlyMap<string, number>, packs: ReadonlyMap<s
     bought += count * packSize;
     // A need that is a spoonful over its packs uses all of them, and no more than they hold.
     used += Math.min(need, count * packSize);
-    if (left > 0) open.push({ ingredientId, packSize, packs: count, used: clean(need), left, wasted: leftBeyondAccepted(need, packSize) > 0 });
+    if (left > 0)
+      open.push({
+        ingredientId,
+        packSize,
+        packs: count,
+        used: clean(need),
+        left,
+        wasted: leftBeyondAccepted(need, packSize) > 0,
+      });
   }
-  open.sort((a, b) => b.left / b.packSize - a.left / a.packSize || (a.ingredientId < b.ingredientId ? -1 : 1));
+  open.sort(
+    (a, b) =>
+      b.left / b.packSize - a.left / a.packSize || (a.ingredientId < b.ingredientId ? -1 : 1),
+  );
   return { bought: clean(bought), used: clean(used), open };
 }

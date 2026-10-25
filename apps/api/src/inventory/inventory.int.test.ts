@@ -29,15 +29,27 @@ describe('the pantry', () => {
     profile = await aProfile(t, user);
   });
 
-  const ingredientId = async (slug: string): Promise<string> => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+  const ingredientId = async (slug: string): Promise<string> =>
+    (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
 
   /** Add `quantity` of an ingredient to the pantry of `profile` as `user`. */
-  const add = async (slug: string, quantity: number, unit: string, more: Record<string, unknown> = {}) =>
+  const add = async (
+    slug: string,
+    quantity: number,
+    unit: string,
+    more: Record<string, unknown> = {},
+  ) =>
     t
       .http()
       .post('/api/inventory')
       .set(as(user))
-      .send({ profileId: profile.id, ingredientId: await ingredientId(slug), quantity, unit, ...more });
+      .send({
+        profileId: profile.id,
+        ingredientId: await ingredientId(slug),
+        quantity,
+        unit,
+        ...more,
+      });
 
   it('stores a row for a catalogue ingredient and adds to it on a second post', async () => {
     await add('rolled-oats', 300, 'g');
@@ -53,9 +65,17 @@ describe('the pantry', () => {
     await add('banana', 3, 'piece');
     await add('banana', 200, 'g');
 
-    const rows = await t.http().get(`/api/inventory?profileId=${profile.id}`).set(as(user)).expect(200);
+    const rows = await t
+      .http()
+      .get(`/api/inventory?profileId=${profile.id}`)
+      .set(as(user))
+      .expect(200);
 
-    expect(rows.body.map((row: { quantity: number; unit: string }) => `${row.quantity} ${row.unit}`).sort()).toEqual(['200 g', '3 piece']);
+    expect(
+      rows.body
+        .map((row: { quantity: number; unit: string }) => `${row.quantity} ${row.unit}`)
+        .sort(),
+    ).toEqual(['200 g', '3 piece']);
   });
 
   it('keeps what is counted in its pieces alone, turning an amount in grams into them', async () => {
@@ -65,13 +85,24 @@ describe('the pantry', () => {
     const first = await add('wholegrain-bread', 70, 'g');
 
     expect(weighed.status).toBe(201);
-    expect(weighed.body).toMatchObject({ quantity: 8, unit: 'piece', display: { quantity: 8, unit: 'piece' } });
-    expect(first.body).toMatchObject({ quantity: 2, unit: 'piece', display: { quantity: 2, unit: 'slice' } });
-    const rows = await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id }, orderBy: { quantity: 'asc' } });
+    expect(weighed.body).toMatchObject({
+      quantity: 8,
+      unit: 'piece',
+      display: { quantity: 8, unit: 'piece' },
+    });
+    expect(first.body).toMatchObject({
+      quantity: 2,
+      unit: 'piece',
+      display: { quantity: 2, unit: 'slice' },
+    });
+    const rows = await t.prisma.inventoryItem.findMany({
+      where: { profileId: profile.id },
+      orderBy: { quantity: 'asc' },
+    });
     expect(rows.map((row) => `${row.quantity} ${row.unit}`)).toEqual(['2 piece', '8 piece']);
   });
 
-  it('lists the rows by aisle, then by name as the reader\'s language sorts names, then by unit', async () => {
+  it("lists the rows by aisle, then by name as the reader's language sorts names, then by unit", async () => {
     for (const [slug, quantity, unit] of [
       ['rolled-oats', 500, 'g'],
       ['large-egg', 6, 'piece'],
@@ -85,12 +116,37 @@ describe('the pantry', () => {
       await add(slug, quantity, unit);
     }
     const listed = async (locale: string): Promise<string[]> =>
-      ((await t.http().get(`/api/inventory?profileId=${profile.id}`).set(as(user)).set('Accept-Language', locale).expect(200)).body as InventoryItem[]).map(
-        (row) => `${row.ingredient.name} ${row.unit}`,
-      );
+      (
+        (
+          await t
+            .http()
+            .get(`/api/inventory?profileId=${profile.id}`)
+            .set(as(user))
+            .set('Accept-Language', locale)
+            .expect(200)
+        ).body as InventoryItem[]
+      ).map((row) => `${row.ingredient.name} ${row.unit}`);
 
-    expect(await listed('pl')).toEqual(['Pomidor g', 'Banan g', 'Banan piece', 'Łosoś g', 'Jajko piece', 'Jogurt grecki g', 'Chleb pełnoziarnisty piece', 'Płatki owsiane g']);
-    expect(await listed('en')).toEqual(['Tomato g', 'Banana g', 'Banana piece', 'Salmon g', 'Greek yogurt g', 'Large egg piece', 'Rolled oats g', 'Wholegrain bread piece']);
+    expect(await listed('pl')).toEqual([
+      'Pomidor g',
+      'Banan g',
+      'Banan piece',
+      'Łosoś g',
+      'Jajko piece',
+      'Jogurt grecki g',
+      'Chleb pełnoziarnisty piece',
+      'Płatki owsiane g',
+    ]);
+    expect(await listed('en')).toEqual([
+      'Tomato g',
+      'Banana g',
+      'Banana piece',
+      'Salmon g',
+      'Greek yogurt g',
+      'Large egg piece',
+      'Rolled oats g',
+      'Wholegrain bread piece',
+    ]);
   });
 
   it('answers 404 when a row names an ingredient that does not exist', async () => {
@@ -144,7 +200,10 @@ describe('the pantry', () => {
       const onTop = await add('rolled-oats', 1, 'g');
       expect(onTop.status).toBe(400);
       expect(onTop.body.error).toBe('QUANTITY_TOO_LARGE');
-      expect((await t.prisma.inventoryItem.findFirstOrThrow({ where: { profileId: profile.id } })).quantity).toBe(MAX_QUANTITY.g);
+      expect(
+        (await t.prisma.inventoryItem.findFirstOrThrow({ where: { profileId: profile.id } }))
+          .quantity,
+      ).toBe(MAX_QUANTITY.g);
     });
 
     it('in a unit the ingredient cannot be converted from is refused', async () => {
@@ -161,7 +220,9 @@ describe('the pantry', () => {
     it('is the sum when two posts for a new row arrive at the same moment', async () => {
       const results = await race(4, () => add('rolled-oats', 100, 'g'));
 
-      expect(results.map((result) => (result.status === 'fulfilled' ? result.value.status : 'threw'))).toEqual([201, 201, 201, 201]);
+      expect(
+        results.map((result) => (result.status === 'fulfilled' ? result.value.status : 'threw')),
+      ).toEqual([201, 201, 201, 201]);
       const rows = await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } });
       expect(rows.map((row) => row.quantity)).toEqual([400]);
     });
@@ -171,9 +232,23 @@ describe('the pantry', () => {
     it('can be set to another quantity, zero included, and to no more than the ceiling', async () => {
       const row = (await add('rolled-oats', 300, 'g')).body as { id: string };
 
-      const set = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ quantity: 125 }).expect(200);
-      const emptied = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ quantity: 0 }).expect(200);
-      const tooMuch = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ quantity: MAX_QUANTITY.g + 1 });
+      const set = await t
+        .http()
+        .patch(`/api/inventory/${row.id}`)
+        .set(as(user))
+        .send({ quantity: 125 })
+        .expect(200);
+      const emptied = await t
+        .http()
+        .patch(`/api/inventory/${row.id}`)
+        .set(as(user))
+        .send({ quantity: 0 })
+        .expect(200);
+      const tooMuch = await t
+        .http()
+        .patch(`/api/inventory/${row.id}`)
+        .set(as(user))
+        .send({ quantity: MAX_QUANTITY.g + 1 });
 
       expect(set.body.quantity).toBe(125);
       expect(emptied.body.quantity).toBe(0);
@@ -181,10 +256,22 @@ describe('the pantry', () => {
     });
 
     it('keeps what a patch does not name', async () => {
-      const row = (await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-05' })).body as { id: string };
+      const row = (await add('whole-milk', 500, 'ml', { bestBefore: '2026-11-05' })).body as {
+        id: string;
+      };
 
-      const halved = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ quantity: 250 }).expect(200);
-      const undated = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ bestBefore: null }).expect(200);
+      const halved = await t
+        .http()
+        .patch(`/api/inventory/${row.id}`)
+        .set(as(user))
+        .send({ quantity: 250 })
+        .expect(200);
+      const undated = await t
+        .http()
+        .patch(`/api/inventory/${row.id}`)
+        .set(as(user))
+        .send({ bestBefore: null })
+        .expect(200);
 
       expect(halved.body).toMatchObject({ quantity: 250, bestBefore: '2026-11-05' });
       expect(undated.body).toMatchObject({ quantity: 250, bestBefore: null });
@@ -195,7 +282,12 @@ describe('the pantry', () => {
 
       await t.http().delete(`/api/inventory/${row.id}`).set(as(user)).expect(204);
 
-      const again = await t.http().patch(`/api/inventory/${row.id}`).set(as(user)).send({ quantity: 5 }).expect(404);
+      const again = await t
+        .http()
+        .patch(`/api/inventory/${row.id}`)
+        .set(as(user))
+        .send({ quantity: 5 })
+        .expect(404);
       expect(again.body.error).toBe('INVENTORY_ITEM_NOT_FOUND');
       await t.http().delete(`/api/inventory/${randomUUID()}`).set(as(user)).expect(404);
     });
@@ -211,12 +303,24 @@ describe('the pantry', () => {
         .http()
         .post('/api/inventory')
         .set(as(other))
-        .send({ profileId: profile.id, ingredientId: await ingredientId('rolled-oats'), quantity: 1, unit: 'g' })
+        .send({
+          profileId: profile.id,
+          ingredientId: await ingredientId('rolled-oats'),
+          quantity: 1,
+          unit: 'g',
+        })
         .expect(404);
-      await t.http().patch(`/api/inventory/${row.id}`).set(as(other)).send({ quantity: 1 }).expect(404);
+      await t
+        .http()
+        .patch(`/api/inventory/${row.id}`)
+        .set(as(other))
+        .send({ quantity: 1 })
+        .expect(404);
       await t.http().delete(`/api/inventory/${row.id}`).set(as(other)).expect(404);
 
-      expect((await t.prisma.inventoryItem.findUniqueOrThrow({ where: { id: row.id } })).quantity).toBe(300);
+      expect(
+        (await t.prisma.inventoryItem.findUniqueOrThrow({ where: { id: row.id } })).quantity,
+      ).toBe(300);
     });
   });
 });

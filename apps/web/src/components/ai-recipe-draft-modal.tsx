@@ -24,13 +24,7 @@ import { Field } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { NAMED_DIETS } from '@/lib/catalogue';
 
-const MEAL_TYPES: MealType[] = [
-  'breakfast',
-  'second_breakfast',
-  'lunch',
-  'snack',
-  'dinner',
-];
+const MEAL_TYPES: MealType[] = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'];
 const CUISINES: Cuisine[] = [
   'polish',
   'italian',

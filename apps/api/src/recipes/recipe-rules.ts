@@ -16,7 +16,14 @@
  * and what the recipe's nutrition, allergens and diets are, is worked out
  * from the ingredient table by whoever calls this.
  */
-import { INGREDIENT_NAME_LIMITS, MealType, RECIPE_LIMITS, Unit, type Difficulty, type IngredientNameSuggestion } from '@diet-app/shared';
+import {
+  INGREDIENT_NAME_LIMITS,
+  MealType,
+  RECIPE_LIMITS,
+  Unit,
+  type Difficulty,
+  type IngredientNameSuggestion,
+} from '@diet-app/shared';
 import { plainLine } from '../ai/model-json.js';
 
 export type RecipeRule =
@@ -58,8 +65,10 @@ export interface CheckedRecipe {
   ingredients: { slug: string; quantity: number; unit: Unit; note: string | null }[];
 }
 
-export type RecipeCheck = { ok: true; recipe: CheckedRecipe } | { ok: false; problems: RecipeProblem[] };
-export type IngredientNameCheck = { ok: true; suggestion: IngredientNameSuggestion } | { ok: false; problems: RecipeProblem[] };
+export type RecipeCheck =
+  { ok: true; recipe: CheckedRecipe } | { ok: false; problems: RecipeProblem[] };
+export type IngredientNameCheck =
+  { ok: true; suggestion: IngredientNameSuggestion } | { ok: false; problems: RecipeProblem[] };
 
 /** Lower-case words and numbers joined by single hyphens: what a slug in the data looks like. */
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -75,7 +84,8 @@ const DIFFICULTIES: readonly string[] = ['easy', 'medium', 'hard'];
  */
 const INGREDIENT_SLUG_MAX = 200;
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 type Text = { text: string } | { rule: 'text-too-long' | 'markup' } | null;
 
@@ -124,9 +134,15 @@ const sentence = (path: string, rule: RecipeRule, max?: number): string => {
 };
 
 /** Collects the problems of one check. */
-function problemList(): { problems: RecipeProblem[]; add: (path: string, rule: RecipeRule, max?: number) => void } {
+function problemList(): {
+  problems: RecipeProblem[];
+  add: (path: string, rule: RecipeRule, max?: number) => void;
+} {
   const problems: RecipeProblem[] = [];
-  return { problems, add: (path, rule, max) => problems.push({ path, rule, message: sentence(path, rule, max) }) };
+  return {
+    problems,
+    add: (path, rule, max) => problems.push({ path, rule, message: sentence(path, rule, max) }),
+  };
 }
 
 export interface RecipeText {
@@ -136,7 +152,11 @@ export interface RecipeText {
 }
 
 /** The title, description and steps of each of `locales`, cleaned; what is wrong goes to `add`. */
-function textOf(input: Record<string, unknown>, locales: readonly string[], add: (path: string, rule: RecipeRule, max?: number) => void): RecipeText {
+function textOf(
+  input: Record<string, unknown>,
+  locales: readonly string[],
+  add: (path: string, rule: RecipeRule, max?: number) => void,
+): RecipeText {
   const textsOf = (field: 'titles' | 'descriptions', max: number): Record<string, string> => {
     const source = isObject(input[field]) ? input[field] : {};
     const out: Record<string, string> = {};
@@ -178,16 +198,22 @@ function textOf(input: Record<string, unknown>, locales: readonly string[], add:
  * Check the text of a recipe in `locales` and nothing else of it: what
  * somebody who edits one language is answerable for.
  */
-export function checkRecipeText(input: Record<string, unknown>, locales: readonly string[]): { ok: true; text: RecipeText } | { ok: false; problems: RecipeProblem[] } {
+export function checkRecipeText(
+  input: Record<string, unknown>,
+  locales: readonly string[],
+): { ok: true; text: RecipeText } | { ok: false; problems: RecipeProblem[] } {
   const { problems, add } = problemList();
   const text = textOf(input, locales, add);
   return problems.length > 0 ? { ok: false, problems } : { ok: true, text };
 }
 
 /** Check a recipe's slug and nothing else of it. */
-export function checkRecipeSlug(slug: unknown): { ok: true; slug: string } | { ok: false; problems: RecipeProblem[] } {
+export function checkRecipeSlug(
+  slug: unknown,
+): { ok: true; slug: string } | { ok: false; problems: RecipeProblem[] } {
   const { problems, add } = problemList();
-  if (typeof slug === 'string' && slug.length <= RECIPE_LIMITS.slug && SLUG.test(slug)) return { ok: true, slug };
+  if (typeof slug === 'string' && slug.length <= RECIPE_LIMITS.slug && SLUG.test(slug))
+    return { ok: true, slug };
   add('slug', 'invalid-slug');
   return { ok: false, problems };
 }
@@ -197,24 +223,38 @@ export function checkRecipeSlug(slug: unknown): { ok: true; slug: string } | { o
  * each needs a title, a description and steps, and text in any other language
  * is left out. Every problem is named, not only the first.
  */
-export function checkRecipe(input: Record<string, unknown>, locales: readonly string[]): RecipeCheck {
+export function checkRecipe(
+  input: Record<string, unknown>,
+  locales: readonly string[],
+): RecipeCheck {
   const { problems, add } = problemList();
 
   let slug: string | null = null;
   if (input.slug !== undefined && input.slug !== null) {
-    if (typeof input.slug === 'string' && input.slug.length <= RECIPE_LIMITS.slug && SLUG.test(input.slug)) slug = input.slug;
+    if (
+      typeof input.slug === 'string' &&
+      input.slug.length <= RECIPE_LIMITS.slug &&
+      SLUG.test(input.slug)
+    )
+      slug = input.slug;
     else add('slug', 'invalid-slug');
   }
 
   const { titles, descriptions, steps } = textOf(input, locales, add);
 
-  const whole = (field: 'servings' | 'prepMinutes' | 'cookMinutes', min: number, max: number, rule: RecipeRule): number | null => {
+  const whole = (
+    field: 'servings' | 'prepMinutes' | 'cookMinutes',
+    min: number,
+    max: number,
+    rule: RecipeRule,
+  ): number | null => {
     const value = input[field];
     if (value === undefined || value === null) {
       add(field, 'missing-field');
       return null;
     }
-    if (typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max) return value;
+    if (typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max)
+      return value;
     add(field, rule);
     return null;
   };
@@ -223,7 +263,8 @@ export function checkRecipe(input: Record<string, unknown>, locales: readonly st
   const cookMinutes = whole('cookMinutes', 0, RECIPE_LIMITS.minutes, 'time-out-of-range');
 
   const mealTypes: MealType[] = [];
-  if (!Array.isArray(input.mealTypes) || input.mealTypes.length === 0) add('mealTypes', 'missing-field');
+  if (!Array.isArray(input.mealTypes) || input.mealTypes.length === 0)
+    add('mealTypes', 'missing-field');
   else {
     for (const [index, entry] of input.mealTypes.entries()) {
       const meal = MealType.safeParse(entry);
@@ -232,12 +273,17 @@ export function checkRecipe(input: Record<string, unknown>, locales: readonly st
     }
   }
 
-  const difficulty = typeof input.difficulty === 'string' && DIFFICULTIES.includes(input.difficulty) ? (input.difficulty as Difficulty) : null;
+  const difficulty =
+    typeof input.difficulty === 'string' && DIFFICULTIES.includes(input.difficulty)
+      ? (input.difficulty as Difficulty)
+      : null;
   if (difficulty === null) add('difficulty', 'invalid-difficulty');
 
   const ingredients: CheckedRecipe['ingredients'] = [];
-  if (!Array.isArray(input.ingredients) || input.ingredients.length === 0) add('ingredients', 'missing-field');
-  else if (input.ingredients.length > RECIPE_LIMITS.ingredients) add('ingredients', 'too-many-ingredients');
+  if (!Array.isArray(input.ingredients) || input.ingredients.length === 0)
+    add('ingredients', 'missing-field');
+  else if (input.ingredients.length > RECIPE_LIMITS.ingredients)
+    add('ingredients', 'too-many-ingredients');
   else {
     for (const [index, line] of input.ingredients.entries()) {
       const at = `ingredients[${index}]`;
@@ -246,21 +292,34 @@ export function checkRecipe(input: Record<string, unknown>, locales: readonly st
         continue;
       }
       const before = problems.length;
-      if (typeof line.slug !== 'string' || line.slug.trim() === '') add(`${at}.slug`, 'missing-field');
-      else if (line.slug.length > INGREDIENT_SLUG_MAX || !SLUG.test(line.slug)) add(`${at}.slug`, 'invalid-slug');
+      if (typeof line.slug !== 'string' || line.slug.trim() === '')
+        add(`${at}.slug`, 'missing-field');
+      else if (line.slug.length > INGREDIENT_SLUG_MAX || !SLUG.test(line.slug))
+        add(`${at}.slug`, 'invalid-slug');
 
       const unit = Unit.safeParse(line.unit);
       if (!unit.success) add(`${at}.unit`, 'invalid-unit');
 
       const quantity = line.quantity;
-      if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0) add(`${at}.quantity`, 'invalid-quantity');
-      else if (unit.success && servings !== null && quantity / servings > RECIPE_LIMITS.perServing[unit.data]) add(`${at}.quantity`, 'quantity-too-large');
+      if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0)
+        add(`${at}.quantity`, 'invalid-quantity');
+      else if (
+        unit.success &&
+        servings !== null &&
+        quantity / servings > RECIPE_LIMITS.perServing[unit.data]
+      )
+        add(`${at}.quantity`, 'quantity-too-large');
 
       const note = plainText(line.note, RECIPE_LIMITS.note);
       if (note !== null && 'rule' in note) add(`${at}.note`, note.rule, RECIPE_LIMITS.note);
 
       if (problems.length === before) {
-        ingredients.push({ slug: line.slug as string, quantity: quantity as number, unit: unit.data!, note: note === null ? null : (note as { text: string }).text });
+        ingredients.push({
+          slug: line.slug as string,
+          quantity: quantity as number,
+          unit: unit.data!,
+          note: note === null ? null : (note as { text: string }).text,
+        });
       }
     }
   }
@@ -268,7 +327,18 @@ export function checkRecipe(input: Record<string, unknown>, locales: readonly st
   if (problems.length > 0) return { ok: false, problems };
   return {
     ok: true,
-    recipe: { slug, titles, descriptions, steps, servings: servings!, mealTypes, prepMinutes: prepMinutes!, cookMinutes: cookMinutes!, difficulty: difficulty!, ingredients },
+    recipe: {
+      slug,
+      titles,
+      descriptions,
+      steps,
+      servings: servings!,
+      mealTypes,
+      prepMinutes: prepMinutes!,
+      cookMinutes: cookMinutes!,
+      difficulty: difficulty!,
+      ingredients,
+    },
   };
 }
 
@@ -278,7 +348,10 @@ export function checkRecipe(input: Record<string, unknown>, locales: readonly st
  * other language is left out, so that nothing ships that nobody was asked to
  * approve.
  */
-export function checkIngredientName(input: Record<string, unknown>, locales: readonly string[]): IngredientNameCheck {
+export function checkIngredientName(
+  input: Record<string, unknown>,
+  locales: readonly string[],
+): IngredientNameCheck {
   const { problems, add } = problemList();
   const names = isObject(input.name) ? input.name : {};
   const hints = isObject(input.storageHint) ? input.storageHint : {};
@@ -298,5 +371,8 @@ export function checkIngredientName(input: Record<string, unknown>, locales: rea
   }
 
   if (problems.length > 0) return { ok: false, problems };
-  return { ok: true, suggestion: { name, ...(Object.keys(storageHint).length > 0 ? { storageHint } : {}) } };
+  return {
+    ok: true,
+    suggestion: { name, ...(Object.keys(storageHint).length > 0 ? { storageHint } : {}) },
+  };
 }

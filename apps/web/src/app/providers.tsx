@@ -4,14 +4,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Palette } from '@diet-app/shared';
 import { ServiceWorker } from '../components/service-worker';
 import { DEFAULT_PALETTE, PALETTE_COOKIE } from '../lib/palette';
@@ -53,7 +46,10 @@ export function Providers({
         // out, and a read that gets no answer is answered from what the browser kept (`lib/offline.ts`).
         // Held back until the network returns, a read would show a page that waits for ever, and a
         // change would be sent later without anybody having asked for it then.
-        defaultOptions: { queries: { staleTime: 30_000, retry: 1, networkMode: 'always' }, mutations: { networkMode: 'always' } },
+        defaultOptions: {
+          queries: { staleTime: 30_000, retry: 1, networkMode: 'always' },
+          mutations: { networkMode: 'always' },
+        },
       }),
   );
 

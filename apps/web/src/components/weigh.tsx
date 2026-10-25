@@ -14,7 +14,17 @@ import { Button } from '@/components/ui/button';
  * model to ask it stays in its place, disabled, and names the line that says
  * why (`AiOffNote`), as everything that asks a model does.
  */
-export function WeighButton({ enabled, offNote, asking, onAsk }: { enabled: boolean; offNote: string | undefined; asking: boolean; onAsk: () => void }) {
+export function WeighButton({
+  enabled,
+  offNote,
+  asking,
+  onAsk,
+}: {
+  enabled: boolean;
+  offNote: string | undefined;
+  asking: boolean;
+  onAsk: () => void;
+}) {
   const t = useTranslations('weigh');
   return (
     <Button

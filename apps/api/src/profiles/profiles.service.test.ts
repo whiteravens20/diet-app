@@ -73,18 +73,29 @@ describe('ProfilesService.create', () => {
 
     // An instance that lowered its number to one: an account that has two keeps them and can add none.
     const one = makePrisma(makeRow(), 2);
-    await expect(makeService(one, 1).create('user-1', { name: 'X', preferences: {} } as never)).rejects.toMatchObject({ response: { error: 'PROFILE_LIMIT_REACHED' } });
+    await expect(
+      makeService(one, 1).create('user-1', { name: 'X', preferences: {} } as never),
+    ).rejects.toMatchObject({ response: { error: 'PROFILE_LIMIT_REACHED' } });
     expect(one.profile.create).not.toHaveBeenCalled();
   });
 
   it('creates a profile with a nested preferences create', async () => {
     const prisma = makePrisma(makeRow(), 0);
     await makeService(prisma).create('user-1', {
-      name: 'Cutting', age: 30, sex: 'male', heightCm: 180, weightKg: 80,
-      activityLevel: 'moderate', dietType: 'balanced', mealCount: 3,
-      weightReminderCadence: 'weekly', preferences: { allergens: [] },
+      name: 'Cutting',
+      age: 30,
+      sex: 'male',
+      heightCm: 180,
+      weightKg: 80,
+      activityLevel: 'moderate',
+      dietType: 'balanced',
+      mealCount: 3,
+      weightReminderCadence: 'weekly',
+      preferences: { allergens: [] },
     } as never);
-    expect(prisma.profile.create.mock.calls[0][0].data.preferences).toEqual({ create: { allergens: [] } });
+    expect(prisma.profile.create.mock.calls[0][0].data.preferences).toEqual({
+      create: { allergens: [] },
+    });
   });
 });
 
@@ -92,16 +103,24 @@ describe('ProfilesService ownership (load guard)', () => {
   it('throws PROFILE_NOT_FOUND when absent', async () => {
     const prisma = makePrisma();
     prisma.profile.findUnique = vi.fn().mockResolvedValue(null);
-    await expect(makeService(prisma).get('user-1', 'nope')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(makeService(prisma).get('user-1', 'nope')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
   it('answers another user’s profile as one that is not there', async () => {
     const prisma = makePrisma(makeRow({ userId: 'other' }));
-    await expect(makeService(prisma).get('user-1', 'p1')).rejects.toMatchObject({ response: { error: 'PROFILE_NOT_FOUND' } });
+    await expect(makeService(prisma).get('user-1', 'p1')).rejects.toMatchObject({
+      response: { error: 'PROFILE_NOT_FOUND' },
+    });
   });
   it('blocks update + delete on a foreign profile', async () => {
     const prisma = makePrisma(makeRow({ userId: 'other' }));
-    await expect(makeService(prisma).update('user-1', 'p1', { name: 'x', preferences: {} } as never)).rejects.toBeInstanceOf(NotFoundException);
-    await expect(makeService(prisma).remove('user-1', 'p1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      makeService(prisma).update('user-1', 'p1', { name: 'x', preferences: {} } as never),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(makeService(prisma).remove('user-1', 'p1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
     expect(prisma.profile.delete).not.toHaveBeenCalled();
   });
 });

@@ -48,7 +48,8 @@ export function UseUp({
   const [error, setError] = useState<string | null>(null);
 
   const ask = useMutation({
-    mutationFn: (weigh: boolean) => api.post<UseUpSuggestions>(`/meal-plans/${planId}/use-up`, { weigh }),
+    mutationFn: (weigh: boolean) =>
+      api.post<UseUpSuggestions>(`/meal-plans/${planId}/use-up`, { weigh }),
     onSuccess: (answer) => {
       setError(null);
       setFound(answer);
@@ -84,10 +85,23 @@ export function UseUp({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" size="sm" disabled={working} onClick={() => ask.mutate(false)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={working}
+          onClick={() => ask.mutate(false)}
+        >
           {ask.isPending && !found ? t('asking') : t('ask')}
         </Button>
-        {found && found.suggestions.length > 0 && <WeighButton enabled={aiEnabled} offNote={aiOffNote} asking={ask.isPending} onAsk={() => ask.mutate(true)} />}
+        {found && found.suggestions.length > 0 && (
+          <WeighButton
+            enabled={aiEnabled}
+            offNote={aiOffNote}
+            asking={ask.isPending}
+            onAsk={() => ask.mutate(true)}
+          />
+        )}
       </div>
       {error && (
         <p role="alert" className="text-destructive">
@@ -99,20 +113,42 @@ export function UseUp({
       {found && found.suggestions.length > 0 && (
         <ul className="space-y-2">
           {found.suggestions.map((suggestion) => (
-            <li key={`${suggestion.plannedMealId}-${suggestion.to.id}`} className="space-y-1 rounded-md border border-border p-2">
+            <li
+              key={`${suggestion.plannedMealId}-${suggestion.to.id}`}
+              className="space-y-1 rounded-md border border-border p-2"
+            >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <p className="text-foreground">
                   <span className="text-muted-foreground">
                     {fmt.day(suggestion.date)} · {mealName(suggestion.mealType)}:
                   </span>{' '}
-                  {t.rich('swap', { to: suggestion.to.title, from: suggestion.from.title, strong: (chunks) => <span className="font-medium">{chunks}</span> })}
+                  {t.rich('swap', {
+                    to: suggestion.to.title,
+                    from: suggestion.from.title,
+                    strong: (chunks) => <span className="font-medium">{chunks}</span>,
+                  })}
                 </p>
-                <Button type="button" size="sm" disabled={working} onClick={() => take.mutate(suggestion)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={working}
+                  onClick={() => take.mutate(suggestion)}
+                >
                   {tPlans('offerTake')}
                 </Button>
               </div>
               <ModelSays reason={suggestion.reason} />
-              <p>{suggestion.takes.map((taken) => t('takes', { amount: amount(taken.amount, taken.unit), name: taken.name, left: amount(taken.left, taken.unit) })).join(' · ')}</p>
+              <p>
+                {suggestion.takes
+                  .map((taken) =>
+                    t('takes', {
+                      amount: amount(taken.amount, taken.unit),
+                      name: taken.name,
+                      left: amount(taken.left, taken.unit),
+                    }),
+                  )
+                  .join(' · ')}
+              </p>
               <p>
                 {t('energy', {
                   before: suggestion.before.calories,

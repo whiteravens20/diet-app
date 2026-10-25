@@ -80,10 +80,10 @@ Contributions we will **not accept**:
 
 ### Requirements
 
-| Tool | Version |
-|---|---|
-| Node.js | ≥ 24.0.0 |
-| npm | bundled with Node.js |
+| Tool                    | Version                                    |
+| ----------------------- | ------------------------------------------ |
+| Node.js                 | ≥ 24.0.0                                   |
+| npm                     | bundled with Node.js                       |
 | Docker & Docker Compose | for PostgreSQL, and for building the image |
 
 ### Local start
@@ -184,13 +184,13 @@ No type errors are accepted.
 
 ### Naming conventions
 
-| Context | Convention |
-|---|---|
-| Files | `kebab-case.ts`; NestJS files carry their role (`*.controller.ts`, `*.service.ts`, `*.module.ts`) |
-| Variables / functions | `camelCase` |
-| Classes / types / interfaces | `PascalCase` |
-| Constants | `UPPER_SNAKE_CASE` |
-| Environment variables | `UPPER_SNAKE_CASE` |
+| Context                      | Convention                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| Files                        | `kebab-case.ts`; NestJS files carry their role (`*.controller.ts`, `*.service.ts`, `*.module.ts`) |
+| Variables / functions        | `camelCase`                                                                                       |
+| Classes / types / interfaces | `PascalCase`                                                                                      |
+| Constants                    | `UPPER_SNAKE_CASE`                                                                                |
+| Environment variables        | `UPPER_SNAKE_CASE`                                                                                |
 
 ### Dependencies
 

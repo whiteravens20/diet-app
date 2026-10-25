@@ -124,10 +124,16 @@ export class PersonalRecipesService {
       // A second owner is the sign that the recipe may be worth sharing. One
       // who deleted theirs is no owner any more.
       const others = await tx.recipe.findMany({
-        where: { fingerprint, createdByUserId: { not: null }, NOT: { createdByUserId: recipe.userId }, deletedAt: null },
+        where: {
+          fingerprint,
+          createdByUserId: { not: null },
+          NOT: { createdByUserId: recipe.userId },
+          deletedAt: null,
+        },
         select: { id: true },
       });
-      if (others.length > 0) await this.mirror(tx, id, fingerprint, [id, ...others.map((other) => other.id)]);
+      if (others.length > 0)
+        await this.mirror(tx, id, fingerprint, [id, ...others.map((other) => other.id)]);
       return id;
     });
   }
@@ -139,9 +145,15 @@ export class PersonalRecipesService {
    * room for it. Asked before a model is put to work on text that might not
    * be stored.
    */
-  async wouldWrite(recipe: Fingerprinted & Pick<PersonalRecipe, 'userId' | 'origin'>, avoid: readonly string[] = []): Promise<boolean> {
+  async wouldWrite(
+    recipe: Fingerprinted & Pick<PersonalRecipe, 'userId' | 'origin'>,
+    avoid: readonly string[] = [],
+  ): Promise<boolean> {
     const fingerprint = await this.fingerprintOf(recipe);
-    const found = fingerprint === null ? null : await this.existing(this.prisma, recipe.userId, fingerprint, avoid);
+    const found =
+      fingerprint === null
+        ? null
+        : await this.existing(this.prisma, recipe.userId, fingerprint, avoid);
     if (found && !found.deleted) return false;
     await this.assertRoom(this.prisma, recipe.userId, found ? 'user' : recipe.origin);
     return found === null;
@@ -159,7 +171,8 @@ export class PersonalRecipesService {
     if (!recipe.fingerprint) {
       throw new ConflictException({
         error: 'RECIPE_NOT_SUBMITTABLE',
-        message: 'This recipe uses an ingredient outside the curated catalogue and cannot be submitted.',
+        message:
+          'This recipe uses an ingredient outside the curated catalogue and cannot be submitted.',
       });
     }
     const fingerprint = recipe.fingerprint;
@@ -226,12 +239,21 @@ export class PersonalRecipesService {
     avoid: readonly string[],
   ): Promise<{ id: string; deleted: boolean } | null> {
     const shared = await db.recipe.findFirst({
-      where: { fingerprint, createdByUserId: null, deletedAt: null, retiredAt: null, id: { notIn: [...avoid] } },
+      where: {
+        fingerprint,
+        createdByUserId: null,
+        deletedAt: null,
+        retiredAt: null,
+        id: { notIn: [...avoid] },
+      },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: { id: true },
     });
     if (shared) return { id: shared.id, deleted: false };
-    const own = await db.recipe.findFirst({ where: { fingerprint, createdByUserId: userId }, select: { id: true, deletedAt: true } });
+    const own = await db.recipe.findFirst({
+      where: { fingerprint, createdByUserId: userId },
+      select: { id: true, deletedAt: true },
+    });
     return own ? { id: own.id, deleted: own.deletedAt !== null } : null;
   }
 
@@ -248,7 +270,11 @@ export class PersonalRecipesService {
       if (!slug) return null;
       lines.push({ slug, quantity: line.quantity, unit: line.unit });
     }
-    return computeFingerprint({ ingredients: lines, mealTypes: recipe.mealTypes, servings: recipe.servings });
+    return computeFingerprint({
+      ingredients: lines,
+      mealTypes: recipe.mealTypes,
+      servings: recipe.servings,
+    });
   }
 
   private async assertRoom(
@@ -267,7 +293,11 @@ export class PersonalRecipesService {
     // Deleted drafts count too: deleting one does not hand the place back
     // within the day, or the limit would bound nothing.
     const drafted = await db.recipe.count({
-      where: { createdByUserId: userId, origin: 'ai', createdAt: { gte: new Date(Date.now() - 86_400_000) } },
+      where: {
+        createdByUserId: userId,
+        origin: 'ai',
+        createdAt: { gte: new Date(Date.now() - 86_400_000) },
+      },
     });
     if (drafted >= MAX_AI_DRAFTS_PER_DAY) {
       throw new HttpException(
@@ -280,7 +310,11 @@ export class PersonalRecipesService {
     }
   }
 
-  private async write(tx: Prisma.TransactionClient, recipe: PersonalRecipe, fingerprint: string | null): Promise<string> {
+  private async write(
+    tx: Prisma.TransactionClient,
+    recipe: PersonalRecipe,
+    fingerprint: string | null,
+  ): Promise<string> {
     const en = recipe.text.get('en')!;
     const created = await tx.recipe.create({
       data: {
@@ -328,17 +362,26 @@ export class PersonalRecipesService {
     fingerprint: string,
     sources: string[],
   ): Promise<void> {
-    const existing = await tx.recipeDraft.findUnique({ where: { fingerprint }, select: { id: true, sourceRecipeIds: true } });
+    const existing = await tx.recipeDraft.findUnique({
+      where: { fingerprint },
+      select: { id: true, sourceRecipeIds: true },
+    });
     if (existing) {
       const merged = [...new Set([...existing.sourceRecipeIds, ...sources])];
       if (merged.length !== existing.sourceRecipeIds.length) {
-        await tx.recipeDraft.update({ where: { id: existing.id }, data: { sourceRecipeIds: { set: merged } } });
+        await tx.recipeDraft.update({
+          where: { id: existing.id },
+          data: { sourceRecipeIds: { set: merged } },
+        });
       }
       return;
     }
     const recipe = await tx.recipe.findUniqueOrThrow({
       where: { id: recipeId },
-      include: { translations: true, ingredients: { include: { ingredient: { select: { slug: true } } } } },
+      include: {
+        translations: true,
+        ingredients: { include: { ingredient: { select: { slug: true } } } },
+      },
     });
     const byLocale = <T>(pick: (text: RecipeText) => T): Record<string, T> =>
       Object.fromEntries([
@@ -390,8 +433,13 @@ export class PersonalRecipesService {
  * what shipped is a recipe of the shared library by now, and its draft the
  * record of where that came from.
  */
-export async function removePersonalRecipesOf(tx: Prisma.TransactionClient, userId: string): Promise<void> {
-  const mine = (await tx.recipe.findMany({ where: { createdByUserId: userId }, select: { id: true } })).map((recipe) => recipe.id);
+export async function removePersonalRecipesOf(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const mine = (
+    await tx.recipe.findMany({ where: { createdByUserId: userId }, select: { id: true } })
+  ).map((recipe) => recipe.id);
   if (mine.length === 0) return;
   const drafts = await tx.recipeDraft.findMany({
     where: { sourceRecipeIds: { hasSome: mine } },
@@ -402,7 +450,10 @@ export async function removePersonalRecipesOf(tx: Prisma.TransactionClient, user
     if (left.length === 0 && draft.status !== 'SHIPPED') {
       await tx.recipeDraft.delete({ where: { id: draft.id } });
     } else {
-      await tx.recipeDraft.update({ where: { id: draft.id }, data: { sourceRecipeIds: { set: left } } });
+      await tx.recipeDraft.update({
+        where: { id: draft.id },
+        data: { sourceRecipeIds: { set: left } },
+      });
     }
   }
   await tx.recipe.deleteMany({ where: { createdByUserId: userId } });

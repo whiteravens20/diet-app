@@ -34,7 +34,10 @@ const service = (env: Partial<Env> = {}): AiTestService => {
     OLLAMA_ALLOWED_HOSTS: '',
     ...env,
   };
-  return new AiTestService({ get: (key: keyof Env) => values[key] } as unknown as ConfigService<Env, true>);
+  return new AiTestService({ get: (key: keyof Env) => values[key] } as unknown as ConfigService<
+    Env,
+    true
+  >);
 };
 
 const tags = (names: string[]) => (_path: string, res: ServerResponse) => {
@@ -63,8 +66,18 @@ describe('probing an Ollama server', () => {
 
   it.each([
     ['an address that is not on the list', 'http://169.254.169.254', {}, 'not allowed'],
-    ['any address when users may not configure Ollama', 'http://gpu-box:11434', { OLLAMA_USER_POLICY: 'off' as const }, 'disabled'],
-    ['an internal name written with a trailing dot', 'http://postgres.:5432', { OLLAMA_USER_POLICY: 'public' as const }, 'internal'],
+    [
+      'any address when users may not configure Ollama',
+      'http://gpu-box:11434',
+      { OLLAMA_USER_POLICY: 'off' as const },
+      'disabled',
+    ],
+    [
+      'an internal name written with a trailing dot',
+      'http://postgres.:5432',
+      { OLLAMA_USER_POLICY: 'public' as const },
+      'internal',
+    ],
   ])('refuses %s without making a request', async (_name, baseUrl, env, reason) => {
     respond = tags(['unreachable']);
     hits = 0;
@@ -101,11 +114,17 @@ describe('probing an Ollama server', () => {
 
     const result = await service().test({ provider: 'ollama', baseUrl: operatorUrl });
 
-    expect(result).toEqual({ ok: false, models: [], error: 'The host answered, but not as an Ollama server.' });
+    expect(result).toEqual({
+      ok: false,
+      models: [],
+      error: 'The host answered, but not as an Ollama server.',
+    });
   });
 
   it('reports a server that cannot be reached', async () => {
-    const result = await service({ OLLAMA_BASE_URL: 'http://127.0.0.1:1' }).test({ provider: 'ollama' });
+    const result = await service({ OLLAMA_BASE_URL: 'http://127.0.0.1:1' }).test({
+      provider: 'ollama',
+    });
 
     expect(result.ok).toBe(false);
     expect(result.error).toBeTruthy();
@@ -113,10 +132,13 @@ describe('probing an Ollama server', () => {
 });
 
 describe('probing a provider that needs a key', () => {
-  it.each(['openai', 'openrouter', 'anthropic'] as const)('asks for the key of %s before calling out', async (provider) => {
-    const result = await service().test({ provider, model: 'some-model' });
-    expect(result).toEqual({ ok: false, models: [], error: 'API key required.' });
-  });
+  it.each(['openai', 'openrouter', 'anthropic'] as const)(
+    'asks for the key of %s before calling out',
+    async (provider) => {
+      const result = await service().test({ provider, model: 'some-model' });
+      expect(result).toEqual({ ok: false, models: [], error: 'API key required.' });
+    },
+  );
 
   it('asks for a model to probe anthropic with', async () => {
     const result = await service().test({ provider: 'anthropic', apiKey: 'key' });

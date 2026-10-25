@@ -71,7 +71,9 @@ describe('a factor that is not a positive number', () => {
   it('is refused like a missing one, instead of making nothing or infinity', () => {
     expect(() => toCanonical(100, 'g', zeroDensity)).toThrow(UnitConversionError);
     expect(() => toCanonical(3, 'piece', zeroDensity)).toThrow(UnitConversionError);
-    expect(() => toCanonical(100, 'ml', { canonicalUnit: 'piece', gramsPerPiece: -5, density: 1 })).toThrow(UnitConversionError);
+    expect(() =>
+      toCanonical(100, 'ml', { canonicalUnit: 'piece', gramsPerPiece: -5, density: 1 }),
+    ).toThrow(UnitConversionError);
   });
 });
 
@@ -104,7 +106,9 @@ describe('the units the contract lets a pantry keep an ingredient in', () => {
               }
             });
 
-            expect(pantryUnits(ingredient), JSON.stringify(ingredient)).toEqual(isCounted(ingredient) ? ['piece'] : converted);
+            expect(pantryUnits(ingredient), JSON.stringify(ingredient)).toEqual(
+              isCounted(ingredient) ? ['piece'] : converted,
+            );
           }
         }
       }

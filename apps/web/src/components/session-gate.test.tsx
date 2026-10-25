@@ -13,11 +13,18 @@ import messages from '../../messages/en.json';
 import { SessionGate } from './session-gate';
 
 const anAnswer = (accessToken: string): AuthResponse => ({
-  user: { id: '22222222-2222-4222-8222-222222222222', email: 'user@example.test', displayName: 'User', role: 'user', emailVerified: true },
+  user: {
+    id: '22222222-2222-4222-8222-222222222222',
+    email: 'user@example.test',
+    displayName: 'User',
+    role: 'user',
+    emailVerified: true,
+  },
   tokens: { accessToken, expiresIn: 900, refreshExpiresIn: 2_592_000 },
   sessionId: '11111111-1111-4111-8111-111111111111',
 });
-const answered = (status: number, body: unknown = {}): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+const answered = (status: number, body: unknown = {}): Response =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 const THE_PAGE = 'The page of the account';
 const thePage = (): HTMLElement | null => screen.queryByText(THE_PAGE);
@@ -112,23 +119,26 @@ describe('the pages of a signed-in account', () => {
     ['is busy', () => Promise.resolve(answered(503))],
     ['asks to wait', () => Promise.resolve(answered(429))],
     ['cannot be reached', () => Promise.reject(new TypeError('Failed to fetch'))],
-  ])('say so when the server %s, sign nobody out, and come up when a new try gets through', async (_what, respond) => {
-    aBrowser(true);
-    fetchMock.mockImplementation(respond);
+  ])(
+    'say so when the server %s, sign nobody out, and come up when a new try gets through',
+    async (_what, respond) => {
+      aBrowser(true);
+      fetchMock.mockImplementation(respond);
 
-    shown();
+      shown();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages.auth.sessionUnreachable);
-    expect(thePage()).toBeNull();
-    expect(leave).not.toHaveBeenCalled();
-    expect(session.exists()).toBe(true);
+      expect(await screen.findByRole('alert')).toHaveTextContent(messages.auth.sessionUnreachable);
+      expect(thePage()).toBeNull();
+      expect(leave).not.toHaveBeenCalled();
+      expect(session.exists()).toBe(true);
 
-    fetchMock.mockImplementation(() => Promise.resolve(answered(200, anAnswer('access-3'))));
-    await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
+      fetchMock.mockImplementation(() => Promise.resolve(answered(200, anAnswer('access-3'))));
+      await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
 
-    expect(await screen.findByText(THE_PAGE)).toBeInTheDocument();
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
+      expect(await screen.findByText(THE_PAGE)).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
+    },
+  );
 
   it('keep saying that the session could not be reached while a new try is on its way, with nothing to press twice', async () => {
     aBrowser(true);
@@ -145,7 +155,9 @@ describe('the pages of a signed-in account', () => {
 
     await act(async () => answer(answered(503)));
 
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: messages.common.retry })).toBeEnabled());
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: messages.common.retry })).toBeEnabled(),
+    );
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
@@ -179,7 +191,10 @@ describe('the pages of an account whose browser kept what it read last', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   const ACCOUNT = anAnswer('x').user.id;
   const noAnswer = (): Promise<never> => Promise.reject(new TypeError('Failed to fetch'));
-  const patches = (): unknown[][] => fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === 'PATCH');
+  const patches = (): unknown[][] =>
+    fetchMock.mock.calls.filter(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
+    );
 
   beforeEach(async () => {
     // A sign-out the tests before this one told the other tabs of is let through first: it takes what the browser kept with it.
@@ -228,11 +243,21 @@ describe('the pages of an account whose browser kept what it read last', () => {
     const { read } = shown();
     await screen.findByText(THE_PAGE);
 
-    fetchMock.mockImplementation((path: string) => Promise.resolve(path === '/api/auth/refresh' ? answered(200, anAnswer('access-9')) : answered(200, { id: 'list' })));
+    fetchMock.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === '/api/auth/refresh'
+          ? answered(200, anAnswer('access-9'))
+          : answered(200, { id: 'list' }),
+      ),
+    );
     await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
 
-    expect(await screen.findByText('Sent what was ticked while the server was away: 1 row.')).toBeInTheDocument();
-    expect(patches().map(([path, init]) => [path, (init as RequestInit).body])).toEqual([['/api/shopping-lists/list/items/rice', JSON.stringify({ checked: true })]]);
+    expect(
+      await screen.findByText('Sent what was ticked while the server was away: 1 row.'),
+    ).toBeInTheDocument();
+    expect(patches().map(([path, init]) => [path, (init as RequestInit).body])).toEqual([
+      ['/api/shopping-lists/list/items/rice', JSON.stringify({ checked: true })],
+    ]);
     expect(offline.waiting).toEqual([]);
     expect(read).toHaveBeenCalled();
     expect(screen.queryByText(messages.offline.notice)).toBeNull();
@@ -247,10 +272,18 @@ describe('the pages of an account whose browser kept what it read last', () => {
     shown();
     await screen.findByText(THE_PAGE);
 
-    fetchMock.mockImplementation((path: string) => Promise.resolve(path === '/api/auth/refresh' ? answered(200, anAnswer('access-9')) : answered(404, { error: 'LIST_NOT_FOUND' })));
+    fetchMock.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === '/api/auth/refresh'
+          ? answered(200, anAnswer('access-9'))
+          : answered(404, { error: 'LIST_NOT_FOUND' }),
+      ),
+    );
     await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
 
-    expect(await screen.findByText('1 tick was not taken: the list had changed in the meantime.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('1 tick was not taken: the list had changed in the meantime.'),
+    ).toBeInTheDocument();
     expect(offline.waiting).toEqual([]);
   });
 
@@ -270,11 +303,19 @@ describe('the pages of an account whose browser kept what it read last', () => {
 
   it('send ticks that were left waiting by an earlier visit as soon as the page is in reach', async () => {
     offline.wait({ listId: 'list', itemId: 'rice', checked: false });
-    fetchMock.mockImplementation((path: string) => Promise.resolve(path === '/api/auth/refresh' ? answered(200, anAnswer('access-9')) : answered(200, { id: 'list' })));
+    fetchMock.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === '/api/auth/refresh'
+          ? answered(200, anAnswer('access-9'))
+          : answered(200, { id: 'list' }),
+      ),
+    );
 
     shown();
 
     await vi.waitFor(() => expect(patches()).toHaveLength(1));
-    expect(await screen.findByText('Sent what was ticked while the server was away: 1 row.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Sent what was ticked while the server was away: 1 row.'),
+    ).toBeInTheDocument();
   });
 });

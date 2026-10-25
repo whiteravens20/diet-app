@@ -3,7 +3,16 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import type { WeightUnit } from '@diet-app/shared';
 import { useFormat } from '@/lib/use-format';
 import type { WeightPoint } from '@/lib/weight-series';
@@ -19,15 +28,32 @@ export const WEIGHT_CHART_HEIGHT = 220;
  * charting library is fetched when a chart is shown and is no part of the
  * pages that show none (see `weight-card.tsx`).
  */
-export function WeightChart({ points, reference, unit }: { points: WeightPoint[]; reference: { value: number; label: string }; unit: WeightUnit }) {
+export function WeightChart({
+  points,
+  reference,
+  unit,
+}: {
+  points: WeightPoint[];
+  reference: { value: number; label: string };
+  unit: WeightUnit;
+}) {
   const t = useTranslations('weightCard');
   const fmt = useFormat();
   return (
     <ResponsiveContainer width="100%" height={WEIGHT_CHART_HEIGHT}>
       <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
         <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-        <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }} tickFormatter={(day: string) => fmt.dayShort(day)} />
-        <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }} tickFormatter={(kg: number) => fmt.number(kg, 1)} width={32} />
+        <XAxis
+          dataKey="date"
+          tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
+          tickFormatter={(day: string) => fmt.dayShort(day)}
+        />
+        <YAxis
+          domain={['auto', 'auto']}
+          tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
+          tickFormatter={(kg: number) => fmt.number(kg, 1)}
+          width={32}
+        />
         <Tooltip
           contentStyle={{
             background: 'var(--color-background)',
@@ -35,7 +61,10 @@ export function WeightChart({ points, reference, unit }: { points: WeightPoint[]
             fontSize: 12,
           }}
           labelFormatter={(day) => (typeof day === 'string' ? fmt.date(day) : '')}
-          formatter={(v, name) => [typeof v === 'number' ? fmt.unit(v, unit === 'lb' ? 'pound' : 'kilogram', 1) : '—', name === 'kg' ? t('seriesEntry') : t('seriesMa7')]}
+          formatter={(v, name) => [
+            typeof v === 'number' ? fmt.unit(v, unit === 'lb' ? 'pound' : 'kilogram', 1) : '—',
+            name === 'kg' ? t('seriesEntry') : t('seriesMa7'),
+          ]}
         />
         <ReferenceLine
           y={reference.value}
@@ -48,8 +77,22 @@ export function WeightChart({ points, reference, unit }: { points: WeightPoint[]
             fill: 'var(--color-muted-foreground)',
           }}
         />
-        <Line type="monotone" dataKey="kg" stroke="var(--color-muted-foreground)" strokeWidth={1} dot={{ r: 2 }} activeDot={{ r: 4 }} />
-        <Line type="monotone" dataKey="ma7" stroke="var(--color-primary)" strokeWidth={2} dot={false} connectNulls />
+        <Line
+          type="monotone"
+          dataKey="kg"
+          stroke="var(--color-muted-foreground)"
+          strokeWidth={1}
+          dot={{ r: 2 }}
+          activeDot={{ r: 4 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="ma7"
+          stroke="var(--color-primary)"
+          strokeWidth={2}
+          dot={false}
+          connectNulls
+        />
       </LineChart>
     </ResponsiveContainer>
   );

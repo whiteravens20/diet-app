@@ -49,10 +49,26 @@ export function anAuthenticator(t: TestApp): Authenticator {
 }
 
 /** A second factor for `user`, set up from the session `user` holds with `app`. Time moves on past the code that set it up. */
-export async function aSecondFactor(t: TestApp, user: TestUser, app: Authenticator): Promise<{ secret: string; recoveryCodes: string[] }> {
-  const setup: SecondFactorSetup = (await t.http().post('/api/users/me/second-factor/setup').set(as(user)).send({ currentPassword: user.password }).expect(200)).body;
+export async function aSecondFactor(
+  t: TestApp,
+  user: TestUser,
+  app: Authenticator,
+): Promise<{ secret: string; recoveryCodes: string[] }> {
+  const setup: SecondFactorSetup = (
+    await t
+      .http()
+      .post('/api/users/me/second-factor/setup')
+      .set(as(user))
+      .send({ currentPassword: user.password })
+      .expect(200)
+  ).body;
   const { recoveryCodes }: RecoveryCodes = (
-    await t.http().post('/api/users/me/second-factor').set(as(user)).send({ enrolment: setup.enrolment, code: app.code(setup.secret) }).expect(201)
+    await t
+      .http()
+      .post('/api/users/me/second-factor')
+      .set(as(user))
+      .send({ enrolment: setup.enrolment, code: app.code(setup.secret) })
+      .expect(201)
   ).body;
   app.wait(30);
   return { secret: setup.secret, recoveryCodes };

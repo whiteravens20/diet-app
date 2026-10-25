@@ -27,7 +27,9 @@ export class AdminAccountsController {
   @Delete('second-factor')
   @HttpCode(204)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  async removeSecondFactor(@Body(new ZodValidationPipe(AccountSecondFactorRemoval)) body: AccountSecondFactorRemoval): Promise<void> {
+  async removeSecondFactor(
+    @Body(new ZodValidationPipe(AccountSecondFactorRemoval)) body: AccountSecondFactorRemoval,
+  ): Promise<void> {
     await this.secondFactor.removeFor(body.email);
   }
 
@@ -46,7 +48,9 @@ export class AdminAccountsController {
   @Put('operator-ai')
   @HttpCode(204)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  async approve(@Body(new ZodValidationPipe(OperatorAiApproval)) body: OperatorAiApproval): Promise<void> {
+  async approve(
+    @Body(new ZodValidationPipe(OperatorAiApproval)) body: OperatorAiApproval,
+  ): Promise<void> {
     await this.approvals.approve(body.email);
   }
 
@@ -54,7 +58,9 @@ export class AdminAccountsController {
   @Delete('operator-ai')
   @HttpCode(204)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  async revoke(@Body(new ZodValidationPipe(OperatorAiApproval)) body: OperatorAiApproval): Promise<void> {
+  async revoke(
+    @Body(new ZodValidationPipe(OperatorAiApproval)) body: OperatorAiApproval,
+  ): Promise<void> {
     await this.approvals.revoke(body.email);
   }
 }

@@ -23,9 +23,7 @@ export class HealthController {
   /** Whether the API is up and reaches its database: 200, or 503 with the database down. */
   @Get()
   @Answers(Health)
-  async check(
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<Health> {
+  async check(@Res({ passthrough: true }) res: Response): Promise<Health> {
     let db: 'up' | 'down';
     try {
       await this.prisma.$queryRaw`SELECT 1`;

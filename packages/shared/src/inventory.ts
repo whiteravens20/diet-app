@@ -49,14 +49,19 @@ export type InventoryItem = z.infer<typeof InventoryItem>;
  */
 export const UpsertInventoryItem = z.object({
   ingredientId: z.string().uuid(),
-  quantity: z.number().positive().max(Math.max(...Object.values(MAX_QUANTITY))),
+  quantity: z
+    .number()
+    .positive()
+    .max(Math.max(...Object.values(MAX_QUANTITY))),
   unit: Unit,
   bestBefore: CalendarDay.nullable().optional(),
 });
 export type UpsertInventoryItem = z.infer<typeof UpsertInventoryItem>;
 
 /** The upsert as it is sent: for which profile's pantry. */
-export const UpsertInventoryItemRequest = UpsertInventoryItem.extend({ profileId: z.string().uuid() });
+export const UpsertInventoryItemRequest = UpsertInventoryItem.extend({
+  profileId: z.string().uuid(),
+});
 export type UpsertInventoryItemRequest = z.infer<typeof UpsertInventoryItemRequest>;
 
 /**
@@ -64,7 +69,11 @@ export type UpsertInventoryItemRequest = z.infer<typeof UpsertInventoryItemReque
  * row's unit and may not exceed that unit's ceiling (`MAX_QUANTITY`).
  */
 export const PatchInventoryItem = z.object({
-  quantity: z.number().min(0).max(Math.max(...Object.values(MAX_QUANTITY))).optional(),
+  quantity: z
+    .number()
+    .min(0)
+    .max(Math.max(...Object.values(MAX_QUANTITY)))
+    .optional(),
   bestBefore: CalendarDay.nullable().optional(),
 });
 export type PatchInventoryItem = z.infer<typeof PatchInventoryItem>;

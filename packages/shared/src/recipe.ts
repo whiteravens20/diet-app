@@ -43,7 +43,9 @@ export const WebAddress = z
   .string()
   .max(500)
   .url()
-  .refine((address) => /^https?:\/\//i.test(address), { message: 'An address begins with http:// or https://.' });
+  .refine((address) => /^https?:\/\//i.test(address), {
+    message: 'An address begins with http:// or https://.',
+  });
 
 /** Where a recipe is from: its address there, when it has one, and its licence. */
 export const RecipeSource = z.object({
@@ -205,10 +207,14 @@ export const RecipeSearchQuery = PageQuery.extend({
   profileId: z.string().uuid().optional(),
   marked: MarkedFilter.optional(),
   favoriteIngredients: querySwitch.optional(),
-}).refine((query) => query.profileId !== undefined || (query.marked === undefined && !query.favoriteIngredients), {
-  path: ['profileId'],
-  message: 'Say whose marks or favourite ingredients are meant.',
-});
+}).refine(
+  (query) =>
+    query.profileId !== undefined || (query.marked === undefined && !query.favoriteIngredients),
+  {
+    path: ['profileId'],
+    message: 'Say whose marks or favourite ingredients are meant.',
+  },
+);
 export type RecipeSearchQuery = z.infer<typeof RecipeSearchQuery>;
 
 /** The most recipes a profile may have marked at a time. */

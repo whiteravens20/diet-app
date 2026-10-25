@@ -27,15 +27,40 @@ export type SlugMapper = (name: string) => string | null;
  * of this list, and stay in the name.
  */
 const HOW_IT_COMES = new Set([
-  'chopped', 'diced', 'sliced', 'minced', 'grated', 'shredded', 'peeled', 'crushed', 'halved', 'quartered', 'cubed', 'trimmed', 'rinsed', 'washed', 'beaten',
-  'finely', 'roughly', 'coarsely', 'thinly', 'thickly', 'freshly', 'large', 'small', 'medium', 'fresh', 'ripe',
+  'chopped',
+  'diced',
+  'sliced',
+  'minced',
+  'grated',
+  'shredded',
+  'peeled',
+  'crushed',
+  'halved',
+  'quartered',
+  'cubed',
+  'trimmed',
+  'rinsed',
+  'washed',
+  'beaten',
+  'finely',
+  'roughly',
+  'coarsely',
+  'thinly',
+  'thickly',
+  'freshly',
+  'large',
+  'small',
+  'medium',
+  'fresh',
+  'ripe',
 ]);
 
 /** One of a thing: `tomatoes` → `tomato`, `berries` → `berry`, `eggs` → `egg`. */
 function one(word: string): string {
   if (word.length > 4 && word.endsWith('ies')) return `${word.slice(0, -3)}y`;
   if (word.length > 4 && word.endsWith('oes')) return word.slice(0, -2);
-  if (word.length > 3 && word.endsWith('s') && !word.endsWith('ss') && !word.endsWith('us')) return word.slice(0, -1);
+  if (word.length > 3 && word.endsWith('s') && !word.endsWith('ss') && !word.endsWith('us'))
+    return word.slice(0, -1);
   return word;
 }
 
@@ -56,7 +81,10 @@ export function plainName(name: string): string {
  * catalogue's own names; one that points at a slug the catalogue does not
  * have is no alias. A plain form that two ingredients share names neither.
  */
-export function slugMapper(ingredients: readonly KnownIngredient[], aliases: Readonly<Record<string, string>>): SlugMapper {
+export function slugMapper(
+  ingredients: readonly KnownIngredient[],
+  aliases: Readonly<Record<string, string>>,
+): SlugMapper {
   const known = new Set(ingredients.map((ingredient) => ingredient.slug));
   const byName = new Map<string, string | null>();
   for (const ingredient of ingredients) {
@@ -68,7 +96,8 @@ export function slugMapper(ingredients: readonly KnownIngredient[], aliases: Rea
     }
   }
   const byAlias = new Map<string, string>();
-  for (const [name, slug] of Object.entries(aliases)) if (known.has(slug)) byAlias.set(plainName(name), slug);
+  for (const [name, slug] of Object.entries(aliases))
+    if (known.has(slug)) byAlias.set(plainName(name), slug);
 
   return (name) => {
     const plain = plainName(name);

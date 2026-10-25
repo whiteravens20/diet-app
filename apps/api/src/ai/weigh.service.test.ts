@@ -6,8 +6,22 @@ import type { AiRouterService } from './ai-router.service.js';
 import { DAY_VARIATIONS } from './operations.js';
 import { MAX_WEIGHED_CHARS, WeighService, type Weighing } from './weigh.service.js';
 
-const answered: AiGenerationMeta = { provider: 'ollama', model: 'test-model', failoverChain: [], usedDeterministicFallback: false, fallbackReason: null, reason: null };
-const noProvider: AiGenerationMeta = { provider: null, model: null, failoverChain: [], usedDeterministicFallback: true, fallbackReason: 'no_provider', reason: null };
+const answered: AiGenerationMeta = {
+  provider: 'ollama',
+  model: 'test-model',
+  failoverChain: [],
+  usedDeterministicFallback: false,
+  fallbackReason: null,
+  reason: null,
+};
+const noProvider: AiGenerationMeta = {
+  provider: null,
+  model: null,
+  failoverChain: [],
+  usedDeterministicFallback: true,
+  fallbackReason: 'no_provider',
+  reason: null,
+};
 
 const asked: Weighing = {
   choice: 'Choose among three ways to fill Tuesday.',
@@ -21,7 +35,10 @@ const asked: Weighing = {
 };
 
 /** The service with a model that says `text`, or with none when `text` is null. */
-function weigher(text: string | null, meta: AiGenerationMeta = text === null ? noProvider : answered) {
+function weigher(
+  text: string | null,
+  meta: AiGenerationMeta = text === null ? noProvider : answered,
+) {
   const chat = vi.fn(async () => ({ text, meta }));
   return { service: new WeighService({ chat } as unknown as AiRouterService), chat };
 }
@@ -33,21 +50,37 @@ describe('a model weighing what the engine proposes', () => {
 
     await service.weigh('user-1', DAY_VARIATIONS, { ...asked, language: 'Polish' });
 
-    const [userId, messages, operation, json] = chat.mock.calls[0]! as unknown as [string, { role: string; content: string }[], unknown, boolean];
+    const [userId, messages, operation, json] = chat.mock.calls[0]! as unknown as [
+      string,
+      { role: string; content: string }[],
+      unknown,
+      boolean,
+    ];
     expect([userId, operation, json]).toEqual(['user-1', DAY_VARIATIONS, true]);
     expect(messages[0]!.content).toContain('Write the sentences in Polish.');
     expect(messages[1]!.content).toContain('Choose among three ways to fill Tuesday.');
-    expect(messages[1]!.content).toContain('1. How near the day is to its target.\n2. How little of the opened packs is left.');
+    expect(messages[1]!.content).toContain(
+      '1. How near the day is to its target.\n2. How little of the opened packs is left.',
+    );
     expect(messages[1]!.content).toContain('- id=b | Eggs | Tofu bowl | Beef pasta | 1980 kcal');
   });
 
   it('puts the options in the order the model gave, with its sentence on each', async () => {
-    const { service } = weigher(reply({ order: ['c', 'a', 'b'], reasons: { c: 'Uses up the salmon.', a: 'Closest to the target.', b: 'Heavier on fat.' } }));
+    const { service } = weigher(
+      reply({
+        order: ['c', 'a', 'b'],
+        reasons: { c: 'Uses up the salmon.', a: 'Closest to the target.', b: 'Heavier on fat.' },
+      }),
+    );
 
     const weighed = await service.weigh('user-1', DAY_VARIATIONS, asked);
 
     expect(weighed.order).toEqual(['c', 'a', 'b']);
-    expect([...weighed.said]).toEqual([['a', 'Closest to the target.'], ['b', 'Heavier on fat.'], ['c', 'Uses up the salmon.']]);
+    expect([...weighed.said]).toEqual([
+      ['a', 'Closest to the target.'],
+      ['b', 'Heavier on fat.'],
+      ['c', 'Uses up the salmon.'],
+    ]);
     expect(weighed.meta).toEqual(answered);
   });
 
@@ -58,7 +91,12 @@ describe('a model weighing what the engine proposes', () => {
   });
 
   it('ignores an id that was not on offer, and a sentence on one', async () => {
-    const { service } = weigher(reply({ order: ['z', 'c', 7, 'constructor'], reasons: { z: 'An option of my own.', constructor: 'No.', c: 'Good.' } }));
+    const { service } = weigher(
+      reply({
+        order: ['z', 'c', 7, 'constructor'],
+        reasons: { z: 'An option of my own.', constructor: 'No.', c: 'Good.' },
+      }),
+    );
 
     const weighed = await service.weigh('user-1', DAY_VARIATIONS, asked);
 
@@ -68,7 +106,9 @@ describe('a model weighing what the engine proposes', () => {
 
   it('passes a sentence on as one plain line, cut where it is too long, and none where the model gave none', async () => {
     const long = 'word '.repeat(80);
-    const { service } = weigher(reply({ order: ['a', 'b', 'c'], reasons: { a: 'Two\nlines\tof it.', b: long, c: 42 } }));
+    const { service } = weigher(
+      reply({ order: ['a', 'b', 'c'], reasons: { a: 'Two\nlines\tof it.', b: long, c: 42 } }),
+    );
 
     const { said } = await service.weigh('user-1', DAY_VARIATIONS, asked);
 
@@ -93,15 +133,22 @@ describe('a model weighing what the engine proposes', () => {
     ['has another shape', reply({ best: 'b' })],
     ['names none of the options', reply({ order: ['x', 'y'], reasons: { x: 'Mine.' } })],
     ['gives no list', reply({ order: 'b' })],
-  ])('leaves the order as the engine had it when the answer %s, and says that the engine decided', async (_what, text) => {
-    const { service } = weigher(text);
+  ])(
+    'leaves the order as the engine had it when the answer %s, and says that the engine decided',
+    async (_what, text) => {
+      const { service } = weigher(text);
 
-    const weighed = await service.weigh('user-1', DAY_VARIATIONS, asked);
+      const weighed = await service.weigh('user-1', DAY_VARIATIONS, asked);
 
-    expect(weighed.order).toEqual(['a', 'b', 'c']);
-    expect(weighed.said.size).toBe(0);
-    expect(weighed.meta).toEqual({ ...answered, usedDeterministicFallback: true, fallbackReason: 'invalid_output' });
-  });
+      expect(weighed.order).toEqual(['a', 'b', 'c']);
+      expect(weighed.said.size).toBe(0);
+      expect(weighed.meta).toEqual({
+        ...answered,
+        usedDeterministicFallback: true,
+        fallbackReason: 'invalid_output',
+      });
+    },
+  );
 
   it('leaves the order as the engine had it when no model answers, with the reason the router gave', async () => {
     const { service } = weigher(null);

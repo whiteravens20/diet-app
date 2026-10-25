@@ -16,7 +16,17 @@ function ADraft(keys: ReviewKeys) {
 }
 
 function shown(over: Partial<ReviewKeys> = {}) {
-  const keys = { enabled: true, takesFocus: true, approve: vi.fn(), reject: vi.fn(), save: vi.fn(), next: vi.fn(), previous: vi.fn(), busy: false, ...over };
+  const keys = {
+    enabled: true,
+    takesFocus: true,
+    approve: vi.fn(),
+    reject: vi.fn(),
+    save: vi.fn(),
+    next: vi.fn(),
+    previous: vi.fn(),
+    busy: false,
+    ...over,
+  };
   render(<ADraft {...keys} />);
   return keys;
 }
@@ -37,7 +47,8 @@ describe('the keys of a draft under review', () => {
     await userEvent.click(screen.getByRole('textbox', { name: 'Title' }));
     await userEvent.keyboard('{Escape}');
 
-    for (const act of [keys.approve, keys.reject, keys.save, keys.next, keys.previous]) expect(act).not.toHaveBeenCalled();
+    for (const act of [keys.approve, keys.reject, keys.save, keys.next, keys.previous])
+      expect(act).not.toHaveBeenCalled();
     expect(screen.getByRole('textbox', { name: 'Title' })).toHaveFocus();
   });
 
@@ -79,7 +90,8 @@ describe('the keys of a draft under review', () => {
     await userEvent.keyboard('arsjk');
 
     expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Oat porridgearsjk');
-    for (const act of [keys.approve, keys.reject, keys.save, keys.next, keys.previous]) expect(act).not.toHaveBeenCalled();
+    for (const act of [keys.approve, keys.reject, keys.save, keys.next, keys.previous])
+      expect(act).not.toHaveBeenCalled();
   });
 
   it('are back once Escape gives the focus back to the draft', async () => {

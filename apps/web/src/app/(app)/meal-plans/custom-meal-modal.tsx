@@ -59,10 +59,25 @@ export function CustomMealModal({
   const [replaces, setReplaces] = useState('');
 
   const num = (v: string) => (v.trim() === '' ? NaN : Number(v));
-  const serving = { calories: num(calories), protein: num(protein), fat: num(fat), carbs: num(carbs) };
-  const asked = AddCustomMealRequest.safeParse({ name, mealType, nutrition: serving, servings: num(servings), ...(replaces ? { replaces } : {}) });
+  const serving = {
+    calories: num(calories),
+    protein: num(protein),
+    fat: num(fat),
+    carbs: num(carbs),
+  };
+  const asked = AddCustomMealRequest.safeParse({
+    name,
+    mealType,
+    nutrition: serving,
+    servings: num(servings),
+    ...(replaces ? { replaces } : {}),
+  });
   // What the meal adds to its day, rounded as the API rounds it. It does not wait for a name.
-  const counted = AddCustomMealRequest.omit({ name: true }).safeParse({ mealType, nutrition: serving, servings: num(servings) });
+  const counted = AddCustomMealRequest.omit({ name: true }).safeParse({
+    mealType,
+    nutrition: serving,
+    servings: num(servings),
+  });
   const adds = counted.success
     ? {
         calories: Math.round(counted.data.nutrition.calories * counted.data.servings),
@@ -94,7 +109,13 @@ export function CustomMealModal({
       >
         <Field label={t('customName')}>
           {/* A name of nothing but spaces is no name. */}
-          <Input value={name} onChange={(e) => setName(e.target.value)} required pattern=".*\S.*" maxLength={120} />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            pattern=".*\S.*"
+            maxLength={120}
+          />
         </Field>
 
         <Field label={t('customMealType')}>
@@ -120,7 +141,10 @@ export function CustomMealModal({
             <option value="">{t('customBeside')}</option>
             {meals.map((meal) => (
               <option key={meal.id} value={meal.id}>
-                {t('customInstead', { meal: tMeal.has(meal.mealType) ? tMeal(meal.mealType) : meal.mealType, title: meal.title })}
+                {t('customInstead', {
+                  meal: tMeal.has(meal.mealType) ? tMeal(meal.mealType) : meal.mealType,
+                  title: meal.title,
+                })}
               </option>
             ))}
           </select>
@@ -130,28 +154,78 @@ export function CustomMealModal({
           <legend className="text-sm font-medium">{t('customPerServing')}</legend>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('customCalories')}>
-              <Input type="number" inputMode="decimal" required min={0} max={most('calories')} step="any" value={calories} onChange={(e) => setCalories(e.target.value)} />
+              <Input
+                type="number"
+                inputMode="decimal"
+                required
+                min={0}
+                max={most('calories')}
+                step="any"
+                value={calories}
+                onChange={(e) => setCalories(e.target.value)}
+              />
             </Field>
             <Field label={t('customProtein')}>
-              <Input type="number" inputMode="decimal" required min={0} max={most('protein')} step="any" value={protein} onChange={(e) => setProtein(e.target.value)} />
+              <Input
+                type="number"
+                inputMode="decimal"
+                required
+                min={0}
+                max={most('protein')}
+                step="any"
+                value={protein}
+                onChange={(e) => setProtein(e.target.value)}
+              />
             </Field>
             <Field label={t('customFat')}>
-              <Input type="number" inputMode="decimal" required min={0} max={most('fat')} step="any" value={fat} onChange={(e) => setFat(e.target.value)} />
+              <Input
+                type="number"
+                inputMode="decimal"
+                required
+                min={0}
+                max={most('fat')}
+                step="any"
+                value={fat}
+                onChange={(e) => setFat(e.target.value)}
+              />
             </Field>
             <Field label={t('customCarbs')}>
-              <Input type="number" inputMode="decimal" required min={0} max={most('carbs')} step="any" value={carbs} onChange={(e) => setCarbs(e.target.value)} />
+              <Input
+                type="number"
+                inputMode="decimal"
+                required
+                min={0}
+                max={most('carbs')}
+                step="any"
+                value={carbs}
+                onChange={(e) => setCarbs(e.target.value)}
+              />
             </Field>
           </div>
         </fieldset>
 
         <Field label={t('customServings')} hint={t('customServingsHint')}>
-          <Input type="number" inputMode="decimal" required min={0.25} max={20} step={0.25} value={servings} onChange={(e) => setServings(e.target.value)} />
+          <Input
+            type="number"
+            inputMode="decimal"
+            required
+            min={0.25}
+            max={20}
+            step={0.25}
+            value={servings}
+            onChange={(e) => setServings(e.target.value)}
+          />
         </Field>
 
-        <div aria-live="polite" className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs">
+        <div
+          aria-live="polite"
+          className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs"
+        >
           <p>{adds ? t('customTotal', adds) : t('customTotalPending')}</p>
           {/* What adding it does to the day, said before it is added. */}
-          <p className="text-muted-foreground">{t(replaces ? 'customInsteadNote' : 'customBesideNote')}</p>
+          <p className="text-muted-foreground">
+            {t(replaces ? 'customInsteadNote' : 'customBesideNote')}
+          </p>
         </div>
 
         <div className="flex justify-end gap-2">

@@ -50,7 +50,8 @@ export class AdminModelService {
     const result = await adapter.chat([{ role: 'user', content: prompt }], {
       model: this.model!,
       apiKey: this.keyOf(adapter),
-      baseUrl: adapter.kind === 'ollama' ? this.config.get('OLLAMA_BASE_URL', { infer: true }) : undefined,
+      baseUrl:
+        adapter.kind === 'ollama' ? this.config.get('OLLAMA_BASE_URL', { infer: true }) : undefined,
       json: true,
       maxTokens: limits.maxTokens,
       temperature: limits.temperature,

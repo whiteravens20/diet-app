@@ -39,7 +39,12 @@ export interface ReviewedFacts {
 /** A recipe that passed, with what the write needs. */
 export interface LibraryRecipe {
   content: ShippedRecipe;
-  lines: { ingredientId: string; quantity: number; unit: ShippedRecipe['ingredients'][number]['unit']; note: string | null }[];
+  lines: {
+    ingredientId: string;
+    quantity: number;
+    unit: ShippedRecipe['ingredients'][number]['unit'];
+    note: string | null;
+  }[];
   facts: RecipeFacts;
   fingerprint: string;
 }
@@ -103,12 +108,17 @@ export async function assessForLibrary(
   });
   const bySlug = new Map(ingredients.map((ingredient) => [ingredient.slug!, ingredient]));
   const missing = slugs.filter((slug) => !bySlug.has(slug));
-  if (missing.length > 0) return { ok: false, reason: `unknown-slug-at-ship: ${missing.join(', ')}` };
+  if (missing.length > 0)
+    return { ok: false, reason: `unknown-slug-at-ship: ${missing.join(', ')}` };
 
   let facts: RecipeFacts;
   try {
     facts = recipeFacts(
-      content.ingredients.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: bySlug.get(line.slug)! })),
+      content.ingredients.map((line) => ({
+        quantity: line.quantity,
+        unit: line.unit,
+        ingredient: bySlug.get(line.slug)!,
+      })),
       content.servings,
     );
   } catch (err) {
@@ -122,23 +132,38 @@ export async function assessForLibrary(
       Math.abs(facts.perServing.calories - reviewed.caloriesPerServing) > CALORIE_TOLERANCE
         ? `calories ${reviewed.caloriesPerServing} → ${facts.perServing.calories}`
         : '',
-      moved(reviewed.allergens, facts.allergens) && `allergens ${moved(reviewed.allergens, facts.allergens)}`,
-      moved(reviewed.dietTags, facts.dietTags) && `diets ${moved(reviewed.dietTags, facts.dietTags)}`,
+      moved(reviewed.allergens, facts.allergens) &&
+        `allergens ${moved(reviewed.allergens, facts.allergens)}`,
+      moved(reviewed.dietTags, facts.dietTags) &&
+        `diets ${moved(reviewed.dietTags, facts.dietTags)}`,
     ].filter(Boolean);
-    if (changes.length > 0) return { ok: false, reason: `facts-moved-since-review: ${changes.join('; ')}` };
+    if (changes.length > 0)
+      return { ok: false, reason: `facts-moved-since-review: ${changes.join('; ')}` };
   }
 
   const title = content.title.en ?? '';
-  const fingerprint = computeFingerprint({ ingredients: content.ingredients, mealTypes: content.mealTypes, servings: content.servings });
+  const fingerprint = computeFingerprint({
+    ingredients: content.ingredients,
+    mealTypes: content.mealTypes,
+    servings: content.servings,
+  });
   const other = options.own ? { id: { not: options.own } } : {};
   const { claimed } = options;
 
   // The slug is unique among all recipes, so a retired one holds its slug too.
-  const holder = await db.recipe.findFirst({ where: { slug: content.slug, ...other }, select: { id: true } });
-  if (holder || claimed?.slugs.has(content.slug)) return { ok: false, reason: `slug-taken: ${content.slug}` };
+  const holder = await db.recipe.findFirst({
+    where: { slug: content.slug, ...other },
+    select: { id: true },
+  });
+  if (holder || claimed?.slugs.has(content.slug))
+    return { ok: false, reason: `slug-taken: ${content.slug}` };
 
-  const namesake = await db.recipe.findFirst({ where: { ...SHARED, ...other, title: { equals: title, mode: 'insensitive' } }, select: { id: true } });
-  if (namesake || claimed?.titles.has(title.toLowerCase())) return { ok: false, reason: `title-taken: ${title}` };
+  const namesake = await db.recipe.findFirst({
+    where: { ...SHARED, ...other, title: { equals: title, mode: 'insensitive' } },
+    select: { id: true },
+  });
+  if (namesake || claimed?.titles.has(title.toLowerCase()))
+    return { ok: false, reason: `title-taken: ${title}` };
 
   const twin = await db.recipe.findFirst({
     where: { ...SHARED, ...other, fingerprint },
@@ -179,7 +204,11 @@ export async function assessForLibrary(
  */
 export async function writeToLibrary(tx: Db, recipe: LibraryRecipe, own?: string): Promise<string> {
   const { content, facts } = recipe;
-  const english = { title: content.title.en!, description: content.description.en ?? '', steps: content.steps.en ?? [] };
+  const english = {
+    title: content.title.en!,
+    description: content.description.en ?? '',
+    steps: content.steps.en ?? [],
+  };
   const fields = {
     slug: content.slug,
     ...english,
@@ -204,13 +233,25 @@ export async function writeToLibrary(tx: Db, recipe: LibraryRecipe, own?: string
     carbsPerServing: facts.perServing.carbs,
   };
   const id = own
-    ? (await tx.recipe.update({ where: { id: own }, data: { ...fields, ingredients: { deleteMany: {}, create: recipe.lines } }, select: { id: true } })).id
-    : (await tx.recipe.create({ data: { ...fields, ingredients: { create: recipe.lines } }, select: { id: true } })).id;
+    ? (
+        await tx.recipe.update({
+          where: { id: own },
+          data: { ...fields, ingredients: { deleteMany: {}, create: recipe.lines } },
+          select: { id: true },
+        })
+      ).id
+    : (
+        await tx.recipe.create({
+          data: { ...fields, ingredients: { create: recipe.lines } },
+          select: { id: true },
+        })
+      ).id;
 
   for (const locale of Object.keys(content.title)) {
     const text = {
       title: content.title[locale as keyof typeof content.title] ?? english.title,
-      description: content.description[locale as keyof typeof content.description] ?? english.description,
+      description:
+        content.description[locale as keyof typeof content.description] ?? english.description,
       steps: content.steps[locale as keyof typeof content.steps] ?? english.steps,
       // Approved by people. Not `CURATED_JSON`: that is text from the data
       // files, which an update rewrites.
@@ -235,12 +276,26 @@ const OWN = { ...SHARED, origin: 'curated' } as const;
  * the slug is such a recipe's and the rest no longer agrees: the recipe moved
  * on since the draft was made from it.
  */
-export async function sameLibraryRecipe(db: Db, content: ShippedRecipe): Promise<{ id: string } | 'changed' | null> {
-  const held = await db.recipe.findFirst({ where: { ...OWN, slug: content.slug }, select: { id: true, title: true, description: true, steps: true, fingerprint: true } });
+export async function sameLibraryRecipe(
+  db: Db,
+  content: ShippedRecipe,
+): Promise<{ id: string } | 'changed' | null> {
+  const held = await db.recipe.findFirst({
+    where: { ...OWN, slug: content.slug },
+    select: { id: true, title: true, description: true, steps: true, fingerprint: true },
+  });
   if (!held) return null;
-  const fingerprint = computeFingerprint({ ingredients: content.ingredients, mealTypes: content.mealTypes, servings: content.servings });
+  const fingerprint = computeFingerprint({
+    ingredients: content.ingredients,
+    mealTypes: content.mealTypes,
+    servings: content.servings,
+  });
   const english = content.steps.en ?? [];
-  const sameText = held.title === content.title.en && held.description === (content.description.en ?? '') && held.steps.length === english.length && held.steps.every((step, index) => step === english[index]);
+  const sameText =
+    held.title === content.title.en &&
+    held.description === (content.description.en ?? '') &&
+    held.steps.length === english.length &&
+    held.steps.every((step, index) => step === english[index]);
   return held.fingerprint === fingerprint && sameText ? { id: held.id } : 'changed';
 }
 
@@ -257,7 +312,11 @@ export async function addLanguages(tx: Db, id: string, content: ShippedRecipe): 
       steps: content.steps[locale as keyof typeof content.steps] ?? [],
       source: 'MANUAL' as const,
     };
-    await tx.recipeTranslation.upsert({ where: { recipeId_locale: { recipeId: id, locale } }, create: { recipeId: id, locale, ...text }, update: text });
+    await tx.recipeTranslation.upsert({
+      where: { recipeId_locale: { recipeId: id, locale } },
+      create: { recipeId: id, locale, ...text },
+      update: text,
+    });
   }
 }
 
@@ -267,7 +326,9 @@ export async function addLanguages(tx: Db, id: string, content: ShippedRecipe): 
  * that ships into this instance, against this instance's library and against
  * each other: the file is meant for the data this library was made from.
  */
-export async function sortRecipesForFile<D extends RecipeDraftContent & ReviewedFacts & { id: string }>(
+export async function sortRecipesForFile<
+  D extends RecipeDraftContent & ReviewedFacts & { id: string },
+>(
   db: Db,
   drafts: readonly D[],
 ): Promise<{ shipping: { draft: D; content: ShippedRecipe }[]; skipped: Skipped[] }> {
@@ -278,10 +339,16 @@ export async function sortRecipesForFile<D extends RecipeDraftContent & Reviewed
     const shippable = shippableRecipe(draft);
     // A language for a recipe this instance has is the instance's to take: a file for a repository holds whole recipes.
     if (shippable.ok && (await sameLibraryRecipe(db, shippable.content)) !== null) {
-      skipped.push({ draftId: draft.id, slug: draft.slug, reason: `adds-a-language: ${draft.slug}` });
+      skipped.push({
+        draftId: draft.id,
+        slug: draft.slug,
+        reason: `adds-a-language: ${draft.slug}`,
+      });
       continue;
     }
-    const assessed = shippable.ok ? await assessForLibrary(db, shippable.content, { reviewed: draft, claimed }) : shippable;
+    const assessed = shippable.ok
+      ? await assessForLibrary(db, shippable.content, { reviewed: draft, claimed })
+      : shippable;
     if (assessed.ok) shipping.push({ draft, content: assessed.recipe.content });
     else skipped.push({ draftId: draft.id, slug: draft.slug, reason: assessed.reason });
   }

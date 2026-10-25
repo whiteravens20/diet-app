@@ -105,7 +105,7 @@ export class IngredientNamerRunner {
   isConfigured(): boolean {
     return Boolean(
       this.config.get('AI_DEFAULT_PROVIDER', { infer: true }) &&
-        this.config.get('AI_DEFAULT_MODEL', { infer: true }),
+      this.config.get('AI_DEFAULT_MODEL', { infer: true }),
     );
   }
 
@@ -195,9 +195,11 @@ export class IngredientNamerRunner {
    * Otherwise every imported ingredient that has no draft of this prompt's
    * version. A run that is left with nothing says which of these it was.
    */
-  private async collectTargets(
-    spec: IngredientNamerStartSpec,
-  ): Promise<{ targets: { id: string; slug: string; rawDescription: string }[]; skipped: number; note: DraftRunNote | null }> {
+  private async collectTargets(spec: IngredientNamerStartSpec): Promise<{
+    targets: { id: string; slug: string; rawDescription: string }[];
+    skipped: number;
+    note: DraftRunNote | null;
+  }> {
     const ingredients = await this.prisma.ingredient.findMany({
       where: {
         tags: { has: 'usda-imported' },
@@ -232,7 +234,11 @@ export class IngredientNamerRunner {
     });
     const skip = new Set(existing.map((d) => d.ingredientSlug));
     const targets = imported.filter((i) => !skip.has(i.slug));
-    return { targets, skipped: imported.length - targets.length, note: targets.length === 0 ? 'all-have-drafts' : null };
+    return {
+      targets,
+      skipped: imported.length - targets.length,
+      note: targets.length === 0 ? 'all-have-drafts' : null,
+    };
   }
 
   private async processBatch(
@@ -292,31 +298,35 @@ export class IngredientNamerRunner {
     targetLocales: Locale[],
     temperature: number,
   ): Promise<Record<string, import('@diet-app/shared').IngredientNameSuggestion> | null> {
-    const failures: { key: string; reason: IngredientNamerValidationReason | 'answer-cut-off' }[] = [];
+    const failures: { key: string; reason: IngredientNamerValidationReason | 'answer-cut-off' }[] =
+      [];
     const kept: Record<string, import('@diet-app/shared').IngredientNameSuggestion> = {};
     let refused = '';
     for (const attempt of [0, 1, 2]) {
-      const missing = Object.fromEntries(Object.entries(source).filter(([slug]) => !(slug in kept)));
+      const missing = Object.fromEntries(
+        Object.entries(source).filter(([slug]) => !(slug in kept)),
+      );
       if (Object.keys(missing).length === 0) break;
-      const limits = ingredientNames(Object.keys(missing).length, targetLocales.length, temperature);
+      const limits = ingredientNames(
+        Object.keys(missing).length,
+        targetLocales.length,
+        temperature,
+      );
       try {
-        const reminder = attempt === 0
-          ? ''
-          : `\nReminder: respond with ONLY the COMPLETE JSON object. No prose, no fences, no notes.${refused}`;
-        const prompt =
-          buildIngredientNamerPrompt({ targetLocales, source: missing }) + reminder;
-        const result = await adapter.chat(
-          [{ role: 'user', content: prompt }],
-          {
-            model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
-            apiKey: this.adapterKey(adapter),
-            baseUrl: this.adapterBaseUrl(adapter),
-            json: true,
-            maxTokens: limits.maxTokens,
-            temperature: limits.temperature,
-            timeoutMs: limits.timeoutMs,
-          },
-        );
+        const reminder =
+          attempt === 0
+            ? ''
+            : `\nReminder: respond with ONLY the COMPLETE JSON object. No prose, no fences, no notes.${refused}`;
+        const prompt = buildIngredientNamerPrompt({ targetLocales, source: missing }) + reminder;
+        const result = await adapter.chat([{ role: 'user', content: prompt }], {
+          model: this.config.get('AI_DEFAULT_MODEL', { infer: true })!,
+          apiKey: this.adapterKey(adapter),
+          baseUrl: this.adapterBaseUrl(adapter),
+          json: true,
+          maxTokens: limits.maxTokens,
+          temperature: limits.temperature,
+          timeoutMs: limits.timeoutMs,
+        });
         if (result.truncated) {
           // A cut-off answer is not worth parsing: its JSON does not close.
           failures.push({ key: '?', reason: 'answer-cut-off' });
@@ -332,10 +342,14 @@ export class IngredientNamerRunner {
         if (v.ok) Object.assign(kept, v.suggestions);
         if (refusals.length === 0) break;
         failures.push(...refusals);
-        const said = refusals.map((refusal) => `${refusal.reason} at ${JSON.stringify(refusal.key)}`).join('; ');
+        const said = refusals
+          .map((refusal) => `${refusal.reason} at ${JSON.stringify(refusal.key)}`)
+          .join('; ');
         refused = `\nOf your last answer these were refused: ${said}. Name them again, otherwise than before.`;
         const head = result.text.slice(0, 200).replace(/\s+/g, ' ');
-        this.logger.warn(`namer batch reject (${refusals[0]!.reason}), ${refusals.length} refused, ${Object.keys(kept).length} of ${Object.keys(source).length} kept: head="${head}"`);
+        this.logger.warn(
+          `namer batch reject (${refusals[0]!.reason}), ${refusals.length} refused, ${Object.keys(kept).length} of ${Object.keys(source).length} kept: head="${head}"`,
+        );
       } catch (err) {
         this.logger.warn(`namer batch error: ${describe(err)}`);
       }

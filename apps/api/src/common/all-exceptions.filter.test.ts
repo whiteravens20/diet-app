@@ -42,7 +42,11 @@ describe('AllExceptionsFilter', () => {
       new ConflictException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' }),
     );
     expect(status).toBe(409);
-    expect(body).toEqual({ statusCode: 409, error: 'EMAIL_TAKEN', message: 'Email already registered.' });
+    expect(body).toEqual({
+      statusCode: 409,
+      error: 'EMAIL_TAKEN',
+      message: 'Email already registered.',
+    });
   });
 
   it('passes on the details an error carries under that name, and nothing else it carries', () => {
@@ -62,15 +66,24 @@ describe('AllExceptionsFilter', () => {
     });
   });
 
-  it.each([['a text'], [['a', 'list']], [null], [42]])('leaves out details that are not an object: %j', (details) => {
-    const { body } = answerTo(new BadRequestException({ error: 'RECIPE_NOT_ELIGIBLE', message: 'No.', details }));
-    expect(body).toEqual({ statusCode: 400, error: 'RECIPE_NOT_ELIGIBLE', message: 'No.' });
-  });
+  it.each([['a text'], [['a', 'list']], [null], [42]])(
+    'leaves out details that are not an object: %j',
+    (details) => {
+      const { body } = answerTo(
+        new BadRequestException({ error: 'RECIPE_NOT_ELIGIBLE', message: 'No.', details }),
+      );
+      expect(body).toEqual({ statusCode: 400, error: 'RECIPE_NOT_ELIGIBLE', message: 'No.' });
+    },
+  );
 
   it('keeps the field issues of a validation failure', () => {
     const issues = [{ path: 'email', message: 'Invalid email' }];
     const { body } = answerTo(
-      new BadRequestException({ error: 'VALIDATION_FAILED', message: 'Request payload failed validation.', issues }),
+      new BadRequestException({
+        error: 'VALIDATION_FAILED',
+        message: 'Request payload failed validation.',
+        issues,
+      }),
     );
     expect(body.issues).toEqual(issues);
   });
@@ -80,13 +93,16 @@ describe('AllExceptionsFilter', () => {
     [new NotFoundException('Cannot GET /api/nowhere'), 404, 'NOT_FOUND'],
     [new BadRequestException('Unexpected end of JSON input'), 400, 'BAD_REQUEST'],
     [new HttpException('ThrottlerException: Too Many Requests', 429), 429, 'RATE_LIMITED'],
-  ])('gives a framework error a stable code and message (%#)', (exception, expectedStatus, code) => {
-    const { status, body } = answerTo(exception);
-    expect(status).toBe(expectedStatus);
-    expect(body.error).toBe(code);
-    // The framework's own text can echo the request; the answer does not.
-    expect(body.message).not.toMatch(/Cannot GET|JSON input|ThrottlerException/);
-  });
+  ])(
+    'gives a framework error a stable code and message (%#)',
+    (exception, expectedStatus, code) => {
+      const { status, body } = answerTo(exception);
+      expect(status).toBe(expectedStatus);
+      expect(body.error).toBe(code);
+      // The framework's own text can echo the request; the answer does not.
+      expect(body.message).not.toMatch(/Cannot GET|JSON input|ThrottlerException/);
+    },
+  );
 
   it.each([
     ['P2002', 409, 'CONFLICT'],
@@ -101,7 +117,10 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('answers a body over the parser limit as 413', () => {
-    const tooLarge = Object.assign(new Error('request entity too large'), { type: 'entity.too.large', status: 413 });
+    const tooLarge = Object.assign(new Error('request entity too large'), {
+      type: 'entity.too.large',
+      status: 413,
+    });
     const { status, body } = answerTo(tooLarge);
     expect(status).toBe(413);
     expect(body.error).toBe('PAYLOAD_TOO_LARGE');
@@ -114,6 +133,10 @@ describe('AllExceptionsFilter', () => {
   ])('answers anything else as a 500 that says nothing about the cause (%#)', (exception) => {
     const { status, body } = answerTo(exception);
     expect(status).toBe(500);
-    expect(body).toEqual({ statusCode: 500, error: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' });
+    expect(body).toEqual({
+      statusCode: 500,
+      error: 'INTERNAL_ERROR',
+      message: 'An unexpected error occurred.',
+    });
   });
 });

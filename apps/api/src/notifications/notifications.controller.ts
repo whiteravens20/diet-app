@@ -23,7 +23,10 @@ export class NotificationsController {
   /** Mark a notification as read. */
   @Post(':id/read')
   @HttpCode(204)
-  async markRead(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string): Promise<void> {
+  async markRead(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+  ): Promise<void> {
     await this.notifications.markRead(user.id, id);
   }
 

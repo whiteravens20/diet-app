@@ -56,10 +56,20 @@ describe('OllamaProvider', () => {
     let sent: Record<string, unknown> = {};
     respond = (body, res) => {
       sent = JSON.parse(body) as Record<string, unknown>;
-      json(res, 200, { message: { content: 'hi there' }, prompt_eval_count: 11, eval_count: 3, done_reason: 'stop' });
+      json(res, 200, {
+        message: { content: 'hi there' },
+        prompt_eval_count: 11,
+        eval_count: 3,
+        done_reason: 'stop',
+      });
     };
 
-    await expect(chat()).resolves.toEqual({ text: 'hi there', promptTokens: 11, outputTokens: 3, truncated: false });
+    await expect(chat()).resolves.toEqual({
+      text: 'hi there',
+      promptTokens: 11,
+      outputTokens: 3,
+      truncated: false,
+    });
     expect(sent).toMatchObject({
       model: 'test-model',
       messages: [{ role: 'user', content: 'hello' }],
@@ -70,7 +80,8 @@ describe('OllamaProvider', () => {
   });
 
   it('says so when the model stopped at the token limit', async () => {
-    respond = (_body, res) => json(res, 200, { message: { content: '{"recipes":[' }, done_reason: 'length' });
+    respond = (_body, res) =>
+      json(res, 200, { message: { content: '{"recipes":[' }, done_reason: 'length' });
     await expect(chat()).resolves.toMatchObject({ truncated: true });
   });
 
@@ -99,7 +110,11 @@ describe('OllamaProvider', () => {
       json(res, 200, { message: { content: '{}' } });
     };
 
-    await expect(chat({ json: true })).resolves.toMatchObject({ text: '{}', promptTokens: 0, outputTokens: 0 });
+    await expect(chat({ json: true })).resolves.toMatchObject({
+      text: '{}',
+      promptTokens: 0,
+      outputTokens: 0,
+    });
     expect(sent.format).toBe('json');
   });
 
@@ -137,7 +152,9 @@ describe('OllamaProvider', () => {
       json(res, 200, { message: { content: 'reached' } });
     };
 
-    const refused = await failure(chat({ baseUrl: baseUrl.replace('127.0.0.1', 'localhost'), publicOnly: true }));
+    const refused = await failure(
+      chat({ baseUrl: baseUrl.replace('127.0.0.1', 'localhost'), publicOnly: true }),
+    );
 
     expect(refused.message).toContain('public address');
     expect(refused.timedOut).toBe(false);

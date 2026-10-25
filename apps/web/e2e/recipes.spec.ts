@@ -12,10 +12,18 @@ interface Listed {
 
 /** The next answer of the library to a question that `asked` holds for. */
 const listed = (page: Page, asked: (query: URLSearchParams) => boolean): Promise<Response> =>
-  page.waitForResponse((res) => new URL(res.url()).pathname === '/api/recipes' && res.ok() && asked(new URL(res.url()).searchParams));
+  page.waitForResponse(
+    (res) =>
+      new URL(res.url()).pathname === '/api/recipes' &&
+      res.ok() &&
+      asked(new URL(res.url()).searchParams),
+  );
 
 test.describe('the recipe library', () => {
-  test('is narrowed by a meal, by energy and by a word of a title, each asked of the API, and widened again', async ({ session, messages }) => {
+  test('is narrowed by a meal, by energy and by a word of a title, each asked of the API, and widened again', async ({
+    session,
+    messages,
+  }) => {
     const page = session.page;
     const recipes = messages.recipes as Texts;
     const cards = page.getByRole('main').locator('a[href^="/recipes/"]');
@@ -29,7 +37,10 @@ test.describe('the recipe library', () => {
     expect(all.total).toBeGreaterThan(1);
 
     // By the meal a recipe is for: what the API answers is what the page shows.
-    const byMeal = listed(page, (query) => query.get('mealType') === 'breakfast' && !query.has('maxCalories'));
+    const byMeal = listed(
+      page,
+      (query) => query.get('mealType') === 'breakfast' && !query.has('maxCalories'),
+    );
     await meal.selectOption('breakfast');
     const breakfasts = (await (await byMeal).json()) as Listed;
     expect(breakfasts.total).toBeGreaterThan(0);
@@ -39,13 +50,20 @@ test.describe('the recipe library', () => {
     await expect(cards.first()).toContainText(breakfasts.items[0]!.title);
 
     // By the energy of a serving as well: the lightest breakfast stays, whatever is heavier than it goes.
-    const lightest = Math.min(...breakfasts.items.map((recipe) => recipe.nutritionPerServing.calories));
+    const lightest = Math.min(
+      ...breakfasts.items.map((recipe) => recipe.nutritionPerServing.calories),
+    );
     const most = String(Math.ceil(lightest));
-    const byEnergy = listed(page, (query) => query.get('mealType') === 'breakfast' && query.get('maxCalories') === most);
+    const byEnergy = listed(
+      page,
+      (query) => query.get('mealType') === 'breakfast' && query.get('maxCalories') === most,
+    );
     await page.getByLabel(recipes.maxCalories!, { exact: true }).fill(most);
     const light = (await (await byEnergy).json()) as Listed;
     expect(light.total).toBeGreaterThan(0);
-    expect(light.items.every((recipe) => recipe.nutritionPerServing.calories <= Number(most))).toBe(true);
+    expect(light.items.every((recipe) => recipe.nutritionPerServing.calories <= Number(most))).toBe(
+      true,
+    );
     await expect(cards).toHaveCount(light.items.length);
 
     // With nothing left to choose from, the page says so.
@@ -62,7 +80,9 @@ test.describe('the recipe library', () => {
 
     // By a word of a title, in the language the titles are read in: the recipe the word is from is among what is found.
     const from = all.items[0]!.title;
-    const word = from.split(/\s+/).reduce((longest, part) => (part.length > longest.length ? part : longest), '');
+    const word = from
+      .split(/\s+/)
+      .reduce((longest, part) => (part.length > longest.length ? part : longest), '');
     const byWord = listed(page, (query) => query.get('search') === word);
     await page.getByLabel(recipes.search!, { exact: true }).fill(word);
     const found = (await (await byWord).json()) as Listed;

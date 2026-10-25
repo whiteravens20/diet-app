@@ -46,23 +46,19 @@ export const reviewApi = {
     if (opts.includeReviewed) params.set('includeReviewed', 'true');
     if (opts.page) params.set('page', String(opts.page));
     if (opts.pageSize) params.set('pageSize', String(opts.pageSize));
-    return reviewFetch<ReviewerListPage<RecipeReviewSlice>>(
-      `/drafts/recipes?${params.toString()}`,
-    );
+    return reviewFetch<ReviewerListPage<RecipeReviewSlice>>(`/drafts/recipes?${params.toString()}`);
   },
   getRecipeSlice: (locale: Locale, id: string) =>
-    reviewFetch<RecipeReviewSlice>(
-      `/drafts/recipes/${id}?locale=${encodeURIComponent(locale)}`,
-    ),
+    reviewFetch<RecipeReviewSlice>(`/drafts/recipes/${id}?locale=${encodeURIComponent(locale)}`),
   patchRecipeSlice: (
     locale: Locale,
     id: string,
     body: { title?: string; description?: string; steps?: string[] },
   ) =>
-    reviewFetch<RecipeReviewSlice>(
-      `/drafts/recipes/${id}?locale=${encodeURIComponent(locale)}`,
-      { method: 'PATCH', body: JSON.stringify(body) },
-    ),
+    reviewFetch<RecipeReviewSlice>(`/drafts/recipes/${id}?locale=${encodeURIComponent(locale)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   approveRecipe: (locale: Locale, id: string, reason?: string) =>
     reviewFetch<RecipeReviewSlice>(
       `/drafts/recipes/${id}/approve?locale=${encodeURIComponent(locale)}`,

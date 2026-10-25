@@ -20,7 +20,10 @@ export class IngredientsController {
    */
   @Get()
   @AnswersListOf(Ingredient)
-  list(@RequestLocale() locale: Locale, @Query(new ZodValidationPipe(IngredientListQuery)) query: IngredientListQuery) {
+  list(
+    @RequestLocale() locale: Locale,
+    @Query(new ZodValidationPipe(IngredientListQuery)) query: IngredientListQuery,
+  ) {
     if (query.ids) return this.ingredients.getMany(locale, query.ids);
     return this.ingredients.search(locale, query.search);
   }

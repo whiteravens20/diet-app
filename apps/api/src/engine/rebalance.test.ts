@@ -51,10 +51,7 @@ describe('rebalanceDay (quantity rebalancer)', () => {
   });
 
   it('pins eaten / custom meals and only scales the rest', () => {
-    const meals = [
-      meal('eaten', 1300, { locked: true }),
-      meal('flex', 1000),
-    ]; // 2300 vs 2000 → +15% (outside): eaten fixed at 1300, flex must become 700
+    const meals = [meal('eaten', 1300, { locked: true }), meal('flex', 1000)]; // 2300 vs 2000 → +15% (outside): eaten fixed at 1300, flex must become 700
     const { scales, feasibility } = rebalanceDay(meals, 2000);
     expect(feasibility).toBe('in-window');
     expect(scales.get('eaten')).toBe(1); // untouched
@@ -65,10 +62,7 @@ describe('rebalanceDay (quantity rebalancer)', () => {
   it('returns best-effort when an impossible gap cannot be closed', () => {
     // A 2600 kcal locked custom meal already overshoots a 2000 target; the lone
     // flex meal can only scale down to SERVING_MIN (0.5), never below zero.
-    const meals = [
-      meal('huge', 2600, { locked: true }),
-      meal('flex', 600),
-    ];
+    const meals = [meal('huge', 2600, { locked: true }), meal('flex', 600)];
     const { scales, feasibility } = rebalanceDay(meals, 2000);
     expect(feasibility).toBe('best-effort');
     expect(scales.get('flex')).toBeCloseTo(0.5, 5); // clamped to the floor
@@ -102,14 +96,22 @@ describe('rebalanceDay (quantity rebalancer)', () => {
 describe('rebalancing a run of days', () => {
   const TARGET = 2000;
   /** A day of three meals that add up to its target. */
-  const onTarget = (name: string): DayToRebalance => ({ target: TARGET, meals: [meal(`${name}-1`, 700), meal(`${name}-2`, 700), meal(`${name}-3`, 600)] });
+  const onTarget = (name: string): DayToRebalance => ({
+    target: TARGET,
+    meals: [meal(`${name}-1`, 700), meal(`${name}-2`, 700), meal(`${name}-3`, 600)],
+  });
   /** A day the user skips: it has no meals, and keeps its target. */
   const skipped = (): DayToRebalance => ({ target: TARGET, meals: [] });
-  const totals = (days: DayToRebalance[], scales: Map<string, number>) => days.map((day) => Math.round(dayKcal(day.meals, scales)));
-  const insideItsWindow = (day: DayToRebalance, scales: Map<string, number>) => Math.abs(dayKcal(day.meals, scales) - day.target) <= 0.1 * day.target + 1e-6;
+  const totals = (days: DayToRebalance[], scales: Map<string, number>) =>
+    days.map((day) => Math.round(dayKcal(day.meals, scales)));
+  const insideItsWindow = (day: DayToRebalance, scales: Map<string, number>) =>
+    Math.abs(dayKcal(day.meals, scales) - day.target) <= 0.1 * day.target + 1e-6;
 
   it('leaves days alone of which every one is inside its window', () => {
-    const days = [{ target: TARGET, meals: [meal('a', 700), meal('b', 700), meal('c', 650)] }, onTarget('d2')];
+    const days = [
+      { target: TARGET, meals: [meal('a', 700), meal('b', 700), meal('c', 650)] },
+      onTarget('d2'),
+    ];
 
     const result = rebalanceDays(days);
 
@@ -132,10 +134,28 @@ describe('rebalancing a run of days', () => {
 
   it('brings a day that is over back with its own meals, and leaves the other days as they are', () => {
     // Day 1 was corrected earlier: a custom meal of 900 kcal, and its two meals scaled to 0.55 to make room.
-    const corrected: DayToRebalance = { target: TARGET, meals: [meal('custom', 900, { locked: true }), meal('c1', 1000, { quantityScale: 0.55 }), meal('c2', 1000, { quantityScale: 0.55 })] };
+    const corrected: DayToRebalance = {
+      target: TARGET,
+      meals: [
+        meal('custom', 900, { locked: true }),
+        meal('c1', 1000, { quantityScale: 0.55 }),
+        meal('c2', 1000, { quantityScale: 0.55 }),
+      ],
+    };
     // Day 5 has just taken a snack of 600 kcal: 30 % over.
-    const over: DayToRebalance = { target: TARGET, meals: [meal('snack', 600, { locked: true }), meal('o1', 1000), meal('o2', 1000)] };
-    const days = [corrected, onTarget('d2'), onTarget('d3'), onTarget('d4'), over, onTarget('d6'), onTarget('d7')];
+    const over: DayToRebalance = {
+      target: TARGET,
+      meals: [meal('snack', 600, { locked: true }), meal('o1', 1000), meal('o2', 1000)],
+    };
+    const days = [
+      corrected,
+      onTarget('d2'),
+      onTarget('d3'),
+      onTarget('d4'),
+      over,
+      onTarget('d6'),
+      onTarget('d7'),
+    ];
 
     const result = rebalanceDays(days);
 
@@ -149,10 +169,24 @@ describe('rebalancing a run of days', () => {
 
   it('spreads what a day cannot absorb itself over the others, and takes none of them out of its window', () => {
     // A custom lunch of 1500 kcal on a day of 1570; its three other meals cannot go under half a serving.
-    const heavy: DayToRebalance = { target: 1570, meals: [meal('lunch', 1500, { locked: true }), meal('h1', 400), meal('h2', 400), meal('h3', 370)] };
+    const heavy: DayToRebalance = {
+      target: 1570,
+      meals: [
+        meal('lunch', 1500, { locked: true }),
+        meal('h1', 400),
+        meal('h2', 400),
+        meal('h3', 370),
+      ],
+    };
     // A day that was at the lower edge already: 7.4 % under.
-    const low: DayToRebalance = { target: 1570, meals: [meal('l1', 500), meal('l2', 500), meal('l3', 454)] };
-    const others = Array.from({ length: 5 }, (_, i): DayToRebalance => ({ target: 1570, meals: [meal(`n${i}-1`, 550), meal(`n${i}-2`, 550), meal(`n${i}-3`, 470)] }));
+    const low: DayToRebalance = {
+      target: 1570,
+      meals: [meal('l1', 500), meal('l2', 500), meal('l3', 454)],
+    };
+    const others = Array.from({ length: 5 }, (_, i): DayToRebalance => ({
+      target: 1570,
+      meals: [meal(`n${i}-1`, 550), meal(`n${i}-2`, 550), meal(`n${i}-3`, 470)],
+    }));
     const days = [low, heavy, ...others];
 
     const result = rebalanceDays(days);
@@ -167,7 +201,8 @@ describe('rebalancing a run of days', () => {
       expect(insideItsWindow(day, result.scales)).toBe(true);
     }
     // The day with the least room gave the least.
-    const given = (day: DayToRebalance) => dayKcal(day.meals, new Map()) - dayKcal(day.meals, result.scales);
+    const given = (day: DayToRebalance) =>
+      dayKcal(day.meals, new Map()) - dayKcal(day.meals, result.scales);
     expect(given(low)).toBeLessThan(given(others[0]!));
     // What the days could not take is said, not hidden.
     const absorbed = [low, ...others].reduce((sum, day) => sum + given(day), 0);
@@ -177,7 +212,10 @@ describe('rebalancing a run of days', () => {
 
   it('absorbs a surplus whole when the other days have the room', () => {
     // 300 kcal over on a day whose meals are all eaten; six days with room for 200 each.
-    const eaten: DayToRebalance = { target: TARGET, meals: [meal('e1', 1150, { locked: true }), meal('e2', 1150, { locked: true })] };
+    const eaten: DayToRebalance = {
+      target: TARGET,
+      meals: [meal('e1', 1150, { locked: true }), meal('e2', 1150, { locked: true })],
+    };
     const others = Array.from({ length: 6 }, (_, i) => onTarget(`d${i}`));
 
     const result = rebalanceDays([eaten, ...others]);
@@ -190,7 +228,10 @@ describe('rebalancing a run of days', () => {
 
   it('says what is left when the other days have not the room for it', () => {
     // 2000 kcal over, all of it eaten; six days with room for 200 each.
-    const eaten: DayToRebalance = { target: TARGET, meals: [meal('e1', 2000, { locked: true }), meal('e2', 2000, { locked: true })] };
+    const eaten: DayToRebalance = {
+      target: TARGET,
+      meals: [meal('e1', 2000, { locked: true }), meal('e2', 2000, { locked: true })],
+    };
     const others = Array.from({ length: 6 }, (_, i) => onTarget(`d${i}`));
 
     const result = rebalanceDays([eaten, ...others]);
@@ -201,7 +242,10 @@ describe('rebalancing a run of days', () => {
   });
 
   it('spreads a shortfall the same way, upwards', () => {
-    const short: DayToRebalance = { target: TARGET, meals: [meal('s1', 700, { locked: true }), meal('s2', 700, { locked: true })] };
+    const short: DayToRebalance = {
+      target: TARGET,
+      meals: [meal('s1', 700, { locked: true }), meal('s2', 700, { locked: true })],
+    };
     const others = Array.from({ length: 6 }, (_, i) => onTarget(`d${i}`));
 
     const result = rebalanceDays([short, ...others]);

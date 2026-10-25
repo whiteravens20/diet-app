@@ -5,7 +5,12 @@
 import { FileUp, ListChecks, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useState } from 'react';
-import type { ImportRejection, MealType, RecipeImportResult, StoredImportRejection } from '@diet-app/shared';
+import type {
+  ImportRejection,
+  MealType,
+  RecipeImportResult,
+  StoredImportRejection,
+} from '@diet-app/shared';
 import { MEAL_TYPES, MOST_IMPORT_BYTES, MOST_RECIPES_PER_IMPORT } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { adminApi } from '@/lib/admin-api';
@@ -32,7 +37,9 @@ function useImportReasonText(): (reason: string) => string {
           .split('; ')
           .map((entry) => {
             const cut = entry.lastIndexOf(': ');
-            return cut === -1 ? entry : problemLine({ path: entry.slice(0, cut), rule: entry.slice(cut + 2) });
+            return cut === -1
+              ? entry
+              : problemLine({ path: entry.slice(0, cut), rule: entry.slice(cut + 2) });
           })
           .join('; ');
       }
@@ -151,7 +158,9 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
       <h3 id={titleId} className="text-sm font-medium">
         {t('title')}
       </h3>
-      <p className="text-xs text-muted-foreground">{t('hint', { most: MOST_RECIPES_PER_IMPORT })}</p>
+      <p className="text-xs text-muted-foreground">
+        {t('hint', { most: MOST_RECIPES_PER_IMPORT })}
+      </p>
 
       <div className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -161,7 +170,12 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
           <label className="inline-flex cursor-pointer items-center gap-1 text-xs text-primary underline underline-offset-2">
             <FileUp className="h-3.5 w-3.5" />
             {t('fromFile')}
-            <input type="file" accept="application/json,application/ld+json,.json,.jsonld" className="sr-only" onChange={(e) => void fromFile(e.target.files?.[0])} />
+            <input
+              type="file"
+              accept="application/json,application/ld+json,.json,.jsonld"
+              className="sr-only"
+              onChange={(e) => void fromFile(e.target.files?.[0])}
+            />
           </label>
         </div>
         <textarea
@@ -180,13 +194,28 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
           <label htmlFor={sourceId} className="text-xs font-medium">
             {t('sourceUrl')}
           </label>
-          <input id={sourceId} type="url" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://" className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs" />
+          <input
+            id={sourceId}
+            type="url"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+            placeholder="https://"
+            className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+          />
         </div>
         <div className="space-y-1">
           <label htmlFor={licenceId} className="text-xs font-medium">
             {t('licence')}
           </label>
-          <input id={licenceId} type="text" value={license} onChange={(e) => setLicense(e.target.value)} maxLength={200} placeholder="CC BY 4.0" className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs" />
+          <input
+            id={licenceId}
+            type="text"
+            value={license}
+            onChange={(e) => setLicense(e.target.value)}
+            maxLength={200}
+            placeholder="CC BY 4.0"
+            className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+          />
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{t('defaultsHint')}</p>
@@ -196,7 +225,16 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
           {MEAL_TYPES.map((meal) => (
             <label key={meal} className="flex min-h-6 items-center gap-1 text-xs">
-              <input type="checkbox" className="h-4 w-4" checked={meals.includes(meal)} onChange={(e) => setMeals(e.target.checked ? [...meals, meal] : meals.filter((other) => other !== meal))} />
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={meals.includes(meal)}
+                onChange={(e) =>
+                  setMeals(
+                    e.target.checked ? [...meals, meal] : meals.filter((other) => other !== meal),
+                  )
+                }
+              />
               {tMeal(meal)}
             </label>
           ))}
@@ -204,11 +242,24 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={() => void send(true)} disabled={busy !== null || text.trim() === ''} className="gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => void send(true)}
+          disabled={busy !== null || text.trim() === ''}
+          className="gap-2"
+        >
           <ListChecks className="h-4 w-4" />
           {busy === 'look' ? t('looking') : t('look')}
         </Button>
-        <Button type="button" size="sm" onClick={() => void send(false)} disabled={busy !== null || text.trim() === ''} className="gap-2">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void send(false)}
+          disabled={busy !== null || text.trim() === ''}
+          className="gap-2"
+        >
           <Upload className="h-4 w-4" />
           {busy === 'import' ? t('importing') : t('import')}
         </Button>
@@ -218,9 +269,26 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
         {error && <p className="text-xs text-destructive">{error}</p>}
         {result && (
           <>
-            <p className="text-xs">{t(result.dryRun ? 'wouldCome' : 'came', { found: result.found, drafted: result.drafted.length, rejected: result.rejected.length })}</p>
-            {result.found > MOST_RECIPES_PER_IMPORT && <p className="text-xs">{t('beyond', { count: result.found - MOST_RECIPES_PER_IMPORT, most: MOST_RECIPES_PER_IMPORT })}</p>}
-            {result.drafted.length > 0 && <p className="text-xs text-muted-foreground">{fmt.list(result.drafted.map((draft) => draft.title))}</p>}
+            <p className="text-xs">
+              {t(result.dryRun ? 'wouldCome' : 'came', {
+                found: result.found,
+                drafted: result.drafted.length,
+                rejected: result.rejected.length,
+              })}
+            </p>
+            {result.found > MOST_RECIPES_PER_IMPORT && (
+              <p className="text-xs">
+                {t('beyond', {
+                  count: result.found - MOST_RECIPES_PER_IMPORT,
+                  most: MOST_RECIPES_PER_IMPORT,
+                })}
+              </p>
+            )}
+            {result.drafted.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {fmt.list(result.drafted.map((draft) => draft.title))}
+              </p>
+            )}
             {result.rejected.length > 0 && <Refused rejected={result.rejected} />}
           </>
         )}
@@ -228,7 +296,9 @@ export function RecipeImport({ onImported }: { onImported: () => void | Promise<
 
       {kept.length > 0 && (
         <details className="text-xs">
-          <summary className="cursor-pointer select-none font-medium">{t('kept', { count: kept.length })}</summary>
+          <summary className="cursor-pointer select-none font-medium">
+            {t('kept', { count: kept.length })}
+          </summary>
           <div className="mt-2 space-y-2">
             <p className="text-muted-foreground">{t('keptHint')}</p>
             <Refused rejected={kept} />

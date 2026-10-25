@@ -5,15 +5,15 @@ update of the administrator's panel, or by `npm run db:seed`
 ([`apps/api/prisma/seed.ts`](../apps/api/prisma/seed.ts)); both read and check
 the files the same way ([`apps/api/src/admin/seed/`](../apps/api/src/admin/seed/)).
 
-| File | Role |
-|---|---|
-| `ingredients.json` | Hand-curated whole-food ingredients (the committed baseline). |
+| File                         | Role                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ingredients.json`           | Hand-curated whole-food ingredients (the committed baseline).                                                                                                                                                                                                                                                                                                                                                           |
 | `ingredients.generated.json` | Written by `npm run import:usda` — paginates the USDA FDC search API across the configured `FDC_DATA_TYPES` (default `Foundation`), maps every food into a `IngredientSeed` row, and clamps measurement-noise negative carbs to zero. Merged on top of the baseline; the baseline wins on a name clash, and a food that a curated ingredient names in `importedAs` is left out (see "Foods the catalogue already has"). |
-| `recipes.json` | Hand-curated "anchor" recipes. |
-| `recipes/*.json` | Batches of recipes that were approved in the curation queue and shipped, one file a batch. |
-| `ingredient-overrides.json` | Names of ingredients in other languages that were approved in the curation queue: the Polish names of the foods a `Foundation` import brings. An instance without those foods leaves them unused. |
-| `substitutions.json` | Ingredient substitution rules. |
-| `import-aliases.json` | Other names of the ingredients, for recipes taken in from elsewhere. No part of the catalogue: see "Recipes from elsewhere". |
+| `recipes.json`               | Hand-curated "anchor" recipes.                                                                                                                                                                                                                                                                                                                                                                                          |
+| `recipes/*.json`             | Batches of recipes that were approved in the curation queue and shipped, one file a batch.                                                                                                                                                                                                                                                                                                                              |
+| `ingredient-overrides.json`  | Names of ingredients in other languages that were approved in the curation queue: the Polish names of the foods a `Foundation` import brings. An instance without those foods leaves them unused.                                                                                                                                                                                                                       |
+| `substitutions.json`         | Ingredient substitution rules.                                                                                                                                                                                                                                                                                                                                                                                          |
+| `import-aliases.json`        | Other names of the ingredients, for recipes taken in from elsewhere. No part of the catalogue: see "Recipes from elsewhere".                                                                                                                                                                                                                                                                                            |
 
 Run `npm run data:lint` to validate every row against the Zod schemas in
 [`apps/api/scripts/validate-data.ts`](../apps/api/scripts/validate-data.ts) — it
@@ -28,7 +28,7 @@ A recipe is vegetarian, vegan or mediterranean when every one of its ingredients
 lists that diet; it is low-carb when under 26 % of its energy comes from
 carbohydrate, and keto when under 10 % does. Those are the limits of the nutrition
 literature, about 130 g and 50 g of carbohydrate a day at 2,000 kcal (Feinman et
-al., *Nutrition* 31, 2015). Balanced and high-protein plans take any recipe. A
+al., _Nutrition_ 31, 2015). Balanced and high-protein plans take any recipe. A
 `dietTags` or `allergens` key written into a recipe is ignored.
 `npm run data:lint` prints how many recipes each diet can draw on for each meal,
 and fails when a diet has fewer than six for a meal: a week without the same dish
@@ -113,76 +113,76 @@ out from the figures of 100 g and from what the database says a cup of the food
 weighs; the weight of a lemon, of a lime and of a slice of rye bread are the
 database's as well.
 
-| Ingredient | FDC id | The food in the database |
-|---|---|---|
-| `chicken-breast` | 171077 | Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw |
-| `turkey-breast` | 174515 | Turkey, retail parts, breast, meat only, raw |
-| `ground-beef` | 171796 | Beef, ground, 85% lean meat / 15% fat, raw |
-| `shrimp` | 175179 | Crustaceans, shrimp, raw |
-| `canned-tuna` | 173709 | Fish, tuna, light, canned in water, drained solids |
-| `chickpeas` | 173800 | Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids |
-| `kidney-beans` | 174285 | Beans, kidney, red, mature seeds, canned, drained solids |
-| `black-beans` | 2644285 | Beans, black, canned, sodium added, drained and rinsed |
-| `edamame` | 168410 | Edamame, frozen, unprepared |
-| `tofu` | 172475 | Tofu, raw, firm, prepared with calcium sulfate |
-| `whole-milk` | 171265 | Milk, whole, 3.25% milkfat, with added vitamin D |
-| `olive-oil` | 171413 | Oil, olive, salad or cooking |
-| `coconut-oil` | 171412 | Oil, coconut |
-| `lemon` | 167746 | Lemons, raw, without peel |
-| `lime` | 168155 | Limes, raw |
-| `salt` | 173468 | Salt, table |
-| `black-pepper` | 170931 | Spices, pepper, black |
-| `apple-cider-vinegar` | 173469 | Vinegar, cider |
-| `soy-sauce` | 174277 | Soy sauce made from soy and wheat (shoyu) |
-| `parsley` | 170416 | Parsley, fresh |
-| `basil` | 172232 | Basil, fresh |
-| `dill` | 172233 | Dill weed, fresh |
-| `dried-oregano` | 171328 | Spices, oregano, dried |
-| `paprika` | 171329 | Spices, paprika |
-| `cinnamon` | 171320 | Spices, cinnamon, ground |
-| `ginger` | 169231 | Ginger root, raw |
-| `sour-cream` | 171257 | Cream, sour, cultured |
-| `heavy-cream` | 170859 | Cream, fluid, heavy whipping |
-| `kefir` | 170904 | Kefir, lowfat, plain, LIFEWAY |
-| `gouda-cheese` | 171241 | Cheese, gouda |
-| `rapeseed-oil` | 172336 | Oil, canola |
-| `sunflower-oil` | 171025 | Oil, sunflower, linoleic, (approx. 65%) |
-| `cocoa-powder` | 169593 | Cocoa, dry powder, unsweetened |
-| `coconut-milk` | 170173 | Nuts, coconut milk, canned (liquid expressed from grated meat and water) |
-| `rye-bread` | 172684 | Bread, rye |
-| `buckwheat-groats` | 170685 | Buckwheat groats, roasted, dry |
-| `millet` | 169702 | Millet, raw |
-| `raisins` | 168165 | Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program) |
-| `herring-fillet` | 175116 | Fish, herring, Atlantic, raw |
-| `mackerel-fillet` | 175119 | Fish, mackerel, Atlantic, raw |
-| `trout-fillet` | 173717 | Fish, trout, rainbow, farmed, raw |
-| `smoked-salmon` | 173687 | Fish, salmon, chinook, smoked |
-| `pork-tenderloin` | 168249 | Pork, fresh, loin, tenderloin, separable lean only, raw |
-| `chicken-thigh` | 172385 | Chicken, broilers or fryers, thigh, meat and skin, raw |
-| `bacon` | 168277 | Pork, cured, bacon, unprepared |
-| `black-olives` | 169094 | Olives, ripe, canned (small-extra large) |
-| `romaine-lettuce` | 169247 | Lettuce, cos or romaine, raw |
-| `canned-tomatoes` | 170051 | Tomatoes, red, ripe, canned, packed in tomato juice |
-| `pumpkin-seeds` | 170556 | Seeds, pumpkin and squash seed kernels, dried |
+| Ingredient            | FDC id  | The food in the database                                                      |
+| --------------------- | ------- | ----------------------------------------------------------------------------- |
+| `chicken-breast`      | 171077  | Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw        |
+| `turkey-breast`       | 174515  | Turkey, retail parts, breast, meat only, raw                                  |
+| `ground-beef`         | 171796  | Beef, ground, 85% lean meat / 15% fat, raw                                    |
+| `shrimp`              | 175179  | Crustaceans, shrimp, raw                                                      |
+| `canned-tuna`         | 173709  | Fish, tuna, light, canned in water, drained solids                            |
+| `chickpeas`           | 173800  | Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids |
+| `kidney-beans`        | 174285  | Beans, kidney, red, mature seeds, canned, drained solids                      |
+| `black-beans`         | 2644285 | Beans, black, canned, sodium added, drained and rinsed                        |
+| `edamame`             | 168410  | Edamame, frozen, unprepared                                                   |
+| `tofu`                | 172475  | Tofu, raw, firm, prepared with calcium sulfate                                |
+| `whole-milk`          | 171265  | Milk, whole, 3.25% milkfat, with added vitamin D                              |
+| `olive-oil`           | 171413  | Oil, olive, salad or cooking                                                  |
+| `coconut-oil`         | 171412  | Oil, coconut                                                                  |
+| `lemon`               | 167746  | Lemons, raw, without peel                                                     |
+| `lime`                | 168155  | Limes, raw                                                                    |
+| `salt`                | 173468  | Salt, table                                                                   |
+| `black-pepper`        | 170931  | Spices, pepper, black                                                         |
+| `apple-cider-vinegar` | 173469  | Vinegar, cider                                                                |
+| `soy-sauce`           | 174277  | Soy sauce made from soy and wheat (shoyu)                                     |
+| `parsley`             | 170416  | Parsley, fresh                                                                |
+| `basil`               | 172232  | Basil, fresh                                                                  |
+| `dill`                | 172233  | Dill weed, fresh                                                              |
+| `dried-oregano`       | 171328  | Spices, oregano, dried                                                        |
+| `paprika`             | 171329  | Spices, paprika                                                               |
+| `cinnamon`            | 171320  | Spices, cinnamon, ground                                                      |
+| `ginger`              | 169231  | Ginger root, raw                                                              |
+| `sour-cream`          | 171257  | Cream, sour, cultured                                                         |
+| `heavy-cream`         | 170859  | Cream, fluid, heavy whipping                                                  |
+| `kefir`               | 170904  | Kefir, lowfat, plain, LIFEWAY                                                 |
+| `gouda-cheese`        | 171241  | Cheese, gouda                                                                 |
+| `rapeseed-oil`        | 172336  | Oil, canola                                                                   |
+| `sunflower-oil`       | 171025  | Oil, sunflower, linoleic, (approx. 65%)                                       |
+| `cocoa-powder`        | 169593  | Cocoa, dry powder, unsweetened                                                |
+| `coconut-milk`        | 170173  | Nuts, coconut milk, canned (liquid expressed from grated meat and water)      |
+| `rye-bread`           | 172684  | Bread, rye                                                                    |
+| `buckwheat-groats`    | 170685  | Buckwheat groats, roasted, dry                                                |
+| `millet`              | 169702  | Millet, raw                                                                   |
+| `raisins`             | 168165  | Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program) |
+| `herring-fillet`      | 175116  | Fish, herring, Atlantic, raw                                                  |
+| `mackerel-fillet`     | 175119  | Fish, mackerel, Atlantic, raw                                                 |
+| `trout-fillet`        | 173717  | Fish, trout, rainbow, farmed, raw                                             |
+| `smoked-salmon`       | 173687  | Fish, salmon, chinook, smoked                                                 |
+| `pork-tenderloin`     | 168249  | Pork, fresh, loin, tenderloin, separable lean only, raw                       |
+| `chicken-thigh`       | 172385  | Chicken, broilers or fryers, thigh, meat and skin, raw                        |
+| `bacon`               | 168277  | Pork, cured, bacon, unprepared                                                |
+| `black-olives`        | 169094  | Olives, ripe, canned (small-extra large)                                      |
+| `romaine-lettuce`     | 169247  | Lettuce, cos or romaine, raw                                                  |
+| `canned-tomatoes`     | 170051  | Tomatoes, red, ripe, canned, packed in tomato juice                           |
+| `pumpkin-seeds`       | 170556  | Seeds, pumpkin and squash seed kernels, dried                                 |
 
 Curd cheese (`curd-cheese`, twaróg półtłusty) is not in that database. Its
 figures are those of the Polish tables of the composition of food, as the
 National Centre for Nutrition Education prints them
 ([Przetwory mleczne](https://ncez.pzh.gov.pl/abc-zywienia/przetwory-mleczne-co-wybierac-czego-unikac/);
-Kunachowicz H., Nadolna I., Przygoda B., Iwanow K., *Wartość odżywcza wybranych
-produktów spożywczych i typowych potraw*, PZWL, Warszawa 2012).
+Kunachowicz H., Nadolna I., Przygoda B., Iwanow K., _Wartość odżywcza wybranych
+produktów spożywczych i typowych potraw_, PZWL, Warszawa 2012).
 
 ## Ingredients that are counted, not weighed
 
 Nobody cooks with "110 g of egg". An ingredient with a `displayUnit` is shown,
 bought and kept in the pantry in pieces of its own:
 
-| `displayUnit` | For | In `ingredients.json` |
-|---|---|---|
-| `piece` | what is used whole | egg, banana, avocado, apple, orange, lemon, lime, onion, tortilla wrap |
-| `slice` | bread | whole-grain bread, rye bread |
-| `clove` | garlic | garlic |
-| `handful` | leafy greens | spinach |
+| `displayUnit` | For                | In `ingredients.json`                                                  |
+| ------------- | ------------------ | ---------------------------------------------------------------------- |
+| `piece`       | what is used whole | egg, banana, avocado, apple, orange, lemon, lime, onion, tortilla wrap |
+| `slice`       | bread              | whole-grain bread, rye bread                                           |
+| `clove`       | garlic             | garlic                                                                 |
+| `handful`     | leafy greens       | spinach                                                                |
 
 It needs a `gramsPerPiece`: the weight of one piece, slice, clove or handful.
 Nutrition is still worked out from grams, and a recipe may write the line in
@@ -253,12 +253,12 @@ The importer defaults to `Foundation` because that's the only FDC dataset
 that's a good fit for a generic, worldwide meal planner. The other dataTypes
 are documented here mostly so the choice doesn't get re-litigated:
 
-| dataType | Size | What you get | Use it? |
-|---|---|---|---|
-| **`Foundation`** (default) | ~330 | Clean generic names — `Beef, ground, raw`, `Spinach, raw`. USDA's modern curated subset. | **Yes.** |
-| `SR Legacy` | ~7 000 | The retired (2019) Standard Reference release. Dominated by brand SKUs (`HERSHEY'S POT OF GOLD Almond Bar`, `Cereals ready-to-eat, POST, Shredded Wheat`) and hyper-specific cuts (`Beef, New Zealand, imported, brisket point end, separable lean and fat, trimmed to 0" fat, choice, cooked, grilled`). | **No, unless you have a reason.** |
-| `Branded` | ~1.5 M | Entirely brand-name packaged products. | No — not a whole-food source. |
-| `Survey (FNDDS)` | ~7 000 | Composed meals / mixed dishes for dietary recall surveys, not ingredients. | No. |
+| dataType                   | Size   | What you get                                                                                                                                                                                                                                                                                              | Use it?                           |
+| -------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| **`Foundation`** (default) | ~330   | Clean generic names — `Beef, ground, raw`, `Spinach, raw`. USDA's modern curated subset.                                                                                                                                                                                                                  | **Yes.**                          |
+| `SR Legacy`                | ~7 000 | The retired (2019) Standard Reference release. Dominated by brand SKUs (`HERSHEY'S POT OF GOLD Almond Bar`, `Cereals ready-to-eat, POST, Shredded Wheat`) and hyper-specific cuts (`Beef, New Zealand, imported, brisket point end, separable lean and fat, trimmed to 0" fat, choice, cooked, grilled`). | **No, unless you have a reason.** |
+| `Branded`                  | ~1.5 M | Entirely brand-name packaged products.                                                                                                                                                                                                                                                                    | No — not a whole-food source.     |
+| `Survey (FNDDS)`           | ~7 000 | Composed meals / mixed dishes for dietary recall surveys, not ingredients.                                                                                                                                                                                                                                | No.                               |
 
 The reason `SR Legacy` is the trap to avoid: the catalogue is rendered into the
 recipe-draft AI prompt as the allowed-ingredient whitelist, so every brand SKU and

@@ -3,7 +3,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { PLAN_RELAXATIONS, type DayOverride, type FavoriteSet, type MealType, type PlanRelaxation } from '@diet-app/shared';
+import {
+  PLAN_RELAXATIONS,
+  type DayOverride,
+  type FavoriteSet,
+  type MealType,
+  type PlanRelaxation,
+} from '@diet-app/shared';
 import { MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { useFormat } from '@/lib/use-format';
 
@@ -41,7 +47,11 @@ const KINDS: NonNullable<DayDraft['dayKind']>[] = ['normal', 'rest', 'training',
  * set for the meals the day has, and the meal locked by hand, which goes
  * before the set's recipe for the same meal.
  */
-function locksOf(d: DayDraft, sets: readonly FavoriteSet[], defaultMealCount: number): NonNullable<DayOverride['lockedSlots']> {
+function locksOf(
+  d: DayDraft,
+  sets: readonly FavoriteSet[],
+  defaultMealCount: number,
+): NonNullable<DayOverride['lockedSlots']> {
   const meals = MEAL_SLOTS_BY_COUNT[d.mealCount ?? defaultMealCount] ?? [];
   const locked = new Map<MealType, string>();
   const set = sets.find((one) => one.id === d.setId);
@@ -60,7 +70,11 @@ export function buildAdvancedRequest(
   /** The profile's favourite sets, and how many meals a day of the plan has unless the day says otherwise. */
   sets: readonly FavoriteSet[] = [],
   defaultMealCount = 3,
-): { maxRepeatsPerRecipe?: number; allowRelaxations?: PlanRelaxation[]; dayOverrides?: DayOverride[] } {
+): {
+  maxRepeatsPerRecipe?: number;
+  allowRelaxations?: PlanRelaxation[];
+  dayOverrides?: DayOverride[];
+} {
   const dayOverrides: DayOverride[] = [];
   for (const date of dates) {
     const d = value.days[date];
@@ -153,7 +167,10 @@ export function AdvancedOptions({
             placeholder={defaultMaxRepeats === null ? undefined : String(defaultMaxRepeats)}
             value={value.maxRepeats ?? ''}
             onChange={(e) =>
-              onChange({ ...value, maxRepeats: e.target.value ? Number(e.target.value) : undefined })
+              onChange({
+                ...value,
+                maxRepeats: e.target.value ? Number(e.target.value) : undefined,
+              })
             }
           />
           <p className="mt-1 text-xs text-muted-foreground">{t('varietyFloorHint', { most })}</p>
@@ -174,7 +191,9 @@ export function AdvancedOptions({
                     onChange={(e) =>
                       onChange({
                         ...value,
-                        mayGiveWay: PLAN_RELAXATIONS.filter((other) => (other === kind ? e.target.checked : value.mayGiveWay?.includes(other))),
+                        mayGiveWay: PLAN_RELAXATIONS.filter((other) =>
+                          other === kind ? e.target.checked : value.mayGiveWay?.includes(other),
+                        ),
                       })
                     }
                   />
@@ -205,7 +224,9 @@ export function AdvancedOptions({
                   key={date}
                   className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2 text-sm"
                 >
-                  <span className="w-24 shrink-0 text-xs text-muted-foreground">{fmt.day(date)}</span>
+                  <span className="w-24 shrink-0 text-xs text-muted-foreground">
+                    {fmt.day(date)}
+                  </span>
 
                   {/* Day kind (normal / rest / refeed / skip) */}
                   <select

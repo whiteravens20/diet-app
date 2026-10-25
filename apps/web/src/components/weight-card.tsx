@@ -19,10 +19,13 @@ import { weightSeries } from '@/lib/weight-series';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
 
 /** Fetched when a chart is first shown: the charting library is the heaviest thing the dashboard has. */
-const WeightChart = dynamic(() => import('@/components/weight-chart').then((chart) => chart.WeightChart), {
-  ssr: false,
-  loading: () => <Skeleton className="h-[220px]" />,
-});
+const WeightChart = dynamic(
+  () => import('@/components/weight-chart').then((chart) => chart.WeightChart),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[220px]" />,
+  },
+);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -40,7 +43,8 @@ export function WeightCard({ profile }: { profile: Profile }) {
   const qc = useQueryClient();
   const unit = useWeightUnit();
   const bounds = boundsIn(unit);
-  const inUnit = (value: number): string => fmt.unit(value, unit === 'lb' ? 'pound' : 'kilogram', 1);
+  const inUnit = (value: number): string =>
+    fmt.unit(value, unit === 'lb' ? 'pound' : 'kilogram', 1);
   // What is typed, in the unit of the account.
   const [typed, setTyped] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +60,7 @@ export function WeightCard({ profile }: { profile: Profile }) {
   });
 
   const log = useMutation({
-    mutationFn: (v: number) =>
-      api.post<WeightEntry>('/weights', { profileId: profile.id, kg: v }),
+    mutationFn: (v: number) => api.post<WeightEntry>('/weights', { profileId: profile.id, kg: v }),
     onSuccess: () => {
       setTyped('');
       setError(null);
@@ -88,7 +91,11 @@ export function WeightCard({ profile }: { profile: Profile }) {
     log.mutate(toKilograms(v, unit));
   }
 
-  const points = weightSeries(entries.data ?? []).map((point) => ({ ...point, kg: shownWeight(point.kg, unit), ma7: shownWeight(point.ma7, unit) }));
+  const points = weightSeries(entries.data ?? []).map((point) => ({
+    ...point,
+    kg: shownWeight(point.kg, unit),
+    ma7: shownWeight(point.ma7, unit),
+  }));
   const hasData = points.length > 0;
   // The line across the chart: where the profile wants to be, or where it began.
   const reference =
@@ -103,7 +110,8 @@ export function WeightCard({ profile }: { profile: Profile }) {
 
   function onRemoveLatest(): void {
     if (!latest) return;
-    if (!window.confirm(t('removeLatestConfirm', { weight: latestWeight, date: latestDate }))) return;
+    if (!window.confirm(t('removeLatestConfirm', { weight: latestWeight, date: latestDate })))
+      return;
     remove.mutate(latest.id);
   }
 
@@ -129,7 +137,10 @@ export function WeightCard({ profile }: { profile: Profile }) {
             </Field>
             <p className="text-xs text-muted-foreground">
               {profile.targetWeightKg !== null
-                ? t('targetHint', { registered: inUnit(shownWeight(profile.weightKg, unit)), target: inUnit(shownWeight(profile.targetWeightKg, unit)) })
+                ? t('targetHint', {
+                    registered: inUnit(shownWeight(profile.weightKg, unit)),
+                    target: inUnit(shownWeight(profile.targetWeightKg, unit)),
+                  })
                 : t('referenceHint', { registered: inUnit(shownWeight(profile.weightKg, unit)) })}
             </p>
             {error && <p className="text-xs text-destructive">{error}</p>}

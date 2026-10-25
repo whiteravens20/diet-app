@@ -188,7 +188,9 @@ if (expired.length) {
 }
 
 if (blocking.length) {
-  console.error(`\naudit-check: ${blocking.length} unallowlisted advisory/advisories >= ${level} in ${label}.`);
+  console.error(
+    `\naudit-check: ${blocking.length} unallowlisted advisory/advisories >= ${level} in ${label}.`,
+  );
   process.exit(1);
 }
 

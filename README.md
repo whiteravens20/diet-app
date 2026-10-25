@@ -62,10 +62,10 @@ The companion Android app lives in a separate repository:
 
 ## What it looks like
 
-| | |
-|---|---|
+|                                                                                                                                            |                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | ![The dashboard: the target of the day, maintenance and the deficit, and what the plan under way comes to](docs/screenshots/dashboard.png) | ![A plan of a week with a day open: every meal with what it holds and the ways to change it](docs/screenshots/meal-plan.png) |
-| ![A shopping list by aisle, with what is at home and what was bought](docs/screenshots/shopping-list.png) | ![The recipe library: each recipe with its energy, its time and the diets it fits](docs/screenshots/recipes.png) |
+| ![A shopping list by aisle, with what is at home and what was bought](docs/screenshots/shopping-list.png)                                  | ![The recipe library: each recipe with its energy, its time and the diets it fits](docs/screenshots/recipes.png)             |
 
 The pictures are of an instance installed from this repository, with the catalogue it ships.
 

@@ -17,7 +17,8 @@ import {
 
 describe('the target of one day', () => {
   /** A day of a plan whose base the engine calculated, for somebody whose floor is 1200. */
-  const day = (over: Partial<Parameters<typeof effectiveDayTarget>[0]> = {}) => effectiveDayTarget({ base: 2000, baseIsCalculated: true, floor: 1200, ...over });
+  const day = (over: Partial<Parameters<typeof effectiveDayTarget>[0]> = {}) =>
+    effectiveDayTarget({ base: 2000, baseIsCalculated: true, floor: 1200, ...over });
 
   it('is the base on a normal day', () => {
     expect(day({ dayType: 'normal' })).toEqual({ target: 2000, belowFloor: false });
@@ -33,23 +34,35 @@ describe('the target of one day', () => {
 
   it('is not taken under the floor by a rest day when the base was calculated', () => {
     expect(day({ base: 1200, dayType: 'rest' })).toEqual({ target: 1200, belowFloor: false });
-    expect(day({ base: 1500, floor: 1500, dayType: 'rest' })).toEqual({ target: 1500, belowFloor: false });
+    expect(day({ base: 1500, floor: 1500, dayType: 'rest' })).toEqual({
+      target: 1500,
+      belowFloor: false,
+    });
     expect(day({ base: 1350, dayType: 'rest' }).target).toBe(1200);
   });
 
   it('follows a base somebody typed under the floor, flagged, but never under the least a target may be', () => {
-    expect(day({ base: 1000, baseIsCalculated: false, dayType: 'normal' })).toEqual({ target: 1000, belowFloor: true });
+    expect(day({ base: 1000, baseIsCalculated: false, dayType: 'normal' })).toEqual({
+      target: 1000,
+      belowFloor: true,
+    });
     // 800 × 0.85 = 680: under what the contract takes for a target.
-    expect(day({ base: 800, baseIsCalculated: false, dayType: 'rest' })).toEqual({ target: 800, belowFloor: true });
-    expect(day({ base: 1300, baseIsCalculated: false, dayType: 'rest' })).toEqual({ target: 1110, belowFloor: true });
+    expect(day({ base: 800, baseIsCalculated: false, dayType: 'rest' })).toEqual({
+      target: 800,
+      belowFloor: true,
+    });
+    expect(day({ base: 1300, baseIsCalculated: false, dayType: 'rest' })).toEqual({
+      target: 1110,
+      belowFloor: true,
+    });
   });
 
-  it('is the day\'s own target when the user set one, whatever the kind of day, flagged under the floor', () => {
+  it("is the day's own target when the user set one, whatever the kind of day, flagged under the floor", () => {
     expect(day({ ownTarget: 900, dayType: 'training' })).toEqual({ target: 900, belowFloor: true });
     expect(day({ ownTarget: 2600, dayType: 'rest' })).toEqual({ target: 2600, belowFloor: false });
   });
 
-  it('does not take a day\'s own target under maintenance while the profile\'s loss goal is held', () => {
+  it("does not take a day's own target under maintenance while the profile's loss goal is held", () => {
     expect(day({ ownTarget: 900, holdUnder: 2000 })).toEqual({ target: 2000, belowFloor: false });
     expect(day({ ownTarget: 2300, holdUnder: 2000 }).target).toBe(2300);
     expect(day({ ownTarget: 900, holdUnder: null }).target).toBe(900);
@@ -123,9 +136,16 @@ describe('calculateCalories', () => {
 
     expect(calculateCalories(person({ dietType: 'custom' })).targetMacros).toEqual(balanced);
     // 2,209 kcal: 30 % and 30 % at four a gram, 40 % at nine.
-    expect(calculateCalories(person({ dietType: 'custom', customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } })).targetMacros).toEqual({ protein: 166, fat: 98, carbs: 166 });
+    expect(
+      calculateCalories(
+        person({ dietType: 'custom', customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } }),
+      ).targetMacros,
+    ).toEqual({ protein: 166, fat: 98, carbs: 166 });
     // The split is the custom diet's: it changes nothing for somebody on another.
-    expect(calculateCalories(person({ customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } })).targetMacros).toEqual(balanced);
+    expect(
+      calculateCalories(person({ customMacroSplit: { protein: 0.3, fat: 0.4, carbs: 0.3 } }))
+        .targetMacros,
+    ).toEqual(balanced);
   });
 
   it('derives the target as maintenance minus the deficit of the pace', () => {
@@ -148,50 +168,131 @@ describe('calculateCalories', () => {
 
   it('slows a pace that asks for more than a quarter of maintenance, and says so', () => {
     // 190 cm, 113 kg, sedentary, sex not given: BMR 2090, maintenance 2508. A kilogram a week asks for 1100.
-    const r = calculateCalories(person({ sex: null, heightCm: 190, weightKg: 113, activityLevel: 'sedentary', weeklyLossTarget: '1.0' }));
+    const r = calculateCalories(
+      person({
+        sex: null,
+        heightCm: 190,
+        weightKg: 113,
+        activityLevel: 'sedentary',
+        weeklyLossTarget: '1.0',
+      }),
+    );
 
-    expect(r).toMatchObject({ maintenance: 2508, requestedDeficit: 1100, dailyDeficit: 627, dailyTarget: 1881, deficitCapped: true, safetyFloorApplied: false });
+    expect(r).toMatchObject({
+      maintenance: 2508,
+      requestedDeficit: 1100,
+      dailyDeficit: 627,
+      dailyTarget: 1881,
+      deficitCapped: true,
+      safetyFloorApplied: false,
+    });
     // Without the limit the target would have been 56 % of maintenance.
     expect(r.dailyTarget / r.maintenance).toBeCloseTo(0.75, 2);
   });
 
   it('never goes under the floor, and the deficit it reports is the real one', () => {
     // BMR 1239, maintenance 1487; a quarter of it would leave 1115.
-    const r = calculateCalories(person({ sex: 'female', heightCm: 160, weightKg: 55, activityLevel: 'sedentary', weeklyLossTarget: '1.0' }));
+    const r = calculateCalories(
+      person({
+        sex: 'female',
+        heightCm: 160,
+        weightKg: 55,
+        activityLevel: 'sedentary',
+        weeklyLossTarget: '1.0',
+      }),
+    );
 
-    expect(r).toMatchObject({ maintenance: 1487, dailyTarget: 1200, dailyDeficit: 287, requestedDeficit: 1100, safetyFloor: 1200, safetyFloorApplied: true, deficitCapped: true, maintenanceUnderFloor: false });
+    expect(r).toMatchObject({
+      maintenance: 1487,
+      dailyTarget: 1200,
+      dailyDeficit: 287,
+      requestedDeficit: 1100,
+      safetyFloor: 1200,
+      safetyFloorApplied: true,
+      deficitCapped: true,
+      maintenanceUnderFloor: false,
+    });
   });
 
   it('never goes above maintenance: where maintenance is under the floor, no loss is planned', () => {
     // BMR 827, maintenance 992.
     for (const weeklyLossTarget of [null, '0.25', '0.5'] as const) {
-      const r = calculateCalories(person({ age: 80, sex: 'female', heightCm: 150, weightKg: 45, activityLevel: 'sedentary', weeklyLossTarget }));
+      const r = calculateCalories(
+        person({
+          age: 80,
+          sex: 'female',
+          heightCm: 150,
+          weightKg: 45,
+          activityLevel: 'sedentary',
+          weeklyLossTarget,
+        }),
+      );
 
-      expect(r).toMatchObject({ maintenance: 992, dailyTarget: 992, dailyDeficit: 0, maintenanceUnderFloor: true, safetyFloorApplied: false });
+      expect(r).toMatchObject({
+        maintenance: 992,
+        dailyTarget: 992,
+        dailyDeficit: 0,
+        maintenanceUnderFloor: true,
+        safetyFloorApplied: false,
+      });
     }
   });
 
   it('honours a target somebody typed, and says how far it is from maintenance', () => {
-    expect(calculateCalories(person({ manualCalorieTarget: 1800 }))).toMatchObject({ dailyTarget: 1800, source: 'manual_override', dailyDeficit: 959, warnings: [] });
+    expect(calculateCalories(person({ manualCalorieTarget: 1800 }))).toMatchObject({
+      dailyTarget: 1800,
+      source: 'manual_override',
+      dailyDeficit: 959,
+      warnings: [],
+    });
     expect(calculateCalories(person({ manualCalorieTarget: 3000 })).dailyDeficit).toBe(-241);
   });
 
   it('flags a typed target under the floor or under what the body uses at rest', () => {
     // BMR 1780, floor 1500.
-    expect(calculateCalories(person({ manualCalorieTarget: 1600 })).warnings).toEqual(['below_bmr']);
-    expect(calculateCalories(person({ manualCalorieTarget: 900 })).warnings).toEqual(['below_floor', 'below_bmr']);
+    expect(calculateCalories(person({ manualCalorieTarget: 1600 })).warnings).toEqual([
+      'below_bmr',
+    ]);
+    expect(calculateCalories(person({ manualCalorieTarget: 900 })).warnings).toEqual([
+      'below_floor',
+      'below_bmr',
+    ]);
   });
 
   describe('for somebody under 18 or underweight', () => {
     // 16 years, 165 cm, 55 kg: BMI 20.2. 25 years, 170 cm, 50 kg: BMI 17.3.
-    const minor = (over: Partial<CalorieEngineInput> = {}) => person({ age: 16, sex: 'female', heightCm: 165, weightKg: 55, weeklyLossTarget: '1.0', ...over });
-    const underweight = (over: Partial<CalorieEngineInput> = {}) => person({ age: 25, sex: 'female', heightCm: 170, weightKg: 50, weeklyLossTarget: '0.5', ...over });
+    const minor = (over: Partial<CalorieEngineInput> = {}) =>
+      person({
+        age: 16,
+        sex: 'female',
+        heightCm: 165,
+        weightKg: 55,
+        weeklyLossTarget: '1.0',
+        ...over,
+      });
+    const underweight = (over: Partial<CalorieEngineInput> = {}) =>
+      person({
+        age: 25,
+        sex: 'female',
+        heightCm: 170,
+        weightKg: 50,
+        weeklyLossTarget: '0.5',
+        ...over,
+      });
 
     it('warns, and holds a loss goal at maintenance until the risk is acknowledged', () => {
-      for (const [input, warning] of [[minor(), 'minor'], [underweight(), 'underweight']] as const) {
+      for (const [input, warning] of [
+        [minor(), 'minor'],
+        [underweight(), 'underweight'],
+      ] as const) {
         const r = calculateCalories(input);
 
-        expect(r).toMatchObject({ goalHeld: true, dailyTarget: r.maintenance, dailyDeficit: 0, warnings: [warning] });
+        expect(r).toMatchObject({
+          goalHeld: true,
+          dailyTarget: r.maintenance,
+          dailyDeficit: 0,
+          warnings: [warning],
+        });
         expect(r.requestedDeficit).toBeGreaterThan(0);
       }
     });
@@ -207,19 +308,33 @@ describe('calculateCalories', () => {
 
     it('holds a typed target under maintenance the same way, and leaves one at or above it alone', () => {
       const held = calculateCalories(underweight({ manualCalorieTarget: 1200 }));
-      expect(held).toMatchObject({ goalHeld: true, dailyTarget: held.maintenance, source: 'manual_override' });
+      expect(held).toMatchObject({
+        goalHeld: true,
+        dailyTarget: held.maintenance,
+        source: 'manual_override',
+      });
 
       const maintenance = held.maintenance;
-      expect(calculateCalories(underweight({ manualCalorieTarget: maintenance + 200 }))).toMatchObject({ goalHeld: false, dailyTarget: maintenance + 200 });
-      expect(calculateCalories(underweight({ manualCalorieTarget: 1200, riskAcknowledged: true }))).toMatchObject({ goalHeld: false, dailyTarget: 1200 });
+      expect(
+        calculateCalories(underweight({ manualCalorieTarget: maintenance + 200 })),
+      ).toMatchObject({ goalHeld: false, dailyTarget: maintenance + 200 });
+      expect(
+        calculateCalories(underweight({ manualCalorieTarget: 1200, riskAcknowledged: true })),
+      ).toMatchObject({ goalHeld: false, dailyTarget: 1200 });
     });
 
     it('holds nothing where no loss is asked for', () => {
-      expect(calculateCalories(minor({ weeklyLossTarget: null }))).toMatchObject({ goalHeld: false, warnings: ['minor'] });
+      expect(calculateCalories(minor({ weeklyLossTarget: null }))).toMatchObject({
+        goalHeld: false,
+        warnings: ['minor'],
+      });
     });
 
     it('names both when both are true', () => {
-      expect(calculateCalories(minor({ weightKg: 45, weeklyLossTarget: null })).warnings).toEqual(['minor', 'underweight']);
+      expect(calculateCalories(minor({ weightKg: 45, weeklyLossTarget: null })).warnings).toEqual([
+        'minor',
+        'underweight',
+      ]);
     });
   });
 });
@@ -244,7 +359,9 @@ describe('the split of energy between protein, fat and carbohydrate', () => {
     expect(splitDistance(balanced, balanced)).toBe(0);
     // 10 points from carbohydrate to protein.
     expect(splitDistance(balanced, macroSplitOf('high_protein'))).toBeCloseTo(0.1);
-    expect(splitDistance({ protein: 1, fat: 0, carbs: 0 }, { protein: 0, fat: 1, carbs: 0 })).toBe(1);
+    expect(splitDistance({ protein: 1, fat: 0, carbs: 0 }, { protein: 0, fat: 1, carbs: 0 })).toBe(
+      1,
+    );
   });
 
   it('is, for the custom diet, the one its profile said, and the balanced one until it has said one', () => {
@@ -261,13 +378,26 @@ describe('the split of energy between protein, fat and carbohydrate', () => {
   });
 
   it('is kept in whole per cent and worked with as shares of one', () => {
-    expect(sharesOf({ protein: 30, fat: 40, carbs: 30 })).toEqual({ protein: 0.3, fat: 0.4, carbs: 0.3 });
+    expect(sharesOf({ protein: 30, fat: 40, carbs: 30 })).toEqual({
+      protein: 0.3,
+      fat: 0.4,
+      carbs: 0.3,
+    });
     expect(sharesOf(null)).toBeNull();
     expect(sharesOf(undefined)).toBeNull();
   });
 
   it('is given for every diet, and adds up to the whole', () => {
-    for (const diet of ['balanced', 'high_protein', 'low_carb', 'vegetarian', 'vegan', 'keto', 'mediterranean', 'custom'] as const) {
+    for (const diet of [
+      'balanced',
+      'high_protein',
+      'low_carb',
+      'vegetarian',
+      'vegan',
+      'keto',
+      'mediterranean',
+      'custom',
+    ] as const) {
       const { protein, fat, carbs } = macroSplitOf(diet);
       expect(protein + fat + carbs).toBeCloseTo(1);
     }

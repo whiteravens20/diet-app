@@ -2,7 +2,16 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { type RecoveryCodes, type SecondFactorChallenge, type SecondFactorConfirmRequest, type SecondFactorProofRequest, type SecondFactorSetup, type SecondFactorSetupRequest, type SecondFactorSignInRequest, type SecondFactorState } from '@diet-app/shared';
+import {
+  type RecoveryCodes,
+  type SecondFactorChallenge,
+  type SecondFactorConfirmRequest,
+  type SecondFactorProofRequest,
+  type SecondFactorSetup,
+  type SecondFactorSetupRequest,
+  type SecondFactorSignInRequest,
+  type SecondFactorState,
+} from '@diet-app/shared';
 import { storedLocale } from '../common/stored-settings.js';
 import { Passwords } from '../common/passwords.js';
 import { MailService } from '../mail/mail.service.js';
@@ -21,7 +30,11 @@ interface Holder {
 }
 
 const noSuchChallenge = (): UnauthorizedException =>
-  new UnauthorizedException({ error: 'INVALID_SIGN_IN_CHALLENGE', message: 'This sign-in took too long or was finished already. Sign in with your password again.' });
+  new UnauthorizedException({
+    error: 'INVALID_SIGN_IN_CHALLENGE',
+    message:
+      'This sign-in took too long or was finished already. Sign in with your password again.',
+  });
 
 /**
  * The second factor of an account: setting it up, signing in with it, and
@@ -63,14 +76,30 @@ export class AccountSecondFactor {
    * session that set it up has shown the code and goes on; every other
    * session of the account ends, because it began with a password alone.
    */
-  async begin(userId: string, sessionId: string, dto: SecondFactorConfirmRequest): Promise<RecoveryCodes> {
+  async begin(
+    userId: string,
+    sessionId: string,
+    dto: SecondFactorConfirmRequest,
+  ): Promise<RecoveryCodes> {
     const now = new Date();
-    const recoveryCodes = await this.factors.begin({ userId }, dto.enrolment, dto.code, async (tx) => {
-      await tx.refreshToken.updateMany({ where: { userId, familyId: sessionId }, data: { secondFactorAt: now } });
-      await tx.refreshToken.updateMany({ where: { userId, familyId: { not: sessionId }, revokedAt: null }, data: { revokedAt: now } });
-    });
+    const recoveryCodes = await this.factors.begin(
+      { userId },
+      dto.enrolment,
+      dto.code,
+      async (tx) => {
+        await tx.refreshToken.updateMany({
+          where: { userId, familyId: sessionId },
+          data: { secondFactorAt: now },
+        });
+        await tx.refreshToken.updateMany({
+          where: { userId, familyId: { not: sessionId }, revokedAt: null },
+          data: { revokedAt: now },
+        });
+      },
+    );
     const holder = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (holder) this.mail.sendSecondFactorOnNotice(this.addressOf(holder), storedLocale(holder.locale));
+    if (holder)
+      this.mail.sendSecondFactorOnNotice(this.addressOf(holder), storedLocale(holder.locale));
     return { recoveryCodes };
   }
 
@@ -79,7 +108,11 @@ export class AccountSecondFactor {
     const holder = await this.holderOf(userId, dto.currentPassword);
     await this.prove(holder, dto.code, notOn);
     await this.factors.remove({ userId });
-    this.mail.sendSecondFactorOffNotice(this.addressOf(holder), 'holder', storedLocale(holder.locale));
+    this.mail.sendSecondFactorOffNotice(
+      this.addressOf(holder),
+      'holder',
+      storedLocale(holder.locale),
+    );
   }
 
   /** New recovery codes in the place of the ones the account had. */
@@ -97,11 +130,20 @@ export class AccountSecondFactor {
    * told, at the address it has.
    */
   async removeFor(address: string): Promise<void> {
-    const holder = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(this.emails.normalise(address)) } });
+    const holder = await this.prisma.user.findUnique({
+      where: { emailIndex: this.emails.indexOf(this.emails.normalise(address)) },
+    });
     if (!holder || !(await this.factors.remove({ userId: holder.id }))) {
-      throw new NotFoundException({ error: 'SECOND_FACTOR_NOT_FOUND', message: 'No account with that address has a second factor.' });
+      throw new NotFoundException({
+        error: 'SECOND_FACTOR_NOT_FOUND',
+        message: 'No account with that address has a second factor.',
+      });
     }
-    this.mail.sendSecondFactorOffNotice(this.addressOf(holder), 'operator', storedLocale(holder.locale));
+    this.mail.sendSecondFactorOffNotice(
+      this.addressOf(holder),
+      'operator',
+      storedLocale(holder.locale),
+    );
   }
 
   /**
@@ -111,7 +153,11 @@ export class AccountSecondFactor {
   async challenge(userId: string): Promise<SecondFactorChallenge> {
     const challenge = randomBytes(32).toString('hex');
     await this.prisma.signInChallenge.create({
-      data: { userId, tokenHash: sha256(challenge), expiresAt: new Date(Date.now() + CHALLENGE_SECONDS * 1000) },
+      data: {
+        userId,
+        tokenHash: sha256(challenge),
+        expiresAt: new Date(Date.now() + CHALLENGE_SECONDS * 1000),
+      },
     });
     return { secondFactor: { challenge, expiresIn: CHALLENGE_SECONDS } };
   }
@@ -122,18 +168,29 @@ export class AccountSecondFactor {
    * another try; a right one uses it up.
    */
   async answer(dto: SecondFactorSignInRequest) {
-    const challenge = await this.prisma.signInChallenge.findUnique({ where: { tokenHash: sha256(dto.challenge) }, include: { user: true } });
-    if (!challenge || challenge.usedAt || challenge.expiresAt.getTime() < Date.now()) throw noSuchChallenge();
+    const challenge = await this.prisma.signInChallenge.findUnique({
+      where: { tokenHash: sha256(dto.challenge) },
+      include: { user: true },
+    });
+    if (!challenge || challenge.usedAt || challenge.expiresAt.getTime() < Date.now())
+      throw noSuchChallenge();
     // An account that switched its factor off meanwhile signs in with its password.
     await this.prove(challenge.user, dto.code, noSuchChallenge);
-    const used = await this.prisma.signInChallenge.updateMany({ where: { id: challenge.id, usedAt: null }, data: { usedAt: new Date() } });
+    const used = await this.prisma.signInChallenge.updateMany({
+      where: { id: challenge.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
     if (used.count !== 1) throw noSuchChallenge();
     return challenge.user;
   }
 
   /** Remove the challenges nobody can answer any more. Returns how many were removed. */
   async prune(): Promise<number> {
-    return (await this.prisma.signInChallenge.deleteMany({ where: { OR: [{ usedAt: { not: null } }, { expiresAt: { lt: new Date() } }] } })).count;
+    return (
+      await this.prisma.signInChallenge.deleteMany({
+        where: { OR: [{ usedAt: { not: null } }, { expiresAt: { lt: new Date() } }] },
+      })
+    ).count;
   }
 
   /** Pass with a code for the second factor of `holder`, or throw: `none` where the account has no second factor. */
@@ -147,16 +204,24 @@ export class AccountSecondFactor {
       throw wrongCode();
     }
     if (check.by === 'recovery-code') {
-      this.mail.sendRecoveryCodeUsedNotice(this.addressOf(holder), await this.factors.recoveryCodesLeft(holder.id), locale);
+      this.mail.sendRecoveryCodeUsedNotice(
+        this.addressOf(holder),
+        await this.factors.recoveryCodesLeft(holder.id),
+        locale,
+      );
     }
   }
 
   /** The account, for whoever shows its password. */
   private async holderOf(userId: string, password: string) {
     const holder = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!holder) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
+    if (!holder)
+      throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
     if (!(await this.passwords.matches(password, holder.passwordHash))) {
-      throw new UnauthorizedException({ error: 'INVALID_PASSWORD', message: 'Current password is incorrect.' });
+      throw new UnauthorizedException({
+        error: 'INVALID_PASSWORD',
+        message: 'Current password is incorrect.',
+      });
     }
     return holder;
   }

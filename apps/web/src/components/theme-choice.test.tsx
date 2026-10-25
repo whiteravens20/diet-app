@@ -31,7 +31,11 @@ describe('ThemeChoice', () => {
 
   beforeEach(() => {
     // The device asks for a light page.
-    vi.stubGlobal('matchMedia', () => ({ matches: false, addListener: () => undefined, removeListener: () => undefined }));
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+    }));
   });
 
   afterEach(() => {
@@ -65,7 +69,9 @@ describe('ThemeChoice', () => {
     });
 
     expect(screen.getByRole('group', { name: 'Theme' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual(['Light', 'Dark', 'System']);
+    expect(
+      screen.getAllByRole('button').map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['Light', 'Dark', 'System']);
     expect(pressed()).toEqual(['System']);
   });
 

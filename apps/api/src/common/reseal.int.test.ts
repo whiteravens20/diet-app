@@ -37,13 +37,17 @@ describe('what was encrypted before a value was sealed for its account', () => {
     second = await aUser(t);
   });
 
-  const addressOf = async (id: string): Promise<string> => (await t.prisma.user.findUniqueOrThrow({ where: { id } })).emailEncrypted;
+  const addressOf = async (id: string): Promise<string> =>
+    (await t.prisma.user.findUniqueOrThrow({ where: { id } })).emailEncrypted;
 
   describe('addresses', () => {
     const run = () => t.app.get(AddressResealService).run();
 
     it('are sealed for the account each belongs to, and read as before', async () => {
-      await t.prisma.user.update({ where: { id: first.id }, data: { emailEncrypted: ciphertextWrittenBefore(first.email, EMAIL_KEY) } });
+      await t.prisma.user.update({
+        where: { id: first.id },
+        data: { emailEncrypted: ciphertextWrittenBefore(first.email, EMAIL_KEY) },
+      });
 
       expect(await run()).toEqual({ sealed: 1, unreadable: 0 });
 
@@ -62,9 +66,15 @@ describe('what was encrypted before a value was sealed for its account', () => {
     });
 
     it('are left as they are, and counted, where they cannot be read', async () => {
-      const foreign = ciphertextWrittenBefore(first.email, deriveKey(ANOTHER_SECRET, 'email-encryption'));
+      const foreign = ciphertextWrittenBefore(
+        first.email,
+        deriveKey(ANOTHER_SECRET, 'email-encryption'),
+      );
       await t.prisma.user.update({ where: { id: first.id }, data: { emailEncrypted: foreign } });
-      await t.prisma.user.update({ where: { id: second.id }, data: { emailEncrypted: ciphertextWrittenBefore(second.email, EMAIL_KEY) } });
+      await t.prisma.user.update({
+        where: { id: second.id },
+        data: { emailEncrypted: ciphertextWrittenBefore(second.email, EMAIL_KEY) },
+      });
 
       expect(await run()).toEqual({ sealed: 1, unreadable: 1 });
 
@@ -85,7 +95,9 @@ describe('what was encrypted before a value was sealed for its account', () => {
 
       expect(await run()).toEqual({ sealed: 1, unreadable: 0 });
 
-      const sealed = (await t.prisma.emailChangeToken.findUniqueOrThrow({ where: { id: token.id } })).newEmailEncrypted;
+      const sealed = (
+        await t.prisma.emailChangeToken.findUniqueOrThrow({ where: { id: token.id } })
+      ).newEmailEncrypted;
       expect(emails.openPending(sealed, first.id)).toBe('moved@example.test');
       expect(() => emails.open(sealed, first.id)).toThrow();
     });
@@ -102,29 +114,50 @@ describe('what was encrypted before a value was sealed for its account', () => {
       await t.prisma.user.createMany({ data: many });
 
       expect(await run()).toEqual({ sealed: 230, unreadable: 0 });
-      expect(await t.prisma.user.count({ where: { NOT: { emailEncrypted: { startsWith: 'v2:' } } } })).toBe(0);
-      expect(emails.open(await addressOf(many[229]!.id), many[229]!.id)).toBe('bulk-229@example.test');
+      expect(
+        await t.prisma.user.count({ where: { NOT: { emailEncrypted: { startsWith: 'v2:' } } } }),
+      ).toBe(0);
+      expect(emails.open(await addressOf(many[229]!.id), many[229]!.id)).toBe(
+        'bulk-229@example.test',
+      );
     });
   });
 
   describe('provider keys', () => {
     const run = () => t.app.get(AiKeyService).resealKeys();
-    const aKey = (user: TestUser, provider: 'openai' | 'anthropic' | 'openrouter', encryptedKey: string) =>
-      t.prisma.aiProviderConfig.create({ data: { userId: user.id, provider, model: 'm', encryptedKey } });
-    const keyOf = async (id: string): Promise<string> => (await t.prisma.aiProviderConfig.findUniqueOrThrow({ where: { id } })).encryptedKey!;
+    const aKey = (
+      user: TestUser,
+      provider: 'openai' | 'anthropic' | 'openrouter',
+      encryptedKey: string,
+    ) =>
+      t.prisma.aiProviderConfig.create({
+        data: { userId: user.id, provider, model: 'm', encryptedKey },
+      });
+    const keyOf = async (id: string): Promise<string> =>
+      (await t.prisma.aiProviderConfig.findUniqueOrThrow({ where: { id } })).encryptedKey!;
     /** The id `sealKey` puts in front of a key sealed under the application's secret. */
     const secretId = sealKey('x', AI_SECRET, null).split(':')[0]!;
 
     it('are sealed for the account each belongs to, whichever of the earlier forms they have', async () => {
       const oldest = await aKey(first, 'openai', ciphertextWrittenBefore('sk-oldest', AI_SECRET));
-      const withId = await aKey(first, 'anthropic', `${secretId}:${ciphertextWrittenBefore('sk-with-id', AI_SECRET)}`);
+      const withId = await aKey(
+        first,
+        'anthropic',
+        `${secretId}:${ciphertextWrittenBefore('sk-with-id', AI_SECRET)}`,
+      );
       const current = await aKey(second, 'openai', sealKey('sk-current', AI_SECRET, second.id));
       const currentBefore = await keyOf(current.id);
 
       expect(await run()).toEqual({ sealed: 2, unreadable: 0 });
 
-      expect(openKey(await keyOf(oldest.id), AI_SECRET, first.id)).toEqual({ ok: true, key: 'sk-oldest' });
-      expect(openKey(await keyOf(withId.id), AI_SECRET, first.id)).toEqual({ ok: true, key: 'sk-with-id' });
+      expect(openKey(await keyOf(oldest.id), AI_SECRET, first.id)).toEqual({
+        ok: true,
+        key: 'sk-oldest',
+      });
+      expect(openKey(await keyOf(withId.id), AI_SECRET, first.id)).toEqual({
+        ok: true,
+        key: 'sk-with-id',
+      });
       expect(openKey(await keyOf(oldest.id), AI_SECRET, second.id).ok).toBe(false);
       expect(await keyOf(current.id)).toBe(currentBefore);
       expect(await run()).toEqual({ sealed: 0, unreadable: 0 });
@@ -139,7 +172,14 @@ describe('what was encrypted before a value was sealed for its account', () => {
     });
 
     it('leave a provider without a key alone', async () => {
-      await t.prisma.aiProviderConfig.create({ data: { userId: first.id, provider: 'ollama', model: 'm', baseUrl: 'http://ollama.example.test:11434' } });
+      await t.prisma.aiProviderConfig.create({
+        data: {
+          userId: first.id,
+          provider: 'ollama',
+          model: 'm',
+          baseUrl: 'http://ollama.example.test:11434',
+        },
+      });
 
       expect(await run()).toEqual({ sealed: 0, unreadable: 0 });
     });

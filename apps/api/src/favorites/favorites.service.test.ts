@@ -23,7 +23,13 @@ function makePrisma(owner: string | null = 'user-1') {
     },
     favorite: {
       findMany: vi.fn().mockResolvedValue([
-        { id: 'f1', tags: ['quick'], sentiment: 'favorite', createdAt: new Date('2026-01-05T10:00:00.000Z'), recipe: { id: 'r1' } },
+        {
+          id: 'f1',
+          tags: ['quick'],
+          sentiment: 'favorite',
+          createdAt: new Date('2026-01-05T10:00:00.000Z'),
+          recipe: { id: 'r1' },
+        },
       ]),
       // Default: the recipe is not marked yet, and the profile has room for it.
       findUnique: vi.fn().mockResolvedValue(null),
@@ -51,11 +57,15 @@ function makeService(prisma: ReturnType<typeof makePrisma>) {
 describe('FavoritesService ownership', () => {
   it('rejects listing another user’s profile', async () => {
     const prisma = makePrisma('other');
-    await expect(makeService(prisma).list('user-1', 'en', 'p1')).rejects.toMatchObject({ response: { error: 'PROFILE_NOT_FOUND' } });
+    await expect(makeService(prisma).list('user-1', 'en', 'p1')).rejects.toMatchObject({
+      response: { error: 'PROFILE_NOT_FOUND' },
+    });
   });
   it('rejects add for a missing/foreign profile', async () => {
     const prisma = makePrisma(null);
-    await expect(makeService(prisma).add('user-1', 'p1', 'r1', [], 'favorite')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      makeService(prisma).add('user-1', 'p1', 'r1', [], 'favorite'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   // IDOR: favoriting another user's private (or soft-deleted) recipe must be
@@ -74,10 +84,7 @@ describe('FavoritesService ownership', () => {
     await makeService(prisma).list('user-1', 'en', 'p1');
     const where = prisma.favorite.findMany.mock.calls[0][0].where;
     expect(where.recipe.deletedAt).toBeNull();
-    expect(where.recipe.OR).toEqual([
-      { createdByUserId: null },
-      { createdByUserId: 'user-1' },
-    ]);
+    expect(where.recipe.OR).toEqual([{ createdByUserId: null }, { createdByUserId: 'user-1' }]);
   });
 });
 
@@ -89,14 +96,23 @@ describe('FavoritesService happy paths', () => {
 
   it('lists favorites mapped to {id,tags,sentiment,markedAt,recipe}', async () => {
     const rows = await makeService(prisma).list('user-1', 'en', 'p1');
-    expect(rows[0]).toMatchObject({ id: 'f1', tags: ['quick'], sentiment: 'favorite', markedAt: '2026-01-05T10:00:00.000Z' });
+    expect(rows[0]).toMatchObject({
+      id: 'f1',
+      tags: ['quick'],
+      sentiment: 'favorite',
+      markedAt: '2026-01-05T10:00:00.000Z',
+    });
     expect(rows[0].recipe).toMatchObject({ id: 'r1' });
   });
 
   it('passes how a recipe is marked and a tag into the query', async () => {
     await makeService(prisma).list('user-1', 'en', 'p1', { sentiment: 'often', tag: 'quick' });
     const arg = prisma.favorite.findMany.mock.calls[0][0];
-    expect(arg.where).toMatchObject({ profileId: 'p1', sentiment: 'often', tags: { has: 'quick' } });
+    expect(arg.where).toMatchObject({
+      profileId: 'p1',
+      sentiment: 'often',
+      tags: { has: 'quick' },
+    });
   });
 
   it('passes search + mealType filters into the query', async () => {
@@ -120,7 +136,9 @@ describe('FavoritesService happy paths', () => {
   it('refuses a new mark for a profile that has as many as it may', async () => {
     prisma.favorite.count.mockResolvedValue(MAX_FAVORITES_PER_PROFILE);
 
-    await expect(makeService(prisma).add('user-1', 'p1', 'r1', [], 'favorite')).rejects.toMatchObject({ response: { error: 'FAVORITE_LIMIT_REACHED' } });
+    await expect(
+      makeService(prisma).add('user-1', 'p1', 'r1', [], 'favorite'),
+    ).rejects.toMatchObject({ response: { error: 'FAVORITE_LIMIT_REACHED' } });
     expect(prisma.favorite.upsert).not.toHaveBeenCalled();
   });
 
@@ -130,21 +148,29 @@ describe('FavoritesService happy paths', () => {
 
     await makeService(prisma).add('user-1', 'p1', 'r1', [], 'avoid');
 
-    expect(prisma.favorite.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: { tags: [], sentiment: 'avoid' } }));
+    expect(prisma.favorite.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: { tags: [], sentiment: 'avoid' } }),
+    );
   });
 
   it('removes the mark of a recipe', async () => {
     await expect(makeService(prisma).remove('user-1', 'p1', 'r1')).resolves.toBeUndefined();
-    expect(prisma.favorite.deleteMany).toHaveBeenCalledWith({ where: { profileId: 'p1', recipeId: 'r1' } });
+    expect(prisma.favorite.deleteMany).toHaveBeenCalledWith({
+      where: { profileId: 'p1', recipeId: 'r1' },
+    });
   });
 
   it('says so when there was no mark to remove', async () => {
     prisma.favorite.deleteMany = vi.fn().mockResolvedValue({ count: 0 });
-    await expect(makeService(prisma).remove('user-1', 'p1', 'r1')).rejects.toMatchObject({ response: { error: 'FAVORITE_NOT_FOUND' } });
+    await expect(makeService(prisma).remove('user-1', 'p1', 'r1')).rejects.toMatchObject({
+      response: { error: 'FAVORITE_NOT_FOUND' },
+    });
   });
 
   it('does not take a failure of the database for a mark that was not there', async () => {
     prisma.favorite.deleteMany = vi.fn().mockRejectedValue(new Error('connection lost'));
-    await expect(makeService(prisma).remove('user-1', 'p1', 'r1')).rejects.toThrow('connection lost');
+    await expect(makeService(prisma).remove('user-1', 'p1', 'r1')).rejects.toThrow(
+      'connection lost',
+    );
   });
 });

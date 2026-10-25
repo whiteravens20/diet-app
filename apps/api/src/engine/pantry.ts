@@ -132,7 +132,8 @@ export function settle(
   target: number,
 ): Settlement {
   const stock = new Map<Unit, { quantity: number; bestBefore: Date | null }>();
-  for (const row of rows) stock.set(row.unit, { quantity: row.quantity, bestBefore: row.bestBefore });
+  for (const row of rows)
+    stock.set(row.unit, { quantity: row.quantity, bestBefore: row.bestBefore });
   const ledger = new Map<Unit, { quantity: number; bestBefore?: string }>();
   for (const move of moves) {
     const entry = ledger.get(move.unit);
@@ -156,7 +157,10 @@ export function settle(
       row.quantity += delta;
       if (delta < 0 && row.bestBefore) entry.bestBefore ??= isoDate(row.bestBefore);
     } else {
-      stock.set(unit, { quantity: delta, bestBefore: entry.bestBefore ? new Date(entry.bestBefore) : null });
+      stock.set(unit, {
+        quantity: delta,
+        bestBefore: entry.bestBefore ? new Date(entry.bestBefore) : null,
+      });
     }
     entry.quantity += delta;
     ledger.set(unit, entry);
@@ -166,10 +170,11 @@ export function settle(
   let remaining = Math.abs(diff);
 
   if (diff > EPSILON) {
-    const until = (unit: Unit): number => keepsUntil(stock.get(unit)?.bestBefore, ledger.get(unit)?.bestBefore);
-    const taken = UNIT_ORDER.filter((unit) => usable(unit) && (ledger.get(unit)?.quantity ?? 0) < -EPSILON).sort(
-      (a, b) => ascending(until(b), until(a)),
-    );
+    const until = (unit: Unit): number =>
+      keepsUntil(stock.get(unit)?.bestBefore, ledger.get(unit)?.bestBefore);
+    const taken = UNIT_ORDER.filter(
+      (unit) => usable(unit) && (ledger.get(unit)?.quantity ?? 0) < -EPSILON,
+    ).sort((a, b) => ascending(until(b), until(a)));
     for (const unit of taken) {
       if (remaining <= EPSILON) break;
       const back = Math.min(remaining, canonical(-ledger.get(unit)!.quantity, unit, ingredient)!);
@@ -180,7 +185,9 @@ export function settle(
       let fullest: Unit | null = null;
       let most = EPSILON;
       for (const unit of UNIT_ORDER) {
-        const held = stock.has(unit) ? canonical(stock.get(unit)!.quantity, unit, ingredient) : null;
+        const held = stock.has(unit)
+          ? canonical(stock.get(unit)!.quantity, unit, ingredient)
+          : null;
         if (held !== null && held > most) {
           most = held;
           fullest = unit;
@@ -190,7 +197,10 @@ export function settle(
       remaining = 0;
     }
   } else if (diff < -EPSILON) {
-    const held = (unit: Unit): number => (stock.has(unit) ? Math.max(0, canonical(stock.get(unit)!.quantity, unit, ingredient) ?? 0) : 0);
+    const held = (unit: Unit): number =>
+      stock.has(unit)
+        ? Math.max(0, canonical(stock.get(unit)!.quantity, unit, ingredient) ?? 0)
+        : 0;
     for (const unit of UNIT_ORDER) {
       if (remaining <= EPSILON) break;
       const put = ledger.get(unit)?.quantity ?? 0;

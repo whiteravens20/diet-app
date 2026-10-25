@@ -34,9 +34,11 @@ export const CREDENTIAL_COUNTS = 'rate-limit:credential-counts';
  * counts are taken in the order given, and the first that is used up refuses
  * the request before the later ones see it.
  */
-export const TriesCredential = (...counts: CredentialCount[]): MethodDecorator => SetMetadata(CREDENTIAL_COUNTS, counts);
+export const TriesCredential = (...counts: CredentialCount[]): MethodDecorator =>
+  SetMetadata(CREDENTIAL_COUNTS, counts);
 
-const digest = (kind: string, value: string): string => `${kind}:${createHash('sha256').update(value).digest('hex')}`;
+const digest = (kind: string, value: string): string =>
+  `${kind}:${createHash('sha256').update(value).digest('hex')}`;
 
 /** A text field of the request body; a request without it counts with all the others without it. */
 function field(req: Record<string, unknown>, name: string): string {
@@ -78,5 +80,8 @@ export const byToken =
  */
 export const byRefreshToken: ThrottlerGetTrackerFunction = (req) => {
   const headers = req.headers as Record<string, string | undefined> | undefined;
-  return digest('token', field(req, 'refreshToken') || (readCookie(headers?.cookie, REFRESH_COOKIE) ?? ''));
+  return digest(
+    'token',
+    field(req, 'refreshToken') || (readCookie(headers?.cookie, REFRESH_COOKIE) ?? ''),
+  );
 };

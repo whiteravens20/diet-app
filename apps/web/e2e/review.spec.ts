@@ -48,16 +48,26 @@ const draft = (id: string, title: string) => ({
 async function aQueue(page: Page): Promise<string[]> {
   const waiting = [draft(FIRST, 'Owsianka'), draft(SECOND, 'Jajecznica'), draft(THIRD, 'Kanapka')];
   const decided: string[] = [];
-  const json = (route: Route, body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  const json = (route: Route, body: unknown) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   await page.route('**/api/review/**', (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/review/, '');
-    if (path === '/status') return json(route, { enabled: true, passwordSet: true, locales: ['pl'] });
-    if (path === '/session') return json(route, { session: { label: 'Anna', issuedAt: '2026-10-12T08:00:00.000Z' } });
-    if (path === '/drafts/recipes') return json(route, { items: waiting, total: waiting.length, page: 1, pageSize: 25 });
-    const [, id, action] = /^\/drafts\/recipes\/([0-9a-f-]+)(?:\/(approve|reject))?$/.exec(path) ?? [];
+    if (path === '/status')
+      return json(route, { enabled: true, passwordSet: true, locales: ['pl'] });
+    if (path === '/session')
+      return json(route, { session: { label: 'Anna', issuedAt: '2026-10-12T08:00:00.000Z' } });
+    if (path === '/drafts/recipes')
+      return json(route, { items: waiting, total: waiting.length, page: 1, pageSize: 25 });
+    const [, id, action] =
+      /^\/drafts\/recipes\/([0-9a-f-]+)(?:\/(approve|reject))?$/.exec(path) ?? [];
     const at = waiting.findIndex((slice) => slice.id === id);
-    if (at < 0) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'NOT_FOUND', message: 'No such draft.' }) });
+    if (at < 0)
+      return route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'NOT_FOUND', message: 'No such draft.' }),
+      });
     const slice = waiting[at]!;
     if (request.method() === 'PATCH') {
       Object.assign(slice, request.postDataJSON() as object);
@@ -71,11 +81,19 @@ async function aQueue(page: Page): Promise<string[]> {
   return decided;
 }
 
-test.describe('the reviewer\'s queue in a browser, with the server\'s answers given', () => {
-  test('a letter decides nothing until the keys are turned on; then the keys decide and move, and the draft that comes up has the focus', async ({ anonymous: page, messages }) => {
+test.describe("the reviewer's queue in a browser, with the server's answers given", () => {
+  test('a letter decides nothing until the keys are turned on; then the keys decide and move, and the draft that comes up has the focus', async ({
+    anonymous: page,
+    messages,
+  }) => {
     const text = messages.review as Texts;
     const decided = await aQueue(page);
-    const shown = (current: number, visible: number) => page.getByRole('group', { name: text.draftLabel!.replace('{current}', String(current)).replace('{visible}', String(visible)) });
+    const shown = (current: number, visible: number) =>
+      page.getByRole('group', {
+        name: text
+          .draftLabel!.replace('{current}', String(current))
+          .replace('{visible}', String(visible)),
+      });
     const title = page.getByRole('textbox', { name: text.fieldTitle!, exact: true });
     await page.goto('/review');
     await expect(shown(1, 3)).toBeVisible();
@@ -93,7 +111,10 @@ test.describe('the reviewer\'s queue in a browser, with the server\'s answers gi
     await keys.click();
     await expect(keys).toHaveAttribute('aria-pressed', 'true');
     await expect(keys).toBeFocused();
-    await expect(page.getByRole('button', { name: text.approve!, exact: true })).toHaveAttribute('aria-keyshortcuts', 'A');
+    await expect(page.getByRole('button', { name: text.approve!, exact: true })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'A',
+    );
 
     // The draft after and the draft before.
     await shown(1, 3).focus();
@@ -130,28 +151,46 @@ test.describe('the reviewer\'s queue in a browser, with the server\'s answers gi
     // The choice is kept: on the next visit the keys are on and the draft has the focus.
     await page.reload();
     await expect(shown(1, 1)).toBeFocused();
-    await expect(page.getByRole('button', { name: text.keys!, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: text.keys!, exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
-  test('with the keys off, the draft that comes up after a decision takes the focus the pressed button lost', async ({ anonymous: page, messages }) => {
+  test('with the keys off, the draft that comes up after a decision takes the focus the pressed button lost', async ({
+    anonymous: page,
+    messages,
+  }) => {
     const text = messages.review as Texts;
     const decided = await aQueue(page);
     await page.goto('/review');
-    const first = page.getByRole('group', { name: text.draftLabel!.replace('{current}', '1').replace('{visible}', '3') });
+    const first = page.getByRole('group', {
+      name: text.draftLabel!.replace('{current}', '1').replace('{visible}', '3'),
+    });
     await expect(first).toBeVisible();
     await expect(first).not.toBeFocused();
 
     await page.getByRole('button', { name: text.approve!, exact: true }).click();
 
-    await expect(page.getByRole('group', { name: text.draftLabel!.replace('{current}', '1').replace('{visible}', '2') })).toBeFocused();
+    await expect(
+      page.getByRole('group', {
+        name: text.draftLabel!.replace('{current}', '1').replace('{visible}', '2'),
+      }),
+    ).toBeFocused();
     expect(decided).toEqual(['approve Owsianka']);
     // Names where a reviewer reads them: the allergens by name, the buttons that move by what they do.
     const allergens = messages.enums as unknown as { allergen: Texts };
-    await expect(page.getByText(`${allergens.allergen.dairy!}`, { exact: false }).first()).toBeVisible();
+    await expect(
+      page.getByText(`${allergens.allergen.dairy!}`, { exact: false }).first(),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: text.next!, exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: text.previous!, exact: true })).toBeDisabled();
     expect(await barriers(page)).toEqual([]);
     // Whatever the screen: the page is no wider than it.
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(0);
   });
 });

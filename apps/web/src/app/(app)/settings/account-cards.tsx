@@ -6,9 +6,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
-import {
-  type SessionUser,
-} from '@diet-app/shared';
+import { type SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { session as browserSession } from '@/lib/session';
@@ -51,7 +49,12 @@ export function PasswordCard() {
       <CardContent>
         <form onSubmit={onSubmit} className="grid max-w-md gap-3 sm:grid-cols-2">
           <Field label={t('currentPassword')}>
-            <Input name="currentPassword" type="password" required autoComplete="current-password" />
+            <Input
+              name="currentPassword"
+              type="password"
+              required
+              autoComplete="current-password"
+            />
           </Field>
           <Field label={t('newPasswordLabel')}>
             <Input
@@ -66,11 +69,7 @@ export function PasswordCard() {
             <Button type="submit" disabled={change.isPending}>
               {change.isPending ? t('changingPassword') : t('changePassword')}
             </Button>
-            {done && (
-              <p className="mt-2 text-xs text-success">
-                {t('passwordChanged')}
-              </p>
-            )}
+            {done && <p className="mt-2 text-xs text-success">{t('passwordChanged')}</p>}
             {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
           </div>
         </form>
@@ -133,9 +132,7 @@ export function EmailCard({ me }: { me: SessionUser }) {
         {!me.emailVerified && emailEnabled && (
           <div>
             {resendDone ? (
-              <p className="text-xs text-success">
-                {t('resendVerificationSent')}
-              </p>
+              <p className="text-xs text-success">{t('resendVerificationSent')}</p>
             ) : (
               <Button
                 type="button"

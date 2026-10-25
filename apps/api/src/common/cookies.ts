@@ -5,10 +5,7 @@
  * and percent-decodes the value. Avoids the `cookie-parser` middleware
  * dependency for the few cookies the API reads.
  */
-export function readCookie(
-  cookieHeader: string | undefined,
-  name: string,
-): string | undefined {
+export function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
   if (!cookieHeader) return undefined;
   const parts = cookieHeader.split(';');
   for (const part of parts) {

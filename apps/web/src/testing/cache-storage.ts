@@ -9,7 +9,11 @@ class ACache {
   private readonly kept = new Map<string, Response>();
 
   private static addressOf(request: RequestInfo | URL): string {
-    return typeof request === 'string' ? request : request instanceof URL ? request.pathname + request.search : new URL(request.url).pathname + new URL(request.url).search;
+    return typeof request === 'string'
+      ? request
+      : request instanceof URL
+        ? request.pathname + request.search
+        : new URL(request.url).pathname + new URL(request.url).search;
   }
 
   async put(request: RequestInfo | URL, response: Response): Promise<void> {
@@ -30,7 +34,10 @@ class ACache {
 }
 
 /** A cache storage with nothing in it. `names()` says which stores it holds, for a test to look at. */
-export function aCacheStorage(): CacheStorage & { names(): string[]; held(name: string): Promise<string[]> } {
+export function aCacheStorage(): CacheStorage & {
+  names(): string[];
+  held(name: string): Promise<string[]>;
+} {
   const stores = new Map<string, ACache>();
   return {
     async open(name: string) {

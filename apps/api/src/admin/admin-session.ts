@@ -26,7 +26,8 @@ const ADMIN_PATH = '/api/admin';
 const ADMIN_SESSION_SECONDS = 8 * 60 * 60;
 
 const jwt = new JwtService({});
-const keyOf = (config: ConfigService<Env, true>): string => deriveKey(config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'admin-session');
+const keyOf = (config: ConfigService<Env, true>): string =>
+  deriveKey(config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'admin-session');
 
 /** The size of the blocks two values are compared in: more than a value of a request can fill. */
 const COMPARED_BYTES = 1024;
@@ -50,7 +51,11 @@ export function sameText(given: string, held: string): boolean {
 }
 
 /** Whether these are the credentials of the instance. Both are compared whatever the first says. */
-export function isAdministrator(config: ConfigService<Env, true>, user: string, password: string): boolean {
+export function isAdministrator(
+  config: ConfigService<Env, true>,
+  user: string,
+  password: string,
+): boolean {
   const userOk = sameText(user, config.get('ADMIN_USER', { infer: true }));
   const passwordOk = sameText(password, config.get('ADMIN_PASSWORD', { infer: true }));
   return userOk && passwordOk;
@@ -67,24 +72,48 @@ const marks = new WeakMap<object, string>();
 function credentialsMark(config: ConfigService<Env, true>): string {
   const made = marks.get(config);
   if (made) return made;
-  const credentials = JSON.stringify([config.get('ADMIN_USER', { infer: true }), config.get('ADMIN_PASSWORD', { infer: true })]);
+  const credentials = JSON.stringify([
+    config.get('ADMIN_USER', { infer: true }),
+    config.get('ADMIN_PASSWORD', { infer: true }),
+  ]);
   const mark = scryptSync(credentials, Buffer.from(keyOf(config), 'hex'), 16).toString('hex');
   marks.set(config, mark);
   return mark;
 }
 
-export function signAdminSession(config: ConfigService<Env, true>, epoch: number, lifetimeSeconds = ADMIN_SESSION_SECONDS): string {
+export function signAdminSession(
+  config: ConfigService<Env, true>,
+  epoch: number,
+  lifetimeSeconds = ADMIN_SESSION_SECONDS,
+): string {
   return jwt.sign(
     { epoch, credentials: credentialsMark(config) },
-    { secret: keyOf(config), expiresIn: lifetimeSeconds, algorithm: TOKEN_ALGORITHM, audience: ADMIN_AUDIENCE },
+    {
+      secret: keyOf(config),
+      expiresIn: lifetimeSeconds,
+      algorithm: TOKEN_ALGORITHM,
+      audience: ADMIN_AUDIENCE,
+    },
   );
 }
 
 /** Whether a cookie holds a session that counts: signed here, not run out, of this epoch, and begun with the credentials the instance has now. */
-export function isAdminSession(config: ConfigService<Env, true>, token: string, epoch: number): boolean {
+export function isAdminSession(
+  config: ConfigService<Env, true>,
+  token: string,
+  epoch: number,
+): boolean {
   try {
-    const claims = jwt.verify<{ epoch?: unknown; credentials?: unknown }>(token, { secret: keyOf(config), algorithms: [TOKEN_ALGORITHM], audience: ADMIN_AUDIENCE });
-    return claims.epoch === epoch && typeof claims.credentials === 'string' && sameText(claims.credentials, credentialsMark(config));
+    const claims = jwt.verify<{ epoch?: unknown; credentials?: unknown }>(token, {
+      secret: keyOf(config),
+      algorithms: [TOKEN_ALGORITHM],
+      audience: ADMIN_AUDIENCE,
+    });
+    return (
+      claims.epoch === epoch &&
+      typeof claims.credentials === 'string' &&
+      sameText(claims.credentials, credentialsMark(config))
+    );
   } catch {
     return false;
   }

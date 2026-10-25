@@ -28,14 +28,24 @@ describe('what a profile would rather not eat', () => {
     user = await aUser(t);
   });
 
-  const read = async (plan: MealPlan): Promise<MealPlan> => (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body;
+  const read = async (plan: MealPlan): Promise<MealPlan> =>
+    (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body;
   const meals = (plan: MealPlan) => plan.days.flatMap((day) => day.meals);
-  const holds = (meal: MealPlan['days'][number]['meals'][number], ingredientId: string): boolean => meal.ingredients.some((line) => line.ingredientId === ingredientId);
-  const dislike = (profile: Profile, dislikedIngredientIds: string[]) => t.http().patch(`/api/profiles/${profile.id}/preferences`).set(as(user)).send({ dislikedIngredientIds }).expect(200);
+  const holds = (meal: MealPlan['days'][number]['meals'][number], ingredientId: string): boolean =>
+    meal.ingredients.some((line) => line.ingredientId === ingredientId);
+  const dislike = (profile: Profile, dislikedIngredientIds: string[]) =>
+    t
+      .http()
+      .patch(`/api/profiles/${profile.id}/preferences`)
+      .set(as(user))
+      .send({ dislikedIngredientIds })
+      .expect(200);
 
   it('is in no meal of a plan that has another recipe for every meal', async () => {
     // Every meal of the catalogue has several recipes without tofu: a week of three meals a day can do without it.
-    const profile = await aProfile(t, user, { preferences: { dislikedIngredientIds: [tofu] } as Profile['preferences'] });
+    const profile = await aProfile(t, user, {
+      preferences: { dislikedIngredientIds: [tofu] } as Profile['preferences'],
+    });
 
     const plan = await aPlan(t, user, profile);
 
@@ -47,7 +57,10 @@ describe('what a profile would rather not eat', () => {
   it('is planned all the same where the diet leaves nothing else: a dislike is no exclusion', async () => {
     // The vegan lunches and dinners of the catalogue without tofu are the same two recipes. A day takes both, and
     // neither may be eaten three days in a row: on the third day only what holds tofu is left inside the limits.
-    const profile = await aProfile(t, user, { dietType: 'vegan', preferences: { dislikedIngredientIds: [tofu] } as Profile['preferences'] });
+    const profile = await aProfile(t, user, {
+      dietType: 'vegan',
+      preferences: { dislikedIngredientIds: [tofu] } as Profile['preferences'],
+    });
 
     const plan = await aPlan(t, user, profile, { durationDays: 3 });
 
@@ -58,7 +71,8 @@ describe('what a profile would rather not eat', () => {
     expect(withTofu.length).toBeGreaterThan(0);
     // The plan says of each such meal what it holds that the profile would rather not eat.
     for (const meal of withTofu) expect(meal.dislikedIngredientIds).toEqual([tofu]);
-    for (const meal of meals(plan).filter((other) => !holds(other, tofu))) expect(meal.dislikedIngredientIds).toEqual([]);
+    for (const meal of meals(plan).filter((other) => !holds(other, tofu)))
+      expect(meal.dislikedIngredientIds).toEqual([]);
   });
 
   it('is said of a meal that was planned before the profile came to dislike it, and the plan is not rewritten', async () => {
@@ -71,8 +85,11 @@ describe('what a profile would rather not eat', () => {
     await dislike(profile, [ingredient]);
 
     const after = await read(plan);
-    expect(meals(after).map((meal) => meal.recipe?.id)).toEqual(meals(plan).map((meal) => meal.recipe?.id));
-    for (const meal of meals(after)) expect(meal.dislikedIngredientIds).toEqual(holds(meal, ingredient) ? [ingredient] : []);
+    expect(meals(after).map((meal) => meal.recipe?.id)).toEqual(
+      meals(plan).map((meal) => meal.recipe?.id),
+    );
+    for (const meal of meals(after))
+      expect(meal.dislikedIngredientIds).toEqual(holds(meal, ingredient) ? [ingredient] : []);
     expect(meals(after)[0]!.dislikedIngredientIds).toEqual([ingredient]);
     // A dislike is not a restriction: nothing is in conflict with the profile.
     expect(meals(after).every((meal) => meal.restrictionConflicts.length === 0)).toBe(true);
@@ -82,7 +99,12 @@ describe('what a profile would rather not eat', () => {
     const profile = await aProfile(t, user);
 
     const changed = await dislike(profile, [tofu]);
-    const refused = await t.http().patch(`/api/profiles/${profile.id}/preferences`).set(as(user)).send({ dislikedIngredientIds: ['liver'] }).expect(400);
+    const refused = await t
+      .http()
+      .patch(`/api/profiles/${profile.id}/preferences`)
+      .set(as(user))
+      .send({ dislikedIngredientIds: ['liver'] })
+      .expect(400);
 
     expect(changed.body.preferences.dislikedIngredientIds).toEqual([tofu]);
     expect(refused.body.issues[0].path).toBe('dislikedIngredientIds.0');

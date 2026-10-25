@@ -69,14 +69,20 @@ export class WeighService {
 
     const reply = readModelReply(text, Answer);
     if (!reply.ok) return asIs(withUnusableAnswer(meta));
-    const named = [...new Set(reply.value.order.filter((id): id is string => typeof id === 'string' && ids.includes(id)))];
+    const named = [
+      ...new Set(
+        reply.value.order.filter((id): id is string => typeof id === 'string' && ids.includes(id)),
+      ),
+    ];
     if (named.length === 0) return asIs(withUnusableAnswer(meta));
 
     const reasons = reply.value.reasons;
     const said = new Map<string, string>();
     if (typeof reasons === 'object' && reasons !== null) {
       for (const id of ids) {
-        const line = Object.hasOwn(reasons, id) ? modelText((reasons as Record<string, unknown>)[id], MAX_WEIGHED_CHARS) : null;
+        const line = Object.hasOwn(reasons, id)
+          ? modelText((reasons as Record<string, unknown>)[id], MAX_WEIGHED_CHARS)
+          : null;
         if (line !== null) said.set(id, line);
       }
     }

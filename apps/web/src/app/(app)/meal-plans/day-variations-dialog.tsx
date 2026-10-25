@@ -50,7 +50,13 @@ export function DayVariationsDialog({
 
   const path = `/meal-plans/${planId}/days/${day.id}/variations`;
   // Drawn anew for every opening: an offer is good for the plan as it stands, and for a sitting.
-  const first = useQuery({ queryKey: ['day-variations', planId, day.id], queryFn: () => api.post<DayVariations>(path, { weigh: false }), gcTime: 0, staleTime: Infinity, retry: false });
+  const first = useQuery({
+    queryKey: ['day-variations', planId, day.id],
+    queryFn: () => api.post<DayVariations>(path, { weigh: false }),
+    gcTime: 0,
+    staleTime: Infinity,
+    retry: false,
+  });
   const weigh = useMutation({
     mutationFn: () => api.post<DayVariations>(path, { weigh: true }),
     onSuccess: (answer) => {
@@ -95,7 +101,13 @@ export function DayVariationsDialog({
         )}
         {shown && (
           <>
-            <p className="text-xs text-muted-foreground">{t('now', { kcal: shown.current.dayNutrition.calories, target: Math.round(shown.calorieTarget), wasted: shown.current.packs.wasted })}</p>
+            <p className="text-xs text-muted-foreground">
+              {t('now', {
+                kcal: shown.current.dayNutrition.calories,
+                target: Math.round(shown.calorieTarget),
+                wasted: shown.current.packs.wasted,
+              })}
+            </p>
             {shown.variations.length === 0 ? (
               <p className="text-sm">{t('none')}</p>
             ) : (
@@ -104,7 +116,12 @@ export function DayVariationsDialog({
                   <li key={way.offer} className="space-y-2 rounded-md border border-border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="text-sm font-medium">{t('way', { n: index + 1 })}</h3>
-                      <Button type="button" size="sm" disabled={busy} onClick={() => take.mutate(way.offer)}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => take.mutate(way.offer)}
+                      >
                         {t('take')}
                       </Button>
                     </div>
@@ -112,9 +129,17 @@ export function DayVariationsDialog({
                     <ul className="space-y-0.5 text-sm">
                       {way.meals.map((meal) => (
                         <li key={`${meal.mealType}-${meal.recipeId ?? meal.title}`}>
-                          <span className="text-muted-foreground">{mealName(meal.mealType)}</span> · {meal.title}
-                          <span className="text-muted-foreground"> · {t('mealEnergy', { kcal: meal.nutrition.calories })}</span>
-                          {meal.stays && <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">{t('stays')}</span>}
+                          <span className="text-muted-foreground">{mealName(meal.mealType)}</span> ·{' '}
+                          {meal.title}
+                          <span className="text-muted-foreground">
+                            {' '}
+                            · {t('mealEnergy', { kcal: meal.nutrition.calories })}
+                          </span>
+                          {meal.stays && (
+                            <span className="ml-2 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                              {t('stays')}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -127,7 +152,9 @@ export function DayVariationsDialog({
                         carbs: way.dayNutrition.carbs,
                       })}
                     </p>
-                    <p className="text-xs text-muted-foreground">{t('packsLine', { wasted: way.packs.wasted })}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('packsLine', { wasted: way.packs.wasted })}
+                    </p>
                   </li>
                 ))}
               </ol>
@@ -141,7 +168,16 @@ export function DayVariationsDialog({
         )}
         <WeighedLine aiMeta={weighed?.aiMeta ?? null} />
         <div className="flex flex-wrap items-center justify-between gap-2">
-          {shown && shown.variations.length > 0 ? <WeighButton enabled={aiEnabled} offNote={aiOffNote} asking={weigh.isPending} onAsk={() => weigh.mutate()} /> : <span />}
+          {shown && shown.variations.length > 0 ? (
+            <WeighButton
+              enabled={aiEnabled}
+              offNote={aiOffNote}
+              asking={weigh.isPending}
+              onAsk={() => weigh.mutate()}
+            />
+          ) : (
+            <span />
+          )}
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             {tCommon('close')}
           </Button>

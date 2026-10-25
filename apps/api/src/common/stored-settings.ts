@@ -10,8 +10,15 @@
  */
 import { AiMode, Locale, Palette, Theme, WeightUnit } from '@diet-app/shared';
 
-export const storedLocale = (value: string | null | undefined): Locale => Locale.catch('en').parse(value);
-export const storedTheme = (value: string | null | undefined): Theme => Theme.catch('system').parse(value);
-export const storedPalette = (value: string | null | undefined): Palette => Palette.catch('default').parse(value);
-export const storedAiMode = (value: string | null | undefined): AiMode => AiMode.catch('none').parse(value);
-export const storedWeightUnit = (value: string | null | undefined): WeightUnit | null => WeightUnit.nullable().catch(null).parse(value ?? null);
+export const storedLocale = (value: string | null | undefined): Locale =>
+  Locale.catch('en').parse(value);
+export const storedTheme = (value: string | null | undefined): Theme =>
+  Theme.catch('system').parse(value);
+export const storedPalette = (value: string | null | undefined): Palette =>
+  Palette.catch('default').parse(value);
+export const storedAiMode = (value: string | null | undefined): AiMode =>
+  AiMode.catch('none').parse(value);
+export const storedWeightUnit = (value: string | null | undefined): WeightUnit | null =>
+  WeightUnit.nullable()
+    .catch(null)
+    .parse(value ?? null);

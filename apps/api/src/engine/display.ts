@@ -37,7 +37,12 @@ const down = (value: number, step: number): number => Math.floor((value + EPSILO
 /** The step grams and millilitres are counted in at this size. */
 const massStep = (value: number): number => (value <= 10 ? 1 : 5);
 
-function converted(quantity: number, unit: Unit, target: Unit, ingredient: ConvertibleIngredient): number | null {
+function converted(
+  quantity: number,
+  unit: Unit,
+  target: Unit,
+  ingredient: ConvertibleIngredient,
+): number | null {
   try {
     return convertUnit(quantity, unit, target, ingredient);
   } catch (err) {
@@ -47,15 +52,25 @@ function converted(quantity: number, unit: Unit, target: Unit, ingredient: Conve
 }
 
 /** Whether the ingredient is one that is counted in pieces of its own. */
-export function isCounted(ingredient: DisplayedIngredient): ingredient is DisplayedIngredient & { displayUnit: NaturalUnit } {
-  return ingredient.displayUnit !== null && converted(1, 'piece', ingredient.canonicalUnit, ingredient) !== null;
+export function isCounted(
+  ingredient: DisplayedIngredient,
+): ingredient is DisplayedIngredient & { displayUnit: NaturalUnit } {
+  return (
+    ingredient.displayUnit !== null &&
+    converted(1, 'piece', ingredient.canonicalUnit, ingredient) !== null
+  );
 }
 
 /** A quantity of at least one step: what is there is never shown as nothing. */
-const shown = (value: number, rounded: number, step: number): number => (value > EPSILON && rounded < step ? step : rounded);
+const shown = (value: number, rounded: number, step: number): number =>
+  value > EPSILON && rounded < step ? step : rounded;
 
 /** An amount to cook with: a line of a recipe, or what a planned meal takes. */
-export function displayAmount(quantity: number, unit: Unit, ingredient: DisplayedIngredient): DisplayAmount {
+export function displayAmount(
+  quantity: number,
+  unit: Unit,
+  ingredient: DisplayedIngredient,
+): DisplayAmount {
   if (isCounted(ingredient)) {
     const pieces = converted(quantity, unit, 'piece', ingredient);
     if (pieces !== null && pieces >= SMALLEST_PIECE) {
@@ -65,13 +80,18 @@ export function displayAmount(quantity: number, unit: Unit, ingredient: Displaye
   const amount = converted(quantity, unit, ingredient.canonicalUnit, ingredient);
   // What cannot be converted is shown as it was written.
   const [value, inUnit] = amount === null ? [quantity, unit] : [amount, ingredient.canonicalUnit];
-  if (inUnit === 'piece') return { quantity: shown(value, nearest(value, 0.5), 0.5), unit: 'piece' };
+  if (inUnit === 'piece')
+    return { quantity: shown(value, nearest(value, 0.5), 0.5), unit: 'piece' };
   const step = massStep(value);
   return { quantity: shown(value, nearest(value, step), 1), unit: inUnit };
 }
 
 /** What a pantry row holds: in the row's own unit, a piece called what the ingredient calls it. */
-export function displayStock(quantity: number, unit: Unit, ingredient: DisplayedIngredient): DisplayAmount {
+export function displayStock(
+  quantity: number,
+  unit: Unit,
+  ingredient: DisplayedIngredient,
+): DisplayAmount {
   if (unit === 'piece') {
     const name: DisplayUnit = isCounted(ingredient) ? ingredient.displayUnit : 'piece';
     return { quantity: shown(quantity, nearest(quantity, 0.5), 0.5), unit: name };
@@ -80,7 +100,10 @@ export function displayStock(quantity: number, unit: Unit, ingredient: Displayed
 }
 
 /** The unit a shopping row of the ingredient is counted in, and what to call it. */
-export function shoppingUnit(ingredient: DisplayedIngredient): { unit: Unit; displayUnit: DisplayUnit } {
+export function shoppingUnit(ingredient: DisplayedIngredient): {
+  unit: Unit;
+  displayUnit: DisplayUnit;
+} {
   if (isCounted(ingredient)) return { unit: 'piece', displayUnit: ingredient.displayUnit };
   return { unit: ingredient.canonicalUnit, displayUnit: ingredient.canonicalUnit };
 }

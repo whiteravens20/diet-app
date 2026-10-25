@@ -2,12 +2,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type {
-  AiFallbackReason,
-  AiGenerationMeta,
-  AiMode,
-  AiProvider,
-} from '@diet-app/shared';
+import type { AiFallbackReason, AiGenerationMeta, AiMode, AiProvider } from '@diet-app/shared';
 import { AiMode as AiModeSchema } from '@diet-app/shared';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -19,11 +14,7 @@ import { AnthropicProvider } from './providers/anthropic.provider.js';
 import { OllamaProvider } from './providers/ollama.provider.js';
 import { OpenAiProvider } from './providers/openai.provider.js';
 import { OpenRouterProvider } from './providers/openrouter.provider.js';
-import {
-  AiProviderError,
-  type AiProviderAdapter,
-  type ChatMessage,
-} from './provider.interface.js';
+import { AiProviderError, type AiProviderAdapter, type ChatMessage } from './provider.interface.js';
 
 /** A provider is not tried with less time than this left; the request is reported as timed out instead. */
 const SHORTEST_ATTEMPT_MS = 1_000;
@@ -193,7 +184,9 @@ export class AiRouterService {
 
   /** Settle a usage row. A failure to write it must not cost the user the answer. */
   private async settle(id: string, result: UsageResult): Promise<void> {
-    await this.quota.end(id, result).catch((e) => this.logger.error('failed to write AI usage log', e));
+    await this.quota
+      .end(id, result)
+      .catch((e) => this.logger.error('failed to write AI usage log', e));
   }
 
   private async loadAiMode(userId: string): Promise<AiMode> {
@@ -216,14 +209,16 @@ function describe(err: unknown): string {
  * decided instead. The provider and model stay named: they are who answered.
  */
 export function withUnusableAnswer(meta: AiGenerationMeta): AiGenerationMeta {
-  return { ...meta, usedDeterministicFallback: true, fallbackReason: 'invalid_output', reason: null };
+  return {
+    ...meta,
+    usedDeterministicFallback: true,
+    fallbackReason: 'invalid_output',
+    reason: null,
+  };
 }
 
 /** Build the soft-fallback result the router returns when AI is unavailable. */
-function fallback(
-  reason: AiFallbackReason,
-  failoverChain: AiProvider[] = [],
-): RoutedResult {
+function fallback(reason: AiFallbackReason, failoverChain: AiProvider[] = []): RoutedResult {
   return {
     text: null,
     meta: {

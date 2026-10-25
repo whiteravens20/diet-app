@@ -49,10 +49,18 @@ describe("a user's monthly allowance on the operator's provider", () => {
     (await t.http().get('/api/ai/quota').set(as(user)).expect(200)).body as AiQuotaStatus;
 
   const outcomes = async (): Promise<string[]> =>
-    (await t.prisma.aiUsageLog.findMany({ orderBy: { createdAt: 'asc' } })).map((row) => row.outcome);
+    (await t.prisma.aiUsageLog.findMany({ orderBy: { createdAt: 'asc' } })).map(
+      (row) => row.outcome,
+    );
 
   it('starts full', async () => {
-    expect(await quota()).toMatchObject({ mode: 'admin', limit: LIMIT, used: 0, remaining: LIMIT, resetAt: null });
+    expect(await quota()).toMatchObject({
+      mode: 'admin',
+      limit: LIMIT,
+      used: 0,
+      remaining: LIMIT,
+      resetAt: null,
+    });
   });
 
   it('is used by an answer, and says when the place comes free again', async () => {
@@ -94,7 +102,10 @@ describe("a user's monthly allowance on the operator's provider", () => {
     const refused = await ask();
 
     expect(refused.text).toBeNull();
-    expect(refused.meta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'quota_exhausted' });
+    expect(refused.meta).toMatchObject({
+      usedDeterministicFallback: true,
+      fallbackReason: 'quota_exhausted',
+    });
     expect(t.model.requests).toHaveLength(LIMIT);
     expect(await quota()).toMatchObject({ used: LIMIT, remaining: 0 });
   });
@@ -127,7 +138,13 @@ describe("a user's monthly allowance on the operator's provider", () => {
   });
 
   it('forgets a call thirty days after it was made', async () => {
-    const call = { userId: user.id, provider: 'ollama', model: 'test-model', operation: 'meal-swap', mode: 'admin' };
+    const call = {
+      userId: user.id,
+      provider: 'ollama',
+      model: 'test-model',
+      operation: 'meal-swap',
+      mode: 'admin',
+    };
     const daysAgo = (days: number): Date => new Date(Date.now() - days * 86_400_000);
     await t.prisma.aiUsageLog.createMany({
       data: [
@@ -140,7 +157,13 @@ describe("a user's monthly allowance on the operator's provider", () => {
   });
 
   it('does not let a call that a restart left unfinished hold its place for good', async () => {
-    const call = { userId: user.id, provider: 'ollama', model: 'test-model', operation: 'meal-swap', mode: 'admin' };
+    const call = {
+      userId: user.id,
+      provider: 'ollama',
+      model: 'test-model',
+      operation: 'meal-swap',
+      mode: 'admin',
+    };
     await t.prisma.aiUsageLog.createMany({
       data: [
         { ...call, outcome: 'PENDING', createdAt: new Date(Date.now() - 10 * 60_000) },
@@ -206,7 +229,9 @@ describe("a user's monthly allowance on the operator's provider", () => {
       expect(t.model.requests).toHaveLength(0);
       expect(await quota()).toMatchObject({ mode: 'byok', used: 0, remaining: null });
       const rows = await t.prisma.aiUsageLog.findMany();
-      expect(rows.map((row) => [row.mode, row.outcome])).toEqual(Array(LIMIT + 2).fill(['byok', 'COMPLETED']));
+      expect(rows.map((row) => [row.mode, row.outcome])).toEqual(
+        Array(LIMIT + 2).fill(['byok', 'COMPLETED']),
+      );
     });
   });
 });

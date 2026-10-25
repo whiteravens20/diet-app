@@ -18,7 +18,18 @@ describe('Input', () => {
   });
 
   it('is the input it is told to be', () => {
-    render(<Input aria-label="Weight" type="number" min={30} max={400} step="0.1" inputMode="decimal" placeholder="80" required />);
+    render(
+      <Input
+        aria-label="Weight"
+        type="number"
+        min={30}
+        max={400}
+        step="0.1"
+        inputMode="decimal"
+        placeholder="80"
+        required
+      />,
+    );
 
     const input = screen.getByRole('spinbutton', { name: 'Weight' });
     expect(input).toHaveAttribute('min', '30');
@@ -78,7 +89,10 @@ describe('Field', () => {
     );
 
     const hint = screen.getByText('Twelve characters or more');
-    expect(screen.getByLabelText(/Password/).compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      screen.getByLabelText(/Password/).compareDocumentPosition(hint) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('shows no empty line where there is no hint', () => {

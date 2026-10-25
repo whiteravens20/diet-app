@@ -165,8 +165,15 @@ export function rebalanceDays(
     const over = left > 0;
     // The room a day has: how far it can move towards the edge of its own window.
     const givers = live
-      .filter((d) => !stillOutside.includes(d) && d.meals.some((m) => !m.locked && m.calories > 0 && m.servings > 0))
-      .map((d) => ({ day: d, room: over ? total(d) - d.target * (1 - tolerance) : d.target * (1 + tolerance) - total(d) }))
+      .filter(
+        (d) =>
+          !stillOutside.includes(d) &&
+          d.meals.some((m) => !m.locked && m.calories > 0 && m.servings > 0),
+      )
+      .map((d) => ({
+        day: d,
+        room: over ? total(d) - d.target * (1 - tolerance) : d.target * (1 + tolerance) - total(d),
+      }))
       .filter((giver) => giver.room > 1e-9);
     const room = givers.reduce((sum, giver) => sum + giver.room, 0);
     const taken = Math.min(Math.abs(left), room);
@@ -177,5 +184,9 @@ export function rebalanceDays(
     }
   }
 
-  return { scales, feasibility: live.every(inside) ? 'in-window' : 'best-effort', unabsorbed: Math.abs(left) < 1e-6 ? 0 : left };
+  return {
+    scales,
+    feasibility: live.every(inside) ? 'in-window' : 'best-effort',
+    unabsorbed: Math.abs(left) < 1e-6 ? 0 : left,
+  };
 }

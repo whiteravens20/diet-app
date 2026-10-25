@@ -43,23 +43,50 @@ describe('what a user is told about their calorie target', () => {
   });
 
   it('is that the pace was slowed, with both figures', () => {
-    expect(told({ ...plain, requestedDeficit: 1100, dailyDeficit: 627, deficitCapped: true })).toEqual([
+    expect(
+      told({ ...plain, requestedDeficit: 1100, dailyDeficit: 627, deficitCapped: true }),
+    ).toEqual([
       'The pace you chose asks for 1,100 kcal a day less. That is more than a quarter of your maintenance, so the plan takes 627.',
     ]);
   });
 
   it('is the floor and the deficit it leaves, without the note on the pace', () => {
-    expect(told({ ...plain, safetyFloor: 1200, dailyDeficit: 287, deficitCapped: true, safetyFloorApplied: true })).toEqual([
+    expect(
+      told({
+        ...plain,
+        safetyFloor: 1200,
+        dailyDeficit: 287,
+        deficitCapped: true,
+        safetyFloorApplied: true,
+      }),
+    ).toEqual([
       'The target was raised to 1,200 kcal, the lowest a calculated plan goes. The deficit that leaves is 287 kcal a day.',
     ]);
   });
 
   it('is that no loss is planned where maintenance is under the floor', () => {
-    expect(told({ ...plain, safetyFloor: 1200, maintenance: 992, dailyTarget: 992, dailyDeficit: 0, maintenanceUnderFloor: true })[0]).toMatch(/^Your maintenance is under 1,200 kcal/);
+    expect(
+      told({
+        ...plain,
+        safetyFloor: 1200,
+        maintenance: 992,
+        dailyTarget: 992,
+        dailyDeficit: 0,
+        maintenanceUnderFloor: true,
+      })[0],
+    ).toMatch(/^Your maintenance is under 1,200 kcal/);
   });
 
   it('is that the goal is on hold and why, for somebody under 18 who has not acknowledged the risk', () => {
-    const lines = told({ ...plain, goalHeld: true, dailyDeficit: 0, dailyTarget: 2759, requestedDeficit: 1100, deficitCapped: true, warnings: ['minor'] });
+    const lines = told({
+      ...plain,
+      goalHeld: true,
+      dailyDeficit: 0,
+      dailyTarget: 2759,
+      requestedDeficit: 1100,
+      deficitCapped: true,
+      warnings: ['minor'],
+    });
 
     expect(lines).toHaveLength(2);
     expect(lines[0]).toMatch(/^Your goal to lose weight is on hold/);
@@ -67,7 +94,17 @@ describe('what a user is told about their calorie target', () => {
   });
 
   it('is said in Polish to a Polish reader', () => {
-    expect(told({ ...plain, source: 'manual_override', dailyTarget: 900, warnings: ['underweight', 'below_floor', 'below_bmr'] }, 'pl')).toEqual([
+    expect(
+      told(
+        {
+          ...plain,
+          source: 'manual_override',
+          dailyTarget: 900,
+          warnings: ['underweight', 'below_floor', 'below_bmr'],
+        },
+        'pl',
+      ),
+    ).toEqual([
       'Twój wskaźnik masy ciała jest poniżej 18,5, czyli w zakresie niedowagi. Dalsza utrata masy może Ci zaszkodzić.',
       'Wpisany cel jest niższy niż 1500 kcal, czyli najniższy, jaki wyliczyłby plan.',
       'Wpisany cel jest niższy niż to, co organizm zużywa w spoczynku (1780 kcal).',
@@ -75,8 +112,20 @@ describe('what a user is told about their calorie target', () => {
   });
 
   it('leaves the warnings of a risk to a form that gives them itself, and still says the rest', () => {
-    const held = { ...plain, goalHeld: true, dailyTarget: 2759, dailyDeficit: 0, warnings: ['minor' as const] };
-    const floored = { ...plain, dailyTarget: 1500, dailyDeficit: 300, safetyFloorApplied: true, warnings: ['underweight' as const] };
+    const held = {
+      ...plain,
+      goalHeld: true,
+      dailyTarget: 2759,
+      dailyDeficit: 0,
+      warnings: ['minor' as const],
+    };
+    const floored = {
+      ...plain,
+      dailyTarget: 1500,
+      dailyDeficit: 300,
+      safetyFloorApplied: true,
+      warnings: ['underweight' as const],
+    };
     const inAForm = (calories: CalorieCalculation): string[] => {
       const { unmount } = render(
         <NextIntlClientProvider locale="en" messages={en}>
@@ -89,6 +138,8 @@ describe('what a user is told about their calorie target', () => {
     };
 
     expect(inAForm(held)).toEqual([]);
-    expect(inAForm(floored)).toEqual([expect.stringMatching(/^The target was raised to 1,500 kcal/)]);
+    expect(inAForm(floored)).toEqual([
+      expect.stringMatching(/^The target was raised to 1,500 kcal/),
+    ]);
   });
 });

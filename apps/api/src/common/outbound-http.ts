@@ -75,7 +75,10 @@ function publicLookup(resolve: Resolver) {
       const internal = addresses.find((entry) => !isPublicAddress(entry.address));
       if (internal || addresses.length === 0) {
         return callback(
-          new OutboundRequestError('address_not_public', `${hostname} does not resolve to a public address.`),
+          new OutboundRequestError(
+            'address_not_public',
+            `${hostname} does not resolve to a public address.`,
+          ),
           [],
         );
       }
@@ -97,7 +100,12 @@ export function outboundRequest(
     // of an IPv4 address (decimal, hexadecimal, short) into the dotted one.
     const literal = target.hostname.replace(/^\[|\]$/g, '');
     if (req.publicOnly && isIP(literal) !== 0 && !isPublicAddress(literal)) {
-      fail(new OutboundRequestError('address_not_public', `${target.hostname} is not a public address.`));
+      fail(
+        new OutboundRequestError(
+          'address_not_public',
+          `${target.hostname} is not a public address.`,
+        ),
+      );
       return;
     }
     const body = req.body === undefined ? undefined : JSON.stringify(req.body);
@@ -119,7 +127,12 @@ export function outboundRequest(
         // One connection per request: nothing is reused from an earlier call
         // that was made on other terms.
         agent: false,
-        headers: { ...req.headers, ...(body === undefined ? {} : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }) },
+        headers: {
+          ...req.headers,
+          ...(body === undefined
+            ? {}
+            : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }),
+        },
         ...(req.publicOnly ? { lookup: publicLookup(resolve) } : {}),
       },
       (res) => {
@@ -129,7 +142,12 @@ export function outboundRequest(
           received += chunk.byteLength;
           if (received > req.maxBytes) {
             request.destroy();
-            finish(new OutboundRequestError('too_large', `The server sent more than ${req.maxBytes} bytes; the reply was discarded.`));
+            finish(
+              new OutboundRequestError(
+                'too_large',
+                `The server sent more than ${req.maxBytes} bytes; the reply was discarded.`,
+              ),
+            );
             return;
           }
           chunks.push(chunk);
@@ -147,11 +165,20 @@ export function outboundRequest(
 
     const timer = setTimeout(() => {
       request.destroy();
-      finish(new OutboundRequestError('timeout', `No answer within ${Math.round(req.timeoutMs / 1000)} s.`));
+      finish(
+        new OutboundRequestError(
+          'timeout',
+          `No answer within ${Math.round(req.timeoutMs / 1000)} s.`,
+        ),
+      );
     }, req.timeoutMs);
 
     request.on('error', (err) => {
-      finish(err instanceof OutboundRequestError ? err : new OutboundRequestError('network', err.message));
+      finish(
+        err instanceof OutboundRequestError
+          ? err
+          : new OutboundRequestError('network', err.message),
+      );
     });
     request.end(body);
   });

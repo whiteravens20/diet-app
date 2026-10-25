@@ -17,7 +17,7 @@ const TOFU_BOWL = 'tofu-rice-bowl'; // nothing that comes in such a pack
 const STEW = 'chickpea-tomato-stew'; // nothing either
 const EGGS = 'scrambled-eggs-on-toast'; // 70 g of bread; the eggs keep
 
-describe('the packs a plan\'s menu opens that do not keep', () => {
+describe("the packs a plan's menu opens that do not keep", () => {
   let t: TestApp;
   let plans: MealPlansService;
   let user: TestUser;
@@ -40,10 +40,20 @@ describe('the packs a plan\'s menu opens that do not keep', () => {
     for (const [index, mealType] of (['breakfast', 'lunch', 'dinner'] as const).entries()) {
       const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: slugs[index]! } });
       const meal = plan.days[day]!.meals.find((planned) => planned.mealType === mealType)!;
-      await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: recipe.id, servings: 1, quantityScale: 1, source: 'CATALOGUE', eatenAt: null } });
+      await t.prisma.plannedMeal.update({
+        where: { id: meal.id },
+        data: {
+          recipeId: recipe.id,
+          servings: 1,
+          quantityScale: 1,
+          source: 'CATALOGUE',
+          eatenAt: null,
+        },
+      });
     }
   }
-  const read = (locale: 'en' | 'pl' = 'en'): Promise<MealPlan> => plans.get(user.id, locale, plan.id);
+  const read = (locale: 'en' | 'pl' = 'en'): Promise<MealPlan> =>
+    plans.get(user.id, locale, plan.id);
 
   beforeEach(async () => {
     await resetUserData(t.prisma);
@@ -61,7 +71,16 @@ describe('the packs a plan\'s menu opens that do not keep', () => {
     // A litre of milk for 500 ml, a pack of chicken for 480 g, one of salmon for 140 g, a loaf for 70 g.
     expect(packs.bought).toBe(1000 + 500 + 250 + 500);
     expect(packs.used).toBe(500 + 480 + 140 + 70);
-    expect(packs.open.map((pack) => [pack.name, pack.unit, pack.packSize, pack.packs, pack.left, pack.wasted])).toEqual([
+    expect(
+      packs.open.map((pack) => [
+        pack.name,
+        pack.unit,
+        pack.packSize,
+        pack.packs,
+        pack.left,
+        pack.wasted,
+      ]),
+    ).toEqual([
       ['Wholegrain bread', 'g', 500, 1, 430, true],
       ['Whole milk', 'ml', 1000, 1, 500, true],
       ['Salmon', 'g', 250, 1, 110, true],

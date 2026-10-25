@@ -21,16 +21,23 @@ const DAY_MS = 86_400_000;
  *
  * Usage: `list(@ClientDate() today: string | null) { … }`
  */
-export const ClientDate = createParamDecorator((_data: unknown, ctx: ExecutionContext): string | null => {
-  const request = ctx.switchToHttp().getRequest<{ headers: Record<string, string | string[] | undefined> }>();
-  return clientDate(request.headers[CLIENT_DATE_HEADER], new Date());
-});
+export const ClientDate = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): string | null => {
+    const request = ctx
+      .switchToHttp()
+      .getRequest<{ headers: Record<string, string | string[] | undefined> }>();
+    return clientDate(request.headers[CLIENT_DATE_HEADER], new Date());
+  },
+);
 
 /** The day a request names in its header, checked against the moment it arrived; null when it names none. */
 export function clientDate(header: string | string[] | undefined, now: Date): string | null {
   const server = now.toISOString().slice(0, 10);
   if (header === undefined) return null;
-  const named = typeof header === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(header) ? Date.parse(`${header}T00:00:00Z`) : Number.NaN;
+  const named =
+    typeof header === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(header)
+      ? Date.parse(`${header}T00:00:00Z`)
+      : Number.NaN;
   // A day there is not (the 30th of February) is parsed as another one, or not at all.
   const real = !Number.isNaN(named) && new Date(named).toISOString().slice(0, 10) === header;
   if (!real || Math.abs(named - Date.parse(`${server}T00:00:00Z`)) > DAY_MS) {
@@ -38,7 +45,12 @@ export function clientDate(header: string | string[] | undefined, now: Date): st
       statusCode: 400,
       error: 'VALIDATION_FAILED',
       message: 'Request payload failed validation.',
-      issues: [{ path: CLIENT_DATE_HEADER, message: `Must be the day it is where the client is, as YYYY-MM-DD: ${server} or a day next to it.` }],
+      issues: [
+        {
+          path: CLIENT_DATE_HEADER,
+          message: `Must be the day it is where the client is, as YYYY-MM-DD: ${server} or a day next to it.`,
+        },
+      ],
     });
   }
   return header as string;

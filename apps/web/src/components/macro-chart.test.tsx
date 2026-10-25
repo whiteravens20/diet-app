@@ -18,7 +18,9 @@ describe("the ring of a day's macronutrients", () => {
   it('lists each part with its grams and its share of the energy, not of the weight', () => {
     shown();
 
-    const items = within(screen.getByRole('list')).getAllByRole('listitem').map((item) => item.textContent);
+    const items = within(screen.getByRole('list'))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
     expect(items).toEqual(['150 gProtein · 30%', '70 gFat · 31%', '200 gCarbs · 39%']);
   });
 
@@ -31,6 +33,8 @@ describe("the ring of a day's macronutrients", () => {
   it('is said in the language of the page', () => {
     shown('pl');
 
-    expect(within(screen.getByRole('list')).getAllByRole('listitem')[0]).toHaveTextContent(/150\sg\s*Białko · 30%/);
+    expect(within(screen.getByRole('list')).getAllByRole('listitem')[0]).toHaveTextContent(
+      /150\sg\s*Białko · 30%/,
+    );
   });
 });

@@ -190,9 +190,7 @@ export function RecipeDraftRow({
       >
         <div className="min-w-0 flex-1">
           <p className="font-medium">{draft.titles.en}</p>
-          <p className="text-xs text-muted-foreground">
-            {draft.descriptions.en}
-          </p>
+          <p className="text-xs text-muted-foreground">{draft.descriptions.en}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isUserDraft && (
@@ -244,9 +242,7 @@ export function RecipeDraftRow({
             <RecipePreview draft={draft} />
           )}
           {isUserDraft && (
-            <p className="text-xs text-muted-foreground italic">
-              {t('userDraftHint')}
-            </p>
+            <p className="text-xs text-muted-foreground italic">{t('userDraftHint')}</p>
           )}
 
           {error && (
@@ -300,12 +296,7 @@ export function RecipeDraftRow({
                     </span>
                   ))}
                 {canPromote && (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={working}
-                    onClick={onPromote}
-                  >
+                  <Button size="sm" variant="primary" disabled={working} onClick={onPromote}>
                     {t('promoteButton')}
                   </Button>
                 )}
@@ -323,7 +314,9 @@ export function RecipeDraftRow({
                   className="h-8 rounded-md border border-input bg-background px-2 text-xs"
                   value={draft.cuisine ?? ''}
                   disabled={working || draft.status === 'SHIPPED'}
-                  onChange={(e) => onChangeCuisine(e.target.value ? (e.target.value as Cuisine) : null)}
+                  onChange={(e) =>
+                    onChangeCuisine(e.target.value ? (e.target.value as Cuisine) : null)
+                  }
                 >
                   <option value="">{t('cuisineNone')}</option>
                   {CUISINES.map((cuisine) => (
@@ -380,7 +373,9 @@ function RecipePreview({ draft }: { draft: RecipeDraft }) {
       {/* A draft that was taken in from elsewhere: where from, and the licence it ships with. Written as text: an address is no link until a person has looked at it. */}
       {draft.provenanceLicense && (
         <p className="break-all text-xs text-muted-foreground md:col-span-2">
-          {draft.provenanceUrl ? t('importedFrom', { source: draft.provenanceUrl, licence: draft.provenanceLicense }) : t('importedLicence', { licence: draft.provenanceLicense })}
+          {draft.provenanceUrl
+            ? t('importedFrom', { source: draft.provenanceUrl, licence: draft.provenanceLicense })
+            : t('importedLicence', { licence: draft.provenanceLicense })}
         </p>
       )}
     </div>
@@ -430,20 +425,25 @@ function RecipeEditor({
       <div className="grid gap-3 md:grid-cols-2">
         {locales.map((locale) => (
           <div key={locale} className="space-y-1">
-            <label className="text-xs text-muted-foreground">{t('title')} · {locale}</label>
-            <Input value={edit.titles[locale] ?? ''} onChange={(e) => updateTitle(locale, e.target.value)} />
-            <label className="text-xs text-muted-foreground">{t('descriptionLabel')} · {locale}</label>
+            <label className="text-xs text-muted-foreground">
+              {t('title')} · {locale}
+            </label>
+            <Input
+              value={edit.titles[locale] ?? ''}
+              onChange={(e) => updateTitle(locale, e.target.value)}
+            />
+            <label className="text-xs text-muted-foreground">
+              {t('descriptionLabel')} · {locale}
+            </label>
             <Input
               value={edit.descriptions[locale] ?? ''}
               onChange={(e) => updateDescription(locale, e.target.value)}
             />
-            <label className="text-xs text-muted-foreground">{t('stepsLabel')} · {locale}</label>
+            <label className="text-xs text-muted-foreground">
+              {t('stepsLabel')} · {locale}
+            </label>
             {(edit.steps[locale] ?? []).map((step, i) => (
-              <Input
-                key={i}
-                value={step}
-                onChange={(e) => updateStep(locale, i, e.target.value)}
-              />
+              <Input key={i} value={step} onChange={(e) => updateStep(locale, i, e.target.value)} />
             ))}
           </div>
         ))}
@@ -490,9 +490,7 @@ function RecipeEditor({
                 min={0}
                 step="any"
                 value={line.quantity}
-                onChange={(e) =>
-                  updateIngredient(i, { quantity: Number(e.target.value) || 0 })
-                }
+                onChange={(e) => updateIngredient(i, { quantity: Number(e.target.value) || 0 })}
                 className="w-20"
                 disabled={lockStructural}
               />

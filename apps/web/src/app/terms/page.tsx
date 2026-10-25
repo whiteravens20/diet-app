@@ -50,19 +50,13 @@ export default function TermsPage() {
           <ol className="space-y-1.5">
             {SECTION_KEYS.map((key, idx) => (
               <li key={key}>
-                <a
-                  href={`#${key}`}
-                  className="text-muted-foreground hover:text-foreground"
-                >
+                <a href={`#${key}`} className="text-muted-foreground hover:text-foreground">
                   {idx + 1}. {t(`${key}.title`)}
                 </a>
               </li>
             ))}
             <li>
-              <a
-                href={`#${CONTACT_KEY}`}
-                className="text-muted-foreground hover:text-foreground"
-              >
+              <a href={`#${CONTACT_KEY}`} className="text-muted-foreground hover:text-foreground">
                 {SECTION_KEYS.length + 1}. {t(`${CONTACT_KEY}.title`)}
               </a>
             </li>

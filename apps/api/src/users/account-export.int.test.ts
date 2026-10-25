@@ -22,7 +22,12 @@ interface Exported {
   markedRecipes: Record<string, unknown>[];
   favoriteSets: Record<string, unknown>[];
   ownRecipes: (Record<string, unknown> & { title: string; ingredients: unknown[] })[];
-  plans: { id: string; profileId: string; days: { date: string; meals: Record<string, unknown>[] }[]; shoppingLists: { items: unknown[] }[] }[];
+  plans: {
+    id: string;
+    profileId: string;
+    days: { date: string; meals: Record<string, unknown>[] }[];
+    shoppingLists: { items: unknown[] }[];
+  }[];
   notifications: Record<string, unknown>[];
   aiCalls: Record<string, unknown>[];
   complete: boolean;
@@ -47,12 +52,18 @@ describe('everything an account holds, as one file', () => {
     user = await aUser(t);
   });
 
-  const asked = (by: TestUser = user) => t.http().get('/api/users/me/export').set(as(by)).buffer(true).parse((res, done) => {
-    let text = '';
-    res.setEncoding('utf8');
-    res.on('data', (piece: string) => (text += piece));
-    res.on('end', () => done(null, text));
-  });
+  const asked = (by: TestUser = user) =>
+    t
+      .http()
+      .get('/api/users/me/export')
+      .set(as(by))
+      .buffer(true)
+      .parse((res, done) => {
+        let text = '';
+        res.setEncoding('utf8');
+        res.on('data', (piece: string) => (text += piece));
+        res.on('end', () => done(null, text));
+      });
   /** The file as text, and as what it says. */
   const fileOf = async (by: TestUser = user): Promise<{ text: string; file: Exported }> => {
     const text = (await asked(by).expect(200)).body as string;
@@ -61,22 +72,69 @@ describe('everything an account holds, as one file', () => {
 
   /** Give the account something of everything it can hold. */
   async function filled(of: TestUser = user): Promise<{ profile: Profile; plan: MealPlan }> {
-    const profile = await aProfile(t, of, { name: 'Anna', preferences: { allergens: ['peanuts'], preferredCuisines: ['asian'] } as never });
+    const profile = await aProfile(t, of, {
+      name: 'Anna',
+      preferences: { allergens: ['peanuts'], preferredCuisines: ['asian'] } as never,
+    });
     const plan = await aPlan(t, of, profile, { durationDays: 2 });
     const breakfast = plan.days[0]!.meals[0]!;
-    await t.http().patch(`/api/meal-plans/${plan.id}/meals/${breakfast.id}/eaten`).set(as(of)).send({ eaten: true }).expect(200);
-    await t.http().post(`/api/meal-plans/${plan.id}/days/${plan.days[0]!.date}/custom-meal`).set(as(of)).send({ name: 'Soup from the canteen', mealType: 'snack', nutrition: { calories: 200, protein: 10, fat: 5, carbs: 25 } }).expect(201);
-    await t.http().post('/api/shopping-lists/generate').set(as(of)).send({ planId: plan.id }).expect(201);
+    await t
+      .http()
+      .patch(`/api/meal-plans/${plan.id}/meals/${breakfast.id}/eaten`)
+      .set(as(of))
+      .send({ eaten: true })
+      .expect(200);
+    await t
+      .http()
+      .post(`/api/meal-plans/${plan.id}/days/${plan.days[0]!.date}/custom-meal`)
+      .set(as(of))
+      .send({
+        name: 'Soup from the canteen',
+        mealType: 'snack',
+        nutrition: { calories: 200, protein: 10, fat: 5, carbs: 25 },
+      })
+      .expect(201);
+    await t
+      .http()
+      .post('/api/shopping-lists/generate')
+      .set(as(of))
+      .send({ planId: plan.id })
+      .expect(201);
     const rice = await t.prisma.ingredient.findFirstOrThrow({ where: { slug: 'white-rice' } });
     const shared = await t.prisma.recipe.findFirstOrThrow({ where: { slug: 'tofu-rice-bowl' } });
     await aPrivateRecipe(t, of, { title: 'My variant' });
     await t.prisma.weightEntry.create({ data: { profileId: profile.id, kg: 79.5 } });
-    await t.prisma.notification.create({ data: { profileId: profile.id, type: 'weight_reminder', payload: { profileId: profile.id } } });
-    await t.prisma.favorite.create({ data: { profileId: profile.id, recipeId: shared.id, sentiment: 'often', tags: ['quick'] } });
-    await t.prisma.favoriteSet.create({ data: { profileId: profile.id, label: 'Workday', slots: { lunch: shared.id } } });
-    await t.prisma.inventoryItem.create({ data: { profileId: profile.id, ingredientId: rice.id, quantity: 500, unit: 'g' } });
-    await t.prisma.aiProviderConfig.create({ data: { userId: of.id, provider: 'openai', model: 'gpt', encryptedKey: sealKey('sk-of-the-account', 'a1'.repeat(32), of.id) } });
-    await t.prisma.aiUsageLog.create({ data: { userId: of.id, provider: 'openai', model: 'gpt', operation: 'meal-swap', mode: 'byok', outcome: 'COMPLETED', promptTokens: 120 } });
+    await t.prisma.notification.create({
+      data: { profileId: profile.id, type: 'weight_reminder', payload: { profileId: profile.id } },
+    });
+    await t.prisma.favorite.create({
+      data: { profileId: profile.id, recipeId: shared.id, sentiment: 'often', tags: ['quick'] },
+    });
+    await t.prisma.favoriteSet.create({
+      data: { profileId: profile.id, label: 'Workday', slots: { lunch: shared.id } },
+    });
+    await t.prisma.inventoryItem.create({
+      data: { profileId: profile.id, ingredientId: rice.id, quantity: 500, unit: 'g' },
+    });
+    await t.prisma.aiProviderConfig.create({
+      data: {
+        userId: of.id,
+        provider: 'openai',
+        model: 'gpt',
+        encryptedKey: sealKey('sk-of-the-account', 'a1'.repeat(32), of.id),
+      },
+    });
+    await t.prisma.aiUsageLog.create({
+      data: {
+        userId: of.id,
+        provider: 'openai',
+        model: 'gpt',
+        operation: 'meal-swap',
+        mode: 'byok',
+        outcome: 'COMPLETED',
+        promptTokens: 120,
+      },
+    });
     return { profile, plan };
   }
 
@@ -85,7 +143,9 @@ describe('everything an account holds, as one file', () => {
     const file = JSON.parse(answered.body as string) as Exported;
 
     expect(answered.headers['content-type']).toMatch(/^application\/json/);
-    expect(answered.headers['content-disposition']).toMatch(/^attachment; filename="diet-app-account-\d{4}-\d{2}-\d{2}\.json"$/);
+    expect(answered.headers['content-disposition']).toMatch(
+      /^attachment; filename="diet-app-account-\d{4}-\d{2}-\d{2}\.json"$/,
+    );
     expect(answered.headers['cache-control']).toBe('no-store');
     expect(file.format).toBe(ACCOUNT_EXPORT_FORMAT);
     expect(Date.parse(file.exportedAt)).not.toBeNaN();
@@ -104,7 +164,19 @@ describe('everything an account holds, as one file', () => {
       operatorAiApprovedAt: null,
     });
     expect(file.sessions).toHaveLength(1);
-    for (const list of ['aiProviders', 'profiles', 'weights', 'pantry', 'markedRecipes', 'favoriteSets', 'ownRecipes', 'plans', 'notifications', 'aiCalls'] as const) expect(file[list], list).toEqual([]);
+    for (const list of [
+      'aiProviders',
+      'profiles',
+      'weights',
+      'pantry',
+      'markedRecipes',
+      'favoriteSets',
+      'ownRecipes',
+      'plans',
+      'notifications',
+      'aiCalls',
+    ] as const)
+      expect(file[list], list).toEqual([]);
     // The last thing in the file: a file that was cut short does not have it.
     expect(file.complete).toBe(true);
     expect((answered.body as string).endsWith('"complete":true}')).toBe(true);
@@ -116,27 +188,66 @@ describe('everything an account holds, as one file', () => {
     const { file } = await fileOf();
 
     expect(file.profiles).toHaveLength(1);
-    expect(file.profiles[0]).toMatchObject({ id: profile.id, name: 'Anna', age: 30, heightCm: 180, weightKg: 80, dietType: 'balanced' });
-    expect(file.profiles[0]!.preferences).toMatchObject({ allergens: ['peanuts'], preferredCuisines: ['asian'], maxTimesPerWeekSameMeal: 3 });
+    expect(file.profiles[0]).toMatchObject({
+      id: profile.id,
+      name: 'Anna',
+      age: 30,
+      heightCm: 180,
+      weightKg: 80,
+      dietType: 'balanced',
+    });
+    expect(file.profiles[0]!.preferences).toMatchObject({
+      allergens: ['peanuts'],
+      preferredCuisines: ['asian'],
+      maxTimesPerWeekSameMeal: 3,
+    });
     expect(file.weights).toEqual([expect.objectContaining({ profileId: profile.id, kg: 79.5 })]);
-    expect(file.pantry).toEqual([expect.objectContaining({ ingredientSlug: 'white-rice', quantity: 500, unit: 'g' })]);
-    expect(file.markedRecipes).toEqual([expect.objectContaining({ recipeSlug: 'tofu-rice-bowl', sentiment: 'often', tags: ['quick'] })]);
+    expect(file.pantry).toEqual([
+      expect.objectContaining({ ingredientSlug: 'white-rice', quantity: 500, unit: 'g' }),
+    ]);
+    expect(file.markedRecipes).toEqual([
+      expect.objectContaining({
+        recipeSlug: 'tofu-rice-bowl',
+        sentiment: 'often',
+        tags: ['quick'],
+      }),
+    ]);
     expect(file.favoriteSets).toEqual([expect.objectContaining({ label: 'Workday' })]);
     expect(file.ownRecipes).toEqual([expect.objectContaining({ title: 'My variant' })]);
     expect(file.ownRecipes[0]!.ingredients.length).toBeGreaterThan(0);
     expect(file.notifications).toEqual([expect.objectContaining({ type: 'weight_reminder' })]);
-    expect(file.aiCalls).toEqual([expect.objectContaining({ provider: 'openai', operation: 'meal-swap', outcome: 'COMPLETED', promptTokens: 120 })]);
+    expect(file.aiCalls).toEqual([
+      expect.objectContaining({
+        provider: 'openai',
+        operation: 'meal-swap',
+        outcome: 'COMPLETED',
+        promptTokens: 120,
+      }),
+    ]);
 
     expect(file.plans).toHaveLength(1);
     const [exported] = file.plans;
-    expect(exported).toMatchObject({ id: plan.id, profileId: profile.id, startDate: plan.startDate, durationDays: 2, dietType: 'balanced' });
+    expect(exported).toMatchObject({
+      id: plan.id,
+      profileId: profile.id,
+      startDate: plan.startDate,
+      durationDays: 2,
+      dietType: 'balanced',
+    });
     expect(exported!.days.map((day) => day.date)).toEqual(plan.days.map((day) => day.date));
     const firstDay = exported!.days[0]!.meals;
     // The meals of the plan, the one of the account's own among them, and the one that was marked as eaten.
     expect(firstDay).toHaveLength(plan.days[0]!.meals.length + 1);
     expect(firstDay.filter((meal) => meal.eatenAt !== null)).toHaveLength(1);
-    expect(firstDay.find((meal) => meal.recipeId === null)).toMatchObject({ mealType: 'snack', ownName: 'Soup from the canteen', ownNutrition: { calories: 200, protein: 10, fat: 5, carbs: 25 } });
-    expect(firstDay.find((meal) => meal.recipeId !== null)).toMatchObject({ recipe: expect.any(String), servings: expect.any(Number) });
+    expect(firstDay.find((meal) => meal.recipeId === null)).toMatchObject({
+      mealType: 'snack',
+      ownName: 'Soup from the canteen',
+      ownNutrition: { calories: 200, protein: 10, fat: 5, carbs: 25 },
+    });
+    expect(firstDay.find((meal) => meal.recipeId !== null)).toMatchObject({
+      recipe: expect.any(String),
+      servings: expect.any(Number),
+    });
     expect(exported!.shoppingLists).toHaveLength(1);
     expect(exported!.shoppingLists[0]!.items.length).toBeGreaterThan(0);
   });
@@ -144,26 +255,61 @@ describe('everything an account holds, as one file', () => {
   it('holds nothing that proves who the account is: no password, no token, no key, no secret', async () => {
     await filled();
     // A second factor, which the session the account holds has passed.
-    await t.prisma.secondFactor.create({ data: { userId: user.id, secretEncrypted: 'the-sealed-secret', lastStep: 0, recoveryCodes: { create: [{ codeHash: 'a-recovery-hash' }] } } });
-    await t.prisma.refreshToken.updateMany({ where: { userId: user.id }, data: { secondFactorAt: new Date() } });
+    await t.prisma.secondFactor.create({
+      data: {
+        userId: user.id,
+        secretEncrypted: 'the-sealed-secret',
+        lastStep: 0,
+        recoveryCodes: { create: [{ codeHash: 'a-recovery-hash' }] },
+      },
+    });
+    await t.prisma.refreshToken.updateMany({
+      where: { userId: user.id },
+      data: { secondFactorAt: new Date() },
+    });
     const stored = await t.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     const tokens = await t.prisma.refreshToken.findMany({ where: { userId: user.id } });
     const config = await t.prisma.aiProviderConfig.findFirstOrThrow({ where: { userId: user.id } });
 
     const { text, file } = await fileOf();
 
-    for (const secret of [user.password, stored.passwordHash, stored.emailIndex, stored.emailEncrypted, user.accessToken, user.refreshToken, 'sk-of-the-account', config.encryptedKey!, 'the-sealed-secret', 'a-recovery-hash', ...tokens.map((token) => token.tokenHash)]) {
+    for (const secret of [
+      user.password,
+      stored.passwordHash,
+      stored.emailIndex,
+      stored.emailEncrypted,
+      user.accessToken,
+      user.refreshToken,
+      'sk-of-the-account',
+      config.encryptedKey!,
+      'the-sealed-secret',
+      'a-recovery-hash',
+      ...tokens.map((token) => token.tokenHash),
+    ]) {
       expect(text.includes(secret), `the file holds "${secret.slice(0, 12)}…"`).toBe(false);
     }
-    for (const name of ['passwordHash', 'encryptedKey', 'secretEncrypted', 'tokenHash', 'codeHash', 'emailIndex']) expect(text.includes(name), name).toBe(false);
+    for (const name of [
+      'passwordHash',
+      'encryptedKey',
+      'secretEncrypted',
+      'tokenHash',
+      'codeHash',
+      'emailIndex',
+    ])
+      expect(text.includes(name), name).toBe(false);
     // That there is a key, and that sign-in takes a second step, it does say.
-    expect(file.aiProviders).toEqual([expect.objectContaining({ provider: 'openai', model: 'gpt', hasKey: true })]);
+    expect(file.aiProviders).toEqual([
+      expect.objectContaining({ provider: 'openai', model: 'gpt', hasKey: true }),
+    ]);
     expect(file.account.secondFactorSince).toEqual(expect.any(String));
   });
 
-  it("says since when the operator has let the account use its AI provider", async () => {
+  it('says since when the operator has let the account use its AI provider', async () => {
     const approvedAt = new Date('2026-10-20T08:00:00.000Z');
-    await t.prisma.user.update({ where: { id: user.id }, data: { operatorAiApprovedAt: approvedAt } });
+    await t.prisma.user.update({
+      where: { id: user.id },
+      data: { operatorAiApprovedAt: approvedAt },
+    });
 
     const { file } = await fileOf();
 
@@ -189,9 +335,22 @@ describe('everything an account holds, as one file', () => {
     const profile = await aProfile(t, user);
     const second = await aProfile(t, user, { name: 'Second' });
     // More weights than two pages hold, and more plans than two pages of plans.
-    await t.prisma.weightEntry.createMany({ data: Array.from({ length: 450 }, (_, index) => ({ profileId: index % 2 ? profile.id : second.id, kg: 60 + index / 10 })) });
+    await t.prisma.weightEntry.createMany({
+      data: Array.from({ length: 450 }, (_, index) => ({
+        profileId: index % 2 ? profile.id : second.id,
+        kg: 60 + index / 10,
+      })),
+    });
     await t.prisma.mealPlan.createMany({
-      data: Array.from({ length: 45 }, (_, index) => ({ profileId: profile.id, startDate: new Date(Date.UTC(2026, 0, 1 + index)), durationDays: 1, dietType: 'balanced' as const, calorieTarget: 2000, options: {}, seed: index })),
+      data: Array.from({ length: 45 }, (_, index) => ({
+        profileId: profile.id,
+        startDate: new Date(Date.UTC(2026, 0, 1 + index)),
+        durationDays: 1,
+        dietType: 'balanced' as const,
+        calorieTarget: 2000,
+        options: {},
+        seed: index,
+      })),
     });
 
     const { file } = await fileOf();

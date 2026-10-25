@@ -1,7 +1,23 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { AddFavoriteRequest, FavoriteListQuery, FavoriteMark, MarkedRecipe, type Locale } from '@diet-app/shared';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  AddFavoriteRequest,
+  FavoriteListQuery,
+  FavoriteMark,
+  MarkedRecipe,
+  type Locale,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
@@ -29,7 +45,10 @@ export class FavoritesController {
   /** Mark a recipe for a profile. Marking it again replaces what was said before. */
   @Post()
   @Answers(FavoriteMark)
-  add(@CurrentUser() user: RequestUser, @Body(new ZodValidationPipe(AddFavoriteRequest)) dto: AddFavoriteRequest) {
+  add(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(AddFavoriteRequest)) dto: AddFavoriteRequest,
+  ) {
     return this.favorites.add(user.id, dto.profileId, dto.recipeId, dto.tags, dto.sentiment);
   }
 

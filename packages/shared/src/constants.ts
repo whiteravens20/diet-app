@@ -16,10 +16,25 @@ import { LOCALES } from './options.js';
  */
 
 /** The diets a profile may follow (`DietType`). */
-export const DIET_TYPES = ['balanced', 'high_protein', 'low_carb', 'vegetarian', 'vegan', 'keto', 'mediterranean', 'custom'] as const;
+export const DIET_TYPES = [
+  'balanced',
+  'high_protein',
+  'low_carb',
+  'vegetarian',
+  'vegan',
+  'keto',
+  'mediterranean',
+  'custom',
+] as const;
 
 /** The diets a recipe has to qualify for (`RecipeDietTag`). */
-export const RECIPE_DIET_TAGS = ['vegetarian', 'vegan', 'mediterranean', 'low_carb', 'keto'] as const;
+export const RECIPE_DIET_TAGS = [
+  'vegetarian',
+  'vegan',
+  'mediterranean',
+  'low_carb',
+  'keto',
+] as const;
 
 /** The meals of a day (`MealType`). */
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack', 'second_breakfast'] as const;
@@ -33,10 +48,29 @@ export const MEAL_SLOTS_BY_COUNT: Record<number, (typeof MEAL_TYPES)[number][]> 
 };
 
 /** The allergens a recipe is flagged with and a profile may rule out (`Allergen`). */
-export const ALLERGENS = ['gluten', 'dairy', 'eggs', 'nuts', 'peanuts', 'soy', 'fish', 'shellfish', 'sesame'] as const;
+export const ALLERGENS = [
+  'gluten',
+  'dairy',
+  'eggs',
+  'nuts',
+  'peanuts',
+  'soy',
+  'fish',
+  'shellfish',
+  'sesame',
+] as const;
 
 /** The cuisines a recipe may be tagged with, a profile may prefer and a draft may be asked for (`Cuisine`). */
-export const CUISINES = ['polish', 'italian', 'asian', 'mediterranean', 'middle_eastern', 'mexican', 'american', 'indian'] as const;
+export const CUISINES = [
+  'polish',
+  'italian',
+  'asian',
+  'mediterranean',
+  'middle_eastern',
+  'mexican',
+  'american',
+  'indian',
+] as const;
 
 /** How a profile feels about a recipe it marked (`FavoriteSentiment`). */
 export const FAVORITE_SENTIMENTS = ['favorite', 'often', 'avoid'] as const;

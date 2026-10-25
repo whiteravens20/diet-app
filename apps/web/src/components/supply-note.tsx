@@ -14,7 +14,15 @@ import { cn } from '@/lib/utils';
  * answered yet. It speaks of the catalogue only: a recipe the user made for
  * themselves can fill a gap, and the planner counts it.
  */
-export function SupplyNote({ diet, mealCount, className }: { diet: DietType; mealCount: number; className?: string }) {
+export function SupplyNote({
+  diet,
+  mealCount,
+  className,
+}: {
+  diet: DietType;
+  mealCount: number;
+  className?: string;
+}) {
   const t = useTranslations('catalogue');
   const tDiet = useTranslations('enums.dietType');
   const found = supplyOf(useConfig().data?.catalogue.depth, diet, mealCount);
@@ -22,7 +30,12 @@ export function SupplyNote({ diet, mealCount, className }: { diet: DietType; mea
   return (
     <p role="status" className={cn('text-xs text-warning', className)}>
       {found.supply === 'none'
-        ? t('none', { diet: tDiet(diet), count: mealCount, advice: found.fewerMeals ? 'fewer' : 'diet', fewer: found.fewerMeals ?? 0 })
+        ? t('none', {
+            diet: tDiet(diet),
+            count: mealCount,
+            advice: found.fewerMeals ? 'fewer' : 'diet',
+            fewer: found.fewerMeals ?? 0,
+          })
         : t('thin', { diet: tDiet(diet), count: mealCount, recipes: found.recipes })}
     </p>
   );

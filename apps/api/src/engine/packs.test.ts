@@ -1,7 +1,16 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { ACCEPTED_LEFT, DAYS_TO_USE_A_PACK, SPOONFUL, leftBeyondAccepted, leftOf, packPull, packUse, packsFor } from './packs.js';
+import {
+  ACCEPTED_LEFT,
+  DAYS_TO_USE_A_PACK,
+  SPOONFUL,
+  leftBeyondAccepted,
+  leftOf,
+  packPull,
+  packUse,
+  packsFor,
+} from './packs.js';
 
 /** Chicken in packs of 600 g, eggs in cartons of ten (550 g), yogurt in tubs of 500 g. */
 const PACKS = new Map([
@@ -9,8 +18,12 @@ const PACKS = new Map([
   ['eggs', 550],
   ['yogurt', 500],
 ]);
-const held = (amounts: Record<string, number>) => (ingredientId: string): number => amounts[ingredientId] ?? 0;
-const meal = (amounts: Record<string, number>): Map<string, number> => new Map(Object.entries(amounts));
+const held =
+  (amounts: Record<string, number>) =>
+  (ingredientId: string): number =>
+    amounts[ingredientId] ?? 0;
+const meal = (amounts: Record<string, number>): Map<string, number> =>
+  new Map(Object.entries(amounts));
 
 describe('the packs a need takes', () => {
   it('are whole packs, none for no need, and one more when the last is not enough', () => {
@@ -53,9 +66,13 @@ describe('what a meal does to the packs of a plan', () => {
   it('holds a pack it opens and mostly leaves against the meal on the last day of a plan', () => {
     // 150 g of 600: three quarters of the pack would be left, with no day to use them on.
     expect(packPull(meal({ chicken: 150 }), held({}), PACKS)).toBeLessThan(-0.6);
-    expect(packPull(meal({ chicken: 150 }), held({}), PACKS, 0)).toBe(packPull(meal({ chicken: 150 }), held({}), PACKS));
+    expect(packPull(meal({ chicken: 150 }), held({}), PACKS, 0)).toBe(
+      packPull(meal({ chicken: 150 }), held({}), PACKS),
+    );
     // A meal of a serving and a half of a recipe is one that takes half as much again.
-    expect(packPull(meal({ chicken: 100 }), held({}), PACKS, 0, 1.5)).toBe(packPull(meal({ chicken: 150 }), held({}), PACKS));
+    expect(packPull(meal({ chicken: 100 }), held({}), PACKS, 0, 1.5)).toBe(
+      packPull(meal({ chicken: 150 }), held({}), PACKS),
+    );
   });
 
   it('holds it against no meal with a week of the plan to come, and the less the more days there are', () => {
@@ -65,7 +82,9 @@ describe('what a meal does to the packs of a plan', () => {
     expect(packPull(meal({ chicken: 150 }), held({}), PACKS, 7)).toBe(0);
     expect(packPull(meal({ chicken: 150 }), held({}), PACKS, 30)).toBe(0);
     expect(packPull(meal({ chicken: 150 }), held({}), PACKS, 3.5)).toBeCloseTo(onTheLastDay / 2, 5);
-    expect(packPull(meal({ chicken: 150 }), held({}), PACKS, 6)).toBeGreaterThan(packPull(meal({ chicken: 150 }), held({}), PACKS, 1));
+    expect(packPull(meal({ chicken: 150 }), held({}), PACKS, 6)).toBeGreaterThan(
+      packPull(meal({ chicken: 150 }), held({}), PACKS, 1),
+    );
   });
 
   it('holds nothing against a meal that opens a pack and uses it well', () => {
@@ -73,7 +92,9 @@ describe('what a meal does to the packs of a plan', () => {
   });
 
   it('is nothing for an ingredient that is bought loose, or whose pack keeps', () => {
-    expect(packPull(meal({ rice: 80, tomato: 240 }), held({ rice: 80, tomato: 100 }), PACKS)).toBe(0);
+    expect(packPull(meal({ rice: 80, tomato: 240 }), held({ rice: 80, tomato: 100 }), PACKS)).toBe(
+      0,
+    );
     expect(packPull(meal({ rice: 80, tomato: 240 }), held({}), PACKS)).toBe(0);
   });
 
@@ -106,37 +127,69 @@ describe('what a meal does to the packs of a plan', () => {
   });
 
   it('weighs every ingredient of the meal, and stays between minus one and one', () => {
-    const both = packPull(meal({ chicken: 200, yogurt: 150 }), held({ chicken: 200, yogurt: 150 }), PACKS);
+    const both = packPull(
+      meal({ chicken: 200, yogurt: 150 }),
+      held({ chicken: 200, yogurt: 150 }),
+      PACKS,
+    );
     const one = packPull(meal({ chicken: 200 }), held({ chicken: 200, yogurt: 150 }), PACKS);
 
     expect(both).toBeGreaterThan(one);
-    expect(packPull(meal({ chicken: 150, eggs: 165, yogurt: 100 }), held({ chicken: 550, eggs: 495, yogurt: 450 }), PACKS)).toBe(-1);
+    expect(
+      packPull(
+        meal({ chicken: 150, eggs: 165, yogurt: 100 }),
+        held({ chicken: 550, eggs: 495, yogurt: 450 }),
+        PACKS,
+      ),
+    ).toBe(-1);
   });
 });
 
 describe('what a plan comes to in packs', () => {
   it('is the whole packs it buys against what it uses of them', () => {
-    const use = packUse(new Map([['chicken', 880], ['yogurt', 500], ['rice', 330]]), PACKS);
+    const use = packUse(
+      new Map([
+        ['chicken', 880],
+        ['yogurt', 500],
+        ['rice', 330],
+      ]),
+      PACKS,
+    );
 
     // Two packs of chicken and one tub of yogurt; the rice is no pack that is counted here.
     expect(use).toMatchObject({ bought: 1700, used: 1380 });
-    expect(use.open).toEqual([{ ingredientId: 'chicken', packSize: 600, packs: 2, used: 880, left: 320, wasted: true }]);
+    expect(use.open).toEqual([
+      { ingredientId: 'chicken', packSize: 600, packs: 2, used: 880, left: 320, wasted: true },
+    ]);
   });
 
   it('names a pack that is left open and used well enough, without calling it wasted', () => {
     const use = packUse(new Map([['chicken', 550]]), PACKS);
 
-    expect(use.open).toEqual([{ ingredientId: 'chicken', packSize: 600, packs: 1, used: 550, left: 50, wasted: false }]);
+    expect(use.open).toEqual([
+      { ingredientId: 'chicken', packSize: 600, packs: 1, used: 550, left: 50, wasted: false },
+    ]);
   });
 
   it('puts the pack with the most left first', () => {
-    const use = packUse(new Map([['chicken', 550], ['yogurt', 100], ['eggs', 275]]), PACKS);
+    const use = packUse(
+      new Map([
+        ['chicken', 550],
+        ['yogurt', 100],
+        ['eggs', 275],
+      ]),
+      PACKS,
+    );
 
     expect(use.open.map((pack) => pack.ingredientId)).toEqual(['yogurt', 'eggs', 'chicken']);
   });
 
   it('takes a need that is a spoonful over its packs for the packs, all of them used', () => {
-    expect(packUse(new Map([['salmon', 1008]]), new Map([['salmon', 250]]))).toEqual({ bought: 1000, used: 1000, open: [] });
+    expect(packUse(new Map([['salmon', 1008]]), new Map([['salmon', 250]]))).toEqual({
+      bought: 1000,
+      used: 1000,
+      open: [],
+    });
   });
 
   it('is nothing for a plan that uses nothing that comes in such a pack', () => {

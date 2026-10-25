@@ -34,7 +34,11 @@ export class WeightsController {
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(WeightListQuery)) query: WeightListQuery,
   ) {
-    return this.weights.list(user.id, query.profileId, query.since ? new Date(query.since) : undefined);
+    return this.weights.list(
+      user.id,
+      query.profileId,
+      query.since ? new Date(query.since) : undefined,
+    );
   }
 
   /** Note a weight of a profile for a day. */

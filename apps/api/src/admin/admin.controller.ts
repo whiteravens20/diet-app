@@ -16,7 +16,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AdminConnection, AdminStats, AdminStatus, CatalogueUpdateState, DietType, FoodImportState, UsdaImportQuery } from '@diet-app/shared';
+import {
+  AdminConnection,
+  AdminStats,
+  AdminStatus,
+  CatalogueUpdateState,
+  DietType,
+  FoodImportState,
+  UsdaImportQuery,
+} from '@diet-app/shared';
 import type { Request } from 'express';
 import { CatalogueCoverageService } from '../catalogue/catalogue-coverage.service.js';
 import { Answers } from '../common/answers.decorator.js';
@@ -70,7 +78,9 @@ export class AdminController {
   connection(@Req() req: Request): AdminConnection {
     const header = req.headers['x-forwarded-for'];
     const forwardedFor = Array.isArray(header) ? header.join(', ') : (header ?? null);
-    const forwardedHops = (forwardedFor ?? '').split(',').filter((address) => address.trim().length > 0).length;
+    const forwardedHops = (forwardedFor ?? '')
+      .split(',')
+      .filter((address) => address.trim().length > 0).length;
     const clientAddress = req.ip ?? null;
     const peerAddress = req.socket.remoteAddress ?? null;
     const trustProxy = parseTrustProxy(this.config.get('TRUST_PROXY', { infer: true }));
@@ -94,7 +104,9 @@ export class AdminController {
     // One after another, on one connection: the page is opened by one person now and then, and seven
     // connections at once for it would be seven that the requests of accounts wait for.
     const ingredients = await this.prisma.ingredient.count({ where: { retiredAt: null } });
-    const recipes = await this.prisma.recipe.count({ where: { createdByUserId: null, retiredAt: null } });
+    const recipes = await this.prisma.recipe.count({
+      where: { createdByUserId: null, retiredAt: null },
+    });
     const substitutions = await this.prisma.substitutionRule.count();
     const meta = await this.prisma.seedMeta.findUnique({ where: { key: 'data' } });
     const coverage = await this.coverage.count();
@@ -108,7 +120,12 @@ export class AdminController {
       coverageWaiting: waiting,
       macros: {
         outOfReach: MACRO_OUT_OF_REACH,
-        diets: Object.fromEntries(DietType.options.map((diet) => [diet, { target: macroSplitOf(diet), reached: reach[diet] }])) as AdminStats['macros']['diets'],
+        diets: Object.fromEntries(
+          DietType.options.map((diet) => [
+            diet,
+            { target: macroSplitOf(diet), reached: reach[diet] },
+          ]),
+        ) as AdminStats['macros']['diets'],
       },
       seed: {
         lastSeededAt: meta?.seededAt.toISOString() ?? null,
@@ -183,4 +200,3 @@ export class AdminController {
     return this.importer.getState();
   }
 }
-

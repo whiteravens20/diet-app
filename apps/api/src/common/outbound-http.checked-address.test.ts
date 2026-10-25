@@ -3,12 +3,19 @@
 import { createServer } from 'node:http';
 import { getDefaultAutoSelectFamily, setDefaultAutoSelectFamily, type AddressInfo } from 'node:net';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { outboundRequest, OutboundRequestError, type OutboundRequest, type Resolver } from './outbound-http.js';
+import {
+  outboundRequest,
+  OutboundRequestError,
+  type OutboundRequest,
+  type Resolver,
+} from './outbound-http.js';
 
 // A test cannot dial a public address. Here the loopback address, where the
 // stub server listens, stands in for one, and 10.0.0.7 for an address that is
 // not public. What counts as public is tested by itself (`public-address.test.ts`).
-vi.mock('./public-address.js', () => ({ isPublicAddress: (address: string) => address !== '10.0.0.7' }));
+vi.mock('./public-address.js', () => ({
+  isPublicAddress: (address: string) => address !== '10.0.0.7',
+}));
 
 let port: number;
 let hits = 0;
@@ -29,7 +36,12 @@ afterAll(async () => {
   await new Promise((closed) => server.close(closed));
 });
 
-const publicOnly: OutboundRequest = { method: 'GET', timeoutMs: 3_000, maxBytes: 10_000, publicOnly: true };
+const publicOnly: OutboundRequest = {
+  method: 'GET',
+  timeoutMs: 3_000,
+  maxBytes: 10_000,
+  publicOnly: true,
+};
 
 /** A resolver that gives one answer after another, the last one for good, and counts how often it was asked. */
 function answering(...answers: string[][]): { resolve: Resolver; asked: () => number } {
@@ -63,7 +75,11 @@ describe('a name that resolves to a public address, when only such an address ma
     const name = answering(['127.0.0.1']);
     hits = 0;
 
-    const answer = await outboundRequest(`http://models.example:${port}/api/tags`, publicOnly, name.resolve);
+    const answer = await outboundRequest(
+      `http://models.example:${port}/api/tags`,
+      publicOnly,
+      name.resolve,
+    );
 
     expect(answer).toMatchObject({ status: 200, text: 'reached' });
     expect(hits).toBe(1);
@@ -74,7 +90,11 @@ describe('a name that resolves to a public address, when only such an address ma
     const name = answering(['127.0.0.1'], ['10.0.0.7']);
     hits = 0;
 
-    const answer = await outboundRequest(`http://turning.example:${port}/api/tags`, publicOnly, name.resolve);
+    const answer = await outboundRequest(
+      `http://turning.example:${port}/api/tags`,
+      publicOnly,
+      name.resolve,
+    );
 
     expect(answer.text).toBe('reached');
     expect(name.asked()).toBe(1);
@@ -87,7 +107,11 @@ describe('a name that resolves to a public address, when only such an address ma
       ['127.0.0.1', '10.0.0.7'],
       ['10.0.0.7', '127.0.0.1'],
     ]) {
-      const refused = await outboundRequest(`http://two-faced.example:${port}/api/tags`, publicOnly, answering(addresses).resolve).catch((err: unknown) => err);
+      const refused = await outboundRequest(
+        `http://two-faced.example:${port}/api/tags`,
+        publicOnly,
+        answering(addresses).resolve,
+      ).catch((err: unknown) => err);
 
       expect(refused).toBeInstanceOf(OutboundRequestError);
       expect((refused as OutboundRequestError).failure).toBe('address_not_public');

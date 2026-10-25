@@ -62,7 +62,10 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
    */
   protected override async handleRequest(request: ThrottlerRequest): Promise<boolean> {
     const { context } = request;
-    const counts = this.reflector.getAllAndOverride<CredentialCount[] | undefined>(CREDENTIAL_COUNTS, [context.getHandler(), context.getClass()]);
+    const counts = this.reflector.getAllAndOverride<CredentialCount[] | undefined>(
+      CREDENTIAL_COUNTS,
+      [context.getHandler(), context.getClass()],
+    );
     if (!counts) return super.handleRequest(request);
 
     const sender = await this.getTracker(this.getRequestResponse(context).req);
@@ -71,7 +74,13 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
       await super.handleRequest({ ...request, getTracker: () => sender });
     }
     for (const count of counts) {
-      await super.handleRequest({ ...request, limit: count.limit, ttl: count.ttl, blockDuration: count.ttl, getTracker: count.by });
+      await super.handleRequest({
+        ...request,
+        limit: count.limit,
+        ttl: count.ttl,
+        blockDuration: count.ttl,
+        getTracker: count.by,
+      });
     }
     return true;
   }
@@ -89,7 +98,9 @@ export class ClientThrottlerGuard extends ThrottlerGuard {
     try {
       const payload = this.tokens.verify<{ sub?: unknown; kind?: unknown }>(header.slice(7));
       // The same rule as the access-token guard: a user token has a subject and no kind.
-      return payload.kind === undefined && typeof payload.sub === 'string' && payload.sub.length > 0 ? payload.sub : null;
+      return payload.kind === undefined && typeof payload.sub === 'string' && payload.sub.length > 0
+        ? payload.sub
+        : null;
     } catch {
       return null;
     }

@@ -42,7 +42,11 @@ describe('AuthForm', () => {
   });
 });
 
-const aSession = { user: { id: 'u' }, tokens: { accessToken: 'a', expiresIn: 900, refreshExpiresIn: 2_592_000 }, sessionId: 's' };
+const aSession = {
+  user: { id: 'u' },
+  tokens: { accessToken: 'a', expiresIn: 900, refreshExpiresIn: 2_592_000 },
+  sessionId: 's',
+};
 
 describe('where signing in leads', () => {
   afterEach(() => {
@@ -71,10 +75,19 @@ describe('where signing in leads', () => {
   });
 
   it('is the page the visitor was sent here from', async () => {
-    expect(await signedInAt('/login?next=%2Fmeal-plans%3Fprofile%3Dabc')).toEqual(['/meal-plans?profile=abc']);
+    expect(await signedInAt('/login?next=%2Fmeal-plans%3Fprofile%3Dabc')).toEqual([
+      '/meal-plans?profile=abc',
+    ]);
   });
 
-  it.each(['https://elsewhere.example/', '//elsewhere.example/dashboard', '/\\elsewhere.example', 'javascript:alert(1)', '/api/users/me', '/terms'])(
+  it.each([
+    'https://elsewhere.example/',
+    '//elsewhere.example/dashboard',
+    '/\\elsewhere.example',
+    'javascript:alert(1)',
+    '/api/users/me',
+    '/terms',
+  ])(
     'is the home page when it is asked to be %s, which is no page of an account',
     async (asked) => {
       expect(await signedInAt(`/login?next=${encodeURIComponent(asked)}`)).toEqual(['/dashboard']);
@@ -131,35 +144,49 @@ describe('signing in to an account with two-step sign-in', () => {
     await userEvent.type(code, '123456');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(post).toHaveBeenLastCalledWith('/auth/login/second-factor', { challenge: 'the-challenge', code: '123456' }, COOKIE_SESSION);
+    expect(post).toHaveBeenLastCalledWith(
+      '/auth/login/second-factor',
+      { challenge: 'the-challenge', code: '123456' },
+      COOKIE_SESSION,
+    );
     expect(begin).toHaveBeenCalledWith(aSession);
     expect(load).toHaveBeenCalledWith('/dashboard');
   });
 
   it('says so when the code is wrong, and stays at the code', async () => {
     const { post, code } = await atTheSecondStep();
-    post.mockRejectedValueOnce(new ApiClientError(401, 'INVALID_SECOND_FACTOR_CODE', 'That code is not right.'));
+    post.mockRejectedValueOnce(
+      new ApiClientError(401, 'INVALID_SECOND_FACTOR_CODE', 'That code is not right.'),
+    );
 
     await userEvent.type(code, '000000');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.INVALID_SECOND_FACTOR_CODE);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      messages.errors.INVALID_SECOND_FACTOR_CODE,
+    );
     expect(screen.getByLabelText(messages.secondFactor.codeOrRecovery)).toBeInTheDocument();
   });
 
   it('says how long codes have to wait after too many wrong ones', async () => {
     const { post, code } = await atTheSecondStep();
-    post.mockRejectedValueOnce(new ApiClientError(429, 'TOO_MANY_ATTEMPTS', 'Too many wrong codes.', undefined, 240));
+    post.mockRejectedValueOnce(
+      new ApiClientError(429, 'TOO_MANY_ATTEMPTS', 'Too many wrong codes.', undefined, 240),
+    );
 
     await userEvent.type(code, '000000');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Too many attempts. Try again in 4 minutes.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many attempts. Try again in 4 minutes.',
+    );
   });
 
   it('begins again with the password when the sign-in took too long', async () => {
     const { post, code } = await atTheSecondStep();
-    post.mockRejectedValueOnce(new ApiClientError(401, 'INVALID_SIGN_IN_CHALLENGE', 'This sign-in took too long.'));
+    post.mockRejectedValueOnce(
+      new ApiClientError(401, 'INVALID_SIGN_IN_CHALLENGE', 'This sign-in took too long.'),
+    );
 
     await userEvent.type(code, '123456');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -176,4 +203,3 @@ describe('signing in to an account with two-step sign-in', () => {
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
   });
 });
-

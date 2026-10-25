@@ -128,21 +128,52 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
           disabled={running}
           className="w-20 rounded-md border border-input bg-background px-2 py-1 text-xs"
         />
-        <Button type="button" size="sm" variant="outline" onClick={() => void start()} disabled={!configured || running || locale === ''} className="gap-2">
-          {running ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4" />}
-          {running ? t('running', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 }) : t('start')}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => void start()}
+          disabled={!configured || running || locale === ''}
+          className="gap-2"
+        >
+          {running ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <Languages className="h-4 w-4" />
+          )}
+          {running
+            ? t('running', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })
+            : t('start')}
         </Button>
         {running && (
-          <Button type="button" size="sm" variant="outline" onClick={() => void stop()} className="gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void stop()}
+            className="gap-2"
+          >
             <X className="h-4 w-4" />
             {tCuration('stop')}
           </Button>
         )}
       </div>
       <div role="status" className="space-y-1 text-xs text-muted-foreground">
-        {ended && runner.status === 'error' && <p className="text-destructive">{t('failed', { error: runner.error ?? '' })}</p>}
-        {ended && runner.status === 'done' && runner.note && <p>{tNotes(runner.note, { skipped: runner.skipped })}</p>}
-        {ended && runner.status === 'done' && !runner.note && <p>{t('lastRun', { written: runner.written, failed: runner.failed, skipped: runner.skipped })}</p>}
+        {ended && runner.status === 'error' && (
+          <p className="text-destructive">{t('failed', { error: runner.error ?? '' })}</p>
+        )}
+        {ended && runner.status === 'done' && runner.note && (
+          <p>{tNotes(runner.note, { skipped: runner.skipped })}</p>
+        )}
+        {ended && runner.status === 'done' && !runner.note && (
+          <p>
+            {t('lastRun', {
+              written: runner.written,
+              failed: runner.failed,
+              skipped: runner.skipped,
+            })}
+          </p>
+        )}
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </section>

@@ -36,9 +36,13 @@ describe('what an account is told about its second factor', () => {
   });
 
   /** The subjects of the mails `user` was sent since the one that told it of the set-up. */
-  const told = async (): Promise<string[]> => (await mailbox.to(user.email)).map((mail) => mail.subject).slice(2);
-  const challenged = async (): Promise<string> => ((await auth.login({ email: user.email, password: user.password })) as SecondFactorChallenge).secondFactor.challenge;
-  const answered = async (code: string): Promise<void> => void (await auth.finishLogin({ challenge: await challenged(), code }).catch(() => undefined));
+  const told = async (): Promise<string[]> =>
+    (await mailbox.to(user.email)).map((mail) => mail.subject).slice(2);
+  const challenged = async (): Promise<string> =>
+    ((await auth.login({ email: user.email, password: user.password })) as SecondFactorChallenge)
+      .secondFactor.challenge;
+  const answered = async (code: string): Promise<void> =>
+    void (await auth.finishLogin({ challenge: await challenged(), code }).catch(() => undefined));
 
   it('that it was switched on, and that every other session ended', async () => {
     const [verification, notice] = await mailbox.to(user.email);
@@ -49,7 +53,12 @@ describe('what an account is told about its second factor', () => {
   });
 
   it('that it was switched off, when the holder did that', async () => {
-    await t.http().delete('/api/users/me/second-factor').set(as(user)).send({ currentPassword: user.password, code: app.code(secret) }).expect(204);
+    await t
+      .http()
+      .delete('/api/users/me/second-factor')
+      .set(as(user))
+      .send({ currentPassword: user.password, code: app.code(secret) })
+      .expect(204);
 
     const [notice] = (await mailbox.to(user.email)).slice(2);
     expect(notice!.subject).toBe('Two-step sign-in was switched off for your Diet App account');
@@ -58,7 +67,12 @@ describe('what an account is told about its second factor', () => {
   });
 
   it('that the operator switched it off, when the operator did', async () => {
-    await t.http().delete('/api/admin/accounts/second-factor').set(asAdmin).send({ email: user.email }).expect(204);
+    await t
+      .http()
+      .delete('/api/admin/accounts/second-factor')
+      .set(asAdmin)
+      .send({ email: user.email })
+      .expect(204);
 
     const [notice] = (await mailbox.to(user.email)).slice(2);
     expect(notice!.text).toContain('The operator of your instance switched two-step sign-in off');
@@ -69,7 +83,9 @@ describe('what an account is told about its second factor', () => {
     await answered(recoveryCodes[1]!);
 
     const notices = (await mailbox.to(user.email)).slice(2);
-    expect(notices.map((mail) => mail.subject)).toEqual(Array(2).fill('A recovery code of your Diet App account was used'));
+    expect(notices.map((mail) => mail.subject)).toEqual(
+      Array(2).fill('A recovery code of your Diet App account was used'),
+    );
     expect(notices[0]!.text).toContain('Recovery codes left: 9.');
     expect(notices[1]!.text).toContain('Recovery codes left: 8.');
   });
@@ -107,9 +123,17 @@ describe('what an account is told about its second factor', () => {
   it('with nothing in a mail that signs anybody in', async () => {
     await answered(recoveryCodes[0]!);
     for (let n = 0; n < 5; n += 1) await answered(app.wrongCode(secret));
-    await t.http().delete('/api/admin/accounts/second-factor').set(asAdmin).send({ email: user.email }).expect(204);
+    await t
+      .http()
+      .delete('/api/admin/accounts/second-factor')
+      .set(asAdmin)
+      .send({ email: user.email })
+      .expect(204);
 
-    const everything = (await mailbox.to(user.email)).slice(1).map((mail) => `${mail.subject}\n${mail.text}`).join('\n');
+    const everything = (await mailbox.to(user.email))
+      .slice(1)
+      .map((mail) => `${mail.subject}\n${mail.text}`)
+      .join('\n');
     expect(everything).not.toContain(secret);
     for (const recoveryCode of recoveryCodes) expect(everything).not.toContain(recoveryCode);
     expect(everything).not.toMatch(/token=|[0-9]{6}/);

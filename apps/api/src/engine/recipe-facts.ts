@@ -76,7 +76,8 @@ export function recipeFacts(lines: readonly FactsLine[], servings: number): Reci
   // A recipe without ingredients, or without energy, qualifies for nothing.
   if (lines.length > 0 && total.calories > 0) {
     for (const diet of BY_INGREDIENT) {
-      if (lines.every((line) => line.ingredient.dietCompatibility.includes(diet))) dietTags.push(diet);
+      if (lines.every((line) => line.ingredient.dietCompatibility.includes(diet)))
+        dietTags.push(diet);
     }
     const carbEnergy = (total.carbs * KCAL_PER_GRAM_OF_CARBOHYDRATE) / total.calories;
     if (carbEnergy < LOW_CARB_BELOW_CARB_ENERGY) dietTags.push('low_carb');

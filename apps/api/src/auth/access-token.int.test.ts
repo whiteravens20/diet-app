@@ -2,7 +2,11 @@
 
 import { JwtService } from '@nestjs/jwt';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { resolveReviewerSecret, signReviewerCookie, verifyReviewerCookie } from '../review/session.js';
+import {
+  resolveReviewerSecret,
+  signReviewerCookie,
+  verifyReviewerCookie,
+} from '../review/session.js';
 import { resetDatabase } from '../testing/database.js';
 import { aSession, aUser, type TestUser } from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
@@ -13,7 +17,8 @@ import { ConfigService } from '@nestjs/config';
 const ACCESS_SECRET = 'integration-test-access-secret-0123456789';
 
 const part = (value: object): string => Buffer.from(JSON.stringify(value)).toString('base64url');
-const claimsOf = (token: string): Record<string, unknown> => JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8'));
+const claimsOf = (token: string): Record<string, unknown> =>
+  JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8'));
 
 describe('an access token', () => {
   let t: TestApp;
@@ -31,16 +36,26 @@ describe('an access token', () => {
     await t.close();
   });
 
-  const me = (token: string) => t.http().get('/api/users/me').set({ Authorization: `Bearer ${token}` });
+  const me = (token: string) =>
+    t
+      .http()
+      .get('/api/users/me')
+      .set({ Authorization: `Bearer ${token}` });
 
   it('says whose it is, of which session, what it is for and until when, and nothing else about the account', async () => {
     const claims = claimsOf(user.accessToken);
 
     expect(Object.keys(claims).sort()).toEqual(['aud', 'exp', 'iat', 'sid', 'sub']);
     expect(claims.sub).toBe(user.id);
-    expect(claims.sid).toBe((await t.prisma.refreshToken.findFirstOrThrow({ where: { userId: user.id } })).familyId);
-    expect(user.accessToken).not.toContain(Buffer.from(user.email).toString('base64url').slice(0, 12));
-    expect(JSON.parse(Buffer.from(user.accessToken.split('.')[0]!, 'base64url').toString('utf8'))).toEqual({ alg: 'HS256', typ: 'JWT' });
+    expect(claims.sid).toBe(
+      (await t.prisma.refreshToken.findFirstOrThrow({ where: { userId: user.id } })).familyId,
+    );
+    expect(user.accessToken).not.toContain(
+      Buffer.from(user.email).toString('base64url').slice(0, 12),
+    );
+    expect(
+      JSON.parse(Buffer.from(user.accessToken.split('.')[0]!, 'base64url').toString('utf8')),
+    ).toEqual({ alg: 'HS256', typ: 'JWT' });
   });
 
   it('opens what a signed-in account may see', async () => {
@@ -48,15 +63,96 @@ describe('an access token', () => {
   });
 
   it.each([
-    ['is signed with another key', () => jwt.sign({ sub: user.id }, { secret: 'another-secret-0123456789abcdef', algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string })],
-    ['says nothing of what it is for', () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS256' })],
-    ['was made for something else', () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: 'something-else' })],
-    ['is signed in another way with the same key', () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS512', audience: claimsOf(user.accessToken).aud as string })],
-    ['is not signed at all', () => `${part({ alg: 'none', typ: 'JWT' })}.${part({ sub: user.id, aud: claimsOf(user.accessToken).aud, exp: Math.floor(Date.now() / 1000) + 600 })}.`],
-    ['has run out', () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string, expiresIn: -10 })],
-    ['names nobody', () => jwt.sign({ sid: claimsOf(user.accessToken).sid }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string })],
-    ['names no session', () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string })],
-    ['names a session of another account', () => jwt.sign({ sub: user.id, sid: '00000000-0000-4000-8000-000000000000' }, { secret: ACCESS_SECRET, algorithm: 'HS256', audience: claimsOf(user.accessToken).aud as string })],
+    [
+      'is signed with another key',
+      () =>
+        jwt.sign(
+          { sub: user.id },
+          {
+            secret: 'another-secret-0123456789abcdef',
+            algorithm: 'HS256',
+            audience: claimsOf(user.accessToken).aud as string,
+          },
+        ),
+    ],
+    [
+      'says nothing of what it is for',
+      () => jwt.sign({ sub: user.id }, { secret: ACCESS_SECRET, algorithm: 'HS256' }),
+    ],
+    [
+      'was made for something else',
+      () =>
+        jwt.sign(
+          { sub: user.id },
+          { secret: ACCESS_SECRET, algorithm: 'HS256', audience: 'something-else' },
+        ),
+    ],
+    [
+      'is signed in another way with the same key',
+      () =>
+        jwt.sign(
+          { sub: user.id },
+          {
+            secret: ACCESS_SECRET,
+            algorithm: 'HS512',
+            audience: claimsOf(user.accessToken).aud as string,
+          },
+        ),
+    ],
+    [
+      'is not signed at all',
+      () =>
+        `${part({ alg: 'none', typ: 'JWT' })}.${part({ sub: user.id, aud: claimsOf(user.accessToken).aud, exp: Math.floor(Date.now() / 1000) + 600 })}.`,
+    ],
+    [
+      'has run out',
+      () =>
+        jwt.sign(
+          { sub: user.id },
+          {
+            secret: ACCESS_SECRET,
+            algorithm: 'HS256',
+            audience: claimsOf(user.accessToken).aud as string,
+            expiresIn: -10,
+          },
+        ),
+    ],
+    [
+      'names nobody',
+      () =>
+        jwt.sign(
+          { sid: claimsOf(user.accessToken).sid },
+          {
+            secret: ACCESS_SECRET,
+            algorithm: 'HS256',
+            audience: claimsOf(user.accessToken).aud as string,
+          },
+        ),
+    ],
+    [
+      'names no session',
+      () =>
+        jwt.sign(
+          { sub: user.id },
+          {
+            secret: ACCESS_SECRET,
+            algorithm: 'HS256',
+            audience: claimsOf(user.accessToken).aud as string,
+          },
+        ),
+    ],
+    [
+      'names a session of another account',
+      () =>
+        jwt.sign(
+          { sub: user.id, sid: '00000000-0000-4000-8000-000000000000' },
+          {
+            secret: ACCESS_SECRET,
+            algorithm: 'HS256',
+            audience: claimsOf(user.accessToken).aud as string,
+          },
+        ),
+    ],
   ])('is refused when it %s', async (_name, make) => {
     await me(make()).expect(401);
   });
@@ -86,7 +182,11 @@ describe('an access token', () => {
     it('is refused at once after signing out everywhere, and so is that of every other session', async () => {
       const other = await aSession(t, visitor);
 
-      await t.http().delete('/api/users/me/sessions').set({ Authorization: `Bearer ${visitor.accessToken}` }).expect(204);
+      await t
+        .http()
+        .delete('/api/users/me/sessions')
+        .set({ Authorization: `Bearer ${visitor.accessToken}` })
+        .expect(204);
 
       await me(visitor.accessToken).expect(401);
       await me(other.tokens.accessToken).expect(401);
@@ -94,7 +194,10 @@ describe('an access token', () => {
 
     it('is refused once a refresh token of its session was used twice', async () => {
       const next = await sessions.refresh(visitor.refreshToken);
-      await t.prisma.refreshToken.updateMany({ where: { userId: visitor.id, rotatedAt: { not: null } }, data: { rotatedAt: new Date(Date.now() - 11_000) } });
+      await t.prisma.refreshToken.updateMany({
+        where: { userId: visitor.id, rotatedAt: { not: null } },
+        data: { rotatedAt: new Date(Date.now() - 11_000) },
+      });
       await sessions.refresh(visitor.refreshToken).catch(() => undefined);
 
       await me(visitor.accessToken).expect(401);
@@ -102,7 +205,12 @@ describe('an access token', () => {
     });
 
     it('is refused once the password of the account was changed', async () => {
-      await t.http().post('/api/users/me/password').set({ Authorization: `Bearer ${visitor.accessToken}` }).send({ currentPassword: visitor.password, newPassword: 'Another-Passw0rd-1' }).expect(204);
+      await t
+        .http()
+        .post('/api/users/me/password')
+        .set({ Authorization: `Bearer ${visitor.accessToken}` })
+        .send({ currentPassword: visitor.password, newPassword: 'Another-Passw0rd-1' })
+        .expect(204);
 
       await me(visitor.accessToken).expect(401);
     });
@@ -130,7 +238,20 @@ describe('an access token', () => {
 
     expect((await me(gone.accessToken).expect(401)).body.error).toBe('INVALID_ACCESS_TOKEN');
     // A write would otherwise be made for an account that does not exist.
-    await t.http().post('/api/profiles').set({ Authorization: `Bearer ${gone.accessToken}` }).send({ name: 'Ghost', age: 30, sex: 'male', heightCm: 180, weightKg: 80, activityLevel: 'moderate', weeklyLossTarget: null }).expect(401);
+    await t
+      .http()
+      .post('/api/profiles')
+      .set({ Authorization: `Bearer ${gone.accessToken}` })
+      .send({
+        name: 'Ghost',
+        age: 30,
+        sex: 'male',
+        heightCm: 180,
+        weightKg: 80,
+        activityLevel: 'moderate',
+        weeklyLossTarget: null,
+      })
+      .expect(401);
   });
 });
 
@@ -159,10 +280,39 @@ describe('the token of a reviewer session', () => {
   });
 
   it.each([
-    ['an access token of an account, signed with the same key', () => jwt.sign({ sub: 'user-1', label: 'translator', epoch: 3 }, { secret, algorithm: 'HS256', audience: 'diet-app/account' })],
-    ['a token that says nothing of what it is for', () => jwt.sign({ label: 'translator', epoch: 3 }, { secret, algorithm: 'HS256' })],
-    ['a token signed in another way with the same key', () => jwt.sign({ label: 'translator', epoch: 3 }, { secret, algorithm: 'HS512', audience: claimsOf(signReviewerCookie(jwt, secret, { label: 'x', epoch: 3 }).token).aud as string })],
-    ['a token signed with another key', () => signReviewerCookie(jwt, 'another-secret-0123456789abcdef', { label: 'translator', epoch: 3 }).token],
+    [
+      'an access token of an account, signed with the same key',
+      () =>
+        jwt.sign(
+          { sub: 'user-1', label: 'translator', epoch: 3 },
+          { secret, algorithm: 'HS256', audience: 'diet-app/account' },
+        ),
+    ],
+    [
+      'a token that says nothing of what it is for',
+      () => jwt.sign({ label: 'translator', epoch: 3 }, { secret, algorithm: 'HS256' }),
+    ],
+    [
+      'a token signed in another way with the same key',
+      () =>
+        jwt.sign(
+          { label: 'translator', epoch: 3 },
+          {
+            secret,
+            algorithm: 'HS512',
+            audience: claimsOf(signReviewerCookie(jwt, secret, { label: 'x', epoch: 3 }).token)
+              .aud as string,
+          },
+        ),
+    ],
+    [
+      'a token signed with another key',
+      () =>
+        signReviewerCookie(jwt, 'another-secret-0123456789abcdef', {
+          label: 'translator',
+          epoch: 3,
+        }).token,
+    ],
     ['text that is no token', () => 'not-a-token'],
   ])('is not %s', (_name, make) => {
     expect(verifyReviewerCookie(jwt, secret, make(), 3)).toBeNull();

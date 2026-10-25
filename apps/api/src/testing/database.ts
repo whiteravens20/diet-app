@@ -50,7 +50,9 @@ export function testDatabaseUrl(): string {
 function apiRoot(): string {
   const root = process.cwd();
   if (!existsSync(join(root, 'prisma', 'schema.prisma'))) {
-    throw new Error(`Integration tests must run from apps/api (no prisma/schema.prisma under ${root}).`);
+    throw new Error(
+      `Integration tests must run from apps/api (no prisma/schema.prisma under ${root}).`,
+    );
   }
   return root;
 }
@@ -58,9 +60,13 @@ function apiRoot(): string {
 /** Create the test database when it is missing, then bring it to the current schema. */
 export async function prepareTestDatabase(): Promise<void> {
   const server = serverUrl();
-  const admin = new PrismaClient({ adapter: new PrismaPg({ connectionString: server.toString() }) });
+  const admin = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: server.toString() }),
+  });
   try {
-    const found = await admin.$queryRaw<unknown[]>`SELECT 1 FROM pg_database WHERE datname = ${TEST_DATABASE}`;
+    const found = await admin.$queryRaw<
+      unknown[]
+    >`SELECT 1 FROM pg_database WHERE datname = ${TEST_DATABASE}`;
     if (found.length === 0) await admin.$executeRawUnsafe(`CREATE DATABASE "${TEST_DATABASE}"`);
   } catch (cause) {
     throw new Error(
@@ -84,7 +90,9 @@ export async function prepareTestDatabase(): Promise<void> {
 async function truncateAllExcept(prisma: PrismaClient, kept: string[]): Promise<void> {
   const [{ name }] = await prisma.$queryRaw<{ name: string }[]>`SELECT current_database() AS name`;
   if (name !== TEST_DATABASE) {
-    throw new Error(`Refusing to empty "${name}": the integration tests only reset "${TEST_DATABASE}".`);
+    throw new Error(
+      `Refusing to empty "${name}": the integration tests only reset "${TEST_DATABASE}".`,
+    );
   }
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;

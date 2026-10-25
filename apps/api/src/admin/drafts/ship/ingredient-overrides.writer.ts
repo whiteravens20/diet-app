@@ -68,9 +68,7 @@ export function mergeIngredientOverrides(
     written += 1;
   }
   // Sort keys for stable output.
-  const sorted = Object.fromEntries(
-    Object.entries(merged).sort(([a], [b]) => a.localeCompare(b)),
-  );
+  const sorted = Object.fromEntries(Object.entries(merged).sort(([a], [b]) => a.localeCompare(b)));
   const dir = dirname(path);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(path, JSON.stringify(sorted, null, 2) + '\n', 'utf8');

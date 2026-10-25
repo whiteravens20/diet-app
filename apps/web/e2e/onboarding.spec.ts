@@ -5,27 +5,43 @@ import { barriers, expect, settled, signInHere, test } from './fixtures';
 type Texts = Record<string, string>;
 
 /** A text of the application with its values put in. */
-const said = (text: string, values: Record<string, string | number>): string => text.replace(/\{(\w+)\}/g, (_whole, name: string) => String(values[name]));
+const said = (text: string, values: Record<string, string | number>): string =>
+  text.replace(/\{(\w+)\}/g, (_whole, name: string) => String(values[name]));
 
 test.describe('an account that has just been made', () => {
-  test('is led from the dashboard through the three steps of a first profile, sees what its figures come to, and on to its first plan', async ({ anonymous: page, request, messages }) => {
+  test('is led from the dashboard through the three steps of a first profile, sees what its figures come to, and on to its first plan', async ({
+    anonymous: page,
+    request,
+    messages,
+  }) => {
     const profile = messages.profile as Texts;
     const wizard = (messages.profile as unknown as { wizard: Texts & { steps: Texts } }).wizard;
     const preview = messages.caloriePreview as Texts;
     const common = messages.common as Texts;
-    const heading = (step: number, name: string) => page.getByRole('heading', { name: said(wizard.progress!, { step, of: 3, name }), exact: true });
+    const heading = (step: number, name: string) =>
+      page.getByRole('heading', {
+        name: said(wizard.progress!, { step, of: 3, name }),
+        exact: true,
+      });
 
     // An account of its own: the one the other tests share has a profile already.
     const email = `browser-first-${Date.now().toString(36)}@example.test`;
     const password = 'Browser-Test-Passw0rd';
-    const registered = await request.post('/api/auth/register', { data: { email, password, displayName: 'First profile' } });
+    const registered = await request.post('/api/auth/register', {
+      data: { email, password, displayName: 'First profile' },
+    });
     expect(registered.ok(), await registered.text()).toBe(true);
     await page.goto('/login');
     await signInHere(page, { email, password }, messages);
     await page.waitForURL('**/dashboard');
     await settled(page);
 
-    await page.getByRole('link', { name: (messages.dashboard as Texts).createFirstProfileCta!, exact: true }).click();
+    await page
+      .getByRole('link', {
+        name: (messages.dashboard as Texts).createFirstProfileCta!,
+        exact: true,
+      })
+      .click();
     await page.waitForURL('**/profile');
     await expect(heading(1, wizard.steps.body!)).toBeVisible();
     // Nothing is worked out from numbers nobody typed.
@@ -44,7 +60,10 @@ test.describe('an account that has just been made', () => {
     const inPounds = (await page.getByText(/^(Weight|Waga) \(lb\)$/).count()) > 0;
     await weight.fill(inPounds ? '154' : '70');
     // The figures follow what was typed, without anything being sent for keeping.
-    const target = page.locator('section', { has: page.getByRole('heading', { name: preview.title!, exact: true }) }).locator('dd').first();
+    const target = page
+      .locator('section', { has: page.getByRole('heading', { name: preview.title!, exact: true }) })
+      .locator('dd')
+      .first();
     await expect(target).toHaveText(/\d.*kcal/);
     await expect(page.getByText(preview.pending!, { exact: true })).toHaveCount(0);
     expect(await barriers(page), 'the step that asks for the body').toEqual([]);
@@ -69,17 +88,31 @@ test.describe('an account that has just been made', () => {
     await page.getByRole('button', { name: common.next!, exact: true }).click();
     expect(await barriers(page), 'the step that asks how its owner eats').toEqual([]);
 
-    const made = page.waitForResponse((res) => res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/profiles');
+    const made = page.waitForResponse(
+      (res) => res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/profiles',
+    );
     await page.getByRole('button', { name: profile.createProfile!, exact: true }).click();
-    const kept = (await (await made).json()) as { id: string; name: string; age: number; weeklyLossTarget: string | null };
+    const kept = (await (await made).json()) as {
+      id: string;
+      name: string;
+      age: number;
+      weeklyLossTarget: string | null;
+    };
     expect(kept).toMatchObject({ name: 'Anna', age: 34, weeklyLossTarget: null });
 
     // The page says what comes next, and leads there.
-    await expect(page.getByText(said(wizard.made!, { name: 'Anna' }), { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(said(wizard.made!, { name: 'Anna' }), { exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole('heading', { name: /^(Step|Krok) / })).toHaveCount(0);
     await page.getByRole('link', { name: wizard.madeCta!, exact: true }).click();
     await page.waitForURL(`**/meal-plans?profile=${kept.id}`);
     await settled(page);
-    await expect(page.getByRole('button', { name: (messages.mealPlans as Texts).generateButton!, exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', {
+        name: (messages.mealPlans as Texts).generateButton!,
+        exact: true,
+      }),
+    ).toBeVisible();
   });
 });

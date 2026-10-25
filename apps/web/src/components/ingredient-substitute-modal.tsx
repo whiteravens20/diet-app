@@ -94,7 +94,8 @@ export function IngredientSubstituteModal({
   // What the catalogue's own rules name for the ingredients of this meal: no model is asked.
   const suggestions = useQuery({
     queryKey: ['substitutes', planId, meal.id],
-    queryFn: () => api.get<SubstituteSuggestion[]>(`/meal-plans/${planId}/meals/${meal.id}/substitutes`),
+    queryFn: () =>
+      api.get<SubstituteSuggestion[]>(`/meal-plans/${planId}/meals/${meal.id}/substitutes`),
   });
   const suggestion = (suggestions.data ?? []).find((s) => s.fromIngredientId === fromId) ?? null;
 
@@ -104,13 +105,16 @@ export function IngredientSubstituteModal({
     queryFn: () => api.get<Ingredient[]>(`/ingredients?search=${encodeURIComponent(search)}`),
     enabled: search.trim().length >= 2,
   });
-  const searchCandidates = (results.data ?? [])
-    .filter((i) => i.id !== fromId)
-    .slice(0, 20);
+  const searchCandidates = (results.data ?? []).filter((i) => i.id !== fromId).slice(0, 20);
   // What was suggested, by the catalogue or by a model, stands above what the
   // search found, so the user sees it and can still look for something else.
-  const picks = [suggestion?.to, aiPick].filter((pick): pick is Ingredient => Boolean(pick) && pick!.id !== fromId);
-  const candidates = [...picks.filter((pick, i) => picks.findIndex((other) => other.id === pick.id) === i), ...searchCandidates.filter((c) => !picks.some((pick) => pick.id === c.id))];
+  const picks = [suggestion?.to, aiPick].filter(
+    (pick): pick is Ingredient => Boolean(pick) && pick!.id !== fromId,
+  );
+  const candidates = [
+    ...picks.filter((pick, i) => picks.findIndex((other) => other.id === pick.id) === i),
+    ...searchCandidates.filter((c) => !picks.some((pick) => pick.id === c.id)),
+  ];
 
   const aiSuggest = useMutation({
     mutationFn: () =>
@@ -325,26 +329,57 @@ export function IngredientSubstituteModal({
         {fromLine && toId && (
           <section className="rounded-md border border-border bg-muted/30 p-3 text-sm">
             <p className="mb-1 text-sm font-medium">{t('stepDelta')}</p>
-            {preview.isLoading && (
-              <p className="text-xs text-muted-foreground">{t('computing')}</p>
+            {preview.isLoading && <p className="text-xs text-muted-foreground">{t('computing')}</p>}
+            {preview.error && (
+              <p className="text-xs text-destructive">
+                {worded(preview.error, t('previewFailed'))}
+              </p>
             )}
-            {preview.error && <p className="text-xs text-destructive">{worded(preview.error, t('previewFailed'))}</p>}
             {preview.data && (
               <>
                 <p className="text-xs text-muted-foreground">
                   {t(`sizing.${preview.data.sizing}`, {
-                    fromAmount: amount(preview.data.from.display.quantity, preview.data.from.display.unit),
+                    fromAmount: amount(
+                      preview.data.from.display.quantity,
+                      preview.data.from.display.unit,
+                    ),
                     fromName: preview.data.from.name,
-                    toAmount: amount(preview.data.to.display.quantity, preview.data.to.display.unit),
+                    toAmount: amount(
+                      preview.data.to.display.quantity,
+                      preview.data.to.display.unit,
+                    ),
                     toName: preview.data.to.name,
                   })}
                 </p>
-                {preview.data.merged && <p className="mt-1 text-xs text-muted-foreground">{t('merged', { name: preview.data.to.name })}</p>}
+                {preview.data.merged && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('merged', { name: preview.data.to.name })}
+                  </p>
+                )}
                 <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
-                  <Delta label={tProf('kcal')} before={preview.data.before.calories} after={preview.data.after.calories} />
-                  <Delta label={tProf('protein').toLowerCase()} before={preview.data.before.protein} after={preview.data.after.protein} grams />
-                  <Delta label={tProf('fat').toLowerCase()} before={preview.data.before.fat} after={preview.data.after.fat} grams />
-                  <Delta label={tProf('carbs').toLowerCase()} before={preview.data.before.carbs} after={preview.data.after.carbs} grams />
+                  <Delta
+                    label={tProf('kcal')}
+                    before={preview.data.before.calories}
+                    after={preview.data.after.calories}
+                  />
+                  <Delta
+                    label={tProf('protein').toLowerCase()}
+                    before={preview.data.before.protein}
+                    after={preview.data.after.protein}
+                    grams
+                  />
+                  <Delta
+                    label={tProf('fat').toLowerCase()}
+                    before={preview.data.before.fat}
+                    after={preview.data.after.fat}
+                    grams
+                  />
+                  <Delta
+                    label={tProf('carbs').toLowerCase()}
+                    before={preview.data.before.carbs}
+                    after={preview.data.after.carbs}
+                    grams
+                  />
                 </dl>
                 {!preview.data.valid && (
                   <div className="mt-2 text-xs text-destructive" role="alert">
@@ -358,16 +393,26 @@ export function IngredientSubstituteModal({
                 )}
                 {preview.data.valid && preview.data.moved.length > 0 && (
                   <div className="mt-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                    <p>{t('moved', { what: preview.data.moved.map((key) => t(`movedName.${key}`)).join(', ') })}</p>
+                    <p>
+                      {t('moved', {
+                        what: preview.data.moved.map((key) => t(`movedName.${key}`)).join(', '),
+                      })}
+                    </p>
                     <label className="mt-1 flex items-center gap-2">
-                      <input type="checkbox" checked={acceptChange} onChange={(e) => setAcceptChange(e.target.checked)} />
+                      <input
+                        type="checkbox"
+                        checked={acceptChange}
+                        onChange={(e) => setAcceptChange(e.target.checked)}
+                      />
                       {t('acceptChange')}
                     </label>
                   </div>
                 )}
               </>
             )}
-            <label className={`mt-3 flex items-start gap-2 text-xs ${aiEnabled ? '' : 'text-muted-foreground'}`}>
+            <label
+              className={`mt-3 flex items-start gap-2 text-xs ${aiEnabled ? '' : 'text-muted-foreground'}`}
+            >
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -406,7 +451,17 @@ export function IngredientSubstituteModal({
   );
 }
 
-function Delta({ label, before, after, grams = false }: { label: string; before: number; after: number; grams?: boolean }) {
+function Delta({
+  label,
+  before,
+  after,
+  grams = false,
+}: {
+  label: string;
+  before: number;
+  after: number;
+  grams?: boolean;
+}) {
   const fmt = useFormat();
   const shown = (value: number): string => (grams ? fmt.unit(value, 'gram', 1) : fmt.number(value));
   // Rounded as it is shown, so that the difference is the one between the two numbers on screen.

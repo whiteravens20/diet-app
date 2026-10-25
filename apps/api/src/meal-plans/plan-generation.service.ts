@@ -50,7 +50,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { MealPlansService } from './meal-plans.service.js';
-import { customMacros, dayMealCount, isoDate, parseDayOverrides, type DayOverridesJson } from './plan-days.js';
+import {
+  customMacros,
+  dayMealCount,
+  isoDate,
+  parseDayOverrides,
+  type DayOverridesJson,
+} from './plan-days.js';
 import { writePlan } from './plan-write.js';
 
 /**
@@ -115,7 +121,11 @@ export class PlanGenerationService {
     });
 
     const plan = await this.prisma.$transaction(async (tx) => {
-      if (result.pantryRound) await tx.profile.update({ where: { id: profile.id }, data: pantryCount(result.pantryRound) });
+      if (result.pantryRound)
+        await tx.profile.update({
+          where: { id: profile.id },
+          data: pantryCount(result.pantryRound),
+        });
       return tx.mealPlan.create({
         data: {
           profileId: profile.id,
@@ -165,9 +175,16 @@ export class PlanGenerationService {
     clientToday: string | null = null,
   ): Promise<MealPlan> {
     // The plan first: whoever asks about a plan that is not theirs learns nothing about its days.
-    const plan = await this.prisma.mealPlan.findFirst({ where: { id: planId, profile: { userId } }, select: { id: true } });
-    if (!plan) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
-    const day = await this.prisma.mealPlanDay.findUnique({ where: { id: dayId }, select: { planId: true, date: true } });
+    const plan = await this.prisma.mealPlan.findFirst({
+      where: { id: planId, profile: { userId } },
+      select: { id: true },
+    });
+    if (!plan)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    const day = await this.prisma.mealPlanDay.findUnique({
+      where: { id: dayId },
+      select: { planId: true, date: true },
+    });
     if (!day || day.planId !== planId) {
       throw new NotFoundException({ error: 'DAY_NOT_FOUND', message: 'Plan day not found.' });
     }
@@ -188,18 +205,38 @@ export class PlanGenerationService {
    * profile as it is now for what was left to the profile, and with what each
    * day carries of its own. With one, the plan stays what it is.
    */
-  async prepare(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest, clientToday: string | null) {
+  async prepare(
+    userId: string,
+    planId: string,
+    range: { from?: string; to?: string },
+    options: RegenerateDayRequest,
+    clientToday: string | null,
+  ) {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: planId },
       include: {
         profile: true,
         days: {
           orderBy: { date: 'asc' },
-          include: { meals: { include: { recipe: { select: { caloriesPerServing: true, proteinPerServing: true, fatPerServing: true, carbsPerServing: true } } } } },
+          include: {
+            meals: {
+              include: {
+                recipe: {
+                  select: {
+                    caloriesPerServing: true,
+                    proteinPerServing: true,
+                    fatPerServing: true,
+                    carbsPerServing: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });
-    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
 
     const dates = plan.days.map((day) => isoDate(day.date));
     const whole = range.from === undefined && range.to === undefined;
@@ -213,11 +250,13 @@ export class PlanGenerationService {
       });
     }
     const today = clientToday ?? this.today();
-    const again = (date: string): boolean => date >= first && date <= last && (options.includePast || date >= today);
+    const again = (date: string): boolean =>
+      date >= first && date <= last && (options.includePast || date >= today);
     if (!dates.some(again)) {
       throw new ConflictException({
         error: 'NOTHING_TO_REGENERATE',
-        message: 'Every day asked for is before today. Days in the past are made again only when the request says so.',
+        message:
+          'Every day asked for is before today. Days in the past are made again only when the request says so.',
       });
     }
 
@@ -238,35 +277,61 @@ export class PlanGenerationService {
         // A meal of the user's own holds what the user said it holds; one of the catalogue what its recipe does.
         const own = customMacros(meal.customMacros);
         const perServing = meal.recipe
-          ? { calories: meal.recipe.caloriesPerServing, protein: meal.recipe.proteinPerServing, fat: meal.recipe.fatPerServing, carbs: meal.recipe.carbsPerServing }
+          ? {
+              calories: meal.recipe.caloriesPerServing,
+              protein: meal.recipe.proteinPerServing,
+              fat: meal.recipe.fatPerServing,
+              carbs: meal.recipe.carbsPerServing,
+            }
           : own;
         const servings = meal.servings * meal.quantityScale;
         return {
           recipeId: meal.recipeId ?? undefined,
           calories: perServing.calories * servings,
           servings,
-          macros: { protein: perServing.protein * servings, fat: perServing.fat * servings, carbs: perServing.carbs * servings },
+          macros: {
+            protein: perServing.protein * servings,
+            fat: perServing.fat * servings,
+            carbs: perServing.carbs * servings,
+          },
         };
       };
       if (!again(iso)) {
-        return { date: day.date, isoDate: iso, mealSlots: [], calorieTarget: day.calorieTarget, useUpBy: false, skip: false, overrides: o, kept: day.meals.map(kept) };
+        return {
+          date: day.date,
+          isoDate: iso,
+          mealSlots: [],
+          calorieTarget: day.calorieTarget,
+          useUpBy: false,
+          skip: false,
+          overrides: o,
+          kept: day.meals.map(kept),
+        };
       }
 
       const staying = day.meals.filter(
-        (meal) => (meal.eatenAt !== null && !options.replaceEaten) || (meal.source === 'USER_CUSTOM' && !options.replaceCustom),
+        (meal) =>
+          (meal.eatenAt !== null && !options.replaceEaten) ||
+          (meal.source === 'USER_CUSTOM' && !options.replaceCustom),
       );
       filled.push({ dayIndex, dayId: day.id, staying: staying.map((meal) => meal.id) });
       // A meal of the catalogue that stays holds its place among the day's meals; one of the user's own is beside them.
-      const held = new Set(staying.filter((meal) => meal.source === 'CATALOGUE').map((meal) => meal.mealType));
+      const held = new Set(
+        staying.filter((meal) => meal.source === 'CATALOGUE').map((meal) => meal.mealType),
+      );
       // A day's own meals of the catalogue say how many it has, where neither the day nor the plan was asked for a number.
       const mealCount = dayMealCount(day, made.mealCount, profile.mealCount);
       return {
         date: day.date,
         isoDate: iso,
-        mealSlots: (MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!).filter((slot) => !held.has(slot)),
+        mealSlots: (MEAL_SLOTS_BY_COUNT[mealCount] ?? MEAL_SLOTS_BY_COUNT[3]!).filter(
+          (slot) => !held.has(slot),
+        ),
         calorieTarget: whole ? dayTarget(base, o) : day.calorieTarget,
         cookTimeBudgetMinutes: o?.cookTimeBudgetMinutes,
-        lockedSlots: o?.lockedSlots?.filter((lock) => !held.has(lock.mealType)).map((lock) => ({ slot: lock.mealType, recipeId: lock.recipeId })),
+        lockedSlots: o?.lockedSlots
+          ?.filter((lock) => !held.has(lock.mealType))
+          .map((lock) => ({ slot: lock.mealType, recipeId: lock.recipeId })),
         useUpBy: o?.useUpBy ?? false,
         skip: o?.skip ?? false,
         overrides: o,
@@ -276,13 +341,33 @@ export class PlanGenerationService {
 
     // Whether a meal a model picked stays in the plan: a plan made again as a whole then still says that a model had a part in it.
     const stayingOn = new Map(filled.map((entry) => [entry.dayId, new Set(entry.staying)]));
-    const modelsPickStays = plan.days.some((day) => day.meals.some((meal) => meal.modelPicked && (stayingOn.get(day.id)?.has(meal.id) ?? true)));
+    const modelsPickStays = plan.days.some((day) =>
+      day.meals.some((meal) => meal.modelPicked && (stayingOn.get(day.id)?.has(meal.id) ?? true)),
+    );
 
-    return { plan, profile, made, dates, whole, days, filled, allowRelaxations, base, dietType, macroSplit, modelsPickStays, dropIneligibleLocks: options.dropIneligibleLocks };
+    return {
+      plan,
+      profile,
+      made,
+      dates,
+      whole,
+      days,
+      filled,
+      allowRelaxations,
+      base,
+      dietType,
+      macroSplit,
+      modelsPickStays,
+      dropIneligibleLocks: options.dropIneligibleLocks,
+    };
   }
 
   /** One way to fill the days that were prepared, by the draws of `seed`. Nothing is written. */
-  draw(userId: string, prepared: Awaited<ReturnType<PlanGenerationService['prepare']>>, seed: number) {
+  draw(
+    userId: string,
+    prepared: Awaited<ReturnType<PlanGenerationService['prepare']>>,
+    seed: number,
+  ) {
     return this.optimiseFor(userId, prepared.profile, {
       days: prepared.days,
       dietType: prepared.dietType,
@@ -299,9 +384,27 @@ export class PlanGenerationService {
   }
 
   /** Fill days of a plan again (see `prepare`), and write what the draw came to. */
-  private async reroll(userId: string, planId: string, range: { from?: string; to?: string }, options: RegenerateDayRequest, clientToday: string | null): Promise<void> {
+  private async reroll(
+    userId: string,
+    planId: string,
+    range: { from?: string; to?: string },
+    options: RegenerateDayRequest,
+    clientToday: string | null,
+  ): Promise<void> {
     const prepared = await this.prepare(userId, planId, range, options, clientToday);
-    const { plan, made, dates, whole, days, filled, allowRelaxations, base, dietType, macroSplit, modelsPickStays } = prepared;
+    const {
+      plan,
+      made,
+      dates,
+      whole,
+      days,
+      filled,
+      allowRelaxations,
+      base,
+      dietType,
+      macroSplit,
+      modelsPickStays,
+    } = prepared;
     const seed = this.nextSeed();
     const result = await this.draw(userId, prepared, seed);
 
@@ -309,24 +412,42 @@ export class PlanGenerationService {
     // run found. A plan from before reports were kept gets one when the whole
     // of it is made again; what the pantry had to do with it is said of a whole plan.
     const before = StoredReport.nullable().parse(plan.report ?? null);
-    const merged = before ? withDaysAgain(before, result.report, filled.map(({ dayIndex }) => dates[dayIndex]!)) : null;
+    const merged = before
+      ? withDaysAgain(
+          before,
+          result.report,
+          filled.map(({ dayIndex }) => dates[dayIndex]!),
+        )
+      : null;
     const report = whole ? { ...(merged ?? result.report), pantry: result.report.pantry } : merged;
 
     await writePlan(this.prisma, planId, plan.revision, async (tx) => {
       // A plan made again is a round of the pantry's rotation; days of it filled again are not.
-      if (whole && result.pantryRound) await tx.profile.update({ where: { id: plan.profileId }, data: pantryCount(result.pantryRound) });
+      if (whole && result.pantryRound)
+        await tx.profile.update({
+          where: { id: plan.profileId },
+          data: pantryCount(result.pantryRound),
+        });
       for (const { dayIndex, dayId, staying } of filled) {
         const day = days[dayIndex]!;
         await tx.mealPlanDay.update({
           where: { id: dayId },
           // A lock that was dropped leaves the stored overrides of the day as well.
-          data: { calorieTarget: day.calorieTarget, overrides: day.overrides ? (day.overrides as Prisma.InputJsonValue) : Prisma.JsonNull },
+          data: {
+            calorieTarget: day.calorieTarget,
+            overrides: day.overrides ? (day.overrides as Prisma.InputJsonValue) : Prisma.JsonNull,
+          },
         });
         await tx.plannedMeal.deleteMany({ where: { dayId, id: { notIn: staying } } });
         await tx.plannedMeal.createMany({
           data: result.assignments
             .filter((placed) => placed.dayIndex === dayIndex)
-            .map((placed) => ({ dayId, recipeId: placed.recipeId, mealType: placed.slot, servings: placed.servings })),
+            .map((placed) => ({
+              dayId,
+              recipeId: placed.recipeId,
+              mealType: placed.slot,
+              servings: placed.servings,
+            })),
         });
       }
       await tx.mealPlan.update({
@@ -336,7 +457,16 @@ export class PlanGenerationService {
           ...(report ? { report } : {}),
           // A plan that was made again is what it was made with this time, and the engine's alone unless a meal a model picked stayed in it.
           ...(whole
-            ? { calorieTarget: base.target, dietType, macroSplit: macroSplit ?? Prisma.JsonNull, options: { ...made, allowRelaxations }, seed, generationMode: modelsPickStays ? ('ai_assisted' as const) : ('deterministic' as const) }
+            ? {
+                calorieTarget: base.target,
+                dietType,
+                macroSplit: macroSplit ?? Prisma.JsonNull,
+                options: { ...made, allowRelaxations },
+                seed,
+                generationMode: modelsPickStays
+                  ? ('ai_assisted' as const)
+                  : ('deterministic' as const),
+              }
             : {}),
         },
       });
@@ -348,9 +478,19 @@ export class PlanGenerationService {
    * the plan were given theirs: the base the plan was made with, shaped by the
    * kind of day, or the day's own target.
    */
-  targetOfDay(profile: BaseProfile, plan: { calorieTarget: number; options: unknown }, overrides: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null): number {
+  targetOfDay(
+    profile: BaseProfile,
+    plan: { calorieTarget: number; options: unknown },
+    overrides: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null,
+  ): number {
     const made = PlanOptions.parse(plan.options);
-    return dayTarget({ ...this.planBase(profile, made.calorieTargetOverride ?? undefined), target: plan.calorieTarget }, overrides);
+    return dayTarget(
+      {
+        ...this.planBase(profile, made.calorieTargetOverride ?? undefined),
+        target: plan.calorieTarget,
+      },
+      overrides,
+    );
   }
 
   /**
@@ -390,18 +530,16 @@ export class PlanGenerationService {
     ownerUserId: string,
     profile: {
       id: string;
-      preferences:
-        | {
-            allergens: string[];
-            excludedIngredientIds: string[];
-            favoriteIngredientIds: string[];
-            dislikedIngredientIds: string[];
-            preferredCuisines: string[];
-            maxConsecutiveDaysSameMeal: number;
-            maxTimesPerWeekSameMeal: number;
-            maxWeeklyAmountPerIngredient: number;
-          }
-        | null;
+      preferences: {
+        allergens: string[];
+        excludedIngredientIds: string[];
+        favoriteIngredientIds: string[];
+        dislikedIngredientIds: string[];
+        preferredCuisines: string[];
+        maxConsecutiveDaysSameMeal: number;
+        maxTimesPerWeekSameMeal: number;
+        maxWeeklyAmountPerIngredient: number;
+      } | null;
     },
     opts: {
       days: ResolvedDay[];
@@ -426,10 +564,16 @@ export class PlanGenerationService {
       dropIneligibleLocks?: boolean;
       seed: number;
     },
-  ): Promise<{ assignments: OptimizerResult['assignments']; ingredientReuseScore: number; report: StoredReport; pantryRound?: PantryRound }> {
-    const { optimizerRecipes, requirementsByRecipe, beforeProfileRules, perishablePacks } = await this.loadEligibleRecipes(ownerUserId, profile, {
-      respectExclusions: opts.respectExclusions,
-    });
+  ): Promise<{
+    assignments: OptimizerResult['assignments'];
+    ingredientReuseScore: number;
+    report: StoredReport;
+    pantryRound?: PantryRound;
+  }> {
+    const { optimizerRecipes, requirementsByRecipe, beforeProfileRules, perishablePacks } =
+      await this.loadEligibleRecipes(ownerUserId, profile, {
+        respectExclusions: opts.respectExclusions,
+      });
 
     // A lock pins a recipe to a slot, and a pinned recipe passes the same gate
     // as any other: it has to be among the recipes this profile may be given,
@@ -438,7 +582,11 @@ export class PlanGenerationService {
     for (const day of opts.days) {
       for (const lock of [...(day.lockedSlots ?? [])]) {
         const recipe = recipeById.get(lock.recipeId);
-        if (!recipe || !recipe.mealTypes.includes(lock.slot) || !fitsDiet(recipe.dietTags, opts.dietType)) {
+        if (
+          !recipe ||
+          !recipe.mealTypes.includes(lock.slot) ||
+          !fitsDiet(recipe.dietTags, opts.dietType)
+        ) {
           if (opts.dropIneligibleLocks) {
             dropLock(day, lock);
             continue;
@@ -468,11 +616,18 @@ export class PlanGenerationService {
     // only against stock expiring by that date. Falls back to the plan-level map.
     const expiringByDate = new Map<string, ReadonlyMap<string, number>>();
     if (opts.respectInventory !== false) {
-      const dates = [...new Set(opts.days.filter((d) => d.useUpBy && !d.skip).map((d) => d.isoDate))];
+      const dates = [
+        ...new Set(opts.days.filter((d) => d.useUpBy && !d.skip).map((d) => d.isoDate)),
+      ];
       // ISO dates sort as text.
       const planStart = new Date(opts.days.map((d) => d.isoDate).sort()[0]!);
       for (const iso of dates) {
-        const map = await this.expiringCoverageForDate(profile.id, planStart, new Date(iso), requirementsByRecipe);
+        const map = await this.expiringCoverageForDate(
+          profile.id,
+          planStart,
+          new Date(iso),
+          requirementsByRecipe,
+        );
         if (map) expiringByDate.set(iso, map);
       }
     }
@@ -486,9 +641,7 @@ export class PlanGenerationService {
     const maxConsecutiveDaysSameMeal = opts.mealPrepFriendly
       ? Math.max(profileCons, 4)
       : profileCons;
-    const maxTimesPerWeekSameMeal = opts.mealPrepFriendly
-      ? Math.max(profileWeek, 5)
-      : profileWeek;
+    const maxTimesPerWeekSameMeal = opts.mealPrepFriendly ? Math.max(profileWeek, 5) : profileWeek;
 
     const days: OptimizerDay[] = opts.days.map((d) => ({
       mealSlots: d.mealSlots,
@@ -516,8 +669,11 @@ export class PlanGenerationService {
         maxConsecutiveDaysSameMeal,
         maxTimesPerWeekSameMeal,
         // A plan that names no number is held to the operator's, where one is set.
-        maxRepeatsPerRecipe: opts.maxRepeatsPerRecipe ?? this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
-        maxIngredientPerWeek: profile.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+        maxRepeatsPerRecipe:
+          opts.maxRepeatsPerRecipe ??
+          this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }),
+        maxIngredientPerWeek:
+          profile.preferences?.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
         perishablePacks,
         allowRelaxations: new Set(opts.allowRelaxations),
         seed: opts.seed,
@@ -539,7 +695,11 @@ export class PlanGenerationService {
           message: `The plan cannot be filled inside its limits: ${meals.length} of its meals would be outside one. These would have to give way: ${needs.join(', ')}.`,
           details: {
             needs,
-            meals: meals.map((meal) => ({ date: dates[meal.dayIndex]!, slot: meal.slot, gaveWay: meal.gaveWay })),
+            meals: meals.map((meal) => ({
+              date: dates[meal.dayIndex]!,
+              slot: meal.slot,
+              gaveWay: meal.gaveWay,
+            })),
           } satisfies RelaxationNeeded,
         });
       }
@@ -550,10 +710,13 @@ export class PlanGenerationService {
       if (err instanceof OptimizerError) {
         const { gap } = err;
         const ruledOut = gap
-          ? beforeProfileRules.filter((r) => r.mealTypes.includes(gap.slot) && fitsDiet(r.dietTags, gap.dietType)).length
+          ? beforeProfileRules.filter(
+              (r) => r.mealTypes.includes(gap.slot) && fitsDiet(r.dietTags, gap.dietType),
+            ).length
           : 0;
         // Fewer meals a day help only with a meal that the shortest day does not have.
-        const fewerMeals = gap && !MEAL_SLOTS_BY_COUNT[2]!.includes(gap.slot) ? ' or fewer meals a day' : '';
+        const fewerMeals =
+          gap && !MEAL_SLOTS_BY_COUNT[2]!.includes(gap.slot) ? ' or fewer meals a day' : '';
         throw new BadRequestException({
           error: 'NO_ELIGIBLE_RECIPE',
           message: !gap
@@ -604,9 +767,11 @@ export class PlanGenerationService {
     ownerUserId: string,
     profile: {
       id: string;
-      preferences:
-        | { allergens: string[]; excludedIngredientIds: string[]; favoriteIngredientIds: string[] }
-        | null;
+      preferences: {
+        allergens: string[];
+        excludedIngredientIds: string[];
+        favoriteIngredientIds: string[];
+      } | null;
     },
     options: { respectExclusions?: boolean } = {},
   ): Promise<{
@@ -662,7 +827,15 @@ export class PlanGenerationService {
             ingredientId: true,
             quantity: true,
             unit: true,
-            ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true, packSize: true, perishable: true } },
+            ingredient: {
+              select: {
+                canonicalUnit: true,
+                gramsPerPiece: true,
+                density: true,
+                packSize: true,
+                perishable: true,
+              },
+            },
           },
         },
       },
@@ -673,16 +846,25 @@ export class PlanGenerationService {
       where: { profileId: profile.id },
       select: { recipeId: true, sentiment: true },
     });
-    const avoidedIds = new Set(favorites.filter((f) => f.sentiment === 'avoid').map((f) => f.recipeId));
-    const favoriteIds = new Set(favorites.filter((f) => f.sentiment !== 'avoid').map((f) => f.recipeId));
-    const oftenIds = new Set(favorites.filter((f) => f.sentiment === 'often').map((f) => f.recipeId));
+    const avoidedIds = new Set(
+      favorites.filter((f) => f.sentiment === 'avoid').map((f) => f.recipeId),
+    );
+    const favoriteIds = new Set(
+      favorites.filter((f) => f.sentiment !== 'avoid').map((f) => f.recipeId),
+    );
+    const oftenIds = new Set(
+      favorites.filter((f) => f.sentiment === 'often').map((f) => f.recipeId),
+    );
 
     const filteredRecipes = recipes
       .filter((r) => !avoidedIds.has(r.id))
       .filter((r) => !r.allergens.some((a) => allergens.includes(a)))
       .filter((r) => !r.ingredients.some((i) => excluded.has(i.ingredientId)));
 
-    const requirementsByRecipe = new Map<string, Array<{ ingredientId: string; canonicalQuantity: number }>>();
+    const requirementsByRecipe = new Map<
+      string,
+      Array<{ ingredientId: string; canonicalQuantity: number }>
+    >();
     for (const r of filteredRecipes) requirementsByRecipe.set(r.id, requirementsPerServing(r));
 
     const optimizerRecipes: OptimizerRecipe[] = filteredRecipes.map((r) => ({
@@ -706,7 +888,8 @@ export class PlanGenerationService {
     // The pack of every ingredient of the pool whose opened pack does not keep.
     const perishablePacks = new Map<string, number>();
     for (const line of filteredRecipes.flatMap((r) => r.ingredients)) {
-      if (line.ingredient.perishable && line.ingredient.packSize) perishablePacks.set(line.ingredientId, line.ingredient.packSize);
+      if (line.ingredient.perishable && line.ingredient.packSize)
+        perishablePacks.set(line.ingredientId, line.ingredient.packSize);
     }
 
     return { optimizerRecipes, requirementsByRecipe, beforeProfileRules: recipes, perishablePacks };
@@ -755,7 +938,9 @@ export class PlanGenerationService {
     const threshold = profile?.preferences?.inventoryBiasResetEvery ?? 5;
     if (threshold === 0) return { use: 'counted', coverage };
     const currentStreak = profile?.inventoryBiasStreak ?? 0;
-    return currentStreak >= threshold ? { use: 'left_out', round: 'left_out' } : { use: 'counted', coverage, round: 'counted' };
+    return currentStreak >= threshold
+      ? { use: 'left_out', round: 'left_out' }
+      : { use: 'counted', coverage, round: 'counted' };
   }
 }
 
@@ -769,7 +954,9 @@ export class PlanGenerationService {
 type PantryRound = 'counted' | 'left_out';
 
 /** The move of the count for a round, in a form two plans made at once cannot lose a step of. */
-const pantryCount = (round: PantryRound): Prisma.ProfileUpdateInput => ({ inventoryBiasStreak: round === 'counted' ? { increment: 1 } : 0 });
+const pantryCount = (round: PantryRound): Prisma.ProfileUpdateInput => ({
+  inventoryBiasStreak: round === 'counted' ? { increment: 1 } : 0,
+});
 
 type WeeklyTarget = '0.25' | '0.5' | '0.75' | '1.0' | null;
 
@@ -811,7 +998,10 @@ function newSeed(): number {
 }
 
 /** What a plan's base target is worked out from, of a profile. */
-type BaseProfile = Omit<CalorieEngineInput, 'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit'> & { weeklyLossTarget: string | null; riskAcknowledgedAt: Date | null };
+type BaseProfile = Omit<
+  CalorieEngineInput,
+  'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit'
+> & { weeklyLossTarget: string | null; riskAcknowledgedAt: Date | null };
 
 /**
  * The base target of a plan and how it came about: what the target of each
@@ -827,7 +1017,10 @@ interface PlanBase {
 }
 
 /** The target of one day of a plan: its own when the user set one, else the base shaped by the kind of day. */
-function dayTarget(base: PlanBase, day?: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null): number {
+function dayTarget(
+  base: PlanBase,
+  day?: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null,
+): number {
   return effectiveDayTarget({
     base: base.target,
     baseIsCalculated: base.calculated,
@@ -901,9 +1094,7 @@ function buildDays(
   return resolved.map((d, dayIndex) => ({
     date: d.date,
     calorieTarget: d.calorieTarget,
-    ...(d.overrides
-      ? { overrides: d.overrides as Prisma.InputJsonValue }
-      : {}),
+    ...(d.overrides ? { overrides: d.overrides as Prisma.InputJsonValue } : {}),
     meals: {
       create: assignments
         .filter((a) => a.dayIndex === dayIndex)
@@ -940,13 +1131,17 @@ function dropLock(day: ResolvedDay, lock: { slot: MealType; recipeId: string }):
  * profile that has said no split is refused: another diet's split under that
  * name would be a plan for something nobody asked for.
  */
-function splitFor(dietType: MealPlan['dietType'], profile: { customMacroSplit: unknown }): MacroSplit | null {
+function splitFor(
+  dietType: MealPlan['dietType'],
+  profile: { customMacroSplit: unknown },
+): MacroSplit | null {
   if (dietType !== 'custom') return null;
   const split = storedSplit(profile.customMacroSplit);
   if (!split) {
     throw new BadRequestException({
       error: 'CUSTOM_SPLIT_MISSING',
-      message: 'The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first.',
+      message:
+        'The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first.',
     });
   }
   return split;

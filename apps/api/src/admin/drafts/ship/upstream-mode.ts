@@ -44,9 +44,7 @@ export interface UpstreamShipConfig {
 /** Patterns matched against `git remote get-url <remote>` to detect a
  *  configured remote that points at the canonical diet-app repo. Covers
  *  both https and ssh remote URL shapes. */
-const CANONICAL_REMOTE_PATTERNS: RegExp[] = [
-  /(^|[/:])whiteravens20\/diet-app(\.git)?$/i,
-];
+const CANONICAL_REMOTE_PATTERNS: RegExp[] = [/(^|[/:])whiteravens20\/diet-app(\.git)?$/i];
 
 /** True iff `url` resolves to the canonical diet-app repo. A trailing slash names the same repository. */
 export function isCanonicalRemoteUrl(url: string): boolean {
@@ -73,7 +71,11 @@ const runCommand: CommandRunner = (command, args, options) => {
 
 /** Resolve the URL `git remote get-url <remote>` returns. Null when git is
  *  unavailable, the repo isn't a working tree, or the remote is unknown. */
-function resolveRemoteUrl(repoRoot: string, remote: string, run: CommandRunner = runCommand): string | null {
+function resolveRemoteUrl(
+  repoRoot: string,
+  remote: string,
+  run: CommandRunner = runCommand,
+): string | null {
   const r = run('git', ['remote', 'get-url', remote], { cwd: repoRoot });
   if (r.status !== 0) return null;
   const url = r.stdout.trim();
@@ -101,10 +103,21 @@ export interface UpstreamShipResult {
 }
 
 /** Why a pull request cannot be opened from here at all: what the settings, the tool or the checkout say. */
-export type UpstreamBlocked = 'SHIP_UPSTREAM_DISABLED' | 'SHIP_UPSTREAM_NO_TOKEN' | 'GH_MODE_UNAVAILABLE' | 'SHIP_REPO_ROOT_NOT_FOUND' | 'SHIP_UPSTREAM_BLOCKED_CANONICAL';
+export type UpstreamBlocked =
+  | 'SHIP_UPSTREAM_DISABLED'
+  | 'SHIP_UPSTREAM_NO_TOKEN'
+  | 'GH_MODE_UNAVAILABLE'
+  | 'SHIP_REPO_ROOT_NOT_FOUND'
+  | 'SHIP_UPSTREAM_BLOCKED_CANONICAL';
 
 /** The codes a ship as a pull request is refused with. */
-export type UpstreamShipCode = UpstreamBlocked | 'NO_APPROVED_DRAFTS' | 'NO_VALID_DRAFTS' | 'NO_CURRENT_OVERRIDES' | 'GIT_FAILED' | 'GH_PR_CREATE_FAILED';
+export type UpstreamShipCode =
+  | UpstreamBlocked
+  | 'NO_APPROVED_DRAFTS'
+  | 'NO_VALID_DRAFTS'
+  | 'NO_CURRENT_OVERRIDES'
+  | 'GIT_FAILED'
+  | 'GH_PR_CREATE_FAILED';
 
 export class UpstreamShipError extends Error {
   constructor(
@@ -177,7 +190,11 @@ export async function shipRecipesUpstream(
   // Held to the terms of a recipe that ships into this instance; what does not pass stays in the queue.
   const { shipping, skipped } = await sortRecipesForFile(prisma, drafts);
   if (shipping.length === 0) {
-    throw new UpstreamShipError('NO_VALID_DRAFTS', 'None of the approved recipe drafts can ship as they are.', { skipped });
+    throw new UpstreamShipError(
+      'NO_VALID_DRAFTS',
+      'None of the approved recipe drafts can ship as they are.',
+      { skipped },
+    );
   }
   const rows: ShippedRecipe[] = shipping.map((entry) => entry.content);
 
@@ -189,7 +206,13 @@ export async function shipRecipesUpstream(
   const commitMsg = `drafts: recipes batch ${shortBatch} (${rows.length} rows)`;
   await commitAndPush(request.repoRoot, request.config, branch, [filePath], commitMsg, run);
 
-  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildRecipePrBody(drafts, rows.length) }, run);
+  const prUrl = await createPullRequest(
+    request.repoRoot,
+    request.config,
+    branch,
+    { title: commitMsg, body: buildRecipePrBody(drafts, rows.length) },
+    run,
+  );
 
   const marked = await markPushed(
     shipping.map((entry) => entry.draft),
@@ -197,7 +220,12 @@ export async function shipRecipesUpstream(
     (where, data) => prisma.recipeDraft.updateMany({ where, data }),
     prUrl,
   );
-  return { prUrl, branch, shippedDraftIds: marked.shipped, skipped: [...skipped, ...marked.changed] };
+  return {
+    prUrl,
+    branch,
+    shippedDraftIds: marked.shipped,
+    skipped: [...skipped, ...marked.changed],
+  };
 }
 
 export async function shipIngredientNamesUpstream(
@@ -217,16 +245,21 @@ export async function shipIngredientNamesUpstream(
     orderBy: { createdAt: 'asc' },
   });
   if (drafts.length === 0) {
-    throw new UpstreamShipError(
-      'NO_APPROVED_DRAFTS',
-      'no approved ingredient-name drafts to ship',
-    );
+    throw new UpstreamShipError('NO_APPROVED_DRAFTS', 'no approved ingredient-name drafts to ship');
   }
 
   // Only the names of a draft's own languages ship, and only plain ones.
-  const { shipping, skipped } = sortForShipping(drafts, shippableIngredientName, (draft) => draft.ingredientSlug);
+  const { shipping, skipped } = sortForShipping(
+    drafts,
+    shippableIngredientName,
+    (draft) => draft.ingredientSlug,
+  );
   if (shipping.length === 0) {
-    throw new UpstreamShipError('NO_VALID_DRAFTS', 'None of the approved ingredient-name drafts can ship as they are.', { skipped });
+    throw new UpstreamShipError(
+      'NO_VALID_DRAFTS',
+      'None of the approved ingredient-name drafts can ship as they are.',
+      { skipped },
+    );
   }
   const additions: IngredientOverrideFile = {};
   for (const entry of shipping) additions[entry.draft.ingredientSlug] = entry.content;
@@ -241,7 +274,13 @@ export async function shipIngredientNamesUpstream(
   const commitMsg = `drafts: ingredient-names batch ${shortBatch} (${Object.keys(additions).length} rows)`;
   await commitAndPush(request.repoRoot, request.config, branch, [path], commitMsg, run);
 
-  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildIngredientPrBody(drafts, Object.keys(additions).length) }, run);
+  const prUrl = await createPullRequest(
+    request.repoRoot,
+    request.config,
+    branch,
+    { title: commitMsg, body: buildIngredientPrBody(drafts, Object.keys(additions).length) },
+    run,
+  );
 
   const marked = await markPushed(
     shipping.map((entry) => entry.draft),
@@ -249,7 +288,12 @@ export async function shipIngredientNamesUpstream(
     (where, data) => prisma.ingredientNameDraft.updateMany({ where, data }),
     prUrl,
   );
-  return { prUrl, branch, shippedDraftIds: marked.shipped, skipped: [...skipped, ...marked.changed] };
+  return {
+    prUrl,
+    branch,
+    shippedDraftIds: marked.shipped,
+    skipped: [...skipped, ...marked.changed],
+  };
 }
 
 export interface CurrentOverridesPushResult {
@@ -288,7 +332,13 @@ export async function pushCurrentOverridesUpstream(
   const commitMsg = `data: sync ingredient overrides (${rowCount} rows)`;
   await commitAndPush(request.repoRoot, request.config, branch, [path], commitMsg, run);
 
-  const prUrl = await createPullRequest(request.repoRoot, request.config, branch, { title: commitMsg, body: buildCurrentOverridesPrBody(Object.keys(file)) }, run);
+  const prUrl = await createPullRequest(
+    request.repoRoot,
+    request.config,
+    branch,
+    { title: commitMsg, body: buildCurrentOverridesPrBody(Object.keys(file)) },
+    run,
+  );
 
   return { prUrl, branch, rowCount };
 }
@@ -311,7 +361,10 @@ export async function markPushed<D extends { id: string; updatedAt: Date }>(
   const shipped: string[] = [];
   const changed: Skipped[] = [];
   for (const draft of pushed) {
-    const { count } = await update({ id: draft.id, status: 'APPROVED', updatedAt: draft.updatedAt }, { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: prUrl });
+    const { count } = await update(
+      { id: draft.id, status: 'APPROVED', updatedAt: draft.updatedAt },
+      { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: prUrl },
+    );
     if (count === 1) shipped.push(draft.id);
     else changed.push({ draftId: draft.id, slug: slugOf(draft), reason: 'changed-while-shipping' });
   }
@@ -320,7 +373,11 @@ export async function markPushed<D extends { id: string; updatedAt: Date }>(
 
 // ── git plumbing ────────────────────────────────────────────────────────────
 
-function guardPreconditions(config: UpstreamShipConfig, repoRoot: string, run: CommandRunner): void {
+function guardPreconditions(
+  config: UpstreamShipConfig,
+  repoRoot: string,
+  run: CommandRunner,
+): void {
   if (!config.enabled) {
     throw new UpstreamShipError(
       'SHIP_UPSTREAM_DISABLED',
@@ -328,16 +385,10 @@ function guardPreconditions(config: UpstreamShipConfig, repoRoot: string, run: C
     );
   }
   if (!config.ghToken) {
-    throw new UpstreamShipError(
-      'SHIP_UPSTREAM_NO_TOKEN',
-      'SHIP_UPSTREAM_GH_TOKEN is missing',
-    );
+    throw new UpstreamShipError('SHIP_UPSTREAM_NO_TOKEN', 'SHIP_UPSTREAM_GH_TOKEN is missing');
   }
   if (!ghAvailable(run)) {
-    throw new UpstreamShipError(
-      'GH_MODE_UNAVAILABLE',
-      '`gh` CLI not found on PATH',
-    );
+    throw new UpstreamShipError('GH_MODE_UNAVAILABLE', '`gh` CLI not found on PATH');
   }
   const url = resolveRemoteUrl(repoRoot, config.remote, run);
   if (url && isCanonicalRemoteUrl(url)) {
@@ -351,7 +402,12 @@ function guardPreconditions(config: UpstreamShipConfig, repoRoot: string, run: C
   }
 }
 
-async function prepareBranch(repoRoot: string, config: UpstreamShipConfig, branch: string, run: CommandRunner): Promise<void> {
+async function prepareBranch(
+  repoRoot: string,
+  config: UpstreamShipConfig,
+  branch: string,
+  run: CommandRunner,
+): Promise<void> {
   git(run, repoRoot, ['fetch', config.remote, config.baseBranch]);
   git(run, repoRoot, ['checkout', '-B', branch, `${config.remote}/${config.baseBranch}`]);
 }
@@ -388,7 +444,22 @@ async function createPullRequest(
   // eslint-disable-next-line no-restricted-syntax -- subprocess plumbing: gh needs the inherited PATH/HOME; we layer GH_TOKEN on top
   const env: NodeJS.ProcessEnv = { ...process.env };
   if (config.ghToken) env.GH_TOKEN = config.ghToken;
-  const result = run('gh', ['pr', 'create', '--title', pr.title, '--body', pr.body, '--base', config.baseBranch, '--head', branch], { cwd: repoRoot, env });
+  const result = run(
+    'gh',
+    [
+      'pr',
+      'create',
+      '--title',
+      pr.title,
+      '--body',
+      pr.body,
+      '--base',
+      config.baseBranch,
+      '--head',
+      branch,
+    ],
+    { cwd: repoRoot, env },
+  );
   if (result.status !== 0) {
     throw new UpstreamShipError(
       'GH_PR_CREATE_FAILED',
@@ -397,10 +468,7 @@ async function createPullRequest(
   }
   const url = result.stdout.trim().split('\n').pop() ?? '';
   if (!/^https?:\/\//.test(url)) {
-    throw new UpstreamShipError(
-      'GH_PR_CREATE_FAILED',
-      `unexpected gh output: ${result.stdout}`,
-    );
+    throw new UpstreamShipError('GH_PR_CREATE_FAILED', `unexpected gh output: ${result.stdout}`);
   }
   return url;
 }

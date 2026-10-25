@@ -12,18 +12,36 @@ import type { CalorieCalculation } from '@diet-app/shared';
  * warnings itself, with the box that answers them, asks for the rest alone
  * (`risk` false).
  */
-export function TargetNotices({ calories: c, risk = true }: { calories: CalorieCalculation; risk?: boolean }) {
+export function TargetNotices({
+  calories: c,
+  risk = true,
+}: {
+  calories: CalorieCalculation;
+  risk?: boolean;
+}) {
   const t = useTranslations('profileSummary.notices');
   const notices: { key: string; text: string; strong: boolean }[] = [];
   const say = (key: string, strong = false) =>
-    notices.push({ key, strong, text: t(key, { floor: c.safetyFloor, requested: c.requestedDeficit, deficit: c.dailyDeficit, bmr: c.bmr, maintenance: c.maintenance }) });
+    notices.push({
+      key,
+      strong,
+      text: t(key, {
+        floor: c.safetyFloor,
+        requested: c.requestedDeficit,
+        deficit: c.dailyDeficit,
+        bmr: c.bmr,
+        maintenance: c.maintenance,
+      }),
+    });
 
   if (risk && c.goalHeld) say('goalHeld', true);
-  for (const warning of c.warnings) if (risk && (warning === 'minor' || warning === 'underweight')) say(warning, true);
+  for (const warning of c.warnings)
+    if (risk && (warning === 'minor' || warning === 'underweight')) say(warning, true);
   if (c.maintenanceUnderFloor) say('maintenanceUnderFloor');
   if (c.safetyFloorApplied) say('safetyFloorApplied');
   // Under the floor the pace is not what set the target: the floor did.
-  if (c.deficitCapped && !c.safetyFloorApplied && !c.maintenanceUnderFloor && !c.goalHeld) say('deficitCapped');
+  if (c.deficitCapped && !c.safetyFloorApplied && !c.maintenanceUnderFloor && !c.goalHeld)
+    say('deficitCapped');
   if (c.warnings.includes('below_floor')) say('below_floor', true);
   if (c.warnings.includes('below_bmr') && c.source === 'manual_override') say('below_bmr');
   if (notices.length === 0) return null;

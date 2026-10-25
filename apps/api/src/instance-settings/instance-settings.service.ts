@@ -88,7 +88,8 @@ export class InstanceSettingsService {
       endsSessions ||= before.reviewerEnabled && !patch.reviewerEnabled;
     }
     if (patch.reviewerPassword !== undefined) {
-      data.reviewerPasswordHash = patch.reviewerPassword === '' ? null : await this.passwords.hash(patch.reviewerPassword);
+      data.reviewerPasswordHash =
+        patch.reviewerPassword === '' ? null : await this.passwords.hash(patch.reviewerPassword);
       endsSessions = true;
     }
     if (endsSessions) data.reviewerSessionEpoch = { increment: 1 };

@@ -30,7 +30,10 @@ export function shownToOne(kg: number, unit: WeightUnit): number {
 
 /** The bounds of a weight in the unit it is typed in, the least rounded up and the most down, so that neither is refused. */
 export function boundsIn(unit: WeightUnit): { min: number; max: number } {
-  return { min: Math.ceil(shownWeight(WEIGHT_BOUNDS_KG.min, unit) * 10) / 10, max: Math.floor(shownWeight(WEIGHT_BOUNDS_KG.max, unit) * 10) / 10 };
+  return {
+    min: Math.ceil(shownWeight(WEIGHT_BOUNDS_KG.min, unit) * 10) / 10,
+    max: Math.floor(shownWeight(WEIGHT_BOUNDS_KG.max, unit) * 10) / 10,
+  };
 }
 
 /** The countries that weigh people in pounds. */
@@ -63,7 +66,10 @@ const never = (): (() => void) => () => undefined;
  * knows no reader and shows kilograms until the browser has it.
  */
 export function useWeightUnit(): WeightUnit {
-  const session = useQuery({ queryKey: ['session'], queryFn: () => api.get<SessionUser>('/users/me') });
+  const session = useQuery({
+    queryKey: ['session'],
+    queryFn: () => api.get<SessionUser>('/users/me'),
+  });
   const byRegion = useSyncExternalStore<WeightUnit>(
     never,
     () => unitOfRegion(navigator.languages ?? [navigator.language]),

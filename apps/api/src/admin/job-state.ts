@@ -61,7 +61,12 @@ export class JobState<T extends Standing> {
       FROM "JobState" WHERE "name" = ${this.name}`;
     if (!row) return this.idle();
     if (row.state.status !== 'running' || !row.silent) return row.state;
-    return { ...row.state, status: 'error', finishedAt: row.heartbeatAt.toISOString(), error: 'The run stopped with the process that ran it. Start it again.' };
+    return {
+      ...row.state,
+      status: 'error',
+      finishedAt: row.heartbeatAt.toISOString(),
+      error: 'The run stopped with the process that ran it. Start it again.',
+    };
   }
 
   /**
@@ -100,12 +105,17 @@ export class JobState<T extends Standing> {
   /** Write down a state that no run led to: a start that was refused for a reason the panel should show. */
   async settle(): Promise<void> {
     const state = this.current as unknown as Prisma.InputJsonValue;
-    await this.prisma.jobState.upsert({ where: { name: this.name }, create: { name: this.name, state, heartbeatAt: new Date() }, update: { state, heartbeatAt: new Date(), stopRequested: false } });
+    await this.prisma.jobState.upsert({
+      where: { name: this.name },
+      create: { name: this.name, state, heartbeatAt: new Date() },
+      update: { state, heartbeatAt: new Date(), stopRequested: false },
+    });
   }
 
   /** Ask the job to stop, wherever it runs. False when it does not run. */
   async requestStop(): Promise<boolean> {
-    const asked = await this.prisma.$executeRaw`UPDATE "JobState" SET "stopRequested" = true WHERE "name" = ${this.name} AND "state"->>'status' = 'running'`;
+    const asked = await this.prisma
+      .$executeRaw`UPDATE "JobState" SET "stopRequested" = true WHERE "name" = ${this.name} AND "state"->>'status' = 'running'`;
     if (asked === 1 && this.writing) this.stop = true;
     return asked === 1;
   }

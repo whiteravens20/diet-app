@@ -27,7 +27,14 @@ export function energySplit(grams: Macros): EnergyPart[] | null {
   const exact = kcal.map((part) => (part * 100) / total);
   const percents = exact.map(Math.floor);
   const left = 100 - percents.reduce((sum, part) => sum + part, 0);
-  const byRemainder = exact.map((share, index) => ({ index, remainder: share - Math.floor(share) })).sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  const byRemainder = exact
+    .map((share, index) => ({ index, remainder: share - Math.floor(share) }))
+    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
   for (const { index } of byRemainder.slice(0, left)) percents[index]! += 1;
-  return KEYS.map((key, index) => ({ key, grams: grams[key], kcal: kcal[index]!, percent: percents[index]! }));
+  return KEYS.map((key, index) => ({
+    key,
+    grams: grams[key],
+    kcal: kcal[index]!,
+    percent: percents[index]!,
+  }));
 }

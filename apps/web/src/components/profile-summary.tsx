@@ -20,10 +20,13 @@ import { WeightCard } from '@/components/weight-card';
 import { useFormat } from '@/lib/use-format';
 
 /** Fetched when a ring is first shown: the charting library is the heaviest thing the dashboard has. */
-const MacroChart = dynamic(() => import('@/components/macro-chart').then((chart) => chart.MacroChart), {
-  ssr: false,
-  loading: () => <Skeleton className="h-80" />,
-});
+const MacroChart = dynamic(
+  () => import('@/components/macro-chart').then((chart) => chart.MacroChart),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-80" />,
+  },
+);
 
 /**
  * Calorie target, deficit and macro split for a single profile. The dashboard
@@ -92,7 +95,11 @@ export function ProfileSummary({ profile }: { profile: Profile }) {
             <CardTitle>{t('macroSplit')}</CardTitle>
           </CardHeader>
           <CardContent>
-            {c ? <MacroChart grams={c.targetMacros} kcal={c.dailyTarget} /> : <Skeleton className="h-80" />}
+            {c ? (
+              <MacroChart grams={c.targetMacros} kcal={c.dailyTarget} />
+            ) : (
+              <Skeleton className="h-80" />
+            )}
           </CardContent>
         </Card>
 

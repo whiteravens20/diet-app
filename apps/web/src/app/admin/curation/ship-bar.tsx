@@ -31,7 +31,13 @@ import {
 } from '@/lib/admin-api';
 import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
 
-export function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => void | Promise<void> }) {
+export function ShipBar({
+  kind,
+  onShipped,
+}: {
+  kind: ShipKind;
+  onShipped: () => void | Promise<void>;
+}) {
   const t = useTranslations('admin.curation');
   const errorText = useDraftErrorText();
   const skipReasonText = useSkipReasonText();
@@ -56,13 +62,15 @@ export function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => 
   }, [errorText]);
 
   useEffect(() => {
-    void (async () => { await refresh(); })();
+    void (async () => {
+      await refresh();
+    })();
   }, [refresh]);
 
   const approvedCount =
     kind === 'recipe'
-      ? config?.approvedCounts.recipe ?? 0
-      : config?.approvedCounts.ingredientName ?? 0;
+      ? (config?.approvedCounts.recipe ?? 0)
+      : (config?.approvedCounts.ingredientName ?? 0);
 
   const run = async (mode: ShipMode) => {
     setBusyMode(mode);
@@ -288,7 +296,9 @@ export function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => 
           </p>
           {pullResult && (
             <div className="mt-2 rounded border border-success/40 bg-success/5 px-2 py-1 text-xs">
-              <p>{t('shipPullSuccess', { applied: pullResult.applied, total: pullResult.total })}</p>
+              <p>
+                {t('shipPullSuccess', { applied: pullResult.applied, total: pullResult.total })}
+              </p>
               {pullResult.skippedSlugs.length > 0 && (
                 <p className="mt-1 text-warning">
                   {t('shipPullSkipped', {
@@ -303,7 +313,8 @@ export function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => 
                   <ul className="list-disc pl-4">
                     {pullResult.refused.slice(0, 8).map((entry) => (
                       <li key={entry.slug}>
-                        <span className="font-mono">{entry.slug}</span> — {skipReasonText(entry.reason)}
+                        <span className="font-mono">{entry.slug}</span> —{' '}
+                        {skipReasonText(entry.reason)}
                       </li>
                     ))}
                   </ul>
@@ -327,14 +338,25 @@ export function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => 
         </div>
       )}
 
-      <InstanceData state={config.instanceData} disabled={currentDisabled} onRestored={async () => { await refresh(); await onShipped(); }} />
+      <InstanceData
+        state={config.instanceData}
+        disabled={currentDisabled}
+        onRestored={async () => {
+          await refresh();
+          await onShipped();
+        }}
+      />
 
       {error && (
         <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
           {error}
         </p>
       )}
-      {error && <div className="text-xs"><SkippedDrafts skipped={heldBack} heading="shipSkipped" /></div>}
+      {error && (
+        <div className="text-xs">
+          <SkippedDrafts skipped={heldBack} heading="shipSkipped" />
+        </div>
+      )}
       {success && (
         <ShipSuccess
           result={success}
@@ -350,7 +372,15 @@ export function ShipBar({ kind, onShipped }: { kind: ShipKind; onShipped: () => 
  * The instance's own data directory: what local ships copied there, a warning
  * when the API cannot write to it, and the restore that reads the files back.
  */
-function InstanceData({ state, disabled, onRestored }: { state: InstanceDataState; disabled: boolean; onRestored: () => void | Promise<void> }) {
+function InstanceData({
+  state,
+  disabled,
+  onRestored,
+}: {
+  state: InstanceDataState;
+  disabled: boolean;
+  onRestored: () => void | Promise<void>;
+}) {
   const t = useTranslations('admin.curation');
   const errorText = useDraftErrorText();
   const reasonText = useSkipReasonText();
@@ -377,26 +407,57 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
   return (
     <div className="mt-3 border-t border-border pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('instanceDataHeader')}</span>
-        <span className="text-xs">{t('instanceDataState', { recipes: state.recipes, files: state.recipeFiles, names: state.names })}</span>
-        <Button size="sm" variant="outline" disabled={disabled || busy || nothingToRestore} onClick={restore} className="gap-2">
-          {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <RotateCcwClock className="h-3.5 w-3.5" />}
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t('instanceDataHeader')}
+        </span>
+        <span className="text-xs">
+          {t('instanceDataState', {
+            recipes: state.recipes,
+            files: state.recipeFiles,
+            names: state.names,
+          })}
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={disabled || busy || nothingToRestore}
+          onClick={restore}
+          className="gap-2"
+        >
+          {busy ? (
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RotateCcwClock className="h-3.5 w-3.5" />
+          )}
           {t('restoreButton')}
         </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t('instanceDataExplain')}</p>
-      {!state.writable && <p className="mt-1 text-xs text-warning">{t('instanceDataNotWritable')}</p>}
-      {error && <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">{error}</p>}
+      {!state.writable && (
+        <p className="mt-1 text-xs text-warning">{t('instanceDataNotWritable')}</p>
+      )}
+      {error && (
+        <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
+          {error}
+        </p>
+      )}
       {result && (
         <div className="mt-2 rounded border border-success/40 bg-success/5 px-2 py-1 text-xs">
-          <p>{t('restoreDone', { added: result.recipes.added, rewritten: result.recipes.rewritten, names: result.names.applied })}</p>
+          <p>
+            {t('restoreDone', {
+              added: result.recipes.added,
+              rewritten: result.recipes.rewritten,
+              names: result.names.applied,
+            })}
+          </p>
           {result.recipes.skipped.length > 0 && (
             <div className="mt-1 text-warning">
               <p>{t('restoreSkipped', { count: result.recipes.skipped.length })}</p>
               <ul className="list-disc pl-4">
                 {result.recipes.skipped.map((entry, index) => (
                   <li key={`${entry.file}:${index}`}>
-                    <span className="font-mono">{entry.slug}</span> ({entry.file}) — {reasonText(entry.reason)}
+                    <span className="font-mono">{entry.slug}</span> ({entry.file}) —{' '}
+                    {reasonText(entry.reason)}
                   </li>
                 ))}
               </ul>
@@ -404,7 +465,10 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
           )}
           {result.names.skippedSlugs.length > 0 && (
             <p className="mt-1 text-warning">
-              {t('shipPullSkipped', { count: result.names.skippedSlugs.length, slugs: result.names.skippedSlugs.slice(0, 8).join(', ') })}
+              {t('shipPullSkipped', {
+                count: result.names.skippedSlugs.length,
+                slugs: result.names.skippedSlugs.slice(0, 8).join(', '),
+              })}
             </p>
           )}
           {result.names.refused.length > 0 && (
@@ -425,7 +489,10 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
               <ul className="list-disc pl-4">
                 {result.unreadable.map((entry) => (
                   <li key={entry.file}>
-                    <span className="font-mono">{entry.file}</span> — {t.has(`restoreUnreadableReasons.${entry.reason}`) ? t(`restoreUnreadableReasons.${entry.reason}`) : entry.reason}
+                    <span className="font-mono">{entry.file}</span> —{' '}
+                    {t.has(`restoreUnreadableReasons.${entry.reason}`)
+                      ? t(`restoreUnreadableReasons.${entry.reason}`)
+                      : entry.reason}
                   </li>
                 ))}
               </ul>
@@ -438,7 +505,13 @@ function InstanceData({ state, disabled, onRestored }: { state: InstanceDataStat
 }
 
 /** The approved drafts a ship left where they were, each by its slug, with the reason in words. */
-function SkippedDrafts({ skipped, heading }: { skipped: ShipSkipped[]; heading: 'shipSkipped' | 'shipBundleSkipped' }) {
+function SkippedDrafts({
+  skipped,
+  heading,
+}: {
+  skipped: ShipSkipped[];
+  heading: 'shipSkipped' | 'shipBundleSkipped';
+}) {
   const t = useTranslations('admin.curation');
   const reasonText = useSkipReasonText();
   if (skipped.length === 0) return null;
@@ -471,9 +544,7 @@ function ShipSuccess({
       <div className="mt-2 rounded border border-success/40 bg-success/5 px-3 py-2 text-xs">
         <div className="flex items-center gap-2">
           <Send className="h-3.5 w-3.5" />
-          <strong>
-            {t('shipSuccessLocal', { count: result.shippedDraftIds.length })}
-          </strong>
+          <strong>{t('shipSuccessLocal', { count: result.shippedDraftIds.length })}</strong>
           <span className="flex-1" />
           <button onClick={onDismiss} className="text-muted-foreground hover:underline">
             {t('shipDismiss')}
@@ -522,10 +593,18 @@ function ShipSuccess({
           {t('shipDismiss')}
         </button>
       </div>
-      <p>{t(result.kind === 'recipe' ? 'shipBundleHintRecipes' : 'shipBundleHintNames', { file: result.fileName })}</p>
+      <p>
+        {t(result.kind === 'recipe' ? 'shipBundleHintRecipes' : 'shipBundleHintNames', {
+          file: result.fileName,
+        })}
+      </p>
       <SkippedDrafts skipped={result.skipped} heading="shipBundleSkipped" />
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => saveJsonFile(result.fileName, result.content)} className="gap-2">
+        <Button
+          size="sm"
+          onClick={() => saveJsonFile(result.fileName, result.content)}
+          className="gap-2"
+        >
           <Download className="h-3.5 w-3.5" />
           {t('shipBundleDownload')}
         </Button>

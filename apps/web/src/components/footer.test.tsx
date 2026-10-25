@@ -31,7 +31,11 @@ describe('Footer', () => {
   });
 
   it('shows the running version and the support page the operator set', () => {
-    renderWith(<Footer />, { supportUrl: 'https://example.org/support', operatorContact: null, version: '0.19.0' });
+    renderWith(<Footer />, {
+      supportUrl: 'https://example.org/support',
+      operatorContact: null,
+      version: '0.19.0',
+    });
     expect(support()).toHaveAttribute('href', 'https://example.org/support');
     expect(screen.getByText('v0.19.0')).toBeInTheDocument();
   });
@@ -53,6 +57,9 @@ describe('OperatorContact', () => {
       operatorContact: 'ops@example.org',
       version: '0.19.0',
     });
-    expect(screen.getByRole('link', { name: 'ops@example.org' })).toHaveAttribute('href', 'mailto:ops@example.org');
+    expect(screen.getByRole('link', { name: 'ops@example.org' })).toHaveAttribute(
+      'href',
+      'mailto:ops@example.org',
+    );
   });
 });

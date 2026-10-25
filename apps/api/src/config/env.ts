@@ -8,7 +8,13 @@
  * optional keys as `KEY=`, and such a line must mean "use the default", never
  * "the value is an empty string".
  */
-import { DEFAULT_PROFILES_PER_ACCOUNT, FdcDataTypes, MAX_PLAN_DAYS, MOST_PROFILES_PER_ACCOUNT, OperatorAiAccess } from '@diet-app/shared';
+import {
+  DEFAULT_PROFILES_PER_ACCOUNT,
+  FdcDataTypes,
+  MAX_PLAN_DAYS,
+  MOST_PROFILES_PER_ACCOUNT,
+  OperatorAiAccess,
+} from '@diet-app/shared';
 import { z } from 'zod';
 import { describeTrustProxy, parseTrustProxy } from './trust-proxy.js';
 
@@ -115,7 +121,12 @@ export const envSchema = z.object({
 
   // How many profiles an account may hold. An account that has more than a
   // lowered number keeps them, and can add none.
-  MAX_PROFILES_PER_ACCOUNT: z.coerce.number().int().min(1).max(MOST_PROFILES_PER_ACCOUNT).default(DEFAULT_PROFILES_PER_ACCOUNT),
+  MAX_PROFILES_PER_ACCOUNT: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MOST_PROFILES_PER_ACCOUNT)
+    .default(DEFAULT_PROFILES_PER_ACCOUNT),
 
   // The most times one recipe appears in a plan whose request names no number
   // of its own. Unset, such a plan is held to the limits of its profile only.
@@ -220,7 +231,11 @@ const HOW_TO_GENERATE =
   'Run `sh scripts/init-env.sh` for a new install, or generate one value with `openssl rand -hex 32`.';
 
 /** The secrets the template ships blank and `scripts/init-env.sh` fills in. */
-const GENERATED_SECRETS = new Set(['JWT_ACCESS_SECRET', 'AI_KEY_ENCRYPTION_SECRET', 'DATA_ENCRYPTION_SECRET']);
+const GENERATED_SECRETS = new Set([
+  'JWT_ACCESS_SECRET',
+  'AI_KEY_ENCRYPTION_SECRET',
+  'DATA_ENCRYPTION_SECRET',
+]);
 
 /** Why a secret cannot have been generated at random, or null when it looks random. */
 function whyNotRandom(value: string): string | null {
@@ -240,7 +255,8 @@ function secretProblems(env: z.infer<typeof envSchema>): string[] {
   const problems: string[] = [];
   const check = (key: string, value: string | undefined, minLength: number) => {
     if (value === undefined) return;
-    const reason = value.length < minLength ? `is shorter than ${minLength} characters` : whyNotRandom(value);
+    const reason =
+      value.length < minLength ? `is shorter than ${minLength} characters` : whyNotRandom(value);
     if (reason) problems.push(`  ${key}: ${reason}. ${HOW_TO_GENERATE}`);
   };
   check('JWT_ACCESS_SECRET', env.JWT_ACCESS_SECRET, 32);
@@ -250,14 +266,25 @@ function secretProblems(env: z.infer<typeof envSchema>): string[] {
   if (env.AI_KEY_ENCRYPTION_SECRET === env.DATA_ENCRYPTION_SECRET) {
     problems.push('  AI_KEY_ENCRYPTION_SECRET: must differ from DATA_ENCRYPTION_SECRET.');
   }
-  if (env.REVIEWER_SESSION_SECRET !== undefined && env.REVIEWER_SESSION_SECRET === env.JWT_ACCESS_SECRET) {
-    problems.push('  REVIEWER_SESSION_SECRET: must differ from JWT_ACCESS_SECRET; leave it blank to have one derived.');
+  if (
+    env.REVIEWER_SESSION_SECRET !== undefined &&
+    env.REVIEWER_SESSION_SECRET === env.JWT_ACCESS_SECRET
+  ) {
+    problems.push(
+      '  REVIEWER_SESSION_SECRET: must differ from JWT_ACCESS_SECRET; leave it blank to have one derived.',
+    );
   }
   // The one password that opens the catalogue, the curation queue and the
   // instance's settings. In production it is at least as long as an
   // account's has to be; leaving it empty keeps the panel closed.
-  if (env.NODE_ENV === 'production' && isAdminEnabled(env) && env.ADMIN_PASSWORD.length < ADMIN_PASSWORD_MIN_LENGTH) {
-    problems.push(`  ADMIN_PASSWORD: is shorter than ${ADMIN_PASSWORD_MIN_LENGTH} characters. Choose a longer one, or leave it empty to keep the admin panel closed.`);
+  if (
+    env.NODE_ENV === 'production' &&
+    isAdminEnabled(env) &&
+    env.ADMIN_PASSWORD.length < ADMIN_PASSWORD_MIN_LENGTH
+  ) {
+    problems.push(
+      `  ADMIN_PASSWORD: is shorter than ${ADMIN_PASSWORD_MIN_LENGTH} characters. Choose a longer one, or leave it empty to keep the admin panel closed.`,
+    );
   }
   return problems;
 }
@@ -278,7 +305,8 @@ export function validateEnv(raw: Record<string, unknown>): Env {
       .map((i) => {
         const key = i.path.join('.');
         // A setting that has to be there and is not: said so, and for a secret, how to make one.
-        if (!(key in given)) return `  ${key}: is not set.${GENERATED_SECRETS.has(key) ? ` ${HOW_TO_GENERATE}` : ''}`;
+        if (!(key in given))
+          return `  ${key}: is not set.${GENERATED_SECRETS.has(key) ? ` ${HOW_TO_GENERATE}` : ''}`;
         return `  ${key}: ${i.message}`;
       })
       .join('\n');
@@ -298,9 +326,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     ...rest,
     // Explicit flag wins; otherwise on everywhere except production.
     SWAGGER_ENABLED:
-      SWAGGER_ENABLED !== undefined
-        ? SWAGGER_ENABLED === 'true'
-        : rest.NODE_ENV !== 'production',
+      SWAGGER_ENABLED !== undefined ? SWAGGER_ENABLED === 'true' : rest.NODE_ENV !== 'production',
   };
 }
 
@@ -312,8 +338,12 @@ const ACCESS_WORDS: Record<OperatorAiAccess, string> = {
 };
 
 /** How many calls of the instance's limit the new accounts may make together. */
-export function newAccountsLimit(env: Pick<Env, 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT' | 'AI_ADMIN_NEW_ACCOUNTS_PERCENT'>): number {
-  return Math.floor((env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT * env.AI_ADMIN_NEW_ACCOUNTS_PERCENT) / 100);
+export function newAccountsLimit(
+  env: Pick<Env, 'AI_ADMIN_INSTANCE_MONTHLY_LIMIT' | 'AI_ADMIN_NEW_ACCOUNTS_PERCENT'>,
+): number {
+  return Math.floor(
+    (env.AI_ADMIN_INSTANCE_MONTHLY_LIMIT * env.AI_ADMIN_NEW_ACCOUNTS_PERCENT) / 100,
+  );
 }
 
 /**
@@ -352,7 +382,9 @@ export function describePosture(
         ? `! admin panel: enabled with a password shorter than ${ADMIN_PASSWORD_ADVISED_LENGTH} characters; it guards the AI keys and the catalogue`
         : 'admin panel: enabled',
     ...(env.ADMIN_SECOND_FACTOR_RESET
-      ? ['! admin panel: the second factor is removed at every start and none can be set up (ADMIN_SECOND_FACTOR_RESET=true); switch it off once the panel is open again']
+      ? [
+          '! admin panel: the second factor is removed at every start and none can be set up (ADMIN_SECOND_FACTOR_RESET=true); switch it off once the panel is open again',
+        ]
       : []),
     !env.SMTP_HOST
       ? 'mail: not configured (accounts are verified on sign-up, no password reset)'
@@ -366,7 +398,9 @@ export function describePosture(
           : '')
       : 'operator AI provider: none',
     ...(env.AI_DEFAULT_PROVIDER && env.AI_ADMIN_ACCESS === 'confirmed' && !env.SMTP_HOST
-      ? ['! operator AI provider: AI_ADMIN_ACCESS=confirmed without mail lets every account in, since an address counts as confirmed at sign-up']
+      ? [
+          '! operator AI provider: AI_ADMIN_ACCESS=confirmed without mail lets every account in, since an address counts as confirmed at sign-up',
+        ]
       : []),
     env.SWAGGER_ENABLED && env.NODE_ENV === 'production'
       ? '! API documentation is served at /api/docs on a production instance'

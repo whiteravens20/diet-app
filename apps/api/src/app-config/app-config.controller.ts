@@ -49,7 +49,10 @@ export class AppConfigController {
       },
       catalogue: { depth: depthByMealCount(await this.coverage.recent()) },
       accounts: { maxProfiles: this.config.get('MAX_PROFILES_PER_ACCOUNT', { infer: true }) },
-      plans: { maxRepeatsPerRecipe: this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }) ?? null },
+      plans: {
+        maxRepeatsPerRecipe:
+          this.config.get('DEFAULT_MAX_REPEATS_PER_RECIPE', { infer: true }) ?? null,
+      },
     };
   }
 }

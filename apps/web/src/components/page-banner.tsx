@@ -29,7 +29,14 @@ export function PageBanner({
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-background sm:grid sm:grid-cols-[min(60%,36rem)_1fr]">
       <div className="relative h-24 sm:order-last sm:h-auto">
-        <Image src={image} alt="" fill priority sizes="(min-width: 40rem) 60vw, 100vw" className="object-cover" />
+        <Image
+          src={image}
+          alt=""
+          fill
+          priority
+          sizes="(min-width: 40rem) 60vw, 100vw"
+          className="object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent to-70% sm:bg-gradient-to-r sm:to-40%" />
       </div>
       <div className="px-6 pb-8 pt-3 sm:py-12">

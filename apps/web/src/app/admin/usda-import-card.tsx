@@ -93,9 +93,7 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
 
   const running = run?.status === 'running';
   const progressPct =
-    running && run?.page && run?.totalPages
-      ? Math.round((run.page / run.totalPages) * 100)
-      : null;
+    running && run?.page && run?.totalPages ? Math.round((run.page / run.totalPages) * 100) : null;
 
   return (
     <Card>
@@ -158,7 +156,9 @@ export function UsdaImportCard({ onFinished }: { onFinished: () => Promise<unkno
             </p>
             {run.result.refused > 0 && (
               <details className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer">{t('refusedSummary', { count: run.result.refused })}</summary>
+                <summary className="cursor-pointer">
+                  {t('refusedSummary', { count: run.result.refused })}
+                </summary>
                 <ul className="mt-1 max-h-48 space-y-0.5 overflow-y-auto">
                   {/* The source lists some foods more than once: a name is no key. */}
                   {run.result.refusals.map((refusal, index) => (

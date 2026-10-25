@@ -18,7 +18,17 @@ import { UseUpService } from './use-up.service.js';
 @Module({
   imports: [RecipesModule, AiModule, PersonalRecipesModule],
   controllers: [MealPlansController],
-  providers: [MealPlansService, PlanGenerationService, IngredientSwapService, MealSwapService, PlanOverviewService, PlanCalendarService, UseUpService, DayVariationsService, DaySettingsService],
+  providers: [
+    MealPlansService,
+    PlanGenerationService,
+    IngredientSwapService,
+    MealSwapService,
+    PlanOverviewService,
+    PlanCalendarService,
+    UseUpService,
+    DayVariationsService,
+    DaySettingsService,
+  ],
   exports: [MealPlansService, PlanGenerationService, IngredientSwapService],
 })
 export class MealPlansModule {}

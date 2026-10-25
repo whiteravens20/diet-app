@@ -5,7 +5,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { COVERAGE_TARGET } from '../engine/coverage.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { aPrivateRecipe, aProfile, aRecipeDraft, as, asAdmin, aUser } from '../testing/factories.js';
+import {
+  aPrivateRecipe,
+  aProfile,
+  aRecipeDraft,
+  as,
+  asAdmin,
+  aUser,
+} from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { CatalogueCoverageService } from './catalogue-coverage.service.js';
 
@@ -38,7 +45,10 @@ describe('what the catalogue can serve', () => {
 
   /** The same count, straight from the rows a plan may use. */
   const counted = async (diet: DietType, meal: MealType): Promise<number> => {
-    const shared = await t.prisma.recipe.findMany({ where: { createdByUserId: null, retiredAt: null, deletedAt: null }, select: { dietTags: true, mealTypes: true } });
+    const shared = await t.prisma.recipe.findMany({
+      where: { createdByUserId: null, retiredAt: null, deletedAt: null },
+      select: { dietTags: true, mealTypes: true },
+    });
     return shared.filter((r) => r.mealTypes.includes(meal) && fitsDiet(r.dietTags, diet)).length;
   };
 
@@ -55,7 +65,9 @@ describe('what the catalogue can serve', () => {
   });
 
   it('is shown to the administrator meal by meal, with how many a release needs for each', async () => {
-    const { coverage, coverageTarget } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
+    const { coverage, coverageTarget } = (
+      await t.http().get('/api/admin/stats').set(basic).expect(200)
+    ).body;
 
     expect(coverage.vegan.lunch).toBe(await counted('vegan', 'lunch'));
     expect(Object.keys(coverage.balanced).sort()).toEqual([...MealType.options].sort());
@@ -69,15 +81,22 @@ describe('what the catalogue can serve', () => {
     await aRecipeDraft(t, { status: 'REJECTED' });
     await aRecipeDraft(t, { status: 'SHIPPED' });
 
-    const { coverageWaiting } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
+    const { coverageWaiting } = (await t.http().get('/api/admin/stats').set(basic).expect(200))
+      .body;
 
-    expect(coverageWaiting.vegan).toEqual({ breakfast: 2, second_breakfast: 0, lunch: 0, snack: 1, dinner: 0 });
+    expect(coverageWaiting.vegan).toEqual({
+      breakfast: 2,
+      second_breakfast: 0,
+      lunch: 0,
+      snack: 1,
+      dinner: 0,
+    });
     expect(coverageWaiting.balanced.breakfast).toBe(2);
     expect(coverageWaiting.keto.breakfast).toBe(0);
     expect(Object.keys(coverageWaiting).sort()).toEqual([...DietType.options].sort());
   });
 
-  it('tells the administrator what each diet aims at and what its plans reach, as shares of a day\'s energy', async () => {
+  it("tells the administrator what each diet aims at and what its plans reach, as shares of a day's energy", async () => {
     const { macros } = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body;
 
     expect(macros.outOfReach).toBe(0.1);
@@ -99,8 +118,14 @@ describe('what the catalogue can serve', () => {
     expect(await coverage.macroReach()).toBe(first);
 
     // A dinner that takes more of something: what the plans reach is measured with it.
-    const line = await t.prisma.recipeIngredient.findFirstOrThrow({ where: { recipe: { createdByUserId: null, mealTypes: { has: 'dinner' } } }, orderBy: { id: 'asc' } });
-    await t.prisma.recipeIngredient.update({ where: { id: line.id }, data: { quantity: line.quantity * 3 } });
+    const line = await t.prisma.recipeIngredient.findFirstOrThrow({
+      where: { recipe: { createdByUserId: null, mealTypes: { has: 'dinner' } } },
+      orderBy: { id: 'asc' },
+    });
+    await t.prisma.recipeIngredient.update({
+      where: { id: line.id },
+      data: { quantity: line.quantity * 3 },
+    });
     const second = await coverage.macroReach();
     expect(second).not.toBe(first);
     expect(await coverage.macroReach()).toBe(second);
@@ -109,19 +134,31 @@ describe('what the catalogue can serve', () => {
     await aPrivateRecipe(t, await aUser(t), { mealTypes: ['lunch'] });
     expect(await coverage.macroReach()).toBe(second);
 
-    await t.prisma.recipeIngredient.update({ where: { id: line.id }, data: { quantity: line.quantity } });
+    await t.prisma.recipeIngredient.update({
+      where: { id: line.id },
+      data: { quantity: line.quantity },
+    });
     expect(await coverage.macroReach()).toEqual(first);
   });
 
   it('keeps the measure while a shared recipe changes only in what the measure does not read', async () => {
     const coverage = t.app.get(CatalogueCoverageService);
     const first = await coverage.macroReach();
-    const recipe = await t.prisma.recipe.findFirstOrThrow({ where: { createdByUserId: null }, orderBy: { id: 'asc' } });
+    const recipe = await t.prisma.recipe.findFirstOrThrow({
+      where: { createdByUserId: null },
+      orderBy: { id: 'asc' },
+    });
 
-    await t.prisma.recipe.update({ where: { id: recipe.id }, data: { description: `${recipe.description} Serve warm.` } });
+    await t.prisma.recipe.update({
+      where: { id: recipe.id },
+      data: { description: `${recipe.description} Serve warm.` },
+    });
     expect(await coverage.macroReach()).toBe(first);
 
-    await t.prisma.recipe.update({ where: { id: recipe.id }, data: { description: recipe.description } });
+    await t.prisma.recipe.update({
+      where: { id: recipe.id },
+      data: { description: recipe.description },
+    });
   });
 
   it('measures anew when an ingredient changes how a line of it is bought', async () => {
@@ -134,10 +171,16 @@ describe('what the catalogue can serve', () => {
     });
     const { perishable, packSize } = line.ingredient;
 
-    await t.prisma.ingredient.update({ where: { id: line.ingredientId }, data: { perishable: !perishable, packSize: packSize ?? 100 } });
+    await t.prisma.ingredient.update({
+      where: { id: line.ingredientId },
+      data: { perishable: !perishable, packSize: packSize ?? 100 },
+    });
     expect(await coverage.macroReach()).not.toBe(first);
 
-    await t.prisma.ingredient.update({ where: { id: line.ingredientId }, data: { perishable, packSize } });
+    await t.prisma.ingredient.update({
+      where: { id: line.ingredientId },
+      data: { perishable, packSize },
+    });
     expect(await coverage.macroReach()).toEqual(first);
   });
 
@@ -161,14 +204,28 @@ describe('what the catalogue can serve', () => {
 
     const after = (await t.http().get('/api/admin/stats').set(basic).expect(200)).body.coverage;
 
-    expect(await t.prisma.recipe.count({ where: { createdByUserId: { not: null }, mealTypes: { has: 'lunch' }, dietTags: { has: 'vegan' } } })).toBe(1);
+    expect(
+      await t.prisma.recipe.count({
+        where: {
+          createdByUserId: { not: null },
+          mealTypes: { has: 'lunch' },
+          dietTags: { has: 'vegan' },
+        },
+      }),
+    ).toBe(1);
     expect(after).toEqual(before);
   });
 
   it('leaves out what an update retired, and is read anew once a minute or when the administrator looks', async () => {
     const before = (await t.http().get('/api/config')).body.catalogue.depth;
-    const dinners = await t.prisma.recipe.findMany({ where: { createdByUserId: null, mealTypes: { has: 'dinner' } }, select: { id: true } });
-    await t.prisma.recipe.updateMany({ where: { id: { in: dinners.map((r) => r.id) } }, data: { retiredAt: new Date() } });
+    const dinners = await t.prisma.recipe.findMany({
+      where: { createdByUserId: null, mealTypes: { has: 'dinner' } },
+      select: { id: true },
+    });
+    await t.prisma.recipe.updateMany({
+      where: { id: { in: dinners.map((r) => r.id) } },
+      data: { retiredAt: new Date() },
+    });
 
     // Kept for a minute: the public configuration is asked for on every page.
     expect((await t.http().get('/api/config')).body.catalogue.depth).toEqual(before);
@@ -185,48 +242,96 @@ describe('what the catalogue can serve', () => {
   it('is named when a plan cannot be made: which meal, which diet', async () => {
     const user = await aUser(t);
     const profile = await aProfile(t, user, { dietType: 'vegan' });
-    const lunches = await t.prisma.recipe.findMany({ where: { createdByUserId: null, mealTypes: { has: 'lunch' }, dietTags: { has: 'vegan' } }, select: { id: true } });
-    await t.prisma.recipe.updateMany({ where: { id: { in: lunches.map((r) => r.id) } }, data: { retiredAt: new Date() } });
+    const lunches = await t.prisma.recipe.findMany({
+      where: { createdByUserId: null, mealTypes: { has: 'lunch' }, dietTags: { has: 'vegan' } },
+      select: { id: true },
+    });
+    await t.prisma.recipe.updateMany({
+      where: { id: { in: lunches.map((r) => r.id) } },
+      data: { retiredAt: new Date() },
+    });
 
-    const res = await t.http().post('/api/meal-plans/generate').set(as(user)).send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
+    const res = await t
+      .http()
+      .post('/api/meal-plans/generate')
+      .set(as(user))
+      .send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
 
     expect(res.status).toBe(400);
     // Nothing was ruled out by the profile: the catalogue has no such recipe.
-    expect(res.body).toMatchObject({ error: 'NO_ELIGIBLE_RECIPE', details: { slot: 'lunch', dietType: 'vegan', ruledOut: 0 } });
+    expect(res.body).toMatchObject({
+      error: 'NO_ELIGIBLE_RECIPE',
+      details: { slot: 'lunch', dietType: 'vegan', ruledOut: 0 },
+    });
     // A day of two meals has no lunch, so fewer meals can help.
-    expect(res.body.message).toBe('There is no recipe for lunch on the vegan diet. Choose another diet or fewer meals a day.');
+    expect(res.body.message).toBe(
+      'There is no recipe for lunch on the vegan diet. Choose another diet or fewer meals a day.',
+    );
   });
 
   it('does not advise fewer meals a day for a meal that every day has', async () => {
     const user = await aUser(t);
     const profile = await aProfile(t, user, { dietType: 'vegan' });
-    const breakfasts = await t.prisma.recipe.findMany({ where: { createdByUserId: null, mealTypes: { has: 'breakfast' }, dietTags: { has: 'vegan' } }, select: { id: true } });
-    await t.prisma.recipe.updateMany({ where: { id: { in: breakfasts.map((r) => r.id) } }, data: { retiredAt: new Date() } });
+    const breakfasts = await t.prisma.recipe.findMany({
+      where: { createdByUserId: null, mealTypes: { has: 'breakfast' }, dietTags: { has: 'vegan' } },
+      select: { id: true },
+    });
+    await t.prisma.recipe.updateMany({
+      where: { id: { in: breakfasts.map((r) => r.id) } },
+      data: { retiredAt: new Date() },
+    });
 
-    const res = await t.http().post('/api/meal-plans/generate').set(as(user)).send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
+    const res = await t
+      .http()
+      .post('/api/meal-plans/generate')
+      .set(as(user))
+      .send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
 
-    expect(res.body).toMatchObject({ error: 'NO_ELIGIBLE_RECIPE', details: { slot: 'breakfast', dietType: 'vegan', ruledOut: 0 } });
-    expect(res.body.message).toBe('There is no recipe for breakfast on the vegan diet. Choose another diet.');
+    expect(res.body).toMatchObject({
+      error: 'NO_ELIGIBLE_RECIPE',
+      details: { slot: 'breakfast', dietType: 'vegan', ruledOut: 0 },
+    });
+    expect(res.body.message).toBe(
+      'There is no recipe for breakfast on the vegan diet. Choose another diet.',
+    );
   });
 
   it('is told apart from a profile that rules out every recipe there is', async () => {
     const user = await aUser(t);
-    const lunches = await t.prisma.recipe.findMany({ where: { createdByUserId: null, mealTypes: { has: 'lunch' }, dietTags: { has: 'vegan' } }, select: { allergens: true, ingredients: { select: { ingredientId: true } } } });
+    const lunches = await t.prisma.recipe.findMany({
+      where: { createdByUserId: null, mealTypes: { has: 'lunch' }, dietTags: { has: 'vegan' } },
+      select: { allergens: true, ingredients: { select: { ingredientId: true } } },
+    });
     expect(lunches.length).toBeGreaterThan(0);
     // Skip one ingredient of every vegan lunch: each is ruled out, none is missing from the catalogue.
     const skipped = [...new Set(lunches.map((r) => r.ingredients[0]!.ingredientId))];
     const profile = await aProfile(t, user, {
       dietType: 'vegan',
-      preferences: { favoriteIngredientIds: [], excludedIngredientIds: skipped, allergens: [], dislikedIngredientIds: [], preferredCuisines: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, inventoryBiasResetEvery: 5 },
+      preferences: {
+        favoriteIngredientIds: [],
+        excludedIngredientIds: skipped,
+        allergens: [],
+        dislikedIngredientIds: [],
+        preferredCuisines: [],
+        maxConsecutiveDaysSameMeal: 2,
+        maxTimesPerWeekSameMeal: 3,
+        inventoryBiasResetEvery: 5,
+      },
     });
 
-    const res = await t.http().post('/api/meal-plans/generate').set(as(user)).send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
+    const res = await t
+      .http()
+      .post('/api/meal-plans/generate')
+      .set(as(user))
+      .send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, mealCount: 3 });
 
     // Breakfast may share a skipped ingredient: whichever meal runs dry first, it had recipes before the profile's rules.
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('NO_ELIGIBLE_RECIPE');
     expect(res.body.details.dietType).toBe('vegan');
     expect(res.body.details.ruledOut).toBeGreaterThan(0);
-    expect(res.body.message).toContain("is ruled out by this profile's allergens, skipped ingredients or avoided recipes");
+    expect(res.body.message).toContain(
+      "is ruled out by this profile's allergens, skipped ingredients or avoided recipes",
+    );
   });
 });

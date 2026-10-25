@@ -5,7 +5,20 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Calculator, CalendarRange, LayoutDashboard, LogOut, Menu, Package, Settings, ShoppingBasket, Soup, Star, UserRound, X } from 'lucide-react';
+import {
+  Calculator,
+  CalendarRange,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Settings,
+  ShoppingBasket,
+  Soup,
+  Star,
+  UserRound,
+  X,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { session } from '@/lib/session';
 import { cn } from '@/lib/utils';
@@ -71,7 +84,9 @@ export function Sidebar() {
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                active ? 'bg-primary/10 font-medium text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                active
+                  ? 'bg-primary/10 font-medium text-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
               <item.icon size={18} className={active ? 'text-primary' : undefined} aria-hidden />
@@ -80,7 +95,12 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <Button variant="ghost" size="sm" className="justify-start" onClick={() => void session.signOut()}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="justify-start"
+        onClick={() => void session.signOut()}
+      >
         <LogOut size={18} aria-hidden /> {tNav('signOut')}
       </Button>
     </>
@@ -101,7 +121,14 @@ export function Sidebar() {
 
       <header className="flex items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5 md:hidden">
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" aria-label={tNav('menu')} aria-haspopup="dialog" aria-expanded={drawer} onClick={() => setDrawer(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={tNav('menu')}
+            aria-haspopup="dialog"
+            aria-expanded={drawer}
+            onClick={() => setDrawer(true)}
+          >
             <Menu size={20} aria-hidden />
           </Button>
           <span className="text-base font-semibold tracking-tight">{tCommon('appName')}</span>
@@ -120,7 +147,12 @@ export function Sidebar() {
         <div className="flex h-full flex-col p-4">
           <div className="flex items-center justify-between px-2">
             <span className="text-lg font-semibold tracking-tight">{tCommon('appName')}</span>
-            <Button variant="ghost" size="sm" aria-label={tCommon('close')} onClick={() => setDrawer(false)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={tCommon('close')}
+              onClick={() => setDrawer(false)}
+            >
               <X size={18} aria-hidden />
             </Button>
           </div>

@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { Passwords } from './passwords.js';
 
 const settings = (secret = 'a'.repeat(64), rounds = 4) => {
-  const values: Record<string, unknown> = { DATA_ENCRYPTION_SECRET: secret, PASSWORD_HASH_ROUNDS: rounds };
+  const values: Record<string, unknown> = {
+    DATA_ENCRYPTION_SECRET: secret,
+    PASSWORD_HASH_ROUNDS: rounds,
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test double
   return { get: (key: string) => values[key] } as any;
 };
@@ -27,7 +30,9 @@ describe('a password the application keeps', () => {
     // Not what bcrypt makes of the password itself.
     expect(await bcrypt.compare('Correct-Horse-1', hash)).toBe(false);
     // And not what an application with another secret makes of it.
-    expect(await new Passwords(settings('b'.repeat(64))).matches('Correct-Horse-1', hash)).toBe(false);
+    expect(await new Passwords(settings('b'.repeat(64))).matches('Correct-Horse-1', hash)).toBe(
+      false,
+    );
   });
 
   it('is told apart to its last character, however long it is', async () => {

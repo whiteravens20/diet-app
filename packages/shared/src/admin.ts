@@ -67,7 +67,11 @@ export type MacroReach = z.infer<typeof MacroReach>;
 
 /** The curated data as the database holds it and as the files are now. */
 export const AdminStats = z.object({
-  counts: z.object({ ingredients: z.number().int(), recipes: z.number().int(), substitutions: z.number().int() }),
+  counts: z.object({
+    ingredients: z.number().int(),
+    recipes: z.number().int(),
+    substitutions: z.number().int(),
+  }),
   /** How many recipes each diet has for each meal. */
   coverage: CoverageMatrix,
   /** How many a release needs for each. */
@@ -90,7 +94,9 @@ export const AdminStats = z.object({
     currentHash: z.string(),
     updateAvailable: z.boolean(),
     /** Each data file: whether it is there, and its size. */
-    files: z.array(z.object({ name: z.string(), present: z.boolean(), bytes: z.number().int().min(0) })),
+    files: z.array(
+      z.object({ name: z.string(), present: z.boolean(), bytes: z.number().int().min(0) }),
+    ),
   }),
 });
 export type AdminStats = z.infer<typeof AdminStats>;
@@ -120,7 +126,11 @@ export const CatalogueUpdateState = z.object({
       retiredIngredients: z.number().int(),
       /** Profiles whose preferences or favourite sets pointed at rows that are gone. */
       repairedProfiles: z.number().int(),
-      counts: z.object({ ingredients: z.number().int(), recipes: z.number().int(), substitutions: z.number().int() }),
+      counts: z.object({
+        ingredients: z.number().int(),
+        recipes: z.number().int(),
+        substitutions: z.number().int(),
+      }),
       hash: z.string(),
       seededAt: z.string(),
     })
@@ -131,7 +141,13 @@ export const CatalogueUpdateState = z.object({
 export type CatalogueUpdateState = z.infer<typeof CatalogueUpdateState>;
 
 /** Why a food import failed, so that the panel can say what to do about it. */
-export const FoodImportFailure = z.enum(['over_limit', 'key_refused', 'unavailable', 'not_writable', 'failed']);
+export const FoodImportFailure = z.enum([
+  'over_limit',
+  'key_refused',
+  'unavailable',
+  'not_writable',
+  'failed',
+]);
 export type FoodImportFailure = z.infer<typeof FoodImportFailure>;
 
 /** Where the import of foods from USDA FoodData Central stands. */

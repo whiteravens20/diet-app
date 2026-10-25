@@ -8,8 +8,20 @@ import type { AiGenerationMeta } from '@diet-app/shared';
 import messages from '../../messages/en.json';
 import { ModelSays, WeighButton, WeighedLine } from './weigh';
 
-const shown = (what: React.ReactNode) => render(<NextIntlClientProvider locale="en" messages={messages}>{what}</NextIntlClientProvider>);
-const answered: AiGenerationMeta = { provider: 'ollama', model: 'test-model', failoverChain: [], usedDeterministicFallback: false, fallbackReason: null, reason: null };
+const shown = (what: React.ReactNode) =>
+  render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {what}
+    </NextIntlClientProvider>,
+  );
+const answered: AiGenerationMeta = {
+  provider: 'ollama',
+  model: 'test-model',
+  failoverChain: [],
+  usedDeterministicFallback: false,
+  fallbackReason: null,
+  reason: null,
+};
 
 describe('the button that asks a model to weigh what the engine proposed', () => {
   it('asks when it is pressed, and says what asking does', async () => {
@@ -56,14 +68,19 @@ describe('what is said of how asking a model went', () => {
     expect(screen.getByRole('status')).toHaveTextContent(messages.weigh.weighed);
   });
 
-  it.each(['no_provider', 'quota_exhausted', 'invalid_output', 'provider_timeout'] as const)('is why the engine\'s order stands, when the model was no help: %s', (fallbackReason) => {
-    shown(<WeighedLine aiMeta={{ ...answered, usedDeterministicFallback: true, fallbackReason }} />);
+  it.each(['no_provider', 'quota_exhausted', 'invalid_output', 'provider_timeout'] as const)(
+    "is why the engine's order stands, when the model was no help: %s",
+    (fallbackReason) => {
+      shown(
+        <WeighedLine aiMeta={{ ...answered, usedDeterministicFallback: true, fallbackReason }} />,
+      );
 
-    expect(screen.getByRole('status')).toHaveTextContent(messages.aiFallback[fallbackReason]);
-  });
+      expect(screen.getByRole('status')).toHaveTextContent(messages.aiFallback[fallbackReason]);
+    },
+  );
 });
 
-describe('a model\'s sentence on a proposal', () => {
+describe("a model's sentence on a proposal", () => {
   it('stands under the mark that a model said it', () => {
     shown(<ModelSays reason="Uses up the chicken." />);
 

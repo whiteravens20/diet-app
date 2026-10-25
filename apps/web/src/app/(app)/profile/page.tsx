@@ -30,11 +30,18 @@ import { IngredientPicker } from '@/components/ingredient-picker';
 import { Field, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CaloriePreviewPanel, useCaloriePreview } from '@/components/calorie-preview';
-import { BodyFields, DietFields, OwnTargetField, PaceChoice, RiskBox, splitAddsUp, splitIn } from '@/components/profile-fields';
+import {
+  BodyFields,
+  DietFields,
+  OwnTargetField,
+  PaceChoice,
+  RiskBox,
+  splitAddsUp,
+  splitIn,
+} from '@/components/profile-fields';
 import { LoadFailed } from '@/components/load-failed';
 import { useFormat } from '@/lib/use-format';
 import { boundsIn, shownToOne, shownWeight, toKilograms, useWeightUnit } from '@/lib/weight-unit';
-
 
 /** Fetched for an account that has no profile yet: nobody else is shown the steps. */
 const FirstProfile = dynamic(() => import('./first-profile').then((steps) => steps.FirstProfile), {
@@ -51,7 +58,10 @@ export default function ProfilePage() {
   const tWizard = useTranslations('profile.wizard');
   const errorText = useErrorText();
   const qc = useQueryClient();
-  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
   const [error, setError] = useState<string | null>(null);
   // null = the form creates a new profile; a Profile = the form edits it.
   const [editing, setEditing] = useState<Profile | null>(null);
@@ -79,7 +89,10 @@ export default function ProfilePage() {
    * that went through pounds and back would otherwise move by a hair with
    * every save.
    */
-  const weightTyped = (field: FormDataEntryValue | null, before: number | null | undefined): number | null => {
+  const weightTyped = (
+    field: FormDataEntryValue | null,
+    before: number | null | undefined,
+  ): number | null => {
     if (field === null || String(field).trim() === '') return null;
     const typed = Number(field);
     return before != null && typed === shownToOne(before, unit) ? before : toKilograms(typed, unit);
@@ -104,8 +117,7 @@ export default function ProfilePage() {
       setEditing(null);
       setCreating(false);
     },
-    onError: (e) =>
-      setError(errorText(e, t('saveFailed'))),
+    onError: (e) => setError(errorText(e, t('saveFailed'))),
   });
 
   const remove = useMutation({
@@ -114,19 +126,24 @@ export default function ProfilePage() {
       recalculate();
       setEditing(null);
     },
-    onError: (e) =>
-      setError(errorText(e, t('deleteFailed'))),
+    onError: (e) => setError(errorText(e, t('deleteFailed'))),
   });
 
   // Change preferences in place: only the part that changed is sent, and the rest of the profile stays as it is.
   // What is on its way to the API is shown from the moment it was chosen, in the same breath as the click: a box that
   // was ticked looks ticked. It is taken back when the API refuses it.
-  const [sending, setSending] = useState<{ id: string; preferences: ProfilePreferencesPatch } | null>(null);
+  const [sending, setSending] = useState<{
+    id: string;
+    preferences: ProfilePreferencesPatch;
+  } | null>(null);
   const savePrefs = useMutation({
-    mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) => api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
+    mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) =>
+      api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
     onSuccess: (saved) => {
       // The answer is the profile as it is now: shown before the list is read again, so that nothing flickers back.
-      qc.setQueryData<Profile[]>(['profiles'], (shown) => shown?.map((p) => (p.id === saved.id ? saved : p)));
+      qc.setQueryData<Profile[]>(['profiles'], (shown) =>
+        shown?.map((p) => (p.id === saved.id ? saved : p)),
+      );
       recalculate();
     },
     onError: (e) => setError(errorText(e, t('prefsSaveFailed'))),
@@ -138,7 +155,10 @@ export default function ProfilePage() {
     savePrefs.mutate({ profile, preferences });
   };
   /** The preferences of a profile as the page shows them: what is kept, with what is being sent on top. */
-  const preferencesOf = (profile: Profile): Profile['preferences'] => (sending?.id === profile.id ? { ...profile.preferences, ...sending.preferences } : profile.preferences);
+  const preferencesOf = (profile: Profile): Profile['preferences'] =>
+    sending?.id === profile.id
+      ? { ...profile.preferences, ...sending.preferences }
+      : profile.preferences;
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -167,8 +187,7 @@ export default function ProfilePage() {
       // Sent only by a form that showed the warning: ticked is yes, not ticked takes the word back.
       ...(risk.length > 0 ? { acknowledgeRisk: f.get('acknowledgeRisk') === 'on' } : {}),
       mealCount: Number(f.get('mealCount')),
-      weightReminderCadence:
-        (f.get('weightReminderCadence') as WeightReminderCadence) ?? 'weekly',
+      weightReminderCadence: (f.get('weightReminderCadence') as WeightReminderCadence) ?? 'weekly',
       // Preserve preferences on edit; new profiles start with an empty set
       // (the cap defaults mirror packages/shared/src/profile.ts).
       preferences: {
@@ -185,7 +204,8 @@ export default function ProfilePage() {
         }),
         maxConsecutiveDaysSameMeal: Number(f.get('maxConsecutiveDaysSameMeal')) || 2,
         maxTimesPerWeekSameMeal: Number(f.get('maxTimesPerWeekSameMeal')) || 3,
-        maxWeeklyAmountPerIngredient: Number(f.get('maxWeeklyAmountPerIngredient')) || DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
+        maxWeeklyAmountPerIngredient:
+          Number(f.get('maxWeeklyAmountPerIngredient')) || DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT,
         inventoryBiasResetEvery: Math.max(
           0,
           Math.min(20, Number(f.get('inventoryBiasResetEvery')) || 0),
@@ -210,9 +230,7 @@ export default function ProfilePage() {
     <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t('subhead', { max: maxProfiles })}
-        </p>
+        <p className="text-sm text-muted-foreground">{t('subhead', { max: maxProfiles })}</p>
       </header>
 
       {/* A change that was refused outside the form (a preference, a profile that could not be deleted) is said here: the form shows its own. */}
@@ -237,7 +255,11 @@ export default function ProfilePage() {
                     {t('summary', {
                       age: p.age,
                       height: p.heightCm,
-                      weight: fmt.unit(shownWeight(p.weightKg, unit), unit === 'lb' ? 'pound' : 'kilogram', 1),
+                      weight: fmt.unit(
+                        shownWeight(p.weightKg, unit),
+                        unit === 'lb' ? 'pound' : 'kilogram',
+                        1,
+                      ),
                       dietType: tDiet(p.dietType),
                     })}
                   </p>
@@ -288,7 +310,10 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{tWizard('madeNext')}</p>
-            <Link href={`/meal-plans?profile=${made.id}`} className={buttonVariants({ size: 'md' })}>
+            <Link
+              href={`/meal-plans?profile=${made.id}`}
+              className={buttonVariants({ size: 'md' })}
+            >
               {tWizard('madeCta')}
             </Link>
           </CardContent>
@@ -318,7 +343,9 @@ export default function ProfilePage() {
       {showForm && (
         <Card className="max-w-2xl">
           <CardHeader>
-            <CardTitle>{editing ? t('editing', { name: editing.name }) : t('newProfile')}</CardTitle>
+            <CardTitle>
+              {editing ? t('editing', { name: editing.name }) : t('newProfile')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {/* Re-mount on edit-target change so default values reset. */}
@@ -330,11 +357,26 @@ export default function ProfilePage() {
               className="grid gap-4 sm:grid-cols-2"
             >
               <Field label={t('name')} hint={t('nameHint')}>
-                <Input name="name" required pattern=".*\S.*" maxLength={80} defaultValue={editing?.name} />
+                <Input
+                  name="name"
+                  required
+                  pattern=".*\S.*"
+                  maxLength={80}
+                  defaultValue={editing?.name}
+                />
               </Field>
               <BodyFields initial={editing ?? undefined} unit={unit} />
-              <DietFields diet={editing?.dietType ?? 'balanced'} mealCount={editing?.mealCount ?? 3} split={editing?.customMacroSplit ?? null} />
-              <PaceChoice initial={editing ? editing.weeklyLossTarget : '0.5'} paces={shown.preview?.paces} unit={unit} className="sm:col-span-2" />
+              <DietFields
+                diet={editing?.dietType ?? 'balanced'}
+                mealCount={editing?.mealCount ?? 3}
+                split={editing?.customMacroSplit ?? null}
+              />
+              <PaceChoice
+                initial={editing ? editing.weeklyLossTarget : '0.5'}
+                paces={shown.preview?.paces}
+                unit={unit}
+                className="sm:col-span-2"
+              />
               <Field label={t('targetWeight', { unit })} hint={t('targetWeightHint')}>
                 <Input
                   key={unit}
@@ -344,15 +386,18 @@ export default function ProfilePage() {
                   min={weightBounds.min}
                   max={weightBounds.max}
                   step="0.1"
-                  defaultValue={editing?.targetWeightKg != null ? shownToOne(editing.targetWeightKg, unit) : ''}
+                  defaultValue={
+                    editing?.targetWeightKg != null ? shownToOne(editing.targetWeightKg, unit) : ''
+                  }
                 />
               </Field>
               <OwnTargetField initial={editing?.manualCalorieTarget ?? null} />
-              <RiskBox reasons={risk} acknowledged={editing?.riskAcknowledgedAt != null} className="sm:col-span-2" />
-              <Field
-                label={t('weightReminderCadence')}
-                hint={t('weightReminderCadenceHint')}
-              >
+              <RiskBox
+                reasons={risk}
+                acknowledged={editing?.riskAcknowledgedAt != null}
+                className="sm:col-span-2"
+              />
+              <Field label={t('weightReminderCadence')} hint={t('weightReminderCadenceHint')}>
                 <select
                   name="weightReminderCadence"
                   defaultValue={editing?.weightReminderCadence ?? 'weekly'}
@@ -363,7 +408,10 @@ export default function ProfilePage() {
                   <option value="weekly">{t('weightReminderWeekly')}</option>
                 </select>
               </Field>
-              <Field label={t('maxConsecutiveDaysSameMeal')} hint={t('maxConsecutiveDaysSameMealHint')}>
+              <Field
+                label={t('maxConsecutiveDaysSameMeal')}
+                hint={t('maxConsecutiveDaysSameMealHint')}
+              >
                 <Input
                   name="maxConsecutiveDaysSameMeal"
                   type="number"
@@ -383,7 +431,10 @@ export default function ProfilePage() {
                   defaultValue={editing?.preferences.maxTimesPerWeekSameMeal ?? 3}
                 />
               </Field>
-              <Field label={t('maxWeeklyAmountPerIngredient')} hint={t('maxWeeklyAmountPerIngredientHint')}>
+              <Field
+                label={t('maxWeeklyAmountPerIngredient')}
+                hint={t('maxWeeklyAmountPerIngredientHint')}
+              >
                 <Input
                   name="maxWeeklyAmountPerIngredient"
                   type="number"
@@ -391,13 +442,13 @@ export default function ProfilePage() {
                   min={MIN_WEEKLY_AMOUNT_PER_INGREDIENT}
                   max={MAX_WEEKLY_AMOUNT_PER_INGREDIENT}
                   step={100}
-                  defaultValue={editing?.preferences.maxWeeklyAmountPerIngredient ?? DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT}
+                  defaultValue={
+                    editing?.preferences.maxWeeklyAmountPerIngredient ??
+                    DEFAULT_WEEKLY_AMOUNT_PER_INGREDIENT
+                  }
                 />
               </Field>
-              <Field
-                label={t('inventoryBiasResetEvery')}
-                hint={t('inventoryBiasResetEveryHint')}
-              >
+              <Field label={t('inventoryBiasResetEvery')} hint={t('inventoryBiasResetEveryHint')}>
                 <Input
                   name="inventoryBiasResetEvery"
                   type="number"
@@ -410,11 +461,7 @@ export default function ProfilePage() {
               <CaloriePreviewPanel {...shown} className="sm:col-span-2" />
               <div className="flex items-center gap-3 sm:col-span-2">
                 <Button type="submit" disabled={save.isPending}>
-                  {save.isPending
-                    ? t('saving')
-                    : editing
-                      ? t('saveChanges')
-                      : t('createProfile')}
+                  {save.isPending ? t('saving') : editing ? t('saveChanges') : t('createProfile')}
                 </Button>
                 <Button
                   type="button"
@@ -450,9 +497,7 @@ export default function ProfilePage() {
                     hint={t('allergensHint')}
                     selected={preferencesOf(p).allergens}
                     disabled={savePrefs.isPending}
-                    onChange={(allergens) =>
-                      changePrefs(p, { allergens })
-                    }
+                    onChange={(allergens) => changePrefs(p, { allergens })}
                   />
                 </div>
                 <IngredientPicker
@@ -460,9 +505,7 @@ export default function ProfilePage() {
                   hint={t('favouritesHint')}
                   ids={preferencesOf(p).favoriteIngredientIds}
                   disabled={savePrefs.isPending}
-                  onChange={(ids) =>
-                    changePrefs(p, { favoriteIngredientIds: ids })
-                  }
+                  onChange={(ids) => changePrefs(p, { favoriteIngredientIds: ids })}
                 />
                 <fieldset className="space-y-1.5 sm:col-span-2">
                   <legend className="text-sm font-medium">{t('cuisinesLabel')}</legend>
@@ -477,7 +520,13 @@ export default function ProfilePage() {
                           disabled={savePrefs.isPending}
                           onChange={(e) =>
                             // In the order the application lists them, whatever order they were ticked in.
-                            changePrefs(p, { preferredCuisines: CUISINES.filter((other) => (other === cuisine ? e.target.checked : preferencesOf(p).preferredCuisines.includes(other))) })
+                            changePrefs(p, {
+                              preferredCuisines: CUISINES.filter((other) =>
+                                other === cuisine
+                                  ? e.target.checked
+                                  : preferencesOf(p).preferredCuisines.includes(other),
+                              ),
+                            })
                           }
                         />
                         {tCuisine(cuisine)}
@@ -490,18 +539,14 @@ export default function ProfilePage() {
                   hint={t('dislikedHint')}
                   ids={preferencesOf(p).dislikedIngredientIds}
                   disabled={savePrefs.isPending}
-                  onChange={(ids) =>
-                    changePrefs(p, { dislikedIngredientIds: ids })
-                  }
+                  onChange={(ids) => changePrefs(p, { dislikedIngredientIds: ids })}
                 />
                 <IngredientPicker
                   label={t('avoidLabel')}
                   hint={t('avoidHint')}
                   ids={preferencesOf(p).excludedIngredientIds}
                   disabled={savePrefs.isPending}
-                  onChange={(ids) =>
-                    changePrefs(p, { excludedIngredientIds: ids })
-                  }
+                  onChange={(ids) => changePrefs(p, { excludedIngredientIds: ids })}
                 />
               </CardContent>
             </Card>

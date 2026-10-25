@@ -30,10 +30,17 @@ const VERSION = 'v2';
  */
 export function encrypt(plaintext: string, keyHex: string, context: string): string {
   const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv(ALGORITHM, Buffer.from(keyHex, 'hex'), iv, { authTagLength: TAG_BYTES });
+  const cipher = createCipheriv(ALGORITHM, Buffer.from(keyHex, 'hex'), iv, {
+    authTagLength: TAG_BYTES,
+  });
   cipher.setAAD(Buffer.from(context, 'utf8'));
   const data = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  return [VERSION, iv.toString('hex'), cipher.getAuthTag().toString('hex'), data.toString('hex')].join(':');
+  return [
+    VERSION,
+    iv.toString('hex'),
+    cipher.getAuthTag().toString('hex'),
+    data.toString('hex'),
+  ].join(':');
 }
 
 /**
@@ -53,10 +60,18 @@ export function decrypt(ciphertext: string, keyHex: string, context: string): st
   const data = Buffer.from(dataHex ?? '', 'hex');
   // The tag's length is part of the form: one cut short would still verify,
   // against far fewer guesses, if the length were left to the stored value.
-  if (parts.length !== (current ? 4 : 3) || iv.length !== IV_BYTES || tag.length !== TAG_BYTES || data.length === 0 || data.length * 2 !== dataHex!.length) {
+  if (
+    parts.length !== (current ? 4 : 3) ||
+    iv.length !== IV_BYTES ||
+    tag.length !== TAG_BYTES ||
+    data.length === 0 ||
+    data.length * 2 !== dataHex!.length
+  ) {
     throw new Error('malformed ciphertext');
   }
-  const decipher = createDecipheriv(ALGORITHM, Buffer.from(keyHex, 'hex'), iv, { authTagLength: TAG_BYTES });
+  const decipher = createDecipheriv(ALGORITHM, Buffer.from(keyHex, 'hex'), iv, {
+    authTagLength: TAG_BYTES,
+  });
   if (current) decipher.setAAD(Buffer.from(context, 'utf8'));
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');

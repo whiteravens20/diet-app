@@ -5,11 +5,7 @@
 /** The drafts of ingredient names: the run that writes them, the list, and a draft with its approval for each language. */
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  LoaderCircle,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { LoaderCircle, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -61,11 +57,15 @@ export function IngredientPanel() {
   }, [errorText]);
 
   useEffect(() => {
-    void (async () => { await loadRunner(); })();
+    void (async () => {
+      await loadRunner();
+    })();
   }, [loadRunner]);
 
   useEffect(() => {
-    void (async () => { await loadDrafts(); })();
+    void (async () => {
+      await loadDrafts();
+    })();
   }, [loadDrafts]);
 
   const startPolling = useCallback(() => {
@@ -83,7 +83,9 @@ export function IngredientPanel() {
   }, [loadDrafts, loadRunner]);
 
   useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
   const onGenerate = async () => {
@@ -119,7 +121,11 @@ export function IngredientPanel() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={onGenerate} disabled={!configured || running} className="gap-2">
-          {running ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {running ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
           {running
             ? t('running', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })
             : t('generate')}
@@ -136,7 +142,9 @@ export function IngredientPanel() {
           </span>
         )}
         {!running && runner?.note && (
-          <span className="text-xs text-muted-foreground">{t(`runNotes.${runner.note}`, { skipped: runner.skipped })}</span>
+          <span className="text-xs text-muted-foreground">
+            {t(`runNotes.${runner.note}`, { skipped: runner.skipped })}
+          </span>
         )}
         {runner?.provider && runner.model && (
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
@@ -155,7 +163,10 @@ export function IngredientPanel() {
 
       <FilterStrip
         status={statusFilter}
-        onStatusChange={(s) => { setStatusFilter(s); setPage(1); }}
+        onStatusChange={(s) => {
+          setStatusFilter(s);
+          setPage(1);
+        }}
       />
 
       {data === null ? (
@@ -231,9 +242,11 @@ function IngredientDraftRow({
 
   const onSave = () => {
     // A refused edit stays in the form: what was typed is not thrown away.
-    void handle(() => adminApi.patchIngredientNameDraft(draft.id, draftSuggestions)).then((saved) => {
-      if (saved) setEditing(false);
-    });
+    void handle(() => adminApi.patchIngredientNameDraft(draft.id, draftSuggestions)).then(
+      (saved) => {
+        if (saved) setEditing(false);
+      },
+    );
   };
 
   const onCancelEdit = () => {

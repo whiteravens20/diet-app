@@ -56,13 +56,7 @@ export function RecipeModal({
             </Button>
           </Link>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          aria-label={t('close')}
-        >
+        <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label={t('close')}>
           <X className="h-4 w-4" aria-hidden />
         </Button>
       </div>
@@ -74,7 +68,13 @@ export function RecipeModal({
       */}
       {recipe.data && (
         <div className="relative h-28 sm:h-36" data-recipe-photo>
-          <Image src={IMAGERY.recipes} alt="" fill sizes="(min-width: 44rem) 42rem, 100vw" className="object-cover" />
+          <Image
+            src={IMAGERY.recipes}
+            alt=""
+            fill
+            sizes="(min-width: 44rem) 42rem, 100vw"
+            className="object-cover"
+          />
         </div>
       )}
       <div className="p-6">
@@ -86,7 +86,9 @@ export function RecipeModal({
               : tDetail('loadFailed')}
           </p>
         )}
-        {recipe.data && picked && <AiMark part={{ kind: 'picked', reason: picked.reason }} spelledOut className="mb-4" />}
+        {recipe.data && picked && (
+          <AiMark part={{ kind: 'picked', reason: picked.reason }} spelledOut className="mb-4" />
+        )}
         {recipe.data && <RecipeView recipe={recipe.data} amounts={amounts} hideNutrition />}
       </div>
     </Dialog>

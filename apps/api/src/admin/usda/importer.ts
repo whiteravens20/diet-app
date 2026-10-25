@@ -155,7 +155,8 @@ export interface ImportOptions {
  *  - `not_writable` the directory the file goes to cannot be written;
  *  - `failed`       an answer nobody foresaw.
  */
-export type ImportFailureReason = 'over_limit' | 'key_refused' | 'unavailable' | 'not_writable' | 'failed';
+export type ImportFailureReason =
+  'over_limit' | 'key_refused' | 'unavailable' | 'not_writable' | 'failed';
 
 export class ImportFailure extends Error {
   constructor(
@@ -181,11 +182,16 @@ function reasonOf(status: number): ImportFailureReason {
  * nothing is not set, and a data set the source does not have is refused
  * before anything is asked for.
  */
-export function settingsFromEnvironment(env: Record<string, string | undefined>): { apiKey: string; dataTypes: string } {
+export function settingsFromEnvironment(env: Record<string, string | undefined>): {
+  apiKey: string;
+  dataTypes: string;
+} {
   const set = (name: string): string | undefined => env[name]?.trim() || undefined;
   const dataTypes = FdcDataTypes.safeParse(set('FDC_DATA_TYPES') ?? 'Foundation');
   if (!dataTypes.success) {
-    throw new Error(`FDC_DATA_TYPES: ${dataTypes.error.issues.map((issue) => issue.message).join('; ')}`);
+    throw new Error(
+      `FDC_DATA_TYPES: ${dataTypes.error.issues.map((issue) => issue.message).join('; ')}`,
+    );
   }
   return { apiKey: set('FDC_API_KEY') ?? 'DEMO_KEY', dataTypes: dataTypes.data };
 }
@@ -206,17 +212,25 @@ export function pageFetcher(options: {
   sleep?: (ms: number) => Promise<void>;
 }): (pageNumber: number) => Promise<SourcePage> {
   const send = options.fetch ?? fetch;
-  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   return async (pageNumber) => {
     const url = `${BASE}?dataType=${encodeURIComponent(options.dataTypes)}&pageSize=${PAGE_SIZE}&pageNumber=${pageNumber}&query=*`;
     let failure = new ImportFailure(`FDC API did not answer on page ${pageNumber}`, 'unavailable');
     for (let attempt = 1; attempt <= TRIES; attempt += 1) {
       let wait = Math.min(LONGEST_WAIT_MS, FIRST_WAIT_MS * 2 ** (attempt - 1));
       try {
-        const res = await send(url, { headers: { 'X-Api-Key': options.apiKey }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+        const res = await send(url, {
+          headers: { 'X-Api-Key': options.apiKey },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
         if (res.ok) return (await res.json()) as SourcePage;
         const asked = Number(res.headers.get('retry-after'));
-        failure = new ImportFailure(`FDC API ${res.status} on page ${pageNumber}`, reasonOf(res.status), asked > 0 ? asked : undefined);
+        failure = new ImportFailure(
+          `FDC API ${res.status} on page ${pageNumber}`,
+          reasonOf(res.status),
+          asked > 0 ? asked : undefined,
+        );
         if (res.status !== 429 && res.status < 500) break;
         if (asked * 1000 > LONGEST_WAIT_MS) break;
         if (asked > 0) wait = asked * 1000;
@@ -244,7 +258,8 @@ export async function runImport(opts: ImportOptions): Promise<ImportResult> {
   } catch {
     throw new ImportFailure(`Cannot write to ${opts.outDir}`, 'not_writable');
   }
-  const fetchPage = opts.fetchPage ?? pageFetcher({ apiKey: opts.apiKey, dataTypes: opts.dataTypes });
+  const fetchPage =
+    opts.fetchPage ?? pageFetcher({ apiKey: opts.apiKey, dataTypes: opts.dataTypes });
 
   const seen = new Set<string>();
   const ingredients: { slug: string }[] = [];
