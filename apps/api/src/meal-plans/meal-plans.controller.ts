@@ -249,6 +249,18 @@ export class MealPlansController {
     return this.plans.addCustomMeal(user.id, locale, id, date, dto);
   }
 
+  /** Take a meal off its day, whichever it is (rebalances the day). */
+  @Delete(':id/meals/:mealId')
+  @Answers(RebalanceResult)
+  removeMeal(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+  ) {
+    return this.plans.removeMeal(user.id, locale, id, mealId);
+  }
+
   /** Mark a planned meal eaten or not eaten (rebalances the day). */
   @Patch(':id/meals/:mealId/eaten')
   @Answers(RebalanceResult)

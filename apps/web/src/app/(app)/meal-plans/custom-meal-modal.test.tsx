@@ -9,11 +9,17 @@ import { CustomMealModal } from './custom-meal-modal';
 
 const texts = messages.mealPlans;
 
+/** The meals of the day the window is opened for. */
+const MEALS = [
+  { id: '11111111-1111-4111-8111-111111111111', mealType: 'lunch', title: 'Chicken with rice' },
+  { id: '22222222-2222-4222-8222-222222222222', mealType: 'dinner', title: 'Lentil soup' },
+];
+
 function open() {
   const onSubmit = vi.fn();
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <CustomMealModal date="2026-01-05" onClose={() => {}} onSubmit={onSubmit} />
+      <CustomMealModal date="2026-01-05" meals={MEALS} onClose={() => {}} onSubmit={onSubmit} />
     </NextIntlClientProvider>,
   );
   return onSubmit;
@@ -64,6 +70,20 @@ describe('the window a meal of the user\'s own is added in', () => {
       nutrition: { calories: 900, protein: 30, fat: 20.4, carbs: 110 },
       servings: 2,
     });
+  });
+
+  it('comes beside the day\'s meals unless one is chosen to take its place, and says what either does to the day', async () => {
+    const onSubmit = open();
+    expect(screen.getByText(texts.customBesideNote)).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText(texts.customPlace), 'Instead of: Dinner · Lentil soup');
+    expect(screen.getByText(texts.customInsteadNote)).toBeInTheDocument();
+    expect(screen.queryByText(texts.customBesideNote)).toBeNull();
+
+    await userEvent.type(screen.getByLabelText(texts.customName), 'Pizza out');
+    await fill({ calories: '900', protein: '35', fat: '35', carbs: '110' });
+    await add();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Pizza out', replaces: MEALS[1]!.id }));
   });
 
   it('sends nothing without a name, nor with a name of nothing but spaces', async () => {

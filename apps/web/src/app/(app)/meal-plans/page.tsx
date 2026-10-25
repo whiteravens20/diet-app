@@ -335,6 +335,12 @@ function MealPlansContent() {
     onError: fail(t('errEaten')),
   });
 
+  const removeMeal = useMutation({
+    mutationFn: (v: { planId: string; mealId: string }) => api.delete<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}`),
+    onSuccess: (res, v) => showRebalance(v.planId, res),
+    onError: fail(t('errRemoveMeal')),
+  });
+
   const rebalance = useMutation({
     mutationFn: (v: {
       planId: string;
@@ -372,6 +378,7 @@ function MealPlansContent() {
     takeOffer.isPending ||
     addCustomMeal.isPending ||
     toggleEaten.isPending ||
+    removeMeal.isPending ||
     rebalance.isPending ||
     remove.isPending;
 
@@ -806,6 +813,10 @@ function MealPlansContent() {
               onAddCustomMeal={(date, body) => {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
+              }}
+              onRemoveMeal={(mealId) => {
+                setError(null);
+                removeMeal.mutate({ planId: plan.id, mealId });
               }}
               onSpread={(date) => {
                 setError(null);

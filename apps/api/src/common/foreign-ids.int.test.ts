@@ -89,6 +89,7 @@ const ASKS: Ask[] = [
   ['swap a meal', 'post', () => '/api/meal-plans/swap-meal', (ids, shared) => ({ planId: ids.plan, plannedMealId: ids.meal, recipeId: shared.recipe, revision: 0, strategy: 'random' })],
   ['add a meal of one\'s own to a day', 'post', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.date}/custom-meal`, () => ({ name: 'Cake', mealType: 'snack', nutrition: { calories: 300, protein: 4, fat: 12, carbs: 40 } })],
   ['mark a meal as eaten', 'patch', (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}/eaten`, () => ({ eaten: true })],
+  ['take a meal off its day', 'delete', (ids) => `/api/meal-plans/${ids.plan}/meals/${ids.meal}`],
   ['rebalance the rest of a plan', 'post', (ids) => `/api/meal-plans/${ids.plan}/rebalance`, () => ({ scope: 'plan' })],
   ['rebalance a day', 'post', (ids) => `/api/meal-plans/${ids.plan}/rebalance`, (ids) => ({ scope: 'day', date: ids.date })],
   ['undo a rebalance', 'post', (ids) => `/api/meal-plans/${ids.plan}/rebalance`, (ids) => ({ scope: 'day', restore: [{ mealId: ids.meal, scale: 1 }] })],

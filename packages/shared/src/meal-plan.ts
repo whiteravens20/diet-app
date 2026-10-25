@@ -886,6 +886,12 @@ export const AddCustomMealRequest = z.object({
   /** User-entered macros for one serving. Engine never recomputes these. */
   nutrition: EnteredNutrition,
   servings: z.number().min(0.25).max(20).default(1),
+  /**
+   * A meal of the same day that this one is eaten in the place of: it leaves
+   * the day. Left out, this one comes beside the meals the day has. 404
+   * `MEAL_NOT_FOUND` for a meal that is not on that day.
+   */
+  replaces: z.string().uuid().optional(),
 });
 export type AddCustomMealRequest = z.infer<typeof AddCustomMealRequest>;
 

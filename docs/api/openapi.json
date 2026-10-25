@@ -3977,6 +3977,65 @@
         }
       }
     },
+    "/api/meal-plans/{id}/meals/{mealId}": {
+      "delete": {
+        "operationId": "MealPlans_removeMeal",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Take a meal off its day, whichever it is (rebalances the day).",
+        "description": "Take a meal off its day, whichever it is (rebalances the day).\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebalanceResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/meal-plans/{id}/meals/{mealId}/eaten": {
       "patch": {
         "operationId": "MealPlans_setEaten",
@@ -7466,6 +7525,10 @@
             "type": "number",
             "minimum": 0.25,
             "maximum": 20
+          },
+          "replaces": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [

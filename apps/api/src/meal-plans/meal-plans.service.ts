@@ -158,7 +158,8 @@ export class MealPlansService {
   }
 
   /**
-   * Add a user-authored custom meal to a day. The macros are frozen on
+   * Add a user-authored custom meal to a day, beside its meals or in the place
+   * of one (`replaces`), which then leaves the day. The macros are frozen on
    * the row as the user entered them — the engine never recomputes them, because
    * a custom meal has no ingredient list. Adding it changes the day total, so a
    * day rebalance runs immediately.
@@ -191,6 +192,10 @@ export class MealPlansService {
           data: { overrides: Object.keys(rest).length > 0 ? (rest as Prisma.InputJsonValue) : Prisma.JsonNull },
         });
       }
+      if (req.replaces) {
+        const replaced = await tx.plannedMeal.deleteMany({ where: { id: req.replaces, dayId: day.id } });
+        if (replaced.count !== 1) throw new NotFoundException({ error: 'MEAL_NOT_FOUND', message: 'Planned meal not found.' });
+      }
       await tx.plannedMeal.create({
         data: {
           dayId: day.id,
@@ -209,6 +214,20 @@ export class MealPlansService {
         },
       });
       return this.rebalanceDayInternal(day.id, tx);
+    });
+    return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
+  }
+
+  /**
+   * Take a meal off its day, whichever it is: one of the catalogue, the user's
+   * own, eaten or not. The day has less in it then, so a day rebalance runs
+   * immediately, as it does when a meal is added.
+   */
+  async removeMeal(userId: string, locale: Locale, planId: string, mealId: string): Promise<RebalanceResult> {
+    const meal = await this.loadPlannedMeal(userId, planId, mealId);
+    const summary = await writePlan(this.prisma, planId, meal.day.plan.revision, async (tx) => {
+      await tx.plannedMeal.delete({ where: { id: mealId } });
+      return this.rebalanceDayInternal(meal.dayId, tx);
     });
     return this.buildRebalanceResult(userId, locale, planId, 'day', summary);
   }

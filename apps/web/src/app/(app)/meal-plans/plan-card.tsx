@@ -102,6 +102,7 @@ export function PlanCard({
   onToggleEaten,
   onIngredientSwapped,
   onAddCustomMeal,
+  onRemoveMeal,
   onSpread,
   onSwapped,
   onChanged,
@@ -135,6 +136,8 @@ export function PlanCard({
   onToggleEaten: (mealId: string, eaten: boolean) => void;
   onIngredientSwapped: (result: SwapIngredientResponse) => void;
   onAddCustomMeal: (date: string, body: AddCustomMealRequest) => void;
+  /** Take a meal off its day. */
+  onRemoveMeal: (mealId: string) => void;
   /** Spread what the days from `date` are off their targets by over the remaining days of the plan. */
   onSpread: (date: string) => void;
   /** Told what a swap that the card made itself came to: one that uses up what the plan opens. */
@@ -164,6 +167,8 @@ export function PlanCard({
   const [reroll, setReroll] = useState<RerollStart | null>(null);
   // The day whose other ways are on offer in a window, while it is open.
   const [waysFor, setWaysFor] = useState<{ id: string; date: string } | null>(null);
+  // The meal whose removal from its day is to be confirmed, with what it does said beside it.
+  const [removing, setRemoving] = useState<string | null>(null);
   // Today by the reader's clock: a day before it is history.
   const today = localDate();
   // An account has a model to ask where the page was given the way to ask one.
@@ -457,11 +462,15 @@ export function PlanCard({
                           )}
                         </span>
                         <span className="flex flex-wrap items-center gap-x-4">
-                          {eaten ? (
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {t('eatenBadge')}
-                            </span>
-                          ) : isCustom ? null : (
+                          {(eaten || isCustom) && (
+                            <>
+                              {eaten && <span className="text-xs font-medium text-muted-foreground">{t('eatenBadge')}</span>}
+                              <Button type="button" variant="ghost" size="sm" aria-label={named(t('remove'))} aria-expanded={removing === m.id} onClick={() => setRemoving(removing === m.id ? null : m.id)} disabled={busy}>
+                                {t('remove')}
+                              </Button>
+                            </>
+                          )}
+                          {eaten || isCustom ? null : (
                             <>
                               {/* On a narrow screen the ways to change a meal fold behind one button: a day is its meals, not five buttons a meal. */}
                               <Button
@@ -545,11 +554,36 @@ export function PlanCard({
                                 >
                                   {t('substituteIngr')} ⇄
                                 </Button>
+                                <Button type="button" variant="ghost" size="sm" aria-label={named(t('remove'))} aria-expanded={removing === m.id} onClick={() => setRemoving(removing === m.id ? null : m.id)} disabled={busy}>
+                                  {t('remove')}
+                                </Button>
                               </span>
                             </>
                           )}
                         </span>
                       </div>
+                      {removing === m.id && (
+                        <div className="ml-4 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs" role="group" aria-label={t('removeTitle', { title })}>
+                          <p>{t(eaten ? 'removeNoteEaten' : 'removeNote')}</p>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setRemoving(null);
+                                onRemoveMeal(m.id);
+                              }}
+                              disabled={busy}
+                            >
+                              {t('removeConfirm')}
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" onClick={() => setRemoving(null)}>
+                              {tCommon('cancel')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       {offer?.asked.plannedMealId === m.id && (
                         <div className="ml-4 space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs" role="group" aria-label={t('offerTitle')}>
                           {/* A model's own pick says so, with its reason, before it is taken. */}
@@ -693,6 +727,11 @@ export function PlanCard({
       {customDay && (
         <CustomMealModal
           date={customDay}
+          meals={(plan?.days.find((day) => day.date === customDay)?.meals ?? []).map((meal) => ({
+            id: meal.id,
+            mealType: meal.mealType,
+            title: meal.recipe?.title ?? meal.customName ?? t('customMeal'),
+          }))}
           onClose={() => setCustomDay(null)}
           onSubmit={(body) => {
             onAddCustomMeal(customDay, body);
