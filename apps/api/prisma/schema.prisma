@@ -373,6 +373,20 @@ enum NaturalUnit {
   handful
 }
 
+// The kind of protein a food is, for the limits on one kind in the meals of a
+// day and of seven days. See ProteinKind in packages/shared.
+enum ProteinKind {
+  chicken
+  turkey
+  beef
+  pork
+  fish
+  seafood
+  eggs
+  dairy
+  legumes
+}
+
 // Provenance for translation rows. CURATED_JSON rows are derived from
 // data/*.json and re-written on every seed; AI / MANUAL rows survive re-seeds
 // so operator-generated translations are not lost when curated data is updated.
@@ -407,6 +421,8 @@ model Ingredient {
   // quantities are shown in teaspoons and pinches, nothing else changes. See
   // `engine/display.ts`.
   perTeaspoon       Float?
+  // The kind of protein it is; null for a food of none. Curated in the data.
+  proteinKind       ProteinKind?
   allergens         String[]        @default([])
   dietCompatibility String[]        @default([])
   tags              String[]        @default([])

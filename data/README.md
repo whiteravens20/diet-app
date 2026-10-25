@@ -218,6 +218,30 @@ and "Lime juice, raw", per 100 ml with their density): a recipe that uses only
 the juice of the fruit names the juice, in millilitres; a recipe that grates the
 zest as well keeps the fruit.
 
+## The kind of protein
+
+`proteinKind` says which kind of protein an ingredient is, for the limits a
+profile may set on how many meals of a day and of seven days hold the same kind:
+
+| `proteinKind` | In `ingredients.json`                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `chicken`     | chicken breast, chicken thigh                                                                                                   |
+| `turkey`      | turkey breast                                                                                                                   |
+| `beef`        | ground beef                                                                                                                     |
+| `pork`        | pork tenderloin, bacon                                                                                                          |
+| `fish`        | salmon, smoked salmon, cod, canned tuna, herring, mackerel, trout                                                               |
+| `seafood`     | shrimp                                                                                                                          |
+| `eggs`        | egg                                                                                                                             |
+| `dairy`       | whole milk, kefir, Greek yogurt, heavy cream, sour cream, cheddar, gouda, mozzarella, feta, curd cheese, cottage cheese, butter |
+| `legumes`     | chickpeas, red lentils, black beans, kidney beans, edamame, tofu                                                                |
+
+A meal is of a kind when the ingredients of that kind give at least a fifth of
+its protein: chicken in a yogurt sauce is a chicken meal, and the spoon of yogurt
+does not make it a dairy one as well. A meal may be of two kinds, or of none:
+grains, vegetables, fruit, nuts and seeds (peanut butter among them) are of no
+kind. The egg is under `dairy` as its `category`, the grouping of the shopping
+list, and a kind of its own here. Imported foods have no kind.
+
 ## Packs
 
 `packSize` is what one buys of an ingredient at a time, in its canonical unit:

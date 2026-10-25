@@ -32,6 +32,8 @@ interface FixtureIngredient {
   /** What one buys of it at a time, for what is not bought loose, and whether an opened pack does not keep. */
   packSize?: number;
   perishable?: boolean;
+  /** The kind of protein it is, for what is one. */
+  proteinKind?: string;
 }
 
 // `low_carb` on an ingredient says only that it may appear in such a recipe;
@@ -55,6 +57,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     slug: 'whole-milk',
     pl: 'Mleko pełne',
     category: 'dairy',
+    proteinKind: 'dairy',
     canonicalUnit: 'ml',
     per100: [61, 3.2, 3.3, 4.8],
     allergens: ['dairy'],
@@ -77,6 +80,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     slug: 'large-egg',
     pl: 'Jajko',
     category: 'dairy',
+    proteinKind: 'eggs',
     canonicalUnit: 'g',
     per100: [143, 13, 9.5, 1.1],
     allergens: ['eggs'],
@@ -89,6 +93,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     slug: 'chicken-breast',
     pl: 'Pierś z kurczaka',
     category: 'meat',
+    proteinKind: 'chicken',
     canonicalUnit: 'g',
     per100: [120, 22.5, 2.6, 0],
     allergens: [],
@@ -100,6 +105,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     slug: 'salmon',
     pl: 'Łosoś',
     category: 'fish',
+    proteinKind: 'fish',
     canonicalUnit: 'g',
     per100: [208, 20, 13, 0],
     allergens: ['fish'],
@@ -134,6 +140,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     slug: 'firm-tofu',
     pl: 'Tofu twarde',
     category: 'legumes',
+    proteinKind: 'legumes',
     canonicalUnit: 'g',
     per100: [144, 17, 9, 3],
     allergens: ['soy'],
@@ -143,6 +150,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     slug: 'chickpeas',
     pl: 'Ciecierzyca',
     category: 'legumes',
+    proteinKind: 'legumes',
     canonicalUnit: 'g',
     per100: [164, 8.9, 2.6, 27],
     allergens: [],
@@ -152,6 +160,7 @@ export const INGREDIENTS: FixtureIngredient[] = [
     slug: 'greek-yogurt',
     pl: 'Jogurt grecki',
     category: 'dairy',
+    proteinKind: 'dairy',
     canonicalUnit: 'g',
     per100: [97, 9, 5, 4],
     allergens: ['dairy'],
@@ -447,6 +456,7 @@ export function catalogueDirectory(): string {
     ...(i.density ? { density: i.density } : {}),
     ...(i.packSize ? { packSize: i.packSize } : {}),
     ...(i.perishable ? { perishable: true } : {}),
+    ...(i.proteinKind ? { proteinKind: i.proteinKind } : {}),
     allergens: i.allergens,
     dietCompatibility: i.diets,
     tags: [],

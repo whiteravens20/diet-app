@@ -230,6 +230,7 @@ async function applyIngredients(
       density: ing.density ?? null,
       displayUnit: ing.displayUnit ?? null,
       perTeaspoon: ing.perTeaspoon ?? null,
+      proteinKind: ing.proteinKind ?? null,
       allergens: ing.allergens,
       dietCompatibility: ing.dietCompatibility,
       tags: ing.tags,

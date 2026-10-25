@@ -89,6 +89,25 @@ export const ProductCategory = z.enum([
 ]);
 export type ProductCategory = z.infer<typeof ProductCategory>;
 
+/**
+ * The kind of protein a food is, for the limits on how often one kind comes to
+ * the meals of a day or of seven days: chicken is a breast or a thigh alike,
+ * and dairy is every milk product but eggs. A food of no kind (a vegetable, a
+ * grain, a spice) is not counted.
+ */
+export const ProteinKind = z.enum([
+  'chicken',
+  'turkey',
+  'beef',
+  'pork',
+  'fish',
+  'seafood',
+  'eggs',
+  'dairy',
+  'legumes',
+]);
+export type ProteinKind = z.infer<typeof ProteinKind>;
+
 /** Canonical measurement units. The engine normalises everything to these. */
 export const Unit = z.enum(UNITS);
 export type Unit = z.infer<typeof Unit>;

@@ -16,6 +16,7 @@ import {
   MealType,
   NaturalUnit,
   ProductCategory,
+  ProteinKind,
   Unit,
   WebAddress,
   type RecipeDietTag,
@@ -53,6 +54,8 @@ const IngredientSeed = z.object({
   displayUnit: NaturalUnit.optional(),
   // How much a level teaspoon holds, in the canonical unit, for what is measured with one.
   perTeaspoon: z.number().positive().optional(),
+  // The kind of protein it is, for the limits on one kind in a day and in seven days.
+  proteinKind: ProteinKind.optional(),
   allergens: z.array(Allergen),
   dietCompatibility: z.array(DietType),
   tags: z.array(z.string()),
