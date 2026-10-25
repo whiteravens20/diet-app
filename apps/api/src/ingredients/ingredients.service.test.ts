@@ -23,6 +23,7 @@ function row(overrides: Partial<Row> = {}): Row {
     gramsPerPiece: null,
     density: 0.91,
     displayUnit: null,
+    perTeaspoon: null,
     allergens: [],
     dietCompatibility: [],
     tags: [],

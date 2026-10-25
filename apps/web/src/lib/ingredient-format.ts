@@ -12,7 +12,23 @@ import type { DisplayUnit } from '@diet-app/shared';
  */
 export function useAmount(): (quantity: number, unit: DisplayUnit) => string {
   const t = useTranslations('units');
-  return (quantity, unit) => t(`amount.${unit}`, { count: quantity });
+  return (quantity, unit) =>
+    unit === 'tsp'
+      ? // Teaspoons as a cook writes them; a part of one is singular in English.
+        t('amount.tsp', {
+          count: quantity,
+          shown: spoons(quantity),
+          form: quantity < 1 ? 'part' : 'whole',
+        })
+      : t(`amount.${unit}`, { count: quantity });
+}
+
+/** A number of teaspoons as a cook writes it: ¼, ½, 1½, 2. */
+function spoons(quantity: number): string {
+  const whole = Math.floor(quantity);
+  const part = quantity - whole;
+  const fraction = part >= 0.75 ? '¾' : part >= 0.5 ? '½' : part >= 0.25 ? '¼' : '';
+  return whole === 0 ? fraction || '0' : `${whole}${fraction}`;
 }
 
 /** The name of a unit on its own, for the label next to a number field. */

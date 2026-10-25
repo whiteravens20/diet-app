@@ -91,6 +91,7 @@ export function toIngredientDto(
     gramsPerPiece: number | null;
     density: number | null;
     displayUnit: Ingredient['displayUnit'];
+    perTeaspoon: number | null;
     allergens: string[];
     dietCompatibility: string[];
     tags: string[];
@@ -118,6 +119,7 @@ export function toIngredientDto(
     gramsPerPiece: row.gramsPerPiece,
     density: row.density,
     displayUnit: row.displayUnit,
+    perTeaspoon: row.perTeaspoon,
     allergens: row.allergens as Ingredient['allergens'],
     dietCompatibility: row.dietCompatibility as Ingredient['dietCompatibility'],
     tags: row.tags,

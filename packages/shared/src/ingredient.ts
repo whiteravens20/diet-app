@@ -27,6 +27,13 @@ export const Ingredient = z.object({
    * is called. Its quantities are shown in pieces of `gramsPerPiece` grams.
    */
   displayUnit: NaturalUnit.nullable().default(null),
+  /**
+   * Set for what is measured with a teaspoon (dry spices, salt, lemon juice):
+   * how much of it a level teaspoon holds, in the canonical unit. Small
+   * quantities of it are shown in teaspoons and pinches; it is bought and
+   * stocked by weight or volume all the same.
+   */
+  perTeaspoon: z.number().positive().nullable().default(null),
   allergens: z.array(Allergen).default([]),
   /** Diet types this ingredient is compatible with. */
   dietCompatibility: z.array(DietType).default([]),

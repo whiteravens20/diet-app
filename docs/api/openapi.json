@@ -9915,7 +9915,9 @@
           "piece",
           "slice",
           "clove",
-          "handful"
+          "handful",
+          "tsp",
+          "pinch"
         ]
       },
       "DraftBulkRejectBody": {
@@ -10668,6 +10670,18 @@
               }
             ]
           },
+          "perTeaspoon": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "allergens": {
             "default": [],
             "type": "array",
@@ -10732,6 +10746,7 @@
           "gramsPerPiece",
           "density",
           "displayUnit",
+          "perTeaspoon",
           "allergens",
           "dietCompatibility",
           "tags",

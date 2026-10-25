@@ -192,6 +192,26 @@ amount too small to be half a piece stays in grams. Vegetables sold by weight
 no `displayUnit`: they are shown in grams. The lint refuses a `displayUnit`
 without a `gramsPerPiece`.
 
+## Ingredients measured with a teaspoon
+
+Nobody weighs out 2 g of paprika either. An ingredient with a `perTeaspoon` is
+shown in teaspoons in a recipe and a planned meal: a quarter or a half of one,
+then whole ones to the nearest half, up to four; below a quarter of a teaspoon a
+dry one is shown in pinches, a sixteenth of a teaspoon each, and more than four
+teaspoons by weight or volume. `perTeaspoon` is how much a level teaspoon holds in
+the canonical unit, from the household measures of USDA SR Legacy:
+
+| Ingredient    | `perTeaspoon` | SR Legacy                                    |
+| ------------- | ------------- | -------------------------------------------- |
+| salt          | 6 g           | Salt, table: 1 tsp = 6 g                     |
+| black pepper  | 2.3 g         | Spices, pepper, black: 1 tsp, ground = 2.3 g |
+| paprika       | 2.3 g         | Spices, paprika: 1 tsp = 2.3 g               |
+| cinnamon      | 2.6 g         | Spices, cinnamon, ground: 1 tsp = 2.6 g      |
+| dried oregano | 1 g           | Spices, oregano, dried: 1 tsp, leaves = 1 g  |
+
+Nutrition, the shopping list and the pantry go on by weight or volume. The lint
+refuses a `perTeaspoon` on what is counted in pieces.
+
 ## Packs
 
 `packSize` is what one buys of an ingredient at a time, in its canonical unit:

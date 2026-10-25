@@ -60,6 +60,22 @@ const TOMATO: DisplayedIngredient = {
   density: null,
   displayUnit: null,
 };
+/** Measured with a teaspoon, as the curated data has them: 2.3 g of paprika, 6 g of salt, 5 ml of lemon juice. */
+const PAPRIKA: DisplayedIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: null,
+  density: null,
+  displayUnit: null,
+  perTeaspoon: 2.3,
+};
+const SALT: DisplayedIngredient = { ...PAPRIKA, perTeaspoon: 6 };
+const LEMON_JUICE: DisplayedIngredient = {
+  canonicalUnit: 'ml',
+  gramsPerPiece: null,
+  density: 1.031,
+  displayUnit: null,
+  perTeaspoon: 5,
+};
 
 describe('an amount to cook with', () => {
   it.each([
@@ -119,6 +135,44 @@ describe('an amount to cook with', () => {
   it('shows a line it cannot convert as it was written', () => {
     expect(displayAmount(2.2, 'piece', CHICKEN)).toEqual({ quantity: 2, unit: 'piece' });
     expect(displayAmount(0.1, 'piece', CHICKEN)).toEqual({ quantity: 0.5, unit: 'piece' });
+  });
+});
+
+describe('an ingredient measured with a teaspoon', () => {
+  it('is shown in a quarter or a half of one, then in whole ones to the nearest half, up to four', () => {
+    expect(displayAmount(0.6, 'g', PAPRIKA)).toEqual({ quantity: 0.25, unit: 'tsp' });
+    expect(displayAmount(1.15, 'g', PAPRIKA)).toEqual({ quantity: 0.5, unit: 'tsp' });
+    expect(displayAmount(2.3, 'g', PAPRIKA)).toEqual({ quantity: 1, unit: 'tsp' });
+    expect(displayAmount(3.6, 'g', PAPRIKA)).toEqual({ quantity: 1.5, unit: 'tsp' });
+    expect(displayAmount(9.4, 'g', PAPRIKA)).toEqual({ quantity: 4, unit: 'tsp' });
+    expect(displayAmount(12, 'ml', LEMON_JUICE)).toEqual({ quantity: 2.5, unit: 'tsp' });
+  });
+
+  it('is shown in pinches, a sixteenth of a teaspoon each, below a quarter of one when it is dry', () => {
+    expect(displayAmount(0.3, 'g', PAPRIKA)).toEqual({ quantity: 2, unit: 'pinch' });
+    expect(displayAmount(1, 'g', SALT)).toEqual({ quantity: 3, unit: 'pinch' });
+    expect(displayAmount(0.05, 'g', PAPRIKA)).toEqual({ quantity: 1, unit: 'pinch' });
+    // Four pinches are a quarter of a teaspoon.
+    expect(displayAmount(1.4, 'g', SALT)).toEqual({ quantity: 0.25, unit: 'tsp' });
+  });
+
+  it('shows a liquid too little for a quarter of a teaspoon in millilitres, not in pinches', () => {
+    expect(displayAmount(1, 'ml', LEMON_JUICE)).toEqual({ quantity: 1, unit: 'ml' });
+  });
+
+  it('shows more than four teaspoons by weight or volume', () => {
+    expect(displayAmount(11.5, 'g', PAPRIKA)).toEqual({ quantity: 10, unit: 'g' });
+    expect(displayAmount(47, 'ml', LEMON_JUICE)).toEqual({ quantity: 45, unit: 'ml' });
+  });
+
+  it('measures a line written in another unit after converting it', () => {
+    expect(displayAmount(12.4, 'g', LEMON_JUICE)).toEqual({ quantity: 2.5, unit: 'tsp' });
+  });
+
+  it('is bought, listed and stocked by weight or volume all the same', () => {
+    expect(shoppingUnit(PAPRIKA)).toEqual({ unit: 'g', displayUnit: 'g' });
+    expect(shoppingUnit(LEMON_JUICE)).toEqual({ unit: 'ml', displayUnit: 'ml' });
+    expect(displayStock(40, 'g', PAPRIKA)).toEqual({ quantity: 40, unit: 'g' });
   });
 });
 

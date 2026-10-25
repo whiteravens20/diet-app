@@ -1047,7 +1047,9 @@
       "piece": "{count, plural, one {# sztuka} few {# sztuki} many {# sztuk} other {# sztuki}}",
       "slice": "{count, plural, one {# kromka} few {# kromki} many {# kromek} other {# kromki}}",
       "clove": "{count, plural, one {# ząbek} few {# ząbki} many {# ząbków} other {# ząbka}}",
-      "handful": "{count, plural, one {# garść} few {# garście} many {# garści} other {# garści}}"
+      "handful": "{count, plural, one {# garść} few {# garście} many {# garści} other {# garści}}",
+      "tsp": "{form, select, part {{shown} łyżeczki} other {{count, plural, one {{shown} łyżeczka} few {{shown} łyżeczki} many {{shown} łyżeczek} other {{shown} łyżeczki}}}}",
+      "pinch": "{count, plural, one {# szczypta} few {# szczypty} many {# szczypt} other {# szczypty}}"
     },
     "name": {
       "g": "g",
@@ -1055,7 +1057,9 @@
       "piece": "szt.",
       "slice": "kromki",
       "clove": "ząbki",
-      "handful": "garście"
+      "handful": "garście",
+      "tsp": "łyżeczki",
+      "pinch": "szczypty"
     }
   },
   "mealPlans": {

@@ -229,6 +229,7 @@ async function applyIngredients(
       gramsPerPiece: ing.gramsPerPiece ?? null,
       density: ing.density ?? null,
       displayUnit: ing.displayUnit ?? null,
+      perTeaspoon: ing.perTeaspoon ?? null,
       allergens: ing.allergens,
       dietCompatibility: ing.dietCompatibility,
       tags: ing.tags,

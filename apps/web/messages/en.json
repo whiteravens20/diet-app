@@ -1047,7 +1047,9 @@
       "piece": "{count, plural, one {# piece} other {# pieces}}",
       "slice": "{count, plural, one {# slice} other {# slices}}",
       "clove": "{count, plural, one {# clove} other {# cloves}}",
-      "handful": "{count, plural, one {# handful} other {# handfuls}}"
+      "handful": "{count, plural, one {# handful} other {# handfuls}}",
+      "tsp": "{form, select, part {{shown} teaspoon} other {{count, plural, one {{shown} teaspoon} other {{shown} teaspoons}}}}",
+      "pinch": "{count, plural, one {# pinch} other {# pinches}}"
     },
     "name": {
       "g": "g",
@@ -1055,7 +1057,9 @@
       "piece": "pieces",
       "slice": "slices",
       "clove": "cloves",
-      "handful": "handfuls"
+      "handful": "handfuls",
+      "tsp": "teaspoons",
+      "pinch": "pinches"
     }
   },
   "mealPlans": {

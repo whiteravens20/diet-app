@@ -101,14 +101,23 @@ export type Unit = z.infer<typeof Unit>;
 export const NaturalUnit = z.enum(['piece', 'slice', 'clove', 'handful']);
 export type NaturalUnit = z.infer<typeof NaturalUnit>;
 
+/**
+ * What is measured with a teaspoon rather than weighed, shown in its measures: a
+ * teaspoon (`tsp`, 5 ml) and a `pinch`, a sixteenth of one. How much of the
+ * ingredient a teaspoon holds is its `perTeaspoon`.
+ */
+export const SpoonUnit = z.enum(['tsp', 'pinch']);
+export type SpoonUnit = z.infer<typeof SpoonUnit>;
+
 /** Every unit a quantity can be shown in. */
-export const DisplayUnit = z.enum(['g', 'ml', ...NaturalUnit.options]);
+export const DisplayUnit = z.enum(['g', 'ml', ...NaturalUnit.options, ...SpoonUnit.options]);
 export type DisplayUnit = z.infer<typeof DisplayUnit>;
 
 /**
  * A quantity as a person reads it: rounded by the API (grams and millilitres
- * to the nearest 5 above 10, pieces to halves) and in the unit the ingredient
- * is handled in. The exact quantity next to it is what the engine works with.
+ * to the nearest 5 above 10, pieces to halves, teaspoons to a quarter and then
+ * to halves, pinches to whole ones) and in the unit the ingredient is handled
+ * in. The exact quantity next to it is what the engine works with.
  */
 export const DisplayAmount = z.object({
   quantity: z.number().min(0),

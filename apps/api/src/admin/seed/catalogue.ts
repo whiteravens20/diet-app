@@ -51,6 +51,8 @@ const IngredientSeed = z.object({
   density: z.number().positive().optional(),
   // What a piece is called, for an ingredient that is counted instead of weighed.
   displayUnit: NaturalUnit.optional(),
+  // How much a level teaspoon holds, in the canonical unit, for what is measured with one.
+  perTeaspoon: z.number().positive().optional(),
   allergens: z.array(Allergen),
   dietCompatibility: z.array(DietType),
   tags: z.array(z.string()),
@@ -252,6 +254,14 @@ export function readCatalogue(dir: string = resolveDataDir()): {
           file,
           path: `[${i}].displayUnit`,
           message: `"${identity(row)}" is counted in ${row.displayUnit}s but has no gramsPerPiece`,
+        });
+      }
+      // A teaspoon holds a weight or a volume, and what is counted in pieces is not measured with one.
+      if (row.perTeaspoon !== undefined && (row.canonicalUnit === 'piece' || row.displayUnit)) {
+        problems.push({
+          file,
+          path: `[${i}].perTeaspoon`,
+          message: `"${identity(row)}" is measured with a teaspoon but is ${row.displayUnit ? `counted in ${row.displayUnit}s` : 'kept in pieces'}`,
         });
       }
       // It is the pack that is opened and left: an ingredient without one has nothing to leave.

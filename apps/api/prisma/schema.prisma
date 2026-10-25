@@ -402,6 +402,11 @@ model Ingredient {
   // cloves of garlic). Curated in the data; needs `gramsPerPiece`. Quantities
   // of it are shown, bought and stocked in pieces. See `engine/display.ts`.
   displayUnit       NaturalUnit?
+  // Set for what is measured with a teaspoon (dry spices, salt, lemon juice):
+  // how much of it a level teaspoon holds, in the canonical unit. Small
+  // quantities are shown in teaspoons and pinches, nothing else changes. See
+  // `engine/display.ts`.
+  perTeaspoon       Float?
   allergens         String[]        @default([])
   dietCompatibility String[]        @default([])
   tags              String[]        @default([])
