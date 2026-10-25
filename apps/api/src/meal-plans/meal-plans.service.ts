@@ -28,6 +28,7 @@ import {
   sharesOf,
   rebalanceDay,
   rebalanceDays,
+  REBALANCE_TOLERANCE,
   type RebalanceMeal,
 } from '../engine/index.js';
 import { SERVING_MAX, SERVING_MIN } from '../engine/optimizer.js';
@@ -36,7 +37,7 @@ import { toPlannedIngredients, toRecipeDto } from '../recipes/recipes.service.js
 import { cookAhead, planPacks, type PackedLine, type PackedMeal } from './plan-menu.js';
 import { shownReport } from './generation-report.js';
 import { storedSplit } from '../common/stored-split.js';
-import { averageDay, customMacros, isoDate, isSkipped, mealNutrition, parseDayOverrides, standingOf, sumNutrition, type MealAmount } from './plan-days.js';
+import { averageDay, customMacros, dayMealCount, isoDate, isSkipped, mealNutrition, parseDayOverrides, standingOf, sumNutrition, type MealAmount } from './plan-days.js';
 import { releasePlanLists } from '../shopping-lists/shopping-lists.service.js';
 import { writePlan } from './plan-write.js';
 import { dislikedIn, restrictionsFor, violations, type Candidate, type Restrictions } from './eligibility.js';
@@ -351,21 +352,24 @@ export class MealPlansService {
   /**
    * Rebalance one day's unchecked, non-custom meals toward its target and
    * persist the new quantity scales. Returns the summary the UI toast renders,
-   * or null when the day has vanished. Runs inside the transaction of the edit
-   * that changed the day, whichever service made it.
+   * or null when the day has vanished or is skipped, which has no target to
+   * keep to. Runs inside the transaction of the edit that changed the day,
+   * whichever service made it. `exact` brings the day to its target itself,
+   * not just inside the window around it: for a target that was just changed.
    */
   async rebalanceDayInternal(
     dayId: string,
     tx: Prisma.TransactionClient,
+    { exact = false }: { exact?: boolean } = {},
   ): Promise<RebalanceSummary | null> {
     const day = await tx.mealPlanDay.findUnique({
       where: { id: dayId },
       include: { meals: { include: { recipe: { select: REBALANCE_MACRO_SELECT } } } },
     });
-    if (!day) return null;
+    if (!day || isSkipped(day)) return null;
     const rows = day.meals.map(toRebalanceRow);
     const macrosBefore = rowsMacros(rows, (r) => r.quantityScale);
-    const { scales, feasibility } = rebalanceDay(rows.map(toEngineMeal), day.calorieTarget);
+    const { scales, feasibility } = rebalanceDay(rows.map(toEngineMeal), day.calorieTarget, exact ? 0 : REBALANCE_TOLERANCE);
     const changes = await this.persistScales(rows, scales, tx);
     const macrosAfter = rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale);
     return { feasibility, changes, macrosBefore, macrosAfter };
@@ -424,6 +428,17 @@ export class MealPlansService {
       });
     }
     return changes;
+  }
+
+  /**
+   * What the meals of a day would come to, in kcal, brought to `target` as a
+   * change of the day's target brings them (`rebalanceDayInternal` with
+   * `exact`). Nothing is written.
+   */
+  resizedKcal(meals: RebalanceMealRow[], target: number): number {
+    const rows = meals.map(toRebalanceRow);
+    const { scales } = rebalanceDay(rows.map(toEngineMeal), target, 0);
+    return Math.round(rowsMacros(rows, (r) => scales.get(r.id) ?? r.quantityScale).calories);
   }
 
   /** Undo: write the supplied scales verbatim (the toast's pre-edit map). */
@@ -584,6 +599,7 @@ export class MealPlansService {
         skipped,
         belowSafetyFloor: !skipped && day.calorieTarget < floor,
         overrides,
+        mealCount: dayMealCount(day, options.mealCount, plan.profile?.mealCount ?? 3),
       };
     });
 
@@ -630,7 +646,7 @@ interface PlanWithRelations {
   revision: number;
   createdAt: Date;
   /** Whose plan it is: the floor a day's target is compared with follows from it. */
-  profile: { sex: 'male' | 'female' | null } | null;
+  profile: { sex: 'male' | 'female' | null; mealCount: number } | null;
   days: {
     id: string;
     date: Date;
@@ -694,7 +710,7 @@ const REBALANCE_MACRO_SELECT = {
   carbsPerServing: true,
 } as const;
 
-type RebalanceMealRow = {
+export type RebalanceMealRow = {
   id: string;
   source: 'CATALOGUE' | 'USER_CUSTOM';
   customMacros: unknown;

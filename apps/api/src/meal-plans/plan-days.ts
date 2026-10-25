@@ -79,9 +79,23 @@ export function sumNutrition(items: Amounts[]): Amounts {
   });
 }
 
-/** A day the user skips has no meals: that is no day of eating, and no shortfall. */
-export function isSkipped(day: { overrides: unknown; meals: unknown[] }): boolean {
-  return parseDayOverrides(day.overrides)?.skip === true && day.meals.length === 0;
+/** A day the user skips is no day of eating and no shortfall, whatever was eaten of it before it was skipped. */
+export function isSkipped(day: { overrides: unknown }): boolean {
+  return parseDayOverrides(day.overrides)?.skip === true;
+}
+
+/**
+ * How many meals a day is set for: its own number, the plan's, or else as
+ * many as it has from the catalogue (two to five), and the profile's for a day
+ * that has none. A day made again, and a change of its settings, start from
+ * this.
+ */
+export function dayMealCount(day: { overrides: unknown; meals: { source: string }[] }, planCount: number | null, profileCount: number): number {
+  const own = parseDayOverrides(day.overrides)?.mealCount;
+  if (own !== undefined) return own;
+  if (planCount !== null) return planCount;
+  const fromCatalogue = day.meals.filter((meal) => meal.source === 'CATALOGUE').length;
+  return fromCatalogue > 0 ? Math.min(5, Math.max(2, fromCatalogue)) : profileCount;
 }
 
 /**

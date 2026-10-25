@@ -11,6 +11,7 @@ import {
   type AddCustomMealRequest,
   type AiMealSwapPreview,
   type MealPlan,
+  type MealPlanDay,
   type MealPlanSummary,
   type MealSwapPreview,
   type PantryUse,
@@ -40,6 +41,9 @@ import { UseUp } from './use-up';
 
 /** Fetched when a plan is printed: the sheet is drawn for the printer alone. */
 const PlanPrintSheet = dynamic(() => import('./plan-print').then((sheet) => sheet.PlanPrintSheet), { ssr: false });
+
+/** Fetched when the settings of a day are opened: no first visit of the page waits for the window. */
+const DaySettingsDialog = dynamic(() => import('./day-settings-dialog').then((dialog) => dialog.DaySettingsDialog), { ssr: false });
 
 interface FavoriteOption {
   recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] };
@@ -167,6 +171,8 @@ export function PlanCard({
   const [reroll, setReroll] = useState<RerollStart | null>(null);
   // The day whose other ways are on offer in a window, while it is open.
   const [waysFor, setWaysFor] = useState<{ id: string; date: string } | null>(null);
+  // The day whose settings are open in a window, while it is open.
+  const [settingsFor, setSettingsFor] = useState<MealPlanDay | null>(null);
   // The meal whose removal from its day is to be confirmed, with what it does said beside it.
   const [removing, setRemoving] = useState<string | null>(null);
   // Today by the reader's clock: a day before it is history.
@@ -292,40 +298,54 @@ export function PlanCard({
             // A day can be gone to from the calendar: it is named, and can take the focus.
             <div key={day.id} id={dayAnchor(plan.id, day.date)} tabIndex={-1} className="scroll-mt-20 focus:outline-none">
               <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                <span className="text-sm font-medium">{fmt.day(day.date)}</span>
-                {day.skipped ? (
-                  // A day the user skips is no shortfall, and there is nothing in it to change.
-                  <span className="text-sm text-muted-foreground">{t('daySkipped')}</span>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-x-3">
-                    <span
-                      className={
-                        Math.abs(day.calorieDelta) <= 50
-                          ? 'text-sm text-muted-foreground'
-                          : 'text-sm text-destructive'
-                      }
-                    >
-                      {t('calorieLine', {
-                        kcal: day.dayNutrition.calories,
-                        target: day.calorieTarget,
-                        delta: fmt.signed(day.calorieDelta),
-                      })}
-                    </span>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setWaysFor({ id: day.id, date: day.date })} disabled={busy}>
-                      {t('otherWays')}
+                <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                  {fmt.day(day.date)}
+                  {(day.overrides?.dayType === 'training' || day.overrides?.dayType === 'rest') && (
+                    <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-normal text-foreground">{t(`dayKindChip.${day.overrides.dayType}`)}</span>
+                  )}
+                </span>
+                <div className="flex flex-wrap items-center gap-x-3">
+                  {day.skipped ? (
+                    // A day the user skips is no shortfall, and there is nothing in it to fill.
+                    <span className="text-sm text-muted-foreground">{t('daySkipped')}</span>
+                  ) : (
+                    <>
+                      <span
+                        className={
+                          Math.abs(day.calorieDelta) <= 50
+                            ? 'text-sm text-muted-foreground'
+                            : 'text-sm text-destructive'
+                        }
+                      >
+                        {t('calorieLine', {
+                          kcal: day.dayNutrition.calories,
+                          target: day.calorieTarget,
+                          delta: fmt.signed(day.calorieDelta),
+                        })}
+                      </span>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setWaysFor({ id: day.id, date: day.date })} disabled={busy}>
+                        {t('otherWays')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setReroll({ scope: 'day', day: day.date })}
+                        disabled={busy}
+                      >
+                        {t('changeDay')}
+                      </Button>
+                    </>
+                  )}
+                  {/* A day before today is history: its settings stay as they were. */}
+                  {day.date >= today && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setSettingsFor(day)} disabled={busy}>
+                      {t('daySettingsButton')}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setReroll({ scope: 'day', day: day.date })}
-                      disabled={busy}
-                    >
-                      {t('changeDay')}
-                    </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
+              <DaySettingsLine day={day} />
               {/* Said for as long as it is so, in words anybody can read: a notice that goes away is easy to miss, and a text that shows on hover says nothing to a finger. */}
               {!day.skipped && day.offTarget && (
                 <div className="space-y-1 text-xs">
@@ -714,6 +734,9 @@ export function PlanCard({
       {waysFor && (
         <DayVariationsDialog planId={summary.id} day={waysFor} aiEnabled={aiEnabled} aiOffNote={aiOffNote} mealName={mealName} onClose={() => setWaysFor(null)} onChanged={onChanged} />
       )}
+      {settingsFor && (
+        <DaySettingsDialog planId={summary.id} day={settingsFor} mealName={mealName} limitNames={limitNames} onClose={() => setSettingsFor(null)} onSaved={onChanged} />
+      )}
       {reroll && (
         <RerollDialog
           planId={summary.id}
@@ -755,6 +778,26 @@ export function PlanCard({
       />
     </Card>
   );
+}
+
+/** The settings a day has of its own, in words: what makes it differ from the plan's other days. */
+function DaySettingsLine({ day }: { day: MealPlanDay }) {
+  const t = useTranslations('mealPlans.daySettings');
+  const fmt = useFormat();
+  const own = day.overrides;
+  if (!own || own.skip) return null;
+  const said = [
+    own.calorieTarget !== undefined
+      ? t('lineOwnTarget', { kcal: fmt.number(own.calorieTarget) })
+      : own.dayType === 'training'
+        ? t('lineTraining')
+        : own.dayType === 'rest'
+          ? t('lineRest')
+          : null,
+    own.cookTimeBudgetMinutes !== undefined ? t('lineCookTime', { minutes: own.cookTimeBudgetMinutes }) : null,
+    own.useUpBy ? t('lineUseUp') : null,
+  ].filter((line): line is string => line !== null);
+  return said.length > 0 ? <p className="text-xs text-muted-foreground">{said.join(' ')}</p> : null;
 }
 
 /** Per-meal macros as plain inline text, sitting below the recipe title. Full

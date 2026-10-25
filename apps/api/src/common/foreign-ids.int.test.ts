@@ -68,6 +68,9 @@ const WHOLE_PROFILE = {
   },
 };
 
+/** The settings of a day as a window sends them. */
+const DAY_SETTINGS = { dayType: 'rest', skip: false, mealCount: 3, calorieTarget: null, cookTimeBudgetMinutes: null, useUpBy: false };
+
 const ASKS: Ask[] = [
   ['read a profile', 'get', (ids) => `/api/profiles/${ids.profile}`],
   ['read what a profile should eat', 'get', (ids) => `/api/profiles/${ids.profile}/calories`],
@@ -84,6 +87,8 @@ const ASKS: Ask[] = [
   ['fill a day of a plan again', 'post', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/regenerate`, () => ({ includePast: true })],
   ['ask for other ways to fill a day of a plan', 'post', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/variations`, () => ({})],
   ['take a way to fill a day of a plan', 'post', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/variations/take`, () => ({ offer: 'a-note' })],
+  ['ask what a change of the settings of a day would do', 'post', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/settings/preview`, () => DAY_SETTINGS],
+  ['change the settings of a day', 'put', (ids) => `/api/meal-plans/${ids.plan}/days/${ids.day}/settings`, () => ({ ...DAY_SETTINGS, revision: 0 })],
   ['delete a plan', 'delete', (ids) => `/api/meal-plans/${ids.plan}`],
   ['ask for another recipe for a meal', 'post', () => '/api/meal-plans/swap-meal/preview', (ids) => ({ planId: ids.plan, plannedMealId: ids.meal, strategy: 'random' })],
   ['swap a meal', 'post', () => '/api/meal-plans/swap-meal', (ids, shared) => ({ planId: ids.plan, plannedMealId: ids.meal, recipeId: shared.recipe, revision: 0, strategy: 'random' })],

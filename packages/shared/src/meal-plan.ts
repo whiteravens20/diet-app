@@ -331,14 +331,108 @@ export const MealPlanDay = z.object({
    * it is so.
    */
   offTarget: z.enum(['over', 'under']).nullable(),
-  /** The user skips this day: it has no meals, is no shortfall, and is left out of the plan's averages. */
+  /**
+   * The user skips this day: it is no shortfall, and is left out of the
+   * plan's averages. What was eaten of it before it was skipped stays on it.
+   */
   skipped: z.boolean(),
   /** A target somebody typed, for the plan or for this day, has put the day under the lowest a calculated plan goes. */
   belowSafetyFloor: z.boolean(),
   /** Advanced per-day overrides, or null for a basic-flow day. */
   overrides: MealPlanDayOverrides.nullable(),
+  /**
+   * How many meals the day is set for: its own number, the plan's, or else as
+   * many as it has from the catalogue. What a change of the day's settings
+   * starts from (`DaySettings`).
+   */
+  mealCount: z.number().int().min(2).max(5),
 });
 export type MealPlanDay = z.infer<typeof MealPlanDay>;
+
+/**
+ * What a day of a running plan can be set to, from today on: what a day of a
+ * new plan can be given (`DayOverride`), but its locks. A setting left as the
+ * plan has it (a `normal` day, no target of its own, no limit on cooking, the
+ * plan's number of meals) is kept as none.
+ *
+ * What a change does to the day's meals: another kind of day, or a target of
+ * its own, keeps the dishes in other portions; another number of meals keeps
+ * the dishes of the meals that stay, in other portions, draws recipes for the
+ * meals the day gains and takes away those it loses; a limit on cooking time
+ * draws other recipes for the meals over it, and `useUpBy` for every meal not
+ * yet eaten. Eaten meals and the user's own stay as they are; a skipped day
+ * keeps only what was eaten. `POST /meal-plans/:id/days/:dayId/settings/preview`
+ * says which of this a change does before it is made.
+ */
+export const DaySettings = z.object({
+  dayType: z.enum(['normal', 'rest', 'training']),
+  skip: z.boolean(),
+  mealCount: z.number().int().min(2).max(5),
+  /** A target of the day's own; null for the one its kind gives. */
+  calorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
+  /** The most minutes a recipe of the day may take to prepare and cook; null for no limit. */
+  cookTimeBudgetMinutes: z.number().int().min(0).max(600).nullable(),
+  /** Put first the recipes that use what the pantry has to use up by this day. */
+  useUpBy: z.boolean(),
+});
+export type DaySettings = z.infer<typeof DaySettings>;
+
+/**
+ * Change the settings of a day (`DaySettings`) on the plan as it was when the
+ * preview was asked for: a plan that changed since answers 409
+ * `PLAN_CHANGED`, and a day before today 409 `DAY_IN_THE_PAST`. Recipes are
+ * drawn inside the limits of the plan, as for a day made again, and
+ * `allowRelaxations` is what it is there.
+ */
+export const ApplyDaySettingsRequest = DaySettings.extend({
+  revision: z.number().int().min(0).max(2_147_483_647),
+  allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).optional(),
+});
+export type ApplyDaySettingsRequest = z.infer<typeof ApplyDaySettingsRequest>;
+
+/** What a change of a day's settings does to one of its meals, and why. */
+export const DayMealFate = z.object({
+  mealId: z.string().uuid(),
+  mealType: MealType,
+  /** `stays` as it is; `resized`: the same dish in another amount; `redrawn`: another recipe is drawn for the meal; `removed`: it leaves the day. */
+  fate: z.enum(['stays', 'resized', 'redrawn', 'removed']),
+  /**
+   * Why, where it is more than the day's new target or number of meals:
+   * `eaten` and `own` meals stay; `fewer_meals` and `skipped` are what take a
+   * meal away; `over_cook_time` and `use_up` what draw another recipe.
+   */
+  because: z.enum(['eaten', 'own', 'fewer_meals', 'skipped', 'over_cook_time', 'use_up']).nullable(),
+});
+export type DayMealFate = z.infer<typeof DayMealFate>;
+
+/** What a change of a day's settings would do, as `POST /meal-plans/:id/days/:dayId/settings/preview` answers it. Nothing is written. */
+export const DaySettingsPreview = z.object({
+  /** The plan's revision this is for: handed back with the change. */
+  revision: z.number().int().min(0),
+  date: z.string().date(),
+  /** The day's target, and what it aims at of protein, fat and carbohydrate: now, and after the change. */
+  calorieTarget: z.object({ now: z.number(), then: z.number() }),
+  targetMacros: z.object({ now: Macros, then: Macros }),
+  /** A target typed for the day would put it under the lowest a calculated plan goes. */
+  belowSafetyFloor: z.boolean(),
+  /** Each meal of the day, in the order they are eaten. */
+  meals: z.array(DayMealFate),
+  /** The meals the day would gain, in the order they are eaten: a recipe is drawn for each. */
+  added: z.array(MealType),
+  /**
+   * What the day would hold where the change draws no recipe, its portions
+   * worked out as the change would work them out. Null where recipes are
+   * drawn: what they hold is known once they are.
+   */
+  dayCalories: z.number().nullable(),
+  /** Whether that is inside the tenth either side of the new target that a plan is held to. Null with `dayCalories`. */
+  fits: z.boolean().nullable(),
+  /** A shopping list of the plan covers the day: once its meals change, it says that it is out of date. */
+  listOutOfDate: z.boolean(),
+  /** The change does nothing to the day. */
+  unchanged: z.boolean(),
+});
+export type DaySettingsPreview = z.infer<typeof DaySettingsPreview>;
 
 /** A pack that a plan's menu opens and does not finish. */
 export const PlanOpenPack = z.object({

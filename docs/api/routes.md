@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-163 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+165 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -154,6 +154,8 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `DELETE /api/meal-plans/:id` | an account | Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. |  | 204 |  |
 | `POST /api/meal-plans/:id/days/:date/custom-meal` | an account | Add a user-authored custom meal to a day. | `AddCustomMealRequest` | 201 `RebalanceResult` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/regenerate` | an account | Re-roll the meals of a single day. | `RegenerateDayRequest` | 201 `MealPlan` | 20 in a minute |
+| `PUT /api/meal-plans/:id/days/:dayId/settings` | an account | Change the settings of a day of a running plan, as the preview at `revision` said. Draws recipes as making the day again does. | `ApplyDaySettingsRequest` | 200 `MealPlan` | 20 in a minute |
+| `POST /api/meal-plans/:id/days/:dayId/settings/preview` | an account | What changing the settings of a day would do: its target, and which of its meals stay, change their amount, get another recipe or go. Nothing is written. Asked again as the settings are changed in a window, so it is held to what a window asks for in a minute. | `DaySettings` | 200 `DaySettingsPreview` | 60 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/variations` | an account | Other ways to fill a day: the engine makes them as it makes a day again, and a model puts them in order and says a sentence of each when the request asks for one. Nothing is written. One request makes the day up to eight times over, so it is held to half of what making a day again is. | `WeighRequest` | 200 `DayVariations` | 10 in a minute |
 | `POST /api/meal-plans/:id/days/:dayId/variations/take` | an account | Fill a day the way it was offered. | `TakeDayVariationRequest` | 200 `MealPlan` | 20 in a minute |
 | `DELETE /api/meal-plans/:id/meals/:mealId` | an account | Take a meal off its day, whichever it is (rebalances the day). |  | 200 `RebalanceResult` |  |

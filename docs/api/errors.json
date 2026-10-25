@@ -215,6 +215,15 @@
       "pl": "Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu."
     }
   },
+  "DAY_IN_THE_PAST": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This day is over: its settings stay as they were.",
+      "pl": "Ten dzień już minął: jego ustawienia zostają bez zmian."
+    }
+  },
   "DAY_NOT_FOUND": {
     "statuses": [
       404

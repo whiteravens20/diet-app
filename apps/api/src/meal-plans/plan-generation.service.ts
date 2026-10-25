@@ -50,7 +50,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { storedSplit } from '../common/stored-split.js';
 import { reportOf, StoredReport, withDaysAgain } from './generation-report.js';
 import { MealPlansService } from './meal-plans.service.js';
-import { customMacros, isoDate, parseDayOverrides, type DayOverridesJson } from './plan-days.js';
+import { customMacros, dayMealCount, isoDate, parseDayOverrides, type DayOverridesJson } from './plan-days.js';
 import { writePlan } from './plan-write.js';
 
 /**
@@ -259,8 +259,7 @@ export class PlanGenerationService {
       // A meal of the catalogue that stays holds its place among the day's meals; one of the user's own is beside them.
       const held = new Set(staying.filter((meal) => meal.source === 'CATALOGUE').map((meal) => meal.mealType));
       // A day's own meals of the catalogue say how many it has, where neither the day nor the plan was asked for a number.
-      const catalogueCount = day.meals.filter((meal) => meal.source === 'CATALOGUE').length;
-      const mealCount = o?.mealCount ?? made.mealCount ?? (catalogueCount || profile.mealCount);
+      const mealCount = dayMealCount(day, made.mealCount, profile.mealCount);
       return {
         date: day.date,
         isoDate: iso,
@@ -345,13 +344,20 @@ export class PlanGenerationService {
   }
 
   /**
+   * The target of a day of a plan with the settings `overrides`, as the days of
+   * the plan were given theirs: the base the plan was made with, shaped by the
+   * kind of day, or the day's own target.
+   */
+  targetOfDay(profile: BaseProfile, plan: { calorieTarget: number; options: unknown }, overrides: { calorieTarget?: number; dayType?: 'normal' | 'rest' | 'training' } | null): number {
+    const made = PlanOptions.parse(plan.options);
+    return dayTarget({ ...this.planBase(profile, made.calorieTargetOverride ?? undefined), target: plan.calorieTarget }, overrides);
+  }
+
+  /**
    * The base target of a plan for this profile, and how it came about. A
    * target typed for the plan stands in for the one typed on the profile.
    */
-  private planBase(
-    profile: Omit<CalorieEngineInput, 'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit'> & { weeklyLossTarget: string | null; riskAcknowledgedAt: Date | null },
-    typedForThePlan?: number,
-  ): PlanBase {
+  private planBase(profile: BaseProfile, typedForThePlan?: number): PlanBase {
     const riskAcknowledged = profile.riskAcknowledgedAt !== null;
     const calories = calculateCalories({
       age: profile.age,
@@ -803,6 +809,9 @@ function buildOverridesJson(o: DayOverride | undefined): DayOverridesJson | null
 function newSeed(): number {
   return randomInt(-(2 ** 31), 2 ** 31);
 }
+
+/** What a plan's base target is worked out from, of a profile. */
+type BaseProfile = Omit<CalorieEngineInput, 'weeklyLossTarget' | 'riskAcknowledged' | 'customMacroSplit'> & { weeklyLossTarget: string | null; riskAcknowledgedAt: Date | null };
 
 /**
  * The base target of a plan and how it came about: what the target of each

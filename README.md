@@ -30,7 +30,9 @@ The companion Android app lives in a separate repository:
 - **Meal planning** — multi-day plans honouring calorie/macro targets and diet type, with
   an optimiser that leans towards using up what it opens: a plan says what it buys in
   packs that do not keep against what it uses of them, and a plan made for cooking ahead
-  has a dish cooked once for two days.
+  has a dish cooked once for two days. A day of a plan under way can be set apart (a
+  training or rest day, skipped, another number of meals, a target of its own), with what
+  that does to its meals said before it is saved.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
   approved ingredients, then a validation layer recomputes every number. An operator can
   also take recipes in from a schema.org document they have: each line has to be an amount

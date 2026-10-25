@@ -3821,6 +3821,163 @@
         }
       }
     },
+    "/api/meal-plans/{id}/days/{dayId}/settings": {
+      "put": {
+        "operationId": "MealPlans_applyDaySettings",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Change the settings of a day of a running plan, as the preview at `revision` said.",
+        "description": "Change the settings of a day of a running plan, as the preview at `revision` said. Draws recipes as making the day again does.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyDaySettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/meal-plans/{id}/days/{dayId}/settings/preview": {
+      "post": {
+        "operationId": "MealPlans_previewDaySettings",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "What changing the settings of a day would do: its target, and which of its meals stay, change their amount, get another recipe or go.",
+        "description": "What changing the settings of a day would do: its target, and which of its meals stay, change their amount, get another recipe or go. Nothing is written. Asked again as the settings are changed in a window, so it is held to what a window asks for in a minute.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DaySettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaySettingsPreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/days/{dayId}/variations": {
       "post": {
         "operationId": "MealPlans_dayVariations",
@@ -8477,6 +8634,75 @@
         ],
         "additionalProperties": false
       },
+      "ApplyDaySettingsRequest": {
+        "type": "object",
+        "properties": {
+          "dayType": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "rest",
+              "training"
+            ]
+          },
+          "skip": {
+            "type": "boolean"
+          },
+          "mealCount": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
+          "calorieTarget": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 800,
+                "maximum": 6000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cookTimeBudgetMinutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 600
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "useUpBy": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "allowRelaxations": {
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanRelaxation"
+            }
+          }
+        },
+        "required": [
+          "dayType",
+          "skip",
+          "mealCount",
+          "calorieTarget",
+          "cookTimeBudgetMinutes",
+          "useUpBy",
+          "revision"
+        ]
+      },
       "ApplyFavoriteSetRequest": {
         "type": "object",
         "properties": {
@@ -9239,6 +9465,52 @@
           "indian"
         ]
       },
+      "DayMealFate": {
+        "type": "object",
+        "properties": {
+          "mealId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "fate": {
+            "type": "string",
+            "enum": [
+              "stays",
+              "resized",
+              "redrawn",
+              "removed"
+            ]
+          },
+          "because": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "eaten",
+                  "own",
+                  "fewer_meals",
+                  "skipped",
+                  "over_cook_time",
+                  "use_up"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mealId",
+          "mealType",
+          "fate",
+          "because"
+        ],
+        "additionalProperties": false
+      },
       "DayOfferNote": {
         "type": "string",
         "minLength": 1,
@@ -9303,6 +9575,154 @@
         "required": [
           "date"
         ]
+      },
+      "DaySettings": {
+        "type": "object",
+        "properties": {
+          "dayType": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "rest",
+              "training"
+            ]
+          },
+          "skip": {
+            "type": "boolean"
+          },
+          "mealCount": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
+          "calorieTarget": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 800,
+                "maximum": 6000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cookTimeBudgetMinutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 600
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "useUpBy": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "dayType",
+          "skip",
+          "mealCount",
+          "calorieTarget",
+          "cookTimeBudgetMinutes",
+          "useUpBy"
+        ]
+      },
+      "DaySettingsPreview": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "calorieTarget": {
+            "type": "object",
+            "properties": {
+              "now": {
+                "type": "number"
+              },
+              "then": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "now",
+              "then"
+            ],
+            "additionalProperties": false
+          },
+          "targetMacros": {
+            "type": "object",
+            "properties": {
+              "now": {
+                "$ref": "#/components/schemas/Macros"
+              },
+              "then": {
+                "$ref": "#/components/schemas/Macros"
+              }
+            },
+            "required": [
+              "now",
+              "then"
+            ],
+            "additionalProperties": false
+          },
+          "belowSafetyFloor": {
+            "type": "boolean"
+          },
+          "meals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayMealFate"
+            }
+          },
+          "added": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealType"
+            }
+          },
+          "dayCalories": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fits": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "listOutOfDate": {
+            "type": "boolean"
+          },
+          "unchanged": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revision",
+          "date",
+          "calorieTarget",
+          "targetMacros",
+          "belowSafetyFloor",
+          "meals",
+          "added",
+          "dayCalories",
+          "fits",
+          "listOutOfDate",
+          "unchanged"
+        ],
+        "additionalProperties": false
       },
       "DayVariation": {
         "type": "object",
@@ -11425,6 +11845,11 @@
                 "type": "null"
               }
             ]
+          },
+          "mealCount": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
           }
         },
         "required": [
@@ -11438,7 +11863,8 @@
           "offTarget",
           "skipped",
           "belowSafetyFloor",
-          "overrides"
+          "overrides",
+          "mealCount"
         ],
         "additionalProperties": false
       },

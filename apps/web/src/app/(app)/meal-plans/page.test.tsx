@@ -108,6 +108,7 @@ const aPlan = (over: Partial<MealPlan> = {}): MealPlan => ({
       skipped: false,
       belowSafetyFloor: false,
       overrides: null,
+      mealCount: 3,
     },
   ],
   averageDailyNutrition: { calories: 230, protein: 8, fat: 4, carbs: 40 },
