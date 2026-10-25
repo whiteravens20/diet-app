@@ -161,22 +161,29 @@ export function AdvancedOptions({
 
         <fieldset>
           <legend className="text-sm font-medium">{t('mayGiveWay')}</legend>
-          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+          {/* Each limit says where it is set: not all of them are set in this form. */}
+          <div className="mt-1 space-y-1">
             {PLAN_RELAXATIONS.map((kind) => (
-              <label key={kind} className="flex items-center gap-1 text-xs">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={value.mayGiveWay?.includes(kind) ?? false}
-                  onChange={(e) =>
-                    onChange({
-                      ...value,
-                      mayGiveWay: PLAN_RELAXATIONS.filter((other) => (other === kind ? e.target.checked : value.mayGiveWay?.includes(other))),
-                    })
-                  }
-                />
-                {tLimit(kind)}
-              </label>
+              <div key={kind}>
+                <label className="flex items-center gap-1 text-xs">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={value.mayGiveWay?.includes(kind) ?? false}
+                    aria-describedby={`adv-limit-${kind}`}
+                    onChange={(e) =>
+                      onChange({
+                        ...value,
+                        mayGiveWay: PLAN_RELAXATIONS.filter((other) => (other === kind ? e.target.checked : value.mayGiveWay?.includes(other))),
+                      })
+                    }
+                  />
+                  {tLimit(kind)}
+                </label>
+                <p id={`adv-limit-${kind}`} className="ml-5 text-2xs text-muted-foreground">
+                  {t(`limitWhere.${kind}`)}
+                </p>
+              </div>
             ))}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{t('mayGiveWayHint')}</p>

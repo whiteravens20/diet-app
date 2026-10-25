@@ -1268,6 +1268,14 @@
       "varietyFloorHint": "W całym planie, dodatkowo do limitów różnorodności z profilu (nie zastępuje ich). {most, select, none {Zostaw puste, aby nie dodawać limitu.} other {Gdy pole jest puste, obowiązuje liczba ustawiona dla tej instancji: {most}.}}",
       "mayGiveWay": "Gdy zabraknie przepisu mieszczącego się w limicie, wolno przekroczyć",
       "mayGiveWayHint": "Gdy nic nie zaznaczysz, plan wtedy nie powstanie, a zobaczysz, które limity stoją na przeszkodzie.",
+      "limitWhere": {
+        "variety_floor": "Ustawiasz wyżej: Maks. powtórzeń jednego przepisu.",
+        "cook_time": "Ustawiasz niżej, przy każdym dniu: Maks. czas gotowania (min).",
+        "same_day": "Stała reguła planera, bez ustawienia. Nie obowiązuje w planie z gotowaniem na zapas.",
+        "consecutive_days": "Ustawiasz w profilu: Maks. dni z rzędu tego samego dania.",
+        "weekly_cap": "Ustawiasz w profilu: Maks. powtórzeń tego samego dania w tygodniu.",
+        "ingredient_cap": "Ustawiasz w profilu: Największa ilość jednego składnika w tygodniu (g lub ml)."
+      },
       "perDay": "Ustawienia poszczególnych dni",
       "mealCount": "Posiłki",
       "useDefault": "Domyślnie",

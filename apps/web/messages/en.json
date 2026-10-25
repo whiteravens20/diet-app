@@ -1268,6 +1268,14 @@
       "varietyFloorHint": "Across the whole plan, on top of your profile's variety limits (it doesn't replace them). {most, select, none {Leave blank for no extra limit.} other {Left blank, the number set for this instance applies: {most}.}}",
       "mayGiveWay": "If no recipe is left inside a limit, these may give way",
       "mayGiveWayHint": "With none ticked the plan is not made then, and you are told which limits stand in the way.",
+      "limitWhere": {
+        "variety_floor": "Set above: Max times one recipe can repeat.",
+        "cook_time": "Set below, for each day: Max cook (min).",
+        "same_day": "A fixed rule of the planner, with no setting. A plan to cook ahead is not held to it.",
+        "consecutive_days": "Set in the profile: Max same recipe in a row (days).",
+        "weekly_cap": "Set in the profile: Max times the same recipe per week.",
+        "ingredient_cap": "Set in the profile: Most of one ingredient in a week (g or ml)."
+      },
       "perDay": "Per-day options",
       "mealCount": "Meals",
       "useDefault": "Default",
