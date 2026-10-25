@@ -201,16 +201,22 @@ dry one is shown in pinches, a sixteenth of a teaspoon each, and more than four
 teaspoons by weight or volume. `perTeaspoon` is how much a level teaspoon holds in
 the canonical unit, from the household measures of USDA SR Legacy:
 
-| Ingredient    | `perTeaspoon` | SR Legacy                                    |
-| ------------- | ------------- | -------------------------------------------- |
-| salt          | 6 g           | Salt, table: 1 tsp = 6 g                     |
-| black pepper  | 2.3 g         | Spices, pepper, black: 1 tsp, ground = 2.3 g |
-| paprika       | 2.3 g         | Spices, paprika: 1 tsp = 2.3 g               |
-| cinnamon      | 2.6 g         | Spices, cinnamon, ground: 1 tsp = 2.6 g      |
-| dried oregano | 1 g           | Spices, oregano, dried: 1 tsp, leaves = 1 g  |
+| Ingredient              | `perTeaspoon` | SR Legacy                                    |
+| ----------------------- | ------------- | -------------------------------------------- |
+| salt                    | 6 g           | Salt, table: 1 tsp = 6 g                     |
+| black pepper            | 2.3 g         | Spices, pepper, black: 1 tsp, ground = 2.3 g |
+| paprika                 | 2.3 g         | Spices, paprika: 1 tsp = 2.3 g               |
+| cinnamon                | 2.6 g         | Spices, cinnamon, ground: 1 tsp = 2.6 g      |
+| dried oregano           | 1 g           | Spices, oregano, dried: 1 tsp, leaves = 1 g  |
+| lemon juice, lime juice | 5 ml          | a teaspoon of 5 ml                           |
 
 Nutrition, the shopping list and the pantry go on by weight or volume. The lint
 refuses a `perTeaspoon` on what is counted in pieces.
+
+Lemon and lime juice are ingredients of their own (SR Legacy "Lemon juice, raw"
+and "Lime juice, raw", per 100 ml with their density): a recipe that uses only
+the juice of the fruit names the juice, in millilitres; a recipe that grates the
+zest as well keeps the fruit.
 
 ## Packs
 

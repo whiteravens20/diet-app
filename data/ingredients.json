@@ -932,6 +932,36 @@
     "tags": ["fruit"]
   },
   {
+    "slug": "lemon-juice",
+    "name": { "en": "Lemon juice", "pl": "Sok z cytryny" },
+    "category": "fruits",
+    "canonicalUnit": "ml",
+    "caloriesPer100": 22.7,
+    "proteinPer100": 0.36,
+    "fatPer100": 0.25,
+    "carbsPer100": 7.11,
+    "density": 1.031,
+    "perTeaspoon": 5,
+    "allergens": [],
+    "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
+    "tags": ["fruit"]
+  },
+  {
+    "slug": "lime-juice",
+    "name": { "en": "Lime juice", "pl": "Sok z limonki" },
+    "category": "fruits",
+    "canonicalUnit": "ml",
+    "caloriesPer100": 26.1,
+    "proteinPer100": 0.44,
+    "fatPer100": 0.07,
+    "carbsPer100": 8.77,
+    "density": 1.042,
+    "perTeaspoon": 5,
+    "allergens": [],
+    "dietCompatibility": ["balanced", "low_carb", "keto", "vegetarian", "vegan", "mediterranean"],
+    "tags": ["fruit"]
+  },
+  {
     "slug": "salt",
     "name": { "en": "Salt", "pl": "Sól" },
     "category": "spices",
