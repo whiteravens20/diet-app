@@ -24,20 +24,19 @@ const BUDGETS: Record<string, number> = {
   '/from-the-app': 190,
   '/terms': 190,
   '/offline': 190,
-  // The pages of an account that read and show.
+  // The pages of an account that load none of the contract's schemas.
   '/dashboard': 205,
   '/shopping-lists': 205,
   '/inventory': 205,
   '/settings': 210,
+  '/recipes': 210,
+  '/favorites': 210,
+  '/admin': 215,
+  '/review': 195,
   // The pages that also check what is typed or answered against the contract, which brings its schemas.
   '/profile': 240,
   '/calculator': 235,
-  '/recipes': 245,
-  '/favorites': 245,
-  // The schemas of the contract every page carries grew with who may use the instance's AI (2026-10).
-  '/meal-plans': 261,
-  '/admin': 255,
-  '/review': 235,
+  '/meal-plans': 260,
 };
 
 /** What every page needs: the framework and what the shell is made of. */
