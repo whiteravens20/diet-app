@@ -39,6 +39,7 @@ Please review the [Contributing Guidelines](../CONTRIBUTING.md) before submittin
 - [ ] No new unvalidated environment variable is introduced
 - [ ] `npm audit` shows no new high/critical findings
 - [ ] All tests pass
+- [ ] `npm run format:check` passes
 - [ ] ESLint passes with zero warnings
 - [ ] TypeScript compiles with zero errors
 

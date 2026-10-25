@@ -5,3 +5,9 @@ dist
 coverage
 apps/api/prisma/migrations
 package-lock.json
+# Written by tools in their own layout: Next on every build, `npm run contract`
+# (which a test compares byte for byte) and the shipping of recipes and names.
+apps/web/next-env.d.ts
+docs/api/
+data/recipes/
+data/ingredient-overrides.json

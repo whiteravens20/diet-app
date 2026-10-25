@@ -226,8 +226,8 @@ and no independent security review.
 
 **What a change goes through**
 
-- Every push and pull request to `dev` and `main` runs lint with no warnings allowed, type
-  checking, a build, and the unit and integration tests of the API and of the web app, the
+- Every push and pull request to `dev` and `main` checks that every file is laid out as
+  Prettier writes it, runs lint with no warnings allowed, type checking, a build, and the unit and integration tests of the API and of the web app, the
   integration tests against PostgreSQL, with coverage floors that fail the run when they
   are not reached. The same run checks that the database migrations match the schema, that
   no export, file or dependency goes unused, that the curated data in `data/` can be
