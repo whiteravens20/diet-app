@@ -10,6 +10,7 @@ import {
   signInHere,
   test,
   type Messages,
+  type Options,
 } from './fixtures';
 
 const ACCOUNT_PAGES = [
@@ -77,7 +78,14 @@ test.describe('entering and leaving an account', () => {
     account,
     messages,
   }, testInfo) => {
-    const other = accountOf(testInfo.project.name === 'desktop-en' ? 'desktop-pl' : 'desktop-en');
+    // Somebody else whose account is in the language of this project: an account in another would put its own on the page.
+    const language = (testInfo.project.use as Partial<Options>).appLocale;
+    const elsewhere = testInfo.config.projects.find(
+      (project) =>
+        project.name !== testInfo.project.name &&
+        (project.use as Partial<Options>).appLocale === language,
+    );
+    const other = accountOf(elsewhere!.name);
     const address = page.locator('p.font-mono');
 
     // Asked for without a session, the settings come up after the sign-in.
