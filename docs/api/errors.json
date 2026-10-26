@@ -855,6 +855,15 @@
       "pl": "Ustawienie dnia wykracza poza zakres dat planu."
     }
   },
+  "OWN_RECIPE_DAILY_LIMIT": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "You have saved as many recipes of your own today as you may. Try again tomorrow.",
+      "pl": "Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro."
+    }
+  },
   "PANTRY_FULL": {
     "statuses": [
       409
@@ -981,6 +990,15 @@
       "pl": "Zbyt wiele żądań. Spróbuj ponownie za chwilę."
     }
   },
+  "RECIPE_ALREADY_YOURS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "You already have a recipe with these ingredients, in these amounts, for these meals.",
+      "pl": "Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki."
+    }
+  },
   "RECIPE_GEN_IN_PROGRESS": {
     "statuses": [
       409
@@ -988,6 +1006,15 @@
     "messages": {
       "en": "A recipe-generator run is already in progress.",
       "pl": "Generowanie przepisów już trwa."
+    }
+  },
+  "RECIPE_INVALID": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "The recipe would break the rules for recipe text and quantities. Nothing was saved.",
+      "pl": "Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane."
     }
   },
   "RECIPE_NOT_ELIGIBLE": {

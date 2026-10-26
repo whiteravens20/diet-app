@@ -47,7 +47,7 @@
     "picked": "Ten przepis wybrał dla tego posiłku model AI, spośród przepisów pasujących do Twojego planu.",
     "pickedWhy": "Ten przepis wybrał dla tego posiłku model AI: „{reason}”",
     "written": "Ten przepis napisał dla Ciebie model AI. Składniki pochodzą z katalogu, a wartości odżywcze zostały z nich wyliczone. Sprawdź ilości i kroki, zanim zaczniesz na nim polegać.",
-    "changed": "W tym przepisie miał udział model AI: wybrał zamiennik składnika albo przeredagował tekst wokół niego. Sprawdź kroki, zanim zaczniesz na nim polegać.",
+    "changed": "W tym przepisie miał udział model AI: napisał jego wcześniejszą wersję, wybrał zamiennik składnika albo przeredagował tekst wokół niego. Sprawdź kroki, zanim zaczniesz na nim polegać.",
     "plan": "Części tego planu wybrano z pomocą modelu AI.",
     "weighed": "Model o tym: „{reason}”"
   },
@@ -416,7 +416,10 @@
     "EMAIL_CHANGE_REQUIRES_SMTP": "Zmiana adresu e-mail nie jest dostępna na tej instancji — operator nie skonfigurował poczty.",
     "INVALID_EMAIL_CHANGE_TOKEN": "Ten link zmiany adresu e-mail jest nieprawidłowy lub wygasł.",
     "EMAIL_ALREADY_VERIFIED": "Ten adres e-mail jest już potwierdzony.",
-    "VERIFICATION_SENT_RECENTLY": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut."
+    "VERIFICATION_SENT_RECENTLY": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut.",
+    "RECIPE_INVALID": "Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane.",
+    "RECIPE_ALREADY_YOURS": "Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki.",
+    "OWN_RECIPE_DAILY_LIMIT": "Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro."
   },
   "offline": {
     "notice": "Nie można połączyć się z serwerem. Widzisz to, co zostało wczytane ostatnio i teraz nic nie da się zmienić poza odhaczeniem pozycji listy zakupów: odhaczenie zostanie wysłane, gdy serwer będzie znów dostępny.",
@@ -1617,17 +1620,18 @@
     "noneAtAll": "Brak przepisów.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
     "aiDraft": "Zaproponuj z AI",
+    "write": "Napisz przepis",
     "tabs": {
       "library": "Biblioteka",
       "mine": "Moje przepisy"
     },
     "mineEmptyTitle": "Nie masz jeszcze własnych przepisów",
-    "mineEmpty": "Trafiają tu przepisy, które model przygotuje dla Ciebie, oraz warianty zachowane po zamianie składnika.",
+    "mineEmpty": "Trafiają tu przepisy, które napiszesz, te, które model przygotuje dla Ciebie, oraz warianty zachowane po zamianie składnika.",
     "delete": "Usuń",
     "deleteConfirm": "Usunąć ten przepis? Posiłki zaplanowane w przeszłości pozostaną, ale przepis zniknie z biblioteki i przyszłych planów.",
     "deleteSuccess": "Przepis usunięty.",
     "submit": "Zgłoś do wspólnej biblioteki",
-    "submitConfirm": "Zgłosić ten przepis do biblioteki, z której korzystają wszyscy? Kuratorzy zobaczą jego treść i składniki, ale nie to, kto go wysłał. Jeśli go przyjmą, stanie się przepisem biblioteki.",
+    "submitConfirm": "Zgłosić ten przepis do biblioteki, z której korzystają wszyscy? Kuratorzy zobaczą jego treść i składniki, ale nie to, kto go wysłał. Jeśli go przyjmą, stanie się przepisem biblioteki. Zgłoszony przepis jest udostępniany na licencji projektu, GNU AGPL 3.0.",
     "submitDone": "Wysłano do kuratorów.",
     "submitFailed": "Nie udało się wysłać przepisu.",
     "pagination": {
@@ -1635,7 +1639,8 @@
       "summary": "Wyświetlam {start}–{end} z {total}",
       "prev": "Poprzednia",
       "next": "Następna"
-    }
+    },
+    "edit": "Edytuj"
   },
   "favorites": {
     "title": "Ulubione",
@@ -1706,7 +1711,54 @@
     "prefsSaveFailed": "Nie udało się zapisać preferencji składnika.",
     "cuisine": "Kuchnia: {cuisine}",
     "source": "Źródło: <site></site>",
-    "sourceLicence": "Licencja: <licence></licence>"
+    "sourceLicence": "Licencja: <licence></licence>",
+    "edit": "Edytuj"
+  },
+  "ownRecipe": {
+    "newTitle": "Napisz przepis",
+    "newIntro": "Przepis jest tylko Twój, dopóki nie zgłosisz go do biblioteki. Wartości porcji, alergeny i diety liczymy ze składników.",
+    "editTitle": "Edytuj przepis",
+    "editIntro": "Zapis tworzy nową wersję przepisu. Plany, w których już jest, zostają przy starej, a ulubione i zestawy ulubionych przechodzą na nową.",
+    "backToRecipe": "Wróć do przepisu",
+    "fieldTitle": "Nazwa",
+    "fieldDescription": "Opis",
+    "fieldMeals": "Na jakie posiłki",
+    "fieldPrep": "Przygotowanie (min)",
+    "fieldCook": "Gotowanie (min)",
+    "fieldDifficulty": "Trudność",
+    "fieldCuisine": "Kuchnia",
+    "cuisineNone": "Żadna konkretna",
+    "noIngredients": "Dodaj co najmniej jeden składnik z katalogu.",
+    "fieldAmount": "Ilość",
+    "amountOf": "Ilość: {name}",
+    "fieldUnit": "Jednostka",
+    "unitOf": "Jednostka: {name}",
+    "unitPiece": "szt.",
+    "fieldNote": "Uwaga",
+    "noteOf": "Uwaga: {name}",
+    "removeIngredient": "Usuń: {name}",
+    "addIngredient": "Dodaj składnik",
+    "searchHint": "Wpisz co najmniej dwie litery nazwy.",
+    "nothingFound": "W katalogu nie ma takiego składnika.",
+    "allergenHint": "Alergeny liczymy tylko z listy składników. Jeśli krok dodaje coś, czego na niej nie ma, na przykład orzechy do posypania, dopisz to jako składnik.",
+    "stepNumber": "Krok {n}",
+    "stepUp": "Przesuń krok {n} wyżej",
+    "stepDown": "Przesuń krok {n} niżej",
+    "removeStep": "Usuń krok {n}",
+    "addStep": "Dodaj krok",
+    "previewWaiting": "Dodaj składniki z ilościami, żeby zobaczyć, co zawiera porcja.",
+    "previewFigures": "{kcal} kcal · białko {protein} g · tłuszcz {fat} g · węglowodany {carbs} g",
+    "previewNoAllergens": "Żaden składnik nie jest alergenem.",
+    "previewDiets": "Pasuje do diet: {diets}",
+    "failed": "Nie udało się zapisać przepisu.",
+    "problemMarkup": "usuń nawiasy ostrokątne i ukryte znaki",
+    "problemTooLong": "za długie",
+    "problemTooMuch": "więcej, niż zmieści jedna porcja",
+    "problemMissing": "uzupełnij",
+    "problemOther": "nieprawidłowe",
+    "openYours": "Otwórz przepis, który już masz",
+    "save": "Zapisz przepis",
+    "saving": "Zapisywanie…"
   },
   "weightCard": {
     "title": "Dziennik wagi",

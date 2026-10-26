@@ -47,7 +47,7 @@
     "picked": "A model chose this recipe for the meal, from the recipes that fit your plan.",
     "pickedWhy": "A model chose this recipe for the meal: “{reason}”",
     "written": "A model wrote this recipe for you. Its ingredients are the catalogue’s and its nutrition was computed from them. Check the amounts and the steps before you rely on it.",
-    "changed": "A model had a part in this recipe: it chose the ingredient that was swapped in, or reworded the text around it. Check the steps before you rely on it.",
+    "changed": "A model had a part in this recipe: it wrote an earlier version of it, chose the ingredient that was swapped in, or reworded the text around it. Check the steps before you rely on it.",
     "plan": "Parts of this plan were chosen with the help of a model.",
     "weighed": "A model says of this: “{reason}”"
   },
@@ -416,7 +416,10 @@
     "EMAIL_CHANGE_REQUIRES_SMTP": "Changing your email isn't available on this instance — the operator hasn't configured email.",
     "INVALID_EMAIL_CHANGE_TOKEN": "This email-change link is invalid or has expired.",
     "EMAIL_ALREADY_VERIFIED": "This email address is already verified.",
-    "VERIFICATION_SENT_RECENTLY": "A verification mail was sent a moment ago. Look for it, or ask again in a couple of minutes."
+    "VERIFICATION_SENT_RECENTLY": "A verification mail was sent a moment ago. Look for it, or ask again in a couple of minutes.",
+    "RECIPE_INVALID": "The recipe would break the rules for recipe text and quantities. Nothing was saved.",
+    "RECIPE_ALREADY_YOURS": "You already have a recipe with these ingredients, in these amounts, for these meals.",
+    "OWN_RECIPE_DAILY_LIMIT": "You have saved as many recipes of your own today as you may. Try again tomorrow."
   },
   "offline": {
     "notice": "The server cannot be reached. You are looking at what was loaded last, and nothing can be changed now, except that a row of a shopping list can be ticked: it is sent when the server is back.",
@@ -1617,17 +1620,18 @@
     "noneAtAll": "No recipes.",
     "cardMeta": "{kcal} kcal · {difficulty} · {minutes} min",
     "aiDraft": "Draft with AI",
+    "write": "Write a recipe",
     "tabs": {
       "library": "Library",
       "mine": "My recipes"
     },
     "mineEmptyTitle": "No recipes of your own yet",
-    "mineEmpty": "Recipes a model drafts for you, and the variants you keep after swapping an ingredient, land here.",
+    "mineEmpty": "The recipes you write, those a model drafts for you and the variants you keep after swapping an ingredient land here.",
     "delete": "Delete",
     "deleteConfirm": "Delete this recipe? Past planned meals stay intact — but it won't appear in your library or new plans.",
     "deleteSuccess": "Recipe deleted.",
     "submit": "Suggest for the shared library",
-    "submitConfirm": "Suggest this recipe for the library everyone uses? The curators will see its text and ingredients, not who sent it. If they accept it, it becomes a recipe of the library.",
+    "submitConfirm": "Suggest this recipe for the library everyone uses? The curators will see its text and ingredients, not who sent it. If they accept it, it becomes a recipe of the library. A recipe you send is shared under the licence of the project, the GNU AGPL 3.0.",
     "submitDone": "Sent to the curators.",
     "submitFailed": "Could not send the recipe.",
     "pagination": {
@@ -1635,7 +1639,8 @@
       "summary": "Showing {start}–{end} of {total}",
       "prev": "Prev",
       "next": "Next"
-    }
+    },
+    "edit": "Edit"
   },
   "favorites": {
     "title": "Favourites",
@@ -1706,7 +1711,54 @@
     "prefsSaveFailed": "Could not save ingredient preference.",
     "cuisine": "{cuisine} cuisine",
     "source": "From <site></site>",
-    "sourceLicence": "Licence: <licence></licence>"
+    "sourceLicence": "Licence: <licence></licence>",
+    "edit": "Edit"
+  },
+  "ownRecipe": {
+    "newTitle": "Write a recipe",
+    "newIntro": "The recipe is yours alone until you suggest it for the library. What a serving holds, its allergens and its diets are worked out from the ingredients.",
+    "editTitle": "Edit the recipe",
+    "editIntro": "Saving makes a new version of the recipe. Plans that hold it keep the old one; your favourites and favourite sets move to the new one.",
+    "backToRecipe": "Back to the recipe",
+    "fieldTitle": "Name",
+    "fieldDescription": "Description",
+    "fieldMeals": "Meals it suits",
+    "fieldPrep": "Preparation (min)",
+    "fieldCook": "Cooking (min)",
+    "fieldDifficulty": "Difficulty",
+    "fieldCuisine": "Cuisine",
+    "cuisineNone": "None in particular",
+    "noIngredients": "Add at least one ingredient from the catalogue.",
+    "fieldAmount": "Amount",
+    "amountOf": "Amount of {name}",
+    "fieldUnit": "Unit",
+    "unitOf": "Unit of {name}",
+    "unitPiece": "pcs",
+    "fieldNote": "Note",
+    "noteOf": "Note on {name}",
+    "removeIngredient": "Remove {name}",
+    "addIngredient": "Add an ingredient",
+    "searchHint": "Type at least two letters of its name.",
+    "nothingFound": "The catalogue has no such ingredient.",
+    "allergenHint": "Allergens are worked out from the ingredient list alone. If a step adds something that is not on it, such as nuts to sprinkle over, add it as an ingredient.",
+    "stepNumber": "Step {n}",
+    "stepUp": "Move step {n} up",
+    "stepDown": "Move step {n} down",
+    "removeStep": "Remove step {n}",
+    "addStep": "Add a step",
+    "previewWaiting": "Add ingredients with their amounts to see what a serving holds.",
+    "previewFigures": "{kcal} kcal · protein {protein} g · fat {fat} g · carbohydrate {carbs} g",
+    "previewNoAllergens": "None of the ingredients is an allergen.",
+    "previewDiets": "Fits these diets: {diets}",
+    "failed": "Could not save the recipe.",
+    "problemMarkup": "remove angle brackets and hidden characters",
+    "problemTooLong": "too long",
+    "problemTooMuch": "more than one serving can hold",
+    "problemMissing": "fill it in",
+    "problemOther": "not accepted",
+    "openYours": "Open the recipe you have",
+    "save": "Save the recipe",
+    "saving": "Saving…"
   },
   "weightCard": {
     "title": "Weight log",

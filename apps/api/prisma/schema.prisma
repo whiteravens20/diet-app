@@ -497,6 +497,9 @@ enum RecipeOrigin {
   // library, whether a batch run or a user wrote it. An update of the
   // catalogue leaves it alone; the instance's data directory holds its copy.
   curated
+  // A personal recipe its owner wrote by hand, or a new version they made by
+  // editing a recipe of theirs that a model wrote.
+  manual
 }
 
 enum Difficulty {
@@ -528,6 +531,9 @@ model Recipe {
   // that was swapped in, or reworded the text around it. A recipe a model
   // wrote whole says so by its origin.
   modelAssisted      Boolean      @default(false)
+  // A new version its owner made by editing a recipe of theirs. The version
+  // it replaced stays, deleted, for the plans that hold it.
+  edited             Boolean      @default(false)
   // Where a recipe that was taken in from somewhere else is from, and the
   // licence it may be passed on under: shown with the recipe wherever it is
   // read. Both null for a recipe written here.

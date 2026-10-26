@@ -368,6 +368,23 @@ const ASKS: Ask[] = [
     'post',
     (ids) => `/api/recipes/${ids.ownRecipe}/submit`,
   ],
+  [
+    "edit a recipe of somebody's own",
+    'put',
+    (ids) => `/api/recipes/${ids.ownRecipe}`,
+    (_ids, shared) => ({
+      title: 'Mine now',
+      description: 'Taken over.',
+      steps: ['Cook.'],
+      servings: 1,
+      mealTypes: ['lunch'],
+      prepMinutes: 5,
+      cookMinutes: 5,
+      difficulty: 'easy',
+      cuisine: null,
+      ingredients: [{ ingredientId: shared.ingredient, quantity: 80, unit: 'g', note: null }],
+    }),
+  ],
   ["delete a recipe of somebody's own", 'delete', (ids) => `/api/recipes/${ids.ownRecipe}`],
   ['end a session', 'delete', (ids) => `/api/users/me/sessions/${ids.session}`],
 ];

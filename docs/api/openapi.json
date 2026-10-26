@@ -5631,6 +5631,59 @@
             "$ref": "#/components/responses/Refused"
           }
         }
+      },
+      "post": {
+        "operationId": "Recipes_create",
+        "tags": [
+          "recipes"
+        ],
+        "summary": "Write a recipe of the account's own by hand, in the language of the request, from ingredients of the catalogue.",
+        "description": "Write a recipe of the account's own by hand, in the language of the request, from ingredients of the catalogue. The engine works out its nutrition, allergens and diets. A recipe of the library with the same ingredients does not stand in for it; one of the account's own does (409 `RECIPE_ALREADY_YOURS`, naming it). At most 50 are written or edited by hand in 24 hours (429 `OWN_RECIPE_DAILY_LIMIT`).\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnRecipeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 10,
+          "seconds": 60
+        }
       }
     },
     "/api/recipes/{id}": {
@@ -5680,6 +5733,68 @@
           "default": {
             "$ref": "#/components/responses/Refused"
           }
+        }
+      },
+      "put": {
+        "operationId": "Recipes_edit",
+        "tags": [
+          "recipes"
+        ],
+        "summary": "Edit a recipe of the account's own, whoever wrote it.",
+        "description": "Edit a recipe of the account's own, whoever wrote it. A new version is written by hand, in the language of the request, and its id answered: the plans that hold the old version keep it, and the favourites and favourite sets that named it name the new one. A recipe made by swapping an ingredient stays one, and is still not to be submitted.\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnRecipeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 10,
+          "seconds": 60
         }
       },
       "delete": {
@@ -5814,8 +5929,8 @@
         "tags": [
           "recipes"
         ],
-        "summary": "The recipes of the account's own, a page at a time: those a model wrote for it and those a substitution left.",
-        "description": "The recipes of the account's own, a page at a time: those a model wrote for it and those a substitution left. A deleted one is not among them.\n\nAsked by an account.",
+        "summary": "The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand.",
+        "description": "The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand. A deleted one is not among them.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -5868,6 +5983,50 @@
           "default": {
             "$ref": "#/components/responses/Refused"
           }
+        }
+      }
+    },
+    "/api/recipes/preview": {
+      "post": {
+        "operationId": "Recipes_preview",
+        "tags": [
+          "recipes"
+        ],
+        "summary": "What a serving of a recipe being written would hold, and its allergens and diets.",
+        "description": "What a serving of a recipe being written would hold, and its allergens and diets. Nothing is stored.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnRecipePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnRecipePreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
         }
       }
     },
@@ -12318,6 +12477,166 @@
         ],
         "additionalProperties": false
       },
+      "OwnRecipeInput": {
+        "type": "object",
+        "properties": {
+          "servings": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "ingredients": {
+            "minItems": 1,
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnRecipeLine"
+            }
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 600
+          },
+          "steps": {
+            "minItems": 1,
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "mealTypes": {
+            "minItems": 1,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealType"
+            }
+          },
+          "prepMinutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 480
+          },
+          "cookMinutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 480
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/Difficulty"
+          },
+          "cuisine": {
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cuisine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "servings",
+          "ingredients",
+          "title",
+          "description",
+          "steps",
+          "mealTypes",
+          "prepMinutes",
+          "cookMinutes",
+          "difficulty"
+        ]
+      },
+      "OwnRecipeLine": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 18000
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "note": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ingredientId",
+          "quantity",
+          "unit"
+        ]
+      },
+      "OwnRecipePreview": {
+        "type": "object",
+        "properties": {
+          "nutritionPerServing": {
+            "$ref": "#/components/schemas/Nutrition"
+          },
+          "allergens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allergen"
+            }
+          },
+          "dietTags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietType"
+            }
+          }
+        },
+        "required": [
+          "nutritionPerServing",
+          "allergens",
+          "dietTags"
+        ],
+        "additionalProperties": false
+      },
+      "OwnRecipePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "servings": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "ingredients": {
+            "minItems": 1,
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnRecipeLine"
+            }
+          }
+        },
+        "required": [
+          "servings",
+          "ingredients"
+        ]
+      },
       "PackTally": {
         "type": "object",
         "properties": {
@@ -14406,7 +14725,8 @@
               "seed",
               "ai",
               "swap",
-              "curated"
+              "curated",
+              "manual"
             ]
           },
           "byModel": {

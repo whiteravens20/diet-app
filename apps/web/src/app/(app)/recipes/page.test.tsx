@@ -180,10 +180,14 @@ describe("the recipes of one's own, while there are none", () => {
 
     expect(await screen.findByRole('heading', { name: texts.mineEmptyTitle })).toBeInTheDocument();
     expect(screen.getByText(texts.mineEmpty)).toBeInTheDocument();
-    // The button of the page's head, a second time: here it is the way on. This account has AI off.
+    // The buttons of the page's head, a second time: here they are the way on. This account has AI off.
     const drafts = screen.getAllByRole('button', { name: texts.aiDraft });
     expect(drafts).toHaveLength(2);
     for (const draft of drafts) expect(draft).toBeDisabled();
+    // Writing one by hand waits for nothing.
+    const writes = screen.getAllByRole('link', { name: texts.write });
+    expect(writes).toHaveLength(2);
+    for (const write of writes) expect(write).toHaveAttribute('href', '/recipes/new');
   });
 
   it("says the same whatever narrows the library: its filters are not asked of one's own recipes", async () => {
@@ -204,7 +208,7 @@ describe("the recipes of one's own", () => {
   });
 
   /** A recipe of the account's own, as the API lists it. */
-  const own = (id: string, title: string, origin: 'ai' | 'swap') => ({
+  const own = (id: string, title: string, origin: 'ai' | 'swap' | 'manual') => ({
     id,
     title,
     description: '',
@@ -242,5 +246,29 @@ describe("the recipes of one's own", () => {
       within(written as HTMLElement).getByRole('button', { name: texts.submit }),
     ).toBeInTheDocument();
     expect(within(swapped as HTMLElement).queryByRole('button', { name: texts.submit })).toBeNull();
+  });
+
+  it('offer to edit each of them, whoever wrote it', async () => {
+    const ids = [
+      '2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f01',
+      '2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f02',
+      '2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f03',
+    ];
+    await renderPage(
+      1,
+      [TOFU],
+      [
+        own(ids[0]!, 'A dinner a model wrote', 'ai'),
+        own(ids[1]!, 'My bowl with chicken for tofu', 'swap'),
+        own(ids[2]!, 'My own soup', 'manual'),
+      ],
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: texts.tabs.mine }));
+    await screen.findByText('My own soup');
+
+    expect(
+      screen.getAllByRole('link', { name: texts.edit }).map((link) => link.getAttribute('href')),
+    ).toEqual(ids.map((id) => `/recipes/${id}/edit`));
   });
 });

@@ -3,7 +3,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Send, Soup, Trash } from 'lucide-react';
+import { PenLine, Pencil, Send, Soup, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
@@ -19,7 +19,7 @@ import { api } from '@/lib/api';
 import { AiRecipeDraftModal } from '@/components/ai-recipe-draft-modal';
 import { AllergenPicker } from '@/components/allergen-picker';
 import { IngredientPicker } from '@/components/ingredient-picker';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AiMark, partInRecipe } from '@/components/ai-mark';
 import { EmptyState } from '@/components/empty-state';
@@ -204,12 +204,15 @@ export default function RecipesPage() {
   return (
     <div className="space-y-8">
       <PageBanner image={IMAGERY.recipes} title={t('title')} subtitle={t('subhead')}>
-        {session.data && activeProfile && (
-          <DraftButton
-            aiEnabled={session.data.aiMode !== 'none'}
-            onOpen={() => setDraftOpen(true)}
-          />
-        )}
+        <div className="flex flex-wrap items-start gap-2">
+          <WriteLink />
+          {session.data && activeProfile && (
+            <DraftButton
+              aiEnabled={session.data.aiMode !== 'none'}
+              onOpen={() => setDraftOpen(true)}
+            />
+          )}
+        </div>
       </PageBanner>
 
       <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-sm">
@@ -457,13 +460,15 @@ export default function RecipesPage() {
             title={t('mineEmptyTitle')}
             description={t('mineEmpty')}
             cta={
-              session.data &&
-              activeProfile && (
-                <DraftButton
-                  aiEnabled={session.data.aiMode !== 'none'}
-                  onOpen={() => setDraftOpen(true)}
-                />
-              )
+              <div className="flex flex-wrap items-start justify-center gap-2">
+                <WriteLink />
+                {session.data && activeProfile && (
+                  <DraftButton
+                    aiEnabled={session.data.aiMode !== 'none'}
+                    onOpen={() => setDraftOpen(true)}
+                  />
+                )}
+              </div>
             }
           />
         ) : (
@@ -482,7 +487,7 @@ export default function RecipesPage() {
               <div key={r.id} className="relative group">
                 <Link href={`/recipes/${r.id}`} className="block">
                   <Card className="h-full p-4 transition-shadow hover:shadow-md">
-                    <p className="font-medium pr-7">{r.title}</p>
+                    <p className={`font-medium ${tab === 'mine' ? 'pr-20' : 'pr-7'}`}>{r.title}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {t('cardMeta', {
                         kcal: r.nutritionPerServing.calories,
@@ -503,6 +508,16 @@ export default function RecipesPage() {
                     </div>
                   </Card>
                 </Link>
+                {tab === 'mine' && (
+                  <Link
+                    href={`/recipes/${r.id}/edit`}
+                    title={t('edit')}
+                    aria-label={t('edit')}
+                    className={`absolute top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100 ${r.origin === 'swap' ? 'right-9' : 'right-16'}`}
+                  >
+                    <Pencil size={14} aria-hidden />
+                  </Link>
+                )}
                 {tab === 'mine' && r.origin !== 'swap' && (
                   <button
                     type="button"
@@ -564,6 +579,17 @@ export default function RecipesPage() {
         />
       )}
     </div>
+  );
+}
+
+/** The way to a recipe of one's own, written by hand. */
+function WriteLink() {
+  const t = useTranslations('recipes');
+  return (
+    <Link href="/recipes/new" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+      <PenLine size={14} aria-hidden />
+      <span className="ml-1">{t('write')}</span>
+    </Link>
   );
 }
 

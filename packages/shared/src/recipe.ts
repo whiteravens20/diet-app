@@ -2,7 +2,7 @@
 
 import * as z from './zod.js';
 import { AiGenerationMeta } from './ai.js';
-import { FAVORITE_SENTIMENTS, MAX_SEARCHED_INGREDIENTS } from './constants.js';
+import { FAVORITE_SENTIMENTS, MAX_SEARCHED_INGREDIENTS, RECIPE_LIMITS } from './constants.js';
 import {
   Allergen,
   CookingMethod,
@@ -74,10 +74,12 @@ export const Recipe = z.object({
   /**
    * Where the recipe came from. Shared with everybody: `seed`, from the
    * catalogue's data files, and `curated`, approved in this instance's
-   * curation queue. The user's own: `ai`, written for them by a model, and
-   * `swap`, made by swapping an ingredient of another recipe.
+   * curation queue. The user's own: `ai`, written for them by a model;
+   * `swap`, made by swapping an ingredient of another recipe, and any version
+   * of it edited since; `manual`, written by hand, or a version they made by
+   * editing a recipe a model wrote.
    */
-  origin: z.enum(['seed', 'ai', 'swap', 'curated']),
+  origin: z.enum(['seed', 'ai', 'swap', 'curated', 'manual']),
   /**
    * What a model had to do with the recipe, for the mark it carries wherever
    * it is shown: `written`, a model wrote it for the user (from the
@@ -152,6 +154,57 @@ export const AiDraftRecipeResponse = z.object({
   aiMeta: AiGenerationMeta,
 });
 export type AiDraftRecipeResponse = z.infer<typeof AiDraftRecipeResponse>;
+
+/** One ingredient line of a recipe written by hand: an ingredient of the catalogue and how much of it. */
+export const OwnRecipeLine = z.object({
+  ingredientId: z.string().uuid(),
+  /** No more than a recipe of the most servings could hold of anything; the rules of every recipe say how much one serving may. */
+  quantity: z
+    .number()
+    .positive()
+    .max(RECIPE_LIMITS.perServing.g * RECIPE_LIMITS.servings),
+  unit: Unit,
+  note: z.string().max(RECIPE_LIMITS.note).nullable().default(null),
+});
+export type OwnRecipeLine = z.infer<typeof OwnRecipeLine>;
+
+/**
+ * What a serving of a recipe written by hand would hold: asked while the
+ * recipe is being written, so that nothing is stored.
+ */
+export const OwnRecipePreviewRequest = z.object({
+  servings: z.number().int().min(1).max(RECIPE_LIMITS.servings),
+  ingredients: z.array(OwnRecipeLine).min(1).max(RECIPE_LIMITS.ingredients),
+});
+export type OwnRecipePreviewRequest = z.infer<typeof OwnRecipePreviewRequest>;
+
+/** The nutrition of a serving, the allergens and the diets the engine works out for a recipe's ingredients. */
+export const OwnRecipePreview = z.object({
+  nutritionPerServing: Nutrition,
+  allergens: z.array(Allergen),
+  dietTags: z.array(DietType),
+});
+export type OwnRecipePreview = z.infer<typeof OwnRecipePreview>;
+
+/**
+ * A recipe its owner writes, or a new version of one of their recipes. The
+ * text is in the language of the request, and in that one only. Nothing of
+ * the recipe's nutrition, allergens or diets is written: the engine works
+ * them out from the ingredients, as it does for every recipe. The text is
+ * plain: markup and characters that hide or reorder text are refused
+ * (`RECIPE_INVALID`).
+ */
+export const OwnRecipeInput = OwnRecipePreviewRequest.extend({
+  title: z.string().max(RECIPE_LIMITS.title),
+  description: z.string().max(RECIPE_LIMITS.description),
+  steps: z.array(z.string().max(RECIPE_LIMITS.step)).min(1).max(RECIPE_LIMITS.steps),
+  mealTypes: z.array(MealType).min(1).max(MealType.options.length),
+  prepMinutes: z.number().int().min(0).max(RECIPE_LIMITS.minutes),
+  cookMinutes: z.number().int().min(0).max(RECIPE_LIMITS.minutes),
+  difficulty: Difficulty,
+  cuisine: Cuisine.nullable().default(null),
+});
+export type OwnRecipeInput = z.infer<typeof OwnRecipeInput>;
 
 /** Which page of a list, and how long a page is. */
 export const PageQuery = z.object({

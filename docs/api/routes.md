@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-164 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+167 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -199,11 +199,14 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | Route | Asked by | What it does | Takes | Answers | Limit |
 |---|---|---|---|---|---|
 | `GET /api/recipes` | an account | The recipe library: the shared recipes and the account's own, narrowed as asked, a page at a time. | query `RecipeSearchQuery` | 200 `RecipeSearchPage` |  |
+| `POST /api/recipes` | an account | Write a recipe of the account's own by hand, in the language of the request, from ingredients of the catalogue. The engine works out its nutrition, allergens and diets. A recipe of the library with the same ingredients does not stand in for it; one of the account's own does (409 `RECIPE_ALREADY_YOURS`, naming it). At most 50 are written or edited by hand in 24 hours (429 `OWN_RECIPE_DAILY_LIMIT`). | `OwnRecipeInput` | 201 `Recipe` | 10 in a minute |
 | `GET /api/recipes/:id` | an account | One recipe, with its ingredients and steps. |  | 200 `Recipe` |  |
+| `PUT /api/recipes/:id` | an account | Edit a recipe of the account's own, whoever wrote it. A new version is written by hand, in the language of the request, and its id answered: the plans that hold the old version keep it, and the favourites and favourite sets that named it name the new one. A recipe made by swapping an ingredient stays one, and is still not to be submitted. | `OwnRecipeInput` | 200 `Recipe` | 10 in a minute |
 | `DELETE /api/recipes/:id` | an account | Delete a recipe of the account's own. The plans that hold it keep it; a recipe of the shared library cannot be deleted (403). Deleting it again changes nothing. |  | 204 |  |
 | `POST /api/recipes/:id/submit` | an account | Put a recipe of one's own before the curators, as a candidate for the library everyone shares. They see what the recipe says and is made of, not who sent it. Repeating the request changes nothing. A recipe made by swapping an ingredient stays its owner's (409). |  | 204 | 10 in a minute |
 | `POST /api/recipes/drafts/from-prompt` | an account | Ask a model for a recipe of the account's own, from the choices the request names: the meal, the diet, the cuisine, the energy, the time. There is no text of the user's in the request. The model chooses among the ingredients of the catalogue, the engine works out the nutrition, and the recipe is the account's alone. | `AiDraftRecipeRequest` | 201 `AiDraftRecipeResponse` | 10 in a minute |
-| `GET /api/recipes/mine` | an account | The recipes of the account's own, a page at a time: those a model wrote for it and those a substitution left. A deleted one is not among them. | query `PageQuery` | 200 `RecipeSearchPage` |  |
+| `GET /api/recipes/mine` | an account | The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand. A deleted one is not among them. | query `PageQuery` | 200 `RecipeSearchPage` |  |
+| `POST /api/recipes/preview` | an account | What a serving of a recipe being written would hold, and its allergens and diets. Nothing is stored. | `OwnRecipePreviewRequest` | 200 `OwnRecipePreview` | 60 in a minute |
 
 ## review
 

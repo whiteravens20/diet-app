@@ -4,13 +4,14 @@ import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module.js';
 import { PersonalRecipesModule } from './personal-recipes.module.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
+import { OwnRecipesService } from './own-recipes.service.js';
 import { RecipesController } from './recipes.controller.js';
 import { RecipesService } from './recipes.service.js';
 
 @Module({
   imports: [AiModule, PersonalRecipesModule],
   controllers: [RecipesController],
-  providers: [RecipesService, AiRecipeDraftService],
+  providers: [RecipesService, AiRecipeDraftService, OwnRecipesService],
   exports: [RecipesService],
 })
 export class RecipesModule {}

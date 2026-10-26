@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 145 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 148 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -103,6 +103,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `ORIGIN_NOT_ALLOWED` | 403 | This request has to come from the application itself. Reload the page and try again. | To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie. |
 | `OUT_OF_COMPLEXITY_BAND` | 400 | Recipe is outside every complexity band — adjust ingredients, steps, or time. | Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas. |
 | `OVERRIDE_DATE_OUT_OF_RANGE` | 400 | An advanced day option falls outside the plan's date range. | Ustawienie dnia wykracza poza zakres dat planu. |
+| `OWN_RECIPE_DAILY_LIMIT` | 429 | You have saved as many recipes of your own today as you may. Try again tomorrow. | Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro. |
 | `PANTRY_FULL` | 409 | The pantry already holds as many items as it can. Remove one first. | Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich. |
 | `PAYLOAD_TOO_LARGE` | 413 | The request is too large. | Żądanie jest zbyt duże. |
 | `PERSONAL_RECIPE_LIMIT` | 403 | You have as many recipes of your own as an account can hold. Delete some you no longer use. | Masz już tyle własnych przepisów, ile mieści jedno konto. Usuń te, których już nie używasz. |
@@ -117,7 +118,9 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `QUANTITY_TOO_LARGE` | 400 | That quantity is larger than a kitchen holds. Check the number. | Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę. |
 | `RANGE_OUTSIDE_PLAN` | 400 | Those days are not days of this plan, or the first is after the last. | Te dni nie należą do tego planu albo pierwszy jest późniejszy niż ostatni. |
 | `RATE_LIMITED` | 429 | Too many requests. Try again in a moment. | Zbyt wiele żądań. Spróbuj ponownie za chwilę. |
+| `RECIPE_ALREADY_YOURS` | 409 | You already have a recipe with these ingredients, in these amounts, for these meals. | Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki. |
 | `RECIPE_GEN_IN_PROGRESS` | 409 | A recipe-generator run is already in progress. | Generowanie przepisów już trwa. |
+| `RECIPE_INVALID` | 400 | The recipe would break the rules for recipe text and quantities. Nothing was saved. | Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane. |
 | `RECIPE_NOT_ELIGIBLE` | 400 | That recipe can't go into this plan. | Tego przepisu nie można dodać do tego planu. |
 | `RECIPE_NOT_FOUND` | 404 | Recipe not found. | Nie znaleziono przepisu. |
 | `RECIPE_NOT_SUBMITTABLE` | 409 | This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library. | Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki. |

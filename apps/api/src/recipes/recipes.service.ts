@@ -187,8 +187,8 @@ export class RecipesService {
   /**
    * List the requester's own non-deleted recipes — backs the "My Recipes" tab.
    * Includes recipes from `/recipes/drafts/from-prompt` (origin = ai), from
-   * `/meal-plans/swap-ingredient/apply` (origin = user), and any future user-
-   * authored surface. Soft-deleted rows are excluded.
+   * `/meal-plans/swap-ingredient/apply` (origin = swap) and those written or
+   * edited by hand (origin = manual). Soft-deleted rows are excluded.
    */
   async listMine(
     userId: string,
@@ -329,7 +329,7 @@ export function toRecipeDto(
     difficulty: 'easy' | 'medium' | 'hard';
     cuisine: string | null;
     allergens: string[];
-    origin: 'seed' | 'ai' | 'swap' | 'curated';
+    origin: 'seed' | 'ai' | 'swap' | 'curated' | 'manual';
     modelAssisted: boolean;
     sourceUrl: string | null;
     sourceLicense: string | null;

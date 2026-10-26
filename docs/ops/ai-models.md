@@ -99,11 +99,12 @@ runs on a provider's defaults.
   wrote, so the run does not repeat itself. A rejected call fails only its own
   recipes.
 - **An account's own recipes are limited.** An account holds at most 200
-  recipes of its own (drafts a model wrote and recipes with a swapped
-  ingredient), and a model writes at most 20 recipes for it in 24 hours,
-  whoever pays for the calls. Neither number is a setting. A recipe its owner
-  deleted is removed for good by the worker a week later, once no plan,
-  favourite or pending curation draft uses it.
+  recipes of its own (drafts a model wrote, recipes with a swapped ingredient
+  and recipes written by hand). A model writes at most 20 recipes for it in 24
+  hours, whoever pays for the calls, and its owner writes or edits at most 50
+  by hand in 24 hours. None of the numbers is a setting. A recipe its owner
+  deleted, and the version an edit replaced, is removed for good by the worker
+  a week later, once no plan, favourite or pending curation draft uses it.
 - **Which users' recipes reach the curation queue.** A recipe a user drafts
   with the instance's own model (the setting "Use the instance default") goes
   there as soon as it is written, and the drafting window says so beforehand.
