@@ -190,7 +190,7 @@ is something an administrator does, in the panel:
    `SR Legacy` — it adds ~7 k entries, but most are brand names or cuts of one
    animal: every one of them is put before the model that drafts recipes, and
    the catalogue update takes minutes where it took seconds.
-3. Open <http://localhost:3000/admin>, sign in, click **Update Database**.
+3. Open <http://localhost:3000/admin>, sign in, click **Update database**.
 
 The admin panel surfaces ingredient/recipe/substitution counts and a
 data-hash check so subsequent edits or re-imports show "update available"

@@ -6,7 +6,7 @@ another next month. What is written has the same shape in every mode: the shape
 of the catalogue's data files.
 
 The repository's `data/` is the same for every instance: a fixed base of reviewed
-recipes and the curated ingredients, read by every **Update Database** and changed
+recipes and the curated ingredients, read by every **Update database** and changed
 only in the repository. What this queue ships is the instance's own: recipes its
 administrator generated or took in, recipes its users sent in, and recipes the
 instance's model wrote for its users. They stay in the instance, in its database
@@ -21,7 +21,7 @@ and in the copy its data directory keeps.
 
 The catalogue's own data (`data/recipes.json`, `data/recipes/*.json`,
 `data/ingredients*.json`, `data/ingredient-overrides.json`) comes from the
-repository and is read by every **Update Database**. What ships into the
+repository and is read by every **Update database**. What ships into the
 instance in `local` mode lives beside it and is left alone by an update.
 
 ## What every ship holds a draft to
@@ -172,7 +172,7 @@ database:
 
 1. Copy the instance's data directory to the new server (for Compose: into the
    `instance-data` volume).
-2. Start the stack and run **Update Database** in the panel. That loads the
+2. Start the stack and run **Update database** in the panel. That loads the
    catalogue's own data, which the instance's recipes are made of.
 3. In the curation card, under "This instance's own files", choose **Restore
    from these files**.

@@ -81,7 +81,7 @@ Load them on the first run, in the admin panel:
    `FDC_API_KEY` the import uses the public demonstration key, which allows
    only a few requests an hour; when that is used up the panel says when to
    try again.
-3. Click **Update Database**. Subsequent edits or re-imports show
+3. Click **Update database**. Subsequent edits or re-imports show
    "update available" via a sha256 of `data/*.json` stored in `SeedMeta`.
 
 CLI alternative (the image ships no npm, so the seed runs through its binary):
