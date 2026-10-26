@@ -22,7 +22,7 @@ import {
 import { givenAsCooked, LEAST_ENERGY_OF_A_DRY_STAPLE } from '../src/admin/seed/dry-staples.js';
 import { givenAsCookedMeat, MOST_PROTEIN_OF_RAW_MEAT } from '../src/admin/seed/raw-meat.js';
 import {
-  COVERAGE_TARGET,
+  COVERAGE_FLOOR,
   MACRO_OUT_OF_REACH,
   macroReachByDiet,
   recipesPerDietAndMeal,
@@ -132,17 +132,17 @@ for (const diet of diets) {
 // after day, or one no plan can be made for.
 const thin = diets.flatMap((diet) =>
   slots
-    .filter((slot) => coverage[diet][slot] < COVERAGE_TARGET)
+    .filter((slot) => coverage[diet][slot] < COVERAGE_FLOOR)
     .map((slot) => `${diet} ${slot}: ${coverage[diet][slot]}`),
 );
 if (thin.length > 0) {
   console.error(
-    `\n✗ ${thin.length} diet and meal pair(s) have fewer than the ${COVERAGE_TARGET} recipes a week needs:`,
+    `\n✗ ${thin.length} diet and meal pair(s) have fewer than the ${COVERAGE_FLOOR} recipes a week needs:`,
   );
   for (const cell of thin) console.error(`  ${cell}`);
   process.exit(1);
 }
-console.log(`\n  every pair has the ${COVERAGE_TARGET} recipes a week needs, or more`);
+console.log(`\n  every pair has the ${COVERAGE_FLOOR} recipes a week needs, or more`);
 
 // What a week's plan for each diet holds of protein, fat and carbohydrate,
 // against what the diet aims at. Where the two are far apart no setting will

@@ -459,7 +459,7 @@ describe('generating recipe drafts', () => {
 
     it('asks the model for nothing when every diet has enough for every meal, and says so', async () => {
       const rice = await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'white-rice' } });
-      // Six recipes that count for every diet and every meal.
+      // As many recipes as the panel aims at, each counting for every diet and every meal.
       for (let i = 0; i < COVERAGE_TARGET; i += 1) {
         await t.prisma.recipe.create({
           data: {

@@ -25,7 +25,14 @@ import { packUse } from './packs.js';
  * The fewest recipes a catalogue needs for any diet and meal: a week without
  * the same dish twice, and room to swap. The data lint fails below it.
  */
-export const COVERAGE_TARGET = 6;
+export const COVERAGE_FLOOR = 6;
+
+/**
+ * The recipes the panel aims at for any diet and meal: in a plan of four
+ * weeks a dish comes back about one time and a half. A run that fills what
+ * the catalogue lacks writes until every pair has as many.
+ */
+export const COVERAGE_TARGET = 20;
 
 export type CoverageMatrix = Record<DietType, Record<MealType, number>>;
 
