@@ -6,6 +6,8 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { LoaderCircle, Sparkles, X } from 'lucide-react';
+import type { CookingMethod, Cuisine, DietType, MealType } from '@diet-app/shared';
+import { COOKING_METHODS, CUISINES, MEAL_SLOTS_BY_COUNT } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,6 +16,7 @@ import {
   type RecipeDraft,
   type RecipeRunnerState,
 } from '@/lib/admin-api';
+import { NAMED_DIETS } from '@/lib/catalogue';
 import { useDraftErrorText } from '@/lib/use-draft-error';
 import { MissingLanguage } from '../missing-language';
 import { RecipeImport } from '../recipe-import';
@@ -27,12 +30,19 @@ export type SourceFilter = 'ALL' | 'AI_USER' | 'AI';
 
 const SOURCE_FILTERS: readonly SourceFilter[] = ['ALL', 'AI_USER', 'AI'];
 
+// In the order of a day, as the table of what the catalogue has lists them.
+const MEALS = MEAL_SLOTS_BY_COUNT[5]!;
+
 export function RecipePanel() {
   const t = useTranslations('admin.curation');
   const countId = useId();
   const scopeId = useId();
   const tDiet = useTranslations('enums.dietType');
   const tMeal = useTranslations('enums.mealType');
+  const tCuisine = useTranslations('enums.cuisine');
+  const tMethod = useTranslations('enums.cookingMethod');
+  const cuisineId = useId();
+  const methodId = useId();
   const errorText = useDraftErrorText();
   const [runner, setRunner] = useState<RecipeRunnerState | null>(null);
   const [page, setPage] = useState(1);
@@ -46,6 +56,11 @@ export function RecipePanel() {
   const [genCount, setGenCount] = useState(5);
   const [scope, setScope] = useState<'curated' | 'all'>('curated');
   const [fillCoverage, setFillCoverage] = useState(false);
+  // What the run is to write for. A diet or a meal chosen and filling the catalogue's gaps, which chooses the pair itself, exclude each other.
+  const [diets, setDiets] = useState<DietType[]>([]);
+  const [meals, setMeals] = useState<MealType[]>([]);
+  const [cuisine, setCuisine] = useState<Cuisine | ''>('');
+  const [method, setMethod] = useState<CookingMethod | ''>('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadDrafts = useCallback(async () => {
@@ -112,6 +127,11 @@ export function RecipePanel() {
         count: genCount,
         catalogueScope: scope,
         ...(fillCoverage ? { fillCoverage: true } : {}),
+        ...(diets.length > 0 ? { dietTags: diets } : {}),
+        ...(meals.length > 0 ? { mealTypes: meals } : {}),
+        // The cuisine in words, by which the run tags its drafts with it.
+        ...(cuisine ? { cuisine: cuisine.replace(/_/g, ' ') } : {}),
+        ...(method ? { cookingMethod: method } : {}),
       });
       setRunner(state);
       if (state.status === 'running') startPolling();
@@ -163,6 +183,88 @@ export function RecipePanel() {
         </p>
       )}
 
+      <fieldset className="space-y-2 text-xs" disabled={running}>
+        <div
+          role="group"
+          aria-label={t('runDiets')}
+          className="flex flex-wrap items-center gap-x-3 gap-y-1"
+        >
+          <span className="text-muted-foreground">{t('runDiets')}</span>
+          {NAMED_DIETS.map((diet) => (
+            <label key={diet} className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={diets.includes(diet)}
+                disabled={fillCoverage}
+                onChange={(e) =>
+                  setDiets((chosen) =>
+                    e.target.checked ? [...chosen, diet] : chosen.filter((one) => one !== diet),
+                  )
+                }
+              />
+              {tDiet(diet)}
+            </label>
+          ))}
+        </div>
+        <div
+          role="group"
+          aria-label={t('runMeals')}
+          className="flex flex-wrap items-center gap-x-3 gap-y-1"
+        >
+          <span className="text-muted-foreground">{t('runMeals')}</span>
+          {MEALS.map((meal) => (
+            <label key={meal} className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={meals.includes(meal)}
+                disabled={fillCoverage}
+                onChange={(e) =>
+                  setMeals((chosen) =>
+                    e.target.checked ? [...chosen, meal] : chosen.filter((one) => one !== meal),
+                  )
+                }
+              />
+              {tMeal(meal)}
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor={cuisineId} className="text-muted-foreground">
+            {t('runCuisine')}
+          </label>
+          <select
+            id={cuisineId}
+            value={cuisine}
+            onChange={(e) => setCuisine(e.target.value as Cuisine | '')}
+            className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+          >
+            <option value="">{t('runAnyCuisine')}</option>
+            {CUISINES.map((one) => (
+              <option key={one} value={one}>
+                {tCuisine(one)}
+              </option>
+            ))}
+          </select>
+          <label htmlFor={methodId} className="text-muted-foreground">
+            {t('runCookingMethod')}
+          </label>
+          <select
+            id={methodId}
+            value={method}
+            onChange={(e) => setMethod(e.target.value as CookingMethod | '')}
+            className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+          >
+            <option value="">{t('runAnyCookingMethod')}</option>
+            {COOKING_METHODS.map((one) => (
+              <option key={one} value={one}>
+                {tMethod(one)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="text-muted-foreground">{t('runChoiceHint')}</p>
+      </fieldset>
+
       <div className="flex flex-wrap items-center gap-2">
         <label htmlFor={countId} className="text-xs text-muted-foreground">
           {t('recipeCount')}
@@ -195,7 +297,7 @@ export function RecipePanel() {
             type="checkbox"
             checked={fillCoverage}
             onChange={(e) => setFillCoverage(e.target.checked)}
-            disabled={running}
+            disabled={running || diets.length > 0 || meals.length > 0}
           />
           {t('fillCoverage')}
         </label>

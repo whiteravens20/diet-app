@@ -793,7 +793,14 @@
         "db-write-failed": "could not be written ({detail})"
       },
       "shipDismiss": "Dismiss",
-      "promoteBlockedHint": "Replace the ingredient in “Retired ingredients still in use” on this page, and the recipe can go into the library."
+      "promoteBlockedHint": "Replace the ingredient in “Retired ingredients still in use” on this page, and the recipe can go into the library.",
+      "runDiets": "Diets:",
+      "runMeals": "Meals:",
+      "runCuisine": "Cuisine",
+      "runAnyCuisine": "Any",
+      "runCookingMethod": "Cooking method",
+      "runAnyCookingMethod": "Any",
+      "runChoiceHint": "With no diet or meal chosen, the model chooses. Choosing one turns off filling what the catalogue lacks, which chooses the pair itself."
     },
     "operatorAi": {
       "title": "AI of the instance",

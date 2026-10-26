@@ -793,7 +793,14 @@
         "db-write-failed": "nie udało się zapisać ({detail})"
       },
       "shipDismiss": "Zamknij",
-      "promoteBlockedHint": "Zastąp składnik w karcie „Wycofane składniki nadal w użyciu” na tej stronie, a przepis będzie mógł trafić do biblioteki."
+      "promoteBlockedHint": "Zastąp składnik w karcie „Wycofane składniki nadal w użyciu” na tej stronie, a przepis będzie mógł trafić do biblioteki.",
+      "runDiets": "Diety:",
+      "runMeals": "Posiłki:",
+      "runCuisine": "Kuchnia",
+      "runAnyCuisine": "Dowolna",
+      "runCookingMethod": "Sposób przygotowania",
+      "runAnyCookingMethod": "Dowolny",
+      "runChoiceHint": "Bez wybranej diety ani posiłku wybiera model. Wybór którejś wyłącza uzupełnianie braków katalogu, które samo wybiera parę."
     },
     "operatorAi": {
       "title": "AI instancji",
