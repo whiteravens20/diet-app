@@ -17,6 +17,7 @@ import type {
   Profile,
   SessionUser,
 } from '@diet-app/shared';
+import { COOKING_METHODS, CUISINES } from '@diet-app/shared/constants';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
@@ -26,26 +27,6 @@ import { Dialog } from '@/components/ui/dialog';
 import { NAMED_DIETS } from '@/lib/catalogue';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'];
-const CUISINES: Cuisine[] = [
-  'polish',
-  'italian',
-  'asian',
-  'mediterranean',
-  'middle_eastern',
-  'mexican',
-  'american',
-  'indian',
-];
-const COOKING_METHODS: CookingMethod[] = [
-  'baked',
-  'grilled',
-  'pan_fried',
-  'boiled',
-  'steamed',
-  'stewed',
-  'raw',
-  'no_cook',
-];
 const COMPLEXITIES: Complexity[] = ['simple', 'medium', 'complex'];
 
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
