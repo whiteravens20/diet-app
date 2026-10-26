@@ -1018,11 +1018,11 @@
     "slug": "mushroom-spinach-tofu-scramble-on-rye-toast",
     "title": {
       "en": "Mushroom and spinach tofu scramble on rye toast",
-      "pl": "Tofucznica z pieczarkami i szpinakiem na grzankach żytnich"
+      "pl": "Wegańska jajecznica z tofu z pieczarkami i szpinakiem na grzankach żytnich"
     },
     "description": {
       "en": "A savory breakfast of crumbled tofu, tender mushrooms, and spinach served on crisp rye toast.",
-      "pl": "Wytrawne śniadanie: tofucznica z miękkimi pieczarkami i szpinakiem na chrupiących grzankach żytnich."
+      "pl": "Wytrawne śniadanie: wegańska jajecznica z tofu z miękkimi pieczarkami i szpinakiem na chrupiących grzankach żytnich."
     },
     "servings": 2,
     "mealTypes": [
@@ -1089,7 +1089,7 @@
         "Dodaj pieczarki i smaż, aż zmiękną, a płyn odparuje.",
         "Dodaj tofu, paprykę mieloną i sól, po czym smaż przez 5 minut, od czasu do czasu mieszając.",
         "Dodaj szpinak i mieszaj, aż zwiędnie.",
-        "Podpiecz chleb żytni i podawaj z tofucznicą."
+        "Podpiecz chleb żytni i podawaj z jajecznicą z tofu."
       ]
     }
   },
