@@ -140,6 +140,8 @@ export function RecipeDraftRow({
     setEditing(false);
   };
 
+  // What each language was last decided: taking the same decision again would only ask for a name and say it twice.
+  const decided = new Map(draft.localeReviews.map((review) => [review.locale, review.action]));
   const onApprove = (locale: string) => {
     const label = window.prompt(t('reviewLabelPrompt'));
     if (!label) return;
@@ -280,13 +282,17 @@ export function RecipeDraftRow({
                 {draft.status !== 'SHIPPED' &&
                   draft.locales.map((locale) => (
                     <span key={locale} className="flex items-center gap-1">
-                      <Button size="sm" disabled={working} onClick={() => onApprove(locale)}>
+                      <Button
+                        size="sm"
+                        disabled={working || decided.get(locale) === 'APPROVE'}
+                        onClick={() => onApprove(locale)}
+                      >
                         {t('approve')} · {locale}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={working}
+                        disabled={working || decided.get(locale) === 'REJECT'}
                         onClick={() => onReject(locale)}
                       >
                         {t('reject')} · {locale}
