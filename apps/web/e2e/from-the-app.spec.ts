@@ -8,12 +8,17 @@ type Texts = Record<string, string>;
 /**
  * An account of its own with a code for it, as an application on a phone asks for one: with the
  * refresh token of its session. A new account rather than a sign-in to the project's: the
- * project's accounts are signed in to as often as the limit of an account allows.
+ * project's accounts are signed in to as often as the limit of an account allows. It signs up in
+ * the project's language, which becomes the account's.
  */
-async function aCode(request: APIRequestContext): Promise<{ email: string; code: string }> {
+async function aCode(
+  request: APIRequestContext,
+  locale: string,
+): Promise<{ email: string; code: string }> {
   const email = `browser-from-the-app-${Date.now().toString(36)}@example.test`;
   const registered = await request.post('/api/auth/register', {
     data: { email, password: 'Browser-Test-Passw0rd', displayName: 'From the app' },
+    headers: { 'accept-language': locale },
   });
   expect(registered.ok(), await registered.text()).toBe(true);
   const { refreshToken } = ((await registered.json()) as { tokens: { refreshToken: string } })
@@ -28,9 +33,10 @@ test.describe('a browser opened from the application', () => {
     anonymous: page,
     request,
     messages,
+    appLocale,
   }) => {
     const texts = messages.fromTheApp as Texts;
-    const { email, code } = await aCode(request);
+    const { email, code } = await aCode(request, appLocale);
 
     await page.goto(`/from-the-app#code=${code}&next=${encodeURIComponent('/settings')}`);
 
@@ -50,8 +56,9 @@ test.describe('a browser opened from the application', () => {
     request,
     messages,
     baseURL,
+    appLocale,
   }) => {
-    const { code } = await aCode(request);
+    const { code } = await aCode(request, appLocale);
     // Used by another page of the application first.
     const used = await request.post('/api/auth/browser-sign-in', {
       data: { code },

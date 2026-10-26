@@ -3,6 +3,7 @@
 import { rmSync } from 'node:fs';
 import { request, type FullConfig } from '@playwright/test';
 import { anAccount, keepAccounts, STATE, type Account } from './accounts';
+import type { Options } from './fixtures';
 
 /** How long the catalogue of a new instance may take to fill, in seconds. */
 const CATALOGUE_WAIT = 300;
@@ -67,7 +68,8 @@ export default async function setup(config: FullConfig): Promise<void> {
   const accounts: Record<string, Account> = {};
   for (const project of config.projects) {
     const api = await request.newContext({ baseURL: project.use.baseURL });
-    accounts[project.name] = await anAccount(api, project.name);
+    const locale = (project.use as Partial<Options>).appLocale ?? 'en';
+    accounts[project.name] = await anAccount(api, project.name, locale);
     await api.dispose();
   }
   keepAccounts(accounts);

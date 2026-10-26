@@ -13,6 +13,7 @@ test.describe('an account that has just been made', () => {
     anonymous: page,
     request,
     messages,
+    appLocale,
   }) => {
     const profile = messages.profile as Texts;
     const wizard = (messages.profile as unknown as { wizard: Texts & { steps: Texts } }).wizard;
@@ -29,6 +30,8 @@ test.describe('an account that has just been made', () => {
     const password = 'Browser-Test-Passw0rd';
     const registered = await request.post('/api/auth/register', {
       data: { email, password, displayName: 'First profile' },
+      // In the language of the project, as the web signs up in the language of its page.
+      headers: { 'accept-language': appLocale },
     });
     expect(registered.ok(), await registered.text()).toBe(true);
     await page.goto('/login');

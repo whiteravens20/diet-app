@@ -5,6 +5,7 @@ import { act, render } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionUser } from '@diet-app/shared';
+import { api } from '@/lib/api';
 import messages from '../../messages/en.json';
 import { AccountPreferences } from './account-preferences';
 
@@ -21,9 +22,16 @@ vi.mock('@/app/providers', () => ({
   usePalette: () => ({ palette: looks.palette, setPalette: looks.setPalette }),
 }));
 
-/** The account as its session holds it, with the language, theme and palette given. */
-function anAccount(chosen: Pick<SessionUser, 'locale' | 'theme' | 'palette'>): SessionUser {
-  return { id: 'b3c1e2d4-5f6a-4b7c-8d9e-0f1a2b3c4d5e', ...chosen } as SessionUser;
+/** The account as its session holds it, with the language, theme and palette given; its language its owner's unless said otherwise. */
+function anAccount(
+  chosen: Pick<SessionUser, 'locale' | 'theme' | 'palette'> &
+    Partial<Pick<SessionUser, 'localeChosen'>>,
+): SessionUser {
+  return {
+    id: 'b3c1e2d4-5f6a-4b7c-8d9e-0f1a2b3c4d5e',
+    localeChosen: true,
+    ...chosen,
+  } as SessionUser;
 }
 
 /** The component on a page in `pageLocale`, with the account already known. */
@@ -51,6 +59,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -94,6 +103,21 @@ describe("the account's own look on a browser it signs in on", () => {
 
     expect(document.cookie).toContain('NEXT_LOCALE=pl');
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the page's language for an account whose language was never chosen, and saves it as the account's", async () => {
+    const saved = anAccount({ locale: 'pl', theme: 'system', palette: 'default' });
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue(saved);
+
+    const client = onAPage(
+      anAccount({ locale: 'en', localeChosen: false, theme: 'system', palette: 'default' }),
+      'pl',
+    );
+
+    expect(patch).toHaveBeenCalledExactlyOnceWith('/users/me', { locale: 'pl' });
+    await vi.waitFor(() => expect(client.getQueryData(['session'])).toEqual(saved));
+    expect(document.cookie).not.toContain('NEXT_LOCALE=pl');
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('does not load the page again where the browser keeps no cookie, which would load it for ever', () => {

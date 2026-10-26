@@ -40,11 +40,19 @@ async function made<T>(
   return (await res.json()) as T;
 }
 
-/** Register an account through the API and give it something to show on every page. */
-export async function anAccount(request: APIRequestContext, name: string): Promise<Account> {
+/**
+ * Register an account through the API and give it something to show on every page. It signs up
+ * in `locale`, as the web asks in the language of its page, and that becomes the account's.
+ */
+export async function anAccount(
+  request: APIRequestContext,
+  name: string,
+  locale: string,
+): Promise<Account> {
   const email = `browser-${name}-${Date.now().toString(36)}@example.test`;
   const registered = await request.post('/api/auth/register', {
     data: { email, password: PASSWORD, displayName: 'Browser test' },
+    headers: { 'accept-language': locale },
   });
   if (!registered.ok())
     throw new Error(`registration answered ${registered.status()}: ${await registered.text()}`);
