@@ -89,10 +89,10 @@ sh scripts/init-env.sh        # writes .env with freshly generated secrets
 
 ## Run
 
-Docker (recommended):
+Docker (recommended), the whole stack built from the checkout:
 
 ```bash
-docker compose -f infra/docker-compose.dev.yml up --build
+docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 ```
 
 Local (Node 24 LTS):
