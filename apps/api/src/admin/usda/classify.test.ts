@@ -101,19 +101,23 @@ describe('which diets an imported food is known to suit', () => {
     expect(of(description).diets).toEqual(PLANT);
   });
 
-  it.each(['Oil, coconut', 'Oil, peanut', 'Sugars, granulated', 'Almond milk, unsweetened, plain, shelf stable'])(
-    'takes "%s" for a plant by its name, and claims no more',
-    (description) => {
-      expect(of(description).diets).toEqual(['vegetarian', 'vegan']);
-    },
-  );
+  it.each([
+    'Oil, coconut',
+    'Oil, peanut',
+    'Sugars, granulated',
+    'Almond milk, unsweetened, plain, shelf stable',
+  ])('takes "%s" for a plant by its name, and claims no more', (description) => {
+    expect(of(description).diets).toEqual(['vegetarian', 'vegan']);
+  });
 
-  it.each(['Buttermilk, low fat', 'Cheese, cheddar', 'Egg, whole, raw, frozen, pasteurized', 'Honey'])(
-    'takes "%s" for vegetarian and not for vegan',
-    (description) => {
-      expect(of(description).diets).toEqual(['vegetarian']);
-    },
-  );
+  it.each([
+    'Buttermilk, low fat',
+    'Cheese, cheddar',
+    'Egg, whole, raw, frozen, pasteurized',
+    'Honey',
+  ])('takes "%s" for vegetarian and not for vegan', (description) => {
+    expect(of(description).diets).toEqual(['vegetarian']);
+  });
 
   it.each([
     'Lard',

@@ -17,7 +17,13 @@ import type {
   UpdateUserSettings,
 } from '@diet-app/shared';
 import { Passwords } from '../common/passwords.js';
-import { storedAiMode, storedLocale, storedPalette, storedTheme, storedWeightUnit } from '../common/stored-settings.js';
+import {
+  storedAiMode,
+  storedLocale,
+  storedPalette,
+  storedTheme,
+  storedWeightUnit,
+} from '../common/stored-settings.js';
 import type { Env } from '../config/env.js';
 import { adminAccessOf, carryUsageOfAccount } from '../ai/ai-quota.service.js';
 import { AccountEmail } from '../auth/account-email.js';
@@ -47,7 +53,8 @@ export class UsersService {
 
   async getMe(userId: string): Promise<SessionUser> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
+    if (!user)
+      throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
     return this.toSessionUser(user);
   }
 
@@ -73,9 +80,18 @@ export class UsersService {
     }
     // The operator's provider is for the accounts the operator lets use it.
     if (dto.aiMode === 'admin') {
-      const account = await this.prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true, operatorAiApprovedAt: true } });
-      if (account && adminAccessOf(this.config.get('AI_ADMIN_ACCESS', { infer: true }), account) !== 'granted') {
-        throw new ForbiddenException({ error: 'AI_NOT_PERMITTED', message: "This instance's AI is not open to this account." });
+      const account = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { emailVerified: true, operatorAiApprovedAt: true },
+      });
+      if (
+        account &&
+        adminAccessOf(this.config.get('AI_ADMIN_ACCESS', { infer: true }), account) !== 'granted'
+      ) {
+        throw new ForbiddenException({
+          error: 'AI_NOT_PERMITTED',
+          message: "This instance's AI is not open to this account.",
+        });
       }
     }
     const user = await this.prisma.user.update({
@@ -95,9 +111,13 @@ export class UsersService {
   /** The account, for whoever gave the password it has: what changes or ends an account asks for it again. */
   private async holder(userId: string, currentPassword: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
+    if (!user)
+      throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
     if (!(await this.passwords.matches(currentPassword, user.passwordHash))) {
-      throw new UnauthorizedException({ error: 'INVALID_PASSWORD', message: 'Current password is incorrect.' });
+      throw new UnauthorizedException({
+        error: 'INVALID_PASSWORD',
+        message: 'Current password is incorrect.',
+      });
     }
     return user;
   }
@@ -109,11 +129,17 @@ export class UsersService {
       await tx.user.update({ where: { id: userId }, data: { passwordHash } });
       // Invalidate every active session so the rotation actually forces a re-login
       // everywhere the credentials might be cached.
-      await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
       await retirePendingLinks(tx, userId);
     });
     if (this.mail.enabled) {
-      this.mail.sendPasswordChangedNotice(this.emails.open(user.emailEncrypted, user.id), storedLocale(user.locale));
+      this.mail.sendPasswordChangedNotice(
+        this.emails.open(user.emailEncrypted, user.id),
+        storedLocale(user.locale),
+      );
     }
   }
 
@@ -136,12 +162,16 @@ export class UsersService {
     // Covers both "already in use by someone else" and "this is already your
     // address" — either way there's nothing to change.
     const clash = await this.prisma.user.findUnique({ where: { emailIndex: newEmailIndex } });
-    if (clash) throw new BadRequestException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' });
+    if (clash)
+      throw new BadRequestException({ error: 'EMAIL_TAKEN', message: 'Email already registered.' });
 
     const raw = randomBytes(32).toString('hex');
     await this.prisma.$transaction([
       // One link at a time: asking again makes the earlier one stop working.
-      this.prisma.emailChangeToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } }),
+      this.prisma.emailChangeToken.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: new Date() },
+      }),
       this.prisma.emailChangeToken.create({
         data: {
           userId,
@@ -156,20 +186,29 @@ export class UsersService {
     const locale = storedLocale(user.locale);
     this.mail.sendEmailChange(newEmail, link, locale);
     // The address the account has is told: its holder may not be who asked.
-    this.mail.sendEmailChangeRequestedNotice(this.emails.open(user.emailEncrypted, user.id), newEmail, locale);
+    this.mail.sendEmailChangeRequestedNotice(
+      this.emails.open(user.emailEncrypted, user.id),
+      newEmail,
+      locale,
+    );
   }
 
   /** Re-sends the verification email for a logged-in, still-unverified user. */
   async resendVerification(userId: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
+    if (!user)
+      throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'Account not found.' });
     if (user.emailVerified) {
       throw new BadRequestException({
         error: 'EMAIL_ALREADY_VERIFIED',
         message: 'This email address is already verified.',
       });
     }
-    await this.auth.resendVerificationEmail(userId, this.emails.open(user.emailEncrypted, user.id), storedLocale(user.locale));
+    await this.auth.resendVerificationEmail(
+      userId,
+      this.emails.open(user.emailEncrypted, user.id),
+      storedLocale(user.locale),
+    );
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountRequest): Promise<void> {
@@ -186,7 +225,11 @@ export class UsersService {
         // Its own recipes, and what the curation queue holds of them.
         await removePersonalRecipesOf(tx, userId);
         // The record of its AI calls; what they count for stays, without the account.
-        await carryUsageOfAccount(tx, userId, this.config.get('AI_ADMIN_NEW_ACCOUNT_DAYS', { infer: true }));
+        await carryUsageOfAccount(
+          tx,
+          userId,
+          this.config.get('AI_ADMIN_NEW_ACCOUNT_DAYS', { infer: true }),
+        );
         // With the account itself: its profiles (their weights, notifications,
         // preferences and pantry), its provider keys and every token of it.
         await tx.user.delete({ where: { id: userId } });

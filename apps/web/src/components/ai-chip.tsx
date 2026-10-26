@@ -45,12 +45,7 @@ export function AiChip({ className }: { className?: string }) {
 
   if (status.mode === 'byok') {
     return (
-      <ChipLink
-        className={className}
-        tone="byok"
-        title={t('byokTooltip')}
-        label={t('byokLabel')}
-      />
+      <ChipLink className={className} tone="byok" title={t('byokTooltip')} label={t('byokLabel')} />
     );
   }
 
@@ -75,11 +70,7 @@ export function AiChip({ className }: { className?: string }) {
                 ? t('exhaustedTooltip', { date: reset })
                 : t('adminTooltip')
       }
-      label={
-        exhausted
-          ? t('exhaustedLabel', { limit })
-          : t('adminLabel', { remaining, limit })
-      }
+      label={exhausted ? t('exhaustedLabel', { limit }) : t('adminLabel', { remaining, limit })}
     />
   );
 }
@@ -101,10 +92,8 @@ function ChipLink({
       title={title}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
-        tone === 'admin' &&
-          'border-primary/30 bg-primary/10 text-foreground hover:bg-primary/15',
-        tone === 'byok' &&
-          'border-success/30 bg-success/10 text-success hover:bg-success/15',
+        tone === 'admin' && 'border-primary/30 bg-primary/10 text-foreground hover:bg-primary/15',
+        tone === 'byok' && 'border-success/30 bg-success/10 text-success hover:bg-success/15',
         tone === 'exhausted' &&
           'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15',
         className,

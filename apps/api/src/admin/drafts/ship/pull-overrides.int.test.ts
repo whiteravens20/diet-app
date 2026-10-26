@@ -22,7 +22,10 @@ interface Source {
 }
 
 async function aSource(): Promise<Source> {
-  const source = { requests: [] as IncomingMessage[], respond: (_req: IncomingMessage, res: ServerResponse) => void res.end('{}') } as Source;
+  const source = {
+    requests: [] as IncomingMessage[],
+    respond: (_req: IncomingMessage, res: ServerResponse) => void res.end('{}'),
+  } as Source;
   source.server = createServer((req, res) => {
     source.requests.push(req);
     source.respond(req, res);
@@ -68,24 +71,48 @@ describe('pulling the names of ingredients from an address', () => {
     unnamed.requests = [];
   });
 
-  const pull = (source: string) => t.http().post('/api/admin/drafts/ship/current-overrides/pull').set(asAdmin).send({ source });
-  const manual = () => t.prisma.ingredientTranslation.findMany({ where: { source: 'MANUAL' }, select: { locale: true, name: true }, orderBy: { name: 'asc' } });
+  const pull = (source: string) =>
+    t.http().post('/api/admin/drafts/ship/current-overrides/pull').set(asAdmin).send({ source });
+  const manual = () =>
+    t.prisma.ingredientTranslation.findMany({
+      where: { source: 'MANUAL' },
+      select: { locale: true, name: true },
+      orderBy: { name: 'asc' },
+    });
 
   it('is refused for an address that is not public, and the server there is never asked', async () => {
-    for (const address of [`http://127.0.0.1:${unnamed.port}/overrides.json`, `http://localhost:${unnamed.port}/overrides.json`, `http://[::1]:${unnamed.port}/x.json`, 'http://169.254.169.254/latest/meta-data/']) {
+    for (const address of [
+      `http://127.0.0.1:${unnamed.port}/overrides.json`,
+      `http://localhost:${unnamed.port}/overrides.json`,
+      `http://[::1]:${unnamed.port}/x.json`,
+      'http://169.254.169.254/latest/meta-data/',
+    ]) {
       const res = await pull(address);
-      expect([address, res.status, res.body.error]).toEqual([address, 409, 'PULL_ADDRESS_NOT_PUBLIC']);
+      expect([address, res.status, res.body.error]).toEqual([
+        address,
+        409,
+        'PULL_ADDRESS_NOT_PUBLIC',
+      ]);
     }
     expect(unnamed.requests).toHaveLength(0);
     expect(await manual()).toEqual([]);
   });
 
   it('fetches from a host the operator named, and stores the names as approved by people', async () => {
-    named.respond = json({ 'chicken-breast': { name: { pl: ' Filet  z kurczaka ' }, storageHint: { pl: 'W lodówce.' } }, 'no-such-ingredient': { name: { pl: 'Nic' } } });
+    named.respond = json({
+      'chicken-breast': { name: { pl: ' Filet  z kurczaka ' }, storageHint: { pl: 'W lodówce.' } },
+      'no-such-ingredient': { name: { pl: 'Nic' } },
+    });
 
     const res = await pull(`http://127.0.0.1:${named.port}/overrides.json`).expect(201);
 
-    expect(res.body).toMatchObject({ total: 2, applied: 1, rowsWritten: 1, skippedSlugs: ['no-such-ingredient'], refused: [] });
+    expect(res.body).toMatchObject({
+      total: 2,
+      applied: 1,
+      rowsWritten: 1,
+      skippedSlugs: ['no-such-ingredient'],
+      refused: [],
+    });
     // Stored as a plain line, like a name that ships from the queue.
     expect(await manual()).toEqual([{ locale: 'pl', name: 'Filet z kurczaka' }]);
   });
@@ -132,7 +159,7 @@ describe('pulling the names of ingredients from an address', () => {
     expect(await manual()).toEqual([]);
   });
 
-  it('sends the token to no host but GitHub\'s', async () => {
+  it("sends the token to no host but GitHub's", async () => {
     named.respond = json({});
 
     await pull(`http://127.0.0.1:${named.port}/overrides.json`).expect(201);

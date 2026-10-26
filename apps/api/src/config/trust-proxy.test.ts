@@ -17,20 +17,32 @@ describe('TRUST_PROXY', () => {
   });
 
   it('reads a list of addresses, networks and named ranges', () => {
-    expect(parseTrustProxy('10.0.0.0/8, 172.18.0.5,fd00::/8, loopback')).toEqual(['10.0.0.0/8', '172.18.0.5', 'fd00::/8', 'loopback']);
+    expect(parseTrustProxy('10.0.0.0/8, 172.18.0.5,fd00::/8, loopback')).toEqual([
+      '10.0.0.0/8',
+      '172.18.0.5',
+      'fd00::/8',
+      'loopback',
+    ]);
   });
 
   it('refuses "true": it would believe an address any client writes', () => {
     expect(() => parseTrustProxy('true')).toThrow(/any client writes/);
   });
 
-  it.each(['yes', 'traefik', '10.0.0.0/33', '10.0.0/8', 'fd00::/129', '10.0.0.1/8/8', '11'])('refuses %j and says why', (raw) => {
-    expect(() => parseTrustProxy(raw)).toThrow();
-  });
+  it.each(['yes', 'traefik', '10.0.0.0/33', '10.0.0/8', 'fd00::/129', '10.0.0.1/8/8', '11'])(
+    'refuses %j and says why',
+    (raw) => {
+      expect(() => parseTrustProxy(raw)).toThrow();
+    },
+  );
 
   it('says in one line whose word is taken', () => {
-    expect(describeTrustProxy(false)).toMatch(/^client address: that of the connection \(TRUST_PROXY is off/);
-    expect(describeTrustProxy(false, true)).toMatch(/^! client address: that of the proxy for every visitor alike/);
+    expect(describeTrustProxy(false)).toMatch(
+      /^client address: that of the connection \(TRUST_PROXY is off/,
+    );
+    expect(describeTrustProxy(false, true)).toMatch(
+      /^! client address: that of the proxy for every visitor alike/,
+    );
     expect(describeTrustProxy(1, true)).toMatch(/^client address: /);
     expect(describeTrustProxy(1)).toMatch(/1 trusted proxy$/);
     expect(describeTrustProxy(2)).toMatch(/2 trusted proxies$/);

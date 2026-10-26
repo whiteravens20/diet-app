@@ -11,37 +11,53 @@ import type { Locale } from '@diet-app/shared';
 
 describe('substituteCaseAware', () => {
   it('replaces every occurrence in one pass', () => {
-    expect(substituteCaseAware('chicken and chicken', 'chicken', 'tofu')).toBe(
-      'tofu and tofu',
-    );
+    expect(substituteCaseAware('chicken and chicken', 'chicken', 'tofu')).toBe('tofu and tofu');
   });
 
   it('preserves capitalisation of the matched fragment', () => {
-    expect(substituteCaseAware('Chicken with chicken', 'chicken', 'tofu')).toBe(
-      'Tofu with tofu',
-    );
+    expect(substituteCaseAware('Chicken with chicken', 'chicken', 'tofu')).toBe('Tofu with tofu');
   });
 
   it('escapes regex metacharacters in the source name', () => {
     // Without escaping, the `.` in `cottage.cheese` would match any char and
     // produce false positives. Word-boundary matching keeps the substitution
     // exact otherwise.
-    expect(
-      substituteCaseAware('cottage.cheese tastes mild', 'cottage.cheese', 'feta'),
-    ).toBe('feta tastes mild');
+    expect(substituteCaseAware('cottage.cheese tastes mild', 'cottage.cheese', 'feta')).toBe(
+      'feta tastes mild',
+    );
   });
 
   it.each([
-    ['a name that ends in a Polish letter', 'Ugotuj ryż. Podaj ryż z warzywami.', 'ryż', 'makaron', 'Ugotuj makaron. Podaj makaron z warzywami.'],
-    ['a name that starts with a Polish letter', 'Żurawina na wierzch, potem jeszcze żurawina.', 'żurawina', 'rodzynki', 'Rodzynki na wierzch, potem jeszcze rodzynki.'],
+    [
+      'a name that ends in a Polish letter',
+      'Ugotuj ryż. Podaj ryż z warzywami.',
+      'ryż',
+      'makaron',
+      'Ugotuj makaron. Podaj makaron z warzywami.',
+    ],
+    [
+      'a name that starts with a Polish letter',
+      'Żurawina na wierzch, potem jeszcze żurawina.',
+      'żurawina',
+      'rodzynki',
+      'Rodzynki na wierzch, potem jeszcze rodzynki.',
+    ],
     ['a name with Polish letters on both ends', 'Dodaj łosoś.', 'łosoś', 'dorsz', 'Dodaj dorsz.'],
-    ['an inflected form of a longer name', 'Podawaj z brokułem i brokułami.', 'brokuł', 'kalafior', 'Podawaj z kalafior i kalafior.'],
+    [
+      'an inflected form of a longer name',
+      'Podawaj z brokułem i brokułami.',
+      'brokuł',
+      'kalafior',
+      'Podawaj z kalafior i kalafior.',
+    ],
   ])('replaces %s', (_name, text, oldName, newName, expected) => {
     expect(substituteCaseAware(text, oldName, newName)).toBe(expected);
   });
 
   it('does not replace a name inside a longer word, in any alphabet', () => {
-    expect(substituteCaseAware('Dodaj ryżowy makaron.', 'ryż', 'kasza')).toBe('Dodaj ryżowy makaron.');
+    expect(substituteCaseAware('Dodaj ryżowy makaron.', 'ryż', 'kasza')).toBe(
+      'Dodaj ryżowy makaron.',
+    );
     expect(substituteCaseAware('Add eggplant.', 'egg', 'tofu')).toBe('Add eggplant.');
   });
 
@@ -55,26 +71,56 @@ describe('rewriteSwapModeA', () => {
   const pl: Locale = 'pl';
 
   it('names the new ingredient in the title in place of one it took the place of', () => {
-    const slice = (title: string) => ({ title, description: 'A soup.', steps: ['Simmer.', 'Blend.'] });
+    const slice = (title: string) => ({
+      title,
+      description: 'A soup.',
+      steps: ['Simmer.', 'Blend.'],
+    });
     const swap = (titles: [string, string], from: [string, string], to: [string, string]) =>
       rewriteSwapModeA({
-        source: new Map([[en, slice(titles[0])], [pl, slice(titles[1])]]),
-        oldName: new Map([[en, from[0]], [pl, from[1]]]),
-        newName: new Map([[en, to[0]], [pl, to[1]]]),
+        source: new Map([
+          [en, slice(titles[0])],
+          [pl, slice(titles[1])],
+        ]),
+        oldName: new Map([
+          [en, from[0]],
+          [pl, from[1]],
+        ]),
+        newName: new Map([
+          [en, to[0]],
+          [pl, to[1]],
+        ]),
       });
 
     // The lentils were swapped for kidney beans before; now the kidney beans go.
-    const again = swap(['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (zamiennik: Fasola czerwona)'], ['Kidney beans', 'Fasola czerwona'], ['Black beans', 'Fasola czarna']);
+    const again = swap(
+      ['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (zamiennik: Fasola czerwona)'],
+      ['Kidney beans', 'Fasola czerwona'],
+      ['Black beans', 'Fasola czarna'],
+    );
     expect(again.get(en)!.title).toBe('Lentil soup (with Black beans)');
     expect(again.get(pl)!.title).toBe('Zupa z soczewicy (zamiennik: Fasola czarna)');
 
     // Another ingredient of the same recipe: the earlier swap is still true and stays.
-    const other = swap(['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (zamiennik: Fasola czerwona)'], ['Carrot', 'Marchew'], ['Parsnip', 'Pasternak']);
+    const other = swap(
+      ['Lentil soup (with Kidney beans)', 'Zupa z soczewicy (zamiennik: Fasola czerwona)'],
+      ['Carrot', 'Marchew'],
+      ['Parsnip', 'Pasternak'],
+    );
     expect(other.get(en)!.title).toBe('Lentil soup (with Kidney beans) (with Parsnip)');
-    expect(other.get(pl)!.title).toBe('Zupa z soczewicy (zamiennik: Fasola czerwona) (zamiennik: Pasternak)');
+    expect(other.get(pl)!.title).toBe(
+      'Zupa z soczewicy (zamiennik: Fasola czerwona) (zamiennik: Pasternak)',
+    );
 
     // And an earlier one of two is found wherever it stands.
-    const first = swap(['Lentil soup (with Kidney beans) (with Parsnip)', 'Zupa (zamiennik: Fasola czerwona) (zamiennik: Pasternak)'], ['Kidney beans', 'Fasola czerwona'], ['Chickpeas', 'Ciecierzyca']);
+    const first = swap(
+      [
+        'Lentil soup (with Kidney beans) (with Parsnip)',
+        'Zupa (zamiennik: Fasola czerwona) (zamiennik: Pasternak)',
+      ],
+      ['Kidney beans', 'Fasola czerwona'],
+      ['Chickpeas', 'Ciecierzyca'],
+    );
     expect(first.get(en)!.title).toBe('Lentil soup (with Chickpeas) (with Parsnip)');
     expect(first.get(pl)!.title).toBe('Zupa (zamiennik: Ciecierzyca) (zamiennik: Pasternak)');
   });
@@ -186,7 +232,16 @@ describe('a locale in which the substitute has no name', () => {
 
   it('keeps its title as it was, and never names the ingredient that was taken out', () => {
     const out = rewriteSwapModeA({
-      source: new Map([[pl, { title: 'Curry z kurczakiem', description: 'Ostre curry z kurczakiem.', steps: ['Podsmaż kurczaka.'] }]]),
+      source: new Map([
+        [
+          pl,
+          {
+            title: 'Curry z kurczakiem',
+            description: 'Ostre curry z kurczakiem.',
+            steps: ['Podsmaż kurczaka.'],
+          },
+        ],
+      ]),
       oldName: new Map([[pl, 'kurczak']]),
       newName: new Map(),
     });
@@ -230,7 +285,11 @@ describe('validateModeBOutput', () => {
       validateModeBOutput(source, {
         description: 'A spicy tofu curry with 200g of tofu.',
         // 300g and 12 minutes are invented numbers — should be rejected.
-        steps: ['Sear the tofu for 12 minutes.', 'Add 300g of tofu and 250ml coconut milk.', 'Simmer 15 minutes.'],
+        steps: [
+          'Sear the tofu for 12 minutes.',
+          'Add 300g of tofu and 250ml coconut milk.',
+          'Simmer 15 minutes.',
+        ],
       }),
     ).toBe(false);
   });
@@ -273,15 +332,30 @@ describe('validateModeBOutput with names in Polish', () => {
   };
 
   it('accepts a rewrite that names the new ingredient', () => {
-    expect(validateModeBOutput(source, { description: 'Łosoś z kurczakiem.', steps: ['Upiecz łosoś.', 'Podaj.'] })).toBe(true);
+    expect(
+      validateModeBOutput(source, {
+        description: 'Łosoś z kurczakiem.',
+        steps: ['Upiecz łosoś.', 'Podaj.'],
+      }),
+    ).toBe(true);
   });
 
   it('rejects a rewrite that still names the old one', () => {
-    expect(validateModeBOutput(source, { description: 'Łosoś i ryż z kurczakiem.', steps: ['Upiecz łosoś.', 'Podaj.'] })).toBe(false);
+    expect(
+      validateModeBOutput(source, {
+        description: 'Łosoś i ryż z kurczakiem.',
+        steps: ['Upiecz łosoś.', 'Podaj.'],
+      }),
+    ).toBe(false);
   });
 
   it('rejects a rewrite that never names the new one', () => {
-    expect(validateModeBOutput(source, { description: 'Danie z kurczakiem.', steps: ['Ugotuj wszystko.', 'Podaj.'] })).toBe(false);
+    expect(
+      validateModeBOutput(source, {
+        description: 'Danie z kurczakiem.',
+        steps: ['Ugotuj wszystko.', 'Podaj.'],
+      }),
+    ).toBe(false);
   });
 });
 
@@ -344,11 +418,31 @@ describe('rewriteSwapModeB', () => {
     const asked: Locale[] = [];
     const out = await rewriteSwapModeB({
       source: new Map([
-        [en, { title: 'Broccoli rice', description: 'Rice with broccoli.', steps: ['Steam the broccoli.', 'Serve.'] }],
-        [pl, { title: 'Ryż z brokułem', description: 'Ryż, a do niego brokuł.', steps: ['Ugotuj brokuł na parze.', 'Podaj.'] }],
+        [
+          en,
+          {
+            title: 'Broccoli rice',
+            description: 'Rice with broccoli.',
+            steps: ['Steam the broccoli.', 'Serve.'],
+          },
+        ],
+        [
+          pl,
+          {
+            title: 'Ryż z brokułem',
+            description: 'Ryż, a do niego brokuł.',
+            steps: ['Ugotuj brokuł na parze.', 'Podaj.'],
+          },
+        ],
       ]),
-      oldName: new Map([[en, 'broccoli'], [pl, 'brokuł']]),
-      newName: new Map([[en, 'tomato'], [pl, 'pomidor']]),
+      oldName: new Map([
+        [en, 'broccoli'],
+        [pl, 'brokuł'],
+      ]),
+      newName: new Map([
+        [en, 'tomato'],
+        [pl, 'pomidor'],
+      ]),
       locale: pl,
       rewrite: async (locale) => {
         asked.push(locale);
@@ -372,7 +466,16 @@ describe('rewriteSwapModeB', () => {
   it('asks no model when the recipe is not written in that language', async () => {
     let asked = 0;
     const out = await rewriteSwapModeB({
-      source: new Map([[en, { title: 'Broccoli rice', description: 'Rice with broccoli.', steps: ['Steam the broccoli.'] }]]),
+      source: new Map([
+        [
+          en,
+          {
+            title: 'Broccoli rice',
+            description: 'Rice with broccoli.',
+            steps: ['Steam the broccoli.'],
+          },
+        ],
+      ]),
       oldName: new Map([[en, 'broccoli']]),
       newName: new Map([[en, 'tomato']]),
       locale: 'pl',

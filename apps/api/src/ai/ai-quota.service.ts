@@ -3,7 +3,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import type { AdminAiAccess, AiFallbackReason, AiMode, AiQuotaStatus, OperatorAiAccess } from '@diet-app/shared';
+import type {
+  AdminAiAccess,
+  AiFallbackReason,
+  AiMode,
+  AiQuotaStatus,
+  OperatorAiAccess,
+} from '@diet-app/shared';
 import { newAccountsLimit, type Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -66,7 +72,11 @@ export function adminAccessOf(level: OperatorAiAccess, account: AccessHolder): A
  * calls of an account that is still new, younger than `newAccountDays`,
  * stay counted for the new accounts' part as well, for the same reason.
  */
-export async function carryUsageOfAccount(tx: Prisma.TransactionClient, userId: string, newAccountDays: number): Promise<void> {
+export async function carryUsageOfAccount(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  newAccountDays: number,
+): Promise<void> {
   const [account] = await tx.$queryRaw<Array<{ isNew: boolean }>>`
     SELECT "createdAt" > NOW() - make_interval(days => ${newAccountDays}::int) AS "isNew" FROM "User" WHERE "id" = ${userId}`;
   const ofNew = account?.isNew ? Prisma.sql`COUNT(*)` : Prisma.sql`0`;
@@ -156,7 +166,9 @@ export class AiQuotaService {
   newAccountsLimit(): number {
     return newAccountsLimit({
       AI_ADMIN_INSTANCE_MONTHLY_LIMIT: this.instanceLimit(),
-      AI_ADMIN_NEW_ACCOUNTS_PERCENT: this.config.get('AI_ADMIN_NEW_ACCOUNTS_PERCENT', { infer: true }),
+      AI_ADMIN_NEW_ACCOUNTS_PERCENT: this.config.get('AI_ADMIN_NEW_ACCOUNTS_PERCENT', {
+        infer: true,
+      }),
     });
   }
 
@@ -177,7 +189,8 @@ export class AiQuotaService {
     const asker = await this.asker(this.prisma, userId);
     const adminAccess = asker ? adminAccessOf(this.access(), asker) : 'not_approved';
     const isNew = asker?.isNew ?? false;
-    const newAccountsLimitReached = this.newAccountDays() > 0 && (await this.countNew(this.prisma)) >= this.newAccountsLimit();
+    const newAccountsLimitReached =
+      this.newAccountDays() > 0 && (await this.countNew(this.prisma)) >= this.newAccountsLimit();
     const common = {
       mode,
       limit,
@@ -213,7 +226,10 @@ export class AiQuotaService {
    * the new accounts': the counts and the new row are written under one lock,
    * so calls started at the same moment cannot all take the last place.
    */
-  async begin(userId: string, call: UsageCall): Promise<{ id: string } | { refused: AiFallbackReason }> {
+  async begin(
+    userId: string,
+    call: UsageCall,
+  ): Promise<{ id: string } | { refused: AiFallbackReason }> {
     const data = { userId, ...call, outcome: 'PENDING' as const };
     if (call.mode !== 'admin') {
       return this.prisma.aiUsageLog.create({ data, select: { id: true } });

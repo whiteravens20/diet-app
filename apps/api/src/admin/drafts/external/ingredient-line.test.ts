@@ -5,10 +5,12 @@ import { parseIngredientLine } from './ingredient-line.js';
 
 const read = (text: string) => {
   const parsed = parseIngredientLine(text);
-  return parsed.ok ? `${parsed.line.quantity} ${parsed.line.unit} | ${parsed.line.name}` : parsed.problem;
+  return parsed.ok
+    ? `${parsed.line.quantity} ${parsed.line.unit} | ${parsed.line.name}`
+    : parsed.problem;
 };
 
-describe('a line of a recipe\'s ingredient list', () => {
+describe("a line of a recipe's ingredient list", () => {
   it.each([
     ['200 g rolled oats', '200 g | rolled oats'],
     ['200g rolled oats', '200 g | rolled oats'],

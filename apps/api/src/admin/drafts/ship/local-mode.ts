@@ -19,43 +19,28 @@
  * the edit left it, and is not shipped unless it is still approved. A draft
  * that does not ship stays in the queue, and the reason is reported.
  *
- * What shipped is also written to the instance's own data directory, in the
- * shape of the catalogue's data files: `recipes/<batch>.json` and
- * `ingredient-overrides.json`. Those files are the instance's copy of what it
- * added to the catalogue; `restore.ts` reads them back into an empty database.
- * A ship does not fail when they cannot be written, and says so.
+ * The instance's own files are written from the database once the ship is
+ * done (`instance-export.ts`), by whoever asked for it.
  */
-import { existsSync, mkdirSync } from 'node:fs';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import type { RecipeProblem } from '../../../recipes/recipe-rules.js';
 import { lockIngredientNameDraft, lockRecipeDraft } from '../draft-lock.js';
 import type { RecipeDraftRow } from '../drafts.mapper.js';
-import {
-  ingredientOverridesPath,
-  mergeIngredientOverrides,
-  type IngredientOverrideEntry,
-  type IngredientOverrideFile,
-} from './ingredient-overrides.writer.js';
+import type { IngredientOverrideEntry } from './ingredient-overrides.writer.js';
 import { addLanguages, assessForLibrary, sameLibraryRecipe, writeToLibrary } from './library.js';
-import { recipeBatchesDir, writeRecipeBatch, type ShippedRecipe } from './recipe-batches.writer.js';
+import type { ShippedRecipe } from './recipe-batches.writer.js';
 import { shippableIngredientName, shippableRecipe, type Skipped } from './shippable.js';
 
 export interface LocalShipRequest {
   kind: 'recipe' | 'ingredient-name';
   /** Optional batch filter; when omitted, every APPROVED row of the kind ships. */
   batchIds?: string[];
-  /** Absolute path to the operator's instance-data dir (gitignored). */
-  instanceDataDir: string;
 }
 
 export interface LocalShipResult {
   kind: 'recipe' | 'ingredient-name';
   shippedDraftIds: string[];
   skipped: Skipped[];
-  /** The files of the instance's data directory that were written. */
-  sidecarPaths: string[];
-  /** Why those files could not be written, when they could not. The ship itself stands. */
-  sidecarError?: string;
 }
 
 /** One recipe draft into the library: what shipped, or why it did not. */
@@ -68,13 +53,17 @@ const approved = (request: LocalShipRequest) => ({
   ...(request.batchIds && request.batchIds.length > 0 ? { batchId: { in: request.batchIds } } : {}),
 });
 
-const failure = (err: unknown): string => `db-write-failed: ${err instanceof Error ? err.message : String(err)}`;
+const failure = (err: unknown): string =>
+  `db-write-failed: ${err instanceof Error ? err.message : String(err)}`;
 
 /**
  * Ship one recipe draft into the shared library, if it is approved when its
  * turn comes. The recipe it became is recorded on the draft.
  */
-export function shipRecipeDraftLocal(prisma: PrismaService, id: string): Promise<RecipeShipOutcome> {
+export function shipRecipeDraftLocal(
+  prisma: PrismaService,
+  id: string,
+): Promise<RecipeShipOutcome> {
   return prisma.$transaction(async (tx): Promise<RecipeShipOutcome> => {
     await lockRecipeDraft(tx, id);
     const draft = await tx.recipeDraft.findUnique({ where: { id } });
@@ -99,22 +88,15 @@ export function shipRecipeDraftLocal(prisma: PrismaService, id: string): Promise
     }
     const shipped = await tx.recipeDraft.update({
       where: { id },
-      data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: null, promotedRecipeId: recipeId },
+      data: {
+        status: 'SHIPPED',
+        shippedAt: new Date(),
+        promotedRecipeId: recipeId,
+      },
       include: { localeReviews: true },
     });
     return { ok: true, draft: shipped, content: shippable.content };
   });
-}
-
-/** Write the recipes that shipped as one batch of the instance's data directory. */
-export function writeRecipeSidecar(instanceDataDir: string, rows: ShippedRecipe[]): Pick<LocalShipResult, 'sidecarPaths' | 'sidecarError'> {
-  if (rows.length === 0) return { sidecarPaths: [] };
-  try {
-    if (!existsSync(recipeBatchesDir(instanceDataDir))) mkdirSync(recipeBatchesDir(instanceDataDir), { recursive: true });
-    return { sidecarPaths: [writeRecipeBatch(instanceDataDir, newSidecarBatchId(), rows).path] };
-  } catch (err) {
-    return { sidecarPaths: [], sidecarError: err instanceof Error ? err.message : String(err) };
-  }
 }
 
 /** Ship every approved recipe draft, or those of the given batches, into the shared library. */
@@ -122,11 +104,14 @@ export async function shipRecipesLocal(
   prisma: PrismaService,
   request: LocalShipRequest & { kind: 'recipe' },
 ): Promise<LocalShipResult> {
-  const drafts = await prisma.recipeDraft.findMany({ where: approved(request), orderBy: { createdAt: 'asc' }, select: { id: true, slug: true } });
+  const drafts = await prisma.recipeDraft.findMany({
+    where: approved(request),
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, slug: true },
+  });
 
   const shipped: string[] = [];
   const skipped: Skipped[] = [];
-  const rows: ShippedRecipe[] = [];
   for (const { id, slug } of drafts) {
     let outcome: RecipeShipOutcome;
     try {
@@ -134,29 +119,34 @@ export async function shipRecipesLocal(
     } catch (err) {
       outcome = { ok: false, reason: failure(err) };
     }
-    if (outcome.ok) {
-      shipped.push(id);
-      rows.push(outcome.content);
-    } else skipped.push({ draftId: id, slug, reason: outcome.reason });
+    if (outcome.ok) shipped.push(id);
+    else skipped.push({ draftId: id, slug, reason: outcome.reason });
   }
 
-  return { kind: 'recipe', shippedDraftIds: shipped, skipped, ...writeRecipeSidecar(request.instanceDataDir, rows) };
+  return { kind: 'recipe', shippedDraftIds: shipped, skipped };
 }
 
 /** One draft of an ingredient's name into that ingredient's names: the entry that shipped, or why none did. */
-function shipIngredientNameDraftLocal(prisma: PrismaService, id: string): Promise<{ ok: true; entry: IngredientOverrideEntry } | { ok: false; reason: string }> {
+function shipIngredientNameDraftLocal(
+  prisma: PrismaService,
+  id: string,
+): Promise<{ ok: true; entry: IngredientOverrideEntry } | { ok: false; reason: string }> {
   return prisma.$transaction(async (tx) => {
     await lockIngredientNameDraft(tx, id);
     const draft = await tx.ingredientNameDraft.findUnique({ where: { id } });
     if (!draft) return { ok: false as const, reason: 'draft-gone' };
-    if (draft.status !== 'APPROVED') return { ok: false as const, reason: `not-approved: ${draft.status}` };
+    if (draft.status !== 'APPROVED')
+      return { ok: false as const, reason: `not-approved: ${draft.status}` };
 
     // Only the names of the draft's own languages ship: the others were never
     // before a reviewer.
     const shippable = shippableIngredientName(draft);
     if (!shippable.ok) return shippable;
     const entry = shippable.content;
-    const target = await tx.ingredient.findFirst({ where: { slug: draft.ingredientSlug }, select: { id: true } });
+    const target = await tx.ingredient.findFirst({
+      where: { slug: draft.ingredientSlug },
+      select: { id: true },
+    });
     if (!target) return { ok: false as const, reason: `unknown-slug: ${draft.ingredientSlug}` };
 
     const hints: Record<string, string> = entry.storageHint ?? {};
@@ -168,7 +158,10 @@ function shipIngredientNameDraftLocal(prisma: PrismaService, id: string): Promis
         update: { name, storageHint, source: 'MANUAL' },
       });
     }
-    await tx.ingredientNameDraft.update({ where: { id }, data: { status: 'SHIPPED', shippedAt: new Date(), shippedPRUrl: null } });
+    await tx.ingredientNameDraft.update({
+      where: { id },
+      data: { status: 'SHIPPED', shippedAt: new Date() },
+    });
     return { ok: true as const, entry };
   });
 }
@@ -178,11 +171,14 @@ export async function shipIngredientNamesLocal(
   prisma: PrismaService,
   request: LocalShipRequest & { kind: 'ingredient-name' },
 ): Promise<LocalShipResult> {
-  const drafts = await prisma.ingredientNameDraft.findMany({ where: approved(request), orderBy: { createdAt: 'asc' }, select: { id: true, ingredientSlug: true } });
+  const drafts = await prisma.ingredientNameDraft.findMany({
+    where: approved(request),
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, ingredientSlug: true },
+  });
 
   const shipped: string[] = [];
   const skipped: Skipped[] = [];
-  const additions: IngredientOverrideFile = {};
   for (const { id, ingredientSlug } of drafts) {
     let outcome: Awaited<ReturnType<typeof shipIngredientNameDraftLocal>>;
     try {
@@ -190,27 +186,9 @@ export async function shipIngredientNamesLocal(
     } catch (err) {
       outcome = { ok: false, reason: failure(err) };
     }
-    if (outcome.ok) {
-      shipped.push(id);
-      additions[ingredientSlug] = outcome.entry;
-    } else skipped.push({ draftId: id, slug: ingredientSlug, reason: outcome.reason });
+    if (outcome.ok) shipped.push(id);
+    else skipped.push({ draftId: id, slug: ingredientSlug, reason: outcome.reason });
   }
 
-  const sidecarPaths: string[] = [];
-  let sidecarError: string | undefined;
-  if (Object.keys(additions).length > 0) {
-    try {
-      const path = ingredientOverridesPath(request.instanceDataDir);
-      mergeIngredientOverrides(path, additions);
-      sidecarPaths.push(path);
-    } catch (err) {
-      sidecarError = err instanceof Error ? err.message : String(err);
-    }
-  }
-
-  return { kind: 'ingredient-name', shippedDraftIds: shipped, skipped, sidecarPaths, sidecarError };
-}
-
-function newSidecarBatchId(): string {
-  return `ship-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+  return { kind: 'ingredient-name', shippedDraftIds: shipped, skipped };
 }

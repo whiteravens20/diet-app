@@ -24,19 +24,23 @@ const config = [
         'error',
         {
           selector: 'CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]',
-          message: 'Format through useFormat() (lib/use-format.ts): this follows the language of the browser, not of the application.',
+          message:
+            'Format through useFormat() (lib/use-format.ts): this follows the language of the browser, not of the application.',
         },
         {
           selector: "CallExpression[callee.property.name='toFixed']",
-          message: 'Format through useFormat() (lib/use-format.ts): this writes a dot in every language. To round a number, use Math.round.',
+          message:
+            'Format through useFormat() (lib/use-format.ts): this writes a dot in every language. To round a number, use Math.round.',
         },
         {
           selector: "MemberExpression[object.name='Intl']",
-          message: 'Format through useFormat() (lib/use-format.ts), which knows the language of the application and the time zone of the reader.',
+          message:
+            'Format through useFormat() (lib/use-format.ts), which knows the language of the application and the time zone of the reader.',
         },
         {
           selector: "ImportSpecifier[imported.name='useFormatter']",
-          message: 'Use useFormat() (lib/use-format.ts): the formatter of the provider writes a moment in the time zone of the server.',
+          message:
+            'Use useFormat() (lib/use-format.ts): the formatter of the provider writes a moment in the time zone of the server.',
         },
       ],
     },

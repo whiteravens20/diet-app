@@ -19,7 +19,9 @@ import type {
 } from '@diet-app/shared';
 
 export type RecipeDraftRow = Prisma.RecipeDraftGetPayload<{ include: { localeReviews: true } }>;
-export type IngredientNameDraftRow = Prisma.IngredientNameDraftGetPayload<{ include: { localeReviews: true } }>;
+export type IngredientNameDraftRow = Prisma.IngredientNameDraftGetPayload<{
+  include: { localeReviews: true };
+}>;
 type ReviewRow = RecipeDraftRow['localeReviews'][number];
 
 const CANONICAL_LOCALE: Locale = 'en';
@@ -38,13 +40,18 @@ const reviewDto = (row: ReviewRow): LocaleReview => ({
   reviewedAt: row.reviewedAt.toISOString(),
 });
 
-function reviewsOf(rows: readonly ReviewRow[], locales: readonly string[]): { localeReviews: LocaleReview[]; pastReviews: PastReview[] } {
+function reviewsOf(
+  rows: readonly ReviewRow[],
+  locales: readonly string[],
+): { localeReviews: LocaleReview[]; pastReviews: PastReview[] } {
   const byTime = [...rows].sort((a, b) => a.reviewedAt.getTime() - b.reviewedAt.getTime());
   return {
     localeReviews: currentReviews(byTime)
       .sort((a, b) => locales.indexOf(a.locale) - locales.indexOf(b.locale))
       .map(reviewDto),
-    pastReviews: byTime.filter((row) => row.supersededAt !== null).map((row) => ({ ...reviewDto(row), supersededAt: row.supersededAt!.toISOString() })),
+    pastReviews: byTime
+      .filter((row) => row.supersededAt !== null)
+      .map((row) => ({ ...reviewDto(row), supersededAt: row.supersededAt!.toISOString() })),
   };
 }
 
@@ -78,7 +85,6 @@ export function toRecipeDraftDto(row: RecipeDraftRow): RecipeDraft {
     generationSpec: row.generationSpec ?? null,
     provenanceUrl: row.provenanceUrl,
     provenanceLicense: row.provenanceLicense,
-    shippedPRUrl: row.shippedPRUrl,
     shippedAt: row.shippedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -99,7 +105,6 @@ export function toIngredientNameDraftDto(row: IngredientNameDraftRow): Ingredien
     batchId: row.batchId,
     modelUsed: row.modelUsed,
     generatorPrompt: row.generatorPrompt,
-    shippedPRUrl: row.shippedPRUrl,
     shippedAt: row.shippedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -111,7 +116,8 @@ export function toIngredientNameDraftDto(row: IngredientNameDraftRow): Ingredien
 export function localeMap(raw: unknown): Record<string, string> {
   const out: Record<string, string> = {};
   if (raw && typeof raw === 'object') {
-    for (const [locale, value] of Object.entries(raw)) if (typeof value === 'string') out[locale] = value;
+    for (const [locale, value] of Object.entries(raw))
+      if (typeof value === 'string') out[locale] = value;
   }
   return out;
 }
@@ -120,17 +126,22 @@ export function localeMap(raw: unknown): Record<string, string> {
 export function localeStepsMap(raw: unknown): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   if (raw && typeof raw === 'object') {
-    for (const [locale, value] of Object.entries(raw)) if (Array.isArray(value)) out[locale] = value.map(String);
+    for (const [locale, value] of Object.entries(raw))
+      if (Array.isArray(value)) out[locale] = value.map(String);
   }
   return out;
 }
 
 /** What `locale`'s reviewer has decided about a draft, as it stands now. */
-function reviewed(rows: readonly ReviewRow[], locale: Locale): Pick<RecipeReviewSlice, 'alreadyReviewed' | 'alreadyReviewedAction'> {
+function reviewed(
+  rows: readonly ReviewRow[],
+  locale: Locale,
+): Pick<RecipeReviewSlice, 'alreadyReviewed' | 'alreadyReviewedAction'> {
   const review = currentReviews(rows).find((row) => row.locale === locale);
   return {
     alreadyReviewed: review !== undefined,
-    alreadyReviewedAction: review && (review.action === 'APPROVE' || review.action === 'REJECT') ? review.action : null,
+    alreadyReviewedAction:
+      review && (review.action === 'APPROVE' || review.action === 'REJECT') ? review.action : null,
   };
 }
 
@@ -170,8 +181,14 @@ export function toRecipeReviewSlice(row: RecipeDraftRow, locale: Locale): Recipe
 }
 
 /** An ingredient-name draft as the reviewer of `locale` sees it. */
-export function toIngredientNameReviewSlice(row: IngredientNameDraftRow, locale: Locale): IngredientNameReviewSlice {
-  const suggestions = (row.suggestions ?? {}) as { name?: Record<string, string>; storageHint?: Record<string, string> };
+export function toIngredientNameReviewSlice(
+  row: IngredientNameDraftRow,
+  locale: Locale,
+): IngredientNameReviewSlice {
+  const suggestions = (row.suggestions ?? {}) as {
+    name?: Record<string, string>;
+    storageHint?: Record<string, string>;
+  };
   return {
     id: row.id,
     ingredientSlug: row.ingredientSlug,

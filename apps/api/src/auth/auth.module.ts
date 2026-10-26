@@ -19,7 +19,26 @@ import { TurnstileService } from './turnstile.service.js';
 @Module({
   imports: [PassportModule, JwtModule.register({}), MailModule],
   controllers: [AuthController],
-  providers: [AuthService, AccountEmail, AccountSecondFactor, AddressResealService, BrowserSignIn, SecondFactors, SessionsService, JwtStrategy, TurnstileService, SignUps],
-  exports: [AuthService, AccountEmail, AccountSecondFactor, AddressResealService, BrowserSignIn, SecondFactors, SessionsService],
+  providers: [
+    AuthService,
+    AccountEmail,
+    AccountSecondFactor,
+    AddressResealService,
+    BrowserSignIn,
+    SecondFactors,
+    SessionsService,
+    JwtStrategy,
+    TurnstileService,
+    SignUps,
+  ],
+  exports: [
+    AuthService,
+    AccountEmail,
+    AccountSecondFactor,
+    AddressResealService,
+    BrowserSignIn,
+    SecondFactors,
+    SessionsService,
+  ],
 })
 export class AuthModule {}

@@ -17,7 +17,9 @@ const recipe = (overrides: Partial<FingerprintInput> = {}): FingerprintInput => 
 describe('computeFingerprint', () => {
   it('has a fixed value for a fixed recipe', () => {
     // Pinned: stored fingerprints stop matching the moment the canonical form changes.
-    expect(computeFingerprint(recipe())).toBe('47a48136f83b706a9ff3d14369a1a268c4d83318d646126f181445b5ab588fa5');
+    expect(computeFingerprint(recipe())).toBe(
+      '47a48136f83b706a9ff3d14369a1a268c4d83318d646126f181445b5ab588fa5',
+    );
   });
 
   it('does not depend on the order of the lines or of the meals', () => {
@@ -48,20 +50,49 @@ describe('computeFingerprint', () => {
   });
 
   it('ignores a meal named twice', () => {
-    expect(computeFingerprint(recipe({ mealTypes: ['lunch', 'dinner', 'lunch'] }))).toBe(computeFingerprint(recipe()));
+    expect(computeFingerprint(recipe({ mealTypes: ['lunch', 'dinner', 'lunch'] }))).toBe(
+      computeFingerprint(recipe()),
+    );
   });
 
   it('treats the noise of floating-point arithmetic as nothing', () => {
     const noisy = recipe({
-      ingredients: recipe().ingredients.map((line) => ({ ...line, quantity: line.quantity + 0.00000001 })),
+      ingredients: recipe().ingredients.map((line) => ({
+        ...line,
+        quantity: line.quantity + 0.00000001,
+      })),
     });
     expect(computeFingerprint(noisy)).toBe(computeFingerprint(recipe()));
   });
 
   it.each<[string, Partial<FingerprintInput>]>([
-    ['another quantity', { ingredients: [{ slug: 'chicken-breast', quantity: 150.1, unit: 'g' }, ...recipe().ingredients.slice(1)] }],
-    ['another ingredient', { ingredients: [{ slug: 'firm-tofu', quantity: 150, unit: 'g' }, ...recipe().ingredients.slice(1)] }],
-    ['another unit for the same number', { ingredients: [...recipe().ingredients.slice(0, 2), { slug: 'olive-oil', quantity: 10, unit: 'g' }] }],
+    [
+      'another quantity',
+      {
+        ingredients: [
+          { slug: 'chicken-breast', quantity: 150.1, unit: 'g' },
+          ...recipe().ingredients.slice(1),
+        ],
+      },
+    ],
+    [
+      'another ingredient',
+      {
+        ingredients: [
+          { slug: 'firm-tofu', quantity: 150, unit: 'g' },
+          ...recipe().ingredients.slice(1),
+        ],
+      },
+    ],
+    [
+      'another unit for the same number',
+      {
+        ingredients: [
+          ...recipe().ingredients.slice(0, 2),
+          { slug: 'olive-oil', quantity: 10, unit: 'g' },
+        ],
+      },
+    ],
     ['one line fewer', { ingredients: recipe().ingredients.slice(0, 2) }],
     ['another meal', { mealTypes: ['lunch'] }],
     ['other servings', { servings: 2 }],

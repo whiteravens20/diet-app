@@ -16,7 +16,8 @@ import { useErrorText } from '@/lib/use-error-text';
 import { useFormat } from '@/lib/use-format';
 
 /** An address of the web, and nothing else: only such a one is made a link. */
-const onTheWeb = (address: string | null): address is string => address !== null && /^https?:\/\//i.test(address);
+const onTheWeb = (address: string | null): address is string =>
+  address !== null && /^https?:\/\//i.test(address);
 
 /** The site an address is on, for a link that is read: `recipes.example`. */
 function siteOf(address: string): string {
@@ -103,7 +104,10 @@ export function RecipeView({
   const amount = useAmount();
   const qc = useQueryClient();
 
-  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
 
   const favorites = useQuery({
     queryKey: ['favorites-index'],
@@ -121,8 +125,7 @@ export function RecipeView({
   });
 
   const addFav = useMutation({
-    mutationFn: (profileId: string) =>
-      api.post('/favorites', { profileId, recipeId: recipe.id }),
+    mutationFn: (profileId: string) => api.post('/favorites', { profileId, recipeId: recipe.id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['favorites-index'] }),
   });
   const removeFav = useMutation({
@@ -135,10 +138,10 @@ export function RecipeView({
   const [prefsError, setPrefsError] = useState<string | null>(null);
 
   const savePrefs = useMutation({
-    mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) => api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
+    mutationFn: (v: { profile: Profile; preferences: ProfilePreferencesPatch }) =>
+      api.patch<Profile>(`/profiles/${v.profile.id}/preferences`, v.preferences),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profiles'] }),
-    onError: (e) =>
-      setPrefsError(errorText(e, t('prefsSaveFailed'))),
+    onError: (e) => setPrefsError(errorText(e, t('prefsSaveFailed'))),
   });
 
   const profileList = profiles.data ?? [];
@@ -150,10 +153,7 @@ export function RecipeView({
     activePrefsProfile?.preferences.excludedIngredientIds ?? [],
   );
 
-  function toggleIngredientPref(
-    ingredientId: string,
-    target: 'favorite' | 'avoid',
-  ): void {
+  function toggleIngredientPref(ingredientId: string, target: 'favorite' | 'avoid'): void {
     const profile = activePrefsProfile;
     if (!profile) return;
     setPrefsError(null);
@@ -209,7 +209,11 @@ export function RecipeView({
             </span>
           ))}
           {/* The kitchen the recipe belongs to, for the recipes that belong to one. */}
-          {recipe.cuisine && <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{t('cuisine', { cuisine: tCuisine(recipe.cuisine) })}</span>}
+          {recipe.cuisine && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+              {t('cuisine', { cuisine: tCuisine(recipe.cuisine) })}
+            </span>
+          )}
         </div>
         {recipe.source && <RecipeSourceLine source={recipe.source} />}
       </div>

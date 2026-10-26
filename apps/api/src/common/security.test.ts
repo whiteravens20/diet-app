@@ -41,7 +41,9 @@ describe('API security headers', () => {
     // Over plain http a browser ignores the header: a home instance on a LAN address does not send it.
     expect(plain.headers['strict-transport-security']).toBeUndefined();
     expect(secure.headers['strict-transport-security']).toBe('max-age=63072000; includeSubDomains');
-    expect(withSwagger.headers['strict-transport-security']).toBe('max-age=63072000; includeSubDomains');
+    expect(withSwagger.headers['strict-transport-security']).toBe(
+      'max-age=63072000; includeSubDomains',
+    );
   });
 
   it('lets nothing load from, or frame, an API response', async () => {

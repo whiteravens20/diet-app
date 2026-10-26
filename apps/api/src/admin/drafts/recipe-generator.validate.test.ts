@@ -411,7 +411,10 @@ describe('validateRecipeBatch', () => {
       rawOutput: wrap([recipeShell(), recipeShell()]),
       resolveSlug,
     });
-    expect(r).toMatchObject({ ok: true, refused: [{ reason: 'duplicate-slug-in-batch', key: 'chicken-rice-bowl' }] });
+    expect(r).toMatchObject({
+      ok: true,
+      refused: [{ reason: 'duplicate-slug-in-batch', key: 'chicken-rice-bowl' }],
+    });
     expect(r.ok && r.candidates.map((recipe) => recipe.slug)).toEqual(['chicken-rice-bowl']);
   });
 
@@ -420,8 +423,20 @@ describe('validateRecipeBatch', () => {
       targetLocales: ['en', 'pl'],
       rawOutput: wrap([
         recipeShell(),
-        recipeShell({ slug: 'dragon-bowl', titles: { en: 'Dragon bowl', pl: 'Smocza miska' }, ingredients: [{ slug: 'dragon-fruit', quantity: 100, unit: 'g' }, { slug: 'white-rice', quantity: 80, unit: 'g' }, { slug: 'olive-oil', quantity: 10, unit: 'ml' }] }),
-        recipeShell({ slug: 'no-steps', titles: { en: 'A dish without steps', pl: 'Danie bez kroków' }, steps: { en: [''], pl: [''] } }),
+        recipeShell({
+          slug: 'dragon-bowl',
+          titles: { en: 'Dragon bowl', pl: 'Smocza miska' },
+          ingredients: [
+            { slug: 'dragon-fruit', quantity: 100, unit: 'g' },
+            { slug: 'white-rice', quantity: 80, unit: 'g' },
+            { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+          ],
+        }),
+        recipeShell({
+          slug: 'no-steps',
+          titles: { en: 'A dish without steps', pl: 'Danie bez kroków' },
+          steps: { en: [''], pl: [''] },
+        }),
       ]),
       resolveSlug,
     });
@@ -436,7 +451,16 @@ describe('validateRecipeBatch', () => {
   it('says the first refusal of an answer nothing can be kept of', () => {
     const r = validateRecipeBatch({
       targetLocales: ['en', 'pl'],
-      rawOutput: wrap([recipeShell({ ingredients: [{ slug: 'dragon-fruit', quantity: 100, unit: 'g' }, { slug: 'white-rice', quantity: 80, unit: 'g' }, { slug: 'olive-oil', quantity: 10, unit: 'ml' }] }), recipeShell({ slug: 'second', steps: { en: [''], pl: [''] } })]),
+      rawOutput: wrap([
+        recipeShell({
+          ingredients: [
+            { slug: 'dragon-fruit', quantity: 100, unit: 'g' },
+            { slug: 'white-rice', quantity: 80, unit: 'g' },
+            { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+          ],
+        }),
+        recipeShell({ slug: 'second', steps: { en: [''], pl: [''] } }),
+      ]),
       resolveSlug,
     });
 
@@ -445,7 +469,12 @@ describe('validateRecipeBatch', () => {
 
   it('refuses a recipe for a meal that was not asked for, and takes one that names it among others', () => {
     const forMeals = (mealTypes: string[], requiredMeals: string[]) => {
-      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ mealTypes })]), resolveSlug, requiredMeals });
+      const result = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell({ mealTypes })]),
+        resolveSlug,
+        requiredMeals,
+      });
       return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
     };
 
@@ -456,26 +485,45 @@ describe('validateRecipeBatch', () => {
 
   it('refuses a main dish that also says it is a small meal, whatever was asked for, and takes meals of one kind together', () => {
     const forMeals = (mealTypes: string[], requiredMeals: string[] = []) => {
-      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ mealTypes })]), resolveSlug, requiredMeals });
+      const result = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell({ mealTypes })]),
+        resolveSlug,
+        requiredMeals,
+      });
       return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
     };
 
     // A dinner stretched to fit the snack that was asked for.
-    expect(forMeals(['lunch', 'dinner', 'snack'], ['snack'])).toBe('meals-of-two-kinds at chicken-rice-bowl');
+    expect(forMeals(['lunch', 'dinner', 'snack'], ['snack'])).toBe(
+      'meals-of-two-kinds at chicken-rice-bowl',
+    );
     expect(forMeals(['breakfast', 'lunch'])).toBe('meals-of-two-kinds at chicken-rice-bowl');
-    expect(forMeals(['second_breakfast', 'dinner'])).toBe('meals-of-two-kinds at chicken-rice-bowl');
+    expect(forMeals(['second_breakfast', 'dinner'])).toBe(
+      'meals-of-two-kinds at chicken-rice-bowl',
+    );
     expect(forMeals(['lunch', 'dinner'])).toBe('accepted');
     expect(forMeals(['breakfast', 'second_breakfast', 'snack'])).toBe('accepted');
   });
 
   it('refuses a recipe that has more steps in one language than in another', () => {
     const told = (pl: string[]) => {
-      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ steps: { en: ['Cook the rice.', 'Sear the chicken.', 'Serve with spinach.'], pl } })]), resolveSlug });
+      const result = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([
+          recipeShell({
+            steps: { en: ['Cook the rice.', 'Sear the chicken.', 'Serve with spinach.'], pl },
+          }),
+        ]),
+        resolveSlug,
+      });
       return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
     };
 
     // An answer that broke off in its second language.
-    expect(told(['Ugotuj ryż.', 'Podsmaż kur'])).toBe('steps-differ-between-languages at chicken-rice-bowl.steps');
+    expect(told(['Ugotuj ryż.', 'Podsmaż kur'])).toBe(
+      'steps-differ-between-languages at chicken-rice-bowl.steps',
+    );
     expect(told(['Ugotuj ryż.', 'Podsmaż kurczaka.', 'Podawaj ze szpinakiem.'])).toBe('accepted');
   });
 
@@ -492,33 +540,90 @@ describe('validateRecipeBatch', () => {
       { slug: 'blueberries', name: 'Blueberries' },
     ];
     /** How a recipe is judged with the catalogue's names, or without them when `names` is null. */
-    const judged = (overrides: Record<string, unknown>, names: typeof catalogueNames | null = catalogueNames) => {
-      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell(overrides)]), resolveSlug, catalogueNames: names ?? undefined });
+    const judged = (
+      overrides: Record<string, unknown>,
+      names: typeof catalogueNames | null = catalogueNames,
+    ) => {
+      const result = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell(overrides)]),
+        resolveSlug,
+        catalogueNames: names ?? undefined,
+      });
       return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
     };
     const steps = (...en: string[]) => ({ steps: { en, pl: en.map(() => 'Krok.') } });
 
     it('is refused when its own list does not hold that ingredient', () => {
-      expect(judged(steps('Cook the rice.', 'Season the chicken with salt.', 'Serve with spinach.'))).toBe('names-what-its-list-lacks at chicken-rice-bowl.salt');
+      expect(
+        judged(steps('Cook the rice.', 'Season the chicken with salt.', 'Serve with spinach.')),
+      ).toBe('names-what-its-list-lacks at chicken-rice-bowl.salt');
       // One of them or several, and in the title as well.
-      expect(judged(steps('Cook the rice.', 'Fry a mushroom with the chicken.', 'Serve with spinach.'))).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
-      expect(judged(steps('Cook the rice.', 'Sear the chicken.', 'Serve with spinach and a blueberry.'))).toBe('names-what-its-list-lacks at chicken-rice-bowl.blueberries');
-      expect(judged({ titles: { en: 'Chicken rice bowl with mushrooms', pl: 'Miska ryżu z kurczakiem' } })).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
+      expect(
+        judged(steps('Cook the rice.', 'Fry a mushroom with the chicken.', 'Serve with spinach.')),
+      ).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
+      expect(
+        judged(steps('Cook the rice.', 'Sear the chicken.', 'Serve with spinach and a blueberry.')),
+      ).toBe('names-what-its-list-lacks at chicken-rice-bowl.blueberries');
+      expect(
+        judged({
+          titles: { en: 'Chicken rice bowl with mushrooms', pl: 'Miska ryżu z kurczakiem' },
+        }),
+      ).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
     });
 
     it('is taken when the list holds it, or an ingredient whose own name holds the word', () => {
-      expect(judged(steps('Cook the rice.', 'Sear the chicken.', 'Serve with spinach.'))).toBe('accepted');
-      const withPeanutButter = { prepMinutes: 5, cookMinutes: 15, descriptions: { en: 'Chicken on rice with a peanut glaze.', pl: 'Kurczak na ryżu z glazurą orzechową.' }, ingredients: [{ slug: 'chicken-breast', quantity: 300, unit: 'g' }, { slug: 'white-rice', quantity: 160, unit: 'g' }, { slug: 'peanut-butter', quantity: 20, unit: 'g' }] };
-      expect(judged({ ...withPeanutButter, ...steps('Cook the rice.', 'Sear the chicken.', 'Stir the butter through.') })).toBe('accepted');
+      expect(judged(steps('Cook the rice.', 'Sear the chicken.', 'Serve with spinach.'))).toBe(
+        'accepted',
+      );
+      const withPeanutButter = {
+        prepMinutes: 5,
+        cookMinutes: 15,
+        descriptions: {
+          en: 'Chicken on rice with a peanut glaze.',
+          pl: 'Kurczak na ryżu z glazurą orzechową.',
+        },
+        ingredients: [
+          { slug: 'chicken-breast', quantity: 300, unit: 'g' },
+          { slug: 'white-rice', quantity: 160, unit: 'g' },
+          { slug: 'peanut-butter', quantity: 20, unit: 'g' },
+        ],
+      };
+      expect(
+        judged({
+          ...withPeanutButter,
+          ...steps('Cook the rice.', 'Sear the chicken.', 'Stir the butter through.'),
+        }),
+      ).toBe('accepted');
     });
 
     it('is refused in the description as well', () => {
-      expect(judged({ descriptions: { en: 'Lean chicken on rice with spinach and mushrooms.', pl: 'Chudy kurczak na ryżu ze szpinakiem.' } })).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
+      expect(
+        judged({
+          descriptions: {
+            en: 'Lean chicken on rice with spinach and mushrooms.',
+            pl: 'Chudy kurczak na ryżu ze szpinakiem.',
+          },
+        }),
+      ).toBe('names-what-its-list-lacks at chicken-rice-bowl.mushrooms');
     });
 
     it('is no matter of a word that only holds the name, nor of a run that was given no names', () => {
-      expect(judged(steps('Cook the rice in salted water.', 'Sear the chicken until buttery.', 'Serve with spinach.'))).toBe('accepted');
-      expect(judged(steps('Cook the rice.', 'Season the chicken with salt.', 'Serve with spinach.'), null)).toBe('accepted');
+      expect(
+        judged(
+          steps(
+            'Cook the rice in salted water.',
+            'Sear the chicken until buttery.',
+            'Serve with spinach.',
+          ),
+        ),
+      ).toBe('accepted');
+      expect(
+        judged(
+          steps('Cook the rice.', 'Season the chicken with salt.', 'Serve with spinach.'),
+          null,
+        ),
+      ).toBe('accepted');
     });
   });
 
@@ -534,30 +639,65 @@ describe('validateRecipeBatch', () => {
     ];
     const judged = (...en: string[]) => {
       const told = { steps: { en, pl: en.map(() => 'Krok.') } };
-      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell(told)]), resolveSlug, catalogueNames });
+      const result = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell(told)]),
+        resolveSlug,
+        catalogueNames,
+      });
       return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
     };
 
     it('is refused: the figures would count what the dish as told does not hold', () => {
-      expect(judged('Cook the rice.', 'Sear the chicken in the olive oil with the garlic.', 'Serve with spinach.')).toBe('listed-but-not-used at chicken-rice-bowl.lemon');
+      expect(
+        judged(
+          'Cook the rice.',
+          'Sear the chicken in the olive oil with the garlic.',
+          'Serve with spinach.',
+        ),
+      ).toBe('listed-but-not-used at chicken-rice-bowl.lemon');
     });
 
     it('is used where a step names a word of its name, and not by a word that only says what it is like', () => {
-      expect(judged('Cook the rice.', 'Sear the chicken in the oil with the garlic.', 'Serve with spinach and a squeeze of lemon.')).toBe('accepted');
-      expect(judged('Sear the chicken in the oil with the garlic.', 'Wilt the spinach.', 'Serve on a white plate with lemon.')).toBe('listed-but-not-used at chicken-rice-bowl.white-rice');
+      expect(
+        judged(
+          'Cook the rice.',
+          'Sear the chicken in the oil with the garlic.',
+          'Serve with spinach and a squeeze of lemon.',
+        ),
+      ).toBe('accepted');
+      expect(
+        judged(
+          'Sear the chicken in the oil with the garlic.',
+          'Wilt the spinach.',
+          'Serve on a white plate with lemon.',
+        ),
+      ).toBe('listed-but-not-used at chicken-rice-bowl.white-rice');
     });
   });
 
   it('refuses a title that names a diet, a band or praise, in the title or in the slug made of it', () => {
     const titled = (slug: string, en: string) => {
-      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ slug, titles: { en, pl: 'Miska ryżu z kurczakiem' } })]), resolveSlug });
+      const result = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell({ slug, titles: { en, pl: 'Miska ryżu z kurczakiem' } })]),
+        resolveSlug,
+      });
       return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
     };
 
-    expect(titled('keto-chicken-bowl', 'Keto chicken bowl')).toBe('title-names-a-diet-or-band at keto-chicken-bowl');
-    expect(titled('chicken-bowl', 'Simple chicken bowl')).toBe('title-names-a-diet-or-band at chicken-bowl');
-    expect(titled('low-carb-chicken-bowl', 'Chicken bowl')).toBe('title-names-a-diet-or-band at low-carb-chicken-bowl');
-    expect(titled('chicken-bowl', 'High-protein chicken bowl')).toBe('title-names-a-diet-or-band at chicken-bowl');
+    expect(titled('keto-chicken-bowl', 'Keto chicken bowl')).toBe(
+      'title-names-a-diet-or-band at keto-chicken-bowl',
+    );
+    expect(titled('chicken-bowl', 'Simple chicken bowl')).toBe(
+      'title-names-a-diet-or-band at chicken-bowl',
+    );
+    expect(titled('low-carb-chicken-bowl', 'Chicken bowl')).toBe(
+      'title-names-a-diet-or-band at low-carb-chicken-bowl',
+    );
+    expect(titled('chicken-bowl', 'High-protein chicken bowl')).toBe(
+      'title-names-a-diet-or-band at chicken-bowl',
+    );
     expect(titled('chicken-rice-bowl', 'Chicken rice bowl')).toBe('accepted');
     // A word that only holds one of them is another word.
     expect(titled('quickbread-with-chicken', 'Quickbread with chicken')).toBe('accepted');
@@ -585,22 +725,36 @@ describe('validateRecipeBatch', () => {
         takenTitles: new Set(taken.titles ?? []),
       });
       const refused = result.ok ? result.refused : [result];
-      return refused.length === 0 ? 'accepted' : refused.map((one) => `${one.reason} at ${one.key}`).join('; ');
+      return refused.length === 0
+        ? 'accepted'
+        : refused.map((one) => `${one.reason} at ${one.key}`).join('; ');
     };
 
     it('is refused: a slug names one recipe', () => {
-      expect(refusal([recipeShell()], { slugs: ['chicken-rice-bowl'] })).toBe('slug-taken at chicken-rice-bowl');
+      expect(refusal([recipeShell()], { slugs: ['chicken-rice-bowl'] })).toBe(
+        'slug-taken at chicken-rice-bowl',
+      );
       expect(refusal([recipeShell()], { slugs: ['another-bowl'] })).toBe('accepted');
     });
 
     it('is refused: an English title names one recipe, however it is cased', () => {
-      expect(refusal([recipeShell({ titles: { en: 'CHICKEN Rice Bowl', pl: 'Miska ryżu z kurczakiem' } })], { titles: ['chicken rice bowl'] })).toBe('title-taken at chicken-rice-bowl');
+      expect(
+        refusal(
+          [recipeShell({ titles: { en: 'CHICKEN Rice Bowl', pl: 'Miska ryżu z kurczakiem' } })],
+          { titles: ['chicken rice bowl'] },
+        ),
+      ).toBe('title-taken at chicken-rice-bowl');
       // The Polish title is nobody's key: only the English one is compared.
       expect(refusal([recipeShell()], { titles: ['miska ryżu z kurczakiem'] })).toBe('accepted');
     });
 
     it('is refused within one answer too, by the title as by the slug', () => {
-      expect(refusal([recipeShell(), recipeShell({ ...other, titles: { en: 'chicken rice BOWL', pl: 'Inna miska' } })])).toBe('duplicate-title-in-batch at lemon-chicken');
+      expect(
+        refusal([
+          recipeShell(),
+          recipeShell({ ...other, titles: { en: 'chicken rice BOWL', pl: 'Inna miska' } }),
+        ]),
+      ).toBe('duplicate-title-in-batch at lemon-chicken');
       expect(refusal([recipeShell(), recipeShell(other)])).toBe('accepted');
     });
   });
@@ -694,60 +848,107 @@ describe('validateRecipeBatch', () => {
       targetLocales: ['en', 'pl'],
       rawOutput: wrap([
         recipeShell({ slug: 'first' }),
-        recipeShell({ slug: 'second', titles: { en: 'The same bowl by another name', pl: 'Ta sama miska' } }),
+        recipeShell({
+          slug: 'second',
+          titles: { en: 'The same bowl by another name', pl: 'Ta sama miska' },
+        }),
       ]),
       resolveSlug,
     });
     expect(r.ok && r.candidates.map((recipe) => recipe.slug)).toEqual(['first']);
-    expect(r.ok && r.refused).toEqual([{ reason: 'duplicate-of-existing', key: 'second', details: expect.stringContaining('first') }]);
+    expect(r.ok && r.refused).toEqual([
+      { reason: 'duplicate-of-existing', key: 'second', details: expect.stringContaining('first') },
+    ]);
   });
 });
 
 describe('what a batch answer may not put into the queue', () => {
   const rejected = (overrides: Record<string, unknown>) => {
-    const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell(overrides)]), resolveSlug });
+    const result = validateRecipeBatch({
+      targetLocales: ['en', 'pl'],
+      rawOutput: wrap([recipeShell(overrides)]),
+      resolveSlug,
+    });
     return result.ok ? 'accepted' : `${result.reason} at ${result.key}`;
   };
 
   it('markup, in a title, a description, a step or a note', () => {
-    expect(rejected({ titles: { en: 'Dish <img src=x onerror=alert(1)>', pl: 'Danie' } })).toBe('markup at chicken-rice-bowl.titles.en');
-    expect(rejected({ descriptions: { en: 'Fine.', pl: '<script>alert(1)</script>' } })).toBe('markup at chicken-rice-bowl.descriptions.pl');
-    expect(rejected({ steps: { en: ['<svg onload=alert(1)>', 'Serve.'], pl: ['Gotuj.', 'Podawaj.'] } })).toBe('markup at chicken-rice-bowl.steps.en[0]');
-    expect(rejected({ ingredients: [{ slug: 'chicken-breast', quantity: 300, unit: 'g', note: '<b>diced</b>' }] })).toBe('markup at chicken-rice-bowl.ingredients[0].note');
+    expect(rejected({ titles: { en: 'Dish <img src=x onerror=alert(1)>', pl: 'Danie' } })).toBe(
+      'markup at chicken-rice-bowl.titles.en',
+    );
+    expect(rejected({ descriptions: { en: 'Fine.', pl: '<script>alert(1)</script>' } })).toBe(
+      'markup at chicken-rice-bowl.descriptions.pl',
+    );
+    expect(
+      rejected({ steps: { en: ['<svg onload=alert(1)>', 'Serve.'], pl: ['Gotuj.', 'Podawaj.'] } }),
+    ).toBe('markup at chicken-rice-bowl.steps.en[0]');
+    expect(
+      rejected({
+        ingredients: [{ slug: 'chicken-breast', quantity: 300, unit: 'g', note: '<b>diced</b>' }],
+      }),
+    ).toBe('markup at chicken-rice-bowl.ingredients[0].note');
   });
 
   it('a hidden character that reorders or splits what is read', () => {
-    expect(rejected({ titles: { en: 'Chicken \u202ebowl', pl: 'Miska' } })).toBe('markup at chicken-rice-bowl.titles.en');
-    expect(rejected({ titles: { en: 'Chicken\u200b bowl', pl: 'Miska' } })).toBe('markup at chicken-rice-bowl.titles.en');
+    expect(rejected({ titles: { en: 'Chicken \u202ebowl', pl: 'Miska' } })).toBe(
+      'markup at chicken-rice-bowl.titles.en',
+    );
+    expect(rejected({ titles: { en: 'Chicken\u200b bowl', pl: 'Miska' } })).toBe(
+      'markup at chicken-rice-bowl.titles.en',
+    );
   });
 
   it('text longer than a recipe card holds', () => {
-    expect(rejected({ titles: { en: 'a'.repeat(121), pl: 'Miska' } })).toBe('text-too-long at chicken-rice-bowl.titles.en');
-    expect(rejected({ descriptions: { en: 'a'.repeat(601), pl: 'Opis.' } })).toBe('text-too-long at chicken-rice-bowl.descriptions.en');
-    expect(rejected({ steps: { en: ['a'.repeat(301)], pl: ['Krok.'] } })).toBe('text-too-long at chicken-rice-bowl.steps.en[0]');
+    expect(rejected({ titles: { en: 'a'.repeat(121), pl: 'Miska' } })).toBe(
+      'text-too-long at chicken-rice-bowl.titles.en',
+    );
+    expect(rejected({ descriptions: { en: 'a'.repeat(601), pl: 'Opis.' } })).toBe(
+      'text-too-long at chicken-rice-bowl.descriptions.en',
+    );
+    expect(rejected({ steps: { en: ['a'.repeat(301)], pl: ['Krok.'] } })).toBe(
+      'text-too-long at chicken-rice-bowl.steps.en[0]',
+    );
   });
 
   it('more of one ingredient than a serving can hold', () => {
-    expect(rejected({ ingredients: [{ slug: 'white-rice', quantity: 10_000, unit: 'g' }, { slug: 'spinach', quantity: 100, unit: 'g' }, { slug: 'olive-oil', quantity: 10, unit: 'ml' }] })).toBe(
-      'quantity-too-large at chicken-rice-bowl.ingredients[0].quantity',
-    );
+    expect(
+      rejected({
+        ingredients: [
+          { slug: 'white-rice', quantity: 10_000, unit: 'g' },
+          { slug: 'spinach', quantity: 100, unit: 'g' },
+          { slug: 'olive-oil', quantity: 10, unit: 'ml' },
+        ],
+      }),
+    ).toBe('quantity-too-large at chicken-rice-bowl.ingredients[0].quantity');
   });
 
   it('servings or times that are not those of a meal', () => {
     expect(rejected({ servings: 0 })).toBe('servings-out-of-range at chicken-rice-bowl.servings');
     expect(rejected({ servings: 500 })).toBe('servings-out-of-range at chicken-rice-bowl.servings');
-    expect(rejected({ cookMinutes: -5 })).toBe('time-out-of-range at chicken-rice-bowl.cookMinutes');
+    expect(rejected({ cookMinutes: -5 })).toBe(
+      'time-out-of-range at chicken-rice-bowl.cookMinutes',
+    );
   });
 
   it('a meal the planner does not know, a difficulty or a unit there is none of', () => {
-    expect(rejected({ mealTypes: ['brunch'] })).toBe('invalid-meal-type at chicken-rice-bowl.mealTypes[0]');
-    expect(rejected({ difficulty: 'trivial' })).toBe('invalid-difficulty at chicken-rice-bowl.difficulty');
-    expect(rejected({ ingredients: [{ slug: 'white-rice', quantity: 1, unit: 'cup' }] })).toBe('invalid-unit at chicken-rice-bowl.ingredients[0].unit');
+    expect(rejected({ mealTypes: ['brunch'] })).toBe(
+      'invalid-meal-type at chicken-rice-bowl.mealTypes[0]',
+    );
+    expect(rejected({ difficulty: 'trivial' })).toBe(
+      'invalid-difficulty at chicken-rice-bowl.difficulty',
+    );
+    expect(rejected({ ingredients: [{ slug: 'white-rice', quantity: 1, unit: 'cup' }] })).toBe(
+      'invalid-unit at chicken-rice-bowl.ingredients[0].unit',
+    );
   });
 
   it('a slug that is not one: taken as the plain slug it means, and refused when it means none', () => {
     const slugOf = (slug: string) => {
-      const result = validateRecipeBatch({ targetLocales: ['en', 'pl'], rawOutput: wrap([recipeShell({ slug })]), resolveSlug });
+      const result = validateRecipeBatch({
+        targetLocales: ['en', 'pl'],
+        rawOutput: wrap([recipeShell({ slug })]),
+        resolveSlug,
+      });
       return result.ok ? result.candidates[0]!.slug : result.reason;
     };
 
@@ -763,7 +964,12 @@ describe('what a batch answer may not put into the queue', () => {
   it('keeps text as one plain line, and text for the languages of the run only', () => {
     const result = validateRecipeBatch({
       targetLocales: ['en'],
-      rawOutput: wrap([recipeShell({ titles: { en: ' Chicken\n rice  bowl ', pl: 'Miska', de: 'Schüssel' }, descriptions: { en: 'Lean\tchicken.', pl: 'Kurczak.' } })]),
+      rawOutput: wrap([
+        recipeShell({
+          titles: { en: ' Chicken\n rice  bowl ', pl: 'Miska', de: 'Schüssel' },
+          descriptions: { en: 'Lean\tchicken.', pl: 'Kurczak.' },
+        }),
+      ]),
       resolveSlug,
     });
 

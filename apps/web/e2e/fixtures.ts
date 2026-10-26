@@ -3,7 +3,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
-import { test as base, expect, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import {
+  test as base,
+  expect,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 import { accountOf, STATE, type Account } from './accounts';
 
 export type AppLocale = 'en' | 'pl';
@@ -16,7 +22,8 @@ export interface Options {
 
 /** The texts of the application in a language, as the pages show them: a test finds things by them. */
 export type Messages = Record<string, Record<string, unknown>>;
-const messagesOf = (locale: AppLocale): Messages => JSON.parse(readFileSync(join(__dirname, '..', 'messages', `${locale}.json`), 'utf8')) as Messages;
+const messagesOf = (locale: AppLocale): Messages =>
+  JSON.parse(readFileSync(join(__dirname, '..', 'messages', `${locale}.json`), 'utf8')) as Messages;
 
 /** A browser that is signed in as the project's account, in its language and at its size. */
 export interface Session {
@@ -44,15 +51,24 @@ async function watchThePolicy(context: BrowserContext): Promise<void> {
   });
   await context.addInitScript(() => {
     document.addEventListener('securitypolicyviolation', (event) => {
-      const where = event.sourceFile ? ` in ${new URL(event.sourceFile, location.href).pathname}:${event.lineNumber}` : '';
-      const told = (window as unknown as { policyBroken: (violation: string) => void }).policyBroken;
-      told(`${event.effectiveDirective} blocked ${event.blockedURI || 'something'} on ${location.pathname}${where}`);
+      const where = event.sourceFile
+        ? ` in ${new URL(event.sourceFile, location.href).pathname}:${event.lineNumber}`
+        : '';
+      const told = (window as unknown as { policyBroken: (violation: string) => void })
+        .policyBroken;
+      told(
+        `${event.effectiveDirective} blocked ${event.blockedURI || 'something'} on ${location.pathname}${where}`,
+      );
     });
   });
 }
 
 /** Fill in the sign-in form the page shows, and send it. Where that leads is the caller's to wait for. */
-export async function signInHere(page: Page, account: Pick<Account, 'email' | 'password'>, messages: Messages): Promise<void> {
+export async function signInHere(
+  page: Page,
+  account: Pick<Account, 'email' | 'password'>,
+  messages: Messages,
+): Promise<void> {
   const auth = messages.auth as Record<string, string>;
   await page.getByLabel(auth.email!).fill(account.email);
   await page.getByLabel(auth.password!, { exact: true }).fill(account.password);
@@ -65,7 +81,16 @@ async function signIn(page: Page, account: Account, locale: AppLocale): Promise<
   await page.waitForURL('**/dashboard');
 }
 
-export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anonymous: Page; sessionKept: void; policyKept: void }, { account: Account; session: Session }>({
+export const test = base.extend<
+  {
+    appLocale: AppLocale;
+    messages: Messages;
+    anonymous: Page;
+    sessionKept: void;
+    policyKept: void;
+  },
+  { account: Account; session: Session }
+>({
   appLocale: ['en', { option: true }],
 
   messages: async ({ appLocale }, provide) => {
@@ -93,17 +118,30 @@ export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anon
    */
   session: [
     async ({ browser, account }, provide, workerInfo) => {
-      const { baseURL, viewport, colorScheme, hasTouch, isMobile, reducedMotion } = workerInfo.project.use;
+      const { baseURL, viewport, colorScheme, hasTouch, isMobile, reducedMotion } =
+        workerInfo.project.use;
       const appLocale = (workerInfo.project.use as Options).appLocale ?? 'en';
       const kept = join(STATE, `${workerInfo.project.name}.json`);
-      const context = await browser.newContext({ baseURL, viewport, colorScheme, hasTouch, isMobile, reducedMotion, storageState: existsSync(kept) ? kept : undefined });
+      const context = await browser.newContext({
+        baseURL,
+        viewport,
+        colorScheme,
+        hasTouch,
+        isMobile,
+        reducedMotion,
+        storageState: existsSync(kept) ? kept : undefined,
+      });
       await context.addCookies([{ name: 'NEXT_LOCALE', value: appLocale, url: baseURL! }]);
       await watchThePolicy(context);
       const page = await context.newPage();
-      const answered = page.waitForResponse((res) => res.url().endsWith('/api/users/me') && res.ok(), { timeout: 8_000 }).then(
-        () => true,
-        () => false,
-      );
+      const answered = page
+        .waitForResponse((res) => res.url().endsWith('/api/users/me') && res.ok(), {
+          timeout: 8_000,
+        })
+        .then(
+          () => true,
+          () => false,
+        );
       await page.goto('/dashboard');
       // A browser without a session is sent to the sign-in form before the page
       // is rendered; one whose session has ended, when the page asks for it.
@@ -129,7 +167,9 @@ export const test = base.extend<{ appLocale: AppLocale; messages: Messages; anon
     async ({}, provide) => {
       violationsSeen();
       await provide();
-      expect(violationsSeen(), 'what the pages did against their content security policy').toEqual([]);
+      expect(violationsSeen(), 'what the pages did against their content security policy').toEqual(
+        [],
+      );
     },
     { auto: true },
   ],
@@ -164,5 +204,10 @@ export async function barriers(page: Page): Promise<string[]> {
   const { violations } = await new AxeBuilder({ page }).withTags(RULES).analyze();
   return violations
     .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
-    .flatMap((violation) => violation.nodes.map((node) => `${violation.id}: ${node.target.join(' ')} — ${node.failureSummary?.split('\n').slice(1).join(' ').trim().slice(0, 200)}`));
+    .flatMap((violation) =>
+      violation.nodes.map(
+        (node) =>
+          `${violation.id}: ${node.target.join(' ')} — ${node.failureSummary?.split('\n').slice(1).join(' ').trim().slice(0, 200)}`,
+      ),
+    );
 }

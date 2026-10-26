@@ -12,15 +12,30 @@ import { FavoriteSetsCard } from './favorite-sets-card';
 
 const text = messages.favoriteSets;
 const PROFILE = '11111111-1111-4111-8111-111111111111';
-const liked = (id: string, title: string) => ({ id: `mark-${id}`, sentiment: 'like', recipe: { id, title, mealTypes: ['breakfast'] } });
-const aSet: FavoriteSet = { id: '22222222-2222-4222-8222-222222222222', profileId: PROFILE, label: 'Workday', slots: { breakfast: 'r-oats' }, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' };
+const liked = (id: string, title: string) => ({
+  id: `mark-${id}`,
+  sentiment: 'like',
+  recipe: { id, title, mealTypes: ['breakfast'] },
+});
+const aSet: FavoriteSet = {
+  id: '22222222-2222-4222-8222-222222222222',
+  profileId: PROFILE,
+  label: 'Workday',
+  slots: { breakfast: 'r-oats' },
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
 
 /** The card of a profile with these marked recipes and these sets. */
 async function renderCard(favorites: unknown[], sets: FavoriteSet[]) {
-  vi.spyOn(api, 'get').mockImplementation((path: string) => Promise.resolve((path.startsWith('/favorite-sets') ? sets : favorites) as never));
+  vi.spyOn(api, 'get').mockImplementation((path: string) =>
+    Promise.resolve((path.startsWith('/favorite-sets') ? sets : favorites) as never),
+  );
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <FavoriteSetsCard profileId={PROFILE} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
@@ -28,7 +43,7 @@ async function renderCard(favorites: unknown[], sets: FavoriteSet[]) {
   await screen.findByText(text.title);
 }
 
-describe('the card of a profile\'s favourite sets', () => {
+describe("the card of a profile's favourite sets", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -37,7 +52,10 @@ describe('the card of a profile\'s favourite sets', () => {
     await renderCard([], []);
 
     expect(await screen.findByText(text.noFavorites)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: text.noFavoritesCta })).toHaveAttribute('href', '/recipes');
+    expect(screen.getByRole('link', { name: text.noFavoritesCta })).toHaveAttribute(
+      'href',
+      '/recipes',
+    );
     expect(screen.queryByRole('button', { name: text.newSet })).not.toBeInTheDocument();
   });
 
@@ -65,7 +83,9 @@ describe('the card of a profile\'s favourite sets', () => {
     vi.spyOn(api, 'get').mockImplementation(() => new Promise(() => undefined));
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
           <FavoriteSetsCard profileId={PROFILE} />
         </QueryClientProvider>
       </NextIntlClientProvider>,

@@ -36,13 +36,20 @@ describe('the link that confirms the address of an account, asked for again', ()
 
   const again = () => t.http().post('/api/users/me/email/resend-verification').set(as(user));
   /** Pretend the last mail went out `minutes` ago. */
-  const sentAgo = (minutes: number) => t.prisma.emailVerificationToken.updateMany({ where: { userId: user.id }, data: { lastSentAt: new Date(Date.now() - minutes * MINUTE) } });
-  const links = async (): Promise<string[]> => (await mailbox.to(user.email)).map((mail) => /token=([0-9a-f]+)/.exec(mail.text)![1]!);
+  const sentAgo = (minutes: number) =>
+    t.prisma.emailVerificationToken.updateMany({
+      where: { userId: user.id },
+      data: { lastSentAt: new Date(Date.now() - minutes * MINUTE) },
+    });
+  const links = async (): Promise<string[]> =>
+    (await mailbox.to(user.email)).map((mail) => /token=([0-9a-f]+)/.exec(mail.text)![1]!);
 
   it('is sent once when the account is made, which starts unconfirmed', async () => {
     expect(await links()).toHaveLength(1);
     expect((await mailbox.to(user.email))[0]!.subject).toBe('Confirm your Diet App email address');
-    expect((await t.prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified).toBe(false);
+    expect((await t.prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified).toBe(
+      false,
+    );
   });
 
   it('is not sent again within two minutes of the last one, and the answer says how long to wait', async () => {
@@ -64,7 +71,9 @@ describe('the link that confirms the address of an account, asked for again', ()
     expect(second).toBe(first);
     expect(await t.prisma.emailVerificationToken.count({ where: { userId: user.id } })).toBe(1);
     await auth.verifyEmail(first!);
-    await expect(auth.verifyEmail(second!)).rejects.toMatchObject({ response: { error: 'INVALID_VERIFICATION_TOKEN' } });
+    await expect(auth.verifyEmail(second!)).rejects.toMatchObject({
+      response: { error: 'INVALID_VERIFICATION_TOKEN' },
+    });
   });
 
   it('counts the wait from the mail that was sent last', async () => {
@@ -75,25 +84,43 @@ describe('the link that confirms the address of an account, asked for again', ()
   });
 
   it('is a new link once the one before has little time left, and that one stops working', async () => {
-    await t.prisma.emailVerificationToken.updateMany({ where: { userId: user.id }, data: { expiresAt: new Date(Date.now() + 5 * MINUTE), lastSentAt: new Date(Date.now() - 55 * MINUTE) } });
+    await t.prisma.emailVerificationToken.updateMany({
+      where: { userId: user.id },
+      data: {
+        expiresAt: new Date(Date.now() + 5 * MINUTE),
+        lastSentAt: new Date(Date.now() - 55 * MINUTE),
+      },
+    });
 
     await again().expect(202);
 
     const [first, second] = await links();
     expect(second).not.toBe(first);
-    await expect(auth.verifyEmail(first!)).rejects.toMatchObject({ response: { error: 'INVALID_VERIFICATION_TOKEN' } });
+    await expect(auth.verifyEmail(first!)).rejects.toMatchObject({
+      response: { error: 'INVALID_VERIFICATION_TOKEN' },
+    });
     await auth.verifyEmail(second!);
-    expect((await t.prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified).toBe(true);
+    expect((await t.prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified).toBe(
+      true,
+    );
   });
 
   it('is a new link where the one before was made before links could be sent again', async () => {
     // A row whose token nobody can work out from it: as every row was until now.
-    await t.prisma.emailVerificationToken.updateMany({ where: { userId: user.id }, data: { tokenHash: createHash('sha256').update('a-token-of-old').digest('hex'), lastSentAt: new Date(Date.now() - 3 * MINUTE) } });
+    await t.prisma.emailVerificationToken.updateMany({
+      where: { userId: user.id },
+      data: {
+        tokenHash: createHash('sha256').update('a-token-of-old').digest('hex'),
+        lastSentAt: new Date(Date.now() - 3 * MINUTE),
+      },
+    });
 
     await again().expect(202);
 
     const second = (await links()).at(-1)!;
-    await expect(auth.verifyEmail('a-token-of-old')).rejects.toMatchObject({ response: { error: 'INVALID_VERIFICATION_TOKEN' } });
+    await expect(auth.verifyEmail('a-token-of-old')).rejects.toMatchObject({
+      response: { error: 'INVALID_VERIFICATION_TOKEN' },
+    });
     await auth.verifyEmail(second);
   });
 

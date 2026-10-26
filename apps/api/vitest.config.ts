@@ -84,12 +84,13 @@ export default defineConfig({
         'src/recipes/**': { lines: 95, functions: 98, branches: 90, statements: 95 },
         'src/shopping-lists/**': { lines: 95, functions: 96, branches: 78, statements: 91 },
         'src/users/**': { lines: 98, functions: 99, branches: 85, statements: 97 },
-        'src/{app-config,catalogue,config,favorites,health,ingredients,instance-settings,inventory,mail,notifications,policy-reports,prisma,profiles,rate-limit,review,weights}/**': {
-          lines: 96,
-          functions: 94,
-          branches: 88,
-          statements: 95,
-        },
+        'src/{app-config,catalogue,config,favorites,health,ingredients,instance-settings,inventory,mail,notifications,policy-reports,prisma,profiles,rate-limit,review,weights}/**':
+          {
+            lines: 96,
+            functions: 94,
+            branches: 88,
+            statements: 95,
+          },
         'src/admin/admin-session.ts': { lines: 100, functions: 100 },
         'src/ai/ai-key.service.ts': { lines: 98, functions: 100 },
         'src/ai/ai-quota.service.ts': { lines: 100, functions: 100 },

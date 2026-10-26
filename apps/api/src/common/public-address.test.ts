@@ -4,9 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { isPublicAddress } from './public-address.js';
 
 describe('isPublicAddress', () => {
-  it.each(['8.8.8.8', '93.184.216.34', '2606:4700:4700::1111', '::ffff:8.8.8.8'])('%s is public', (address) => {
-    expect(isPublicAddress(address)).toBe(true);
-  });
+  it.each(['8.8.8.8', '93.184.216.34', '2606:4700:4700::1111', '::ffff:8.8.8.8'])(
+    '%s is public',
+    (address) => {
+      expect(isPublicAddress(address)).toBe(true);
+    },
+  );
 
   it.each([
     '127.0.0.1',

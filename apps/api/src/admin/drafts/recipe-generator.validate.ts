@@ -92,7 +92,12 @@ export interface RecipeDraftCandidate {
   cookMinutes: number;
   difficulty: 'easy' | 'medium' | 'hard';
   complexity: Complexity;
-  ingredients: { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
+  ingredients: {
+    slug: string;
+    quantity: number;
+    unit: 'g' | 'ml' | 'piece';
+    note: string | null;
+  }[];
   caloriesPerServing: number;
   proteinPerServing: number;
   fatPerServing: number;
@@ -172,7 +177,8 @@ export function jaccard(a: readonly string[], b: readonly string[]): number {
  * a complexity band; praise. The diets a recipe suits are worked out and shown
  * beside it.
  */
-const TITLE_SAYS_MORE = /\b(keto|ketogenic|low[- ]carb|high[- ]protein|vegan|vegetarian|simple|easy|quick|healthy)\b/i;
+const TITLE_SAYS_MORE =
+  /\b(keto|ketogenic|low[- ]carb|high[- ]protein|vegan|vegetarian|simple|easy|quick|healthy)\b/i;
 
 /** The meals a main dish is eaten at. Every other meal is a small one. */
 const MAIN_MEALS: ReadonlySet<string> = new Set(['lunch', 'dinner']);
@@ -196,7 +202,11 @@ export function namedByOneWord(names: readonly { slug: string; name: string }[])
     .map(({ slug, name }) => ({ slug, word: name.trim().toLowerCase() }))
     .filter(({ word }) => /^[a-z]{3,}$/.test(word))
     .map(({ slug, word }) => {
-      const [stem, endings] = word.endsWith('ies') ? [word.slice(0, -3), '(?:y|ies)'] : word.endsWith('s') ? [word.slice(0, -1), 's?'] : [word, '(?:s|es)?'];
+      const [stem, endings] = word.endsWith('ies')
+        ? [word.slice(0, -3), '(?:y|ies)']
+        : word.endsWith('s')
+          ? [word.slice(0, -1), 's?']
+          : [word, '(?:s|es)?'];
       return { slug, stem, found: new RegExp(`\\b${stem}${endings}\\b`) };
     });
 }
@@ -207,7 +217,12 @@ export function namedByOneWord(names: readonly { slug: string; name: string }[])
  * word answers for it: peanut butter for "butter", canned tomatoes for
  * "tomato".
  */
-export function namedButNotListed(text: string, listed: readonly string[], named: readonly NamedByOneWord[], nameOf: ReadonlyMap<string, string>): string | null {
+export function namedButNotListed(
+  text: string,
+  listed: readonly string[],
+  named: readonly NamedByOneWord[],
+  nameOf: ReadonlyMap<string, string>,
+): string | null {
   const lower = text.toLowerCase();
   const have = listed.map((slug) => (nameOf.get(slug) ?? slug).toLowerCase());
   for (const { slug, stem, found } of named) {
@@ -218,7 +233,39 @@ export function namedButNotListed(text: string, listed: readonly string[], named
 }
 
 /** Words of an ingredient's name that say what it is like, not what it is: "white" rice, a "large" egg. */
-const DESCRIBING = new Set(['large', 'small', 'whole', 'grain', 'white', 'black', 'red', 'green', 'yellow', 'brown', 'sweet', 'sour', 'heavy', 'light', 'smoked', 'canned', 'rolled', 'dried', 'fresh', 'frozen', 'ground', 'extra', 'virgin', 'raw', 'cooked', 'plain', 'wild', 'baby', 'fillet', 'breast', 'thigh']);
+const DESCRIBING = new Set([
+  'large',
+  'small',
+  'whole',
+  'grain',
+  'white',
+  'black',
+  'red',
+  'green',
+  'yellow',
+  'brown',
+  'sweet',
+  'sour',
+  'heavy',
+  'light',
+  'smoked',
+  'canned',
+  'rolled',
+  'dried',
+  'fresh',
+  'frozen',
+  'ground',
+  'extra',
+  'virgin',
+  'raw',
+  'cooked',
+  'plain',
+  'wild',
+  'baby',
+  'fillet',
+  'breast',
+  'thigh',
+]);
 
 /**
  * The first ingredient of the list that no step uses, or null. An ingredient
@@ -226,31 +273,36 @@ const DESCRIBING = new Set(['large', 'small', 'whole', 'grain', 'white', 'black'
  * oil, "the eggs" for a large egg); a word that only says what it is like
  * ("white", "large") uses nothing. An ingredient without a name is passed over.
  */
-export function listedButNotUsed(steps: string, listed: readonly string[], nameOf: ReadonlyMap<string, string>): string | null {
+export function listedButNotUsed(
+  steps: string,
+  listed: readonly string[],
+  nameOf: ReadonlyMap<string, string>,
+): string | null {
   const lower = steps.toLowerCase();
   for (const slug of listed) {
-    const words = (nameOf.get(slug) ?? '').toLowerCase().split(/[^a-z]+/).filter((word) => word.length >= 3 && !DESCRIBING.has(word));
+    const words = (nameOf.get(slug) ?? '')
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((word) => word.length >= 3 && !DESCRIBING.has(word));
     if (words.length === 0) continue;
-    const used = words.some((word) => new RegExp(`\\b${word.endsWith('ies') ? word.slice(0, -3) : word.endsWith('s') ? word.slice(0, -1) : word}`).test(lower));
+    const used = words.some((word) =>
+      new RegExp(
+        `\\b${word.endsWith('ies') ? word.slice(0, -3) : word.endsWith('s') ? word.slice(0, -1) : word}`,
+      ).test(lower),
+    );
     if (!used) return slug;
   }
   return null;
 }
 
-const LLM_YAP_PATTERNS = [
-  /\bnote\s*:/i,
-  /\bas an ai\b/i,
-  /\bi cannot\b/i,
-  /^here (is|are)\b/i,
-];
+const LLM_YAP_PATTERNS = [/\bnote\s*:/i, /\bas an ai\b/i, /\bi cannot\b/i, /^here (is|are)\b/i];
 
 type Raw = Record<string, unknown>;
 
-const isRecord = (value: unknown): value is Raw => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Raw =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
-export function validateRecipeBatch(
-  opts: ValidateRecipeBatchOptions,
-): RecipeValidationResult {
+export function validateRecipeBatch(opts: ValidateRecipeBatchOptions): RecipeValidationResult {
   const { targetLocales, rawOutput, resolveSlug } = opts;
   const tolerance = opts.nutritionDeltaTolerance ?? 0.05;
   const duplicateThreshold = opts.duplicateThreshold ?? 0.75;
@@ -300,43 +352,84 @@ export function validateRecipeBatch(
     for (const list of Object.values(isRecord(raw.steps) ? raw.steps : {})) {
       for (const step of Array.isArray(list) ? list : []) {
         if (typeof step !== 'string') continue;
-        if (step.trim().length === 0) return { ok: false, reason: 'empty-step', key: `${rowKey}.steps` };
-        if (LLM_YAP_PATTERNS.some((re) => re.test(step))) return { ok: false, reason: 'llm-yap', key: `${rowKey}.steps` };
+        if (step.trim().length === 0)
+          return { ok: false, reason: 'empty-step', key: `${rowKey}.steps` };
+        if (LLM_YAP_PATTERNS.some((re) => re.test(step)))
+          return { ok: false, reason: 'llm-yap', key: `${rowKey}.steps` };
       }
     }
 
     const checked = checkRecipe({ ...raw, slug }, targetLocales);
     if (!checked.ok) {
       const first = checked.problems[0]!;
-      return { ok: false, reason: first.rule, key: `${rowKey}.${first.path}`, details: first.message };
+      return {
+        ok: false,
+        reason: first.rule,
+        key: `${rowKey}.${first.path}`,
+        details: first.message,
+      };
     }
-    const { titles, descriptions, steps, servings, prepMinutes, cookMinutes, difficulty, mealTypes, ingredients } = checked.recipe;
+    const {
+      titles,
+      descriptions,
+      steps,
+      servings,
+      prepMinutes,
+      cookMinutes,
+      difficulty,
+      mealTypes,
+      ingredients,
+    } = checked.recipe;
 
     // Each language tells the same dish step by step. A language with fewer
     // steps than another lost some on the way: an answer that broke off.
     const stepCounts = Object.entries(steps).map(([locale, list]) => `${locale} ${list.length}`);
     if (new Set(Object.values(steps).map((list) => list.length)).size > 1) {
-      return { ok: false, reason: 'steps-differ-between-languages', key: `${rowKey}.steps`, details: stepCounts.join(', ') };
+      return {
+        ok: false,
+        reason: 'steps-differ-between-languages',
+        key: `${rowKey}.steps`,
+        details: stepCounts.join(', '),
+      };
     }
 
     const requiredMeals = opts.requiredMeals ?? [];
     if (requiredMeals.length > 0 && !mealTypes.some((meal) => requiredMeals.includes(meal))) {
-      return { ok: false, reason: 'meal-not-asked-for', key: slug, details: `asked for ${requiredMeals.join(', ')}` };
+      return {
+        ok: false,
+        reason: 'meal-not-asked-for',
+        key: slug,
+        details: `asked for ${requiredMeals.join(', ')}`,
+      };
     }
     // A dish is a main one or a small one. A main dish that also says it is
     // a snack or a breakfast was stretched to fit the meal that was asked
     // for, and a plan would serve half a dinner between meals.
-    if (mealTypes.some((meal) => MAIN_MEALS.has(meal)) && mealTypes.some((meal) => !MAIN_MEALS.has(meal))) {
-      return { ok: false, reason: 'meals-of-two-kinds', key: slug, details: `${mealTypes.join(', ')}: a main dish is no breakfast and no snack` };
+    if (
+      mealTypes.some((meal) => MAIN_MEALS.has(meal)) &&
+      mealTypes.some((meal) => !MAIN_MEALS.has(meal))
+    ) {
+      return {
+        ok: false,
+        reason: 'meals-of-two-kinds',
+        key: slug,
+        details: `${mealTypes.join(', ')}: a main dish is no breakfast and no snack`,
+      };
     }
 
     if (TITLE_SAYS_MORE.test(`${slug} ${titles.en ?? ''}`)) {
-      return { ok: false, reason: 'title-names-a-diet-or-band', key: slug, details: 'a title names the dish: what it is made of and how' };
+      return {
+        ok: false,
+        reason: 'title-names-a-diet-or-band',
+        key: slug,
+        details: 'a title names the dish: what it is made of and how',
+      };
     }
 
     // Nor may two recipes share an English title, however it is cased.
     const titleKey = (titles.en ?? '').toLowerCase();
-    if (seenTitles.has(titleKey)) return { ok: false, reason: 'duplicate-title-in-batch', key: slug };
+    if (seenTitles.has(titleKey))
+      return { ok: false, reason: 'duplicate-title-in-batch', key: slug };
     if (opts.takenTitles?.has(titleKey)) return { ok: false, reason: 'title-taken', key: slug };
 
     const resolved: ResolvedIngredient[] = [];
@@ -350,9 +443,19 @@ export function validateRecipeBatch(
     // worked out from its list. A title, a description or a step that names an
     // ingredient the list does not hold describes another dish than the one
     // that is counted, and so does a list with an ingredient no step uses.
-    const lacking = namedButNotListed([titles.en ?? '', descriptions.en ?? '', ...(steps.en ?? [])].join(' '), ingredients.map((line) => line.slug), named, nameOf);
-    if (lacking) return { ok: false, reason: 'names-what-its-list-lacks', key: `${rowKey}.${lacking}` };
-    const unused = listedButNotUsed((steps.en ?? []).join(' '), ingredients.map((line) => line.slug), nameOf);
+    const lacking = namedButNotListed(
+      [titles.en ?? '', descriptions.en ?? '', ...(steps.en ?? [])].join(' '),
+      ingredients.map((line) => line.slug),
+      named,
+      nameOf,
+    );
+    if (lacking)
+      return { ok: false, reason: 'names-what-its-list-lacks', key: `${rowKey}.${lacking}` };
+    const unused = listedButNotUsed(
+      (steps.en ?? []).join(' '),
+      ingredients.map((line) => line.slug),
+      nameOf,
+    );
     if (unused) return { ok: false, reason: 'listed-but-not-used', key: `${rowKey}.${unused}` };
 
     // The band the recipe falls into by its ingredients, steps and time. One
@@ -377,7 +480,11 @@ export function validateRecipeBatch(
     // Nutrition, allergens and diets are worked out by the engine from the
     // ingredient table. A line is checked on its own first, so that a unit
     // that cannot be converted is reported where it is written.
-    const factLines = ingredients.map((line, li) => ({ quantity: line.quantity, unit: line.unit, ingredient: resolved[li]! }));
+    const factLines = ingredients.map((line, li) => ({
+      quantity: line.quantity,
+      unit: line.unit,
+      ingredient: resolved[li]!,
+    }));
     for (const [li, line] of factLines.entries()) {
       try {
         recipeFacts([line], 1);
@@ -417,7 +524,10 @@ export function validateRecipeBatch(
       }
     }
     for (const prior of candidates) {
-      const score = jaccard(newSlugs, prior.ingredients.map((i) => i.slug));
+      const score = jaccard(
+        newSlugs,
+        prior.ingredients.map((i) => i.slug),
+      );
       if (score > duplicateThreshold && (!bestExistingMatch || score > bestExistingMatch.score)) {
         bestExistingMatch = { slug: prior.slug, score };
       }
@@ -476,7 +586,12 @@ export function validateRecipeBatch(
   const refused: RecipeRefusal[] = [];
   for (let i = 0; i < rows.length; i += 1) {
     const judged = judge(i);
-    if ('ok' in judged) refused.push({ reason: judged.reason, ...(judged.key === undefined ? {} : { key: judged.key }), ...(judged.details === undefined ? {} : { details: judged.details }) });
+    if ('ok' in judged)
+      refused.push({
+        reason: judged.reason,
+        ...(judged.key === undefined ? {} : { key: judged.key }),
+        ...(judged.details === undefined ? {} : { details: judged.details }),
+      });
     else candidates.push(judged);
   }
   if (candidates.length === 0) return { ok: false, ...refused[0]! };
@@ -506,4 +621,3 @@ function expectString(v: unknown): string | null {
 function numberOrNull(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
-

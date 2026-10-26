@@ -26,8 +26,12 @@ describe('rate limits behind a proxy that is not trusted', () => {
 
   /** An address nobody has registered, unique to the call. */
   const fresh = (): string => `nobody-${(sequence += 1)}-${Date.now().toString(36)}@example.test`;
-  const login = (email: string, password: string) => t.http().post('/api/auth/login').send({ email, password });
-  const statuses = async (count: number, send: (index: number) => Promise<{ status: number }>): Promise<number[]> => {
+  const login = (email: string, password: string) =>
+    t.http().post('/api/auth/login').send({ email, password });
+  const statuses = async (
+    count: number,
+    send: (index: number) => Promise<{ status: number }>,
+  ): Promise<number[]> => {
     const seen: number[] = [];
     for (let index = 0; index < count; index += 1) seen.push((await send(index)).status);
     return seen;
@@ -37,7 +41,9 @@ describe('rate limits behind a proxy that is not trusted', () => {
     it('stops after ten wrong passwords for one account, for that account and for no other', async () => {
       const [victim, bystander] = [await aUser(t), await aUser(t)];
 
-      expect(await statuses(10, () => login(victim.email, 'not-the-password'))).toEqual(Array(10).fill(401));
+      expect(await statuses(10, () => login(victim.email, 'not-the-password'))).toEqual(
+        Array(10).fill(401),
+      );
 
       // Where everybody has the same address, the account and the address together are the
       // account alone: it is closed for a quarter of an hour, even to its owner.
@@ -61,7 +67,9 @@ describe('rate limits behind a proxy that is not trusted', () => {
     it('is not held up by any number of attempts on accounts that do not exist', async () => {
       const user = await aUser(t);
 
-      expect(await statuses(25, () => login(fresh(), 'whatever-it-is'))).toEqual(Array(25).fill(401));
+      expect(await statuses(25, () => login(fresh(), 'whatever-it-is'))).toEqual(
+        Array(25).fill(401),
+      );
 
       expect((await login(user.email, user.password)).status).toBe(200);
     });
@@ -70,11 +78,18 @@ describe('rate limits behind a proxy that is not trusted', () => {
   describe('the token routes', () => {
     it('count a refresh against the token that is presented, so that nonsense locks out nobody', async () => {
       const user = await aUser(t);
-      const refresh = (refreshToken: string) => t.http().post('/api/auth/refresh').send({ refreshToken });
+      const refresh = (refreshToken: string) =>
+        t.http().post('/api/auth/refresh').send({ refreshToken });
 
       // One made-up token over and over: it runs out. Many made-up tokens: each is refused on its own.
-      expect(await statuses(12, () => refresh('made-up'))).toEqual([...Array(10).fill(401), 429, 429]);
-      expect(await statuses(15, (index) => refresh(`made-up-${index}`))).toEqual(Array(15).fill(401));
+      expect(await statuses(12, () => refresh('made-up'))).toEqual([
+        ...Array(10).fill(401),
+        429,
+        429,
+      ]);
+      expect(await statuses(15, (index) => refresh(`made-up-${index}`))).toEqual(
+        Array(15).fill(401),
+      );
 
       const real = await refresh(user.refreshToken);
       expect(real.status).toBe(200);
@@ -83,11 +98,19 @@ describe('rate limits behind a proxy that is not trusted', () => {
 
     it('count a signed-in sender as well, whom the API knows without an address', async () => {
       const user = await aUser(t);
-      const signOut = (index: number) => t.http().post('/api/auth/logout').set(as(user)).send({ refreshToken: `made-up-for-sign-out-${index}` });
+      const signOut = (index: number) =>
+        t
+          .http()
+          .post('/api/auth/logout')
+          .set(as(user))
+          .send({ refreshToken: `made-up-for-sign-out-${index}` });
 
       expect(await statuses(31, signOut)).toEqual([...Array(30).fill(204), 429]);
       // Nobody else is counted with them: the same without a sign-in goes through.
-      expect((await t.http().post('/api/auth/logout').send({ refreshToken: 'made-up-for-sign-out-31' })).status).toBe(204);
+      expect(
+        (await t.http().post('/api/auth/logout').send({ refreshToken: 'made-up-for-sign-out-31' }))
+          .status,
+      ).toBe(204);
     });
 
     it('count a link from a mail against its token', async () => {
@@ -99,7 +122,8 @@ describe('rate limits behind a proxy that is not trusted', () => {
   });
 
   it('a password reset is asked for at most five times in a quarter of an hour for one address', async () => {
-    const ask = (email: string) => t.http().post('/api/auth/password-reset/request').send({ email });
+    const ask = (email: string) =>
+      t.http().post('/api/auth/password-reset/request').send({ email });
     const address = fresh();
 
     expect(await statuses(6, () => ask(address))).toEqual([202, 202, 202, 202, 202, 429]);
@@ -108,24 +132,38 @@ describe('rate limits behind a proxy that is not trusted', () => {
 
   describe('a signed-in user', () => {
     const changePassword = (user: TestUser) =>
-      t.http().post('/api/users/me/password').set(as(user)).send({ currentPassword: 'not-the-password', newPassword: 'Another-Passw0rd' });
+      t
+        .http()
+        .post('/api/users/me/password')
+        .set(as(user))
+        .send({ currentPassword: 'not-the-password', newPassword: 'Another-Passw0rd' });
 
-    it('gets five tries a minute at their current password, and uses up nobody else\'s', async () => {
+    it("gets five tries a minute at their current password, and uses up nobody else's", async () => {
       const [guesser, other] = [await aUser(t), await aUser(t)];
 
-      expect(await statuses(6, () => changePassword(guesser))).toEqual([401, 401, 401, 401, 401, 429]);
+      expect(await statuses(6, () => changePassword(guesser))).toEqual([
+        401, 401, 401, 401, 401, 429,
+      ]);
 
       // Same address, another user: their own count.
       expect((await changePassword(other)).status).toBe(401);
       // And the guesser's other password routes each have their own five.
-      const deletion = await t.http().delete('/api/users/me').set(as(guesser)).send({ currentPassword: 'not-the-password' });
+      const deletion = await t
+        .http()
+        .delete('/api/users/me')
+        .set(as(guesser))
+        .send({ currentPassword: 'not-the-password' });
       expect(deletion.status).toBe(401);
     });
 
     it('is counted on their own on every route, not with everybody at the same address', async () => {
       const [first, second] = [await aUser(t), await aUser(t)];
       const remaining = async (user: TestUser): Promise<number> =>
-        Number((await t.http().get('/api/users/me').set(as(user)).expect(200)).headers['x-ratelimit-remaining']);
+        Number(
+          (await t.http().get('/api/users/me').set(as(user)).expect(200)).headers[
+            'x-ratelimit-remaining'
+          ],
+        );
 
       const before = await remaining(first);
       await remaining(first);
@@ -137,7 +175,15 @@ describe('rate limits behind a proxy that is not trusted', () => {
 
     it('is not what a token that does not verify makes of its sender', async () => {
       const probe = async (token: string): Promise<number> =>
-        Number((await t.http().get('/api/users/me').set({ Authorization: `Bearer ${token}` }).expect(401)).headers['x-ratelimit-remaining']);
+        Number(
+          (
+            await t
+              .http()
+              .get('/api/users/me')
+              .set({ Authorization: `Bearer ${token}` })
+              .expect(401)
+          ).headers['x-ratelimit-remaining'],
+        );
 
       // Two different made-up tokens share the allowance of the address they come from.
       const first = await probe('made.up.token');
@@ -164,13 +210,20 @@ describe('rate limits behind a proxy that is not trusted', () => {
         const second = await t.http().get(path).expect(200);
 
         expect(Number(first.headers['x-ratelimit-limit'])).toBe(100_000);
-        expect(Number(second.headers['x-ratelimit-remaining'])).toBe(Number(first.headers['x-ratelimit-remaining']) - 1);
+        expect(Number(second.headers['x-ratelimit-remaining'])).toBe(
+          Number(first.headers['x-ratelimit-remaining']) - 1,
+        );
       }
     });
   });
 
-  describe('the administrator\'s password', () => {
-    const signIn = (password: string) => t.http().post('/api/admin/session').set({ Origin: 'http://localhost:3000' }).send({ user: 'admin', password });
+  describe("the administrator's password", () => {
+    const signIn = (password: string) =>
+      t
+        .http()
+        .post('/api/admin/session')
+        .set({ Origin: 'http://localhost:3000' })
+        .send({ user: 'admin', password });
 
     it('makes a client wait after five wrong tries, right password or not, and lets it in once the wait is over', async () => {
       const gate = t.app.get(SignInGate);
@@ -199,21 +252,42 @@ describe('rate limits behind a proxy that is not trusted', () => {
 
     it('shows the administrator what the API sees of the connection', async () => {
       const direct = await t.http().get('/api/admin/connection').set(asAdmin).expect(200);
-      expect(direct.body).toMatchObject({ forwardedFor: null, forwardedHops: 0, trustProxy: false, countedAsProxy: false, overTrusted: false });
+      expect(direct.body).toMatchObject({
+        forwardedFor: null,
+        forwardedHops: 0,
+        trustProxy: false,
+        countedAsProxy: false,
+        overTrusted: false,
+      });
       expect(direct.body.clientAddress).toBe(direct.body.peerAddress);
 
-      const forwarded = await t.http().get('/api/admin/connection').set(asAdmin).set('X-Forwarded-For', '203.0.113.7').expect(200);
+      const forwarded = await t
+        .http()
+        .get('/api/admin/connection')
+        .set(asAdmin)
+        .set('X-Forwarded-For', '203.0.113.7')
+        .expect(200);
       // The header is shown, and not believed: the request counts as the proxy it came through.
       expect(forwarded.body).toMatchObject({ forwardedFor: '203.0.113.7', countedAsProxy: true });
       expect(forwarded.body.clientAddress).toBe(forwarded.body.peerAddress);
     });
   });
 
-  describe('the reviewers\' password', () => {
+  describe("the reviewers' password", () => {
     it('counts wrong tries at the same gate', async () => {
-      await t.http().patch('/api/admin/instance-settings').set(asAdmin).send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' }).expect(200);
+      await t
+        .http()
+        .patch('/api/admin/instance-settings')
+        .set(asAdmin)
+        .send({ reviewerEnabled: true, reviewerPassword: 'Reviewers-Passw0rd' })
+        .expect(200);
       const gate = t.app.get(SignInGate);
-      const signIn = (password: string) => t.http().post('/api/review/auth').set({ Origin: 'http://localhost:3000' }).send({ password, label: 'pl reviewer' });
+      const signIn = (password: string) =>
+        t
+          .http()
+          .post('/api/review/auth')
+          .set({ Origin: 'http://localhost:3000' })
+          .send({ password, label: 'pl reviewer' });
 
       const counted = vi.spyOn(gate, 'failed');
 

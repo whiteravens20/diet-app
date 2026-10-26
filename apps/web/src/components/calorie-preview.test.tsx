@@ -87,7 +87,9 @@ describe('what the figures of a form come to', () => {
     expect(screen.getByText('2,759 kcal')).toBeInTheDocument();
     expect(screen.getByText('1,780 kcal')).toBeInTheDocument();
     expect(screen.getByText('550 kcal a day under your maintenance.')).toBeInTheDocument();
-    expect(screen.getByText('Protein 138 g · fat 74 g · carbohydrate 249 g a day.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Protein 138 g · fat 74 g · carbohydrate 249 g a day.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Daily target: 2,209 kcal.')).toBeInTheDocument();
   });
 
@@ -145,7 +147,14 @@ describe('what the figures of a form come to', () => {
   });
 
   it('says what stands behind a target that is not maintenance less the pace, and leaves the warnings of a risk to the form', async () => {
-    vi.spyOn(api, 'post').mockResolvedValue(aPreview({ dailyTarget: 1500, dailyDeficit: 300, safetyFloorApplied: true, warnings: ['underweight'] }) as never);
+    vi.spyOn(api, 'post').mockResolvedValue(
+      aPreview({
+        dailyTarget: 1500,
+        dailyDeficit: 300,
+        safetyFloorApplied: true,
+        warnings: ['underweight'],
+      }) as never,
+    );
     show(figures());
     await pass(500);
 
@@ -154,19 +163,32 @@ describe('what the figures of a form come to', () => {
   });
 
   it('says of a target over maintenance that it is over, and of one at maintenance that no loss is planned', async () => {
-    const post = vi.spyOn(api, 'post').mockResolvedValue(aPreview({ dailyTarget: 3000, dailyDeficit: -241, source: 'manual_override' }) as never);
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue(
+        aPreview({ dailyTarget: 3000, dailyDeficit: -241, source: 'manual_override' }) as never,
+      );
     const { type } = show(figures({ manualCalorieTarget: 3000 }));
     await pass(500);
     expect(screen.getByText('241 kcal a day over your maintenance.')).toBeInTheDocument();
 
-    post.mockResolvedValue(aPreview({ dailyTarget: 2759, dailyDeficit: 0, weeklyLossTarget: null }) as never);
+    post.mockResolvedValue(
+      aPreview({ dailyTarget: 2759, dailyDeficit: 0, weeklyLossTarget: null }) as never,
+    );
     type(figures({ weeklyLossTarget: null }));
     await pass(500);
     expect(screen.getByText(texts.atMaintenance)).toBeInTheDocument();
   });
 
   it('says of a goal that is held why the target is maintenance', async () => {
-    vi.spyOn(api, 'post').mockResolvedValue(aPreview({ dailyTarget: 2759, dailyDeficit: 0, goalHeld: true, warnings: ['minor'] }) as never);
+    vi.spyOn(api, 'post').mockResolvedValue(
+      aPreview({
+        dailyTarget: 2759,
+        dailyDeficit: 0,
+        goalHeld: true,
+        warnings: ['minor'],
+      }) as never,
+    );
     show(figures({ age: 16 }));
     await pass(500);
 

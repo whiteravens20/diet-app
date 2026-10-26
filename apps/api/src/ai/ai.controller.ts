@@ -12,7 +12,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AiProviderConfig, AiProviderConfigInput, AiQuotaStatus, AiTestConnectionRequest, AiTestConnectionResponse } from '@diet-app/shared';
+import {
+  AiProviderConfig,
+  AiProviderConfigInput,
+  AiQuotaStatus,
+  AiTestConnectionRequest,
+  AiTestConnectionResponse,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';

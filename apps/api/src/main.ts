@@ -17,7 +17,9 @@ import { describePosture, type Env } from './config/env.js';
  * directory under it. Null where the file is not there.
  */
 function publishedContract(): OpenAPIObject | null {
-  const path = ['docs/api/openapi.json', '../../docs/api/openapi.json'].map((candidate) => resolve(process.cwd(), candidate)).find((candidate) => existsSync(candidate));
+  const path = ['docs/api/openapi.json', '../../docs/api/openapi.json']
+    .map((candidate) => resolve(process.cwd(), candidate))
+    .find((candidate) => existsSync(candidate));
   return path ? (JSON.parse(readFileSync(path, 'utf8')) as OpenAPIObject) : null;
 }
 
@@ -41,7 +43,10 @@ async function bootstrap(): Promise<void> {
       SwaggerModule.setup(SWAGGER_PATH, app, contract);
       Logger.log(`The contract of the API is shown at /${SWAGGER_PATH}`, 'Bootstrap');
     } else {
-      Logger.warn('SWAGGER_ENABLED is on, and docs/api/openapi.json was not found: nothing is shown at /api/docs.', 'Bootstrap');
+      Logger.warn(
+        'SWAGGER_ENABLED is on, and docs/api/openapi.json was not found: nothing is shown at /api/docs.',
+        'Bootstrap',
+      );
     }
   }
 

@@ -24,14 +24,22 @@ const aSession = (id: string, label: string | null): AccountSession => ({
 });
 
 /** The card for an account signed in from this browser, a phone and something that did not say what it is. */
-function shown(list: AccountSession[] = [aSession(HERE, 'Firefox · Linux'), aSession(PHONE, 'Safari · iOS'), aSession(OTHER, null)]) {
+function shown(
+  list: AccountSession[] = [
+    aSession(HERE, 'Firefox · Linux'),
+    aSession(PHONE, 'Safari · iOS'),
+    aSession(OTHER, null),
+  ],
+) {
   vi.spyOn(browserSession, 'id', 'get').mockReturnValue(HERE);
   const end = vi.spyOn(browserSession, 'end').mockImplementation(() => undefined);
   const get = vi.spyOn(api, 'get').mockResolvedValue(list as never);
   const remove = vi.spyOn(api, 'delete').mockResolvedValue(undefined as never);
   render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <SessionsCard />
       </QueryClientProvider>
     </NextIntlClientProvider>,
@@ -52,10 +60,16 @@ describe('the list of where an account is signed in', () => {
     expect(within(rows[0]!).getByText('Firefox · Linux')).toBeInTheDocument();
     expect(within(rows[0]!).getByText(messages.settings.sessionCurrent)).toBeInTheDocument();
     // Read out as two things, not as one word.
-    expect(rows[0]!.querySelector('p')!.textContent).toBe(`Firefox · Linux ${messages.settings.sessionCurrent}`);
+    expect(rows[0]!.querySelector('p')!.textContent).toBe(
+      `Firefox · Linux ${messages.settings.sessionCurrent}`,
+    );
     expect(within(rows[1]!).queryByText(messages.settings.sessionCurrent)).toBeNull();
     expect(within(rows[2]!).getByText(messages.settings.sessionUnknown)).toBeInTheDocument();
-    expect(within(rows[1]!).getByText('Signed in Jan 5, 2026, 8:00 AM · last active Jan 6, 2026, 9:30 AM')).toBeInTheDocument();
+    expect(
+      within(rows[1]!).getByText(
+        'Signed in Jan 5, 2026, 8:00 AM · last active Jan 6, 2026, 9:30 AM',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('signs out another session and stays, with the list read again', async () => {
@@ -80,7 +94,9 @@ describe('the list of where an account is signed in', () => {
   it('signs out everywhere, and leaves the account for the sign-in page', async () => {
     const { remove, end } = shown();
 
-    await userEvent.click(await screen.findByRole('button', { name: messages.settings.sessionEndAll }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: messages.settings.sessionEndAll }),
+    );
 
     expect(remove).toHaveBeenCalledWith('/users/me/sessions');
     await vi.waitFor(() => expect(end).toHaveBeenCalledTimes(1));
@@ -89,7 +105,9 @@ describe('the list of where an account is signed in', () => {
 
   it('says so when a session was gone already, and reads the list again', async () => {
     const { get, remove } = shown();
-    remove.mockRejectedValueOnce(new ApiClientError(404, 'SESSION_NOT_FOUND', 'That session is not open.'));
+    remove.mockRejectedValueOnce(
+      new ApiClientError(404, 'SESSION_NOT_FOUND', 'That session is not open.'),
+    );
 
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out Safari · iOS' }));
 
@@ -102,7 +120,9 @@ describe('the list of where an account is signed in', () => {
     vi.spyOn(api, 'get').mockRejectedValue(new ApiClientError(503, 'SERVER_BUSY', 'busy'));
     render(
       <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
           <SessionsCard />
         </QueryClientProvider>
       </NextIntlClientProvider>,

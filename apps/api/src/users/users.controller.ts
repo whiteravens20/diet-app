@@ -14,7 +14,14 @@ import {
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import { AccountSession, ChangeEmailRequest, ChangePasswordRequest, DeleteAccountRequest, SessionUser, UpdateUserSettings } from '@diet-app/shared';
+import {
+  AccountSession,
+  ChangeEmailRequest,
+  ChangePasswordRequest,
+  DeleteAccountRequest,
+  SessionUser,
+  UpdateUserSettings,
+} from '@diet-app/shared';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { Answers, AnswersListOf, AnswersWithAFile } from '../common/answers.decorator.js';

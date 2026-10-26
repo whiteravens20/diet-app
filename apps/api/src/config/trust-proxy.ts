@@ -33,22 +33,33 @@ export function parseTrustProxy(raw: string | undefined): TrustProxy {
   const value = (raw ?? '').trim().toLowerCase();
   if (value === '' || value === 'false' || value === 'off' || value === '0') return false;
   if (value === 'true') {
-    throw new Error('"true" would believe an address any client writes; give the number of proxies in front of the API, or their addresses.');
+    throw new Error(
+      '"true" would believe an address any client writes; give the number of proxies in front of the API, or their addresses.',
+    );
   }
   if (/^\d+$/.test(value)) {
     const hops = Number(value);
-    if (hops > 10) throw new Error('more than 10 proxies in a row is not a deployment; give the number of proxies in front of the API.');
+    if (hops > 10)
+      throw new Error(
+        'more than 10 proxies in a row is not a deployment; give the number of proxies in front of the API.',
+      );
     return hops;
   }
-  const entries = value.split(',').map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+  const entries = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
   for (const entry of entries) {
     if (NAMED.includes(entry)) continue;
     const [address, prefix, ...rest] = entry.split('/');
     const family = isIP(address ?? '');
     const bits = prefix === undefined ? null : Number(prefix);
-    const prefixOk = bits === null || (/^\d+$/.test(prefix!) && bits >= 0 && bits <= (family === 4 ? 32 : 128));
+    const prefixOk =
+      bits === null || (/^\d+$/.test(prefix!) && bits >= 0 && bits <= (family === 4 ? 32 : 128));
     if (family === 0 || rest.length > 0 || !prefixOk) {
-      throw new Error(`"${entry}" is neither an address, a network (10.0.0.0/8) nor one of ${NAMED.join(', ')}.`);
+      throw new Error(
+        `"${entry}" is neither an address, a network (10.0.0.0/8) nor one of ${NAMED.join(', ')}.`,
+      );
     }
   }
   return entries;
@@ -65,6 +76,7 @@ export function describeTrustProxy(setting: TrustProxy, behindProxy = false): st
       ? '! client address: that of the proxy for every visitor alike. The public origin is https, so a proxy stands in front, and TRUST_PROXY is off: limits by address cannot tell visitors apart until it is set'
       : 'client address: that of the connection (TRUST_PROXY is off; behind the web server every client then counts as one)';
   }
-  if (typeof setting === 'number') return `client address: from X-Forwarded-For, written by ${setting} trusted ${setting === 1 ? 'proxy' : 'proxies'}`;
+  if (typeof setting === 'number')
+    return `client address: from X-Forwarded-For, written by ${setting} trusted ${setting === 1 ? 'proxy' : 'proxies'}`;
   return `client address: from X-Forwarded-For, written by proxies at ${setting.join(', ')}`;
 }

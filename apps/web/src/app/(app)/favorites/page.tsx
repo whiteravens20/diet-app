@@ -45,7 +45,10 @@ export default function FavoritesPage() {
   const fmt = useFormat();
   const qc = useQueryClient();
 
-  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
   const profileList = profiles.data ?? [];
   const [picked, setPicked] = useState<string | null>(null);
   const profileId = picked ?? profileList[0]?.id ?? null;
@@ -80,14 +83,25 @@ export default function FavoritesPage() {
     queryFn: () => api.get<MarkedRecipe[]>(`/favorites?${query}`),
     enabled: Boolean(profileId),
   });
-  const tags = useMemo(() => [...new Set((all.data ?? []).flatMap((marked) => marked.tags))].sort((a, b) => a.localeCompare(b)), [all.data]);
+  const tags = useMemo(
+    () =>
+      [...new Set((all.data ?? []).flatMap((marked) => marked.tags))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [all.data],
+  );
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['favorites', profileId] });
   // What is on its way to the API is shown from the moment it was chosen, and taken back when it is refused.
   const [sending, setSending] = useState<{ id: string; change: Change } | null>(null);
   const save = useMutation({
     mutationFn: (v: { marked: MarkedRecipe; change: Change }) =>
-      api.post('/favorites', { profileId, recipeId: v.marked.recipe.id, sentiment: v.change.sentiment ?? v.marked.sentiment, tags: v.change.tags ?? v.marked.tags }),
+      api.post('/favorites', {
+        profileId,
+        recipeId: v.marked.recipe.id,
+        sentiment: v.change.sentiment ?? v.marked.sentiment,
+        tags: v.change.tags ?? v.marked.tags,
+      }),
     onSuccess: refresh,
     onError: (e) => setError(errorText(e, t('errSave'))),
     onSettled: () => setSending(null),
@@ -97,16 +111,19 @@ export default function FavoritesPage() {
     setSending({ id: marked.id, change: to });
     save.mutate({ marked, change: to });
   };
-  const shown = (marked: MarkedRecipe): MarkedRecipe => (sending?.id === marked.id ? { ...marked, ...sending.change } : marked);
+  const shown = (marked: MarkedRecipe): MarkedRecipe =>
+    sending?.id === marked.id ? { ...marked, ...sending.change } : marked;
   const remove = useMutation({
-    mutationFn: (marked: MarkedRecipe) => api.delete<void>(`/favorites/${profileId}/${marked.recipe.id}`),
+    mutationFn: (marked: MarkedRecipe) =>
+      api.delete<void>(`/favorites/${profileId}/${marked.recipe.id}`),
     onSuccess: refresh,
     onError: (e) => setError(errorText(e, t('errRemove'))),
   });
   const busy = save.isPending || remove.isPending;
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
-  if (profiles.isError) return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
+  if (profiles.isError)
+    return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
   if (profileList.length === 0) {
     return (
       <div className="mt-16">
@@ -152,10 +169,18 @@ export default function FavoritesPage() {
 
       <div className="grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={t('search')}>
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('searchPlaceholder')} />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('searchPlaceholder')}
+          />
         </Field>
         <Field label={t('mealType')}>
-          <select className={selectClass} value={mealType} onChange={(e) => setMealType(e.target.value)}>
+          <select
+            className={selectClass}
+            value={mealType}
+            onChange={(e) => setMealType(e.target.value)}
+          >
             <option value="">{t('any')}</option>
             {MEAL_TYPES.map((meal) => (
               <option key={meal} value={meal}>
@@ -165,7 +190,11 @@ export default function FavoritesPage() {
           </select>
         </Field>
         <Field label={t('marked')}>
-          <select className={selectClass} value={sentiment} onChange={(e) => setSentiment(e.target.value)}>
+          <select
+            className={selectClass}
+            value={sentiment}
+            onChange={(e) => setSentiment(e.target.value)}
+          >
             <option value="">{t('any')}</option>
             {FAVORITE_SENTIMENTS.map((kind) => (
               <option key={kind} value={kind}>
@@ -185,7 +214,11 @@ export default function FavoritesPage() {
           </select>
         </Field>
         <Field label={t('sort')}>
-          <select className={selectClass} value={sort} onChange={(e) => setSort(e.target.value as FavoriteSort)}>
+          <select
+            className={selectClass}
+            value={sort}
+            onChange={(e) => setSort(e.target.value as FavoriteSort)}
+          >
             {SORTS.map((order) => (
               <option key={order} value={order}>
                 {t(`sortBy.${order}`)}
@@ -234,11 +267,18 @@ export default function FavoritesPage() {
                     <CardContent className="space-y-3 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                         <div className="min-w-0">
-                          <button type="button" className="text-left font-medium text-primary hover:underline" onClick={() => setOpenRecipe(marked.recipe.id)}>
+                          <button
+                            type="button"
+                            className="text-left font-medium text-primary hover:underline"
+                            onClick={() => setOpenRecipe(marked.recipe.id)}
+                          >
                             {marked.recipe.title}
                           </button>
                           <p className="text-xs text-muted-foreground">
-                            {t('facts', { kcal: marked.recipe.nutritionPerServing.calories, meals: fmt.list(marked.recipe.mealTypes.map((meal) => tMeal(meal))) })}
+                            {t('facts', {
+                              kcal: marked.recipe.nutritionPerServing.calories,
+                              meals: fmt.list(marked.recipe.mealTypes.map((meal) => tMeal(meal))),
+                            })}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -247,7 +287,11 @@ export default function FavoritesPage() {
                             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                             value={marked.sentiment}
                             disabled={busy}
-                            onChange={(e) => change(kept, { sentiment: e.target.value as MarkedRecipe['sentiment'] })}
+                            onChange={(e) =>
+                              change(kept, {
+                                sentiment: e.target.value as MarkedRecipe['sentiment'],
+                              })
+                            }
                           >
                             {FAVORITE_SENTIMENTS.map((kind) => (
                               <option key={kind} value={kind}>
@@ -271,7 +315,11 @@ export default function FavoritesPage() {
                           </Button>
                         </div>
                       </div>
-                      <Tags marked={marked} busy={busy} onChange={(next) => change(kept, { tags: next })} />
+                      <Tags
+                        marked={marked}
+                        busy={busy}
+                        onChange={(next) => change(kept, { tags: next })}
+                      />
                     </CardContent>
                   </Card>
                 </li>
@@ -287,16 +335,30 @@ export default function FavoritesPage() {
 }
 
 /** The tags of a marked recipe: each can be taken off, and another put on, up to the most a recipe holds. */
-function Tags({ marked, busy, onChange }: { marked: MarkedRecipe; busy: boolean; onChange: (tags: string[]) => void }) {
+function Tags({
+  marked,
+  busy,
+  onChange,
+}: {
+  marked: MarkedRecipe;
+  busy: boolean;
+  onChange: (tags: string[]) => void;
+}) {
   const t = useTranslations('favorites');
   const [typed, setTyped] = useState('');
   const full = marked.tags.length >= MOST_TAGS;
   return (
     <div className="space-y-2">
       {marked.tags.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label={t('tagsOf', { title: marked.recipe.title })}>
+        <ul
+          className="flex flex-wrap gap-1.5"
+          aria-label={t('tagsOf', { title: marked.recipe.title })}
+        >
           {marked.tags.map((name) => (
-            <li key={name} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
+            <li
+              key={name}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs"
+            >
               {name}
               <button
                 type="button"
@@ -334,7 +396,9 @@ function Tags({ marked, busy, onChange }: { marked: MarkedRecipe; busy: boolean;
         <Button type="submit" variant="outline" size="sm" disabled={busy || full}>
           {t('addTag')}
         </Button>
-        {full && <span className="text-xs text-muted-foreground">{t('tagsFull', { max: MOST_TAGS })}</span>}
+        {full && (
+          <span className="text-xs text-muted-foreground">{t('tagsFull', { max: MOST_TAGS })}</span>
+        )}
       </form>
     </div>
   );

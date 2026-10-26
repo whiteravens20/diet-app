@@ -10,7 +10,13 @@ const lines = (file: string): string[] => file.slice(1).split('\r\n');
 
 describe('a table as a file of separated values', () => {
   it('begins with the mark of UTF-8, and ends every row as such files end them', () => {
-    const file = csvOf([['Name', 'Amount'], ['Ryż', 200]], en);
+    const file = csvOf(
+      [
+        ['Name', 'Amount'],
+        ['Ryż', 200],
+      ],
+      en,
+    );
 
     expect(file.charCodeAt(0)).toBe(0xfeff);
     expect(lines(file)).toEqual(['Name,Amount', 'Ryż,200', '']);
@@ -22,17 +28,28 @@ describe('a table as a file of separated values', () => {
   });
 
   it('writes a number without grouping and to the hundredth, and nothing for what is not there', () => {
-    expect(lines(csvOf([[12150, 0.1 + 0.2, 79.456, null, Number.NaN]], en))[0]).toBe('12150,0.3,79.46,,');
+    expect(lines(csvOf([[12150, 0.1 + 0.2, 79.456, null, Number.NaN]], en))[0]).toBe(
+      '12150,0.3,79.46,,',
+    );
   });
 
   it('quotes a text that holds the separator, a quote or a line break, or that begins or ends with a space', () => {
-    expect(lines(csvOf([['Rice, white', 'the "good" one', ' padded ']], en))[0]).toBe('"Rice, white","the ""good"" one"," padded "');
+    expect(lines(csvOf([['Rice, white', 'the "good" one', ' padded ']], en))[0]).toBe(
+      '"Rice, white","the ""good"" one"," padded "',
+    );
     expect(csvOf([['two\nlines']], en)).toBe('﻿"two\nlines"\r\n');
     // In the other dialect a comma parts nothing, and a semicolon does.
     expect(lines(csvOf([['Rice, white', 'a; b']], pl))[0]).toBe('Rice, white;"a; b"');
   });
 
-  it.each(['=1+1', '+48 600', '-5 kg', '@name', '\tcell', '=HYPERLINK("http://example.test","click")'])('keeps a spreadsheet from working out a name that begins like a formula: %s', (name) => {
+  it.each([
+    '=1+1',
+    '+48 600',
+    '-5 kg',
+    '@name',
+    '\tcell',
+    '=HYPERLINK("http://example.test","click")',
+  ])('keeps a spreadsheet from working out a name that begins like a formula: %s', (name) => {
     const [cell] = lines(csvOf([[name]], pl));
 
     expect(cell!.replace(/^"/, '').startsWith("'")).toBe(true);

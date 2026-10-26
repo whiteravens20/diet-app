@@ -1012,8 +1012,8 @@
         "tags": [
           "admin/drafts"
         ],
-        "summary": "Promote a recipe users made to the shared library: the one draft is shipped into this instance, on the terms of every local ship, and written to the instance's data directory.",
-        "description": "Promote a recipe users made to the shared library: the one draft is shipped into this instance, on the terms of every local ship, and written to the instance's data directory. The personal recipes it stands for are left as they are; whoever makes the recipe again is given the shared one.\n\nAsked by the administrator.",
+        "summary": "Promote a recipe users made to the shared library: the one draft is shipped into this instance, on the terms of every local ship, and the instance's files are written again.",
+        "description": "Promote a recipe users made to the shared library: the one draft is shipped into this instance, on the terms of every local ship, and the instance's files are written again. The personal recipes it stands for are left as they are; whoever makes the recipe again is given the shared one.\n\nAsked by the administrator.",
         "security": [
           {
             "administrator": []
@@ -1354,8 +1354,8 @@
         "tags": [
           "admin/drafts"
         ],
-        "summary": "Ship the approved drafts of a kind: into this instance, as a pull request, or as a file to save.",
-        "description": "Ship the approved drafts of a kind: into this instance, as a pull request, or as a file to save.\n\nAsked by the administrator.",
+        "summary": "Ship the approved drafts of a kind: into this instance, or as a file to save.",
+        "description": "Ship the approved drafts of a kind: into this instance, or as a file to save.\n\nAsked by the administrator.",
         "security": [
           {
             "administrator": []
@@ -1484,36 +1484,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OverridesPulled"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/Refused"
-          }
-        }
-      }
-    },
-    "/api/admin/drafts/ship/current-overrides/push": {
-      "post": {
-        "operationId": "Drafts_pushCurrentOverrides",
-        "tags": [
-          "admin/drafts"
-        ],
-        "summary": "Open a pull request in the repository the instance ships to with the names this instance has given its ingredients, all of them, whatever has shipped.",
-        "description": "Open a pull request in the repository the instance ships to with the names this instance has given its ingredients, all of them, whatever has shipped.\n\nAsked by the administrator.",
-        "security": [
-          {
-            "administrator": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "What was asked for.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OverridesPushed"
                 }
               }
             }
@@ -3821,6 +3791,163 @@
         }
       }
     },
+    "/api/meal-plans/{id}/days/{dayId}/settings": {
+      "put": {
+        "operationId": "MealPlans_applyDaySettings",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Change the settings of a day of a running plan, as the preview at `revision` said.",
+        "description": "Change the settings of a day of a running plan, as the preview at `revision` said. Draws recipes as making the day again does.\n\nAsked by an account.\n\nLimited to 20 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyDaySettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 20,
+          "seconds": 60
+        }
+      }
+    },
+    "/api/meal-plans/{id}/days/{dayId}/settings/preview": {
+      "post": {
+        "operationId": "MealPlans_previewDaySettings",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "What changing the settings of a day would do: its target, and which of its meals stay, change their amount, get another recipe or go.",
+        "description": "What changing the settings of a day would do: its target, and which of its meals stay, change their amount, get another recipe or go. Nothing is written. Asked again as the settings are changed in a window, so it is held to what a window asks for in a minute.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Client-Date",
+            "in": "header",
+            "required": false,
+            "description": "The day it is for the client, as `2026-03-01`. Without it the route goes by the server's day.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DaySettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaySettingsPreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
+        }
+      }
+    },
     "/api/meal-plans/{id}/days/{dayId}/variations": {
       "post": {
         "operationId": "MealPlans_dayVariations",
@@ -3977,6 +4104,65 @@
         }
       }
     },
+    "/api/meal-plans/{id}/meals/{mealId}": {
+      "delete": {
+        "operationId": "MealPlans_removeMeal",
+        "tags": [
+          "meal-plans"
+        ],
+        "summary": "Take a meal off its day, whichever it is (rebalances the day).",
+        "description": "Take a meal off its day, whichever it is (rebalances the day).\n\nAsked by an account.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebalanceResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/meal-plans/{id}/meals/{mealId}/eaten": {
       "patch": {
         "operationId": "MealPlans_setEaten",
@@ -4114,8 +4300,8 @@
         "tags": [
           "meal-plans"
         ],
-        "summary": "Share what a day or a week has left among its meals again, or put servings back as the `restore` of an earlier answer says.",
-        "description": "Share what a day or a week has left among its meals again, or put servings back as the `restore` of an earlier answer says.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "summary": "Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says.",
+        "description": "Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -5445,6 +5631,59 @@
             "$ref": "#/components/responses/Refused"
           }
         }
+      },
+      "post": {
+        "operationId": "Recipes_create",
+        "tags": [
+          "recipes"
+        ],
+        "summary": "Write a recipe of the account's own by hand, in the language of the request, from ingredients of the catalogue.",
+        "description": "Write a recipe of the account's own by hand, in the language of the request, from ingredients of the catalogue. The engine works out its nutrition, allergens and diets. A recipe of the library with the same ingredients does not stand in for it; one of the account's own does (409 `RECIPE_ALREADY_YOURS`, naming it). At most 50 are written or edited by hand in 24 hours (429 `OWN_RECIPE_DAILY_LIMIT`).\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnRecipeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 10,
+          "seconds": 60
+        }
       }
     },
     "/api/recipes/{id}": {
@@ -5496,6 +5735,68 @@
           }
         }
       },
+      "put": {
+        "operationId": "Recipes_edit",
+        "tags": [
+          "recipes"
+        ],
+        "summary": "Edit a recipe of the account's own, whoever wrote it.",
+        "description": "Edit a recipe of the account's own, whoever wrote it. A new version is written by hand, in the language of the request, and its id answered: the plans that hold the old version keep it, and the favourites and favourite sets that named it name the new one. A recipe made by swapping an ingredient stays one, and is still not to be submitted.\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnRecipeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 10,
+          "seconds": 60
+        }
+      },
       "delete": {
         "operationId": "Recipes_delete",
         "tags": [
@@ -5536,7 +5837,7 @@
           "recipes"
         ],
         "summary": "Put a recipe of one's own before the curators, as a candidate for the library everyone shares.",
-        "description": "Put a recipe of one's own before the curators, as a candidate for the library everyone shares. They see what the recipe says and is made of, not who sent it. Repeating the request changes nothing.\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
+        "description": "Put a recipe of one's own before the curators, as a candidate for the library everyone shares. They see what the recipe says and is made of, not who sent it. Repeating the request changes nothing. A recipe made by swapping an ingredient stays its owner's (409).\n\nAsked by an account.\n\nLimited to 10 in a minute, for each sender.",
         "security": [
           {
             "account": []
@@ -5628,8 +5929,8 @@
         "tags": [
           "recipes"
         ],
-        "summary": "The recipes of the account's own, a page at a time: those a model wrote for it and those a substitution left.",
-        "description": "The recipes of the account's own, a page at a time: those a model wrote for it and those a substitution left. A deleted one is not among them.\n\nAsked by an account.",
+        "summary": "The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand.",
+        "description": "The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand. A deleted one is not among them.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -5682,6 +5983,50 @@
           "default": {
             "$ref": "#/components/responses/Refused"
           }
+        }
+      }
+    },
+    "/api/recipes/preview": {
+      "post": {
+        "operationId": "Recipes_preview",
+        "tags": [
+          "recipes"
+        ],
+        "summary": "What a serving of a recipe being written would hold, and its allergens and diets.",
+        "description": "What a serving of a recipe being written would hold, and its allergens and diets. Nothing is stored.\n\nAsked by an account.\n\nLimited to 60 in a minute, for each sender.",
+        "security": [
+          {
+            "account": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnRecipePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnRecipePreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        },
+        "x-rate-limit": {
+          "times": 60,
+          "seconds": 60
         }
       }
     },
@@ -7466,6 +7811,10 @@
             "type": "number",
             "minimum": 0.25,
             "maximum": 20
+          },
+          "replaces": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -8414,6 +8763,75 @@
         ],
         "additionalProperties": false
       },
+      "ApplyDaySettingsRequest": {
+        "type": "object",
+        "properties": {
+          "dayType": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "rest",
+              "training"
+            ]
+          },
+          "skip": {
+            "type": "boolean"
+          },
+          "mealCount": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
+          "calorieTarget": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 800,
+                "maximum": 6000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cookTimeBudgetMinutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 600
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "useUpBy": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "allowRelaxations": {
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanRelaxation"
+            }
+          }
+        },
+        "required": [
+          "dayType",
+          "skip",
+          "mealCount",
+          "calorieTarget",
+          "cookTimeBudgetMinutes",
+          "useUpBy",
+          "revision"
+        ]
+      },
       "ApplyFavoriteSetRequest": {
         "type": "object",
         "properties": {
@@ -9176,6 +9594,52 @@
           "indian"
         ]
       },
+      "DayMealFate": {
+        "type": "object",
+        "properties": {
+          "mealId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "fate": {
+            "type": "string",
+            "enum": [
+              "stays",
+              "resized",
+              "redrawn",
+              "removed"
+            ]
+          },
+          "because": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "eaten",
+                  "own",
+                  "fewer_meals",
+                  "skipped",
+                  "over_cook_time",
+                  "use_up"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mealId",
+          "mealType",
+          "fate",
+          "because"
+        ],
+        "additionalProperties": false
+      },
       "DayOfferNote": {
         "type": "string",
         "minLength": 1,
@@ -9240,6 +9704,154 @@
         "required": [
           "date"
         ]
+      },
+      "DaySettings": {
+        "type": "object",
+        "properties": {
+          "dayType": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "rest",
+              "training"
+            ]
+          },
+          "skip": {
+            "type": "boolean"
+          },
+          "mealCount": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
+          "calorieTarget": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 800,
+                "maximum": 6000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cookTimeBudgetMinutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 600
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "useUpBy": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "dayType",
+          "skip",
+          "mealCount",
+          "calorieTarget",
+          "cookTimeBudgetMinutes",
+          "useUpBy"
+        ]
+      },
+      "DaySettingsPreview": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "calorieTarget": {
+            "type": "object",
+            "properties": {
+              "now": {
+                "type": "number"
+              },
+              "then": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "now",
+              "then"
+            ],
+            "additionalProperties": false
+          },
+          "targetMacros": {
+            "type": "object",
+            "properties": {
+              "now": {
+                "$ref": "#/components/schemas/Macros"
+              },
+              "then": {
+                "$ref": "#/components/schemas/Macros"
+              }
+            },
+            "required": [
+              "now",
+              "then"
+            ],
+            "additionalProperties": false
+          },
+          "belowSafetyFloor": {
+            "type": "boolean"
+          },
+          "meals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayMealFate"
+            }
+          },
+          "added": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealType"
+            }
+          },
+          "dayCalories": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fits": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "listOutOfDate": {
+            "type": "boolean"
+          },
+          "unchanged": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revision",
+          "date",
+          "calorieTarget",
+          "targetMacros",
+          "belowSafetyFloor",
+          "meals",
+          "added",
+          "dayCalories",
+          "fits",
+          "listOutOfDate",
+          "unchanged"
+        ],
+        "additionalProperties": false
       },
       "DayVariation": {
         "type": "object",
@@ -9432,7 +10044,9 @@
           "piece",
           "slice",
           "clove",
-          "handful"
+          "handful",
+          "tsp",
+          "pinch"
         ]
       },
       "DraftBulkRejectBody": {
@@ -9988,7 +10602,7 @@
           },
           "allowRelaxations": {
             "default": [],
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
@@ -10185,6 +10799,18 @@
               }
             ]
           },
+          "perTeaspoon": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "allergens": {
             "default": [],
             "type": "array",
@@ -10249,6 +10875,7 @@
           "gramsPerPiece",
           "density",
           "displayUnit",
+          "perTeaspoon",
           "allergens",
           "dietCompatibility",
           "tags",
@@ -10313,12 +10940,6 @@
               "null"
             ]
           },
-          "shippedPRUrl": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "shippedAt": {
             "type": [
               "string",
@@ -10356,7 +10977,6 @@
           "batchId",
           "modelUsed",
           "generatorPrompt",
-          "shippedPRUrl",
           "shippedAt",
           "createdAt",
           "updatedAt",
@@ -10606,13 +11226,25 @@
           "names": {
             "type": "integer",
             "minimum": 0
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notRestored": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": [
           "writable",
           "recipeFiles",
           "recipes",
-          "names"
+          "names",
+          "version",
+          "notRestored"
         ],
         "additionalProperties": false
       },
@@ -10718,6 +11350,81 @@
           "running",
           "done",
           "error"
+        ]
+      },
+      "KindLimit": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ProteinKind"
+          },
+          "perDay": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perWeek": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "perDay",
+          "perWeek"
+        ],
+        "additionalProperties": false
+      },
+      "KindLimitInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ProteinKind"
+          },
+          "perDay": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perWeek": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "perDay",
+          "perWeek"
         ]
       },
       "ListProposal": {
@@ -11362,6 +12069,11 @@
                 "type": "null"
               }
             ]
+          },
+          "mealCount": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
           }
         },
         "required": [
@@ -11375,7 +12087,8 @@
           "offTarget",
           "skipped",
           "belowSafetyFloor",
-          "overrides"
+          "overrides",
+          "mealCount"
         ],
         "additionalProperties": false
       },
@@ -11776,26 +12489,165 @@
         ],
         "additionalProperties": false
       },
-      "OverridesPushed": {
+      "OwnRecipeInput": {
         "type": "object",
         "properties": {
-          "prUrl": {
-            "type": "string"
-          },
-          "branch": {
-            "type": "string"
-          },
-          "rowCount": {
+          "servings": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 1,
+            "maximum": 12
+          },
+          "ingredients": {
+            "minItems": 1,
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnRecipeLine"
+            }
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 600
+          },
+          "steps": {
+            "minItems": 1,
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "mealTypes": {
+            "minItems": 1,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealType"
+            }
+          },
+          "prepMinutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 480
+          },
+          "cookMinutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 480
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/Difficulty"
+          },
+          "cuisine": {
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cuisine"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
-          "prUrl",
-          "branch",
-          "rowCount"
+          "servings",
+          "ingredients",
+          "title",
+          "description",
+          "steps",
+          "mealTypes",
+          "prepMinutes",
+          "cookMinutes",
+          "difficulty"
+        ]
+      },
+      "OwnRecipeLine": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 18000
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "note": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ingredientId",
+          "quantity",
+          "unit"
+        ]
+      },
+      "OwnRecipePreview": {
+        "type": "object",
+        "properties": {
+          "nutritionPerServing": {
+            "$ref": "#/components/schemas/Nutrition"
+          },
+          "allergens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allergen"
+            }
+          },
+          "dietTags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietType"
+            }
+          }
+        },
+        "required": [
+          "nutritionPerServing",
+          "allergens",
+          "dietTags"
         ],
         "additionalProperties": false
+      },
+      "OwnRecipePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "servings": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "ingredients": {
+            "minItems": 1,
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnRecipeLine"
+            }
+          }
+        },
+        "required": [
+          "servings",
+          "ingredients"
+        ]
       },
       "PackTally": {
         "type": "object",
@@ -12388,12 +13240,13 @@
       "PlanRelaxation": {
         "type": "string",
         "enum": [
+          "ingredient_cap",
+          "kind_same_day",
           "variety_floor",
           "cook_time",
           "same_day",
           "consecutive_days",
-          "weekly_cap",
-          "ingredient_cap"
+          "weekly_cap"
         ]
       },
       "PlanStatus": {
@@ -12767,7 +13620,9 @@
               "preferredCuisines": [],
               "maxConsecutiveDaysSameMeal": 2,
               "maxTimesPerWeekSameMeal": 3,
-              "maxWeeklyAmountPerIngredient": 3000,
+              "maxMealsPerDaySameKind": null,
+              "maxMealsPerWeekSameKind": null,
+              "kindLimits": [],
               "inventoryBiasResetEvery": 5
             },
             "$ref": "#/components/schemas/ProfilePreferences"
@@ -12935,7 +13790,9 @@
               "preferredCuisines": [],
               "maxConsecutiveDaysSameMeal": 2,
               "maxTimesPerWeekSameMeal": 3,
-              "maxWeeklyAmountPerIngredient": 3000,
+              "maxMealsPerDaySameKind": null,
+              "maxMealsPerWeekSameKind": null,
+              "kindLimits": [],
               "inventoryBiasResetEvery": 5
             },
             "$ref": "#/components/schemas/ProfilePreferencesInput"
@@ -13006,11 +13863,39 @@
             "minimum": 1,
             "maximum": 7
           },
-          "maxWeeklyAmountPerIngredient": {
-            "default": 3000,
-            "type": "integer",
-            "minimum": 500,
-            "maximum": 10000
+          "maxMealsPerDaySameKind": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxMealsPerWeekSameKind": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kindLimits": {
+            "default": [],
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KindLimit"
+            }
           },
           "inventoryBiasResetEvery": {
             "default": 5,
@@ -13027,7 +13912,9 @@
           "preferredCuisines",
           "maxConsecutiveDaysSameMeal",
           "maxTimesPerWeekSameMeal",
-          "maxWeeklyAmountPerIngredient",
+          "maxMealsPerDaySameKind",
+          "maxMealsPerWeekSameKind",
+          "kindLimits",
           "inventoryBiasResetEvery"
         ],
         "additionalProperties": false
@@ -13090,11 +13977,39 @@
             "minimum": 1,
             "maximum": 7
           },
-          "maxWeeklyAmountPerIngredient": {
-            "default": 3000,
-            "type": "integer",
-            "minimum": 500,
-            "maximum": 10000
+          "maxMealsPerDaySameKind": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxMealsPerWeekSameKind": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kindLimits": {
+            "default": [],
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KindLimitInput"
+            }
           },
           "inventoryBiasResetEvery": {
             "default": 5,
@@ -13155,10 +14070,36 @@
             "minimum": 1,
             "maximum": 7
           },
-          "maxWeeklyAmountPerIngredient": {
-            "type": "integer",
-            "minimum": 500,
-            "maximum": 10000
+          "maxMealsPerDaySameKind": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxMealsPerWeekSameKind": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 35
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kindLimits": {
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KindLimitInput"
+            }
           },
           "inventoryBiasResetEvery": {
             "type": "integer",
@@ -13313,10 +14254,36 @@
                 "minimum": 1,
                 "maximum": 7
               },
-              "maxWeeklyAmountPerIngredient": {
-                "type": "integer",
-                "minimum": 500,
-                "maximum": 10000
+              "maxMealsPerDaySameKind": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxMealsPerWeekSameKind": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 35
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "kindLimits": {
+                "maxItems": 9,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/KindLimitInput"
+                }
               },
               "inventoryBiasResetEvery": {
                 "type": "integer",
@@ -13332,7 +14299,9 @@
               "preferredCuisines",
               "maxConsecutiveDaysSameMeal",
               "maxTimesPerWeekSameMeal",
-              "maxWeeklyAmountPerIngredient",
+              "maxMealsPerDaySameKind",
+              "maxMealsPerWeekSameKind",
+              "kindLimits",
               "inventoryBiasResetEvery"
             ]
           }
@@ -13352,6 +14321,20 @@
           "weightReminderCadence",
           "customMacroSplit",
           "preferences"
+        ]
+      },
+      "ProteinKind": {
+        "type": "string",
+        "enum": [
+          "chicken",
+          "turkey",
+          "beef",
+          "pork",
+          "fish",
+          "seafood",
+          "eggs",
+          "dairy",
+          "legumes"
         ]
       },
       "PublicConfig": {
@@ -13579,7 +14562,7 @@
             "type": "string",
             "enum": [
               "day",
-              "week"
+              "plan"
             ]
           },
           "date": {
@@ -13627,7 +14610,7 @@
                     "type": "string",
                     "enum": [
                       "day",
-                      "week"
+                      "plan"
                     ]
                   },
                   "feasibility": {
@@ -13753,8 +14736,9 @@
             "enum": [
               "seed",
               "ai",
-              "user",
-              "curated"
+              "swap",
+              "curated",
+              "manual"
             ]
           },
           "byModel": {
@@ -13938,12 +14922,6 @@
               "null"
             ]
           },
-          "shippedPRUrl": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "shippedAt": {
             "type": [
               "string",
@@ -13998,7 +14976,6 @@
           "generationSpec",
           "provenanceUrl",
           "provenanceLicense",
-          "shippedPRUrl",
           "shippedAt",
           "createdAt",
           "updatedAt",
@@ -14848,7 +15825,7 @@
             "type": "boolean"
           },
           "allowRelaxations": {
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
@@ -14877,7 +15854,7 @@
             "type": "boolean"
           },
           "allowRelaxations": {
-            "maxItems": 6,
+            "maxItems": 7,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanRelaxation"
@@ -15434,37 +16411,6 @@
                 ],
                 "additionalProperties": false
               },
-              "upstreamPr": {
-                "type": "object",
-                "properties": {
-                  "available": {
-                    "type": "boolean"
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "reason": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "baseBranch": {
-                    "type": "string"
-                  },
-                  "remote": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "available",
-                  "enabled",
-                  "reason",
-                  "baseBranch",
-                  "remote"
-                ],
-                "additionalProperties": false
-              },
               "bundle": {
                 "type": "object",
                 "properties": {
@@ -15481,7 +16427,6 @@
             },
             "required": [
               "local",
-              "upstreamPr",
               "bundle"
             ],
             "additionalProperties": false
@@ -15548,7 +16493,6 @@
         "type": "string",
         "enum": [
           "local",
-          "upstream-pr",
           "bundle"
         ]
       },
@@ -15616,41 +16560,6 @@
               "shippedDraftIds",
               "skipped",
               "sidecarPaths"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "mode": {
-                "type": "string",
-                "const": "upstream-pr"
-              },
-              "prUrl": {
-                "type": "string"
-              },
-              "branch": {
-                "type": "string"
-              },
-              "shippedDraftIds": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "skipped": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/SkippedDraft"
-                }
-              }
-            },
-            "required": [
-              "mode",
-              "prUrl",
-              "branch",
-              "shippedDraftIds",
-              "skipped"
             ],
             "additionalProperties": false
           },
@@ -16043,7 +16952,7 @@
                     "type": "string",
                     "enum": [
                       "day",
-                      "week"
+                      "plan"
                     ]
                   },
                   "feasibility": {
@@ -16241,7 +17150,7 @@
         "type": "object",
         "properties": {
           "locale": {
-            "$ref": "#/components/schemas/TargetLocale"
+            "$ref": "#/components/schemas/Locale"
           },
           "limit": {
             "default": 25,

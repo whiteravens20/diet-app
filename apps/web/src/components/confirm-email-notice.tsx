@@ -41,14 +41,23 @@ export function ConfirmEmailNotice() {
   const me = session.data;
   if (!me || me.emailVerified || !config?.email.enabled) return null;
   return (
-    <div role="status" className="mb-6 flex flex-wrap items-start gap-3 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm">
+    <div
+      role="status"
+      className="mb-6 flex flex-wrap items-start gap-3 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm"
+    >
       <MailWarning size={18} aria-hidden className="mt-0.5 shrink-0 text-warning" />
       <div className="min-w-0 flex-1 space-y-1">
         <p>{t('notice', { email: me.email })}</p>
         {sent && <p className="text-muted-foreground">{t('sent')}</p>}
         {error && <p className="text-destructive">{error}</p>}
       </div>
-      <Button type="button" variant="outline" size="sm" disabled={resend.isPending} onClick={() => resend.mutate()}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={resend.isPending}
+        onClick={() => resend.mutate()}
+      >
         {resend.isPending ? t('sending') : t('resend')}
       </Button>
     </div>

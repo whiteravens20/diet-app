@@ -9,12 +9,12 @@ Alpine, non-root, with no package manager inside. Every service runs from it and
 differs only by its command, so one tag pins the whole application and the web can
 never be from a different version than the API it talks to.
 
-| Role | Command |
-|---|---|
-| API | `node apps/api/dist/main.js` (the image's default) |
-| Scheduled-tasks worker | `node apps/api/dist/worker.js` |
+| Role                   | Command                                                            |
+| ---------------------- | ------------------------------------------------------------------ |
+| API                    | `node apps/api/dist/main.js` (the image's default)                 |
+| Scheduled-tasks worker | `node apps/api/dist/worker.js`                                     |
 | Migrations (`db-init`) | `/app/node_modules/.bin/prisma migrate deploy`, in `/app/apps/api` |
-| Web front-end | `node /web/apps/web/server.js` (Next.js standalone output) |
+| Web front-end          | `node /web/apps/web/server.js` (Next.js standalone output)         |
 
 Build context is the repo root. The `release.yml` workflow builds the image on a
 `vX.Y.Z` tag of `main` and pushes it to GHCR with provenance + SBOM by its digest
@@ -28,11 +28,11 @@ tagged at all. Every build brings the OS packages of the image up to date.
 
 ## Compose files
 
-| File | Purpose |
-|---|---|
-| `infra/docker-compose.yml` | Production-like stack: web, api, worker, postgres. |
+| File                           | Purpose                                            |
+| ------------------------------ | -------------------------------------------------- |
+| `infra/docker-compose.yml`     | Production-like stack: web, api, worker, postgres. |
 | `infra/docker-compose.dev.yml` | Just Postgres — run the apps on the host with HMR. |
-| `infra/docker-compose.gpu.yml` | Overlay giving Ollama NVIDIA GPU access. |
+| `infra/docker-compose.gpu.yml` | Overlay giving Ollama NVIDIA GPU access.           |
 
 Profiles gate optional services: `--profile ollama` (local AI), `--profile proxy` (Traefik).
 
@@ -149,21 +149,21 @@ carries a valid sign-in, otherwise the client's address. A route that tries a cr
 is counted by that credential as well, so that guessing at one account never uses up
 anybody else's tries.
 
-| Request | Counted against | Limit |
-|---|---|---|
-| With a valid sign-in | The user | `RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW` and route; less on AI routes |
-| Without one | The client's address | The same; 10 a minute for sign-up |
-| Sign-up | The address ¹ | 3 accounts a day; a sign-up that opened none is not counted |
-| Sign-in | The account and the address together | 10 in 15 minutes |
-| | The account, from everywhere together | 50 in 15 minutes |
-| | The address, whatever the account ¹ | 30 in 15 minutes |
-| Password-reset request | The account the reset is for | 5 in 15 minutes |
-| | The address, whatever the account ¹ | 15 in 15 minutes |
-| Token refresh, sign-out | The token presented | 10 a minute |
-| | The address, whatever the token ¹ | 30 a minute |
-| Links from mails | The token presented | 10 a minute |
-| | The address, whatever the token ¹ | 10 a minute |
-| Changing the password or address, deleting the account | The user | 5 a minute each |
+| Request                                                | Counted against                       | Limit                                                                 |
+| ------------------------------------------------------ | ------------------------------------- | --------------------------------------------------------------------- |
+| With a valid sign-in                                   | The user                              | `RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW` and route; less on AI routes |
+| Without one                                            | The client's address                  | The same; 10 a minute for sign-up                                     |
+| Sign-up                                                | The address ¹                         | 3 accounts a day; a sign-up that opened none is not counted           |
+| Sign-in                                                | The account and the address together  | 10 in 15 minutes                                                      |
+|                                                        | The account, from everywhere together | 50 in 15 minutes                                                      |
+|                                                        | The address, whatever the account ¹   | 30 in 15 minutes                                                      |
+| Password-reset request                                 | The account the reset is for          | 5 in 15 minutes                                                       |
+|                                                        | The address, whatever the account ¹   | 15 in 15 minutes                                                      |
+| Token refresh, sign-out                                | The token presented                   | 10 a minute                                                           |
+|                                                        | The address, whatever the token ¹     | 30 a minute                                                           |
+| Links from mails                                       | The token presented                   | 10 a minute                                                           |
+|                                                        | The address, whatever the token ¹     | 10 a minute                                                           |
+| Changing the password or address, deleting the account | The user                              | 5 a minute each                                                       |
 
 ¹ Only with `TRUST_PROXY` set. Without it the API sees one address for everybody, and
 counting sign-ins or refreshes against that address would let a handful of requests
@@ -206,13 +206,13 @@ that a request is answered `503 SERVER_BUSY`.
 What a user can pile up is limited as well, so that no answer of the API grows without
 end. The limits are part of the application, not settings.
 
-| What | The most |
-|---|---|
-| Profiles of an account | 2 |
-| Recipes a profile has marked | 500 |
-| Favorite sets of a profile | 50 |
-| Rows in the pantry of a profile | 1000 |
-| Shopping lists of a plan | 10 |
+| What                                     | The most              |
+| ---------------------------------------- | --------------------- |
+| Profiles of an account                   | 2                     |
+| Recipes a profile has marked             | 500                   |
+| Favorite sets of a profile               | 50                    |
+| Rows in the pantry of a profile          | 1000                  |
+| Shopping lists of a plan                 | 10                    |
 | AI provider configurations of an account | One for each provider |
 
 A request that would go over one is answered `409` with a code that says which. Longer
@@ -357,10 +357,10 @@ An account that loses its access keeps its mode, and its next request is refused
 reason. Only requests the provider answered are counted, whether or not the answer could
 be used; a failure or a timeout is not. All of it is counted over the last thirty days:
 
-| Limit | Setting | Default |
-|---|---|---|
-| Each account | `AI_ADMIN_USER_MONTHLY_LIMIT` | 40 |
-| All accounts together | `AI_ADMIN_INSTANCE_MONTHLY_LIMIT` | 1000 |
+| Limit                     | Setting                                                                                                        | Default      |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------ |
+| Each account              | `AI_ADMIN_USER_MONTHLY_LIMIT`                                                                                  | 40           |
+| All accounts together     | `AI_ADMIN_INSTANCE_MONTHLY_LIMIT`                                                                              | 1000         |
 | The new accounts together | `AI_ADMIN_NEW_ACCOUNTS_PERCENT` of the instance's limit, for accounts younger than `AI_ADMIN_NEW_ACCOUNT_DAYS` | 10 %, 7 days |
 
 The instance's limit is what bounds the bill, and once it is reached the provider is
@@ -426,12 +426,12 @@ for the link again. One address is sent at most 10 mails a day, whoever causes t
 
 Behaviour switches on whether SMTP is configured:
 
-| Action | SMTP configured | SMTP blank |
-|---|---|---|
-| Register | account starts **unverified** + a confirmation email is sent | account is **auto-verified** at creation (nothing to verify against) |
-| Forgot password | reset link is **emailed**; a "password changed" **notice email** once a new password was set from it | **not available** — the sign-in page has no link and the reset page says so. A request sent straight to the API is still accepted: outside production its link is **logged to the api stdout**, in production nothing is logged |
-| Change password (in Settings) | applies immediately + a "password changed" **notice email** | applies immediately, no email |
-| **Change email** (in Settings) | confirmation link emailed to the **new** address; change lands on confirm. The address the account has is told when the change is asked for and when it has happened, with the new address shown in part (`m•••@example.com`) | **not available** — the option is hidden |
+| Action                         | SMTP configured                                                                                                                                                                                                               | SMTP blank                                                                                                                                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Register                       | account starts **unverified** + a confirmation email is sent                                                                                                                                                                  | account is **auto-verified** at creation (nothing to verify against)                                                                                                                                                            |
+| Forgot password                | reset link is **emailed**; a "password changed" **notice email** once a new password was set from it                                                                                                                          | **not available** — the sign-in page has no link and the reset page says so. A request sent straight to the API is still accepted: outside production its link is **logged to the api stdout**, in production nothing is logged |
+| Change password (in Settings)  | applies immediately + a "password changed" **notice email**                                                                                                                                                                   | applies immediately, no email                                                                                                                                                                                                   |
+| **Change email** (in Settings) | confirmation link emailed to the **new** address; change lands on confirm. The address the account has is told when the change is asked for and when it has happened, with the new address shown in part (`m•••@example.com`) | **not available** — the option is hidden                                                                                                                                                                                        |
 
 Changing the account email is the one action gated entirely on SMTP. All confirmation
 links expire after 1 hour and work once. A link to reset the password or to confirm a new
@@ -483,12 +483,12 @@ shown as failed three quarters of a minute later and can be started again.
 
 Three things are kept in the memory of each process, and so count once for each:
 
-| What | With N processes |
-|---|---|
+| What                                                                                            | With N processes                                                                       |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | The [rate limits](#rate-limits), and the waits after wrong administrator and reviewer passwords | A client whose requests are spread over the processes is allowed up to N times as much |
-| The 10 mails a day one address is sent | Up to N times as many |
-| The 3 accounts a day one client address may open | Up to N times as many |
-| The 64 password checks that may wait at once | 64 for each process |
+| The 10 mails a day one address is sent                                                          | Up to N times as many                                                                  |
+| The 3 accounts a day one client address may open                                                | Up to N times as many                                                                  |
+| The 64 password checks that may wait at once                                                    | 64 for each process                                                                    |
 
 A process that restarts begins its counts anew.
 

@@ -25,7 +25,9 @@ describe('registering an account', () => {
 
     const results = await race(2, () => auth.register(dto));
 
-    const refused = results.filter((r) => r.status === 'rejected').map((r) => r.reason as HttpException);
+    const refused = results
+      .filter((r) => r.status === 'rejected')
+      .map((r) => r.reason as HttpException);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(refused).toHaveLength(1);
     expect(refused[0]).toBeInstanceOf(HttpException);
@@ -36,10 +38,18 @@ describe('registering an account', () => {
 
   it('treats the same address in another letter case as the same account', async () => {
     const auth = t.app.get(AuthService);
-    await auth.register({ email: 'Mixed.Case@Example.Test', password: 'Letter-Case-Passw0rd', displayName: 'Mixed' });
+    await auth.register({
+      email: 'Mixed.Case@Example.Test',
+      password: 'Letter-Case-Passw0rd',
+      displayName: 'Mixed',
+    });
 
     await expect(
-      auth.register({ email: 'mixed.case@example.test', password: 'Letter-Case-Passw0rd', displayName: 'Lower' }),
+      auth.register({
+        email: 'mixed.case@example.test',
+        password: 'Letter-Case-Passw0rd',
+        displayName: 'Lower',
+      }),
     ).rejects.toMatchObject({ response: { error: 'EMAIL_TAKEN' } });
     await expect(
       auth.login({ email: 'MIXED.CASE@EXAMPLE.TEST', password: 'Letter-Case-Passw0rd' }),

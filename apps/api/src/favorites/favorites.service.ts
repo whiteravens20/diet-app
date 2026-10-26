@@ -1,7 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { FavoriteSentiment, MAX_FAVORITES_PER_PROFILE, type FavoriteListQuery, type FavoriteSort, type Locale, type MarkedRecipe } from '@diet-app/shared';
+import {
+  FavoriteSentiment,
+  MAX_FAVORITES_PER_PROFILE,
+  type FavoriteListQuery,
+  type FavoriteSort,
+  type Locale,
+  type MarkedRecipe,
+} from '@diet-app/shared';
 import { holdProfile } from '../common/hold.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { searchMatch, toRecipeDto } from '../recipes/recipes.service.js';
@@ -40,6 +47,7 @@ export class FavoritesService {
         recipe: {
           include: {
             ingredients: {
+              orderBy: { position: 'asc' },
               include: {
                 ingredient: { include: { translations: { where: { locale: { in: trWhere } } } } },
               },
@@ -58,8 +66,16 @@ export class FavoritesService {
       recipe: toRecipeDto(f.recipe, locale),
     }));
     // A profile has at most a few hundred marks: they are put in order here, by the title as the reader sees it.
-    if (filters.sort === 'title') return marked.sort((a, b) => a.recipe.title.localeCompare(b.recipe.title, locale) || a.id.localeCompare(b.id));
-    if (filters.sort === 'calories') return marked.sort((a, b) => a.recipe.nutritionPerServing.calories - b.recipe.nutritionPerServing.calories || a.id.localeCompare(b.id));
+    if (filters.sort === 'title')
+      return marked.sort(
+        (a, b) => a.recipe.title.localeCompare(b.recipe.title, locale) || a.id.localeCompare(b.id),
+      );
+    if (filters.sort === 'calories')
+      return marked.sort(
+        (a, b) =>
+          a.recipe.nutritionPerServing.calories - b.recipe.nutritionPerServing.calories ||
+          a.id.localeCompare(b.id),
+      );
     return marked;
   }
 
@@ -77,13 +93,21 @@ export class FavoritesService {
       await holdProfile(tx, profileId);
       // Saying something else about a recipe that is marked already adds nothing. What counts is what the list shows.
       const marked = await tx.favorite.findUnique({ where: key, select: { id: true } });
-      if (!marked && (await tx.favorite.count({ where: { profileId, recipe: { deletedAt: null } } })) >= MAX_FAVORITES_PER_PROFILE) {
+      if (
+        !marked &&
+        (await tx.favorite.count({ where: { profileId, recipe: { deletedAt: null } } })) >=
+          MAX_FAVORITES_PER_PROFILE
+      ) {
         throw new ConflictException({
           error: 'FAVORITE_LIMIT_REACHED',
           message: `A profile can have at most ${MAX_FAVORITES_PER_PROFILE} marked recipes. Remove a mark to add another.`,
         });
       }
-      return tx.favorite.upsert({ where: key, create: { profileId, recipeId, tags, sentiment }, update: { tags, sentiment } });
+      return tx.favorite.upsert({
+        where: key,
+        create: { profileId, recipeId, tags, sentiment },
+        update: { tags, sentiment },
+      });
     });
   }
 
@@ -91,13 +115,17 @@ export class FavoritesService {
     await this.assertProfile(userId, profileId);
     const removed = await this.prisma.favorite.deleteMany({ where: { profileId, recipeId } });
     if (removed.count === 0) {
-      throw new NotFoundException({ error: 'FAVORITE_NOT_FOUND', message: 'That recipe is not marked for this profile.' });
+      throw new NotFoundException({
+        error: 'FAVORITE_NOT_FOUND',
+        message: 'That recipe is not marked for this profile.',
+      });
     }
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {
     const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
-    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+    if (!profile || profile.userId !== userId)
+      throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
   }
 
   /**

@@ -16,10 +16,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /** Fetched when the chart is first shown: the charting library is the heaviest thing the dashboard has. */
-const PlanDaysChart = dynamic(() => import('@/components/plan-days-chart').then((chart) => chart.PlanDaysChart), {
-  ssr: false,
-  loading: () => <Skeleton className="h-[200px]" />,
-});
+const PlanDaysChart = dynamic(
+  () => import('@/components/plan-days-chart').then((chart) => chart.PlanDaysChart),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[200px]" />,
+  },
+);
 
 const MACROS = ['protein', 'fat', 'carbs'] as const;
 
@@ -72,18 +75,37 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
 
   const { plan, energy, eaten, onDiet, favourites, shopping } = overview;
   const days = planDates(plan.startDate, plan.durationDays);
-  const share = (part: PlanOverview['eaten']): string => fmt.percent(part.of === 0 ? 0 : part.meals / part.of);
+  const share = (part: PlanOverview['eaten']): string =>
+    fmt.percent(part.of === 0 ? 0 : part.meals / part.of);
   const figures: { label: string; value: string; hint: string }[] = [
-    { label: t('energy'), value: t('energyValue', { planned: energy.planned }), hint: t('energyHint', { target: energy.target }) },
+    {
+      label: t('energy'),
+      value: t('energyValue', { planned: energy.planned }),
+      hint: t('energyHint', { target: energy.target }),
+    },
     // Nothing was due before the first day of a plan: there is no share to name yet.
-    { label: t('eaten'), value: eaten.of === 0 ? t('eatenNotYet') : share(eaten), hint: eaten.of === 0 ? t('eatenNotYetHint') : t('eatenHint', eaten) },
-    { label: t('onDiet'), value: share(onDiet), hint: t('onDietHint', { ...onDiet, diet: tDiet(plan.dietType) }) },
+    {
+      label: t('eaten'),
+      value: eaten.of === 0 ? t('eatenNotYet') : share(eaten),
+      hint: eaten.of === 0 ? t('eatenNotYetHint') : t('eatenHint', eaten),
+    },
+    {
+      label: t('onDiet'),
+      value: share(onDiet),
+      hint: t('onDietHint', { ...onDiet, diet: tDiet(plan.dietType) }),
+    },
     { label: t('favourites'), value: share(favourites), hint: t('favouritesHint', favourites) },
     { label: t('reuse'), value: fmt.percent(overview.ingredientReuse), hint: t('reuseHint') },
     {
       label: t('shopping'),
-      value: shopping.lists === 0 ? t('shoppingNone') : fmt.percent(shopping.entries === 0 ? 0 : shopping.ticked / shopping.entries),
-      hint: shopping.lists === 0 ? t('shoppingNoneHint') : t('shoppingHint', { ticked: shopping.ticked, entries: shopping.entries }),
+      value:
+        shopping.lists === 0
+          ? t('shoppingNone')
+          : fmt.percent(shopping.entries === 0 ? 0 : shopping.ticked / shopping.entries),
+      hint:
+        shopping.lists === 0
+          ? t('shoppingNoneHint')
+          : t('shoppingHint', { ticked: shopping.ticked, entries: shopping.entries }),
     },
   ];
 
@@ -92,7 +114,12 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
       <CardHeader className="flex-row flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div>
           <CardTitle>{t(`title.${plan.status}`)}</CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">{t('span', { dates: fmt.dates(days[0] ?? plan.startDate, days.at(-1) ?? plan.startDate), diet: tDiet(plan.dietType) })}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('span', {
+              dates: fmt.dates(days[0] ?? plan.startDate, days.at(-1) ?? plan.startDate),
+              diet: tDiet(plan.dietType),
+            })}
+          </p>
         </div>
         <Link href={plans} className={buttonVariants({ size: 'sm', variant: 'outline' })}>
           {t('open')}
@@ -104,7 +131,9 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
             <div key={figure.label} className="rounded-lg border border-border p-4">
               <dt className="text-sm text-muted-foreground">{figure.label}</dt>
               <dd>
-                <span className="mt-1 block text-2xl font-semibold tracking-tight">{figure.value}</span>
+                <span className="mt-1 block text-2xl font-semibold tracking-tight">
+                  {figure.value}
+                </span>
                 <span className="mt-1 block text-xs text-muted-foreground">{figure.hint}</span>
               </dd>
             </div>
@@ -121,11 +150,18 @@ export function PlanOverviewCard({ profile }: { profile: Profile }) {
                 <li key={macro} className="text-sm">
                   <div className="flex flex-wrap justify-between gap-x-3">
                     <span>{tMacro(macro)}</span>
-                    <span className="text-muted-foreground">{t('macroValue', { planned, target })}</span>
+                    <span className="text-muted-foreground">
+                      {t('macroValue', { planned, target })}
+                    </span>
                   </div>
                   {/* The bar is full at the target; what the plan holds beyond it does not make it longer. */}
                   <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${target === 0 ? 0 : Math.min(100, Math.round((planned / target) * 100))}%` }} />
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{
+                        width: `${target === 0 ? 0 : Math.min(100, Math.round((planned / target) * 100))}%`,
+                      }}
+                    />
                   </div>
                 </li>
               );

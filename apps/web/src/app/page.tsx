@@ -59,9 +59,7 @@ export default function Landing() {
             </span>
           ))}
         </div>
-        <h1 className="mt-6 text-balance text-5xl font-semibold tracking-tight">
-          {t('headline')}
-        </h1>
+        <h1 className="mt-6 text-balance text-5xl font-semibold tracking-tight">{t('headline')}</h1>
         <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
           {t('subhead')}
         </p>
@@ -76,8 +74,7 @@ export default function Landing() {
         <div className="mx-auto mt-8 flex max-w-xl items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-left text-sm text-warning">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />
           <p>
-            <span className="font-semibold">{t('devWarning.title')}</span>{' '}
-            {t('devWarning.body')}
+            <span className="font-semibold">{t('devWarning.title')}</span> {t('devWarning.body')}
           </p>
         </div>
       </section>

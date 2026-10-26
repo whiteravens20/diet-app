@@ -2,16 +2,8 @@
 
 'use client';
 import { useTranslations } from 'next-intl';
-import {
-  Check,
-  Clock,
-  ExternalLink,
-  X,
-} from 'lucide-react';
-import {
-  type DraftLocaleReview,
-  type DraftPastReview,
-} from '@/lib/admin-api';
+import { Check, Clock, X } from 'lucide-react';
+import { type DraftLocaleReview, type DraftPastReview } from '@/lib/admin-api';
 import { useFormat } from '@/lib/use-format';
 
 export type DraftStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SHIPPED';
@@ -33,7 +25,6 @@ export function LocaleReviewMatrix({
   localeReviews,
   pastReviews = [],
   status,
-  shippedPRUrl,
   compact = false,
 }: {
   expectedLocales: string[];
@@ -41,7 +32,6 @@ export function LocaleReviewMatrix({
   /** What was decided before: reviews a later review or an edit took the place of. */
   pastReviews?: DraftPastReview[];
   status: DraftStatus;
-  shippedPRUrl?: string | null;
   compact?: boolean;
 }) {
   const t = useTranslations('admin.curation');
@@ -49,9 +39,7 @@ export function LocaleReviewMatrix({
   const reviewByLocale = new Map<string, LocaleReviewRow>(localeReviews.map((r) => [r.locale, r]));
 
   const pendingLocales = expectedLocales.filter((l) => !reviewByLocale.has(l));
-  const rejectedLocales = expectedLocales.filter(
-    (l) => reviewByLocale.get(l)?.action === 'REJECT',
-  );
+  const rejectedLocales = expectedLocales.filter((l) => reviewByLocale.get(l)?.action === 'REJECT');
 
   const shipState =
     status === 'SHIPPED'
@@ -82,14 +70,22 @@ export function LocaleReviewMatrix({
               title={
                 review
                   ? review.action === 'APPROVE'
-                    ? t('matrixApproved', { locale: locale.toUpperCase(), label: review.reviewedByLabel })
-                    : t('matrixRejected', { locale: locale.toUpperCase(), label: review.reviewedByLabel })
+                    ? t('matrixApproved', {
+                        locale: locale.toUpperCase(),
+                        label: review.reviewedByLabel,
+                      })
+                    : t('matrixRejected', {
+                        locale: locale.toUpperCase(),
+                        label: review.reviewedByLabel,
+                      })
                   : t('matrixPending', { locale: locale.toUpperCase() })
               }
             >
               <span className="font-medium uppercase tracking-wide">{locale}</span>
               <Icon className="h-3 w-3" />
-              {!compact && review ? <span className="truncate">{review.reviewedByLabel}</span> : null}
+              {!compact && review ? (
+                <span className="truncate">{review.reviewedByLabel}</span>
+              ) : null}
             </span>
           );
         })}
@@ -101,17 +97,6 @@ export function LocaleReviewMatrix({
             <span className="inline-flex items-center gap-1 text-muted-foreground">
               <Check className="h-3 w-3" />
               {t('shipStateShipped')}
-              {shippedPRUrl ? (
-                <a
-                  href={shippedPRUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 underline"
-                >
-                  {t('shipStatePrLink')}
-                  <ExternalLink className="h-2.5 w-2.5" />
-                </a>
-              ) : null}
             </span>
           )}
           {shipState === 'ready' && (
@@ -143,17 +128,16 @@ export function LocaleReviewMatrix({
         localeReviews
           .filter((r) => r.action === 'REJECT' && r.reason)
           .map((r) => (
-            <p
-              key={`reason-${r.locale}-${r.reviewedAt}`}
-              className="text-xs text-muted-foreground"
-            >
+            <p key={`reason-${r.locale}-${r.reviewedAt}`} className="text-xs text-muted-foreground">
               {t('matrixRejectedReason', { locale: r.locale.toUpperCase(), reason: r.reason! })}
             </p>
           ))}
 
       {!compact && pastReviews.length > 0 && (
         <details className="text-xs text-muted-foreground">
-          <summary className="cursor-pointer">{t('pastReviews', { count: pastReviews.length })}</summary>
+          <summary className="cursor-pointer">
+            {t('pastReviews', { count: pastReviews.length })}
+          </summary>
           <ul className="mt-1 space-y-0.5">
             {pastReviews.map((r) => (
               <li key={`${r.locale}-${r.reviewedAt}-${r.supersededAt}`}>

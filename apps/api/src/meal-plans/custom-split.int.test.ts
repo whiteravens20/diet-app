@@ -32,13 +32,35 @@ describe('a plan for the custom diet', () => {
 
   /** What a plan and each of its days aim at, when they aim at `split`. */
   const aimsAt = (plan: MealPlan, split: typeof OWN): void => {
-    for (const day of plan.days) expect(day.targetMacros).toEqual(macrosForCalories(day.calorieTarget, 'custom', sharesOf(split)));
+    for (const day of plan.days)
+      expect(day.targetMacros).toEqual(
+        macrosForCalories(day.calorieTarget, 'custom', sharesOf(split)),
+      );
     expect(plan.days.length).toBeGreaterThan(0);
   };
   const changeSplit = (profile: Profile, customMacroSplit: typeof OWN) =>
-    t.http().put(`/api/profiles/${profile.id}`).set(as(user)).send({ ...profile, id: undefined, userId: undefined, riskAcknowledgedAt: undefined, createdAt: undefined, updatedAt: undefined, customMacroSplit }).expect(200);
+    t
+      .http()
+      .put(`/api/profiles/${profile.id}`)
+      .set(as(user))
+      .send({
+        ...profile,
+        id: undefined,
+        userId: undefined,
+        riskAcknowledgedAt: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+        customMacroSplit,
+      })
+      .expect(200);
   const again = (plan: MealPlan, body?: Record<string, unknown>): Promise<MealPlan> =>
-    t.http().post(`/api/meal-plans/${plan.id}/regenerate`).set(as(user)).send(body).expect(201).then((res) => res.body as MealPlan);
+    t
+      .http()
+      .post(`/api/meal-plans/${plan.id}/regenerate`)
+      .set(as(user))
+      .send(body)
+      .expect(201)
+      .then((res) => res.body as MealPlan);
 
   it('aims at the split its profile said, on every day', async () => {
     const profile = await aProfile(t, user, { dietType: 'custom', customMacroSplit: OWN });
@@ -48,7 +70,9 @@ describe('a plan for the custom diet', () => {
     expect(plan.dietType).toBe('custom');
     aimsAt(plan, OWN);
     // 30 %, 40 % and 30 % are not the balanced diet's 25, 30 and 45.
-    expect(plan.days[0]!.targetMacros).not.toEqual(macrosForCalories(plan.days[0]!.calorieTarget, 'balanced'));
+    expect(plan.days[0]!.targetMacros).not.toEqual(
+      macrosForCalories(plan.days[0]!.calorieTarget, 'balanced'),
+    );
   });
 
   it('can be asked for by a profile on another diet that has said its split', async () => {
@@ -63,7 +87,12 @@ describe('a plan for the custom diet', () => {
   it('is refused for a profile that has said no split, and none is made', async () => {
     const profile = await aProfile(t, user);
 
-    const refused = await t.http().post('/api/meal-plans/generate').set(as(user)).send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, dietType: 'custom' }).expect(400);
+    const refused = await t
+      .http()
+      .post('/api/meal-plans/generate')
+      .set(as(user))
+      .send({ profileId: profile.id, startDate: '2026-01-05', durationDays: 3, dietType: 'custom' })
+      .expect(400);
 
     expect(refused.body.error).toBe('CUSTOM_SPLIT_MISSING');
     expect(await t.prisma.mealPlan.count()).toBe(0);
@@ -78,7 +107,7 @@ describe('a plan for the custom diet', () => {
     aimsAt((await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body, OWN);
   });
 
-  it('takes the profile\'s split of the day when the whole of it is made again, and keeps its own when days of it are', async () => {
+  it("takes the profile's split of the day when the whole of it is made again, and keeps its own when days of it are", async () => {
     const profile = await aProfile(t, user, { dietType: 'custom', customMacroSplit: OWN });
     const plan = await aPlan(t, user, profile);
     await changeSplit(profile, OTHER);
@@ -94,7 +123,11 @@ describe('a plan for the custom diet', () => {
 
     const plan = await aPlan(t, user, profile);
 
-    expect(plan.days[0]!.targetMacros).toEqual(macrosForCalories(plan.days[0]!.calorieTarget, 'vegan'));
-    expect((await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } })).macroSplit).toBeNull();
+    expect(plan.days[0]!.targetMacros).toEqual(
+      macrosForCalories(plan.days[0]!.calorieTarget, 'vegan'),
+    );
+    expect(
+      (await t.prisma.mealPlan.findUniqueOrThrow({ where: { id: plan.id } })).macroSplit,
+    ).toBeNull();
   });
 });

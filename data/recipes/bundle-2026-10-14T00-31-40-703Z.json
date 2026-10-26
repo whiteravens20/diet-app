@@ -232,9 +232,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       },
       {
         "slug": "salt",
@@ -254,7 +254,7 @@
         "Add the garlic, tofu, and chickpeas and cook for 5 minutes, stirring gently.",
         "Fold the tomato and spinach into the pan and cook until the spinach wilts.",
         "Divide the quinoa between plates and top with the tofu mixture and roasted vegetables.",
-        "Sprinkle with pumpkin seeds and squeeze lemon over the servings."
+        "Sprinkle with pumpkin seeds and drizzle the lemon juice over the servings."
       ],
       "pl": [
         "Rozgrzej piekarnik do 220°C.",
@@ -648,9 +648,9 @@
         "unit": "ml"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       },
       {
         "slug": "garlic",
@@ -1314,9 +1314,9 @@
         "unit": "g"
       },
       {
-        "slug": "lime",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lime-juice",
+        "quantity": 42,
+        "unit": "ml"
       },
       {
         "slug": "soy-sauce",
@@ -1684,9 +1684,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 15,
-        "unit": "g"
+        "slug": "lemon-juice",
+        "quantity": 12,
+        "unit": "ml"
       },
       {
         "slug": "dill",
@@ -2153,9 +2153,9 @@
         "unit": "ml"
       },
       {
-        "slug": "lemon",
-        "quantity": 10,
-        "unit": "g"
+        "slug": "lemon-juice",
+        "quantity": 8,
+        "unit": "ml"
       }
     ],
     "steps": {

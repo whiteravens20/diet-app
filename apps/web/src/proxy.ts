@@ -14,7 +14,10 @@ function aNonce(): string {
 
 /** The two settings of the instance the web server is told (see the `web` service of the Compose files): none of them is a secret. */
 function instance(): { https: boolean; turnstile: boolean } {
-  return { https: (process.env.APP_URL ?? '').startsWith('https://'), turnstile: process.env.TURNSTILE_ENABLED === 'true' };
+  return {
+    https: (process.env.APP_URL ?? '').startsWith('https://'),
+    turnstile: process.env.TURNSTILE_ENABLED === 'true',
+  };
 }
 
 /**
@@ -39,7 +42,9 @@ export function proxy(request: NextRequest): NextResponse {
   };
 
   if (isAccountPage(pathname) && request.cookies.get(SESSION_MARKER)?.value !== '1') {
-    return answer(NextResponse.redirect(new URL(signInPath(`${pathname}${search}`), request.nextUrl)));
+    return answer(
+      NextResponse.redirect(new URL(signInPath(`${pathname}${search}`), request.nextUrl)),
+    );
   }
 
   const nonce = aNonce();
@@ -56,5 +61,7 @@ export function proxy(request: NextRequest): NextResponse {
 export const config = {
   // Every path but the API (the web server only passes it on), the files of
   // the build and what `public/` holds: none of those is a page.
-  matcher: ['/((?!api/|_next/static/|_next/image|fonts/|imagery/|icon.svg|icon-192.png|icon-512.png|icon-maskable-512.png|apple-touch-icon.png|favicon.ico).*)'],
+  matcher: [
+    '/((?!api/|_next/static/|_next/image|fonts/|imagery/|icon.svg|icon-192.png|icon-512.png|icon-maskable-512.png|apple-touch-icon.png|favicon.ico).*)',
+  ],
 };

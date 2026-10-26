@@ -24,7 +24,6 @@ import type {
   Macros,
   MealType,
   OverridesPulled,
-  OverridesPushed,
   PastReview,
   RecipeDraft,
   RecipeDraftIngredientLine,
@@ -42,14 +41,26 @@ import type {
 import { apiClient } from './http';
 
 // What the API answers with is a type of the contract, under the name the panel has for it.
-export type { AdminConnection, AdminOperatorAi, AdminStats, AdminStatus, DraftRunnerState, IngredientNameDraft, InstanceDataState, InstanceSettingsDto, RecipeDraft, RecipeDraftIngredientLine, ShipKind, ShipMode };
+export type {
+  AdminConnection,
+  AdminOperatorAi,
+  AdminStats,
+  AdminStatus,
+  DraftRunnerState,
+  IngredientNameDraft,
+  InstanceDataState,
+  InstanceSettingsDto,
+  RecipeDraft,
+  RecipeDraftIngredientLine,
+  ShipKind,
+  ShipMode,
+};
 export type IngredientNameSuggestionMap = IngredientNameSuggestion;
 export type DraftLocaleReview = LocaleReview;
 export type DraftPastReview = PastReview;
 export type RecipeRunnerState = RecipeRunState;
 export type ShipConfigDto = ShipConfig;
 export type RestoreResponse = RestoredFromInstanceData;
-export type CurrentOverridesPushResponse = OverridesPushed;
 export type CurrentOverridesPullResponse = OverridesPulled;
 export type ShipSkipped = SkippedDraft;
 export type ShipResponse = ShipResult;
@@ -136,20 +147,45 @@ export const adminApi = {
   /** Whether there is a panel, and whether this browser is signed in to it. */
   session: () => adminFetch<AdminSessionState>('/session'),
   /** Give the instance's user and password once, for the session, with a code where the administrator has a second factor. */
-  signIn: (user: string, password: string, code?: string) => adminFetch<void>('/session', { method: 'POST', body: JSON.stringify({ user, password, ...(code ? { code } : {}) }) }),
+  signIn: (user: string, password: string, code?: string) =>
+    adminFetch<void>('/session', {
+      method: 'POST',
+      body: JSON.stringify({ user, password, ...(code ? { code } : {}) }),
+    }),
   /** A secret to set an authenticator app up with, for the password. */
-  proposeSecondFactor: (password: string) => adminFetch<SecondFactorSetup>('/session/second-factor/setup', { method: 'POST', body: JSON.stringify({ password }) }),
+  proposeSecondFactor: (password: string) =>
+    adminFetch<SecondFactorSetup>('/session/second-factor/setup', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
   /** The first code from the app: signing in takes one from now on. */
-  beginSecondFactor: (enrolment: string, code: string) => adminFetch<void>('/session/second-factor', { method: 'POST', body: JSON.stringify({ enrolment, code }) }),
-  endSecondFactor: (password: string, code: string) => adminFetch<void>('/session/second-factor', { method: 'DELETE', body: JSON.stringify({ password, code }) }),
+  beginSecondFactor: (enrolment: string, code: string) =>
+    adminFetch<void>('/session/second-factor', {
+      method: 'POST',
+      body: JSON.stringify({ enrolment, code }),
+    }),
+  endSecondFactor: (password: string, code: string) =>
+    adminFetch<void>('/session/second-factor', {
+      method: 'DELETE',
+      body: JSON.stringify({ password, code }),
+    }),
   /** Take the second factor off the account of an address, for a holder who lost it. */
-  removeAccountSecondFactor: (email: string) => adminFetch<void>('/accounts/second-factor', { method: 'DELETE', body: JSON.stringify({ email }) }),
+  removeAccountSecondFactor: (email: string) =>
+    adminFetch<void>('/accounts/second-factor', {
+      method: 'DELETE',
+      body: JSON.stringify({ email }),
+    }),
   /** Who may use the operator's AI provider, and how many accounts are approved for it. */
   operatorAi: () => adminFetch<AdminOperatorAi>('/accounts/operator-ai'),
   /** Approve the account of an address for the operator's AI provider. */
-  approveOperatorAi: (email: string) => adminFetch<void>('/accounts/operator-ai', { method: 'PUT', body: JSON.stringify({ email }) }),
+  approveOperatorAi: (email: string) =>
+    adminFetch<void>('/accounts/operator-ai', { method: 'PUT', body: JSON.stringify({ email }) }),
   /** Take the approval of the account of an address back. */
-  revokeOperatorAi: (email: string) => adminFetch<void>('/accounts/operator-ai', { method: 'DELETE', body: JSON.stringify({ email }) }),
+  revokeOperatorAi: (email: string) =>
+    adminFetch<void>('/accounts/operator-ai', {
+      method: 'DELETE',
+      body: JSON.stringify({ email }),
+    }),
   signOut: () => adminFetch<void>('/session', { method: 'DELETE' }),
   /** End every admin session there is, this one too. */
   endAllSessions: () => adminFetch<void>('/session/end-all', { method: 'POST' }),
@@ -161,8 +197,7 @@ export const adminApi = {
       `/db/import-usda${dataTypes ? `?dataTypes=${encodeURIComponent(dataTypes)}` : ''}`,
       { method: 'POST' },
     ),
-  usdaImportStatus: () =>
-    adminFetch<UsdaImportRunnerState>('/db/import-usda/status'),
+  usdaImportStatus: () => adminFetch<UsdaImportRunnerState>('/db/import-usda/status'),
 
   // Drafts: ingredient-name
   startIngredientNamer: (spec: IngredientNameGenerateSpec) =>
@@ -176,12 +211,14 @@ export const adminApi = {
     adminFetch<DraftRunnerState>('/drafts/ingredient-names/generate/stop', {
       method: 'POST',
     }),
-  listIngredientNameDrafts: (params: {
-    status?: string;
-    batchId?: string;
-    page?: number;
-    pageSize?: number;
-  } = {}) => {
+  listIngredientNameDrafts: (
+    params: {
+      status?: string;
+      batchId?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) => {
     const q = new URLSearchParams();
     if (params.status) q.set('status', params.status);
     if (params.batchId) q.set('batchId', params.batchId);
@@ -197,11 +234,7 @@ export const adminApi = {
       method: 'PATCH',
       body: JSON.stringify({ suggestions }),
     }),
-  approveIngredientNameDraft: (
-    id: string,
-    locale: string,
-    reviewedByLabel: string,
-  ) =>
+  approveIngredientNameDraft: (id: string, locale: string, reviewedByLabel: string) =>
     adminFetch<IngredientNameDraft>(
       `/drafts/ingredient-names/${id}/approve?locale=${encodeURIComponent(locale)}`,
       { method: 'POST', body: JSON.stringify({ reviewedByLabel }) },
@@ -220,15 +253,24 @@ export const adminApi = {
     adminFetch<void>(`/drafts/ingredient-names/${id}`, { method: 'DELETE' }),
 
   // Drafts: recipes from elsewhere
-  importRecipes: (request: RecipeImportRequestInput) => adminFetch<RecipeImportResult>('/drafts/recipes/import', { method: 'POST', body: JSON.stringify(request) }),
+  importRecipes: (request: RecipeImportRequestInput) =>
+    adminFetch<RecipeImportResult>('/drafts/recipes/import', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    }),
   importRejections: () => adminFetch<StoredImportRejection[]>('/drafts/recipes/import/rejections'),
-  clearImportRejections: () => adminFetch<void>('/drafts/recipes/import/rejections', { method: 'DELETE' }),
+  clearImportRejections: () =>
+    adminFetch<void>('/drafts/recipes/import/rejections', { method: 'DELETE' }),
 
   // Drafts: a language recipes lack
   startTranslations: (spec: { locale: string; limit: number }) =>
-    adminFetch<DraftRunnerState>('/drafts/translations/generate', { method: 'POST', body: JSON.stringify(spec) }),
+    adminFetch<DraftRunnerState>('/drafts/translations/generate', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    }),
   translationsStatus: () => adminFetch<DraftRunnerState>('/drafts/translations/generate/status'),
-  stopTranslations: () => adminFetch<DraftRunnerState>('/drafts/translations/generate/stop', { method: 'POST' }),
+  stopTranslations: () =>
+    adminFetch<DraftRunnerState>('/drafts/translations/generate/stop', { method: 'POST' }),
 
   // Drafts: recipes
   startRecipeGenerator: (spec: RecipeGenerateSpec) =>
@@ -236,19 +278,20 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(spec),
     }),
-  recipeGeneratorStatus: () =>
-    adminFetch<RecipeRunnerState>('/drafts/recipes/generate/status'),
+  recipeGeneratorStatus: () => adminFetch<RecipeRunnerState>('/drafts/recipes/generate/status'),
   stopRecipeGenerator: () =>
     adminFetch<RecipeRunnerState>('/drafts/recipes/generate/stop', { method: 'POST' }),
-  listRecipeDrafts: (params: {
-    status?: string;
-    batchId?: string;
-    complexity?: string;
-    /** Where the drafts came from: `AI_USER` are the ones users sent. */
-    source?: string;
-    page?: number;
-    pageSize?: number;
-  } = {}) => {
+  listRecipeDrafts: (
+    params: {
+      status?: string;
+      batchId?: string;
+      complexity?: string;
+      /** Where the drafts came from: `AI_USER` are the ones users sent. */
+      source?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) => {
     const q = new URLSearchParams();
     if (params.status) q.set('status', params.status);
     if (params.batchId) q.set('batchId', params.batchId);
@@ -257,35 +300,35 @@ export const adminApi = {
     if (params.page) q.set('page', String(params.page));
     if (params.pageSize) q.set('pageSize', String(params.pageSize));
     const qs = q.toString();
-    return adminFetch<PagedDrafts<RecipeDraft>>(
-      `/drafts/recipes${qs ? `?${qs}` : ''}`,
-    );
+    return adminFetch<PagedDrafts<RecipeDraft>>(`/drafts/recipes${qs ? `?${qs}` : ''}`);
   },
-  getRecipeDraft: (id: string) =>
-    adminFetch<RecipeDraft>(`/drafts/recipes/${id}`),
+  getRecipeDraft: (id: string) => adminFetch<RecipeDraft>(`/drafts/recipes/${id}`),
   patchRecipeDraft: (id: string, patch: RecipeDraftPatch, dryRun = false) =>
-    adminFetch<RecipeDraft>(
-      `/drafts/recipes/${id}${dryRun ? '?dryRun=true' : ''}`,
-      { method: 'PATCH', body: JSON.stringify(patch) },
-    ),
+    adminFetch<RecipeDraft>(`/drafts/recipes/${id}${dryRun ? '?dryRun=true' : ''}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
   approveRecipeDraft: (id: string, locale: string, reviewedByLabel: string) =>
-    adminFetch<RecipeDraft>(
-      `/drafts/recipes/${id}/approve?locale=${encodeURIComponent(locale)}`,
-      { method: 'POST', body: JSON.stringify({ reviewedByLabel }) },
-    ),
+    adminFetch<RecipeDraft>(`/drafts/recipes/${id}/approve?locale=${encodeURIComponent(locale)}`, {
+      method: 'POST',
+      body: JSON.stringify({ reviewedByLabel }),
+    }),
   rejectRecipeDraft: (id: string, locale: string, reviewedByLabel: string, reason?: string) =>
-    adminFetch<RecipeDraft>(
-      `/drafts/recipes/${id}/reject?locale=${encodeURIComponent(locale)}`,
-      { method: 'POST', body: JSON.stringify({ reviewedByLabel, reason }) },
-    ),
+    adminFetch<RecipeDraft>(`/drafts/recipes/${id}/reject?locale=${encodeURIComponent(locale)}`, {
+      method: 'POST',
+      body: JSON.stringify({ reviewedByLabel, reason }),
+    }),
   deleteRecipeDraft: (id: string) =>
     adminFetch<void>(`/drafts/recipes/${id}`, { method: 'DELETE' }),
   /** Reject up to a hundred recipe drafts with one reason; answers which were rejected and which were left as they were. */
   rejectRecipeDrafts: (ids: string[], reviewedByLabel: string, reason?: string) =>
-    adminFetch<{ rejected: string[]; skipped: { id: string; error: string }[] }>('/drafts/recipes/reject', {
-      method: 'POST',
-      body: JSON.stringify({ ids, reviewedByLabel, ...(reason ? { reason } : {}) }),
-    }),
+    adminFetch<{ rejected: string[]; skipped: { id: string; error: string }[] }>(
+      '/drafts/recipes/reject',
+      {
+        method: 'POST',
+        body: JSON.stringify({ ids, reviewedByLabel, ...(reason ? { reason } : {}) }),
+      },
+    ),
   promoteRecipeDraft: (id: string) =>
     adminFetch<RecipeDraft>(`/drafts/recipes/${id}/promote`, { method: 'POST' }),
 
@@ -315,16 +358,13 @@ export const adminApi = {
     a.remove();
     URL.revokeObjectURL(url);
   },
-  pushCurrentOverrides: () =>
-    adminFetch<CurrentOverridesPushResponse>('/drafts/ship/current-overrides/push', {
-      method: 'POST',
-    }),
   pullCurrentOverrides: (source?: string) =>
     adminFetch<CurrentOverridesPullResponse>('/drafts/ship/current-overrides/pull', {
       method: 'POST',
       body: JSON.stringify(source ? { source } : {}),
     }),
-  restoreInstanceData: () => adminFetch<RestoreResponse>('/drafts/ship/restore', { method: 'POST' }),
+  restoreInstanceData: () =>
+    adminFetch<RestoreResponse>('/drafts/ship/restore', { method: 'POST' }),
 
   // What the API sees of the connection this request arrived on.
   connection: () => adminFetch<AdminConnection>('/connection'),
@@ -357,7 +397,9 @@ export interface ShipMarkShippedRequest {
 
 /** Save `content` as a JSON file under `name`. It is made in the page: no server is asked for it. */
 export function saveJsonFile(name: string, content: unknown): void {
-  const url = URL.createObjectURL(new Blob([`${JSON.stringify(content, null, 2)}\n`], { type: 'application/json' }));
+  const url = URL.createObjectURL(
+    new Blob([`${JSON.stringify(content, null, 2)}\n`], { type: 'application/json' }),
+  );
   const link = document.createElement('a');
   link.href = url;
   link.download = name;

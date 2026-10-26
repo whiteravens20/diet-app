@@ -6,7 +6,12 @@ import { monthAfter, monthOf, planDates, weeksOf } from './plan-dates';
 
 describe('the days of a plan', () => {
   it('are as many as the plan is long, from its first day on, over the end of a month', () => {
-    expect(planDates('2026-01-30', 4)).toEqual(['2026-01-30', '2026-01-31', '2026-02-01', '2026-02-02']);
+    expect(planDates('2026-01-30', 4)).toEqual([
+      '2026-01-30',
+      '2026-01-31',
+      '2026-02-01',
+      '2026-02-02',
+    ]);
     expect(planDates('not a day', 3)).toEqual([]);
     expect(planDates('2026-01-30', 0)).toEqual([]);
   });
@@ -32,8 +37,24 @@ describe('the weeks a month is drawn in', () => {
     const january = weeksOf('2026-01-01');
 
     expect(january).toHaveLength(5);
-    expect(january[0]).toEqual(['2025-12-29', '2025-12-30', '2025-12-31', '2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04']);
-    expect(january.at(-1)).toEqual(['2026-01-26', '2026-01-27', '2026-01-28', '2026-01-29', '2026-01-30', '2026-01-31', '2026-02-01']);
+    expect(january[0]).toEqual([
+      '2025-12-29',
+      '2025-12-30',
+      '2025-12-31',
+      '2026-01-01',
+      '2026-01-02',
+      '2026-01-03',
+      '2026-01-04',
+    ]);
+    expect(january.at(-1)).toEqual([
+      '2026-01-26',
+      '2026-01-27',
+      '2026-01-28',
+      '2026-01-29',
+      '2026-01-30',
+      '2026-01-31',
+      '2026-02-01',
+    ]);
   });
 
   it('are four for a February that begins on a Monday, and six for a long month that begins on a Sunday', () => {
@@ -49,7 +70,9 @@ describe('the weeks a month is drawn in', () => {
 
   it('are never more days than a calendar of plans is asked for at once', () => {
     for (let months = 0; months < 48; months += 1) {
-      expect(weeksOf(monthAfter('2026-01-01', months)).flat().length).toBeLessThanOrEqual(MAX_CALENDAR_DAYS);
+      expect(weeksOf(monthAfter('2026-01-01', months)).flat().length).toBeLessThanOrEqual(
+        MAX_CALENDAR_DAYS,
+      );
     }
   });
 

@@ -10,7 +10,9 @@ import { resolve } from 'node:path';
  */
 export const PACKAGE_VERSION: string = (() => {
   try {
-    const manifest = JSON.parse(readFileSync(resolve(__dirname, '../../../../package.json'), 'utf8')) as {
+    const manifest = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../../package.json'), 'utf8'),
+    ) as {
       version?: unknown;
     };
     return typeof manifest.version === 'string' ? manifest.version : 'unknown';

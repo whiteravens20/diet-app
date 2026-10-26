@@ -11,7 +11,10 @@ export interface SentMail {
 }
 
 /** The settings that make the application send mail: a test file that reads mail starts it with these. */
-export const MAIL_ON = { SMTP_HOST: 'smtp.example.test', SMTP_FROM: 'Diet App <no-reply@example.test>' };
+export const MAIL_ON = {
+  SMTP_HOST: 'smtp.example.test',
+  SMTP_FROM: 'Diet App <no-reply@example.test>',
+};
 
 /**
  * Everything the application sends from now on, instead of a mail server:
@@ -33,8 +36,13 @@ export function aMailbox(t: TestApp): {
 } {
   const sent: SentMail[] = [];
   const mail = t.app.get(MailService);
-  const working = { sendMail: async (message: SentMail) => void sent.push({ to: message.to, subject: message.subject, text: message.text }) };
-  const failing = { sendMail: () => Promise.reject(new Error('connect ECONNREFUSED smtp.example.test:587')) };
+  const working = {
+    sendMail: async (message: SentMail) =>
+      void sent.push({ to: message.to, subject: message.subject, text: message.text }),
+  };
+  const failing = {
+    sendMail: () => Promise.reject(new Error('connect ECONNREFUSED smtp.example.test:587')),
+  };
   mail.transport = working as unknown as Transporter;
   const to = async (address: string): Promise<SentMail[]> => {
     await mail.idle();
@@ -54,7 +62,9 @@ export function aMailbox(t: TestApp): {
     holding() {
       let release: () => void = () => undefined;
       const held = new Promise<void>((resolve) => (release = resolve));
-      mail.transport = { sendMail: async (message: SentMail) => held.then(() => working.sendMail(message)) } as unknown as Transporter;
+      mail.transport = {
+        sendMail: async (message: SentMail) => held.then(() => working.sendMail(message)),
+      } as unknown as Transporter;
       return () => {
         release();
         mail.transport = working as unknown as Transporter;

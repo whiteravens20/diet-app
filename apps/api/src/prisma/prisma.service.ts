@@ -37,7 +37,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     });
     if (slow !== undefined) {
       this.onStatement((event) => {
-        if (event.duration >= slow) this.logger.warn(`A statement took ${Math.round(event.duration)} ms: ${statementForLog(event.query)}`);
+        if (event.duration >= slow)
+          this.logger.warn(
+            `A statement took ${Math.round(event.duration)} ms: ${statementForLog(event.query)}`,
+          );
       });
     }
   }
@@ -47,7 +50,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * `SLOW_QUERY_MS` is set, which is what makes the client time its statements.
    */
   onStatement(listener: (event: Prisma.QueryEvent) => void): void {
-    (this as unknown as { $on(event: 'query', listener: (event: Prisma.QueryEvent) => void): void }).$on('query', listener);
+    (
+      this as unknown as { $on(event: 'query', listener: (event: Prisma.QueryEvent) => void): void }
+    ).$on('query', listener);
   }
 
   async onModuleInit(): Promise<void> {

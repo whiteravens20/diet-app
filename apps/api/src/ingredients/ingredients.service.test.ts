@@ -23,6 +23,7 @@ function row(overrides: Partial<Row> = {}): Row {
     gramsPerPiece: null,
     density: 0.91,
     displayUnit: null,
+    perTeaspoon: null,
     allergens: [],
     dietCompatibility: [],
     tags: [],
@@ -38,7 +39,9 @@ function row(overrides: Partial<Row> = {}): Row {
 describe('toIngredientDto translation fallback', () => {
   it('uses the locale translation when present', () => {
     const dto = toIngredientDto(
-      row({ translations: [{ locale: 'pl', name: 'Oliwa z oliwek', storageHint: 'Chłodne miejsce' }] }),
+      row({
+        translations: [{ locale: 'pl', name: 'Oliwa z oliwek', storageHint: 'Chłodne miejsce' }],
+      }),
       'pl',
     );
     expect(dto.name).toBe('Oliwa z oliwek');

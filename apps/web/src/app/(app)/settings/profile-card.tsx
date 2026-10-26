@@ -6,9 +6,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
-import {
-  type SessionUser,
-} from '@diet-app/shared';
+import { type SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
@@ -21,8 +19,7 @@ export function ProfileCard({ me, onSaved }: { me: SessionUser; onSaved: () => v
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const save = useMutation({
-    mutationFn: (displayName: string) =>
-      api.patch<SessionUser>('/users/me', { displayName }),
+    mutationFn: (displayName: string) => api.patch<SessionUser>('/users/me', { displayName }),
     onSuccess: () => {
       setSaved(true);
       onSaved();
@@ -59,9 +56,7 @@ export function ProfileCard({ me, onSaved }: { me: SessionUser; onSaved: () => v
           <Button type="submit" disabled={save.isPending}>
             {save.isPending ? t('saveProfile') + '…' : t('saveProfile')}
           </Button>
-          {saved && (
-            <p className="text-xs text-success">{t('profileSaved')}</p>
-          )}
+          {saved && <p className="text-xs text-success">{t('profileSaved')}</p>}
           {error && <p className="text-xs text-destructive">{error}</p>}
         </form>
       </CardContent>

@@ -19,8 +19,14 @@ import { pantryStock, settle, type PantryIngredient, type PantryMove } from '../
  */
 
 /** Hold the pantry of one ingredient of one profile until the transaction ends. */
-export function lockPantry(tx: Prisma.TransactionClient, profileId: string, ingredientId: string): Promise<number> {
-  return tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`pantry:${profileId}:${ingredientId}`}, 0))`);
+export function lockPantry(
+  tx: Prisma.TransactionClient,
+  profileId: string,
+  ingredientId: string,
+): Promise<number> {
+  return tx.$executeRaw(
+    Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`pantry:${profileId}:${ingredientId}`}, 0))`,
+  );
 }
 
 /**
@@ -30,8 +36,14 @@ export function lockPantry(tx: Prisma.TransactionClient, profileId: string, ingr
  * that want the same ones wait for each other and neither holds what the
  * other needs.
  */
-export async function lockPantries(tx: Prisma.TransactionClient, profileId: string, ingredientIds: readonly string[]): Promise<void> {
-  const keys = [...new Set(ingredientIds)].sort().map((ingredientId) => `pantry:${profileId}:${ingredientId}`);
+export async function lockPantries(
+  tx: Prisma.TransactionClient,
+  profileId: string,
+  ingredientIds: readonly string[],
+): Promise<void> {
+  const keys = [...new Set(ingredientIds)]
+    .sort()
+    .map((ingredientId) => `pantry:${profileId}:${ingredientId}`);
   if (keys.length === 0) return;
   await tx.$executeRaw(
     Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(wanted.key, 0)) FROM unnest(${keys}::text[]) WITH ORDINALITY AS wanted(key, place) ORDER BY wanted.place`,
@@ -44,7 +56,10 @@ export async function lockPantries(tx: Prisma.TransactionClient, profileId: stri
  * waiting for each other, so requests that arrive together can pass the most
  * by as many as they are, and no further: the next one is refused.
  */
-export async function assertRoomInPantry(tx: Prisma.TransactionClient, profileId: string): Promise<void> {
+export async function assertRoomInPantry(
+  tx: Prisma.TransactionClient,
+  profileId: string,
+): Promise<void> {
   if ((await tx.inventoryItem.count({ where: { profileId } })) >= MAX_PANTRY_ROWS) {
     throw new ConflictException({
       error: 'PANTRY_FULL',
@@ -98,7 +113,13 @@ export async function settlePantry(
   for (const row of after.values()) {
     await assertRoomInPantry(tx, profileId);
     await tx.inventoryItem.create({
-      data: { profileId, ingredientId: ingredient.id, unit: row.unit, quantity: row.quantity, bestBefore: row.bestBefore },
+      data: {
+        profileId,
+        ingredientId: ingredient.id,
+        unit: row.unit,
+        quantity: row.quantity,
+        bestBefore: row.bestBefore,
+      },
     });
   }
   return result.moves;
@@ -116,10 +137,13 @@ export async function stockByIngredient(
 ): Promise<Map<string, number>> {
   const rows = await db.inventoryItem.findMany({
     where: { profileId, ...only },
-    include: { ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } } },
+    include: {
+      ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } },
+    },
   });
   const byIngredient = new Map<string, typeof rows>();
-  for (const row of rows) byIngredient.set(row.ingredientId, [...(byIngredient.get(row.ingredientId) ?? []), row]);
+  for (const row of rows)
+    byIngredient.set(row.ingredientId, [...(byIngredient.get(row.ingredientId) ?? []), row]);
   const stock = new Map<string, number>();
   for (const [ingredientId, group] of byIngredient) {
     const { quantity } = pantryStock(group, group[0]!.ingredient);

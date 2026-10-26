@@ -30,7 +30,7 @@ export class AddressResealService {
     const result: Resealed = { sealed: 0, unreadable: 0 };
     const earlier = { not: { startsWith: CURRENT_FORM_PREFIX } };
 
-    for (let after = ''; ; ) {
+    for (let after = ''; ;) {
       const rows = await this.prisma.user.findMany({
         where: { emailEncrypted: earlier, id: { gt: after } },
         select: { id: true, emailEncrypted: true },
@@ -44,12 +44,16 @@ export class AddressResealService {
           result,
           () => this.emails.seal(this.emails.open(row.emailEncrypted, row.id), row.id),
           // Only while the row still holds what was read: an address changed in the meantime is sealed already.
-          (sealed) => this.prisma.user.updateMany({ where: { id: row.id, emailEncrypted: row.emailEncrypted }, data: { emailEncrypted: sealed } }),
+          (sealed) =>
+            this.prisma.user.updateMany({
+              where: { id: row.id, emailEncrypted: row.emailEncrypted },
+              data: { emailEncrypted: sealed },
+            }),
         );
       }
     }
 
-    for (let after = ''; ; ) {
+    for (let after = ''; ;) {
       const rows = await this.prisma.emailChangeToken.findMany({
         where: { newEmailEncrypted: earlier, id: { gt: after } },
         select: { id: true, userId: true, newEmailEncrypted: true },
@@ -61,8 +65,16 @@ export class AddressResealService {
       for (const row of rows) {
         await reseal(
           result,
-          () => this.emails.sealPending(this.emails.openPending(row.newEmailEncrypted, row.userId), row.userId),
-          (sealed) => this.prisma.emailChangeToken.updateMany({ where: { id: row.id, newEmailEncrypted: row.newEmailEncrypted }, data: { newEmailEncrypted: sealed } }),
+          () =>
+            this.emails.sealPending(
+              this.emails.openPending(row.newEmailEncrypted, row.userId),
+              row.userId,
+            ),
+          (sealed) =>
+            this.prisma.emailChangeToken.updateMany({
+              where: { id: row.id, newEmailEncrypted: row.newEmailEncrypted },
+              data: { newEmailEncrypted: sealed },
+            }),
         );
       }
     }
@@ -71,7 +83,11 @@ export class AddressResealService {
 }
 
 /** Seal one value anew and write it, counting how it went. */
-async function reseal(result: Resealed, seal: () => string, write: (sealed: string) => Promise<{ count: number }>): Promise<void> {
+async function reseal(
+  result: Resealed,
+  seal: () => string,
+  write: (sealed: string) => Promise<{ count: number }>,
+): Promise<void> {
   let sealed: string;
   try {
     sealed = seal();

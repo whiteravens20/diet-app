@@ -1,7 +1,26 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
-import { CalorieCalculation, CaloriePreview, CaloriePreviewRequest, Profile, ProfileInput, ProfilePreferencesPatch, ProfileUpdate } from '@diet-app/shared';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  CalorieCalculation,
+  CaloriePreview,
+  CaloriePreviewRequest,
+  Profile,
+  ProfileInput,
+  ProfilePreferencesPatch,
+  ProfileUpdate,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';

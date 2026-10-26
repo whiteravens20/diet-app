@@ -67,7 +67,10 @@ export function convertUnit(
   throw new UnitConversionError(`unsupported conversion ${unit} → ${target}`);
 }
 
-function gramsPerPiece(ingredient: Pick<ConvertibleIngredient, 'gramsPerPiece'>, direction: string): number {
+function gramsPerPiece(
+  ingredient: Pick<ConvertibleIngredient, 'gramsPerPiece'>,
+  direction: string,
+): number {
   if (ingredient.gramsPerPiece == null || !(ingredient.gramsPerPiece > 0)) {
     throw new UnitConversionError(`a positive gramsPerPiece is required to convert ${direction}`);
   }

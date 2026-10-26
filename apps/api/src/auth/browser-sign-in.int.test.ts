@@ -12,14 +12,19 @@ import { type OpenedSession, SessionsService } from './sessions.service.js';
 
 // The address the test application is reached at by browsers.
 const WEB = 'http://localhost:3000';
-const ANDROID_CHROME = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
+const ANDROID_CHROME =
+  'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
 const DAY = 86_400;
 
 const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex');
 
 /** The cookies an answer sets, by name: the value and the attributes of each. */
-function cookiesOf(res: { headers: Record<string, unknown> }): Record<string, { value: string; attributes: string[] }> {
-  const lines = ([] as string[]).concat((res.headers['set-cookie'] as string[] | string | undefined) ?? []);
+function cookiesOf(res: {
+  headers: Record<string, unknown>;
+}): Record<string, { value: string; attributes: string[] }> {
+  const lines = ([] as string[]).concat(
+    (res.headers['set-cookie'] as string[] | string | undefined) ?? [],
+  );
   return Object.fromEntries(
     lines.map((line) => {
       const [pair, ...attributes] = line.split('; ');
@@ -55,16 +60,32 @@ describe('a browser signed in from an application', () => {
     app = await aSession(t, user);
   });
 
-  const askCode = (refreshToken: string) => t.http().post('/api/auth/browser-code').send({ refreshToken });
-  const codeOf = async (refreshToken = app.tokens.refreshToken): Promise<BrowserCode> => (await askCode(refreshToken).expect(200)).body;
-  const whose = (code: string, origin = WEB) => t.http().post('/api/auth/browser-sign-in/account').set('Origin', origin).send({ code });
-  const signIn = (code: string, { cookie, origin = WEB }: { cookie?: string; origin?: string } = {}) => {
-    const request = t.http().post('/api/auth/browser-sign-in').set({ Origin: origin, 'User-Agent': ANDROID_CHROME });
+  const askCode = (refreshToken: string) =>
+    t.http().post('/api/auth/browser-code').send({ refreshToken });
+  const codeOf = async (refreshToken = app.tokens.refreshToken): Promise<BrowserCode> =>
+    (await askCode(refreshToken).expect(200)).body;
+  const whose = (code: string, origin = WEB) =>
+    t.http().post('/api/auth/browser-sign-in/account').set('Origin', origin).send({ code });
+  const signIn = (
+    code: string,
+    { cookie, origin = WEB }: { cookie?: string; origin?: string } = {},
+  ) => {
+    const request = t
+      .http()
+      .post('/api/auth/browser-sign-in')
+      .set({ Origin: origin, 'User-Agent': ANDROID_CHROME });
     return (cookie ? request.set('Cookie', `diet_refresh=${cookie}`) : request).send({ code });
   };
-  const refresh = (refreshToken: string) => t.http().post('/api/auth/refresh').send({ refreshToken });
+  const refresh = (refreshToken: string) =>
+    t.http().post('/api/auth/refresh').send({ refreshToken });
   const sessionsOf = async (accessToken: string): Promise<AccountSession[]> =>
-    (await t.http().get('/api/users/me/sessions').set('Authorization', `Bearer ${accessToken}`).expect(200)).body;
+    (
+      await t
+        .http()
+        .get('/api/users/me/sessions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
+    ).body;
 
   describe('gets a code', () => {
     it("for the refresh token of its session, with the session's next pair, as a refresh gives it", async () => {
@@ -78,7 +99,9 @@ describe('a browser signed in from an application', () => {
       expect(answer.tokens.refreshToken).toMatch(/^[0-9a-f]{96}$/);
       expect(answer.tokens.refreshToken).not.toBe(app.tokens.refreshToken);
       // The token it showed is used up: shown again a moment later, it is taken for a second request of the same client.
-      expect((await refresh(app.tokens.refreshToken).expect(409)).body.error).toBe('SESSION_JUST_REFRESHED');
+      expect((await refresh(app.tokens.refreshToken).expect(409)).body.error).toBe(
+        'SESSION_JUST_REFRESHED',
+      );
       await refresh(answer.tokens.refreshToken!).expect(200);
     });
 
@@ -92,9 +115,17 @@ describe('a browser signed in from an application', () => {
     });
 
     it('for no access token, and for no refresh token that is not good', async () => {
-      expect((await askCode(app.tokens.accessToken).expect(401)).body.error).toBe('INVALID_REFRESH');
-      await t.http().post('/api/auth/logout').send({ refreshToken: app.tokens.refreshToken }).expect(204);
-      expect((await askCode(app.tokens.refreshToken).expect(401)).body.error).toBe('INVALID_REFRESH');
+      expect((await askCode(app.tokens.accessToken).expect(401)).body.error).toBe(
+        'INVALID_REFRESH',
+      );
+      await t
+        .http()
+        .post('/api/auth/logout')
+        .send({ refreshToken: app.tokens.refreshToken })
+        .expect(204);
+      expect((await askCode(app.tokens.refreshToken).expect(401)).body.error).toBe(
+        'INVALID_REFRESH',
+      );
       await t.http().post('/api/auth/browser-code').send({}).expect(400);
       expect(await t.prisma.browserSignInCode.count({ where: { userId: user.id } })).toBe(0);
     });
@@ -117,7 +148,10 @@ describe('a browser signed in from an application', () => {
     it('again once the codes of the hour before are older than an hour', async () => {
       let token = app.tokens.refreshToken;
       for (let i = 0; i < 30; i += 1) token = (await browsers.codeFor(token)).tokens.refreshToken;
-      await t.prisma.browserSignInCode.updateMany({ where: { userId: user.id }, data: { createdAt: new Date(Date.now() - 61 * 60_000) } });
+      await t.prisma.browserSignInCode.updateMany({
+        where: { userId: user.id },
+        data: { createdAt: new Date(Date.now() - 61 * 60_000) },
+      });
 
       await askCode(token).expect(200);
     });
@@ -127,15 +161,20 @@ describe('a browser signed in from an application', () => {
     it('without the code being used', async () => {
       const { code } = await codeOf();
 
-      expect((await whose(code).expect(200)).body).toEqual({ email: user.email, displayName: expect.any(String) });
+      expect((await whose(code).expect(200)).body).toEqual({
+        email: user.email,
+        displayName: expect.any(String),
+      });
       expect((await whose(code).expect(200)).body.email).toBe(user.email);
       await signIn(code).expect(200);
     });
 
-    it('by the application\'s own pages alone', async () => {
+    it("by the application's own pages alone", async () => {
       const { code } = await codeOf();
 
-      expect((await whose(code, 'https://elsewhere.example').expect(403)).body.error).toBe('ORIGIN_NOT_ALLOWED');
+      expect((await whose(code, 'https://elsewhere.example').expect(403)).body.error).toBe(
+        'ORIGIN_NOT_ALLOWED',
+      );
     });
   });
 
@@ -148,16 +187,24 @@ describe('a browser signed in from an application', () => {
       const body = res.body as AuthResponse;
       const { diet_refresh: refreshCookie, diet_session: marker } = cookiesOf(res);
       expect(refreshCookie!.value).toMatch(/^[0-9a-f]{96}$/);
-      expect(refreshCookie!.attributes).toEqual(expect.arrayContaining(['HttpOnly', 'SameSite=Strict', 'Path=/api/auth', `Max-Age=${DAY}`]));
+      expect(refreshCookie!.attributes).toEqual(
+        expect.arrayContaining(['HttpOnly', 'SameSite=Strict', 'Path=/api/auth', `Max-Age=${DAY}`]),
+      );
       expect(marker!.value).toBe('1');
-      expect(body.tokens).toEqual({ accessToken: expect.any(String), expiresIn: 900, refreshExpiresIn: DAY });
+      expect(body.tokens).toEqual({
+        accessToken: expect.any(String),
+        expiresIn: 900,
+        refreshExpiresIn: DAY,
+      });
       expect(JSON.stringify(body)).not.toContain(refreshCookie!.value);
       expect(body.user.email).toBe(user.email);
       expect(body.sessionId).not.toBe(app.sessionId);
       const listed = await sessionsOf(tokens.accessToken);
       const browser = listed.find((session) => session.id === body.sessionId);
       expect(browser?.label).toBe('Chrome · Android');
-      expect(Math.abs(new Date(browser!.endsAt).getTime() - (Date.now() + DAY * 1000))).toBeLessThan(60_000);
+      expect(
+        Math.abs(new Date(browser!.endsAt).getTime() - (Date.now() + DAY * 1000)),
+      ).toBeLessThan(60_000);
     });
 
     it('once', async () => {
@@ -174,7 +221,10 @@ describe('a browser signed in from an application', () => {
       const isOpen = sessions.isOpen.bind(sessions);
       // The look at the code is followed by the look at its session: another request takes the code in between.
       vi.spyOn(sessions, 'isOpen').mockImplementationOnce(async (userId, sessionId) => {
-        await t.prisma.browserSignInCode.updateMany({ where: { codeHash: sha256(code) }, data: { usedAt: new Date() } });
+        await t.prisma.browserSignInCode.updateMany({
+          where: { codeHash: sha256(code) },
+          data: { usedAt: new Date() },
+        });
         return isOpen(userId, sessionId);
       });
 
@@ -187,7 +237,10 @@ describe('a browser signed in from an application', () => {
 
     it('within a minute', async () => {
       const { code } = await codeOf();
-      await t.prisma.browserSignInCode.updateMany({ where: { codeHash: sha256(code) }, data: { expiresAt: new Date(Date.now() - 1000) } });
+      await t.prisma.browserSignInCode.updateMany({
+        where: { codeHash: sha256(code) },
+        data: { expiresAt: new Date(Date.now() - 1000) },
+      });
 
       expect((await whose(code).expect(401)).body.error).toBe('INVALID_BROWSER_CODE');
       expect((await signIn(code).expect(401)).body.error).toBe('INVALID_BROWSER_CODE');
@@ -195,7 +248,11 @@ describe('a browser signed in from an application', () => {
 
     it('while the session that asked for it is open', async () => {
       const { code, tokens } = await codeOf();
-      await t.http().post('/api/auth/logout').send({ refreshToken: tokens.refreshToken }).expect(204);
+      await t
+        .http()
+        .post('/api/auth/logout')
+        .send({ refreshToken: tokens.refreshToken })
+        .expect(204);
 
       expect((await whose(code).expect(401)).body.error).toBe('INVALID_BROWSER_CODE');
       expect((await signIn(code).expect(401)).body.error).toBe('INVALID_BROWSER_CODE');
@@ -209,7 +266,9 @@ describe('a browser signed in from an application', () => {
     it("by the application's own pages alone, and a refused page leaves the code to be used", async () => {
       const { code } = await codeOf();
 
-      expect((await signIn(code, { origin: 'https://elsewhere.example' }).expect(403)).body.error).toBe('ORIGIN_NOT_ALLOWED');
+      expect(
+        (await signIn(code, { origin: 'https://elsewhere.example' }).expect(403)).body.error,
+      ).toBe('ORIGIN_NOT_ALLOWED');
       await signIn(code).expect(200);
     });
 
@@ -222,17 +281,27 @@ describe('a browser signed in from an application', () => {
       const second = await codeOf(first.tokens.refreshToken);
       await signIn(second.code, { cookie: ownBrowser.tokens.refreshToken }).expect(200);
 
-      expect((await refresh(someoneElse.tokens.refreshToken).expect(401)).body.error).toBe('INVALID_REFRESH');
-      expect((await refresh(ownBrowser.tokens.refreshToken).expect(401)).body.error).toBe('INVALID_REFRESH');
+      expect((await refresh(someoneElse.tokens.refreshToken).expect(401)).body.error).toBe(
+        'INVALID_REFRESH',
+      );
+      expect((await refresh(ownBrowser.tokens.refreshToken).expect(401)).body.error).toBe(
+        'INVALID_REFRESH',
+      );
     });
 
     it('to a session that refreshes within its day and never past it', async () => {
       const res = await signIn((await codeOf()).code).expect(200);
 
-      const next = await t.http().post('/api/auth/refresh').set({ Origin: WEB, Cookie: `diet_refresh=${cookiesOf(res).diet_refresh!.value}` }).expect(200);
+      const next = await t
+        .http()
+        .post('/api/auth/refresh')
+        .set({ Origin: WEB, Cookie: `diet_refresh=${cookiesOf(res).diet_refresh!.value}` })
+        .expect(200);
 
       expect((next.body as AuthResponse).tokens.refreshExpiresIn).toBeLessThanOrEqual(DAY);
-      const family = await t.prisma.refreshToken.findFirstOrThrow({ where: { familyId: (res.body as AuthResponse).sessionId } });
+      const family = await t.prisma.refreshToken.findFirstOrThrow({
+        where: { familyId: (res.body as AuthResponse).sessionId },
+      });
       expect(family.familyExpiresAt.getTime()).toBeLessThanOrEqual(Date.now() + DAY * 1000);
     });
 
@@ -243,14 +312,21 @@ describe('a browser signed in from an application', () => {
 
       const body = (await signIn(code).expect(200)).body as AuthResponse;
 
-      await t.http().get('/api/users/me').set('Authorization', `Bearer ${body.tokens.accessToken}`).expect(200);
+      await t
+        .http()
+        .get('/api/users/me')
+        .set('Authorization', `Bearer ${body.tokens.accessToken}`)
+        .expect(200);
     });
   });
 
   it('removes the codes of more than a day ago, and keeps those an hour is still counted from', async () => {
     const old = await codeOf();
     const recent = await codeOf(old.tokens.refreshToken);
-    await t.prisma.browserSignInCode.updateMany({ where: { codeHash: sha256(old.code) }, data: { createdAt: new Date(Date.now() - 25 * 3_600_000) } });
+    await t.prisma.browserSignInCode.updateMany({
+      where: { codeHash: sha256(old.code) },
+      data: { createdAt: new Date(Date.now() - 25 * 3_600_000) },
+    });
 
     expect(await browsers.prune()).toBe(1);
 

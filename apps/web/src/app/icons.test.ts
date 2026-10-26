@@ -46,7 +46,11 @@ const taken = all.flatMap(({ path, text }) =>
 describe('the icons of the application', () => {
   it('come from one family', () => {
     const others = all.flatMap(({ path, text }) =>
-      [...text.matchAll(/from '((?:react-icons|@heroicons|@tabler\/icons|@phosphor-icons|@radix-ui\/react-icons|@fortawesome)[^']*)'/g)].map((found) => `${path}: ${found[1]}`),
+      [
+        ...text.matchAll(
+          /from '((?:react-icons|@heroicons|@tabler\/icons|@phosphor-icons|@radix-ui\/react-icons|@fortawesome)[^']*)'/g,
+        ),
+      ].map((found) => `${path}: ${found[1]}`),
     );
 
     expect(others).toEqual([]);
@@ -57,7 +61,9 @@ describe('the icons of the application', () => {
     const aliases = taken.flatMap(({ path, name }) => {
       const file = join(ICONS, `${fileOf(name)}.mjs`);
       if (!existsSync(file)) return [`${path}: ${name} is no icon of the family`];
-      const now = /export \{ default \} from '\.\/([a-z0-9-]+)\.mjs'/.exec(readFileSync(file, 'utf8'));
+      const now = /export \{ default \} from '\.\/([a-z0-9-]+)\.mjs'/.exec(
+        readFileSync(file, 'utf8'),
+      );
       return now ? [`${path}: ${name} is ${now[1]} by an earlier name`] : [];
     });
 

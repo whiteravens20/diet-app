@@ -11,10 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { ApiClientError } from '@/lib/http';
 import { useErrorText } from '@/lib/use-error-text';
-import {
-  reviewApi,
-  type ReviewStatusDto,
-} from '@/lib/review-api';
+import { reviewApi, type ReviewStatusDto } from '@/lib/review-api';
 import { ReviewQueue } from './review-queue';
 import { useFormat } from '@/lib/use-format';
 
@@ -77,9 +74,7 @@ export function ReviewSurface() {
         <CardHeader>
           <CardTitle>{t('disabledTitle')}</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          {t('disabledExplain')}
-        </CardContent>
+        <CardContent className="text-sm text-muted-foreground">{t('disabledExplain')}</CardContent>
       </Card>
     );
   }
@@ -122,7 +117,11 @@ function ReviewLoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
       await reviewApi.login({ password, label });
       onLoggedIn();
     } catch (err) {
-      setError(err instanceof ApiClientError && err.code === 'INVALID_REVIEWER_PASSWORD' ? t('loginBadPassword') : errorText(err, t('loginFailed')));
+      setError(
+        err instanceof ApiClientError && err.code === 'INVALID_REVIEWER_PASSWORD'
+          ? t('loginBadPassword')
+          : errorText(err, t('loginFailed')),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -188,9 +187,7 @@ function ReviewSession({
   if (!locale) {
     return (
       <Card>
-        <CardContent className="pt-6 text-sm text-muted-foreground">
-          {t('noLocales')}
-        </CardContent>
+        <CardContent className="pt-6 text-sm text-muted-foreground">{t('noLocales')}</CardContent>
       </Card>
     );
   }

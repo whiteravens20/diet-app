@@ -11,6 +11,7 @@ import { DraftsController } from './drafts.controller.js';
 import { RecipeImportService } from './external/recipe-import.service.js';
 import { IngredientNamerRunner } from './ingredient-namer.runner.js';
 import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
+import { InstanceFilesModule } from './ship/instance-files.module.js';
 import { TranslationRunner } from './translation.runner.js';
 
 /**
@@ -22,9 +23,17 @@ import { TranslationRunner } from './translation.runner.js';
  * holds the queue's own rules and is what the reviewers' routes use too.
  */
 @Module({
-  imports: [PrismaModule, AiModule, CatalogueModule],
+  imports: [PrismaModule, AiModule, CatalogueModule, InstanceFilesModule],
   controllers: [DraftsController],
-  providers: [AdminSessionGuard, IngredientNamerRunner, RecipeGeneratorRunner, TranslationRunner, AdminModelService, RecipeImportService, DraftService],
+  providers: [
+    AdminSessionGuard,
+    IngredientNamerRunner,
+    RecipeGeneratorRunner,
+    TranslationRunner,
+    AdminModelService,
+    RecipeImportService,
+    DraftService,
+  ],
   exports: [DraftService],
 })
 export class DraftsModule {}

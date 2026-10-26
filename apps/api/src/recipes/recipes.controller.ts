@@ -1,14 +1,37 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AiDraftRecipeRequest, AiDraftRecipeResponse, PageQuery, Recipe, RecipeSearchPage, RecipeSearchQuery, type Locale } from '@diet-app/shared';
+import {
+  AiDraftRecipeRequest,
+  AiDraftRecipeResponse,
+  OwnRecipeInput,
+  OwnRecipePreview,
+  OwnRecipePreviewRequest,
+  PageQuery,
+  Recipe,
+  RecipeSearchPage,
+  RecipeSearchQuery,
+  type Locale,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers } from '../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { AiRecipeDraftService } from './ai-recipe-draft.service.js';
+import { OwnRecipesService } from './own-recipes.service.js';
 import { PersonalRecipesService } from './personal-recipes.service.js';
 import { RecipesService } from './recipes.service.js';
 
@@ -19,11 +42,13 @@ export class RecipesController {
     private readonly recipes: RecipesService,
     private readonly draft: AiRecipeDraftService,
     private readonly personal: PersonalRecipesService,
+    private readonly own: OwnRecipesService,
   ) {}
 
   /**
    * The recipes of the account's own, a page at a time: those a model wrote
-   * for it and those a substitution left. A deleted one is not among them.
+   * for it, those a substitution left and those written by hand. A deleted
+   * one is not among them.
    */
   @Get('mine')
   @Answers(RecipeSearchPage)
@@ -65,17 +90,69 @@ export class RecipesController {
     return this.draft.draftFromPrompt(user.id, locale, dto);
   }
 
+  /**
+   * Write a recipe of the account's own by hand, in the language of the
+   * request, from ingredients of the catalogue. The engine works out its
+   * nutrition, allergens and diets. A recipe of the library with the same
+   * ingredients does not stand in for it; one of the account's own does
+   * (409 `RECIPE_ALREADY_YOURS`, naming it). At most 50 are written or edited
+   * by hand in 24 hours (429 `OWN_RECIPE_DAILY_LIMIT`).
+   */
+  @Post()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Answers(Recipe)
+  create(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Body(new ZodValidationPipe(OwnRecipeInput)) dto: OwnRecipeInput,
+  ) {
+    return this.own.create(user.id, locale, dto);
+  }
+
+  /** What a serving of a recipe being written would hold, and its allergens and diets. Nothing is stored. */
+  @Post('preview')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(OwnRecipePreview)
+  preview(@Body(new ZodValidationPipe(OwnRecipePreviewRequest)) dto: OwnRecipePreviewRequest) {
+    return this.own.preview(dto);
+  }
+
+  /**
+   * Edit a recipe of the account's own, whoever wrote it. A new version is
+   * written by hand, in the language of the request, and its id answered:
+   * the plans that hold the old version keep it, and the favourites and
+   * favourite sets that named it name the new one. A recipe made by swapping
+   * an ingredient stays one, and is still not to be submitted.
+   */
+  @Put(':id')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Answers(Recipe)
+  edit(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Body(new ZodValidationPipe(OwnRecipeInput)) dto: OwnRecipeInput,
+  ) {
+    return this.own.edit(user.id, locale, id, dto);
+  }
+
   /** One recipe, with its ingredients and steps. */
   @Get(':id')
   @Answers(Recipe)
-  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string) {
+  get(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+  ) {
     return this.recipes.get(user.id, locale, id);
   }
 
   /**
    * Put a recipe of one's own before the curators, as a candidate for the
    * library everyone shares. They see what the recipe says and is made of,
-   * not who sent it. Repeating the request changes nothing.
+   * not who sent it. Repeating the request changes nothing. A recipe made by
+   * swapping an ingredient stays its owner's (409).
    */
   @Post(':id/submit')
   @HttpCode(204)

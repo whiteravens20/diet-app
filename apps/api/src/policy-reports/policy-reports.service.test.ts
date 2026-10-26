@@ -5,8 +5,20 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { MOST_KINDS, PolicyReportsService, WINDOW_MINUTES } from './policy-reports.service.js';
 import type { Violation } from './violation.js';
 
-const inline: Violation = { disposition: 'enforce', directive: 'script-src-elem', blocked: 'inline', page: '/meal-plans', source: '' };
-const evaluated: Violation = { disposition: 'enforce', directive: 'script-src', blocked: 'eval', page: '/login', source: '/_next/static/chunks/a.js:3:20249' };
+const inline: Violation = {
+  disposition: 'enforce',
+  directive: 'script-src-elem',
+  blocked: 'inline',
+  page: '/meal-plans',
+  source: '',
+};
+const evaluated: Violation = {
+  disposition: 'enforce',
+  directive: 'script-src',
+  blocked: 'eval',
+  page: '/login',
+  source: '/_next/static/chunks/a.js:3:20249',
+};
 
 describe('what the log says of the reports against the content security policy', () => {
   let warned: MockInstance<Logger['warn']>;
@@ -28,7 +40,10 @@ describe('what the log says of the reports against the content security policy',
     reports.record([inline]);
     reports.record([{ ...inline, page: '/recipes' }, inline, evaluated]);
 
-    expect(warned.mock.calls.map(([line]) => line)).toEqual(['script-src-elem blocked inline on /meal-plans', 'script-src blocked eval on /login (/_next/static/chunks/a.js:3:20249)']);
+    expect(warned.mock.calls.map(([line]) => line)).toEqual([
+      'script-src-elem blocked inline on /meal-plans',
+      'script-src blocked eval on /login (/_next/static/chunks/a.js:3:20249)',
+    ]);
     expect(logged).not.toHaveBeenCalled();
   });
 
@@ -57,8 +72,11 @@ describe('what the log says of the reports against the content security policy',
     expect(warned).not.toHaveBeenCalled();
   });
 
-  it('is not anybody\'s to fill: beyond the kinds it tells apart, reports are counted and not described', () => {
-    const flood = Array.from({ length: MOST_KINDS + 500 }, (_, index): Violation => ({ ...inline, blocked: `https://host-${index}.example` }));
+  it("is not anybody's to fill: beyond the kinds it tells apart, reports are counted and not described", () => {
+    const flood = Array.from({ length: MOST_KINDS + 500 }, (_, index): Violation => ({
+      ...inline,
+      blocked: `https://host-${index}.example`,
+    }));
 
     reports.record(flood);
     reports.record(flood);
@@ -67,7 +85,9 @@ describe('what the log says of the reports against the content security policy',
     reports.summarise();
     const line = logged.mock.calls[0]![0] as string;
     expect(line.startsWith(`${2 * (MOST_KINDS + 500)} report(s)`)).toBe(true);
-    expect(line.endsWith(`${2 * 500}x of kinds beyond the ${MOST_KINDS} that are told apart`)).toBe(true);
+    expect(line.endsWith(`${2 * 500}x of kinds beyond the ${MOST_KINDS} that are told apart`)).toBe(
+      true,
+    );
     expect(line).not.toContain(`host-${MOST_KINDS}.example`);
   });
 

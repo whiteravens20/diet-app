@@ -14,7 +14,8 @@ interface AccessTokenPayload {
   sid: string;
 }
 
-const refused = (): UnauthorizedException => new UnauthorizedException({ error: 'INVALID_ACCESS_TOKEN', message: 'Invalid access token.' });
+const refused = (): UnauthorizedException =>
+  new UnauthorizedException({ error: 'INVALID_ACCESS_TOKEN', message: 'Invalid access token.' });
 const named = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 
 /**

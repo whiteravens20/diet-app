@@ -47,8 +47,7 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
   const [saved, setSaved] = useState(false);
 
   const save = useMutation({
-    mutationFn: (aiMode: AiMode) =>
-      api.patch<SessionUser>('/users/me', { aiMode }),
+    mutationFn: (aiMode: AiMode) => api.patch<SessionUser>('/users/me', { aiMode }),
     onSuccess: () => {
       setSaved(true);
       qc.invalidateQueries({ queryKey: ['session'] });
@@ -145,15 +144,19 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
           })}
           {quota.isSuccess && !adminAvailable && (
             <p className="text-xs text-muted-foreground italic">
-              {adminProviderConfigured
-                ? t('aiModeAdminDisabled')
-                : t('aiModeAdminUnavailable')}
+              {adminProviderConfigured ? t('aiModeAdminDisabled') : t('aiModeAdminUnavailable')}
             </p>
           )}
           {adminAvailable && adminAccess !== 'granted' && (
             <div className="space-y-1 text-xs text-muted-foreground">
-              <p className="italic">{adminAccess === 'email_unconfirmed' ? t('aiModeAdminConfirmEmail') : t('aiModeAdminNotApproved')}</p>
-              {adminAccess === 'not_approved' && <OperatorContact notPublished={t('aiModeAdminNoContact')} />}
+              <p className="italic">
+                {adminAccess === 'email_unconfirmed'
+                  ? t('aiModeAdminConfirmEmail')
+                  : t('aiModeAdminNotApproved')}
+              </p>
+              {adminAccess === 'not_approved' && (
+                <OperatorContact notPublished={t('aiModeAdminNoContact')} />
+              )}
             </div>
           )}
         </fieldset>
@@ -182,20 +185,17 @@ export function AiAssistantCard({ me }: { me: SessionUser }) {
             )}
             {status.adminAccess === 'granted' && status.newUntil && (
               <p className="text-xs text-muted-foreground">
-                {t(status.newAccountsLimitReached ? 'aiQuotaNewAccountsUsedUp' : 'aiQuotaNewAccount', { date: fmt.moment(status.newUntil) })}
+                {t(
+                  status.newAccountsLimitReached ? 'aiQuotaNewAccountsUsedUp' : 'aiQuotaNewAccount',
+                  { date: fmt.moment(status.newUntil) },
+                )}
               </p>
             )}
           </div>
         )}
 
-        {save.isPending && (
-          <p className="text-xs text-muted-foreground">{t('aiModeSaving')}</p>
-        )}
-        {saved && (
-          <p className="text-xs text-success">
-            {t('aiModeSaved')}
-          </p>
-        )}
+        {save.isPending && <p className="text-xs text-muted-foreground">{t('aiModeSaving')}</p>}
+        {saved && <p className="text-xs text-success">{t('aiModeSaved')}</p>}
         {error && <p className="text-xs text-destructive">{error}</p>}
       </CardContent>
     </Card>

@@ -24,7 +24,11 @@ describe('rate limits behind one trusted proxy', () => {
       .http()
       .post('/api/auth/register')
       .set('X-Forwarded-For', forwardedFor)
-      .send({ email: `visitor-${(sequence += 1)}-${Date.now().toString(36)}@example.test`, password: 'Integration-Passw0rd', displayName: 'Visitor' });
+      .send({
+        email: `visitor-${(sequence += 1)}-${Date.now().toString(36)}@example.test`,
+        password: 'Integration-Passw0rd',
+        displayName: 'Visitor',
+      });
   const basic = asAdmin;
 
   describe('signing in', () => {
@@ -33,7 +37,8 @@ describe('rate limits behind one trusted proxy', () => {
 
     it('counts wrong passwords against the account and the address together, so that a stranger cannot keep the owner out', async () => {
       const owner = await aUser(t);
-      for (let i = 0; i < 10; i += 1) expect((await login('203.0.113.101', owner.email, 'not-the-password')).status).toBe(401);
+      for (let i = 0; i < 10; i += 1)
+        expect((await login('203.0.113.101', owner.email, 'not-the-password')).status).toBe(401);
 
       // The address that guessed is held up for a quarter of an hour, right password or not.
       const held = await login('203.0.113.101', owner.email, owner.password);
@@ -46,16 +51,22 @@ describe('rate limits behind one trusted proxy', () => {
 
     it('takes every address of one IPv6 network for the one client it is', async () => {
       const owner = await aUser(t);
-      for (let i = 0; i < 10; i += 1) await login(`2001:db8:1:2::${i + 1}`, owner.email, 'not-the-password');
+      for (let i = 0; i < 10; i += 1)
+        await login(`2001:db8:1:2::${i + 1}`, owner.email, 'not-the-password');
 
-      expect((await login('2001:db8:1:2:aaaa:bbbb:cccc:dddd', owner.email, owner.password)).status).toBe(429);
+      expect(
+        (await login('2001:db8:1:2:aaaa:bbbb:cccc:dddd', owner.email, owner.password)).status,
+      ).toBe(429);
       expect((await login('2001:db8:1:3::1', owner.email, owner.password)).status).toBe(200);
     });
 
     it('lets one account be tried fifty times in a quarter of an hour from everywhere together', async () => {
       const owner = await aUser(t);
       for (let address = 1; address <= 5; address += 1) {
-        for (let i = 0; i < 10; i += 1) expect((await login(`203.0.113.${110 + address}`, owner.email, 'not-the-password')).status).toBe(401);
+        for (let i = 0; i < 10; i += 1)
+          expect(
+            (await login(`203.0.113.${110 + address}`, owner.email, 'not-the-password')).status,
+          ).toBe(401);
       }
 
       // Five addresses used up what the account allows: a sixth is refused before its password is looked at.
@@ -68,7 +79,10 @@ describe('rate limits behind one trusted proxy', () => {
 
   describe('a route that tries a credential', () => {
     const fresh = (): string => `nobody-${(sequence += 1)}-${Date.now().toString(36)}@example.test`;
-    const statuses = async (count: number, send: (index: number) => Promise<{ status: number }>): Promise<number[]> => {
+    const statuses = async (
+      count: number,
+      send: (index: number) => Promise<{ status: number }>,
+    ): Promise<number[]> => {
       const seen: number[] = [];
       for (let index = 0; index < count; index += 1) seen.push((await send(index)).status);
       return seen;
@@ -80,7 +94,9 @@ describe('rate limits behind one trusted proxy', () => {
         t.http().post('/api/auth/login').set('X-Forwarded-For', from).send({ email, password });
 
       // Thirty accounts in a quarter of an hour, one try each: no account ran out, the address did.
-      expect(await statuses(30, () => login('203.0.113.130', fresh(), 'whatever-it-is'))).toEqual(Array(30).fill(401));
+      expect(await statuses(30, () => login('203.0.113.130', fresh(), 'whatever-it-is'))).toEqual(
+        Array(30).fill(401),
+      );
       expect((await login('203.0.113.130', user.email, user.password)).status).toBe(429);
       expect((await login('203.0.113.131', user.email, user.password)).status).toBe(200);
     });
@@ -89,21 +105,33 @@ describe('rate limits behind one trusted proxy', () => {
       const refresh = (from: string, refreshToken: string) =>
         t.http().post('/api/auth/refresh').set('X-Forwarded-For', from).send({ refreshToken });
 
-      expect(await statuses(31, (index) => refresh('203.0.113.140', `made-up-${index}`))).toEqual([...Array(30).fill(401), 429]);
+      expect(await statuses(31, (index) => refresh('203.0.113.140', `made-up-${index}`))).toEqual([
+        ...Array(30).fill(401),
+        429,
+      ]);
       expect((await refresh('203.0.113.141', 'made-up-0')).status).toBe(401);
     });
 
     it('lets one address ask for fifteen password resets in a quarter of an hour, whoever they are for', async () => {
-      const ask = (from: string) => t.http().post('/api/auth/password-reset/request').set('X-Forwarded-For', from).send({ email: fresh() });
+      const ask = (from: string) =>
+        t
+          .http()
+          .post('/api/auth/password-reset/request')
+          .set('X-Forwarded-For', from)
+          .send({ email: fresh() });
 
       expect(await statuses(16, () => ask('203.0.113.150'))).toEqual([...Array(15).fill(202), 429]);
       expect((await ask('203.0.113.151')).status).toBe(202);
     });
 
     it('lets one address try ten links from mails a minute', async () => {
-      const verify = (from: string, token: string) => t.http().post('/api/auth/verify-email').set('X-Forwarded-For', from).send({ token });
+      const verify = (from: string, token: string) =>
+        t.http().post('/api/auth/verify-email').set('X-Forwarded-For', from).send({ token });
 
-      expect(await statuses(11, (index) => verify('203.0.113.160', `token-${index}`))).toEqual([...Array(10).fill(400), 429]);
+      expect(await statuses(11, (index) => verify('203.0.113.160', `token-${index}`))).toEqual([
+        ...Array(10).fill(400),
+        429,
+      ]);
       expect((await verify('203.0.113.161', 'token-0')).status).toBe(400);
     });
   });
@@ -117,7 +145,11 @@ describe('rate limits behind one trusted proxy', () => {
       held ??= res.status === 429 ? Number(res.headers['retry-after']) : undefined;
     }
 
-    expect(first).toEqual([...Array(3).fill('opened'), ...Array(7).fill('TOO_MANY_SIGN_UPS'), 'RATE_LIMITED']);
+    expect(first).toEqual([
+      ...Array(3).fill('opened'),
+      ...Array(7).fill('TOO_MANY_SIGN_UPS'),
+      'RATE_LIMITED',
+    ]);
     // Until the first of the three is a day old.
     expect(held).toBeGreaterThan(86_000);
     expect((await register('203.0.113.8')).status).toBe(201);
@@ -126,7 +158,11 @@ describe('rate limits behind one trusted proxy', () => {
   it('counts only the sign-ups that opened an account', async () => {
     const taken = await aUser(t);
     for (let i = 0; i < 3; i += 1) {
-      const again = await t.http().post('/api/auth/register').set('X-Forwarded-For', '203.0.113.9').send({ email: taken.email, password: 'Integration-Passw0rd', displayName: 'Again' });
+      const again = await t
+        .http()
+        .post('/api/auth/register')
+        .set('X-Forwarded-For', '203.0.113.9')
+        .send({ email: taken.email, password: 'Integration-Passw0rd', displayName: 'Again' });
       expect(again.status).toBe(409);
     }
 
@@ -135,7 +171,11 @@ describe('rate limits behind one trusted proxy', () => {
 
   it('counts the health probe for each client on its own', async () => {
     const remaining = async (from: string): Promise<number> =>
-      Number((await t.http().get('/api/health').set('X-Forwarded-For', from).expect(200)).headers['x-ratelimit-remaining']);
+      Number(
+        (await t.http().get('/api/health').set('X-Forwarded-For', from).expect(200)).headers[
+          'x-ratelimit-remaining'
+        ],
+      );
 
     const first = await remaining('203.0.113.170');
     expect(first).toBeGreaterThan(0);
@@ -153,7 +193,12 @@ describe('rate limits behind one trusted proxy', () => {
   });
 
   it('shows the administrator the client it took the request for', async () => {
-    const res = await t.http().get('/api/admin/connection').set(basic).set('X-Forwarded-For', '198.51.100.99, 203.0.113.21').expect(200);
+    const res = await t
+      .http()
+      .get('/api/admin/connection')
+      .set(basic)
+      .set('X-Forwarded-For', '198.51.100.99, 203.0.113.21')
+      .expect(200);
 
     expect(res.body).toMatchObject({
       clientAddress: '203.0.113.21',
@@ -170,16 +215,27 @@ describe('rate limits behind one trusted proxy', () => {
     // No proxy wrote the header: whoever reaches the API this way could write it themselves.
     const res = await t.http().get('/api/admin/connection').set(basic).expect(200);
 
-    expect(res.body).toMatchObject({ forwardedFor: null, forwardedHops: 0, trustProxy: 1, overTrusted: true });
+    expect(res.body).toMatchObject({
+      forwardedFor: null,
+      forwardedHops: 0,
+      trustProxy: 1,
+      overTrusted: true,
+    });
   });
 
   it('counts a wrong administrator password against the client, not against the proxy', async () => {
     const signIn = (password: string, from: string) =>
-      t.http().post('/api/admin/session').set({ Origin: 'http://localhost:3000', 'X-Forwarded-For': from }).send({ user: 'admin', password });
+      t
+        .http()
+        .post('/api/admin/session')
+        .set({ Origin: 'http://localhost:3000', 'X-Forwarded-For': from })
+        .send({ user: 'admin', password });
     for (let i = 0; i < 5; i += 1) await signIn('not-the-password', '203.0.113.50').expect(401);
 
     // The guesser waits; the administrator, at another address, does not.
-    expect((await signIn('integration-test-admin-password', '203.0.113.50').expect(429)).body.error).toBe('TOO_MANY_ATTEMPTS');
+    expect(
+      (await signIn('integration-test-admin-password', '203.0.113.50').expect(429)).body.error,
+    ).toBe('TOO_MANY_ATTEMPTS');
     await signIn('integration-test-admin-password', '203.0.113.60').expect(204);
   });
 });

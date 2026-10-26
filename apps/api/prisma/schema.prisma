@@ -331,8 +331,12 @@ model ProfilePreference {
   // See ProfilePreferences zod schema in packages/shared for semantics.
   maxConsecutiveDaysSameMeal Int      @default(2)
   maxTimesPerWeekSameMeal    Int      @default(3)
-  // The most of one ingredient, in grams or millilitres, in any seven days.
-  maxWeeklyAmountPerIngredient Int    @default(3000)
+  // The most meals of a day, and of any seven days, with the same kind of
+  // protein (null: no such limit), and the kinds held to numbers of their own
+  // ([{ kind, perDay, perWeek }], KindLimit in packages/shared).
+  maxMealsPerDaySameKind     Int?
+  maxMealsPerWeekSameKind    Int?
+  kindLimits                 Json     @default("[]")
   // Anti-monotony rotation. After N consecutive inventory-biased plan
   // generations the optimiser drops the pantry bias for the next round and
   // resets the counter, so a long run of leftover-heavy weeks can't lock the
@@ -373,6 +377,20 @@ enum NaturalUnit {
   handful
 }
 
+// The kind of protein a food is, for the limits on one kind in the meals of a
+// day and of seven days. See ProteinKind in packages/shared.
+enum ProteinKind {
+  chicken
+  turkey
+  beef
+  pork
+  fish
+  seafood
+  eggs
+  dairy
+  legumes
+}
+
 // Provenance for translation rows. CURATED_JSON rows are derived from
 // data/*.json and re-written on every seed; AI / MANUAL rows survive re-seeds
 // so operator-generated translations are not lost when curated data is updated.
@@ -402,6 +420,13 @@ model Ingredient {
   // cloves of garlic). Curated in the data; needs `gramsPerPiece`. Quantities
   // of it are shown, bought and stocked in pieces. See `engine/display.ts`.
   displayUnit       NaturalUnit?
+  // Set for what is measured with a teaspoon (dry spices, salt, lemon juice):
+  // how much of it a level teaspoon holds, in the canonical unit. Small
+  // quantities are shown in teaspoons and pinches, nothing else changes. See
+  // `engine/display.ts`.
+  perTeaspoon       Float?
+  // The kind of protein it is; null for a food of none. Curated in the data.
+  proteinKind       ProteinKind?
   allergens         String[]        @default([])
   dietCompatibility String[]        @default([])
   tags              String[]        @default([])
@@ -466,12 +491,15 @@ enum RecipeOrigin {
   seed
   // A personal recipe a model wrote for its owner.
   ai
-  // A personal recipe its owner made, by hand or by swapping an ingredient.
-  user
+  // A personal recipe its owner made by swapping an ingredient of another one.
+  swap
   // Approved in this instance's curation queue and shipped into its own
   // library, whether a batch run or a user wrote it. An update of the
   // catalogue leaves it alone; the instance's data directory holds its copy.
   curated
+  // A personal recipe its owner wrote by hand, or a new version they made by
+  // editing a recipe of theirs that a model wrote.
+  manual
 }
 
 enum Difficulty {
@@ -503,6 +531,9 @@ model Recipe {
   // that was swapped in, or reworded the text around it. A recipe a model
   // wrote whole says so by its origin.
   modelAssisted      Boolean      @default(false)
+  // A new version its owner made by editing a recipe of theirs. The version
+  // it replaced stays, deleted, for the plans that hold it.
+  edited             Boolean      @default(false)
   // Where a recipe that was taken in from somewhere else is from, and the
   // licence it may be passed on under: shown with the recipe wherever it is
   // read. Both null for a recipe written here.
@@ -572,6 +603,9 @@ model RecipeIngredient {
   quantity     Float
   unit         Unit
   note         String?
+  // The place of the line in its recipe, from 0: the order the recipe was
+  // written in, which every read of a recipe keeps.
+  position     Int        @default(0)
 
   @@index([recipeId])
   @@index([ingredientId])
@@ -886,8 +920,8 @@ model AiUsageOfDeletedAccounts {
 // ── Curation queue (drafts) ───────────────────────────────────────────────────
 
 // A model or a user proposes, people approve, and what is approved ships: into
-// this instance's own tables, into a file, or into a pull request. A draft is
-// no recipe: nothing plans with it until it has shipped.
+// this instance's own tables, or into a file. A draft is no recipe: nothing
+// plans with it until it has shipped.
 
 enum DraftStatus {
   PENDING
@@ -951,7 +985,6 @@ model RecipeDraft {
   // EXTERNAL only — source URL + license for the imported row.
   provenanceUrl      String?
   provenanceLicense  String?
-  shippedPRUrl       String?
   shippedAt          DateTime?
   // The fingerprint of the recipe the draft describes (see
   // admin/drafts/fingerprint.ts): one draft per recipe, however many personal
@@ -1042,7 +1075,6 @@ model IngredientNameDraft {
   modelUsed       String?
   // Prompt version tag, e.g. "ingredient-namer.v1".
   generatorPrompt String?
-  shippedPRUrl    String?
   shippedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

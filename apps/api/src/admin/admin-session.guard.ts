@@ -6,7 +6,13 @@
  * request is refused, so the panel can never be opened by accident. A request
  * that changes something has to come from the application's own pages.
  */
-import { ForbiddenException, Injectable, UnauthorizedException, type CanActivate, type ExecutionContext } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+  type CanActivate,
+  type ExecutionContext,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { assertFromTheApplication } from '../auth/session-cookies.js';
 import { readCookie } from '../common/cookies.js';
@@ -21,7 +27,10 @@ import { ADMIN_COOKIE, isAdminSession } from './admin-session.js';
  * first epoch.
  */
 export async function adminSessionEpoch(prisma: PrismaService): Promise<number> {
-  const row = await prisma.instanceSettings.findUnique({ where: { id: 'singleton' }, select: { adminSessionEpoch: true } });
+  const row = await prisma.instanceSettings.findUnique({
+    where: { id: 'singleton' },
+    select: { adminSessionEpoch: true },
+  });
   return row?.adminSessionEpoch ?? 0;
 }
 
@@ -47,13 +56,21 @@ export class AdminSessionGuard implements CanActivate {
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     assertAdminEnabled(this.config);
-    const req = ctx.switchToHttp().getRequest<{ method: string; headers: Record<string, string | undefined> }>();
+    const req = ctx
+      .switchToHttp()
+      .getRequest<{ method: string; headers: Record<string, string | undefined> }>();
     const token = readCookie(req.headers['cookie'], ADMIN_COOKIE);
     if (!token) {
-      throw new UnauthorizedException({ error: 'AUTH_REQUIRED', message: 'Authentication required.' });
+      throw new UnauthorizedException({
+        error: 'AUTH_REQUIRED',
+        message: 'Authentication required.',
+      });
     }
     if (!isAdminSession(this.config, token, await adminSessionEpoch(this.prisma))) {
-      throw new UnauthorizedException({ error: 'INVALID_ADMIN_SESSION', message: 'The admin session is invalid or has ended.' });
+      throw new UnauthorizedException({
+        error: 'INVALID_ADMIN_SESSION',
+        message: 'The admin session is invalid or has ended.',
+      });
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       assertFromTheApplication(req.headers['origin'], this.config.get('APP_URL', { infer: true }));

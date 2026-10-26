@@ -13,8 +13,12 @@ const WEB = 'http://localhost:3000';
 const COOKIE_SESSION = { 'X-Session-Transport': 'cookie', Origin: WEB };
 
 /** The cookies an answer sets, by name: the value and the attributes of each. */
-function cookiesOf(res: { headers: Record<string, unknown> }): Record<string, { value: string; attributes: string[] }> {
-  const lines = ([] as string[]).concat((res.headers['set-cookie'] as string[] | string | undefined) ?? []);
+function cookiesOf(res: {
+  headers: Record<string, unknown>;
+}): Record<string, { value: string; attributes: string[] }> {
+  const lines = ([] as string[]).concat(
+    (res.headers['set-cookie'] as string[] | string | undefined) ?? [],
+  );
   return Object.fromEntries(
     lines.map((line) => {
       const [pair, ...attributes] = line.split('; ');
@@ -41,10 +45,17 @@ describe('the session of a browser', () => {
     await t.close();
   });
 
-  const signIn = () => t.http().post('/api/auth/login').set(COOKIE_SESSION).send({ email: user.email, password: user.password });
+  const signIn = () =>
+    t
+      .http()
+      .post('/api/auth/login')
+      .set(COOKIE_SESSION)
+      .send({ email: user.email, password: user.password });
   const refresh = (cookie: string | null, headers: Record<string, string> = { Origin: WEB }) => {
     const request = t.http().post('/api/auth/refresh').set(headers);
-    return cookie === null ? request.send() : request.set('Cookie', `diet_refresh=${cookie}`).send();
+    return cookie === null
+      ? request.send()
+      : request.set('Cookie', `diet_refresh=${cookie}`).send();
   };
 
   beforeEach(async () => {
@@ -57,20 +68,32 @@ describe('the session of a browser', () => {
     const { diet_refresh: refreshToken, diet_session: marker } = cookiesOf(res);
 
     expect(refreshToken!.value).toMatch(/^[0-9a-f]{96}$/);
-    expect(refreshToken!.attributes).toEqual(expect.arrayContaining(['HttpOnly', 'SameSite=Strict', 'Path=/api/auth']));
-    expect(refreshToken!.attributes.find((attribute) => attribute.startsWith('Max-Age='))).toBe(`Max-Age=${30 * 86_400}`);
+    expect(refreshToken!.attributes).toEqual(
+      expect.arrayContaining(['HttpOnly', 'SameSite=Strict', 'Path=/api/auth']),
+    );
+    expect(refreshToken!.attributes.find((attribute) => attribute.startsWith('Max-Age='))).toBe(
+      `Max-Age=${30 * 86_400}`,
+    );
     // The marker says that there is a session, to scripts and to the route guard, and holds nothing else.
     expect(marker!.value).toBe('1');
     expect(marker!.attributes).toEqual(expect.arrayContaining(['SameSite=Strict', 'Path=/']));
     expect(marker!.attributes).not.toContain('HttpOnly');
     // The token is in the cookie alone.
     const body = res.body as AuthResponse;
-    expect(body.tokens).toEqual({ accessToken: expect.any(String), expiresIn: 900, refreshExpiresIn: 30 * 86_400 });
+    expect(body.tokens).toEqual({
+      accessToken: expect.any(String),
+      expiresIn: 900,
+      refreshExpiresIn: 30 * 86_400,
+    });
     expect(JSON.stringify(body)).not.toContain(refreshToken!.value);
   });
 
   it('is not what another client gets: without asking for it, the token comes in the answer and no cookie is set', async () => {
-    const res = await t.http().post('/api/auth/login').send({ email: user.email, password: user.password }).expect(200);
+    const res = await t
+      .http()
+      .post('/api/auth/login')
+      .send({ email: user.email, password: user.password })
+      .expect(200);
 
     expect(cookiesOf(res)).toEqual({});
     expect((res.body as AuthResponse).tokens.refreshToken).toMatch(/^[0-9a-f]{96}$/);
@@ -109,8 +132,14 @@ describe('the session of a browser', () => {
     const refused = await refresh(refreshCookie).expect(401);
 
     const cleared = cookiesOf(refused);
-    expect(cleared.diet_refresh).toMatchObject({ value: '', attributes: expect.arrayContaining(['Max-Age=0', 'Path=/api/auth']) });
-    expect(cleared.diet_session).toMatchObject({ value: '', attributes: expect.arrayContaining(['Max-Age=0', 'Path=/']) });
+    expect(cleared.diet_refresh).toMatchObject({
+      value: '',
+      attributes: expect.arrayContaining(['Max-Age=0', 'Path=/api/auth']),
+    });
+    expect(cleared.diet_session).toMatchObject({
+      value: '',
+      attributes: expect.arrayContaining(['Max-Age=0', 'Path=/']),
+    });
   });
 
   it('keeps its cookies when two tabs refresh in the same moment', async () => {
@@ -123,7 +152,13 @@ describe('the session of a browser', () => {
   });
 
   it('is signed out of with the cookie, which is taken away', async () => {
-    const res = await t.http().post('/api/auth/logout').set({ Origin: WEB }).set('Cookie', `diet_refresh=${refreshCookie}`).send().expect(204);
+    const res = await t
+      .http()
+      .post('/api/auth/logout')
+      .set({ Origin: WEB })
+      .set('Cookie', `diet_refresh=${refreshCookie}`)
+      .send()
+      .expect(204);
 
     expect(cookiesOf(res).diet_refresh!.attributes).toContain('Max-Age=0');
     expect(cookiesOf(res).diet_session!.attributes).toContain('Max-Age=0');
@@ -131,20 +166,39 @@ describe('the session of a browser', () => {
   });
 
   it('is not signed out of from another site', async () => {
-    await t.http().post('/api/auth/logout').set({ Origin: 'https://elsewhere.example' }).set('Cookie', `diet_refresh=${refreshCookie}`).send().expect(403);
+    await t
+      .http()
+      .post('/api/auth/logout')
+      .set({ Origin: 'https://elsewhere.example' })
+      .set('Cookie', `diet_refresh=${refreshCookie}`)
+      .send()
+      .expect(403);
 
     await refresh(refreshCookie).expect(200);
   });
 
   it('begins the same way for a new account', async () => {
-    const res = await t.http().post('/api/auth/register').set(COOKIE_SESSION).send({ email: 'browser@example.test', password: 'Brand-New-Passw0rd', displayName: 'Browser' }).expect(201);
+    const res = await t
+      .http()
+      .post('/api/auth/register')
+      .set(COOKIE_SESSION)
+      .send({
+        email: 'browser@example.test',
+        password: 'Brand-New-Passw0rd',
+        displayName: 'Browser',
+      })
+      .expect(201);
 
     expect(cookiesOf(res).diet_refresh!.attributes).toContain('HttpOnly');
     expect((res.body as AuthResponse).tokens.refreshToken).toBeUndefined();
   });
 
   it('still takes a token in the request from a client that keeps its own', async () => {
-    const res = await t.http().post('/api/auth/refresh').send({ refreshToken: user.refreshToken }).expect(200);
+    const res = await t
+      .http()
+      .post('/api/auth/refresh')
+      .send({ refreshToken: user.refreshToken })
+      .expect(200);
 
     expect(cookiesOf(res)).toEqual({});
     expect((res.body as AuthResponse).tokens.refreshToken).toMatch(/^[0-9a-f]{96}$/);
@@ -155,11 +209,14 @@ describe('the cookies of a session', () => {
   const tokens = { refreshToken: 'ab'.repeat(48), refreshExpiresIn: 3600 };
 
   it('are sent over an encrypted connection only where the application is served over one', () => {
-    for (const line of sessionCookies(tokens, 'https://diet.example.test')) expect(line.split('; ')).toContain('Secure');
-    for (const line of sessionCookies(tokens, 'http://192.0.2.10:3000')) expect(line.split('; ')).not.toContain('Secure');
+    for (const line of sessionCookies(tokens, 'https://diet.example.test'))
+      expect(line.split('; ')).toContain('Secure');
+    for (const line of sessionCookies(tokens, 'http://192.0.2.10:3000'))
+      expect(line.split('; ')).not.toContain('Secure');
   });
 
   it('last as long as the refresh token does', () => {
-    for (const line of sessionCookies(tokens, 'https://diet.example.test')) expect(line.split('; ')).toContain('Max-Age=3600');
+    for (const line of sessionCookies(tokens, 'https://diet.example.test'))
+      expect(line.split('; ')).toContain('Max-Age=3600');
   });
 });

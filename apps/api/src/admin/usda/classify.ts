@@ -44,7 +44,9 @@ const RULES: Record<Allergen, Rule> = {
   },
   peanuts: { has: /peanut/ },
   soy: { has: /\bsoy|tofu|edamame|tempeh|\bmiso\b|natto|tamari/ },
-  fish: { has: /\bfish\b|salmon|\btuna\b|\bcod\b|haddock|trout|halibut|sardine|mackerel|herring|anchov|tilapia|catfish|pollock|caviar|\broe\b/ },
+  fish: {
+    has: /\bfish\b|salmon|\btuna\b|\bcod\b|haddock|trout|halibut|sardine|mackerel|herring|anchov|tilapia|catfish|pollock|caviar|\broe\b/,
+  },
   shellfish: {
     has: /shrimp|prawn|\bcrab|lobster|\bclams?\b|mussel|oyster|scallop|squid|octopus|crayfish|crawfish|krill|mollusk|crustacean|abalone|cuttlefish/,
     not: /\b(king )?oyster mushrooms?\b|\bmushrooms?, (king )?oyster\b/g,
@@ -113,13 +115,19 @@ export function classify(description: string, sourceCategory: string): Classifie
   if (sourceCategory === 'Dairy and Egg Products' && !found.has('eggs')) found.add('dairy');
   if (sourceCategory === 'Baked Products' && !glutenFree) found.add('gluten');
   if (sourceCategory === 'Nut and Seed Products' && name.startsWith('nuts, ')) found.add('nuts');
-  if (sourceCategory === 'Finfish and Shellfish Products' && !found.has('shellfish')) found.add('fish');
+  if (sourceCategory === 'Finfish and Shellfish Products' && !found.has('shellfish'))
+    found.add('fish');
 
-  const animal = ANIMAL_CATEGORIES.has(sourceCategory) || FROM_AN_ANIMAL.test(name) || found.has('fish') || found.has('shellfish');
+  const animal =
+    ANIMAL_CATEGORIES.has(sourceCategory) ||
+    FROM_AN_ANIMAL.test(name) ||
+    found.has('fish') ||
+    found.has('shellfish');
   const dairyOrEgg = found.has('dairy') || found.has('eggs');
   const vegetarianByItsName = /\b(vegetarian|vegan|meatless)\b/.test(name);
   const unknown = PREPARED.test(name) && !vegetarianByItsName;
-  const plantRow = PLANT_CATEGORIES.has(sourceCategory) || (PLANT_BY_NAME[sourceCategory]?.test(name) ?? false);
+  const plantRow =
+    PLANT_CATEGORIES.has(sourceCategory) || (PLANT_BY_NAME[sourceCategory]?.test(name) ?? false);
   const plant = plantRow && !animal && !dairyOrEgg && !HONEY.test(name) && !unknown;
 
   const diets: Classified['diets'] = [];
@@ -129,7 +137,11 @@ export function classify(description: string, sourceCategory: string): Classifie
   else if (name === 'honey') diets.push('vegetarian');
 
   // Whole plant foods, fish and seafood, and olive oil.
-  if ((plant && PLANT_CATEGORIES.has(sourceCategory)) || sourceCategory === 'Finfish and Shellfish Products' || name.startsWith('oil, olive')) {
+  if (
+    (plant && PLANT_CATEGORIES.has(sourceCategory)) ||
+    sourceCategory === 'Finfish and Shellfish Products' ||
+    name.startsWith('oil, olive')
+  ) {
     diets.push('mediterranean');
   }
   return { allergens: [...found].sort(), diets };

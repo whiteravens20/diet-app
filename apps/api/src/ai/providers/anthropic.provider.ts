@@ -36,9 +36,7 @@ export class AnthropicProvider implements AiProviderAdapter {
         ...(system ? { system } : {}),
         messages: turns,
       });
-      const text = res.content
-        .map((block) => (block.type === 'text' ? block.text : ''))
-        .join('');
+      const text = res.content.map((block) => (block.type === 'text' ? block.text : '')).join('');
       return {
         text,
         promptTokens: res.usage.input_tokens,

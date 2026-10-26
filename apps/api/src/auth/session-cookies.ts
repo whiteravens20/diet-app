@@ -28,7 +28,14 @@ export function asksForCookies(headers: Record<string, string | string[] | undef
   return headers[SESSION_TRANSPORT_HEADER] === 'cookie';
 }
 
-function cookie(name: string, value: string, maxAgeSeconds: number, path: string, appUrl: string, httpOnly: boolean): string {
+function cookie(
+  name: string,
+  value: string,
+  maxAgeSeconds: number,
+  path: string,
+  appUrl: string,
+  httpOnly: boolean,
+): string {
   return [
     `${name}=${encodeURIComponent(value)}`,
     `Path=${path}`,
@@ -41,16 +48,29 @@ function cookie(name: string, value: string, maxAgeSeconds: number, path: string
 }
 
 /** The cookies of a session that goes on: both last as long as the refresh token does. */
-export function sessionCookies(tokens: { refreshToken?: string; refreshExpiresIn: number }, appUrl: string): string[] {
+export function sessionCookies(
+  tokens: { refreshToken?: string; refreshExpiresIn: number },
+  appUrl: string,
+): string[] {
   return [
-    cookie(REFRESH_COOKIE, tokens.refreshToken ?? '', tokens.refreshExpiresIn, REFRESH_PATH, appUrl, true),
+    cookie(
+      REFRESH_COOKIE,
+      tokens.refreshToken ?? '',
+      tokens.refreshExpiresIn,
+      REFRESH_PATH,
+      appUrl,
+      true,
+    ),
     cookie(SESSION_MARKER_COOKIE, '1', tokens.refreshExpiresIn, '/', appUrl, false),
   ];
 }
 
 /** The cookies of a session that has ended: both are taken away. */
 export function noSessionCookies(appUrl: string): string[] {
-  return [cookie(REFRESH_COOKIE, '', 0, REFRESH_PATH, appUrl, true), cookie(SESSION_MARKER_COOKIE, '', 0, '/', appUrl, false)];
+  return [
+    cookie(REFRESH_COOKIE, '', 0, REFRESH_PATH, appUrl, true),
+    cookie(SESSION_MARKER_COOKIE, '', 0, '/', appUrl, false),
+  ];
 }
 
 /** An answer for a browser: the same, without the refresh token that went into the cookie. */
@@ -67,6 +87,9 @@ export function withoutRefreshToken(answer: AuthResponse): AuthResponse {
  */
 export function assertFromTheApplication(origin: string | undefined, appUrl: string): void {
   if (origin !== new URL(appUrl).origin) {
-    throw new ForbiddenException({ error: 'ORIGIN_NOT_ALLOWED', message: 'This request has to come from the application itself.' });
+    throw new ForbiddenException({
+      error: 'ORIGIN_NOT_ALLOWED',
+      message: 'This request has to come from the application itself.',
+    });
   }
 }

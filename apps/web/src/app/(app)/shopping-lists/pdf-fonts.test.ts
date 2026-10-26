@@ -54,7 +54,10 @@ function charactersOf(file: Buffer): Set<number> {
         const shift = view.getUint16(shifts + segment * 2);
         const lookup = view.getUint16(lookups + segment * 2);
         for (let character = first; character <= last; character += 1) {
-          const listed = lookup === 0 ? character : view.getUint16(lookups + segment * 2 + lookup + (character - first) * 2);
+          const listed =
+            lookup === 0
+              ? character
+              : view.getUint16(lookups + segment * 2 + lookup + (character - first) * 2);
           if (listed !== 0 && ((listed + shift) & 0xffff) !== 0) found.add(character);
         }
       }
@@ -67,7 +70,8 @@ function charactersOf(file: Buffer): Set<number> {
 function charactersIn(value: unknown, into: Set<string>): Set<string> {
   if (typeof value === 'string') for (const character of value) into.add(character);
   else if (Array.isArray(value)) for (const entry of value) charactersIn(entry, into);
-  else if (typeof value === 'object' && value !== null) for (const entry of Object.values(value)) charactersIn(entry, into);
+  else if (typeof value === 'object' && value !== null)
+    for (const entry of Object.values(value)) charactersIn(entry, into);
   return into;
 }
 
@@ -75,16 +79,25 @@ function charactersIn(value: unknown, into: Set<string>): Set<string> {
 function written(): Set<string> {
   const characters = new Set<string>();
   charactersIn([en, pl], characters);
-  for (const file of readdirSync(DATA).filter((name) => name.endsWith('.json'))) charactersIn(JSON.parse(readFileSync(join(DATA, file), 'utf8')), characters);
-  for (const file of readdirSync(join(DATA, 'recipes')).filter((name) => name.endsWith('.json'))) charactersIn(JSON.parse(readFileSync(join(DATA, 'recipes', file), 'utf8')), characters);
+  for (const file of readdirSync(DATA).filter((name) => name.endsWith('.json')))
+    charactersIn(JSON.parse(readFileSync(join(DATA, file), 'utf8')), characters);
+  for (const file of readdirSync(join(DATA, 'recipes')).filter((name) => name.endsWith('.json')))
+    charactersIn(JSON.parse(readFileSync(join(DATA, 'recipes', file), 'utf8')), characters);
 
   const from = new Date(Date.UTC(2026, 9, 12, 15, 4));
   for (const locale of ['en', 'en-GB', 'en-US', 'pl']) {
     charactersIn(
       [
         new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeStyle: 'short' }).format(from),
-        new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(from, new Date(Date.UTC(2026, 10, 3))),
-        new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).formatRange(from, new Date(Date.UTC(2026, 9, 18))),
+        new Intl.DateTimeFormat(locale, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }).formatRange(from, new Date(Date.UTC(2026, 10, 3))),
+        new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).formatRange(
+          from,
+          new Date(Date.UTC(2026, 9, 18)),
+        ),
         new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(1234567.8),
         new Intl.NumberFormat(locale, { style: 'percent' }).format(0.25),
         new Intl.ListFormat(locale, { type: 'conjunction' }).format(['a', 'b', 'c']),
@@ -102,17 +115,42 @@ function written(): Set<string> {
 describe('the typeface of the printed shopping list', () => {
   const wanted = [...written()].filter((character) => character >= ' ');
 
-  it.each(['Inter-Regular.ttf', 'Inter-Bold.ttf'])('%s has a glyph for every character the application writes', (name) => {
-    const has = charactersOf(readFileSync(join(FONTS, name)));
+  it.each(['Inter-Regular.ttf', 'Inter-Bold.ttf'])(
+    '%s has a glyph for every character the application writes',
+    (name) => {
+      const has = charactersOf(readFileSync(join(FONTS, name)));
 
-    const missing = wanted.filter((character) => !has.has(character.codePointAt(0)!));
+      const missing = wanted.filter((character) => !has.has(character.codePointAt(0)!));
 
-    expect(missing.map((character) => `${character} (U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`)).toEqual([]);
-  });
+      expect(
+        missing.map(
+          (character) =>
+            `${character} (U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`,
+        ),
+      ).toEqual([]);
+    },
+  );
 
   it('is asked of the Polish letters, the spaces of a date and the marks of a list, and not of a handful of letters alone', () => {
     expect(wanted.length).toBeGreaterThan(120);
-    for (const character of ['ą', 'ę', 'ł', 'ń', 'ó', 'ś', 'ź', 'ż', 'Ł', ':', '·', '–', ' ', ' ', ' ']) expect(wanted, JSON.stringify(character)).toContain(character);
+    for (const character of [
+      'ą',
+      'ę',
+      'ł',
+      'ń',
+      'ó',
+      'ś',
+      'ź',
+      'ż',
+      'Ł',
+      ':',
+      '·',
+      '–',
+      ' ',
+      ' ',
+      ' ',
+    ])
+      expect(wanted, JSON.stringify(character)).toContain(character);
   });
 
   it('goes with the text of its licence', () => {

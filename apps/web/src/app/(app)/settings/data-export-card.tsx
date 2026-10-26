@@ -53,7 +53,12 @@ export function DataExportCard() {
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">{t('dataExportBody')}</p>
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" variant="outline" onClick={() => download.mutate()} disabled={download.isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => download.mutate()}
+            disabled={download.isPending}
+          >
             {download.isPending ? t('dataExportPreparing') : t('dataExportButton')}
           </Button>
           {/* Read out as well as shown: a file that went to the downloads folder cannot be seen on the page. */}

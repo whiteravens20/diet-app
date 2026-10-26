@@ -3,7 +3,12 @@
 import { createServer, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { outboundRequest, OutboundRequestError, type OutboundRequest, type Resolver } from './outbound-http.js';
+import {
+  outboundRequest,
+  OutboundRequestError,
+  type OutboundRequest,
+  type Resolver,
+} from './outbound-http.js';
 
 /** What the stub server does with the next request; each test sets it. */
 let respond: (path: string, body: string, res: ServerResponse) => void;
@@ -41,7 +46,10 @@ const resolver =
   (hostname, _options, callback) => {
     const addresses = table[hostname];
     if (!addresses) {
-      callback(Object.assign(new Error(`getaddrinfo ENOTFOUND ${hostname}`), { code: 'ENOTFOUND' }), []);
+      callback(
+        Object.assign(new Error(`getaddrinfo ENOTFOUND ${hostname}`), { code: 'ENOTFOUND' }),
+        [],
+      );
       return;
     }
     callback(
@@ -69,7 +77,10 @@ describe('outboundRequest', () => {
       res.end('{"ok":true}');
     };
 
-    const res = await outboundRequest(`http://127.0.0.1:${port}/api/chat`, request({ method: 'POST', body: { model: 'm' } }));
+    const res = await outboundRequest(
+      `http://127.0.0.1:${port}/api/chat`,
+      request({ method: 'POST', body: { model: 'm' } }),
+    );
 
     expect(res).toMatchObject({ status: 200, text: '{"ok":true}' });
     expect(seen).toBe('/api/chat {"model":"m"}');
@@ -85,7 +96,10 @@ describe('outboundRequest', () => {
       res.end('ok');
     };
 
-    await outboundRequest(`http://127.0.0.1:${port}/`, request({ headers: { 'x-asked-by': 'a test' } }));
+    await outboundRequest(
+      `http://127.0.0.1:${port}/`,
+      request({ headers: { 'x-asked-by': 'a test' } }),
+    );
 
     expect(seen).toBe('a test');
   });
@@ -95,7 +109,9 @@ describe('outboundRequest', () => {
       res.writeHead(404, 'Not Found');
       res.end('no such model');
     };
-    await expect(outboundRequest(`http://127.0.0.1:${port}/api/tags`, request())).resolves.toMatchObject({
+    await expect(
+      outboundRequest(`http://127.0.0.1:${port}/api/tags`, request()),
+    ).resolves.toMatchObject({
       status: 404,
       statusText: 'Not Found',
       text: 'no such model',
@@ -132,7 +148,9 @@ describe('outboundRequest', () => {
       more();
     };
 
-    const flood = await failure(outboundRequest(`http://127.0.0.1:${port}/`, request({ maxBytes: 10_000 })));
+    const flood = await failure(
+      outboundRequest(`http://127.0.0.1:${port}/`, request({ maxBytes: 10_000 })),
+    );
 
     expect(flood.failure).toBe('too_large');
   });
@@ -141,17 +159,25 @@ describe('outboundRequest', () => {
     respond = () => {
       // Never answers.
     };
-    expect((await failure(outboundRequest(`http://127.0.0.1:${port}/`, request({ timeoutMs: 150 })))).failure).toBe('timeout');
+    expect(
+      (await failure(outboundRequest(`http://127.0.0.1:${port}/`, request({ timeoutMs: 150 }))))
+        .failure,
+    ).toBe('timeout');
 
     respond = (_path, _body, res) => {
       res.writeHead(200);
       res.write('half an ans');
     };
-    expect((await failure(outboundRequest(`http://127.0.0.1:${port}/`, request({ timeoutMs: 150 })))).failure).toBe('timeout');
+    expect(
+      (await failure(outboundRequest(`http://127.0.0.1:${port}/`, request({ timeoutMs: 150 }))))
+        .failure,
+    ).toBe('timeout');
   });
 
   it('reports a host that cannot be reached as a network failure', async () => {
-    expect((await failure(outboundRequest('http://127.0.0.1:1/', request()))).failure).toBe('network');
+    expect((await failure(outboundRequest('http://127.0.0.1:1/', request()))).failure).toBe(
+      'network',
+    );
   });
 
   describe('when only a public address may be dialled', () => {
@@ -167,11 +193,16 @@ describe('outboundRequest', () => {
         res.writeHead(200);
         res.end('reached');
       };
-      const open = await outboundRequest(`http://localhost:${port}/`, request({ publicOnly: false }));
+      const open = await outboundRequest(
+        `http://localhost:${port}/`,
+        request({ publicOnly: false }),
+      );
       expect(open.text).toBe('reached');
 
       hits = 0;
-      const refused = await failure(outboundRequest(`http://localhost:${port}/`, request({ publicOnly: true })));
+      const refused = await failure(
+        outboundRequest(`http://localhost:${port}/`, request({ publicOnly: true })),
+      );
       expect(refused.failure).toBe('address_not_public');
       expect(hits).toBe(0);
     });
@@ -203,7 +234,9 @@ describe('outboundRequest', () => {
         };
         hits = 0;
 
-        const refused = await failure(outboundRequest(`http://${host}:${port}/`, request({ publicOnly: true })));
+        const refused = await failure(
+          outboundRequest(`http://${host}:${port}/`, request({ publicOnly: true })),
+        );
 
         expect(refused.failure).toBe('address_not_public');
         expect(hits).toBe(0);
@@ -212,7 +245,11 @@ describe('outboundRequest', () => {
 
     it('reports a name that does not resolve as a network failure', async () => {
       const unknown = await failure(
-        outboundRequest(`http://no-such-host.example:${port}/`, request({ publicOnly: true }), names),
+        outboundRequest(
+          `http://no-such-host.example:${port}/`,
+          request({ publicOnly: true }),
+          names,
+        ),
       );
       expect(unknown.failure).toBe('network');
     });

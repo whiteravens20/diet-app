@@ -48,10 +48,7 @@ export function Footer() {
             const { Icon } = link;
             const anchor = (
               <span className="inline-flex items-center gap-1.5 hover:text-foreground">
-                <Icon
-                  className="h-3.5 w-3.5 pointer-events-none"
-                  aria-hidden
-                />
+                <Icon className="h-3.5 w-3.5 pointer-events-none" aria-hidden />
                 <span>{t(link.key)}</span>
               </span>
             );

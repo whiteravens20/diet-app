@@ -52,7 +52,10 @@ export default function InventoryPage() {
   const [pickedProfile, setPickedProfile] = useState<string | null>(null);
   const profileId = useId();
 
-  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
   const profileList = profiles.data ?? [];
   const activeProfileId = pickedProfile ?? profileList[0]?.id ?? null;
 
@@ -92,7 +95,8 @@ export default function InventoryPage() {
   });
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
-  if (profiles.isError) return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
+  if (profiles.isError)
+    return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (profileList.length === 0) {
     return (
@@ -120,7 +124,10 @@ export default function InventoryPage() {
 
       {profileList.length > 1 && (
         <div className="max-w-xs">
-          <label htmlFor={profileId} className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <label
+            htmlFor={profileId}
+            className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+          >
             {t('profileLabel')}
           </label>
           <select
@@ -130,14 +137,19 @@ export default function InventoryPage() {
             onChange={(e) => setPickedProfile(e.target.value)}
           >
             {profileList.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </select>
         </div>
       )}
 
       {error && (
-        <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+        >
           {error}
         </div>
       )}
@@ -177,9 +189,7 @@ export default function InventoryPage() {
                       <span className="flex-1 min-w-[8rem] text-sm font-medium">
                         {item.ingredient.name}
                         {item.bestBefore && isExpiringSoon(item.bestBefore) && (
-                          <span
-                            className="ml-2 inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-                          >
+                          <span className="ml-2 inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
                             {t('expiringSoon')}
                           </span>
                         )}
@@ -198,11 +208,18 @@ export default function InventoryPage() {
                           aria-label={t('quantityOf', { name: item.ingredient.name })}
                           onBlur={(e) => {
                             const next = Number(e.currentTarget.value);
-                            if (!Number.isFinite(next) || next < 0 || next === item.display.quantity) return;
+                            if (
+                              !Number.isFinite(next) ||
+                              next < 0 ||
+                              next === item.display.quantity
+                            )
+                              return;
                             patch.mutate({ id: item.id, quantity: next });
                           }}
                         />
-                        <span className="w-14 text-xs text-muted-foreground">{unitName(item.display.unit)}</span>
+                        <span className="w-14 text-xs text-muted-foreground">
+                          {unitName(item.display.unit)}
+                        </span>
                       </span>
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">
                         {t('bestBeforeLabel')}
@@ -262,7 +279,12 @@ function AddInventoryForm({
   const [pickedIngredient, setPickedIngredient] = useState<Ingredient | null>(null);
   // What ties each label of the form to its field.
   const id = useId();
-  const ids = { ingredient: `${id}-ingredient`, quantity: `${id}-quantity`, unit: `${id}-unit`, bestBefore: `${id}-best-before` };
+  const ids = {
+    ingredient: `${id}-ingredient`,
+    quantity: `${id}-quantity`,
+    unit: `${id}-unit`,
+    bestBefore: `${id}-best-before`,
+  };
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<Unit>('g');
   const [bestBefore, setBestBefore] = useState('');
@@ -304,7 +326,10 @@ function AddInventoryForm({
       <CardContent>
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
           <div className="relative flex-1 min-w-[14rem]">
-            <label htmlFor={ids.ingredient} className="block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={ids.ingredient}
+              className="block text-xs font-medium text-muted-foreground"
+            >
               {t('ingredientLabel')}
             </label>
             {pickedIngredient ? (
@@ -312,7 +337,12 @@ function AddInventoryForm({
                 <span className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
                   {pickedIngredient.name}
                 </span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setPickedIngredient(null)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPickedIngredient(null)}
+                >
                   {t('clearPick')}
                 </Button>
               </div>
@@ -337,7 +367,11 @@ function AddInventoryForm({
                             setPickedIngredient(i);
                             setSearch('');
                             // What is counted is kept in pieces of its own, the rest as it is weighed or measured.
-                            setUnit(i.displayUnit && pantryUnits(i).includes('piece') ? 'piece' : i.canonicalUnit);
+                            setUnit(
+                              i.displayUnit && pantryUnits(i).includes('piece')
+                                ? 'piece'
+                                : i.canonicalUnit,
+                            );
                           }}
                         >
                           {i.name}
@@ -350,7 +384,10 @@ function AddInventoryForm({
             )}
           </div>
           <div>
-            <label htmlFor={ids.quantity} className="block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={ids.quantity}
+              className="block text-xs font-medium text-muted-foreground"
+            >
               {t('quantityLabel')}
             </label>
             <Input
@@ -383,7 +420,10 @@ function AddInventoryForm({
             </select>
           </div>
           <div>
-            <label htmlFor={ids.bestBefore} className="block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={ids.bestBefore}
+              className="block text-xs font-medium text-muted-foreground"
+            >
               {t('bestBeforeLabel')}
             </label>
             <Input

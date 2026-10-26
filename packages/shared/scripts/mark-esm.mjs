@@ -10,4 +10,7 @@
 // only defines what it exports, so a page gets the files it uses and no more.
 import { writeFileSync } from 'node:fs';
 
-writeFileSync(new URL('../dist/esm/package.json', import.meta.url), `${JSON.stringify({ type: 'module', sideEffects: ['./zod.js'] })}\n`);
+writeFileSync(
+  new URL('../dist/esm/package.json', import.meta.url),
+  `${JSON.stringify({ type: 'module', sideEffects: ['./zod.js'] })}\n`,
+);

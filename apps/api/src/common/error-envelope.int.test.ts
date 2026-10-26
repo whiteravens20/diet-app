@@ -47,7 +47,8 @@ describe('failures become answers a client can act on', () => {
 
   // Last: it uses up the request allowance of the sign-in route for this file.
   it('answers 429 with a stable code and a Retry-After header when a route is over its limit', async () => {
-    const attempt = () => t.http().post('/api/auth/login').send({ email: 'nobody@example.test', password: 'wrong' });
+    const attempt = () =>
+      t.http().post('/api/auth/login').send({ email: 'nobody@example.test', password: 'wrong' });
     let last = await attempt();
     for (let i = 0; i < 12 && last.status !== 429; i += 1) last = await attempt();
 

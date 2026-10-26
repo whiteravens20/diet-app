@@ -24,12 +24,18 @@ const PAUSE = 400;
  * `behind` says that what is shown belongs to what was typed a moment ago,
  * `waiting` that there are figures to work out and no answer to show yet.
  */
-export function useCaloriePreview(asked: CaloriePreviewRequest | null): { preview: CaloriePreview | undefined; behind: boolean; waiting: boolean; failed: boolean } {
+export function useCaloriePreview(asked: CaloriePreviewRequest | null): {
+  preview: CaloriePreview | undefined;
+  behind: boolean;
+  waiting: boolean;
+  failed: boolean;
+} {
   const written = asked ? JSON.stringify(asked) : null;
   const settled = useSettled(written, PAUSE);
   const answer = useQuery({
     queryKey: ['calorie-preview', settled],
-    queryFn: () => api.post<CaloriePreview>('/profiles/calories', JSON.parse(settled!) as CaloriePreviewRequest),
+    queryFn: () =>
+      api.post<CaloriePreview>('/profiles/calories', JSON.parse(settled!) as CaloriePreviewRequest),
     enabled: settled !== null,
     staleTime: Infinity,
     placeholderData: keepPreviousData,
@@ -38,7 +44,12 @@ export function useCaloriePreview(asked: CaloriePreviewRequest | null): { previe
   // Figures that can no longer be worked out show nothing, not what they came to before.
   const preview = written === null ? undefined : answer.data;
   const failed = written !== null && written === settled && answer.isError;
-  return { preview, behind: written !== settled || answer.isPlaceholderData, waiting: written !== null && preview === undefined && !failed, failed };
+  return {
+    preview,
+    behind: written !== settled || answer.isPlaceholderData,
+    waiting: written !== null && preview === undefined && !failed,
+    failed,
+  };
 }
 
 /**
@@ -68,21 +79,31 @@ export function CaloriePreviewPanel({
   const title = useId();
   const c = preview?.calculation;
   return (
-    <section aria-labelledby={title} className={cn('space-y-3 rounded-lg border border-border bg-muted/30 p-4', className)}>
+    <section
+      aria-labelledby={title}
+      className={cn('space-y-3 rounded-lg border border-border bg-muted/30 p-4', className)}
+    >
       <Heading id={title} className="text-sm font-semibold">
         {t('title')}
       </Heading>
       {c ? (
-        <div className={cn('space-y-3 transition-opacity', behind && 'opacity-60')} aria-busy={behind}>
+        <div
+          className={cn('space-y-3 transition-opacity', behind && 'opacity-60')}
+          aria-busy={behind}
+        >
           {/* The target has a line of its own: beside the two it is worked out from, a narrow panel would break it in two. */}
           <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
             <div className="col-span-2">
               <dt className="text-xs text-muted-foreground">{t('dailyTarget')}</dt>
-              <dd className="text-2xl font-semibold tracking-tight tabular-nums">{t('kcal', { value: c.dailyTarget })}</dd>
+              <dd className="text-2xl font-semibold tracking-tight tabular-nums">
+                {t('kcal', { value: c.dailyTarget })}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">{t('maintenance')}</dt>
-              <dd className="text-sm font-medium tabular-nums">{t('kcal', { value: c.maintenance })}</dd>
+              <dd className="text-sm font-medium tabular-nums">
+                {t('kcal', { value: c.maintenance })}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">{t('atRest')}</dt>
@@ -90,7 +111,13 @@ export function CaloriePreviewPanel({
             </div>
           </dl>
           <p className="text-xs text-muted-foreground">
-            {c.goalHeld ? t('held') : c.dailyDeficit === 0 ? t('atMaintenance') : c.dailyDeficit > 0 ? t('under', { kcal: c.dailyDeficit }) : t('over', { kcal: -c.dailyDeficit })}
+            {c.goalHeld
+              ? t('held')
+              : c.dailyDeficit === 0
+                ? t('atMaintenance')
+                : c.dailyDeficit > 0
+                  ? t('under', { kcal: c.dailyDeficit })
+                  : t('over', { kcal: -c.dailyDeficit })}
           </p>
           <p className="text-sm">{t('macros', c.targetMacros)}</p>
           <TargetNotices calories={c} risk={false} />

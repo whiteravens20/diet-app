@@ -1,7 +1,13 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { ConflictException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Prisma } from '@prisma/client';
@@ -34,9 +40,13 @@ export type OpenedSession = AuthResponse & { tokens: { refreshToken: string } };
  */
 const JUST_USED_MS = 10_000;
 
-const refused = (): UnauthorizedException => new UnauthorizedException({ error: 'INVALID_REFRESH', message: 'Refresh token rejected.' });
+const refused = (): UnauthorizedException =>
+  new UnauthorizedException({ error: 'INVALID_REFRESH', message: 'Refresh token rejected.' });
 const justRefreshed = (): ConflictException =>
-  new ConflictException({ error: 'SESSION_JUST_REFRESHED', message: 'Another request refreshed this session a moment ago. Go on with what it was given.' });
+  new ConflictException({
+    error: 'SESSION_JUST_REFRESHED',
+    message: 'Another request refreshed this session a moment ago. Go on with what it was given.',
+  });
 
 /**
  * The sessions of accounts. A session begins when an account signs in and is
@@ -67,14 +77,29 @@ export class SessionsService {
    * session of an account that has a second factor counts only then.
    * `lastsSeconds` ends it sooner than a session of the instance ends.
    */
-  async open(user: SessionAccount, email: string, label: string | null = null, { secondFactor = false, lastsSeconds = Infinity } = {}): Promise<OpenedSession> {
+  async open(
+    user: SessionAccount,
+    email: string,
+    label: string | null = null,
+    { secondFactor = false, lastsSeconds = Infinity } = {},
+  ): Promise<OpenedSession> {
     const now = Date.now();
     const familyId = randomUUID();
-    const familyExpiresAt = new Date(now + Math.min(this.config.get('JWT_SESSION_TTL', { infer: true }), lastsSeconds) * 1000);
+    const familyExpiresAt = new Date(
+      now + Math.min(this.config.get('JWT_SESSION_TTL', { infer: true }), lastsSeconds) * 1000,
+    );
     const refreshToken = newToken();
     const expiresAt = this.tokenExpiry(now, familyExpiresAt);
     await this.prisma.refreshToken.create({
-      data: { userId: user.id, tokenHash: sha256(refreshToken), familyId, familyExpiresAt, label, expiresAt, secondFactorAt: secondFactor ? new Date(now) : null },
+      data: {
+        userId: user.id,
+        tokenHash: sha256(refreshToken),
+        familyId,
+        familyExpiresAt,
+        label,
+        expiresAt,
+        secondFactorAt: secondFactor ? new Date(now) : null,
+      },
     });
     return this.answer(user, email, { refreshToken, expiresAt, now }, familyId);
   }
@@ -84,18 +109,32 @@ export class SessionsService {
    * is done in the same transaction, with the account held: what it refuses
    * leaves the token as it was, for the client to go on with.
    */
-  async refresh(refreshToken: string, alongside?: (tx: Prisma.TransactionClient, session: { userId: string; sessionId: string }) => Promise<void>): Promise<OpenedSession> {
+  async refresh(
+    refreshToken: string,
+    alongside?: (
+      tx: Prisma.TransactionClient,
+      session: { userId: string; sessionId: string },
+    ) => Promise<void>,
+  ): Promise<OpenedSession> {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: sha256(refreshToken) },
       include: { user: { include: { secondFactor: { select: { id: true } } } } },
     });
     const now = Date.now();
-    if (!stored || stored.revokedAt || stored.expiresAt.getTime() < now || stored.familyExpiresAt.getTime() < now) throw refused();
+    if (
+      !stored ||
+      stored.revokedAt ||
+      stored.expiresAt.getTime() < now ||
+      stored.familyExpiresAt.getTime() < now
+    )
+      throw refused();
     if (stored.user.secondFactor && !stored.secondFactorAt) throw refused();
     if (stored.rotatedAt) {
       if (now - stored.rotatedAt.getTime() <= JUST_USED_MS) throw justRefreshed();
       await this.endFamily(stored.familyId);
-      this.logger.warn(`A refresh token of account ${stored.userId} was presented a second time: its session was ended.`);
+      this.logger.warn(
+        `A refresh token of account ${stored.userId} was presented a second time: its session was ended.`,
+      );
       throw refused();
     }
 
@@ -105,7 +144,10 @@ export class SessionsService {
       // The account is held before the token is taken, as a new password or address takes the account before it ends the sessions.
       if (alongside) await holdAccount(tx, stored.userId);
       // Only one request gets to use a token, however many present it together.
-      const claim = await tx.refreshToken.updateMany({ where: { id: stored.id, rotatedAt: null, revokedAt: null }, data: { rotatedAt: new Date(now) } });
+      const claim = await tx.refreshToken.updateMany({
+        where: { id: stored.id, rotatedAt: null, revokedAt: null },
+        data: { rotatedAt: new Date(now) },
+      });
       if (claim.count !== 1) return false;
       await tx.refreshToken.create({
         data: {
@@ -123,15 +165,26 @@ export class SessionsService {
     });
     if (!claimed) {
       // Another request took the token between the look and the claim, or the session was ended.
-      const again = await this.prisma.refreshToken.findUnique({ where: { id: stored.id }, select: { revokedAt: true } });
+      const again = await this.prisma.refreshToken.findUnique({
+        where: { id: stored.id },
+        select: { revokedAt: true },
+      });
       throw again?.revokedAt ? refused() : justRefreshed();
     }
-    return this.answer(stored.user, this.emails.open(stored.user.emailEncrypted, stored.user.id), { refreshToken: next, expiresAt, now }, stored.familyId);
+    return this.answer(
+      stored.user,
+      this.emails.open(stored.user.emailEncrypted, stored.user.id),
+      { refreshToken: next, expiresAt, now },
+      stored.familyId,
+    );
   }
 
   /** End the session a refresh token belongs to, with every token it ever had. */
   async end(refreshToken: string): Promise<void> {
-    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(refreshToken) }, select: { familyId: true } });
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: sha256(refreshToken) },
+      select: { familyId: true },
+    });
     if (stored) await this.endFamily(stored.familyId);
   }
 
@@ -148,7 +201,13 @@ export class SessionsService {
    */
   async isOpen(userId: string, sessionId: string): Promise<boolean> {
     const token = await this.prisma.refreshToken.findFirst({
-      where: { familyId: sessionId, userId, revokedAt: null, familyExpiresAt: { gt: new Date() }, ...PASSED_THE_SECOND_STEP },
+      where: {
+        familyId: sessionId,
+        userId,
+        revokedAt: null,
+        familyExpiresAt: { gt: new Date() },
+        ...PASSED_THE_SECOND_STEP,
+      },
       select: { id: true },
     });
     return token !== null;
@@ -159,7 +218,14 @@ export class SessionsService {
     const now = new Date();
     // The token of a session that has not been used yet is where the session stands.
     const open = await this.prisma.refreshToken.findMany({
-      where: { userId, rotatedAt: null, revokedAt: null, expiresAt: { gt: now }, familyExpiresAt: { gt: now }, ...PASSED_THE_SECOND_STEP },
+      where: {
+        userId,
+        rotatedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: now },
+        familyExpiresAt: { gt: now },
+        ...PASSED_THE_SECOND_STEP,
+      },
       orderBy: { createdAt: 'desc' },
       take: MAX_SESSIONS_LISTED,
     });
@@ -180,13 +246,23 @@ export class SessionsService {
 
   /** End one session of an account. */
   async endOne(userId: string, sessionId: string): Promise<void> {
-    const ended = await this.prisma.refreshToken.updateMany({ where: { userId, familyId: sessionId, revokedAt: null }, data: { revokedAt: new Date() } });
-    if (ended.count === 0) throw new NotFoundException({ error: 'SESSION_NOT_FOUND', message: 'That session is not open.' });
+    const ended = await this.prisma.refreshToken.updateMany({
+      where: { userId, familyId: sessionId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (ended.count === 0)
+      throw new NotFoundException({
+        error: 'SESSION_NOT_FOUND',
+        message: 'That session is not open.',
+      });
   }
 
   /** End every session of an account: it is signed out everywhere. */
   async endAll(userId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
   /**
@@ -207,7 +283,10 @@ export class SessionsService {
   }
 
   private async endFamily(familyId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({ where: { familyId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await this.prisma.refreshToken.updateMany({
+      where: { familyId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
   /** A token is good until it has not been used for the refresh lifetime, and never past the end of its session. */
@@ -227,7 +306,12 @@ export class SessionsService {
     // shows of the account comes from the API, not from inside a token.
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, sid: sessionId },
-      { secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }), expiresIn: accessTtl, algorithm: TOKEN_ALGORITHM, audience: ACCOUNT_AUDIENCE },
+      {
+        secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }),
+        expiresIn: accessTtl,
+        algorithm: TOKEN_ALGORITHM,
+        audience: ACCOUNT_AUDIENCE,
+      },
     );
     return {
       user: {
@@ -237,14 +321,21 @@ export class SessionsService {
         role: user.role,
         emailVerified: user.emailVerified,
       },
-      tokens: { accessToken, refreshToken: refresh.refreshToken, expiresIn: accessTtl, refreshExpiresIn: Math.round((refresh.expiresAt.getTime() - refresh.now) / 1000) },
+      tokens: {
+        accessToken,
+        refreshToken: refresh.refreshToken,
+        expiresIn: accessTtl,
+        refreshExpiresIn: Math.round((refresh.expiresAt.getTime() - refresh.now) / 1000),
+      },
       sessionId,
     };
   }
 }
 
 /** For a query of tokens: of an account without a second factor, or of a session that passed it. */
-const PASSED_THE_SECOND_STEP = { OR: [{ secondFactorAt: { not: null } }, { user: { secondFactor: { is: null } } }] } satisfies Prisma.RefreshTokenWhereInput;
+const PASSED_THE_SECOND_STEP = {
+  OR: [{ secondFactorAt: { not: null } }, { user: { secondFactor: { is: null } } }],
+} satisfies Prisma.RefreshTokenWhereInput;
 
 const newToken = (): string => randomBytes(48).toString('hex');
 

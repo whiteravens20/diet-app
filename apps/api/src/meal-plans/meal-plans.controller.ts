@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -19,7 +20,10 @@ import {
   AiSuggestIngredientRequest,
   AiSuggestIngredientResponse,
   AiSwapMealRequest,
+  ApplyDaySettingsRequest,
   ApplyMealSwapRequest,
+  DaySettings,
+  DaySettingsPreview,
   DayVariations,
   GeneratePlanRequest,
   MealPlan,
@@ -51,6 +55,7 @@ import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';
 import { requiredDate, requiredUuid, ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { DaySettingsService } from './day-settings.service.js';
 import { DayVariationsService } from './day-variations.service.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -72,6 +77,7 @@ export class MealPlansController {
     private readonly calendars: PlanCalendarService,
     private readonly useUp: UseUpService,
     private readonly variations: DayVariationsService,
+    private readonly settings: DaySettingsService,
   ) {}
 
   /** The plans of a profile, a page at a time, narrowed by their days and by whether they are over. */
@@ -111,14 +117,21 @@ export class MealPlansController {
   @Get('calendar')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Answers(PlanCalendar)
-  calendar(@CurrentUser() user: RequestUser, @Query(new ZodValidationPipe(PlanCalendarQuery)) query: PlanCalendarQuery) {
+  calendar(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(PlanCalendarQuery)) query: PlanCalendarQuery,
+  ) {
     return this.calendars.calendar(user.id, query);
   }
 
   /** One plan, with its days and their meals. */
   @Get(':id')
   @Answers(MealPlan)
-  get(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string) {
+  get(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+  ) {
     return this.plans.get(user.id, locale, id);
   }
 
@@ -206,6 +219,41 @@ export class MealPlansController {
     return this.variations.take(user.id, locale, id, dayId, dto);
   }
 
+  /**
+   * What changing the settings of a day would do: its target, and which of
+   * its meals stay, change their amount, get another recipe or go. Nothing is
+   * written. Asked again as the settings are changed in a window, so it is
+   * held to what a window asks for in a minute.
+   */
+  @Post(':id/days/:dayId/settings/preview')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Answers(DaySettingsPreview)
+  previewDaySettings(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+    @Param('dayId', requiredUuid) dayId: string,
+    @Body(new ZodValidationPipe(DaySettings)) dto: DaySettings,
+    @ClientDate() today: string | null,
+  ) {
+    return this.settings.preview(user.id, id, dayId, dto, today);
+  }
+
+  /** Change the settings of a day of a running plan, as the preview at `revision` said. Draws recipes as making the day again does. */
+  @Put(':id/days/:dayId/settings')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Answers(MealPlan)
+  applyDaySettings(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('dayId', requiredUuid) dayId: string,
+    @Body(new ZodValidationPipe(ApplyDaySettingsRequest)) dto: ApplyDaySettingsRequest,
+    @ClientDate() today: string | null,
+  ) {
+    return this.settings.apply(user.id, locale, id, dayId, dto, today);
+  }
+
   /** Delete a plan. Its shopping lists go with it, and what was obtained for days still ahead goes into the pantry. */
   @Delete(':id')
   @HttpCode(204)
@@ -249,6 +297,18 @@ export class MealPlansController {
     return this.plans.addCustomMeal(user.id, locale, id, date, dto);
   }
 
+  /** Take a meal off its day, whichever it is (rebalances the day). */
+  @Delete(':id/meals/:mealId')
+  @Answers(RebalanceResult)
+  removeMeal(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+  ) {
+    return this.plans.removeMeal(user.id, locale, id, mealId);
+  }
+
   /** Mark a planned meal eaten or not eaten (rebalances the day). */
   @Patch(':id/meals/:mealId/eaten')
   @Answers(RebalanceResult)
@@ -262,7 +322,7 @@ export class MealPlansController {
     return this.plans.setEaten(user.id, locale, id, mealId, dto.eaten);
   }
 
-  /** Share what a day or a week has left among its meals again, or put servings back as the `restore` of an earlier answer says. */
+  /** Share what a day, or the rest of the plan, has left among its meals again, or put servings back as the `restore` of an earlier answer says. */
   @Post(':id/rebalance')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Answers(RebalanceResult)
@@ -330,7 +390,12 @@ export class MealPlansController {
   /** The substitutes the catalogue's own rules name for the ingredients of a planned meal. */
   @Get(':id/meals/:mealId/substitutes')
   @AnswersListOf(SubstituteSuggestion)
-  substitutes(@CurrentUser() user: RequestUser, @RequestLocale() locale: Locale, @Param('id', requiredUuid) id: string, @Param('mealId', requiredUuid) mealId: string) {
+  substitutes(
+    @CurrentUser() user: RequestUser,
+    @RequestLocale() locale: Locale,
+    @Param('id', requiredUuid) id: string,
+    @Param('mealId', requiredUuid) mealId: string,
+  ) {
     return this.ingredients.suggestions(user.id, locale, id, mealId);
   }
 

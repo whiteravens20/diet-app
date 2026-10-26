@@ -24,7 +24,9 @@ const TARGET = 2000;
 const dataDir = process.argv[2] ?? join(__dirname, '../../../data');
 const { catalogue, problems } = readCatalogue(dataDir);
 if (!catalogue) {
-  console.error(`The data in ${dataDir} does not load: ${problems.length} problem(s). Run the data lint.`);
+  console.error(
+    `The data in ${dataDir} does not load: ${problems.length} problem(s). Run the data lint.`,
+  );
   process.exit(1);
 }
 
@@ -32,11 +34,17 @@ const { recipes, perishablePacks } = plannable(catalogue);
 const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
 const percent = (share: number) => `${Math.round(share * 100)}`.padStart(3);
 
-console.log(`${recipes.length} recipes from ${dataDir}; weeks of ${TARGET} kcal, the limits of a new profile, ${SEEDS} draws for each of three, four and five meals a day\n`);
+console.log(
+  `${recipes.length} recipes from ${dataDir}; weeks of ${TARGET} kcal, the limits of a new profile, ${SEEDS} draws for each of three, four and five meals a day\n`,
+);
 for (const diet of DietType.options.filter((option) => option !== 'custom')) {
   const split = macroSplitOf(diet);
-  console.log(`${diet}: aims at ${percent(split.protein)} /${percent(split.fat)} /${percent(split.carbs)} % of energy from protein / fat / carbohydrate`);
-  console.log('  weight   off the split   protein / fat / carbs %   days inside 10 % of kcal   recipes in a week   meals outside a limit');
+  console.log(
+    `${diet}: aims at ${percent(split.protein)} /${percent(split.fat)} /${percent(split.carbs)} % of energy from protein / fat / carbohydrate`,
+  );
+  console.log(
+    '  weight   off the split   protein / fat / carbs %   days inside 10 % of kcal   recipes in a week   meals outside a limit',
+  );
   for (const macroFit of WEIGHTS) {
     const off: number[] = [];
     const total = { protein: 0, fat: 0, carbs: 0 };
@@ -50,7 +58,17 @@ for (const diet of DietType.options.filter((option) => option !== 'custom')) {
         let result;
         try {
           result = optimisePlan(
-            { recipes, days: uniformDays(DAYS, MEAL_SLOTS_BY_COUNT[meals]!, TARGET), macroSplit: split, dietType: diet, mealPrepFriendly: false, maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, maxIngredientPerWeek: 3000, perishablePacks, seed },
+            {
+              recipes,
+              days: uniformDays(DAYS, MEAL_SLOTS_BY_COUNT[meals]!, TARGET),
+              macroSplit: split,
+              dietType: diet,
+              mealPrepFriendly: false,
+              maxConsecutiveDaysSameMeal: 2,
+              maxTimesPerWeekSameMeal: 3,
+              perishablePacks,
+              seed,
+            },
             { ...SCORE_WEIGHTS, macroFit },
           );
         } catch {

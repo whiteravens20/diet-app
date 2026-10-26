@@ -35,8 +35,12 @@ export const WeightEntryInput = z.object({
   recordedAt: z
     .string()
     .datetime()
-    .refine((moment) => Date.parse(moment) >= Date.parse(`${FIRST_DAY}T00:00:00Z`), { message: `Must not be before ${FIRST_DAY}.` })
-    .refine((moment) => Date.parse(moment) <= Date.now() + 86_400_000, { message: 'Must not be a moment still to come.' })
+    .refine((moment) => Date.parse(moment) >= Date.parse(`${FIRST_DAY}T00:00:00Z`), {
+      message: `Must not be before ${FIRST_DAY}.`,
+    })
+    .refine((moment) => Date.parse(moment) <= Date.now() + 86_400_000, {
+      message: 'Must not be a moment still to come.',
+    })
     .optional(),
 });
 export type WeightEntryInput = z.infer<typeof WeightEntryInput>;

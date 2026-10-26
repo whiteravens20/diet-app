@@ -20,7 +20,9 @@ import {
 } from './shopping.js';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
-function ing(over: Partial<ShoppingIngredient> & Pick<ShoppingIngredient, 'id' | 'name'>): ShoppingIngredient {
+function ing(
+  over: Partial<ShoppingIngredient> & Pick<ShoppingIngredient, 'id' | 'name'>,
+): ShoppingIngredient {
   return {
     category: 'vegetables',
     canonicalUnit: 'g',
@@ -45,7 +47,13 @@ const tomato = ing({
   gramsPerPiece: 120,
 });
 const broccoli = ing({ id: 'b', name: 'Broccoli', category: 'vegetables', caloriesPer100: 34 });
-const apple = ing({ id: 'a', name: 'Apple', category: 'fruits', caloriesPer100: 52, gramsPerPiece: 180 });
+const apple = ing({
+  id: 'a',
+  name: 'Apple',
+  category: 'fruits',
+  caloriesPer100: 52,
+  gramsPerPiece: 180,
+});
 const avocado = ing({ id: 'av', name: 'Avocado', category: 'fruits', caloriesPer100: 160 });
 const milk = ing({
   id: 'm',
@@ -57,14 +65,30 @@ const milk = ing({
 });
 
 /** Counted, not weighed: 55 g each. */
-const egg = ing({ id: 'e', name: 'Large egg', category: 'dairy', caloriesPer100: 143, gramsPerPiece: 55, displayUnit: 'piece' });
-const bread = ing({ id: 'br', name: 'Bread', category: 'grains', caloriesPer100: 247, gramsPerPiece: 40, displayUnit: 'slice' });
+const egg = ing({
+  id: 'e',
+  name: 'Large egg',
+  category: 'dairy',
+  caloriesPer100: 143,
+  gramsPerPiece: 55,
+  displayUnit: 'piece',
+});
+const bread = ing({
+  id: 'br',
+  name: 'Bread',
+  category: 'grains',
+  caloriesPer100: 247,
+  gramsPerPiece: 40,
+  displayUnit: 'slice',
+});
 
 const DB = new Map<string, ShoppingIngredient>(
   [tomato, broccoli, apple, avocado, milk, egg, bread].map((i) => [i.id, i]),
 );
 
-function line(over: Partial<PlanIngredientLine> & Pick<PlanIngredientLine, 'ingredientId'>): PlanIngredientLine {
+function line(
+  over: Partial<PlanIngredientLine> & Pick<PlanIngredientLine, 'ingredientId'>,
+): PlanIngredientLine {
   return { quantity: 100, unit: 'g', recipeServings: 1, plannedServings: 1, ...over };
 }
 
@@ -108,7 +132,8 @@ describe('aggregateShoppingList', () => {
 
   it('rounds the need up to what one buys: the next 5 g, never below the need', () => {
     const need = (quantity: number) =>
-      aggregateShoppingList([line({ ingredientId: 'b', quantity })], DB)[0]!.items[0]!.totalQuantity;
+      aggregateShoppingList([line({ ingredientId: 'b', quantity })], DB)[0]!.items[0]!
+        .totalQuantity;
 
     expect(need(212.4)).toBe(215);
     expect(need(100.04)).toBe(105);
@@ -128,12 +153,23 @@ describe('aggregateShoppingList', () => {
     );
     const items = groups.flatMap((g) => g.items);
 
-    expect(items.find((i) => i.ingredientId === 'e')).toMatchObject({ totalQuantity: 4, unit: 'piece', displayUnit: 'piece' });
-    expect(items.find((i) => i.ingredientId === 'br')).toMatchObject({ totalQuantity: 2, unit: 'piece', displayUnit: 'slice' });
+    expect(items.find((i) => i.ingredientId === 'e')).toMatchObject({
+      totalQuantity: 4,
+      unit: 'piece',
+      displayUnit: 'piece',
+    });
+    expect(items.find((i) => i.ingredientId === 'br')).toMatchObject({
+      totalQuantity: 2,
+      unit: 'piece',
+      displayUnit: 'slice',
+    });
   });
 
   it('keeps a weighed ingredient in grams even though a recipe may count it', () => {
-    const item = aggregateShoppingList([line({ ingredientId: 't', quantity: 2, unit: 'piece' })], DB)[0]!.items[0]!;
+    const item = aggregateShoppingList(
+      [line({ ingredientId: 't', quantity: 2, unit: 'piece' })],
+      DB,
+    )[0]!.items[0]!;
 
     expect(item).toMatchObject({ totalQuantity: 240, unit: 'g', displayUnit: 'g' });
   });
@@ -143,7 +179,8 @@ describe('aggregateShoppingList', () => {
     // 200 g tomato at 18 kcal/100 g = 36 kcal
     expect(groups[0].items[0].estimatedCalories).toBe(36);
     // 3.2 eggs are 176 g: 252 kcal, although four eggs are bought.
-    const eggs = aggregateShoppingList([line({ ingredientId: 'e', quantity: 176 })], DB)[0]!.items[0]!;
+    const eggs = aggregateShoppingList([line({ ingredientId: 'e', quantity: 176 })], DB)[0]!
+      .items[0]!;
     expect(eggs.estimatedCalories).toBe(252);
   });
 
@@ -215,21 +252,56 @@ describe('the aisles', () => {
     expect(grouped[0]!.items.map((i) => i.name)).toEqual(['Broccoli', 'Tomato']);
   });
 
-  it('hold their names in the order of the reader\'s language', () => {
-    const fish = ['Szprot', 'Śledź', 'Makrela', 'Łosoś', 'Lin'].map((name) => ({ name, category: 'fish' as const }));
+  it("hold their names in the order of the reader's language", () => {
+    const fish = ['Szprot', 'Śledź', 'Makrela', 'Łosoś', 'Lin'].map((name) => ({
+      name,
+      category: 'fish' as const,
+    }));
 
-    expect(groupByAisle(fish, 'pl')[0]!.items.map((i) => i.name)).toEqual(['Lin', 'Łosoś', 'Makrela', 'Szprot', 'Śledź']);
-    expect(groupByAisle(fish, 'en')[0]!.items.map((i) => i.name)).toEqual(['Lin', 'Łosoś', 'Makrela', 'Śledź', 'Szprot']);
+    expect(groupByAisle(fish, 'pl')[0]!.items.map((i) => i.name)).toEqual([
+      'Lin',
+      'Łosoś',
+      'Makrela',
+      'Szprot',
+      'Śledź',
+    ]);
+    expect(groupByAisle(fish, 'en')[0]!.items.map((i) => i.name)).toEqual([
+      'Lin',
+      'Łosoś',
+      'Makrela',
+      'Śledź',
+      'Szprot',
+    ]);
   });
 });
 
 describe('the order of a list', () => {
-  it('is by aisle, then by name as the reader\'s language sorts names', () => {
-    const rows = [...['Szprot', 'Śledź', 'Makrela', 'Łosoś', 'Lin'].map((name) => ({ name, category: 'fish' as const })), { name: 'Ziemniak', category: 'vegetables' as const }];
+  it("is by aisle, then by name as the reader's language sorts names", () => {
+    const rows = [
+      ...['Szprot', 'Śledź', 'Makrela', 'Łosoś', 'Lin'].map((name) => ({
+        name,
+        category: 'fish' as const,
+      })),
+      { name: 'Ziemniak', category: 'vegetables' as const },
+    ];
 
     // Polish has Ś as a letter of its own, after S; English sorts it as an S.
-    expect([...rows].sort(inAisleOrder('pl')).map((row) => row.name)).toEqual(['Ziemniak', 'Lin', 'Łosoś', 'Makrela', 'Szprot', 'Śledź']);
-    expect([...rows].sort(inAisleOrder('en')).map((row) => row.name)).toEqual(['Ziemniak', 'Lin', 'Łosoś', 'Makrela', 'Śledź', 'Szprot']);
+    expect([...rows].sort(inAisleOrder('pl')).map((row) => row.name)).toEqual([
+      'Ziemniak',
+      'Lin',
+      'Łosoś',
+      'Makrela',
+      'Szprot',
+      'Śledź',
+    ]);
+    expect([...rows].sort(inAisleOrder('en')).map((row) => row.name)).toEqual([
+      'Ziemniak',
+      'Lin',
+      'Łosoś',
+      'Makrela',
+      'Śledź',
+      'Szprot',
+    ]);
   });
 });
 
@@ -244,71 +316,142 @@ const row = (over: Partial<ShoppingRowState> = {}): ShoppingRowState => ({
 
 describe('editing a row', () => {
   it('ticks itself when the quantity reaches the need, and unticks when it falls below', () => {
-    expect(editRow(row(), { purchasedQuantity: 700 })).toEqual({ purchasedQuantity: 700, checked: true });
-    expect(editRow(row(), { purchasedQuantity: 900 })).toEqual({ purchasedQuantity: 900, checked: true });
-    expect(editRow(row({ purchasedQuantity: 700, checked: true }), { purchasedQuantity: 500 })).toEqual({ purchasedQuantity: 500, checked: false });
+    expect(editRow(row(), { purchasedQuantity: 700 })).toEqual({
+      purchasedQuantity: 700,
+      checked: true,
+    });
+    expect(editRow(row(), { purchasedQuantity: 900 })).toEqual({
+      purchasedQuantity: 900,
+      checked: true,
+    });
+    expect(
+      editRow(row({ purchasedQuantity: 700, checked: true }), { purchasedQuantity: 500 }),
+    ).toEqual({ purchasedQuantity: 500, checked: false });
   });
 
   it('takes a tick on a row nobody typed in as "I have all of it"', () => {
     expect(editRow(row(), { checked: true })).toEqual({ purchasedQuantity: 700, checked: true });
-    expect(editRow(row({ alreadyHaveQuantity: 0, purchasedQuantity: null }), { checked: true })).toEqual({ purchasedQuantity: 700, checked: true });
+    expect(
+      editRow(row({ alreadyHaveQuantity: 0, purchasedQuantity: null }), { checked: true }),
+    ).toEqual({ purchasedQuantity: 700, checked: true });
   });
 
   it('lets a row be closed at less than the need when the user said how much there is', () => {
-    expect(editRow(row({ purchasedQuantity: 450 }), { checked: true })).toEqual({ purchasedQuantity: 450, checked: true });
-    expect(editRow(row(), { purchasedQuantity: 450, checked: true })).toEqual({ purchasedQuantity: 450, checked: true });
+    expect(editRow(row({ purchasedQuantity: 450 }), { checked: true })).toEqual({
+      purchasedQuantity: 450,
+      checked: true,
+    });
+    expect(editRow(row(), { purchasedQuantity: 450, checked: true })).toEqual({
+      purchasedQuantity: 450,
+      checked: true,
+    });
   });
 
   it('takes an untick of a complete row as "I do not have it after all": back to what was at home', () => {
-    expect(editRow(row({ purchasedQuantity: 700, checked: true }), { checked: false })).toEqual({ purchasedQuantity: 200, checked: false });
-    expect(editRow(row({ purchasedQuantity: 900, checked: true }), { checked: false })).toEqual({ purchasedQuantity: 200, checked: false });
-    expect(editRow(row({ alreadyHaveQuantity: 0, purchasedQuantity: 700, checked: true }), { checked: false })).toEqual({ purchasedQuantity: null, checked: false });
+    expect(editRow(row({ purchasedQuantity: 700, checked: true }), { checked: false })).toEqual({
+      purchasedQuantity: 200,
+      checked: false,
+    });
+    expect(editRow(row({ purchasedQuantity: 900, checked: true }), { checked: false })).toEqual({
+      purchasedQuantity: 200,
+      checked: false,
+    });
+    expect(
+      editRow(row({ alreadyHaveQuantity: 0, purchasedQuantity: 700, checked: true }), {
+        checked: false,
+      }),
+    ).toEqual({ purchasedQuantity: null, checked: false });
   });
 
   it('keeps the quantity of a row that was closed at less than the need when it is unticked', () => {
-    expect(editRow(row({ purchasedQuantity: 450, checked: true }), { checked: false })).toEqual({ purchasedQuantity: 450, checked: false });
+    expect(editRow(row({ purchasedQuantity: 450, checked: true }), { checked: false })).toEqual({
+      purchasedQuantity: 450,
+      checked: false,
+    });
   });
 
   it('lets a quantity and a tick that disagree stand when both are given', () => {
-    expect(editRow(row(), { purchasedQuantity: 900, checked: false })).toEqual({ purchasedQuantity: 900, checked: false });
+    expect(editRow(row(), { purchasedQuantity: 900, checked: false })).toEqual({
+      purchasedQuantity: 900,
+      checked: false,
+    });
   });
 
   it('leaves a row whose need the pantry covered at that when it is unticked', () => {
-    expect(editRow(row({ alreadyHaveQuantity: 700, purchasedQuantity: 700, checked: true }), { checked: false })).toEqual({ purchasedQuantity: 700, checked: false });
+    expect(
+      editRow(row({ alreadyHaveQuantity: 700, purchasedQuantity: 700, checked: true }), {
+        checked: false,
+      }),
+    ).toEqual({ purchasedQuantity: 700, checked: false });
   });
 
   it('clears the quantity and unticks when it is set to nothing', () => {
-    expect(editRow(row({ purchasedQuantity: 700, checked: true }), { purchasedQuantity: null })).toEqual({ purchasedQuantity: null, checked: false });
+    expect(
+      editRow(row({ purchasedQuantity: 700, checked: true }), { purchasedQuantity: null }),
+    ).toEqual({ purchasedQuantity: null, checked: false });
   });
 
   it('changes nothing for an empty edit', () => {
-    expect(editRow(row({ purchasedQuantity: 450 }), {})).toEqual({ purchasedQuantity: 450, checked: false });
+    expect(editRow(row({ purchasedQuantity: 450 }), {})).toEqual({
+      purchasedQuantity: 450,
+      checked: false,
+    });
   });
 });
 
 describe('saying how much of a row is at home', () => {
   it('stands in the place of what the list took from the pantry, and leaves what was bought beyond it as it was', () => {
     // 200 g were at home and 300 g were bought since; there are 350 g at home after all.
-    expect(withAtHome(row({ purchasedQuantity: 500 }), 350)).toEqual({ alreadyHaveQuantity: 350, purchasedQuantity: 650, checked: false });
-    expect(withAtHome(row(), 350)).toEqual({ alreadyHaveQuantity: 350, purchasedQuantity: 350, checked: false });
+    expect(withAtHome(row({ purchasedQuantity: 500 }), 350)).toEqual({
+      alreadyHaveQuantity: 350,
+      purchasedQuantity: 650,
+      checked: false,
+    });
+    expect(withAtHome(row(), 350)).toEqual({
+      alreadyHaveQuantity: 350,
+      purchasedQuantity: 350,
+      checked: false,
+    });
   });
 
   it('ticks the row when what is at home and what was bought reach the need, and unticks it when they no longer do', () => {
-    expect(withAtHome(row({ purchasedQuantity: 500 }), 400)).toEqual({ alreadyHaveQuantity: 400, purchasedQuantity: 700, checked: true });
-    expect(withAtHome(row({ purchasedQuantity: 700, checked: true }), 0)).toEqual({ alreadyHaveQuantity: 0, purchasedQuantity: 500, checked: false });
+    expect(withAtHome(row({ purchasedQuantity: 500 }), 400)).toEqual({
+      alreadyHaveQuantity: 400,
+      purchasedQuantity: 700,
+      checked: true,
+    });
+    expect(withAtHome(row({ purchasedQuantity: 700, checked: true }), 0)).toEqual({
+      alreadyHaveQuantity: 0,
+      purchasedQuantity: 500,
+      checked: false,
+    });
   });
 
-  it('counts no more than the row needs: the rest is not this list\'s', () => {
-    expect(withAtHome(row(), 5000)).toEqual({ alreadyHaveQuantity: 700, purchasedQuantity: 700, checked: true });
+  it("counts no more than the row needs: the rest is not this list's", () => {
+    expect(withAtHome(row(), 5000)).toEqual({
+      alreadyHaveQuantity: 700,
+      purchasedQuantity: 700,
+      checked: true,
+    });
   });
 
   it('leaves a row nobody has anything for as untouched as a new one', () => {
-    expect(withAtHome(row(), 0)).toEqual({ alreadyHaveQuantity: 0, purchasedQuantity: null, checked: false });
-    expect(withAtHome(row({ alreadyHaveQuantity: 700, purchasedQuantity: 700, checked: true }), 0)).toEqual({ alreadyHaveQuantity: 0, purchasedQuantity: null, checked: false });
+    expect(withAtHome(row(), 0)).toEqual({
+      alreadyHaveQuantity: 0,
+      purchasedQuantity: null,
+      checked: false,
+    });
+    expect(
+      withAtHome(row({ alreadyHaveQuantity: 700, purchasedQuantity: 700, checked: true }), 0),
+    ).toEqual({ alreadyHaveQuantity: 0, purchasedQuantity: null, checked: false });
   });
 
   it('is free of floating-point noise', () => {
-    expect(withAtHome(row({ alreadyHaveQuantity: 0.1, purchasedQuantity: 0.3 }), 0.4)).toEqual({ alreadyHaveQuantity: 0.4, purchasedQuantity: 0.6, checked: false });
+    expect(withAtHome(row({ alreadyHaveQuantity: 0.1, purchasedQuantity: 0.3 }), 0.4)).toEqual({
+      alreadyHaveQuantity: 0.4,
+      purchasedQuantity: 0.6,
+      checked: false,
+    });
   });
 });
 
@@ -317,39 +460,97 @@ describe('what is left to buy of a row, in packs', () => {
   const inGrams = { unit: 'g', displayUnit: 'g' } as const;
 
   it('is as many packs as the need takes, named by what one holds, with what they hold together', () => {
-    expect(packsToBuy(435, inGrams, salmon)).toEqual({ count: 2, size: 250, sizeUnit: 'g', quantity: 500 });
-    expect(packsToBuy(250, inGrams, salmon)).toEqual({ count: 1, size: 250, sizeUnit: 'g', quantity: 250 });
-    expect(packsToBuy(5, inGrams, salmon)).toEqual({ count: 1, size: 250, sizeUnit: 'g', quantity: 250 });
+    expect(packsToBuy(435, inGrams, salmon)).toEqual({
+      count: 2,
+      size: 250,
+      sizeUnit: 'g',
+      quantity: 500,
+    });
+    expect(packsToBuy(250, inGrams, salmon)).toEqual({
+      count: 1,
+      size: 250,
+      sizeUnit: 'g',
+      quantity: 250,
+    });
+    expect(packsToBuy(5, inGrams, salmon)).toEqual({
+      count: 1,
+      size: 250,
+      sizeUnit: 'g',
+      quantity: 250,
+    });
   });
 
   it('takes a need that is a spoonful over whole packs for the whole packs, and whoever buys them to have the need', () => {
     // 1010 g of salmon: four packs, and nobody opens a fifth for 10 g. The row is done with them.
-    expect(packsToBuy(1010, inGrams, salmon)).toEqual({ count: 4, size: 250, sizeUnit: 'g', quantity: 1010 });
+    expect(packsToBuy(1010, inGrams, salmon)).toEqual({
+      count: 4,
+      size: 250,
+      sizeUnit: 'g',
+      quantity: 1010,
+    });
     expect(packsToBuy(1015, inGrams, salmon)).toMatchObject({ count: 5, quantity: 1250 });
     // Seven handfuls of spinach are 210 g, and a bag holds 200 g: six handfuls and two thirds of one.
-    const spinach = ing({ id: 'sp', name: 'Spinach', gramsPerPiece: 30, displayUnit: 'handful', packSize: 200 });
-    expect(packsToBuy(7, { unit: 'piece', displayUnit: 'handful' }, spinach)).toEqual({ count: 1, size: 200, sizeUnit: 'g', quantity: 7 });
-    expect(packsToBuy(5, { unit: 'piece', displayUnit: 'handful' }, spinach)).toEqual({ count: 1, size: 200, sizeUnit: 'g', quantity: 6 });
+    const spinach = ing({
+      id: 'sp',
+      name: 'Spinach',
+      gramsPerPiece: 30,
+      displayUnit: 'handful',
+      packSize: 200,
+    });
+    expect(packsToBuy(7, { unit: 'piece', displayUnit: 'handful' }, spinach)).toEqual({
+      count: 1,
+      size: 200,
+      sizeUnit: 'g',
+      quantity: 7,
+    });
+    expect(packsToBuy(5, { unit: 'piece', displayUnit: 'handful' }, spinach)).toEqual({
+      count: 1,
+      size: 200,
+      sizeUnit: 'g',
+      quantity: 6,
+    });
   });
 
   it('names a pack in pieces where the row is in pieces and a pack holds a whole number of them', () => {
     // Eggs come in tens: 550 g at 55 g each.
     const eggs = { ...egg, packSize: 550 };
 
-    expect(packsToBuy(4, { unit: 'piece', displayUnit: 'piece' }, eggs)).toEqual({ count: 1, size: 10, sizeUnit: 'piece', quantity: 10 });
-    expect(packsToBuy(12, { unit: 'piece', displayUnit: 'piece' }, eggs)).toEqual({ count: 2, size: 10, sizeUnit: 'piece', quantity: 20 });
+    expect(packsToBuy(4, { unit: 'piece', displayUnit: 'piece' }, eggs)).toEqual({
+      count: 1,
+      size: 10,
+      sizeUnit: 'piece',
+      quantity: 10,
+    });
+    expect(packsToBuy(12, { unit: 'piece', displayUnit: 'piece' }, eggs)).toEqual({
+      count: 2,
+      size: 10,
+      sizeUnit: 'piece',
+      quantity: 20,
+    });
   });
 
   it('names it by its weight where it holds no whole number of pieces, and counts whole pieces of it', () => {
     // A loaf of 500 g is twelve and a half slices of 40 g.
     const loaf = { ...bread, packSize: 500 };
 
-    expect(packsToBuy(6, { unit: 'piece', displayUnit: 'slice' }, loaf)).toEqual({ count: 1, size: 500, sizeUnit: 'g', quantity: 12 });
-    expect(packsToBuy(20, { unit: 'piece', displayUnit: 'slice' }, loaf)).toEqual({ count: 2, size: 500, sizeUnit: 'g', quantity: 25 });
+    expect(packsToBuy(6, { unit: 'piece', displayUnit: 'slice' }, loaf)).toEqual({
+      count: 1,
+      size: 500,
+      sizeUnit: 'g',
+      quantity: 12,
+    });
+    expect(packsToBuy(20, { unit: 'piece', displayUnit: 'slice' }, loaf)).toEqual({
+      count: 2,
+      size: 500,
+      sizeUnit: 'g',
+      quantity: 25,
+    });
   });
 
   it('counts a pack of something poured in millilitres', () => {
-    expect(packsToBuy(1200, { unit: 'ml', displayUnit: 'ml' }, { ...milk, packSize: 1000 })).toEqual({ count: 2, size: 1000, sizeUnit: 'ml', quantity: 2000 });
+    expect(
+      packsToBuy(1200, { unit: 'ml', displayUnit: 'ml' }, { ...milk, packSize: 1000 }),
+    ).toEqual({ count: 2, size: 1000, sizeUnit: 'ml', quantity: 2000 });
   });
 
   it('is not there for what is bought loose, for a row with nothing left to buy, and for a row that cannot be converted', () => {
@@ -379,7 +580,9 @@ describe('what a row means for the pantry', () => {
 
   it('adds what was bought beyond the need', () => {
     expect(intendedPantryEffect(row({ purchasedQuantity: 800, checked: true }))).toBe(-100);
-    expect(intendedPantryEffect(row({ alreadyHaveQuantity: 0, purchasedQuantity: 1000, checked: true }))).toBe(300);
+    expect(
+      intendedPantryEffect(row({ alreadyHaveQuantity: 0, purchasedQuantity: 1000, checked: true })),
+    ).toBe(300);
   });
 
   it('still takes the part at home when the row is closed at less than the need', () => {

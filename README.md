@@ -30,10 +30,14 @@ The companion Android app lives in a separate repository:
 - **Meal planning** — multi-day plans honouring calorie/macro targets and diet type, with
   an optimiser that leans towards using up what it opens: a plan says what it buys in
   packs that do not keep against what it uses of them, and a plan made for cooking ahead
-  has a dish cooked once for two days.
+  has a dish cooked once for two days. A day of a plan under way can be set apart (a
+  training or rest day, skipped, another number of meals, a target of its own), with what
+  that does to its meals said before it is saved.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
-  approved ingredients, then a validation layer recomputes every number. An operator can
-  also take recipes in from a schema.org document they have: each line has to be an amount
+  approved ingredients, then a validation layer recomputes every number. A user can also
+  write recipes of their own by hand from the catalogue's ingredients, and the engine works
+  out what a serving holds. An operator can also take recipes in from a schema.org document
+  they have: each line has to be an amount
   of an ingredient the catalogue knows, a person approves every draft, and the recipe says
   where it is from and under which licence.
 - **Shopping lists and a pantry** — merged and category-grouped, counted the way one
@@ -60,10 +64,10 @@ The companion Android app lives in a separate repository:
 
 ## What it looks like
 
-| | |
-|---|---|
+|                                                                                                                                            |                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | ![The dashboard: the target of the day, maintenance and the deficit, and what the plan under way comes to](docs/screenshots/dashboard.png) | ![A plan of a week with a day open: every meal with what it holds and the ways to change it](docs/screenshots/meal-plan.png) |
-| ![A shopping list by aisle, with what is at home and what was bought](docs/screenshots/shopping-list.png) | ![The recipe library: each recipe with its energy, its time and the diets it fits](docs/screenshots/recipes.png) |
+| ![A shopping list by aisle, with what is at home and what was bought](docs/screenshots/shopping-list.png)                                  | ![The recipe library: each recipe with its energy, its time and the diets it fits](docs/screenshots/recipes.png)             |
 
 The pictures are of an instance installed from this repository, with the catalogue it ships.
 
@@ -185,6 +189,20 @@ without any guessing. User accounts and plans are preserved across updates.
 The CLI alternative is `npm run db:seed`. See
 [docs/ops/deployment.md](docs/ops/deployment.md) for production and GPU/Ollama setups.
 
+## Where the recipes come from
+
+The repository holds a fixed base of 131 reviewed recipes, in `data/recipes.json` and
+`data/recipes/` (see [data/README.md](data/README.md)). Every instance starts from it, and
+it changes only in this repository.
+
+Beyond that base an instance grows a library of its own, in its database. Its administrator
+has the instance's model write recipes or takes them in from a document; its users write
+recipes by hand or have a model write them, and send them in; a recipe the instance's model
+writes for a user goes in by itself. Each becomes a recipe of the instance's library only
+once people have approved it in the curation queue, and none of them comes back to this
+repository. [docs/ops/curation-shipping.md](docs/ops/curation-shipping.md) says how approved
+recipes ship and how to keep a copy of what an instance added.
+
 ## Documentation
 
 - [docs/ops/deployment.md](docs/ops/deployment.md) — Docker, self-hosting, Ollama
@@ -224,8 +242,8 @@ and no independent security review.
 
 **What a change goes through**
 
-- Every push and pull request to `dev` and `main` runs lint with no warnings allowed, type
-  checking, a build, and the unit and integration tests of the API and of the web app, the
+- Every push and pull request to `dev` and `main` checks that every file is laid out as
+  Prettier writes it, runs lint with no warnings allowed, type checking, a build, and the unit and integration tests of the API and of the web app, the
   integration tests against PostgreSQL, with coverage floors that fail the run when they
   are not reached. The same run checks that the database migrations match the schema, that
   no export, file or dependency goes unused, that the curated data in `data/` can be

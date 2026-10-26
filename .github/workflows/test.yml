@@ -65,6 +65,10 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      # One Prettier config at the root covers every file it reads: the code,
+      # the docs, the workflows and the curated data.
+      - name: Check formatting
+        run: npm run format:check
       - run: npm run lint -- --filter=@diet-app/web
       - run: npm run typecheck -- --filter=@diet-app/web
       # Coverage-gated like the API's: vitest fails the job when a floor in

@@ -128,11 +128,16 @@ interface Listed {
  */
 export function inAisleOrder(locale: Locale): (a: Listed, b: Listed) => number {
   const byName = new Intl.Collator(locale).compare;
-  return (a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || byName(a.name, b.name);
+  return (a, b) =>
+    CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) ||
+    byName(a.name, b.name);
 }
 
 /** Items under their category, the categories in aisle order, the items by name as the reader's language sorts names. */
-export function groupByAisle<T extends Listed>(items: readonly T[], locale: Locale): { category: ProductCategory; items: T[] }[] {
+export function groupByAisle<T extends Listed>(
+  items: readonly T[],
+  locale: Locale,
+): { category: ProductCategory; items: T[] }[] {
   const order = inAisleOrder(locale);
   return CATEGORY_ORDER.map((category) => ({
     category,
@@ -167,16 +172,30 @@ export interface RowPacks {
  * ingredient that is not sold in packs, for a row with nothing left to buy,
  * and where the row's unit cannot be brought to the ingredient's own.
  */
-export function packsToBuy(toBuy: number, row: { unit: Unit; displayUnit: DisplayUnit }, ingredient: ShoppingIngredient): RowPacks | null {
+export function packsToBuy(
+  toBuy: number,
+  row: { unit: Unit; displayUnit: DisplayUnit },
+  ingredient: ShoppingIngredient,
+): RowPacks | null {
   const packSize = ingredient.packSize ?? 0;
   if (packSize <= 0 || toBuy <= 0) return null;
   try {
-    const count = packsFor(convertUnit(toBuy, row.unit, ingredient.canonicalUnit, ingredient), packSize);
+    const count = packsFor(
+      convertUnit(toBuy, row.unit, ingredient.canonicalUnit, ingredient),
+      packSize,
+    );
     const together = convertUnit(count * packSize, ingredient.canonicalUnit, row.unit, ingredient);
-    const quantity = Math.max(row.unit === 'piece' ? Math.floor(together + 1e-6) : clean(together), toBuy);
+    const quantity = Math.max(
+      row.unit === 'piece' ? Math.floor(together + 1e-6) : clean(together),
+      toBuy,
+    );
     if (count < 1) return null;
-    const pieces = row.unit === 'piece' ? convertUnit(packSize, ingredient.canonicalUnit, 'piece', ingredient) : null;
-    if (pieces !== null && Math.abs(pieces - Math.round(pieces)) < 1e-6) return { count, size: Math.round(pieces), sizeUnit: row.displayUnit, quantity };
+    const pieces =
+      row.unit === 'piece'
+        ? convertUnit(packSize, ingredient.canonicalUnit, 'piece', ingredient)
+        : null;
+    if (pieces !== null && Math.abs(pieces - Math.round(pieces)) < 1e-6)
+      return { count, size: Math.round(pieces), sizeUnit: row.displayUnit, quantity };
     return { count, size: packSize, sizeUnit: ingredient.canonicalUnit, quantity };
   } catch (err) {
     if (!(err instanceof UnitConversionError)) throw err;
@@ -209,12 +228,15 @@ export function editRow(
   row: ShoppingRowState,
   patch: { purchasedQuantity?: number | null; checked?: boolean },
 ): Pick<ShoppingRowState, 'purchasedQuantity' | 'checked'> {
-  const purchased = patch.purchasedQuantity !== undefined ? patch.purchasedQuantity : row.purchasedQuantity;
+  const purchased =
+    patch.purchasedQuantity !== undefined ? patch.purchasedQuantity : row.purchasedQuantity;
   const reachesNeed = (purchased ?? 0) >= row.totalQuantity;
-  const checked = patch.checked ?? (patch.purchasedQuantity !== undefined ? reachesNeed : row.checked);
+  const checked =
+    patch.checked ?? (patch.purchasedQuantity !== undefined ? reachesNeed : row.checked);
   if (patch.purchasedQuantity === undefined && patch.checked !== undefined) {
     const atHome = row.alreadyHaveQuantity > 0 ? row.alreadyHaveQuantity : null;
-    if (checked && (purchased === null || purchased === row.alreadyHaveQuantity)) return { purchasedQuantity: row.totalQuantity, checked };
+    if (checked && (purchased === null || purchased === row.alreadyHaveQuantity))
+      return { purchasedQuantity: row.totalQuantity, checked };
     if (!checked && reachesNeed) return { purchasedQuantity: atHome, checked };
   }
   return { purchasedQuantity: purchased, checked };
@@ -227,11 +249,21 @@ export function editRow(
  * beyond what was at home stays what it was, and the quantity ticks or unticks
  * the row as it does when it is typed.
  */
-export function withAtHome(row: ShoppingRowState, atHome: number): Pick<ShoppingRowState, 'alreadyHaveQuantity' | 'purchasedQuantity' | 'checked'> {
+export function withAtHome(
+  row: ShoppingRowState,
+  atHome: number,
+): Pick<ShoppingRowState, 'alreadyHaveQuantity' | 'purchasedQuantity' | 'checked'> {
   const counted = Math.min(Math.max(0, clean(atHome)), row.totalQuantity);
-  const bought = Math.max(0, clean((row.purchasedQuantity ?? row.alreadyHaveQuantity) - row.alreadyHaveQuantity));
+  const bought = Math.max(
+    0,
+    clean((row.purchasedQuantity ?? row.alreadyHaveQuantity) - row.alreadyHaveQuantity),
+  );
   const purchased = clean(counted + bought);
-  return { alreadyHaveQuantity: counted, purchasedQuantity: purchased > 0 ? purchased : null, checked: purchased >= row.totalQuantity };
+  return {
+    alreadyHaveQuantity: counted,
+    purchasedQuantity: purchased > 0 ? purchased : null,
+    checked: purchased >= row.totalQuantity,
+  };
 }
 
 /** What a number of rows come to in kilocalories: the sum of what each was estimated at. */

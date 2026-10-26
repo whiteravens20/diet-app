@@ -40,8 +40,9 @@ const ALLOWED_MEALS = MealType.options as readonly string[];
  * recomputes per-serving nutrition before the row is persisted. The recipe is
  * private to the requester (`origin='ai'` + `createdByUserId`) and lives in
  * the database only: nothing about a user is written to the instance's data
- * files. It is stored, and kept out of the curation queue, the way
- * `PersonalRecipesService` describes.
+ * files. It is stored the way `PersonalRecipesService` describes, and one the
+ * instance's model wrote goes before the curators as well, with nothing that
+ * names who asked for it.
  */
 @Injectable()
 export class AiRecipeDraftService {
@@ -62,7 +63,8 @@ export class AiRecipeDraftService {
       where: { id: req.profileId },
       include: { preferences: true },
     });
-    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+    if (!profile || profile.userId !== userId)
+      throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
 
     // Asked before the model is: a draft the account has no room for, or one
     // past the day's limit, would be paid for and then thrown away.
@@ -121,7 +123,9 @@ export class AiRecipeDraftService {
     const catalogue = draftCatalogue(
       eligible.map((row) => ({ ...row, slug: row.slug! })),
       favouriteIds,
-      [profile.id, dietType, req.mealType, req.cuisine, req.cookingMethod, req.complexity].join(':'),
+      [profile.id, dietType, req.mealType, req.cuisine, req.cookingMethod, req.complexity].join(
+        ':',
+      ),
     );
 
     // Target locales: always EN (canonical for nutrition / ingredient mapping
@@ -144,7 +148,7 @@ export class AiRecipeDraftService {
       favouriteIds,
       targetLocales,
     });
-    const { text, meta } = await this.ai.chat(
+    const { text, meta, owner } = await this.ai.chat(
       userId,
       [
         { role: 'system', content: prompt.system },
@@ -168,7 +172,11 @@ export class AiRecipeDraftService {
       offered.set(ingredient.name.toLowerCase(), ingredient);
       offered.set(ingredient.slug, ingredient);
     }
-    const draft = readDraft(text, targetLocales, (written) => offered.get(written.trim().toLowerCase())?.slug ?? null);
+    const draft = readDraft(
+      text,
+      targetLocales,
+      (written) => offered.get(written.trim().toLowerCase())?.slug ?? null,
+    );
     if ('unknownIngredient' in draft) {
       // The name goes to the log, not to the client: it is the model's text.
       this.logger.warn(`AI_DRAFT_UNKNOWN_INGREDIENT: ${draft.unknownIngredient.slice(0, 80)}`);
@@ -209,7 +217,11 @@ export class AiRecipeDraftService {
     let facts: RecipeFacts;
     try {
       facts = recipeFacts(
-        resolved.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: ingById.get(line.ingredientId)! })),
+        resolved.map((line) => ({
+          quantity: line.quantity,
+          unit: line.unit,
+          ingredient: ingById.get(line.ingredientId)!,
+        })),
         payload.servings,
       );
     } catch (err) {
@@ -264,11 +276,17 @@ export class AiRecipeDraftService {
         text: new Map(
           targetLocales.map((lc) => [
             lc,
-            { title: payload.titles[lc]!, description: payload.descriptions[lc]!, steps: payload.steps[lc]! },
+            {
+              title: payload.titles[lc]!,
+              description: payload.descriptions[lc]!,
+              steps: payload.steps[lc]!,
+            },
           ]),
         ),
         // Every word of it is the model's.
         modelWrote: new Set(targetLocales),
+        // What the instance's model writes, the operator paid for.
+        forCurators: owner === 'operator',
         servings: payload.servings,
         mealTypes: payload.mealTypes,
         prepMinutes: payload.prepMinutes,
@@ -299,6 +317,7 @@ export class AiRecipeDraftService {
       where: { id: recipeId },
       include: {
         ingredients: {
+          orderBy: { position: 'asc' },
           include: { ingredient: { include: this.translationsInclude(locale) } },
         },
         ...this.translationsInclude(locale),
@@ -331,7 +350,14 @@ function buildDraftPrompt(input: {
   kcalTarget?: number;
   prepTimeMaxMinutes?: number;
   servings: number;
-  catalogue: { id: string; slug: string; name: string; category: string; caloriesPer100: number; proteinPer100: number }[];
+  catalogue: {
+    id: string;
+    slug: string;
+    name: string;
+    category: string;
+    caloriesPer100: number;
+    proteinPer100: number;
+  }[];
   favouriteIds: Set<string>;
   targetLocales: Locale[];
 }): { system: string; user: string } {
@@ -391,9 +417,17 @@ function buildDraftPrompt(input: {
       '- Favourite ingredients are marked with ⭐ in the catalogue — prefer them when they fit.',
     );
   }
-  const preferenceBlock = preferences.length > 0
-    ? ['', 'Soft preferences (use when sensible, ignore when they conflict with what makes a good recipe):', ...preferences]
-    : ['', '(No additional preferences — pick any cuisine, method or complexity that fits the diet + meal type.)'];
+  const preferenceBlock =
+    preferences.length > 0
+      ? [
+          '',
+          'Soft preferences (use when sensible, ignore when they conflict with what makes a good recipe):',
+          ...preferences,
+        ]
+      : [
+          '',
+          '(No additional preferences — pick any cuisine, method or complexity that fits the diet + meal type.)',
+        ];
 
   const user = [
     `Target diet type: ${input.dietType}`,
@@ -437,7 +471,8 @@ function draftUnavailable(reason: AiFallbackReason | null): HttpException {
     case 'new_accounts_quota_exhausted':
       return new ForbiddenException({
         error: 'AI_NEW_ACCOUNTS_LIMIT_REACHED',
-        message: "The part of this instance's AI requests that new accounts share is used up for now.",
+        message:
+          "The part of this instance's AI requests that new accounts share is used up for now.",
       });
     case 'not_permitted':
       return new ForbiddenException({
@@ -457,7 +492,8 @@ function draftUnavailable(reason: AiFallbackReason | null): HttpException {
     case 'provider_timeout':
       return new ServiceUnavailableException({
         error: 'AI_PROVIDER_TIMEOUT',
-        message: 'AI provider was too slow — model may need a faster machine, or pick a smaller model.',
+        message:
+          'AI provider was too slow — model may need a faster machine, or pick a smaller model.',
       });
     default:
       return new ServiceUnavailableException({
@@ -496,7 +532,8 @@ function readDraft(
   }
 
   const only = locales.length === 1 ? locales[0]! : null;
-  const whole = (value: unknown): unknown => (typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : value);
+  const whole = (value: unknown): unknown =>
+    typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : value;
   const candidate: Record<string, unknown> = {
     titles: only ? { [only]: o.title } : o.titles,
     descriptions: only ? { [only]: o.description } : o.descriptions,
@@ -505,7 +542,9 @@ function readDraft(
     prepMinutes: whole(o.prepMinutes),
     cookMinutes: whole(o.cookMinutes),
     difficulty: o.difficulty,
-    mealTypes: Array.isArray(o.mealTypes) ? o.mealTypes.filter((meal) => ALLOWED_MEALS.includes(meal as string)) : o.mealTypes,
+    mealTypes: Array.isArray(o.mealTypes)
+      ? o.mealTypes.filter((meal) => ALLOWED_MEALS.includes(meal as string))
+      : o.mealTypes,
     ingredients: lines,
   };
 
@@ -513,12 +552,19 @@ function readDraft(
   if (!checked.ok && checked.problems.every((problem) => problem.path.endsWith('.note'))) {
     // A note is optional: one the rules refuse is left out, and the recipe stays.
     const refused = new Set(checked.problems.map((problem) => problem.path));
-    candidate.ingredients = lines.map((line, index) => (refused.has(`ingredients[${index}].note`) && isRecord(line) ? { ...line, note: null } : line));
+    candidate.ingredients = lines.map((line, index) =>
+      refused.has(`ingredients[${index}].note`) && isRecord(line) ? { ...line, note: null } : line,
+    );
     checked = checkRecipe(candidate, locales);
   }
-  if (!checked.ok) return { problem: checked.problems.map((problem) => `${problem.path}: ${problem.rule}`).join(', ') };
-  if (Object.values(checked.recipe.steps).some((steps) => steps.length < 2)) return { problem: 'a single step' };
+  if (!checked.ok)
+    return {
+      problem: checked.problems.map((problem) => `${problem.path}: ${problem.rule}`).join(', '),
+    };
+  if (Object.values(checked.recipe.steps).some((steps) => steps.length < 2))
+    return { problem: 'a single step' };
   return { recipe: checked.recipe };
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);

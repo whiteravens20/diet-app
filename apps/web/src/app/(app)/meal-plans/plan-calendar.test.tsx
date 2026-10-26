@@ -31,31 +31,40 @@ async function open(days: PlanCalendarDay[] = [], answer?: () => Promise<unknown
   const get = vi.spyOn(api, 'get').mockImplementation((path: string) => {
     if (answer) return answer() as never;
     const asked = new URLSearchParams(path.split('?')[1]);
-    return Promise.resolve({ days: days.filter((day) => day.date >= asked.get('from')! && day.date <= asked.get('to')!) } as never);
+    return Promise.resolve({
+      days: days.filter((day) => day.date >= asked.get('from')! && day.date <= asked.get('to')!),
+    } as never);
   });
   const onOpen = vi.fn();
   const onStart = vi.fn();
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <PlanCalendar profileId={PROFILE} today="2026-01-14" onOpen={onOpen} onStart={onStart} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
   await vi.waitFor(() => expect(get).toHaveBeenCalled());
-  await vi.waitFor(() => expect(screen.queryByRole('grid')?.getAttribute('aria-busy') ?? 'false').toBe('false'));
+  await vi.waitFor(() =>
+    expect(screen.queryByRole('grid')?.getAttribute('aria-busy') ?? 'false').toBe('false'),
+  );
   return {
     onOpen,
     onStart,
     /** The spans the calendar was asked for, in order. */
-    asked: () => get.mock.calls.map(([path]) => Object.fromEntries(new URLSearchParams(String(path).split('?')[1]))),
+    asked: () =>
+      get.mock.calls.map(([path]) =>
+        Object.fromEntries(new URLSearchParams(String(path).split('?')[1])),
+      ),
   };
 }
 
 /** The cell of a day, by how it begins when it is read out. */
 const cell = (says: RegExp) => screen.getByRole('button', { name: says });
 
-describe('the calendar of a profile\'s plans', () => {
+describe("the calendar of a profile's plans", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -64,7 +73,11 @@ describe('the calendar of a profile\'s plans', () => {
     const { asked } = await open();
 
     expect(screen.getByRole('heading', { name: 'January 2026' })).toBeInTheDocument();
-    expect(within(screen.getByRole('grid', { name: 'January 2026' })).getAllByRole('columnheader').map((day) => day.textContent)).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+    expect(
+      within(screen.getByRole('grid', { name: 'January 2026' }))
+        .getAllByRole('columnheader')
+        .map((day) => day.textContent),
+    ).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
     // January 2026 lies in five weeks: from the Monday before its first day to the Sunday after its last.
     expect(screen.getAllByRole('row')).toHaveLength(1 + 5);
     expect(asked()).toEqual([{ profileId: PROFILE, from: '2025-12-29', to: '2026-02-01' }]);
@@ -76,7 +89,9 @@ describe('the calendar of a profile\'s plans', () => {
 
     const monday = cell(/^Mon, Jan 12:/);
 
-    expect(monday).toHaveAccessibleName('Mon, Jan 12: 2,190 of 2,200 kcal, 2 of 3 meals eaten. Choose it to open the plan.');
+    expect(monday).toHaveAccessibleName(
+      'Mon, Jan 12: 2,190 of 2,200 kcal, 2 of 3 meals eaten. Choose it to open the plan.',
+    );
     expect(monday).toHaveTextContent('122,1902/3');
     await userEvent.click(monday);
     expect(onOpen).toHaveBeenCalledWith(PLAN, '2026-01-12');
@@ -88,7 +103,9 @@ describe('the calendar of a profile\'s plans', () => {
 
     const tuesday = cell(/^Tue, Jan 13:/);
 
-    expect(tuesday).toHaveAccessibleName('Tue, Jan 13: no plan. Choose it to begin a plan on this day.');
+    expect(tuesday).toHaveAccessibleName(
+      'Tue, Jan 13: no plan. Choose it to begin a plan on this day.',
+    );
     await userEvent.click(tuesday);
     expect(onStart).toHaveBeenCalledWith('2026-01-13');
     expect(onOpen).not.toHaveBeenCalled();
@@ -101,17 +118,30 @@ describe('the calendar of a profile\'s plans', () => {
       aDay('2026-01-14', { calories: 0, skipped: true, eaten: { meals: 0, of: 0 }, plans: 2 }),
     ]);
 
-    expect(cell(/^Mon, Jan 12:/)).toHaveAccessibleName('Mon, Jan 12: 2,900 of 2,200 kcal, over the target, 0 of 3 meals eaten. Choose it to open the plan.');
-    expect(cell(/^Tue, Jan 13:/)).toHaveAccessibleName('Tue, Jan 13: 1,500 of 2,200 kcal, under the target, 0 of 3 meals eaten, and 2 more plans hold this day. Choose it to open the plan.');
+    expect(cell(/^Mon, Jan 12:/)).toHaveAccessibleName(
+      'Mon, Jan 12: 2,900 of 2,200 kcal, over the target, 0 of 3 meals eaten. Choose it to open the plan.',
+    );
+    expect(cell(/^Tue, Jan 13:/)).toHaveAccessibleName(
+      'Tue, Jan 13: 1,500 of 2,200 kcal, under the target, 0 of 3 meals eaten, and 2 more plans hold this day. Choose it to open the plan.',
+    );
     expect(cell(/^Tue, Jan 13:/)).toHaveTextContent('131,500+2');
-    expect(cell(/^Wed, Jan 14:/)).toHaveAccessibleName('Wed, Jan 14: a day the plan skips, and one more plan holds this day. Choose it to open the plan.');
+    expect(cell(/^Wed, Jan 14:/)).toHaveAccessibleName(
+      'Wed, Jan 14: a day the plan skips, and one more plan holds this day. Choose it to open the plan.',
+    );
     expect(cell(/^Wed, Jan 14:/)).toHaveTextContent(`14${texts.skipped}+1`);
   });
 
   it('says in words what the marks in a day mean', async () => {
     await open();
 
-    for (const line of [texts.legendDay, texts.legendOff, texts.legendEaten, texts.legendMore, texts.legendKeys]) expect(screen.getByText(line)).toBeInTheDocument();
+    for (const line of [
+      texts.legendDay,
+      texts.legendOff,
+      texts.legendEaten,
+      texts.legendMore,
+      texts.legendKeys,
+    ])
+      expect(screen.getByText(line)).toBeInTheDocument();
   });
 
   it('leafs to the month after and the one before, and back to the month it is', async () => {
@@ -121,7 +151,9 @@ describe('the calendar of a profile\'s plans', () => {
 
     await userEvent.click(screen.getByRole('button', { name: texts.next }));
     expect(screen.getByRole('heading', { name: 'February 2026' })).toBeInTheDocument();
-    await vi.waitFor(() => expect(asked().at(-1)).toEqual({ profileId: PROFILE, from: '2026-01-26', to: '2026-03-01' }));
+    await vi.waitFor(() =>
+      expect(asked().at(-1)).toEqual({ profileId: PROFILE, from: '2026-01-26', to: '2026-03-01' }),
+    );
 
     await userEvent.click(screen.getByRole('button', { name: texts.previous }));
     await userEvent.click(screen.getByRole('button', { name: texts.previous }));
@@ -133,7 +165,11 @@ describe('the calendar of a profile\'s plans', () => {
 
   it('says that the plans could not be read, and reads them again when asked', async () => {
     let fails = true;
-    await open([], () => (fails ? Promise.reject(new Error('no answer')) : Promise.resolve({ days: [aDay('2026-01-12')] })));
+    await open([], () =>
+      fails
+        ? Promise.reject(new Error('no answer'))
+        : Promise.resolve({ days: [aDay('2026-01-12')] }),
+    );
 
     expect(await screen.findByRole('button', { name: messages.common.retry })).toBeInTheDocument();
     expect(screen.queryByRole('grid')).toBeNull();
@@ -149,12 +185,17 @@ describe('the days of the calendar, for somebody who uses the keyboard', () => {
     vi.restoreAllMocks();
   });
 
-  const inTabOrder = () => within(screen.getByRole('grid')).getAllByRole('button').filter((day) => day.tabIndex === 0);
+  const inTabOrder = () =>
+    within(screen.getByRole('grid'))
+      .getAllByRole('button')
+      .filter((day) => day.tabIndex === 0);
 
   it('are one stop of the Tab key: the day it is', async () => {
     await open();
 
-    expect(inTabOrder().map((day) => day.getAttribute('aria-label'))).toEqual([expect.stringMatching(/^Wed, Jan 14:/)]);
+    expect(inTabOrder().map((day) => day.getAttribute('aria-label'))).toEqual([
+      expect.stringMatching(/^Wed, Jan 14:/),
+    ]);
   });
 
   it('are moved among with the arrow keys, a day or a week at a time, and to either end of a week', async () => {

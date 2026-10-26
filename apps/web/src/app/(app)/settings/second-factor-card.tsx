@@ -45,7 +45,10 @@ export function SecondFactorCard() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const state = useQuery({ queryKey: ['second-factor'], queryFn: () => api.get<SecondFactorState>('/users/me/second-factor') });
+  const state = useQuery({
+    queryKey: ['second-factor'],
+    queryFn: () => api.get<SecondFactorState>('/users/me/second-factor'),
+  });
 
   const worded = (err: unknown): string => errorText(err, t('failed'));
 
@@ -65,14 +68,25 @@ export function SecondFactorCard() {
 
   /** What the card shows, and the list of sessions beside it: switching the second step on ends the others. */
   const refresh = async (): Promise<void> => {
-    await Promise.all([queryClient.invalidateQueries({ queryKey: ['second-factor'] }), queryClient.invalidateQueries({ queryKey: ['sessions'] })]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['second-factor'] }),
+      queryClient.invalidateQueries({ queryKey: ['sessions'] }),
+    ]);
   };
-  const field = (event: FormEvent<HTMLFormElement>, name: string): string => String(new FormData(event.currentTarget).get(name) ?? '');
+  const field = (event: FormEvent<HTMLFormElement>, name: string): string =>
+    String(new FormData(event.currentTarget).get(name) ?? '');
 
   function onPassword(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     const currentPassword = field(event, 'currentPassword');
-    void run(async () => setStep({ at: 'scan', setup: await api.post<SecondFactorSetup>('/users/me/second-factor/setup', { currentPassword }) }));
+    void run(async () =>
+      setStep({
+        at: 'scan',
+        setup: await api.post<SecondFactorSetup>('/users/me/second-factor/setup', {
+          currentPassword,
+        }),
+      }),
+    );
   }
 
   function onFirstCode(event: FormEvent<HTMLFormElement>, setup: SecondFactorSetup): void {
@@ -80,12 +94,19 @@ export function SecondFactorCard() {
     const code = field(event, 'code');
     void run(
       async () => {
-        const { recoveryCodes } = await api.post<RecoveryCodes>('/users/me/second-factor', { enrolment: setup.enrolment, code });
+        const { recoveryCodes } = await api.post<RecoveryCodes>('/users/me/second-factor', {
+          enrolment: setup.enrolment,
+          code,
+        });
         setStep({ at: 'codes', recoveryCodes, fresh: true });
         await refresh();
       },
       // A set-up that ran out cannot be finished: it begins again.
-      (err) => err instanceof ApiClientError && err.code !== 'INVALID_SECOND_FACTOR_CODE' && err.status !== 429 && setStep({ at: 'rest' }),
+      (err) =>
+        err instanceof ApiClientError &&
+        err.code !== 'INVALID_SECOND_FACTOR_CODE' &&
+        err.status !== 429 &&
+        setStep({ at: 'rest' }),
     );
   }
 
@@ -97,7 +118,10 @@ export function SecondFactorCard() {
         await api.delete<void>('/users/me/second-factor', proof);
         setStep({ at: 'rest' });
       } else {
-        const { recoveryCodes } = await api.post<RecoveryCodes>('/users/me/second-factor/recovery-codes', proof);
+        const { recoveryCodes } = await api.post<RecoveryCodes>(
+          '/users/me/second-factor/recovery-codes',
+          proof,
+        );
         setStep({ at: 'codes', recoveryCodes, fresh: false });
       }
       await refresh();
@@ -143,7 +167,9 @@ export function SecondFactorCard() {
         {step.at === 'rest' && state.data && (
           <>
             <p className="text-sm font-medium">
-              {on && state.data.since ? t('isOn', { since: fmt.dayOf(state.data.since) }) : t('isOff')}
+              {on && state.data.since
+                ? t('isOn', { since: fmt.dayOf(state.data.since) })
+                : t('isOff')}
             </p>
             {on && (
               <p className="text-sm text-muted-foreground">
@@ -155,10 +181,18 @@ export function SecondFactorCard() {
             <div className="flex flex-wrap gap-2">
               {on ? (
                 <>
-                  <Button type="button" variant="outline" onClick={() => to({ at: 'proof', to: 'renew' })}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => to({ at: 'proof', to: 'renew' })}
+                  >
                     {t('newCodes')}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => to({ at: 'proof', to: 'off' })}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => to({ at: 'proof', to: 'off' })}
+                  >
                     {t('switchOff')}
                   </Button>
                 </>
@@ -174,7 +208,13 @@ export function SecondFactorCard() {
         {step.at === 'password' && (
           <form onSubmit={onPassword} className="max-w-sm space-y-3">
             <Field label={t('password')}>
-              <Input name="currentPassword" type="password" required autoFocus autoComplete="current-password" />
+              <Input
+                name="currentPassword"
+                type="password"
+                required
+                autoFocus
+                autoComplete="current-password"
+              />
             </Field>
             {problem}
             <div className="flex gap-2">
@@ -190,7 +230,14 @@ export function SecondFactorCard() {
           <form onSubmit={(event) => onFirstCode(event, step.setup)} className="max-w-sm space-y-3">
             <AuthenticatorSetup setup={step.setup} />
             <Field label={t('code')} hint={t('codeHint')}>
-              <Input name="code" required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={12} />
+              <Input
+                name="code"
+                required
+                autoFocus
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={12}
+              />
             </Field>
             {problem}
             <div className="flex gap-2">
@@ -207,7 +254,10 @@ export function SecondFactorCard() {
             {step.fresh && <p className="text-sm font-medium text-success">{t('onNow')}</p>}
             <p className="text-sm font-medium">{t('recoveryTitle')}</p>
             <p className="text-sm text-muted-foreground">{t('recoveryBody')}</p>
-            <ul aria-label={t('recoveryTitle')} className="grid max-w-sm grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border p-3 font-mono text-sm">
+            <ul
+              aria-label={t('recoveryTitle')}
+              className="grid max-w-sm grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border p-3 font-mono text-sm"
+            >
               {step.recoveryCodes.map((recoveryCode) => (
                 <li key={recoveryCode}>{recoveryCode}</li>
               ))}
@@ -232,7 +282,13 @@ export function SecondFactorCard() {
           <form onSubmit={(event) => onProof(event, step.to)} className="max-w-sm space-y-3">
             <p className="text-sm">{t(step.to === 'off' ? 'switchOffBody' : 'newCodesBody')}</p>
             <Field label={t('password')}>
-              <Input name="currentPassword" type="password" required autoFocus autoComplete="current-password" />
+              <Input
+                name="currentPassword"
+                type="password"
+                required
+                autoFocus
+                autoComplete="current-password"
+              />
             </Field>
             <Field label={t('codeOrRecovery')}>
               <Input name="code" required autoComplete="one-time-code" maxLength={40} />

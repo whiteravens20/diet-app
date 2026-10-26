@@ -19,11 +19,11 @@ updates:
     target-branch: dev
     schedule:
       interval: monthly
-      time: "08:00"
+      time: '08:00'
       timezone: UTC
     labels: [dependencies, github-actions]
     commit-message:
-      prefix: "ci"
+      prefix: 'ci'
     cooldown:
       default-days: 7
     groups:
@@ -37,11 +37,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
-      time: "08:00"
+      time: '08:00'
       timezone: UTC
     labels: [dependencies]
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
     cooldown:
       default-days: 7
     groups:
@@ -49,21 +49,21 @@ updates:
       # be bumped alone. They always update together here, and the non-breaking
       # group leaves them out so they cannot match both.
       vitest:
-        patterns: ["vitest", "@vitest/*"]
+        patterns: ['vitest', '@vitest/*']
       non-breaking:
         update-types: [minor, patch]
-        exclude-patterns: ["vitest", "@vitest/*"]
+        exclude-patterns: ['vitest', '@vitest/*']
     ignore:
       # ESLint 10 breaks eslint-config-next@16's plugin chain
       # (`scopeManager.addGlobals is not a function`), so it stays on 9.x.
       # Remove this once eslint-config-next supports ESLint 10.
-      - dependency-name: "eslint"
-        versions: ["10.x"]
+      - dependency-name: 'eslint'
+        versions: ['10.x']
       # The types of Node follow the Node the image runs: with those of a later
       # major, code that needs a later Node would pass the type check. They move
       # by hand, together with the base image and `node-version` in the workflows.
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   # Both Dockerfiles pin node by version and digest. A new minor or patch moves
   # the two together; a rebuild of the same version moves the digest alone.
@@ -73,18 +73,18 @@ updates:
     schedule:
       interval: weekly
       day: monday
-      time: "08:00"
+      time: '08:00'
       timezone: UTC
     labels: [dependencies]
     commit-message:
-      prefix: "chore(docker)"
+      prefix: 'chore(docker)'
     cooldown:
       default-days: 7
     # A new major of Node is a change to the project, made by hand together with
     # `node-version` in the workflows.
     ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   # The Compose files pin PostgreSQL, Ollama and Traefik the same way, by
   # version and digest.
@@ -94,15 +94,15 @@ updates:
     schedule:
       interval: weekly
       day: monday
-      time: "08:00"
+      time: '08:00'
       timezone: UTC
     labels: [dependencies]
     commit-message:
-      prefix: "chore(docker)"
+      prefix: 'chore(docker)'
     cooldown:
       default-days: 7
     # A new major of PostgreSQL needs the data moved to it, and one of the proxy
     # its configuration read again: both are made by hand.
     ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']

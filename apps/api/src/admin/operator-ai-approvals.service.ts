@@ -35,7 +35,10 @@ export class OperatorAiApprovals {
   /** Approve the account of an address. Approving it again changes nothing. */
   async approve(address: string): Promise<void> {
     const id = await this.holderOf(address);
-    await this.prisma.user.updateMany({ where: { id, operatorAiApprovedAt: null }, data: { operatorAiApprovedAt: new Date() } });
+    await this.prisma.user.updateMany({
+      where: { id, operatorAiApprovedAt: null },
+      data: { operatorAiApprovedAt: new Date() },
+    });
   }
 
   /**
@@ -48,8 +51,15 @@ export class OperatorAiApprovals {
   }
 
   private async holderOf(address: string): Promise<string> {
-    const holder = await this.prisma.user.findUnique({ where: { emailIndex: this.emails.indexOf(this.emails.normalise(address)) }, select: { id: true } });
-    if (!holder) throw new NotFoundException({ error: 'USER_NOT_FOUND', message: 'No account has that address.' });
+    const holder = await this.prisma.user.findUnique({
+      where: { emailIndex: this.emails.indexOf(this.emails.normalise(address)) },
+      select: { id: true },
+    });
+    if (!holder)
+      throw new NotFoundException({
+        error: 'USER_NOT_FOUND',
+        message: 'No account has that address.',
+      });
     return holder.id;
   }
 }

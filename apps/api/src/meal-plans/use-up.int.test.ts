@@ -40,12 +40,23 @@ describe('the swaps that would use up what a plan opens', () => {
     for (const [index, mealType] of (['breakfast', 'lunch', 'dinner'] as const).entries()) {
       const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: slugs[index]! } });
       const meal = plan.days[day]!.meals.find((planned) => planned.mealType === mealType)!;
-      await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: recipe.id, servings: 1, quantityScale: 1, source: 'CATALOGUE', eatenAt: null } });
+      await t.prisma.plannedMeal.update({
+        where: { id: meal.id },
+        data: {
+          recipeId: recipe.id,
+          servings: 1,
+          quantityScale: 1,
+          source: 'CATALOGUE',
+          eatenAt: null,
+        },
+      });
     }
   }
-  const mealOf = (day: number, mealType: string) => plan.days[day]!.meals.find((meal) => meal.mealType === mealType)!;
+  const mealOf = (day: number, mealType: string) =>
+    plan.days[day]!.meals.find((meal) => meal.mealType === mealType)!;
   /** The suggestions as somebody is given them for whom it is the plan's first day. */
-  const suggestions = (weigh = false, locale: 'en' | 'pl' = 'en'): Promise<UseUpSuggestions> => useUp.suggest(user.id, locale, plan.id, { weigh }, plan.startDate);
+  const suggestions = (weigh = false, locale: 'en' | 'pl' = 'en'): Promise<UseUpSuggestions> =>
+    useUp.suggest(user.id, locale, plan.id, { weigh }, plan.startDate);
 
   beforeEach(async () => {
     await resetUserData(t.prisma);
@@ -64,17 +75,48 @@ describe('the swaps that would use up what a plan opens', () => {
 
       expect(revision).toBe(plan.revision);
       expect(aiMeta).toBeNull();
-      expect(found.map((suggestion) => [suggestion.date, suggestion.mealType, suggestion.from.title, suggestion.to.title, suggestion.servings])).toEqual([
+      expect(
+        found.map((suggestion) => [
+          suggestion.date,
+          suggestion.mealType,
+          suggestion.from.title,
+          suggestion.to.title,
+          suggestion.servings,
+        ]),
+      ).toEqual([
         [plan.days[1]!.date, 'lunch', 'Chickpea tomato stew', 'Chicken rice broccoli', 1],
         // A dinner of 483 kcal takes three quarters of a serving of it.
         [plan.days[1]!.date, 'dinner', 'Baked tofu with broccoli', 'Chicken rice broccoli', 0.75],
       ]);
       const [lunch, dinner] = found;
-      expect(lunch).toMatchObject({ plannedMealId: mealOf(1, 'lunch').id, reason: null, pick: null });
-      expect(lunch!.takes).toEqual([{ ingredientId: expect.any(String), name: 'Chicken breast', unit: 'g', amount: 150, left: 200 }]);
-      expect(dinner!.takes).toEqual([{ ingredientId: expect.any(String), name: 'Chicken breast', unit: 'g', amount: 113, left: 238 }]);
+      expect(lunch).toMatchObject({
+        plannedMealId: mealOf(1, 'lunch').id,
+        reason: null,
+        pick: null,
+      });
+      expect(lunch!.takes).toEqual([
+        {
+          ingredientId: expect.any(String),
+          name: 'Chicken breast',
+          unit: 'g',
+          amount: 150,
+          left: 200,
+        },
+      ]);
+      expect(dinner!.takes).toEqual([
+        {
+          ingredientId: expect.any(String),
+          name: 'Chicken breast',
+          unit: 'g',
+          amount: 113,
+          left: 238,
+        },
+      ]);
       // A litre of milk and a pack of chicken are bought either way; more of the chicken is used.
-      expect(lunch!.packs).toEqual({ before: { bought: 1500, used: 650, wasted: 2 }, after: { bought: 1500, used: 800, wasted: 2 } });
+      expect(lunch!.packs).toEqual({
+        before: { bought: 1500, used: 650, wasted: 2 },
+        after: { bought: 1500, used: 800, wasted: 2 },
+      });
     });
 
     it('say what the meal holds now and what it would hold', async () => {
@@ -91,15 +133,24 @@ describe('the swaps that would use up what a plan opens', () => {
       // The dinner of the first day could be the chicken dish too, were it not that day's lunch.
       const found = (await suggestions()).suggestions;
 
-      expect(found.map((suggestion) => suggestion.plannedMealId)).not.toContain(mealOf(0, 'dinner').id);
+      expect(found.map((suggestion) => suggestion.plannedMealId)).not.toContain(
+        mealOf(0, 'dinner').id,
+      );
     });
 
     it('leave alone what was eaten and what lies before the day it is', async () => {
-      await t.prisma.plannedMeal.update({ where: { id: mealOf(1, 'lunch').id }, data: { eatenAt: new Date() } });
+      await t.prisma.plannedMeal.update({
+        where: { id: mealOf(1, 'lunch').id },
+        data: { eatenAt: new Date() },
+      });
 
-      expect((await suggestions()).suggestions.map((suggestion) => suggestion.mealType)).toEqual(['dinner']);
+      expect((await suggestions()).suggestions.map((suggestion) => suggestion.mealType)).toEqual([
+        'dinner',
+      ]);
       // On the day after the plan, nothing of it is left to change.
-      expect((await useUp.suggest(user.id, 'en', plan.id, { weigh: false }, '2026-02-01')).suggestions).toEqual([]);
+      expect(
+        (await useUp.suggest(user.id, 'en', plan.id, { weigh: false }, '2026-02-01')).suggestions,
+      ).toEqual([]);
     });
 
     it('are none for a menu that opens no pack that does not keep', async () => {
@@ -128,7 +179,14 @@ describe('the swaps that would use up what a plan opens', () => {
       const { suggestions: found, revision } = await suggestions();
       const lunch = found[0]!;
 
-      const { plan: after } = await t.app.get(MealSwapService).apply(user.id, 'en', { planId: plan.id, plannedMealId: lunch.plannedMealId, recipeId: lunch.to.id, revision, strategy: 'random', allowOffDiet: false });
+      const { plan: after } = await t.app.get(MealSwapService).apply(user.id, 'en', {
+        planId: plan.id,
+        plannedMealId: lunch.plannedMealId,
+        recipeId: lunch.to.id,
+        revision,
+        strategy: 'random',
+        allowOffDiet: false,
+      });
 
       const meal = after.days[1]!.meals.find((planned) => planned.id === lunch.plannedMealId)!;
       expect(meal.recipe!.id).toBe(lunch.to.id);
@@ -138,12 +196,22 @@ describe('the swaps that would use up what a plan opens', () => {
 
     it('are answered by the route, to the owner of the plan alone', async () => {
       // The route goes by the day it is: the days of this plan have passed, and nothing of them is left to change.
-      const answer = await t.http().post(`/api/meal-plans/${plan.id}/use-up`).set(as(user)).send({}).expect(200);
+      const answer = await t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/use-up`)
+        .set(as(user))
+        .send({})
+        .expect(200);
       expect(answer.body).toEqual({ revision: plan.revision, suggestions: [], aiMeta: null });
 
       const other = await aUser(t);
       await t.http().post(`/api/meal-plans/${plan.id}/use-up`).set(as(other)).send({}).expect(404);
-      await t.http().post(`/api/meal-plans/${plan.id}/use-up`).set(as(user)).send({ weigh: 'yes' }).expect(400);
+      await t
+        .http()
+        .post(`/api/meal-plans/${plan.id}/use-up`)
+        .set(as(user))
+        .send({ weigh: 'yes' })
+        .expect(400);
     });
   });
 
@@ -167,8 +235,13 @@ describe('the swaps that would use up what a plan opens', () => {
       expect(maxTokens).toBe(700);
     });
 
-    it('come back in the model\'s order with its sentence on each, and what it put first is its pick', async () => {
-      t.model.reply({ text: JSON.stringify({ order: ['b', 'a'], reasons: { b: 'Keeps the stew for lunch.', a: 'Uses more of the chicken.' } }) });
+    it("come back in the model's order with its sentence on each, and what it put first is its pick", async () => {
+      t.model.reply({
+        text: JSON.stringify({
+          order: ['b', 'a'],
+          reasons: { b: 'Keeps the stew for lunch.', a: 'Uses more of the chicken.' },
+        }),
+      });
 
       const { suggestions: found, aiMeta } = await suggestions(true);
 
@@ -176,43 +249,78 @@ describe('the swaps that would use up what a plan opens', () => {
         ['dinner', 'Keeps the stew for lunch.'],
         ['lunch', 'Uses more of the chicken.'],
       ]);
-      expect(aiMeta).toMatchObject({ provider: 'ollama', usedDeterministicFallback: false, fallbackReason: null });
+      expect(aiMeta).toMatchObject({
+        provider: 'ollama',
+        usedDeterministicFallback: false,
+        fallbackReason: null,
+      });
       expect(found[0]!.pick).toEqual(expect.any(String));
       expect(found[1]!.pick).toBeNull();
     });
 
-    it('are written as the model\'s pick when the one it put first is taken with its note, and the plan says a model had a part in it', async () => {
-      t.model.reply({ text: JSON.stringify({ order: ['b', 'a'], reasons: { b: 'Keeps the stew for lunch.' } }) });
+    it("are written as the model's pick when the one it put first is taken with its note, and the plan says a model had a part in it", async () => {
+      t.model.reply({
+        text: JSON.stringify({ order: ['b', 'a'], reasons: { b: 'Keeps the stew for lunch.' } }),
+      });
       const { suggestions: found, revision } = await suggestions(true);
       const first = found[0]!;
 
-      const { plan: after } = await t.app.get(MealSwapService).apply(user.id, 'en', { planId: plan.id, plannedMealId: first.plannedMealId, recipeId: first.to.id, revision, strategy: 'random', allowOffDiet: false, pick: first.pick! });
+      const { plan: after } = await t.app.get(MealSwapService).apply(user.id, 'en', {
+        planId: plan.id,
+        plannedMealId: first.plannedMealId,
+        recipeId: first.to.id,
+        revision,
+        strategy: 'random',
+        allowOffDiet: false,
+        pick: first.pick!,
+      });
 
-      expect(after.days[1]!.meals.find((planned) => planned.id === first.plannedMealId)!.modelPick).toEqual({ reason: 'Keeps the stew for lunch.' });
+      expect(
+        after.days[1]!.meals.find((planned) => planned.id === first.plannedMealId)!.modelPick,
+      ).toEqual({ reason: 'Keeps the stew for lunch.' });
       expect(after.generationMode).toBe('ai_assisted');
       // A plan that is made again as a whole is the engine's again.
-      const again = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id, { includePast: true, replaceEaten: false, replaceCustom: false, dropIneligibleLocks: false }, plan.startDate);
+      const again = await t.app.get(PlanGenerationService).regenerate(
+        user.id,
+        'en',
+        plan.id,
+        {
+          includePast: true,
+          replaceEaten: false,
+          replaceCustom: false,
+          dropIneligibleLocks: false,
+        },
+        plan.startDate,
+      );
       expect(again.generationMode).toBe('deterministic');
     });
 
-    it('stay in the engine\'s order, without a pick, when the model\'s answer cannot be used', async () => {
+    it("stay in the engine's order, without a pick, when the model's answer cannot be used", async () => {
       t.model.reply({ text: 'The second one, I think.' });
 
       const { suggestions: found, aiMeta } = await suggestions(true);
 
       expect(found.map((suggestion) => suggestion.mealType)).toEqual(['lunch', 'dinner']);
-      expect(found.every((suggestion) => suggestion.pick === null && suggestion.reason === null)).toBe(true);
-      expect(aiMeta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'invalid_output' });
+      expect(
+        found.every((suggestion) => suggestion.pick === null && suggestion.reason === null),
+      ).toBe(true);
+      expect(aiMeta).toMatchObject({
+        usedDeterministicFallback: true,
+        fallbackReason: 'invalid_output',
+      });
     });
 
     it('ask no model where there is nothing to weigh', async () => {
-      await t.prisma.plannedMeal.updateMany({ where: { day: { planId: plan.id } }, data: { eatenAt: new Date() } });
+      await t.prisma.plannedMeal.updateMany({
+        where: { day: { planId: plan.id } },
+        data: { eatenAt: new Date() },
+      });
 
       expect(await suggestions(true)).toMatchObject({ suggestions: [], aiMeta: null });
       expect(t.model.requests).toHaveLength(0);
     });
 
-    it('count against the account\'s allowance like any request to a model', async () => {
+    it("count against the account's allowance like any request to a model", async () => {
       t.model.reply({ text: JSON.stringify({ order: ['a', 'b'] }) });
 
       await suggestions(true);
@@ -222,11 +330,14 @@ describe('the swaps that would use up what a plan opens', () => {
     });
   });
 
-  it('are in the engine\'s order, and say that no model answered, for an account that has AI off', async () => {
+  it("are in the engine's order, and say that no model answered, for an account that has AI off", async () => {
     const { suggestions: found, aiMeta } = await suggestions(true);
 
     expect(found).toHaveLength(2);
-    expect(aiMeta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'no_provider' });
+    expect(aiMeta).toMatchObject({
+      usedDeterministicFallback: true,
+      fallbackReason: 'no_provider',
+    });
     expect(t.model.requests).toHaveLength(0);
   });
 });

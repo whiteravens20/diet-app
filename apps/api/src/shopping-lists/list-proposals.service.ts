@@ -1,10 +1,23 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Injectable } from '@nestjs/common';
-import type { ListProposal, ListProposals, Locale, MealType, ShoppingListItem, WeighRequest } from '@diet-app/shared';
+import type {
+  ListProposal,
+  ListProposals,
+  Locale,
+  MealType,
+  ShoppingListItem,
+  WeighRequest,
+} from '@diet-app/shared';
 import { LIST_PROPOSALS } from '../ai/operations.js';
 import { WeighService } from '../ai/weigh.service.js';
-import { convertUnit, leftBeyondAccepted, leftOf, packsFor, UnitConversionError } from '../engine/index.js';
+import {
+  convertUnit,
+  leftBeyondAccepted,
+  leftOf,
+  packsFor,
+  UnitConversionError,
+} from '../engine/index.js';
 import { IngredientSwapService } from '../meal-plans/ingredient-swap.service.js';
 import { LANGUAGE } from '../meal-plans/swap-shared.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -33,17 +46,31 @@ export class ListProposalsService {
     private readonly weigher: WeighService,
   ) {}
 
-  async propose(userId: string, locale: Locale, listId: string, req: WeighRequest): Promise<ListProposals> {
+  async propose(
+    userId: string,
+    locale: Locale,
+    listId: string,
+    req: WeighRequest,
+  ): Promise<ListProposals> {
     // The list as its owner reads it: this is also what says whose it is.
     const list = await this.lists.get(userId, locale, listId);
     // A row that is ticked is bought: there is nothing left to propose about it.
-    const rows = list.groups.flatMap((group) => group.items).filter((row) => !row.checked && row.toBuyQuantity > 0);
+    const rows = list.groups
+      .flatMap((group) => group.items)
+      .filter((row) => !row.checked && row.toBuyQuantity > 0);
     const rowOf = new Map(rows.map((row) => [row.ingredientId, row]));
     const ingredients = new Map(
       (
         await this.prisma.ingredient.findMany({
           where: { id: { in: [...rowOf.keys()] } },
-          select: { id: true, canonicalUnit: true, gramsPerPiece: true, density: true, packSize: true, perishable: true },
+          select: {
+            id: true,
+            canonicalUnit: true,
+            gramsPerPiece: true,
+            density: true,
+            packSize: true,
+            perishable: true,
+          },
         })
       ).map((ingredient) => [ingredient.id, ingredient]),
     );
@@ -64,18 +91,39 @@ export class ListProposalsService {
     for (const row of rows) {
       const ingredient = ingredients.get(row.ingredientId);
       const need = toBuy(row);
-      if (!ingredient?.perishable || !ingredient.packSize || need === null || leftBeyondAccepted(need, ingredient.packSize) <= 0) continue;
-      leftovers.push({ kind: 'leftover', ingredientId: row.ingredientId, name: row.name, unit: ingredient.canonicalUnit, left: Math.max(1, Math.round(leftOf(need, ingredient.packSize))), packSize: ingredient.packSize, reason: null });
+      if (
+        !ingredient?.perishable ||
+        !ingredient.packSize ||
+        need === null ||
+        leftBeyondAccepted(need, ingredient.packSize) <= 0
+      )
+        continue;
+      leftovers.push({
+        kind: 'leftover',
+        ingredientId: row.ingredientId,
+        name: row.name,
+        unit: ingredient.canonicalUnit,
+        left: Math.max(1, Math.round(leftOf(need, ingredient.packSize))),
+        packSize: ingredient.packSize,
+        reason: null,
+      });
     }
     // What saves the most first, then what leaves the most of its pack.
-    leftovers.sort((a, b) => b.left / b.packSize - a.left / a.packSize || a.name.localeCompare(b.name));
+    leftovers.sort(
+      (a, b) => b.left / b.packSize - a.left / a.packSize || a.name.localeCompare(b.name),
+    );
     let proposals: ListProposal[] = [...merges, ...leftovers].slice(0, MOST_PROPOSALS);
-    if (!req.weigh || proposals.length === 0) return { planId: list.planId, proposals, aiMeta: null };
+    if (!req.weigh || proposals.length === 0)
+      return { planId: list.planId, proposals, aiMeta: null };
 
     const letter = (index: number): string => String.fromCharCode(97 + index);
     const weighed = await this.weigher.weigh(userId, LIST_PROPOSALS, {
       choice: `A shopping list for the days ${list.fromDate} to ${list.toDate} of a meal plan. Each option is something the list could do without, or something its packs will leave over.`,
-      matters: ['How much less there is to buy, or to throw away.', 'How much the meals change by it: say what changes on the plate.', 'How easy it is to do.'],
+      matters: [
+        'How much less there is to buy, or to throw away.',
+        'How much the meals change by it: say what changes on the plate.',
+        'How easy it is to do.',
+      ],
       options: proposals.map((proposal, index) => ({
         id: letter(index),
         facts:
@@ -86,7 +134,10 @@ export class ListProposalsService {
       language: LANGUAGE[locale],
     });
     const byLetter = new Map(proposals.map((proposal, index) => [letter(index), proposal]));
-    proposals = weighed.order.map((id) => ({ ...byLetter.get(id)!, reason: weighed.said.get(id) ?? null }));
+    proposals = weighed.order.map((id) => ({
+      ...byLetter.get(id)!,
+      reason: weighed.said.get(id) ?? null,
+    }));
     return { planId: list.planId, proposals, aiMeta: weighed.meta };
   }
 
@@ -120,18 +171,41 @@ export class ListProposalsService {
       if (needOfTo === null || from.alreadyHaveQuantity > 0) continue;
       const meals = await this.prisma.plannedMeal.findMany({
         where: {
-          day: { planId: list.planId, date: { gte: new Date(list.fromDate), lte: new Date(list.toDate) } },
+          day: {
+            planId: list.planId,
+            date: { gte: new Date(list.fromDate), lte: new Date(list.toDate) },
+          },
           recipe: { ingredients: { some: { ingredientId: rule.fromIngredientId } } },
         },
-        select: { id: true, mealType: true, eatenAt: true, source: true, day: { select: { date: true } }, recipe: { select: { title: true, translations: { select: { locale: true, title: true } } } } },
+        select: {
+          id: true,
+          mealType: true,
+          eatenAt: true,
+          source: true,
+          day: { select: { date: true } },
+          recipe: {
+            select: { title: true, translations: { select: { locale: true, title: true } } },
+          },
+        },
         orderBy: [{ day: { date: 'asc' } }, { mealType: 'asc' }],
       });
       // A meal that was eaten is a record: where one uses the ingredient, the row cannot go.
-      if (meals.length === 0 || meals.length > MOST_MEALS_OF_A_MERGE || meals.some((meal) => meal.eatenAt !== null || meal.source === 'USER_CUSTOM' || !meal.recipe)) continue;
+      if (
+        meals.length === 0 ||
+        meals.length > MOST_MEALS_OF_A_MERGE ||
+        meals.some((meal) => meal.eatenAt !== null || meal.source === 'USER_CUSTOM' || !meal.recipe)
+      )
+        continue;
       let coming = 0;
       let taken = true;
       for (const meal of meals) {
-        const more = await this.swaps.wouldCome(userId, list.planId, meal.id, rule.fromIngredientId, rule.toIngredientId);
+        const more = await this.swaps.wouldCome(
+          userId,
+          list.planId,
+          meal.id,
+          rule.fromIngredientId,
+          rule.toIngredientId,
+        );
         if (more === null) {
           taken = false;
           break;
@@ -140,7 +214,10 @@ export class ListProposalsService {
       }
       if (!taken) continue;
       const packOfTo = ingredients.get(to.ingredientId)?.packSize ?? 0;
-      const packsSaved = (from.packs?.count ?? 0) + (to.packs?.count ?? 0) - (packOfTo > 0 ? packsFor(needOfTo + coming, packOfTo) : 0);
+      const packsSaved =
+        (from.packs?.count ?? 0) +
+        (to.packs?.count ?? 0) -
+        (packOfTo > 0 ? packsFor(needOfTo + coming, packOfTo) : 0);
       if (packsSaved < 1) continue;
       const known = best.get(from.ingredientId);
       if (known && known.packsSaved >= packsSaved) continue;
@@ -152,12 +229,21 @@ export class ListProposalsService {
           plannedMealId: meal.id,
           date: meal.day.date.toISOString().slice(0, 10),
           mealType: meal.mealType as MealType,
-          title: (meal.recipe!.translations.find((row) => row.locale === locale) ?? meal.recipe!.translations.find((row) => row.locale === 'en'))?.title ?? meal.recipe!.title,
+          title:
+            (
+              meal.recipe!.translations.find((row) => row.locale === locale) ??
+              meal.recipe!.translations.find((row) => row.locale === 'en')
+            )?.title ?? meal.recipe!.title,
         })),
         packsSaved,
         reason: null,
       });
     }
-    return [...best.values()].sort((a, b) => b.packsSaved - a.packsSaved || a.meals.length - b.meals.length || a.from.name.localeCompare(b.from.name));
+    return [...best.values()].sort(
+      (a, b) =>
+        b.packsSaved - a.packsSaved ||
+        a.meals.length - b.meals.length ||
+        a.from.name.localeCompare(b.from.name),
+    );
   }
 }

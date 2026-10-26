@@ -21,13 +21,24 @@
  * is used at most so many days in a row and so many times in any seven days,
  * counted over all meals; not twice on one day unless the plan is for
  * cooking ahead; at most so many times in the plan; within the day's cooking
- * time. When no recipe is left for a meal inside the limits, one limit after
+ * time; and a kind of protein (eggs, chicken, fish and so on) is in at most
+ * so many meals of a day and of any seven days. When no recipe is left for a
+ * meal inside the limits, one limit after
  * another gives way in a fixed order, if the caller allows it; what gave way
  * is reported, and the recipe used least so far is preferred. When it may
  * not give way, the plan is not made and the caller is told what stood in
  * the way.
  */
-import { fitsDiet, PLAN_RELAXATIONS, type DietType, type Macros, type MealType, type PlanRelaxation, type Unit } from '@diet-app/shared';
+import {
+  fitsDiet,
+  PLAN_RELAXATIONS,
+  type DietType,
+  type Macros,
+  type MealType,
+  type PlanRelaxation,
+  type ProteinKind,
+  type Unit,
+} from '@diet-app/shared';
 import { energyShares, splitDistance } from './nutrition.js';
 import { packPull } from './packs.js';
 import { toCanonical, UnitConversionError, type ConvertibleIngredient } from './units.js';
@@ -46,10 +57,12 @@ export interface OptimizerRecipe {
   ingredientIds: string[];
   /**
    * What one serving takes of each ingredient, in the ingredient's own unit
-   * (grams or millilitres). Left out: the limit on one ingredient in seven
-   * days does not see the recipe.
+   * (grams or millilitres). Left out: the packs of the plan do not see the
+   * recipe.
    */
   amounts?: ReadonlyMap<string, number>;
+  /** The kinds of protein the recipe counts as (`proteinKindsOf`). Left out: the limits on one kind do not see it. */
+  proteinKinds?: readonly ProteinKind[];
   difficulty: 'easy' | 'medium' | 'hard';
   isFavorite: boolean;
   /** The user marked the recipe as one they eat often: it counts on top of being a favourite. */
@@ -150,10 +163,11 @@ export interface OptimizerInput {
    */
   maxRepeatsPerRecipe?: number;
   /**
-   * The most of one ingredient, in its own unit (grams or millilitres), that
-   * the meals of any seven days may hold together. Omitted: no such limit.
+   * For each kind of protein, the most meals of one day and of any seven days
+   * that may hold it, over all meals. A number left out, a kind it does not
+   * name, or the map omitted: no such limit.
    */
-  maxIngredientPerWeek?: number;
+  maxMealsPerKind?: ReadonlyMap<ProteinKind, { perDay?: number; perWeek?: number }>;
   /**
    * The pack of each ingredient whose opened pack does not keep, in the
    * ingredient's own unit. A recipe that takes from a pack the plan has
@@ -174,10 +188,10 @@ export interface OptimizerInput {
 }
 
 /**
- * A limit that can give way, in the order in which they do: the most a recipe
- * appears in the plan first, then the day's cooking time, then a recipe twice
- * on one day, then days in a row, then the times a recipe is eaten in seven
- * days, and the most of one ingredient in seven days last.
+ * A limit that can give way, in the order in which they do: the meals of seven
+ * days with the same kind of protein first, then those of one day, then the
+ * most a recipe appears in the plan, the day's cooking time, a recipe twice on
+ * one day, days in a row, and the times a recipe is eaten in seven days last.
  */
 const RELAXATION_ORDER = PLAN_RELAXATIONS;
 export type Relaxation = PlanRelaxation;
@@ -315,26 +329,27 @@ interface Use {
   recipeId: string;
 }
 
-/** How much of one ingredient the meals of a day hold. */
-interface Held {
-  day: number;
-  amount: number;
+/** What a recipe that is on no day of the plan has for meals, and what a kind of protein no meal of the plan holds has for days. */
+const NO_USES: readonly Use[] = [];
+const NO_DAYS: readonly number[] = [];
+
+/** How many meals of a day hold a kind of protein, and the most that the meals of any seven days that hold the day do. */
+interface KindMeals {
+  onTheDay: number;
+  inSevenDays: number;
 }
 
-/** What a recipe that is on no day of the plan has for meals, and what the plan holds of an ingredient no meal of it takes. */
-const NO_USES: readonly Use[] = [];
-const NOTHING_HELD: readonly Held[] = [];
-
-/** The most the meals of any seven days that hold `day` hold of an ingredient. */
-function mostHeldAround(held: ReadonlyMap<string, readonly Held[]>, day: number, ingredientId: string): number {
-  const entries = held.get(ingredientId) ?? NOTHING_HELD;
-  let found = 0;
+/** `KindMeals` for `day`, from the day of each meal that holds the kind. */
+function kindMealsAround(days: readonly number[], day: number): KindMeals {
+  let onTheDay = 0;
+  for (const d of days) if (d === day) onTheDay += 1;
+  let inSevenDays = 0;
   for (let first = day - 6; first <= day; first += 1) {
     let inThem = 0;
-    for (const entry of entries) if (entry.day >= first && entry.day <= first + 6) inThem += entry.amount;
-    found = Math.max(found, inThem);
+    for (const d of days) if (d >= first && d <= first + 6) inThem += 1;
+    inSevenDays = Math.max(inSevenDays, inThem);
   }
-  return found;
+  return { onTheDay, inSevenDays };
 }
 
 /**
@@ -349,26 +364,42 @@ function mostHeldAround(held: ReadonlyMap<string, readonly Held[]>, day: number,
  * fewest meals are outside a limit, counting first the limits that may not
  * give way.
  */
-export function optimisePlan(input: OptimizerInput, weights: ScoreWeights = SCORE_WEIGHTS): OptimizerResult {
+export function optimisePlan(
+  input: OptimizerInput,
+  weights: ScoreWeights = SCORE_WEIGHTS,
+): OptimizerResult {
   const mayGiveWay = (kind: Relaxation): boolean => {
     const allowed = input.allowRelaxations ?? 'all';
     return allowed === 'all' || allowed.has(kind);
   };
-  const refusedIn = (run: Filled): RelaxedSlot[] => run.report.relaxations.filter((entry) => !entry.gaveWay.every(mayGiveWay));
+  const refusedIn = (run: Filled): RelaxedSlot[] =>
+    run.report.relaxations.filter((entry) => !entry.gaveWay.every(mayGiveWay));
 
   let best = fill(input, input.seed, mayGiveWay, weights);
   for (let attempt = 1; attempt < ATTEMPTS && best.report.relaxations.length > 0; attempt += 1) {
     const other = fill(input, input.seed + attempt, mayGiveWay, weights);
-    const fewer = refusedIn(other).length - refusedIn(best).length || other.report.relaxations.length - best.report.relaxations.length;
+    const fewer =
+      refusedIn(other).length - refusedIn(best).length ||
+      other.report.relaxations.length - best.report.relaxations.length;
     if (fewer < 0) best = other;
   }
 
   const refused = refusedIn(best);
   if (refused.length > 0) {
-    const needs = RELAXATION_ORDER.filter((kind) => !mayGiveWay(kind) && refused.some((entry) => entry.gaveWay.includes(kind)));
-    throw new OptimizerError(`limits that may not give way would have to: ${needs.join(', ')}`, undefined, { meals: refused, needs });
+    const needs = RELAXATION_ORDER.filter(
+      (kind) => !mayGiveWay(kind) && refused.some((entry) => entry.gaveWay.includes(kind)),
+    );
+    throw new OptimizerError(
+      `limits that may not give way would have to: ${needs.join(', ')}`,
+      undefined,
+      { meals: refused, needs },
+    );
   }
-  return { assignments: best.assignments, ingredientReuseScore: reuseScore(best.uses, input.recipes), report: best.report };
+  return {
+    assignments: best.assignments,
+    ingredientReuseScore: reuseScore(best.uses, input.recipes),
+    report: best.report,
+  };
 }
 
 interface Filled {
@@ -379,7 +410,12 @@ interface Filled {
 }
 
 /** One run over the plan, with the draws of `seed`: every meal filled, whatever had to give way for it. */
-function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation) => boolean, weights: ScoreWeights): Filled {
+function fill(
+  input: OptimizerInput,
+  seed: number,
+  mayGiveWay: (kind: Relaxation) => boolean,
+  weights: ScoreWeights,
+): Filled {
   const recipeById = new Map(input.recipes.map((r) => [r.id, r]));
   const assignments: OptimizerAssignment[] = [];
   const report: OptimizerReport = { relaxations: [], singleCandidate: [] };
@@ -390,8 +426,8 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
   const usesByRecipe = new Map<string, Use[]>();
   const usesOf = (recipeId: string): readonly Use[] => usesByRecipe.get(recipeId) ?? NO_USES;
   const useCount = new Map<string, number>();
-  const held = new Map<string, Held[]>(); // ingredientId → what the meals placed so far hold of it
-  const heldInAll = new Map<string, number>(); // ingredientId → what they hold of it together
+  const heldInAll = new Map<string, number>(); // ingredientId → what the meals placed so far hold of it together
+  const kindDays = new Map<ProteinKind, number[]>(); // kind of protein → the day of each meal placed so far that holds it
   const place = (day: number, recipeId: string, servings: number): void => {
     const use = { day, recipeId };
     uses.push(use);
@@ -401,11 +437,12 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
     useCount.set(recipeId, (useCount.get(recipeId) ?? 0) + 1);
     const recipe = recipeById.get(recipeId);
     recipe?.ingredientIds.forEach((id) => planIngredients.add(id));
-    for (const [ingredientId, perServing] of recipe?.amounts ?? []) {
-      const entries = held.get(ingredientId) ?? [];
-      entries.push({ day, amount: perServing * servings });
-      held.set(ingredientId, entries);
+    for (const [ingredientId, perServing] of recipe?.amounts ?? [])
       heldInAll.set(ingredientId, (heldInAll.get(ingredientId) ?? 0) + perServing * servings);
+    for (const kind of recipe?.proteinKinds ?? []) {
+      const days = kindDays.get(kind);
+      if (days) days.push(day);
+      else kindDays.set(kind, [day]);
     }
   };
   const heldOf = (ingredientId: string): number => heldInAll.get(ingredientId) ?? 0;
@@ -421,7 +458,8 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
   };
   // What stays in the plan is in it from the start, whichever day it is on.
   input.days.forEach((spec, day) => {
-    for (const meal of spec.kept ?? []) if (meal.recipeId !== undefined) place(day, meal.recipeId, meal.servings ?? 1);
+    for (const meal of spec.kept ?? [])
+      if (meal.recipeId !== undefined) place(day, meal.recipeId, meal.servings ?? 1);
   });
   // Without a limit of the caller's a recipe may fill a week.
   const limits = {
@@ -429,11 +467,14 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
     perWeek: input.maxTimesPerWeekSameMeal ?? 7,
     perPlan: input.maxRepeatsPerRecipe,
     twiceADay: input.mealPrepFriendly,
-    perIngredient: input.maxIngredientPerWeek,
+    perKind: input.maxMealsPerKind,
   };
 
   const disliked = input.dislikedIngredientIds;
-  const holdsDisliked = (recipe: OptimizerRecipe): boolean => disliked !== undefined && disliked.size > 0 && recipe.ingredientIds.some((id) => disliked.has(id));
+  const holdsDisliked = (recipe: OptimizerRecipe): boolean =>
+    disliked !== undefined &&
+    disliked.size > 0 &&
+    recipe.ingredientIds.some((id) => disliked.has(id));
 
   // The recipes of a meal are looked up once, however many days ask for them.
   const eligibleBySlot = new Map<MealType, OptimizerRecipe[]>();
@@ -458,29 +499,46 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
   const cooking = new Map<MealType, { day: number; recipeId: string; first: boolean }>();
   const cook = (slot: MealType, day: number, recipeId: string): void => {
     const before = cooking.get(slot);
-    const second = before !== undefined && before.first && before.day === day - 1 && before.recipeId === recipeId;
+    const second =
+      before !== undefined &&
+      before.first &&
+      before.day === day - 1 &&
+      before.recipeId === recipeId;
     cooking.set(slot, { day, recipeId, first: !second });
   };
   /** The dish the meal had the day before as the first of two days: what it is again today. */
   const cookedTheDayBefore = (slot: MealType, day: number): string | undefined => {
     const before = cooking.get(slot);
-    return before !== undefined && before.first && before.day === day - 1 ? before.recipeId : undefined;
+    return before !== undefined && before.first && before.day === day - 1
+      ? before.recipeId
+      : undefined;
   };
   /** Whether the meal is filled again tomorrow by this run, so that a dish begun today has its second day. */
   const filledTomorrow = (slot: MealType, day: number): boolean => {
     const next = input.days[day + 1];
-    return next !== undefined && !next.skip && next.mealSlots.includes(slot) && !(next.lockedSlots ?? []).some((lock) => lock.slot === slot);
+    return (
+      next !== undefined &&
+      !next.skip &&
+      next.mealSlots.includes(slot) &&
+      !(next.lockedSlots ?? []).some((lock) => lock.slot === slot)
+    );
   };
   /** Whether a recipe on this meal today could be on it again tomorrow, inside every limit. */
-  const forTwoDays = (recipe: OptimizerRecipe, day: number, budget: number): boolean => {
+  const forTwoDays = (recipe: OptimizerRecipe, day: number): boolean => {
     const today: Use = { day, recipeId: recipe.id };
     return (
       broken(recipe, {
         day: day + 1,
-        budget,
-        usesOf: (recipeId) => (recipeId === recipe.id ? [...usesOf(recipeId), today] : usesOf(recipeId)),
+        usesOf: (recipeId) =>
+          recipeId === recipe.id ? [...usesOf(recipeId), today] : usesOf(recipeId),
         useCount: new Map([[recipe.id, (useCount.get(recipe.id) ?? 0) + 1]]),
-        mostHeldInSevenDays: (ingredientId) => mostHeldAround(held, day + 1, ingredientId),
+        mealsOfKind: (kind) => {
+          const days = kindDays.get(kind) ?? NO_DAYS;
+          return kindMealsAround(
+            recipe.proteinKinds?.includes(kind) ? [...days, day] : days,
+            day + 1,
+          );
+        },
         limits,
         cookTimeBudget: input.days[day + 1]?.cookTimeBudgetMinutes,
       }).length === 0
@@ -493,7 +551,9 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
     const daysToCome = filled.slice(day + 1).filter(Boolean).length;
 
     const coverage = spec.inventoryCoverage ?? input.inventoryCoverage;
-    const lockedBySlot = new Map((spec.lockedSlots ?? []).map((l) => [l.slot, l.recipeId] as const));
+    const lockedBySlot = new Map(
+      (spec.lockedSlots ?? []).map((l) => [l.slot, l.recipeId] as const),
+    );
     // Locked meals first, so that the rest of the day is planned around them;
     // the snack last, so that it takes what the day has left.
     const open = spec.mealSlots.filter((slot) => !lockedBySlot.has(slot));
@@ -503,7 +563,8 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
       ...open.filter((slot) => slot === 'snack'),
     ];
 
-    let left = spec.dailyCalorieTarget - (spec.kept ?? []).reduce((sum, meal) => sum + meal.calories, 0);
+    let left =
+      spec.dailyCalorieTarget - (spec.kept ?? []).reduce((sum, meal) => sum + meal.calories, 0);
     // What the day holds so far of protein, fat and carbohydrate, in grams.
     const dayMacros: Macros = { protein: 0, fat: 0, carbs: 0 };
     const hold = (macros: Macros, servings: number): void => {
@@ -515,7 +576,9 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
     for (const [index, slot] of order.entries()) {
       // What is left of the day, shared among the meals still to come by their weights.
       const toCome = order.slice(index);
-      const budget = Math.max(0, left) * (SLOT_WEIGHT[slot] / toCome.reduce((sum, other) => sum + SLOT_WEIGHT[other], 0));
+      const budget =
+        Math.max(0, left) *
+        (SLOT_WEIGHT[slot] / toCome.reduce((sum, other) => sum + SLOT_WEIGHT[other], 0));
 
       let recipe: OptimizerRecipe;
       const lockedId = lockedBySlot.get(slot);
@@ -526,13 +589,26 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
       } else {
         const candidates = eligibleFor(slot);
         if (candidates.length === 0) {
-          throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, { slot, dietType: input.dietType });
+          throw new OptimizerError(`no eligible recipe for ${slot} (diet ${input.dietType})`, {
+            slot,
+            dietType: input.dietType,
+          });
         }
         if (candidates.length === 1) report.singleCandidate.push({ dayIndex: day, slot });
-        const pool = withinLimits(candidates, { day, budget, usesOf, useCount, held, limits, cookTimeBudget: spec.cookTimeBudgetMinutes, mayGiveWay });
+        const pool = withinLimits(candidates, {
+          day,
+          usesOf,
+          useCount,
+          kindDays,
+          limits,
+          cookTimeBudget: spec.cookTimeBudgetMinutes,
+          mayGiveWay,
+        });
         // Of the recipes the limits leave, those the day is to do without
         // come after every other.
-        const others = spec.avoid ? pool.recipes.filter((r) => !spec.avoid!.has(r.id)) : pool.recipes;
+        const others = spec.avoid
+          ? pool.recipes.filter((r) => !spec.avoid!.has(r.id))
+          : pool.recipes;
         const offered = others.length > 0 ? others : pool.recipes;
         // Of those, the ones that hold nothing the user would rather not eat
         // come before any that does, however well the others score.
@@ -540,7 +616,9 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
         const liked = welcome.length > 0 ? welcome : offered;
         // Of those, one that stays far under the budget even at the largest
         // serving is left out, unless nothing else is there.
-        const reaching = liked.filter((r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget);
+        const reaching = liked.filter(
+          (r) => r.caloriesPerServing * SERVING_MAX >= MIN_REACH * budget,
+        );
         const choosable = reaching.length > 0 ? reaching : liked;
         // In a plan made for cooking ahead the second day of two is the dish of
         // the first, where the limits leave it. A first day takes another dish
@@ -548,35 +626,52 @@ function fill(input: OptimizerInput, seed: number, mayGiveWay: (kind: Relaxation
         // the meal tomorrow as well, where there are any.
         const again = input.mealPrepFriendly ? cookedTheDayBefore(slot, day) : undefined;
         const repeated = again !== undefined ? liked.find((r) => r.id === again) : undefined;
-        const yesterday = input.mealPrepFriendly && repeated === undefined ? cooking.get(slot) : undefined;
-        const another = yesterday !== undefined && yesterday.day === day - 1 ? choosable.filter((r) => r.id !== yesterday.recipeId) : [];
+        const yesterday =
+          input.mealPrepFriendly && repeated === undefined ? cooking.get(slot) : undefined;
+        const another =
+          yesterday !== undefined && yesterday.day === day - 1
+            ? choosable.filter((r) => r.id !== yesterday.recipeId)
+            : [];
         const fresh = another.length > 0 ? another : choosable;
-        const lasting = input.mealPrepFriendly && repeated === undefined && filledTomorrow(slot, day) ? fresh.filter((r) => forTwoDays(r, day, budget)) : [];
-        recipe = repeated ?? pickBest(lasting.length > 0 ? lasting : fresh, {
-          budget,
-          day,
-          planIngredients,
-          usesOf,
-          packs: input.perishablePacks,
-          daysToCome,
-          heldOf,
-          dayMacros,
-          macroSplit: input.macroSplit,
-          weights,
-          mealPrepFriendly: input.mealPrepFriendly,
-          favoriteIngredientIds: input.favoriteIngredientIds,
-          preferredCuisines: input.preferredCuisines,
-          inventoryCoverage: coverage,
-          jitterOf,
-        });
+        const lasting =
+          input.mealPrepFriendly && repeated === undefined && filledTomorrow(slot, day)
+            ? fresh.filter((r) => forTwoDays(r, day))
+            : [];
+        recipe =
+          repeated ??
+          pickBest(lasting.length > 0 ? lasting : fresh, {
+            budget,
+            day,
+            planIngredients,
+            usesOf,
+            packs: input.perishablePacks,
+            daysToCome,
+            heldOf,
+            dayMacros,
+            macroSplit: input.macroSplit,
+            weights,
+            mealPrepFriendly: input.mealPrepFriendly,
+            favoriteIngredientIds: input.favoriteIngredientIds,
+            preferredCuisines: input.preferredCuisines,
+            inventoryCoverage: coverage,
+            jitterOf,
+          });
         const gaveWay = pool.outside(recipe);
-        if (gaveWay.length > 0) report.relaxations.push({ dayIndex: day, slot, gaveWay: [...gaveWay] });
+        if (gaveWay.length > 0)
+          report.relaxations.push({ dayIndex: day, slot, gaveWay: [...gaveWay] });
       }
 
       const servings = fitServings(recipe.caloriesPerServing, budget);
       assignments.push({ dayIndex: day, slot, recipeId: recipe.id, servings });
       left -= recipe.caloriesPerServing * servings;
-      hold({ protein: recipe.proteinPerServing, fat: recipe.fatPerServing, carbs: recipe.carbsPerServing }, servings);
+      hold(
+        {
+          protein: recipe.proteinPerServing,
+          fat: recipe.fatPerServing,
+          carbs: recipe.carbsPerServing,
+        },
+        servings,
+      );
       place(day, recipe.id, servings);
       if (input.mealPrepFriendly) cook(slot, day, recipe.id);
     }
@@ -593,22 +688,28 @@ function broken(
   recipe: OptimizerRecipe,
   at: {
     day: number;
-    /** What the meal has to spend: it decides the servings, and with them how much of each ingredient the meal holds. */
-    budget: number;
     /** The meals of the plan so far that hold a recipe. */
     usesOf: (recipeId: string) => readonly Use[];
     useCount: ReadonlyMap<string, number>;
-    /** The most the meals of any seven days that hold this one hold of an ingredient, in its own unit. */
-    mostHeldInSevenDays: (ingredientId: string) => number;
-    limits: { consecutive: number; perWeek: number; perPlan?: number; twiceADay: boolean; perIngredient?: number };
+    /** The meals of the plan so far around this one that hold a kind of protein. */
+    mealsOfKind: (kind: ProteinKind) => KindMeals;
+    limits: {
+      consecutive: number;
+      perWeek: number;
+      perPlan?: number;
+      twiceADay: boolean;
+      perKind?: ReadonlyMap<ProteinKind, { perDay?: number; perWeek?: number }>;
+    };
     cookTimeBudget?: number;
   },
 ): readonly Relaxation[] {
   const { day, limits } = at;
   const mine = at.usesOf(recipe.id);
   let out = WITHIN_EVERY_LIMIT;
-  if (limits.perPlan !== undefined && (at.useCount.get(recipe.id) ?? 0) >= limits.perPlan) out = outside(out, 'variety_floor');
-  if (at.cookTimeBudget != null && recipe.totalMinutes > at.cookTimeBudget) out = outside(out, 'cook_time');
+  if (limits.perPlan !== undefined && (at.useCount.get(recipe.id) ?? 0) >= limits.perPlan)
+    out = outside(out, 'variety_floor');
+  if (at.cookTimeBudget != null && recipe.totalMinutes > at.cookTimeBudget)
+    out = outside(out, 'cook_time');
   // With this meal the recipe is on one day in a row and once in seven days, and on more where the plan holds it already.
   let streak = 1;
   let mostInSevenDays = 1;
@@ -627,17 +728,22 @@ function broken(
   }
   if (streak > limits.consecutive) out = outside(out, 'consecutive_days');
   if (mostInSevenDays > limits.perWeek) out = outside(out, 'weekly_cap');
-  // The same seven days, for each ingredient of the recipe: what the meals in them hold of it, and this meal on top.
-  const { perIngredient } = limits;
-  if (perIngredient !== undefined && recipe.amounts) {
-    const servings = fitServings(recipe.caloriesPerServing, at.budget);
-    let over = false;
-    for (const [ingredientId, perServing] of recipe.amounts) {
+  // For each kind of protein of the recipe: the meals of the day and of the seven days around it that hold the kind, and this meal on top.
+  const { perKind } = limits;
+  if (perKind !== undefined && recipe.proteinKinds) {
+    let overInSevenDays = false;
+    let overOnTheDay = false;
+    for (const kind of recipe.proteinKinds) {
+      const limit = perKind.get(kind);
+      if (limit === undefined) continue;
+      const meals = at.mealsOfKind(kind);
       // Over in some seven days is over in the seven days that hold the most.
-      over = at.mostHeldInSevenDays(ingredientId) + perServing * servings > perIngredient;
-      if (over) break;
+      if (limit.perWeek !== undefined && meals.inSevenDays + 1 > limit.perWeek)
+        overInSevenDays = true;
+      if (limit.perDay !== undefined && meals.onTheDay + 1 > limit.perDay) overOnTheDay = true;
     }
-    if (over) out = outside(out, 'ingredient_cap');
+    if (overInSevenDays) out = outside(out, 'ingredient_cap');
+    if (overOnTheDay) out = outside(out, 'kind_same_day');
   }
   return out;
 }
@@ -661,20 +767,23 @@ function outside(broken: readonly Relaxation[], kind: Relaxation): readonly Rela
  */
 function withinLimits(
   candidates: OptimizerRecipe[],
-  where: Omit<Parameters<typeof broken>[1], 'mostHeldInSevenDays'> & { held: ReadonlyMap<string, readonly Held[]>; mayGiveWay: (kind: Relaxation) => boolean },
+  where: Omit<Parameters<typeof broken>[1], 'mealsOfKind'> & {
+    kindDays: ReadonlyMap<ProteinKind, readonly number[]>;
+    mayGiveWay: (kind: Relaxation) => boolean;
+  },
 ): { recipes: OptimizerRecipe[]; outside: (recipe: OptimizerRecipe) => readonly Relaxation[] } {
-  // The plan does not change while a meal is chosen: what it holds of an ingredient around the day is worked
-  // out once for all the recipes that take the ingredient, and what a recipe breaks is the same asked twice.
-  const most = new Map<string, number>();
-  const mostHeldInSevenDays = (ingredientId: string): number => {
-    let found = most.get(ingredientId);
+  // The plan does not change while a meal is chosen: the meals around the day that hold a kind of protein are
+  // counted once for all the recipes of the kind, and what a recipe breaks is the same asked twice.
+  const counted = new Map<ProteinKind, KindMeals>();
+  const mealsOfKind = (kind: ProteinKind): KindMeals => {
+    let found = counted.get(kind);
     if (found === undefined) {
-      found = mostHeldAround(where.held, where.day, ingredientId);
-      most.set(ingredientId, found);
+      found = kindMealsAround(where.kindDays.get(kind) ?? NO_DAYS, where.day);
+      counted.set(kind, found);
     }
     return found;
   };
-  const at = { ...where, mostHeldInSevenDays };
+  const at = { ...where, mealsOfKind };
   // What each candidate breaks, in the order of the candidates.
   const breaks = candidates.map((recipe) => broken(recipe, at));
   const brokenBy = (recipe: OptimizerRecipe): readonly Relaxation[] => broken(recipe, at);
@@ -685,12 +794,22 @@ function withinLimits(
   const permitted = some.filter((candidate) => candidate.breaks.every(at.mayGiveWay));
   const pool = permitted.length > 0 ? permitted : some;
   // One bit for each limit, the later the limit the higher the bit: the smaller number is the less far outside.
-  const weight = (candidate: (typeof some)[number]): number => candidate.breaks.reduce((bits, kind) => bits | (1 << RELAXATION_ORDER.indexOf(kind)), 0);
+  const weight = (candidate: (typeof some)[number]): number =>
+    candidate.breaks.reduce((bits, kind) => bits | (1 << RELAXATION_ORDER.indexOf(kind)), 0);
   const least = Math.min(...pool.map(weight));
-  return { recipes: leastUsed(pool.filter((candidate) => weight(candidate) === least).map((candidate) => candidate.recipe), at.useCount), outside: brokenBy };
+  return {
+    recipes: leastUsed(
+      pool.filter((candidate) => weight(candidate) === least).map((candidate) => candidate.recipe),
+      at.useCount,
+    ),
+    outside: brokenBy,
+  };
 }
 
-function leastUsed(recipes: OptimizerRecipe[], useCount: ReadonlyMap<string, number>): OptimizerRecipe[] {
+function leastUsed(
+  recipes: OptimizerRecipe[],
+  useCount: ReadonlyMap<string, number>,
+): OptimizerRecipe[] {
   const fewest = Math.min(...recipes.map((recipe) => useCount.get(recipe.id) ?? 0));
   return recipes.filter((recipe) => (useCount.get(recipe.id) ?? 0) === fewest);
 }
@@ -724,7 +843,10 @@ function pickBest(candidates: OptimizerRecipe[], ctx: PickContext): OptimizerRec
     // Seed jitter lets "regenerate" explore alternative near-optimal plans
     // without breaking determinism for a fixed seed.
     const score = scoreRecipe(recipe, ctx) + ctx.jitterOf(recipe);
-    if (score > bestScore || (score === bestScore && best !== null && nameOf(recipe) < nameOf(best))) {
+    if (
+      score > bestScore ||
+      (score === bestScore && best !== null && nameOf(recipe) < nameOf(best))
+    ) {
       best = recipe;
       bestScore = score;
     }
@@ -793,10 +915,15 @@ function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
       ? 0
       : recipe.ingredientIds.filter((id) => favIngs.has(id)).length / recipe.ingredientIds.length;
 
-  const preferredCuisine = recipe.cuisine != null && ctx.preferredCuisines?.has(recipe.cuisine) ? 1 : 0;
+  const preferredCuisine =
+    recipe.cuisine != null && ctx.preferredCuisines?.has(recipe.cuisine) ? 1 : 0;
 
   const complexityPenalty =
-    ctx.mealPrepFriendly && recipe.difficulty === 'hard' ? 1 : recipe.difficulty === 'hard' ? 0.4 : 0;
+    ctx.mealPrepFriendly && recipe.difficulty === 'hard'
+      ? 1
+      : recipe.difficulty === 'hard'
+        ? 0.4
+        : 0;
 
   // Pantry coverage. Pre-computed by the caller; omitted/empty map → 0.
   const inventoryCoverage = ctx.inventoryCoverage?.get(recipe.id) ?? 0;
@@ -812,7 +939,8 @@ function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
         break;
       }
     }
-    if (takesFromAPack) packs = packPull(recipe.amounts, ctx.heldOf, ctx.packs, ctx.daysToCome ?? 0, servings);
+    if (takesFromAPack)
+      packs = packPull(recipe.amounts, ctx.heldOf, ctx.packs, ctx.daysToCome ?? 0, servings);
   }
 
   const { weights } = ctx;
@@ -837,7 +965,11 @@ function scoreRecipe(recipe: OptimizerRecipe, ctx: PickContext): number {
  * day so far and the meal together, so a meal can make up for the ones before
  * it. Nothing where the plan aims at no split.
  */
-function macroFit(recipe: OptimizerRecipe, servings: number, ctx: Pick<PickContext, 'dayMacros' | 'macroSplit'>): number {
+function macroFit(
+  recipe: OptimizerRecipe,
+  servings: number,
+  ctx: Pick<PickContext, 'dayMacros' | 'macroSplit'>,
+): number {
   if (!ctx.macroSplit) return 0;
   const shares = energyShares({
     protein: ctx.dayMacros.protein + recipe.proteinPerServing * servings,
@@ -856,14 +988,20 @@ function macroFit(recipe: OptimizerRecipe, servings: number, ctx: Pick<PickConte
  */
 export function requirementsPerServing(recipe: {
   servings: number;
-  ingredients: readonly { ingredientId: string; quantity: number; unit: Unit; ingredient: ConvertibleIngredient }[];
+  ingredients: readonly {
+    ingredientId: string;
+    quantity: number;
+    unit: Unit;
+    ingredient: ConvertibleIngredient;
+  }[];
 }): { ingredientId: string; canonicalQuantity: number }[] {
   const servings = Math.max(1, recipe.servings);
   const needs: { ingredientId: string; canonicalQuantity: number }[] = [];
   for (const line of recipe.ingredients) {
     try {
       const canonical = toCanonical(line.quantity, line.unit, line.ingredient) / servings;
-      if (canonical > 0) needs.push({ ingredientId: line.ingredientId, canonicalQuantity: canonical });
+      if (canonical > 0)
+        needs.push({ ingredientId: line.ingredientId, canonicalQuantity: canonical });
     } catch (err) {
       if (!(err instanceof UnitConversionError)) throw err;
     }
@@ -871,10 +1009,51 @@ export function requirementsPerServing(recipe: {
   return needs;
 }
 
+/** The share of a recipe's protein a kind of protein has to give for the recipe to count as a meal of that kind. */
+const KIND_SHARE = 0.2;
+
+/**
+ * The kinds of protein a recipe counts as, for the limits on one kind: each
+ * that gives at least a fifth (`KIND_SHARE`) of the protein of the recipe's
+ * ingredients. Chicken in a yogurt sauce is a chicken meal, and the spoon of
+ * yogurt does not make it a dairy one as well. A line that cannot be
+ * converted counts for nothing.
+ */
+export function proteinKindsOf(recipe: {
+  ingredients: readonly {
+    quantity: number;
+    unit: Unit;
+    ingredient: ConvertibleIngredient & { proteinPer100: number; proteinKind: ProteinKind | null };
+  }[];
+}): ProteinKind[] {
+  let protein = 0;
+  const byKind = new Map<ProteinKind, number>();
+  for (const line of recipe.ingredients) {
+    let grams: number;
+    try {
+      grams =
+        (toCanonical(line.quantity, line.unit, line.ingredient) * line.ingredient.proteinPer100) /
+        100;
+    } catch (err) {
+      if (!(err instanceof UnitConversionError)) throw err;
+      continue;
+    }
+    protein += grams;
+    const kind = line.ingredient.proteinKind;
+    if (kind !== null) byKind.set(kind, (byKind.get(kind) ?? 0) + grams);
+  }
+  return [...byKind]
+    .filter(([, grams]) => grams > 0 && grams >= KIND_SHARE * protein)
+    .map(([kind]) => kind);
+}
+
 /** What one serving of a recipe takes of each ingredient, in the ingredient's own unit: `requirementsPerServing`, with an ingredient that is on two lines added up. */
-export function amountsPerServing(requirements: readonly { ingredientId: string; canonicalQuantity: number }[]): Map<string, number> {
+export function amountsPerServing(
+  requirements: readonly { ingredientId: string; canonicalQuantity: number }[],
+): Map<string, number> {
   const amounts = new Map<string, number>();
-  for (const line of requirements) amounts.set(line.ingredientId, (amounts.get(line.ingredientId) ?? 0) + line.canonicalQuantity);
+  for (const line of requirements)
+    amounts.set(line.ingredientId, (amounts.get(line.ingredientId) ?? 0) + line.canonicalQuantity);
   return amounts;
 }
 

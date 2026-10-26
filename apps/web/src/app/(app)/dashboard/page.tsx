@@ -19,7 +19,10 @@ import { LoadFailed } from '@/components/load-failed';
 /** Dashboard — calorie target, macro split and adherence for every profile. */
 export default function DashboardPage() {
   const t = useTranslations('dashboard');
-  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
 
   if (profiles.isLoading) {
     return (
@@ -34,7 +37,8 @@ export default function DashboardPage() {
     );
   }
 
-  if (profiles.isError) return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
+  if (profiles.isError)
+    return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   const list = profiles.data ?? [];
 

@@ -2,7 +2,14 @@
 
 import { describe, expect, it } from 'vitest';
 import { ciphertextWrittenBefore as writtenBefore } from '../testing/old-ciphertext.js';
-import { blindIndex, decrypt, deriveKey, encrypt, inCurrentForm, pepperPassword } from './crypto.js';
+import {
+  blindIndex,
+  decrypt,
+  deriveKey,
+  encrypt,
+  inCurrentForm,
+  pepperPassword,
+} from './crypto.js';
 
 const KEY = 'a'.repeat(64); // 32 bytes hex
 const KEY2 = 'b'.repeat(64);
@@ -16,7 +23,9 @@ describe('a value encrypted for storage', () => {
   });
 
   it('is written with a version, a nonce of 12 bytes and a tag of 16', () => {
-    expect(encrypt('user@example.com', KEY, MINE)).toMatch(/^v2:[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/);
+    expect(encrypt('user@example.com', KEY, MINE)).toMatch(
+      /^v2:[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/,
+    );
     expect(inCurrentForm(encrypt('user@example.com', KEY, MINE))).toBe(true);
   });
 
@@ -38,22 +47,32 @@ describe('a value encrypted for storage', () => {
     const stored = encrypt('user@example.com', KEY, MINE);
 
     expect(() => decrypt(stored, KEY, THEIRS)).toThrow();
-    expect(() => decrypt(stored, KEY, 'pending-email:11111111-1111-4111-8111-111111111111')).toThrow();
+    expect(() =>
+      decrypt(stored, KEY, 'pending-email:11111111-1111-4111-8111-111111111111'),
+    ).toThrow();
   });
 
   it('does not open with a shortened tag', () => {
     const [version, iv, tag, data] = encrypt('secret', KEY, MINE).split(':');
 
     // Four bytes of the tag would verify if the length were not fixed.
-    expect(() => decrypt([version, iv, tag!.slice(0, 8), data].join(':'), KEY, MINE)).toThrow('malformed ciphertext');
+    expect(() => decrypt([version, iv, tag!.slice(0, 8), data].join(':'), KEY, MINE)).toThrow(
+      'malformed ciphertext',
+    );
   });
 
   it.each([
-    ['a nonce of another length', (iv: string, tag: string, data: string) => `v2:${iv.slice(2)}:${tag}:${data}`],
+    [
+      'a nonce of another length',
+      (iv: string, tag: string, data: string) => `v2:${iv.slice(2)}:${tag}:${data}`,
+    ],
     ['no data', (iv: string, tag: string) => `v2:${iv}:${tag}:`],
     ['a part too many', (iv: string, tag: string, data: string) => `v2:${iv}:${tag}:${data}:00`],
     ['text that is no hex', (iv: string, tag: string) => `v2:${iv}:${tag}:not-hex`],
-    ['a version nobody wrote', (iv: string, tag: string, data: string) => `v9:${iv}:${tag}:${data}`],
+    [
+      'a version nobody wrote',
+      (iv: string, tag: string, data: string) => `v9:${iv}:${tag}:${data}`,
+    ],
   ])('refuses %s', (_name, make) => {
     const [, iv, tag, data] = encrypt('secret', KEY, MINE).split(':');
 
@@ -72,7 +91,9 @@ describe('a value encrypted for storage', () => {
     it('does not open with a shortened tag either', () => {
       const [iv, tag, data] = writtenBefore('secret', KEY).split(':');
 
-      expect(() => decrypt([iv, tag!.slice(0, 8), data].join(':'), KEY, MINE)).toThrow('malformed ciphertext');
+      expect(() => decrypt([iv, tag!.slice(0, 8), data].join(':'), KEY, MINE)).toThrow(
+        'malformed ciphertext',
+      );
     });
 
     it('is not what a value of the current form becomes when its version is cut off', () => {

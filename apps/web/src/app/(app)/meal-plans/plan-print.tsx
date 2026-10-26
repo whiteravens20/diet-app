@@ -21,7 +21,17 @@ import { dishOf, lastDayOf, servingsOf, type PlanWords } from './plan-export';
  * It asks the browser to print once it is drawn, and tells whoever showed it
  * when the browser is done.
  */
-export function PlanPrintSheet({ plan, dietLabel, words, onDone }: { plan: MealPlan; dietLabel: string; words: PlanWords; onDone: () => void }) {
+export function PlanPrintSheet({
+  plan,
+  dietLabel,
+  words,
+  onDone,
+}: {
+  plan: MealPlan;
+  dietLabel: string;
+  words: PlanWords;
+  onDone: () => void;
+}) {
   const t = useTranslations('mealPlans.export');
   const fmt = useFormat();
   const amount = useAmount();
@@ -35,28 +45,53 @@ export function PlanPrintSheet({ plan, dietLabel, words, onDone }: { plan: MealP
   const [, meal, dish, servings, energy, protein, fat, carbs] = words.head;
   return createPortal(
     <div className="print-sheet bg-white p-6 text-sm text-black">
-      <h1 className="text-xl font-semibold">{t('sheetTitle', { dates: fmt.dates(plan.startDate, lastDayOf(plan)), diet: dietLabel })}</h1>
+      <h1 className="text-xl font-semibold">
+        {t('sheetTitle', { dates: fmt.dates(plan.startDate, lastDayOf(plan)), diet: dietLabel })}
+      </h1>
       <p className="mt-1 text-xs">
-        {t('sheetAverage', { kcal: plan.averageDailyNutrition.calories, protein: plan.averageDailyNutrition.protein, fat: plan.averageDailyNutrition.fat, carbs: plan.averageDailyNutrition.carbs })}
+        {t('sheetAverage', {
+          kcal: plan.averageDailyNutrition.calories,
+          protein: plan.averageDailyNutrition.protein,
+          fat: plan.averageDailyNutrition.fat,
+          carbs: plan.averageDailyNutrition.carbs,
+        })}
       </p>
       {plan.days.map((day) => (
         <section key={day.id} className="mt-5 break-inside-avoid">
           <h2 className="flex items-baseline justify-between gap-4 border-b border-black pb-1 text-base font-semibold">
             <span>{fmt.day(day.date)}</span>
-            <span className="text-xs font-normal">{day.skipped ? words.skipped : t('sheetDay', { kcal: day.dayNutrition.calories, target: day.calorieTarget })}</span>
+            <span className="text-xs font-normal">
+              {day.skipped
+                ? words.skipped
+                : t('sheetDay', { kcal: day.dayNutrition.calories, target: day.calorieTarget })}
+            </span>
           </h2>
           {!day.skipped && (
             // The columns are as wide on every day, and no wider than the paper: a long word is broken, not printed past the edge.
             <table className="mt-1 w-full table-fixed border-collapse break-words text-left text-xs">
               <thead>
                 <tr>
-                  <th scope="col" className="w-[14%] py-1 pr-2 font-semibold">{meal}</th>
-                  <th scope="col" className="py-1 pr-2 font-semibold">{dish}</th>
-                  <th scope="col" className="w-[10%] py-1 pr-2 text-right font-semibold">{servings}</th>
-                  <th scope="col" className="w-[8%] py-1 pr-2 text-right font-semibold">{energy}</th>
-                  <th scope="col" className="w-[10%] py-1 pr-2 text-right font-semibold">{protein}</th>
-                  <th scope="col" className="w-[9%] py-1 pr-2 text-right font-semibold">{fat}</th>
-                  <th scope="col" className="w-[14%] py-1 text-right font-semibold">{carbs}</th>
+                  <th scope="col" className="w-[14%] py-1 pr-2 font-semibold">
+                    {meal}
+                  </th>
+                  <th scope="col" className="py-1 pr-2 font-semibold">
+                    {dish}
+                  </th>
+                  <th scope="col" className="w-[10%] py-1 pr-2 text-right font-semibold">
+                    {servings}
+                  </th>
+                  <th scope="col" className="w-[8%] py-1 pr-2 text-right font-semibold">
+                    {energy}
+                  </th>
+                  <th scope="col" className="w-[10%] py-1 pr-2 text-right font-semibold">
+                    {protein}
+                  </th>
+                  <th scope="col" className="w-[9%] py-1 pr-2 text-right font-semibold">
+                    {fat}
+                  </th>
+                  <th scope="col" className="w-[14%] py-1 text-right font-semibold">
+                    {carbs}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -66,14 +101,31 @@ export function PlanPrintSheet({ plan, dietLabel, words, onDone }: { plan: MealP
                     <td className="py-1 pr-2">
                       <span className="font-medium">{dishOf(planned, words)}</span>
                       {planned.ingredients.length > 0 && (
-                        <span className="block text-2xs leading-snug">{fmt.list(planned.ingredients.map((line) => `${line.name} ${amount(line.display.quantity, line.display.unit)}`))}</span>
+                        <span className="block text-2xs leading-snug">
+                          {fmt.list(
+                            planned.ingredients.map(
+                              (line) =>
+                                `${line.name} ${amount(line.display.quantity, line.display.unit)}`,
+                            ),
+                          )}
+                        </span>
                       )}
                     </td>
-                    <td className="py-1 pr-2 text-right tabular-nums">{fmt.number(servingsOf(planned), 2)}</td>
-                    <td className="py-1 pr-2 text-right tabular-nums">{fmt.number(planned.nutrition.calories)}</td>
-                    <td className="py-1 pr-2 text-right tabular-nums">{fmt.number(planned.nutrition.protein)}</td>
-                    <td className="py-1 pr-2 text-right tabular-nums">{fmt.number(planned.nutrition.fat)}</td>
-                    <td className="py-1 text-right tabular-nums">{fmt.number(planned.nutrition.carbs)}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">
+                      {fmt.number(servingsOf(planned), 2)}
+                    </td>
+                    <td className="py-1 pr-2 text-right tabular-nums">
+                      {fmt.number(planned.nutrition.calories)}
+                    </td>
+                    <td className="py-1 pr-2 text-right tabular-nums">
+                      {fmt.number(planned.nutrition.protein)}
+                    </td>
+                    <td className="py-1 pr-2 text-right tabular-nums">
+                      {fmt.number(planned.nutrition.fat)}
+                    </td>
+                    <td className="py-1 text-right tabular-nums">
+                      {fmt.number(planned.nutrition.carbs)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

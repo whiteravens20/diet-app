@@ -13,7 +13,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { FavoriteSetsService } from '../favorite-sets/favorite-sets.service.js';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { anAiSwap, aPlan, aProfile, as, aSwap, aUser, type TestUser } from '../testing/factories.js';
+import {
+  anAiSwap,
+  aPlan,
+  aProfile,
+  as,
+  aSwap,
+  aUser,
+  type TestUser,
+} from '../testing/factories.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
 import { MealPlansService } from './meal-plans.service.js';
@@ -58,7 +66,8 @@ async function refusal(call: Promise<unknown>): Promise<{ status: number; error:
   throw new Error('the call was expected to be refused');
 }
 
-const recipeId = async (slug: string): Promise<string> => (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).id;
+const recipeId = async (slug: string): Promise<string> =>
+  (await t.prisma.recipe.findUniqueOrThrow({ where: { slug } })).id;
 const mealRow = (id: string) => t.prisma.plannedMeal.findUniqueOrThrow({ where: { id } });
 const randomSwap = (plannedMealId: string) =>
   aSwap(t, user, { planId: plan.id, plannedMealId, strategy: 'random' });
@@ -72,27 +81,35 @@ describe('a meal that was eaten', () => {
 
     const eaten = { status: 409, error: 'MEAL_EATEN' };
     expect(await refusal(randomSwap(meal.id))).toEqual(eaten);
-    expect(
-      await refusal(anAiSwap(t, user, { planId: plan.id, plannedMealId: meal.id })),
-    ).toEqual(eaten);
+    expect(await refusal(anAiSwap(t, user, { planId: plan.id, plannedMealId: meal.id }))).toEqual(
+      eaten,
+    );
     expect(
       await refusal(
         t.app.get(IngredientSwapService).aiSuggestIngredient(
           user.id,
           'en',
-          AiSuggestIngredientRequest.parse({ planId: plan.id, plannedMealId: meal.id, fromIngredientId: line.ingredientId }),
+          AiSuggestIngredientRequest.parse({
+            planId: plan.id,
+            plannedMealId: meal.id,
+            fromIngredientId: line.ingredientId,
+          }),
         ),
       ),
     ).toEqual(eaten);
     expect(
       await refusal(
-        t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', SwapIngredientRequest.parse({
-          planId: plan.id,
-          plannedMealId: meal.id,
-          fromIngredientId: line.ingredientId,
-          toIngredientId: line.ingredientId,
-          acceptChange: true,
-        })),
+        t.app.get(IngredientSwapService).applyIngredientSwap(
+          user.id,
+          'en',
+          SwapIngredientRequest.parse({
+            planId: plan.id,
+            plannedMealId: meal.id,
+            fromIngredientId: line.ingredientId,
+            toIngredientId: line.ingredientId,
+            acceptChange: true,
+          }),
+        ),
       ),
     ).toEqual(eaten);
 
@@ -123,7 +140,12 @@ describe('a meal that was eaten', () => {
     });
 
     expect(
-      await refusal(sets.apply(user.id, 'en', set.id, { planId: plan.id, dayDates: [plan.days[0]!.date.slice(0, 10)] })),
+      await refusal(
+        sets.apply(user.id, 'en', set.id, {
+          planId: plan.id,
+          dayDates: [plan.days[0]!.date.slice(0, 10)],
+        }),
+      ),
     ).toEqual({ status: 409, error: 'MEAL_EATEN' });
     expect((await mealRow(meal.id)).recipeId).toBe(meal.recipe!.id);
   });
@@ -131,12 +153,18 @@ describe('a meal that was eaten', () => {
 
 describe('a custom meal', () => {
   const addCustom = async () => {
-    const result = await plans.addCustomMeal(user.id, 'en', plan.id, plan.days[0]!.date.slice(0, 10), {
-      name: "Mum's lasagne",
-      mealType: 'snack',
-      nutrition: { calories: 420, protein: 20, fat: 18, carbs: 40 },
-      servings: 1,
-    });
+    const result = await plans.addCustomMeal(
+      user.id,
+      'en',
+      plan.id,
+      plan.days[0]!.date.slice(0, 10),
+      {
+        name: "Mum's lasagne",
+        mealType: 'snack',
+        nutrition: { calories: 420, protein: 20, fat: 18, carbs: 40 },
+        servings: 1,
+      },
+    );
     return result.plan.days[0]!.meals.find((m) => m.customName === "Mum's lasagne")!;
   };
 
@@ -145,21 +173,33 @@ describe('a custom meal', () => {
 
     const refused = { status: 400, error: 'CUSTOM_MEAL_NOT_SWAPPABLE' };
     expect(await refusal(randomSwap(custom.id))).toEqual(refused);
-    expect(
-      await refusal(anAiSwap(t, user, { planId: plan.id, plannedMealId: custom.id })),
-    ).toEqual(refused);
+    expect(await refusal(anAiSwap(t, user, { planId: plan.id, plannedMealId: custom.id }))).toEqual(
+      refused,
+    );
     expect((await mealRow(custom.id)).customName).toBe("Mum's lasagne");
   });
 
   it('is replaced completely when a favourite set fills its slot, and the day is rebalanced', async () => {
     const custom = await addCustom();
     const shake = await recipeId('banana-oat-shake');
-    const set = await sets.create(user.id, { profileId: profile.id, label: 'Snack', slots: { snack: shake } });
+    const set = await sets.create(user.id, {
+      profileId: profile.id,
+      label: 'Snack',
+      slots: { snack: shake },
+    });
 
-    const after = await sets.apply(user.id, 'en', set.id, { planId: plan.id, dayDates: [plan.days[0]!.date.slice(0, 10)] });
+    const after = await sets.apply(user.id, 'en', set.id, {
+      planId: plan.id,
+      dayDates: [plan.days[0]!.date.slice(0, 10)],
+    });
 
     const row = await mealRow(custom.id);
-    expect(row).toMatchObject({ recipeId: shake, source: 'CATALOGUE', customName: null, customMacros: null });
+    expect(row).toMatchObject({
+      recipeId: shake,
+      source: 'CATALOGUE',
+      customName: null,
+      customMacros: null,
+    });
     const meal = after.days[0]!.meals.find((m) => m.id === custom.id)!;
     expect(meal.recipe!.id).toBe(shake);
     expect(meal.customName).toBeNull();
@@ -175,9 +215,16 @@ describe('a favourite set applied over a rebalanced meal', () => {
     const meal = plan.days[0]!.meals.find((m) => m.mealType === 'dinner')!;
     await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { quantityScale: 1.6 } });
     const stew = await recipeId('chickpea-tomato-stew');
-    const set = await sets.create(user.id, { profileId: profile.id, label: 'Dinner', slots: { dinner: stew } });
+    const set = await sets.create(user.id, {
+      profileId: profile.id,
+      label: 'Dinner',
+      slots: { dinner: stew },
+    });
 
-    await sets.apply(user.id, 'en', set.id, { planId: plan.id, dayDates: [plan.days[0]!.date.slice(0, 10)] });
+    await sets.apply(user.id, 'en', set.id, {
+      planId: plan.id,
+      dayDates: [plan.days[0]!.date.slice(0, 10)],
+    });
 
     const row = await mealRow(meal.id);
     expect(row.recipeId).toBe(stew);
@@ -190,7 +237,11 @@ describe('a favourite set applied over a rebalanced meal', () => {
 
 describe('a plan on a custom diet', () => {
   beforeEach(async () => {
-    profile = await aProfile(t, user, { name: 'Custom', dietType: 'custom', customMacroSplit: { protein: 25, fat: 30, carbs: 45 } });
+    profile = await aProfile(t, user, {
+      name: 'Custom',
+      dietType: 'custom',
+      customMacroSplit: { protein: 25, fat: 30, carbs: 45 },
+    });
     plan = await aPlan(t, user, profile);
     expect(plan.dietType).toBe('custom');
   });
@@ -208,19 +259,27 @@ describe('a plan on a custom diet', () => {
     const meal = plan.days[0]!.meals[0]!;
 
     const swapped = await anAiSwap(t, user, { planId: plan.id, plannedMealId: meal.id });
-    expect(swapped.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
+    expect(swapped.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(
+      meal.recipe!.id,
+    );
 
     // Any ingredient of a category with more than one member has a substitute on offer.
     const fresh = await plans.get(user.id, 'en', plan.id);
     let suggested = 0;
     for (const m of fresh.days.flatMap((day) => day.meals)) {
       for (const line of m.recipe?.ingredients ?? []) {
-        const ingredient = await t.prisma.ingredient.findUniqueOrThrow({ where: { id: line.ingredientId } });
+        const ingredient = await t.prisma.ingredient.findUniqueOrThrow({
+          where: { id: line.ingredientId },
+        });
         if (!['grains', 'vegetables', 'legumes'].includes(ingredient.category)) continue;
         const result = await t.app.get(IngredientSwapService).aiSuggestIngredient(
           user.id,
           'en',
-          AiSuggestIngredientRequest.parse({ planId: plan.id, plannedMealId: m.id, fromIngredientId: line.ingredientId }),
+          AiSuggestIngredientRequest.parse({
+            planId: plan.id,
+            plannedMealId: m.id,
+            fromIngredientId: line.ingredientId,
+          }),
         );
         expect(result.toIngredient.id).toBeTruthy();
         suggested += 1;
@@ -238,7 +297,9 @@ describe('a plan on a custom diet', () => {
 
 describe('a planned meal the profile has since ruled out', () => {
   const conflictsOf = async (mealId: string) =>
-    (await plans.get(user.id, 'en', plan.id)).days.flatMap((day) => day.meals).find((meal) => meal.id === mealId)!.restrictionConflicts;
+    (await plans.get(user.id, 'en', plan.id)).days
+      .flatMap((day) => day.meals)
+      .find((meal) => meal.id === mealId)!.restrictionConflicts;
 
   it('stays in the plan and says what rules it out', async () => {
     const meals = plan.days.flatMap((day) => day.meals);
@@ -259,7 +320,9 @@ describe('a planned meal the profile has since ruled out', () => {
       update: { allergens: [allergen], excludedIngredientIds: [skipped] },
       create: { profileId: profile.id, allergens: [allergen], excludedIngredientIds: [skipped] },
     });
-    await t.prisma.favorite.create({ data: { profileId: profile.id, recipeId: meal.recipe!.id, sentiment: 'avoid' } });
+    await t.prisma.favorite.create({
+      data: { profileId: profile.id, recipeId: meal.recipe!.id, sentiment: 'avoid' },
+    });
 
     expect(await conflictsOf(meal.id)).toEqual(['allergen', 'excluded_ingredient', 'avoided']);
     expect(await conflictsOf(bystander.id)).toEqual([]);
@@ -296,10 +359,16 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
   };
 
   it('stops a re-roll, naming the day and the meal, and leaves the plan as it was', async () => {
-    const outcome = await t.app.get(PlanGenerationService).regenerate(user.id, 'en', lockedPlan.id).then(
-      () => null,
-      (err: HttpException) => ({ status: err.getStatus(), ...(err.getResponse() as Record<string, unknown>) }),
-    );
+    const outcome = await t.app
+      .get(PlanGenerationService)
+      .regenerate(user.id, 'en', lockedPlan.id)
+      .then(
+        () => null,
+        (err: HttpException) => ({
+          status: err.getStatus(),
+          ...(err.getResponse() as Record<string, unknown>),
+        }),
+      );
 
     expect(outcome).toMatchObject({
       status: 400,
@@ -307,7 +376,11 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
       details: { date: LOCKED_DAY, slot: 'dinner', recipeId: locked },
     });
     // A client is told the same: which day, which meal, which recipe.
-    const res = await t.http().post(`/api/meal-plans/${lockedPlan.id}/regenerate`).set(as(user)).send({});
+    const res = await t
+      .http()
+      .post(`/api/meal-plans/${lockedPlan.id}/regenerate`)
+      .set(as(user))
+      .send({});
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({
       error: 'LOCKED_RECIPE_INELIGIBLE',
@@ -316,16 +389,31 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
     const day = await lockedDayOf();
     expect(day.meals.find((m) => m.mealType === 'dinner')!.recipe!.id).toBe(locked);
     // Until something is done about it, the plan says which meal is the problem.
-    expect(day.meals.find((m) => m.mealType === 'dinner')!.restrictionConflicts).toEqual(['allergen']);
+    expect(day.meals.find((m) => m.mealType === 'dinner')!.restrictionConflicts).toEqual([
+      'allergen',
+    ]);
   });
 
   it('tells a client which rule a recipe breaks when it is refused', async () => {
     const lunch = lockedPlan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
 
-    const asked = { planId: lockedPlan.id, plannedMealId: lunch.id, strategy: 'favorite', allowOffDiet: true };
-    const offer = await t.http().post('/api/meal-plans/swap-meal/preview').set(as(user)).send({ ...asked, favoriteRecipeId: locked });
+    const asked = {
+      planId: lockedPlan.id,
+      plannedMealId: lunch.id,
+      strategy: 'favorite',
+      allowOffDiet: true,
+    };
+    const offer = await t
+      .http()
+      .post('/api/meal-plans/swap-meal/preview')
+      .set(as(user))
+      .send({ ...asked, favoriteRecipeId: locked });
     // And a client that sends the recipe without having been offered it is told the same.
-    const taken = await t.http().post('/api/meal-plans/swap-meal').set(as(user)).send({ ...asked, recipeId: locked, revision: lockedPlan.revision });
+    const taken = await t
+      .http()
+      .post('/api/meal-plans/swap-meal')
+      .set(as(user))
+      .send({ ...asked, recipeId: locked, revision: lockedPlan.revision });
 
     for (const res of [offer, taken]) {
       expect(res.status).toBe(400);
@@ -334,7 +422,14 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
   });
 
   it('is dropped when the re-roll is told to, and does not come back', async () => {
-    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', lockedPlan.id, RegenerateRequest.parse({ dropIneligibleLocks: true }));
+    await t.app
+      .get(PlanGenerationService)
+      .regenerate(
+        user.id,
+        'en',
+        lockedPlan.id,
+        RegenerateRequest.parse({ dropIneligibleLocks: true }),
+      );
 
     const day = await lockedDayOf();
     expect(day.meals.find((m) => m.mealType === 'dinner')!.recipe!.id).not.toBe(locked);
@@ -348,11 +443,23 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
   it('is dropped the same way when only its day is re-rolled', async () => {
     const dayId = (await lockedDayOf()).id;
 
-    expect(await refusal(t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', lockedPlan.id, dayId))).toEqual({
+    expect(
+      await refusal(
+        t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', lockedPlan.id, dayId),
+      ),
+    ).toEqual({
       status: 400,
       error: 'LOCKED_RECIPE_INELIGIBLE',
     });
-    await t.app.get(PlanGenerationService).regenerateDay(user.id, 'en', lockedPlan.id, dayId, RegenerateDayRequest.parse({ dropIneligibleLocks: true }));
+    await t.app
+      .get(PlanGenerationService)
+      .regenerateDay(
+        user.id,
+        'en',
+        lockedPlan.id,
+        dayId,
+        RegenerateDayRequest.parse({ dropIneligibleLocks: true }),
+      );
 
     const day = await lockedDayOf();
     expect(day.meals.find((m) => m.mealType === 'dinner')!.recipe!.id).not.toBe(locked);
@@ -364,14 +471,21 @@ describe('a lock on a recipe that may no longer enter the plan', () => {
     const fine = await recipeId('chickpea-tomato-stew');
     const twoLocks = await aPlan(t, user, profile, {
       startDate: '2026-04-06',
-      dayOverrides: [
-        { date: '2026-04-07', lockedSlots: [{ mealType: 'lunch', recipeId: fine }] },
-      ],
+      dayOverrides: [{ date: '2026-04-07', lockedSlots: [{ mealType: 'lunch', recipeId: fine }] }],
     });
 
-    await t.app.get(PlanGenerationService).regenerate(user.id, 'en', twoLocks.id, RegenerateRequest.parse({ dropIneligibleLocks: true }));
+    await t.app
+      .get(PlanGenerationService)
+      .regenerate(
+        user.id,
+        'en',
+        twoLocks.id,
+        RegenerateRequest.parse({ dropIneligibleLocks: true }),
+      );
 
-    const day = (await plans.get(user.id, 'en', twoLocks.id)).days.find((d) => d.date.slice(0, 10) === '2026-04-07')!;
+    const day = (await plans.get(user.id, 'en', twoLocks.id)).days.find(
+      (d) => d.date.slice(0, 10) === '2026-04-07',
+    )!;
     expect(day.meals.find((m) => m.mealType === 'lunch')!.recipe!.id).toBe(fine);
     expect(day.overrides?.lockedSlots).toEqual([{ mealType: 'lunch', recipeId: fine }]);
   });

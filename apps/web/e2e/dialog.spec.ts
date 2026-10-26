@@ -3,7 +3,10 @@
 import { expect, settled, test } from './fixtures';
 
 test.describe('a window over the page', () => {
-  test('takes the focus and keeps it, shuts the page behind it, closes on Esc and gives the focus back', async ({ session, messages }) => {
+  test('takes the focus and keeps it, shuts the page behind it, closes on Esc and gives the focus back', async ({
+    session,
+    messages,
+  }) => {
     const page = session.page;
     const plans = messages.mealPlans as Record<string, string>;
     await page.goto('/meal-plans');
@@ -14,7 +17,9 @@ test.describe('a window over the page', () => {
 
     await opener.focus();
     await page.keyboard.press('Enter');
-    const dialog = page.getByRole('dialog', { name: (messages.recipeModal as Record<string, string>).title! });
+    const dialog = page.getByRole('dialog', {
+      name: (messages.recipeModal as Record<string, string>).title!,
+    });
     await expect(dialog).toBeVisible();
 
     // The focus is inside the window. However often Tab is pressed, it goes
@@ -34,13 +39,19 @@ test.describe('a window over the page', () => {
     expect([...visited].sort()).not.toContain('page');
     expect(visited).toContain('window');
     // The page behind does not scroll, and takes no click.
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe('hidden');
-    expect(await page.evaluate(() => document.querySelector('dialog[open]')?.matches(':modal'))).toBe(true);
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).toBe(
+      'hidden',
+    );
+    expect(
+      await page.evaluate(() => document.querySelector('dialog[open]')?.matches(':modal')),
+    ).toBe(true);
 
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(opener).toBeFocused();
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).not.toBe('hidden');
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).not.toBe(
+      'hidden',
+    );
   });
 
   test('closes when somebody clicks beside it', async ({ session, messages }) => {

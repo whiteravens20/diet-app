@@ -12,6 +12,9 @@ import { useDraftErrorText } from '@/lib/use-draft-error';
 
 const POLL_INTERVAL_MS = 1500;
 
+/** Every language can be filled: English last, since it is written only for a draft a user wrote in theirs. */
+const FILLABLE = [...NON_CANONICAL_LOCALES, 'en'];
+
 /**
  * The run that fills a language recipes lack: which language, how many at
  * most, and where the run stands. What it writes goes into the queue shown
@@ -27,7 +30,7 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
   const languageId = useId();
   const limitId = useId();
   const [runner, setRunner] = useState<DraftRunnerState | null>(null);
-  const [locale, setLocale] = useState<string>(NON_CANONICAL_LOCALES[0] ?? '');
+  const [locale, setLocale] = useState<string>(FILLABLE[0]!);
   // As it is typed: a field that is being emptied to type another number is no number for a moment.
   const [limit, setLimit] = useState('25');
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +112,7 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
           disabled={running}
           className="rounded-md border border-input bg-background px-2 py-1 text-xs"
         >
-          {NON_CANONICAL_LOCALES.map((language) => (
+          {FILLABLE.map((language) => (
             <option key={language} value={language}>
               {tLanguage(language)}
             </option>
@@ -128,21 +131,52 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
           disabled={running}
           className="w-20 rounded-md border border-input bg-background px-2 py-1 text-xs"
         />
-        <Button type="button" size="sm" variant="outline" onClick={() => void start()} disabled={!configured || running || locale === ''} className="gap-2">
-          {running ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4" />}
-          {running ? t('running', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 }) : t('start')}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => void start()}
+          disabled={!configured || running || locale === ''}
+          className="gap-2"
+        >
+          {running ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <Languages className="h-4 w-4" />
+          )}
+          {running
+            ? t('running', { processed: runner?.processed ?? 0, total: runner?.total ?? 0 })
+            : t('start')}
         </Button>
         {running && (
-          <Button type="button" size="sm" variant="outline" onClick={() => void stop()} className="gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void stop()}
+            className="gap-2"
+          >
             <X className="h-4 w-4" />
             {tCuration('stop')}
           </Button>
         )}
       </div>
       <div role="status" className="space-y-1 text-xs text-muted-foreground">
-        {ended && runner.status === 'error' && <p className="text-destructive">{t('failed', { error: runner.error ?? '' })}</p>}
-        {ended && runner.status === 'done' && runner.note && <p>{tNotes(runner.note, { skipped: runner.skipped })}</p>}
-        {ended && runner.status === 'done' && !runner.note && <p>{t('lastRun', { written: runner.written, failed: runner.failed, skipped: runner.skipped })}</p>}
+        {ended && runner.status === 'error' && (
+          <p className="text-destructive">{t('failed', { error: runner.error ?? '' })}</p>
+        )}
+        {ended && runner.status === 'done' && runner.note && (
+          <p>{tNotes(runner.note, { skipped: runner.skipped })}</p>
+        )}
+        {ended && runner.status === 'done' && !runner.note && (
+          <p>
+            {t('lastRun', {
+              written: runner.written,
+              failed: runner.failed,
+              skipped: runner.skipped,
+            })}
+          </p>
+        )}
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </section>

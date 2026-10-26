@@ -1,5 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise */
+
 /**
  * Unit tests for UsersService. Prisma is mocked — the goal is to lock down
  * the small but security-sensitive behaviours: current-password proof for
@@ -52,9 +54,11 @@ function makePrisma(user: ReturnType<typeof makeUser> | null, enabledProviderCou
   return {
     user: {
       findUnique: vi.fn().mockResolvedValue(user),
-      update: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
-        Promise.resolve({ ...(user ?? {}), ...args.data }),
-      ),
+      update: vi
+        .fn()
+        .mockImplementation((args: { data: Record<string, unknown> }) =>
+          Promise.resolve({ ...(user ?? {}), ...args.data }),
+        ),
       delete: vi.fn().mockResolvedValue(user),
     },
     aiProviderConfig: { count: vi.fn().mockResolvedValue(enabledProviderCount) },
@@ -69,8 +73,14 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     prisma = makePrisma(makeUser());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise
-    service = new UsersService(prisma as any, config as any, mail as any, auth as any, new AccountEmail(config as any), new Passwords(config as any));
+    service = new UsersService(
+      prisma as any,
+      config as any,
+      mail as any,
+      auth as any,
+      new AccountEmail(config as any),
+      new Passwords(config as any),
+    );
   });
 
   describe('getMe', () => {
@@ -83,24 +93,53 @@ describe('UsersService', () => {
 
     it('reads a choice this version does not know as the one an account begins with, and the account goes on working', async () => {
       // A language or a palette a later version dropped, or a value written into the row by hand.
-      prisma = makePrisma(makeUser({ locale: 'de', theme: 'sepia', palette: 'neon', aiMode: 'shared', weightUnit: 'stone' }));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      service = new UsersService(prisma as any, config as any, mail as any, auth as any, new AccountEmail(config as any), new Passwords(config as any));
+      prisma = makePrisma(
+        makeUser({
+          locale: 'de',
+          theme: 'sepia',
+          palette: 'neon',
+          aiMode: 'shared',
+          weightUnit: 'stone',
+        }),
+      );
+      service = new UsersService(
+        prisma as any,
+        config as any,
+        mail as any,
+        auth as any,
+        new AccountEmail(config as any),
+        new Passwords(config as any),
+      );
 
-      expect(await service.getMe('user-1')).toMatchObject({ email: 'alice@example.com', locale: 'en', theme: 'system', palette: 'default', aiMode: 'none', weightUnit: null });
+      expect(await service.getMe('user-1')).toMatchObject({
+        email: 'alice@example.com',
+        locale: 'en',
+        theme: 'system',
+        palette: 'default',
+        aiMode: 'none',
+        weightUnit: null,
+      });
     });
 
     it('throws USER_NOT_FOUND when missing', async () => {
       prisma = makePrisma(null);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise
-      service = new UsersService(prisma as any, config as any, mail as any, auth as any, new AccountEmail(config as any), new Passwords(config as any));
+      service = new UsersService(
+        prisma as any,
+        config as any,
+        mail as any,
+        auth as any,
+        new AccountEmail(config as any),
+        new Passwords(config as any),
+      );
       await expect(service.getMe('nope')).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
   describe('updateSettings', () => {
     it('rejects an entirely empty patch', async () => {
-      await expect(service.updateSettings('user-1', {})).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.updateSettings('user-1', {})).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('updates only the provided fields', async () => {
@@ -115,7 +154,10 @@ describe('UsersService', () => {
       await service.updateSettings('user-1', { weightUnit: 'lb' });
       await service.updateSettings('user-1', { weightUnit: null });
 
-      expect(prisma.user.update.mock.calls.map(([arg]) => arg.data)).toEqual([{ weightUnit: 'lb' }, { weightUnit: null }]);
+      expect(prisma.user.update.mock.calls.map(([arg]) => arg.data)).toEqual([
+        { weightUnit: 'lb' },
+        { weightUnit: null },
+      ]);
       prisma.user.findUnique.mockResolvedValueOnce({ ...makeUser(), weightUnit: 'lb' });
       expect((await service.getMe('user-1')).weightUnit).toBe('lb');
       // What is kept and is no unit is no choice: the client goes by where its reader is.
@@ -125,8 +167,14 @@ describe('UsersService', () => {
 
     it('rejects byok flip when the user has zero enabled provider configs', async () => {
       prisma = makePrisma(makeUser(), 0);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise
-      service = new UsersService(prisma as any, config as any, mail as any, auth as any, new AccountEmail(config as any), new Passwords(config as any));
+      service = new UsersService(
+        prisma as any,
+        config as any,
+        mail as any,
+        auth as any,
+        new AccountEmail(config as any),
+        new Passwords(config as any),
+      );
       await expect(service.updateSettings('user-1', { aiMode: 'byok' })).rejects.toMatchObject({
         response: expect.objectContaining({ error: 'BYOK_NO_PROVIDER' }),
       });
@@ -135,8 +183,14 @@ describe('UsersService', () => {
 
     it('allows byok flip when at least one provider config is enabled', async () => {
       prisma = makePrisma(makeUser(), 1);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles; casting to the real constructor types here is noise
-      service = new UsersService(prisma as any, config as any, mail as any, auth as any, new AccountEmail(config as any), new Passwords(config as any));
+      service = new UsersService(
+        prisma as any,
+        config as any,
+        mail as any,
+        auth as any,
+        new AccountEmail(config as any),
+        new Passwords(config as any),
+      );
       await service.updateSettings('user-1', { aiMode: 'byok' });
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },

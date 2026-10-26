@@ -33,7 +33,11 @@ export class OpenAiProvider implements AiProviderAdapter {
         truncated: res.choices[0]?.finish_reason === 'length',
       };
     } catch (err) {
-      throw new AiProviderError('openai', describe(err), err instanceof OpenAI.APIConnectionTimeoutError);
+      throw new AiProviderError(
+        'openai',
+        describe(err),
+        err instanceof OpenAI.APIConnectionTimeoutError,
+      );
     }
   }
 }

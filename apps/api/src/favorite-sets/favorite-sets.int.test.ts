@@ -20,7 +20,10 @@ describe('favourite sets', () => {
     t = await createTestApp();
     await resetDatabase(t.prisma);
     await seedCatalogue(t.prisma);
-    const rows = await t.prisma.recipe.findMany({ where: { slug: { not: null } }, select: { id: true, slug: true } });
+    const rows = await t.prisma.recipe.findMany({
+      where: { slug: { not: null } },
+      select: { id: true, slug: true },
+    });
     shared = Object.fromEntries(rows.map((row) => [row.slug!, row.id]));
   });
 
@@ -36,13 +39,21 @@ describe('favourite sets', () => {
     strangerProfile = await aProfile(t, stranger);
   });
 
-  const slots = () => ({ breakfast: shared['tofu-scramble']!, dinner: shared['chickpea-tomato-stew']! });
+  const slots = () => ({
+    breakfast: shared['tofu-scramble']!,
+    dinner: shared['chickpea-tomato-stew']!,
+  });
 
   const create = (as_: TestUser, body: Record<string, unknown>) =>
     t.http().post('/api/favorite-sets').set(as(as_)).send(body);
 
   async function aSet(overrides: Record<string, unknown> = {}): Promise<FavoriteSet> {
-    const res = await create(user, { profileId: profile.id, label: 'Weekday', slots: slots(), ...overrides }).expect(201);
+    const res = await create(user, {
+      profileId: profile.id,
+      label: 'Weekday',
+      slots: slots(),
+      ...overrides,
+    }).expect(201);
     return res.body as FavoriteSet;
   }
 
@@ -54,18 +65,26 @@ describe('favourite sets', () => {
       const set = await aSet();
 
       expect(set).toMatchObject({ profileId: profile.id, label: 'Weekday', slots: slots() });
-      expect(((await list(user, profile.id)).body as FavoriteSet[]).map((s) => s.id)).toEqual([set.id]);
+      expect(((await list(user, profile.id)).body as FavoriteSet[]).map((s) => s.id)).toEqual([
+        set.id,
+      ]);
     });
 
     it("accepts the user's own private recipe", async () => {
       const own = await aPrivateRecipe(t, user);
-      await create(user, { profileId: profile.id, label: 'Mine', slots: { lunch: own.id } }).expect(201);
+      await create(user, { profileId: profile.id, label: 'Mine', slots: { lunch: own.id } }).expect(
+        201,
+      );
     });
 
     it("refuses another user's private recipe as if it did not exist", async () => {
       const theirs = await aPrivateRecipe(t, stranger);
 
-      const res = await create(user, { profileId: profile.id, label: 'Borrowed', slots: { lunch: theirs.id } });
+      const res = await create(user, {
+        profileId: profile.id,
+        label: 'Borrowed',
+        slots: { lunch: theirs.id },
+      });
 
       expect(res.status).toBe(404);
       expect(res.body.error).toBe('RECIPE_NOT_FOUND');
@@ -79,14 +98,22 @@ describe('favourite sets', () => {
       const own = await aPrivateRecipe(t, user);
       await t.prisma.recipe.update({ where: { id: own.id }, data: change });
 
-      const res = await create(user, { profileId: profile.id, label: 'Gone', slots: { lunch: own.id } });
+      const res = await create(user, {
+        profileId: profile.id,
+        label: 'Gone',
+        slots: { lunch: own.id },
+      });
 
       expect(res.status).toBe(404);
     });
 
     it('refuses a recipe under a meal it is not a recipe for', async () => {
       // The tofu scramble is a breakfast.
-      const res = await create(user, { profileId: profile.id, label: 'Mixed up', slots: { dinner: shared['tofu-scramble']! } });
+      const res = await create(user, {
+        profileId: profile.id,
+        label: 'Mixed up',
+        slots: { dinner: shared['tofu-scramble']! },
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('FAVORITE_SET_NOT_ELIGIBLE');
@@ -98,7 +125,11 @@ describe('favourite sets', () => {
     });
 
     it("is refused on another user's profile", async () => {
-      const res = await create(user, { profileId: strangerProfile.id, label: 'Theirs', slots: slots() });
+      const res = await create(user, {
+        profileId: strangerProfile.id,
+        label: 'Theirs',
+        slots: slots(),
+      });
 
       expect([403, 404]).toContain(res.status);
       expect(await t.prisma.favoriteSet.count()).toBe(0);
@@ -117,9 +148,17 @@ describe('favourite sets', () => {
 
       expect([403, 404]).toContain((await list(stranger, profile.id)).status);
       expect([403, 404]).toContain(
-        (await t.http().patch(`/api/favorite-sets/${set.id}`).set(as(stranger)).send({ label: 'Taken' })).status,
+        (
+          await t
+            .http()
+            .patch(`/api/favorite-sets/${set.id}`)
+            .set(as(stranger))
+            .send({ label: 'Taken' })
+        ).status,
       );
-      expect([403, 404]).toContain((await t.http().delete(`/api/favorite-sets/${set.id}`).set(as(stranger))).status);
+      expect([403, 404]).toContain(
+        (await t.http().delete(`/api/favorite-sets/${set.id}`).set(as(stranger))).status,
+      );
       expect([403, 404]).toContain(
         (
           await t
@@ -135,7 +174,12 @@ describe('favourite sets', () => {
     });
 
     it('can be renamed and removed by its owner', async () => {
-      const renamed = await t.http().patch(`/api/favorite-sets/${set.id}`).set(as(user)).send({ label: 'Weekend' }).expect(200);
+      const renamed = await t
+        .http()
+        .patch(`/api/favorite-sets/${set.id}`)
+        .set(as(user))
+        .send({ label: 'Weekend' })
+        .expect(200);
       expect(renamed.body).toMatchObject({ label: 'Weekend', slots: slots() });
 
       await t.http().delete(`/api/favorite-sets/${set.id}`).set(as(user)).expect(204);
@@ -155,7 +199,12 @@ describe('favourite sets', () => {
     it("cannot be pointed at another user's private recipe afterwards", async () => {
       const theirs = await aPrivateRecipe(t, stranger);
 
-      await t.http().patch(`/api/favorite-sets/${set.id}`).set(as(user)).send({ slots: { lunch: theirs.id } }).expect(404);
+      await t
+        .http()
+        .patch(`/api/favorite-sets/${set.id}`)
+        .set(as(user))
+        .send({ slots: { lunch: theirs.id } })
+        .expect(404);
     });
   });
 
@@ -176,7 +225,9 @@ describe('favourite sets', () => {
       day(p, date).meals.find((m) => m.mealType === mealType)?.recipe?.id;
 
     it('puts its recipes into the slots of the days named, sized to the day, and leaves the other days alone', async () => {
-      const res = await apply({ planId: plan.id, dayDates: ['2026-01-06', '2026-01-08'] }).expect(201);
+      const res = await apply({ planId: plan.id, dayDates: ['2026-01-06', '2026-01-08'] }).expect(
+        201,
+      );
       const after = res.body as MealPlan;
 
       for (const date of ['2026-01-06', '2026-01-08']) {
@@ -184,21 +235,35 @@ describe('favourite sets', () => {
         expect(recipeOf(after, date, 'dinner')).toBe(slots().dinner);
         for (const meal of day(after, date).meals) expect(meal.servings).toBeGreaterThan(0);
       }
-      expect(recipeOf(after, '2026-01-07', 'breakfast')).toBe(recipeOf(plan, '2026-01-07', 'breakfast'));
+      expect(recipeOf(after, '2026-01-07', 'breakfast')).toBe(
+        recipeOf(plan, '2026-01-07', 'breakfast'),
+      );
       expect(recipeOf(after, '2026-01-07', 'dinner')).toBe(recipeOf(plan, '2026-01-07', 'dinner'));
       expect(after.revision).toBe(plan.revision + 1);
     });
 
-    it('leaves a meal it fills no longer a model\'s pick: the set is the user\'s own choice', async () => {
-      const mealsOf = (p: MealPlan, date: string) => Object.fromEntries(day(p, date).meals.map((meal) => [meal.mealType, meal.modelPick]));
+    it("leaves a meal it fills no longer a model's pick: the set is the user's own choice", async () => {
+      const mealsOf = (p: MealPlan, date: string) =>
+        Object.fromEntries(day(p, date).meals.map((meal) => [meal.mealType, meal.modelPick]));
       // A model had picked every meal of the two days.
-      await t.prisma.plannedMeal.updateMany({ where: { day: { planId: plan.id } }, data: { modelPicked: true, modelReason: 'Lighter.' } });
+      await t.prisma.plannedMeal.updateMany({
+        where: { day: { planId: plan.id } },
+        data: { modelPicked: true, modelReason: 'Lighter.' },
+      });
 
-      const after = (await apply({ planId: plan.id, dayDates: ['2026-01-06'] }).expect(201)).body as MealPlan;
+      const after = (await apply({ planId: plan.id, dayDates: ['2026-01-06'] }).expect(201))
+        .body as MealPlan;
 
       // The slots the set fills say nothing of a model any more; what it left alone still does.
-      expect(mealsOf(after, '2026-01-06')).toMatchObject({ breakfast: null, dinner: null, lunch: { reason: 'Lighter.' } });
-      expect(mealsOf(after, '2026-01-07')).toMatchObject({ breakfast: { reason: 'Lighter.' }, dinner: { reason: 'Lighter.' } });
+      expect(mealsOf(after, '2026-01-06')).toMatchObject({
+        breakfast: null,
+        dinner: null,
+        lunch: { reason: 'Lighter.' },
+      });
+      expect(mealsOf(after, '2026-01-07')).toMatchObject({
+        breakfast: { reason: 'Lighter.' },
+        dinner: { reason: 'Lighter.' },
+      });
     });
 
     it('answers that no day matches when none of the dates is in the plan', async () => {
@@ -219,16 +284,24 @@ describe('favourite sets', () => {
 
     it('writes nothing when one of its recipes has been deleted since', async () => {
       const own = await aPrivateRecipe(t, user, { mealTypes: ['lunch'] });
-      await t.http().patch(`/api/favorite-sets/${set.id}`).set(as(user)).send({ slots: { ...slots(), lunch: own.id } }).expect(200);
+      await t
+        .http()
+        .patch(`/api/favorite-sets/${set.id}`)
+        .set(as(user))
+        .send({ slots: { ...slots(), lunch: own.id } })
+        .expect(200);
       await t.http().delete(`/api/recipes/${own.id}`).set(as(user)).expect(204);
 
       const res = await apply({ planId: plan.id, dayDates: ['2026-01-06'] });
 
       expect(res.status).toBe(404);
       expect(res.body.error).toBe('RECIPE_NOT_FOUND');
-      const after = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body as MealPlan;
+      const after = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200))
+        .body as MealPlan;
       expect(after.revision).toBe(plan.revision);
-      expect(recipeOf(after, '2026-01-06', 'breakfast')).toBe(recipeOf(plan, '2026-01-06', 'breakfast'));
+      expect(recipeOf(after, '2026-01-06', 'breakfast')).toBe(
+        recipeOf(plan, '2026-01-06', 'breakfast'),
+      );
     });
 
     it('writes nothing when the profile has since started to avoid an allergen in it', async () => {
@@ -243,7 +316,8 @@ describe('favourite sets', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('FAVORITE_SET_ALLERGEN_CONFLICT');
-      const after = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200)).body as MealPlan;
+      const after = (await t.http().get(`/api/meal-plans/${plan.id}`).set(as(user)).expect(200))
+        .body as MealPlan;
       expect(after.revision).toBe(plan.revision);
     });
   });

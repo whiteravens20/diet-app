@@ -108,7 +108,7 @@ export const emailChangeEmail: Builder<{ link: string }> = {
 export const passwordChangedEmail: Builder<Record<string, never>> = {
   en: () => ({
     subject: 'Your Diet App password was changed',
-    text: 'This is a confirmation that your Diet App password was just changed. Every session of the account was signed out: sign in again with the new password.\n\nIf this wasn\'t you, reset your password immediately from the sign-in page and contact your instance operator.',
+    text: "This is a confirmation that your Diet App password was just changed. Every session of the account was signed out: sign in again with the new password.\n\nIf this wasn't you, reset your password immediately from the sign-in page and contact your instance operator.",
     html: shell([
       'This is a confirmation that your Diet App password was just changed. Every session of the account was signed out: sign in again with the new password.',
       "If this wasn't you, reset your password immediately from the sign-in page and contact your instance operator.",

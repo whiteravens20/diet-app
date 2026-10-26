@@ -121,10 +121,8 @@ jobs:
           see the \`allow-forbidden-path\` bypass below).
 
           If you meant to ship curated content (recipe or ingredient drafts):
-          - The canonical baseline grows through **hand-authored** edits to
-            \`data/recipes.json\` / \`data/ingredients.json\`, not via the
-            curation-queue PR mode. The runtime guard
-            \`SHIP_UPSTREAM_BLOCKED_CANONICAL\` enforces this.
+          - The catalogue this repository ships changes only through the
+            project's own edits of \`data/\`.
           - For your own instance, ship via the curation queue's
             **local** mode — content stays on your instance + sidecar files
             in your gitignored \`instance-data/\`. See [the shipping guide](https://github.com/whiteravens20/diet-app/blob/dev/docs/ops/curation-shipping.md).

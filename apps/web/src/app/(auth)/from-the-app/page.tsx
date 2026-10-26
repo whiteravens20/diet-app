@@ -79,7 +79,12 @@ export default function FromTheAppPage() {
         )}
         {stage.kind === 'asking' && (
           <>
-            <p>{t.rich('question', { email: stage.account.email, b: (chunks) => <strong className="break-all">{chunks}</strong> })}</p>
+            <p>
+              {t.rich('question', {
+                email: stage.account.email,
+                b: (chunks) => <strong className="break-all">{chunks}</strong>,
+              })}
+            </p>
             <p className="text-muted-foreground">{stage.account.displayName}</p>
             <p className="text-muted-foreground">{t('onlyYours')}</p>
             <p className="text-muted-foreground">{t('replaces')}</p>
@@ -97,7 +102,10 @@ export default function FromTheAppPage() {
           <>
             <p role="alert">{stage.kind === 'failed' ? stage.why : t('missing')}</p>
             <p className="text-center">
-              <Link href={signInPath(stage.next)} className="text-primary underline underline-offset-2">
+              <Link
+                href={signInPath(stage.next)}
+                className="text-primary underline underline-offset-2"
+              >
                 {t('signInHere')}
               </Link>
             </p>

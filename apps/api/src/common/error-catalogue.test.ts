@@ -20,7 +20,13 @@ const API_SRC = resolve(__dirname, '..');
 const MESSAGES_DIR = resolve(API_SRC, '../../../apps/web/messages');
 
 /** What the web application says of failures the API did not name: no answer at all, a failure without a code, the fields of a failed check, a wait. */
-const OF_THE_WEB = ['GENERIC', 'NETWORK', 'VALIDATION_FAILED_FIELDS', 'HELD_UP_MINUTES', 'HELD_UP_SECONDS'];
+const OF_THE_WEB = [
+  'GENERIC',
+  'NETWORK',
+  'VALIDATION_FAILED_FIELDS',
+  'HELD_UP_MINUTES',
+  'HELD_UP_SECONDS',
+];
 
 interface MessagesShape {
   errors?: Record<string, string>;
@@ -59,17 +65,26 @@ describe('error-code catalogue', () => {
     expect(missingPl, `Missing in pl.json#errors: ${missingPl.join(', ')}`).toEqual([]);
   });
 
-  it('every sentence is for a code the API can answer with, or for one of the web application\'s own', async () => {
+  it("every sentence is for a code the API can answer with, or for one of the web application's own", async () => {
     const en = await loadLocaleErrors('en');
     if (en.size === 0) return;
 
-    expect([...en].filter((code) => !thrown.has(code) && !OF_THE_WEB.includes(code)).sort()).toEqual([]);
+    expect(
+      [...en].filter((code) => !thrown.has(code) && !OF_THE_WEB.includes(code)).sort(),
+    ).toEqual([]);
     expect(OF_THE_WEB.filter((code) => thrown.has(code))).toEqual([]);
   });
 
   it('finds the codes that are handed on by a variable as well as the ones written where they are thrown', () => {
     expect(thrown.size).toBeGreaterThan(140);
     // Written in an exception; passed on from an error that was caught; handed to the function that throws.
-    expect([...thrown]).toEqual(expect.arrayContaining(['PLAN_NOT_FOUND', 'OLLAMA_HOST_NOT_ALLOWED', 'PULL_FETCH_FAILED', 'INVALID_SUBSTITUTION']));
+    expect([...thrown]).toEqual(
+      expect.arrayContaining([
+        'PLAN_NOT_FOUND',
+        'OLLAMA_HOST_NOT_ALLOWED',
+        'PULL_FETCH_FAILED',
+        'INVALID_SUBSTITUTION',
+      ]),
+    );
   });
 });

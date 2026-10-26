@@ -36,11 +36,17 @@ export const SPLIT_SHARE_LIMITS = {
  */
 export const MacroSplit = z
   .object({
-    protein: z.number().int().min(SPLIT_SHARE_LIMITS.protein.min).max(SPLIT_SHARE_LIMITS.protein.max),
+    protein: z
+      .number()
+      .int()
+      .min(SPLIT_SHARE_LIMITS.protein.min)
+      .max(SPLIT_SHARE_LIMITS.protein.max),
     fat: z.number().int().min(SPLIT_SHARE_LIMITS.fat.min).max(SPLIT_SHARE_LIMITS.fat.max),
     carbs: z.number().int().min(SPLIT_SHARE_LIMITS.carbs.min).max(SPLIT_SHARE_LIMITS.carbs.max),
   })
-  .refine((split) => split.protein + split.fat + split.carbs === 100, { message: 'The three shares have to add up to 100.' });
+  .refine((split) => split.protein + split.fat + split.carbs === 100, {
+    message: 'The three shares have to add up to 100.',
+  });
 export type MacroSplit = z.infer<typeof MacroSplit>;
 
 /** A full nutrition snapshot — calories plus macros. */
@@ -88,9 +94,16 @@ export const UNDERWEIGHT_BMI = 18.5;
  * neither. Somebody for whom it is has to say they understand before a loss
  * goal is planned.
  */
-export function riskOfLosingWeight(body: { age: number; heightCm: number; weightKg: number }): ('minor' | 'underweight')[] {
+export function riskOfLosingWeight(body: {
+  age: number;
+  heightCm: number;
+  weightKg: number;
+}): ('minor' | 'underweight')[] {
   const bmi = body.weightKg / (body.heightCm / 100) ** 2;
-  return [...(body.age < ADULT_AGE ? (['minor'] as const) : []), ...(bmi < UNDERWEIGHT_BMI ? (['underweight'] as const) : [])];
+  return [
+    ...(body.age < ADULT_AGE ? (['minor'] as const) : []),
+    ...(bmi < UNDERWEIGHT_BMI ? (['underweight'] as const) : []),
+  ];
 }
 
 /**

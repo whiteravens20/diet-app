@@ -76,15 +76,31 @@ describe('the navigation of a signed-in account', () => {
 
     const beside = within(screen.getByRole('complementary'));
     const links = beside.getAllByRole('link');
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/dashboard', '/profile', '/calculator', '/meal-plans', '/recipes', '/favorites', '/shopping-lists', '/inventory', '/settings']);
-    expect(links.filter((link) => link.getAttribute('aria-current') === 'page').map((link) => link.textContent)).toEqual([messages.nav.mealPlans]);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/dashboard',
+      '/profile',
+      '/calculator',
+      '/meal-plans',
+      '/recipes',
+      '/favorites',
+      '/shopping-lists',
+      '/inventory',
+      '/settings',
+    ]);
+    expect(
+      links
+        .filter((link) => link.getAttribute('aria-current') === 'page')
+        .map((link) => link.textContent),
+    ).toEqual([messages.nav.mealPlans]);
   });
 
   it('says so of a page under one of them', () => {
     pathname = '/recipes/0b1f';
     shown();
 
-    expect(within(screen.getByRole('complementary')).getByRole('link', { name: messages.nav.recipes })).toHaveAttribute('aria-current', 'page');
+    expect(
+      within(screen.getByRole('complementary')).getByRole('link', { name: messages.nav.recipes }),
+    ).toHaveAttribute('aria-current', 'page');
   });
 
   it('is a drawer on a narrow screen: shut until the menu button opens it', async () => {
@@ -97,7 +113,10 @@ describe('the navigation of a signed-in account', () => {
 
     expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
     expect(within(drawer()!).getAllByRole('link')).toHaveLength(9);
-    expect(within(drawer()!).getByRole('link', { name: messages.nav.mealPlans })).toHaveAttribute('aria-current', 'page');
+    expect(within(drawer()!).getByRole('link', { name: messages.nav.mealPlans })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   });
 
   it('shuts the drawer when a link in it is followed', async () => {
@@ -135,7 +154,9 @@ describe('the navigation of a signed-in account', () => {
     const signOut = vi.spyOn(session, 'signOut').mockResolvedValue(undefined);
     shown();
 
-    await userEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: messages.nav.signOut }));
+    await userEvent.click(
+      within(screen.getByRole('complementary')).getByRole('button', { name: messages.nav.signOut }),
+    );
     await userEvent.click(menuButton());
     await userEvent.click(within(drawer()!).getByRole('button', { name: messages.nav.signOut }));
 

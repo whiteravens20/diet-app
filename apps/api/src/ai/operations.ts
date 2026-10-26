@@ -57,7 +57,13 @@ export const INGREDIENT_SWAP: Operation = {
  * other ways to fill a day, swaps that use up what a plan opens, what a
  * shopping list could do without.
  */
-const weighing = (name: string): Operation => ({ name, maxTokens: 700, temperature: 0.2, timeoutMs: USER_WAIT_MS, direct: true });
+const weighing = (name: string): Operation => ({
+  name,
+  maxTokens: 700,
+  temperature: 0.2,
+  timeoutMs: USER_WAIT_MS,
+  direct: true,
+});
 export const DAY_VARIATIONS = weighing('day-variations');
 export const USE_UP_SWAPS = weighing('use-up-swaps');
 export const LIST_PROPOSALS = weighing('list-proposals');
@@ -136,4 +142,3 @@ export function recipeTranslation(steps: number, temperature: number): Operation
     timeoutMs: BATCH_WAIT_MS,
   };
 }
-

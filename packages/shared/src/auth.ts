@@ -274,7 +274,9 @@ export const AdminSessionState = z.object({
 export type AdminSessionState = z.infer<typeof AdminSessionState>;
 
 /** The administrator asks for a secret to set an authenticator app up with. */
-export const AdminSecondFactorSetupRequest = z.object({ password: z.string().min(1).max(200) }).strict();
+export const AdminSecondFactorSetupRequest = z
+  .object({ password: z.string().min(1).max(200) })
+  .strict();
 export type AdminSecondFactorSetupRequest = z.infer<typeof AdminSecondFactorSetupRequest>;
 
 /** The administrator switches the second factor off. */
@@ -289,4 +291,3 @@ export type AdminSecondFactorOffRequest = z.infer<typeof AdminSecondFactorOffReq
 /** The administrator takes the second factor off an account whose holder lost it. */
 export const AccountSecondFactorRemoval = z.object({ email: emailAddress }).strict();
 export type AccountSecondFactorRemoval = z.infer<typeof AccountSecondFactorRemoval>;
-

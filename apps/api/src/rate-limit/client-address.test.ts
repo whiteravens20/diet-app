@@ -23,10 +23,17 @@ describe('the client an address is counted as', () => {
     expect(countedAddress('fe80::1%eth0')).toBe(countedAddress('fe80::2%wlan0'));
   });
 
-  it.each([undefined, null, 42, '', 'unknown', 'made up', '203.0.113.7, 198.51.100.1', '203.0.113.999', 'x'.repeat(5000)])(
-    'is one unknown client for %j, which is not an address',
-    (value) => {
-      expect(countedAddress(value)).toBe('unknown');
-    },
-  );
+  it.each([
+    undefined,
+    null,
+    42,
+    '',
+    'unknown',
+    'made up',
+    '203.0.113.7, 198.51.100.1',
+    '203.0.113.999',
+    'x'.repeat(5000),
+  ])('is one unknown client for %j, which is not an address', (value) => {
+    expect(countedAddress(value)).toBe('unknown');
+  });
 });

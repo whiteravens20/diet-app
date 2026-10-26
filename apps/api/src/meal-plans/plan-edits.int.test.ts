@@ -12,7 +12,16 @@ import { HttpException } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../testing/database.js';
-import { anAiSwap, aPlan, aProfile, as, aSwap, aUser, race, type TestUser } from '../testing/factories.js';
+import {
+  anAiSwap,
+  aPlan,
+  aProfile,
+  as,
+  aSwap,
+  aUser,
+  race,
+  type TestUser,
+} from '../testing/factories.js';
 import type { ModelRequest } from '../testing/fake-model.js';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { IngredientSwapService } from './ingredient-swap.service.js';
@@ -69,7 +78,9 @@ describe('editing a plan', () => {
     const after = await plans.get(user.id, 'en', plan.id);
     expect(after.revision).toBe(1);
     expect(after.days[0]!.meals).toHaveLength(3);
-    expect(after.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
+    expect(after.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(
+      meal.recipe!.id,
+    );
   });
 
   it('marks a meal eaten once, however often it is asked', async () => {
@@ -79,7 +90,8 @@ describe('editing a plan', () => {
     const first = await t.http().patch(path).set(as(user)).send({ eaten: true }).expect(200);
     const again = await t.http().patch(path).set(as(user)).send({ eaten: true }).expect(200);
 
-    const eatenAt = (body: { plan: MealPlan }) => body.plan.days[0]!.meals.find((m) => m.id === meal.id)!.eatenAt;
+    const eatenAt = (body: { plan: MealPlan }) =>
+      body.plan.days[0]!.meals.find((m) => m.id === meal.id)!.eatenAt;
     expect(eatenAt(first.body)).not.toBeNull();
     expect(eatenAt(again.body)).toBe(eatenAt(first.body));
     // The repeat changed nothing, so it did not count as a change either.
@@ -95,7 +107,9 @@ describe('editing a plan', () => {
     const results = await race(2, () => plans.setEaten(user.id, 'en', plan.id, meal.id, true));
 
     expect(outcomes(results)).toEqual(['PLAN_CHANGED', 'ok']);
-    expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).eatenAt).not.toBeNull();
+    expect(
+      (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).eatenAt,
+    ).not.toBeNull();
   });
 
   it('refuses an eaten request that does not say which state is wanted', async () => {
@@ -137,7 +151,8 @@ describe('editing a plan', () => {
       { mealId: first!.id, scale: 1.25 },
       { mealId: second!.id, scale: 0.75 },
     ];
-    const undo = () => plans.rebalance(user.id, 'en', plan.id, { scope: 'day', date: plan.days[0]!.date, restore });
+    const undo = () =>
+      plans.rebalance(user.id, 'en', plan.id, { scope: 'day', date: plan.days[0]!.date, restore });
 
     const results = await race(2, undo);
 
@@ -150,19 +165,24 @@ describe('editing a plan', () => {
   });
 
   // Repeated: only some interleavings reach the half-deleted plan this guards against.
-  it('never answers an edit that overlaps a delete with a server error', { repeats: 25 }, async () => {
-    const meal = plan.days[0]!.meals[0]!;
+  it(
+    'never answers an edit that overlaps a delete with a server error',
+    { repeats: 25 },
+    async () => {
+      const meal = plan.days[0]!.meals[0]!;
 
-    const results = await Promise.allSettled([swap(meal.id), plans.remove(user.id, plan.id)]);
+      const results = await Promise.allSettled([swap(meal.id), plans.remove(user.id, plan.id)]);
 
-    for (const outcome of outcomes(results)) {
-      expect(['ok', 'PLAN_CHANGED', 'PLAN_NOT_FOUND', 'MEAL_NOT_FOUND']).toContain(outcome);
-    }
-    expect(await t.prisma.mealPlan.count({ where: { id: plan.id } })).toBe(0);
-  });
+      for (const outcome of outcomes(results)) {
+        expect(['ok', 'PLAN_CHANGED', 'PLAN_NOT_FOUND', 'MEAL_NOT_FOUND']).toContain(outcome);
+      }
+      expect(await t.prisma.mealPlan.count({ where: { id: plan.id } })).toBe(0);
+    },
+  );
 
   describe('substituting an ingredient of a planned meal', () => {
-    const ingredientId = async (slug: string) => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+    const ingredientId = async (slug: string) =>
+      (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
 
     /** Put the fixture recipe `slug` into the first lunch of the plan and return that meal's id. */
     async function planned(slug: string): Promise<string> {
@@ -173,22 +193,33 @@ describe('editing a plan', () => {
     }
 
     async function substitute(plannedMealId: string, from: string, to: string) {
-      const result = await t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', SwapIngredientRequest.parse({
-        planId: plan.id,
-        plannedMealId,
-        fromIngredientId: await ingredientId(from),
-        toIngredientId: await ingredientId(to),
-        acceptChange: true,
-      }));
+      const result = await t.app.get(IngredientSwapService).applyIngredientSwap(
+        user.id,
+        'en',
+        SwapIngredientRequest.parse({
+          planId: plan.id,
+          plannedMealId,
+          fromIngredientId: await ingredientId(from),
+          toIngredientId: await ingredientId(to),
+          acceptChange: true,
+        }),
+      );
       const meal = result.plan.days[0]!.meals.find((m) => m.id === plannedMealId)!;
-      return t.prisma.recipe.findUniqueOrThrow({ where: { id: meal.recipe!.id }, include: { ingredients: true } });
+      return t.prisma.recipe.findUniqueOrThrow({
+        where: { id: meal.recipe!.id },
+        include: { ingredients: true },
+      });
     }
 
     it('gives the variant the diets of its own ingredients, not those of the recipe it came from', async () => {
       const source = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
       expect(source.dietTags).toEqual(expect.arrayContaining(['vegetarian', 'vegan']));
 
-      const variant = await substitute(await planned('tofu-rice-bowl'), 'firm-tofu', 'chicken-breast');
+      const variant = await substitute(
+        await planned('tofu-rice-bowl'),
+        'firm-tofu',
+        'chicken-breast',
+      );
 
       expect(variant.id).not.toBe(source.id);
       expect(variant.createdByUserId).toBe(user.id);
@@ -200,17 +231,27 @@ describe('editing a plan', () => {
     });
 
     it('lets a variant gain a diet its source did not have', async () => {
-      const source = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'chicken-rice-broccoli' } });
+      const source = await t.prisma.recipe.findUniqueOrThrow({
+        where: { slug: 'chicken-rice-broccoli' },
+      });
       expect(source.dietTags).not.toContain('vegan');
 
-      const variant = await substitute(await planned('chicken-rice-broccoli'), 'chicken-breast', 'firm-tofu');
+      const variant = await substitute(
+        await planned('chicken-rice-broccoli'),
+        'chicken-breast',
+        'firm-tofu',
+      );
 
       expect(variant.dietTags).toEqual(expect.arrayContaining(['vegetarian', 'vegan']));
       expect(variant.allergens).toContain('soy');
     });
 
     it('never offers a variant with meat to a vegan plan of the same account', async () => {
-      const variant = await substitute(await planned('tofu-rice-bowl'), 'firm-tofu', 'chicken-breast');
+      const variant = await substitute(
+        await planned('tofu-rice-bowl'),
+        'firm-tofu',
+        'chicken-breast',
+      );
       const veganProfile = await aProfile(t, user, { name: 'Vegan', dietType: 'vegan' });
 
       const veganPlan = await aPlan(t, user, veganProfile, { durationDays: 14 });
@@ -238,34 +279,55 @@ describe('editing a plan', () => {
           origin: 'ai',
           caloriesPerServing: 320,
           createdByUserId: user.id,
-          ingredients: { create: [{ ingredientId: chicken, quantity: 200, unit: 'g' }, { ingredientId: oil, quantity: 10, unit: 'ml' }] },
+          ingredients: {
+            create: [
+              { ingredientId: chicken, quantity: 200, unit: 'g' },
+              { ingredientId: oil, quantity: 10, unit: 'ml' },
+            ],
+          },
         },
       });
       const meal = plan.days[0]!.meals.find((m) => m.mealType === 'lunch')!;
       await t.prisma.plannedMeal.update({ where: { id: meal.id }, data: { recipeId: own.id } });
 
       // Rice may appear in a low-carbohydrate recipe; a dish that is mostly rice is not one.
-      const swap = t.app.get(IngredientSwapService).applyIngredientSwap(user.id, 'en', SwapIngredientRequest.parse({
-        planId: plan.id,
-        plannedMealId: meal.id,
-        fromIngredientId: chicken,
-        toIngredientId: await ingredientId('white-rice'),
-        acceptChange: true,
-      }));
+      const swap = t.app.get(IngredientSwapService).applyIngredientSwap(
+        user.id,
+        'en',
+        SwapIngredientRequest.parse({
+          planId: plan.id,
+          plannedMealId: meal.id,
+          fromIngredientId: chicken,
+          toIngredientId: await ingredientId('white-rice'),
+          acceptChange: true,
+        }),
+      );
 
-      await expect(swap).rejects.toMatchObject({ status: 400, response: { error: 'INVALID_SUBSTITUTION', details: { violations: ['off_diet'] } } });
-      expect((await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId).toBe(own.id);
+      await expect(swap).rejects.toMatchObject({
+        status: 400,
+        response: { error: 'INVALID_SUBSTITUTION', details: { violations: ['off_diet'] } },
+      });
+      expect(
+        (await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: meal.id } })).recipeId,
+      ).toBe(own.id);
     });
 
     it('stores the nutrition the engine works out for the variant', async () => {
-      const variant = await substitute(await planned('tofu-rice-bowl'), 'firm-tofu', 'chicken-breast');
+      const variant = await substitute(
+        await planned('tofu-rice-bowl'),
+        'firm-tofu',
+        'chicken-breast',
+      );
       const lines = await t.prisma.recipeIngredient.findMany({
         where: { recipeId: variant.id },
         include: { ingredient: true },
       });
 
       // Every fixture ingredient here is weighed in grams or measured in millilitres of its own unit.
-      const kcal = lines.reduce((sum, line) => sum + (line.quantity * line.ingredient.caloriesPer100) / 100, 0);
+      const kcal = lines.reduce(
+        (sum, line) => sum + (line.quantity * line.ingredient.caloriesPer100) / 100,
+        0,
+      );
       expect(variant.caloriesPerServing).toBe(Math.round(kcal / variant.servings));
     });
   });
@@ -279,7 +341,8 @@ describe('editing a plan', () => {
       anAiSwap(t, user, { planId: plan.id, plannedMealId }, locale);
 
     /** The first candidate the prompt offers, as a model that follows the prompt would pick it. */
-    const firstOffered = (request: ModelRequest): string => /id=([0-9a-f-]{36})/.exec(request.prompt)![1]!;
+    const firstOffered = (request: ModelRequest): string =>
+      /id=([0-9a-f-]{36})/.exec(request.prompt)![1]!;
 
     it('returns the rebalance summary together with the swapped plan', async () => {
       const meal = plan.days[0]!.meals[0]!;
@@ -288,11 +351,16 @@ describe('editing a plan', () => {
 
       expect(t.model.requests).toHaveLength(1);
       expect(result).toHaveProperty('rebalance');
-      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
+      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(
+        meal.recipe!.id,
+      );
     });
 
     it.each([
-      ['a long run of spaces after the object', '```json\n{"recipeId":"x"}' + ' '.repeat(120_000) + 'x'],
+      [
+        'a long run of spaces after the object',
+        '```json\n{"recipeId":"x"}' + ' '.repeat(120_000) + 'x',
+      ],
       ['a long run of opening braces', '{'.repeat(120_000)],
       ['five megabytes of text', 'A'.repeat(5_000_000)],
     ])('stays responsive and still swaps when the model answers with %s', async (_name, text) => {
@@ -305,7 +373,9 @@ describe('editing a plan', () => {
       // Read with a backtracking pattern, the first two took ten seconds each.
       expect(performance.now() - started).toBeLessThan(3_000);
       // The answer was unusable, so the engine picked: the user still gets a swap.
-      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
+      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(
+        meal.recipe!.id,
+      );
     });
 
     it("makes the model's pick and passes on its reason", async () => {
@@ -314,7 +384,10 @@ describe('editing a plan', () => {
       t.model.reply({
         text: (request) => {
           picked = firstOffered(request);
-          return JSON.stringify({ recipeId: picked, reason: 'Closest to the calorie budget of the slot.' });
+          return JSON.stringify({
+            recipeId: picked,
+            reason: 'Closest to the calorie budget of the slot.',
+          });
         },
       });
 
@@ -334,14 +407,40 @@ describe('editing a plan', () => {
       /** A swap of the first meal for what a model picked, taken with the note of the pick. */
       const takeTheModelsPick = async (): Promise<MealPlan> => {
         const meal = plan.days[0]!.meals[0]!;
-        t.model.reply({ text: (request) => JSON.stringify({ recipeId: firstOffered(request), reason: 'Lighter.' }) });
+        t.model.reply({
+          text: (request) =>
+            JSON.stringify({ recipeId: firstOffered(request), reason: 'Lighter.' }),
+        });
         const swaps = t.app.get(MealSwapService);
-        const offer = await swaps.previewWithAi(user.id, 'en', AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }));
-        return (await swaps.apply(user.id, 'en', { planId: plan.id, plannedMealId: meal.id, recipeId: offer.recipe.id, revision: offer.revision, strategy: 'random', allowOffDiet: false, pick: offer.pick! })).plan;
+        const offer = await swaps.previewWithAi(
+          user.id,
+          'en',
+          AiSwapMealRequest.parse({ planId: plan.id, plannedMealId: meal.id }),
+        );
+        return (
+          await swaps.apply(user.id, 'en', {
+            planId: plan.id,
+            plannedMealId: meal.id,
+            recipeId: offer.recipe.id,
+            revision: offer.revision,
+            strategy: 'random',
+            allowOffDiet: false,
+            pick: offer.pick!,
+          })
+        ).plan;
       };
-      const madeAgain = (): Promise<MealPlan> => t.app.get(PlanGenerationService).regenerate(user.id, 'en', plan.id, RegenerateRequest.parse({ includePast: true }), plan.startDate);
+      const madeAgain = (): Promise<MealPlan> =>
+        t.app
+          .get(PlanGenerationService)
+          .regenerate(
+            user.id,
+            'en',
+            plan.id,
+            RegenerateRequest.parse({ includePast: true }),
+            plan.startDate,
+          );
 
-      it('is the engine\'s alone until a pick of a model\'s is written into it, and says so from then on', async () => {
+      it("is the engine's alone until a pick of a model's is written into it, and says so from then on", async () => {
         expect(plan.generationMode).toBe('deterministic');
         // A swap the engine picked changes nothing about that.
         expect((await swap(plan.days[1]!.meals[0]!.id)).plan.generationMode).toBe('deterministic');
@@ -351,7 +450,7 @@ describe('editing a plan', () => {
         expect((await swap(plan.days[1]!.meals[1]!.id)).plan.generationMode).toBe('ai_assisted');
       });
 
-      it('is the engine\'s again once it is made again as a whole, and not while a meal a model picked stays in it', async () => {
+      it("is the engine's again once it is made again as a whole, and not while a meal a model picked stays in it", async () => {
         const picked = await takeTheModelsPick();
         const meal = picked.days[0]!.meals.find((planned) => planned.modelPick !== null)!;
         // Eaten, the meal stays when the plan is made again.
@@ -367,7 +466,10 @@ describe('editing a plan', () => {
       const meal = plan.days[0]!.meals[0]!;
       t.model.reply({
         text: (request) =>
-          JSON.stringify({ recipeId: firstOffered(request), reason: `Line one.\n\u0007Line two. ${'very '.repeat(80)}long.` }),
+          JSON.stringify({
+            recipeId: firstOffered(request),
+            reason: `Line one.\n\u0007Line two. ${'very '.repeat(80)}long.`,
+          }),
       });
 
       const { reason } = (await aiSwap(meal.id)).aiMeta;
@@ -379,7 +481,10 @@ describe('editing a plan', () => {
 
     it('takes a pick that comes without a reason, or with one that is not text', async () => {
       const meal = plan.days[0]!.meals[0]!;
-      t.model.reply({ text: (request) => JSON.stringify({ recipeId: firstOffered(request), reason: { why: 'nested' } }) });
+      t.model.reply({
+        text: (request) =>
+          JSON.stringify({ recipeId: firstOffered(request), reason: { why: 'nested' } }),
+      });
 
       const result = await aiSwap(meal.id);
 
@@ -387,7 +492,10 @@ describe('editing a plan', () => {
     });
 
     it.each([
-      ['named a recipe that was not on offer', '{"recipeId":"not-on-the-list","reason":"It sounded nice."}'],
+      [
+        'named a recipe that was not on offer',
+        '{"recipeId":"not-on-the-list","reason":"It sounded nice."}',
+      ],
       ['answered in prose', 'I would go with the porridge.'],
       ['answered with the wrong shape', '{"recipe":"oat-porridge"}'],
     ])('says that the engine picked when the model %s', async (_name, text) => {
@@ -397,7 +505,9 @@ describe('editing a plan', () => {
       const result = await aiSwap(meal.id);
 
       // The user still gets a swap, and is not told that the model chose it.
-      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(meal.recipe!.id);
+      expect(result.plan.days[0]!.meals.find((m) => m.id === meal.id)!.recipe!.id).not.toBe(
+        meal.recipe!.id,
+      );
       expect(result.aiMeta).toMatchObject({
         provider: 'ollama',
         usedDeterministicFallback: true,
@@ -441,15 +551,26 @@ describe('editing a plan', () => {
         .expect(201);
 
       // The engine offers a recipe all the same, and it can be taken.
-      expect(offer.body.aiMeta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'key_unreadable' });
+      expect(offer.body.aiMeta).toMatchObject({
+        usedDeterministicFallback: true,
+        fallbackReason: 'key_unreadable',
+      });
       await t
         .http()
         .post('/api/meal-plans/swap-meal')
         .set(as(user))
-        .send({ planId: plan.id, plannedMealId: meal.id, recipeId: offer.body.recipe.id, revision: offer.body.revision, strategy: 'random' })
+        .send({
+          planId: plan.id,
+          plannedMealId: meal.id,
+          recipeId: offer.body.recipe.id,
+          revision: offer.body.revision,
+          strategy: 'random',
+        })
         .expect(201);
       const providers = await t.http().get('/api/ai/providers').set(as(user)).expect(200);
-      expect(providers.body).toEqual([expect.objectContaining({ provider: 'openai', hasKey: true, keyUnreadable: true })]);
+      expect(providers.body).toEqual([
+        expect.objectContaining({ provider: 'openai', hasKey: true, keyUnreadable: true }),
+      ]);
     });
 
     it("asks for the reason in the user's language", async () => {
@@ -463,10 +584,15 @@ describe('editing a plan', () => {
 
     describe('suggesting a substitute for an ingredient', () => {
       /** A planned meal and one of its ingredients that the catalogue has substitutes for. */
-      async function aLineWithSubstitutes(): Promise<{ plannedMealId: string; fromIngredientId: string }> {
+      async function aLineWithSubstitutes(): Promise<{
+        plannedMealId: string;
+        fromIngredientId: string;
+      }> {
         for (const meal of plan.days.flatMap((day) => day.meals)) {
           for (const line of meal.recipe?.ingredients ?? []) {
-            const ingredient = await t.prisma.ingredient.findUniqueOrThrow({ where: { id: line.ingredientId } });
+            const ingredient = await t.prisma.ingredient.findUniqueOrThrow({
+              where: { id: line.ingredientId },
+            });
             if (['grains', 'vegetables', 'legumes'].includes(ingredient.category)) {
               return { plannedMealId: meal.id, fromIngredientId: line.ingredientId };
             }
@@ -479,7 +605,10 @@ describe('editing a plan', () => {
         t.app.get(IngredientSwapService).aiSuggestIngredient(
           user.id,
           'en',
-          AiSuggestIngredientRequest.parse({ planId: plan.id, ...(await aLineWithSubstitutes()) }),
+          AiSuggestIngredientRequest.parse({
+            planId: plan.id,
+            ...(await aLineWithSubstitutes()),
+          }),
         );
 
       it("returns the model's pick with its reason", async () => {
@@ -494,7 +623,10 @@ describe('editing a plan', () => {
         const result = await suggest();
 
         expect(result.toIngredient.id).toBe(picked);
-        expect(result.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: 'The closest in texture.' });
+        expect(result.aiMeta).toMatchObject({
+          usedDeterministicFallback: false,
+          reason: 'The closest in texture.',
+        });
       });
 
       it('says that the engine picked when the model named an ingredient that was not on offer', async () => {

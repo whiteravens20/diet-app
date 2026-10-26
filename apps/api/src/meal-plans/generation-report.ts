@@ -10,7 +10,13 @@
  * changes a meal has to remember the report.
  */
 import { z } from 'zod';
-import { MealType, PantryUse, PlanRelaxation, type GenerationReport, type MealPlanDay } from '@diet-app/shared';
+import {
+  MealType,
+  PantryUse,
+  PlanRelaxation,
+  type GenerationReport,
+  type MealPlanDay,
+} from '@diet-app/shared';
 import type { OptimizerResult } from '../engine/index.js';
 
 const About = { date: z.string().date(), slot: MealType, recipeId: z.string() };
@@ -26,11 +32,17 @@ export type StoredReport = z.infer<typeof StoredReport>;
  * The report of a run in the terms of the plan: `dates` are the dates of the
  * days the run was given, in its order.
  */
-export function reportOf(result: OptimizerResult, dates: readonly string[], pantry: PantryUse): StoredReport {
+export function reportOf(
+  result: OptimizerResult,
+  dates: readonly string[],
+  pantry: PantryUse,
+): StoredReport {
   const about = (at: { dayIndex: number; slot: MealType }) => ({
     date: dates[at.dayIndex]!,
     slot: at.slot,
-    recipeId: result.assignments.find((placed) => placed.dayIndex === at.dayIndex && placed.slot === at.slot)!.recipeId,
+    recipeId: result.assignments.find(
+      (placed) => placed.dayIndex === at.dayIndex && placed.slot === at.slot,
+    )!.recipeId,
   });
   return {
     relaxations: result.report.relaxations.map((at) => ({ ...about(at), gaveWay: at.gaveWay })),
@@ -44,8 +56,13 @@ export function reportOf(result: OptimizerResult, dates: readonly string[], pant
  * of those days gives place to what the run over them found. What the pantry
  * had to do with the plan stays what it was when the plan was made.
  */
-export function withDaysAgain(kept: StoredReport, fresh: StoredReport, dates: readonly string[]): StoredReport {
-  const ofOtherDays = <T extends { date: string }>(entries: T[]): T[] => entries.filter((entry) => !dates.includes(entry.date));
+export function withDaysAgain(
+  kept: StoredReport,
+  fresh: StoredReport,
+  dates: readonly string[],
+): StoredReport {
+  const ofOtherDays = <T extends { date: string }>(entries: T[]): T[] =>
+    entries.filter((entry) => !dates.includes(entry.date));
   return {
     relaxations: [...ofOtherDays(kept.relaxations), ...fresh.relaxations],
     singleCandidate: [...ofOtherDays(kept.singleCandidate), ...fresh.singleCandidate],
@@ -65,13 +82,22 @@ export function shownReport(kept: unknown, days: readonly MealPlanDay[]): Genera
       if (meal.recipe) place.set(key(day.date, meal.mealType, meal.recipe.id), place.size);
     }
   }
-  const standing = <T extends { date: string; slot: MealType; recipeId: string }>(entries: T[]): T[] =>
+  const standing = <T extends { date: string; slot: MealType; recipeId: string }>(
+    entries: T[],
+  ): T[] =>
     entries
       .filter((entry) => place.has(key(entry.date, entry.slot, entry.recipeId)))
-      .sort((a, b) => place.get(key(a.date, a.slot, a.recipeId))! - place.get(key(b.date, b.slot, b.recipeId))!);
+      .sort(
+        (a, b) =>
+          place.get(key(a.date, a.slot, a.recipeId))! - place.get(key(b.date, b.slot, b.recipeId))!,
+      );
 
   return {
-    relaxations: standing(report.relaxations).map(({ date, slot, gaveWay }) => ({ date, slot, gaveWay })),
+    relaxations: standing(report.relaxations).map(({ date, slot, gaveWay }) => ({
+      date,
+      slot,
+      gaveWay,
+    })),
     singleCandidate: standing(report.singleCandidate).map(({ date, slot }) => ({ date, slot })),
     pantry: report.pantry,
   };

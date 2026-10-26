@@ -47,17 +47,28 @@ describe('the run that fills a language recipes lack, in the panel', () => {
     vi.restoreAllMocks();
   });
 
-  it('offers the languages a recipe can lack, English not among them, and says what the run does and does not touch', async () => {
+  it('offers the languages a recipe can lack, English last, and says what the run does and does not touch', async () => {
     await renderWith();
 
     const languages = screen.getByRole('combobox', { name: text.language });
-    expect([...languages.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Polish']);
-    expect(screen.getByRole('region', { name: text.title })).toHaveTextContent("Recipes of the catalogue's own data are left as they are.");
+    expect([...languages.querySelectorAll('option')].map((option) => option.textContent)).toEqual([
+      'Polish',
+      'English',
+    ]);
+    expect(languages).toHaveValue('pl');
+    expect(screen.getByRole('region', { name: text.title })).toHaveTextContent(
+      'English is written from the language of a draft that has none',
+    );
+    expect(screen.getByRole('region', { name: text.title })).toHaveTextContent(
+      "Recipes of the catalogue's own data are left as they are.",
+    );
     expect(screen.getByRole('spinbutton', { name: text.limit })).toHaveValue(25);
   });
 
   it('starts the run for the language and the number that were chosen', async () => {
-    const start = vi.spyOn(adminApi, 'startTranslations').mockResolvedValue({ ...idle, status: 'running', total: 3 });
+    const start = vi
+      .spyOn(adminApi, 'startTranslations')
+      .mockResolvedValue({ ...idle, status: 'running', total: 3 });
     await renderWith();
 
     await userEvent.clear(screen.getByRole('spinbutton', { name: text.limit }));
@@ -69,8 +80,22 @@ describe('the run that fills a language recipes lack, in the panel', () => {
     expect(screen.getByRole('button', { name: messages.admin.curation.stop })).toBeEnabled();
   });
 
+  it('starts the run for English when English is chosen', async () => {
+    const start = vi
+      .spyOn(adminApi, 'startTranslations')
+      .mockResolvedValue({ ...idle, status: 'done', note: 'nothing-to-translate' });
+    await renderWith();
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: text.language }), 'en');
+    await userEvent.click(screen.getByRole('button', { name: text.start }));
+
+    expect(start).toHaveBeenCalledExactlyOnceWith({ locale: 'en', limit: 25 });
+  });
+
   it('asks for no more than a run takes on, and for one where nothing sensible was typed', async () => {
-    const start = vi.spyOn(adminApi, 'startTranslations').mockResolvedValue({ ...idle, status: 'done', note: 'nothing-to-translate' });
+    const start = vi
+      .spyOn(adminApi, 'startTranslations')
+      .mockResolvedValue({ ...idle, status: 'done', note: 'nothing-to-translate' });
     await renderWith();
     const most = screen.getByRole('spinbutton', { name: text.limit });
 
@@ -87,7 +112,14 @@ describe('the run that fills a language recipes lack, in the panel', () => {
   it('follows a run to its end, says what it wrote and has the queue read again', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { status, onWritten } = await renderWith({ status: 'running', processed: 1, total: 3 });
-    status.mockResolvedValue({ ...idle, status: 'done', processed: 3, total: 3, written: 2, failed: 1 });
+    status.mockResolvedValue({
+      ...idle,
+      status: 'done',
+      processed: 3,
+      total: 3,
+      written: 2,
+      failed: 1,
+    });
 
     await vi.advanceTimersByTimeAsync(1600);
 
@@ -99,17 +131,27 @@ describe('the run that fills a language recipes lack, in the panel', () => {
   it('says so when nothing lacks the language', async () => {
     await renderWith({ status: 'done', note: 'nothing-to-translate' });
 
-    expect(screen.getByRole('status')).toHaveTextContent(messages.admin.curation.runNotes['nothing-to-translate']);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      messages.admin.curation.runNotes['nothing-to-translate'],
+    );
   });
 
   it('says how a run failed, and stops one that runs', async () => {
-    const stop = vi.spyOn(adminApi, 'stopTranslations').mockResolvedValue({ ...idle, status: 'error', error: 'AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL not configured' });
+    const stop = vi.spyOn(adminApi, 'stopTranslations').mockResolvedValue({
+      ...idle,
+      status: 'error',
+      error: 'AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL not configured',
+    });
     await renderWith({ status: 'running', processed: 0, total: 2 });
 
     await userEvent.click(screen.getByRole('button', { name: messages.admin.curation.stop }));
 
     expect(stop).toHaveBeenCalledOnce();
-    expect(await screen.findByText('The run failed: AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL not configured')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'The run failed: AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL not configured',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('cannot be started where the operator set no model, and says why a start was refused', async () => {
@@ -118,7 +160,13 @@ describe('the run that fills a language recipes lack, in the panel', () => {
   });
 
   it('says that a run is under way already when another was asked for', async () => {
-    vi.spyOn(adminApi, 'startTranslations').mockRejectedValue(new ApiClientError(409, 'TRANSLATIONS_IN_PROGRESS', 'A run that fills a language is already in progress.'));
+    vi.spyOn(adminApi, 'startTranslations').mockRejectedValue(
+      new ApiClientError(
+        409,
+        'TRANSLATIONS_IN_PROGRESS',
+        'A run that fills a language is already in progress.',
+      ),
+    );
     await renderWith();
 
     await userEvent.click(screen.getByRole('button', { name: text.start }));

@@ -12,7 +12,12 @@ interface Run {
 }
 
 const idle = (): Run => ({ status: 'idle', finishedAt: null, error: null, written: 0 });
-const running = (written = 0): Run => ({ status: 'running', finishedAt: null, error: null, written });
+const running = (written = 0): Run => ({
+  status: 'running',
+  finishedAt: null,
+  error: null,
+  written,
+});
 
 describe('where a background job stands, for an API of several processes', () => {
   let t: TestApp;
@@ -35,7 +40,10 @@ describe('where a background job stands, for an API of several processes', () =>
   });
 
   /** A run in `process` that goes on until it is let go, then ends with `last`. */
-  function begunIn(process: JobState<Run>, last: Run = { status: 'done', finishedAt: '2026-01-01T00:00:00.000Z', error: null, written: 3 }) {
+  function begunIn(
+    process: JobState<Run>,
+    last: Run = { status: 'done', finishedAt: '2026-01-01T00:00:00.000Z', error: null, written: 3 },
+  ) {
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => (release = resolve));
     const over = process.during(async () => {
@@ -88,7 +96,12 @@ describe('where a background job stands, for an API of several processes', () =>
     run.release();
     await run.over;
 
-    expect(await there.read()).toEqual({ status: 'done', finishedAt: '2026-01-01T00:00:00.000Z', error: null, written: 3 });
+    expect(await there.read()).toEqual({
+      status: 'done',
+      finishedAt: '2026-01-01T00:00:00.000Z',
+      error: null,
+      written: 3,
+    });
     there.local = running();
     expect(await there.begin()).toBe(true);
     await ended(there);
@@ -111,10 +124,16 @@ describe('where a background job stands, for an API of several processes', () =>
 
   it('is seen as failed when the process that ran it has been silent, and can then be begun again', async () => {
     // A run whose process died a minute ago: it says that it runs, and nothing writes its state down any more.
-    await t.prisma.jobState.create({ data: { name: 'a run', state: { ...running(7) }, heartbeatAt: new Date(Date.now() - 60_000) } });
+    await t.prisma.jobState.create({
+      data: { name: 'a run', state: { ...running(7) }, heartbeatAt: new Date(Date.now() - 60_000) },
+    });
 
     const seen = await there.read();
-    expect(seen).toMatchObject({ status: 'error', written: 7, error: expect.stringContaining('stopped with the process') });
+    expect(seen).toMatchObject({
+      status: 'error',
+      written: 7,
+      error: expect.stringContaining('stopped with the process'),
+    });
     expect(seen.finishedAt).not.toBeNull();
 
     there.local = running();
@@ -123,7 +142,12 @@ describe('where a background job stands, for an API of several processes', () =>
   });
 
   it('keeps a state that no run led to, for the panel to show', async () => {
-    here.local = { status: 'error', finishedAt: '2026-01-01T00:00:00.000Z', error: 'not configured', written: 0 };
+    here.local = {
+      status: 'error',
+      finishedAt: '2026-01-01T00:00:00.000Z',
+      error: 'not configured',
+      written: 0,
+    };
     await here.settle();
 
     expect(await there.read()).toMatchObject({ status: 'error', error: 'not configured' });

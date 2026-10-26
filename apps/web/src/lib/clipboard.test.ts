@@ -23,7 +23,9 @@ describe('putting a text on the clipboard', () => {
   });
 
   it('says that it is not when the browser refuses', async () => {
-    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('not allowed')) } });
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('not allowed')) },
+    });
 
     expect(await copyText('rice')).toBe(false);
   });

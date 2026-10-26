@@ -35,7 +35,13 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
 const withoutUndefined = (data: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
 
-function makePrisma(overrides: Record<string, unknown> = {}, account: { emailVerified: boolean; operatorAiApprovedAt: Date | null } = { emailVerified: true, operatorAiApprovedAt: null }) {
+function makePrisma(
+  overrides: Record<string, unknown> = {},
+  account: { emailVerified: boolean; operatorAiApprovedAt: Date | null } = {
+    emailVerified: true,
+    operatorAiApprovedAt: null,
+  },
+) {
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   return {
     /** How the account was changed in the transaction. */
@@ -44,9 +50,11 @@ function makePrisma(overrides: Record<string, unknown> = {}, account: { emailVer
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn().mockResolvedValue(null),
       // As the database answers for an account that had no row for the provider: a column that was not written is null.
-      upsert: vi.fn().mockImplementation((args: { create: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'cfg-1', encryptedKey: null, ...withoutUndefined(args.create) }),
-      ),
+      upsert: vi
+        .fn()
+        .mockImplementation((args: { create: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'cfg-1', encryptedKey: null, ...withoutUndefined(args.create) }),
+        ),
       delete: vi.fn().mockResolvedValue({}),
       count: vi.fn().mockResolvedValue(0),
     },
@@ -95,7 +103,10 @@ describe('AiKeyService.upsert', () => {
     expect(created.encryptedKey).toBeTypeOf('string');
     expect(created.encryptedKey).not.toContain('sk-secret-123');
     // Round-trips back to the original under the configured key.
-    expect(openKey(created.encryptedKey as string, ENC_KEY, 'user-1')).toEqual({ ok: true, key: 'sk-secret-123' });
+    expect(openKey(created.encryptedKey as string, ENC_KEY, 'user-1')).toEqual({
+      ok: true,
+      key: 'sk-secret-123',
+    });
     // Sealed for the account it belongs to: in another account's row it does not open.
     expect(openKey(created.encryptedKey as string, ENC_KEY, 'user-2').ok).toBe(false);
     expect(dto.keyUnreadable).toBe(false);
@@ -111,7 +122,9 @@ describe('AiKeyService.upsert', () => {
       enabled: true,
     } as never);
     expect(prisma.aiProviderConfig.upsert).toHaveBeenCalled();
-    expect(prisma.aiProviderConfig.upsert.mock.calls[0][0].create.baseUrl).toBe('http://ollama:11434');
+    expect(prisma.aiProviderConfig.upsert.mock.calls[0][0].create.baseUrl).toBe(
+      'http://ollama:11434',
+    );
   });
 
   it('rejects an internal Ollama baseUrl under the default allowlist policy (SSRF)', async () => {
@@ -187,7 +200,9 @@ describe('AiKeyService.upsert', () => {
 describe('AiKeyService.remove', () => {
   it('rejects removing a config the user does not own', async () => {
     const prisma = makePrisma();
-    prisma.aiProviderConfig.findUnique = vi.fn().mockResolvedValue({ id: 'cfg-1', userId: 'other' });
+    prisma.aiProviderConfig.findUnique = vi
+      .fn()
+      .mockResolvedValue({ id: 'cfg-1', userId: 'other' });
     const service = makeService(prisma);
     await expect(service.remove('user-1', 'cfg-1')).rejects.toBeInstanceOf(NotFoundException);
   });
@@ -203,7 +218,9 @@ describe('AiKeyService.remove', () => {
 
   it('deletes an owned config', async () => {
     const prisma = makePrisma();
-    prisma.aiProviderConfig.findUnique = vi.fn().mockResolvedValue({ id: 'cfg-1', userId: 'user-1' });
+    prisma.aiProviderConfig.findUnique = vi
+      .fn()
+      .mockResolvedValue({ id: 'cfg-1', userId: 'user-1' });
     const service = makeService(prisma);
     await expect(service.remove('user-1', 'cfg-1')).resolves.toBeUndefined();
     expect(prisma.$transaction).toHaveBeenCalled();
@@ -212,20 +229,36 @@ describe('AiKeyService.remove', () => {
   it("puts an account whose last config went on the operator's provider where the operator lets it, and turns AI off where not", async () => {
     const approved = makePrisma({}, { emailVerified: false, operatorAiApprovedAt: new Date() });
     const unapproved = makePrisma({}, { emailVerified: true, operatorAiApprovedAt: null });
-    for (const prisma of [approved, unapproved]) prisma.aiProviderConfig.findUnique = vi.fn().mockResolvedValue({ id: 'cfg-1', userId: 'user-1' });
+    for (const prisma of [approved, unapproved])
+      prisma.aiProviderConfig.findUnique = vi
+        .fn()
+        .mockResolvedValue({ id: 'cfg-1', userId: 'user-1' });
 
     await makeService(approved).remove('user-1', 'cfg-1');
     await makeService(unapproved).remove('user-1', 'cfg-1');
 
-    expect(approved.accountUpdates).toHaveBeenCalledWith({ where: { id: 'user-1', aiMode: 'byok' }, data: { aiMode: 'admin' } });
-    expect(unapproved.accountUpdates).toHaveBeenCalledWith({ where: { id: 'user-1', aiMode: 'byok' }, data: { aiMode: 'none' } });
+    expect(approved.accountUpdates).toHaveBeenCalledWith({
+      where: { id: 'user-1', aiMode: 'byok' },
+      data: { aiMode: 'admin' },
+    });
+    expect(unapproved.accountUpdates).toHaveBeenCalledWith({
+      where: { id: 'user-1', aiMode: 'byok' },
+      data: { aiMode: 'none' },
+    });
   });
 });
 
 describe('AiKeyService.list', () => {
   it('flags a stored key that can no longer be read, and never returns a key', async () => {
     const prisma = makePrisma();
-    const row = { id: 'cfg', userId: 'user-1', model: 'm', priority: 0, enabled: true, baseUrl: null };
+    const row = {
+      id: 'cfg',
+      userId: 'user-1',
+      model: 'm',
+      priority: 0,
+      enabled: true,
+      baseUrl: null,
+    };
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
       { ...row, provider: 'openai', encryptedKey: sealKey('sk-a', ENC_KEY, 'user-1') },
       { ...row, provider: 'openrouter', encryptedKey: ciphertextWrittenBefore('sk-b', ENC_KEY) },
@@ -259,7 +292,14 @@ describe('AiKeyService.resolveChain', () => {
   it('byok mode decrypts each enabled config key, ordered by priority', async () => {
     const prisma = makePrisma();
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
-      { userId: 'user-1', provider: 'openai', model: 'gpt-4o', priority: 0, encryptedKey: ciphertextWrittenBefore('sk-a', ENC_KEY), baseUrl: null },
+      {
+        userId: 'user-1',
+        provider: 'openai',
+        model: 'gpt-4o',
+        priority: 0,
+        encryptedKey: ciphertextWrittenBefore('sk-a', ENC_KEY),
+        baseUrl: null,
+      },
     ]);
     const service = makeService(prisma);
     const chain = await service.resolveChain('user-1', 'byok');
@@ -271,9 +311,30 @@ describe('AiKeyService.resolveChain', () => {
   it('byok mode marks an entry whose key cannot be read, instead of failing the whole chain', async () => {
     const prisma = makePrisma();
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
-      { userId: 'user-1', provider: 'openai', model: 'gpt-4o', priority: 0, encryptedKey: sealKey('sk-a', 'c'.repeat(64), 'user-1'), baseUrl: null },
-      { userId: 'user-1', provider: 'anthropic', model: 'claude', priority: 1, encryptedKey: '00:00:00', baseUrl: null },
-      { userId: 'user-1', provider: 'openrouter', model: 'llama', priority: 2, encryptedKey: sealKey('sk-c', ENC_KEY, 'user-1'), baseUrl: null },
+      {
+        userId: 'user-1',
+        provider: 'openai',
+        model: 'gpt-4o',
+        priority: 0,
+        encryptedKey: sealKey('sk-a', 'c'.repeat(64), 'user-1'),
+        baseUrl: null,
+      },
+      {
+        userId: 'user-1',
+        provider: 'anthropic',
+        model: 'claude',
+        priority: 1,
+        encryptedKey: '00:00:00',
+        baseUrl: null,
+      },
+      {
+        userId: 'user-1',
+        provider: 'openrouter',
+        model: 'llama',
+        priority: 2,
+        encryptedKey: sealKey('sk-c', ENC_KEY, 'user-1'),
+        baseUrl: null,
+      },
     ]);
     const service = makeService(prisma);
 
@@ -289,8 +350,20 @@ describe('AiKeyService.resolveChain', () => {
   it("byok mode marks a user's entries as theirs, and an Ollama entry on the operator's host as the operator's to pay for", async () => {
     const prisma = makePrisma();
     prisma.aiProviderConfig.findMany = vi.fn().mockResolvedValue([
-      { provider: 'ollama', model: 'own', priority: 0, encryptedKey: null, baseUrl: 'http://gpu-box:11434' },
-      { provider: 'ollama', model: 'shared', priority: 1, encryptedKey: null, baseUrl: 'http://OLLAMA.:11434/' },
+      {
+        provider: 'ollama',
+        model: 'own',
+        priority: 0,
+        encryptedKey: null,
+        baseUrl: 'http://gpu-box:11434',
+      },
+      {
+        provider: 'ollama',
+        model: 'shared',
+        priority: 1,
+        encryptedKey: null,
+        baseUrl: 'http://OLLAMA.:11434/',
+      },
       { provider: 'ollama', model: 'no-address', priority: 2, encryptedKey: null, baseUrl: null },
     ]);
     const service = makeService(prisma, makeConfig({ OLLAMA_BASE_URL: 'http://ollama:11434' }));

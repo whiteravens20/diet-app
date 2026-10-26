@@ -80,10 +80,10 @@ Contributions we will **not accept**:
 
 ### Requirements
 
-| Tool | Version |
-|---|---|
-| Node.js | ≥ 24.0.0 |
-| npm | bundled with Node.js |
+| Tool                    | Version                                    |
+| ----------------------- | ------------------------------------------ |
+| Node.js                 | ≥ 24.0.0                                   |
+| npm                     | bundled with Node.js                       |
 | Docker & Docker Compose | for PostgreSQL, and for building the image |
 
 ### Local start
@@ -158,20 +158,21 @@ infra/               # Dockerfile and Compose files
 - New persistent data means a Prisma model and a migration.
 - No dead code or commented-out blocks in submitted PRs.
 - **A comment says what the code guarantees or why it is written this way.** No ticket, feature or phase identifiers, no history of how the code got here, and no pointers to documents that are not in the repository. The same goes for test names and documentation.
-- Match the existing code style; ESLint is the source of truth.
+- Prettier lays out every file it reads, from the one config at the root: run `npm run format` before committing. ESLint is the source of truth for the rest.
 
 ### Linting
 
 Every workspace enforces zero warnings:
 
 ```bash
+npm run format:check             # holds every file to the layout Prettier writes
 npm run lint
 npm run data:lint                # validates the curated data in data/
 npm run knip                     # rejects exports, files and dependencies nothing uses
 node scripts/check-markers.mjs   # rejects planning labels and dangling references
 ```
 
-Fix all lint errors before opening a PR. The CI gate is `eslint --max-warnings 0`.
+Fix all lint errors before opening a PR. The CI gates are `prettier --check .` and `eslint --max-warnings 0`.
 
 ### TypeScript
 
@@ -183,13 +184,13 @@ No type errors are accepted.
 
 ### Naming conventions
 
-| Context | Convention |
-|---|---|
-| Files | `kebab-case.ts`; NestJS files carry their role (`*.controller.ts`, `*.service.ts`, `*.module.ts`) |
-| Variables / functions | `camelCase` |
-| Classes / types / interfaces | `PascalCase` |
-| Constants | `UPPER_SNAKE_CASE` |
-| Environment variables | `UPPER_SNAKE_CASE` |
+| Context                      | Convention                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| Files                        | `kebab-case.ts`; NestJS files carry their role (`*.controller.ts`, `*.service.ts`, `*.module.ts`) |
+| Variables / functions        | `camelCase`                                                                                       |
+| Classes / types / interfaces | `PascalCase`                                                                                      |
+| Constants                    | `UPPER_SNAKE_CASE`                                                                                |
+| Environment variables        | `UPPER_SNAKE_CASE`                                                                                |
 
 ### Dependencies
 
@@ -335,6 +336,7 @@ Before opening a PR that touches security-relevant code, confirm the following i
 - [ ] No new unvalidated environment variable is introduced
 - [ ] `npm audit` shows no new high/critical findings
 - [ ] All tests pass
+- [ ] `npm run format:check` passes
 - [ ] ESLint passes with zero warnings
 - [ ] TypeScript compiles with zero errors
 ```

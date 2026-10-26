@@ -49,7 +49,8 @@ describe('the links an account is sent by mail', () => {
     await users.requestEmailChange(user.id, { newEmail: to, currentPassword: password });
     return mailbox.tokenFor(to);
   };
-  const reset = (token: string, password = NEW_PASSWORD) => auth.confirmPasswordReset({ token, password });
+  const reset = (token: string, password = NEW_PASSWORD) =>
+    auth.confirmPasswordReset({ token, password });
   const refusedAs = (error: string) => ({ response: { error } });
   const signsInWith = async (email: string, password: string): Promise<boolean> =>
     auth.login({ email, password }).then(
@@ -59,9 +60,14 @@ describe('the links an account is sent by mail', () => {
 
   describe('a new password', () => {
     it('set by the owner of the account, ends every session of it and is the only one that signs in', async () => {
-      await users.changePassword(user.id, { currentPassword: user.password, newPassword: NEW_PASSWORD });
+      await users.changePassword(user.id, {
+        currentPassword: user.password,
+        newPassword: NEW_PASSWORD,
+      });
 
-      await expect(sessions.refresh(user.refreshToken)).rejects.toMatchObject(refusedAs('INVALID_REFRESH'));
+      await expect(sessions.refresh(user.refreshToken)).rejects.toMatchObject(
+        refusedAs('INVALID_REFRESH'),
+      );
       expect(await signsInWith(user.email, NEW_PASSWORD)).toBe(true);
       expect(await signsInWith(user.email, user.password)).toBe(false);
     });
@@ -69,12 +75,19 @@ describe('the links an account is sent by mail', () => {
     it('set from a link, does the same', async () => {
       await reset(await aResetLink());
 
-      await expect(sessions.refresh(user.refreshToken)).rejects.toMatchObject(refusedAs('INVALID_REFRESH'));
+      await expect(sessions.refresh(user.refreshToken)).rejects.toMatchObject(
+        refusedAs('INVALID_REFRESH'),
+      );
       expect(await signsInWith(user.email, user.password)).toBe(false);
     });
 
     it('is not set without the present one', async () => {
-      await expect(users.changePassword(user.id, { currentPassword: 'Not-The-Passw0rd', newPassword: NEW_PASSWORD })).rejects.toMatchObject(refusedAs('INVALID_PASSWORD'));
+      await expect(
+        users.changePassword(user.id, {
+          currentPassword: 'Not-The-Passw0rd',
+          newPassword: NEW_PASSWORD,
+        }),
+      ).rejects.toMatchObject(refusedAs('INVALID_PASSWORD'));
 
       expect(await signsInWith(user.email, user.password)).toBe(true);
       await expect(sessions.refresh(user.refreshToken)).resolves.toBeDefined();
@@ -88,7 +101,9 @@ describe('the links an account is sent by mail', () => {
       await reset(link);
 
       expect(await signsInWith(user.email, NEW_PASSWORD)).toBe(true);
-      await expect(reset(link, 'Yet-Another-Passw0rd-2')).rejects.toMatchObject(refusedAs('INVALID_RESET_TOKEN'));
+      await expect(reset(link, 'Yet-Another-Passw0rd-2')).rejects.toMatchObject(
+        refusedAs('INVALID_RESET_TOKEN'),
+      );
       expect(await signsInWith(user.email, NEW_PASSWORD)).toBe(true);
     });
 
@@ -98,7 +113,9 @@ describe('the links an account is sent by mail', () => {
       const results = await race(2, (i) => reset(link, `Raced-Passw0rd-${i}`));
 
       expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-      expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: refusedAs('INVALID_RESET_TOKEN') });
+      expect(results.find((result) => result.status === 'rejected')).toMatchObject({
+        reason: refusedAs('INVALID_RESET_TOKEN'),
+      });
     });
 
     it('stops working when another is asked for', async () => {
@@ -113,9 +130,14 @@ describe('the links an account is sent by mail', () => {
     it('stops working when the password is changed by its owner', async () => {
       const link = await aResetLink();
 
-      await users.changePassword(user.id, { currentPassword: user.password, newPassword: NEW_PASSWORD });
+      await users.changePassword(user.id, {
+        currentPassword: user.password,
+        newPassword: NEW_PASSWORD,
+      });
 
-      await expect(reset(link, 'Yet-Another-Passw0rd-2')).rejects.toMatchObject(refusedAs('INVALID_RESET_TOKEN'));
+      await expect(reset(link, 'Yet-Another-Passw0rd-2')).rejects.toMatchObject(
+        refusedAs('INVALID_RESET_TOKEN'),
+      );
     });
 
     it('stops working when the address of the account has changed', async () => {
@@ -134,7 +156,9 @@ describe('the links an account is sent by mail', () => {
       await auth.confirmEmailChange(link);
 
       expect(await signsInWith('moved@example.test', user.password)).toBe(true);
-      await expect(auth.confirmEmailChange(link)).rejects.toMatchObject(refusedAs('INVALID_EMAIL_CHANGE_TOKEN'));
+      await expect(auth.confirmEmailChange(link)).rejects.toMatchObject(
+        refusedAs('INVALID_EMAIL_CHANGE_TOKEN'),
+      );
     });
 
     it('moves it once even when it is followed twice at the same moment', async () => {
@@ -150,9 +174,14 @@ describe('the links an account is sent by mail', () => {
       const link = await aChangeLink('taken-over@example.test');
 
       // The owner notices and changes the password.
-      await users.changePassword(user.id, { currentPassword: user.password, newPassword: NEW_PASSWORD });
+      await users.changePassword(user.id, {
+        currentPassword: user.password,
+        newPassword: NEW_PASSWORD,
+      });
 
-      await expect(auth.confirmEmailChange(link)).rejects.toMatchObject(refusedAs('INVALID_EMAIL_CHANGE_TOKEN'));
+      await expect(auth.confirmEmailChange(link)).rejects.toMatchObject(
+        refusedAs('INVALID_EMAIL_CHANGE_TOKEN'),
+      );
       expect(await signsInWith(user.email, NEW_PASSWORD)).toBe(true);
       expect(await signsInWith('taken-over@example.test', NEW_PASSWORD)).toBe(false);
     });
@@ -162,14 +191,18 @@ describe('the links an account is sent by mail', () => {
 
       await reset(await aResetLink());
 
-      await expect(auth.confirmEmailChange(link)).rejects.toMatchObject(refusedAs('INVALID_EMAIL_CHANGE_TOKEN'));
+      await expect(auth.confirmEmailChange(link)).rejects.toMatchObject(
+        refusedAs('INVALID_EMAIL_CHANGE_TOKEN'),
+      );
     });
 
     it('stops working when another address is asked for, or the same one again', async () => {
       const first = await aChangeLink('first@example.test');
       const second = await aChangeLink('second@example.test');
 
-      await expect(auth.confirmEmailChange(first)).rejects.toMatchObject(refusedAs('INVALID_EMAIL_CHANGE_TOKEN'));
+      await expect(auth.confirmEmailChange(first)).rejects.toMatchObject(
+        refusedAs('INVALID_EMAIL_CHANGE_TOKEN'),
+      );
       await auth.confirmEmailChange(second);
       expect(await signsInWith('second@example.test', user.password)).toBe(true);
     });
@@ -181,8 +214,12 @@ describe('the links an account is sent by mail', () => {
 
       await auth.verifyEmail(link);
 
-      expect((await t.prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified).toBe(true);
-      await expect(auth.verifyEmail(link)).rejects.toMatchObject(refusedAs('INVALID_VERIFICATION_TOKEN'));
+      expect(
+        (await t.prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified,
+      ).toBe(true);
+      await expect(auth.verifyEmail(link)).rejects.toMatchObject(
+        refusedAs('INVALID_VERIFICATION_TOKEN'),
+      );
     });
 
     it('is for the address it was sent to: it confirms nothing once the account has moved', async () => {
@@ -190,7 +227,9 @@ describe('the links an account is sent by mail', () => {
 
       await auth.confirmEmailChange(await aChangeLink('moved@example.test'));
 
-      await expect(auth.verifyEmail(link)).rejects.toMatchObject(refusedAs('INVALID_VERIFICATION_TOKEN'));
+      await expect(auth.verifyEmail(link)).rejects.toMatchObject(
+        refusedAs('INVALID_VERIFICATION_TOKEN'),
+      );
     });
   });
 
@@ -211,9 +250,19 @@ describe('the links an account is sent by mail', () => {
       expect(await t.prisma.passwordResetToken.count({ where: { userId: user.id } })).toBe(1);
 
       // The account's own address in another case is no new address, and somebody else's is taken.
-      await expect(users.requestEmailChange(user.id, { newEmail: 'SPELLED.OUT@example.test', currentPassword: user.password })).rejects.toMatchObject(refusedAs('EMAIL_TAKEN'));
+      await expect(
+        users.requestEmailChange(user.id, {
+          newEmail: 'SPELLED.OUT@example.test',
+          currentPassword: user.password,
+        }),
+      ).rejects.toMatchObject(refusedAs('EMAIL_TAKEN'));
       const other = await aUser(t, { email: 'other@example.test' });
-      await expect(users.requestEmailChange(other.id, { newEmail: ' Spelled.Out@Example.TEST', currentPassword: other.password })).rejects.toMatchObject(refusedAs('EMAIL_TAKEN'));
+      await expect(
+        users.requestEmailChange(other.id, {
+          newEmail: ' Spelled.Out@Example.TEST',
+          currentPassword: other.password,
+        }),
+      ).rejects.toMatchObject(refusedAs('EMAIL_TAKEN'));
 
       // And a new address is kept in one form, however it was typed.
       await auth.confirmEmailChange(await aChangeLinkFor(other, 'Moved.Again@Example.Test'));

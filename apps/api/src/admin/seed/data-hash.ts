@@ -93,7 +93,9 @@ export function readSeedInputs(dir = resolveDataDir()): SeedInputs {
   for (const subdir of SEED_DIRS) {
     const subPath = join(dir, subdir);
     if (!existsSync(subPath) || !statSync(subPath).isDirectory()) continue;
-    for (const name of readdirSync(subPath).filter((f) => f.endsWith('.json')).sort()) {
+    for (const name of readdirSync(subPath)
+      .filter((f) => f.endsWith('.json'))
+      .sort()) {
       batches.push({ path: `${subdir}/${name}`, bytes: readFileSync(join(subPath, name)) });
     }
   }

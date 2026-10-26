@@ -17,7 +17,10 @@ describe('how well the catalogue serves a diet at a number of meals a day', () =
 
   it('is thin under what a week without too many repeats needs', () => {
     expect(supplyOf(depth, 'vegan', 4)).toMatchObject({ supply: 'thin', recipes: 1 });
-    expect(supplyOf(depth, 'vegan', 3)).toMatchObject({ supply: 'thin', recipes: VARIETY_DEPTH - 1 });
+    expect(supplyOf(depth, 'vegan', 3)).toMatchObject({
+      supply: 'thin',
+      recipes: VARIETY_DEPTH - 1,
+    });
   });
 
   it('is enough from there on', () => {

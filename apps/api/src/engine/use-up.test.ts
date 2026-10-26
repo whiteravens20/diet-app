@@ -11,18 +11,33 @@ const PACKS = new Map([
   ['yogurt', 400],
 ]);
 const amounts = (of: Record<string, number>): Map<string, number> => new Map(Object.entries(of));
-const recipe = (recipeId: string, caloriesPerServing: number, of: Record<string, number>): UseUpCandidate => ({ recipeId, caloriesPerServing, amounts: amounts(of) });
-const meal = (id: string, recipeId: string, held: number, of: Record<string, number>, candidates: UseUpCandidate[] = []): UseUpMeal => ({ id, recipeId, held, amounts: amounts(of), candidates });
+const recipe = (
+  recipeId: string,
+  caloriesPerServing: number,
+  of: Record<string, number>,
+): UseUpCandidate => ({ recipeId, caloriesPerServing, amounts: amounts(of) });
+const meal = (
+  id: string,
+  recipeId: string,
+  held: number,
+  of: Record<string, number>,
+  candidates: UseUpCandidate[] = [],
+): UseUpMeal => ({ id, recipeId, held, amounts: amounts(of), candidates });
 const NOTHING = new Map<string, number>();
 
 describe('the swaps that use up what a plan opens', () => {
   /** A dinner of beef that takes 180 g of a pack of 500, and a lunch of lentils that could be beef as well. */
   const beefDinner = meal('dinner-1', 'beef-pasta', 700, { beef: 180, pasta: 90 });
   const beefBowl = recipe('beef-bowl', 700, { beef: 240, rice: 80 });
-  const lentilLunch = (candidates: UseUpCandidate[]) => meal('lunch-2', 'lentil-soup', 700, { lentils: 90 }, candidates);
+  const lentilLunch = (candidates: UseUpCandidate[]) =>
+    meal('lunch-2', 'lentil-soup', 700, { lentils: 90 }, candidates);
 
   it('are the recipes that take from a pack the menu leaves more than a fifth of', () => {
-    const [swap, ...others] = useUpSwaps([beefDinner, lentilLunch([beefBowl, recipe('veg-curry', 700, { rice: 90 })])], NOTHING, PACKS);
+    const [swap, ...others] = useUpSwaps(
+      [beefDinner, lentilLunch([beefBowl, recipe('veg-curry', 700, { rice: 90 })])],
+      NOTHING,
+      PACKS,
+    );
 
     expect(others).toEqual([]);
     expect(swap).toMatchObject({ mealId: 'lunch-2', recipeId: 'beef-bowl', servings: 1 });
@@ -34,7 +49,11 @@ describe('the swaps that use up what a plan opens', () => {
 
   it('size the recipe to what the meal holds, as a swap does', () => {
     // A lunch of 875 kcal takes a serving and a quarter of the bowl: 300 g of beef.
-    const [swap] = useUpSwaps([beefDinner, meal('lunch-2', 'lentil-soup', 875, { lentils: 110 }, [beefBowl])], NOTHING, PACKS);
+    const [swap] = useUpSwaps(
+      [beefDinner, meal('lunch-2', 'lentil-soup', 875, { lentils: 110 }, [beefBowl])],
+      NOTHING,
+      PACKS,
+    );
 
     expect(swap).toMatchObject({ servings: 1.25, after: { bought: 500, used: 480, wasted: 0 } });
     expect(swap!.takes.get('beef')).toEqual({ amount: 300, left: 20 });
@@ -57,7 +76,9 @@ describe('the swaps that use up what a plan opens', () => {
 
   it('count what the swap takes away with the recipe that leaves: a meal that held the pack does not use it up by leaving', () => {
     // The only beef of the menu is the dinner's: another beef dish in its place changes nothing.
-    const dinner = meal('dinner-1', 'beef-pasta', 700, { beef: 180 }, [recipe('beef-stew', 700, { beef: 190 })]);
+    const dinner = meal('dinner-1', 'beef-pasta', 700, { beef: 180 }, [
+      recipe('beef-stew', 700, { beef: 190 }),
+    ]);
 
     expect(useUpSwaps([dinner], NOTHING, PACKS)).toEqual([]);
   });
@@ -66,13 +87,20 @@ describe('the swaps that use up what a plan opens', () => {
     // Yesterday's dinner, eaten, opened the beef: today's lunch can still use it.
     const [swap] = useUpSwaps([lentilLunch([beefBowl])], amounts({ beef: 180 }), PACKS);
 
-    expect(swap).toMatchObject({ mealId: 'lunch-2', recipeId: 'beef-bowl', before: { used: 180, wasted: 1 }, after: { used: 420, wasted: 0 } });
+    expect(swap).toMatchObject({
+      mealId: 'lunch-2',
+      recipeId: 'beef-bowl',
+      before: { used: 180, wasted: 1 },
+      after: { used: 420, wasted: 0 },
+    });
   });
 
   it('give one swap for a meal, the one that leaves the least, and the meals in the order of what is left', () => {
     const feta = meal('breakfast-1', 'feta-toast', 400, { feta: 40 });
     const lunch = lentilLunch([recipe('beef-wrap', 700, { beef: 120 }), beefBowl]);
-    const snack = meal('snack-2', 'apple', 300, { apple: 180 }, [recipe('feta-plate', 300, { feta: 110 })]);
+    const snack = meal('snack-2', 'apple', 300, { apple: 180 }, [
+      recipe('feta-plate', 300, { feta: 110 }),
+    ]);
 
     const swaps = useUpSwaps([beefDinner, feta, lunch, snack], NOTHING, PACKS);
 
@@ -85,7 +113,9 @@ describe('the swaps that use up what a plan opens', () => {
   });
 
   it('give no more than asked for', () => {
-    const lunches = Array.from({ length: 8 }, (_, index) => meal(`lunch-${index}`, 'lentil-soup', 700, { lentils: 90 }, [beefBowl]));
+    const lunches = Array.from({ length: 8 }, (_, index) =>
+      meal(`lunch-${index}`, 'lentil-soup', 700, { lentils: 90 }, [beefBowl]),
+    );
 
     expect(useUpSwaps([beefDinner, ...lunches], NOTHING, PACKS)).toHaveLength(5);
     expect(useUpSwaps([beefDinner, ...lunches], NOTHING, PACKS, 2)).toHaveLength(2);
@@ -101,6 +131,10 @@ describe('the swaps that use up what a plan opens', () => {
 
 describe('what a menu buys in packs, in three numbers', () => {
   it('is what it buys, what it uses, and how many packs it leaves more than a fifth of', () => {
-    expect(tallyOf(packUse(amounts({ beef: 180, feta: 170, yogurt: 100 }), PACKS))).toEqual({ bought: 1100, used: 450, wasted: 2 });
+    expect(tallyOf(packUse(amounts({ beef: 180, feta: 170, yogurt: 100 }), PACKS))).toEqual({
+      bought: 1100,
+      used: 450,
+      wasted: 2,
+    });
   });
 });

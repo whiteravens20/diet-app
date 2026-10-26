@@ -40,7 +40,13 @@ export function weightSeries(entries: readonly WeightEntry[]): WeightPoint[] {
   const days = [...byDay.keys()].sort();
   return days.map((day) => {
     const from = daysBefore(day, 6);
-    const week = days.filter((other) => other >= from && other <= day).map((other) => byDay.get(other)!.kg);
-    return { date: day, kg: hundredths(byDay.get(day)!.kg), ma7: hundredths(week.reduce((sum, kg) => sum + kg, 0) / week.length) };
+    const week = days
+      .filter((other) => other >= from && other <= day)
+      .map((other) => byDay.get(other)!.kg);
+    return {
+      date: day,
+      kg: hundredths(byDay.get(day)!.kg),
+      ma7: hundredths(week.reduce((sum, kg) => sum + kg, 0) / week.length),
+    };
   });
 }

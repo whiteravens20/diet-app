@@ -17,11 +17,19 @@ function makePrisma(profileOwner: string | null = 'user-1') {
     },
     weightEntry: {
       findMany: vi.fn().mockResolvedValue([
-        { id: 'w1', profileId: 'p1', kg: 80, recordedAt: new Date('2026-06-01'), createdAt: new Date('2026-06-01') },
+        {
+          id: 'w1',
+          profileId: 'p1',
+          kg: 80,
+          recordedAt: new Date('2026-06-01'),
+          createdAt: new Date('2026-06-01'),
+        },
       ]),
-      create: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'w-new', createdAt: new Date(), ...args.data }),
-      ),
+      create: vi
+        .fn()
+        .mockImplementation((args: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'w-new', createdAt: new Date(), ...args.data }),
+        ),
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   };
@@ -40,7 +48,9 @@ describe('WeightsService ownership guard', () => {
 
   it('rejects listing another user’s profile', async () => {
     prisma = makePrisma('someone-else');
-    await expect(makeService(prisma).list('user-1', 'p1')).rejects.toMatchObject({ response: { error: 'PROFILE_NOT_FOUND' } });
+    await expect(makeService(prisma).list('user-1', 'p1')).rejects.toMatchObject({
+      response: { error: 'PROFILE_NOT_FOUND' },
+    });
   });
 
   it('throws PROFILE_NOT_FOUND when the profile is missing', async () => {
@@ -77,12 +87,15 @@ describe('WeightsService happy paths', () => {
 
   it('uses the provided recordedAt when given', async () => {
     const prisma = makePrisma('user-1');
-    await makeService(prisma).create('user-1', 'p1', { kg: 79.5, recordedAt: '2026-06-10T00:00:00.000Z' } as never);
+    await makeService(prisma).create('user-1', 'p1', {
+      kg: 79.5,
+      recordedAt: '2026-06-10T00:00:00.000Z',
+    } as never);
     const data = prisma.weightEntry.create.mock.calls[0][0].data;
     expect((data.recordedAt as Date).toISOString()).toBe('2026-06-10T00:00:00.000Z');
   });
 
-  it('throws WEIGHT_ENTRY_NOT_FOUND when no entry of that id is the account\'s', async () => {
+  it("throws WEIGHT_ENTRY_NOT_FOUND when no entry of that id is the account's", async () => {
     const prisma = makePrisma('user-1');
     prisma.weightEntry.deleteMany = vi.fn().mockResolvedValue({ count: 0 });
     await expect(makeService(prisma).remove('user-1', 'missing')).rejects.toMatchObject({
@@ -93,6 +106,8 @@ describe('WeightsService happy paths', () => {
   it('deletes an entry only as one of a profile of the account', async () => {
     const prisma = makePrisma('user-1');
     await makeService(prisma).remove('user-1', 'w1');
-    expect(prisma.weightEntry.deleteMany).toHaveBeenCalledWith({ where: { id: 'w1', profile: { userId: 'user-1' } } });
+    expect(prisma.weightEntry.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'w1', profile: { userId: 'user-1' } },
+    });
   });
 });

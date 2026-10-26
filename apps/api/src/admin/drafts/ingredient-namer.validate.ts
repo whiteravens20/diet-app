@@ -61,8 +61,7 @@ interface IngredientNamerValidationFail {
 }
 
 export type IngredientNamerValidationResult =
-  | IngredientNamerValidationOk
-  | IngredientNamerValidationFail;
+  IngredientNamerValidationOk | IngredientNamerValidationFail;
 
 const LLM_YAP_PATTERNS = [
   /\bnote\s*:/i,
@@ -157,7 +156,10 @@ export function validateIngredientNamer(
     }
 
     // What every name is held to, whoever wrote it: plain text of a length.
-    const checked = checkIngredientName({ name: cleanName, storageHint: cleanStorage }, targetLocales);
+    const checked = checkIngredientName(
+      { name: cleanName, storageHint: cleanStorage },
+      targetLocales,
+    );
     if (!checked.ok) {
       const first = checked.problems[0]!;
       return { ok: false, reason: first.rule, key: `${slug}.${first.path}` };
@@ -179,7 +181,8 @@ export function validateIngredientNamer(
   // A name for something that was not asked about names nothing.
   for (const key of outKeys) if (!(key in source)) refused.push({ reason: 'extra-keys', key });
 
-  if (Object.keys(sanitised).length === 0) return { ok: false, ...(refused[0] ?? { reason: 'missing-keys' }) };
+  if (Object.keys(sanitised).length === 0)
+    return { ok: false, ...(refused[0] ?? { reason: 'missing-keys' }) };
   return { ok: true, suggestions: sanitised, refused };
 }
 

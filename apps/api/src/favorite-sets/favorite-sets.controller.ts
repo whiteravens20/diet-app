@@ -12,7 +12,14 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApplyFavoriteSetRequest, CreateFavoriteSetRequest, FavoriteSet, MealPlan, UpdateFavoriteSetRequest, type Locale } from '@diet-app/shared';
+import {
+  ApplyFavoriteSetRequest,
+  CreateFavoriteSetRequest,
+  FavoriteSet,
+  MealPlan,
+  UpdateFavoriteSetRequest,
+  type Locale,
+} from '@diet-app/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
@@ -56,7 +63,10 @@ export class FavoriteSetsController {
   /** Delete a set. */
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() user: RequestUser, @Param('id', requiredUuid) id: string): Promise<void> {
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param('id', requiredUuid) id: string,
+  ): Promise<void> {
     await this.sets.remove(user.id, id);
   }
 

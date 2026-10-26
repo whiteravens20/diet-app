@@ -18,10 +18,12 @@ const MEALS = MEAL_SLOTS_BY_COUNT[5]!;
  * place of what stands in it: text for a screen reader alone, which is taken
  * out of the flow, would otherwise stand out of the box and widen the page.
  */
-const SCROLLS = 'relative overflow-x-auto rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const SCROLLS =
+  'relative overflow-x-auto rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 /** Protein, fat and carbohydrate as whole percentages of a day's energy. */
-const shares = (of: MacroShares) => [of.protein, of.fat, of.carbs].map((share) => Math.round(share * 100)).join(' / ');
+const shares = (of: MacroShares) =>
+  [of.protein, of.fat, of.carbs].map((share) => Math.round(share * 100)).join(' / ');
 
 /**
  * How many recipes each diet has for each meal, where the empty cells and the
@@ -42,7 +44,9 @@ export function CoverageCard({
 }) {
   const t = useTranslations('admin.coverage');
   // A diet that takes any recipe has no pair of its own to fill.
-  const pairs = DIET_TYPES.filter((diet) => diet !== 'custom').flatMap((diet) => MEALS.map((meal) => ({ recipes: coverage[diet][meal], drafts: waiting[diet][meal] })));
+  const pairs = DIET_TYPES.filter((diet) => diet !== 'custom').flatMap((diet) =>
+    MEALS.map((meal) => ({ recipes: coverage[diet][meal], drafts: waiting[diet][meal] })),
+  );
   const below = pairs.filter((pair) => pair.recipes < target).length;
   // The pairs that stay short once every draft that waits has shipped.
   const belowWithDrafts = pairs.filter((pair) => pair.recipes + pair.drafts < target).length;
@@ -56,7 +60,12 @@ export function CoverageCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">{t('explain', { enough: VARIETY_DEPTH })}</p>
-        <div className={SCROLLS} tabIndex={0} role="group" aria-label={t('scrollable', { table: t('title') })}>
+        <div
+          className={SCROLLS}
+          tabIndex={0}
+          role="group"
+          aria-label={t('scrollable', { table: t('title') })}
+        >
           <table className="w-full text-sm" aria-label={t('title')}>
             <thead>
               <tr className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -108,13 +117,26 @@ export function CoverageCard({
             </tbody>
           </table>
         </div>
-        <p className="text-sm text-muted-foreground">{t('gap', { below, pairs: pairs.length, target })}</p>
-        {anyWaits && <p className="text-sm text-muted-foreground">{t('waiting', { below: belowWithDrafts, target })}</p>}
+        <p className="text-sm text-muted-foreground">
+          {t('gap', { below, pairs: pairs.length, target })}
+        </p>
+        {anyWaits && (
+          <p className="text-sm text-muted-foreground">
+            {t('waiting', { below: belowWithDrafts, target })}
+          </p>
+        )}
 
         <h3 className="pt-2 text-sm font-medium">{t('macrosTitle')}</h3>
-        <p className="text-sm text-muted-foreground">{t('macrosExplain', { points: Math.round(macros.outOfReach * 100) })}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('macrosExplain', { points: Math.round(macros.outOfReach * 100) })}
+        </p>
         <p className="text-sm text-muted-foreground">{t('packsExplain')}</p>
-        <div className={SCROLLS} tabIndex={0} role="group" aria-label={t('scrollable', { table: t('macrosTitle') })}>
+        <div
+          className={SCROLLS}
+          tabIndex={0}
+          role="group"
+          aria-label={t('scrollable', { table: t('macrosTitle') })}
+        >
           <table className="w-full text-sm" aria-label={t('macrosTitle')}>
             <thead>
               <tr className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -133,27 +155,39 @@ export function CoverageCard({
               </tr>
             </thead>
             <tbody>
-              {DIET_TYPES
-                .filter((diet) => diet !== 'custom')
-                .map((diet) => {
-                  const { target: aim, reached } = macros.diets[diet];
-                  const far = reached !== null && reached.distance > macros.outOfReach;
-                  return (
-                    <tr key={diet} className="border-t border-border">
-                      <th scope="row" className="py-1.5 pr-3 text-left font-normal">
-                        {tDiet(diet)}
-                      </th>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{shares(aim)}</td>
-                      <td className={cn('px-2 py-1.5 text-right tabular-nums', far && 'font-semibold text-warning', reached === null && 'text-destructive')}>
-                        {reached ? shares(reached) : t('macrosNoPlan')}
-                        {far && <span className="ml-2 font-normal">{t('macrosOff', { points: Math.round(reached.distance * 100) })}</span>}
-                      </td>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
-                        {reached?.packsUsed != null ? t('packsUsedShare', { percent: Math.round(reached.packsUsed * 100) }) : '–'}
-                      </td>
-                    </tr>
-                  );
-                })}
+              {DIET_TYPES.filter((diet) => diet !== 'custom').map((diet) => {
+                const { target: aim, reached } = macros.diets[diet];
+                const far = reached !== null && reached.distance > macros.outOfReach;
+                return (
+                  <tr key={diet} className="border-t border-border">
+                    <th scope="row" className="py-1.5 pr-3 text-left font-normal">
+                      {tDiet(diet)}
+                    </th>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                      {shares(aim)}
+                    </td>
+                    <td
+                      className={cn(
+                        'px-2 py-1.5 text-right tabular-nums',
+                        far && 'font-semibold text-warning',
+                        reached === null && 'text-destructive',
+                      )}
+                    >
+                      {reached ? shares(reached) : t('macrosNoPlan')}
+                      {far && (
+                        <span className="ml-2 font-normal">
+                          {t('macrosOff', { points: Math.round(reached.distance * 100) })}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                      {reached?.packsUsed != null
+                        ? t('packsUsedShare', { percent: Math.round(reached.packsUsed * 100) })
+                        : '–'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

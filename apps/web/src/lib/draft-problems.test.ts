@@ -5,7 +5,12 @@ import { draftProblemsOf, limitOf, placeOf } from './draft-problems';
 
 describe('the problems a refused draft edit carries', () => {
   it('are read from the details of the refusal', () => {
-    const details = { problems: [{ path: 'titles.pl', rule: 'markup', message: 'titles.pl holds markup' }, { path: 'servings', rule: 'servings-out-of-range' }] };
+    const details = {
+      problems: [
+        { path: 'titles.pl', rule: 'markup', message: 'titles.pl holds markup' },
+        { path: 'servings', rule: 'servings-out-of-range' },
+      ],
+    };
 
     expect(draftProblemsOf(details)).toEqual([
       { path: 'titles.pl', rule: 'markup' },
@@ -16,7 +21,11 @@ describe('the problems a refused draft edit carries', () => {
   it('are none when the refusal carries something else, or nothing', () => {
     expect(draftProblemsOf(undefined)).toEqual([]);
     expect(draftProblemsOf({ problems: 'many' })).toEqual([]);
-    expect(draftProblemsOf({ problems: [null, 'x', { path: 1, rule: 'markup' }, { path: 'titles.pl' }] })).toEqual([]);
+    expect(
+      draftProblemsOf({
+        problems: [null, 'x', { path: 1, rule: 'markup' }, { path: 'titles.pl' }],
+      }),
+    ).toEqual([]);
   });
 });
 

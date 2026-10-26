@@ -59,7 +59,11 @@ async function pageFromServer(request, path) {
     }
     return answer;
   } catch {
-    return (await pages.match(path, { ignoreVary: true })) || (await pages.match(OFFLINE_PAGE, { ignoreVary: true })) || Response.error();
+    return (
+      (await pages.match(path, { ignoreVary: true })) ||
+      (await pages.match(OFFLINE_PAGE, { ignoreVary: true })) ||
+      Response.error()
+    );
   }
 }
 
@@ -73,7 +77,12 @@ async function keepPage(path) {
   const pages = await caches.open(PAGES);
   await pages.put(path, answer.clone());
   const files = await caches.open(FILES);
-  const named = new Set(Array.from((await answer.text()).matchAll(/(?:src|href)="(\/_next\/static\/[^"]+)"/g), (found) => found[1]));
+  const named = new Set(
+    Array.from(
+      (await answer.text()).matchAll(/(?:src|href)="(\/_next\/static\/[^"]+)"/g),
+      (found) => found[1],
+    ),
+  );
   await Promise.all(
     Array.from(named, async (file) => {
       if (await files.match(file, { ignoreVary: true })) return;
@@ -97,7 +106,12 @@ self.addEventListener('activate', (event) => {
     (async () => {
       // What an earlier version of this worker kept is of no use to this one.
       for (const name of await caches.keys()) {
-        if ((name.startsWith('diet-app.pages.') || name.startsWith('diet-app.files.')) && name !== PAGES && name !== FILES) await caches.delete(name);
+        if (
+          (name.startsWith('diet-app.pages.') || name.startsWith('diet-app.files.')) &&
+          name !== PAGES &&
+          name !== FILES
+        )
+          await caches.delete(name);
       }
       await self.clients.claim();
     })(),
@@ -124,7 +138,12 @@ self.addEventListener('message', (event) => {
     (async () => {
       const pages = await caches.open(PAGES);
       for (const path of said.pages) {
-        if (typeof path !== 'string' || !A_PAGE.test(path) || (await pages.match(path, { ignoreVary: true }))) continue;
+        if (
+          typeof path !== 'string' ||
+          !A_PAGE.test(path) ||
+          (await pages.match(path, { ignoreVary: true }))
+        )
+          continue;
         await keepPage(path).catch(() => undefined);
       }
     })(),

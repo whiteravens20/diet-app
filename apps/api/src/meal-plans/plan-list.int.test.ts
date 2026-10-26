@@ -9,7 +9,8 @@ import { createTestApp, type TestApp } from '../testing/test-app.js';
 
 const DAY_MS = 86_400_000;
 /** The day `offset` days from the server's own, as the API writes dates. */
-const day = (offset: number): string => new Date(Date.now() + offset * DAY_MS).toISOString().slice(0, 10);
+const day = (offset: number): string =>
+  new Date(Date.now() + offset * DAY_MS).toISOString().slice(0, 10);
 
 describe('the list of the plans of a profile', () => {
   let t: TestApp;
@@ -38,9 +39,20 @@ describe('the list of the plans of a profile', () => {
     toCome = await aPlan(t, user, profile, { startDate: day(10), durationDays: 3 });
   });
 
-  const list = (query: Record<string, string | number> = {}, headers: Record<string, string> = {}) =>
-    t.http().get('/api/meal-plans').query({ profileId: profile.id, ...query }).set(as(user)).set(headers);
-  const listed = async (query: Record<string, string | number> = {}, headers: Record<string, string> = {}): Promise<MealPlanPage> => (await list(query, headers).expect(200)).body;
+  const list = (
+    query: Record<string, string | number> = {},
+    headers: Record<string, string> = {},
+  ) =>
+    t
+      .http()
+      .get('/api/meal-plans')
+      .query({ profileId: profile.id, ...query })
+      .set(as(user))
+      .set(headers);
+  const listed = async (
+    query: Record<string, string | number> = {},
+    headers: Record<string, string> = {},
+  ): Promise<MealPlanPage> => (await list(query, headers).expect(200)).body;
   const ids = (page: MealPlanPage): string[] => page.items.map((plan) => plan.id);
 
   it('holds each plan as a summary, the one that begins last first', async () => {
@@ -65,18 +77,29 @@ describe('the list of the plans of a profile', () => {
 
   it('says of every plan what the plan itself says of an average day', async () => {
     // A day that is skipped is no day of eating, and a meal of the user's own counts with what was typed for it.
-    const skipped = await aPlan(t, user, profile, { startDate: day(20), durationDays: 3, dayOverrides: [{ date: day(21), skip: true }] });
+    const skipped = await aPlan(t, user, profile, {
+      startDate: day(20),
+      durationDays: 3,
+      dayOverrides: [{ date: day(21), skip: true }],
+    });
     await t
       .http()
       .post(`/api/meal-plans/${skipped.id}/days/${day(20)}/custom-meal`)
       .set(as(user))
-      .send({ name: 'Cake', mealType: 'snack', nutrition: { calories: 400, protein: 5, fat: 20, carbs: 50 }, servings: 1.5 })
+      .send({
+        name: 'Cake',
+        mealType: 'snack',
+        nutrition: { calories: 400, protein: 5, fat: 20, carbs: 50 },
+        servings: 1.5,
+      })
       .expect(201);
 
     const page = await listed();
 
     for (const summary of page.items) {
-      const whole: MealPlan = (await t.http().get(`/api/meal-plans/${summary.id}`).set(as(user)).expect(200)).body;
+      const whole: MealPlan = (
+        await t.http().get(`/api/meal-plans/${summary.id}`).set(as(user)).expect(200)
+      ).body;
       expect(summary.averageDailyNutrition, summary.startDate).toEqual(whole.averageDailyNutrition);
     }
     expect(page.items[0]!.averageDailyNutrition.calories).toBeGreaterThan(0);
@@ -116,19 +139,28 @@ describe('the list of the plans of a profile', () => {
     expect(ids(await listed({ status: 'active' }))).toEqual([underWay.id]);
     expect(ids(await listed({ status: 'past' }))).toEqual([past.id]);
     expect(ids(await listed({ status: 'upcoming' }))).toEqual([toCome.id]);
-    expect(await listed({ status: 'past', pageSize: 1 })).toMatchObject({ total: 1, totalPages: 1 });
+    expect(await listed({ status: 'past', pageSize: 1 })).toMatchObject({
+      total: 1,
+      totalPages: 1,
+    });
   });
 
   it('goes by the day it is for the client: a plan that begins tomorrow is under way where it is tomorrow already', async () => {
     const tomorrow = await aPlan(t, user, profile, { startDate: day(1), durationDays: 2 });
 
     expect(ids(await listed({ status: 'upcoming' }))).toContain(tomorrow.id);
-    expect(ids(await listed({ status: 'active' }, { 'X-Client-Date': day(1) }))).toContain(tomorrow.id);
-    expect(ids(await listed({ status: 'upcoming' }, { 'X-Client-Date': day(1) }))).not.toContain(tomorrow.id);
+    expect(ids(await listed({ status: 'active' }, { 'X-Client-Date': day(1) }))).toContain(
+      tomorrow.id,
+    );
+    expect(ids(await listed({ status: 'upcoming' }, { 'X-Client-Date': day(1) }))).not.toContain(
+      tomorrow.id,
+    );
     // And a plan that ended yesterday is still under way where it is yesterday still.
     const yesterday = await aPlan(t, user, profile, { startDate: day(-2), durationDays: 2 });
     expect(ids(await listed({ status: 'past' }))).toContain(yesterday.id);
-    expect(ids(await listed({ status: 'active' }, { 'X-Client-Date': day(-1) }))).toContain(yesterday.id);
+    expect(ids(await listed({ status: 'active' }, { 'X-Client-Date': day(-1) }))).toContain(
+      yesterday.id,
+    );
   });
 
   it.each([
@@ -142,22 +174,38 @@ describe('the list of the plans of a profile', () => {
     const refused = await list(query).expect(400);
 
     expect(refused.body.error).toBe('VALIDATION_FAILED');
-    expect([...new Set(refused.body.issues.map((issue: { path: string }) => issue.path))]).toEqual([part]);
+    expect([...new Set(refused.body.issues.map((issue: { path: string }) => issue.path))]).toEqual([
+      part,
+    ]);
   });
 
   it('refuses a day the client names that it is nowhere today', async () => {
     const refused = await list({ status: 'active' }, { 'X-Client-Date': day(3) }).expect(400);
 
-    expect(refused.body).toMatchObject({ error: 'VALIDATION_FAILED', issues: [{ path: 'x-client-date' }] });
-    expect((await list({}, { 'X-Client-Date': 'today' }).expect(400)).body.error).toBe('VALIDATION_FAILED');
+    expect(refused.body).toMatchObject({
+      error: 'VALIDATION_FAILED',
+      issues: [{ path: 'x-client-date' }],
+    });
+    expect((await list({}, { 'X-Client-Date': 'today' }).expect(400)).body.error).toBe(
+      'VALIDATION_FAILED',
+    );
   });
 
-  it('is the profile\'s own: another profile of the account has its own list, and another account\'s profile is not found', async () => {
+  it("is the profile's own: another profile of the account has its own list, and another account's profile is not found", async () => {
     const second = await aProfile(t, user, { name: 'Second' });
     const other = await aUser(t);
 
     expect(await listed({ profileId: second.id })).toMatchObject({ items: [], total: 0 });
-    expect((await t.http().get('/api/meal-plans').query({ profileId: profile.id }).set(as(other)).expect(404)).body.error).toBe('PROFILE_NOT_FOUND');
+    expect(
+      (
+        await t
+          .http()
+          .get('/api/meal-plans')
+          .query({ profileId: profile.id })
+          .set(as(other))
+          .expect(404)
+      ).body.error,
+    ).toBe('PROFILE_NOT_FOUND');
     await t.http().get('/api/meal-plans').query({ profileId: profile.id }).expect(401);
   });
 });

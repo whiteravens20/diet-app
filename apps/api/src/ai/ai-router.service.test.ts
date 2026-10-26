@@ -16,10 +16,20 @@ import {
   type CompletionResult,
 } from './provider.interface.js';
 
-const OPERATION: Operation = { name: 'test-operation', maxTokens: 250, temperature: 0.1, timeoutMs: 6_000 };
+const OPERATION: Operation = {
+  name: 'test-operation',
+  maxTokens: 250,
+  temperature: 0.1,
+  timeoutMs: 6_000,
+};
 const MESSAGES = [{ role: 'user' as const, content: 'pick one' }];
 
-const answer = (text: string): CompletionResult => ({ text, promptTokens: 7, outputTokens: 3, truncated: false });
+const answer = (text: string): CompletionResult => ({
+  text,
+  promptTokens: 7,
+  outputTokens: 3,
+  truncated: false,
+});
 
 /** What one provider does when it is called; each test scripts the ones it uses. */
 type Behaviour = (opts: CompletionOptions) => Promise<CompletionResult>;
@@ -42,20 +52,18 @@ function setup(input: {
     },
   });
 
-  const chain = (input.chain ?? []).map(
-    (entry, priority): ResolvedProviderConfig => ({
-      provider: 'openai',
-      model: 'some-model',
-      priority,
-      apiKey: 'key',
-      keyUnreadable: false,
-      baseUrl: null,
-      // Unless a test says otherwise, an entry is the user's own in both senses.
-      owner: entry.mode === 'admin' ? 'operator' : 'user',
-      mode: 'byok',
-      ...entry,
-    }),
-  );
+  const chain = (input.chain ?? []).map((entry, priority): ResolvedProviderConfig => ({
+    provider: 'openai',
+    model: 'some-model',
+    priority,
+    apiKey: 'key',
+    keyUnreadable: false,
+    baseUrl: null,
+    // Unless a test says otherwise, an entry is the user's own in both senses.
+    owner: entry.mode === 'admin' ? 'operator' : 'user',
+    mode: 'byok',
+    ...entry,
+  }));
   /** The usage log: one row per call that was let through, settled with its outcome. */
   const usage: Record<string, unknown>[] = [];
   const env: Partial<Env> = {
@@ -77,7 +85,9 @@ function setup(input: {
         Object.assign(usage[Number(id)]!, result);
       }),
     } as unknown as AiQuotaService,
-    { user: { findUnique: vi.fn(async () => ({ aiMode: input.mode ?? 'byok' })) } } as unknown as PrismaService,
+    {
+      user: { findUnique: vi.fn(async () => ({ aiMode: input.mode ?? 'byok' })) },
+    } as unknown as PrismaService,
     { get: (key: keyof Env) => env[key] } as unknown as ConfigService<Env, true>,
     adapter('openai') as never,
     adapter('anthropic') as never,
@@ -87,9 +97,11 @@ function setup(input: {
   return { router, calls, usage };
 }
 
-const fails = (message: string): Behaviour => async () => {
-  throw new AiProviderError('openai', message);
-};
+const fails =
+  (message: string): Behaviour =>
+  async () => {
+    throw new AiProviderError('openai', message);
+  };
 const timesOut: Behaviour = (opts) =>
   new Promise((_resolve, reject) => {
     setTimeout(() => reject(new AiProviderError('ollama', 'too slow', true)), opts.timeoutMs);
@@ -180,6 +192,27 @@ describe('AiRouterService.chat', () => {
     ]);
   });
 
+  it("says whose entry answered: the operator's, the user's own, or nobody's", async () => {
+    const answers = { openai: async () => answer('ok'), ollama: async () => answer('ok') };
+    const operators = setup({
+      mode: 'admin',
+      chain: [{ provider: 'openai', mode: 'admin' }],
+      behaviour: answers,
+    });
+    const own = setup({ chain: [{ provider: 'openai' }], behaviour: answers });
+    // The user's own entry that points at the operator's server is still the user's.
+    const ownOnOperators = setup({
+      chain: [{ provider: 'ollama', mode: 'admin', owner: 'user', baseUrl: 'http://ollama:11434' }],
+      behaviour: answers,
+    });
+    const nobody = setup({ chain: [{ provider: 'openai' }], behaviour: { openai: fails('500') } });
+
+    expect((await operators.router.chat('user-1', MESSAGES, OPERATION)).owner).toBe('operator');
+    expect((await own.router.chat('user-1', MESSAGES, OPERATION)).owner).toBe('user');
+    expect((await ownOnOperators.router.chat('user-1', MESSAGES, OPERATION)).owner).toBe('user');
+    expect((await nobody.router.chat('user-1', MESSAGES, OPERATION)).owner).toBeNull();
+  });
+
   it('hands the decision back to the engine when every provider fails', async () => {
     const { router } = setup({
       chain: [{ provider: 'openai' }, { provider: 'anthropic' }],
@@ -202,7 +235,10 @@ describe('AiRouterService.chat', () => {
 
     const result = await router.chat('user-1', MESSAGES, OPERATION);
 
-    expect(result.meta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'no_provider' });
+    expect(result.meta).toMatchObject({
+      usedDeterministicFallback: true,
+      fallbackReason: 'no_provider',
+    });
     expect(calls).toHaveLength(0);
     expect(usage).toHaveLength(0);
   });
@@ -216,7 +252,10 @@ describe('AiRouterService.chat', () => {
 
     const result = await router.chat('user-1', MESSAGES, OPERATION);
 
-    expect(result.meta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'quota_exhausted' });
+    expect(result.meta).toMatchObject({
+      usedDeterministicFallback: true,
+      fallbackReason: 'quota_exhausted',
+    });
     expect(calls).toHaveLength(0);
     expect(usage).toHaveLength(0);
   });
@@ -224,7 +263,10 @@ describe('AiRouterService.chat', () => {
   describe('a saved key that can no longer be read', () => {
     it('is passed over, and the next provider answers', async () => {
       const { router, calls, usage } = setup({
-        chain: [{ provider: 'openai', apiKey: null, keyUnreadable: true }, { provider: 'anthropic' }],
+        chain: [
+          { provider: 'openai', apiKey: null, keyUnreadable: true },
+          { provider: 'anthropic' },
+        ],
         behaviour: { anthropic: async () => answer('from the second') },
       });
 
@@ -256,7 +298,10 @@ describe('AiRouterService.chat', () => {
 
     it('gives way to the failure of a provider that was asked', async () => {
       const { router } = setup({
-        chain: [{ provider: 'openai', apiKey: null, keyUnreadable: true }, { provider: 'anthropic' }],
+        chain: [
+          { provider: 'openai', apiKey: null, keyUnreadable: true },
+          { provider: 'anthropic' },
+        ],
         behaviour: { anthropic: fails('529 overloaded') },
       });
 
@@ -315,10 +360,7 @@ describe('AiRouterService.chat', () => {
 
     it('is reported as a timeout, and never outlasted, when no provider answers in time', async () => {
       const { router, calls, usage } = setup({
-        chain: [
-          { provider: 'ollama', baseUrl: 'http://ollama:11434' },
-          { provider: 'openai' },
-        ],
+        chain: [{ provider: 'ollama', baseUrl: 'http://ollama:11434' }, { provider: 'openai' }],
         behaviour: { ollama: timesOut, openai: timesOut },
       });
 
@@ -348,10 +390,7 @@ describe('AiRouterService.chat', () => {
   describe('an Ollama address', () => {
     it('is checked again before it is dialled, and a refused one is skipped like a failed provider', async () => {
       const { router, calls } = setup({
-        chain: [
-          { provider: 'ollama', baseUrl: 'http://169.254.169.254' },
-          { provider: 'openai' },
-        ],
+        chain: [{ provider: 'ollama', baseUrl: 'http://169.254.169.254' }, { provider: 'openai' }],
         behaviour: { openai: async () => answer('from the next provider') },
       });
 
@@ -371,12 +410,17 @@ describe('AiRouterService.chat', () => {
 
       await router.chat('user-1', MESSAGES, OPERATION);
 
-      expect(calls[0]!.opts).toMatchObject({ baseUrl: 'https://ollama.example.org', publicOnly: true });
+      expect(calls[0]!.opts).toMatchObject({
+        baseUrl: 'https://ollama.example.org',
+        publicOnly: true,
+      });
     });
 
     it("skips a user's entry altogether when users may not configure Ollama", async () => {
       const { router, calls } = setup({
-        chain: [{ provider: 'ollama', baseUrl: 'http://ollama:11434', mode: 'admin', owner: 'user' }],
+        chain: [
+          { provider: 'ollama', baseUrl: 'http://ollama:11434', mode: 'admin', owner: 'user' },
+        ],
         env: { OLLAMA_USER_POLICY: 'off' },
       });
 
@@ -389,7 +433,9 @@ describe('AiRouterService.chat', () => {
     it("does not hold the operator's own instance to the rules for users", async () => {
       const { router, calls } = setup({
         mode: 'admin',
-        chain: [{ provider: 'ollama', mode: 'admin', baseUrl: 'http://10.0.0.5:11434', apiKey: null }],
+        chain: [
+          { provider: 'ollama', mode: 'admin', baseUrl: 'http://10.0.0.5:11434', apiKey: null },
+        ],
         behaviour: { ollama: async () => answer('from the rack') },
         env: { OLLAMA_USER_POLICY: 'off' },
       });

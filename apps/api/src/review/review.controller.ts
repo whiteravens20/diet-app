@@ -95,8 +95,7 @@ export class ReviewController {
   @Get('status')
   @Answers(ReviewStatus)
   async status(): Promise<ReviewStatus> {
-    const { reviewerEnabled, reviewerPasswordHash } =
-      await this.settings.readReviewerCredentials();
+    const { reviewerEnabled, reviewerPasswordHash } = await this.settings.readReviewerCredentials();
     return {
       enabled: reviewerEnabled,
       passwordSet: reviewerPasswordHash !== null,
@@ -111,11 +110,16 @@ export class ReviewController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('auth')
   @HttpCode(204)
-  async login(@Body(new ZodValidationPipe(ReviewerLoginBody)) body: ReviewerLoginBody, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
+  async login(
+    @Body(new ZodValidationPipe(ReviewerLoginBody)) body: ReviewerLoginBody,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
     const appUrl = this.config.get('APP_URL', { infer: true });
     // A page of another site cannot sign a visitor in to a session of its choosing.
     assertFromTheApplication(req.headers.origin, appUrl);
-    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } = await this.settings.readReviewerCredentials();
+    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } =
+      await this.settings.readReviewerCredentials();
     if (!reviewerEnabled || reviewerPasswordHash === null) {
       throw new UnauthorizedException({
         error: 'REVIEWER_DISABLED',
@@ -172,7 +176,8 @@ export class ReviewController {
   @Get('session')
   @Answers(ReviewerSessionAnswer)
   async session(@Req() req: Request): Promise<ReviewerSessionAnswer> {
-    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } = await this.settings.readReviewerCredentials();
+    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } =
+      await this.settings.readReviewerCredentials();
     if (!reviewerEnabled || reviewerPasswordHash === null) {
       return { session: null };
     }
@@ -193,7 +198,9 @@ export class ReviewController {
   @Get('drafts/recipes')
   @UseGuards(ReviewerSessionGuard)
   @Answers(RecipeReviewSlicePage)
-  async listRecipeSlices(@Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery): Promise<RecipeReviewSlicePage> {
+  async listRecipeSlices(
+    @Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery,
+  ): Promise<RecipeReviewSlicePage> {
     const found = await this.drafts.recipesWaitingFor(query);
     return { ...found, items: found.items.map((row) => toRecipeReviewSlice(row, query.locale)) };
   }
@@ -220,7 +227,10 @@ export class ReviewController {
     @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
     @Body(new ZodValidationPipe(RecipeReviewPatchBody)) patch: RecipeReviewPatchBody,
   ): Promise<RecipeReviewSlice> {
-    return toRecipeReviewSlice(await this.drafts.editRecipeText(id, locale, patch, reviewerOf(req)), locale);
+    return toRecipeReviewSlice(
+      await this.drafts.editRecipeText(id, locale, patch, reviewerOf(req)),
+      locale,
+    );
   }
 
   /** Approve a recipe draft in the language. */
@@ -249,8 +259,17 @@ export class ReviewController {
     return this.reviewRecipe(req, id, locale, body, 'REJECT');
   }
 
-  private async reviewRecipe(req: ReviewerRequest, id: string, locale: TargetLocale, { reason }: ReviewerReasonBody, action: ReviewAction): Promise<RecipeReviewSlice> {
-    return toRecipeReviewSlice(await this.drafts.reviewRecipe(id, { locale, action, reason }, reviewerOf(req)), locale);
+  private async reviewRecipe(
+    req: ReviewerRequest,
+    id: string,
+    locale: TargetLocale,
+    { reason }: ReviewerReasonBody,
+    action: ReviewAction,
+  ): Promise<RecipeReviewSlice> {
+    return toRecipeReviewSlice(
+      await this.drafts.reviewRecipe(id, { locale, action, reason }, reviewerOf(req)),
+      locale,
+    );
   }
 
   // ── Ingredient-name drafts (guarded) ───────────────────────────────────────
@@ -259,9 +278,14 @@ export class ReviewController {
   @Get('drafts/ingredient-names')
   @UseGuards(ReviewerSessionGuard)
   @Answers(IngredientNameReviewSlicePage)
-  async listIngredientNameSlices(@Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery): Promise<IngredientNameReviewSlicePage> {
+  async listIngredientNameSlices(
+    @Query(new ZodValidationPipe(ReviewQueueQuery)) query: ReviewQueueQuery,
+  ): Promise<IngredientNameReviewSlicePage> {
     const found = await this.drafts.ingredientNamesWaitingFor(query);
-    return { ...found, items: found.items.map((row) => toIngredientNameReviewSlice(row, query.locale)) };
+    return {
+      ...found,
+      items: found.items.map((row) => toIngredientNameReviewSlice(row, query.locale)),
+    };
   }
 
   /** One of those names: the text in the language beside the English. */
@@ -273,7 +297,10 @@ export class ReviewController {
     @Param('id', requiredUuid) id: string,
     @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
   ): Promise<IngredientNameReviewSlice> {
-    return toIngredientNameReviewSlice(await this.drafts.ingredientNameFor(id, locale, reviewerOf(req)), locale);
+    return toIngredientNameReviewSlice(
+      await this.drafts.ingredientNameFor(id, locale, reviewerOf(req)),
+      locale,
+    );
   }
 
   /** Change the text of a name in the language. */
@@ -284,9 +311,13 @@ export class ReviewController {
     @Req() req: ReviewerRequest,
     @Param('id', requiredUuid) id: string,
     @Query(new ZodValidationPipe(TargetLocaleQuery)) { locale }: TargetLocaleQuery,
-    @Body(new ZodValidationPipe(IngredientNameReviewPatchBody)) patch: IngredientNameReviewPatchBody,
+    @Body(new ZodValidationPipe(IngredientNameReviewPatchBody))
+    patch: IngredientNameReviewPatchBody,
   ): Promise<IngredientNameReviewSlice> {
-    return toIngredientNameReviewSlice(await this.drafts.editIngredientNameText(id, locale, patch, reviewerOf(req)), locale);
+    return toIngredientNameReviewSlice(
+      await this.drafts.editIngredientNameText(id, locale, patch, reviewerOf(req)),
+      locale,
+    );
   }
 
   /** Approve a name in the language. */
@@ -322,7 +353,10 @@ export class ReviewController {
     { reason }: ReviewerReasonBody,
     action: ReviewAction,
   ): Promise<IngredientNameReviewSlice> {
-    return toIngredientNameReviewSlice(await this.drafts.reviewIngredientName(id, { locale, action, reason }, reviewerOf(req)), locale);
+    return toIngredientNameReviewSlice(
+      await this.drafts.reviewIngredientName(id, { locale, action, reason }, reviewerOf(req)),
+      locale,
+    );
   }
 }
 

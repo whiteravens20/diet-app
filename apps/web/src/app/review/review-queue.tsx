@@ -5,7 +5,13 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Check, ChevronLeft, ChevronRight, Keyboard, LoaderCircle, X } from 'lucide-react';
-import type { Allergen, IngredientNameReviewSlice, Locale, RecipeReviewSlice, ReviewAction } from '@diet-app/shared';
+import type {
+  Allergen,
+  IngredientNameReviewSlice,
+  Locale,
+  RecipeReviewSlice,
+  ReviewAction,
+} from '@diet-app/shared';
 import { ALLERGENS } from '@diet-app/shared/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,9 +52,9 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
   // doesn't match the prop, the data is stale (mid-switch) and we must treat
   // the queue as still loading — otherwise we'd cast e.g. an ingredient-name
   // slice to a recipe slice and crash on the missing `.steps` field.
-  const [items, setItems] = useState<
-    RecipeReviewSlice[] | IngredientNameReviewSlice[] | null
-  >(null);
+  const [items, setItems] = useState<RecipeReviewSlice[] | IngredientNameReviewSlice[] | null>(
+    null,
+  );
   const [itemsKind, setItemsKind] = useState<QueueProps['kind'] | null>(null);
   const [cursor, setCursor] = useState(0);
   const [total, setTotal] = useState(0);
@@ -165,7 +171,13 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
           })}
         </span>
         <div className="flex items-center gap-1">
-          <Button type="button" size="sm" variant={keys ? 'primary' : 'outline'} aria-pressed={keys} onClick={() => wantKeys(!keys)}>
+          <Button
+            type="button"
+            size="sm"
+            variant={keys ? 'primary' : 'outline'}
+            aria-pressed={keys}
+            onClick={() => wantKeys(!keys)}
+          >
             <Keyboard className="h-3 w-3" aria-hidden />
             {t('keys')}
           </Button>
@@ -196,7 +208,11 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
       {keys ? (
         <p className="text-xs text-muted-foreground">
           {t.rich('keysLegend', {
-            kbd: (key) => <kbd className="rounded border border-border bg-muted px-1 font-mono text-xs text-foreground">{key}</kbd>,
+            kbd: (key) => (
+              <kbd className="rounded border border-border bg-muted px-1 font-mono text-xs text-foreground">
+                {key}
+              </kbd>
+            ),
           })}
         </p>
       ) : null}
@@ -226,15 +242,34 @@ export function ReviewQueue({ locale, kind }: QueueProps) {
  * The draft on show, as one thing that can hold the focus: the keys act while
  * it does, and it is named for those who do not see it.
  */
-function DraftRegion({ place, act, children }: { place: DraftPlace; act: { approve: () => void; reject: () => void; save?: () => void; busy: boolean }; children: ReactNode }) {
-  const region = useReviewKeys({ enabled: place.keys, takesFocus: place.takesFocus, next: place.next, previous: place.previous, ...act });
+function DraftRegion({
+  place,
+  act,
+  children,
+}: {
+  place: DraftPlace;
+  act: { approve: () => void; reject: () => void; save?: () => void; busy: boolean };
+  children: ReactNode;
+}) {
+  const region = useReviewKeys({
+    enabled: place.keys,
+    takesFocus: place.takesFocus,
+    next: place.next,
+    previous: place.previous,
+    ...act,
+  });
   return (
     <div
       {...region}
       role="group"
       aria-label={place.label}
       // With the keys on, the ring says where they act however the focus came; without them it is the ring of the Tab key.
-      className={cn('scroll-mt-4 rounded-lg outline-none', place.keys ? 'focus:ring-2 focus:ring-ring' : 'focus-visible:ring-2 focus-visible:ring-ring')}
+      className={cn(
+        'scroll-mt-4 rounded-lg outline-none',
+        place.keys
+          ? 'focus:ring-2 focus:ring-ring'
+          : 'focus-visible:ring-2 focus-visible:ring-ring',
+      )}
     >
       {children}
     </div>
@@ -283,18 +318,42 @@ function Decide({
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" variant="outline" aria-keyshortcuts={keys ? 'S' : undefined} onClick={onSave} disabled={!dirty || busy}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-keyshortcuts={keys ? 'S' : undefined}
+          onClick={onSave}
+          disabled={!dirty || busy}
+        >
           {saving ? t('saving') : t('save')}
         </Button>
-        <Button type="button" size="sm" aria-keyshortcuts={keys ? 'A' : undefined} onClick={onApprove} disabled={busy}>
+        <Button
+          type="button"
+          size="sm"
+          aria-keyshortcuts={keys ? 'A' : undefined}
+          onClick={onApprove}
+          disabled={busy}
+        >
           <Check className="mr-1 h-3 w-3" aria-hidden />
           {acting === 'approve' ? t('working') : t('approve')}
         </Button>
-        <Button type="button" size="sm" variant="destructive" aria-keyshortcuts={keys ? 'R' : undefined} onClick={onReject} disabled={busy}>
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          aria-keyshortcuts={keys ? 'R' : undefined}
+          onClick={onReject}
+          disabled={busy}
+        >
           <X className="mr-1 h-3 w-3" aria-hidden />
           {acting === 'reject' ? t('working') : t('reject')}
         </Button>
-        {before ? <span className="ml-auto text-xs text-muted-foreground">{t('decidedBefore', { action: before })}</span> : null}
+        {before ? (
+          <span className="ml-auto text-xs text-muted-foreground">
+            {t('decidedBefore', { action: before })}
+          </span>
+        ) : null}
       </div>
 
       {error ? (
@@ -322,7 +381,11 @@ function RecipeReviewCard({
   const fmt = useFormat();
   const errorText = useDraftErrorText();
   // What the server holds of the reviewer's text: the draft as it came, then what was last saved.
-  const [saved, setSaved] = useState({ title: slice.title, description: slice.description, steps: slice.steps });
+  const [saved, setSaved] = useState({
+    title: slice.title,
+    description: slice.description,
+    steps: slice.steps,
+  });
   const [title, setTitle] = useState(slice.title);
   const [description, setDescription] = useState(slice.description);
   const [steps, setSteps] = useState<string[]>(slice.steps);
@@ -331,7 +394,8 @@ function RecipeReviewCard({
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
-  const dirty = title !== saved.title || description !== saved.description || stepsChanged(steps, saved.steps);
+  const dirty =
+    title !== saved.title || description !== saved.description || stepsChanged(steps, saved.steps);
 
   /** Whether the text was saved: a decision is not taken on text the server does not hold. */
   const save = async (): Promise<boolean> => {
@@ -381,12 +445,19 @@ function RecipeReviewCard({
   };
 
   // A code this version has no name for is shown as it is.
-  const allergens = slice.allergens.map((code) => ((ALLERGENS as readonly string[]).includes(code) ? tAllergen(code as Allergen) : code));
+  const allergens = slice.allergens.map((code) =>
+    (ALLERGENS as readonly string[]).includes(code) ? tAllergen(code as Allergen) : code,
+  );
 
   return (
     <DraftRegion
       place={place}
-      act={{ approve: () => void approve(), reject: () => void reject(), save: dirty ? () => void save() : undefined, busy: saving || acting !== null }}
+      act={{
+        approve: () => void approve(),
+        reject: () => void reject(),
+        save: dirty ? () => void save() : undefined,
+        busy: saving || acting !== null,
+      }}
     >
       <Card>
         <CardContent className="space-y-6 py-6">
@@ -394,7 +465,11 @@ function RecipeReviewCard({
             <section className="space-y-3">
               <SectionHeader label={t('targetLabel', { locale: t(`locales.${locale}`) })} />
               <LabeledInput label={t('fieldTitle')} value={title} onChange={setTitle} />
-              <LabeledTextarea label={t('fieldDescription')} value={description} onChange={setDescription} />
+              <LabeledTextarea
+                label={t('fieldDescription')}
+                value={description}
+                onChange={setDescription}
+              />
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">{t('fieldSteps')}</p>
                 {steps.map((step, i) => (
@@ -430,11 +505,17 @@ function RecipeReviewCard({
           </div>
 
           <section className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-            <Stat label={t('statCalories')} value={`${fmt.number(slice.caloriesPerServing)} kcal`} />
+            <Stat
+              label={t('statCalories')}
+              value={`${fmt.number(slice.caloriesPerServing)} kcal`}
+            />
             <Stat label={t('statProtein')} value={fmt.unit(slice.proteinPerServing, 'gram', 1)} />
             <Stat label={t('statFat')} value={fmt.unit(slice.fatPerServing, 'gram', 1)} />
             <Stat label={t('statCarbs')} value={fmt.unit(slice.carbsPerServing, 'gram', 1)} />
-            <Stat label={t('statPrepCook')} value={`${fmt.number(slice.prepMinutes)} + ${fmt.unit(slice.cookMinutes, 'minute')}`} />
+            <Stat
+              label={t('statPrepCook')}
+              value={`${fmt.number(slice.prepMinutes)} + ${fmt.unit(slice.cookMinutes, 'minute')}`}
+            />
             <Stat label={t('statServings')} value={String(slice.servings)} />
           </section>
 
@@ -536,7 +617,12 @@ function IngredientNameReviewCard({
   return (
     <DraftRegion
       place={place}
-      act={{ approve: () => void approve(), reject: () => void reject(), save: dirty ? () => void save() : undefined, busy: saving || acting !== null }}
+      act={{
+        approve: () => void approve(),
+        reject: () => void reject(),
+        save: dirty ? () => void save() : undefined,
+        busy: saving || acting !== null,
+      }}
     >
       <Card>
         <CardContent className="space-y-4 py-6">
@@ -548,7 +634,11 @@ function IngredientNameReviewCard({
             <section className="space-y-3">
               <SectionHeader label={t('targetLabel', { locale: t(`locales.${locale}`) })} />
               <LabeledInput label={t('fieldName')} value={name} onChange={setName} />
-              <LabeledInput label={t('fieldStorageHint')} value={storageHint} onChange={setStorageHint} />
+              <LabeledInput
+                label={t('fieldStorageHint')}
+                value={storageHint}
+                onChange={setStorageHint}
+              />
             </section>
             <section className="space-y-3">
               <SectionHeader label={t('sourceLabel')} />
@@ -577,7 +667,9 @@ function IngredientNameReviewCard({
 }
 
 function SectionHeader({ label }: { label: string }) {
-  return <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>;
+  return (
+    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+  );
 }
 
 function LabeledInput({

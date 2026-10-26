@@ -15,13 +15,17 @@ import { createHmac } from 'node:crypto';
 import { decrypt, encrypt, inCurrentForm } from '../common/crypto.js';
 
 /** Why a stored key could not be opened; for the log, not for the user. */
-type UnreadableKey = 'sealed under another secret' | 'damaged' | 'damaged, or sealed under another secret';
+type UnreadableKey =
+  'sealed under another secret' | 'damaged' | 'damaged, or sealed under another secret';
 
 export type OpenedKey = { ok: true; key: string } | { ok: false; why: UnreadableKey };
 
 /** A short, stable name for a secret that does not help anyone guess it. */
 function secretId(secretHex: string): string {
-  return createHmac('sha256', Buffer.from(secretHex, 'hex')).update('ai-provider-key-id').digest('hex').slice(0, 8);
+  return createHmac('sha256', Buffer.from(secretHex, 'hex'))
+    .update('ai-provider-key-id')
+    .digest('hex')
+    .slice(0, 8);
 }
 
 /** Whose a key is: an account's, or the instance's where the row belongs to nobody. */

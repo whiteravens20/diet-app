@@ -47,41 +47,80 @@ describe('changing a profile', () => {
         preferredCuisines: ['asian', 'polish'],
         maxConsecutiveDaysSameMeal: 4,
         maxTimesPerWeekSameMeal: 5,
-        maxWeeklyAmountPerIngredient: 2000,
+        maxMealsPerDaySameKind: 3,
+        maxMealsPerWeekSameKind: 10,
+        kindLimits: [{ kind: 'eggs', perDay: 1, perWeek: null }],
         inventoryBiasResetEvery: 9,
       },
     });
   });
 
   /** `from` without some of its parts. */
-  const without = (from: object, ...parts: string[]): Record<string, unknown> => Object.fromEntries(Object.entries(from).filter(([part]) => !parts.includes(part)));
+  const without = (from: object, ...parts: string[]): Record<string, unknown> =>
+    Object.fromEntries(Object.entries(from).filter(([part]) => !parts.includes(part)));
   /** What a client that shows every part of the profile sends back. */
-  const whole = (): Record<string, unknown> => without(profile, 'id', 'userId', 'riskAcknowledgedAt', 'createdAt', 'updatedAt');
-  const put = (body: Record<string, unknown>) => t.http().put(`/api/profiles/${profile.id}`).set(as(user)).send(body);
-  const patch = (body: unknown) => t.http().patch(`/api/profiles/${profile.id}/preferences`).set(as(user)).send(body as object);
-  const stored = async (): Promise<Profile> => (await t.http().get(`/api/profiles/${profile.id}`).set(as(user)).expect(200)).body;
+  const whole = (): Record<string, unknown> =>
+    without(profile, 'id', 'userId', 'riskAcknowledgedAt', 'createdAt', 'updatedAt');
+  const put = (body: Record<string, unknown>) =>
+    t.http().put(`/api/profiles/${profile.id}`).set(as(user)).send(body);
+  const patch = (body: unknown) =>
+    t
+      .http()
+      .patch(`/api/profiles/${profile.id}/preferences`)
+      .set(as(user))
+      .send(body as object);
+  const stored = async (): Promise<Profile> =>
+    (await t.http().get(`/api/profiles/${profile.id}`).set(as(user)).expect(200)).body;
 
   describe('as a whole', () => {
     it('takes every part of it, and changes what was sent', async () => {
-      const changed: Profile = (await put({ ...whole(), name: 'Anna K.', weightKg: 61.5, weightReminderCadence: 'daily' }).expect(200)).body;
+      const changed: Profile = (
+        await put({
+          ...whole(),
+          name: 'Anna K.',
+          weightKg: 61.5,
+          weightReminderCadence: 'daily',
+        }).expect(200)
+      ).body;
 
-      expect(changed).toMatchObject({ name: 'Anna K.', weightKg: 61.5, weightReminderCadence: 'daily', dietType: 'vegan', mealCount: 5 });
+      expect(changed).toMatchObject({
+        name: 'Anna K.',
+        weightKg: 61.5,
+        weightReminderCadence: 'daily',
+        dietType: 'vegan',
+        mealCount: 5,
+      });
       expect(changed.preferences).toEqual(profile.preferences);
     });
 
-    it.each(['name', 'age', 'sex', 'heightCm', 'weightKg', 'activityLevel', 'dietType', 'weeklyLossTarget', 'manualCalorieTarget', 'mealCount', 'weightReminderCadence', 'customMacroSplit', 'targetWeightKg', 'preferences'])(
-      'refuses a profile without its %s, and puts nothing back to a default',
-      async (part) => {
-        const refused = await put(without(whole(), part)).expect(400);
+    it.each([
+      'name',
+      'age',
+      'sex',
+      'heightCm',
+      'weightKg',
+      'activityLevel',
+      'dietType',
+      'weeklyLossTarget',
+      'manualCalorieTarget',
+      'mealCount',
+      'weightReminderCadence',
+      'customMacroSplit',
+      'targetWeightKg',
+      'preferences',
+    ])('refuses a profile without its %s, and puts nothing back to a default', async (part) => {
+      const refused = await put(without(whole(), part)).expect(400);
 
-        expect(refused.body.error).toBe('VALIDATION_FAILED');
-        expect(refused.body.issues[0].path).toBe(part);
-        expect(await stored()).toEqual(profile);
-      },
-    );
+      expect(refused.body.error).toBe('VALIDATION_FAILED');
+      expect(refused.body.issues[0].path).toBe(part);
+      expect(await stored()).toEqual(profile);
+    });
 
     it('refuses preferences that are not whole', async () => {
-      const refused = await put({ ...whole(), preferences: without(profile.preferences, 'allergens') }).expect(400);
+      const refused = await put({
+        ...whole(),
+        preferences: without(profile.preferences, 'allergens'),
+      }).expect(400);
 
       expect(refused.body.issues[0].path).toBe('preferences.allergens');
       expect((await stored()).preferences.allergens).toEqual(['peanuts', 'fish']);
@@ -90,10 +129,29 @@ describe('changing a profile', () => {
     it('still gives a new profile what it leaves out', async () => {
       await t.prisma.profile.delete({ where: { id: profile.id } });
 
-      const made: Profile = (await t.http().post('/api/profiles').set(as(user)).send({ name: 'New', age: 30, heightCm: 180, weightKg: 80 }).expect(201)).body;
+      const made: Profile = (
+        await t
+          .http()
+          .post('/api/profiles')
+          .set(as(user))
+          .send({ name: 'New', age: 30, heightCm: 180, weightKg: 80 })
+          .expect(201)
+      ).body;
 
-      expect(made).toMatchObject({ sex: null, activityLevel: 'moderate', dietType: 'balanced', weeklyLossTarget: '0.5', mealCount: 3, weightReminderCadence: 'weekly' });
-      expect(made.preferences).toMatchObject({ allergens: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, inventoryBiasResetEvery: 5 });
+      expect(made).toMatchObject({
+        sex: null,
+        activityLevel: 'moderate',
+        dietType: 'balanced',
+        weeklyLossTarget: '0.5',
+        mealCount: 3,
+        weightReminderCadence: 'weekly',
+      });
+      expect(made.preferences).toMatchObject({
+        allergens: [],
+        maxConsecutiveDaysSameMeal: 2,
+        maxTimesPerWeekSameMeal: 3,
+        inventoryBiasResetEvery: 5,
+      });
     });
   });
 
@@ -129,27 +187,42 @@ describe('changing a profile', () => {
       ['gives protein less than a diet needs', { protein: 5, fat: 45, carbs: 50 }],
       ['is not in whole per cent', { protein: 30.5, fat: 39.5, carbs: 30 }],
     ])('is refused with a split that %s', async (_why, split) => {
-      const refused = await put({ ...whole(), dietType: 'custom', customMacroSplit: split }).expect(400);
+      const refused = await put({ ...whole(), dietType: 'custom', customMacroSplit: split }).expect(
+        400,
+      );
 
       expect(refused.body.error).toBe('VALIDATION_FAILED');
       expect(refused.body.issues[0].path).toMatch(/^customMacroSplit/);
       expect((await stored()).customMacroSplit).toBeNull();
     });
 
-    it('takes the split, and the profile\'s target is split by it', async () => {
-      const changed: Profile = (await put({ ...whole(), dietType: 'custom', customMacroSplit: OWN }).expect(200)).body;
-      const calories = (await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)).body;
+    it("takes the split, and the profile's target is split by it", async () => {
+      const changed: Profile = (
+        await put({ ...whole(), dietType: 'custom', customMacroSplit: OWN }).expect(200)
+      ).body;
+      const calories = (
+        await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)
+      ).body;
 
       expect(changed).toMatchObject({ dietType: 'custom', customMacroSplit: OWN });
       // The typed target of 2,100 kcal: 630, 840 and 630 of them, at four, nine and four a gram.
-      expect(calories).toMatchObject({ dailyTarget: 2100, targetMacros: { protein: 158, fat: 93, carbs: 158 } });
+      expect(calories).toMatchObject({
+        dailyTarget: 2100,
+        targetMacros: { protein: 158, fat: 93, carbs: 158 },
+      });
     });
 
     it('keeps the split for a profile that goes to another diet, where it changes nothing', async () => {
       await put({ ...whole(), dietType: 'custom', customMacroSplit: OWN }).expect(200);
-      const vegan = (await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)).body.targetMacros;
-      const back: Profile = (await put({ ...whole(), dietType: 'vegan', customMacroSplit: OWN }).expect(200)).body;
-      const calories = (await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)).body;
+      const vegan = (
+        await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)
+      ).body.targetMacros;
+      const back: Profile = (
+        await put({ ...whole(), dietType: 'vegan', customMacroSplit: OWN }).expect(200)
+      ).body;
+      const calories = (
+        await t.http().get(`/api/profiles/${profile.id}/calories`).set(as(user)).expect(200)
+      ).body;
 
       expect(back).toMatchObject({ dietType: 'vegan', customMacroSplit: OWN });
       expect(calories.targetMacros).not.toEqual(vegan);
@@ -158,8 +231,25 @@ describe('changing a profile', () => {
     });
 
     it('is where a new profile can begin', async () => {
-      const made = await t.http().post('/api/profiles').set(as(user)).send({ name: 'Second', age: 30, heightCm: 180, weightKg: 80, dietType: 'custom', customMacroSplit: OWN }).expect(201);
-      const refused = await t.http().post('/api/profiles').set(as(user)).send({ name: 'Third', age: 30, heightCm: 180, weightKg: 80, dietType: 'custom' }).expect(400);
+      const made = await t
+        .http()
+        .post('/api/profiles')
+        .set(as(user))
+        .send({
+          name: 'Second',
+          age: 30,
+          heightCm: 180,
+          weightKg: 80,
+          dietType: 'custom',
+          customMacroSplit: OWN,
+        })
+        .expect(201);
+      const refused = await t
+        .http()
+        .post('/api/profiles')
+        .set(as(user))
+        .send({ name: 'Third', age: 30, heightCm: 180, weightKg: 80, dietType: 'custom' })
+        .expect(400);
 
       expect(made.body.customMacroSplit).toEqual(OWN);
       expect(refused.body.issues[0].path).toBe('customMacroSplit');
@@ -171,23 +261,59 @@ describe('changing a profile', () => {
       const changed: Profile = (await patch({ allergens: ['gluten'] }).expect(200)).body;
 
       expect(changed.preferences).toEqual({ ...profile.preferences, allergens: ['gluten'] });
-      expect({ ...changed, preferences: null, updatedAt: null }).toEqual({ ...profile, preferences: null, updatedAt: null });
+      expect({ ...changed, preferences: null, updatedAt: null }).toEqual({
+        ...profile,
+        preferences: null,
+        updatedAt: null,
+      });
     });
 
     it('takes several at once, and an empty list for a list that is emptied', async () => {
-      const changed: Profile = (await patch({ favoriteIngredientIds: [], excludedIngredientIds: [rice, oats], maxWeeklyAmountPerIngredient: 5000 }).expect(200)).body;
+      const changed: Profile = (
+        await patch({
+          favoriteIngredientIds: [],
+          excludedIngredientIds: [rice, oats],
+          kindLimits: [{ kind: 'fish', perDay: null, perWeek: 3 }],
+        }).expect(200)
+      ).body;
 
-      expect(changed.preferences).toEqual({ ...profile.preferences, favoriteIngredientIds: [], excludedIngredientIds: [rice, oats], maxWeeklyAmountPerIngredient: 5000 });
+      expect(changed.preferences).toEqual({
+        ...profile.preferences,
+        favoriteIngredientIds: [],
+        excludedIngredientIds: [rice, oats],
+        kindLimits: [{ kind: 'fish', perDay: null, perWeek: 3 }],
+      });
     });
 
     it.each([
       ['nothing', {}, ''],
       ['a preference there is not', { allergens: [], spiceLevel: 3 }, ''],
       ['an allergen there is not', { allergens: ['gluten', 'kryptonite'] }, 'allergens.1'],
-      ['an ingredient that is no id', { favoriteIngredientIds: ['rice'] }, 'favoriteIngredientIds.0'],
-      ['more ingredients than a profile holds', { excludedIngredientIds: Array.from({ length: 201 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`) }, 'excludedIngredientIds'],
-      ['a food to rather not eat that is no ingredient\'s id', { dislikedIngredientIds: ['liver'] }, 'dislikedIngredientIds.0'],
-      ['a cuisine the application does not know', { preferredCuisines: ['asian', 'martian'] }, 'preferredCuisines.1'],
+      [
+        'an ingredient that is no id',
+        { favoriteIngredientIds: ['rice'] },
+        'favoriteIngredientIds.0',
+      ],
+      [
+        'more ingredients than a profile holds',
+        {
+          excludedIngredientIds: Array.from(
+            { length: 201 },
+            (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+          ),
+        },
+        'excludedIngredientIds',
+      ],
+      [
+        "a food to rather not eat that is no ingredient's id",
+        { dislikedIngredientIds: ['liver'] },
+        'dislikedIngredientIds.0',
+      ],
+      [
+        'a cuisine the application does not know',
+        { preferredCuisines: ['asian', 'martian'] },
+        'preferredCuisines.1',
+      ],
       ['a limit outside its range', { maxTimesPerWeekSameMeal: 0 }, 'maxTimesPerWeekSameMeal'],
     ])('refuses %s, and changes nothing', async (_name, body, part) => {
       const refused = await patch(body).expect(400);
@@ -202,21 +328,38 @@ describe('changing a profile', () => {
 
       const changed: Profile = (await patch({ allergens: ['soy'] }).expect(200)).body;
 
-      expect(changed.preferences).toMatchObject({ allergens: ['soy'], favoriteIngredientIds: [], maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3 });
+      expect(changed.preferences).toMatchObject({
+        allergens: ['soy'],
+        favoriteIngredientIds: [],
+        maxConsecutiveDaysSameMeal: 2,
+        maxTimesPerWeekSameMeal: 3,
+      });
     });
   });
 
   it('is one of as many as an account may have, however many more are asked for together', async () => {
     const another = { name: 'Another', age: 30, sex: 'male', heightCm: 180, weightKg: 80 };
 
-    const answers = await race(DEFAULT_PROFILES_PER_ACCOUNT + 3, () => t.http().post('/api/profiles').set(as(user)).send(another));
+    const answers = await race(DEFAULT_PROFILES_PER_ACCOUNT + 3, () =>
+      t.http().post('/api/profiles').set(as(user)).send(another),
+    );
 
     const made = answers.flatMap((answer) => (answer.status === 'fulfilled' ? [answer.value] : []));
     expect(made).toHaveLength(DEFAULT_PROFILES_PER_ACCOUNT + 3);
     // The account has one already.
-    expect(made.filter((answer) => answer.status === 201)).toHaveLength(DEFAULT_PROFILES_PER_ACCOUNT - 1);
-    expect(new Set(made.filter((answer) => answer.status !== 201).map((answer) => `${answer.status} ${answer.body.error}`))).toEqual(new Set(['409 PROFILE_LIMIT_REACHED']));
-    expect(await t.prisma.profile.count({ where: { userId: user.id } })).toBe(DEFAULT_PROFILES_PER_ACCOUNT);
+    expect(made.filter((answer) => answer.status === 201)).toHaveLength(
+      DEFAULT_PROFILES_PER_ACCOUNT - 1,
+    );
+    expect(
+      new Set(
+        made
+          .filter((answer) => answer.status !== 201)
+          .map((answer) => `${answer.status} ${answer.body.error}`),
+      ),
+    ).toEqual(new Set(['409 PROFILE_LIMIT_REACHED']));
+    expect(await t.prisma.profile.count({ where: { userId: user.id } })).toBe(
+      DEFAULT_PROFILES_PER_ACCOUNT,
+    );
   });
 });
 
@@ -239,56 +382,106 @@ describe('the calorie target that figures somebody typed would come to', () => {
     user = await aUser(t);
   });
 
-  const preview = (body: Record<string, unknown>) => t.http().post('/api/profiles/calories').set(as(user)).send(body);
+  const preview = (body: Record<string, unknown>) =>
+    t.http().post('/api/profiles/calories').set(as(user)).send(body);
 
   it('is worked out as a profile with them would have it, and nothing is kept', async () => {
     const answer = (await preview(TYPED).expect(200)).body.calculation;
 
     // A basal rate of 1,780 kcal, half as much again and a little more for moderate activity, less the 550 a day that half a kilogram a week takes.
-    expect(answer).toMatchObject({ bmr: 1780, maintenance: 2759, requestedDeficit: 550, dailyTarget: 2209, source: 'calculated', goalHeld: false, warnings: [] });
+    expect(answer).toMatchObject({
+      bmr: 1780,
+      maintenance: 2759,
+      requestedDeficit: 550,
+      dailyTarget: 2209,
+      source: 'calculated',
+      goalHeld: false,
+      warnings: [],
+    });
     // A quarter, three tenths and the rest of 2,209 kcal: the balanced diet, which a new profile begins with.
     expect(answer.targetMacros).toEqual({ protein: 138, fat: 74, carbs: 249 });
     expect(await t.prisma.profile.count({ where: { userId: user.id } })).toBe(0);
 
-    const made: Profile = (await t.http().post('/api/profiles').set(as(user)).send({ ...TYPED, name: 'Adam' }).expect(201)).body;
-    expect((await t.http().get(`/api/profiles/${made.id}/calories`).set(as(user)).expect(200)).body).toEqual(answer);
+    const made: Profile = (
+      await t
+        .http()
+        .post('/api/profiles')
+        .set(as(user))
+        .send({ ...TYPED, name: 'Adam' })
+        .expect(201)
+    ).body;
+    expect(
+      (await t.http().get(`/api/profiles/${made.id}/calories`).set(as(user)).expect(200)).body,
+    ).toEqual(answer);
   });
 
   it('says what each pace of loss would come to for the same body, a typed target left aside', async () => {
-    const answer = (await preview({ ...TYPED, weeklyLossTarget: '0.75', manualCalorieTarget: 1900 }).expect(200)).body;
+    const answer = (
+      await preview({ ...TYPED, weeklyLossTarget: '0.75', manualCalorieTarget: 1900 }).expect(200)
+    ).body;
 
     expect(answer.calculation).toMatchObject({ dailyTarget: 1900, source: 'manual_override' });
-    expect(answer.paces.map((pace: { weeklyLossTarget: string | null }) => pace.weeklyLossTarget)).toEqual([null, '0.25', '0.5', '0.75', '1.0']);
+    expect(
+      answer.paces.map((pace: { weeklyLossTarget: string | null }) => pace.weeklyLossTarget),
+    ).toEqual([null, '0.25', '0.5', '0.75', '1.0']);
     // 275 kcal a day for each quarter of a kilogram a week, and never more than a quarter of maintenance: 690 kcal.
-    expect(answer.paces.map((pace: { dailyTarget: number }) => pace.dailyTarget)).toEqual([2759, 2484, 2209, 2069, 2069]);
-    expect(answer.paces.map((pace: { deficitCapped: boolean }) => pace.deficitCapped)).toEqual([false, false, false, true, true]);
-    expect(new Set(answer.paces.map((pace: { source: string }) => pace.source))).toEqual(new Set(['calculated']));
+    expect(answer.paces.map((pace: { dailyTarget: number }) => pace.dailyTarget)).toEqual([
+      2759, 2484, 2209, 2069, 2069,
+    ]);
+    expect(answer.paces.map((pace: { deficitCapped: boolean }) => pace.deficitCapped)).toEqual([
+      false,
+      false,
+      false,
+      true,
+      true,
+    ]);
+    expect(new Set(answer.paces.map((pace: { source: string }) => pace.source))).toEqual(
+      new Set(['calculated']),
+    );
   });
 
-  it('follows the activity, the pace, the diet and a target of one\'s own', async () => {
-    const paced = (await preview({ ...TYPED, activityLevel: 'sedentary', weeklyLossTarget: null, dietType: 'custom', customMacroSplit: { protein: 30, fat: 40, carbs: 30 } }).expect(200)).body.calculation;
-    const own = (await preview({ ...TYPED, manualCalorieTarget: 1900 }).expect(200)).body.calculation;
+  it("follows the activity, the pace, the diet and a target of one's own", async () => {
+    const paced = (
+      await preview({
+        ...TYPED,
+        activityLevel: 'sedentary',
+        weeklyLossTarget: null,
+        dietType: 'custom',
+        customMacroSplit: { protein: 30, fat: 40, carbs: 30 },
+      }).expect(200)
+    ).body.calculation;
+    const own = (await preview({ ...TYPED, manualCalorieTarget: 1900 }).expect(200)).body
+      .calculation;
 
     // Sedentary: 1,780 kcal and a fifth. No pace: nothing is taken away.
-    expect(paced).toMatchObject({ maintenance: 2136, dailyDeficit: 0, dailyTarget: 2136, targetMacros: { protein: 160, fat: 95, carbs: 160 } });
+    expect(paced).toMatchObject({
+      maintenance: 2136,
+      dailyDeficit: 0,
+      dailyTarget: 2136,
+      targetMacros: { protein: 160, fat: 95, carbs: 160 },
+    });
     expect(own).toMatchObject({ dailyTarget: 1900, source: 'manual_override' });
   });
 
   it.each([
     ['under 18', { ...TYPED, age: 16 }, 'minor'],
     ['underweight', { ...TYPED, weightKg: 55 }, 'underweight'],
-  ])('holds the goal of somebody %s at maintenance until they say they understand the risk', async (_who, typed, risk) => {
-    const held = (await preview(typed).expect(200)).body.calculation;
-    const acknowledged = (await preview({ ...typed, acknowledgeRisk: true }).expect(200)).body.calculation;
+  ])(
+    'holds the goal of somebody %s at maintenance until they say they understand the risk',
+    async (_who, typed, risk) => {
+      const held = (await preview(typed).expect(200)).body.calculation;
+      const acknowledged = (await preview({ ...typed, acknowledgeRisk: true }).expect(200)).body
+        .calculation;
 
-    expect(held).toMatchObject({ goalHeld: true, dailyDeficit: 0 });
-    expect(held.dailyTarget).toBe(held.maintenance);
-    expect(held.warnings).toContain(risk);
-    expect(acknowledged).toMatchObject({ goalHeld: false, maintenance: held.maintenance });
-    expect(acknowledged.dailyTarget).toBeLessThan(held.maintenance);
-    // The risk is said either way.
-    expect(acknowledged.warnings).toContain(risk);
-  });
+      expect(held).toMatchObject({ goalHeld: true, dailyDeficit: 0 });
+      expect(held.dailyTarget).toBe(held.maintenance);
+      expect(held.warnings).toContain(risk);
+      expect(acknowledged).toMatchObject({ goalHeld: false, maintenance: held.maintenance });
+      expect(acknowledged.dailyTarget).toBeLessThan(held.maintenance);
+      // The risk is said either way.
+      expect(acknowledged.warnings).toContain(risk);
+    },
+  );
 
   it.each([
     ['an age no profile may have', { ...TYPED, age: 5 }, 'age'],

@@ -1,16 +1,43 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { describe, expect, it } from 'vitest';
-import { netEffect, pantryStock, settle, stockUnit, type PantryIngredient, type PantryMove, type PantryRow } from './pantry.js';
+import {
+  netEffect,
+  pantryStock,
+  settle,
+  stockUnit,
+  type PantryIngredient,
+  type PantryMove,
+  type PantryRow,
+} from './pantry.js';
 
 /** A large egg: weighed in grams, counted in pieces of 55 g. */
-const EGG: PantryIngredient = { canonicalUnit: 'g', gramsPerPiece: 55, density: null, displayUnit: 'piece' };
+const EGG: PantryIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: 55,
+  density: null,
+  displayUnit: 'piece',
+};
 /** Rice: grams only. */
-const RICE: PantryIngredient = { canonicalUnit: 'g', gramsPerPiece: null, density: null, displayUnit: null };
+const RICE: PantryIngredient = {
+  canonicalUnit: 'g',
+  gramsPerPiece: null,
+  density: null,
+  displayUnit: null,
+};
 /** Milk: measured in millilitres, 1.03 g each. */
-const MILK: PantryIngredient = { canonicalUnit: 'ml', gramsPerPiece: null, density: 1.03, displayUnit: null };
+const MILK: PantryIngredient = {
+  canonicalUnit: 'ml',
+  gramsPerPiece: null,
+  density: 1.03,
+  displayUnit: null,
+};
 
-const row = (unit: PantryRow['unit'], quantity: number, bestBefore: string | null = null): PantryRow => ({
+const row = (
+  unit: PantryRow['unit'],
+  quantity: number,
+  bestBefore: string | null = null,
+): PantryRow => ({
   unit,
   quantity,
   bestBefore: bestBefore ? new Date(bestBefore) : null,
@@ -19,7 +46,10 @@ const row = (unit: PantryRow['unit'], quantity: number, bestBefore: string | nul
 /** Rows as plain text, in a fixed order, for comparing. */
 const shown = (rows: readonly PantryRow[]): string[] =>
   rows
-    .map((r) => `${r.quantity} ${r.unit}${r.bestBefore ? ` until ${r.bestBefore.toISOString().slice(0, 10)}` : ''}`)
+    .map(
+      (r) =>
+        `${r.quantity} ${r.unit}${r.bestBefore ? ` until ${r.bestBefore.toISOString().slice(0, 10)}` : ''}`,
+    )
     .sort();
 
 describe('the stock of an ingredient', () => {
@@ -29,11 +59,18 @@ describe('the stock of an ingredient', () => {
   });
 
   it('counts a row it cannot convert as nothing', () => {
-    expect(pantryStock([row('g', 200), row('piece', 3)], RICE)).toEqual({ quantity: 200, bestBefore: null });
+    expect(pantryStock([row('g', 200), row('piece', 3)], RICE)).toEqual({
+      quantity: 200,
+      bestBefore: null,
+    });
   });
 
   it('names the earliest best-before date among the rows that count', () => {
-    const rows = [row('g', 200, '2026-11-20'), row('piece', 2, '2026-11-05'), row('ml', 100, '2026-10-01')];
+    const rows = [
+      row('g', 200, '2026-11-20'),
+      row('piece', 2, '2026-11-05'),
+      row('ml', 100, '2026-10-01'),
+    ];
 
     expect(pantryStock(rows, EGG).bestBefore).toEqual(new Date('2026-11-05'));
   });
@@ -240,10 +277,17 @@ describe('any sequence of ticks, edits and unticks by several shopping rows', ()
 
   /** Random rows of one ingredient: none, one unit, or several. */
   function pantry(random: () => number, ingredient: PantryIngredient): PantryRow[] {
-    const units: PantryRow['unit'][] = ingredient === EGG ? ['g', 'piece'] : ingredient === MILK ? ['ml', 'g'] : ['g'];
+    const units: PantryRow['unit'][] =
+      ingredient === EGG ? ['g', 'piece'] : ingredient === MILK ? ['ml', 'g'] : ['g'];
     return units
       .filter(() => random() < 0.7)
-      .map((unit) => row(unit, Math.round(random() * (unit === 'piece' ? 12 : 600) * 4) / 4, DATES[Math.floor(random() * DATES.length)]!));
+      .map((unit) =>
+        row(
+          unit,
+          Math.round(random() * (unit === 'piece' ? 12 : 600) * 4) / 4,
+          DATES[Math.floor(random() * DATES.length)]!,
+        ),
+      );
   }
 
   it('never makes or loses stock: the pantry is what it was plus what the ledgers say', () => {
@@ -258,7 +302,8 @@ describe('any sequence of ticks, edits and unticks by several shopping rows', ()
         const owner = Math.floor(random() * ledgers.length);
         // Mostly takes, sometimes a surplus, sometimes back to nothing.
         const kind = random();
-        const target = kind < 0.25 ? 0 : kind < 0.8 ? -Math.round(random() * 500) : Math.round(random() * 300);
+        const target =
+          kind < 0.25 ? 0 : kind < 0.8 ? -Math.round(random() * 500) : Math.round(random() * 300);
         const before = netEffect(ledgers[owner]!, ingredient);
 
         const result = settle(rows, ingredient, ledgers[owner]!, target);
@@ -266,7 +311,8 @@ describe('any sequence of ticks, edits and unticks by several shopping rows', ()
         // Never beyond what was asked, never the other way.
         const asked = target - before;
         expect(Math.abs(result.applied)).toBeLessThanOrEqual(Math.abs(asked) + 1e-6);
-        if (Math.abs(result.applied) > 1e-6) expect(Math.sign(result.applied)).toBe(Math.sign(asked));
+        if (Math.abs(result.applied) > 1e-6)
+          expect(Math.sign(result.applied)).toBe(Math.sign(asked));
         // The ledger says what was done.
         expect(netEffect(result.moves, ingredient)).toBeCloseTo(before + result.applied, 4);
         // No row below zero.

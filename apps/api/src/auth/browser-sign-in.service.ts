@@ -19,7 +19,11 @@ const MOST_CODES_AN_HOUR = 30;
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
-const refused = (): UnauthorizedException => new UnauthorizedException({ error: 'INVALID_BROWSER_CODE', message: 'The code is not good: used, run out, or never given.' });
+const refused = (): UnauthorizedException =>
+  new UnauthorizedException({
+    error: 'INVALID_BROWSER_CODE',
+    message: 'The code is not good: used, run out, or never given.',
+  });
 
 /**
  * An application signs a browser in to its account: it asks for a code with
@@ -48,14 +52,26 @@ export class BrowserSignIn {
     const code = randomBytes(32).toString('hex');
     const opened = await this.sessions.refresh(refreshToken, async (tx, { userId, sessionId }) => {
       const now = Date.now();
-      const lastHour = await tx.browserSignInCode.count({ where: { userId, createdAt: { gt: new Date(now - HOUR_MS) } } });
+      const lastHour = await tx.browserSignInCode.count({
+        where: { userId, createdAt: { gt: new Date(now - HOUR_MS) } },
+      });
       if (lastHour >= MOST_CODES_AN_HOUR) {
         throw new HttpException(
-          { error: 'BROWSER_CODES_USED_UP', message: `One account may sign a browser in at most ${MOST_CODES_AN_HOUR} times in an hour.` },
+          {
+            error: 'BROWSER_CODES_USED_UP',
+            message: `One account may sign a browser in at most ${MOST_CODES_AN_HOUR} times in an hour.`,
+          },
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
-      await tx.browserSignInCode.create({ data: { userId, sessionId, codeHash: sha256(code), expiresAt: new Date(now + CODE_SECONDS * 1000) } });
+      await tx.browserSignInCode.create({
+        data: {
+          userId,
+          sessionId,
+          codeHash: sha256(code),
+          expiresAt: new Date(now + CODE_SECONDS * 1000),
+        },
+      });
     });
     return { ...opened, code, codeExpiresIn: CODE_SECONDS };
   }
@@ -75,11 +91,18 @@ export class BrowserSignIn {
    * asked for it is open. `replacing` is the refresh token of the session the
    * browser had: it ends.
    */
-  async signIn(code: string, replacing: string | undefined, label: string | null): Promise<OpenedSession> {
+  async signIn(
+    code: string,
+    replacing: string | undefined,
+    label: string | null,
+  ): Promise<OpenedSession> {
     const now = new Date();
     const found = await this.usable(code, now);
     // Only one request gets to use a code, however many present it together.
-    const used = await this.prisma.browserSignInCode.updateMany({ where: { id: found.id, usedAt: null }, data: { usedAt: now } });
+    const used = await this.prisma.browserSignInCode.updateMany({
+      where: { id: found.id, usedAt: null },
+      data: { usedAt: now },
+    });
     if (used.count !== 1) throw refused();
 
     if (replacing) await this.sessions.end(replacing);
@@ -104,7 +127,9 @@ export class BrowserSignIn {
 
   /** Remove the codes of more than a day ago: an hour's count no longer takes them in. Returns how many were removed. */
   async prune(): Promise<number> {
-    const { count } = await this.prisma.browserSignInCode.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - DAY_MS) } } });
+    const { count } = await this.prisma.browserSignInCode.deleteMany({
+      where: { createdAt: { lt: new Date(Date.now() - DAY_MS) } },
+    });
     return count;
   }
 }

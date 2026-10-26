@@ -56,12 +56,24 @@ export function AccountSecondFactorCard() {
         <p className="text-sm text-muted-foreground">{t('accountFactorBody')}</p>
         {confirming ? (
           <div className="space-y-3">
-            <p className="text-sm font-medium">{t('accountFactorConfirm', { email: email.trim() })}</p>
+            <p className="text-sm font-medium">
+              {t('accountFactorConfirm', { email: email.trim() })}
+            </p>
             <div className="flex gap-2">
-              <Button type="button" variant="destructive" disabled={busy} onClick={() => void remove()}>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={busy}
+                onClick={() => void remove()}
+              >
                 {t('accountFactorConfirmButton')}
               </Button>
-              <Button type="button" variant="outline" disabled={busy} onClick={() => setConfirming(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => setConfirming(false)}
+              >
                 {tCommon('cancel')}
               </Button>
             </div>
@@ -69,7 +81,14 @@ export function AccountSecondFactorCard() {
         ) : (
           <form onSubmit={ask} className="max-w-sm space-y-3">
             <Field label={t('accountFactorEmail')}>
-              <Input name="email" type="email" required autoComplete="off" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <Input
+                name="email"
+                type="email"
+                required
+                autoComplete="off"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
             </Field>
             <Button type="submit" variant="outline">
               {t('accountFactorRemove')}

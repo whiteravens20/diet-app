@@ -12,6 +12,8 @@ const REPORT_MEDIA_TYPES = ['application/csp-report', 'application/reports+json'
 export class PolicyReportsModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // A report is a few hundred bytes, most of them the policy it quotes; a browser may send the ones it had waiting together.
-    consumer.apply(json({ type: REPORT_MEDIA_TYPES, limit: '64kb' })).forRoutes(PolicyReportsController);
+    consumer
+      .apply(json({ type: REPORT_MEDIA_TYPES, limit: '64kb' }))
+      .forRoutes(PolicyReportsController);
   }
 }

@@ -20,7 +20,12 @@ export class PlanOverviewService {
   ) {}
 
   /** The overview of the plan of the moment, or none for a profile without a plan. `clientToday` is the day it is for whoever asks. */
-  async overview(userId: string, locale: Locale, profileId: string, clientToday: string | null = null): Promise<PlanOverviewAnswer> {
+  async overview(
+    userId: string,
+    locale: Locale,
+    profileId: string,
+    clientToday: string | null = null,
+  ): Promise<PlanOverviewAnswer> {
     await this.plans.loadProfile(userId, profileId);
     const today = clientToday ?? isoDate(new Date());
     const found = await this.planOfTheMoment(profileId, today);
@@ -34,7 +39,12 @@ export class PlanOverviewService {
     const due = plan.days.filter((day) => day.date <= today).flatMap((day) => day.meals);
 
     const liked = new Set(
-      (await this.prisma.favorite.findMany({ where: { profileId, sentiment: { in: ['favorite', 'often'] } }, select: { recipeId: true } })).map((marked) => marked.recipeId),
+      (
+        await this.prisma.favorite.findMany({
+          where: { profileId, sentiment: { in: ['favorite', 'often'] } },
+          select: { recipeId: true },
+        })
+      ).map((marked) => marked.recipeId),
     );
     const [lists, entries, ticked] = await Promise.all([
       this.prisma.shoppingList.count({ where: { planId: plan.id } }),
@@ -43,21 +53,42 @@ export class PlanOverviewService {
     ]);
 
     const overview: PlanOverview = {
-      plan: { id: plan.id, startDate: plan.startDate, durationDays: plan.durationDays, dietType: plan.dietType, status: found.status },
+      plan: {
+        id: plan.id,
+        startDate: plan.startDate,
+        durationDays: plan.durationDays,
+        dietType: plan.dietType,
+        status: found.status,
+      },
       energy: {
         planned: plan.averageDailyNutrition.calories,
-        target: planned.length === 0 ? 0 : Math.round(planned.reduce((sum, day) => sum + day.calorieTarget, 0) / planned.length),
+        target:
+          planned.length === 0
+            ? 0
+            : Math.round(planned.reduce((sum, day) => sum + day.calorieTarget, 0) / planned.length),
       },
       macros: {
-        planned: { protein: plan.averageDailyNutrition.protein, fat: plan.averageDailyNutrition.fat, carbs: plan.averageDailyNutrition.carbs },
+        planned: {
+          protein: plan.averageDailyNutrition.protein,
+          fat: plan.averageDailyNutrition.fat,
+          carbs: plan.averageDailyNutrition.carbs,
+        },
         target: plan.targetMacros,
       },
       eaten: { meals: due.filter((meal) => meal.eatenAt !== null).length, of: due.length },
       onDiet: { meals: cooked.filter((meal) => !meal.dietOverride).length, of: cooked.length },
-      favourites: { meals: cooked.filter((meal) => liked.has(meal.recipe!.id)).length, of: cooked.length },
+      favourites: {
+        meals: cooked.filter((meal) => liked.has(meal.recipe!.id)).length,
+        of: cooked.length,
+      },
       ingredientReuse: plan.ingredientReuseScore,
       shopping: { lists, entries, ticked },
-      days: plan.days.map((day) => ({ date: day.date, calories: day.dayNutrition.calories, target: day.calorieTarget, skipped: day.skipped })),
+      days: plan.days.map((day) => ({
+        date: day.date,
+        calories: day.dayNutrition.calories,
+        target: day.calorieTarget,
+        skipped: day.skipped,
+      })),
     };
     return { overview };
   }
@@ -67,15 +98,23 @@ export class PlanOverviewService {
    * when several overlap; with none under way, the one that begins next; with
    * none ahead, the one that ended last.
    */
-  private async planOfTheMoment(profileId: string, today: string): Promise<{ id: string; status: PlanOverview['plan']['status'] } | null> {
+  private async planOfTheMoment(
+    profileId: string,
+    today: string,
+  ): Promise<{ id: string; status: PlanOverview['plan']['status'] } | null> {
     const day = Prisma.sql`${today}::date`;
     // The last day of a plan is its first plus its length less one.
     const lastDay = Prisma.sql`("startDate" + ("durationDays" - 1))`;
     const first = async (narrowed: Prisma.Sql, order: Prisma.Sql): Promise<string | null> => {
-      const rows = await this.prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "MealPlan" WHERE "profileId" = ${profileId} AND ${narrowed} ORDER BY ${order}, "createdAt" DESC, "id" LIMIT 1`;
+      const rows = await this.prisma.$queryRaw<
+        { id: string }[]
+      >`SELECT "id" FROM "MealPlan" WHERE "profileId" = ${profileId} AND ${narrowed} ORDER BY ${order}, "createdAt" DESC, "id" LIMIT 1`;
       return rows[0]?.id ?? null;
     };
-    const active = await first(Prisma.sql`"startDate" <= ${day} AND ${lastDay} >= ${day}`, Prisma.sql`"startDate" DESC`);
+    const active = await first(
+      Prisma.sql`"startDate" <= ${day} AND ${lastDay} >= ${day}`,
+      Prisma.sql`"startDate" DESC`,
+    );
     if (active) return { id: active, status: 'active' };
     const upcoming = await first(Prisma.sql`"startDate" > ${day}`, Prisma.sql`"startDate" ASC`);
     if (upcoming) return { id: upcoming, status: 'upcoming' };

@@ -51,7 +51,8 @@ export function PlanCalendar({
   const calendar = useQuery({
     // Among the plans of the profile, so that whatever changes a plan has the calendar read again.
     queryKey: ['meal-plans', profileId, 'calendar', from, to],
-    queryFn: () => api.get<Calendar>(`/meal-plans/calendar?${new URLSearchParams({ profileId, from, to })}`),
+    queryFn: () =>
+      api.get<Calendar>(`/meal-plans/calendar?${new URLSearchParams({ profileId, from, to })}`),
     // The month before stays while the next is on its way: its days are other days, drawn where these will be.
     placeholderData: keepPreviousData,
   });
@@ -77,7 +78,17 @@ export function PlanCalendar({
     if (date < from || date > to) setMonth(monthOf(date));
   };
   const onKey = (date: string, weekday: number) => (event: KeyboardEvent<HTMLButtonElement>) => {
-    const step = STEPS[event.key] ?? (event.key === 'Home' ? -weekday : event.key === 'End' ? 6 - weekday : event.key === 'PageUp' ? 'before' : event.key === 'PageDown' ? 'after' : null);
+    const step =
+      STEPS[event.key] ??
+      (event.key === 'Home'
+        ? -weekday
+        : event.key === 'End'
+          ? 6 - weekday
+          : event.key === 'PageUp'
+            ? 'before'
+            : event.key === 'PageDown'
+              ? 'after'
+              : null);
     if (step === null) return;
     event.preventDefault();
     if (typeof step === 'number') return moveTo(dayAfter(date, step));
@@ -93,7 +104,15 @@ export function PlanCalendar({
     const name = fmt.day(date);
     if (!day) return t('dayFree', { day: name });
     if (day.skipped) return t('daySkipped', { day: name, more: day.plans - 1 });
-    return t('dayPlanned', { day: name, calories: day.calories, target: day.target, standing: day.offTarget ?? 'on', eaten: day.eaten.meals, of: day.eaten.of, more: day.plans - 1 });
+    return t('dayPlanned', {
+      day: name,
+      calories: day.calories,
+      target: day.target,
+      standing: day.offTarget ?? 'on',
+      eaten: day.eaten.meals,
+      of: day.eaten.of,
+      more: day.plans - 1,
+    });
   };
 
   return (
@@ -103,13 +122,31 @@ export function PlanCalendar({
           {fmt.month(month)}
         </h4>
         <div className="flex items-center gap-1">
-          <Button type="button" variant="outline" size="sm" aria-label={t('previous')} onClick={() => leaf(-1)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t('previous')}
+            onClick={() => leaf(-1)}
+          >
             <ChevronLeft size={16} aria-hidden />
           </Button>
-          <Button type="button" variant="outline" size="sm" disabled={monthOf(today) === month} onClick={() => setMonth(monthOf(today))}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={monthOf(today) === month}
+            onClick={() => setMonth(monthOf(today))}
+          >
             {t('thisMonth')}
           </Button>
-          <Button type="button" variant="outline" size="sm" aria-label={t('next')} onClick={() => leaf(1)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t('next')}
+            onClick={() => leaf(1)}
+          >
             <ChevronRight size={16} aria-hidden />
           </Button>
         </div>
@@ -118,11 +155,20 @@ export function PlanCalendar({
       {calendar.isError ? (
         <LoadFailed error={calendar.error} onRetry={() => void calendar.refetch()} />
       ) : (
-        <table role="grid" aria-labelledby={title} aria-busy={calendar.isFetching} className="w-full table-fixed border-separate border-spacing-1">
+        <table
+          role="grid"
+          aria-labelledby={title}
+          aria-busy={calendar.isFetching}
+          className="w-full table-fixed border-separate border-spacing-1"
+        >
           <thead>
             <tr>
               {weeks[0]!.map((date) => (
-                <th key={date} scope="col" className="pb-1 text-center text-xs font-medium text-muted-foreground">
+                <th
+                  key={date}
+                  scope="col"
+                  className="pb-1 text-center text-xs font-medium text-muted-foreground"
+                >
                   <abbr title={fmt.weekday(date, 'long')} className="no-underline">
                     {fmt.weekday(date)}
                   </abbr>
@@ -154,17 +200,31 @@ export function PlanCalendar({
                         onKeyDown={onKey(date, weekday)}
                         className={cn(
                           'flex h-16 w-full flex-col items-start gap-0.5 rounded-md border p-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          day ? 'border-primary/40 bg-primary/5 hover:bg-primary/10' : 'border-border/60 hover:bg-muted',
+                          day
+                            ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
+                            : 'border-border/60 hover:bg-muted',
                           // A day of the month before or after is told apart by its frame and a quieter colour that can still be read: a faded day could not.
                           monthOf(date) !== month && 'border-dashed text-muted-foreground',
                         )}
                       >
-                        <span className={cn('flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-medium tabular-nums', date === today && 'bg-primary text-primary-foreground')}>
+                        <span
+                          className={cn(
+                            'flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-medium tabular-nums',
+                            date === today && 'bg-primary text-primary-foreground',
+                          )}
+                        >
                           {Number(date.slice(8))}
                         </span>
-                        {day?.skipped && <span className="text-muted-foreground">{t('skipped')}</span>}
+                        {day?.skipped && (
+                          <span className="text-muted-foreground">{t('skipped')}</span>
+                        )}
                         {day && !day.skipped && (
-                          <span className={cn('flex items-center gap-0.5 tabular-nums', day.offTarget && 'font-medium text-warning')}>
+                          <span
+                            className={cn(
+                              'flex items-center gap-0.5 tabular-nums',
+                              day.offTarget && 'font-medium text-warning',
+                            )}
+                          >
                             {day.offTarget && <TriangleAlert size={10} aria-hidden />}
                             {fmt.number(day.calories)}
                           </span>

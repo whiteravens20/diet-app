@@ -50,7 +50,8 @@ export class ReviewerSessionGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } = await this.settings.readReviewerCredentials();
+    const { reviewerEnabled, reviewerPasswordHash, reviewerSessionEpoch } =
+      await this.settings.readReviewerCredentials();
     if (!reviewerEnabled || reviewerPasswordHash === null) {
       throw new ForbiddenException({
         error: 'REVIEWER_DISABLED',
@@ -81,7 +82,10 @@ export class ReviewerSessionGuard implements CanActivate {
     }
     // A request that changes something has to come from the application's own pages.
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      assertFromTheApplication(req.headers['origin'] as string | undefined, this.config.get('APP_URL', { infer: true }));
+      assertFromTheApplication(
+        req.headers['origin'] as string | undefined,
+        this.config.get('APP_URL', { infer: true }),
+      );
     }
 
     req.reviewer = session;

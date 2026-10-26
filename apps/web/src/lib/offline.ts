@@ -96,7 +96,9 @@ function writeWaiting(ticks: WaitingTick[]): void {
 async function drop(except: string | null): Promise<void> {
   const all = stores();
   if (!all) return;
-  for (const name of await all.keys()) if (name.startsWith(PREFIX) && name !== (except === null ? null : storeOf(except))) await all.delete(name);
+  for (const name of await all.keys())
+    if (name.startsWith(PREFIX) && name !== (except === null ? null : storeOf(except)))
+      await all.delete(name);
 }
 
 export const offline = {
@@ -163,9 +165,13 @@ export const offline = {
       const key = keyOf(path);
       // Taken out and put in again, so that what was read last is kept longest.
       await store.delete(key);
-      await store.put(key, new Response(JSON.stringify(answer), { headers: { 'content-type': 'application/json' } }));
+      await store.put(
+        key,
+        new Response(JSON.stringify(answer), { headers: { 'content-type': 'application/json' } }),
+      );
       const keys = await store.keys();
-      for (const oldest of keys.slice(0, Math.max(0, keys.length - MOST_ANSWERS))) await store.delete(oldest);
+      for (const oldest of keys.slice(0, Math.max(0, keys.length - MOST_ANSWERS)))
+        await store.delete(oldest);
     } catch {
       // A browser that is out of room, or one that takes the storage away, keeps nothing: the pages work as without it.
     }
@@ -210,7 +216,9 @@ export const offline = {
    */
   wait(tick: WaitingTick): boolean {
     if (!this.account) return false;
-    const others = waitingNow().filter((waiting) => waiting.listId !== tick.listId || waiting.itemId !== tick.itemId);
+    const others = waitingNow().filter(
+      (waiting) => waiting.listId !== tick.listId || waiting.itemId !== tick.itemId,
+    );
     if (others.length >= MOST_WAITING) return false;
     writeWaiting([...others, tick]);
     return true;

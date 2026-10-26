@@ -2,9 +2,24 @@
 
 import * as z from './zod.js';
 import { AiGenerationMeta, ModelPickNote } from './ai.js';
-import { CalendarDay, dayAfter, DietType, DisplayAmount, LAST_DAY, MealType, Unit } from './enums.js';
+import {
+  CalendarDay,
+  dayAfter,
+  DietType,
+  DisplayAmount,
+  LAST_DAY,
+  MealType,
+  Unit,
+} from './enums.js';
 import { Ingredient } from './ingredient.js';
-import { EnteredNutrition, MAX_CALORIE_TARGET, MIN_CALORIE_TARGET, MacroChange, Macros, Nutrition } from './nutrition.js';
+import {
+  EnteredNutrition,
+  MAX_CALORIE_TARGET,
+  MIN_CALORIE_TARGET,
+  MacroChange,
+  Macros,
+  Nutrition,
+} from './nutrition.js';
 import { Recipe } from './recipe.js';
 
 /**
@@ -52,12 +67,22 @@ export type UnfilledMeal = z.infer<typeof UnfilledMeal>;
 
 /**
  * A limit of a plan that can give way when no recipe is left for a meal
- * inside it, in the order in which they do: the most a recipe appears in the
- * plan, the day's cooking time, a recipe twice on one day, days in a row, the
- * times a recipe is eaten in seven days, and the most of one ingredient in
- * seven days last.
+ * inside it, in the order in which they do: the meals of seven days that hold
+ * the same kind of protein first, then those of one day, so that a kind comes
+ * again before a dish does; then the most a recipe appears in the plan, the
+ * day's cooking time, a recipe twice on one day, days in a row, and the times
+ * a recipe is eaten in seven days last. `ingredient_cap` keeps the name it had
+ * when it counted the grams of one ingredient: plans made then hold it.
  */
-export const PLAN_RELAXATIONS = ['variety_floor', 'cook_time', 'same_day', 'consecutive_days', 'weekly_cap', 'ingredient_cap'] as const;
+export const PLAN_RELAXATIONS = [
+  'ingredient_cap',
+  'kind_same_day',
+  'variety_floor',
+  'cook_time',
+  'same_day',
+  'consecutive_days',
+  'weekly_cap',
+] as const;
 export const PlanRelaxation = z.enum(PLAN_RELAXATIONS);
 export type PlanRelaxation = z.infer<typeof PlanRelaxation>;
 
@@ -87,60 +112,92 @@ export const MAX_PLAN_DAYS = 28;
 export const MAX_PLAN_MEALS = MAX_PLAN_DAYS * MealType.options.length;
 
 /** Request to generate a meal plan. */
-export const GeneratePlanRequest = z.object({
-  profileId: z.string().uuid(),
-  startDate: CalendarDay,
-  durationDays: z.number().int().min(1).max(MAX_PLAN_DAYS),
-  dietType: DietType.optional(), // defaults to the profile diet type
-  mealCount: z.number().int().min(2).max(5).optional(),
-  /** Override the profile's calorie target for this plan only. */
-  calorieTargetOverride: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).optional(),
-  /** Bias the optimiser toward batch-cookable, ingredient-reusing plans. */
-  mealPrepFriendly: z.boolean().default(false),
-  /** Honour the profile's avoid-list (excludedIngredientIds + allergens). */
-  respectExclusions: z.boolean().default(true),
-  /** Bias the optimiser toward recipes built from the profile's favourites. */
-  respectFavorites: z.boolean().default(true),
-  /**
-   * Bias the optimiser toward recipes the profile's inventory can cover.
-   * Default true; auto-no-ops when the pantry is empty so users without
-   * inventory see no change. The anti-monotony reset (every N consecutive
-   * biased rounds, see Profile.inventoryBiasResetEvery) drops the bias for
-   * one round to keep the menu varied.
-   */
-  respectInventory: z.boolean().default(true),
-  /**
-   * Variety floor: max total times any one recipe may appear across the
-   * whole plan window. Omitted = no floor.
-   */
-  maxRepeatsPerRecipe: z.number().int().min(1).max(28).optional(),
-  /**
-   * The limits that may give way when a meal cannot be filled inside them.
-   * None by default: the plan is then refused with 422
-   * `PLAN_NEEDS_RELAXATION`, which names what would have to.
-   */
-  allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).default([]),
-  /** Per-day advanced overrides (sparse — untouched days are omitted). */
-  dayOverrides: z.array(DayOverride).max(MAX_PLAN_DAYS).optional(),
-}).superRefine((request, ctx) => {
-  // A first day outside the years there are is refused where it stands; what follows is about a plan that begins inside them.
-  if (request.startDate > LAST_DAY) return;
-  const lastDay = dayAfter(request.startDate, request.durationDays - 1);
-  if (lastDay > LAST_DAY) ctx.addIssue({ code: 'custom', path: ['durationDays'], message: `The plan would run past ${LAST_DAY}.` });
-  const named = new Set<string>();
-  request.dayOverrides?.forEach((day, index) => {
-    const at = ['dayOverrides', index];
-    if (named.has(day.date)) ctx.addIssue({ code: 'custom', path: [...at, 'date'], message: 'This day is named twice.' });
-    named.add(day.date);
-    if (day.date < request.startDate || day.date > lastDay) ctx.addIssue({ code: 'custom', path: [...at, 'date'], message: 'This is no day of the plan.' });
-    if (day.skip && (day.lockedSlots?.length ?? 0) > 0) ctx.addIssue({ code: 'custom', path: [...at, 'lockedSlots'], message: 'A day that is skipped has no meal to lock.' });
-    const locked = new Set<string>();
-    day.lockedSlots?.forEach((lock, slot) => {
-      if (locked.has(lock.mealType)) ctx.addIssue({ code: 'custom', path: [...at, 'lockedSlots', slot, 'mealType'], message: 'This meal is locked twice.' });
-      locked.add(lock.mealType);
+export const GeneratePlanRequest = z
+  .object({
+    profileId: z.string().uuid(),
+    startDate: CalendarDay,
+    durationDays: z.number().int().min(1).max(MAX_PLAN_DAYS),
+    dietType: DietType.optional(), // defaults to the profile diet type
+    mealCount: z.number().int().min(2).max(5).optional(),
+    /** Override the profile's calorie target for this plan only. */
+    calorieTargetOverride: z
+      .number()
+      .int()
+      .min(MIN_CALORIE_TARGET)
+      .max(MAX_CALORIE_TARGET)
+      .optional(),
+    /** Bias the optimiser toward batch-cookable, ingredient-reusing plans. */
+    mealPrepFriendly: z.boolean().default(false),
+    /** Honour the profile's avoid-list (excludedIngredientIds + allergens). */
+    respectExclusions: z.boolean().default(true),
+    /** Bias the optimiser toward recipes built from the profile's favourites. */
+    respectFavorites: z.boolean().default(true),
+    /**
+     * Bias the optimiser toward recipes the profile's inventory can cover.
+     * Default true; auto-no-ops when the pantry is empty so users without
+     * inventory see no change. The anti-monotony reset (every N consecutive
+     * biased rounds, see Profile.inventoryBiasResetEvery) drops the bias for
+     * one round to keep the menu varied.
+     */
+    respectInventory: z.boolean().default(true),
+    /**
+     * Variety floor: max total times any one recipe may appear across the
+     * whole plan window. Omitted = no floor.
+     */
+    maxRepeatsPerRecipe: z.number().int().min(1).max(28).optional(),
+    /**
+     * The limits that may give way when a meal cannot be filled inside them.
+     * None by default: the plan is then refused with 422
+     * `PLAN_NEEDS_RELAXATION`, which names what would have to.
+     */
+    allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).default([]),
+    /** Per-day advanced overrides (sparse — untouched days are omitted). */
+    dayOverrides: z.array(DayOverride).max(MAX_PLAN_DAYS).optional(),
+  })
+  .superRefine((request, ctx) => {
+    // A first day outside the years there are is refused where it stands; what follows is about a plan that begins inside them.
+    if (request.startDate > LAST_DAY) return;
+    const lastDay = dayAfter(request.startDate, request.durationDays - 1);
+    if (lastDay > LAST_DAY)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['durationDays'],
+        message: `The plan would run past ${LAST_DAY}.`,
+      });
+    const named = new Set<string>();
+    request.dayOverrides?.forEach((day, index) => {
+      const at = ['dayOverrides', index];
+      if (named.has(day.date))
+        ctx.addIssue({
+          code: 'custom',
+          path: [...at, 'date'],
+          message: 'This day is named twice.',
+        });
+      named.add(day.date);
+      if (day.date < request.startDate || day.date > lastDay)
+        ctx.addIssue({
+          code: 'custom',
+          path: [...at, 'date'],
+          message: 'This is no day of the plan.',
+        });
+      if (day.skip && (day.lockedSlots?.length ?? 0) > 0)
+        ctx.addIssue({
+          code: 'custom',
+          path: [...at, 'lockedSlots'],
+          message: 'A day that is skipped has no meal to lock.',
+        });
+      const locked = new Set<string>();
+      day.lockedSlots?.forEach((lock, slot) => {
+        if (locked.has(lock.mealType))
+          ctx.addIssue({
+            code: 'custom',
+            path: [...at, 'lockedSlots', slot, 'mealType'],
+            message: 'This meal is locked twice.',
+          });
+        locked.add(lock.mealType);
+      });
     });
   });
-});
 export type GeneratePlanRequest = z.infer<typeof GeneratePlanRequest>;
 
 /**
@@ -331,14 +388,110 @@ export const MealPlanDay = z.object({
    * it is so.
    */
   offTarget: z.enum(['over', 'under']).nullable(),
-  /** The user skips this day: it has no meals, is no shortfall, and is left out of the plan's averages. */
+  /**
+   * The user skips this day: it is no shortfall, and is left out of the
+   * plan's averages. What was eaten of it before it was skipped stays on it.
+   */
   skipped: z.boolean(),
   /** A target somebody typed, for the plan or for this day, has put the day under the lowest a calculated plan goes. */
   belowSafetyFloor: z.boolean(),
   /** Advanced per-day overrides, or null for a basic-flow day. */
   overrides: MealPlanDayOverrides.nullable(),
+  /**
+   * How many meals the day is set for: its own number, the plan's, or else as
+   * many as it has from the catalogue. What a change of the day's settings
+   * starts from (`DaySettings`).
+   */
+  mealCount: z.number().int().min(2).max(5),
 });
 export type MealPlanDay = z.infer<typeof MealPlanDay>;
+
+/**
+ * What a day of a running plan can be set to, from today on: what a day of a
+ * new plan can be given (`DayOverride`), but its locks. A setting left as the
+ * plan has it (a `normal` day, no target of its own, no limit on cooking, the
+ * plan's number of meals) is kept as none.
+ *
+ * What a change does to the day's meals: another kind of day, or a target of
+ * its own, keeps the dishes in other portions; another number of meals keeps
+ * the dishes of the meals that stay, in other portions, draws recipes for the
+ * meals the day gains and takes away those it loses; a limit on cooking time
+ * draws other recipes for the meals over it, and `useUpBy` for every meal not
+ * yet eaten. Eaten meals and the user's own stay as they are; a skipped day
+ * keeps only what was eaten. `POST /meal-plans/:id/days/:dayId/settings/preview`
+ * says which of this a change does before it is made.
+ */
+export const DaySettings = z.object({
+  dayType: z.enum(['normal', 'rest', 'training']),
+  skip: z.boolean(),
+  mealCount: z.number().int().min(2).max(5),
+  /** A target of the day's own; null for the one its kind gives. */
+  calorieTarget: z.number().int().min(MIN_CALORIE_TARGET).max(MAX_CALORIE_TARGET).nullable(),
+  /** The most minutes a recipe of the day may take to prepare and cook; null for no limit. */
+  cookTimeBudgetMinutes: z.number().int().min(0).max(600).nullable(),
+  /** Put first the recipes that use what the pantry has to use up by this day. */
+  useUpBy: z.boolean(),
+});
+export type DaySettings = z.infer<typeof DaySettings>;
+
+/**
+ * Change the settings of a day (`DaySettings`) on the plan as it was when the
+ * preview was asked for: a plan that changed since answers 409
+ * `PLAN_CHANGED`, and a day before today 409 `DAY_IN_THE_PAST`. Recipes are
+ * drawn inside the limits of the plan, as for a day made again, and
+ * `allowRelaxations` is what it is there.
+ */
+export const ApplyDaySettingsRequest = DaySettings.extend({
+  revision: z.number().int().min(0).max(2_147_483_647),
+  allowRelaxations: z.array(PlanRelaxation).max(PLAN_RELAXATIONS.length).optional(),
+});
+export type ApplyDaySettingsRequest = z.infer<typeof ApplyDaySettingsRequest>;
+
+/** What a change of a day's settings does to one of its meals, and why. */
+export const DayMealFate = z.object({
+  mealId: z.string().uuid(),
+  mealType: MealType,
+  /** `stays` as it is; `resized`: the same dish in another amount; `redrawn`: another recipe is drawn for the meal; `removed`: it leaves the day. */
+  fate: z.enum(['stays', 'resized', 'redrawn', 'removed']),
+  /**
+   * Why, where it is more than the day's new target or number of meals:
+   * `eaten` and `own` meals stay; `fewer_meals` and `skipped` are what take a
+   * meal away; `over_cook_time` and `use_up` what draw another recipe.
+   */
+  because: z
+    .enum(['eaten', 'own', 'fewer_meals', 'skipped', 'over_cook_time', 'use_up'])
+    .nullable(),
+});
+export type DayMealFate = z.infer<typeof DayMealFate>;
+
+/** What a change of a day's settings would do, as `POST /meal-plans/:id/days/:dayId/settings/preview` answers it. Nothing is written. */
+export const DaySettingsPreview = z.object({
+  /** The plan's revision this is for: handed back with the change. */
+  revision: z.number().int().min(0),
+  date: z.string().date(),
+  /** The day's target, and what it aims at of protein, fat and carbohydrate: now, and after the change. */
+  calorieTarget: z.object({ now: z.number(), then: z.number() }),
+  targetMacros: z.object({ now: Macros, then: Macros }),
+  /** A target typed for the day would put it under the lowest a calculated plan goes. */
+  belowSafetyFloor: z.boolean(),
+  /** Each meal of the day, in the order they are eaten. */
+  meals: z.array(DayMealFate),
+  /** The meals the day would gain, in the order they are eaten: a recipe is drawn for each. */
+  added: z.array(MealType),
+  /**
+   * What the day would hold where the change draws no recipe, its portions
+   * worked out as the change would work them out. Null where recipes are
+   * drawn: what they hold is known once they are.
+   */
+  dayCalories: z.number().nullable(),
+  /** Whether that is inside the tenth either side of the new target that a plan is held to. Null with `dayCalories`. */
+  fits: z.boolean().nullable(),
+  /** A shopping list of the plan covers the day: once its meals change, it says that it is out of date. */
+  listOutOfDate: z.boolean(),
+  /** The change does nothing to the day. */
+  unchanged: z.boolean(),
+});
+export type DaySettingsPreview = z.infer<typeof DaySettingsPreview>;
 
 /** A pack that a plan's menu opens and does not finish. */
 export const PlanOpenPack = z.object({
@@ -437,9 +590,20 @@ export const PlanOverview = z.object({
   /** 0-1: the share of the plan's ingredients that more than one of its recipes uses. */
   ingredientReuse: z.number().min(0).max(1),
   /** The plan's shopping lists: how many there are, and how many of their entries are ticked. */
-  shopping: z.object({ lists: z.number().int().min(0), entries: z.number().int().min(0), ticked: z.number().int().min(0) }),
+  shopping: z.object({
+    lists: z.number().int().min(0),
+    entries: z.number().int().min(0),
+    ticked: z.number().int().min(0),
+  }),
   /** Day by day: what the day holds and what it aims at, in kilocalories. */
-  days: z.array(z.object({ date: z.string().date(), calories: z.number().min(0), target: z.number().min(0), skipped: z.boolean() })),
+  days: z.array(
+    z.object({
+      date: z.string().date(),
+      calories: z.number().min(0),
+      target: z.number().min(0),
+      skipped: z.boolean(),
+    }),
+  ),
 });
 export type PlanOverview = z.infer<typeof PlanOverview>;
 
@@ -455,13 +619,20 @@ export type PlanOverviewAnswer = z.infer<typeof PlanOverviewAnswer>;
 export const MAX_CALENDAR_DAYS = 42;
 
 /** The days from one calendar day to another, both counted. */
-const daysBetween = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+const daysBetween = (from: string, to: string): number =>
+  Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
 
 /** Whose plans are asked about, and on which days: from one calendar day to another, both included. */
 export const PlanCalendarQuery = z
   .object({ profileId: z.string().uuid(), from: CalendarDay, to: CalendarDay })
-  .refine((asked) => asked.from <= asked.to, { path: ['to'], message: 'The last day cannot be before the first.' })
-  .refine((asked) => asked.from > asked.to || daysBetween(asked.from, asked.to) <= MAX_CALENDAR_DAYS, { path: ['to'], message: `At most ${MAX_CALENDAR_DAYS} days at once.` });
+  .refine((asked) => asked.from <= asked.to, {
+    path: ['to'],
+    message: 'The last day cannot be before the first.',
+  })
+  .refine(
+    (asked) => asked.from > asked.to || daysBetween(asked.from, asked.to) <= MAX_CALENDAR_DAYS,
+    { path: ['to'], message: `At most ${MAX_CALENDAR_DAYS} days at once.` },
+  );
 export type PlanCalendarQuery = z.infer<typeof PlanCalendarQuery>;
 
 /** A day that a plan of the profile holds, as a calendar shows it. */
@@ -491,7 +662,12 @@ export type PlanCalendar = z.infer<typeof PlanCalendar>;
  * average, without its days and what is counted from their meals.
  * `GET /meal-plans/:id` answers the whole plan.
  */
-export const MealPlanSummary = MealPlan.omit({ days: true, report: true, targetMacros: true, packs: true });
+export const MealPlanSummary = MealPlan.omit({
+  days: true,
+  report: true,
+  targetMacros: true,
+  packs: true,
+});
 export type MealPlanSummary = z.infer<typeof MealPlanSummary>;
 
 /**
@@ -525,31 +701,32 @@ export type MealPlanPage = z.infer<typeof MealPlanPage>;
  * Which recipe to offer in the place of a planned meal. Nothing is written:
  * the answer is a `MealSwapPreview`, and `ApplyMealSwapRequest` makes the swap.
  */
-export const SwapMealRequest = z.object({
-  planId: z.string().uuid(),
-  plannedMealId: z.string().uuid(),
-  /**
-   * `random` — any recipe for the meal and the plan's diet.
-   * `favorite` — one of the profile's favourites, which the caller names (id below).
-   * `favorite_ingredients` — of those recipes, the ones that use the most of
-   *   the profile's favourite ingredients.
-   * The first and the last offer only recipes that hold, at their best
-   * serving, within 15 % of the energy the meal holds now.
-   */
-  strategy: z.enum(['random', 'favorite', 'favorite_ingredients']),
-  favoriteRecipeId: z.string().uuid().optional(),
-  /** Offer first what the pantry covers. */
-  respectInventory: z.boolean().default(true),
-  /**
-   * "show all my favourites": the diet of the plan is no bar, and for a
-   * favourite picked by hand neither is the meal it is for. Allergens,
-   * skipped ingredients and the avoid mark hold. The meal is then flagged
-   * `dietOverride`.
-   */
-  allowOffDiet: z.boolean().default(false),
-  /** Recipes offered for this meal already in this sitting: the next offer is none of them while another is left. */
-  skip: z.array(z.string().uuid()).max(100).default([]),
-})
+export const SwapMealRequest = z
+  .object({
+    planId: z.string().uuid(),
+    plannedMealId: z.string().uuid(),
+    /**
+     * `random` — any recipe for the meal and the plan's diet.
+     * `favorite` — one of the profile's favourites, which the caller names (id below).
+     * `favorite_ingredients` — of those recipes, the ones that use the most of
+     *   the profile's favourite ingredients.
+     * The first and the last offer only recipes that hold, at their best
+     * serving, within 15 % of the energy the meal holds now.
+     */
+    strategy: z.enum(['random', 'favorite', 'favorite_ingredients']),
+    favoriteRecipeId: z.string().uuid().optional(),
+    /** Offer first what the pantry covers. */
+    respectInventory: z.boolean().default(true),
+    /**
+     * "show all my favourites": the diet of the plan is no bar, and for a
+     * favourite picked by hand neither is the meal it is for. Allergens,
+     * skipped ingredients and the avoid mark hold. The meal is then flagged
+     * `dietOverride`.
+     */
+    allowOffDiet: z.boolean().default(false),
+    /** Recipes offered for this meal already in this sitting: the next offer is none of them while another is left. */
+    skip: z.array(z.string().uuid()).max(100).default([]),
+  })
   // A favourite is asked for by its recipe.
   .refine((request) => request.strategy !== 'favorite' || request.favoriteRecipeId !== undefined, {
     path: ['favoriteRecipeId'],
@@ -598,7 +775,10 @@ export type MealSwapPreview = z.infer<typeof MealSwapPreview>;
  * did. `pick` is the note of a model's pick, to hand back when the offer is
  * taken; null when the engine picked.
  */
-export const AiMealSwapPreview = MealSwapPreview.extend({ aiMeta: AiGenerationMeta, pick: ModelPickNote.nullable() });
+export const AiMealSwapPreview = MealSwapPreview.extend({
+  aiMeta: AiGenerationMeta,
+  pick: ModelPickNote.nullable(),
+});
 export type AiMealSwapPreview = z.infer<typeof AiMealSwapPreview>;
 
 /**
@@ -637,7 +817,11 @@ export type WeighRequest = z.infer<typeof WeighRequest>;
  * and how many of those packs it leaves more than a fifth of (see
  * `PlanPacks`).
  */
-export const PackTally = z.object({ bought: z.number().min(0), used: z.number().min(0), wasted: z.number().int().min(0) });
+export const PackTally = z.object({
+  bought: z.number().min(0),
+  used: z.number().min(0),
+  wasted: z.number().int().min(0),
+});
 export type PackTally = z.infer<typeof PackTally>;
 
 /**
@@ -728,7 +912,17 @@ export const UseUpSuggestion = z.object({
    * from: how much more of each the menu would use, and what would then be
    * left of its last pack, to the gram or millilitre.
    */
-  takes: z.array(z.object({ ingredientId: z.string().uuid(), name: z.string(), unit: Unit, amount: z.number().int().min(1), left: z.number().int().min(0) })).min(1),
+  takes: z
+    .array(
+      z.object({
+        ingredientId: z.string().uuid(),
+        name: z.string(),
+        unit: Unit,
+        amount: z.number().int().min(1),
+        left: z.number().int().min(0),
+      }),
+    )
+    .min(1),
   /** What the menu comes to in packs now, and what it would come to. */
   packs: z.object({ before: PackTally, after: PackTally }),
   /** A model's sentence on the swap. Null when no model was asked, or it said none. */
@@ -886,37 +1080,54 @@ export const AddCustomMealRequest = z.object({
   /** User-entered macros for one serving. Engine never recomputes these. */
   nutrition: EnteredNutrition,
   servings: z.number().min(0.25).max(20).default(1),
+  /**
+   * A meal of the same day that this one is eaten in the place of: it leaves
+   * the day. Left out, this one comes beside the meals the day has. 404
+   * `MEAL_NOT_FOUND` for a meal that is not on that day.
+   */
+  replaces: z.string().uuid().optional(),
 });
 export type AddCustomMealRequest = z.infer<typeof AddCustomMealRequest>;
 
 /**
- * Explicit rebalance trigger. `day` rebalances the single date. `week` takes
- * the days from `date` (today when it is left out) to the end of that week of
- * the plan, a plan's weeks being counted from its first day: each day that is
- * outside its window is brought back with its own meals, and what it cannot
- * absorb is spread over the others inside their own windows. Days before
- * `date` and skipped days are not touched. `restore` is the undo path:
+ * Explicit rebalance trigger. `day` rebalances the single date. `plan` takes
+ * the days from `date` (today when it is left out) to the end of the plan:
+ * each day that is outside its window is brought back with its own meals, and
+ * what it cannot absorb is spread over the others inside their own windows.
+ * The meals of a day before today are done with, so such a day is made up for
+ * by the days from today on alone. Days before `date` and skipped days are
+ * not touched. `restore` is the undo path:
  * when present the service writes those exact scales verbatim and skips the
  * solver (the toast's "Undo last rebalance" sends the pre-edit `before` map).
  */
-export const RebalanceRequest = z.object({
-  scope: z.enum(['day', 'week']),
-  /** Required for `day`. For `week` the first day that may change; today when left out. */
-  date: CalendarDay.optional(),
-  restore: z
-    .array(z.object({ mealId: z.string().uuid(), scale: z.number().min(0).max(10) }))
-    .max(MAX_PLAN_MEALS)
-    .optional(),
-})
-  // One day is rebalanced by its date; an undo names its meals instead.
-  .refine((request) => request.scope !== 'day' || request.date !== undefined || (request.restore?.length ?? 0) > 0, {
-    path: ['date'],
-    message: 'Name the day to rebalance.',
+export const RebalanceRequest = z
+  .object({
+    scope: z.enum(['day', 'plan']),
+    /** Required for `day`. For `plan` the first day that counts; today when left out. */
+    date: CalendarDay.optional(),
+    restore: z
+      .array(z.object({ mealId: z.string().uuid(), scale: z.number().min(0).max(10) }))
+      .max(MAX_PLAN_MEALS)
+      .optional(),
   })
-  .refine((request) => new Set(request.restore?.map((entry) => entry.mealId)).size === (request.restore?.length ?? 0), {
-    path: ['restore'],
-    message: 'A meal is put back once.',
-  });
+  // One day is rebalanced by its date; an undo names its meals instead.
+  .refine(
+    (request) =>
+      request.scope !== 'day' || request.date !== undefined || (request.restore?.length ?? 0) > 0,
+    {
+      path: ['date'],
+      message: 'Name the day to rebalance.',
+    },
+  )
+  .refine(
+    (request) =>
+      new Set(request.restore?.map((entry) => entry.mealId)).size ===
+      (request.restore?.length ?? 0),
+    {
+      path: ['restore'],
+      message: 'A meal is put back once.',
+    },
+  );
 export type RebalanceRequest = z.infer<typeof RebalanceRequest>;
 
 /** A single meal's quantity-scale change produced by a rebalance. */
@@ -941,10 +1152,10 @@ export const RebalanceResult = z.object({
   plan: MealPlan,
   rebalance: z
     .object({
-      scope: z.enum(['day', 'week']),
+      scope: z.enum(['day', 'plan']),
       feasibility: z.enum(['in-window', 'best-effort']),
       changes: z.array(RebalanceChange),
-      /** For `week`: the kcal the days still are off by together after the rebalance; zero when the other days took it all, and for `day`. */
+      /** For `plan`: the kcal the days still are off by together after the rebalance; zero when the other days took it all, and for `day`. */
       unabsorbedKcal: z.number(),
       macrosBefore: Nutrition,
       macrosAfter: Nutrition,
@@ -958,5 +1169,7 @@ export type RebalanceResult = z.infer<typeof RebalanceResult>;
  * the request asked a model to reword the text; then it says who reworded it,
  * or why the plain replacement stands instead.
  */
-export const SwapIngredientResponse = RebalanceResult.extend({ aiMeta: AiGenerationMeta.nullable() });
+export const SwapIngredientResponse = RebalanceResult.extend({
+  aiMeta: AiGenerationMeta.nullable(),
+});
 export type SwapIngredientResponse = z.infer<typeof SwapIngredientResponse>;

@@ -31,12 +31,20 @@ const oliveOil = ingredient([884, 0, 100, 0]);
 const avocado = ingredient([160, 2, 15, 9]);
 const tofu = ingredient([144, 17, 9, 3], { allergens: ['soy'] });
 const milk = ingredient([61, 3, 3, 5], { allergens: ['dairy'], dietCompatibility: ['vegetarian'] });
-const egg = ingredient([143, 13, 10, 1], { allergens: ['eggs'], dietCompatibility: ['vegetarian', 'mediterranean'], gramsPerPiece: 55 });
+const egg = ingredient([143, 13, 10, 1], {
+  allergens: ['eggs'],
+  dietCompatibility: ['vegetarian', 'mediterranean'],
+  gramsPerPiece: 55,
+});
 const chicken = ingredient([120, 23, 3, 0], { dietCompatibility: ['mediterranean'] });
 const bacon = ingredient([417, 13, 40, 1], { dietCompatibility: [] });
 const rice = ingredient([360, 7, 1, 79]);
 
-const g = (i: FactsIngredient, quantity: number): FactsLine => ({ quantity, unit: 'g', ingredient: i });
+const g = (i: FactsIngredient, quantity: number): FactsLine => ({
+  quantity,
+  unit: 'g',
+  ingredient: i,
+});
 
 describe('the nutrition of a recipe', () => {
   it('is the sum of its lines, per serving, in whole numbers', () => {
@@ -57,7 +65,9 @@ describe('the nutrition of a recipe', () => {
   });
 
   it('refuses a unit the ingredient cannot be converted from', () => {
-    expect(() => recipeFacts([{ quantity: 2, unit: 'piece', ingredient: rice }], 1)).toThrow(UnitConversionError);
+    expect(() => recipeFacts([{ quantity: 2, unit: 'piece', ingredient: rice }], 1)).toThrow(
+      UnitConversionError,
+    );
   });
 });
 
@@ -74,24 +84,41 @@ describe('the allergens of a recipe', () => {
 
 describe('the diets a recipe qualifies for', () => {
   it.each<[string, FactsLine[], string[]]>([
-    ['plants only, mostly carbohydrate', [g(oats, 60), g(banana, 120)], ['vegetarian', 'vegan', 'mediterranean']],
+    [
+      'plants only, mostly carbohydrate',
+      [g(oats, 60), g(banana, 120)],
+      ['vegetarian', 'vegan', 'mediterranean'],
+    ],
     ['plants with milk: no longer vegan', [g(oats, 60), g(milk, 200)], ['vegetarian']],
     ['one egg among plants', [g(rice, 80), g(egg, 55)], ['vegetarian', 'mediterranean']],
     ['meat: neither vegetarian nor vegan', [g(rice, 80), g(chicken, 150)], ['mediterranean']],
     ['an ingredient no diet lists', [g(rice, 80), g(bacon, 50)], []],
     // 100 g chicken and 10 ml oil: no carbohydrate at all.
-    ['meat and fat, no carbohydrate', [g(chicken, 100), g(oliveOil, 10)], ['mediterranean', 'low_carb', 'keto']],
+    [
+      'meat and fat, no carbohydrate',
+      [g(chicken, 100), g(oliveOil, 10)],
+      ['mediterranean', 'low_carb', 'keto'],
+    ],
     // Avocado alone: 36 of 160 kcal from carbohydrate, 22 %.
-    ['low in carbohydrate but not ketogenic', [g(avocado, 100)], ['vegetarian', 'vegan', 'mediterranean', 'low_carb']],
+    [
+      'low in carbohydrate but not ketogenic',
+      [g(avocado, 100)],
+      ['vegetarian', 'vegan', 'mediterranean', 'low_carb'],
+    ],
     // Tofu and oil: 12 of 232 kcal from carbohydrate, 5 %.
-    ['plants that are ketogenic', [g(tofu, 100), g(oliveOil, 10)], ['vegetarian', 'vegan', 'mediterranean', 'low_carb', 'keto']],
+    [
+      'plants that are ketogenic',
+      [g(tofu, 100), g(oliveOil, 10)],
+      ['vegetarian', 'vegan', 'mediterranean', 'low_carb', 'keto'],
+    ],
   ])('%s', (_name, lines, expected) => {
     expect(recipeFacts(lines, 1).dietTags).toEqual(expected);
   });
 
   it('draws the lines for carbohydrate under 10 % and under 26 % of the energy', () => {
     // 100 kcal each, with 2.4 g, 2.5 g, 6.4 g and 6.5 g of carbohydrate: 10 % itself is no longer ketogenic, 26 % no longer low.
-    const at = (carbs: number) => recipeFacts([g(ingredient([100, 0, 0, carbs], { dietCompatibility: [] }), 100)], 1).dietTags;
+    const at = (carbs: number) =>
+      recipeFacts([g(ingredient([100, 0, 0, carbs], { dietCompatibility: [] }), 100)], 1).dietTags;
     expect(at(2.4)).toEqual(['low_carb', 'keto']);
     expect(at(2.5)).toEqual(['low_carb']);
     expect(at(6.4)).toEqual(['low_carb']);

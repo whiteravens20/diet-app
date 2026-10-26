@@ -1,10 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+import type { ProteinKind } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import {
   OptimizerError,
   fitServings,
   optimisePlan,
+  proteinKindsOf,
   recipeCoverage,
   requirementsPerServing,
   slotBudgets,
@@ -80,12 +82,14 @@ describe('optimisePlan', () => {
   });
 
   it('can vary the plan via the seed (regenerate)', () => {
-    const base = optimisePlan({ ...baseInput, seed: 1 }).assignments
-      .map((x) => x.recipeId)
+    const base = optimisePlan({ ...baseInput, seed: 1 })
+      .assignments.map((x) => x.recipeId)
       .join();
     const differs = [2, 3, 4, 5, 6, 7, 8, 9, 10].some(
       (seed) =>
-        optimisePlan({ ...baseInput, seed }).assignments.map((x) => x.recipeId).join() !== base,
+        optimisePlan({ ...baseInput, seed })
+          .assignments.map((x) => x.recipeId)
+          .join() !== base,
     );
     expect(differs).toBe(true);
   });
@@ -98,11 +102,15 @@ describe('optimisePlan', () => {
     });
     const drawn = (input: OptimizerInput): string[] => {
       const slugOf = new Map(input.recipes.map((r) => [r.id, r.slug]));
-      return optimisePlan(input).assignments.map((a) => `${a.dayIndex} ${a.slot} ${slugOf.get(a.recipeId)}`);
+      return optimisePlan(input).assignments.map(
+        (a) => `${a.dayIndex} ${a.slot} ${slugOf.get(a.recipeId)}`,
+      );
     };
 
     for (let seed = 1; seed <= 20; seed++) {
-      expect(drawn({ ...installed('here'), seed }), `seed ${seed}`).toEqual(drawn({ ...installed('elsewhere'), seed }));
+      expect(drawn({ ...installed('here'), seed }), `seed ${seed}`).toEqual(
+        drawn({ ...installed('elsewhere'), seed }),
+      );
     }
   });
 
@@ -113,10 +121,13 @@ describe('optimisePlan', () => {
   });
 
   it('throws when a slot has no eligible recipe, and says which meal and diet', () => {
-    const attempt = () => optimisePlan({ ...baseInput, days: uniformDays(1, ['breakfast', 'snack'], 2000) });
+    const attempt = () =>
+      optimisePlan({ ...baseInput, days: uniformDays(1, ['breakfast', 'snack'], 2000) });
 
     expect(attempt).toThrow(OptimizerError);
-    expect(attempt).toThrow(expect.objectContaining({ gap: { slot: 'snack', dietType: baseInput.dietType } }));
+    expect(attempt).toThrow(
+      expect.objectContaining({ gap: { slot: 'snack', dietType: baseInput.dietType } }),
+    );
   });
 
   /**
@@ -265,7 +276,10 @@ describe('optimisePlan', () => {
   });
 
   it('respects a per-day cook-time budget, then falls back when it would empty the pool', () => {
-    const recipes = [recipe('fast', ['breakfast'], 500, 10), recipe('slow', ['breakfast'], 500, 90)];
+    const recipes = [
+      recipe('fast', ['breakfast'], 500, 10),
+      recipe('slow', ['breakfast'], 500, 90),
+    ];
     const picked = optimisePlan({
       ...baseInput,
       recipes,
@@ -291,7 +305,9 @@ describe('optimisePlan', () => {
           ...baseInput,
           recipes,
           seed,
-          days: [{ mealSlots: ['breakfast'], dailyCalorieTarget: 500, inventoryCoverage: coverage }],
+          days: [
+            { mealSlots: ['breakfast'], dailyCalorieTarget: 500, inventoryCoverage: coverage },
+          ],
         });
         return out.assignments[0]!.recipeId === 'r2';
       }).length;
@@ -304,14 +320,25 @@ describe('optimisePlan', () => {
 
 describe('a plan for somebody who would rather not eat something', () => {
   /** Seven days of a breakfast, a lunch and a dinner; the lunches may repeat, so that one lunch alone can fill the week. */
-  const aWeek = (over: Partial<OptimizerInput>): OptimizerInput => ({ ...baseInput, days: uniformDays(7, ['breakfast', 'lunch', 'dinner'], 2000), maxConsecutiveDaysSameMeal: 7, maxTimesPerWeekSameMeal: 7, ...over });
-  const lunches = (input: OptimizerInput): string[] => optimisePlan(input).assignments.filter((a) => a.slot === 'lunch').map((a) => a.recipeId);
+  const aWeek = (over: Partial<OptimizerInput>): OptimizerInput => ({
+    ...baseInput,
+    days: uniformDays(7, ['breakfast', 'lunch', 'dinner'], 2000),
+    maxConsecutiveDaysSameMeal: 7,
+    maxTimesPerWeekSameMeal: 7,
+    ...over,
+  });
+  const lunches = (input: OptimizerInput): string[] =>
+    optimisePlan(input)
+      .assignments.filter((a) => a.slot === 'lunch')
+      .map((a) => a.recipeId);
 
   it('holds no recipe with it at a meal that has another, whatever seed the choice is drawn with', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       // Without the dislike both lunches are planned: the choice between them is the seed's and the week's.
       expect(new Set(lunches(aWeek({ seed })))).toEqual(new Set(['l1', 'l2']));
-      expect(new Set(lunches(aWeek({ seed, dislikedIngredientIds: new Set(['l1-a']) })))).toEqual(new Set(['l2']));
+      expect(new Set(lunches(aWeek({ seed, dislikedIngredientIds: new Set(['l1-a']) })))).toEqual(
+        new Set(['l2']),
+      );
     }
   });
 
@@ -324,7 +351,12 @@ describe('a plan for somebody who would rather not eat something', () => {
 
   it('breaks no limit for it: once the limits leave only what is disliked, that is planned', () => {
     // Six days, a recipe at most three times in a week, and no limit that may give way: the lunch that is liked can fill three of them.
-    const strict = aWeek({ days: uniformDays(6, ['breakfast', 'lunch', 'dinner'], 2000), maxTimesPerWeekSameMeal: 3, dislikedIngredientIds: new Set(['l1-a']), allowRelaxations: new Set() });
+    const strict = aWeek({
+      days: uniformDays(6, ['breakfast', 'lunch', 'dinner'], 2000),
+      maxTimesPerWeekSameMeal: 3,
+      dislikedIngredientIds: new Set(['l1-a']),
+      allowRelaxations: new Set(),
+    });
 
     // The liked one as long as it may be, then the other: not the two in turn, as a week without a dislike would have them.
     expect(lunches(strict)).toEqual(['l2', 'l2', 'l2', 'l1', 'l1', 'l1']);
@@ -334,26 +366,44 @@ describe('a plan for somebody who would rather not eat something', () => {
     const plain = optimisePlan(aWeek({})).assignments;
 
     expect(optimisePlan(aWeek({ dislikedIngredientIds: new Set() })).assignments).toEqual(plain);
-    expect(optimisePlan(aWeek({ dislikedIngredientIds: new Set(['in-no-recipe']) })).assignments).toEqual(plain);
+    expect(
+      optimisePlan(aWeek({ dislikedIngredientIds: new Set(['in-no-recipe']) })).assignments,
+    ).toEqual(plain);
   });
 });
 
 describe('a plan for somebody who marked recipes', () => {
   /** Two lunches alike in everything but how they are marked. */
-  const twoLunches = (first: Partial<OptimizerRecipe>, second: Partial<OptimizerRecipe>, seed: number): OptimizerInput => ({
+  const twoLunches = (
+    first: Partial<OptimizerRecipe>,
+    second: Partial<OptimizerRecipe>,
+    seed: number,
+  ): OptimizerInput => ({
     ...baseInput,
-    recipes: [recipe('b1', ['breakfast'], 500), { ...recipe('l-first', ['lunch'], 700), ...first }, { ...recipe('l-second', ['lunch'], 700), ...second }, recipe('d1', ['dinner'], 600)],
+    recipes: [
+      recipe('b1', ['breakfast'], 500),
+      { ...recipe('l-first', ['lunch'], 700), ...first },
+      { ...recipe('l-second', ['lunch'], 700), ...second },
+      recipe('d1', ['dinner'], 600),
+    ],
     days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2000),
     seed,
   });
   const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
   const firstChosen = (first: Partial<OptimizerRecipe>, second: Partial<OptimizerRecipe>): number =>
-    SEEDS.filter((seed) => optimisePlan(twoLunches(first, second, seed)).assignments.find((a) => a.slot === 'lunch')!.recipeId === 'l-first').length;
+    SEEDS.filter(
+      (seed) =>
+        optimisePlan(twoLunches(first, second, seed)).assignments.find((a) => a.slot === 'lunch')!
+          .recipeId === 'l-first',
+    ).length;
 
   it('leans towards one that is eaten often more than towards one that is merely a favourite', () => {
     const favourite = firstChosen({ isFavorite: true }, {});
     const often = firstChosen({ isFavorite: true, eatenOften: true }, {});
-    const oftenAgainstFavourite = firstChosen({ isFavorite: true, eatenOften: true }, { isFavorite: true });
+    const oftenAgainstFavourite = firstChosen(
+      { isFavorite: true, eatenOften: true },
+      { isFavorite: true },
+    );
 
     expect(often).toBeGreaterThan(favourite);
     // Against a favourite it still leads, and not every time: a lean, as every mark is.
@@ -366,13 +416,22 @@ describe('a plan for somebody who prefers a cuisine', () => {
   /** Two lunches alike in everything but where they come from. */
   const twoLunches = (over: Partial<OptimizerInput>): OptimizerInput => ({
     ...baseInput,
-    recipes: [recipe('b1', ['breakfast'], 500), { ...recipe('l-asian', ['lunch'], 700), cuisine: 'asian' }, { ...recipe('l-plain', ['lunch'], 700), cuisine: null }, recipe('d1', ['dinner'], 600)],
+    recipes: [
+      recipe('b1', ['breakfast'], 500),
+      { ...recipe('l-asian', ['lunch'], 700), cuisine: 'asian' },
+      { ...recipe('l-plain', ['lunch'], 700), cuisine: null },
+      recipe('d1', ['dinner'], 600),
+    ],
     days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2000),
     ...over,
   });
   const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
   const asianLunches = (over: Partial<OptimizerInput>): number =>
-    SEEDS.filter((seed) => optimisePlan(twoLunches({ ...over, seed })).assignments.find((a) => a.slot === 'lunch')!.recipeId === 'l-asian').length;
+    SEEDS.filter(
+      (seed) =>
+        optimisePlan(twoLunches({ ...over, seed })).assignments.find((a) => a.slot === 'lunch')!
+          .recipeId === 'l-asian',
+    ).length;
 
   it('leans towards a recipe of that cuisine, and rules no other out', () => {
     const without = asianLunches({});
@@ -388,8 +447,12 @@ describe('a plan for somebody who prefers a cuisine', () => {
     for (const seed of [1, 2, 3]) {
       const plain = optimisePlan(twoLunches({ seed })).assignments;
 
-      expect(optimisePlan(twoLunches({ seed, preferredCuisines: new Set() })).assignments).toEqual(plain);
-      expect(optimisePlan(twoLunches({ seed, preferredCuisines: new Set(['polish']) })).assignments).toEqual(plain);
+      expect(optimisePlan(twoLunches({ seed, preferredCuisines: new Set() })).assignments).toEqual(
+        plain,
+      );
+      expect(
+        optimisePlan(twoLunches({ seed, preferredCuisines: new Set(['polish']) })).assignments,
+      ).toEqual(plain);
     }
   });
 });
@@ -404,22 +467,49 @@ describe('a plan and the packs it opens', () => {
    * Both share as many ingredients with the day so far. Each meal is what its
    * part of the day comes to, so each is one serving.
    */
-  const aDay = (lunchGrams: number, dinnerGrams: number, over: Partial<OptimizerInput>): OptimizerInput => ({
+  const aDay = (
+    lunchGrams: number,
+    dinnerGrams: number,
+    over: Partial<OptimizerInput>,
+  ): OptimizerInput => ({
     ...baseInput,
     recipes: [
       recipe('b1', ['breakfast'], 500),
-      { ...recipe('l1', ['lunch'], 800), ingredientIds: ['l1-a', 'chicken', 'shared'], amounts: new Map([['chicken', lunchGrams]]) },
-      { ...recipe('d-chicken', ['dinner'], 700), ingredientIds: ['d1-a', 'chicken', 'shared'], amounts: new Map([['chicken', dinnerGrams]]) },
-      { ...recipe('d-plain', ['dinner'], 700), ingredientIds: ['d2-a', 'l1-a', 'shared'], amounts: new Map([['lentils', 80]]) },
+      {
+        ...recipe('l1', ['lunch'], 800),
+        ingredientIds: ['l1-a', 'chicken', 'shared'],
+        amounts: new Map([['chicken', lunchGrams]]),
+      },
+      {
+        ...recipe('d-chicken', ['dinner'], 700),
+        ingredientIds: ['d1-a', 'chicken', 'shared'],
+        amounts: new Map([['chicken', dinnerGrams]]),
+      },
+      {
+        ...recipe('d-plain', ['dinner'], 700),
+        ingredientIds: ['d2-a', 'l1-a', 'shared'],
+        amounts: new Map([['lentils', 80]]),
+      },
     ],
     days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2000),
     ...over,
   });
-  const chickenDinners = (lunchGrams: number, dinnerGrams: number, over: Partial<OptimizerInput> = {}): number =>
-    SEEDS.filter((seed) => optimisePlan(aDay(lunchGrams, dinnerGrams, { ...over, seed })).assignments.find((a) => a.slot === 'dinner')!.recipeId === 'd-chicken').length;
+  const chickenDinners = (
+    lunchGrams: number,
+    dinnerGrams: number,
+    over: Partial<OptimizerInput> = {},
+  ): number =>
+    SEEDS.filter(
+      (seed) =>
+        optimisePlan(aDay(lunchGrams, dinnerGrams, { ...over, seed })).assignments.find(
+          (a) => a.slot === 'dinner',
+        )!.recipeId === 'd-chicken',
+    ).length;
 
   it('is made of one serving a meal here, so that the grams above are the grams planned', () => {
-    expect(optimisePlan(aDay(200, 200, { seed: 1 })).assignments.map((a) => a.servings)).toEqual([1, 1, 1]);
+    expect(optimisePlan(aDay(200, 200, { seed: 1 })).assignments.map((a) => a.servings)).toEqual([
+      1, 1, 1,
+    ]);
   });
 
   it('leans towards the meal that takes from a pack the plan has opened and mostly left', () => {
@@ -443,7 +533,9 @@ describe('a plan and the packs it opens', () => {
   it('has nothing to say of what is left of a pack that is used well enough', () => {
     // 550 g of 600 are used, and a dinner could take the last 50 g: no reason to plan it, and none against.
     for (const seed of [1, 2, 3, 4, 5]) {
-      expect(optimisePlan(aDay(550, 50, { seed, perishablePacks: PACKS })).assignments).toEqual(optimisePlan(aDay(550, 50, { seed })).assignments);
+      expect(optimisePlan(aDay(550, 50, { seed, perishablePacks: PACKS })).assignments).toEqual(
+        optimisePlan(aDay(550, 50, { seed })).assignments,
+      );
     }
   });
 
@@ -453,18 +545,31 @@ describe('a plan and the packs it opens', () => {
     recipes: [
       recipe('b1', ['breakfast'], 500),
       recipe('l1', ['lunch'], 800),
-      { ...recipe('d-yogurt', ['dinner'], 700), ingredientIds: ['d1-a', 'yogurt', 'shared'], amounts: new Map([['yogurt', 150]]) },
-      { ...recipe('d-plain', ['dinner'], 700), ingredientIds: ['d2-a', 'lentils', 'shared'], amounts: new Map([['lentils', 80]]) },
+      {
+        ...recipe('d-yogurt', ['dinner'], 700),
+        ingredientIds: ['d1-a', 'yogurt', 'shared'],
+        amounts: new Map([['yogurt', 150]]),
+      },
+      {
+        ...recipe('d-plain', ['dinner'], 700),
+        ingredientIds: ['d2-a', 'lentils', 'shared'],
+        amounts: new Map([['lentils', 80]]),
+      },
     ],
     days: uniformDays(days, ['breakfast', 'lunch', 'dinner'], 2000),
     ...over,
   });
   const TUB = new Map([['yogurt', 500]]);
-  const firstDinner = (days: number, over: Partial<OptimizerInput>): string => optimisePlan(withATub(days, over)).assignments.find((a) => a.dayIndex === 0 && a.slot === 'dinner')!.recipeId;
+  const firstDinner = (days: number, over: Partial<OptimizerInput>): string =>
+    optimisePlan(withATub(days, over)).assignments.find(
+      (a) => a.dayIndex === 0 && a.slot === 'dinner',
+    )!.recipeId;
 
   it('leans away from the meal that opens a pack on the last day of a plan and would leave most of it', () => {
     const without = SEEDS.filter((seed) => firstDinner(1, { seed }) === 'd-yogurt').length;
-    const withPacks = SEEDS.filter((seed) => firstDinner(1, { seed, perishablePacks: TUB }) === 'd-yogurt').length;
+    const withPacks = SEEDS.filter(
+      (seed) => firstDinner(1, { seed, perishablePacks: TUB }) === 'd-yogurt',
+    ).length;
 
     expect(without).toBeGreaterThan(SEEDS.length * 0.3);
     expect(withPacks).toBeLessThan(without / 2);
@@ -472,7 +577,9 @@ describe('a plan and the packs it opens', () => {
 
   it('holds a pack against no meal that opens it with a week of the plan still to come', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
-      expect(firstDinner(8, { seed, perishablePacks: TUB }), `seed ${seed}`).toBe(firstDinner(8, { seed }));
+      expect(firstDinner(8, { seed, perishablePacks: TUB }), `seed ${seed}`).toBe(
+        firstDinner(8, { seed }),
+      );
     }
   });
 
@@ -480,8 +587,13 @@ describe('a plan and the packs it opens', () => {
     for (const seed of [1, 2, 3]) {
       const plain = optimisePlan(aDay(200, 200, { seed })).assignments;
 
-      expect(optimisePlan(aDay(200, 200, { seed, perishablePacks: new Map() })).assignments).toEqual(plain);
-      expect(optimisePlan(aDay(200, 200, { seed, perishablePacks: new Map([['yogurt', 500]]) })).assignments).toEqual(plain);
+      expect(
+        optimisePlan(aDay(200, 200, { seed, perishablePacks: new Map() })).assignments,
+      ).toEqual(plain);
+      expect(
+        optimisePlan(aDay(200, 200, { seed, perishablePacks: new Map([['yogurt', 500]]) }))
+          .assignments,
+      ).toEqual(plain);
     }
   });
 });
@@ -523,11 +635,23 @@ describe('a day that is to do without some recipes', () => {
   /** One day of three meals, with two recipes for each. */
   const twoEach: OptimizerInput = {
     ...baseInput,
-    recipes: [recipe('b1', ['breakfast'], 500), recipe('b2', ['breakfast'], 500), recipe('l1', ['lunch'], 800), recipe('l2', ['lunch'], 800), recipe('d1', ['dinner'], 700), recipe('d2', ['dinner'], 700)],
+    recipes: [
+      recipe('b1', ['breakfast'], 500),
+      recipe('b2', ['breakfast'], 500),
+      recipe('l1', ['lunch'], 800),
+      recipe('l2', ['lunch'], 800),
+      recipe('d1', ['dinner'], 700),
+      recipe('d2', ['dinner'], 700),
+    ],
     days: uniformDays(1, ['breakfast', 'lunch', 'dinner'], 2000),
   };
   const filled = (avoid: string[], over: Partial<OptimizerInput> = {}, seed = 1): string[] =>
-    optimisePlan({ ...twoEach, ...over, days: [{ ...twoEach.days[0]!, avoid: new Set(avoid) }], seed }).assignments.map((placed) => placed.recipeId);
+    optimisePlan({
+      ...twoEach,
+      ...over,
+      days: [{ ...twoEach.days[0]!, avoid: new Set(avoid) }],
+      seed,
+    }).assignments.map((placed) => placed.recipeId);
 
   it('is filled with the others, whatever the draw', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
@@ -536,7 +660,11 @@ describe('a day that is to do without some recipes', () => {
   });
 
   it('takes one of them where no other recipe is there for the meal: they order the choice and rule nothing out', () => {
-    expect(filled(['b1', 'b2', 'l1'])).toEqual([expect.stringMatching(/^b[12]$/), 'l2', expect.stringMatching(/^d[12]$/)]);
+    expect(filled(['b1', 'b2', 'l1'])).toEqual([
+      expect.stringMatching(/^b[12]$/),
+      'l2',
+      expect.stringMatching(/^d[12]$/),
+    ]);
   });
 
   it('takes one of them before it lets a limit give way for another', () => {
@@ -555,7 +683,9 @@ describe('a day that is to do without some recipes', () => {
   });
 
   it('is filled as any day where it is to do without nothing', () => {
-    expect(filled([], {}, 3)).toEqual(optimisePlan({ ...twoEach, seed: 3 }).assignments.map((placed) => placed.recipeId));
+    expect(filled([], {}, 3)).toEqual(
+      optimisePlan({ ...twoEach, seed: 3 }).assignments.map((placed) => placed.recipeId),
+    );
   });
 });
 
@@ -628,7 +758,12 @@ describe('what one serving of a recipe needs', () => {
   });
 
   it('makes a pantry that holds one serving cover a two-serving recipe in full', () => {
-    const recipe = { servings: 2, ingredients: [{ ingredientId: 'chicken', quantity: 300, unit: 'g' as const, ingredient: chicken }] };
+    const recipe = {
+      servings: 2,
+      ingredients: [
+        { ingredientId: 'chicken', quantity: 300, unit: 'g' as const, ingredient: chicken },
+      ],
+    };
 
     expect(recipeCoverage(requirementsPerServing(recipe), new Map([['chicken', 150]]))).toBe(1);
   });
@@ -647,8 +782,71 @@ describe('what one serving of a recipe needs', () => {
   });
 
   it('takes a recipe that claims no servings as one serving', () => {
-    const needs = requirementsPerServing({ servings: 0, ingredients: [{ ingredientId: 'chicken', quantity: 300, unit: 'g', ingredient: chicken }] });
+    const needs = requirementsPerServing({
+      servings: 0,
+      ingredients: [{ ingredientId: 'chicken', quantity: 300, unit: 'g', ingredient: chicken }],
+    });
 
     expect(needs).toEqual([{ ingredientId: 'chicken', canonicalQuantity: 300 }]);
+  });
+});
+
+describe('the kinds of protein a recipe counts as', () => {
+  const food = (
+    proteinPer100: number,
+    proteinKind: ProteinKind | null,
+    gramsPerPiece?: number,
+  ) => ({
+    canonicalUnit: 'g' as const,
+    gramsPerPiece: gramsPerPiece ?? null,
+    density: null,
+    proteinPer100,
+    proteinKind,
+  });
+  const chicken = food(22.5, 'chicken');
+  const yogurt = food(10, 'dairy');
+  const cheese = food(25, 'dairy');
+  const egg = food(13, 'eggs', 50);
+  const bread = food(13, null);
+  const rice = food(7.1, null);
+
+  it('are those that give at least a fifth of its protein', () => {
+    // 33.75 g of protein from the chicken, 5 g from the yogurt and 7.1 g from the rice: the yogurt gives about a tenth.
+    expect(
+      proteinKindsOf({
+        ingredients: [
+          { quantity: 150, unit: 'g', ingredient: chicken },
+          { quantity: 50, unit: 'g', ingredient: yogurt },
+          { quantity: 100, unit: 'g', ingredient: rice },
+        ],
+      }),
+    ).toEqual(['chicken']);
+  });
+
+  it('may be more than one', () => {
+    // 13 g from two eggs, 7.5 g from the cheese and 7.8 g from the bread.
+    expect(
+      proteinKindsOf({
+        ingredients: [
+          { quantity: 2, unit: 'piece', ingredient: egg },
+          { quantity: 30, unit: 'g', ingredient: cheese },
+          { quantity: 60, unit: 'g', ingredient: bread },
+        ],
+      }),
+    ).toEqual(['eggs', 'dairy']);
+  });
+
+  it('leave out a line that cannot be converted, and are none where there is no protein', () => {
+    expect(
+      proteinKindsOf({
+        ingredients: [
+          { quantity: 2, unit: 'piece', ingredient: chicken },
+          { quantity: 100, unit: 'g', ingredient: rice },
+        ],
+      }),
+    ).toEqual([]);
+    expect(
+      proteinKindsOf({ ingredients: [{ quantity: 10, unit: 'g', ingredient: food(0, 'dairy') }] }),
+    ).toEqual([]);
   });
 });

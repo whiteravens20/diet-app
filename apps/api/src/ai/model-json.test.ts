@@ -30,7 +30,10 @@ describe('readModelObject', () => {
   it('refuses a reply longer than the limit, however valid', () => {
     const reply = `{"recipeId":"a","padding":"${'x'.repeat(MAX_MODEL_REPLY_CHARS)}"}`;
     expect(readModelObject(reply)).toEqual({ ok: false, problem: 'too_long' });
-    expect(readModelObject(reply, reply.length)).toMatchObject({ ok: true, value: { recipeId: 'a' } });
+    expect(readModelObject(reply, reply.length)).toMatchObject({
+      ok: true,
+      value: { recipeId: 'a' },
+    });
   });
 });
 
@@ -54,17 +57,24 @@ describe('readModelReply', () => {
 
   it('reports an unreadable reply before it looks at the shape', () => {
     expect(readModelReply('no', Pick)).toEqual({ ok: false, problem: 'no_json_object' });
-    expect(readModelReply('x'.repeat(MAX_MODEL_REPLY_CHARS + 1), Pick)).toEqual({ ok: false, problem: 'too_long' });
+    expect(readModelReply('x'.repeat(MAX_MODEL_REPLY_CHARS + 1), Pick)).toEqual({
+      ok: false,
+      problem: 'too_long',
+    });
   });
 });
 
 describe('modelText', () => {
   it('keeps an ordinary sentence as it is', () => {
-    expect(modelText('Closest to your calorie budget.', 200)).toBe('Closest to your calorie budget.');
+    expect(modelText('Closest to your calorie budget.', 200)).toBe(
+      'Closest to your calorie budget.',
+    );
   });
 
   it('folds line breaks, tabs and control characters into single spaces', () => {
-    expect(modelText('  one\n\ntwo\tthree\u0000\u0007four\u0085five  ', 200)).toBe('one two three four five');
+    expect(modelText('  one\n\ntwo\tthree\u0000\u0007four\u0085five  ', 200)).toBe(
+      'one two three four five',
+    );
   });
 
   it('cuts a long text to the limit and marks the cut', () => {
@@ -75,12 +85,17 @@ describe('modelText', () => {
     expect(modelText('word '.repeat(100), 6)).toBe('word…');
   });
 
-  it.each([[undefined], [null], [42], [{ text: 'nested' }], [['list']], [''], ['  \n\t ']])('has nothing to show for %j', (value) => {
-    expect(modelText(value, 200)).toBeNull();
-  });
+  it.each([[undefined], [null], [42], [{ text: 'nested' }], [['list']], [''], ['  \n\t ']])(
+    'has nothing to show for %j',
+    (value) => {
+      expect(modelText(value, 200)).toBeNull();
+    },
+  );
 
   it('leaves markup as the text it is, for the client to show literally', () => {
-    expect(modelText('<b>bold</b> & <script>alert(1)</script>', 200)).toBe('<b>bold</b> & <script>alert(1)</script>');
+    expect(modelText('<b>bold</b> & <script>alert(1)</script>', 200)).toBe(
+      '<b>bold</b> & <script>alert(1)</script>',
+    );
   });
 });
 
@@ -89,7 +104,10 @@ describe('a hostile reply', () => {
   // read with backtracking patterns. The budget is generous: the point is that
   // the time no longer grows with the square of the length.
   it.each([
-    ['a long run of spaces after the object', (n: number) => `\`\`\`json\n{"recipeId":"x"}${' '.repeat(n)}x`],
+    [
+      'a long run of spaces after the object',
+      (n: number) => `\`\`\`json\n{"recipeId":"x"}${' '.repeat(n)}x`,
+    ],
     ['a long run of opening braces', (n: number) => '{'.repeat(n)],
     ['a long run of newlines inside a fence', (n: number) => `\`\`\`json\n${'\n'.repeat(n)}`],
     ['five megabytes of text', () => 'A'.repeat(5_000_000)],

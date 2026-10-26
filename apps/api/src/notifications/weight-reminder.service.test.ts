@@ -26,9 +26,15 @@ interface FakeProfile {
 function makePrisma(profiles: FakeProfile[]) {
   const prisma = {
     profile: {
-      findMany: vi.fn().mockImplementation(({ where }: { where: { weightReminderCadence: { in: string[] } } }) =>
-        Promise.resolve(profiles.filter((p) => where.weightReminderCadence.in.includes(p.weightReminderCadence))),
-      ),
+      findMany: vi
+        .fn()
+        .mockImplementation(({ where }: { where: { weightReminderCadence: { in: string[] } } }) =>
+          Promise.resolve(
+            profiles.filter((p) =>
+              where.weightReminderCadence.in.includes(p.weightReminderCadence),
+            ),
+          ),
+        ),
       // Every reminder is free to claim.
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
@@ -38,7 +44,9 @@ function makePrisma(profiles: FakeProfile[]) {
 }
 
 function makeNotifications(): NotificationsService {
-  return { remindOfWeight: vi.fn().mockResolvedValue(undefined) } as unknown as NotificationsService;
+  return {
+    remindOfWeight: vi.fn().mockResolvedValue(undefined),
+  } as unknown as NotificationsService;
 }
 
 describe('WeightReminderService.scan', () => {
@@ -64,7 +72,12 @@ describe('WeightReminderService.scan', () => {
     const notifications = makeNotifications();
     const svc = new WeightReminderService(prisma, notifications);
     expect(await svc.scan(NOW)).toBe(1);
-    expect(notifications.remindOfWeight).toHaveBeenCalledWith(expect.anything(), 'p-daily-stale', { daysSinceLastEntry: 2, cadence: 'daily' }, NOW);
+    expect(notifications.remindOfWeight).toHaveBeenCalledWith(
+      expect.anything(),
+      'p-daily-stale',
+      { daysSinceLastEntry: 2, cadence: 'daily' },
+      NOW,
+    );
   });
 
   it('skips daily cadence when last entry is <1 day old', async () => {
@@ -99,8 +112,18 @@ describe('WeightReminderService.scan', () => {
     const notifications = makeNotifications();
     const svc = new WeightReminderService(prisma, notifications);
     expect(await svc.scan(NOW)).toBe(1);
-    expect(notifications.remindOfWeight).toHaveBeenCalledWith(expect.anything(), 'p-7d', expect.any(Object), NOW);
-    expect(notifications.remindOfWeight).not.toHaveBeenCalledWith(expect.anything(), 'p-6d', expect.any(Object), NOW);
+    expect(notifications.remindOfWeight).toHaveBeenCalledWith(
+      expect.anything(),
+      'p-7d',
+      expect.any(Object),
+      NOW,
+    );
+    expect(notifications.remindOfWeight).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'p-6d',
+      expect.any(Object),
+      NOW,
+    );
   });
 
   it('debounces against lastWeightReminderAt within the cadence window', async () => {
@@ -123,12 +146,22 @@ describe('WeightReminderService.scan', () => {
     const notifications = makeNotifications();
     const svc = new WeightReminderService(prisma, notifications);
     expect(await svc.scan(NOW)).toBe(1);
-    expect(notifications.remindOfWeight).toHaveBeenCalledWith(expect.anything(), 'p-old-nudge', expect.any(Object), NOW);
+    expect(notifications.remindOfWeight).toHaveBeenCalledWith(
+      expect.anything(),
+      'p-old-nudge',
+      expect.any(Object),
+      NOW,
+    );
   });
 
   it('fires for a profile with no entries at all (cadence applies from day 0)', async () => {
     const prisma = makePrisma([
-      { id: 'p-empty', weightReminderCadence: 'weekly', lastWeightReminderAt: null, weightEntries: [] },
+      {
+        id: 'p-empty',
+        weightReminderCadence: 'weekly',
+        lastWeightReminderAt: null,
+        weightEntries: [],
+      },
     ]);
     const notifications = makeNotifications();
     const svc = new WeightReminderService(prisma, notifications);

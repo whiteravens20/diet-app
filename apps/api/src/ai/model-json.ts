@@ -43,14 +43,16 @@ export function readModelObject(
   }
 }
 
+// eslint-disable-next-line no-control-regex -- control characters are what is being removed
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/g;
+
 /**
  * A string a model wrote, as one line without control characters. Null when
  * the value is not a string or nothing is left of it.
  */
 export function plainLine(value: unknown): string | null {
   if (typeof value !== 'string') return null;
-  // eslint-disable-next-line no-control-regex -- control characters are what is being removed
-  const line = value.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
+  const line = value.replace(CONTROL_CHARACTERS, ' ').replace(/\s+/g, ' ').trim();
   return line === '' ? null : line;
 }
 
@@ -73,5 +75,7 @@ export function readModelReply<T>(
   const object = readModelObject(reply, maxChars);
   if (!object.ok) return object;
   const checked = schema.safeParse(object.value);
-  return checked.success ? { ok: true, value: checked.data } : { ok: false, problem: 'wrong_shape' };
+  return checked.success
+    ? { ok: true, value: checked.data }
+    : { ok: false, problem: 'wrong_shape' };
 }

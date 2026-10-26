@@ -23,7 +23,9 @@ function configOf(env: Partial<Env>) {
 }
 
 const packageVersion = (
-  JSON.parse(readFileSync(resolve(__dirname, '../../../../package.json'), 'utf8')) as { version: string }
+  JSON.parse(readFileSync(resolve(__dirname, '../../../../package.json'), 'utf8')) as {
+    version: string;
+  }
 ).version;
 
 describe('GET /api/config', () => {
@@ -54,12 +56,16 @@ describe('GET /api/config', () => {
   });
 
   it('publishes the most a recipe repeats in a plan that names no number, and that the operator set none', async () => {
-    expect((await configOf({ DEFAULT_MAX_REPEATS_PER_RECIPE: 3 })).plans).toEqual({ maxRepeatsPerRecipe: 3 });
+    expect((await configOf({ DEFAULT_MAX_REPEATS_PER_RECIPE: 3 })).plans).toEqual({
+      maxRepeatsPerRecipe: 3,
+    });
     expect((await configOf({})).plans).toEqual({ maxRepeatsPerRecipe: null });
   });
 
   it('never carries a secret', async () => {
-    const body = JSON.stringify(await configOf({ TURNSTILE_SECRET_KEY: 'turnstile-secret', JWT_ACCESS_SECRET: 'jwt-secret' }));
+    const body = JSON.stringify(
+      await configOf({ TURNSTILE_SECRET_KEY: 'turnstile-secret', JWT_ACCESS_SECRET: 'jwt-secret' }),
+    );
     expect(body).not.toContain('turnstile-secret');
     expect(body).not.toContain('jwt-secret');
   });

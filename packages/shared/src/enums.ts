@@ -55,7 +55,9 @@ export const LAST_DAY = '2100-12-31';
 export const CalendarDay = z
   .string()
   .date()
-  .refine((day) => day >= FIRST_DAY && day <= LAST_DAY, { message: `Must be a day from ${FIRST_DAY} to ${LAST_DAY}.` });
+  .refine((day) => day >= FIRST_DAY && day <= LAST_DAY, {
+    message: `Must be a day from ${FIRST_DAY} to ${LAST_DAY}.`,
+  });
 export type CalendarDay = z.infer<typeof CalendarDay>;
 
 /** The day `days` days after `day`, in the same form. */
@@ -87,6 +89,25 @@ export const ProductCategory = z.enum([
 ]);
 export type ProductCategory = z.infer<typeof ProductCategory>;
 
+/**
+ * The kind of protein a food is, for the limits on how often one kind comes to
+ * the meals of a day or of seven days: chicken is a breast or a thigh alike,
+ * and dairy is every milk product but eggs. A food of no kind (a vegetable, a
+ * grain, a spice) is not counted.
+ */
+export const ProteinKind = z.enum([
+  'chicken',
+  'turkey',
+  'beef',
+  'pork',
+  'fish',
+  'seafood',
+  'eggs',
+  'dairy',
+  'legumes',
+]);
+export type ProteinKind = z.infer<typeof ProteinKind>;
+
 /** Canonical measurement units. The engine normalises everything to these. */
 export const Unit = z.enum(UNITS);
 export type Unit = z.infer<typeof Unit>;
@@ -99,14 +120,23 @@ export type Unit = z.infer<typeof Unit>;
 export const NaturalUnit = z.enum(['piece', 'slice', 'clove', 'handful']);
 export type NaturalUnit = z.infer<typeof NaturalUnit>;
 
+/**
+ * What is measured with a teaspoon rather than weighed, shown in its measures: a
+ * teaspoon (`tsp`, 5 ml) and a `pinch`, a sixteenth of one. How much of the
+ * ingredient a teaspoon holds is its `perTeaspoon`.
+ */
+export const SpoonUnit = z.enum(['tsp', 'pinch']);
+export type SpoonUnit = z.infer<typeof SpoonUnit>;
+
 /** Every unit a quantity can be shown in. */
-export const DisplayUnit = z.enum(['g', 'ml', ...NaturalUnit.options]);
+export const DisplayUnit = z.enum(['g', 'ml', ...NaturalUnit.options, ...SpoonUnit.options]);
 export type DisplayUnit = z.infer<typeof DisplayUnit>;
 
 /**
  * A quantity as a person reads it: rounded by the API (grams and millilitres
- * to the nearest 5 above 10, pieces to halves) and in the unit the ingredient
- * is handled in. The exact quantity next to it is what the engine works with.
+ * to the nearest 5 above 10, pieces to halves, teaspoons to a quarter and then
+ * to halves, pinches to whole ones) and in the unit the ingredient is handled
+ * in. The exact quantity next to it is what the engine works with.
  */
 export const DisplayAmount = z.object({
   quantity: z.number().min(0),
@@ -144,7 +174,9 @@ export const FdcDataTypes = z
     z
       .array(FdcDataType)
       .min(1)
-      .refine((list) => new Set(list).size === list.length, { message: 'A data set is named twice.' }),
+      .refine((list) => new Set(list).size === list.length, {
+        message: 'A data set is named twice.',
+      }),
   )
   .transform((list) => list.join(','));
 

@@ -43,9 +43,16 @@ export class NotificationsService {
       where: { id },
       include: { profile: { select: { userId: true } } },
     });
-    if (!row?.profile || row.profile.userId !== userId) throw new NotFoundException({ error: 'NOTIFICATION_NOT_FOUND', message: 'Notification not found.' });
+    if (!row?.profile || row.profile.userId !== userId)
+      throw new NotFoundException({
+        error: 'NOTIFICATION_NOT_FOUND',
+        message: 'Notification not found.',
+      });
     // Read already, or read by another request meanwhile: it is read either way.
-    await this.prisma.notification.updateMany({ where: { id, readAt: null }, data: { readAt: new Date() } });
+    await this.prisma.notification.updateMany({
+      where: { id, readAt: null },
+      data: { readAt: new Date() },
+    });
   }
 
   async markAllRead(userId: string): Promise<{ updated: number }> {
@@ -62,10 +69,19 @@ export class NotificationsService {
    * before is unread, it is brought up to date and moved to the top, and no
    * second one is put under it.
    */
-  async remindOfWeight(tx: Prisma.TransactionClient, profileId: string, payload: WeightReminderPayload, now: Date): Promise<void> {
+  async remindOfWeight(
+    tx: Prisma.TransactionClient,
+    profileId: string,
+    payload: WeightReminderPayload,
+    now: Date,
+  ): Promise<void> {
     const type = NotificationType.enum.weight_reminder;
-    const unread = await tx.notification.findFirst({ where: { profileId, type, readAt: null }, select: { id: true } });
-    if (unread) await tx.notification.update({ where: { id: unread.id }, data: { payload, createdAt: now } });
+    const unread = await tx.notification.findFirst({
+      where: { profileId, type, readAt: null },
+      select: { id: true },
+    });
+    if (unread)
+      await tx.notification.update({ where: { id: unread.id }, data: { payload, createdAt: now } });
     else await tx.notification.create({ data: { profileId, type, payload, createdAt: now } });
   }
 
@@ -76,7 +92,12 @@ export class NotificationsService {
   async prune(now: Date = new Date()): Promise<number> {
     const day = 86_400_000;
     const removed = await this.prisma.notification.deleteMany({
-      where: { OR: [{ readAt: { lt: new Date(now.getTime() - READ_KEPT_DAYS * day) } }, { readAt: null, createdAt: { lt: new Date(now.getTime() - UNREAD_KEPT_DAYS * day) } }] },
+      where: {
+        OR: [
+          { readAt: { lt: new Date(now.getTime() - READ_KEPT_DAYS * day) } },
+          { readAt: null, createdAt: { lt: new Date(now.getTime() - UNREAD_KEPT_DAYS * day) } },
+        ],
+      },
     });
     return removed.count;
   }

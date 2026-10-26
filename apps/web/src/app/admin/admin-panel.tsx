@@ -18,11 +18,7 @@ import { CurationCard } from './curation-card';
 import { OperatorAiCard } from './operator-ai-card';
 import { ReviewerConfigCard } from './reviewer-config-card';
 import { UsdaImportCard } from './usda-import-card';
-import {
-  adminApi,
-  type AdminStats,
-  type DbUpdateState,
-} from '@/lib/admin-api';
+import { adminApi, type AdminStats, type DbUpdateState } from '@/lib/admin-api';
 import { useFormat } from '@/lib/use-format';
 
 type View = 'loading' | 'disabled' | 'unreachable' | 'login' | 'ready';
@@ -108,10 +104,13 @@ export function AdminPanel() {
   const startPolling = useCallback((): void => {
     stopPolling();
     pollRef.current = setInterval(() => {
-      void adminApi.dbUpdateStatus().then(handleProgress).catch((err: unknown) => {
-        stopPolling();
-        setUpdateError(errorText(err, t('lostConnection')));
-      });
+      void adminApi
+        .dbUpdateStatus()
+        .then(handleProgress)
+        .catch((err: unknown) => {
+          stopPolling();
+          setUpdateError(errorText(err, t('lostConnection')));
+        });
     }, 1000);
   }, [handleProgress, stopPolling, t, errorText]);
 
@@ -172,7 +171,11 @@ export function AdminPanel() {
     // The values are given once, for a session; the page keeps none of them.
     const code = form.get('code');
     const failure = await adminApi
-      .signIn(String(form.get('user')), String(form.get('password')), code ? String(code) : undefined)
+      .signIn(
+        String(form.get('user')),
+        String(form.get('password')),
+        code ? String(code) : undefined,
+      )
       .then(loadStats, (err: unknown) => err);
     if (failure === null) return;
     if (failure instanceof ApiClientError && failure.status === 401) {
@@ -281,7 +284,13 @@ export function AdminPanel() {
             </Field>
             {needsCode && (
               <Field label={t('code')}>
-                <Input name="code" required inputMode="numeric" autoComplete="one-time-code" maxLength={12} />
+                <Input
+                  name="code"
+                  required
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={12}
+                />
               </Field>
             )}
             {loginError && <p className="text-sm text-destructive">{loginError}</p>}
@@ -304,10 +313,20 @@ export function AdminPanel() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
         <p className="mr-auto text-xs text-muted-foreground">{t('endAllSessionsHint')}</p>
-        <Button type="button" variant="outline" size="sm" onClick={() => void leave(adminApi.endAllSessions)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void leave(adminApi.endAllSessions)}
+        >
           {t('endAllSessions')}
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => void leave(adminApi.signOut)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void leave(adminApi.signOut)}
+        >
           {t('signOut')}
         </Button>
       </div>
@@ -392,7 +411,12 @@ export function AdminPanel() {
         </CardContent>
       </Card>
 
-      <CoverageCard coverage={stats.coverage} waiting={stats.coverageWaiting} target={stats.coverageTarget} macros={stats.macros} />
+      <CoverageCard
+        coverage={stats.coverage}
+        waiting={stats.coverageWaiting}
+        target={stats.coverageTarget}
+        macros={stats.macros}
+      />
 
       <UsdaImportCard onFinished={loadStats} />
 
@@ -432,7 +456,9 @@ function ProgressBar({
 }) {
   const fmt = useFormat();
   const hasTotal = state.total != null && state.total > 0;
-  const pct = hasTotal ? Math.min(100, Math.round(((state.current ?? 0) / state.total!) * 100)) : null;
+  const pct = hasTotal
+    ? Math.min(100, Math.round(((state.current ?? 0) / state.total!) * 100))
+    : null;
   const label = stageLabel(state.stage);
   return (
     <div className="mt-2 space-y-1">
@@ -440,7 +466,8 @@ function ProgressBar({
         <span>{label}</span>
         {hasTotal && (
           <span className="tabular-nums text-muted-foreground">
-            {fmt.number(state.current ?? 0)} / {fmt.number(state.total ?? 0)} ({fmt.percent((pct ?? 0) / 100)})
+            {fmt.number(state.current ?? 0)} / {fmt.number(state.total ?? 0)} (
+            {fmt.percent((pct ?? 0) / 100)})
           </span>
         )}
       </div>

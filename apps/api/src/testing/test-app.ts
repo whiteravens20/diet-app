@@ -82,7 +82,9 @@ export async function createTestApp(overrides: Record<string, string> = {}): Pro
   const { PrismaService: Prisma } = await import('../prisma/prisma.service.js');
   const { PlanGenerationService } = await import('../meal-plans/plan-generation.service.js');
 
-  const app = await NestFactory.create(AppModule, { logger: process.env.TEST_LOG ? ['error', 'warn'] : false });
+  const app = await NestFactory.create(AppModule, {
+    logger: process.env.TEST_LOG ? ['error', 'warn'] : false,
+  });
   configureApp(app);
   // The integration tests hold every answer to what its route declares; a measurement does not pay for that.
   if (answersAreHeld()) app.useGlobalInterceptors(new AnswersCheck(app.get(Reflector)));

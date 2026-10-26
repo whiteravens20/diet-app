@@ -42,10 +42,17 @@ export class AccountExportService {
   async *pieces(userId: string, now: Date = new Date()): AsyncGenerator<string> {
     const account = await this.users.getMe(userId);
     const [user, secondFactor, providers, profiles] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { createdAt: true, operatorAiApprovedAt: true } }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { createdAt: true, operatorAiApprovedAt: true },
+      }),
       this.prisma.secondFactor.findUnique({ where: { userId }, select: { createdAt: true } }),
       this.prisma.aiProviderConfig.findMany({ where: { userId }, orderBy: { provider: 'asc' } }),
-      this.prisma.profile.findMany({ where: { userId }, include: { preferences: true }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.profile.findMany({
+        where: { userId },
+        include: { preferences: true },
+        orderBy: { createdAt: 'asc' },
+      }),
     ]);
     const profileIds = profiles.map((profile) => profile.id);
     const ofTheAccount = { profileId: { in: profileIds } };
@@ -82,36 +89,55 @@ export class AccountExportService {
     )}`;
     yield `,${field(
       'profiles',
-      profiles.map(({ preferences, userId: _owner, inventoryBiasStreak: _streak, lastWeightReminderAt: _reminded, ...profile }) => ({
-        ...profile,
-        riskAcknowledgedAt: profile.riskAcknowledgedAt?.toISOString() ?? null,
-        createdAt: profile.createdAt.toISOString(),
-        updatedAt: profile.updatedAt.toISOString(),
-        preferences: preferences
-          ? {
-              favoriteIngredientIds: preferences.favoriteIngredientIds,
-              excludedIngredientIds: preferences.excludedIngredientIds,
-              dislikedIngredientIds: preferences.dislikedIngredientIds,
-              allergens: preferences.allergens,
-              preferredCuisines: preferences.preferredCuisines,
-              maxConsecutiveDaysSameMeal: preferences.maxConsecutiveDaysSameMeal,
-              maxTimesPerWeekSameMeal: preferences.maxTimesPerWeekSameMeal,
-              maxWeeklyAmountPerIngredient: preferences.maxWeeklyAmountPerIngredient,
-              inventoryBiasResetEvery: preferences.inventoryBiasResetEvery,
-            }
-          : null,
-      })),
+      profiles.map(
+        ({
+          preferences,
+          userId: _owner,
+          inventoryBiasStreak: _streak,
+          lastWeightReminderAt: _reminded,
+          ...profile
+        }) => ({
+          ...profile,
+          riskAcknowledgedAt: profile.riskAcknowledgedAt?.toISOString() ?? null,
+          createdAt: profile.createdAt.toISOString(),
+          updatedAt: profile.updatedAt.toISOString(),
+          preferences: preferences
+            ? {
+                favoriteIngredientIds: preferences.favoriteIngredientIds,
+                excludedIngredientIds: preferences.excludedIngredientIds,
+                dislikedIngredientIds: preferences.dislikedIngredientIds,
+                allergens: preferences.allergens,
+                preferredCuisines: preferences.preferredCuisines,
+                maxConsecutiveDaysSameMeal: preferences.maxConsecutiveDaysSameMeal,
+                maxTimesPerWeekSameMeal: preferences.maxTimesPerWeekSameMeal,
+                maxMealsPerDaySameKind: preferences.maxMealsPerDaySameKind,
+                maxMealsPerWeekSameKind: preferences.maxMealsPerWeekSameKind,
+                kindLimits: preferences.kindLimits,
+                inventoryBiasResetEvery: preferences.inventoryBiasResetEvery,
+              }
+            : null,
+        }),
+      ),
     )}`;
 
-    yield* list('weights', (page) => this.prisma.weightEntry.findMany({ where: ofTheAccount, ...page }), (entry) => ({
-      profileId: entry.profileId,
-      kg: entry.kg,
-      recordedAt: entry.recordedAt.toISOString(),
-    }));
+    yield* list(
+      'weights',
+      (page) => this.prisma.weightEntry.findMany({ where: ofTheAccount, ...page }),
+      (entry) => ({
+        profileId: entry.profileId,
+        kg: entry.kg,
+        recordedAt: entry.recordedAt.toISOString(),
+      }),
+    );
 
     yield* list(
       'pantry',
-      (page) => this.prisma.inventoryItem.findMany({ where: ofTheAccount, include: { ingredient: { select: { slug: true, name: true } } }, ...page }),
+      (page) =>
+        this.prisma.inventoryItem.findMany({
+          where: ofTheAccount,
+          include: { ingredient: { select: { slug: true, name: true } } },
+          ...page,
+        }),
       (row) => ({
         profileId: row.profileId,
         ingredientId: row.ingredientId,
@@ -126,7 +152,12 @@ export class AccountExportService {
 
     yield* list(
       'markedRecipes',
-      (page) => this.prisma.favorite.findMany({ where: ofTheAccount, include: { recipe: { select: { slug: true, title: true } } }, ...page }),
+      (page) =>
+        this.prisma.favorite.findMany({
+          where: ofTheAccount,
+          include: { recipe: { select: { slug: true, title: true } } },
+          ...page,
+        }),
       (marked) => ({
         profileId: marked.profileId,
         recipeId: marked.recipeId,
@@ -138,13 +169,17 @@ export class AccountExportService {
       }),
     );
 
-    yield* list('favoriteSets', (page) => this.prisma.favoriteSet.findMany({ where: ofTheAccount, ...page }), (set) => ({
-      profileId: set.profileId,
-      label: set.label,
-      slots: set.slots,
-      createdAt: set.createdAt.toISOString(),
-      updatedAt: set.updatedAt.toISOString(),
-    }));
+    yield* list(
+      'favoriteSets',
+      (page) => this.prisma.favoriteSet.findMany({ where: ofTheAccount, ...page }),
+      (set) => ({
+        profileId: set.profileId,
+        label: set.label,
+        slots: set.slots,
+        createdAt: set.createdAt.toISOString(),
+        updatedAt: set.updatedAt.toISOString(),
+      }),
+    );
 
     // The recipes that are the account's own: the ones it deleted are gone from its library, and are not in the file.
     yield* list(
@@ -152,7 +187,12 @@ export class AccountExportService {
       (page) =>
         this.prisma.recipe.findMany({
           where: { createdByUserId: userId, deletedAt: null },
-          include: { ingredients: { include: { ingredient: { select: { slug: true, name: true } } } } },
+          include: {
+            ingredients: {
+              orderBy: { position: 'asc' },
+              include: { ingredient: { select: { slug: true, name: true } } },
+            },
+          },
           ...page,
         }),
       (recipe) => ({
@@ -189,7 +229,10 @@ export class AccountExportService {
         this.prisma.mealPlan.findMany({
           where: ofTheAccount,
           include: {
-            days: { orderBy: { date: 'asc' }, include: { meals: { include: { recipe: { select: { slug: true, title: true } } } } } },
+            days: {
+              orderBy: { date: 'asc' },
+              include: { meals: { include: { recipe: { select: { slug: true, title: true } } } } },
+            },
             shoppingLists: { orderBy: { createdAt: 'asc' }, include: { items: true } },
           },
           ...page,
@@ -242,33 +285,42 @@ export class AccountExportService {
       PLANS_AT_A_TIME,
     );
 
-    yield* list('notifications', (page) => this.prisma.notification.findMany({ where: ofTheAccount, ...page }), (notice) => ({
-      profileId: notice.profileId,
-      type: notice.type,
-      payload: notice.payload,
-      readAt: notice.readAt?.toISOString() ?? null,
-      createdAt: notice.createdAt.toISOString(),
-    }));
+    yield* list(
+      'notifications',
+      (page) => this.prisma.notification.findMany({ where: ofTheAccount, ...page }),
+      (notice) => ({
+        profileId: notice.profileId,
+        type: notice.type,
+        payload: notice.payload,
+        readAt: notice.readAt?.toISOString() ?? null,
+        createdAt: notice.createdAt.toISOString(),
+      }),
+    );
 
     // What was asked of a model for the account: when, of which provider, and how it ended. What was asked and answered is kept nowhere.
-    yield* list('aiCalls', (page) => this.prisma.aiUsageLog.findMany({ where: { userId }, ...page }), (call) => ({
-      provider: call.provider,
-      model: call.model,
-      operation: call.operation,
-      mode: call.mode,
-      outcome: call.outcome,
-      promptTokens: call.promptTokens,
-      outputTokens: call.outputTokens,
-      latencyMs: call.latencyMs,
-      at: call.createdAt.toISOString(),
-    }));
+    yield* list(
+      'aiCalls',
+      (page) => this.prisma.aiUsageLog.findMany({ where: { userId }, ...page }),
+      (call) => ({
+        provider: call.provider,
+        model: call.model,
+        operation: call.operation,
+        mode: call.mode,
+        outcome: call.outcome,
+        promptTokens: call.promptTokens,
+        outputTokens: call.outputTokens,
+        latencyMs: call.latencyMs,
+        at: call.createdAt.toISOString(),
+      }),
+    );
 
     yield `,${field('complete', true)}}`;
   }
 }
 
 /** A field of a JSON object, written out. */
-const field = (name: string, value: unknown): string => `${JSON.stringify(name)}:${JSON.stringify(value)}`;
+const field = (name: string, value: unknown): string =>
+  `${JSON.stringify(name)}:${JSON.stringify(value)}`;
 
 /** Which rows of a table a query reads: a page of them, after the last row of the page before, in an order that does not change between pages. */
 interface Page {
@@ -282,12 +334,21 @@ interface Page {
  * A field that holds every row of a table, written as the rows are read:
  * `size` at a time, until a page comes back short.
  */
-async function* list<Row extends { id: string }>(name: string, read: (page: Page) => Promise<Row[]>, written: (row: Row) => unknown, size: number = PAGE): AsyncGenerator<string> {
+async function* list<Row extends { id: string }>(
+  name: string,
+  read: (page: Page) => Promise<Row[]>,
+  written: (row: Row) => unknown,
+  size: number = PAGE,
+): AsyncGenerator<string> {
   yield `,${JSON.stringify(name)}:[`;
   let after: string | undefined;
   let first = true;
   for (;;) {
-    const rows = await read({ orderBy: { id: 'asc' }, take: size, ...(after ? { cursor: { id: after }, skip: 1 } : {}) });
+    const rows = await read({
+      orderBy: { id: 'asc' },
+      take: size,
+      ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+    });
     for (const row of rows) {
       yield `${first ? '' : ','}${JSON.stringify(written(row))}`;
       first = false;

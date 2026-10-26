@@ -8,7 +8,12 @@ import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { adminAccessOf } from './ai-quota.service.js';
 import { isSealedForOwner, openKey, sealKey } from './key-cipher.js';
-import { assertAllowedOllamaUrl, isOperatorOllama, OllamaUrlError, parseAllowedHosts } from './ollama-url.js';
+import {
+  assertAllowedOllamaUrl,
+  isOperatorOllama,
+  OllamaUrlError,
+  parseAllowedHosts,
+} from './ollama-url.js';
 
 /** A resolved provider config with the decrypted key, for internal use only. */
 export interface ResolvedProviderConfig {
@@ -66,7 +71,7 @@ export class AiKeyService {
   async upsert(userId: string, input: AiProviderConfigInput): Promise<AiProviderConfig> {
     const encryptedKey = input.apiKey ? sealKey(input.apiKey, this.encKey, userId) : undefined;
 
-    const baseUrl = input.provider === 'ollama' ? input.baseUrl ?? null : null;
+    const baseUrl = input.provider === 'ollama' ? (input.baseUrl ?? null) : null;
     // SSRF guard: a persisted Ollama baseUrl is later dialled by the router, so
     // reject a disallowed host at write time rather than on every chat call.
     if (input.provider === 'ollama' && baseUrl) {
@@ -74,9 +79,7 @@ export class AiKeyService {
         assertAllowedOllamaUrl(baseUrl, {
           policy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
           defaultBaseUrl: this.config.get('OLLAMA_BASE_URL', { infer: true }),
-          allowedHosts: parseAllowedHosts(
-            this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true }),
-          ),
+          allowedHosts: parseAllowedHosts(this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true })),
         });
       } catch (err) {
         if (err instanceof OllamaUrlError) {
@@ -85,7 +88,12 @@ export class AiKeyService {
         throw err;
       }
     }
-    const settings = { model: input.model, priority: input.priority, enabled: input.enabled, baseUrl };
+    const settings = {
+      model: input.model,
+      priority: input.priority,
+      enabled: input.enabled,
+      baseUrl,
+    };
     const row = await this.prisma.aiProviderConfig.upsert({
       where: { userId_provider: { userId, provider: input.provider } },
       create: { userId, provider: input.provider, ...settings, encryptedKey },
@@ -97,7 +105,10 @@ export class AiKeyService {
   async remove(userId: string, id: string): Promise<void> {
     const row = await this.prisma.aiProviderConfig.findUnique({ where: { id } });
     if (!row || row.userId !== userId) {
-      throw new NotFoundException({ error: 'AI_CONFIG_NOT_FOUND', message: 'Provider config not found.' });
+      throw new NotFoundException({
+        error: 'AI_CONFIG_NOT_FOUND',
+        message: 'Provider config not found.',
+      });
     }
     await this.prisma.$transaction(async (tx) => {
       await tx.aiProviderConfig.delete({ where: { id } });
@@ -108,8 +119,13 @@ export class AiKeyService {
       // where the operator lets the account use its provider; AI is off otherwise.
       const remaining = await tx.aiProviderConfig.count({ where: { userId } });
       if (remaining === 0) {
-        const account = await tx.user.findUnique({ where: { id: userId }, select: { emailVerified: true, operatorAiApprovedAt: true } });
-        const granted = account !== null && adminAccessOf(this.config.get('AI_ADMIN_ACCESS', { infer: true }), account) === 'granted';
+        const account = await tx.user.findUnique({
+          where: { id: userId },
+          select: { emailVerified: true, operatorAiApprovedAt: true },
+        });
+        const granted =
+          account !== null &&
+          adminAccessOf(this.config.get('AI_ADMIN_ACCESS', { infer: true }), account) === 'granted';
         await tx.user.updateMany({
           where: { id: userId, aiMode: 'byok' },
           data: { aiMode: granted ? 'admin' : 'none' },
@@ -179,7 +195,7 @@ export class AiKeyService {
             ? this.config.get('OPENROUTER_API_KEY', { infer: true })
             : null;
     const baseUrl =
-      provider === 'ollama' ? this.config.get('OLLAMA_BASE_URL', { infer: true }) ?? null : null;
+      provider === 'ollama' ? (this.config.get('OLLAMA_BASE_URL', { infer: true }) ?? null) : null;
     return [
       {
         provider,
@@ -202,10 +218,14 @@ export class AiKeyService {
    */
   async resealKeys(): Promise<{ sealed: number; unreadable: number }> {
     const result = { sealed: 0, unreadable: 0 };
-    for (let after = ''; ; ) {
+    for (let after = ''; ;) {
       const rows = await this.prisma.aiProviderConfig.findMany({
         // A key in the current form has the id of its secret in front of the ciphertext's version.
-        where: { encryptedKey: { not: null }, NOT: { encryptedKey: { contains: `:${CURRENT_FORM_PREFIX}` } }, id: { gt: after } },
+        where: {
+          encryptedKey: { not: null },
+          NOT: { encryptedKey: { contains: `:${CURRENT_FORM_PREFIX}` } },
+          id: { gt: after },
+        },
         select: { id: true, userId: true, encryptedKey: true },
         orderBy: { id: 'asc' },
         take: 200,
@@ -248,7 +268,8 @@ export class AiKeyService {
       priority: row.priority,
       enabled: row.enabled,
       hasKey: row.encryptedKey !== null,
-      keyUnreadable: row.encryptedKey !== null && !openKey(row.encryptedKey, this.encKey, row.userId).ok,
+      keyUnreadable:
+        row.encryptedKey !== null && !openKey(row.encryptedKey, this.encKey, row.userId).ok,
       baseUrl: row.baseUrl,
     };
   }

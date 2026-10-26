@@ -9,7 +9,18 @@
  * seeder can load, and a broken file stops an update while the database is
  * still untouched.
  */
-import { Allergen, Cuisine, DietType, MealType, NaturalUnit, ProductCategory, Unit, WebAddress, type RecipeDietTag } from '@diet-app/shared';
+import {
+  Allergen,
+  Cuisine,
+  DietType,
+  MealType,
+  NaturalUnit,
+  ProductCategory,
+  ProteinKind,
+  Unit,
+  WebAddress,
+  type RecipeDietTag,
+} from '@diet-app/shared';
 import { z } from 'zod';
 import { recipeFacts, type FactsLine } from '../../engine/recipe-facts.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
@@ -41,6 +52,10 @@ const IngredientSeed = z.object({
   density: z.number().positive().optional(),
   // What a piece is called, for an ingredient that is counted instead of weighed.
   displayUnit: NaturalUnit.optional(),
+  // How much a level teaspoon holds, in the canonical unit, for what is measured with one.
+  perTeaspoon: z.number().positive().optional(),
+  // The kind of protein it is, for the limits on one kind in a day and in seven days.
+  proteinKind: ProteinKind.optional(),
   allergens: z.array(Allergen),
   dietCompatibility: z.array(DietType),
   tags: z.array(z.string()),
@@ -75,7 +90,9 @@ const RecipeSeed = z.object({
           unit: Unit,
           note: z.string().optional(),
         })
-        .refine((line) => line.slug || line.name, { message: 'ingredient line needs either `slug` or `name`' }),
+        .refine((line) => line.slug || line.name, {
+          message: 'ingredient line needs either `slug` or `name`',
+        }),
     )
     .min(1),
   steps: localisedStringArray,
@@ -212,11 +229,16 @@ export function readCatalogue(dir: string = resolveDataDir()): {
     const seen = new Set<string>();
     list.forEach((row, i) => {
       const key = identity(row);
-      if (seen.has(key)) problems.push({ file, path: `[${i}]`, message: `duplicate ingredient "${key}"` });
+      if (seen.has(key))
+        problems.push({ file, path: `[${i}]`, message: `duplicate ingredient "${key}"` });
       seen.add(key);
     });
   };
-  const curated = rows('ingredients.json', parse('ingredients.json', inputs.files.get('ingredients.json'), false), IngredientSeed);
+  const curated = rows(
+    'ingredients.json',
+    parse('ingredients.json', inputs.files.get('ingredients.json'), false),
+    IngredientSeed,
+  );
   const generated = rows(
     'ingredients.generated.json',
     parse('ingredients.generated.json', inputs.files.get('ingredients.generated.json'), true),
@@ -225,14 +247,33 @@ export function readCatalogue(dir: string = resolveDataDir()): {
   withinFile('ingredients.json', curated);
   withinFile('ingredients.generated.json', generated);
   // An ingredient can only be counted in pieces when a piece has a weight, and only a pack can be one that does not keep.
-  for (const [file, list] of [['ingredients.json', curated], ['ingredients.generated.json', generated]] as const) {
+  for (const [file, list] of [
+    ['ingredients.json', curated],
+    ['ingredients.generated.json', generated],
+  ] as const) {
     list.forEach((row, i) => {
       if (row.displayUnit && row.gramsPerPiece === undefined) {
-        problems.push({ file, path: `[${i}].displayUnit`, message: `"${identity(row)}" is counted in ${row.displayUnit}s but has no gramsPerPiece` });
+        problems.push({
+          file,
+          path: `[${i}].displayUnit`,
+          message: `"${identity(row)}" is counted in ${row.displayUnit}s but has no gramsPerPiece`,
+        });
+      }
+      // A teaspoon holds a weight or a volume, and what is counted in pieces is not measured with one.
+      if (row.perTeaspoon !== undefined && (row.canonicalUnit === 'piece' || row.displayUnit)) {
+        problems.push({
+          file,
+          path: `[${i}].perTeaspoon`,
+          message: `"${identity(row)}" is measured with a teaspoon but is ${row.displayUnit ? `counted in ${row.displayUnit}s` : 'kept in pieces'}`,
+        });
       }
       // It is the pack that is opened and left: an ingredient without one has nothing to leave.
       if (row.perishable && row.packSize === undefined) {
-        problems.push({ file, path: `[${i}].perishable`, message: `"${identity(row)}" is marked as a pack that does not keep but has no packSize` });
+        problems.push({
+          file,
+          path: `[${i}].perishable`,
+          message: `"${identity(row)}" is marked as a pack that does not keep but has no packSize`,
+        });
       }
     });
   }
@@ -246,9 +287,17 @@ export function readCatalogue(dir: string = resolveDataDir()): {
     for (const imported of row.importedAs ?? []) {
       const taken = standsFor.get(imported);
       if (curatedSlugs.has(imported)) {
-        problems.push({ file: 'ingredients.json', path: `[${i}].importedAs`, message: `"${imported}" is an ingredient of this file, not a food of an import` });
+        problems.push({
+          file: 'ingredients.json',
+          path: `[${i}].importedAs`,
+          message: `"${imported}" is an ingredient of this file, not a food of an import`,
+        });
       } else if (taken !== undefined) {
-        problems.push({ file: 'ingredients.json', path: `[${i}].importedAs`, message: `"${imported}" is named by "${taken}" as well` });
+        problems.push({
+          file: 'ingredients.json',
+          path: `[${i}].importedAs`,
+          message: `"${imported}" is named by "${taken}" as well`,
+        });
       } else {
         standsFor.set(imported, identity(row));
       }
@@ -273,11 +322,19 @@ export function readCatalogue(dir: string = resolveDataDir()): {
     bySlug.set(slug, ingredient);
     byName.set(ingredient.enName.toLowerCase(), ingredient);
   }
-  const find = (ref: string) => bySlug.get(ref) ?? bySlug.get(standsFor.get(ref) ?? '') ?? byName.get(ref.toLowerCase());
+  const find = (ref: string) =>
+    bySlug.get(ref) ?? bySlug.get(standsFor.get(ref) ?? '') ?? byName.get(ref.toLowerCase());
 
   // ── recipes: the anchor file, then every shipped batch in filename order ────
   const recipeFiles: { file: string; seeds: RecipeSeed[] }[] = [
-    { file: 'recipes.json', seeds: rows('recipes.json', parse('recipes.json', inputs.files.get('recipes.json'), false), RecipeSeed) },
+    {
+      file: 'recipes.json',
+      seeds: rows(
+        'recipes.json',
+        parse('recipes.json', inputs.files.get('recipes.json'), false),
+        RecipeSeed,
+      ),
+    },
     ...inputs.batches.map((batch) => ({
       file: batch.path,
       seeds: rows(batch.path, parse(batch.path, batch.bytes, false), RecipeSeed),
@@ -293,8 +350,18 @@ export function readCatalogue(dir: string = resolveDataDir()): {
       const slug = seed.slug ?? slugify(title);
       const firstSlug = recipeSlugs.get(slug);
       const firstTitle = recipeTitles.get(title.toLowerCase());
-      if (firstSlug) problems.push({ file, path: `[${i}].slug`, message: `recipe "${slug}" is also in ${firstSlug}` });
-      else if (firstTitle) problems.push({ file, path: `[${i}].title`, message: `title "${title}" is also in ${firstTitle}` });
+      if (firstSlug)
+        problems.push({
+          file,
+          path: `[${i}].slug`,
+          message: `recipe "${slug}" is also in ${firstSlug}`,
+        });
+      else if (firstTitle)
+        problems.push({
+          file,
+          path: `[${i}].title`,
+          message: `title "${title}" is also in ${firstTitle}`,
+        });
       recipeSlugs.set(slug, file);
       recipeTitles.set(title.toLowerCase(), file);
 
@@ -322,17 +389,30 @@ export function readCatalogue(dir: string = resolveDataDir()): {
           // reported where it is written.
           recipeFacts([factLine], 1);
         } catch (err) {
-          problems.push({ file, path, message: `"${ref}" in ${line.unit}: ${(err as Error).message}` });
+          problems.push({
+            file,
+            path,
+            message: `"${ref}" in ${line.unit}: ${(err as Error).message}`,
+          });
           return;
         }
         factLines.push(factLine);
-        lines.push({ slug: ingredient.slug, quantity: line.quantity, unit: line.unit, ...(line.note ? { note: line.note } : {}) });
+        lines.push({
+          slug: ingredient.slug,
+          quantity: line.quantity,
+          unit: line.unit,
+          ...(line.note ? { note: line.note } : {}),
+        });
       });
 
       // One dish under two names would be planned as two, and a recipe a user
       // writes is recognised as only one of them.
       if (lines.length === seed.ingredients.length) {
-        const making = computeFingerprint({ ingredients: lines, mealTypes: seed.mealTypes, servings: seed.servings });
+        const making = computeFingerprint({
+          ingredients: lines,
+          mealTypes: seed.mealTypes,
+          servings: seed.servings,
+        });
         const first = recipeMakings.get(making);
         if (first) {
           problems.push({
@@ -357,24 +437,45 @@ export function readCatalogue(dir: string = resolveDataDir()): {
 
   // ── substitutions and name overrides ────────────────────────────────────────
   const substitutions: Catalogue['substitutions'] = [];
-  rows('substitutions.json', parse('substitutions.json', inputs.files.get('substitutions.json'), false), SubstitutionSeed).forEach(
-    (sub, i) => {
-      const from = find(sub.from);
-      const to = find(sub.to);
-      if (!from) problems.push({ file: 'substitutions.json', path: `[${i}].from`, message: `unknown ingredient "${sub.from}"` });
-      if (!to) problems.push({ file: 'substitutions.json', path: `[${i}].to`, message: `unknown ingredient "${sub.to}"` });
-      if (from && to) substitutions.push({ from: from.slug, to: to.slug, note: sub.note ? en(sub.note) : null });
-    },
-  );
+  rows(
+    'substitutions.json',
+    parse('substitutions.json', inputs.files.get('substitutions.json'), false),
+    SubstitutionSeed,
+  ).forEach((sub, i) => {
+    const from = find(sub.from);
+    const to = find(sub.to);
+    if (!from)
+      problems.push({
+        file: 'substitutions.json',
+        path: `[${i}].from`,
+        message: `unknown ingredient "${sub.from}"`,
+      });
+    if (!to)
+      problems.push({
+        file: 'substitutions.json',
+        path: `[${i}].to`,
+        message: `unknown ingredient "${sub.to}"`,
+      });
+    if (from && to)
+      substitutions.push({ from: from.slug, to: to.slug, note: sub.note ? en(sub.note) : null });
+  });
 
   let overrides: IngredientOverrideFile = {};
-  const rawOverrides = parse('ingredient-overrides.json', inputs.files.get('ingredient-overrides.json'), true);
+  const rawOverrides = parse(
+    'ingredient-overrides.json',
+    inputs.files.get('ingredient-overrides.json'),
+    true,
+  );
   if (rawOverrides !== undefined) {
     const parsed = IngredientOverrideFile.safeParse(rawOverrides);
     if (parsed.success) overrides = parsed.data;
     else {
       for (const issue of parsed.error.issues) {
-        problems.push({ file: 'ingredient-overrides.json', path: issue.path.join('.') || '<root>', message: issue.message });
+        problems.push({
+          file: 'ingredient-overrides.json',
+          path: issue.path.join('.') || '<root>',
+          message: issue.message,
+        });
       }
     }
   }

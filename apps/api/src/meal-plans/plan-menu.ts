@@ -1,7 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { Locale, PlanPacks, PlannedMeal, Unit } from '@diet-app/shared';
-import { packUse, toCanonical, UnitConversionError, type ConvertibleIngredient } from '../engine/index.js';
+import {
+  packUse,
+  toCanonical,
+  UnitConversionError,
+  type ConvertibleIngredient,
+} from '../engine/index.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 
 /** A line of a planned meal's recipe, as the count of packs reads it. */
@@ -28,7 +33,11 @@ export interface PackedMeal {
  * the pack of each and the ingredient itself. A line whose unit cannot be
  * converted is left out, as a shopping list leaves it out.
  */
-export function menuNeeds(meals: readonly PackedMeal[]): { needs: Map<string, number>; packs: Map<string, number>; known: Map<string, PackedLine['ingredient']> } {
+export function menuNeeds(meals: readonly PackedMeal[]): {
+  needs: Map<string, number>;
+  packs: Map<string, number>;
+  known: Map<string, PackedLine['ingredient']>;
+} {
   const needs = new Map<string, number>();
   const packs = new Map<string, number>();
   const known = new Map<string, PackedLine['ingredient']>();
@@ -37,7 +46,11 @@ export function menuNeeds(meals: readonly PackedMeal[]): { needs: Map<string, nu
       const { packSize, perishable } = line.ingredient;
       if (!perishable || !packSize || packSize <= 0) continue;
       try {
-        needs.set(line.ingredientId, (needs.get(line.ingredientId) ?? 0) + toCanonical(line.quantity * meal.factor, line.unit, line.ingredient));
+        needs.set(
+          line.ingredientId,
+          (needs.get(line.ingredientId) ?? 0) +
+            toCanonical(line.quantity * meal.factor, line.unit, line.ingredient),
+        );
       } catch (err) {
         if (!(err instanceof UnitConversionError)) throw err;
         continue;
@@ -87,7 +100,9 @@ export function planPacks(meals: readonly PackedMeal[], locale: Locale): PlanPac
  * of the same day. On the third day running it is cooked anew: what was
  * cooked on the first is not what is eaten on the third.
  */
-export function cookAhead(days: readonly (readonly (string | null)[])[]): PlannedMeal['cookAhead'][][] {
+export function cookAhead(
+  days: readonly (readonly (string | null)[])[],
+): PlannedMeal['cookAhead'][][] {
   // What was cooked the day before for this day as well.
   let fromTheDayBefore = new Set<string>();
   return days.map((meals, day) => {

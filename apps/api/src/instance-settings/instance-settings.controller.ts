@@ -32,7 +32,9 @@ export class InstanceSettingsController {
   /** Change those settings. */
   @Patch()
   @Answers(InstanceSettingsDto)
-  patch(@Body(new ZodValidationPipe(InstanceSettingsPatchBody)) body: InstanceSettingsPatchBody): Promise<InstanceSettingsDto> {
+  patch(
+    @Body(new ZodValidationPipe(InstanceSettingsPatchBody)) body: InstanceSettingsPatchBody,
+  ): Promise<InstanceSettingsDto> {
     return this.service.patch(body);
   }
 }

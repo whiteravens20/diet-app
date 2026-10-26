@@ -5,7 +5,8 @@
  *
  * It asks the instance's model for the text of a recipe in one language, from
  * the English that people approved, and puts what comes back into the
- * curation queue. It writes no live row:
+ * curation queue. English itself is written from the language of a draft
+ * that has none, one a user wrote in theirs. It writes no live row:
  *
  *  - a recipe draft that waits without the language gets its text in it, and
  *    has to be reviewed in it before it ships;
@@ -33,7 +34,12 @@ import { DraftService } from './draft.service.js';
 import { localeMap, localeStepsMap } from './drafts.mapper.js';
 import type { DraftRunnerStatus } from './ingredient-namer.runner.js';
 import { classifyComplexity } from './recipe-generator.complexity.js';
-import { TRANSLATION_PROMPT_VERSION, buildRecipeTranslationPrompt, type RecipeTextSource } from './translation.prompt.js';
+import {
+  TRANSLATION_PROMPT_VERSION,
+  buildRecipeTranslationPrompt,
+  languageName,
+  type RecipeTextSource,
+} from './translation.prompt.js';
 import { validateRecipeTranslation } from './translation.validate.js';
 
 export interface TranslationRunnerState {
@@ -54,7 +60,10 @@ export interface TranslationRunnerState {
 }
 
 export interface TranslationStartSpec {
-  /** The language to fill; never English, which everything is written from. */
+  /**
+   * The language to fill: from English, or English from the language of a
+   * draft that has none. The recipes of the library have English already.
+   */
   locale: Locale;
   /** The most the run takes on. */
   limit: number;
@@ -97,12 +106,24 @@ export class TranslationRunner {
   async start(spec: TranslationStartSpec): Promise<boolean> {
     if (this.state.status === 'running') return false;
     if (!this.model.configured) {
-      this.state = { ...TranslationRunner.idle(), status: 'error', finishedAt: new Date().toISOString(), error: 'AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL not configured' };
+      this.state = {
+        ...TranslationRunner.idle(),
+        status: 'error',
+        finishedAt: new Date().toISOString(),
+        error: 'AI_DEFAULT_PROVIDER / AI_DEFAULT_MODEL not configured',
+      };
       await this.job.settle();
       return true;
     }
     const batchId = `tr-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
-    this.state = { ...TranslationRunner.idle(), status: 'running', startedAt: new Date().toISOString(), provider: this.model.provider, model: this.model.model, batchId };
+    this.state = {
+      ...TranslationRunner.idle(),
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      provider: this.model.provider,
+      model: this.model.model,
+      batchId,
+    };
     if (!(await this.job.begin())) return false;
     void this.job.during(() => this.run(spec, batchId));
     return true;
@@ -111,37 +132,75 @@ export class TranslationRunner {
   private async run(spec: TranslationStartSpec, batchId: string): Promise<void> {
     try {
       await this.recipes(spec, batchId);
-      this.state = { ...this.state, status: 'done', finishedAt: new Date().toISOString(), error: this.job.stopRequested ? 'cancelled' : null };
+      this.state = {
+        ...this.state,
+        status: 'done',
+        finishedAt: new Date().toISOString(),
+        error: this.job.stopRequested ? 'cancelled' : null,
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`The run that fills a language failed: ${message}`);
-      this.state = { ...this.state, status: 'error', finishedAt: new Date().toISOString(), error: message };
+      this.state = {
+        ...this.state,
+        status: 'error',
+        finishedAt: new Date().toISOString(),
+        error: message,
+      };
     }
   }
 
   private async recipes({ locale, limit }: TranslationStartSpec, batchId: string): Promise<void> {
     // The drafts that wait come first: they are what somebody is about to review.
     const waiting = await this.prisma.recipeDraft.findMany({
-      where: { status: { in: [...WAITING] }, locales: { has: 'en' }, NOT: { locales: { has: locale } } },
+      where: {
+        status: { in: [...WAITING] },
+        ...(locale === 'en' ? {} : { locales: { has: 'en' } }),
+        NOT: { locales: { has: locale } },
+      },
       orderBy: { createdAt: 'asc' },
       take: limit,
-      select: { id: true, slug: true, titles: true, descriptions: true, steps: true },
+      select: {
+        id: true,
+        slug: true,
+        titles: true,
+        descriptions: true,
+        steps: true,
+        locales: true,
+      },
     });
-    const own = waiting.length < limit ? await this.ownRecipesWithout(locale, limit - waiting.length) : [];
-    this.state = { ...this.state, total: waiting.length + own.length, note: waiting.length + own.length === 0 ? 'nothing-to-translate' : null };
+    const own =
+      locale !== 'en' && waiting.length < limit
+        ? await this.ownRecipesWithout(locale, limit - waiting.length)
+        : [];
+    this.state = {
+      ...this.state,
+      total: waiting.length + own.length,
+      note: waiting.length + own.length === 0 ? 'nothing-to-translate' : null,
+    };
 
     for (const draft of waiting) {
       if (this.job.stopRequested) return;
-      const source = { title: localeMap(draft.titles).en ?? '', description: localeMap(draft.descriptions).en ?? '', steps: localeStepsMap(draft.steps).en ?? [] };
-      const text = await this.translated(locale, source, draft.slug);
+      // English for one that has none is written from the language it was written in.
+      const from = locale === 'en' ? draft.locales[0]! : 'en';
+      const source = {
+        title: localeMap(draft.titles)[from] ?? '',
+        description: localeMap(draft.descriptions)[from] ?? '',
+        steps: localeStepsMap(draft.steps)[from] ?? [],
+      };
+      const text = await this.translated(locale, source, draft.slug, from);
       if (!text) {
         this.count('failed');
         continue;
       }
       try {
-        this.count((await this.drafts.addRecipeLanguage(draft.id, locale, text)) ? 'written' : 'skipped');
+        this.count(
+          (await this.drafts.addRecipeLanguage(draft.id, locale, text)) ? 'written' : 'skipped',
+        );
       } catch (err) {
-        this.logger.warn(`The ${locale} text of the draft ${draft.slug} was not stored: ${describe(err)}`);
+        this.logger.warn(
+          `The ${locale} text of the draft ${draft.slug} was not stored: ${describe(err)}`,
+        );
         this.count('failed');
       }
       await this.pause();
@@ -149,7 +208,11 @@ export class TranslationRunner {
 
     for (const recipe of own) {
       if (this.job.stopRequested) return;
-      const text = await this.translated(locale, { title: recipe.title, description: recipe.description, steps: recipe.steps }, recipe.slug);
+      const text = await this.translated(
+        locale,
+        { title: recipe.title, description: recipe.description, steps: recipe.steps },
+        recipe.slug,
+      );
       if (!text) {
         this.count('failed');
         continue;
@@ -170,7 +233,12 @@ export class TranslationRunner {
             cookMinutes: recipe.cookMinutes,
             difficulty: recipe.difficulty,
             cuisine: recipe.cuisine,
-            complexity: classifyComplexity({ ingredientCount: recipe.lines.length, stepCount: recipe.steps.length, totalMinutes: recipe.prepMinutes + recipe.cookMinutes }) ?? 'medium',
+            complexity:
+              classifyComplexity({
+                ingredientCount: recipe.lines.length,
+                stepCount: recipe.steps.length,
+                totalMinutes: recipe.prepMinutes + recipe.cookMinutes,
+              }) ?? 'medium',
             caloriesPerServing: recipe.caloriesPerServing,
             proteinPerServing: recipe.proteinPerServing,
             fatPerServing: recipe.fatPerServing,
@@ -184,7 +252,9 @@ export class TranslationRunner {
         });
         this.count('written');
       } catch (err) {
-        this.logger.warn(`The draft for the ${locale} text of ${recipe.slug} was not stored: ${describe(err)}`);
+        this.logger.warn(
+          `The draft for the ${locale} text of ${recipe.slug} was not stored: ${describe(err)}`,
+        );
         this.count('failed');
       }
       await this.pause();
@@ -198,37 +268,86 @@ export class TranslationRunner {
    */
   private async ownRecipesWithout(locale: Locale, most: number) {
     const recipes = await this.prisma.recipe.findMany({
-      where: { origin: 'curated', createdByUserId: null, deletedAt: null, retiredAt: null, slug: { not: null }, translations: { none: { locale } } },
+      where: {
+        origin: 'curated',
+        createdByUserId: null,
+        deletedAt: null,
+        retiredAt: null,
+        slug: { not: null },
+        translations: { none: { locale } },
+      },
       orderBy: { createdAt: 'asc' },
-      include: { ingredients: { select: { quantity: true, unit: true, note: true, ingredient: { select: { slug: true } } } } },
+      include: {
+        ingredients: {
+          orderBy: { position: 'asc' },
+          select: {
+            quantity: true,
+            unit: true,
+            note: true,
+            ingredient: { select: { slug: true } },
+          },
+        },
+      },
     });
     const drafted = new Set(
-      (await this.prisma.recipeDraft.findMany({ where: { status: { in: [...WAITING] }, slug: { in: recipes.map((recipe) => recipe.slug!) } }, select: { slug: true } })).map((draft) => draft.slug),
+      (
+        await this.prisma.recipeDraft.findMany({
+          where: {
+            status: { in: [...WAITING] },
+            slug: { in: recipes.map((recipe) => recipe.slug!) },
+          },
+          select: { slug: true },
+        })
+      ).map((draft) => draft.slug),
     );
     return recipes
-      .filter((recipe) => !drafted.has(recipe.slug!) && recipe.ingredients.every((line) => line.ingredient.slug !== null))
+      .filter(
+        (recipe) =>
+          !drafted.has(recipe.slug!) &&
+          recipe.ingredients.every((line) => line.ingredient.slug !== null),
+      )
       .slice(0, most)
       .map(({ ingredients, slug, ...recipe }) => ({
         ...recipe,
         slug: slug!,
-        lines: ingredients.map((line) => ({ slug: line.ingredient.slug!, quantity: line.quantity, unit: line.unit, note: line.note })),
+        lines: ingredients.map((line) => ({
+          slug: line.ingredient.slug!,
+          quantity: line.quantity,
+          unit: line.unit,
+          note: line.note,
+        })),
       }));
   }
 
-  /** The text of one recipe in `locale`, asked for up to twice; null when no answer was of use. */
-  private async translated(locale: Locale, source: RecipeTextSource, slug: string): Promise<RecipeTextSource | null> {
+  /** The text of one recipe in `locale`, from its text in `from`, asked for up to twice; null when no answer was of use. */
+  private async translated(
+    locale: Locale,
+    source: RecipeTextSource,
+    slug: string,
+    from = 'en',
+  ): Promise<RecipeTextSource | null> {
     const limits = recipeTranslation(source.steps.length, this.model.tuning.temperature);
     for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
       try {
-        const reminder = attempt === 0 ? '' : '\nReminder: answer with ONLY the complete JSON object, with exactly as many steps as the English has.';
-        const answer = await this.model.ask(buildRecipeTranslationPrompt(locale, source) + reminder, limits);
+        const reminder =
+          attempt === 0
+            ? ''
+            : `\nReminder: answer with ONLY the complete JSON object, with exactly as many steps as the ${languageName(from)} has.`;
+        const answer = await this.model.ask(
+          buildRecipeTranslationPrompt(locale, source, from) + reminder,
+          limits,
+        );
         if (answer.truncated) {
-          this.logger.warn(`The ${locale} text of ${slug} was cut off at ${limits.maxTokens} tokens`);
+          this.logger.warn(
+            `The ${locale} text of ${slug} was cut off at ${limits.maxTokens} tokens`,
+          );
           continue;
         }
         const checked = validateRecipeTranslation({ source, locale, rawOutput: answer.text });
         if (checked.ok) return checked.text;
-        this.logger.warn(`The ${locale} text of ${slug} was refused: ${checked.reason}${checked.where ? ` at ${checked.where}` : ''}`);
+        this.logger.warn(
+          `The ${locale} text of ${slug} was refused: ${checked.reason}${checked.where ? ` at ${checked.where}` : ''}`,
+        );
       } catch (err) {
         this.logger.warn(`The ${locale} text of ${slug} was not answered: ${describe(err)}`);
       }
@@ -237,17 +356,36 @@ export class TranslationRunner {
   }
 
   private count(what: 'written' | 'failed' | 'skipped'): void {
-    this.state = { ...this.state, processed: this.state.processed + 1, [what]: this.state[what] + 1 };
+    this.state = {
+      ...this.state,
+      processed: this.state.processed + 1,
+      [what]: this.state[what] + 1,
+    };
   }
 
   /** Wait between two calls where the provider limits how often it is asked, a stop cutting the wait short. */
   private async pause(): Promise<void> {
     const until = Date.now() + this.model.tuning.interBatchDelayMs;
-    while (Date.now() < until && !this.job.stopRequested) await new Promise((resolve) => setTimeout(resolve, Math.min(500, until - Date.now())));
+    while (Date.now() < until && !this.job.stopRequested)
+      await new Promise((resolve) => setTimeout(resolve, Math.min(500, until - Date.now())));
   }
 
   private static idle(): TranslationRunnerState {
-    return { status: 'idle', startedAt: null, finishedAt: null, processed: 0, total: 0, failed: 0, written: 0, provider: null, model: null, batchId: null, error: null, skipped: 0, note: null };
+    return {
+      status: 'idle',
+      startedAt: null,
+      finishedAt: null,
+      processed: 0,
+      total: 0,
+      failed: 0,
+      written: 0,
+      provider: null,
+      model: null,
+      batchId: null,
+      error: null,
+      skipped: 0,
+      note: null,
+    };
   }
 }
 

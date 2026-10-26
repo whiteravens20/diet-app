@@ -26,7 +26,14 @@
  * other's review, and there is one current review per language without an
  * index to say so.
  */
-import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { DraftStatus, Prisma } from '@prisma/client';
 import type {
   IngredientNameDraftListQuery,
@@ -43,10 +50,22 @@ import type {
 import { recipeFacts, type RecipeFacts } from '../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../engine/units.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { checkIngredientName, checkRecipe, checkRecipeSlug, checkRecipeText, type RecipeProblem } from '../../recipes/recipe-rules.js';
+import {
+  checkIngredientName,
+  checkRecipe,
+  checkRecipeSlug,
+  checkRecipeText,
+  type RecipeProblem,
+} from '../../recipes/recipe-rules.js';
 import { deriveDraftStatus } from './derive-status.js';
 import { lockIngredientNameDraft, lockRecipeDraft } from './draft-lock.js';
-import { currentReviews, localeMap, localeStepsMap, type IngredientNameDraftRow, type RecipeDraftRow } from './drafts.mapper.js';
+import {
+  currentReviews,
+  localeMap,
+  localeStepsMap,
+  type IngredientNameDraftRow,
+  type RecipeDraftRow,
+} from './drafts.mapper.js';
 import { classifyComplexity } from './recipe-generator.complexity.js';
 
 type Tx = Prisma.TransactionClient;
@@ -89,18 +108,31 @@ export function invalid(problems: RecipeProblem[]): BadRequestException {
 }
 
 /** Refuse what `by` may not touch in a draft of this status. */
-function assertOpen(status: DraftStatus, by: Actor, what: 'edited' | 'reviewed' | 'read' | 'deleted'): void {
+function assertOpen(
+  status: DraftStatus,
+  by: Actor,
+  what: 'edited' | 'reviewed' | 'read' | 'deleted',
+): void {
   if (status === 'SHIPPED') {
-    throw new ConflictException({ error: 'DRAFT_SHIPPED', message: `A draft that has shipped cannot be ${what}.` });
+    throw new ConflictException({
+      error: 'DRAFT_SHIPPED',
+      message: `A draft that has shipped cannot be ${what}.`,
+    });
   }
   if (status === 'REJECTED' && by.role === 'REVIEWER') {
-    throw new ConflictException({ error: 'DRAFT_REJECTED', message: 'This draft was rejected. Only the administrator can reopen it.' });
+    throw new ConflictException({
+      error: 'DRAFT_REJECTED',
+      message: 'This draft was rejected. Only the administrator can reopen it.',
+    });
   }
 }
 
 function assertLocale(locales: readonly string[], locale: Locale): void {
   if (!locales.includes(locale)) {
-    throw new BadRequestException({ error: 'LOCALE_NOT_IN_DRAFT', message: `Draft was not generated for locale "${locale}".` });
+    throw new BadRequestException({
+      error: 'LOCALE_NOT_IN_DRAFT',
+      message: `Draft was not generated for locale "${locale}".`,
+    });
   }
 }
 
@@ -123,18 +155,37 @@ export class DraftService {
   // ── Reading ────────────────────────────────────────────────────────────────
 
   async listRecipes(query: RecipeDraftListQuery): Promise<Page<RecipeDraftRow>> {
-    const where = { status: query.status, batchId: query.batchId, complexity: query.complexity, source: query.source };
+    const where = {
+      status: query.status,
+      batchId: query.batchId,
+      complexity: query.complexity,
+      source: query.source,
+    };
     const [items, total] = await Promise.all([
-      this.prisma.recipeDraft.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize, include: WITH_REVIEWS }),
+      this.prisma.recipeDraft.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        include: WITH_REVIEWS,
+      }),
       this.prisma.recipeDraft.count({ where }),
     ]);
     return { items, total, page: query.page, pageSize: query.pageSize };
   }
 
-  async listIngredientNames(query: IngredientNameDraftListQuery): Promise<Page<IngredientNameDraftRow>> {
+  async listIngredientNames(
+    query: IngredientNameDraftListQuery,
+  ): Promise<Page<IngredientNameDraftRow>> {
     const where = { status: query.status, batchId: query.batchId };
     const [items, total] = await Promise.all([
-      this.prisma.ingredientNameDraft.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize, include: WITH_REVIEWS }),
+      this.prisma.ingredientNameDraft.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        include: WITH_REVIEWS,
+      }),
       this.prisma.ingredientNameDraft.count({ where }),
     ]);
     return { items, total, page: query.page, pageSize: query.pageSize };
@@ -149,14 +200,26 @@ export class DraftService {
     return {
       status: { in: ['PENDING', 'APPROVED'] as DraftStatus[] },
       locales: { has: query.locale },
-      ...(query.includeReviewed ? {} : { localeReviews: { none: { locale: query.locale, action: 'APPROVE', supersededAt: null } } }),
+      ...(query.includeReviewed
+        ? {}
+        : {
+            localeReviews: {
+              none: { locale: query.locale, action: 'APPROVE', supersededAt: null },
+            },
+          }),
     };
   }
 
   async recipesWaitingFor(query: ReviewQueueQuery): Promise<Page<RecipeDraftRow>> {
     const where = DraftService.waitingFor(query);
     const [items, total] = await Promise.all([
-      this.prisma.recipeDraft.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize, include: WITH_REVIEWS }),
+      this.prisma.recipeDraft.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        include: WITH_REVIEWS,
+      }),
       this.prisma.recipeDraft.count({ where }),
     ]);
     return { items, total, page: query.page, pageSize: query.pageSize };
@@ -165,7 +228,13 @@ export class DraftService {
   async ingredientNamesWaitingFor(query: ReviewQueueQuery): Promise<Page<IngredientNameDraftRow>> {
     const where = DraftService.waitingFor(query);
     const [items, total] = await Promise.all([
-      this.prisma.ingredientNameDraft.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize, include: WITH_REVIEWS }),
+      this.prisma.ingredientNameDraft.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        include: WITH_REVIEWS,
+      }),
       this.prisma.ingredientNameDraft.count({ where }),
     ]);
     return { items, total, page: query.page, pageSize: query.pageSize };
@@ -178,7 +247,10 @@ export class DraftService {
   }
 
   async ingredientName(id: string): Promise<IngredientNameDraftRow> {
-    const row = await this.prisma.ingredientNameDraft.findUnique({ where: { id }, include: WITH_REVIEWS });
+    const row = await this.prisma.ingredientNameDraft.findUnique({
+      where: { id },
+      include: WITH_REVIEWS,
+    });
     if (!row) throw notFound();
     return row;
   }
@@ -207,12 +279,29 @@ export class DraftService {
       assertLocale(draft.locales, review.locale);
 
       const at = new Date();
-      await tx.recipeDraftLocaleReview.updateMany({ where: { draftId: id, locale: review.locale, supersededAt: null }, data: { supersededAt: at } });
-      await tx.recipeDraftLocaleReview.create({
-        data: { draftId: id, locale: review.locale, action: review.action, byRole: by.role, reviewedByLabel: by.label, reason: review.reason ?? null, reviewedAt: at },
+      await tx.recipeDraftLocaleReview.updateMany({
+        where: { draftId: id, locale: review.locale, supersededAt: null },
+        data: { supersededAt: at },
       });
-      const current = await tx.recipeDraftLocaleReview.findMany({ where: { draftId: id, supersededAt: null } });
-      return tx.recipeDraft.update({ where: { id }, data: { status: deriveDraftStatus(draft.locales, current) }, include: WITH_REVIEWS });
+      await tx.recipeDraftLocaleReview.create({
+        data: {
+          draftId: id,
+          locale: review.locale,
+          action: review.action,
+          byRole: by.role,
+          reviewedByLabel: by.label,
+          reason: review.reason ?? null,
+          reviewedAt: at,
+        },
+      });
+      const current = await tx.recipeDraftLocaleReview.findMany({
+        where: { draftId: id, supersededAt: null },
+      });
+      return tx.recipeDraft.update({
+        where: { id },
+        data: { status: deriveDraftStatus(draft.locales, current) },
+        include: WITH_REVIEWS,
+      });
     });
   }
 
@@ -223,12 +312,29 @@ export class DraftService {
       assertLocale(draft.locales, review.locale);
 
       const at = new Date();
-      await tx.ingredientNameDraftLocaleReview.updateMany({ where: { draftId: id, locale: review.locale, supersededAt: null }, data: { supersededAt: at } });
-      await tx.ingredientNameDraftLocaleReview.create({
-        data: { draftId: id, locale: review.locale, action: review.action, byRole: by.role, reviewedByLabel: by.label, reason: review.reason ?? null, reviewedAt: at },
+      await tx.ingredientNameDraftLocaleReview.updateMany({
+        where: { draftId: id, locale: review.locale, supersededAt: null },
+        data: { supersededAt: at },
       });
-      const current = await tx.ingredientNameDraftLocaleReview.findMany({ where: { draftId: id, supersededAt: null } });
-      return tx.ingredientNameDraft.update({ where: { id }, data: { status: deriveDraftStatus(draft.locales, current) }, include: WITH_REVIEWS });
+      await tx.ingredientNameDraftLocaleReview.create({
+        data: {
+          draftId: id,
+          locale: review.locale,
+          action: review.action,
+          byRole: by.role,
+          reviewedByLabel: by.label,
+          reason: review.reason ?? null,
+          reviewedAt: at,
+        },
+      });
+      const current = await tx.ingredientNameDraftLocaleReview.findMany({
+        where: { draftId: id, supersededAt: null },
+      });
+      return tx.ingredientNameDraft.update({
+        where: { id },
+        data: { status: deriveDraftStatus(draft.locales, current) },
+        include: WITH_REVIEWS,
+      });
     });
   }
 
@@ -238,7 +344,11 @@ export class DraftService {
    * shipped or is gone in the meantime is left out and named, and the others
    * are rejected all the same.
    */
-  async rejectRecipes(ids: readonly string[], reason: string | undefined, by: Actor): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
+  async rejectRecipes(
+    ids: readonly string[],
+    reason: string | undefined,
+    by: Actor,
+  ): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
     const rejected: string[] = [];
     const skipped: { id: string; error: string }[] = [];
     for (const id of new Set(ids)) {
@@ -249,7 +359,13 @@ export class DraftService {
       } catch (err) {
         if (!(err instanceof HttpException)) throw err;
         const body = err.getResponse();
-        skipped.push({ id, error: typeof body === 'object' && body !== null && 'error' in body ? String(body.error) : err.message });
+        skipped.push({
+          id,
+          error:
+            typeof body === 'object' && body !== null && 'error' in body
+              ? String(body.error)
+              : err.message,
+        });
       }
     }
     return { rejected, skipped };
@@ -266,11 +382,20 @@ export class DraftService {
    * Null when the draft is gone, is no longer open, or has the language by
    * now: somebody was quicker, and nothing is written.
    */
-  addRecipeLanguage(id: string, locale: Locale, text: { title: string; description: string; steps: string[] }): Promise<RecipeDraftRow | null> {
+  addRecipeLanguage(
+    id: string,
+    locale: Locale,
+    text: { title: string; description: string; steps: string[] },
+  ): Promise<RecipeDraftRow | null> {
     return this.prisma.$transaction(async (tx) => {
       await lockRecipeDraft(tx, id);
       const draft = await tx.recipeDraft.findUnique({ where: { id }, include: WITH_REVIEWS });
-      if (!draft || (draft.status !== 'PENDING' && draft.status !== 'APPROVED') || draft.locales.includes(locale)) return null;
+      if (
+        !draft ||
+        (draft.status !== 'PENDING' && draft.status !== 'APPROVED') ||
+        draft.locales.includes(locale)
+      )
+        return null;
 
       const locales = [...draft.locales, locale];
       const checked = checkRecipeText(
@@ -284,7 +409,11 @@ export class DraftService {
       if (!checked.ok) throw invalid(checked.problems);
       return tx.recipeDraft.update({
         where: { id },
-        data: { ...checked.text, locales, status: deriveDraftStatus(locales, currentReviews(draft.localeReviews)) },
+        data: {
+          ...checked.text,
+          locales,
+          status: deriveDraftStatus(locales, currentReviews(draft.localeReviews)),
+        },
         include: WITH_REVIEWS,
       });
     });
@@ -305,14 +434,24 @@ export class DraftService {
    * A patch that changes the slug and nothing else leaves the reviews
    * standing: the slug is no part of what a reviewer approved.
    */
-  editRecipe(id: string, patch: RecipeDraftPatch, by: Actor, options: { dryRun?: boolean } = {}): Promise<RecipeDraftRow> {
+  editRecipe(
+    id: string,
+    patch: RecipeDraftPatch,
+    by: Actor,
+    options: { dryRun?: boolean } = {},
+  ): Promise<RecipeDraftRow> {
     return this.prisma.$transaction(async (tx) => {
-      const draft = options.dryRun ? await tx.recipeDraft.findUnique({ where: { id }, include: WITH_REVIEWS }) : await this.lockRecipe(tx, id);
+      const draft = options.dryRun
+        ? await tx.recipeDraft.findUnique({ where: { id }, include: WITH_REVIEWS })
+        : await this.lockRecipe(tx, id);
       if (!draft) throw notFound();
       assertOpen(draft.status, by, 'edited');
       const fromUsers = draft.source === 'AI_USER';
       if (fromUsers && isStructural(patch)) {
-        throw new ForbiddenException({ error: 'DRAFT_STRUCTURAL_EDIT_FORBIDDEN', message: 'User-drafted recipes: translation edits only.' });
+        throw new ForbiddenException({
+          error: 'DRAFT_STRUCTURAL_EDIT_FORBIDDEN',
+          message: 'User-drafted recipes: translation edits only.',
+        });
       }
 
       const { slug: renamed, cuisine: tagged, ...changes } = patch;
@@ -324,8 +463,17 @@ export class DraftService {
       }
       // The name the recipe ships under and the cuisine it is tagged with are no part of what the reviewers approved.
       const cuisine = tagged === undefined ? draft.cuisine : tagged;
-      if ((renamed !== undefined || tagged !== undefined) && Object.values(changes).every((value) => value === undefined)) {
-        return options.dryRun ? { ...draft, slug, cuisine } : tx.recipeDraft.update({ where: { id }, data: { slug, cuisine }, include: WITH_REVIEWS });
+      if (
+        (renamed !== undefined || tagged !== undefined) &&
+        Object.values(changes).every((value) => value === undefined)
+      ) {
+        return options.dryRun
+          ? { ...draft, slug, cuisine }
+          : tx.recipeDraft.update({
+              where: { id },
+              data: { slug, cuisine },
+              include: WITH_REVIEWS,
+            });
       }
 
       const text = {
@@ -339,7 +487,12 @@ export class DraftService {
         // rows, with the figures the engine gave them.
         const checked = checkRecipeText(text, draft.locales);
         if (!checked.ok) throw invalid(checked.problems);
-        data = { ...checked.text, slug, cuisine, ...(await this.factsOf(tx, draft.ingredientsJson as RecipeLine[], draft.servings)) };
+        data = {
+          ...checked.text,
+          slug,
+          cuisine,
+          ...(await this.factsOf(tx, draft.ingredientsJson as RecipeLine[], draft.servings)),
+        };
       } else {
         const checked = checkRecipe(
           {
@@ -373,13 +526,25 @@ export class DraftService {
       }
       if (options.dryRun) return { ...draft, ...data };
 
-      await tx.recipeDraftLocaleReview.updateMany({ where: { draftId: id, supersededAt: null }, data: { supersededAt: new Date() } });
-      return tx.recipeDraft.update({ where: { id }, data: { ...data, status: 'PENDING' }, include: WITH_REVIEWS });
+      await tx.recipeDraftLocaleReview.updateMany({
+        where: { draftId: id, supersededAt: null },
+        data: { supersededAt: new Date() },
+      });
+      return tx.recipeDraft.update({
+        where: { id },
+        data: { ...data, status: 'PENDING' },
+        include: WITH_REVIEWS,
+      });
     });
   }
 
   /** A reviewer's edit: the text of their language, and nothing else of the draft. */
-  editRecipeText(id: string, locale: Locale, patch: RecipeReviewPatchBody, by: Actor): Promise<RecipeDraftRow> {
+  editRecipeText(
+    id: string,
+    locale: Locale,
+    patch: RecipeReviewPatchBody,
+    by: Actor,
+  ): Promise<RecipeDraftRow> {
     return this.prisma.$transaction(async (tx) => {
       const draft = await this.lockRecipe(tx, id);
       assertOpen(draft.status, by, 'edited');
@@ -398,7 +563,10 @@ export class DraftService {
       );
       if (!checked.ok) throw invalid(checked.problems);
 
-      await tx.recipeDraftLocaleReview.updateMany({ where: { draftId: id, supersededAt: null }, data: { supersededAt: new Date() } });
+      await tx.recipeDraftLocaleReview.updateMany({
+        where: { draftId: id, supersededAt: null },
+        data: { supersededAt: new Date() },
+      });
       return tx.recipeDraft.update({
         where: { id },
         data: {
@@ -417,7 +585,11 @@ export class DraftService {
    * of the draft are kept: a name in any other would ship without anybody
    * having been asked to approve it.
    */
-  editIngredientName(id: string, suggestions: IngredientNameSuggestion, by: Actor): Promise<IngredientNameDraftRow> {
+  editIngredientName(
+    id: string,
+    suggestions: IngredientNameSuggestion,
+    by: Actor,
+  ): Promise<IngredientNameDraftRow> {
     return this.prisma.$transaction(async (tx) => {
       const draft = await this.lockIngredientName(tx, id);
       assertOpen(draft.status, by, 'edited');
@@ -425,19 +597,34 @@ export class DraftService {
       const checked = checkIngredientName(suggestions, draft.locales);
       if (!checked.ok) throw invalid(checked.problems);
 
-      await tx.ingredientNameDraftLocaleReview.updateMany({ where: { draftId: id, supersededAt: null }, data: { supersededAt: new Date() } });
-      return tx.ingredientNameDraft.update({ where: { id }, data: { suggestions: checked.suggestion, status: 'PENDING' }, include: WITH_REVIEWS });
+      await tx.ingredientNameDraftLocaleReview.updateMany({
+        where: { draftId: id, supersededAt: null },
+        data: { supersededAt: new Date() },
+      });
+      return tx.ingredientNameDraft.update({
+        where: { id },
+        data: { suggestions: checked.suggestion, status: 'PENDING' },
+        include: WITH_REVIEWS,
+      });
     });
   }
 
   /** A reviewer's edit of the name in their language. An empty storage hint takes the hint away. */
-  editIngredientNameText(id: string, locale: Locale, patch: IngredientNameReviewPatchBody, by: Actor): Promise<IngredientNameDraftRow> {
+  editIngredientNameText(
+    id: string,
+    locale: Locale,
+    patch: IngredientNameReviewPatchBody,
+    by: Actor,
+  ): Promise<IngredientNameDraftRow> {
     return this.prisma.$transaction(async (tx) => {
       const draft = await this.lockIngredientName(tx, id);
       assertOpen(draft.status, by, 'edited');
       assertLocale(draft.locales, locale);
 
-      const stored = (draft.suggestions ?? {}) as { name?: Record<string, string>; storageHint?: Record<string, string> };
+      const stored = (draft.suggestions ?? {}) as {
+        name?: Record<string, string>;
+        storageHint?: Record<string, string>;
+      };
       const checked = checkIngredientName(
         {
           name: { [locale]: patch.name ?? stored.name?.[locale] },
@@ -452,10 +639,16 @@ export class DraftService {
       delete storageHint[locale];
       Object.assign(storageHint, checked.suggestion.storageHint);
 
-      await tx.ingredientNameDraftLocaleReview.updateMany({ where: { draftId: id, supersededAt: null }, data: { supersededAt: new Date() } });
+      await tx.ingredientNameDraftLocaleReview.updateMany({
+        where: { draftId: id, supersededAt: null },
+        data: { supersededAt: new Date() },
+      });
       return tx.ingredientNameDraft.update({
         where: { id },
-        data: { suggestions: { name, ...(Object.keys(storageHint).length > 0 ? { storageHint } : {}) }, status: 'PENDING' },
+        data: {
+          suggestions: { name, ...(Object.keys(storageHint).length > 0 ? { storageHint } : {}) },
+          status: 'PENDING',
+        },
         include: WITH_REVIEWS,
       });
     });
@@ -497,12 +690,25 @@ export class DraftService {
   }
 
   /** What the engine makes of a recipe's ingredients, and the band of generated recipes it falls into. */
-  private async derive(tx: Tx, recipe: { ingredients: RecipeLine[]; servings: number; steps: Record<string, string[]>; prepMinutes: number; cookMinutes: number }) {
+  private async derive(
+    tx: Tx,
+    recipe: {
+      ingredients: RecipeLine[];
+      servings: number;
+      steps: Record<string, string[]>;
+      prepMinutes: number;
+      cookMinutes: number;
+    },
+  ) {
     const facts = await this.factsOf(tx, recipe.ingredients, recipe.servings);
 
     const stepCount = recipe.steps.en?.length ?? Object.values(recipe.steps)[0]?.length ?? 0;
     const totalMinutes = recipe.prepMinutes + recipe.cookMinutes;
-    const complexity = classifyComplexity({ ingredientCount: recipe.ingredients.length, stepCount, totalMinutes });
+    const complexity = classifyComplexity({
+      ingredientCount: recipe.ingredients.length,
+      stepCount,
+      totalMinutes,
+    });
     if (complexity === null) {
       throw new BadRequestException({
         error: 'OUT_OF_COMPLEXITY_BAND',
@@ -533,7 +739,10 @@ export class DraftService {
     const lines = ingredients.map((line) => {
       const ingredient = bySlug.get(line.slug);
       if (!ingredient) {
-        throw new BadRequestException({ error: 'UNKNOWN_SLUG', message: `ingredient slug "${line.slug}" not found in the curated catalogue` });
+        throw new BadRequestException({
+          error: 'UNKNOWN_SLUG',
+          message: `ingredient slug "${line.slug}" not found in the curated catalogue`,
+        });
       }
       return { quantity: line.quantity, unit: line.unit, ingredient };
     });

@@ -12,9 +12,19 @@ import { AdminSecondFactorCard } from './admin-second-factor-card';
 
 const a = messages.admin;
 const m = messages.secondFactor;
-const SETUP = { secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', uri: 'otpauth://totp/Diet%20App%20admin:admin?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', enrolment: 'sealed', expiresIn: 900 };
+const SETUP = {
+  secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',
+  uri: 'otpauth://totp/Diet%20App%20admin:admin?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',
+  enrolment: 'sealed',
+  expiresIn: 900,
+};
 
-const within = (ui: React.ReactNode) => render(<NextIntlClientProvider locale="en" messages={messages}>{ui}</NextIntlClientProvider>);
+const within = (ui: React.ReactNode) =>
+  render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {ui}
+    </NextIntlClientProvider>,
+  );
 
 describe('two-step sign-in to the admin panel', () => {
   afterEach(() => {
@@ -58,15 +68,19 @@ describe('two-step sign-in to the admin panel', () => {
     expect(onChanged).toHaveBeenCalledWith(false);
   });
 
-  it('says what the API refused, in the visitor\'s language', async () => {
-    vi.spyOn(adminApi, 'proposeSecondFactor').mockRejectedValue(new ApiClientError(409, 'ADMIN_SECOND_FACTOR_RESET_SET', 'ADMIN_SECOND_FACTOR_RESET is on'));
+  it("says what the API refused, in the visitor's language", async () => {
+    vi.spyOn(adminApi, 'proposeSecondFactor').mockRejectedValue(
+      new ApiClientError(409, 'ADMIN_SECOND_FACTOR_RESET_SET', 'ADMIN_SECOND_FACTOR_RESET is on'),
+    );
     within(<AdminSecondFactorCard on={false} onChanged={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('button', { name: m.setUp }));
     await userEvent.type(screen.getByLabelText(a.adminPassword), 'a-long-admin-password');
     await userEvent.click(screen.getByRole('button', { name: m.continue }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.ADMIN_SECOND_FACTOR_RESET_SET);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      messages.errors.ADMIN_SECOND_FACTOR_RESET_SET,
+    );
   });
 });
 
@@ -83,11 +97,15 @@ describe('two-step sign-in of an account, for the operator', () => {
     await userEvent.click(screen.getByRole('button', { name: a.accountFactorRemove }));
 
     expect(remove).not.toHaveBeenCalled();
-    expect(screen.getByText('Switch two-step sign-in off for holder@example.test?')).toBeInTheDocument();
+    expect(
+      screen.getByText('Switch two-step sign-in off for holder@example.test?'),
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: a.accountFactorConfirmButton }));
 
     expect(remove).toHaveBeenCalledWith('holder@example.test');
-    expect(await screen.findByRole('status')).toHaveTextContent('Two-step sign-in is off for holder@example.test.');
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Two-step sign-in is off for holder@example.test.',
+    );
   });
 
   it('does nothing when the operator thinks better of it', async () => {
@@ -103,13 +121,21 @@ describe('two-step sign-in of an account, for the operator', () => {
   });
 
   it('says so when no account of that address has it', async () => {
-    vi.spyOn(adminApi, 'removeAccountSecondFactor').mockRejectedValue(new ApiClientError(404, 'SECOND_FACTOR_NOT_FOUND', 'No account with that address has a second factor.'));
+    vi.spyOn(adminApi, 'removeAccountSecondFactor').mockRejectedValue(
+      new ApiClientError(
+        404,
+        'SECOND_FACTOR_NOT_FOUND',
+        'No account with that address has a second factor.',
+      ),
+    );
     within(<AccountSecondFactorCard />);
 
     await userEvent.type(screen.getByLabelText(a.accountFactorEmail), 'nobody@example.test');
     await userEvent.click(screen.getByRole('button', { name: a.accountFactorRemove }));
     await userEvent.click(screen.getByRole('button', { name: a.accountFactorConfirmButton }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages.errors.SECOND_FACTOR_NOT_FOUND);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      messages.errors.SECOND_FACTOR_NOT_FOUND,
+    );
   });
 });

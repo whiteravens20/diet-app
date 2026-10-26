@@ -1,8 +1,26 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { GenerateShoppingListRequest, ListProposals, ShoppingList, UpdateShoppingItemRequest, WeighRequest, type Locale } from '@diet-app/shared';
+import {
+  GenerateShoppingListRequest,
+  ListProposals,
+  ShoppingList,
+  UpdateShoppingItemRequest,
+  WeighRequest,
+  type Locale,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';

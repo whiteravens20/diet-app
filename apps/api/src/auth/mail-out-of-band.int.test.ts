@@ -37,33 +37,63 @@ describe('what a request answers, whatever the mail server does', () => {
     beforeEach(() => mailbox.failing());
 
     it('makes the account all the same, and says so', async () => {
-      const made = await t.http().post('/api/auth/register').send({ email: 'new@example.test', password: 'Brand-New-Passw0rd', displayName: 'New' });
+      const made = await t
+        .http()
+        .post('/api/auth/register')
+        .send({ email: 'new@example.test', password: 'Brand-New-Passw0rd', displayName: 'New' });
 
       expect(made.status).toBe(201);
       expect(made.body.user).toMatchObject({ email: 'new@example.test', emailVerified: false });
       // The address is not taken by half an account: the same request again says it is registered.
-      expect((await t.http().post('/api/auth/register').send({ email: 'new@example.test', password: 'Brand-New-Passw0rd', displayName: 'New' })).body.error).toBe('EMAIL_TAKEN');
+      expect(
+        (
+          await t
+            .http()
+            .post('/api/auth/register')
+            .send({ email: 'new@example.test', password: 'Brand-New-Passw0rd', displayName: 'New' })
+        ).body.error,
+      ).toBe('EMAIL_TAKEN');
     });
 
     it('accepts a request to reset a password alike for an address with an account and for one without', async () => {
-      const known = await t.http().post('/api/auth/password-reset/request').send({ email: user.email });
-      const unknown = await t.http().post('/api/auth/password-reset/request').send({ email: 'nobody@example.test' });
+      const known = await t
+        .http()
+        .post('/api/auth/password-reset/request')
+        .send({ email: user.email });
+      const unknown = await t
+        .http()
+        .post('/api/auth/password-reset/request')
+        .send({ email: 'nobody@example.test' });
 
       expect([known.status, known.text]).toEqual([202, '']);
       expect([unknown.status, unknown.text]).toEqual([202, '']);
     });
 
     it('accepts a request to change the address, and keeps the link ready', async () => {
-      await t.http().post('/api/users/me/email').set(as(user)).send({ newEmail: 'moved@example.test', currentPassword: user.password }).expect(202);
+      await t
+        .http()
+        .post('/api/users/me/email')
+        .set(as(user))
+        .send({ newEmail: 'moved@example.test', currentPassword: user.password })
+        .expect(202);
 
       await mailbox.settled();
-      expect(await t.prisma.emailChangeToken.count({ where: { userId: user.id, usedAt: null } })).toBe(1);
+      expect(
+        await t.prisma.emailChangeToken.count({ where: { userId: user.id, usedAt: null } }),
+      ).toBe(1);
     });
 
     it('changes a password although the notice cannot go out', async () => {
-      await t.http().post('/api/users/me/password').set(as(user)).send({ currentPassword: user.password, newPassword: 'Another-Passw0rd-1' }).expect(204);
+      await t
+        .http()
+        .post('/api/users/me/password')
+        .set(as(user))
+        .send({ currentPassword: user.password, newPassword: 'Another-Passw0rd-1' })
+        .expect(204);
 
-      await expect(auth.login({ email: user.email, password: 'Another-Passw0rd-1' })).resolves.toBeDefined();
+      await expect(
+        auth.login({ email: user.email, password: 'Another-Passw0rd-1' }),
+      ).resolves.toBeDefined();
     });
   });
 
@@ -81,7 +111,9 @@ describe('what a request answers, whatever the mail server does', () => {
     });
 
     it('does nothing more for an address without an account, and answers the same', async () => {
-      await expect(auth.requestPasswordReset({ email: 'nobody@example.test' })).resolves.toBeUndefined();
+      await expect(
+        auth.requestPasswordReset({ email: 'nobody@example.test' }),
+      ).resolves.toBeUndefined();
 
       await mailbox.settled();
       expect(mailbox.sent).toEqual([]);

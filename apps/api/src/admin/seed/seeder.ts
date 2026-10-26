@@ -111,16 +111,24 @@ export async function updateDatabase(
 
     onProgress({ stage: 'retire' });
     const recipes = await retireRecipes(tx, catalogue);
-    log(`Recipes the data dropped: ${recipes.deleted} deleted, ${recipes.retired} retired (still in use).`);
+    log(
+      `Recipes the data dropped: ${recipes.deleted} deleted, ${recipes.retired} retired (still in use).`,
+    );
     const ingredients = await retireIngredients(tx, catalogue);
-    log(`Ingredients the data dropped: ${ingredients.deleted} deleted, ${ingredients.retired} retired (still in use).`);
+    log(
+      `Ingredients the data dropped: ${ingredients.deleted} deleted, ${ingredients.retired} retired (still in use).`,
+    );
 
     onProgress({ stage: 'recompute' });
     const recomputed = await recomputeDerivedRecipes(tx);
-    if (recomputed > 0) log(`Recomputed what is derived from the ingredients of ${recomputed} recipe(s) outside the seed.`);
+    if (recomputed > 0)
+      log(
+        `Recomputed what is derived from the ingredients of ${recomputed} recipe(s) outside the seed.`,
+      );
 
     const repairedProfiles = await repairDanglingReferences(tx);
-    if (repairedProfiles > 0) log(`Removed references to rows that no longer exist from ${repairedProfiles} profile(s).`);
+    if (repairedProfiles > 0)
+      log(`Removed references to rows that no longer exist from ${repairedProfiles} profile(s).`);
 
     const seededAt = new Date();
     const meta = {
@@ -130,7 +138,11 @@ export async function updateDatabase(
       recipes: counts.recipes,
       substitutions: counts.substitutions,
     };
-    await tx.seedMeta.upsert({ where: { key: 'data' }, create: { key: 'data', ...meta }, update: meta });
+    await tx.seedMeta.upsert({
+      where: { key: 'data' },
+      create: { key: 'data', ...meta },
+      update: meta,
+    });
 
     return {
       ...counts,
@@ -190,7 +202,9 @@ async function applyIngredients(
   onProgress({ stage: 'ingredients', current: 0, total: catalogue.ingredients.length });
 
   const existing = await db.ingredient.findMany({ select: { id: true, slug: true, name: true } });
-  const existingBySlug = new Map(existing.filter((row) => row.slug).map((row) => [row.slug!, row.id]));
+  const existingBySlug = new Map(
+    existing.filter((row) => row.slug).map((row) => [row.slug!, row.id]),
+  );
   // A row written before slugs existed is recognised by its English name, once.
   const unslugged = new Map(existing.filter((row) => !row.slug).map((row) => [row.name, row.id]));
 
@@ -215,6 +229,8 @@ async function applyIngredients(
       gramsPerPiece: ing.gramsPerPiece ?? null,
       density: ing.density ?? null,
       displayUnit: ing.displayUnit ?? null,
+      perTeaspoon: ing.perTeaspoon ?? null,
+      proteinKind: ing.proteinKind ?? null,
       allergens: ing.allergens,
       dietCompatibility: ing.dietCompatibility,
       tags: ing.tags,
@@ -245,7 +261,13 @@ async function applyIngredients(
     for (const [locale, name] of Object.entries(names)) {
       if (taken.has(locale)) continue;
       await db.ingredientTranslation.create({
-        data: { ingredientId, locale, name, storageHint: storage?.[locale] ?? null, source: 'CURATED_JSON' },
+        data: {
+          ingredientId,
+          locale,
+          name,
+          storageHint: storage?.[locale] ?? null,
+          source: 'CURATED_JSON',
+        },
       });
     }
 
@@ -271,7 +293,8 @@ async function applyNameOverrides(
     const ingredientId = ingredientIds.get(slug);
     if (!ingredientId) continue;
     for (const [locale, name] of Object.entries(entry.name)) {
-      const storageHint = (entry.storageHint as Record<string, string> | undefined)?.[locale] ?? null;
+      const storageHint =
+        (entry.storageHint as Record<string, string> | undefined)?.[locale] ?? null;
       await db.ingredientTranslation.upsert({
         where: { ingredientId_locale: { ingredientId, locale } },
         create: { ingredientId, locale, name, storageHint, source: 'MANUAL' },
@@ -280,7 +303,9 @@ async function applyNameOverrides(
     }
     applied += 1;
   }
-  log(`Ingredient name overrides: ${applied} applied, ${entries.length - applied} for unknown slugs skipped.`);
+  log(
+    `Ingredient name overrides: ${applied} applied, ${entries.length - applied} for unknown slugs skipped.`,
+  );
 }
 
 async function applyRecipes(
@@ -291,7 +316,9 @@ async function applyRecipes(
   onProgress: ProgressCallback,
 ): Promise<void> {
   const shipped = catalogue.recipes.length - catalogue.anchorRecipes;
-  log(`Seeding recipes (nutrition computed from the ingredient table): ${catalogue.anchorRecipes} anchor + ${shipped} shipped…`);
+  log(
+    `Seeding recipes (nutrition computed from the ingredient table): ${catalogue.anchorRecipes} anchor + ${shipped} shipped…`,
+  );
   onProgress({ stage: 'recipes', current: 0, total: catalogue.recipes.length });
 
   // Only rows the seed owns are matched: a personal recipe, or one this
@@ -300,7 +327,9 @@ async function applyRecipes(
     where: { origin: 'seed' },
     select: { id: true, slug: true, title: true },
   });
-  const existingBySlug = new Map(existing.filter((row) => row.slug).map((row) => [row.slug!, row.id]));
+  const existingBySlug = new Map(
+    existing.filter((row) => row.slug).map((row) => [row.slug!, row.id]),
+  );
   const unslugged = new Map(existing.filter((row) => !row.slug).map((row) => [row.title, row.id]));
 
   // A slug is one recipe's. Where the data now uses a slug that a recipe of
@@ -308,7 +337,10 @@ async function applyRecipes(
   // same making is the same recipe, which becomes the data's and keeps its
   // id; another making keeps its row and gives the slug up.
   const held = await db.recipe.findMany({
-    where: { slug: { in: catalogue.recipes.map((recipe) => recipe.slug) }, origin: { not: 'seed' } },
+    where: {
+      slug: { in: catalogue.recipes.map((recipe) => recipe.slug) },
+      origin: { not: 'seed' },
+    },
     select: { id: true, slug: true, fingerprint: true, createdByUserId: true },
   });
   const heldBySlug = new Map(held.map((row) => [row.slug!, row]));
@@ -338,7 +370,11 @@ async function applyRecipes(
       allergens: recipe.allergens,
       // What a personal recipe is compared with: one that turns out to be this
       // recipe is not written a second time.
-      fingerprint: computeFingerprint({ ingredients: recipe.lines, mealTypes: seed.mealTypes, servings: seed.servings }),
+      fingerprint: computeFingerprint({
+        ingredients: recipe.lines,
+        mealTypes: seed.mealTypes,
+        servings: seed.servings,
+      }),
       caloriesPerServing: recipe.nutrition.calories,
       proteinPerServing: recipe.nutrition.protein,
       fatPerServing: recipe.nutrition.fat,
@@ -354,7 +390,12 @@ async function applyRecipes(
 
     let id = existingBySlug.get(recipe.slug) ?? unslugged.get(fields.title);
     const holder = heldBySlug.get(recipe.slug);
-    if (holder && !id && holder.createdByUserId === null && holder.fingerprint === fields.fingerprint) {
+    if (
+      holder &&
+      !id &&
+      holder.createdByUserId === null &&
+      holder.fingerprint === fields.fingerprint
+    ) {
       id = holder.id;
       adopted += 1;
     } else if (holder) {
@@ -362,9 +403,27 @@ async function applyRecipes(
       renamed += 1;
     }
     if (id) {
-      await db.recipe.update({ where: { id }, data: { ...fields, origin: 'seed', ingredients: { deleteMany: {}, create: lines } } });
+      await db.recipe.update({
+        where: { id },
+        data: {
+          ...fields,
+          origin: 'seed',
+          ingredients: {
+            deleteMany: {},
+            create: lines.map((line, position) => ({ ...line, position })),
+          },
+        },
+      });
     } else {
-      id = (await db.recipe.create({ data: { ...fields, origin: 'seed', ingredients: { create: lines } } })).id;
+      id = (
+        await db.recipe.create({
+          data: {
+            ...fields,
+            origin: 'seed',
+            ingredients: { create: lines.map((line, position) => ({ ...line, position })) },
+          },
+        })
+      ).id;
     }
 
     const outranking = await db.recipeTranslation.findMany({
@@ -392,15 +451,24 @@ async function applyRecipes(
       onProgress({ stage: 'recipes', current: done, total: catalogue.recipes.length });
     }
   }
-  if (adopted > 0) log(`${adopted} recipe(s) this instance added are in the data now, made the same way: they are the data's from here on.`);
-  if (renamed > 0) log(`${renamed} recipe(s) this instance added gave up a slug the data now uses for another recipe; they stay in the library.`);
+  if (adopted > 0)
+    log(
+      `${adopted} recipe(s) this instance added are in the data now, made the same way: they are the data's from here on.`,
+    );
+  if (renamed > 0)
+    log(
+      `${renamed} recipe(s) this instance added gave up a slug the data now uses for another recipe; they stay in the library.`,
+    );
 }
 
 /**
  * Seed recipes the data no longer carries. One that a plan, a favourite or a
  * favourite set still uses is retired; the rest are deleted.
  */
-async function retireRecipes(db: Db, catalogue: Catalogue): Promise<{ deleted: number; retired: number }> {
+async function retireRecipes(
+  db: Db,
+  catalogue: Catalogue,
+): Promise<{ deleted: number; retired: number }> {
   const live = new Set(catalogue.recipes.map((recipe) => recipe.slug));
   const seeded = await db.recipe.findMany({
     where: { origin: 'seed' },
@@ -414,7 +482,9 @@ async function retireRecipes(db: Db, catalogue: Catalogue): Promise<{ deleted: n
     for (const recipeId of recipeIdsOf(set.slots)) inSets.add(recipeId);
   }
 
-  const inUse = dropped.filter((row) => row._count.plannedMeals > 0 || row._count.favorites > 0 || inSets.has(row.id));
+  const inUse = dropped.filter(
+    (row) => row._count.plannedMeals > 0 || row._count.favorites > 0 || inSets.has(row.id),
+  );
   const unused = dropped.filter((row) => !inUse.includes(row));
   await db.recipe.updateMany({
     where: { id: { in: inUse.map((row) => row.id) }, retiredAt: null },
@@ -428,10 +498,17 @@ async function retireRecipes(db: Db, catalogue: Catalogue): Promise<{ deleted: n
  * Ingredients the data no longer carries. One that a recipe, a pantry row, a
  * preference or a shopping list still uses is retired; the rest are deleted.
  */
-async function retireIngredients(db: Db, catalogue: Catalogue): Promise<{ deleted: number; retired: number }> {
+async function retireIngredients(
+  db: Db,
+  catalogue: Catalogue,
+): Promise<{ deleted: number; retired: number }> {
   const live = new Set(catalogue.ingredients.map((ingredient) => ingredient.slug));
   const all = await db.ingredient.findMany({
-    select: { id: true, slug: true, _count: { select: { recipeIngredients: true, inventoryItems: true } } },
+    select: {
+      id: true,
+      slug: true,
+      _count: { select: { recipeIngredients: true, inventoryItems: true } },
+    },
   });
   const dropped = all.filter((row) => !row.slug || !live.has(row.slug));
   if (dropped.length === 0) return { deleted: 0, retired: 0 };
@@ -440,14 +517,19 @@ async function retireIngredients(db: Db, catalogue: Catalogue): Promise<{ delete
   for (const pref of await db.profilePreference.findMany({
     select: { favoriteIngredientIds: true, excludedIngredientIds: true },
   })) {
-    for (const id of [...pref.favoriteIngredientIds, ...pref.excludedIngredientIds]) referenced.add(id);
+    for (const id of [...pref.favoriteIngredientIds, ...pref.excludedIngredientIds])
+      referenced.add(id);
   }
-  for (const item of await db.shoppingListItem.findMany({ distinct: ['ingredientId'], select: { ingredientId: true } })) {
+  for (const item of await db.shoppingListItem.findMany({
+    distinct: ['ingredientId'],
+    select: { ingredientId: true },
+  })) {
     referenced.add(item.ingredientId);
   }
 
   const inUse = dropped.filter(
-    (row) => row._count.recipeIngredients > 0 || row._count.inventoryItems > 0 || referenced.has(row.id),
+    (row) =>
+      row._count.recipeIngredients > 0 || row._count.inventoryItems > 0 || referenced.has(row.id),
   );
   const unused = dropped.filter((row) => !inUse.includes(row));
   await db.ingredient.updateMany({
@@ -466,7 +548,7 @@ async function retireIngredients(db: Db, catalogue: Catalogue): Promise<{ delete
 async function recomputeDerivedRecipes(db: Db): Promise<number> {
   const recipes = await db.recipe.findMany({
     where: { origin: { not: 'seed' } },
-    include: { ingredients: { include: { ingredient: true } } },
+    include: { ingredients: { orderBy: { position: 'asc' }, include: { ingredient: true } } },
     // The order decides which of two identical recipes of one owner keeps the
     // fingerprint: one that is not deleted, then the older.
     orderBy: [{ deletedAt: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }, { id: 'asc' }],
@@ -475,11 +557,21 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
   const fingerprints = new Map<string, string | null>();
   const taken = new Set<string>();
   for (const recipe of recipes) {
-    const lines = recipe.ingredients.map((line) => ({ slug: line.ingredient.slug, quantity: line.quantity, unit: line.unit }));
-    const named = lines.filter((line): line is typeof line & { slug: string } => line.slug !== null);
+    const lines = recipe.ingredients.map((line) => ({
+      slug: line.ingredient.slug,
+      quantity: line.quantity,
+      unit: line.unit,
+    }));
+    const named = lines.filter(
+      (line): line is typeof line & { slug: string } => line.slug !== null,
+    );
     let fingerprint =
       lines.length > 0 && named.length === lines.length
-        ? computeFingerprint({ ingredients: named, mealTypes: recipe.mealTypes, servings: recipe.servings })
+        ? computeFingerprint({
+            ingredients: named,
+            mealTypes: recipe.mealTypes,
+            servings: recipe.servings,
+          })
         : null;
     // One owner holds a fingerprint once. A second recipe of theirs with the
     // same content keeps none: it stays theirs, it is just not recognised.
@@ -491,8 +583,13 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
     fingerprints.set(recipe.id, fingerprint);
   }
   // Cleared first, so that no row waits for a value another row still holds.
-  const moved = recipes.filter((recipe) => recipe.fingerprint !== null && recipe.fingerprint !== fingerprints.get(recipe.id));
-  await db.recipe.updateMany({ where: { id: { in: moved.map((recipe) => recipe.id) } }, data: { fingerprint: null } });
+  const moved = recipes.filter(
+    (recipe) => recipe.fingerprint !== null && recipe.fingerprint !== fingerprints.get(recipe.id),
+  );
+  await db.recipe.updateMany({
+    where: { id: { in: moved.map((recipe) => recipe.id) } },
+    data: { fingerprint: null },
+  });
 
   let changed = 0;
   for (const recipe of recipes) {
@@ -505,7 +602,12 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
     const fingerprint = fingerprints.get(recipe.id) ?? null;
     let next: Pick<
       typeof recipe,
-      'caloriesPerServing' | 'proteinPerServing' | 'fatPerServing' | 'carbsPerServing' | 'allergens' | 'dietTags'
+      | 'caloriesPerServing'
+      | 'proteinPerServing'
+      | 'fatPerServing'
+      | 'carbsPerServing'
+      | 'allergens'
+      | 'dietTags'
     >;
     try {
       const facts = recipeFacts(lines, servings);
@@ -554,8 +656,12 @@ async function recomputeDerivedRecipes(db: Db): Promise<number> {
  * many profiles were touched.
  */
 async function repairDanglingReferences(db: Db): Promise<number> {
-  const ingredientIds = new Set((await db.ingredient.findMany({ select: { id: true } })).map((row) => row.id));
-  const recipeIds = new Set((await db.recipe.findMany({ select: { id: true } })).map((row) => row.id));
+  const ingredientIds = new Set(
+    (await db.ingredient.findMany({ select: { id: true } })).map((row) => row.id),
+  );
+  const recipeIds = new Set(
+    (await db.recipe.findMany({ select: { id: true } })).map((row) => row.id),
+  );
   const lost = new Map<string, { ingredients: number; recipes: number }>();
   const note = (profileId: string, kind: 'ingredients' | 'recipes', count: number) => {
     const entry = lost.get(profileId) ?? { ingredients: 0, recipes: 0 };
@@ -568,7 +674,11 @@ async function repairDanglingReferences(db: Db): Promise<number> {
   })) {
     const favorite = pref.favoriteIngredientIds.filter((id) => ingredientIds.has(id));
     const excluded = pref.excludedIngredientIds.filter((id) => ingredientIds.has(id));
-    const gone = pref.favoriteIngredientIds.length - favorite.length + pref.excludedIngredientIds.length - excluded.length;
+    const gone =
+      pref.favoriteIngredientIds.length -
+      favorite.length +
+      pref.excludedIngredientIds.length -
+      excluded.length;
     if (gone === 0) continue;
     await db.profilePreference.update({
       where: { id: pref.id },
@@ -577,15 +687,23 @@ async function repairDanglingReferences(db: Db): Promise<number> {
     note(pref.profileId, 'ingredients', gone);
   }
 
-  for (const set of await db.favoriteSet.findMany({ select: { id: true, profileId: true, slots: true } })) {
+  for (const set of await db.favoriteSet.findMany({
+    select: { id: true, profileId: true, slots: true },
+  })) {
     const slots = set.slots as Record<string, unknown>;
     const kept = Object.fromEntries(
-      Object.entries(slots).filter(([, recipeId]) => typeof recipeId !== 'string' || recipeIds.has(recipeId)),
+      Object.entries(slots).filter(
+        ([, recipeId]) => typeof recipeId !== 'string' || recipeIds.has(recipeId),
+      ),
     );
     const gone = Object.keys(slots).length - Object.keys(kept).length;
     if (gone === 0) continue;
     if (Object.keys(kept).length === 0) await db.favoriteSet.delete({ where: { id: set.id } });
-    else await db.favoriteSet.update({ where: { id: set.id }, data: { slots: kept as Prisma.InputJsonValue } });
+    else
+      await db.favoriteSet.update({
+        where: { id: set.id },
+        data: { slots: kept as Prisma.InputJsonValue },
+      });
     note(set.profileId, 'recipes', gone);
   }
 

@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 151 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 149 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -32,6 +32,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `CUSTOM_MEAL_INVALID_MACROS` | 400 | Custom meal macros must be non-negative numbers. | Makroskładniki własnego posiłku muszą być liczbami nieujemnymi. |
 | `CUSTOM_MEAL_NOT_SWAPPABLE` | 400 | Custom meals can't be swapped or have ingredients substituted. | Własnego posiłku nie można zamienić na inny ani zamienić w nim składnika. |
 | `CUSTOM_SPLIT_MISSING` | 400 | The custom diet needs a split of protein, fat and carbohydrate. Set one on the profile first. | Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu. |
+| `DAY_IN_THE_PAST` | 409 | This day is over: its settings stay as they were. | Ten dzień już minął: jego ustawienia zostają bez zmian. |
 | `DAY_NOT_FOUND` | 404 | Day not found in this plan. | Nie znaleziono dnia w tym planie. |
 | `DRAFT_INVALID` | 400 | The draft would break the rules for recipe text and quantities. Nothing was saved. | Szkic złamałby zasady dotyczące tekstu i ilości w przepisie. Nic nie zostało zapisane. |
 | `DRAFT_NOT_APPROVED` | 409 | Draft must be approved in every locale before it can be promoted. | Szkic musi być zatwierdzony w każdym języku, zanim trafi do biblioteki. |
@@ -52,13 +53,11 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `FAVORITE_SET_LIMIT_REACHED` | 409 | This profile already has as many favorite sets as it can hold. Delete one first. | Ten profil ma już tyle zestawów ulubionych, ile może mieć. Najpierw usuń jeden z nich. |
 | `FAVORITE_SET_NOT_ELIGIBLE` | 400 | This set holds a recipe that can't go into this plan: it doesn't fit the diet or the meal, uses an ingredient the profile skips, or is marked to avoid. | Ten zestaw zawiera przepis, którego nie można dodać do tego planu: nie pasuje do diety lub posiłku, zawiera pomijany składnik albo jest oznaczony do unikania. |
 | `FORBIDDEN` | 403 | You don't have access to that. | Brak dostępu. |
-| `GH_MODE_UNAVAILABLE` | 409 | `gh` CLI not found on PATH. | Nie znaleziono polecenia `gh` w PATH. |
-| `GH_PR_CREATE_FAILED` | 409 | Opening the pull request via gh failed. | Utworzenie pull requesta przez gh nie powiodło się. |
-| `GIT_FAILED` | 409 | A git command failed during the upstream-PR ship. | Polecenie git zakończyło się błędem podczas wysyłki przez pull request. |
 | `IMPORT_IN_PROGRESS` | 409 | A USDA import is already in progress. | Import USDA już trwa. |
 | `IMPORT_NOT_JSON` | 400 | This is not a JSON document of recipes. | To nie jest dokument JSON z przepisami. |
 | `INGREDIENT_NOT_FOUND` | 404 | Ingredient not found. | Nie znaleziono składnika. |
 | `INGREDIENT_NOT_IN_RECIPE` | 404 | This ingredient is not part of the recipe. | Ten składnik nie należy do przepisu. |
+| `INSTANCE_DATA_NEWER` | 409 | These files were written by a newer version of the application. Update the application before restoring them. | Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz. |
 | `INTERNAL_ERROR` | 500 | An unexpected server error occurred. | Nieoczekiwany błąd serwera. |
 | `INVALID_ACCESS_TOKEN` | 401 | Your session is invalid. Please sign in again. | Sesja jest nieprawidłowa. Zaloguj się ponownie. |
 | `INVALID_ADMIN_SESSION` | 401 | The admin session has ended. Sign in again. | Sesja administratora wygasła. Zaloguj się ponownie. |
@@ -92,7 +91,6 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `NOT_FOUND` | 404 | That does not exist. | Nie znaleziono. |
 | `NO_ALTERNATIVE` | 404 | No alternative recipe found. | Nie znaleziono alternatywnego przepisu. |
 | `NO_APPROVED_DRAFTS` | 409 | There are no approved drafts to ship. | Brak zatwierdzonych szkiców do wysłania. |
-| `NO_CURRENT_OVERRIDES` | 409 | This instance has no ingredient overrides to export or push yet. | Ta instancja nie ma jeszcze żadnych nadpisań składników do eksportu lub wysyłki. |
 | `NO_ELIGIBLE_INGREDIENTS` | 400 | No ingredients match your diet and allergen settings. | Żadne składniki nie pasują do diety i alergenów profilu. |
 | `NO_ELIGIBLE_RECIPE` | 400 | No recipe matches the current constraints. | Żaden przepis nie spełnia obecnych ograniczeń. |
 | `NO_FAVORITE_INGREDIENTS` | 400 | Add favourite ingredients on the profile before swapping by them. | Najpierw dodaj w profilu ulubione składniki — dopiero wtedy da się dobrać zamianę według nich. |
@@ -106,6 +104,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `ORIGIN_NOT_ALLOWED` | 403 | This request has to come from the application itself. Reload the page and try again. | To żądanie musi pochodzić z samej aplikacji. Odśwież stronę i spróbuj ponownie. |
 | `OUT_OF_COMPLEXITY_BAND` | 400 | Recipe is outside every complexity band — adjust ingredients, steps, or time. | Przepis nie mieści się w żadnym przedziale złożoności — zmień składniki, kroki lub czas. |
 | `OVERRIDE_DATE_OUT_OF_RANGE` | 400 | An advanced day option falls outside the plan's date range. | Ustawienie dnia wykracza poza zakres dat planu. |
+| `OWN_RECIPE_DAILY_LIMIT` | 429 | You have saved as many recipes of your own today as you may. Try again tomorrow. | Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro. |
 | `PANTRY_FULL` | 409 | The pantry already holds as many items as it can. Remove one first. | Spiżarnia ma już tyle pozycji, ile może pomieścić. Najpierw usuń jedną z nich. |
 | `PAYLOAD_TOO_LARGE` | 413 | The request is too large. | Żądanie jest zbyt duże. |
 | `PERSONAL_RECIPE_LIMIT` | 403 | You have as many recipes of your own as an account can hold. Delete some you no longer use. | Masz już tyle własnych przepisów, ile mieści jedno konto. Usuń te, których już nie używasz. |
@@ -120,10 +119,13 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `QUANTITY_TOO_LARGE` | 400 | That quantity is larger than a kitchen holds. Check the number. | Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę. |
 | `RANGE_OUTSIDE_PLAN` | 400 | Those days are not days of this plan, or the first is after the last. | Te dni nie należą do tego planu albo pierwszy jest późniejszy niż ostatni. |
 | `RATE_LIMITED` | 429 | Too many requests. Try again in a moment. | Zbyt wiele żądań. Spróbuj ponownie za chwilę. |
+| `RECIPE_ALREADY_YOURS` | 409 | You already have a recipe with these ingredients, in these amounts, for these meals. | Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki. |
 | `RECIPE_GEN_IN_PROGRESS` | 409 | A recipe-generator run is already in progress. | Generowanie przepisów już trwa. |
+| `RECIPE_INVALID` | 400 | The recipe would break the rules for recipe text and quantities. Nothing was saved. | Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane. |
 | `RECIPE_NOT_ELIGIBLE` | 400 | That recipe can't go into this plan. | Tego przepisu nie można dodać do tego planu. |
 | `RECIPE_NOT_FOUND` | 404 | Recipe not found. | Nie znaleziono przepisu. |
 | `RECIPE_NOT_SUBMITTABLE` | 409 | This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library. | Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki. |
+| `RECIPE_SWAP_NOT_SUBMITTABLE` | 409 | A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library. | Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki. |
 | `REFERENCE_CONFLICT` | 409 | The request refers to something that does not exist or is still in use. | Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane. |
 | `REVIEWER_DISABLED` | 401, 403 | Reviewer interface is disabled. | Panel recenzenta jest wyłączony. |
 | `SAME_INGREDIENT` | 400 | An ingredient cannot take its own place. Choose another one. | Składnik nie może zastąpić samego siebie. Wybierz inny. |
@@ -137,10 +139,6 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `SESSION_NOT_FOUND` | 404 | That session is no longer open. | Ta sesja nie jest już otwarta. |
 | `SET_NOT_FOUND` | 404 | Favourite set not found. | Nie znaleziono zestawu ulubionych. |
 | `SHIP_NO_APPROVED` | 409 | No approved drafts to ship. | Brak zatwierdzonych szkiców do wysłania. |
-| `SHIP_REPO_ROOT_NOT_FOUND` | 409 | Could not find the git repo root for the upstream PR mode. | Nie znaleziono katalogu .git potrzebnego do wysyłki przez pull request. |
-| `SHIP_UPSTREAM_BLOCKED_CANONICAL` | 409 | The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes. | Skonfigurowane zdalne repozytorium to główne repozytorium diet-app. Treść napisana przez AI nigdy tam nie trafia — nawet z instancji opiekuna projektu. Ustaw SHIP_UPSTREAM_REMOTE na prywatną kopię repozytorium albo wyślij szkice do tej instancji lub jako pakiet. |
-| `SHIP_UPSTREAM_DISABLED` | 409 | Upstream PR mode is disabled on this instance. | Wysyłka przez pull request jest wyłączona na tej instancji. |
-| `SHIP_UPSTREAM_NO_TOKEN` | 409 | Upstream PR mode is missing a gh token. | Brakuje tokenu gh do wysyłki przez pull request. |
 | `SHOPPING_LIST_LIMIT` | 409 | This plan already has as many shopping lists as it can hold. Delete one first. | Ten plan ma już tyle list zakupów, ile może mieć. Najpierw usuń jedną z nich. |
 | `SHOPPING_RANGE_OUTSIDE_PLAN` | 400 | Those dates are not within the plan. Pick dates the plan covers. | Te daty nie mieszczą się w planie. Wybierz daty, które plan obejmuje. |
 | `SUBSTITUTION_MOVES_NUTRITION` | 422 | This substitution changes what a serving holds by more than a tenth. Confirm that you want it all the same. | Ta zamiana zmienia wartości porcji o więcej niż jedną dziesiątą. Potwierdź, że mimo to chcesz ją wykonać. |

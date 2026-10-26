@@ -11,7 +11,14 @@ import messages from '../../messages/en.json';
 import { NotificationToast } from './notification-toast';
 
 const text = messages.notifications;
-const weigh = (id: string, days: number): Notification => ({ id, profileId: '99999999-9999-4999-8999-999999999999', type: 'weight_reminder', payload: { daysSinceLastEntry: days }, createdAt: '2026-10-12T06:00:00.000Z', readAt: null });
+const weigh = (id: string, days: number): Notification => ({
+  id,
+  profileId: '99999999-9999-4999-8999-999999999999',
+  type: 'weight_reminder',
+  payload: { daysSinceLastEntry: days },
+  createdAt: '2026-10-12T06:00:00.000Z',
+  readAt: null,
+});
 const ONE = '11111111-1111-4111-8111-111111111111';
 const TWO = '22222222-2222-4222-8222-222222222222';
 
@@ -21,7 +28,9 @@ async function renderToast(unread: Notification[]) {
   await act(async () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
           <NotificationToast />
         </QueryClientProvider>
       </NextIntlClientProvider>,
@@ -92,7 +101,9 @@ describe('a notification that comes in', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Mark as read' }));
 
-    await vi.waitFor(() => expect(post).toHaveBeenCalledExactlyOnceWith(`/notifications/${TWO}/read`));
+    await vi.waitFor(() =>
+      expect(post).toHaveBeenCalledExactlyOnceWith(`/notifications/${TWO}/read`),
+    );
     await vi.waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
   });
 

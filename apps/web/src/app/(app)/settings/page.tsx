@@ -3,9 +3,7 @@
 'use client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import {
-  type SessionUser,
-} from '@diet-app/shared';
+import { type SessionUser } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { SecondFactorCard } from './second-factor-card';
 import { DataExportCard } from './data-export-card';
@@ -27,7 +25,8 @@ export default function SettingsPage() {
   if (session.isLoading) {
     return <p className="text-sm text-muted-foreground">{t('subhead')}</p>;
   }
-  if (session.isError) return <LoadFailed error={session.error} onRetry={() => void session.refetch()} />;
+  if (session.isError)
+    return <LoadFailed error={session.error} onRetry={() => void session.refetch()} />;
   if (!session.data) return null;
   const me = session.data;
 

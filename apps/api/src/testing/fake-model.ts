@@ -56,7 +56,9 @@ export async function startFakeModel(): Promise<FakeModel> {
 
   const server = createServer((req, res) => {
     const send = (status: number, body: unknown): void => {
-      res.writeHead(status, { 'Content-Type': typeof body === 'string' ? 'text/plain' : 'application/json' });
+      res.writeHead(status, {
+        'Content-Type': typeof body === 'string' ? 'text/plain' : 'application/json',
+      });
       res.end(typeof body === 'string' ? body : JSON.stringify(body));
     };
 

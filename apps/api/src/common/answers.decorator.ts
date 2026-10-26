@@ -15,10 +15,12 @@ export const ANSWERS = 'contract:answers';
 export const Answers = (schema: ZodType): MethodDecorator => SetMetadata(ANSWERS, schema);
 
 /** The same for a route that answers with a list of them. */
-export const AnswersListOf = (schema: ZodType): MethodDecorator => SetMetadata(ANSWERS, z.array(schema));
+export const AnswersListOf = (schema: ZodType): MethodDecorator =>
+  SetMetadata(ANSWERS, z.array(schema));
 
 /** Where a route keeps that it answers with a file, and of which kind. */
 export const ANSWERS_WITH_A_FILE = 'contract:answers-with-a-file';
 
 /** A route that answers with a file to save: the media type of the file. */
-export const AnswersWithAFile = (mediaType: string): MethodDecorator => SetMetadata(ANSWERS_WITH_A_FILE, mediaType);
+export const AnswersWithAFile = (mediaType: string): MethodDecorator =>
+  SetMetadata(ANSWERS_WITH_A_FILE, mediaType);

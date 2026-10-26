@@ -25,6 +25,9 @@ interface Bought {
 export function givenAsCookedMeat(ingredients: readonly Bought[]): string[] {
   return ingredients
     .filter((ingredient) => ingredient.category === 'meat' || ingredient.category === 'fish')
-    .filter((ingredient) => ingredient.packSize != null && ingredient.proteinPer100 > MOST_PROTEIN_OF_RAW_MEAT)
+    .filter(
+      (ingredient) =>
+        ingredient.packSize != null && ingredient.proteinPer100 > MOST_PROTEIN_OF_RAW_MEAT,
+    )
     .map((ingredient) => ingredient.slug);
 }

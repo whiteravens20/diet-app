@@ -26,7 +26,9 @@ const outDir = join(__dirname, '../../../data');
 async function main(): Promise<void> {
   const { apiKey, dataTypes } = settingsFromEnvironment(process.env);
   if (apiKey === 'DEMO_KEY') {
-    console.warn('⚠ Using the public DEMO_KEY, which allows only a few requests an hour. Set FDC_API_KEY for a key of your own.');
+    console.warn(
+      '⚠ Using the public DEMO_KEY, which allows only a few requests an hour. Set FDC_API_KEY for a key of your own.',
+    );
   }
   console.log(`Bulk-importing ${dataTypes} from USDA FDC at 200/page…`);
 
@@ -43,9 +45,12 @@ async function main(): Promise<void> {
   console.log(`\nWrote ${result.kept} ingredients → ${result.outFile}`);
   console.log(`  ${result.excluded} excluded by category, ${result.skipped} listed twice.`);
   if (result.refused > 0) {
-    console.log(`  ${result.refused} left out because their record is incomplete or contradicts itself:`);
+    console.log(
+      `  ${result.refused} left out because their record is incomplete or contradicts itself:`,
+    );
     for (const { name, reason } of result.refusals) console.log(`    ${name}: ${reason}`);
-    if (result.refused > result.refusals.length) console.log(`    … and ${result.refused - result.refusals.length} more.`);
+    if (result.refused > result.refusals.length)
+      console.log(`    … and ${result.refused - result.refusals.length} more.`);
   }
   console.log('Run `npm run data:lint` to validate, then `npm run db:seed` to load.');
 }

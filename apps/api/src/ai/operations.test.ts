@@ -18,7 +18,16 @@ import {
 } from './operations.js';
 
 describe('the limits of a user request', () => {
-  const operations = [MEAL_SWAP, INGREDIENT_SWAP, SWAP_REWRITE, DAY_VARIATIONS, USE_UP_SWAPS, LIST_PROPOSALS, recipeDraft(1), recipeDraft(2)];
+  const operations = [
+    MEAL_SWAP,
+    INGREDIENT_SWAP,
+    SWAP_REWRITE,
+    DAY_VARIATIONS,
+    USE_UP_SWAPS,
+    LIST_PROPOSALS,
+    recipeDraft(1),
+    recipeDraft(2),
+  ];
 
   it('names each kind of request by a name of its own in the usage log', () => {
     expect(new Set(operations.slice(0, 6).map((operation) => operation.name)).size).toBe(6);
@@ -48,7 +57,11 @@ describe('the limits of a user request', () => {
     for (const operation of operations) {
       expect(operation.direct, operation.name).toBe(true);
     }
-    for (const run of [recipeBatch(3, 2, 0.2), ingredientNames(20, 1, 0.2), recipeTranslation(6, 0.2)]) {
+    for (const run of [
+      recipeBatch(3, 2, 0.2),
+      ingredientNames(20, 1, 0.2),
+      recipeTranslation(6, 0.2),
+    ]) {
       expect(run.direct, run.name).toBeUndefined();
     }
   });
@@ -72,6 +85,8 @@ describe('the size of an admin batch', () => {
 
   it('sizes the cap to what a call asks for', () => {
     expect(recipeBatch(1, 2, 0.2).maxTokens).toBeLessThan(recipeBatch(3, 2, 0.2).maxTokens);
-    expect(ingredientNames(5, 1, 0.2).maxTokens).toBeLessThan(ingredientNames(20, 1, 0.2).maxTokens);
+    expect(ingredientNames(5, 1, 0.2).maxTokens).toBeLessThan(
+      ingredientNames(20, 1, 0.2).maxTokens,
+    );
   });
 });

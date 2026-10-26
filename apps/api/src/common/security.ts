@@ -60,7 +60,9 @@ export interface SecurityHeadersOptions {
  * home instance on a LAN address runs that way.
  */
 const transport = (https: boolean | undefined) => ({
-  strictTransportSecurity: https ? { maxAge: 63_072_000, includeSubDomains: true, preload: false } : false,
+  strictTransportSecurity: https
+    ? { maxAge: 63_072_000, includeSubDomains: true, preload: false }
+    : false,
 });
 
 /** The API's security-header middleware: the strict policy, and the Swagger one on its own routes. */

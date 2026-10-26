@@ -89,27 +89,41 @@ describe('who may ask a route', () => {
   const presented = (kind: Kind, value: string): Record<string, string> =>
     kind === 'account'
       ? { Authorization: `Bearer ${value}` }
-      : { Cookie: `${kind === 'administrator' ? 'admin_session' : 'reviewer_session'}=${value}`, Origin: 'http://localhost:3000' };
+      : {
+          Cookie: `${kind === 'administrator' ? 'admin_session' : 'reviewer_session'}=${value}`,
+          Origin: 'http://localhost:3000',
+        };
 
   /** The sessions of several kinds in one request. */
   const together = (kinds: Kind[]): Record<string, string> => {
     const headers = kinds.map((kind) => session[kind]);
     const cookies = headers.flatMap((each) => (each.Cookie ? [each.Cookie] : []));
-    return { ...Object.assign({}, ...headers), ...(cookies.length > 0 ? { Cookie: cookies.join('; ') } : {}) } as Record<string, string>;
+    return {
+      ...Object.assign({}, ...headers),
+      ...(cookies.length > 0 ? { Cookie: cookies.join('; ') } : {}),
+    } as Record<string, string>;
   };
 
   /** How a route answers a request with these headers: its status and its code. Whatever the path names, the route's guard answers first. */
   const answered = async (route: Route, headers: Record<string, string>): Promise<string> => {
     const path = route.path.replace(/:[A-Za-z]+/g, () => randomUUID());
-    const res = await t.http()[route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete'](path).set(headers);
+    const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete';
+    const res = await t.http()[method](path).set(headers);
     return `${res.status} ${String((res.body as { error?: unknown }).error)}`;
   };
 
-  const guarded = (): (Route & { asks: Kind })[] => routes.filter((route): route is Route & { asks: Kind } => route.asks !== 'anyone');
-  const others = (kind: Kind): Kind[] => (['account', 'administrator', 'reviewer'] as const).filter((other) => other !== kind);
+  const guarded = (): (Route & { asks: Kind })[] =>
+    routes.filter((route): route is Route & { asks: Kind } => route.asks !== 'anyone');
+  const others = (kind: Kind): Kind[] =>
+    (['account', 'administrator', 'reviewer'] as const).filter((other) => other !== kind);
 
   it('lets anybody ask the routes named here, and no other', () => {
-    expect(routes.filter((route) => route.asks === 'anyone').map(nameOf).sort()).toEqual(FOR_ANYBODY);
+    expect(
+      routes
+        .filter((route) => route.asks === 'anyone')
+        .map(nameOf)
+        .sort(),
+    ).toEqual(FOR_ANYBODY);
     expect(guarded().length).toBeGreaterThan(130);
   });
 
@@ -138,7 +152,8 @@ describe('who may ask a route', () => {
     for (const route of guarded()) {
       for (const other of others(route.asks)) {
         const got = await answered(route, presented(route.asks, token[other]));
-        if (got !== `401 ${REFUSED[route.asks].withAnother}`) wrong.push(`${nameOf(route)} with the token of ${other}: ${got}`);
+        if (got !== `401 ${REFUSED[route.asks].withAnother}`)
+          wrong.push(`${nameOf(route)} with the token of ${other}: ${got}`);
       }
     }
 
@@ -148,6 +163,11 @@ describe('who may ask a route', () => {
   it('answers each of them when its own kind of session asks, so that the refusals above say something', async () => {
     await t.http().get('/api/users/me').set(session.account).expect(200);
     await t.http().get('/api/admin/stats').set(session.administrator).expect(200);
-    await t.http().get('/api/review/drafts/recipes').query({ locale: 'pl' }).set(session.reviewer).expect(200);
+    await t
+      .http()
+      .get('/api/review/drafts/recipes')
+      .query({ locale: 'pl' })
+      .set(session.reviewer)
+      .expect(200);
   });
 });

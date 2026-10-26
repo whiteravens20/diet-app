@@ -35,7 +35,10 @@ export class SecondFactorController {
   @HttpCode(200)
   @Throttle(PASSWORD_CHECK)
   @Answers(SecondFactorSetup)
-  propose(@CurrentUser() user: RequestUser, @Body(new ZodValidationPipe(SecondFactorSetupRequest)) dto: SecondFactorSetupRequest) {
+  propose(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(SecondFactorSetupRequest)) dto: SecondFactorSetupRequest,
+  ) {
     return this.secondFactor.propose(user.id, dto);
   }
 
@@ -43,7 +46,10 @@ export class SecondFactorController {
   @Post()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Answers(RecoveryCodes)
-  begin(@CurrentUser() user: RequestUser, @Body(new ZodValidationPipe(SecondFactorConfirmRequest)) dto: SecondFactorConfirmRequest) {
+  begin(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(SecondFactorConfirmRequest)) dto: SecondFactorConfirmRequest,
+  ) {
     return this.secondFactor.begin(user.id, user.sessionId, dto);
   }
 
@@ -51,7 +57,10 @@ export class SecondFactorController {
   @Delete()
   @HttpCode(204)
   @Throttle(PASSWORD_CHECK)
-  async end(@CurrentUser() user: RequestUser, @Body(new ZodValidationPipe(SecondFactorProofRequest)) dto: SecondFactorProofRequest) {
+  async end(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(SecondFactorProofRequest)) dto: SecondFactorProofRequest,
+  ) {
     await this.secondFactor.end(user.id, dto);
   }
 
@@ -60,7 +69,10 @@ export class SecondFactorController {
   @HttpCode(200)
   @Throttle(PASSWORD_CHECK)
   @Answers(RecoveryCodes)
-  newRecoveryCodes(@CurrentUser() user: RequestUser, @Body(new ZodValidationPipe(SecondFactorProofRequest)) dto: SecondFactorProofRequest) {
+  newRecoveryCodes(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(SecondFactorProofRequest)) dto: SecondFactorProofRequest,
+  ) {
     return this.secondFactor.newRecoveryCodes(user.id, dto);
   }
 }

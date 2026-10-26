@@ -35,7 +35,10 @@ describe('the button that drafts a recipe with a model', () => {
     const note = screen.getByText(/^AI is turned off for this account/);
     expect(note).toBeVisible();
     expect(button).toHaveAccessibleDescription(note.textContent!);
-    expect(screen.getByRole('link', { name: 'Turn AI on in Settings' })).toHaveAttribute('href', '/settings');
+    expect(screen.getByRole('link', { name: 'Turn AI on in Settings' })).toHaveAttribute(
+      'href',
+      '/settings',
+    );
 
     await userEvent.click(button);
     expect(onOpen).not.toHaveBeenCalled();

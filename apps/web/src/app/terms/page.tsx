@@ -8,7 +8,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeChoice } from '@/components/theme-choice';
 import { useFormat } from '@/lib/use-format';
 
-const LAST_UPDATED = '2026-10-24';
+const LAST_UPDATED = '2026-10-25';
 
 const SECTION_KEYS = [
   'section1',
@@ -50,19 +50,13 @@ export default function TermsPage() {
           <ol className="space-y-1.5">
             {SECTION_KEYS.map((key, idx) => (
               <li key={key}>
-                <a
-                  href={`#${key}`}
-                  className="text-muted-foreground hover:text-foreground"
-                >
+                <a href={`#${key}`} className="text-muted-foreground hover:text-foreground">
                   {idx + 1}. {t(`${key}.title`)}
                 </a>
               </li>
             ))}
             <li>
-              <a
-                href={`#${CONTACT_KEY}`}
-                className="text-muted-foreground hover:text-foreground"
-              >
+              <a href={`#${CONTACT_KEY}`} className="text-muted-foreground hover:text-foreground">
                 {SECTION_KEYS.length + 1}. {t(`${CONTACT_KEY}.title`)}
               </a>
             </li>

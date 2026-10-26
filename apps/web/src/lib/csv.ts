@@ -25,10 +25,15 @@ const STARTS_A_FORMULA = /^[=+\-@\t\r]/;
 function written(cell: Cell, dialect: CsvDialect): string {
   if (cell === null) return '';
   // A number is written without grouping, to the hundredth, with the decimal sign of the dialect.
-  if (typeof cell === 'number') return Number.isFinite(cell) ? String(Math.round(cell * 100) / 100).replace('.', dialect.decimal) : '';
+  if (typeof cell === 'number')
+    return Number.isFinite(cell)
+      ? String(Math.round(cell * 100) / 100).replace('.', dialect.decimal)
+      : '';
   // A name somebody typed is text, whatever it begins with: with an apostrophe before it a spreadsheet does not work it out.
   const text = STARTS_A_FORMULA.test(cell) ? `'${cell}` : cell;
-  return /["\r\n]/.test(text) || text.includes(dialect.separator) || text !== text.trim() ? `"${text.replaceAll('"', '""')}"` : text;
+  return /["\r\n]/.test(text) || text.includes(dialect.separator) || text !== text.trim()
+    ? `"${text.replaceAll('"', '""')}"`
+    : text;
 }
 
 /**

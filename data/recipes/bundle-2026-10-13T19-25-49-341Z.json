@@ -39,9 +39,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       }
     ],
     "steps": {
@@ -205,9 +205,9 @@
         "unit": "piece"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       },
       {
         "slug": "salt",
@@ -522,21 +522,21 @@
         "unit": "ml"
       },
       {
-        "slug": "lemon",
-        "quantity": 15,
-        "unit": "g"
+        "slug": "lemon-juice",
+        "quantity": 12,
+        "unit": "ml"
       }
     ],
     "steps": {
       "en": [
         "Drain the tuna and flake it into a small bowl.",
         "Dice the avocado and gently mix it with the cottage cheese and tuna.",
-        "Drizzle with olive oil, squeeze the lemon over the bowl, and serve."
+        "Drizzle with olive oil and the lemon juice, and serve."
       ],
       "pl": [
         "Odsącz tuńczyka i rozdrobnij go w małej misce.",
         "Pokrój awokado w kostkę i delikatnie wymieszaj z serkiem wiejskim oraz tuńczykiem.",
-        "Skrop oliwą, wyciśnij na wierzch sok z cytryny i podawaj."
+        "Skrop oliwą oraz sokiem z cytryny i podawaj."
       ]
     }
   },
@@ -589,9 +589,9 @@
         "unit": "g"
       },
       {
-        "slug": "lime",
-        "quantity": 20,
-        "unit": "g"
+        "slug": "lime-juice",
+        "quantity": 13,
+        "unit": "ml"
       },
       {
         "slug": "garlic",
@@ -756,9 +756,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 10,
-        "unit": "g"
+        "slug": "lemon-juice",
+        "quantity": 8,
+        "unit": "ml"
       }
     ],
     "steps": {
@@ -985,9 +985,9 @@
         "unit": "g"
       },
       {
-        "slug": "lime",
-        "quantity": 20,
-        "unit": "g"
+        "slug": "lime-juice",
+        "quantity": 13,
+        "unit": "ml"
       },
       {
         "slug": "salt",
@@ -998,7 +998,7 @@
     "steps": {
       "en": [
         "Simmer the edamame in water until tender, then drain well.",
-        "Toss with salt and the juice of the lime, then serve warm or cooled."
+        "Toss with salt and the lime juice, then serve warm or cooled."
       ],
       "pl": [
         "Gotuj edamame w wodzie, aż zmięknie, a następnie dokładnie odcedź.",
@@ -1051,9 +1051,9 @@
         "unit": "g"
       },
       {
-        "slug": "lime",
-        "quantity": 20,
-        "unit": "g"
+        "slug": "lime-juice",
+        "quantity": 13,
+        "unit": "ml"
       },
       {
         "slug": "soy-sauce",
@@ -1155,9 +1155,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 30,
-        "unit": "g"
+        "slug": "lemon-juice",
+        "quantity": 24,
+        "unit": "ml"
       },
       {
         "slug": "salt",
@@ -1400,9 +1400,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       },
       {
         "slug": "salt",
@@ -1648,9 +1648,9 @@
         "unit": "piece"
       },
       {
-        "slug": "lemon",
-        "quantity": 0.5,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 23,
+        "unit": "ml"
       },
       {
         "slug": "dill",
@@ -1678,7 +1678,7 @@
         "Heat the olive oil in a skillet and cook the mushrooms until browned.",
         "Add the garlic and spinach, and stir until the spinach wilts.",
         "Fold in the sliced black olives, then season the greens with the remaining salt and black pepper.",
-        "Stir chopped dill and the juice of half the lemon into the greens.",
+        "Stir chopped dill and the lemon juice into the greens.",
         "Serve the salmon with the cauliflower purée and mushroom-spinach greens."
       ],
       "pl": [
@@ -1690,7 +1690,7 @@
         "Rozgrzej oliwę na patelni i smaż pieczarki, aż się zrumienią.",
         "Dodaj czosnek i szpinak, po czym mieszaj, aż szpinak zwiędnie.",
         "Dodaj pokrojone czarne oliwki, a następnie dopraw warzywa pozostałą solą i pieprzem.",
-        "Wmieszaj posiekany koperek i sok z połowy cytryny.",
+        "Wmieszaj posiekany koperek i sok z cytryny.",
         "Podawaj łososia z purée kalafiorowym i pieczarkami ze szpinakiem."
       ]
     }
@@ -2547,9 +2547,9 @@
         "unit": "ml"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       },
       {
         "slug": "garlic",
@@ -2592,7 +2592,7 @@
         "Stir the mushrooms and half the garlic into the vegetables, then roast for 8 minutes more.",
         "Pat the cod dry and season it with the remaining salt and black pepper.",
         "Place the cod on the tray, drizzle with the remaining olive oil, and bake for 10–12 minutes, until it flakes easily.",
-        "Chop the parsley and stir it into the Greek yogurt with the remaining garlic and the juice of the lemon.",
+        "Chop the parsley and stir it into the Greek yogurt with the remaining garlic and the lemon juice.",
         "Serve the baked cod and vegetables with the lemon-yogurt sauce."
       ],
       "pl": [
@@ -2649,9 +2649,9 @@
         "unit": "ml"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       }
     ],
     "steps": {
@@ -2660,14 +2660,14 @@
         "Heat the olive oil in a skillet and cook the chicken until browned and cooked through.",
         "Add the zucchini and cook until tender, stirring occasionally.",
         "Halve and slice the avocado, then serve it with the chicken and zucchini.",
-        "Squeeze the lemon over everything just before serving."
+        "Drizzle the lemon juice over everything just before serving."
       ],
       "pl": [
         "Pokrój kurczaka na małe kawałki, a cukinię w plasterki.",
         "Rozgrzej oliwę na patelni i smaż kurczaka, aż się zarumieni i będzie gotowy w środku.",
         "Dodaj cukinię i smaż, od czasu do czasu mieszając, aż zmięknie.",
         "Przekrój awokado na pół, pokrój w plasterki i podaj z kurczakiem oraz cukinią.",
-        "Tuż przed podaniem wyciśnij na całość sok z cytryny."
+        "Tuż przed podaniem skrop całość sokiem z cytryny."
       ]
     }
   },
@@ -2726,15 +2726,15 @@
         "unit": "piece"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       }
     ],
     "steps": {
       "en": [
         "Cut the turkey into thin strips, divide the broccoli into florets, and cut the cauliflower into small pieces.",
-        "Mince the garlic and stir it into the Greek yogurt with the juice of the lemon.",
+        "Mince the garlic and stir it into the Greek yogurt with the lemon juice.",
         "Steam the broccoli and cauliflower until just tender, then set aside.",
         "Heat the olive oil in a large skillet and cook the turkey until browned and cooked through.",
         "Add the spinach and stir until wilted.",
@@ -3171,9 +3171,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 0.5,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 23,
+        "unit": "ml"
       },
       {
         "slug": "dill",
@@ -3201,14 +3201,14 @@
         "Cut the zucchini into thick rounds and pat them dry.",
         "Heat the olive oil in a skillet and cook the rounds for a few minutes on each side until tender and lightly browned.",
         "Drain the tuna and flake it into a bowl.",
-        "Stir the Greek yogurt with the juice of half a lemon, chopped dill, salt, and black pepper.",
+        "Stir the Greek yogurt with the lemon juice, chopped dill, salt, and black pepper.",
         "Top the zucchini rounds with tuna and finish with the dill yogurt."
       ],
       "pl": [
         "Pokrój cukinię w grube krążki i osusz je.",
         "Rozgrzej oliwę na patelni i smaż krążki po kilka minut z każdej strony, aż zmiękną i lekko się przyrumienią.",
         "Odsącz tuńczyka i rozdrobnij go w misce.",
-        "Wymieszaj jogurt grecki z sokiem z połowy cytryny, posiekanym koperkiem, solą i pieprzem.",
+        "Wymieszaj jogurt grecki z sokiem z cytryny, posiekanym koperkiem, solą i pieprzem.",
         "Nałóż tuńczyka na krążki cukinii i udekoruj jogurtem koperkowym."
       ]
     }
@@ -3411,9 +3411,9 @@
         "unit": "ml"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       },
       {
         "slug": "garlic",
@@ -3433,7 +3433,7 @@
         "Mince the garlic and chop the parsley.",
         "Heat the olive oil in a large skillet and brown the pork on both sides.",
         "Add the zucchini, mushrooms, and garlic, then cook until the vegetables are tender and the pork is cooked through.",
-        "Squeeze the lemon over the skillet and stir in the parsley.",
+        "Pour the lemon juice into the skillet and stir in the parsley.",
         "Serve the pork and vegetables over the couscous."
       ],
       "pl": [
@@ -3442,7 +3442,7 @@
         "Posiekaj czosnek i natkę pietruszki.",
         "Rozgrzej oliwę na dużej patelni i zrumień polędwiczki z obu stron.",
         "Dodaj cukinię, pieczarki i czosnek. Smaż, aż warzywa zmiękną, a mięso będzie całkowicie usmażone.",
-        "Wyciśnij cytrynę na patelnię i wmieszaj natkę pietruszki.",
+        "Wlej sok z cytryny na patelnię i wmieszaj natkę pietruszki.",
         "Podawaj wieprzowinę z warzywami na kuskusie."
       ]
     }
@@ -4225,9 +4225,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 1,
-        "unit": "piece"
+        "slug": "lemon-juice",
+        "quantity": 47,
+        "unit": "ml"
       },
       {
         "slug": "parsley",
@@ -5244,9 +5244,9 @@
         "unit": "g"
       },
       {
-        "slug": "lemon",
-        "quantity": 10,
-        "unit": "g"
+        "slug": "lemon-juice",
+        "quantity": 8,
+        "unit": "ml"
       },
       {
         "slug": "dill",

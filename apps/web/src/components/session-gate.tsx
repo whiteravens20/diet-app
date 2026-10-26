@@ -15,7 +15,8 @@ import { session } from '@/lib/session';
 
 type Standing = 'ready' | 'waiting' | 'unreachable';
 
-const standing = (): Standing => (session.accessToken !== null ? 'ready' : session.unreachable ? 'unreachable' : 'waiting');
+const standing = (): Standing =>
+  session.accessToken !== null ? 'ready' : session.unreachable ? 'unreachable' : 'waiting';
 
 /**
  * Lets the pages of a signed-in account render once the page holds an access
@@ -40,9 +41,21 @@ export function SessionGate({ children }: { children: ReactNode }) {
   const [trying, setTrying] = useState(false);
   const queryClient = useQueryClient();
   // Whether the browser keeps answers for this account, whether the pages are being shown from them, and how many ticks wait.
-  const kept = useSyncExternalStore(offline.subscribe, () => offline.account !== null, () => false);
-  const fromKept = useSyncExternalStore(offline.subscribe, () => offline.serving, () => false);
-  const waiting = useSyncExternalStore(offline.subscribe, () => offline.waiting.length, () => 0);
+  const kept = useSyncExternalStore(
+    offline.subscribe,
+    () => offline.account !== null,
+    () => false,
+  );
+  const fromKept = useSyncExternalStore(
+    offline.subscribe,
+    () => offline.serving,
+    () => false,
+  );
+  const waiting = useSyncExternalStore(
+    offline.subscribe,
+    () => offline.waiting.length,
+    () => 0,
+  );
   const [replayed, setReplayed] = useState<Replayed | null>(null);
   // The server is out of reach: for the session, or for what the pages asked last.
   const cut = now === 'unreachable' || fromKept;
@@ -70,7 +83,9 @@ export function SessionGate({ children }: { children: ReactNode }) {
     wasCut.current = false;
     if (!back && offline.waiting.length === 0) return;
     void offline
-      .replay((tick) => api.patch(`/shopping-lists/${tick.listId}/items/${tick.itemId}`, { checked: tick.checked }))
+      .replay((tick) =>
+        api.patch(`/shopping-lists/${tick.listId}/items/${tick.itemId}`, { checked: tick.checked }),
+      )
       .then((result) => {
         if (result.sent + result.refused > 0) setReplayed(result);
         return queryClient.invalidateQueries();
@@ -93,7 +108,9 @@ export function SessionGate({ children }: { children: ReactNode }) {
 
   const again = (): void => {
     setTrying(true);
-    void (session.accessToken === null ? session.refresh() : queryClient.invalidateQueries()).finally(() => setTrying(false));
+    void (
+      session.accessToken === null ? session.refresh() : queryClient.invalidateQueries()
+    ).finally(() => setTrying(false));
   };
   // The pages, with what there is to say over them. They keep their place whatever is said, so that nothing they hold is lost when a line comes or goes.
   if (now === 'ready' || (now === 'unreachable' && kept)) {

@@ -58,8 +58,11 @@ export class PolicyReportsService implements OnModuleInit, OnModuleDestroy {
     const counted = [...this.kinds.values()].sort((a, b) => b.count - a.count);
     const total = counted.reduce((sum, kind) => sum + kind.count, this.beyond);
     const lines = counted.map((kind) => `${kind.count}x ${worded(kind.first)}`);
-    if (this.beyond > 0) lines.push(`${this.beyond}x of kinds beyond the ${MOST_KINDS} that are told apart`);
-    this.logger.log(`${total} report(s) in the last ${WINDOW_MINUTES} minutes: ${lines.join('; ')}`);
+    if (this.beyond > 0)
+      lines.push(`${this.beyond}x of kinds beyond the ${MOST_KINDS} that are told apart`);
+    this.logger.log(
+      `${total} report(s) in the last ${WINDOW_MINUTES} minutes: ${lines.join('; ')}`,
+    );
     this.kinds = new Map();
     this.beyond = 0;
   }

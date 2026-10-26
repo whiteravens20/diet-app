@@ -1,6 +1,12 @@
 [
-  { "source": "Beef, loin, tenderloin roast, separable lean only, boneless, trimmed to 0\" fat, select, cooked, roasted", "translation": "Polędwica wołowa" },
-  { "source": "Cheese, pasteurized process, American, vitamin D fortified", "translation": "Ser amerykański" },
+  {
+    "source": "Beef, loin, tenderloin roast, separable lean only, boneless, trimmed to 0\" fat, select, cooked, roasted",
+    "translation": "Polędwica wołowa"
+  },
+  {
+    "source": "Cheese, pasteurized process, American, vitamin D fortified",
+    "translation": "Ser amerykański"
+  },
   { "source": "Pears, raw, bartlett", "translation": "Gruszki bartlett" },
   { "source": "Apples, raw, with skin", "translation": "Jabłka ze skórką" },
   { "source": "Almond butter, creamy", "translation": "Masło migdałowe gładkie" },
@@ -8,7 +14,10 @@
   { "source": "Salmon, Atlantic, farmed, raw", "translation": "Łosoś atlantycki hodowlany" },
   { "source": "Salmon, Atlantic, wild, raw", "translation": "Łosoś atlantycki dziki" },
   { "source": "Tuna, fresh, yellowfin, raw", "translation": "Tuńczyk żółtopłetwy, świeży" },
-  { "source": "Sea bass, Chilean, frozen, wild caught", "translation": "Labraks chilijski, mrożony" },
+  {
+    "source": "Sea bass, Chilean, frozen, wild caught",
+    "translation": "Labraks chilijski, mrożony"
+  },
   { "source": "Mushrooms, oyster, raw", "translation": "Boczniaki" },
   { "source": "Mushrooms, white button, raw", "translation": "Pieczarki białe" },
   { "source": "Mushrooms, shiitake, raw", "translation": "Grzyby shiitake" },
@@ -38,5 +47,8 @@
   { "source": "Lentils, raw", "translation": "Soczewica suszona" },
   { "source": "Chickpeas (garbanzo beans), mature seeds, raw", "translation": "Ciecierzyca sucha" },
   { "source": "Beans, black, mature seeds, raw", "translation": "Czarna fasola sucha" },
-  { "source": "Yogurt, Greek, plain, whole milk", "translation": "Jogurt grecki naturalny pełnotłusty" }
+  {
+    "source": "Yogurt, Greek, plain, whole milk",
+    "translation": "Jogurt grecki naturalny pełnotłusty"
+  }
 ]

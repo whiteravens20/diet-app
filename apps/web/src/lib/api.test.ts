@@ -35,9 +35,15 @@ describe('how long a request that was held up has to wait', () => {
 
 describe('a request of the web application', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
-  const json = (status: number, body: unknown): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-  const aSession = { user: {}, tokens: { accessToken: 'fresh-token', expiresIn: 900, refreshExpiresIn: 2_592_000 }, sessionId: '11111111-1111-4111-8111-111111111111' };
-  const bearerOf = (call: unknown[]): string | null => new Headers((call[1] as RequestInit).headers).get('authorization');
+  const json = (status: number, body: unknown): Response =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  const aSession = {
+    user: {},
+    tokens: { accessToken: 'fresh-token', expiresIn: 900, refreshExpiresIn: 2_592_000 },
+    sessionId: '11111111-1111-4111-8111-111111111111',
+  };
+  const bearerOf = (call: unknown[]): string | null =>
+    new Headers((call[1] as RequestInit).headers).get('authorization');
 
   /** The client as a page that was just loaded has it. */
   async function aPage(signedIn: boolean) {
@@ -60,11 +66,16 @@ describe('a request of the web application', () => {
 
   it('gets an access token first on a page that was just loaded, where the browser has a session', async () => {
     const { api } = await aPage(true);
-    fetchMock.mockResolvedValueOnce(json(200, aSession)).mockResolvedValueOnce(json(200, { id: 'me' }));
+    fetchMock
+      .mockResolvedValueOnce(json(200, aSession))
+      .mockResolvedValueOnce(json(200, { id: 'me' }));
 
     expect(await api.get('/users/me')).toEqual({ id: 'me' });
 
-    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(['/api/auth/refresh', '/api/users/me']);
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      '/api/auth/refresh',
+      '/api/users/me',
+    ]);
     expect(bearerOf(fetchMock.mock.calls[1]!)).toBe('Bearer fresh-token');
   });
 
@@ -80,7 +91,10 @@ describe('a request of the web application', () => {
 
   it('gets the next token and sends the request again, once, when its token has run out', async () => {
     const { api, session } = await aPage(true);
-    session.begin({ ...aSession, tokens: { ...aSession.tokens, accessToken: 'stale-token' } } as never);
+    session.begin({
+      ...aSession,
+      tokens: { ...aSession.tokens, accessToken: 'stale-token' },
+    } as never);
     fetchMock
       .mockResolvedValueOnce(json(401, { error: 'UNAUTHORIZED' }))
       .mockResolvedValueOnce(json(200, aSession))
@@ -98,7 +112,9 @@ describe('a request of the web application', () => {
   it('answers with the refusal when the session cannot go on', async () => {
     const { api, session } = await aPage(true);
     session.begin(aSession as never);
-    fetchMock.mockResolvedValueOnce(json(401, { error: 'UNAUTHORIZED', message: 'no' })).mockResolvedValueOnce(json(401, { error: 'INVALID_REFRESH' }));
+    fetchMock
+      .mockResolvedValueOnce(json(401, { error: 'UNAUTHORIZED', message: 'no' }))
+      .mockResolvedValueOnce(json(401, { error: 'INVALID_REFRESH' }));
 
     await expect(api.get('/profiles')).rejects.toMatchObject({ status: 401 });
 
@@ -109,9 +125,13 @@ describe('a request of the web application', () => {
   it('does not send a request again that was refused for what it said, such as a wrong password', async () => {
     const { api, session } = await aPage(true);
     session.begin(aSession as never);
-    fetchMock.mockResolvedValueOnce(json(401, { error: 'INVALID_PASSWORD', message: 'Current password is incorrect.' }));
+    fetchMock.mockResolvedValueOnce(
+      json(401, { error: 'INVALID_PASSWORD', message: 'Current password is incorrect.' }),
+    );
 
-    await expect(api.post('/users/me/password', { currentPassword: 'wrong', newPassword: 'whatever' })).rejects.toMatchObject({ status: 401, code: 'INVALID_PASSWORD' });
+    await expect(
+      api.post('/users/me/password', { currentPassword: 'wrong', newPassword: 'whatever' }),
+    ).rejects.toMatchObject({ status: 401, code: 'INVALID_PASSWORD' });
 
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(['/api/users/me/password']);
     expect(session.leave).not.toHaveBeenCalled();
@@ -137,7 +157,12 @@ describe('a request of the web application', () => {
     await api.delete('/users/me/second-factor', { currentPassword: 'secret', code: '123456' });
     await api.delete('/users/me/sessions');
 
-    expect(fetchMock.mock.calls.map((call) => [(call[1] as RequestInit).method, (call[1] as RequestInit).body])).toEqual([
+    expect(
+      fetchMock.mock.calls.map((call) => [
+        (call[1] as RequestInit).method,
+        (call[1] as RequestInit).body,
+      ]),
+    ).toEqual([
       ['DELETE', JSON.stringify({ currentPassword: 'secret', code: '123456' })],
       ['DELETE', undefined],
     ]);
@@ -160,7 +185,11 @@ describe('a request of the web application', () => {
     const { api, COOKIE_SESSION } = await aPage(false);
     fetchMock.mockResolvedValue(json(200, aSession));
 
-    await api.post('/auth/login', { email: 'user@example.test', password: 'secret' }, COOKIE_SESSION);
+    await api.post(
+      '/auth/login',
+      { email: 'user@example.test', password: 'secret' },
+      COOKIE_SESSION,
+    );
 
     const init = fetchMock.mock.calls[0]![1] as RequestInit;
     expect(new Headers(init.headers).get('x-session-transport')).toBe('cookie');
@@ -170,9 +199,14 @@ describe('a request of the web application', () => {
 
 describe('what the web application read last, when the server cannot be reached', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
-  const json = (status: number, body: unknown): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  const json = (status: number, body: unknown): Response =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
   const ACCOUNT = '22222222-2222-4222-8222-222222222222';
-  const aSession = { user: { id: ACCOUNT }, tokens: { accessToken: 'fresh-token', expiresIn: 900, refreshExpiresIn: 2_592_000 }, sessionId: '11111111-1111-4111-8111-111111111111' };
+  const aSession = {
+    user: { id: ACCOUNT },
+    tokens: { accessToken: 'fresh-token', expiresIn: 900, refreshExpiresIn: 2_592_000 },
+    sessionId: '11111111-1111-4111-8111-111111111111',
+  };
   const noAnswer = (): Promise<never> => Promise.reject(new TypeError('Failed to fetch'));
   /** Let what was started without being waited for (an answer being kept) finish. */
   const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -207,18 +241,25 @@ describe('what the web application read last, when the server cannot be reached'
 
   it('is what a plan and a list answered, kept for the account that read them', async () => {
     const { api, offline } = await aPage();
-    fetchMock.mockResolvedValueOnce(json(200, aSession)).mockResolvedValueOnce(json(200, [{ id: 'list' }]));
+    fetchMock
+      .mockResolvedValueOnce(json(200, aSession))
+      .mockResolvedValueOnce(json(200, [{ id: 'list' }]));
 
     expect(await api.get('/shopping-lists?planId=plan')).toEqual([{ id: 'list' }]);
     await settled();
 
     expect(offline.account).toBe(ACCOUNT);
-    expect(await offline.recall('/shopping-lists?planId=plan')).toEqual({ found: true, answer: [{ id: 'list' }] });
+    expect(await offline.recall('/shopping-lists?planId=plan')).toEqual({
+      found: true,
+      answer: [{ id: 'list' }],
+    });
   });
 
   it('is answered from what was kept, on a page that was loaded without a way to the server', async () => {
     const before = await aPage();
-    fetchMock.mockResolvedValueOnce(json(200, aSession)).mockResolvedValueOnce(json(200, [{ id: 'list' }]));
+    fetchMock
+      .mockResolvedValueOnce(json(200, aSession))
+      .mockResolvedValueOnce(json(200, [{ id: 'list' }]));
     await before.api.get('/shopping-lists?planId=plan');
     await settled();
 
@@ -230,19 +271,26 @@ describe('what the web application read last, when the server cannot be reached'
     expect(offline.serving).toBe(true);
     // The session is not ended by silence.
     expect(session.exists()).toBe(true);
-    await expect(api.get('/shopping-lists?planId=another')).rejects.toMatchObject({ code: 'NETWORK' });
+    await expect(api.get('/shopping-lists?planId=another')).rejects.toMatchObject({
+      code: 'NETWORK',
+    });
   });
 
   it('is not what a change answers with: nothing is changed from memory', async () => {
     const { api } = await aPage();
     fetchMock.mockResolvedValueOnce(json(200, aSession)).mockImplementation(noAnswer);
 
-    await expect(api.patch('/shopping-lists/list/items/row', { checked: true })).rejects.toMatchObject({ code: 'NETWORK' });
+    await expect(
+      api.patch('/shopping-lists/list/items/row', { checked: true }),
+    ).rejects.toMatchObject({ code: 'NETWORK' });
   });
 
   it('goes with the session: an account that signs out leaves nothing', async () => {
     const { api, session, offline } = await aPage();
-    fetchMock.mockResolvedValueOnce(json(200, aSession)).mockResolvedValueOnce(json(200, [{ id: 'list' }])).mockResolvedValue(json(204, undefined));
+    fetchMock
+      .mockResolvedValueOnce(json(200, aSession))
+      .mockResolvedValueOnce(json(200, [{ id: 'list' }]))
+      .mockResolvedValue(json(204, undefined));
     await api.get('/shopping-lists?planId=plan');
     await settled();
     session.load = vi.fn();

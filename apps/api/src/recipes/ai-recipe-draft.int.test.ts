@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { AiDraftRecipeRequest, type AiDraftRecipeResponse, type Locale, type Profile } from '@diet-app/shared';
+import {
+  AiDraftRecipeRequest,
+  type AiDraftRecipeResponse,
+  type Locale,
+  type Profile,
+} from '@diet-app/shared';
 import { HttpException } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { recipeDraft } from '../ai/operations.js';
@@ -14,13 +19,19 @@ import { MAX_AI_DRAFTS_PER_DAY, MAX_PERSONAL_RECIPES } from './personal-recipes.
 
 /** The catalogue lines of a prompt, as it lists them. */
 const offeredLines = (request: ModelRequest): string[] =>
-  [...request.prompt.matchAll(/^- [a-z0-9-]+: .+ \([a-z_]+, \d+ kcal\/100g.*$/gm)].map((match) => match[0]);
+  [...request.prompt.matchAll(/^- [a-z0-9-]+: .+ \([a-z_]+, \d+ kcal\/100g.*$/gm)].map(
+    (match) => match[0],
+  );
 
 /** The slugs of the ingredients a prompt offers, in the order it lists them. */
-const offered = (request: ModelRequest): string[] => offeredLines(request).map((line) => line.slice(2, line.indexOf(':')));
+const offered = (request: ModelRequest): string[] =>
+  offeredLines(request).map((line) => line.slice(2, line.indexOf(':')));
 
 /** A draft a careful model would write: three offered ingredients, 100 g of each. */
-function draft(request: ModelRequest, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function draft(
+  request: ModelRequest,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
   return {
     title: 'Scripted bowl',
     description: 'A quick bowl from three things in the cupboard.',
@@ -70,11 +81,20 @@ describe('drafting a recipe with a model', () => {
     await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'admin' } });
   });
 
-  const ask = (overrides: Partial<AiDraftRecipeRequest> = {}, locale: Locale = 'en'): Promise<AiDraftRecipeResponse> =>
-    drafts.draftFromPrompt(user.id, locale, AiDraftRecipeRequest.parse({ profileId: profile.id, ...overrides }));
+  const ask = (
+    overrides: Partial<AiDraftRecipeRequest> = {},
+    locale: Locale = 'en',
+  ): Promise<AiDraftRecipeResponse> =>
+    drafts.draftFromPrompt(
+      user.id,
+      locale,
+      AiDraftRecipeRequest.parse({ profileId: profile.id, ...overrides }),
+    );
 
   /** The error code of a refused draft. */
-  async function refusal(call: Promise<unknown>): Promise<{ status: number; error: string; message: string }> {
+  async function refusal(
+    call: Promise<unknown>,
+  ): Promise<{ status: number; error: string; message: string }> {
     try {
       await call;
     } catch (err) {
@@ -85,7 +105,8 @@ describe('drafting a recipe with a model', () => {
     throw new Error('the draft was expected to be refused');
   }
 
-  const stored = (): Promise<number> => t.prisma.recipe.count({ where: { createdByUserId: user.id } });
+  const stored = (): Promise<number> =>
+    t.prisma.recipe.count({ where: { createdByUserId: user.id } });
 
   it('stores a private recipe with the nutrition and allergens the engine works out', async () => {
     t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
@@ -107,10 +128,19 @@ describe('drafting a recipe with a model', () => {
     expect(await stored()).toBe(1);
 
     // The numbers are the catalogue's, whatever the model might have claimed.
-    const rows = await t.prisma.ingredient.findMany({ where: { id: { in: recipe.ingredients.map((i) => i.ingredientId) } } });
-    const kcal = rows.reduce((sum, row) => sum + row.caloriesPer100 * (row.canonicalUnit === 'ml' ? 100 / (row.density ?? 1) / 100 : 1), 0);
+    const rows = await t.prisma.ingredient.findMany({
+      where: { id: { in: recipe.ingredients.map((i) => i.ingredientId) } },
+    });
+    const kcal = rows.reduce(
+      (sum, row) =>
+        sum +
+        row.caloriesPer100 * (row.canonicalUnit === 'ml' ? 100 / (row.density ?? 1) / 100 : 1),
+      0,
+    );
     expect(recipe.nutritionPerServing.calories).toBeCloseTo(kcal, -1);
-    expect([...recipe.allergens].sort()).toEqual([...new Set(rows.flatMap((row) => row.allergens))].sort());
+    expect([...recipe.allergens].sort()).toEqual(
+      [...new Set(rows.flatMap((row) => row.allergens))].sort(),
+    );
   });
 
   it('tags the recipe with the cuisine it was asked for, and with none when none was asked for', async () => {
@@ -124,7 +154,7 @@ describe('drafting a recipe with a model', () => {
     expect(plain.recipe.cuisine).toBeNull();
   });
 
-  it('stores the text as a model\'s, in every language it was written in', async () => {
+  it("stores the text as a model's, in every language it was written in", async () => {
     t.model.reply({
       text: (request) => {
         const one = draft(request);
@@ -139,11 +169,19 @@ describe('drafting a recipe with a model', () => {
 
     const { recipe } = await ask({}, 'pl');
 
-    const rows = await t.prisma.recipeTranslation.findMany({ where: { recipeId: recipe.id }, select: { locale: true, source: true } });
-    expect(Object.fromEntries(rows.map((row) => [row.locale, row.source]))).toEqual({ en: 'AI', pl: 'AI' });
+    const rows = await t.prisma.recipeTranslation.findMany({
+      where: { recipeId: recipe.id },
+      select: { locale: true, source: true },
+    });
+    expect(Object.fromEntries(rows.map((row) => [row.locale, row.source]))).toEqual({
+      en: 'AI',
+      pl: 'AI',
+    });
     // Removing model text by its source, as the decision on translations describes, leaves the recipe readable.
     await t.prisma.recipeTranslation.deleteMany({ where: { source: 'AI' } });
-    expect((await t.prisma.recipe.findUniqueOrThrow({ where: { id: recipe.id } })).title).toBe('Scripted bowl');
+    expect((await t.prisma.recipe.findUniqueOrThrow({ where: { id: recipe.id } })).title).toBe(
+      'Scripted bowl',
+    );
   });
 
   it('asks for more output when the recipe is written in two languages', async () => {
@@ -170,6 +208,55 @@ describe('drafting a recipe with a model', () => {
 
     expect(t.model.requests[1]!.maxTokens).toBe(recipeDraft(2).maxTokens);
     expect(polish.recipe.title).toBe('Gulasz ze skryptu');
+  });
+
+  describe('the curators', () => {
+    it("are given a recipe the instance's model wrote, with nothing that names who asked for it", async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+
+      const { recipe } = await ask();
+
+      const queue = await t.prisma.recipeDraft.findMany();
+      expect(queue).toHaveLength(1);
+      expect(queue[0]).toMatchObject({
+        status: 'PENDING',
+        source: 'AI_USER',
+        batchId: 'personal-recipes',
+        sourceRecipeIds: [recipe.id],
+        titles: { en: 'Scripted bowl' },
+      });
+      expect(JSON.stringify(queue[0])).not.toContain(user.id);
+      expect(JSON.stringify(queue[0])).not.toContain(user.email);
+      // The user keeps it as their own all the same.
+      expect(await stored()).toBe(1);
+    });
+
+    it('are given it once, however often the model writes it', async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)), times: 2 });
+
+      const one = await ask();
+      const two = await ask();
+
+      expect(two.recipe.id).toBe(one.recipe.id);
+      const queue = await t.prisma.recipeDraft.findMany();
+      expect(queue.map((row) => row.sourceRecipeIds)).toEqual([[one.recipe.id]]);
+    });
+
+    it("are not given what the user's own model wrote, even on the operator's server", async () => {
+      await t
+        .http()
+        .put('/api/ai/providers')
+        .set(as(user))
+        .send({ provider: 'ollama', baseUrl: t.model.url, model: 'test-model' })
+        .expect(200);
+      await t.http().patch('/api/users/me').set(as(user)).send({ aiMode: 'byok' }).expect(200);
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+
+      await ask();
+
+      expect(await stored()).toBe(1);
+      expect(await t.prisma.recipeDraft.count()).toBe(0);
+    });
   });
 
   describe('the diets of a drafted recipe', () => {
@@ -201,7 +288,10 @@ describe('drafting a recipe with a model', () => {
 
     it('include vegan when every ingredient is', async () => {
       t.model.reply({
-        text: (request) => JSON.stringify(draft(request, { ingredients: named(request, 'firm-tofu', 'white-rice', 'broccoli') })),
+        text: (request) =>
+          JSON.stringify(
+            draft(request, { ingredients: named(request, 'firm-tofu', 'white-rice', 'broccoli') }),
+          ),
       });
 
       const { recipe } = await ask({ dietType: 'vegan' });
@@ -236,7 +326,10 @@ describe('drafting a recipe with a model', () => {
           ),
       });
 
-      expect(await refusal(ask({ dietType: 'low_carb' }))).toMatchObject({ status: 400, error: 'AI_DRAFT_OFF_DIET' });
+      expect(await refusal(ask({ dietType: 'low_carb' }))).toMatchObject({
+        status: 400,
+        error: 'AI_DRAFT_OFF_DIET',
+      });
       expect(await stored()).toBe(0);
     });
 
@@ -262,10 +355,22 @@ describe('drafting a recipe with a model', () => {
 
   describe('when the model was not asked, or did not answer', () => {
     it('says that the monthly allowance is used up', async () => {
-      const call = { userId: user.id, provider: 'ollama', model: 'test-model', operation: 'recipe-draft', mode: 'admin' };
-      await t.prisma.aiUsageLog.createMany({ data: Array.from({ length: 40 }, () => ({ ...call, outcome: 'COMPLETED' as const })) });
+      const call = {
+        userId: user.id,
+        provider: 'ollama',
+        model: 'test-model',
+        operation: 'recipe-draft',
+        mode: 'admin',
+      };
+      await t.prisma.aiUsageLog.createMany({
+        data: Array.from({ length: 40 }, () => ({ ...call, outcome: 'COMPLETED' as const })),
+      });
 
-      const res = await t.http().post('/api/recipes/drafts/from-prompt').set(as(user)).send({ profileId: profile.id });
+      const res = await t
+        .http()
+        .post('/api/recipes/drafts/from-prompt')
+        .set(as(user))
+        .send({ profileId: profile.id });
 
       expect(res.status).toBe(403);
       expect(res.body.error).toBe('AI_MONTHLY_LIMIT_REACHED');
@@ -301,19 +406,48 @@ describe('drafting a recipe with a model', () => {
   describe('when the answer is not a usable recipe', () => {
     it.each<[string, (request: ModelRequest) => string]>([
       ['is prose', () => 'Here is a lovely recipe: take some rice…'],
-      ['has a quantity that is not finite', (r) => JSON.stringify(withQuantity(r, 100)).replaceAll('"quantity":100', '"quantity":1e400')],
+      [
+        'has a quantity that is not finite',
+        (r) =>
+          JSON.stringify(withQuantity(r, 100)).replaceAll('"quantity":100', '"quantity":1e400'),
+      ],
       ['has a quantity no serving holds', (r) => JSON.stringify(withQuantity(r, 5_000))],
       ['has a quantity below zero', (r) => JSON.stringify(withQuantity(r, -5))],
-      ['has a title as long as a page', (r) => JSON.stringify(draft(r, { title: 'T'.repeat(5_000) }))],
-      ['has a description as long as a chapter', (r) => JSON.stringify(draft(r, { description: 'D'.repeat(5_000) }))],
-      ['has a step as long as a page', (r) => JSON.stringify(draft(r, { steps: ['Chop.', 'S'.repeat(1_000)] }))],
-      ['has forty steps', (r) => JSON.stringify(draft(r, { steps: Array.from({ length: 40 }, (_, i) => `Step ${i}.`) }))],
+      [
+        'has a title as long as a page',
+        (r) => JSON.stringify(draft(r, { title: 'T'.repeat(5_000) })),
+      ],
+      [
+        'has a description as long as a chapter',
+        (r) => JSON.stringify(draft(r, { description: 'D'.repeat(5_000) })),
+      ],
+      [
+        'has a step as long as a page',
+        (r) => JSON.stringify(draft(r, { steps: ['Chop.', 'S'.repeat(1_000)] })),
+      ],
+      [
+        'has forty steps',
+        (r) =>
+          JSON.stringify(draft(r, { steps: Array.from({ length: 40 }, (_, i) => `Step ${i}.`) })),
+      ],
       ['has a single step', (r) => JSON.stringify(draft(r, { steps: ['Just eat it.'] }))],
       ['has no ingredients', (r) => JSON.stringify(draft(r, { ingredients: [] }))],
-      ['names a unit that does not exist', (r) => JSON.stringify(draft(r)).replaceAll('"unit":"g"', '"unit":"cup"')],
-      ['has markup in its title', (r) => JSON.stringify(draft(r, { title: 'Bowl <img src=x onerror=alert(1)>' }))],
-      ['has markup in a step', (r) => JSON.stringify(draft(r, { steps: ['Chop.', '<script>alert(1)</script>'] }))],
-      ['has a hidden character that turns its title around', (r) => JSON.stringify(draft(r, { title: 'Bowl \u202elwob' }))],
+      [
+        'names a unit that does not exist',
+        (r) => JSON.stringify(draft(r)).replaceAll('"unit":"g"', '"unit":"cup"'),
+      ],
+      [
+        'has markup in its title',
+        (r) => JSON.stringify(draft(r, { title: 'Bowl <img src=x onerror=alert(1)>' })),
+      ],
+      [
+        'has markup in a step',
+        (r) => JSON.stringify(draft(r, { steps: ['Chop.', '<script>alert(1)</script>'] })),
+      ],
+      [
+        'has a hidden character that turns its title around',
+        (r) => JSON.stringify(draft(r, { title: 'Bowl \u202elwob' })),
+      ],
       ['is for five hundred servings', (r) => JSON.stringify(draft(r, { servings: 500 }))],
     ])('refuses a draft that %s, and stores nothing', async (_name, text) => {
       t.model.reply({ text });
@@ -328,7 +462,9 @@ describe('drafting a recipe with a model', () => {
           JSON.stringify(
             draft(request, {
               ingredients: [
-                ...offered(request).slice(0, 2).map((slug) => ({ slug, quantity: 100, unit: 'g' })),
+                ...offered(request)
+                  .slice(0, 2)
+                  .map((slug) => ({ slug, quantity: 100, unit: 'g' })),
                 { slug: '<script>alert(1)</script> dragon fruit', quantity: 100, unit: 'g' },
               ],
             }),
@@ -347,7 +483,10 @@ describe('drafting a recipe with a model', () => {
       // Three ingredients at 800 g each: well over a thousand kilocalories.
       t.model.reply({ text: (request) => JSON.stringify(withQuantity(request, 800)) });
 
-      expect(await refusal(ask({ kcalTarget: 300 }))).toMatchObject({ status: 400, error: 'AI_DRAFT_OFF_TARGET' });
+      expect(await refusal(ask({ kcalTarget: 300 }))).toMatchObject({
+        status: 400,
+        error: 'AI_DRAFT_OFF_TARGET',
+      });
       expect(await stored()).toBe(0);
     });
 
@@ -366,7 +505,12 @@ describe('drafting a recipe with a model', () => {
               servings: 6,
               ingredients: offered(request)
                 .slice(0, 3)
-                .map((slug, index) => ({ slug, quantity: index === 0 ? 3000 : 300, unit: 'g', note: null })),
+                .map((slug, index) => ({
+                  slug,
+                  quantity: index === 0 ? 3000 : 300,
+                  unit: 'g',
+                  note: null,
+                })),
             }),
           ),
       });
@@ -384,7 +528,12 @@ describe('drafting a recipe with a model', () => {
             draft(request, {
               ingredients: offered(request)
                 .slice(0, 3)
-                .map((slug, index) => ({ slug, quantity: 100, unit: 'g', note: index === 0 ? '<b>diced</b>' : 'diced' })),
+                .map((slug, index) => ({
+                  slug,
+                  quantity: 100,
+                  unit: 'g',
+                  note: index === 0 ? '<b>diced</b>' : 'diced',
+                })),
             }),
           ),
       });
@@ -415,9 +564,15 @@ describe('drafting a recipe with a model', () => {
   });
 
   describe('the ingredients a model is offered', () => {
-    const slugId = async (slug: string): Promise<string> => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+    const slugId = async (slug: string): Promise<string> =>
+      (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
 
-    const prefer = (data: { allergens?: string[]; favoriteIngredientIds?: string[]; excludedIngredientIds?: string[]; dislikedIngredientIds?: string[] }) =>
+    const prefer = (data: {
+      allergens?: string[];
+      favoriteIngredientIds?: string[];
+      excludedIngredientIds?: string[];
+      dislikedIngredientIds?: string[];
+    }) =>
       t.prisma.profilePreference.upsert({
         where: { profileId: profile.id },
         update: data,
@@ -464,7 +619,10 @@ describe('drafting a recipe with a model', () => {
               }),
             ),
         });
-        expect(await refusal(ask())).toMatchObject({ status: 400, error: 'AI_DRAFT_UNKNOWN_INGREDIENT' });
+        expect(await refusal(ask())).toMatchObject({
+          status: 400,
+          error: 'AI_DRAFT_UNKNOWN_INGREDIENT',
+        });
       }
       expect(await stored()).toBe(1);
     });
@@ -502,7 +660,10 @@ describe('drafting a recipe with a model', () => {
       await ask();
 
       const starred = offeredLines(t.model.requests[0]!).filter((line) => line.endsWith('⭐'));
-      expect(starred.map((line) => line.slice(2, line.indexOf(':'))).sort()).toEqual(['salmon', 'tomato']);
+      expect(starred.map((line) => line.slice(2, line.indexOf(':'))).sort()).toEqual([
+        'salmon',
+        'tomato',
+      ]);
       expect(offeredLines(t.model.requests[1]!).some((line) => line.endsWith('⭐'))).toBe(false);
     });
 
@@ -527,7 +688,10 @@ describe('drafting a recipe with a model', () => {
   });
 
   describe('how many recipes a model may write for one account', () => {
-    const plant = (count: number, data: { origin: 'ai' | 'user'; createdAt?: Date; deletedAt?: Date | null }) =>
+    const plant = (
+      count: number,
+      data: { origin: 'ai' | 'swap'; createdAt?: Date; deletedAt?: Date | null },
+    ) =>
       t.prisma.recipe.createMany({
         data: Array.from({ length: count }, (_, index) => ({
           title: `Planted ${index}`,
@@ -546,7 +710,11 @@ describe('drafting a recipe with a model', () => {
 
       // The last draft of the day.
       await ask();
-      const res = await t.http().post('/api/recipes/drafts/from-prompt').set(as(user)).send({ profileId: profile.id });
+      const res = await t
+        .http()
+        .post('/api/recipes/drafts/from-prompt')
+        .set(as(user))
+        .send({ profileId: profile.id });
 
       expect(res.status).toBe(429);
       expect(res.body.error).toBe('AI_DRAFT_DAILY_LIMIT');
@@ -554,21 +722,24 @@ describe('drafting a recipe with a model', () => {
     });
 
     it('counts a day, not a lifetime', async () => {
-      await plant(MAX_AI_DRAFTS_PER_DAY, { origin: 'ai', createdAt: new Date(Date.now() - 25 * 3_600_000) });
+      await plant(MAX_AI_DRAFTS_PER_DAY, {
+        origin: 'ai',
+        createdAt: new Date(Date.now() - 25 * 3_600_000),
+      });
       t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
 
       expect((await ask()).recipe.title).toBe('Scripted bowl');
     });
 
     it('does not count the recipes the user made by hand', async () => {
-      await plant(MAX_AI_DRAFTS_PER_DAY, { origin: 'user' });
+      await plant(MAX_AI_DRAFTS_PER_DAY, { origin: 'swap' });
       t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
 
       expect((await ask()).recipe.title).toBe('Scripted bowl');
     });
 
     it('ends where the account is full, and the model is not asked then either', async () => {
-      await plant(MAX_PERSONAL_RECIPES, { origin: 'user' });
+      await plant(MAX_PERSONAL_RECIPES, { origin: 'swap' });
 
       expect(await refusal(ask())).toMatchObject({ status: 403, error: 'PERSONAL_RECIPE_LIMIT' });
       expect(t.model.requests).toHaveLength(0);

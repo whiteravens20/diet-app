@@ -19,7 +19,10 @@ export function AiOffNote({ id, className }: { id: string; className?: string })
     <p id={id} className={cn('text-xs text-muted-foreground', className)}>
       {t.rich('note', {
         settings: (chunks) => (
-          <Link href="/settings" className="font-medium text-primary underline-offset-2 hover:underline">
+          <Link
+            href="/settings"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
             {chunks}
           </Link>
         ),

@@ -2,7 +2,12 @@
 
 import { Injectable } from '@nestjs/common';
 import type { DietType, MealType } from '@diet-app/shared';
-import { macroReachByDiet, recipesPerDietAndMeal, type CoverageMatrix, type MacroReach } from '../engine/coverage.js';
+import {
+  macroReachByDiet,
+  recipesPerDietAndMeal,
+  type CoverageMatrix,
+  type MacroReach,
+} from '../engine/coverage.js';
 import { amountsPerServing, requirementsPerServing } from '../engine/optimizer.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -40,7 +45,10 @@ export class CatalogueCoverageService {
    */
   async waiting(): Promise<CoverageMatrix> {
     return recipesPerDietAndMeal(
-      await this.prisma.recipeDraft.findMany({ where: { status: { in: ['PENDING', 'APPROVED'] } }, select: { dietTags: true, mealTypes: true } }),
+      await this.prisma.recipeDraft.findMany({
+        where: { status: { in: ['PENDING', 'APPROVED'] } },
+        select: { dietTags: true, mealTypes: true },
+      }),
     );
   }
 
@@ -73,18 +81,28 @@ export class CatalogueCoverageService {
         fatPerServing: true,
         carbsPerServing: true,
         ingredients: {
+          orderBy: { position: 'asc' },
           select: {
             ingredientId: true,
             quantity: true,
             unit: true,
-            ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true, packSize: true, perishable: true } },
+            ingredient: {
+              select: {
+                canonicalUnit: true,
+                gramsPerPiece: true,
+                density: true,
+                packSize: true,
+                perishable: true,
+              },
+            },
           },
         },
       },
     });
     const perishablePacks = new Map<string, number>();
     for (const line of recipes.flatMap((recipe) => recipe.ingredients)) {
-      if (line.ingredient.perishable && line.ingredient.packSize) perishablePacks.set(line.ingredientId, line.ingredient.packSize);
+      if (line.ingredient.perishable && line.ingredient.packSize)
+        perishablePacks.set(line.ingredientId, line.ingredient.packSize);
     }
     const reach = macroReachByDiet(
       recipes.map(({ ingredients, mealTypes, servings, ...recipe }) => ({
@@ -106,7 +124,10 @@ export class CatalogueCoverageService {
    * is gone, and then nothing is kept.
    */
   private async catalogueVersion(): Promise<string | null> {
-    const version = await this.prisma.catalogueVersion.findUnique({ where: { id: 1 }, select: { token: true } });
+    const version = await this.prisma.catalogueVersion.findUnique({
+      where: { id: 1 },
+      select: { token: true },
+    });
     return version?.token ?? null;
   }
 
@@ -117,7 +138,8 @@ export class CatalogueCoverageService {
    * same moment.
    */
   recent(): Promise<CoverageMatrix> {
-    if (this.kept && Date.now() - this.kept.at < KEPT_FOR_MS) return Promise.resolve(this.kept.matrix);
+    if (this.kept && Date.now() - this.kept.at < KEPT_FOR_MS)
+      return Promise.resolve(this.kept.matrix);
     this.counting ??= this.count().finally(() => {
       this.counting = null;
     });

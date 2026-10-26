@@ -7,11 +7,22 @@ import { boundsIn, shownToOne, shownWeight, toKilograms, unitOfRegion } from './
 
 /** An entry of `kg` at noon of `day`, by the clock of the machine the test runs on. */
 const logged = (day: string, kg: number, hour = 12): WeightEntry =>
-  ({ id: `${day}-${hour}`, profileId: 'profile', kg, recordedAt: new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`).toISOString(), createdAt: '2026-01-01T00:00:00.000Z' }) satisfies WeightEntry;
+  ({
+    id: `${day}-${hour}`,
+    profileId: 'profile',
+    kg,
+    recordedAt: new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`).toISOString(),
+    createdAt: '2026-01-01T00:00:00.000Z',
+  }) satisfies WeightEntry;
 
 describe('the weights of a profile, as a chart draws them', () => {
   it('are one point a day, oldest first, the last entry of a day standing for it', () => {
-    const series = weightSeries([logged('2026-01-07', 80.4), logged('2026-01-05', 81), logged('2026-01-07', 80.1, 20), logged('2026-01-06', 80.6)]);
+    const series = weightSeries([
+      logged('2026-01-07', 80.4),
+      logged('2026-01-05', 81),
+      logged('2026-01-07', 80.1, 20),
+      logged('2026-01-06', 80.6),
+    ]);
 
     expect(series.map((point) => [point.date, point.kg])).toEqual([
       ['2026-01-05', 81],
@@ -22,7 +33,13 @@ describe('the weights of a profile, as a chart draws them', () => {
 
   it('carry the mean of the seven days that end with each, not of the last seven entries', () => {
     // Once a week for three weeks, then three days in a row.
-    const series = weightSeries([logged('2026-01-01', 84), logged('2026-01-08', 83), logged('2026-01-15', 82), logged('2026-01-16', 81), logged('2026-01-17', 80)]);
+    const series = weightSeries([
+      logged('2026-01-01', 84),
+      logged('2026-01-08', 83),
+      logged('2026-01-15', 82),
+      logged('2026-01-16', 81),
+      logged('2026-01-17', 80),
+    ]);
 
     // A week holds one entry of somebody who weighs weekly: the mean is that entry.
     expect(series.slice(0, 3).map((point) => point.ma7)).toEqual([84, 83, 82]);
@@ -31,7 +48,11 @@ describe('the weights of a profile, as a chart draws them', () => {
   });
 
   it('count the day seven days back as outside the week, and the day six days back as inside', () => {
-    const series = weightSeries([logged('2026-01-01', 90), logged('2026-01-02', 80), logged('2026-01-08', 70)]);
+    const series = weightSeries([
+      logged('2026-01-01', 90),
+      logged('2026-01-02', 80),
+      logged('2026-01-08', 70),
+    ]);
 
     // The week that ends on the 8th begins on the 2nd.
     expect(series[2]!.ma7).toBe(75);

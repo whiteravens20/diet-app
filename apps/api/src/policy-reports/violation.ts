@@ -27,7 +27,8 @@ export interface Violation {
 export const MOST_PER_REQUEST = 20;
 
 /** Letters, digits and what an address is written with. Whatever else a sender put in (a line break, an escape sequence) is left out. */
-const plain = (value: string, most: number): string => value.replace(/[^\x21-\x7e]/g, '').slice(0, most);
+const plain = (value: string, most: number): string =>
+  value.replace(/[^\x21-\x7e]/g, '').slice(0, most);
 
 function address(value: string | undefined): URL | null {
   if (!value) return null;
@@ -55,14 +56,35 @@ function blockedOf(value: string | undefined): string {
   return plain(url.origin === 'null' ? url.protocol.replace(':', '') : url.origin, 120);
 }
 
-function sourceOf(file: string | undefined, page: URL | null, line: number | undefined, column: number | undefined): string {
+function sourceOf(
+  file: string | undefined,
+  page: URL | null,
+  line: number | undefined,
+  column: number | undefined,
+): string {
   const url = address(file);
   if (!url) return '';
-  const where = page && url.origin === page.origin ? url.pathname : url.origin === 'null' ? url.protocol.replace(':', '') : url.origin;
-  return plain(where, 160) + (line === undefined ? '' : `:${line}${column === undefined ? '' : `:${column}`}`);
+  const where =
+    page && url.origin === page.origin
+      ? url.pathname
+      : url.origin === 'null'
+        ? url.protocol.replace(':', '')
+        : url.origin;
+  return (
+    plain(where, 160) +
+    (line === undefined ? '' : `:${line}${column === undefined ? '' : `:${column}`}`)
+  );
 }
 
-function violation(report: { page?: string; directive?: string; blocked?: string; file?: string; line?: number; column?: number; disposition?: string }): Violation {
+function violation(report: {
+  page?: string;
+  directive?: string;
+  blocked?: string;
+  file?: string;
+  line?: number;
+  column?: number;
+  disposition?: string;
+}): Violation {
   const page = address(report.page);
   return {
     disposition: report.disposition === 'report' ? 'report' : 'enforce',
@@ -107,7 +129,8 @@ export function violationsIn(body: PolicyReport): Violation[] {
 }
 
 /** What makes two violations the same kind: everything but the page they happened on. */
-export const kindOf = (v: Violation): string => [v.disposition, v.directive, v.blocked, v.source].join(' ');
+export const kindOf = (v: Violation): string =>
+  [v.disposition, v.directive, v.blocked, v.source].join(' ');
 
 /** A violation in a line of the log. */
 export function worded(v: Violation): string {

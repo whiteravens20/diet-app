@@ -14,7 +14,12 @@ const catalogue = [
   { slug: 'olive-oil', names: ['Olive oil', 'Extra virgin olive oil'] },
   { slug: 'blueberries', names: ['Blueberries'] },
 ];
-const aliases = { 'all-purpose flour': 'wheat-flour', 'plain flour': 'wheat-flour', scallion: 'spring-onion', 'oat flakes': 'rolled-oats' };
+const aliases = {
+  'all-purpose flour': 'wheat-flour',
+  'plain flour': 'wheat-flour',
+  scallion: 'spring-onion',
+  'oat flakes': 'rolled-oats',
+};
 const slugOf = slugMapper(catalogue, aliases);
 
 describe('which ingredient of the catalogue a name means', () => {
@@ -34,7 +39,7 @@ describe('which ingredient of the catalogue a name means', () => {
     expect(slugOf(name)).toBe(slug);
   });
 
-  it('is said by the catalogue\'s slug too, and by an alias the operator keeps', () => {
+  it("is said by the catalogue's slug too, and by an alias the operator keeps", () => {
     expect(slugOf('wheat flour')).toBe('wheat-flour');
     expect(slugOf('all-purpose flour')).toBe('wheat-flour');
     expect(slugOf('Plain Flour')).toBe('wheat-flour');
@@ -72,7 +77,7 @@ describe('which ingredient of the catalogue a name means', () => {
     expect(twice('bell pepper')).toBe('bell-pepper');
   });
 
-  it('lets an alias decide where the catalogue\'s own names would name another', () => {
+  it("lets an alias decide where the catalogue's own names would name another", () => {
     const decided = slugMapper(catalogue, { apricots: 'dried-apricot' });
 
     expect(decided('apricots')).toBe('dried-apricot');

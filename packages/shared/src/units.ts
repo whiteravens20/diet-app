@@ -35,7 +35,9 @@ export function pantryUnits(ingredient: {
   const converts = (unit: (typeof UNITS)[number]): boolean => {
     if (unit === ingredient.canonicalUnit) return true;
     if (unit === 'piece' || ingredient.canonicalUnit === 'piece') {
-      return weighsPerPiece && (unit === 'g' || ingredient.canonicalUnit === 'g' || weighsPerMillilitre);
+      return (
+        weighsPerPiece && (unit === 'g' || ingredient.canonicalUnit === 'g' || weighsPerMillilitre)
+      );
     }
     return weighsPerMillilitre;
   };

@@ -49,7 +49,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write       # Sign the provenance attestation
+      id-token: write # Sign the provenance attestation
       attestations: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
@@ -100,8 +100,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read          # Pull the image from ghcr.io
-      security-events: write  # Upload SARIF to the Security tab
+      packages: read # Pull the image from ghcr.io
+      security-events: write # Upload SARIF to the Security tab
     steps:
       - name: Checkout (for .trivyignore)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -167,7 +167,7 @@ jobs:
     needs: [image, scan, tag]
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # Create the release
+      contents: write # Create the release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Create release

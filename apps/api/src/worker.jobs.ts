@@ -47,15 +47,20 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
       'removal of deleted personal recipes',
       async () => {
         const removed = await personalRecipes.collectDeleted();
-        if (removed > 0) logger.log(`Removed ${removed} deleted personal recipe(s) that nothing uses any more.`);
+        if (removed > 0)
+          logger.log(`Removed ${removed} deleted personal recipe(s) that nothing uses any more.`);
       },
     ],
     [
       'removal of ended sessions and of links that can no longer be followed',
       async () => {
         const tokens = await sessions.prune();
-        const links = (await pruneLinks(prisma)) + (await secondFactor.prune()) + (await browsers.prune());
-        if (tokens + links > 0) logger.log(`Removed ${tokens} token(s) of ended sessions and ${links} used or expired link(s), sign-in challenge(s) and browser code(s).`);
+        const links =
+          (await pruneLinks(prisma)) + (await secondFactor.prune()) + (await browsers.prune());
+        if (tokens + links > 0)
+          logger.log(
+            `Removed ${tokens} token(s) of ended sessions and ${links} used or expired link(s), sign-in challenge(s) and browser code(s).`,
+          );
       },
     ],
     // What was encrypted before a value was sealed for its account. Each run
@@ -65,15 +70,20 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
       'sealing of stored addresses for their accounts',
       async () => {
         const { sealed, unreadable } = await addresses.run();
-        if (sealed > 0) logger.log(`Sealed ${sealed} stored address(es) for the account each belongs to.`);
-        if (unreadable > 0) logger.warn(`${unreadable} stored address(es) cannot be read with DATA_ENCRYPTION_SECRET as it is set: those accounts cannot be shown or mailed.`);
+        if (sealed > 0)
+          logger.log(`Sealed ${sealed} stored address(es) for the account each belongs to.`);
+        if (unreadable > 0)
+          logger.warn(
+            `${unreadable} stored address(es) cannot be read with DATA_ENCRYPTION_SECRET as it is set: those accounts cannot be shown or mailed.`,
+          );
       },
     ],
     [
       'sealing of stored provider keys for their accounts',
       async () => {
         const { sealed } = await providerKeys.resealKeys();
-        if (sealed > 0) logger.log(`Sealed ${sealed} stored provider key(s) for the account each belongs to.`);
+        if (sealed > 0)
+          logger.log(`Sealed ${sealed} stored provider key(s) for the account each belongs to.`);
       },
     ],
   ];
@@ -84,7 +94,11 @@ export function workerJobs(app: INestApplicationContext, logger: Logger): Job[] 
  * does not keep the next one from running. A job that is running somewhere
  * already is left to whoever runs it.
  */
-export async function runJobs(prisma: PrismaService, jobs: readonly Job[], logger: Logger): Promise<void> {
+export async function runJobs(
+  prisma: PrismaService,
+  jobs: readonly Job[],
+  logger: Logger,
+): Promise<void> {
   for (const [name, run] of jobs) {
     try {
       const ran = await runAlone(prisma, name, async () => void (await run()));

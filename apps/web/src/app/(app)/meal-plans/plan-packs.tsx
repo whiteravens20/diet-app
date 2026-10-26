@@ -19,7 +19,9 @@ export function PlanPacksLine({ packs, children }: { packs: PlanPacks; children?
   const wasted = packs.open.filter((pack) => pack.wasted).length;
   return (
     <details>
-      <summary className="cursor-pointer">{t('line', { percent: Math.round((packs.used / packs.bought) * 100), wasted })}</summary>
+      <summary className="cursor-pointer">
+        {t('line', { percent: Math.round((packs.used / packs.bought) * 100), wasted })}
+      </summary>
       <div className="ml-4 mt-1 space-y-1">
         {packs.open.length === 0 ? (
           <p>{t('allFinished')}</p>
@@ -27,7 +29,11 @@ export function PlanPacksLine({ packs, children }: { packs: PlanPacks; children?
           <ul className="space-y-0.5">
             {packs.open.map((pack) => (
               <li key={pack.ingredientId} className={pack.wasted ? 'text-warning' : undefined}>
-                {t(pack.wasted ? 'leftMuch' : 'left', { name: pack.name, left: amount(pack.left, pack.unit), size: amount(pack.packSize, pack.unit) })}
+                {t(pack.wasted ? 'leftMuch' : 'left', {
+                  name: pack.name,
+                  left: amount(pack.left, pack.unit),
+                  size: amount(pack.packSize, pack.unit),
+                })}
               </li>
             ))}
           </ul>

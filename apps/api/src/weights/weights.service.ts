@@ -45,16 +45,32 @@ export class WeightsService {
 
   async remove(userId: string, id: string): Promise<void> {
     // An entry of somebody else's profile is answered as one that is not there.
-    const removed = await this.prisma.weightEntry.deleteMany({ where: { id, profile: { userId } } });
-    if (removed.count === 0) throw new NotFoundException({ error: 'WEIGHT_ENTRY_NOT_FOUND', message: 'Weight entry not found.' });
+    const removed = await this.prisma.weightEntry.deleteMany({
+      where: { id, profile: { userId } },
+    });
+    if (removed.count === 0)
+      throw new NotFoundException({
+        error: 'WEIGHT_ENTRY_NOT_FOUND',
+        message: 'Weight entry not found.',
+      });
   }
 
   private async assertProfile(userId: string, profileId: string): Promise<void> {
-    const profile = await this.prisma.profile.findUnique({ where: { id: profileId }, select: { userId: true } });
-    if (!profile || profile.userId !== userId) throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
+    const profile = await this.prisma.profile.findUnique({
+      where: { id: profileId },
+      select: { userId: true },
+    });
+    if (!profile || profile.userId !== userId)
+      throw new NotFoundException({ error: 'PROFILE_NOT_FOUND', message: 'Profile not found.' });
   }
 
-  private toDto(row: { id: string; profileId: string; kg: number; recordedAt: Date; createdAt: Date }): WeightEntry {
+  private toDto(row: {
+    id: string;
+    profileId: string;
+    kg: number;
+    recordedAt: Date;
+    createdAt: Date;
+  }): WeightEntry {
     return {
       id: row.id,
       profileId: row.profileId,

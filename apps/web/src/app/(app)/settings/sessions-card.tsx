@@ -26,14 +26,20 @@ export function SessionsCard() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
-  const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => api.get<AccountSession[]>('/users/me/sessions') });
+  const sessions = useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => api.get<AccountSession[]>('/users/me/sessions'),
+  });
   const worded = (err: unknown): string => errorText(err, t('sessionEndFailed'));
   const leave = (): void => browserSession.end('/login');
 
   const end = useMutation({
     mutationFn: (id: string) => api.delete<void>(`/users/me/sessions/${id}`),
     onMutate: () => setError(null),
-    onSuccess: (_, id) => (id === browserSession.id ? leave() : queryClient.invalidateQueries({ queryKey: ['sessions'] })),
+    onSuccess: (_, id) =>
+      id === browserSession.id
+        ? leave()
+        : queryClient.invalidateQueries({ queryKey: ['sessions'] }),
     onError: (err) => {
       setError(worded(err));
       // A session that was gone already is no longer in the list either.
@@ -66,20 +72,37 @@ export function SessionsCard() {
             {sessions.data.map((open) => {
               const name = open.label ?? t('sessionUnknown');
               return (
-                <li key={open.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
+                <li
+                  key={open.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-3 py-2"
+                >
                   <div className="min-w-0">
                     <p className="text-sm font-medium">
                       {name}
                       {open.id === browserSession.id && (
                         <>
                           {' '}
-                          <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-normal text-foreground">{t('sessionCurrent')}</span>
+                          <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-normal text-foreground">
+                            {t('sessionCurrent')}
+                          </span>
                         </>
                       )}
                     </p>
-                    <p className="text-xs text-muted-foreground">{t('sessionTimes', { started: fmt.moment(open.startedAt), used: fmt.moment(open.lastUsedAt) })}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('sessionTimes', {
+                        started: fmt.moment(open.startedAt),
+                        used: fmt.moment(open.lastUsedAt),
+                      })}
+                    </p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" disabled={busy} aria-label={t('sessionEndNamed', { name })} onClick={() => end.mutate(open.id)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    aria-label={t('sessionEndNamed', { name })}
+                    onClick={() => end.mutate(open.id)}
+                  >
                     {t('sessionEnd')}
                   </Button>
                 </li>

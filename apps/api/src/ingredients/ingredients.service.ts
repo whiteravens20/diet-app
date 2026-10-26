@@ -18,14 +18,19 @@ export class IngredientsService {
    * row that has only its English name is found by it in any language.
    */
   async search(locale: Locale, query: string | undefined): Promise<Ingredient[]> {
-    const named = query ? Prisma.sql`AND (i."name" ILIKE ${containing(query)} OR t."name" ILIKE ${containing(query)})` : Prisma.empty;
+    const named = query
+      ? Prisma.sql`AND (i."name" ILIKE ${containing(query)} OR t."name" ILIKE ${containing(query)})`
+      : Prisma.empty;
     const first = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT i."id" FROM "Ingredient" i
       LEFT JOIN "IngredientTranslation" t ON t."ingredientId" = i."id" AND t."locale" = ${locale}
       WHERE i."retiredAt" IS NULL ${named}
       ORDER BY COALESCE(t."name", i."name") ${collatedFor(locale)}, i."id"
       LIMIT 100`;
-    return this.inOrder(locale, first.map((row) => row.id));
+    return this.inOrder(
+      locale,
+      first.map((row) => row.id),
+    );
   }
 
   /** Resolve a list of ids back to ingredient records — for displaying the
@@ -37,12 +42,18 @@ export class IngredientsService {
       LEFT JOIN "IngredientTranslation" t ON t."ingredientId" = i."id" AND t."locale" = ${locale}
       WHERE i."id" = ANY(${ids}::text[])
       ORDER BY COALESCE(t."name", i."name") ${collatedFor(locale)}, i."id"`;
-    return this.inOrder(locale, sorted.map((row) => row.id));
+    return this.inOrder(
+      locale,
+      sorted.map((row) => row.id),
+    );
   }
 
   /** The ingredients of `ids`, as the request's language shows them, in the order of `ids`. */
   private async inOrder(locale: Locale, ids: string[]): Promise<Ingredient[]> {
-    const rows = await this.prisma.ingredient.findMany({ where: { id: { in: ids } }, include: translationsInclude(locale) });
+    const rows = await this.prisma.ingredient.findMany({
+      where: { id: { in: ids } },
+      include: translationsInclude(locale),
+    });
     const byId = new Map(rows.map((row) => [row.id, row]));
     return ids.flatMap((id) => {
       const row = byId.get(id);
@@ -62,7 +73,8 @@ function pickTranslated(
   fallback: { name: string; storageHint: string | null },
 ): { name: string; storageHint: string | null } {
   if (!translations || translations.length === 0) return fallback;
-  const match = translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en');
+  const match =
+    translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en');
   return match ?? fallback;
 }
 
@@ -79,6 +91,7 @@ export function toIngredientDto(
     gramsPerPiece: number | null;
     density: number | null;
     displayUnit: Ingredient['displayUnit'];
+    perTeaspoon: number | null;
     allergens: string[];
     dietCompatibility: string[];
     tags: string[];
@@ -90,7 +103,10 @@ export function toIngredientDto(
   },
   locale: Locale,
 ): Ingredient {
-  const text = pickTranslated(locale, row.translations, { name: row.name, storageHint: row.storageHint });
+  const text = pickTranslated(locale, row.translations, {
+    name: row.name,
+    storageHint: row.storageHint,
+  });
   return {
     id: row.id,
     name: text.name,
@@ -103,6 +119,7 @@ export function toIngredientDto(
     gramsPerPiece: row.gramsPerPiece,
     density: row.density,
     displayUnit: row.displayUnit,
+    perTeaspoon: row.perTeaspoon,
     allergens: row.allergens as Ingredient['allergens'],
     dietCompatibility: row.dietCompatibility as Ingredient['dietCompatibility'],
     tags: row.tags,

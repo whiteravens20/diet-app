@@ -92,11 +92,11 @@ What the code guarantees today, and what it deliberately does not protect agains
 
 ### What This Does NOT Protect Against
 
-| Threat vector | Why it is out of scope |
-|---|---|
-| Compromised client device or malicious browser extension | Session tokens and everything the user sees live in the browser; malware or an extension can read them |
-| Content injection in the web app | The web pages' Content-Security-Policy is sent report-only and is not enforced yet |
-| Third-party AI providers | Prompts, and the data in them, go to the provider the user chose; its security and retention are outside the app |
-| A malicious or compromised admin | The admin account can change curated data and make the server fetch a URL of its choice |
-| The operator's deployment | TLS termination and network exposure belong to the reverse proxy in front of the stack |
-| Sustained DDoS | Rate limiting covers casual abuse; deploy behind a CDN or WAF for sustained attacks |
+| Threat vector                                            | Why it is out of scope                                                                                           |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Compromised client device or malicious browser extension | Session tokens and everything the user sees live in the browser; malware or an extension can read them           |
+| Content injection in the web app                         | The web pages' Content-Security-Policy is sent report-only and is not enforced yet                               |
+| Third-party AI providers                                 | Prompts, and the data in them, go to the provider the user chose; its security and retention are outside the app |
+| A malicious or compromised admin                         | The admin account can change curated data and make the server fetch a URL of its choice                          |
+| The operator's deployment                                | TLS termination and network exposure belong to the reverse proxy in front of the stack                           |
+| Sustained DDoS                                           | Rate limiting covers casual abuse; deploy behind a CDN or WAF for sustained attacks                              |

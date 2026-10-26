@@ -17,7 +17,9 @@ async function theCalendar(page: Page) {
 }
 
 test.describe('the calendar of plans', () => {
-  test('shows the plan of the account on the days it holds, and fits the screen it is on', async ({ session }) => {
+  test('shows the plan of the account on the days it holds, and fits the screen it is on', async ({
+    session,
+  }) => {
     const page = session.page;
     const grid = await theCalendar(page);
 
@@ -27,17 +29,33 @@ test.describe('the calendar of plans', () => {
     await expect(today).toHaveCount(1);
     await expect(today).toContainText(/\d{3}/);
     // Seven days stand side by side on the narrowest screen, with nothing to scroll sideways for.
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
-    const cells = await grid.locator('tbody tr').first().locator('button').evaluateAll((week) => week.map((cell) => cell.getBoundingClientRect().width));
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(0);
+    const cells = await grid
+      .locator('tbody tr')
+      .first()
+      .locator('button')
+      .evaluateAll((week) => week.map((cell) => cell.getBoundingClientRect().width));
     expect(Math.min(...cells)).toBeGreaterThanOrEqual(36);
   });
 
-  test('opens the plan of a day that is chosen, at that day', async ({ session, messages, account }) => {
+  test('opens the plan of a day that is chosen, at that day', async ({
+    session,
+    messages,
+    account,
+  }) => {
     const page = session.page;
     const plans = plansOf(messages);
     const grid = await theCalendar(page);
 
-    const narrowed = page.waitForResponse((res) => new URL(res.url()).pathname === '/api/meal-plans' && new URL(res.url()).searchParams.has('from'));
+    const narrowed = page.waitForResponse(
+      (res) =>
+        new URL(res.url()).pathname === '/api/meal-plans' &&
+        new URL(res.url()).searchParams.has('from'),
+    );
     await grid.locator('button[aria-current="date"]').click();
 
     const asked = new URL((await narrowed).url()).searchParams;
@@ -49,7 +67,10 @@ test.describe('the calendar of plans', () => {
     await expect(page.getByLabel(plans.from!, { exact: true })).toHaveValue(asked.get('from')!);
   });
 
-  test('takes a day without a plan as the day the next plan begins on', async ({ session, messages }) => {
+  test('takes a day without a plan as the day the next plan begins on', async ({
+    session,
+    messages,
+  }) => {
     const page = session.page;
     const plans = plansOf(messages);
     await theCalendar(page);
@@ -65,7 +86,9 @@ test.describe('the calendar of plans', () => {
     const startDate = page.getByLabel(plans.startDate!, { exact: true });
     await expect(startDate).toBeFocused();
     expect(await startDate.inputValue()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(await startDate.inputValue()).not.toBe(await page.evaluate(() => new Date().toLocaleDateString('sv-SE')));
+    expect(await startDate.inputValue()).not.toBe(
+      await page.evaluate(() => new Date().toLocaleDateString('sv-SE')),
+    );
   });
 
   test('is moved through with the arrow keys, into the month after', async ({ session }) => {

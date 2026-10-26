@@ -25,7 +25,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { resolve as resolvePath } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -41,7 +40,6 @@ import {
   IngredientNameGenerateSpec,
   MarkShippedRequest,
   OverridesPulled,
-  OverridesPushed,
   PullOverridesRequest,
   RecipeDraft,
   RecipeDraftListQuery,
@@ -71,37 +69,20 @@ import type { Env } from '../../config/env.js';
 import { AdminSessionGuard } from '../admin-session.guard.js';
 import { DraftService, invalid, type Actor } from './draft.service.js';
 import { toIngredientNameDraftDto, toRecipeDraftDto } from './drafts.mapper.js';
-import {
-  IngredientNamerRunner,
-  type IngredientNamerStartSpec,
-} from './ingredient-namer.runner.js';
+import { IngredientNamerRunner, type IngredientNamerStartSpec } from './ingredient-namer.runner.js';
 import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
 import { AdminModelService } from './admin-model.service.js';
 import { RecipeImportService } from './external/recipe-import.service.js';
 import { TranslationRunner } from './translation.runner.js';
+import { InstanceFilesService } from './ship/instance-files.service.js';
 import {
   shipIngredientNamesLocal,
   shipRecipeDraftLocal,
   shipRecipesLocal,
-  writeRecipeSidecar,
 } from './ship/local-mode.js';
-import {
-  findRepoRoot,
-  pushCurrentOverridesUpstream,
-  shipIngredientNamesUpstream,
-  shipRecipesUpstream,
-  upstreamBlockedReason,
-  UpstreamShipError,
-  type UpstreamShipConfig,
-} from './ship/upstream-mode.js';
 import { buildCurrentIngredientOverrides } from './ship/current-overrides.js';
-import {
-  pullOverrides,
-  PullOverridesError,
-  type PullPolicy,
-} from './ship/pull-overrides.js';
+import { pullOverrides, PullOverridesError, type PullPolicy } from './ship/pull-overrides.js';
 import { NothingShips } from './ship/shippable.js';
-import { instanceDataState, restoreInstanceData } from './ship/restore.js';
 import {
   markBundleShipped,
   shipIngredientNamesBundle,
@@ -110,7 +91,6 @@ import {
 
 /** The administrator acting on a draft; a review carries the name they gave instead of this one. */
 const ADMIN: Actor = { role: 'ADMIN', label: 'admin' };
-
 
 @Controller('admin/drafts')
 @UseGuards(AdminSessionGuard)
@@ -126,6 +106,7 @@ export class DraftsController {
     private readonly adminModel: AdminModelService,
     private readonly imports: RecipeImportService,
     private readonly drafts: DraftService,
+    private readonly files: InstanceFilesService,
   ) {}
 
   // ── Ingredient-name generation ──────────────────────────────────────────────
@@ -137,8 +118,14 @@ export class DraftsController {
   @Post('ingredient-names/generate')
   @HttpCode(202)
   @Answers(DraftRunnerState)
-  async startNamerRun(@Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec): Promise<DraftRunnerState> {
-    const spec: IngredientNamerStartSpec = { scope: body.scope, slugs: body.slugs, targetLocales: body.targetLocales };
+  async startNamerRun(
+    @Body(new ZodValidationPipe(IngredientNameGenerateSpec)) body: IngredientNameGenerateSpec,
+  ): Promise<DraftRunnerState> {
+    const spec: IngredientNamerStartSpec = {
+      scope: body.scope,
+      slugs: body.slugs,
+      targetLocales: body.targetLocales,
+    };
     const started = await this.namer.start(spec);
     if (!started) {
       throw new ConflictException({
@@ -180,7 +167,9 @@ export class DraftsController {
   /** One draft of a name. */
   @Get('ingredient-names/:id')
   @Answers(IngredientNameDraft)
-  async getIngredientNameDraft(@Param('id', requiredUuid) id: string): Promise<IngredientNameDraft> {
+  async getIngredientNameDraft(
+    @Param('id', requiredUuid) id: string,
+  ): Promise<IngredientNameDraft> {
     return toIngredientNameDraftDto(await this.drafts.ingredientName(id));
   }
 
@@ -191,7 +180,8 @@ export class DraftsController {
   @Answers(IngredientNameDraft)
   async patchIngredientNameDraft(
     @Param('id', requiredUuid) id: string,
-    @Body(new ZodValidationPipe(IngredientNameDraftPatchBody)) { suggestions }: IngredientNameDraftPatchBody,
+    @Body(new ZodValidationPipe(IngredientNameDraftPatchBody))
+    { suggestions }: IngredientNameDraftPatchBody,
   ): Promise<IngredientNameDraft> {
     return toIngredientNameDraftDto(await this.drafts.editIngredientName(id, suggestions, ADMIN));
   }
@@ -233,7 +223,9 @@ export class DraftsController {
   @Post('recipes/generate')
   @HttpCode(202)
   @Answers(RecipeRunState)
-  async startRecipeRun(@Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec): Promise<RecipeRunState> {
+  async startRecipeRun(
+    @Body(new ZodValidationPipe(RecipeGenerateSpec)) spec: RecipeGenerateSpec,
+  ): Promise<RecipeRunState> {
     const started = await this.recipeGen.start(spec);
     if (!started) {
       throw new ConflictException({
@@ -273,7 +265,9 @@ export class DraftsController {
   @Post('recipes/import')
   @HttpCode(200)
   @Answers(RecipeImportResult)
-  importRecipes(@Body(new ZodValidationPipe(RecipeImportRequest)) body: RecipeImportRequest): Promise<RecipeImportResult> {
+  importRecipes(
+    @Body(new ZodValidationPipe(RecipeImportRequest)) body: RecipeImportRequest,
+  ): Promise<RecipeImportResult> {
     return this.imports.import(body);
   }
 
@@ -302,9 +296,14 @@ export class DraftsController {
   @Post('translations/generate')
   @HttpCode(202)
   @Answers(DraftRunnerState)
-  async startTranslations(@Body(new ZodValidationPipe(TranslationGenerateSpec)) body: TranslationGenerateSpec): Promise<DraftRunnerState> {
+  async startTranslations(
+    @Body(new ZodValidationPipe(TranslationGenerateSpec)) body: TranslationGenerateSpec,
+  ): Promise<DraftRunnerState> {
     if (!(await this.translations.start(body))) {
-      throw new ConflictException({ error: 'TRANSLATIONS_IN_PROGRESS', message: 'A run that fills a language is already in progress.' });
+      throw new ConflictException({
+        error: 'TRANSLATIONS_IN_PROGRESS',
+        message: 'A run that fills a language is already in progress.',
+      });
     }
     return this.translationRunnerState();
   }
@@ -330,7 +329,9 @@ export class DraftsController {
   /** The recipe drafts, a page at a time, narrowed as asked. */
   @Get('recipes')
   @Answers(RecipeDraftPage)
-  async listRecipeDrafts(@Query(new ZodValidationPipe(RecipeDraftListQuery)) query: RecipeDraftListQuery): Promise<RecipeDraftPage> {
+  async listRecipeDrafts(
+    @Query(new ZodValidationPipe(RecipeDraftListQuery)) query: RecipeDraftListQuery,
+  ): Promise<RecipeDraftPage> {
     const found = await this.drafts.listRecipes(query);
     return { ...found, items: found.items.map(toRecipeDraftDto) };
   }
@@ -379,7 +380,8 @@ export class DraftsController {
   @HttpCode(200)
   @Answers(RejectedDrafts)
   rejectRecipeDrafts(
-    @Body(new ZodValidationPipe(DraftBulkRejectBody)) { ids, reviewedByLabel, reason }: DraftBulkRejectBody,
+    @Body(new ZodValidationPipe(DraftBulkRejectBody))
+    { ids, reviewedByLabel, reason }: DraftBulkRejectBody,
   ): Promise<RejectedDrafts> {
     return this.drafts.rejectRecipes(ids, reason, { ...ADMIN, label: reviewedByLabel });
   }
@@ -404,15 +406,13 @@ export class DraftsController {
 
   /**
    * Promote a recipe users made to the shared library: the one draft is
-   * shipped into this instance, on the terms of every local ship, and written
-   * to the instance's data directory. The personal recipes it stands for are
+   * shipped into this instance, on the terms of every local ship, and the
+   * instance's files are written again. The personal recipes it stands for are
    * left as they are; whoever makes the recipe again is given the shared one.
    */
   @Post('recipes/:id/promote')
   @Answers(RecipeDraft)
-  async promoteRecipeDraft(
-    @Param('id', requiredUuid) id: string,
-  ): Promise<RecipeDraft> {
+  async promoteRecipeDraft(@Param('id', requiredUuid) id: string): Promise<RecipeDraft> {
     const existing = await this.drafts.recipe(id);
     if (existing.source !== 'AI_USER') {
       throw new BadRequestException({
@@ -438,8 +438,7 @@ export class DraftsController {
         details: { reason: outcome.reason },
       });
     }
-    const { sidecarError } = writeRecipeSidecar(this.resolveInstanceDataDir(), [outcome.content]);
-    if (sidecarError) this.logger.warn(`Promoted ${outcome.content.slug}, but its copy in the instance's data directory was not written: ${sidecarError}`);
+    await this.files.write();
     return toRecipeDraftDto(outcome.draft);
   }
 
@@ -449,25 +448,15 @@ export class DraftsController {
   @Get('ship/config')
   @Answers(ShipConfig)
   async shipConfig(): Promise<ShipConfig> {
-    const upstreamConfig = this.readUpstreamConfig();
     const recipeCount = await this.prisma.recipeDraft.count({
       where: { status: 'APPROVED' },
     });
     const ingredientCount = await this.prisma.ingredientNameDraft.count({
       where: { status: 'APPROVED' },
     });
-    const repoRoot = findRepoRoot(process.cwd());
-    const upstreamReason = upstreamBlockedReason(upstreamConfig, repoRoot);
     return {
       modes: {
         local: { available: true },
-        upstreamPr: {
-          available: upstreamReason === null,
-          enabled: upstreamConfig.enabled,
-          reason: upstreamReason,
-          baseBranch: upstreamConfig.baseBranch,
-          remote: upstreamConfig.remote,
-        },
         bundle: { available: true },
       },
       pull: {
@@ -475,63 +464,58 @@ export class DraftsController {
         defaultSource: this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }),
         tokenSet: this.pullToken() !== null,
       },
-      instanceData: instanceDataState(this.resolveInstanceDataDir()),
+      instanceData: await this.files.state(),
       approvedCounts: { recipe: recipeCount, ingredientName: ingredientCount },
     };
   }
 
-  /** Ship the approved drafts of a kind: into this instance, as a pull request, or as a file to save. */
+  /** Ship the approved drafts of a kind: into this instance, or as a file to save. */
   @Post('ship')
   @Answers(ShipResult)
-  async ship(@Body(new ZodValidationPipe(ShipRequest)) { kind, mode, batchIds }: ShipRequest): Promise<ShipResult> {
-
+  async ship(
+    @Body(new ZodValidationPipe(ShipRequest)) { kind, mode, batchIds }: ShipRequest,
+  ): Promise<ShipResult> {
     if (mode === 'local') {
-      const instanceDataDir = this.resolveInstanceDataDir();
       const result =
         kind === 'recipe'
-          ? await shipRecipesLocal(this.prisma, { kind, batchIds, instanceDataDir })
-          : await shipIngredientNamesLocal(this.prisma, { kind, batchIds, instanceDataDir });
+          ? await shipRecipesLocal(this.prisma, { kind, batchIds })
+          : await shipIngredientNamesLocal(this.prisma, { kind, batchIds });
       if (result.shippedDraftIds.length === 0 && result.skipped.length === 0) {
         throw new ConflictException({
           error: 'SHIP_NO_APPROVED',
           message: 'No approved drafts to ship.',
         });
       }
-      return { mode: 'local', ...result };
-    }
-
-    if (mode === 'upstream-pr') {
-      const { config, repoRoot, dataDir } = this.upstreamTarget();
-      try {
-        const result =
-          kind === 'recipe'
-            ? await shipRecipesUpstream(this.prisma, { kind, batchIds, dataDir, repoRoot, config })
-            : await shipIngredientNamesUpstream(this.prisma, {
-                kind,
-                batchIds,
-                dataDir,
-                repoRoot,
-                config,
-              });
-        return { mode: 'upstream-pr', ...result };
-      } catch (err) {
-        if (err instanceof UpstreamShipError) {
-          throw new ConflictException({ error: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) });
-        }
-        throw err;
-      }
+      // What shipped is in the instance's files from now on.
+      const files = result.shippedDraftIds.length > 0 ? await this.files.write() : { written: [] };
+      return {
+        mode: 'local',
+        ...result,
+        sidecarPaths: files.written,
+        ...(files.error ? { sidecarError: files.error } : {}),
+      };
     }
 
     // bundle: the file itself comes back, to whoever asked with the administrator's credentials
     try {
-      const result = kind === 'recipe' ? await shipRecipesBundle(this.prisma, { kind, batchIds }) : await shipIngredientNamesBundle(this.prisma, { kind, batchIds });
+      const result =
+        kind === 'recipe'
+          ? await shipRecipesBundle(this.prisma, { kind, batchIds })
+          : await shipIngredientNamesBundle(this.prisma, { kind, batchIds });
       return { mode: 'bundle', ...result };
     } catch (err) {
       if (err instanceof NothingShips) {
-        throw new ConflictException({ error: 'NO_VALID_DRAFTS', message: 'None of the approved drafts can ship as they are.', details: { skipped: err.skipped } });
+        throw new ConflictException({
+          error: 'NO_VALID_DRAFTS',
+          message: 'None of the approved drafts can ship as they are.',
+          details: { skipped: err.skipped },
+        });
       }
       if (err instanceof Error && err.message === 'NO_APPROVED_DRAFTS') {
-        throw new ConflictException({ error: 'NO_APPROVED_DRAFTS', message: 'There are no approved drafts to ship.' });
+        throw new ConflictException({
+          error: 'NO_APPROVED_DRAFTS',
+          message: 'There are no approved drafts to ship.',
+        });
       }
       throw err;
     }
@@ -554,25 +538,6 @@ export class DraftsController {
   }
 
   /**
-   * Open a pull request in the repository the instance ships to with the
-   * names this instance has given its ingredients, all of them, whatever has
-   * shipped.
-   */
-  @Post('ship/current-overrides/push')
-  @Answers(OverridesPushed)
-  async pushCurrentOverrides(): Promise<OverridesPushed> {
-    const { config, repoRoot, dataDir } = this.upstreamTarget();
-    try {
-      return await pushCurrentOverridesUpstream(this.prisma, { dataDir, repoRoot, config });
-    } catch (err) {
-      if (err instanceof UpstreamShipError) {
-        throw new ConflictException({ error: err.code, message: err.message });
-      }
-      throw err;
-    }
-  }
-
-  /**
    * Take names of ingredients in from a repository the operator names, or
    * from the one the instance is set up with, and give them to the
    * ingredients of this instance. A public repository needs no token; a
@@ -580,7 +545,9 @@ export class DraftsController {
    */
   @Post('ship/current-overrides/pull')
   @Answers(OverridesPulled)
-  async pullCurrentOverrides(@Body(new ZodValidationPipe(PullOverridesRequest.prefault({}))) body: PullOverridesRequest): Promise<OverridesPulled> {
+  async pullCurrentOverrides(
+    @Body(new ZodValidationPipe(PullOverridesRequest.prefault({}))) body: PullOverridesRequest,
+  ): Promise<OverridesPulled> {
     const source =
       body.source ??
       this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }) ??
@@ -595,14 +562,9 @@ export class DraftsController {
     }
   }
 
-  /** PAT for pulling from a private repo: the dedicated var, falling back to
-   *  the upstream-push token. Null when neither is set (public-only). */
+  /** The token for pulling from a private repository; null when none is set (public sources only). */
   private pullToken(): string | null {
-    return (
-      this.config.get('OVERRIDES_PULL_TOKEN', { infer: true }) ??
-      this.config.get('SHIP_UPSTREAM_GH_TOKEN', { infer: true }) ??
-      null
-    );
+    return this.config.get('OVERRIDES_PULL_TOKEN', { infer: true }) ?? null;
   }
 
   /**
@@ -616,7 +578,8 @@ export class DraftsController {
       .map((host) => host.trim())
       .filter((host) => host.length > 0);
     const preset = this.config.get('OVERRIDES_PULL_SOURCE', { infer: true });
-    const presetHost = /^https?:\/\//i.test(preset) && URL.canParse(preset) ? [new URL(preset).host] : [];
+    const presetHost =
+      /^https?:\/\//i.test(preset) && URL.canParse(preset) ? [new URL(preset).host] : [];
     return { token: this.pullToken(), allowedHosts: [...listed, ...presetHost] };
   }
 
@@ -629,58 +592,50 @@ export class DraftsController {
   @HttpCode(200)
   @Answers(RestoredFromInstanceData)
   restoreFromInstanceData(): Promise<RestoredFromInstanceData> {
-    return restoreInstanceData(this.prisma, this.resolveInstanceDataDir());
+    return this.files.restore();
   }
 
   /** Mark drafts as shipped, once the file a bundle gave is where it belongs. */
   @Post('ship/mark-shipped')
   @Answers(Updated)
-  async shipMarkShipped(@Body(new ZodValidationPipe(MarkShippedRequest)) { kind, draftIds }: MarkShippedRequest): Promise<Updated> {
+  async shipMarkShipped(
+    @Body(new ZodValidationPipe(MarkShippedRequest)) { kind, draftIds }: MarkShippedRequest,
+  ): Promise<Updated> {
     return markBundleShipped(this.prisma, kind, draftIds);
   }
 
   // ── Internals ───────────────────────────────────────────────────────────────
 
-  /**
-   * Where a pull-request ship would write and push, or the refusal that
-   * stands in its way: what the settings decide first, then the tool, then
-   * the checkout and its remote.
-   */
-  private upstreamTarget(): { config: UpstreamShipConfig; repoRoot: string; dataDir: string } {
-    const config = this.readUpstreamConfig();
-    const repoRoot = findRepoRoot(process.cwd());
-    const blocked = upstreamBlockedReason(config, repoRoot);
-    if (blocked !== null || repoRoot === null) {
-      const code = blocked ?? 'SHIP_REPO_ROOT_NOT_FOUND';
-      throw new ConflictException({ error: code, message: `Shipping as a pull request is refused: ${code}.` });
-    }
-    return { config, repoRoot, dataDir: resolvePath(repoRoot, 'data') };
-  }
-
-  private readUpstreamConfig(): UpstreamShipConfig {
-    return {
-      enabled: Boolean(this.config.get('SHIP_UPSTREAM_ENABLED', { infer: true })),
-      remote: this.config.get('SHIP_UPSTREAM_REMOTE', { infer: true }) ?? 'origin',
-      baseBranch: this.config.get('SHIP_UPSTREAM_BASE_BRANCH', { infer: true }) ?? 'main',
-      ghToken: this.config.get('SHIP_UPSTREAM_GH_TOKEN', { infer: true }) ?? null,
-      authorName: this.config.get('SHIP_UPSTREAM_GIT_AUTHOR_NAME', { infer: true }) ?? null,
-      authorEmail: this.config.get('SHIP_UPSTREAM_GIT_AUTHOR_EMAIL', { infer: true }) ?? null,
-    };
-  }
-
-  private resolveInstanceDataDir(): string {
-    const raw = this.config.get('INSTANCE_DATA_DIR', { infer: true }) ?? 'instance-data';
-    return resolvePath(process.cwd(), raw);
-  }
-
   /** The administrator reviews the languages reviewers review: the name of an ingredient has no English. */
-  private async reviewIngredientName(id: string, locale: TargetLocale, { reviewedByLabel, reason }: DraftReviewBody, action: ReviewAction): Promise<IngredientNameDraft> {
-    return toIngredientNameDraftDto(await this.drafts.reviewIngredientName(id, { locale, action, reason }, { ...ADMIN, label: reviewedByLabel }));
+  private async reviewIngredientName(
+    id: string,
+    locale: TargetLocale,
+    { reviewedByLabel, reason }: DraftReviewBody,
+    action: ReviewAction,
+  ): Promise<IngredientNameDraft> {
+    return toIngredientNameDraftDto(
+      await this.drafts.reviewIngredientName(
+        id,
+        { locale, action, reason },
+        { ...ADMIN, label: reviewedByLabel },
+      ),
+    );
   }
 
   /** The administrator reviews any language of a recipe, and is the one who reviews English. */
-  private async reviewRecipe(id: string, locale: Locale, { reviewedByLabel, reason }: DraftReviewBody, action: ReviewAction): Promise<RecipeDraft> {
-    return toRecipeDraftDto(await this.drafts.reviewRecipe(id, { locale, action, reason }, { ...ADMIN, label: reviewedByLabel }));
+  private async reviewRecipe(
+    id: string,
+    locale: Locale,
+    { reviewedByLabel, reason }: DraftReviewBody,
+    action: ReviewAction,
+  ): Promise<RecipeDraft> {
+    return toRecipeDraftDto(
+      await this.drafts.reviewRecipe(
+        id,
+        { locale, action, reason },
+        { ...ADMIN, label: reviewedByLabel },
+      ),
+    );
   }
 
   private async namerRunnerState(): Promise<DraftRunnerState> {

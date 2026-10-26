@@ -64,7 +64,12 @@ export function NotificationToast() {
   }, [freshIds]);
 
   const markRead = useMutation({
-    mutationFn: () => (fresh.length === list.length ? api.post('/notifications/read-all') : Promise.all(fresh.map((notification) => api.post(`/notifications/${notification.id}/read`)))),
+    mutationFn: () =>
+      fresh.length === list.length
+        ? api.post('/notifications/read-all')
+        : Promise.all(
+            fresh.map((notification) => api.post(`/notifications/${notification.id}/read`)),
+          ),
     onSettled: () => {
       putAside();
       void qc.invalidateQueries({ queryKey: ['notifications-unread'] });
@@ -80,9 +85,17 @@ export function NotificationToast() {
       className="pop-in fixed inset-x-4 top-16 z-50 mx-auto max-w-sm rounded-lg border border-border bg-card p-4 text-card-foreground shadow-lg md:inset-x-auto md:right-4 md:top-4 md:mx-0"
     >
       <p className="text-sm font-medium">{t('toastTitle', { count: fresh.length })}</p>
-      {fresh.length === 1 && <p className="mt-1 text-sm text-muted-foreground">{textOf(fresh[0]!)}</p>}
+      {fresh.length === 1 && (
+        <p className="mt-1 text-sm text-muted-foreground">{textOf(fresh[0]!)}</p>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" disabled={markRead.isPending} onClick={() => markRead.mutate()}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={markRead.isPending}
+          onClick={() => markRead.mutate()}
+        >
           {t('toastMarkRead', { count: fresh.length })}
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={putAside}>

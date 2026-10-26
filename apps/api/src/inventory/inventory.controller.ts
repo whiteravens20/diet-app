@@ -12,7 +12,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { InventoryItem, PatchInventoryItem, UpsertInventoryItemRequest, type Locale } from '@diet-app/shared';
+import {
+  InventoryItem,
+  PatchInventoryItem,
+  UpsertInventoryItemRequest,
+  type Locale,
+} from '@diet-app/shared';
 import { CurrentUser, type RequestUser } from '../common/current-user.decorator.js';
 import { RequestLocale } from '../common/request-locale.decorator.js';
 import { Answers, AnswersListOf } from '../common/answers.decorator.js';

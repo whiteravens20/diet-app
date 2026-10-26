@@ -34,8 +34,13 @@ export function useErrorText(): (err: unknown, fallback?: string) => string {
   return useCallback(
     (err, fallback) => {
       if (!(err instanceof ApiClientError)) return fallback ?? t('GENERIC');
-      const wait = SAYS_ITS_OWN_WAIT.has(err.code) ? null : waitOf(err.status, err.retryAfterSeconds);
-      if (wait) return t(wait.unit === 'minutes' ? 'HELD_UP_MINUTES' : 'HELD_UP_SECONDS', { count: wait.count });
+      const wait = SAYS_ITS_OWN_WAIT.has(err.code)
+        ? null
+        : waitOf(err.status, err.retryAfterSeconds);
+      if (wait)
+        return t(wait.unit === 'minutes' ? 'HELD_UP_MINUTES' : 'HELD_UP_SECONDS', {
+          count: wait.count,
+        });
       if (err.code === 'VALIDATION_FAILED' && err.issues && err.issues.length > 0) {
         const fields = [...new Set(err.issues.map((issue) => issue.path).filter(Boolean))];
         if (fields.length > 0) return t('VALIDATION_FAILED_FIELDS', { fields: fields.join(', ') });

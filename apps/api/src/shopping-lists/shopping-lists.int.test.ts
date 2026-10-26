@@ -1,6 +1,12 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { MAX_LISTS_PER_PLAN, MAX_QUANTITY, type MealPlan, type Profile, type ShoppingList } from '@diet-app/shared';
+import {
+  MAX_LISTS_PER_PLAN,
+  MAX_QUANTITY,
+  type MealPlan,
+  type Profile,
+  type ShoppingList,
+} from '@diet-app/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { netEffect, pantryStock } from '../engine/pantry.js';
 import { readMoves } from '../inventory/pantry-store.js';
@@ -60,21 +66,40 @@ describe('shopping lists and the pantry', () => {
       const meal = meals.find((m) => m.mealType === mealType)!;
       await t.prisma.plannedMeal.update({
         where: { id: meal.id },
-        data: { recipeId: recipe.id, servings: 1, quantityScale: 1, source: 'CATALOGUE', eatenAt: null },
+        data: {
+          recipeId: recipe.id,
+          servings: 1,
+          quantityScale: 1,
+          source: 'CATALOGUE',
+          eatenAt: null,
+        },
       });
     }
   }
 
   /** Put stock into the pantry directly, as the user's own entry would leave it. */
-  async function stock(slug: string, quantity: number, unit: 'g' | 'ml' | 'piece', bestBefore: string | null = null): Promise<void> {
+  async function stock(
+    slug: string,
+    quantity: number,
+    unit: 'g' | 'ml' | 'piece',
+    bestBefore: string | null = null,
+  ): Promise<void> {
     await t.prisma.inventoryItem.create({
-      data: { profileId: profile.id, ingredientId: (await ingredient(slug)).id, quantity, unit, bestBefore: bestBefore ? new Date(bestBefore) : null },
+      data: {
+        profileId: profile.id,
+        ingredientId: (await ingredient(slug)).id,
+        quantity,
+        unit,
+        bestBefore: bestBefore ? new Date(bestBefore) : null,
+      },
     });
   }
 
   /** The pantry rows of an ingredient as text, in a fixed order. */
   async function pantry(slug: string): Promise<string[]> {
-    const rows = await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id, ingredientId: (await ingredient(slug)).id } });
+    const rows = await t.prisma.inventoryItem.findMany({
+      where: { profileId: profile.id, ingredientId: (await ingredient(slug)).id },
+    });
     return rows.map((row) => `${Math.round(row.quantity * 1000) / 1000} ${row.unit}`).sort();
   }
 
@@ -86,11 +111,20 @@ describe('shopping lists and the pantry', () => {
   const rows = (list: ShoppingList): Row[] => list.groups.flatMap((group) => group.items);
   const rowOf = (list: ShoppingList, name: string): Row => {
     const row = rows(list).find((item) => item.name === name);
-    if (!row) throw new Error(`no row "${name}" among ${rows(list).map((item) => item.name).join(', ')}`);
+    if (!row)
+      throw new Error(
+        `no row "${name}" among ${rows(list)
+          .map((item) => item.name)
+          .join(', ')}`,
+      );
     return row;
   };
 
-  const edit = async (list: ShoppingList, name: string, patch: { checked?: boolean; purchasedQuantity?: number | null; alreadyHaveQuantity?: number }): Promise<Row> =>
+  const edit = async (
+    list: ShoppingList,
+    name: string,
+    patch: { checked?: boolean; purchasedQuantity?: number | null; alreadyHaveQuantity?: number },
+  ): Promise<Row> =>
     rowOf(await lists.updateItem(user.id, 'en', list.id, rowOf(list, name).id, patch), name);
 
   describe('a list', () => {
@@ -99,11 +133,33 @@ describe('shopping lists and the pantry', () => {
     it('counts eggs and bread in pieces, everything else by weight or volume, and asks for what one buys', async () => {
       const list = await listFor(0);
 
-      expect(rowOf(list, 'Large egg')).toMatchObject({ totalQuantity: 3, unit: 'piece', displayUnit: 'piece' });
-      expect(rowOf(list, 'Wholegrain bread')).toMatchObject({ totalQuantity: 2, unit: 'piece', displayUnit: 'slice' });
-      expect(rowOf(list, 'Olive oil')).toMatchObject({ totalQuantity: 20, unit: 'ml', displayUnit: 'ml' });
-      expect(rowOf(list, 'White rice')).toMatchObject({ totalQuantity: 160, unit: 'g', displayUnit: 'g' });
-      expect(rowOf(list, 'Broccoli')).toMatchObject({ totalQuantity: 250, toBuyQuantity: 250, alreadyHaveQuantity: 0, purchasedQuantity: null, checked: false });
+      expect(rowOf(list, 'Large egg')).toMatchObject({
+        totalQuantity: 3,
+        unit: 'piece',
+        displayUnit: 'piece',
+      });
+      expect(rowOf(list, 'Wholegrain bread')).toMatchObject({
+        totalQuantity: 2,
+        unit: 'piece',
+        displayUnit: 'slice',
+      });
+      expect(rowOf(list, 'Olive oil')).toMatchObject({
+        totalQuantity: 20,
+        unit: 'ml',
+        displayUnit: 'ml',
+      });
+      expect(rowOf(list, 'White rice')).toMatchObject({
+        totalQuantity: 160,
+        unit: 'g',
+        displayUnit: 'g',
+      });
+      expect(rowOf(list, 'Broccoli')).toMatchObject({
+        totalQuantity: 250,
+        toBuyQuantity: 250,
+        alreadyHaveQuantity: 0,
+        purchasedQuantity: null,
+        checked: false,
+      });
       expect(list.stale).toBe(false);
     });
 
@@ -111,10 +167,30 @@ describe('shopping lists and the pantry', () => {
       const list = await listFor(0);
 
       // Eggs come in tens; a loaf holds no whole number of slices, so it is named by its weight.
-      expect(rowOf(list, 'Large egg').packs).toEqual({ count: 1, size: 10, sizeUnit: 'piece', quantity: 10 });
-      expect(rowOf(list, 'Wholegrain bread').packs).toEqual({ count: 1, size: 500, sizeUnit: 'g', quantity: 14 });
-      expect(rowOf(list, 'Chicken breast').packs).toEqual({ count: 1, size: 500, sizeUnit: 'g', quantity: 500 });
-      expect(rowOf(list, 'White rice').packs).toEqual({ count: 1, size: 1000, sizeUnit: 'g', quantity: 1000 });
+      expect(rowOf(list, 'Large egg').packs).toEqual({
+        count: 1,
+        size: 10,
+        sizeUnit: 'piece',
+        quantity: 10,
+      });
+      expect(rowOf(list, 'Wholegrain bread').packs).toEqual({
+        count: 1,
+        size: 500,
+        sizeUnit: 'g',
+        quantity: 14,
+      });
+      expect(rowOf(list, 'Chicken breast').packs).toEqual({
+        count: 1,
+        size: 500,
+        sizeUnit: 'g',
+        quantity: 500,
+      });
+      expect(rowOf(list, 'White rice').packs).toEqual({
+        count: 1,
+        size: 1000,
+        sizeUnit: 'g',
+        quantity: 1000,
+      });
       // Bought loose.
       expect(rowOf(list, 'Broccoli').packs).toBeNull();
       expect(rowOf(list, 'Olive oil').packs).toBeNull();
@@ -126,7 +202,11 @@ describe('shopping lists and the pantry', () => {
 
       const list = await listFor(0);
 
-      expect(rowOf(list, 'Chicken breast')).toMatchObject({ alreadyHaveQuantity: 100, toBuyQuantity: 50, packs: { count: 1, quantity: 500 } });
+      expect(rowOf(list, 'Chicken breast')).toMatchObject({
+        alreadyHaveQuantity: 100,
+        toBuyQuantity: 50,
+        packs: { count: 1, quantity: 500 },
+      });
       // The rice at home covers the need: nothing to buy, and no pack to name.
       expect(rowOf(list, 'White rice')).toMatchObject({ toBuyQuantity: 0, packs: null });
     });
@@ -136,7 +216,10 @@ describe('shopping lists and the pantry', () => {
       const list = await listFor(0);
       const chicken = rowOf(list, 'Chicken breast');
 
-      const bought = await edit(list, 'Chicken breast', { purchasedQuantity: chicken.alreadyHaveQuantity + chicken.packs!.quantity, checked: true });
+      const bought = await edit(list, 'Chicken breast', {
+        purchasedQuantity: chicken.alreadyHaveQuantity + chicken.packs!.quantity,
+        checked: true,
+      });
 
       expect(bought).toMatchObject({ purchasedQuantity: 600, checked: true });
       // 100 g were at home and are the plan's now; of the 500 g bought the plan takes 50 g.
@@ -154,19 +237,32 @@ describe('shopping lists and the pantry', () => {
       await t.prisma.plannedMeal.update({ where: { id: dinner.id }, data: { quantityScale: 3.4 } });
       const list = await listFor(0);
       const chicken = rowOf(list, 'Chicken breast');
-      expect(chicken).toMatchObject({ totalQuantity: 510, packs: { count: 1, size: 500, sizeUnit: 'g', quantity: 510 } });
+      expect(chicken).toMatchObject({
+        totalQuantity: 510,
+        packs: { count: 1, size: 500, sizeUnit: 'g', quantity: 510 },
+      });
 
-      const bought = await edit(list, 'Chicken breast', { purchasedQuantity: chicken.packs!.quantity, checked: true });
+      const bought = await edit(list, 'Chicken breast', {
+        purchasedQuantity: chicken.packs!.quantity,
+        checked: true,
+      });
 
       expect(bought).toMatchObject({ purchasedQuantity: 510, checked: true });
       expect(await pantry('chicken-breast')).toEqual([]);
       // Taken back, the row is as it was, and offers its pack again.
-      expect(await edit(list, 'Chicken breast', { checked: false })).toMatchObject({ purchasedQuantity: null, checked: false, packs: { count: 1 } });
+      expect(await edit(list, 'Chicken breast', { checked: false })).toMatchObject({
+        purchasedQuantity: null,
+        checked: false,
+        packs: { count: 1 },
+      });
     });
 
     it('rounds a need up, never down: a scaled meal that takes 3.3 eggs asks for four', async () => {
       const breakfast = plan.days[0]!.meals.find((meal) => meal.mealType === 'breakfast')!;
-      await t.prisma.plannedMeal.update({ where: { id: breakfast.id }, data: { quantityScale: 1.1 } });
+      await t.prisma.plannedMeal.update({
+        where: { id: breakfast.id },
+        data: { quantityScale: 1.1 },
+      });
 
       const list = await listFor(0);
 
@@ -178,8 +274,13 @@ describe('shopping lists and the pantry', () => {
     it('says what each aisle comes to in kilocalories, the aisles adding up to the list', async () => {
       const list = await listFor(0);
 
-      for (const group of list.groups) expect(group.estimatedCalories, group.category).toBe(group.items.reduce((sum, item) => sum + item.estimatedCalories, 0));
-      expect(list.groups.reduce((sum, group) => sum + group.estimatedCalories, 0)).toBe(list.totalEstimatedCalories);
+      for (const group of list.groups)
+        expect(group.estimatedCalories, group.category).toBe(
+          group.items.reduce((sum, item) => sum + item.estimatedCalories, 0),
+        );
+      expect(list.groups.reduce((sum, group) => sum + group.estimatedCalories, 0)).toBe(
+        list.totalEstimatedCalories,
+      );
       expect(list.totalEstimatedCalories).toBeGreaterThan(0);
     });
 
@@ -234,7 +335,13 @@ describe('shopping lists and the pantry', () => {
 
     it('are counted on, are used up when the row is ticked, and come back as pieces when it is unticked', async () => {
       const list = await listFor(0, 2);
-      expect(rowOf(list, 'Large egg')).toMatchObject({ totalQuantity: 9, alreadyHaveQuantity: 6, toBuyQuantity: 3, purchasedQuantity: 6, checked: false });
+      expect(rowOf(list, 'Large egg')).toMatchObject({
+        totalQuantity: 9,
+        alreadyHaveQuantity: 6,
+        toBuyQuantity: 3,
+        purchasedQuantity: 6,
+        checked: false,
+      });
       // Counting on stock takes nothing yet.
       expect(await pantry('large-egg')).toEqual(['6 piece']);
 
@@ -270,7 +377,10 @@ describe('shopping lists and the pantry', () => {
 
       const list = await listFor(0, 2);
       // Four pieces and 165 g are seven eggs.
-      expect(rowOf(list, 'Large egg')).toMatchObject({ alreadyHaveQuantity: 7, pantryBestBefore: '2026-01-10' });
+      expect(rowOf(list, 'Large egg')).toMatchObject({
+        alreadyHaveQuantity: 7,
+        pantryBestBefore: '2026-01-10',
+      });
 
       await edit(list, 'Large egg', { purchasedQuantity: 5 });
       await edit(list, 'Large egg', { checked: true });
@@ -279,8 +389,14 @@ describe('shopping lists and the pantry', () => {
 
       await edit(list, 'Large egg', { checked: false });
       expect(await pantry('large-egg')).toEqual(['165 g', '4 piece']);
-      const restored = await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id }, orderBy: { unit: 'asc' } });
-      expect(restored.map((row) => row.bestBefore?.toISOString().slice(0, 10))).toEqual(['2026-01-10', '2026-02-01']);
+      const restored = await t.prisma.inventoryItem.findMany({
+        where: { profileId: profile.id },
+        orderBy: { unit: 'asc' },
+      });
+      expect(restored.map((row) => row.bestBefore?.toISOString().slice(0, 10))).toEqual([
+        '2026-01-10',
+        '2026-02-01',
+      ]);
     });
   });
 
@@ -293,7 +409,12 @@ describe('shopping lists and the pantry', () => {
 
       const list = await listFor(0);
 
-      expect(rowOf(list, 'Large egg')).toMatchObject({ alreadyHaveQuantity: 3, toBuyQuantity: 0, purchasedQuantity: 3, checked: true });
+      expect(rowOf(list, 'Large egg')).toMatchObject({
+        alreadyHaveQuantity: 3,
+        toBuyQuantity: 0,
+        purchasedQuantity: 3,
+        checked: true,
+      });
       expect(await pantry('large-egg')).toEqual(['5 piece']);
       expect(await pantry('white-rice')).toEqual(['840 g']);
     });
@@ -305,7 +426,10 @@ describe('shopping lists and the pantry', () => {
       const list = await listFor(0);
 
       expect(rowOf(list, 'Large egg')).toMatchObject({ alreadyHaveQuantity: 2, toBuyQuantity: 1 });
-      expect(rowOf(list, 'Broccoli')).toMatchObject({ alreadyHaveQuantity: 235, toBuyQuantity: 15 });
+      expect(rowOf(list, 'Broccoli')).toMatchObject({
+        alreadyHaveQuantity: 235,
+        toBuyQuantity: 15,
+      });
     });
   });
 
@@ -315,9 +439,15 @@ describe('shopping lists and the pantry', () => {
     it('records what was taken, not what was meant: stock the user used up meanwhile does not come back', async () => {
       await stock('white-rice', 100, 'g');
       const list = await listFor(0);
-      expect(rowOf(list, 'White rice')).toMatchObject({ totalQuantity: 160, alreadyHaveQuantity: 100 });
+      expect(rowOf(list, 'White rice')).toMatchObject({
+        totalQuantity: 160,
+        alreadyHaveQuantity: 100,
+      });
       // The user cooks half of it and corrects the pantry by hand.
-      await t.prisma.inventoryItem.updateMany({ where: { profileId: profile.id }, data: { quantity: 50 } });
+      await t.prisma.inventoryItem.updateMany({
+        where: { profileId: profile.id },
+        data: { quantity: 50 },
+      });
 
       await edit(list, 'White rice', { checked: true });
       expect(await pantry('white-rice')).toEqual([]);
@@ -354,20 +484,33 @@ describe('shopping lists and the pantry', () => {
       const list = await listFor(0);
       const rice = rowOf(list, 'White rice');
 
-      const results = await race(4, () => lists.updateItem(user.id, 'en', list.id, rice.id, { purchasedQuantity: 260 }));
+      const results = await race(4, () =>
+        lists.updateItem(user.id, 'en', list.id, rice.id, { purchasedQuantity: 260 }),
+      );
 
-      expect(results.map((result) => result.status)).toEqual(['fulfilled', 'fulfilled', 'fulfilled', 'fulfilled']);
+      expect(results.map((result) => result.status)).toEqual([
+        'fulfilled',
+        'fulfilled',
+        'fulfilled',
+        'fulfilled',
+      ]);
       expect(await pantry('white-rice')).toEqual(['100 g']);
     });
 
     it('takes stock once when a row is ticked twice at the same moment', async () => {
       await stock('white-rice', 500, 'g');
       await menu(0, [PORRIDGE, TOFU_BOWL, TOFU_BOWL]);
-      await t.prisma.inventoryItem.updateMany({ where: { profileId: profile.id }, data: { quantity: 100 } });
+      await t.prisma.inventoryItem.updateMany({
+        where: { profileId: profile.id },
+        data: { quantity: 100 },
+      });
       const list = await listFor(0);
       const rice = rowOf(list, 'White rice');
       expect(rice).toMatchObject({ alreadyHaveQuantity: 100, checked: false });
-      await t.prisma.inventoryItem.updateMany({ where: { profileId: profile.id }, data: { quantity: 500 } });
+      await t.prisma.inventoryItem.updateMany({
+        where: { profileId: profile.id },
+        data: { quantity: 500 },
+      });
 
       await race(3, () => lists.updateItem(user.id, 'en', list.id, rice.id, { checked: true }));
 
@@ -379,7 +522,11 @@ describe('shopping lists and the pantry', () => {
       const list = await listFor(0);
       const path = `/api/shopping-lists/${list.id}/items/${rowOf(list, 'Large egg').id}`;
 
-      const tooManyEggs = await t.http().patch(path).set(as(user)).send({ purchasedQuantity: MAX_QUANTITY.piece + 1 });
+      const tooManyEggs = await t
+        .http()
+        .patch(path)
+        .set(as(user))
+        .send({ purchasedQuantity: MAX_QUANTITY.piece + 1 });
       const absurd = await t.http().patch(path).set(as(user)).send({ purchasedQuantity: 1e12 });
 
       expect(tooManyEggs.status).toBe(400);
@@ -398,7 +545,12 @@ describe('shopping lists and the pantry', () => {
 
       const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 100 });
 
-      expect(rice).toMatchObject({ alreadyHaveQuantity: 100, toBuyQuantity: 60, purchasedQuantity: 100, checked: false });
+      expect(rice).toMatchObject({
+        alreadyHaveQuantity: 100,
+        toBuyQuantity: 60,
+        purchasedQuantity: 100,
+        checked: false,
+      });
       expect(await pantry('white-rice')).toEqual([]);
     });
 
@@ -408,7 +560,12 @@ describe('shopping lists and the pantry', () => {
 
       const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 5000 });
 
-      expect(rice).toMatchObject({ alreadyHaveQuantity: 160, toBuyQuantity: 0, purchasedQuantity: 160, checked: true });
+      expect(rice).toMatchObject({
+        alreadyHaveQuantity: 160,
+        toBuyQuantity: 0,
+        purchasedQuantity: 160,
+        checked: true,
+      });
       expect(await pantry('white-rice')).toEqual([]);
       // Unticked, the row gives back what it took: the 50 g the pantry had, not the 160 g it was told of.
       await edit(list, 'White rice', { checked: false });
@@ -418,12 +575,21 @@ describe('shopping lists and the pantry', () => {
     it('gives the pantry back what the list took when the user says there is none at home, and drops the date that went with it', async () => {
       await stock('white-rice', 1000, 'g', '2026-02-01');
       const list = await listFor(0);
-      expect(rowOf(list, 'White rice')).toMatchObject({ checked: true, pantryBestBefore: '2026-02-01' });
+      expect(rowOf(list, 'White rice')).toMatchObject({
+        checked: true,
+        pantryBestBefore: '2026-02-01',
+      });
       expect(await pantry('white-rice')).toEqual(['840 g']);
 
       const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 0 });
 
-      expect(rice).toMatchObject({ alreadyHaveQuantity: 0, toBuyQuantity: 160, purchasedQuantity: null, checked: false, pantryBestBefore: null });
+      expect(rice).toMatchObject({
+        alreadyHaveQuantity: 0,
+        toBuyQuantity: 160,
+        purchasedQuantity: null,
+        checked: false,
+        pantryBestBefore: null,
+      });
       expect(await pantry('white-rice')).toEqual(['1000 g']);
     });
 
@@ -435,7 +601,12 @@ describe('shopping lists and the pantry', () => {
       const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 40 });
 
       // 30 g were bought; with 40 g at home that is 70 g of the 160.
-      expect(rice).toMatchObject({ alreadyHaveQuantity: 40, purchasedQuantity: 70, toBuyQuantity: 120, checked: false });
+      expect(rice).toMatchObject({
+        alreadyHaveQuantity: 40,
+        purchasedQuantity: 70,
+        toBuyQuantity: 120,
+        checked: false,
+      });
     });
 
     it('is read before a quantity or a tick of the same request', async () => {
@@ -444,7 +615,11 @@ describe('shopping lists and the pantry', () => {
       const rice = await edit(list, 'White rice', { alreadyHaveQuantity: 100, checked: true });
 
       // A tick on a row that holds only what is at home means all of it.
-      expect(rice).toMatchObject({ alreadyHaveQuantity: 100, purchasedQuantity: 160, checked: true });
+      expect(rice).toMatchObject({
+        alreadyHaveQuantity: 100,
+        purchasedQuantity: 160,
+        checked: true,
+      });
     });
 
     it('over HTTP is a number that is not under nothing, on a list of the account', async () => {
@@ -452,11 +627,24 @@ describe('shopping lists and the pantry', () => {
       const other = await aUser(t);
       const path = `/api/shopping-lists/${list.id}/items/${rowOf(list, 'White rice').id}`;
 
-      const taken = await t.http().patch(path).set(as(user)).send({ alreadyHaveQuantity: 60 }).expect(200);
-      const negative = await t.http().patch(path).set(as(user)).send({ alreadyHaveQuantity: -1 }).expect(400);
+      const taken = await t
+        .http()
+        .patch(path)
+        .set(as(user))
+        .send({ alreadyHaveQuantity: 60 })
+        .expect(200);
+      const negative = await t
+        .http()
+        .patch(path)
+        .set(as(user))
+        .send({ alreadyHaveQuantity: -1 })
+        .expect(400);
       await t.http().patch(path).set(as(other)).send({ alreadyHaveQuantity: 60 }).expect(404);
 
-      expect(rowOf(taken.body, 'White rice')).toMatchObject({ alreadyHaveQuantity: 60, toBuyQuantity: 100 });
+      expect(rowOf(taken.body, 'White rice')).toMatchObject({
+        alreadyHaveQuantity: 60,
+        toBuyQuantity: 100,
+      });
       expect(negative.body.issues[0].path).toBe('alreadyHaveQuantity');
     });
   });
@@ -473,9 +661,17 @@ describe('shopping lists and the pantry', () => {
       const first = await listFor(0);
       const second = await listFor(1);
 
-      expect(rowOf(first, 'Rolled oats')).toMatchObject({ totalQuantity: 120, alreadyHaveQuantity: 100, toBuyQuantity: 20 });
+      expect(rowOf(first, 'Rolled oats')).toMatchObject({
+        totalQuantity: 120,
+        alreadyHaveQuantity: 100,
+        toBuyQuantity: 20,
+      });
       // The 100 g are spoken for.
-      expect(rowOf(second, 'Rolled oats')).toMatchObject({ totalQuantity: 60, alreadyHaveQuantity: 0, toBuyQuantity: 60 });
+      expect(rowOf(second, 'Rolled oats')).toMatchObject({
+        totalQuantity: 60,
+        alreadyHaveQuantity: 0,
+        toBuyQuantity: 60,
+      });
     });
 
     it('see stock again once the list that counted on it has taken it', async () => {
@@ -486,7 +682,10 @@ describe('shopping lists and the pantry', () => {
 
       const second = await listFor(1);
 
-      expect(rowOf(second, 'Rolled oats')).toMatchObject({ alreadyHaveQuantity: 60, checked: true });
+      expect(rowOf(second, 'Rolled oats')).toMatchObject({
+        alreadyHaveQuantity: 60,
+        checked: true,
+      });
       expect(await pantry('rolled-oats')).toEqual(['120 g']);
     });
 
@@ -495,9 +694,16 @@ describe('shopping lists and the pantry', () => {
       const otherPlan = await aPlan(t, user, profile, { startDate: '2026-02-02' });
       const breakfast = otherPlan.days[0]!.meals.find((meal) => meal.mealType === 'breakfast')!;
       const porridge = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: PORRIDGE } });
-      await t.prisma.plannedMeal.update({ where: { id: breakfast.id }, data: { recipeId: porridge.id, servings: 1, quantityScale: 1 } });
+      await t.prisma.plannedMeal.update({
+        where: { id: breakfast.id },
+        data: { recipeId: porridge.id, servings: 1, quantityScale: 1 },
+      });
 
-      const other = await lists.generate(user.id, 'en', { planId: otherPlan.id, fromDate: otherPlan.days[0]!.date, toDate: otherPlan.days[0]!.date });
+      const other = await lists.generate(user.id, 'en', {
+        planId: otherPlan.id,
+        fromDate: otherPlan.days[0]!.date,
+        toDate: otherPlan.days[0]!.date,
+      });
 
       expect(rowOf(other, 'Rolled oats').alreadyHaveQuantity).toBe(0);
     });
@@ -505,7 +711,13 @@ describe('shopping lists and the pantry', () => {
     it('are made one after the other when asked for at the same moment', async () => {
       const results = await race(2, (index) => listFor(index));
 
-      const claims = results.map((result) => (result.status === 'fulfilled' ? rowOf(result.value, 'Rolled oats').alreadyHaveQuantity : -1)).sort();
+      const claims = results
+        .map((result) =>
+          result.status === 'fulfilled'
+            ? rowOf(result.value, 'Rolled oats').alreadyHaveQuantity
+            : -1,
+        )
+        .sort();
       // One of them got the stock; they did not both get it.
       expect(claims.reduce((sum, claim) => sum + claim, 0)).toBeLessThanOrEqual(100);
       expect(claims).not.toContain(-1);
@@ -589,12 +801,20 @@ describe('shopping lists and the pantry', () => {
       const future = await aPlan(t, user, profile, { startDate: '2031-01-06' });
       const made = await lists.generate(user.id, 'en', { planId: future.id });
       const rice = rowOf(made, 'White rice');
-      await lists.updateItem(user.id, 'en', made.id, rice.id, { purchasedQuantity: rice.totalQuantity + 50 });
-      const before = pantryStock(await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }), await ingredient('white-rice')).quantity;
+      await lists.updateItem(user.id, 'en', made.id, rice.id, {
+        purchasedQuantity: rice.totalQuantity + 50,
+      });
+      const before = pantryStock(
+        await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }),
+        await ingredient('white-rice'),
+      ).quantity;
 
       await plans.remove(user.id, future.id);
 
-      const after = pantryStock(await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }), await ingredient('white-rice')).quantity;
+      const after = pantryStock(
+        await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }),
+        await ingredient('white-rice'),
+      ).quantity;
       // Everything obtained: what the pantry held to begin with plus all that was bought.
       expect(after).toBe(100 + (rice.totalQuantity + 50 - rice.alreadyHaveQuantity));
       expect(after).toBeGreaterThan(before);
@@ -617,7 +837,11 @@ describe('shopping lists and the pantry', () => {
       expect(await t.prisma.shoppingList.count({ where: { planId: plan.id } })).toBe(1);
       expect(second.id).not.toBe(first.id);
       // The 160 g bought for the first list are what the second finds at home.
-      expect(rowOf(second, 'White rice')).toMatchObject({ alreadyHaveQuantity: 160, toBuyQuantity: 0, checked: true });
+      expect(rowOf(second, 'White rice')).toMatchObject({
+        alreadyHaveQuantity: 160,
+        toBuyQuantity: 0,
+        checked: true,
+      });
       expect(await pantry('white-rice')).toEqual([]);
     });
 
@@ -632,12 +856,17 @@ describe('shopping lists and the pantry', () => {
       const left = await lists.listForPlan(user.id, 'en', plan.id);
       expect(left.map((list) => list.id).sort()).toEqual([both.id, dayThree.id].sort());
       // Two days need 320 g; the 160 g bought for day one are counted.
-      expect(rowOf(both, 'White rice')).toMatchObject({ totalQuantity: 320, alreadyHaveQuantity: 160, toBuyQuantity: 160 });
+      expect(rowOf(both, 'White rice')).toMatchObject({
+        totalQuantity: 320,
+        alreadyHaveQuantity: 160,
+        toBuyQuantity: 160,
+      });
     });
 
     it('asks only for what changed after the menu did', async () => {
       const first = await listFor(0);
-      for (const row of rows(first)) await lists.updateItem(user.id, 'en', first.id, row.id, { checked: true });
+      for (const row of rows(first))
+        await lists.updateItem(user.id, 'en', first.id, row.id, { checked: true });
       // Chicken out, a second tofu bowl in.
       await menu(0, [PORRIDGE, TOFU_BOWL, TOFU_BOWL]);
       expect((await lists.get(user.id, 'en', first.id)).stale).toBe(true);
@@ -646,7 +875,12 @@ describe('shopping lists and the pantry', () => {
 
       expect(second.stale).toBe(false);
       expect(rowOf(second, 'White rice')).toMatchObject({ totalQuantity: 160, checked: true });
-      expect(rowOf(second, 'Firm tofu')).toMatchObject({ totalQuantity: 360, alreadyHaveQuantity: 180, toBuyQuantity: 180, checked: false });
+      expect(rowOf(second, 'Firm tofu')).toMatchObject({
+        totalQuantity: 360,
+        alreadyHaveQuantity: 180,
+        toBuyQuantity: 180,
+        checked: false,
+      });
       // What is no longer needed stays in the pantry: it was bought.
       expect(await pantry('chicken-breast')).toEqual(['150 g']);
     });
@@ -665,7 +899,11 @@ describe('shopping lists and the pantry', () => {
       ['end after the plan does', () => ({ fromDate: date(1), toDate: '2026-03-01' })],
       ['lie outside the plan altogether', () => ({ fromDate: '2027-01-01', toDate: '2027-01-07' })],
     ])('are refused when they %s, and no list is stored', async (_name, range) => {
-      const res = await t.http().post('/api/shopping-lists/generate').set(as(user)).send({ planId: plan.id, ...range() });
+      const res = await t
+        .http()
+        .post('/api/shopping-lists/generate')
+        .set(as(user))
+        .send({ planId: plan.id, ...range() });
 
       expect(res.status).toBe(400);
       expect(await t.prisma.shoppingList.count()).toBe(0);
@@ -690,13 +928,19 @@ describe('shopping lists and the pantry', () => {
       .http()
       .post('/api/shopping-lists/generate')
       .set(as(user))
-      .send({ planId: plan.id, fromDate: date(MAX_LISTS_PER_PLAN), toDate: date(MAX_LISTS_PER_PLAN) });
+      .send({
+        planId: plan.id,
+        fromDate: date(MAX_LISTS_PER_PLAN),
+        toDate: date(MAX_LISTS_PER_PLAN),
+      });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('SHOPPING_LIST_LIMIT');
     // Replacing one of them is not one more.
     expect((await listFor(0)).fromDate).toBe(date(0));
-    expect(await t.prisma.shoppingList.count({ where: { planId: plan.id } })).toBe(MAX_LISTS_PER_PLAN);
+    expect(await t.prisma.shoppingList.count({ where: { planId: plan.id } })).toBe(
+      MAX_LISTS_PER_PLAN,
+    );
   });
 
   it("another user's plan and lists are out of reach", async () => {
@@ -704,10 +948,20 @@ describe('shopping lists and the pantry', () => {
     const other = await aUser(t);
     const item = rows(list)[0]!;
 
-    await t.http().post('/api/shopping-lists/generate').set(as(other)).send({ planId: plan.id }).expect(404);
+    await t
+      .http()
+      .post('/api/shopping-lists/generate')
+      .set(as(other))
+      .send({ planId: plan.id })
+      .expect(404);
     await t.http().get(`/api/shopping-lists?planId=${plan.id}`).set(as(other)).expect(404);
     await t.http().get(`/api/shopping-lists/${list.id}`).set(as(other)).expect(404);
-    await t.http().patch(`/api/shopping-lists/${list.id}/items/${item.id}`).set(as(other)).send({ checked: true }).expect(404);
+    await t
+      .http()
+      .patch(`/api/shopping-lists/${list.id}/items/${item.id}`)
+      .set(as(other))
+      .send({ checked: true })
+      .expect(404);
     await t.http().delete(`/api/shopping-lists/${list.id}`).set(as(other)).expect(404);
 
     expect(await t.prisma.shoppingList.count()).toBe(1);
@@ -727,22 +981,41 @@ describe('shopping lists and the pantry', () => {
 
   describe('any sequence of ticks, unticks and edits on two lists', () => {
     /** Two days of three eggs each, a list for each day, and eggs in pieces, in grams or in both. */
-    async function setUp(random: () => number): Promise<{ first: ShoppingList; second: ShoppingList; initial: string[]; total: number }> {
+    async function setUp(
+      random: () => number,
+    ): Promise<{ first: ShoppingList; second: ShoppingList; initial: string[]; total: number }> {
       await t.prisma.shoppingList.deleteMany({});
       await t.prisma.inventoryItem.deleteMany({ where: { profileId: profile.id } });
       const kind = Math.floor(random() * 3);
-      if (kind !== 1) await stock('large-egg', 1 + Math.floor(random() * 8), 'piece', random() < 0.5 ? '2026-02-01' : null);
-      if (kind !== 0) await stock('large-egg', 55 * (1 + Math.floor(random() * 6)), 'g', random() < 0.5 ? '2026-01-20' : null);
+      if (kind !== 1)
+        await stock(
+          'large-egg',
+          1 + Math.floor(random() * 8),
+          'piece',
+          random() < 0.5 ? '2026-02-01' : null,
+        );
+      if (kind !== 0)
+        await stock(
+          'large-egg',
+          55 * (1 + Math.floor(random() * 6)),
+          'g',
+          random() < 0.5 ? '2026-01-20' : null,
+        );
       const initial = await pantry('large-egg');
       const egg = await ingredient('large-egg');
-      const total = pantryStock(await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }), egg).quantity;
+      const total = pantryStock(
+        await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id } }),
+        egg,
+      ).quantity;
       return { first: await listFor(0), second: await listFor(1), initial, total };
     }
 
     /** The eggs in the pantry and what the egg rows of the lists say they did to it, in grams. */
     async function books(): Promise<{ inPantry: number; ledgers: number; negative: boolean }> {
       const egg = await ingredient('large-egg');
-      const held = await t.prisma.inventoryItem.findMany({ where: { profileId: profile.id, ingredientId: egg.id } });
+      const held = await t.prisma.inventoryItem.findMany({
+        where: { profileId: profile.id, ingredientId: egg.id },
+      });
       const items = await t.prisma.shoppingListItem.findMany({ where: { ingredientId: egg.id } });
       return {
         inPantry: pantryStock(held, egg).quantity,
@@ -768,12 +1041,21 @@ describe('shopping lists and the pantry', () => {
           const list = random() < 0.5 ? first : second;
           const action = random();
           const patch =
-            action < 0.3 ? { checked: true } : action < 0.55 ? { checked: false } : action < 0.9 ? { purchasedQuantity: Math.floor(random() * 12) } : { purchasedQuantity: null };
+            action < 0.3
+              ? { checked: true }
+              : action < 0.55
+                ? { checked: false }
+                : action < 0.9
+                  ? { purchasedQuantity: Math.floor(random() * 12) }
+                  : { purchasedQuantity: null };
           await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, patch);
 
           const now = await books();
           expect(now.negative, `seed ${seed}, step ${step}`).toBe(false);
-          expect(now.inPantry, `seed ${seed}, step ${step}: ${JSON.stringify(patch)}`).toBeCloseTo(total + now.ledgers, 3);
+          expect(now.inPantry, `seed ${seed}, step ${step}: ${JSON.stringify(patch)}`).toBeCloseTo(
+            total + now.ledgers,
+            3,
+          );
         }
       }
     });
@@ -798,14 +1080,24 @@ describe('shopping lists and the pantry', () => {
                     : action < 0.9
                       ? { alreadyHaveQuantity: Math.floor(random() * 5) }
                       : { alreadyHaveQuantity: Math.floor(random() * 5), checked: random() < 0.5 };
-          const row = rowOf(await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, patch), 'Large egg');
+          const row = rowOf(
+            await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, patch),
+            'Large egg',
+          );
 
           const now = await books();
           expect(now.negative, `seed ${seed}, step ${step}`).toBe(false);
-          expect(now.inPantry, `seed ${seed}, step ${step}: ${JSON.stringify(patch)}`).toBeCloseTo(total + now.ledgers, 3);
+          expect(now.inPantry, `seed ${seed}, step ${step}: ${JSON.stringify(patch)}`).toBeCloseTo(
+            total + now.ledgers,
+            3,
+          );
           // What is at home is never more than the row needs, and what is left to buy follows it.
-          expect(row.alreadyHaveQuantity, `seed ${seed}, step ${step}`).toBeLessThanOrEqual(row.totalQuantity);
-          expect(row.toBuyQuantity, `seed ${seed}, step ${step}`).toBe(row.totalQuantity - row.alreadyHaveQuantity);
+          expect(row.alreadyHaveQuantity, `seed ${seed}, step ${step}`).toBeLessThanOrEqual(
+            row.totalQuantity,
+          );
+          expect(row.toBuyQuantity, `seed ${seed}, step ${step}`).toBe(
+            row.totalQuantity - row.alreadyHaveQuantity,
+          );
         }
       }
     });
@@ -818,10 +1110,14 @@ describe('shopping lists and the pantry', () => {
         for (let step = 0; step < 8; step += 1) {
           const list = random() < 0.5 ? first : second;
           // Ticks and unticks only: nothing is bought beyond the need.
-          await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, { checked: random() < 0.6 });
+          await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, {
+            checked: random() < 0.6,
+          });
         }
         for (const list of [first, second]) {
-          await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, { checked: false });
+          await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, {
+            checked: false,
+          });
         }
 
         expect(await pantry('large-egg'), `seed ${seed}`).toEqual(initial);
@@ -835,12 +1131,20 @@ describe('shopping lists and the pantry', () => {
         const { first, second, initial } = await setUp(random);
         for (let step = 0; step < 6; step += 1) {
           const list = random() < 0.5 ? first : second;
-          await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, { checked: random() < 0.6 });
+          await lists.updateItem(user.id, 'en', list.id, rowOf(list, 'Large egg').id, {
+            checked: random() < 0.6,
+          });
         }
         // What a ticked row holds beyond its claim was bought: that part is new.
         const egg = await ingredient('large-egg');
-        const bought = (await t.prisma.shoppingListItem.findMany({ where: { ingredientId: egg.id } })).reduce(
-          (sum, item) => sum + (item.checked ? Math.max(0, (item.purchasedQuantity ?? 0) - item.alreadyHaveQuantity) : 0),
+        const bought = (
+          await t.prisma.shoppingListItem.findMany({ where: { ingredientId: egg.id } })
+        ).reduce(
+          (sum, item) =>
+            sum +
+            (item.checked
+              ? Math.max(0, (item.purchasedQuantity ?? 0) - item.alreadyHaveQuantity)
+              : 0),
           0,
         );
 
@@ -849,7 +1153,11 @@ describe('shopping lists and the pantry', () => {
 
         const end = await books();
         const began = pantryStock(
-          initial.map((text) => ({ quantity: Number(text.split(' ')[0]), unit: text.split(' ')[1] as 'g' | 'piece', bestBefore: null })),
+          initial.map((text) => ({
+            quantity: Number(text.split(' ')[0]),
+            unit: text.split(' ')[1] as 'g' | 'piece',
+            bestBefore: null,
+          })),
           egg,
         ).quantity;
         expect(end.inPantry, `seed ${seed}`).toBeCloseTo(began + bought * 55, 3);

@@ -25,7 +25,10 @@ export class Passwords {
   private readonly nobodys: string;
 
   constructor(config: ConfigService<Env, true>) {
-    this.pepperKey = deriveKey(config.get('DATA_ENCRYPTION_SECRET', { infer: true }), 'password-pepper');
+    this.pepperKey = deriveKey(
+      config.get('DATA_ENCRYPTION_SECRET', { infer: true }),
+      'password-pepper',
+    );
     this.rounds = config.get('PASSWORD_HASH_ROUNDS', { infer: true });
     this.nobodys = hashPasswordAtStartup('uniform-timing-placeholder', this.rounds);
   }
@@ -36,7 +39,9 @@ export class Passwords {
 
   /** Whether `password` is the one `hash` was made from. Without a hash the check is made all the same, and fails. */
   matches(password: string, hash: string | null | undefined): Promise<boolean> {
-    return verifyPassword(pepperPassword(password, this.pepperKey), hash ?? this.nobodys).then((ok) => ok && hash != null);
+    return verifyPassword(pepperPassword(password, this.pepperKey), hash ?? this.nobodys).then(
+      (ok) => ok && hash != null,
+    );
   }
 }
 

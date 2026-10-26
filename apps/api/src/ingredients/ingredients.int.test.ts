@@ -22,10 +22,14 @@ describe('the ingredient catalogue, as a client asks it', () => {
     await t.close();
   });
 
-  const ask = (query: Record<string, string | string[]>, locale = 'en') => t.http().get('/api/ingredients').query(query).set(as(user)).set('Accept-Language', locale);
-  const names = async (query: Record<string, string>, locale = 'en'): Promise<string[]> => ((await ask(query, locale).expect(200)).body as Ingredient[]).map((ingredient) => ingredient.name);
+  const ask = (query: Record<string, string | string[]>, locale = 'en') =>
+    t.http().get('/api/ingredients').query(query).set(as(user)).set('Accept-Language', locale);
+  const names = async (query: Record<string, string>, locale = 'en'): Promise<string[]> =>
+    ((await ask(query, locale).expect(200)).body as Ingredient[]).map(
+      (ingredient) => ingredient.name,
+    );
 
-  it('is listed by the name it shows, in the order of that language\'s alphabet', async () => {
+  it("is listed by the name it shows, in the order of that language's alphabet", async () => {
     const polish = await names({}, 'pl');
     const english = await names({}, 'en');
 
@@ -36,7 +40,9 @@ describe('the ingredient catalogue, as a client asks it', () => {
     expect(polish.indexOf('Łosoś')).toBeGreaterThan(polish.indexOf('Jogurt grecki'));
     expect(polish.indexOf('Łosoś')).toBeLessThan(polish.indexOf('Mleko pełne'));
     // And not in the order of the English names it does not show.
-    expect(polish).not.toEqual(await Promise.all(english.map(async (name) => (await names({ search: name }, 'pl'))[0])));
+    expect(polish).not.toEqual(
+      await Promise.all(english.map(async (name) => (await names({ search: name }, 'pl'))[0])),
+    );
   });
 
   it('is searched by the name in the language of the request, and by the English one as well', async () => {
@@ -63,7 +69,11 @@ describe('the ingredient catalogue, as a client asks it', () => {
   });
 
   it('answers the ingredients of a list of ids, by the name they show', async () => {
-    const [rice, oats, salmon] = await Promise.all(['white-rice', 'rolled-oats', 'salmon'].map((slug) => t.prisma.ingredient.findFirstOrThrow({ where: { slug } })));
+    const [rice, oats, salmon] = await Promise.all(
+      ['white-rice', 'rolled-oats', 'salmon'].map((slug) =>
+        t.prisma.ingredient.findFirstOrThrow({ where: { slug } }),
+      ),
+    );
     const ids = [rice!.id, oats!.id, salmon!.id].join(',');
 
     expect(await names({ ids }, 'pl')).toEqual(['Łosoś', 'Płatki owsiane', 'Ryż biały']);
@@ -73,7 +83,16 @@ describe('the ingredient catalogue, as a client asks it', () => {
 
   it.each([
     ['an id that is none', { ids: 'white-rice' }, 'ids.0'],
-    ['more ids than can be asked for at once', { ids: Array.from({ length: 201 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`).join(',') }, 'ids'],
+    [
+      'more ids than can be asked for at once',
+      {
+        ids: Array.from(
+          { length: 201 },
+          (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+        ).join(','),
+      },
+      'ids',
+    ],
     ['a search of more than two hundred characters', { search: 'a'.repeat(201) }, 'search'],
   ])('refuses %s', async (_name, query, part) => {
     const refused = await ask(query).expect(400);
@@ -83,7 +102,9 @@ describe('the ingredient catalogue, as a client asks it', () => {
   });
 
   it('refuses a part of the question that is given twice, instead of failing on it', async () => {
-    expect((await ask({ search: ['oat', 'rice'] }).expect(400)).body.error).toBe('VALIDATION_FAILED');
+    expect((await ask({ search: ['oat', 'rice'] }).expect(400)).body.error).toBe(
+      'VALIDATION_FAILED',
+    );
     expect((await ask({ ids: ['a', 'b'] }).expect(400)).body.error).toBe('VALIDATION_FAILED');
   });
 });

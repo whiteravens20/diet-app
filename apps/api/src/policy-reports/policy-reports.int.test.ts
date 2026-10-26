@@ -1,7 +1,16 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { Logger } from '@nestjs/common';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi, type MockInstance } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from 'vitest';
 import { createTestApp, type TestApp } from '../testing/test-app.js';
 import { PolicyReportsService } from './policy-reports.service.js';
 
@@ -37,7 +46,8 @@ describe('the route browsers send their reports against the content security pol
   const watched = (): void => {
     warned = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   };
-  const post = (type: string, body: string) => t.http().post('/api/csp-reports').set('content-type', type).send(body);
+  const post = (type: string, body: string) =>
+    t.http().post('/api/csp-reports').set('content-type', type).send(body);
 
   it('takes a report as a browser posts it, from anybody, and answers with nothing', async () => {
     watched();
@@ -46,20 +56,41 @@ describe('the route browsers send their reports against the content security pol
 
     expect(res.status).toBe(204);
     expect(res.text).toBe('');
-    expect(warned.mock.calls.map(([line]) => line)).toEqual(['script-src-elem blocked inline on /meal-plans']);
+    expect(warned.mock.calls.map(([line]) => line)).toEqual([
+      'script-src-elem blocked inline on /meal-plans',
+    ]);
   });
 
   it('takes the reports a browser had waiting', async () => {
     watched();
     const queued = [
-      { type: 'csp-violation', age: 3, url: `${APP}/login`, user_agent: 'A browser', body: { documentURL: `${APP}/login`, effectiveDirective: 'frame-src', blockedURL: 'https://challenges.cloudflare.com/turnstile/x', disposition: 'report' } },
-      { type: 'deprecation', age: 9, url: `${APP}/login`, user_agent: 'A browser', body: { id: 'Something', message: 'old' } },
+      {
+        type: 'csp-violation',
+        age: 3,
+        url: `${APP}/login`,
+        user_agent: 'A browser',
+        body: {
+          documentURL: `${APP}/login`,
+          effectiveDirective: 'frame-src',
+          blockedURL: 'https://challenges.cloudflare.com/turnstile/x',
+          disposition: 'report',
+        },
+      },
+      {
+        type: 'deprecation',
+        age: 9,
+        url: `${APP}/login`,
+        user_agent: 'A browser',
+        body: { id: 'Something', message: 'old' },
+      },
     ];
 
     const res = await post('application/reports+json', JSON.stringify(queued));
 
     expect(res.status).toBe(204);
-    expect(warned.mock.calls.map(([line]) => line)).toEqual(['frame-src would block https://challenges.cloudflare.com on /login']);
+    expect(warned.mock.calls.map(([line]) => line)).toEqual([
+      'frame-src would block https://challenges.cloudflare.com on /login',
+    ]);
   });
 
   it('takes one sent as plain JSON too', async () => {
@@ -76,7 +107,14 @@ describe('the route browsers send their reports against the content security pol
     expect(other.status).toBe(400);
     expect(other.body.error).toBe('VALIDATION_FAILED');
     expect((await post('text/plain', 'hello')).status).toBe(400);
-    expect((await post('application/csp-report', JSON.stringify({ 'csp-report': { 'document-uri': `${APP}/${'a'.repeat(5000)}` } }))).status).toBe(400);
+    expect(
+      (
+        await post(
+          'application/csp-report',
+          JSON.stringify({ 'csp-report': { 'document-uri': `${APP}/${'a'.repeat(5000)}` } }),
+        )
+      ).status,
+    ).toBe(400);
     // A queue with nothing in it is a queue.
     expect((await post('application/reports+json', '[]')).status).toBe(204);
     expect(warned).not.toHaveBeenCalled();
@@ -87,7 +125,10 @@ describe('the route browsers send their reports against the content security pol
 
     const broken = await post('application/csp-report', '{"csp-report": ');
     expect(broken.status).toBe(400);
-    const large = await post('application/csp-report', JSON.stringify({ 'csp-report': { 'original-policy': 'x'.repeat(70_000) } }));
+    const large = await post(
+      'application/csp-report',
+      JSON.stringify({ 'csp-report': { 'original-policy': 'x'.repeat(70_000) } }),
+    );
     expect(large.status).toBe(413);
     expect(warned).not.toHaveBeenCalled();
   });
@@ -100,7 +141,8 @@ describe('the route browsers send their reports against the content security pol
     watched();
     const statuses: number[] = [];
     // The tests above have used a few of the sixty.
-    for (let sent = 0; sent < 70; sent += 1) statuses.push((await post('application/csp-report', JSON.stringify(A_REPORT))).status);
+    for (let sent = 0; sent < 70; sent += 1)
+      statuses.push((await post('application/csp-report', JSON.stringify(A_REPORT))).status);
 
     expect(statuses.filter((status) => status === 204).length).toBeGreaterThan(40);
     expect(statuses.filter((status) => status === 204).length).toBeLessThanOrEqual(60);

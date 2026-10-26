@@ -101,16 +101,21 @@ describe('the gate that slows down wrong sign-ins', () => {
 
     expect(logged).toHaveLength(5);
     expect(logged[0]).toBe('failed admin sign-in from 203.0.113.7 (1 in a row)');
-    expect(logged[4]).toBe('failed admin sign-in from 203.0.113.7 (5 in a row; next attempt in 30 s)');
+    expect(logged[4]).toBe(
+      'failed admin sign-in from 203.0.113.7 (5 in a row; next attempt in 30 s)',
+    );
   });
 
   it('counts what is not an address as one client, and keeps none of it', () => {
-    for (const client of ['x'.repeat(5000), 'made up', '203.0.113.7, 198.51.100.1', '', 'unknown']) gate.failed('admin', client);
+    for (const client of ['x'.repeat(5000), 'made up', '203.0.113.7, 198.51.100.1', '', 'unknown'])
+      gate.failed('admin', client);
 
     expect(wait('admin', 'made up again')).toBe(30);
     expect(wait('admin', '203.0.113.7')).toBe(0);
     expect(logged).toHaveLength(5);
-    expect(logged.every((line) => line.startsWith('failed admin sign-in from unknown ('))).toBe(true);
+    expect(logged.every((line) => line.startsWith('failed admin sign-in from unknown ('))).toBe(
+      true,
+    );
   });
 
   it('takes every address of one IPv6 network for the one client it is', () => {
@@ -118,7 +123,9 @@ describe('the gate that slows down wrong sign-ins', () => {
 
     expect(wait('admin', '2001:db8:1:2:aaaa:bbbb:cccc:dddd')).toBe(30);
     expect(wait('admin', '2001:db8:1:3::1')).toBe(0);
-    expect(logged[4]).toBe('failed admin sign-in from 2001:db8:1:2::/64 (5 in a row; next attempt in 30 s)');
+    expect(logged[4]).toBe(
+      'failed admin sign-in from 2001:db8:1:2::/64 (5 in a row; next attempt in 30 s)',
+    );
   });
 
   it('keeps no more clients in memory than its bound', () => {

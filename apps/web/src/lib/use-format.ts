@@ -62,18 +62,41 @@ export function useFormat(): Format {
   const format = useFormatter();
   return useMemo(
     () => ({
-      day: (day) => format.dateTime(utcDay(day), { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }),
+      day: (day) =>
+        format.dateTime(utcDay(day), {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          timeZone: 'UTC',
+        }),
       date: (day) => format.dateTime(utcDay(day), { dateStyle: 'medium', timeZone: 'UTC' }),
-      dayShort: (day) => format.dateTime(utcDay(day), { day: 'numeric', month: 'short', timeZone: 'UTC' }),
-      month: (day) => format.dateTime(utcDay(day), { month: 'long', year: 'numeric', timeZone: 'UTC' }),
-      weekday: (day, form = 'short') => format.dateTime(utcDay(day), { weekday: form, timeZone: 'UTC' }),
-      dates: (from, to) => format.dateTimeRange(utcDay(from), utcDay(to), { dateStyle: 'medium', timeZone: 'UTC' }),
-      moment: (iso) => format.dateTime(new Date(iso), { dateStyle: 'medium', timeStyle: 'short', timeZone: readersZone() }),
-      dayOf: (iso) => format.dateTime(new Date(iso), { dateStyle: 'medium', timeZone: readersZone() }),
+      dayShort: (day) =>
+        format.dateTime(utcDay(day), { day: 'numeric', month: 'short', timeZone: 'UTC' }),
+      month: (day) =>
+        format.dateTime(utcDay(day), { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+      weekday: (day, form = 'short') =>
+        format.dateTime(utcDay(day), { weekday: form, timeZone: 'UTC' }),
+      dates: (from, to) =>
+        format.dateTimeRange(utcDay(from), utcDay(to), { dateStyle: 'medium', timeZone: 'UTC' }),
+      moment: (iso) =>
+        format.dateTime(new Date(iso), {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+          timeZone: readersZone(),
+        }),
+      dayOf: (iso) =>
+        format.dateTime(new Date(iso), { dateStyle: 'medium', timeZone: readersZone() }),
       number: (value, digits = 0) => format.number(value, { maximumFractionDigits: digits }),
-      fixed: (value, digits) => format.number(value, { minimumFractionDigits: digits, maximumFractionDigits: digits }),
+      fixed: (value, digits) =>
+        format.number(value, { minimumFractionDigits: digits, maximumFractionDigits: digits }),
       signed: (value) => format.number(value, { signDisplay: 'always', maximumFractionDigits: 0 }),
-      unit: (value, unit, digits = 0) => format.number(value, { style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: digits }),
+      unit: (value, unit, digits = 0) =>
+        format.number(value, {
+          style: 'unit',
+          unit,
+          unitDisplay: 'short',
+          maximumFractionDigits: digits,
+        }),
       percent: (share) => format.number(share, { style: 'percent', maximumFractionDigits: 0 }),
       list: (items) => format.list([...items], { type: 'conjunction' }),
     }),

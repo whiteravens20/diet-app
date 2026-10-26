@@ -66,7 +66,13 @@ describe('MailService with SMTP off', () => {
 });
 
 describe('MailService with SMTP on', () => {
-  const ON = { SMTP_HOST: 'smtp.example.test', SMTP_PORT: 587, SMTP_FROM: 'Diet App <no-reply@example.test>', SMTP_REQUIRE_TLS: true, NODE_ENV: 'production' };
+  const ON = {
+    SMTP_HOST: 'smtp.example.test',
+    SMTP_PORT: 587,
+    SMTP_FROM: 'Diet App <no-reply@example.test>',
+    SMTP_REQUIRE_TLS: true,
+    NODE_ENV: 'production',
+  };
 
   /** The service with a transport that records what it is given, and sends when `release` is called (at once without it). */
   function sending(hold = false) {
@@ -98,7 +104,9 @@ describe('MailService with SMTP on', () => {
   it('keeps a mail server that fails to itself: nothing is thrown, and the log says what was not sent, without the address or the link', async () => {
     const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const svc = makeService(ON);
-    svc.transport = { sendMail: () => Promise.reject(new Error('connect ECONNREFUSED 203.0.113.5:587')) } as unknown as Transporter;
+    svc.transport = {
+      sendMail: () => Promise.reject(new Error('connect ECONNREFUSED 203.0.113.5:587')),
+    } as unknown as Transporter;
 
     expect(() => svc.sendPasswordReset(TO, LINK, 'en')).not.toThrow();
     await svc.idle();
@@ -115,11 +123,14 @@ describe('MailService with SMTP on', () => {
     const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     const { svc, sent } = sending();
 
-    for (let i = 0; i < MAILS_PER_ADDRESS_PER_DAY + 3; i += 1) svc.sendEmailVerification(i % 2 ? TO : ` ${TO.toUpperCase()}`, LINK, 'en');
+    for (let i = 0; i < MAILS_PER_ADDRESS_PER_DAY + 3; i += 1)
+      svc.sendEmailVerification(i % 2 ? TO : ` ${TO.toUpperCase()}`, LINK, 'en');
     svc.sendEmailVerification('somebody-else@example.test', LINK, 'en');
     await svc.idle();
 
-    expect(sent.filter((mail) => mail.to.trim().toLowerCase() === TO)).toHaveLength(MAILS_PER_ADDRESS_PER_DAY);
+    expect(sent.filter((mail) => mail.to.trim().toLowerCase() === TO)).toHaveLength(
+      MAILS_PER_ADDRESS_PER_DAY,
+    );
     expect(sent.filter((mail) => mail.to === 'somebody-else@example.test')).toHaveLength(1);
     expect(warn).toHaveBeenCalledTimes(3);
     expect(String(warn.mock.calls[0]![0])).not.toContain('example.test');
@@ -130,7 +141,8 @@ describe('MailService with SMTP on', () => {
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     try {
       const { svc, sent } = sending();
-      for (let i = 0; i < MAILS_PER_ADDRESS_PER_DAY + 1; i += 1) svc.sendEmailVerification(TO, LINK, 'en');
+      for (let i = 0; i < MAILS_PER_ADDRESS_PER_DAY + 1; i += 1)
+        svc.sendEmailVerification(TO, LINK, 'en');
       await svc.idle();
       expect(sent).toHaveLength(MAILS_PER_ADDRESS_PER_DAY);
 
@@ -161,13 +173,26 @@ describe('MailService with SMTP on', () => {
 
 describe('the connection to the mail server', () => {
   const settings = (over: Record<string, unknown> = {}) => {
-    const values: Record<string, unknown> = { SMTP_HOST: 'smtp.example.test', SMTP_PORT: 587, SMTP_USER: 'mailer', SMTP_PASSWORD: 'secret', SMTP_REQUIRE_TLS: true, ...over };
+    const values: Record<string, unknown> = {
+      SMTP_HOST: 'smtp.example.test',
+      SMTP_PORT: 587,
+      SMTP_USER: 'mailer',
+      SMTP_PASSWORD: 'secret',
+      SMTP_REQUIRE_TLS: true,
+      ...over,
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test double
     return transportOptions({ get: (k: string) => values[k] } as any);
   };
 
   it('is encrypted before anything is said on it: STARTTLS is required on a port that begins in the clear', () => {
-    expect(settings()).toMatchObject({ host: 'smtp.example.test', port: 587, secure: false, requireTLS: true, auth: { user: 'mailer', pass: 'secret' } });
+    expect(settings()).toMatchObject({
+      host: 'smtp.example.test',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: { user: 'mailer', pass: 'secret' },
+    });
   });
 
   it('is encrypted from the first byte on port 465', () => {
@@ -175,7 +200,10 @@ describe('the connection to the mail server', () => {
   });
 
   it('may be left in the clear only where the operator says so', () => {
-    expect(settings({ SMTP_REQUIRE_TLS: false })).toMatchObject({ secure: false, requireTLS: false });
+    expect(settings({ SMTP_REQUIRE_TLS: false })).toMatchObject({
+      secure: false,
+      requireTLS: false,
+    });
   });
 
   it('gives up on a server that does not answer within seconds, not minutes', () => {
@@ -191,4 +219,3 @@ describe('the connection to the mail server', () => {
     expect(settings({ SMTP_USER: undefined }).auth).toBeUndefined();
   });
 });
-

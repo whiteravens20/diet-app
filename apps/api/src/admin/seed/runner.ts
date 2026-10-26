@@ -16,6 +16,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { InstanceFilesService } from '../drafts/ship/instance-files.service.js';
 import { JobState } from '../job-state.js';
 import { resolveDataDir } from './data-hash.js';
 import { updateDatabase, type SeedProgress, type UpdateResult } from './seeder.js';
@@ -60,7 +61,10 @@ export class SeedRunner {
     this.job.local = next;
   }
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly files: InstanceFilesService,
+  ) {
     this.job = new JobState(prisma, 'catalogue update', SeedRunner.idle);
   }
 
@@ -109,6 +113,8 @@ export class SeedRunner {
         (msg) => this.logger.log(msg),
         onProgress,
       );
+      // The instance's files are written again, in the shape this version writes.
+      await this.files.write();
       this.state = {
         ...this.state,
         status: 'done',

@@ -26,10 +26,13 @@ const admin = (over: Partial<AiQuotaStatus>): AiQuotaStatus => ({
 });
 
 async function chip(quota: AiQuotaStatus): Promise<HTMLElement> {
-  vi.spyOn(api, 'get').mockImplementation(((path: string) => Promise.resolve(path === '/ai/quota' ? quota : { aiMode: 'admin' })) as never);
+  vi.spyOn(api, 'get').mockImplementation(((path: string) =>
+    Promise.resolve(path === '/ai/quota' ? quota : { aiMode: 'admin' })) as never);
   render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <AiChip />
       </QueryClientProvider>
     </NextIntlClientProvider>,
@@ -57,8 +60,17 @@ describe("the chip of the operator's AI", () => {
   });
 
   it('says that the new accounts used their part, and when a request frees up', async () => {
-    const link = await chip(admin({ remaining: 0, newUntil: '2026-10-31T09:00:00.000Z', newAccountsLimitReached: true, resetAt: '2026-10-31T09:00:00.000Z' }));
+    const link = await chip(
+      admin({
+        remaining: 0,
+        newUntil: '2026-10-31T09:00:00.000Z',
+        newAccountsLimitReached: true,
+        resetAt: '2026-10-31T09:00:00.000Z',
+      }),
+    );
 
-    expect(link.getAttribute('title')).toMatch(/^New accounts have used their part of the instance's AI requests\. Next slot frees up .+\.$/);
+    expect(link.getAttribute('title')).toMatch(
+      /^New accounts have used their part of the instance's AI requests\. Next slot frees up .+\.$/,
+    );
   });
 });

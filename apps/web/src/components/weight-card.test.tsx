@@ -13,21 +13,36 @@ import { WeightCard } from './weight-card';
 // The chart is fetched on demand and draws nothing in a DOM without a size: what stands beside it is what is tested.
 vi.mock('next/dynamic', () => ({ default: () => () => null }));
 
-const aProfile = (over: Partial<Profile> = {}): Profile => ({ id: '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f', name: 'Me', weightKg: 80, targetWeightKg: null, ...over }) as Profile;
+const aProfile = (over: Partial<Profile> = {}): Profile =>
+  ({
+    id: '6f1c2b1e-7a52-4a3a-9d0e-0a1b2c3d4e5f',
+    name: 'Me',
+    weightKg: 80,
+    targetWeightKg: null,
+    ...over,
+  }) as Profile;
 
 /** The card of `profile` for an account that weighs in `unit`; null leaves it to where the reader is. */
 async function shown(profile: Profile, unit: WeightUnit | null) {
-  vi.spyOn(api, 'get').mockImplementation((path: string) => Promise.resolve((path === '/users/me' ? { weightUnit: unit } : []) as never));
+  vi.spyOn(api, 'get').mockImplementation((path: string) =>
+    Promise.resolve((path === '/users/me' ? { weightUnit: unit } : []) as never),
+  );
   const post = vi.spyOn(api, 'post').mockResolvedValue({} as never);
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <WeightCard profile={profile} />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
   const field = await screen.findByLabelText(`Today's weight (${unit ?? 'kg'})`);
-  return { post, field, log: () => userEvent.click(screen.getByRole('button', { name: messages.weightCard.log })) };
+  return {
+    post,
+    field,
+    log: () => userEvent.click(screen.getByRole('button', { name: messages.weightCard.log })),
+  };
 }
 
 describe('the weights a profile logs', () => {
@@ -54,7 +69,9 @@ describe('the weights a profile logs', () => {
 
     expect(field).toHaveAttribute('placeholder', '176.4');
     // The weight it began with and the one it works towards, both in its unit.
-    expect(screen.getByText('Registered weight: 176.4 lb · working towards 154.3 lb')).toBeInTheDocument();
+    expect(
+      screen.getByText('Registered weight: 176.4 lb · working towards 154.3 lb'),
+    ).toBeInTheDocument();
     await userEvent.type(field, '175');
     await log();
 
@@ -75,7 +92,10 @@ describe('the weights a profile logs', () => {
   });
 
   it('go by where the reader is until the account chooses: kilograms outside the countries that weigh in pounds', async () => {
-    Object.defineProperty(window.navigator, 'languages', { value: ['pl-PL', 'pl'], configurable: true });
+    Object.defineProperty(window.navigator, 'languages', {
+      value: ['pl-PL', 'pl'],
+      configurable: true,
+    });
 
     const { field } = await shown(aProfile(), null);
 

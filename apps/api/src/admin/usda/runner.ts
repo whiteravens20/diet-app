@@ -21,7 +21,13 @@ import type { Env } from '../../config/env.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobState } from '../job-state.js';
 import { resolveDataDir } from '../seed/data-hash.js';
-import { ImportFailure, runImport, type ImportFailureReason, type ImportProgress, type ImportResult } from './importer.js';
+import {
+  ImportFailure,
+  runImport,
+  type ImportFailureReason,
+  type ImportProgress,
+  type ImportResult,
+} from './importer.js';
 
 type ImportStatus = 'idle' | 'running' | 'done' | 'error';
 

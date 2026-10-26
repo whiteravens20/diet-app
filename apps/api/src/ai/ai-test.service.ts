@@ -36,15 +36,9 @@ export class AiTestService {
     try {
       switch (dto.provider) {
         case 'openai':
-          return await this.testOpenAiCompatible(
-            'https://api.openai.com/v1/models',
-            dto.apiKey,
-          );
+          return await this.testOpenAiCompatible('https://api.openai.com/v1/models', dto.apiKey);
         case 'openrouter':
-          return await this.testOpenAiCompatible(
-            'https://openrouter.ai/api/v1/models',
-            dto.apiKey,
-          );
+          return await this.testOpenAiCompatible('https://openrouter.ai/api/v1/models', dto.apiKey);
         case 'ollama':
           return await this.testOllama(dto.baseUrl);
         case 'anthropic':
@@ -85,9 +79,7 @@ export class AiTestService {
         publicOnly = assertAllowedOllamaUrl(baseUrl, {
           policy: this.config.get('OLLAMA_USER_POLICY', { infer: true }),
           defaultBaseUrl,
-          allowedHosts: parseAllowedHosts(
-            this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true }),
-          ),
+          allowedHosts: parseAllowedHosts(this.config.get('OLLAMA_ALLOWED_HOSTS', { infer: true })),
         }).publicOnly;
       } catch (err) {
         if (err instanceof OllamaUrlError) return { ok: false, models: [], error: err.message };

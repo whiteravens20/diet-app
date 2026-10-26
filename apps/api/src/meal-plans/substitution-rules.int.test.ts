@@ -28,12 +28,20 @@ describe('putting one ingredient of a planned meal in the place of another', () 
   beforeEach(async () => {
     await resetUserData(t.prisma);
     user = await aUser(t);
-    const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'chicken-rice-broccoli' } });
-    plan = await aPlan(t, user, await aProfile(t, user), { durationDays: 1, dayOverrides: [{ date: '2026-01-05', lockedSlots: [{ mealType: 'dinner', recipeId: recipe.id }] }] });
+    const recipe = await t.prisma.recipe.findUniqueOrThrow({
+      where: { slug: 'chicken-rice-broccoli' },
+    });
+    plan = await aPlan(t, user, await aProfile(t, user), {
+      durationDays: 1,
+      dayOverrides: [
+        { date: '2026-01-05', lockedSlots: [{ mealType: 'dinner', recipeId: recipe.id }] },
+      ],
+    });
     dinner = plan.days[0]!.meals.find((meal) => meal.mealType === 'dinner')!;
   });
 
-  const id = async (slug: string): Promise<string> => (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
+  const id = async (slug: string): Promise<string> =>
+    (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug } })).id;
   const swap = async (from: string, to: string, over: Record<string, unknown> = {}) => ({
     planId: plan.id,
     plannedMealId: dinner.id,
@@ -42,18 +50,34 @@ describe('putting one ingredient of a planned meal in the place of another', () 
     ...over,
   });
   const preview = async (from: string, to: string): Promise<SwapPreview> =>
-    (await t.http().post('/api/meal-plans/swap-ingredient/preview').set(as(user)).send(await swap(from, to)).expect(201)).body;
+    (
+      await t
+        .http()
+        .post('/api/meal-plans/swap-ingredient/preview')
+        .set(as(user))
+        .send(await swap(from, to))
+        .expect(201)
+    ).body;
   /** The answer to applying the swap, for which `status` says how it ended. */
   const apply = async (from: string, to: string, over: Record<string, unknown> = {}) =>
-    t.http().post('/api/meal-plans/swap-ingredient/apply').set(as(user)).send(await swap(from, to, over));
+    t
+      .http()
+      .post('/api/meal-plans/swap-ingredient/apply')
+      .set(as(user))
+      .send(await swap(from, to, over));
   /** The lines of the recipe the dinner holds now, by ingredient. */
   const linesNow = async (): Promise<Record<string, number[]>> => {
-    const meal = await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: dinner.id }, include: { recipe: { include: { ingredients: { include: { ingredient: true } } } } } });
+    const meal = await t.prisma.plannedMeal.findUniqueOrThrow({
+      where: { id: dinner.id },
+      include: { recipe: { include: { ingredients: { include: { ingredient: true } } } } },
+    });
     const lines: Record<string, number[]> = {};
-    for (const line of meal.recipe!.ingredients) (lines[line.ingredient.slug!] ??= []).push(line.quantity);
+    for (const line of meal.recipe!.ingredients)
+      (lines[line.ingredient.slug!] ??= []).push(line.quantity);
     return lines;
   };
-  const taken = (slug: string) => dinner.ingredients.find((line) => line.name.toLowerCase() === slug.replace(/-/g, ' '))!;
+  const taken = (slug: string) =>
+    dinner.ingredients.find((line) => line.name.toLowerCase() === slug.replace(/-/g, ' '))!;
 
   describe('the preview', () => {
     it('shows the meal as it is planned, before and after, and what it takes of the two ingredients', async () => {
@@ -62,10 +86,18 @@ describe('putting one ingredient of a planned meal in the place of another', () 
       // The dinner is more than one serving of the recipe: the figures are those of the plate.
       expect(dinner.servings).toBeGreaterThan(1);
       expect(shown.before).toEqual(dinner.nutrition);
-      expect(shown.from).toMatchObject({ ingredientId: await id('white-rice'), name: 'White rice', unit: 'g' });
+      expect(shown.from).toMatchObject({
+        ingredientId: await id('white-rice'),
+        name: 'White rice',
+        unit: 'g',
+      });
       expect(shown.from.quantity).toBeCloseTo(taken('white-rice').quantity, 5);
       expect(shown.from.quantity).toBeCloseTo(80 * dinner.servings, 5);
-      expect(shown.to).toMatchObject({ ingredientId: await id('chickpeas'), name: 'Chickpeas', unit: 'g' });
+      expect(shown.to).toMatchObject({
+        ingredientId: await id('chickpeas'),
+        name: 'Chickpeas',
+        unit: 'g',
+      });
       expect(shown.calorieDelta).toBe(shown.after.calories - shown.before.calories);
       expect(shown.macroDelta.protein).toBe(shown.after.protein - shown.before.protein);
     });
@@ -92,9 +124,12 @@ describe('putting one ingredient of a planned meal in the place of another', () 
       expect(shown.valid).toBe(true);
     });
 
-    it('names what stands in the way of a substitute, as the plan\'s gate would', async () => {
+    it("names what stands in the way of a substitute, as the plan's gate would", async () => {
       const profile = await t.prisma.profile.findFirstOrThrow({ where: { userId: user.id } });
-      await t.prisma.profilePreference.update({ where: { profileId: profile.id }, data: { allergens: ['fish'], excludedIngredientIds: [await id('salmon')] } });
+      await t.prisma.profilePreference.update({
+        where: { profileId: profile.id },
+        data: { allergens: ['fish'], excludedIngredientIds: [await id('salmon')] },
+      });
 
       const shown = await preview('chicken-breast', 'salmon');
 
@@ -104,15 +139,35 @@ describe('putting one ingredient of a planned meal in the place of another', () 
 
     it('takes an ingredient that lists no diet for one that suits none of the diets decided by ingredients', async () => {
       // Nobody has said what diets it suits: a vegetarian plan cannot take it, a balanced one can.
-      const unknown = await t.prisma.ingredient.create({ data: { slug: 'mystery-grain', name: 'Mystery grain', category: 'grains', canonicalUnit: 'g', caloriesPer100: 350, proteinPer100: 8, fatPer100: 1, carbsPer100: 76 } });
+      const unknown = await t.prisma.ingredient.create({
+        data: {
+          slug: 'mystery-grain',
+          name: 'Mystery grain',
+          category: 'grains',
+          canonicalUnit: 'g',
+          caloriesPer100: 350,
+          proteinPer100: 8,
+          fatPer100: 1,
+          carbsPer100: 76,
+        },
+      });
       try {
         expect((await preview('white-rice', 'mystery-grain')).violations).toEqual([]);
 
-        await t.prisma.mealPlan.update({ where: { id: plan.id }, data: { dietType: 'vegetarian' } });
+        await t.prisma.mealPlan.update({
+          where: { id: plan.id },
+          data: { dietType: 'vegetarian' },
+        });
         // The dinner has chicken in it, which the plan's new diet would not have let in: only what the substitute adds is held against it.
         const tofu = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: 'tofu-rice-bowl' } });
-        await t.prisma.plannedMeal.update({ where: { id: dinner.id }, data: { recipeId: tofu.id } });
-        expect(await preview('white-rice', 'mystery-grain')).toMatchObject({ violations: ['off_diet'], valid: false });
+        await t.prisma.plannedMeal.update({
+          where: { id: dinner.id },
+          data: { recipeId: tofu.id },
+        });
+        expect(await preview('white-rice', 'mystery-grain')).toMatchObject({
+          violations: ['off_diet'],
+          valid: false,
+        });
       } finally {
         await t.prisma.plannedMeal.deleteMany({ where: { id: dinner.id } });
         await t.prisma.ingredient.delete({ where: { id: unknown.id } });
@@ -120,7 +175,18 @@ describe('putting one ingredient of a planned meal in the place of another', () 
     });
 
     it('takes the same amount where one of the two holds no energy', async () => {
-      const water = await t.prisma.ingredient.create({ data: { slug: 'still-water', name: 'Still water', category: 'beverages', canonicalUnit: 'ml', caloriesPer100: 0, proteinPer100: 0, fatPer100: 0, carbsPer100: 0 } });
+      const water = await t.prisma.ingredient.create({
+        data: {
+          slug: 'still-water',
+          name: 'Still water',
+          category: 'beverages',
+          canonicalUnit: 'ml',
+          caloriesPer100: 0,
+          proteinPer100: 0,
+          fatPer100: 0,
+          carbsPer100: 0,
+        },
+      });
       try {
         const shown = await preview('olive-oil', 'still-water');
 
@@ -135,21 +201,39 @@ describe('putting one ingredient of a planned meal in the place of another', () 
     it('writes nothing', async () => {
       await preview('white-rice', 'chickpeas');
 
-      expect((await t.app.get(MealPlansService).get(user.id, 'en', plan.id)).revision).toBe(plan.revision);
-      expect(await linesNow()).toEqual({ 'chicken-breast': [150], 'white-rice': [80], broccoli: [150], 'olive-oil': [10] });
+      expect((await t.app.get(MealPlansService).get(user.id, 'en', plan.id)).revision).toBe(
+        plan.revision,
+      );
+      expect(await linesNow()).toEqual({
+        'chicken-breast': [150],
+        'white-rice': [80],
+        broccoli: [150],
+        'olive-oil': [10],
+      });
     });
   });
 
   describe('what the catalogue suggests', () => {
     const suggested = async (locale = 'en'): Promise<SubstituteSuggestion[]> =>
-      (await t.http().get(`/api/meal-plans/${plan.id}/meals/${dinner.id}/substitutes`).set(as(user)).set('Accept-Language', locale).expect(200)).body;
+      (
+        await t
+          .http()
+          .get(`/api/meal-plans/${plan.id}/meals/${dinner.id}/substitutes`)
+          .set(as(user))
+          .set('Accept-Language', locale)
+          .expect(200)
+      ).body;
 
     it('is the substitute its rules name for an ingredient of the meal, with what it would move', async () => {
       // The catalogue has one rule for an ingredient of this dinner: tofu for chicken.
       const suggestions = await suggested();
 
       expect(suggestions).toHaveLength(1);
-      expect(suggestions[0]).toMatchObject({ fromIngredientId: await id('chicken-breast'), to: { id: await id('firm-tofu'), name: 'Firm tofu' }, moved: ['protein', 'fat'] });
+      expect(suggestions[0]).toMatchObject({
+        fromIngredientId: await id('chicken-breast'),
+        to: { id: await id('firm-tofu'), name: 'Firm tofu' },
+        moved: ['protein', 'fat'],
+      });
       expect((await suggested('pl'))[0]!.to.name).toBe('Tofu twarde');
     });
 
@@ -164,15 +248,31 @@ describe('putting one ingredient of a planned meal in the place of another', () 
 
     it('leaves out a substitute the profile rules out', async () => {
       const profile = await t.prisma.profile.findFirstOrThrow({ where: { userId: user.id } });
-      await t.prisma.profilePreference.update({ where: { profileId: profile.id }, data: { allergens: ['soy'] } });
+      await t.prisma.profilePreference.update({
+        where: { profileId: profile.id },
+        data: { allergens: ['soy'] },
+      });
 
       expect(await suggested()).toEqual([]);
     });
 
     it('is, of several the rules name, the one that changes a serving least', async () => {
       // Turkey is nearly what chicken is; tofu has less protein and more fat.
-      const turkey = await t.prisma.ingredient.create({ data: { slug: 'turkey-breast', name: 'Turkey breast', category: 'meat', canonicalUnit: 'g', caloriesPer100: 118, proteinPer100: 23, fatPer100: 2.4, carbsPer100: 0 } });
-      await t.prisma.substitutionRule.create({ data: { fromIngredientId: await id('chicken-breast'), toIngredientId: turkey.id } });
+      const turkey = await t.prisma.ingredient.create({
+        data: {
+          slug: 'turkey-breast',
+          name: 'Turkey breast',
+          category: 'meat',
+          canonicalUnit: 'g',
+          caloriesPer100: 118,
+          proteinPer100: 23,
+          fatPer100: 2.4,
+          carbsPer100: 0,
+        },
+      });
+      await t.prisma.substitutionRule.create({
+        data: { fromIngredientId: await id('chicken-breast'), toIngredientId: turkey.id },
+      });
       try {
         expect(await suggested()).toMatchObject([{ to: { name: 'Turkey breast' }, moved: [] }]);
       } finally {
@@ -184,14 +284,35 @@ describe('putting one ingredient of a planned meal in the place of another', () 
       /** Another meat, so that the model has something to choose from for the chicken. */
       let turkeyId: string;
       const askedForChicken = async () =>
-        (await t.http().post('/api/meal-plans/swap-ingredient/ai-suggest').set(as(user)).send({ planId: plan.id, plannedMealId: dinner.id, fromIngredientId: await id('chicken-breast') }).expect(201)).body;
+        (
+          await t
+            .http()
+            .post('/api/meal-plans/swap-ingredient/ai-suggest')
+            .set(as(user))
+            .send({
+              planId: plan.id,
+              plannedMealId: dinner.id,
+              fromIngredientId: await id('chicken-breast'),
+            })
+            .expect(201)
+        ).body;
 
       beforeEach(async () => {
         t.model.reset();
         t.model.reply({ text: 'no idea' });
         await t.prisma.user.update({ where: { id: user.id }, data: { aiMode: 'admin' } });
         const turkey = await t.prisma.ingredient.create({
-          data: { slug: 'turkey-breast', name: 'Turkey breast', category: 'meat', canonicalUnit: 'g', caloriesPer100: 118, proteinPer100: 23, fatPer100: 2.4, carbsPer100: 0, dietCompatibility: ['balanced'] },
+          data: {
+            slug: 'turkey-breast',
+            name: 'Turkey breast',
+            category: 'meat',
+            canonicalUnit: 'g',
+            caloriesPer100: 118,
+            proteinPer100: 23,
+            fatPer100: 2.4,
+            carbsPer100: 0,
+            dietCompatibility: ['balanced'],
+          },
         });
         turkeyId = turkey.id;
       });
@@ -200,16 +321,22 @@ describe('putting one ingredient of a planned meal in the place of another', () 
         await t.prisma.ingredient.delete({ where: { id: turkeyId } });
       });
 
-      it('is what is suggested in the model\'s place', async () => {
+      it("is what is suggested in the model's place", async () => {
         const answer = await askedForChicken();
 
         expect(answer.toIngredient).toMatchObject({ id: await id('firm-tofu'), name: 'Firm tofu' });
-        expect(answer.aiMeta).toMatchObject({ usedDeterministicFallback: true, fallbackReason: 'invalid_output' });
+        expect(answer.aiMeta).toMatchObject({
+          usedDeterministicFallback: true,
+          fallbackReason: 'invalid_output',
+        });
       });
 
       it('gives way to an ingredient of the same kind where the profile rules out what the rules name', async () => {
         const profile = await t.prisma.profile.findFirstOrThrow({ where: { userId: user.id } });
-        await t.prisma.profilePreference.update({ where: { profileId: profile.id }, data: { allergens: ['soy'] } });
+        await t.prisma.profilePreference.update({
+          where: { profileId: profile.id },
+          data: { allergens: ['soy'] },
+        });
 
         expect((await askedForChicken()).toIngredient.id).toBe(turkeyId);
       });
@@ -221,7 +348,10 @@ describe('putting one ingredient of a planned meal in the place of another', () 
         const answer = await askedForChicken();
 
         expect(answer.toIngredient.id).toBe(turkeyId);
-        expect(answer.aiMeta).toMatchObject({ usedDeterministicFallback: false, reason: 'Leaner.' });
+        expect(answer.aiMeta).toMatchObject({
+          usedDeterministicFallback: false,
+          reason: 'Leaner.',
+        });
       });
     });
   });
@@ -232,13 +362,23 @@ describe('putting one ingredient of a planned meal in the place of another', () 
       const shown = await preview('white-rice', 'chickpeas');
       expect(shown.moved).toEqual(['protein', 'fat', 'carbs']);
 
-      expect(await apply('white-rice', 'chickpeas')).toMatchObject({ status: 422, body: { details: { moved: shown.moved } } });
+      expect(await apply('white-rice', 'chickpeas')).toMatchObject({
+        status: 422,
+        body: { details: { moved: shown.moved } },
+      });
       const applied = await apply('white-rice', 'chickpeas', { acceptChange: true });
 
       expect(applied.status).toBe(201);
-      expect(await linesNow()).toEqual({ 'chicken-breast': [150], chickpeas: [175.6], broccoli: [150], 'olive-oil': [10] });
+      expect(await linesNow()).toEqual({
+        'chicken-breast': [150],
+        chickpeas: [175.6],
+        broccoli: [150],
+        'olive-oil': [10],
+      });
       // Before the day is rebalanced around it, the meal holds what the preview said it would.
-      const now = (applied.body.plan as MealPlan).days[0]!.meals.find((meal) => meal.id === dinner.id)!;
+      const now = (applied.body.plan as MealPlan).days[0]!.meals.find(
+        (meal) => meal.id === dinner.id,
+      )!;
       expect(now.nutrition.protein / now.quantityScale).toBeCloseTo(shown.after.protein, -1);
     });
 
@@ -253,28 +393,54 @@ describe('putting one ingredient of a planned meal in the place of another', () 
       const refused = await apply('olive-oil', 'broccoli');
 
       expect(refused.status).toBe(422);
-      expect(refused.body).toMatchObject({ error: 'SUBSTITUTION_MOVES_NUTRITION', details: { moved: ['calories', 'fat'] } });
+      expect(refused.body).toMatchObject({
+        error: 'SUBSTITUTION_MOVES_NUTRITION',
+        details: { moved: ['calories', 'fat'] },
+      });
       expect(await linesNow()).toHaveProperty('olive-oil');
 
       expect((await apply('olive-oil', 'broccoli', { acceptChange: true })).status).toBe(201);
       // One line of broccoli, the old amount and the substitute together; no oil.
-      expect(await linesNow()).toEqual({ 'chicken-breast': [150], 'white-rice': [80], broccoli: [177.6] });
+      expect(await linesNow()).toEqual({
+        'chicken-breast': [150],
+        'white-rice': [80],
+        broccoli: [177.6],
+      });
     });
 
     it('is refused for a substitute the profile rules out, whatever the request accepts', async () => {
       const profile = await t.prisma.profile.findFirstOrThrow({ where: { userId: user.id } });
-      await t.prisma.profilePreference.update({ where: { profileId: profile.id }, data: { allergens: ['fish'] } });
+      await t.prisma.profilePreference.update({
+        where: { profileId: profile.id },
+        data: { allergens: ['fish'] },
+      });
 
       const refused = await apply('chicken-breast', 'salmon', { acceptChange: true });
 
       expect(refused.status).toBe(400);
-      expect(refused.body).toMatchObject({ error: 'INVALID_SUBSTITUTION', details: { violations: ['allergen'] } });
+      expect(refused.body).toMatchObject({
+        error: 'INVALID_SUBSTITUTION',
+        details: { violations: ['allergen'] },
+      });
     });
 
     it('refuses an ingredient in its own place, one the recipe does not have, and one that is not there', async () => {
-      expect(await apply('white-rice', 'white-rice')).toMatchObject({ status: 400, body: { error: 'SAME_INGREDIENT' } });
-      expect(await apply('salmon', 'chickpeas')).toMatchObject({ status: 404, body: { error: 'INGREDIENT_NOT_IN_RECIPE' } });
-      const gone = await t.http().post('/api/meal-plans/swap-ingredient/apply').set(as(user)).send({ ...(await swap('white-rice', 'chickpeas')), toIngredientId: '00000000-0000-4000-8000-000000000000' });
+      expect(await apply('white-rice', 'white-rice')).toMatchObject({
+        status: 400,
+        body: { error: 'SAME_INGREDIENT' },
+      });
+      expect(await apply('salmon', 'chickpeas')).toMatchObject({
+        status: 404,
+        body: { error: 'INGREDIENT_NOT_IN_RECIPE' },
+      });
+      const gone = await t
+        .http()
+        .post('/api/meal-plans/swap-ingredient/apply')
+        .set(as(user))
+        .send({
+          ...(await swap('white-rice', 'chickpeas')),
+          toIngredientId: '00000000-0000-4000-8000-000000000000',
+        });
       expect(gone.status).toBe(404);
       expect(gone.body.error).toBe('INGREDIENT_NOT_FOUND');
     });
@@ -282,17 +448,34 @@ describe('putting one ingredient of a planned meal in the place of another', () 
     it('takes every line the recipe has of the ingredient, and writes one for the substitute', async () => {
       // The oil is in the recipe twice: for the pan and for the plate.
       const meal = await t.prisma.plannedMeal.findUniqueOrThrow({ where: { id: dinner.id } });
-      await t.prisma.recipeIngredient.create({ data: { recipeId: meal.recipeId!, ingredientId: await id('olive-oil'), quantity: 5, unit: 'ml', note: 'to finish' } });
+      await t.prisma.recipeIngredient.create({
+        data: {
+          recipeId: meal.recipeId!,
+          ingredientId: await id('olive-oil'),
+          quantity: 5,
+          unit: 'ml',
+          note: 'to finish',
+        },
+      });
       try {
         const shown = await preview('olive-oil', 'peanut-butter');
         // 15 ml of oil hold 122 kcal; so do 20.7 g of peanut butter.
         expect(shown.from.quantity / dinner.servings).toBeCloseTo(15, 5);
         expect(shown.to.quantity / dinner.servings).toBeCloseTo((15 * 813) / 588, 1);
 
-        expect((await apply('olive-oil', 'peanut-butter', { acceptChange: true })).status).toBe(201);
-        expect(await linesNow()).toEqual({ 'chicken-breast': [150], 'white-rice': [80], broccoli: [150], 'peanut-butter': [20.7] });
+        expect((await apply('olive-oil', 'peanut-butter', { acceptChange: true })).status).toBe(
+          201,
+        );
+        expect(await linesNow()).toEqual({
+          'chicken-breast': [150],
+          'white-rice': [80],
+          broccoli: [150],
+          'peanut-butter': [20.7],
+        });
       } finally {
-        await t.prisma.recipeIngredient.deleteMany({ where: { recipeId: meal.recipeId!, note: 'to finish' } });
+        await t.prisma.recipeIngredient.deleteMany({
+          where: { recipeId: meal.recipeId!, note: 'to finish' },
+        });
       }
     });
   });

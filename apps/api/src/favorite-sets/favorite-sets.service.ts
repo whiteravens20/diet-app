@@ -22,7 +22,12 @@ import { Prisma } from '@prisma/client';
 import { holdProfile } from '../common/hold.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MealPlansService } from '../meal-plans/meal-plans.service.js';
-import { CANDIDATE, restrictionsFor, violations, type Violation } from '../meal-plans/eligibility.js';
+import {
+  CANDIDATE,
+  restrictionsFor,
+  violations,
+  type Violation,
+} from '../meal-plans/eligibility.js';
 import { writePlan } from '../meal-plans/plan-write.js';
 import { fitServings, slotBudgets } from '../engine/index.js';
 
@@ -54,13 +59,18 @@ export class FavoriteSetsService {
     await this.assertRecipes(userId, dto.slots);
     const row = await this.prisma.$transaction(async (tx) => {
       await holdProfile(tx, dto.profileId);
-      if ((await tx.favoriteSet.count({ where: { profileId: dto.profileId } })) >= MAX_FAVORITE_SETS_PER_PROFILE) {
+      if (
+        (await tx.favoriteSet.count({ where: { profileId: dto.profileId } })) >=
+        MAX_FAVORITE_SETS_PER_PROFILE
+      ) {
         throw new ConflictException({
           error: 'FAVORITE_SET_LIMIT_REACHED',
           message: `A profile can have at most ${MAX_FAVORITE_SETS_PER_PROFILE} favorite sets. Delete one to add another.`,
         });
       }
-      return tx.favoriteSet.create({ data: { profileId: dto.profileId, label: dto.label, slots: dto.slots } });
+      return tx.favoriteSet.create({
+        data: { profileId: dto.profileId, label: dto.label, slots: dto.slots },
+      });
     });
     return toDto(row);
   }
@@ -100,7 +110,8 @@ export class FavoriteSetsService {
       where: { id: req.planId },
       include: { profile: { include: { preferences: true } }, days: true },
     });
-    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     if (plan.profileId !== set.profileId) {
       throw new ForbiddenException({
         error: 'FORBIDDEN',
@@ -126,7 +137,9 @@ export class FavoriteSetsService {
     const recipeById = new Map(recipes.map((r) => [r.id, r]));
     for (const [mealType, recipeId] of slotEntries) {
       const recipe = recipeById.get(recipeId);
-      const found: Violation[] = recipe ? violations(recipe, restrictions, mealType) : ['not_available'];
+      const found: Violation[] = recipe
+        ? violations(recipe, restrictions, mealType)
+        : ['not_available'];
       if (found.includes('not_available')) {
         throw new NotFoundException({
           error: 'RECIPE_NOT_FOUND',
@@ -152,7 +165,11 @@ export class FavoriteSetsService {
     // A meal that was eaten is a record; a set does not write over it.
     const targetDayIds = targetDays.map((d) => d.id);
     const eaten = await this.prisma.plannedMeal.count({
-      where: { dayId: { in: targetDayIds }, mealType: { in: slotEntries.map(([mealType]) => mealType) }, eatenAt: { not: null } },
+      where: {
+        dayId: { in: targetDayIds },
+        mealType: { in: slotEntries.map(([mealType]) => mealType) },
+        eatenAt: { not: null },
+      },
     });
     if (eaten > 0) {
       throw new ConflictException({
@@ -238,7 +255,8 @@ export class FavoriteSetsService {
       where: { id },
       include: { profile: true },
     });
-    if (!row?.profile || row.profile.userId !== userId) throw new NotFoundException({ error: 'SET_NOT_FOUND', message: 'Favorite set not found.' });
+    if (!row?.profile || row.profile.userId !== userId)
+      throw new NotFoundException({ error: 'SET_NOT_FOUND', message: 'Favorite set not found.' });
     return row;
   }
 

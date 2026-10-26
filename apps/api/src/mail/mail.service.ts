@@ -110,7 +110,11 @@ export class MailService implements OnApplicationShutdown {
 
   /** To the address an account has: a change to `newAddress` was asked for. */
   sendEmailChangeRequestedNotice(to: string, newAddress: string, locale: Locale): void {
-    this.send(to, emailChangeRequestedEmail[locale]({ newAddress }), 'address-change-requested notice');
+    this.send(
+      to,
+      emailChangeRequestedEmail[locale]({ newAddress }),
+      'address-change-requested notice',
+    );
   }
 
   /** To the address an account had: it is `newAddress` now. */
@@ -162,7 +166,12 @@ export class MailService implements OnApplicationShutdown {
   }
 
   /** Sends one email, or only logs when SMTP is off (see the class comment for what is logged where). */
-  private async deliver(to: string, email: RenderedEmail, kind: string, link?: string): Promise<void> {
+  private async deliver(
+    to: string,
+    email: RenderedEmail,
+    kind: string,
+    link?: string,
+  ): Promise<void> {
     if (!this.enabled) {
       if (this.config.get('NODE_ENV', { infer: true }) === 'production') {
         this.logger.warn(`[mail disabled] ${kind} not sent: SMTP is not configured`);
@@ -172,7 +181,9 @@ export class MailService implements OnApplicationShutdown {
       return;
     }
     if (!this.mayBeSent(to)) {
-      this.logger.warn(`${kind} mail was not sent: its address has been sent ${MAILS_PER_ADDRESS_PER_DAY} mails in the last day`);
+      this.logger.warn(
+        `${kind} mail was not sent: its address has been sent ${MAILS_PER_ADDRESS_PER_DAY} mails in the last day`,
+      );
       return;
     }
     await this.getTransport().sendMail({
@@ -196,7 +207,8 @@ export class MailService implements OnApplicationShutdown {
     this.sentTo.set(key, [...recent, now]);
     // What nobody was sent for a day is forgotten, so the list does not grow for ever.
     if (this.sentTo.size > 10_000) {
-      for (const [address, times] of this.sentTo) if (times.every((at) => now - at >= DAY_MS)) this.sentTo.delete(address);
+      for (const [address, times] of this.sentTo)
+        if (times.every((at) => now - at >= DAY_MS)) this.sentTo.delete(address);
     }
     return true;
   }

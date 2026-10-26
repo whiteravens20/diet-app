@@ -48,7 +48,9 @@ describe('the note on what the catalogue has for a diet', () => {
 
   it('says plans will repeat when one of the meals has few, and how few', () => {
     renderNote(2);
-    expect(screen.getByRole('status').textContent).toContain('one of the 4 meals a day has only 2 recipes to choose from');
+    expect(screen.getByRole('status').textContent).toContain(
+      'one of the 4 meals a day has only 2 recipes to choose from',
+    );
   });
 
   it('counts a single recipe as one', () => {

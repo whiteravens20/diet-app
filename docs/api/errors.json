@@ -215,6 +215,15 @@
       "pl": "Dieta własna wymaga podziału na białko, tłuszcz i węglowodany. Ustaw go najpierw w profilu."
     }
   },
+  "DAY_IN_THE_PAST": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "This day is over: its settings stay as they were.",
+      "pl": "Ten dzień już minął: jego ustawienia zostają bez zmian."
+    }
+  },
   "DAY_NOT_FOUND": {
     "statuses": [
       404
@@ -396,33 +405,6 @@
       "pl": "Brak dostępu."
     }
   },
-  "GH_MODE_UNAVAILABLE": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "`gh` CLI not found on PATH.",
-      "pl": "Nie znaleziono polecenia `gh` w PATH."
-    }
-  },
-  "GH_PR_CREATE_FAILED": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Opening the pull request via gh failed.",
-      "pl": "Utworzenie pull requesta przez gh nie powiodło się."
-    }
-  },
-  "GIT_FAILED": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "A git command failed during the upstream-PR ship.",
-      "pl": "Polecenie git zakończyło się błędem podczas wysyłki przez pull request."
-    }
-  },
   "IMPORT_IN_PROGRESS": {
     "statuses": [
       409
@@ -457,6 +439,15 @@
     "messages": {
       "en": "This ingredient is not part of the recipe.",
       "pl": "Ten składnik nie należy do przepisu."
+    }
+  },
+  "INSTANCE_DATA_NEWER": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "These files were written by a newer version of the application. Update the application before restoring them.",
+      "pl": "Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz."
     }
   },
   "INTERNAL_ERROR": {
@@ -756,15 +747,6 @@
       "pl": "Brak zatwierdzonych szkiców do wysłania."
     }
   },
-  "NO_CURRENT_OVERRIDES": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "This instance has no ingredient overrides to export or push yet.",
-      "pl": "Ta instancja nie ma jeszcze żadnych nadpisań składników do eksportu lub wysyłki."
-    }
-  },
   "NO_ELIGIBLE_INGREDIENTS": {
     "statuses": [
       400
@@ -880,6 +862,15 @@
     "messages": {
       "en": "An advanced day option falls outside the plan's date range.",
       "pl": "Ustawienie dnia wykracza poza zakres dat planu."
+    }
+  },
+  "OWN_RECIPE_DAILY_LIMIT": {
+    "statuses": [
+      429
+    ],
+    "messages": {
+      "en": "You have saved as many recipes of your own today as you may. Try again tomorrow.",
+      "pl": "Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro."
     }
   },
   "PANTRY_FULL": {
@@ -1008,6 +999,15 @@
       "pl": "Zbyt wiele żądań. Spróbuj ponownie za chwilę."
     }
   },
+  "RECIPE_ALREADY_YOURS": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "You already have a recipe with these ingredients, in these amounts, for these meals.",
+      "pl": "Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki."
+    }
+  },
   "RECIPE_GEN_IN_PROGRESS": {
     "statuses": [
       409
@@ -1015,6 +1015,15 @@
     "messages": {
       "en": "A recipe-generator run is already in progress.",
       "pl": "Generowanie przepisów już trwa."
+    }
+  },
+  "RECIPE_INVALID": {
+    "statuses": [
+      400
+    ],
+    "messages": {
+      "en": "The recipe would break the rules for recipe text and quantities. Nothing was saved.",
+      "pl": "Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane."
     }
   },
   "RECIPE_NOT_ELIGIBLE": {
@@ -1042,6 +1051,15 @@
     "messages": {
       "en": "This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library.",
       "pl": "Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki."
+    }
+  },
+  "RECIPE_SWAP_NOT_SUBMITTABLE": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library.",
+      "pl": "Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki."
     }
   },
   "REFERENCE_CONFLICT": {
@@ -1160,42 +1178,6 @@
     "messages": {
       "en": "No approved drafts to ship.",
       "pl": "Brak zatwierdzonych szkiców do wysłania."
-    }
-  },
-  "SHIP_REPO_ROOT_NOT_FOUND": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Could not find the git repo root for the upstream PR mode.",
-      "pl": "Nie znaleziono katalogu .git potrzebnego do wysyłki przez pull request."
-    }
-  },
-  "SHIP_UPSTREAM_BLOCKED_CANONICAL": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "The configured remote points at the canonical diet-app repo. AI-drafted content never pushes there — even from the maintainer instance. Point SHIP_UPSTREAM_REMOTE at a private mirror, or use the local / bundle ship modes.",
-      "pl": "Skonfigurowane zdalne repozytorium to główne repozytorium diet-app. Treść napisana przez AI nigdy tam nie trafia — nawet z instancji opiekuna projektu. Ustaw SHIP_UPSTREAM_REMOTE na prywatną kopię repozytorium albo wyślij szkice do tej instancji lub jako pakiet."
-    }
-  },
-  "SHIP_UPSTREAM_DISABLED": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Upstream PR mode is disabled on this instance.",
-      "pl": "Wysyłka przez pull request jest wyłączona na tej instancji."
-    }
-  },
-  "SHIP_UPSTREAM_NO_TOKEN": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Upstream PR mode is missing a gh token.",
-      "pl": "Brakuje tokenu gh do wysyłki przez pull request."
     }
   },
   "SHOPPING_LIST_LIMIT": {

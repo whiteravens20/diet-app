@@ -19,6 +19,9 @@ export const MAX_PERSONAL_RECIPES = 200;
 /** The most recipes a model may write for one account within 24 hours. */
 export const MAX_AI_DRAFTS_PER_DAY = 20;
 
+/** The most recipes one account may write or edit by hand within 24 hours. */
+export const MAX_OWN_RECIPES_PER_DAY = 50;
+
 /** How long a deleted personal recipe that nothing uses is kept before it is removed for good. */
 const KEEP_DELETED_DAYS = 7;
 
@@ -32,11 +35,14 @@ interface RecipeText {
   steps: string[];
 }
 
-/** A recipe one user made for themselves: an ingredient swap, or a draft a model wrote. */
+/** A recipe one user made for themselves: an ingredient swap, a draft a model wrote, or one written by hand. */
 export interface PersonalRecipe {
   userId: string;
-  origin: 'user' | 'ai';
-  /** The text by locale; `en` is required and is what the recipe row itself carries. */
+  origin: 'swap' | 'ai' | 'manual';
+  /**
+   * The text by locale. The recipe row itself carries the English text, or,
+   * for a recipe written by hand in another language, the text of that one.
+   */
   text: ReadonlyMap<string, RecipeText>;
   /**
    * The languages whose text a model wrote. Their rows are stored as a model's
@@ -46,6 +52,14 @@ export interface PersonalRecipe {
   modelWrote?: ReadonlySet<string>;
   /** A model chose the ingredient that was swapped in, or reworded the text around it. */
   modelAssisted?: boolean;
+  /**
+   * Written by the instance's model, which the operator pays for: a recipe
+   * that is written anew goes before the curators at once, as a submitted one
+   * does.
+   */
+  forCurators?: boolean;
+  /** A new version its owner made by editing a recipe of theirs. */
+  edited?: boolean;
   servings: number;
   mealTypes: string[];
   prepMinutes: number;
@@ -81,9 +95,12 @@ const lock = (tx: Prisma.TransactionClient, key: string): Promise<number> =>
  * them cannot both take the last place the account has; then the saves of one
  * recipe take turns, so two requests for it cannot both write it.
  *
- * A personal recipe reaches the curation queue in two ways only: its owner
- * submits it, or a second user comes to own the same recipe, which is the
- * sign that it may be worth sharing.
+ * A recipe its owner writes by hand is saved by `saveOwn`, which keeps the
+ * owner's text instead of handing back a recipe that exists already.
+ *
+ * A personal recipe reaches the curation queue when its owner submits it, or
+ * as soon as it is written when the instance's model wrote it. A recipe made
+ * by swapping an ingredient never does, edited or not: it stays its owner's.
  */
 @Injectable()
 export class PersonalRecipesService {
@@ -112,7 +129,7 @@ export class PersonalRecipesService {
       if (found) {
         if (found.deleted) {
           // Brought back, it takes a place again.
-          await this.assertRoom(tx, recipe.userId, 'user');
+          await this.assertRoom(tx, recipe.userId, 'swap');
           await tx.recipe.update({ where: { id: found.id }, data: { deletedAt: null } });
         }
         return found.id;
@@ -120,14 +137,7 @@ export class PersonalRecipesService {
 
       await this.assertRoom(tx, recipe.userId, recipe.origin);
       const id = await this.write(tx, recipe, fingerprint);
-
-      // A second owner is the sign that the recipe may be worth sharing. One
-      // who deleted theirs is no owner any more.
-      const others = await tx.recipe.findMany({
-        where: { fingerprint, createdByUserId: { not: null }, NOT: { createdByUserId: recipe.userId }, deletedAt: null },
-        select: { id: true },
-      });
-      if (others.length > 0) await this.mirror(tx, id, fingerprint, [id, ...others.map((other) => other.id)]);
+      if (recipe.forCurators) await this.mirror(tx, id, fingerprint, [id]);
       return id;
     });
   }
@@ -139,27 +149,96 @@ export class PersonalRecipesService {
    * room for it. Asked before a model is put to work on text that might not
    * be stored.
    */
-  async wouldWrite(recipe: Fingerprinted & Pick<PersonalRecipe, 'userId' | 'origin'>, avoid: readonly string[] = []): Promise<boolean> {
+  async wouldWrite(
+    recipe: Fingerprinted & Pick<PersonalRecipe, 'userId' | 'origin'>,
+    avoid: readonly string[] = [],
+  ): Promise<boolean> {
     const fingerprint = await this.fingerprintOf(recipe);
-    const found = fingerprint === null ? null : await this.existing(this.prisma, recipe.userId, fingerprint, avoid);
+    const found =
+      fingerprint === null
+        ? null
+        : await this.existing(this.prisma, recipe.userId, fingerprint, avoid);
     if (found && !found.deleted) return false;
-    await this.assertRoom(this.prisma, recipe.userId, found ? 'user' : recipe.origin);
+    await this.assertRoom(this.prisma, recipe.userId, found ? 'swap' : recipe.origin);
     return found === null;
   }
 
-  /** Put the user's own recipe before the curators, as a candidate for the shared library. */
+  /**
+   * Save a recipe its owner wrote by hand, or the new version of `replacing`
+   * they made by editing it, and return its id.
+   *
+   * The owner's text is kept whatever else holds the same recipe: one of the
+   * shared library is left as it is, and one of their own that they deleted
+   * stays deleted, for the plans that may hold it. One of their own that they
+   * have is refused (409 `RECIPE_ALREADY_YOURS`), naming it. The version an
+   * edit replaces is deleted and recognised by nothing any more; the plans
+   * that hold it keep it, and the favourites and favourite sets that named it
+   * name the new one.
+   */
+  async saveOwn(recipe: PersonalRecipe, replacing: string | null = null): Promise<string> {
+    const fingerprint = await this.fingerprintOf(recipe);
+    return this.prisma.$transaction(async (tx) => {
+      await lock(tx, `personal-recipes:${recipe.userId}`);
+      if (fingerprint !== null) await lock(tx, fingerprint);
+      if (replacing !== null) {
+        const old = await tx.recipe.findFirst({
+          where: { id: replacing, createdByUserId: recipe.userId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!old) {
+          throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
+        }
+        await tx.recipe.update({
+          where: { id: replacing },
+          data: { deletedAt: new Date(), fingerprint: null },
+        });
+      }
+      if (fingerprint !== null) {
+        const own = await tx.recipe.findFirst({
+          where: { createdByUserId: recipe.userId, fingerprint },
+          select: { id: true, deletedAt: true },
+        });
+        if (own && !own.deletedAt) {
+          throw new ConflictException({
+            error: 'RECIPE_ALREADY_YOURS',
+            message:
+              'You have a recipe of these ingredients, in these amounts, for these meals already.',
+            details: { recipeId: own.id },
+          });
+        }
+        if (own) await tx.recipe.update({ where: { id: own.id }, data: { fingerprint: null } });
+      }
+      await this.assertRoom(tx, recipe.userId, recipe.origin, recipe.edited ?? false);
+      const id = await this.write(tx, recipe, fingerprint);
+      if (replacing !== null) await this.moveMarks(tx, recipe.userId, replacing, id);
+      return id;
+    });
+  }
+
+  /**
+   * Put the user's own recipe before the curators, as a candidate for the
+   * shared library. A recipe made by swapping an ingredient stays its owner's.
+   */
   async submit(userId: string, recipeId: string): Promise<void> {
     const recipe = await this.prisma.recipe.findUnique({
       where: { id: recipeId },
-      select: { id: true, createdByUserId: true, deletedAt: true, fingerprint: true },
+      select: { id: true, createdByUserId: true, deletedAt: true, fingerprint: true, origin: true },
     });
     if (!recipe || recipe.deletedAt || recipe.createdByUserId !== userId) {
       throw new NotFoundException({ error: 'RECIPE_NOT_FOUND', message: 'Recipe not found.' });
     }
+    if (recipe.origin === 'swap') {
+      throw new ConflictException({
+        error: 'RECIPE_SWAP_NOT_SUBMITTABLE',
+        message:
+          "A recipe made by swapping an ingredient stays its owner's and cannot be submitted.",
+      });
+    }
     if (!recipe.fingerprint) {
       throw new ConflictException({
         error: 'RECIPE_NOT_SUBMITTABLE',
-        message: 'This recipe uses an ingredient outside the curated catalogue and cannot be submitted.',
+        message:
+          'This recipe uses an ingredient outside the curated catalogue and cannot be submitted.',
       });
     }
     const fingerprint = recipe.fingerprint;
@@ -226,12 +305,21 @@ export class PersonalRecipesService {
     avoid: readonly string[],
   ): Promise<{ id: string; deleted: boolean } | null> {
     const shared = await db.recipe.findFirst({
-      where: { fingerprint, createdByUserId: null, deletedAt: null, retiredAt: null, id: { notIn: [...avoid] } },
+      where: {
+        fingerprint,
+        createdByUserId: null,
+        deletedAt: null,
+        retiredAt: null,
+        id: { notIn: [...avoid] },
+      },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: { id: true },
     });
     if (shared) return { id: shared.id, deleted: false };
-    const own = await db.recipe.findFirst({ where: { fingerprint, createdByUserId: userId }, select: { id: true, deletedAt: true } });
+    const own = await db.recipe.findFirst({
+      where: { fingerprint, createdByUserId: userId },
+      select: { id: true, deletedAt: true },
+    });
     return own ? { id: own.id, deleted: own.deletedAt !== null } : null;
   }
 
@@ -248,13 +336,18 @@ export class PersonalRecipesService {
       if (!slug) return null;
       lines.push({ slug, quantity: line.quantity, unit: line.unit });
     }
-    return computeFingerprint({ ingredients: lines, mealTypes: recipe.mealTypes, servings: recipe.servings });
+    return computeFingerprint({
+      ingredients: lines,
+      mealTypes: recipe.mealTypes,
+      servings: recipe.servings,
+    });
   }
 
   private async assertRoom(
     db: Pick<Prisma.TransactionClient, 'recipe'>,
     userId: string,
     origin: PersonalRecipe['origin'],
+    edited = false,
   ): Promise<void> {
     const held = await db.recipe.count({ where: { createdByUserId: userId, deletedAt: null } });
     if (held >= MAX_PERSONAL_RECIPES) {
@@ -263,11 +356,36 @@ export class PersonalRecipesService {
         message: `An account holds at most ${MAX_PERSONAL_RECIPES} recipes of its own. Delete some you no longer use.`,
       });
     }
+    if (origin === 'manual' || edited) {
+      // What was written and deleted since counts as well, and so does every
+      // version an edit left behind: those are rows all the same.
+      const written = await db.recipe.count({
+        where: {
+          createdByUserId: userId,
+          createdAt: { gte: new Date(Date.now() - 86_400_000) },
+          OR: [{ origin: 'manual' }, { edited: true }],
+        },
+      });
+      if (written >= MAX_OWN_RECIPES_PER_DAY) {
+        throw new HttpException(
+          {
+            error: 'OWN_RECIPE_DAILY_LIMIT',
+            message: `An account writes or edits at most ${MAX_OWN_RECIPES_PER_DAY} recipes by hand in 24 hours.`,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      return;
+    }
     if (origin !== 'ai') return;
     // Deleted drafts count too: deleting one does not hand the place back
     // within the day, or the limit would bound nothing.
     const drafted = await db.recipe.count({
-      where: { createdByUserId: userId, origin: 'ai', createdAt: { gte: new Date(Date.now() - 86_400_000) } },
+      where: {
+        createdByUserId: userId,
+        origin: 'ai',
+        createdAt: { gte: new Date(Date.now() - 86_400_000) },
+      },
     });
     if (drafted >= MAX_AI_DRAFTS_PER_DAY) {
       throw new HttpException(
@@ -280,13 +398,17 @@ export class PersonalRecipesService {
     }
   }
 
-  private async write(tx: Prisma.TransactionClient, recipe: PersonalRecipe, fingerprint: string | null): Promise<string> {
-    const en = recipe.text.get('en')!;
+  private async write(
+    tx: Prisma.TransactionClient,
+    recipe: PersonalRecipe,
+    fingerprint: string | null,
+  ): Promise<string> {
+    const own = recipe.text.get('en') ?? [...recipe.text.values()][0]!;
     const created = await tx.recipe.create({
       data: {
-        title: en.title,
-        description: en.description,
-        steps: en.steps,
+        title: own.title,
+        description: own.description,
+        steps: own.steps,
         servings: recipe.servings,
         mealTypes: recipe.mealTypes,
         dietTags: recipe.facts.dietTags,
@@ -297,13 +419,16 @@ export class PersonalRecipesService {
         allergens: recipe.facts.allergens,
         origin: recipe.origin,
         modelAssisted: recipe.modelAssisted ?? false,
+        edited: recipe.edited ?? false,
         createdByUserId: recipe.userId,
         fingerprint,
         caloriesPerServing: recipe.facts.perServing.calories,
         proteinPerServing: recipe.facts.perServing.protein,
         fatPerServing: recipe.facts.perServing.fat,
         carbsPerServing: recipe.facts.perServing.carbs,
-        ingredients: { create: recipe.ingredients },
+        ingredients: {
+          create: recipe.ingredients.map((line, position) => ({ ...line, position })),
+        },
         translations: {
           create: [...recipe.text].map(([locale, text]) => ({
             locale,
@@ -317,6 +442,29 @@ export class PersonalRecipesService {
     return created.id;
   }
 
+  /** Have the owner's favourites and favourite sets that name `from` name `to` instead. */
+  private async moveMarks(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    from: string,
+    to: string,
+  ): Promise<void> {
+    await tx.favorite.updateMany({
+      where: { recipeId: from, profile: { userId } },
+      data: { recipeId: to },
+    });
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE "FavoriteSet" favourites
+      SET "slots" = (
+            SELECT jsonb_object_agg(slot.key, CASE WHEN slot.value = ${from} THEN ${to} ELSE slot.value END)
+            FROM jsonb_each_text(favourites."slots"::jsonb) slot
+          ),
+          "updatedAt" = now()
+      WHERE favourites."profileId" IN (SELECT id FROM "Profile" WHERE "userId" = ${userId})
+        AND EXISTS (SELECT 1 FROM jsonb_each_text(favourites."slots"::jsonb) slot WHERE slot.value = ${from})
+    `);
+  }
+
   /**
    * Make sure the queue holds a draft for this fingerprint and that it names
    * the personal recipes it stands for. The draft is built from the stored
@@ -328,23 +476,36 @@ export class PersonalRecipesService {
     fingerprint: string,
     sources: string[],
   ): Promise<void> {
-    const existing = await tx.recipeDraft.findUnique({ where: { fingerprint }, select: { id: true, sourceRecipeIds: true } });
+    const existing = await tx.recipeDraft.findUnique({
+      where: { fingerprint },
+      select: { id: true, sourceRecipeIds: true },
+    });
     if (existing) {
       const merged = [...new Set([...existing.sourceRecipeIds, ...sources])];
       if (merged.length !== existing.sourceRecipeIds.length) {
-        await tx.recipeDraft.update({ where: { id: existing.id }, data: { sourceRecipeIds: { set: merged } } });
+        await tx.recipeDraft.update({
+          where: { id: existing.id },
+          data: { sourceRecipeIds: { set: merged } },
+        });
       }
       return;
     }
     const recipe = await tx.recipe.findUniqueOrThrow({
       where: { id: recipeId },
-      include: { translations: true, ingredients: { include: { ingredient: { select: { slug: true } } } } },
+      include: {
+        translations: true,
+        ingredients: {
+          orderBy: { position: 'asc' },
+          include: { ingredient: { select: { slug: true } } },
+        },
+      },
     });
+    // The row's own text is English, but in a recipe written by hand, whose
+    // text is in the languages it was written in, all of them translations.
+    const own = recipe.origin === 'manual' ? [] : [{ locale: 'en', ...recipe }];
+    const texts = [...own, ...recipe.translations];
     const byLocale = <T>(pick: (text: RecipeText) => T): Record<string, T> =>
-      Object.fromEntries([
-        ['en', pick(recipe)],
-        ...recipe.translations.map((row) => [row.locale, pick(row)] as const),
-      ]);
+      Object.fromEntries(texts.map((row) => [row.locale, pick(row)] as const));
     await tx.recipeDraft.create({
       data: {
         // Named after the recipe's content, not after a user or a moment.
@@ -352,7 +513,7 @@ export class PersonalRecipesService {
         titles: byLocale((text) => text.title),
         descriptions: byLocale((text) => text.description),
         steps: byLocale((text) => text.steps),
-        locales: [...new Set(['en', ...recipe.translations.map((row) => row.locale)])],
+        locales: [...new Set(texts.map((row) => row.locale))],
         servings: recipe.servings,
         mealTypes: recipe.mealTypes,
         dietTags: recipe.dietTags,
@@ -390,8 +551,13 @@ export class PersonalRecipesService {
  * what shipped is a recipe of the shared library by now, and its draft the
  * record of where that came from.
  */
-export async function removePersonalRecipesOf(tx: Prisma.TransactionClient, userId: string): Promise<void> {
-  const mine = (await tx.recipe.findMany({ where: { createdByUserId: userId }, select: { id: true } })).map((recipe) => recipe.id);
+export async function removePersonalRecipesOf(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const mine = (
+    await tx.recipe.findMany({ where: { createdByUserId: userId }, select: { id: true } })
+  ).map((recipe) => recipe.id);
   if (mine.length === 0) return;
   const drafts = await tx.recipeDraft.findMany({
     where: { sourceRecipeIds: { hasSome: mine } },
@@ -402,7 +568,10 @@ export async function removePersonalRecipesOf(tx: Prisma.TransactionClient, user
     if (left.length === 0 && draft.status !== 'SHIPPED') {
       await tx.recipeDraft.delete({ where: { id: draft.id } });
     } else {
-      await tx.recipeDraft.update({ where: { id: draft.id }, data: { sourceRecipeIds: { set: left } } });
+      await tx.recipeDraft.update({
+        where: { id: draft.id },
+        data: { sourceRecipeIds: { set: left } },
+      });
     }
   }
   await tx.recipe.deleteMany({ where: { createdByUserId: userId } });

@@ -117,7 +117,12 @@ export function isOperatorOllama(rawUrl: string, defaultBaseUrl: string): boolea
 function isInternalHost(hostname: string): boolean {
   const h = hostname.replace(/^\[/, '').replace(/\]$/, '');
   if (isIP(h) !== 0) return !isPublicAddress(h);
-  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) {
+  if (
+    h === 'localhost' ||
+    h.endsWith('.localhost') ||
+    h.endsWith('.local') ||
+    h.endsWith('.internal')
+  ) {
     return true;
   }
   // A single-label hostname (no dot) is a container / service name on an

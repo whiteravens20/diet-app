@@ -53,10 +53,13 @@ import { useFormat } from '@/lib/use-format';
 import { LoadFailed } from '@/components/load-failed';
 
 /** Fetched once the page is drawn: nobody waits for the calendar to read the page above it. */
-const PlanCalendar = dynamic(() => import('./plan-calendar').then((calendar) => calendar.PlanCalendar), {
-  ssr: false,
-  loading: () => <Skeleton className="h-96" />,
-});
+const PlanCalendar = dynamic(
+  () => import('./plan-calendar').then((calendar) => calendar.PlanCalendar),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-96" />,
+  },
+);
 
 /** How many of the meals that stand in the way of a plan are named one by one. */
 const MEALS_NAMED = 6;
@@ -64,13 +67,21 @@ const MEALS_NAMED = 6;
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /** What a generate request sends: the fields with a default may be left out. */
-type GenerateBody = Omit<GeneratePlanRequest, 'allowRelaxations'> & { allowRelaxations?: PlanRelaxation[] };
+type GenerateBody = Omit<GeneratePlanRequest, 'allowRelaxations'> & {
+  allowRelaxations?: PlanRelaxation[];
+};
 
 /** What the user can allow so that a refused re-roll goes through, by the code of the refusal. */
-const ALLOWS = { LOCKED_RECIPE_INELIGIBLE: 'dropIneligibleLocks', NOTHING_TO_REGENERATE: 'includePast' } as const;
+const ALLOWS = {
+  LOCKED_RECIPE_INELIGIBLE: 'dropIneligibleLocks',
+  NOTHING_TO_REGENERATE: 'includePast',
+} as const;
 
 /** `more` added to `allowed`, in the order limits give way. */
-const withMore = (allowed: readonly PlanRelaxation[], more: readonly PlanRelaxation[]): PlanRelaxation[] =>
+const withMore = (
+  allowed: readonly PlanRelaxation[],
+  more: readonly PlanRelaxation[],
+): PlanRelaxation[] =>
   PLAN_RELAXATIONS.filter((kind) => allowed.includes(kind) || more.includes(kind));
 
 function MealPlansContent() {
@@ -84,7 +95,10 @@ function MealPlansContent() {
   const fmt = useFormat();
   const qc = useQueryClient();
   const params = useSearchParams();
-  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api.get<Profile[]>('/profiles') });
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/profiles'),
+  });
   const list = profiles.data ?? [];
 
   // Active profile: explicit pick → ?profile= deep link → first profile.
@@ -96,7 +110,9 @@ function MealPlansContent() {
   const [linked] = useState(() => {
     const planId = params.get('plan');
     const date = params.get('day');
-    return planId && date && /^[0-9a-f-]{36}$/i.test(planId) && CalendarDay.safeParse(date).success ? { planId, date } : null;
+    return planId && date && /^[0-9a-f-]{36}$/i.test(planId) && CalendarDay.safeParse(date).success
+      ? { planId, date }
+      : null;
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -156,9 +172,12 @@ function MealPlansContent() {
   const favorites = useQuery({
     queryKey: ['favorites', activeId],
     queryFn: () =>
-      api.get<{ sentiment: string; recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] } }[]>(
-        `/favorites?profileId=${activeId}`,
-      ),
+      api.get<
+        {
+          sentiment: string;
+          recipe: { id: string; title: string; mealTypes: string[]; dietTags: string[] };
+        }[]
+      >(`/favorites?profileId=${activeId}`),
     enabled: Boolean(activeId),
   });
   // What a profile marked to avoid is marked, and is nothing to put into a plan: the gate would refuse it.
@@ -179,7 +198,11 @@ function MealPlansContent() {
   const planDiet = diet || active?.dietType || 'balanced';
   const planMeals = mealCount || active?.mealCount || 3;
 
-  const invalidate = () => Promise.all([qc.invalidateQueries({ queryKey: ['meal-plans', activeId] }), qc.invalidateQueries({ queryKey: ['meal-plan'] })]);
+  const invalidate = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: ['meal-plans', activeId] }),
+      qc.invalidateQueries({ queryKey: ['meal-plan'] }),
+    ]);
   const fail = (fallback: string) => (e: unknown) => {
     // Another request changed the plan first, so the one on screen is stale.
     if (e instanceof ApiClientError && e.code === 'PLAN_CHANGED') void invalidate();
@@ -194,20 +217,27 @@ function MealPlansContent() {
     const named = { meal: tMeal(slot), diet: tDiet(dietType) };
     if (ruledOut > 0) return t('noRecipeLeft', { ...named, count: ruledOut });
     // Fewer meals a day help only with a meal that the shortest day does not have.
-    return t('noRecipeInCatalogue', { ...named, advice: MEAL_SLOTS_BY_COUNT[2]!.includes(slot) ? 'diet' : 'fewer' });
+    return t('noRecipeInCatalogue', {
+      ...named,
+      advice: MEAL_SLOTS_BY_COUNT[2]!.includes(slot) ? 'diet' : 'fewer',
+    });
   };
 
   // A plan that could only be filled outside its limits: what stands in the
   // way, and the request that is sent again once the user lets it give way.
   const [inTheWay, setInTheWay] = useState<
-    { needed: RelaxationNeeded; allowed: PlanRelaxation[] } & ({ generate: GenerateBody } | { reroll: Reroll }) | null
+    | ({ needed: RelaxationNeeded; allowed: PlanRelaxation[] } & (
+        { generate: GenerateBody } | { reroll: Reroll }
+      ))
+    | null
   >(null);
   const relaxationNeeded = (e: unknown): RelaxationNeeded | null => {
     if (!(e instanceof ApiClientError) || e.code !== 'PLAN_NEEDS_RELAXATION') return null;
     const needed = RelaxationNeeded.safeParse(e.details);
     return needed.success ? needed.data : null;
   };
-  const limitNames = (kinds: readonly PlanRelaxation[]) => kinds.map((kind) => t(`limit.${kind}`)).join(', ');
+  const limitNames = (kinds: readonly PlanRelaxation[]) =>
+    kinds.map((kind) => t(`limit.${kind}`)).join(', ');
 
   const generate = useMutation({
     mutationFn: (body: GenerateBody) => api.post<MealPlan>('/meal-plans/generate', body),
@@ -227,20 +257,32 @@ function MealPlansContent() {
   // recipe that may no longer go into the plan can be dropped, days that have
   // passed can be filled again all the same. The same request is then sent
   // with that allowed.
-  const [refused, setRefused] = useState<{ reroll: Reroll; allow: (typeof ALLOWS)[keyof typeof ALLOWS] } | null>(null);
+  const [refused, setRefused] = useState<{
+    reroll: Reroll;
+    allow: (typeof ALLOWS)[keyof typeof ALLOWS];
+  } | null>(null);
   const reroll = (fallback: string) => ({
     mutationFn: (v: Reroll) =>
-      api.post<MealPlan>(v.dayId ? `/meal-plans/${v.planId}/days/${v.dayId}/regenerate` : `/meal-plans/${v.planId}/regenerate`, rerollBody(v)),
+      api.post<MealPlan>(
+        v.dayId
+          ? `/meal-plans/${v.planId}/days/${v.dayId}/regenerate`
+          : `/meal-plans/${v.planId}/regenerate`,
+        rerollBody(v),
+      ),
     onSuccess: () => {
       setRefused(null);
       setInTheWay(null);
       invalidate();
     },
     onError: (e: unknown, v: Reroll) => {
-      const allow = e instanceof ApiClientError && e.code in ALLOWS ? ALLOWS[e.code as keyof typeof ALLOWS] : null;
+      const allow =
+        e instanceof ApiClientError && e.code in ALLOWS
+          ? ALLOWS[e.code as keyof typeof ALLOWS]
+          : null;
       setRefused(allow && !v[allow] ? { reroll: v, allow } : null);
       const needed = relaxationNeeded(e);
-      const kept = plans.data?.items.find((plan) => plan.id === v.planId)?.options.allowRelaxations ?? [];
+      const kept =
+        plans.data?.items.find((plan) => plan.id === v.planId)?.options.allowRelaxations ?? [];
       setInTheWay(needed ? { needed, allowed: v.allowRelaxations ?? kept, reroll: v } : null);
       if (!needed) fail(fallback)(e);
     },
@@ -266,7 +308,12 @@ function MealPlansContent() {
   const offerSwap = useMutation({
     mutationFn: (v: SwapAsk & { seen: string[] }) =>
       v.strategy === 'ai'
-        ? api.post<Offered>('/meal-plans/ai-swap-meal/preview', { planId: v.planId, plannedMealId: v.plannedMealId, respectInventory: swapWithPantry, skip: v.seen })
+        ? api.post<Offered>('/meal-plans/ai-swap-meal/preview', {
+            planId: v.planId,
+            plannedMealId: v.plannedMealId,
+            respectInventory: swapWithPantry,
+            skip: v.seen,
+          })
         : api.post<Offered>('/meal-plans/swap-meal/preview', {
             planId: v.planId,
             plannedMealId: v.plannedMealId,
@@ -320,25 +367,31 @@ function MealPlansContent() {
 
   const addCustomMeal = useMutation({
     mutationFn: (v: { planId: string; date: string; body: AddCustomMealRequest }) =>
-      api.post<RebalanceResult>(
-        `/meal-plans/${v.planId}/days/${v.date}/custom-meal`,
-        v.body,
-      ),
+      api.post<RebalanceResult>(`/meal-plans/${v.planId}/days/${v.date}/custom-meal`, v.body),
     onSuccess: (res, v) => showRebalance(v.planId, res),
     onError: fail(t('errCustomMeal')),
   });
 
   const toggleEaten = useMutation({
     mutationFn: (v: { planId: string; mealId: string; eaten: boolean }) =>
-      api.patch<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}/eaten`, { eaten: v.eaten }),
+      api.patch<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}/eaten`, {
+        eaten: v.eaten,
+      }),
     onSuccess: (res, v) => showRebalance(v.planId, res),
     onError: fail(t('errEaten')),
+  });
+
+  const removeMeal = useMutation({
+    mutationFn: (v: { planId: string; mealId: string }) =>
+      api.delete<RebalanceResult>(`/meal-plans/${v.planId}/meals/${v.mealId}`),
+    onSuccess: (res, v) => showRebalance(v.planId, res),
+    onError: fail(t('errRemoveMeal')),
   });
 
   const rebalance = useMutation({
     mutationFn: (v: {
       planId: string;
-      scope: 'day' | 'week';
+      scope: 'day' | 'plan';
       date?: string;
       restore?: { mealId: string; scale: number }[];
     }) =>
@@ -348,7 +401,7 @@ function MealPlansContent() {
         ...(v.restore ? { restore: v.restore } : {}),
       }),
     onSuccess: (res, v) => {
-      // Undo / week re-runs replace the toast (undo simply clears it).
+      // Undo / rest-of-plan re-runs replace the toast (undo simply clears it).
       if (v.restore) {
         invalidate();
         setRebalanceToast(null);
@@ -372,6 +425,7 @@ function MealPlansContent() {
     takeOffer.isPending ||
     addCustomMeal.isPending ||
     toggleEaten.isPending ||
+    removeMeal.isPending ||
     rebalance.isPending ||
     remove.isPending;
 
@@ -402,7 +456,9 @@ function MealPlansContent() {
   // its way, and the list still being narrowed to it.
   const sought = useRef<{ planId: string; date: string } | null>(linked);
   useEffect(() => {
-    const day = sought.current && document.getElementById(dayAnchor(sought.current.planId, sought.current.date));
+    const day =
+      sought.current &&
+      document.getElementById(dayAnchor(sought.current.planId, sought.current.date));
     if (!day) return;
     sought.current = null;
     day.scrollIntoView({ block: 'start' });
@@ -411,7 +467,8 @@ function MealPlansContent() {
   const startDateField = useRef<HTMLInputElement>(null);
 
   if (profiles.isLoading) return <Skeleton className="h-40 max-w-2xl" />;
-  if (profiles.isError) return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
+  if (profiles.isError)
+    return <LoadFailed error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   if (list.length === 0) {
     return (
@@ -492,7 +549,12 @@ function MealPlansContent() {
               {/* What the box does is said beside it, and read out with it: its name stays short. */}
               <div className="self-end pb-1 text-sm">
                 <label className="flex items-center gap-2">
-                  <input name="mealPrepFriendly" type="checkbox" className="h-4 w-4" aria-describedby="meal-prep-hint" />
+                  <input
+                    name="mealPrepFriendly"
+                    type="checkbox"
+                    className="h-4 w-4"
+                    aria-describedby="meal-prep-hint"
+                  />
                   {t('mealPrepFriendly')}
                 </label>
                 <p id="meal-prep-hint" className="mt-1 text-xs text-muted-foreground">
@@ -504,22 +566,38 @@ function MealPlansContent() {
               <div className="space-y-1">
                 <div className="grid gap-4 sm:grid-cols-3">
                   <Field label={t('diet')}>
-                    <select className={selectClass} value={diet} onChange={(e) => setDiet(e.target.value as DietType | '')}>
-                      <option value="">{t('asInProfile', { value: tDiet(active.dietType) })}</option>
+                    <select
+                      className={selectClass}
+                      value={diet}
+                      onChange={(e) => setDiet(e.target.value as DietType | '')}
+                    >
+                      <option value="">
+                        {t('asInProfile', { value: tDiet(active.dietType) })}
+                      </option>
                       {NAMED_DIETS.map((offered) => {
                         const supply = supplyOf(depth, offered, planMeals)?.supply;
                         return (
                           <option key={offered} value={offered}>
-                            {supply === 'none' ? tCatalogue('dietNone', { diet: tDiet(offered) }) : supply === 'thin' ? tCatalogue('dietThin', { diet: tDiet(offered) }) : tDiet(offered)}
+                            {supply === 'none'
+                              ? tCatalogue('dietNone', { diet: tDiet(offered) })
+                              : supply === 'thin'
+                                ? tCatalogue('dietThin', { diet: tDiet(offered) })
+                                : tDiet(offered)}
                           </option>
                         );
                       })}
                       {/* The custom diet is the profile's own split: there is one to plan to, or the diet is not on offer. */}
-                      {active.customMacroSplit && <option value="custom">{t('dietCustom', active.customMacroSplit)}</option>}
+                      {active.customMacroSplit && (
+                        <option value="custom">{t('dietCustom', active.customMacroSplit)}</option>
+                      )}
                     </select>
                   </Field>
                   <Field label={t('mealsPerDay')}>
-                    <select className={selectClass} value={mealCount} onChange={(e) => setMealCount(e.target.value ? Number(e.target.value) : '')}>
+                    <select
+                      className={selectClass}
+                      value={mealCount}
+                      onChange={(e) => setMealCount(e.target.value ? Number(e.target.value) : '')}
+                    >
                       <option value="">{t('asInProfile', { value: active.mealCount })}</option>
                       {[2, 3, 4, 5].map((count) => (
                         <option key={count} value={count}>
@@ -543,7 +621,8 @@ function MealPlansContent() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {t('planChoicesHint')}
-                  {calories.data && ` ${t('calorieTargetHint', { kcal: calories.data.dailyTarget })}`}
+                  {calories.data &&
+                    ` ${t('calorieTargetHint', { kcal: calories.data.dailyTarget })}`}
                 </p>
               </div>
             )}
@@ -551,7 +630,12 @@ function MealPlansContent() {
               <legend className="text-sm font-medium">{t('applyPrefs')}</legend>
               <p className="mb-1 text-xs text-muted-foreground">{t('applyPrefsHint')}</p>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="respectExclusions" defaultChecked className="h-4 w-4" />
+                <input
+                  type="checkbox"
+                  name="respectExclusions"
+                  defaultChecked
+                  className="h-4 w-4"
+                />
                 {t('honourAvoid')}
               </label>
               <label className="flex items-center gap-2 text-sm">
@@ -589,7 +673,10 @@ function MealPlansContent() {
           disabled={busy}
           onClick={() => {
             setError(null);
-            (refused.reroll.dayId ? regenerateDay : regenerate).mutate({ ...refused.reroll, [refused.allow]: true });
+            (refused.reroll.dayId ? regenerateDay : regenerate).mutate({
+              ...refused.reroll,
+              [refused.allow]: true,
+            });
           }}
         >
           {t(refused.allow === 'includePast' ? 'includePastAndRetry' : 'dropLockAndRetry')}
@@ -600,7 +687,12 @@ function MealPlansContent() {
           className="max-w-2xl space-y-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
           role="alert"
         >
-          <p>{t('limitsInTheWay', { count: inTheWay.needed.meals.length, limits: limitNames(inTheWay.needed.needs) })}</p>
+          <p>
+            {t('limitsInTheWay', {
+              count: inTheWay.needed.meals.length,
+              limits: limitNames(inTheWay.needed.needs),
+            })}
+          </p>
           <ul className="list-disc pl-5 text-xs">
             {inTheWay.needed.meals.slice(0, MEALS_NAMED).map((meal) => (
               <li key={`${meal.date} ${meal.slot}`}>
@@ -608,7 +700,9 @@ function MealPlansContent() {
               </li>
             ))}
             {inTheWay.needed.meals.length > MEALS_NAMED && (
-              <li>{t('limitsInTheWayMore', { count: inTheWay.needed.meals.length - MEALS_NAMED })}</li>
+              <li>
+                {t('limitsInTheWayMore', { count: inTheWay.needed.meals.length - MEALS_NAMED })}
+              </li>
             )}
           </ul>
           <div className="flex flex-wrap gap-2">
@@ -625,7 +719,10 @@ function MealPlansContent() {
                   setAdvanced((value) => ({ ...value, mayGiveWay: allowRelaxations }));
                   generate.mutate({ ...inTheWay.generate, allowRelaxations });
                 } else {
-                  (inTheWay.reroll.dayId ? regenerateDay : regenerate).mutate({ ...inTheWay.reroll, allowRelaxations });
+                  (inTheWay.reroll.dayId ? regenerateDay : regenerate).mutate({
+                    ...inTheWay.reroll,
+                    allowRelaxations,
+                  });
                 }
               }}
             >
@@ -688,7 +785,13 @@ function MealPlansContent() {
             <div className="flex flex-wrap gap-1">
               {(['', 'active', 'upcoming', 'past'] as const).map((s) => {
                 const labelKey =
-                  s === '' ? 'statusAll' : s === 'active' ? 'statusActive' : s === 'upcoming' ? 'statusUpcoming' : 'statusPast';
+                  s === ''
+                    ? 'statusAll'
+                    : s === 'active'
+                      ? 'statusActive'
+                      : s === 'upcoming'
+                        ? 'statusUpcoming'
+                        : 'statusPast';
                 return (
                   <Button
                     key={s || 'all'}
@@ -740,7 +843,10 @@ function MealPlansContent() {
             )}
           </div>
         </div>
-        <label className="flex items-center gap-2 text-xs text-muted-foreground" title={t('swapWithPantryTooltip')}>
+        <label
+          className="flex items-center gap-2 text-xs text-muted-foreground"
+          title={t('swapWithPantryTooltip')}
+        >
           <input
             type="checkbox"
             className="h-3.5 w-3.5"
@@ -782,12 +888,26 @@ function MealPlansContent() {
                   remove.mutate(plan.id);
                 }
               }}
-              onSwapMeal={(plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'random' })}
-              onSwapByFavorites={(plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'favorite_ingredients' })}
-              onSwapToFavorite={(plannedMealId, favoriteRecipeId, allowOffDiet) =>
-                askFor({ planId: plan.id, plannedMealId, strategy: 'favorite', favoriteRecipeId, allowOffDiet })
+              onSwapMeal={(plannedMealId) =>
+                askFor({ planId: plan.id, plannedMealId, strategy: 'random' })
               }
-              onAiSwapMeal={aiEnabled ? (plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'ai' }) : undefined}
+              onSwapByFavorites={(plannedMealId) =>
+                askFor({ planId: plan.id, plannedMealId, strategy: 'favorite_ingredients' })
+              }
+              onSwapToFavorite={(plannedMealId, favoriteRecipeId, allowOffDiet) =>
+                askFor({
+                  planId: plan.id,
+                  plannedMealId,
+                  strategy: 'favorite',
+                  favoriteRecipeId,
+                  allowOffDiet,
+                })
+              }
+              onAiSwapMeal={
+                aiEnabled
+                  ? (plannedMealId) => askFor({ planId: plan.id, plannedMealId, strategy: 'ai' })
+                  : undefined
+              }
               aiOffNote={aiOffNote}
               offer={offer?.asked.planId === plan.id ? offer : null}
               onTakeOffer={() => offer && takeOffer.mutate(offer)}
@@ -801,11 +921,22 @@ function MealPlansContent() {
                 showRebalance(plan.id, res);
                 // Set only when a rewording by a model was asked for: say so
                 // when the plain replacement stands instead.
-                if (res.aiMeta) setNotice(res.aiMeta.fallbackReason ? tFallback(res.aiMeta.fallbackReason) : null);
+                if (res.aiMeta)
+                  setNotice(
+                    res.aiMeta.fallbackReason ? tFallback(res.aiMeta.fallbackReason) : null,
+                  );
               }}
               onAddCustomMeal={(date, body) => {
                 setError(null);
                 addCustomMeal.mutate({ planId: plan.id, date, body });
+              }}
+              onRemoveMeal={(mealId) => {
+                setError(null);
+                removeMeal.mutate({ planId: plan.id, mealId });
+              }}
+              onSpread={(date) => {
+                setError(null);
+                rebalance.mutate({ planId: plan.id, scope: 'plan', date });
               }}
               onSwapped={(res) => showRebalance(plan.id, res)}
               onChanged={() => void invalidate()}
@@ -816,11 +947,25 @@ function MealPlansContent() {
         )}
         {(plans.data?.totalPages ?? 0) > 1 && (
           <nav aria-label={t('pages')} className="flex items-center gap-3 text-sm">
-            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
               {t('pageNewer')}
             </Button>
-            <span className="text-muted-foreground">{t('pageOf', { page, pages: plans.data!.totalPages })}</span>
-            <Button type="button" variant="outline" size="sm" disabled={page >= plans.data!.totalPages} onClick={() => setPage(page + 1)}>
+            <span className="text-muted-foreground">
+              {t('pageOf', { page, pages: plans.data!.totalPages })}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= plans.data!.totalPages}
+              onClick={() => setPage(page + 1)}
+            >
               {t('pageOlder')}
             </Button>
           </nav>
@@ -841,9 +986,7 @@ function MealPlansContent() {
               })),
             })
           }
-          onRebalanceWeek={() =>
-            rebalance.mutate({ planId: rebalanceToast.planId, scope: 'week' })
-          }
+          onRebalanceRest={() => rebalance.mutate({ planId: rebalanceToast.planId, scope: 'plan' })}
           onDismiss={() => setRebalanceToast(null)}
         />
       )}

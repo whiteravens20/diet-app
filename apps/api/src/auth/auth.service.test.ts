@@ -1,5 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- partial test doubles */
+
 /**
  * Unit tests for AuthService. Prisma / JWT / Turnstile / Mail are mocked. Focus
  * on the security-sensitive behaviours: anti-abuse gate, duplicate-email
@@ -52,9 +54,11 @@ function makeDeps(user: ReturnType<typeof makeUser> | null) {
   const prisma = {
     user: {
       findUnique: vi.fn().mockResolvedValue(user),
-      create: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'user-new', role: 'user', emailVerified: false, ...args.data }),
-      ),
+      create: vi
+        .fn()
+        .mockImplementation((args: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'user-new', role: 'user', emailVerified: false, ...args.data }),
+        ),
       update: vi.fn().mockResolvedValue(user),
     },
     refreshToken: {
@@ -82,27 +86,24 @@ function makeDeps(user: ReturnType<typeof makeUser> | null) {
 }
 
 function makeSessions(deps: ReturnType<typeof makeDeps>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
-  return new SessionsService(deps.prisma as any, deps.jwt as any, makeConfig() as any, new AccountEmail(makeConfig() as any));
+  return new SessionsService(
+    deps.prisma as any,
+    deps.jwt as any,
+    makeConfig() as any,
+    new AccountEmail(makeConfig() as any),
+  );
 }
 
 function makeService(deps: ReturnType<typeof makeDeps>) {
   return new AuthService(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     deps.prisma as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     makeConfig() as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     deps.turnstile as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     deps.mail as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     new AccountEmail(makeConfig() as any),
     makeSessions(deps),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     new Passwords(makeConfig() as any),
     // An account without a second factor: signing in with one is tested against the database.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial test doubles
     { isOn: vi.fn().mockResolvedValue(false) } as any,
   );
 }
@@ -112,14 +113,22 @@ describe('AuthService.register', () => {
     const deps = makeDeps(null);
     deps.turnstile.verify = vi.fn().mockResolvedValue(false);
     await expect(
-      makeService(deps).register({ email: 'a@b.com', password: 'Passw0rd!', displayName: 'A' } as never),
+      makeService(deps).register({
+        email: 'a@b.com',
+        password: 'Passw0rd!',
+        displayName: 'A',
+      } as never),
     ).rejects.toMatchObject({ response: expect.objectContaining({ error: 'TURNSTILE_FAILED' }) });
   });
 
   it('rejects a duplicate email with EMAIL_TAKEN', async () => {
     const deps = makeDeps(makeUser());
     await expect(
-      makeService(deps).register({ email: 'alice@example.com', password: 'Passw0rd!', displayName: 'A' } as never),
+      makeService(deps).register({
+        email: 'alice@example.com',
+        password: 'Passw0rd!',
+        displayName: 'A',
+      } as never),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -148,13 +157,21 @@ describe('AuthService.login', () => {
     const deps = makeDeps(makeUser());
     await expect(
       makeService(deps).login({ email: 'alice@example.com', password: 'WrongPass9' } as never),
-    ).rejects.toMatchObject({ response: expect.objectContaining({ error: 'INVALID_CREDENTIALS' }) });
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ error: 'INVALID_CREDENTIALS' }),
+    });
   });
 
   it('issues tokens on correct credentials', async () => {
     const deps = makeDeps(makeUser());
-    const res = await makeService(deps).login({ email: 'alice@example.com', password: 'CorrectHorse1' } as never);
-    expect(res).toMatchObject({ user: { email: 'alice@example.com' }, tokens: { refreshToken: expect.any(String) } });
+    const res = await makeService(deps).login({
+      email: 'alice@example.com',
+      password: 'CorrectHorse1',
+    } as never);
+    expect(res).toMatchObject({
+      user: { email: 'alice@example.com' },
+      tokens: { refreshToken: expect.any(String) },
+    });
     expect(deps.prisma.refreshToken.create).toHaveBeenCalledTimes(1);
   });
 });
@@ -166,7 +183,10 @@ describe('AuthService.verifyEmail', () => {
     await expect(makeService(deps).verifyEmail('raw')).rejects.toBeInstanceOf(BadRequestException);
 
     deps.prisma.emailVerificationToken.findUnique = vi.fn().mockResolvedValue({
-      id: 't1', userId: 'user-1', usedAt: new Date(), expiresAt: new Date(Date.now() + 1000),
+      id: 't1',
+      userId: 'user-1',
+      usedAt: new Date(),
+      expiresAt: new Date(Date.now() + 1000),
     });
     await expect(makeService(deps).verifyEmail('raw')).rejects.toMatchObject({
       response: expect.objectContaining({ error: 'INVALID_VERIFICATION_TOKEN' }),

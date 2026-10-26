@@ -8,7 +8,15 @@
  *
  * Pure, and the same rule (`fitsDiet`) as the planner's own pool.
  */
-import { DietType, MEAL_SLOTS_BY_COUNT, MealType, fitsDiet, type CatalogueDepth, type Macros, type MealCountKey } from '@diet-app/shared';
+import {
+  DietType,
+  MEAL_SLOTS_BY_COUNT,
+  MealType,
+  fitsDiet,
+  type CatalogueDepth,
+  type Macros,
+  type MealCountKey,
+} from '@diet-app/shared';
 import { energyShares, macroSplitOf, splitDistance } from './nutrition.js';
 import { OptimizerError, optimisePlan, uniformDays, type OptimizerRecipe } from './optimizer.js';
 import { packUse } from './packs.js';
@@ -28,7 +36,9 @@ export function recipesPerDietAndMeal(
   for (const diet of DietType.options) {
     const row = {} as Record<MealType, number>;
     for (const meal of MealType.options) {
-      row[meal] = recipes.filter((recipe) => recipe.mealTypes.includes(meal) && fitsDiet(recipe.dietTags, diet)).length;
+      row[meal] = recipes.filter(
+        (recipe) => recipe.mealTypes.includes(meal) && fitsDiet(recipe.dietTags, diet),
+      ).length;
     }
     matrix[diet] = row;
   }
@@ -40,19 +50,27 @@ export function depthByMealCount(matrix: CoverageMatrix): CatalogueDepth {
   const depth = {} as CatalogueDepth;
   for (const diet of DietType.options) {
     depth[diet] = Object.fromEntries(
-      Object.entries(MEAL_SLOTS_BY_COUNT).map(([count, meals]) => [count, Math.min(...meals.map((meal) => matrix[diet][meal]))]),
+      Object.entries(MEAL_SLOTS_BY_COUNT).map(([count, meals]) => [
+        count,
+        Math.min(...meals.map((meal) => matrix[diet][meal])),
+      ]),
     ) as Record<MealCountKey, number>;
   }
   return depth;
 }
 
 /** The emptiest cell among the diets that need recipes of their own; the first in a fixed order when several are as empty. */
-export function thinnestCell(matrix: CoverageMatrix): { diet: DietType; meal: MealType; recipes: number } {
+export function thinnestCell(matrix: CoverageMatrix): {
+  diet: DietType;
+  meal: MealType;
+  recipes: number;
+} {
   let thinnest: { diet: DietType; meal: MealType; recipes: number } | null = null;
   for (const diet of DietType.options) {
     if (diet === 'custom') continue;
     for (const meal of MealType.options) {
-      if (!thinnest || matrix[diet][meal] < thinnest.recipes) thinnest = { diet, meal, recipes: matrix[diet][meal] };
+      if (!thinnest || matrix[diet][meal] < thinnest.recipes)
+        thinnest = { diet, meal, recipes: matrix[diet][meal] };
     }
   }
   return thinnest!;
@@ -80,7 +98,16 @@ export interface MacroReach extends Macros {
  * takes of each, where they are known, let it lean on reuse and on the packs
  * as a plan does.
  */
-export type ReachRecipe = Pick<OptimizerRecipe, 'id' | 'mealTypes' | 'dietTags' | 'caloriesPerServing' | 'proteinPerServing' | 'fatPerServing' | 'carbsPerServing'> &
+export type ReachRecipe = Pick<
+  OptimizerRecipe,
+  | 'id'
+  | 'mealTypes'
+  | 'dietTags'
+  | 'caloriesPerServing'
+  | 'proteinPerServing'
+  | 'fatPerServing'
+  | 'carbsPerServing'
+> &
   Partial<Pick<OptimizerRecipe, 'ingredientIds' | 'amounts'>>;
 
 /** The weeks a reach is measured on: as many draws, of this many days at this target. */
@@ -94,8 +121,17 @@ const REACH = { draws: 5, days: 7, target: 2000 } as const;
  * `perishablePacks` is the pack of each ingredient whose opened pack does not
  * keep, as a plan is given it.
  */
-export function macroReachByDiet(known: readonly ReachRecipe[], perishablePacks?: ReadonlyMap<string, number>): Record<DietType, MacroReach | null> {
-  const recipes: OptimizerRecipe[] = known.map((recipe) => ({ ingredientIds: [], difficulty: 'easy', isFavorite: false, totalMinutes: 0, ...recipe }));
+export function macroReachByDiet(
+  known: readonly ReachRecipe[],
+  perishablePacks?: ReadonlyMap<string, number>,
+): Record<DietType, MacroReach | null> {
+  const recipes: OptimizerRecipe[] = known.map((recipe) => ({
+    ingredientIds: [],
+    difficulty: 'easy',
+    isFavorite: false,
+    totalMinutes: 0,
+    ...recipe,
+  }));
   const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
   const reach = {} as Record<DietType, MacroReach | null>;
   for (const diet of DietType.options) {
@@ -119,7 +155,11 @@ export function macroReachByDiet(known: readonly ReachRecipe[], perishablePacks?
         if (perishablePacks) {
           const needs = new Map<string, number>();
           for (const placed of assignments) {
-            for (const [ingredientId, perServing] of byId.get(placed.recipeId)!.amounts ?? []) needs.set(ingredientId, (needs.get(ingredientId) ?? 0) + perServing * placed.servings);
+            for (const [ingredientId, perServing] of byId.get(placed.recipeId)!.amounts ?? [])
+              needs.set(
+                ingredientId,
+                (needs.get(ingredientId) ?? 0) + perServing * placed.servings,
+              );
           }
           const week = packUse(needs, perishablePacks);
           packs.bought += week.bought;
@@ -149,7 +189,13 @@ export function macroReachByDiet(known: readonly ReachRecipe[], perishablePacks?
     reach[diet] =
       days === 0
         ? null
-        : { protein: sum.protein / days, fat: sum.fat / days, carbs: sum.carbs / days, distance: sum.distance / days, packsUsed: packs.bought > 0 ? packs.used / packs.bought : null };
+        : {
+            protein: sum.protein / days,
+            fat: sum.fat / days,
+            carbs: sum.carbs / days,
+            distance: sum.distance / days,
+            packsUsed: packs.bought > 0 ? packs.used / packs.bought : null,
+          };
   }
   return reach;
 }

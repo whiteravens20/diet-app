@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   MAX_LISTS_PER_PLAN,
@@ -31,7 +36,13 @@ import {
   type PlanIngredientLine,
   type ShoppingIngredient,
 } from '../engine/index.js';
-import { assertWithinCeiling, lockPantries, lockPantry, readMoves, settlePantry } from '../inventory/pantry-store.js';
+import {
+  assertWithinCeiling,
+  lockPantries,
+  lockPantry,
+  readMoves,
+  settlePantry,
+} from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pickIngredient } from '../recipes/recipes.service.js';
 
@@ -91,12 +102,17 @@ export class ShoppingListsService {
    * one are replaced by it. What was obtained for them goes into the pantry
    * first, so the new list finds it there and asks only for what is missing.
    */
-  async generate(userId: string, locale: Locale, req: GenerateShoppingListRequest): Promise<ShoppingList> {
+  async generate(
+    userId: string,
+    locale: Locale,
+    req: GenerateShoppingListRequest,
+  ): Promise<ShoppingList> {
     const plan = await this.prisma.mealPlan.findUnique({
       where: { id: req.planId },
       include: { profile: true, days: { orderBy: { date: 'asc' }, select: { date: true } } },
     });
-    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const profileId = plan.profile.id;
 
     const first = plan.days[0]?.date ?? plan.startDate;
@@ -112,16 +128,27 @@ export class ShoppingListsService {
 
     const listId = await this.prisma.$transaction(async (tx) => {
       // One list of a profile at a time: each counts on what the others left.
-      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`shopping:${profileId}`}, 0))`);
+      await tx.$executeRaw(
+        Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`shopping:${profileId}`}, 0))`,
+      );
       // The menu must not change between reading it and writing the list.
-      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${plan.id} FOR UPDATE`);
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "MealPlan" WHERE "id" = ${plan.id} FOR UPDATE`,
+      );
 
       const overlapping = await tx.shoppingList.findMany({
         where: { planId: plan.id, fromDate: { lte: to }, toDate: { gte: from } },
         select: { id: true },
       });
-      await releaseLists(tx, profileId, overlapping.map((list) => list.id), () => 1);
-      await tx.shoppingList.deleteMany({ where: { id: { in: overlapping.map((list) => list.id) } } });
+      await releaseLists(
+        tx,
+        profileId,
+        overlapping.map((list) => list.id),
+        () => 1,
+      );
+      await tx.shoppingList.deleteMany({
+        where: { id: { in: overlapping.map((list) => list.id) } },
+      });
 
       if ((await tx.shoppingList.count({ where: { planId: plan.id } })) >= MAX_LISTS_PER_PLAN) {
         throw new ConflictException({
@@ -134,7 +161,9 @@ export class ShoppingListsService {
       const items = needs.groups.flatMap((group) => group.items);
       const claimed = await openClaims(tx, profileId, needs.ingredients);
 
-      const list = await tx.shoppingList.create({ data: { planId: plan.id, fromDate: from, toDate: to } });
+      const list = await tx.shoppingList.create({
+        data: { planId: plan.id, fromDate: from, toDate: to },
+      });
       // A list of four weeks names some hundreds of ingredients: their
       // pantries are held, and read, with one statement each, not one an
       // ingredient. The list has one row for an ingredient, so what is read
@@ -154,12 +183,22 @@ export class ShoppingListsService {
         const ingredient = needs.ingredients.get(item.ingredientId)!;
         const stock = pantryStock(pantry.get(ingredient.id) ?? [], ingredient);
         const free = stock.quantity - (claimed.get(ingredient.id) ?? 0);
-        const have = quantityToClaim(convertUnit(free, ingredient.canonicalUnit, item.unit, ingredient), item.unit, item.totalQuantity);
+        const have = quantityToClaim(
+          convertUnit(free, ingredient.canonicalUnit, item.unit, ingredient),
+          item.unit,
+          item.totalQuantity,
+        );
         // A need the pantry covers in full needs no shopping: the row arrives
         // ticked, and what it counts on leaves the pantry now.
         const covered = have > 0 && have >= item.totalQuantity;
         const moves = covered
-          ? await settlePantry(tx, profileId, ingredient, [], -convertUnit(have, item.unit, ingredient.canonicalUnit, ingredient))
+          ? await settlePantry(
+              tx,
+              profileId,
+              ingredient,
+              [],
+              -convertUnit(have, item.unit, ingredient.canonicalUnit, ingredient),
+            )
           : [];
         rows.push({
           listId: list.id,
@@ -190,7 +229,8 @@ export class ShoppingListsService {
       where: { id: planId },
       include: { profile: true },
     });
-    if (!plan?.profile || plan.profile.userId !== userId) throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
+    if (!plan?.profile || plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'PLAN_NOT_FOUND', message: 'Meal plan not found.' });
     const rows = await this.prisma.shoppingList.findMany({
       where: { planId },
       include: { items: true },
@@ -209,7 +249,9 @@ export class ShoppingListsService {
   async remove(userId: string, listId: string, today: Date = new Date()): Promise<void> {
     const list = await this.loadOwned(userId, listId);
     await this.prisma.$transaction(async (tx) => {
-      await releaseLists(tx, list.plan.profile.id, [listId], (dates) => shareAhead(dates.fromDate, dates.toDate, today));
+      await releaseLists(tx, list.plan.profile.id, [listId], (dates) =>
+        shareAhead(dates.fromDate, dates.toDate, today),
+      );
       await tx.shoppingList.deleteMany({ where: { id: listId } });
     }, TRANSACTION);
   }
@@ -237,12 +279,16 @@ export class ShoppingListsService {
         Prisma.sql`SELECT "id" FROM "ShoppingListItem" WHERE "id" = ${itemId} AND "listId" = ${listId} FOR UPDATE`,
       );
       if (locked.length === 0) {
-        throw new NotFoundException({ error: 'ITEM_NOT_FOUND', message: 'Shopping list item not found.' });
+        throw new NotFoundException({
+          error: 'ITEM_NOT_FOUND',
+          message: 'Shopping list item not found.',
+        });
       }
       const item = await tx.shoppingListItem.findUniqueOrThrow({ where: { id: itemId } });
       // What is at home is said first: the quantity and the tick of the same request are read against it.
       const { alreadyHaveQuantity, ...edit } = patch;
-      const atHome = alreadyHaveQuantity === undefined ? null : withAtHome(item, alreadyHaveQuantity);
+      const atHome =
+        alreadyHaveQuantity === undefined ? null : withAtHome(item, alreadyHaveQuantity);
       const next = {
         ...atHome,
         ...editRow({ ...item, ...atHome }, edit),
@@ -251,10 +297,18 @@ export class ShoppingListsService {
       };
       if (next.purchasedQuantity !== null) assertWithinCeiling(next.purchasedQuantity, item.unit);
 
-      const moves = await settleRow(tx, profileId, item, intendedPantryEffect({ ...item, ...next }));
+      const moves = await settleRow(
+        tx,
+        profileId,
+        item,
+        intendedPantryEffect({ ...item, ...next }),
+      );
       await tx.shoppingListItem.update({
         where: { id: itemId },
-        data: { ...next, ...(moves ? { pantryMoves: moves as unknown as Prisma.InputJsonValue } : {}) },
+        data: {
+          ...next,
+          ...(moves ? { pantryMoves: moves as unknown as Prisma.InputJsonValue } : {}),
+        },
       });
     }, TRANSACTION);
     return this.get(userId, locale, listId);
@@ -265,7 +319,8 @@ export class ShoppingListsService {
       where: { id: listId },
       include: { items: true, plan: { include: { profile: true } } },
     });
-    if (!list?.plan?.profile || list.plan.profile.userId !== userId) throw new NotFoundException({ error: 'LIST_NOT_FOUND', message: 'Shopping list not found.' });
+    if (!list?.plan?.profile || list.plan.profile.userId !== userId)
+      throw new NotFoundException({ error: 'LIST_NOT_FOUND', message: 'Shopping list not found.' });
     return list;
   }
 
@@ -287,12 +342,17 @@ export class ShoppingListsService {
       const items = list.items.map((item) => {
         const ingredient = ingredients.get(item.ingredientId);
         // A row in pieces is called what its ingredient calls a piece.
-        const displayUnit: DisplayUnit = item.unit === 'piece' && ingredient && isCounted(ingredient) ? ingredient.displayUnit : item.unit;
+        const displayUnit: DisplayUnit =
+          item.unit === 'piece' && ingredient && isCounted(ingredient)
+            ? ingredient.displayUnit
+            : item.unit;
         const toBuy = toBuyQuantity(item.totalQuantity, item.alreadyHaveQuantity);
         return {
           id: item.id,
           ingredientId: item.ingredientId,
-          name: ingredient ? pickIngredient(locale, ingredient.translations, ingredient.name) : item.name,
+          name: ingredient
+            ? pickIngredient(locale, ingredient.translations, ingredient.name)
+            : item.name,
           category: item.category as ShoppingList['groups'][number]['category'],
           totalQuantity: item.totalQuantity,
           unit: item.unit,
@@ -302,7 +362,9 @@ export class ShoppingListsService {
           purchasedQuantity: item.purchasedQuantity,
           pantryBestBefore: item.pantryBestBefore ? isoDate(item.pantryBestBefore) : null,
           estimatedCalories: item.estimatedCalories,
-          packs: ingredient ? packsToBuy(toBuy, { unit: item.unit, displayUnit }, ingredient) : null,
+          packs: ingredient
+            ? packsToBuy(toBuy, { unit: item.unit, displayUnit }, ingredient)
+            : null,
           checked: item.checked,
         };
       });
@@ -311,7 +373,10 @@ export class ShoppingListsService {
         planId: list.planId,
         fromDate: isoDate(list.fromDate),
         toDate: isoDate(list.toDate),
-        groups: groupByAisle(items, locale).map((group) => ({ ...group, estimatedCalories: energyOf(group.items) })),
+        groups: groupByAisle(items, locale).map((group) => ({
+          ...group,
+          estimatedCalories: energyOf(group.items),
+        })),
         totalEstimatedCalories: energyOf(list.items),
         stale: isStale(list, lines, ingredients),
         createdAt: list.createdAt.toISOString(),
@@ -324,7 +389,10 @@ const isoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
 type Reader = Pick<Tx, 'ingredient' | 'mealPlanDay'>;
 
-async function loadIngredients(db: Pick<Tx, 'ingredient'>, ids: string[]): Promise<Map<string, IngredientRow>> {
+async function loadIngredients(
+  db: Pick<Tx, 'ingredient'>,
+  ids: string[],
+): Promise<Map<string, IngredientRow>> {
   if (ids.length === 0) return new Map();
   const rows = await db.ingredient.findMany({
     where: { id: { in: ids } },
@@ -346,7 +414,12 @@ async function loadIngredients(db: Pick<Tx, 'ingredient'>, ids: string[]): Promi
 type DatedLine = PlanIngredientLine & { date: Date };
 
 /** Every ingredient line the plan's menu has between two dates, as the menu is now. */
-async function planLines(db: Pick<Tx, 'mealPlanDay'>, planId: string, from: Date, to: Date): Promise<DatedLine[]> {
+async function planLines(
+  db: Pick<Tx, 'mealPlanDay'>,
+  planId: string,
+  from: Date,
+  to: Date,
+): Promise<DatedLine[]> {
   const days = await db.mealPlanDay.findMany({
     where: { planId, date: { gte: from, lte: to } },
     select: {
@@ -356,7 +429,15 @@ async function planLines(db: Pick<Tx, 'mealPlanDay'>, planId: string, from: Date
           source: true,
           servings: true,
           quantityScale: true,
-          recipe: { select: { servings: true, ingredients: { select: { ingredientId: true, quantity: true, unit: true } } } },
+          recipe: {
+            select: {
+              servings: true,
+              ingredients: {
+                orderBy: { position: 'asc' },
+                select: { ingredientId: true, quantity: true, unit: true },
+              },
+            },
+          },
         },
       },
     },
@@ -386,7 +467,9 @@ async function planLines(db: Pick<Tx, 'mealPlanDay'>, planId: string, from: Date
 /** What the plan's menu needs between two dates, by aisle, with the ingredients it names. */
 async function planNeeds(db: Reader, planId: string, from: Date, to: Date) {
   const lines = await planLines(db, planId, from, to);
-  const ingredients = await loadIngredients(db, [...new Set(lines.map((line) => line.ingredientId))]);
+  const ingredients = await loadIngredients(db, [
+    ...new Set(lines.map((line) => line.ingredientId)),
+  ]);
   return { groups: aggregateShoppingList(lines, ingredients), ingredients };
 }
 
@@ -395,12 +478,18 @@ async function planNeeds(db: Reader, planId: string, from: Date, to: Date) {
  * with what a list made now would hold; a row of an ingredient that no longer
  * exists cannot be compared and makes the list stale.
  */
-function isStale(list: StoredList, lines: readonly DatedLine[], ingredients: ReadonlyMap<string, IngredientRow>): boolean {
+function isStale(
+  list: StoredList,
+  lines: readonly DatedLine[],
+  ingredients: ReadonlyMap<string, IngredientRow>,
+): boolean {
   const inRange = lines.filter((line) => line.date >= list.fromDate && line.date <= list.toDate);
   if (inRange.some((line) => !ingredients.has(line.ingredientId))) return true;
   let now: AggregatedItem[];
   try {
-    now = aggregateShoppingList(inRange, ingredients as Map<string, IngredientRow>).flatMap((group) => group.items);
+    now = aggregateShoppingList(inRange, ingredients as Map<string, IngredientRow>).flatMap(
+      (group) => group.items,
+    );
   } catch (err) {
     if (!(err instanceof UnitConversionError)) throw err;
     return true;
@@ -409,7 +498,9 @@ function isStale(list: StoredList, lines: readonly DatedLine[], ingredients: Rea
   const stored = new Map(list.items.map((item) => [item.ingredientId, item]));
   return now.some((item) => {
     const row = stored.get(item.ingredientId);
-    return !row || row.unit !== item.unit || Math.abs(row.totalQuantity - item.totalQuantity) > 1e-6;
+    return (
+      !row || row.unit !== item.unit || Math.abs(row.totalQuantity - item.totalQuantity) > 1e-6
+    );
   });
 }
 
@@ -418,7 +509,11 @@ function isStale(list: StoredList, lines: readonly DatedLine[], ingredients: Rea
  * yet: the claims of rows that are not ticked, per ingredient, in its
  * canonical unit. A new list sees the stock less these.
  */
-async function openClaims(tx: Tx, profileId: string, ingredients: ReadonlyMap<string, ShoppingIngredient>): Promise<Map<string, number>> {
+async function openClaims(
+  tx: Tx,
+  profileId: string,
+  ingredients: ReadonlyMap<string, ShoppingIngredient>,
+): Promise<Map<string, number>> {
   const rows = await tx.shoppingListItem.findMany({
     where: {
       checked: false,
@@ -432,7 +527,12 @@ async function openClaims(tx: Tx, profileId: string, ingredients: ReadonlyMap<st
   for (const row of rows) {
     const ingredient = ingredients.get(row.ingredientId)!;
     try {
-      const amount = convertUnit(row.alreadyHaveQuantity, row.unit, ingredient.canonicalUnit, ingredient);
+      const amount = convertUnit(
+        row.alreadyHaveQuantity,
+        row.unit,
+        ingredient.canonicalUnit,
+        ingredient,
+      );
       claims.set(row.ingredientId, (claims.get(row.ingredientId) ?? 0) + amount);
     } catch (err) {
       if (!(err instanceof UnitConversionError)) throw err;
@@ -456,7 +556,11 @@ async function settleRow(tx: Tx, profileId: string, item: StoredItem, effect: nu
 }
 
 /** A quantity of a row in the canonical unit of its ingredient, or null when the ingredient can no longer be converted from the row's unit. */
-function inCanonicalUnit(quantity: number, unit: Unit, ingredient: Parameters<typeof convertUnit>[3] & { canonicalUnit: Unit }): number | null {
+function inCanonicalUnit(
+  quantity: number,
+  unit: Unit,
+  ingredient: Parameters<typeof convertUnit>[3] & { canonicalUnit: Unit },
+): number | null {
   try {
     return convertUnit(quantity, unit, ingredient.canonicalUnit, ingredient);
   } catch (err) {
@@ -479,18 +583,35 @@ async function releaseLists(
 ): Promise<void> {
   if (listIds.length === 0) return;
   // Rows first, then the pantry: the order every writer takes its locks in.
-  await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "ShoppingListItem" WHERE "listId" IN (${Prisma.join(listIds)}) ORDER BY "id" FOR UPDATE`);
-  const lists = await tx.shoppingList.findMany({ where: { id: { in: [...listIds] } }, include: { items: true } });
+  await tx.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "ShoppingListItem" WHERE "listId" IN (${Prisma.join(listIds)}) ORDER BY "id" FOR UPDATE`,
+  );
+  const lists = await tx.shoppingList.findMany({
+    where: { id: { in: [...listIds] } },
+    include: { items: true },
+  });
   // A row that did nothing to the pantry and is to do nothing to it has
   // nothing to settle: of a list nobody shopped from, that is every row.
   const rows = lists
-    .flatMap((list) => list.items.map((item) => ({ item, effect: pantryEffectOnRemoval(item, share(list)) })))
+    .flatMap((list) =>
+      list.items.map((item) => ({ item, effect: pantryEffectOnRemoval(item, share(list)) })),
+    )
     .filter(({ item, effect }) => effect !== 0 || readMoves(item.pantryMoves).length > 0);
   if (rows.length === 0) return;
-  rows.sort((a, b) => (a.item.ingredientId === b.item.ingredientId ? 0 : a.item.ingredientId < b.item.ingredientId ? -1 : 1));
+  rows.sort((a, b) =>
+    a.item.ingredientId === b.item.ingredientId
+      ? 0
+      : a.item.ingredientId < b.item.ingredientId
+        ? -1
+        : 1,
+  );
 
   const ingredients = new Map(
-    (await tx.ingredient.findMany({ where: { id: { in: [...new Set(rows.map(({ item }) => item.ingredientId))] } } })).map((ingredient) => [ingredient.id, ingredient]),
+    (
+      await tx.ingredient.findMany({
+        where: { id: { in: [...new Set(rows.map(({ item }) => item.ingredientId))] } },
+      })
+    ).map((ingredient) => [ingredient.id, ingredient]),
   );
   // A row whose ingredient is gone, or can no longer be converted from the row's unit, leaves the pantry as it is.
   const settled = rows.flatMap(({ item, effect }) => {
@@ -498,7 +619,11 @@ async function releaseLists(
     const target = ingredient ? inCanonicalUnit(effect, item.unit, ingredient) : null;
     return ingredient && target !== null ? [{ item, ingredient, target }] : [];
   });
-  await lockPantries(tx, profileId, settled.map(({ ingredient }) => ingredient.id));
+  await lockPantries(
+    tx,
+    profileId,
+    settled.map(({ ingredient }) => ingredient.id),
+  );
   for (const { item, ingredient, target } of settled) {
     await settlePantry(tx, profileId, ingredient, readMoves(item.pantryMoves), target);
   }
@@ -508,7 +633,17 @@ async function releaseLists(
  * Settle every list of a plan that is about to be deleted, by the rule of
  * `ShoppingListsService.remove`. The plan's deletion then removes the lists.
  */
-export async function releasePlanLists(tx: Tx, planId: string, profileId: string, today: Date = new Date()): Promise<void> {
+export async function releasePlanLists(
+  tx: Tx,
+  planId: string,
+  profileId: string,
+  today: Date = new Date(),
+): Promise<void> {
   const lists = await tx.shoppingList.findMany({ where: { planId }, select: { id: true } });
-  await releaseLists(tx, profileId, lists.map((list) => list.id), (dates) => shareAhead(dates.fromDate, dates.toDate, today));
+  await releaseLists(
+    tx,
+    profileId,
+    lists.map((list) => list.id),
+    (dates) => shareAhead(dates.fromDate, dates.toDate, today),
+  );
 }

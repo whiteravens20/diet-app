@@ -18,7 +18,15 @@
  */
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { MOST_RECIPES_PER_IMPORT, WebAddress, type ImportRejection, type MealType, type RecipeImportRequest, type RecipeImportResult, type StoredImportRejection } from '@diet-app/shared';
+import {
+  MOST_RECIPES_PER_IMPORT,
+  WebAddress,
+  type ImportRejection,
+  type MealType,
+  type RecipeImportRequest,
+  type RecipeImportResult,
+  type StoredImportRejection,
+} from '@diet-app/shared';
 import { recipeFacts, type RecipeFacts } from '../../../engine/recipe-facts.js';
 import { UnitConversionError } from '../../../engine/units.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -42,10 +50,22 @@ const MOST_OF_A_REASON = 160;
 const MOST_OF_A_TITLE = 200;
 
 /** A refusal as it is answered and kept: of a length, however long the recipe it is about. */
-function refusal(recipe: ExternalRecipe, request: RecipeImportRequest, reasons: readonly string[]): ImportRejection {
-  const said = reasons.slice(0, MOST_REASONS).map((reason) => (reason.length > MOST_OF_A_REASON ? `${reason.slice(0, MOST_OF_A_REASON)}…` : reason));
+function refusal(
+  recipe: ExternalRecipe,
+  request: RecipeImportRequest,
+  reasons: readonly string[],
+): ImportRejection {
+  const said = reasons
+    .slice(0, MOST_REASONS)
+    .map((reason) =>
+      reason.length > MOST_OF_A_REASON ? `${reason.slice(0, MOST_OF_A_REASON)}…` : reason,
+    );
   if (reasons.length > MOST_REASONS) said.push(`more-reasons: ${reasons.length - MOST_REASONS}`);
-  return { title: (recipe.title || '(no title)').slice(0, MOST_OF_A_TITLE), sourceUrl: addressOf(recipe.url) ?? request.sourceUrl ?? null, reasons: said };
+  return {
+    title: (recipe.title || '(no title)').slice(0, MOST_OF_A_TITLE),
+    sourceUrl: addressOf(recipe.url) ?? request.sourceUrl ?? null,
+    reasons: said,
+  };
 }
 
 /** The document a text holds: JSON that can hold recipes is an object or a list. */
@@ -57,7 +77,10 @@ function documentOf(text: string): object {
     // No JSON at all, or lists within lists beyond what the parser follows: no document either way.
   }
   if (typeof document !== 'object' || document === null) {
-    throw new BadRequestException({ error: 'IMPORT_NOT_JSON', message: 'The document is not JSON that can hold recipes: an object or a list.' });
+    throw new BadRequestException({
+      error: 'IMPORT_NOT_JSON',
+      message: 'The document is not JSON that can hold recipes: an object or a list.',
+    });
   }
   return document;
 }
@@ -102,7 +125,12 @@ interface Resolved {
     cookMinutes: number;
     difficulty: 'easy' | 'medium' | 'hard';
     complexity: string;
-    ingredientsJson: { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece'; note: string | null }[];
+    ingredientsJson: {
+      slug: string;
+      quantity: number;
+      unit: 'g' | 'ml' | 'piece';
+      note: string | null;
+    }[];
     facts: RecipeFacts;
     provenanceUrl: string | null;
     provenanceLicense: string;
@@ -122,7 +150,10 @@ export class RecipeImportService {
     const catalogue = await this.catalogue();
     const bySlug = new Map(catalogue.map((ingredient) => [ingredient.slug!, ingredient]));
     const slugOf = slugMapper(
-      catalogue.map((ingredient) => ({ slug: ingredient.slug!, names: [ingredient.name, ...ingredient.translations.map((translation) => translation.name)] })),
+      catalogue.map((ingredient) => ({
+        slug: ingredient.slug!,
+        names: [ingredient.name, ...ingredient.translations.map((translation) => translation.name)],
+      })),
       this.aliases(),
     );
     const held = await this.held();
@@ -141,7 +172,12 @@ export class RecipeImportService {
       }
     }
 
-    const result = { found: found.length, drafted: drafted.map(({ slug, title }) => ({ slug, title })), rejected, dryRun: request.dryRun };
+    const result = {
+      found: found.length,
+      drafted: drafted.map(({ slug, title }) => ({ slug, title })),
+      rejected,
+      dryRun: request.dryRun,
+    };
     if (request.dryRun) return { ...result, batchId: null };
 
     const batchId = `imp-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
@@ -165,18 +201,38 @@ export class RecipeImportService {
           },
         });
       }
-      if (rejected.length > 0) await tx.recipeImportRejection.createMany({ data: rejected.map((rejection) => ({ ...rejection, batchId })) });
+      if (rejected.length > 0)
+        await tx.recipeImportRejection.createMany({
+          data: rejected.map((rejection) => ({ ...rejection, batchId })),
+        });
       // The latest are kept; what an import of long ago refused is of no use to anybody.
-      const oldest = await tx.recipeImportRejection.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: REJECTIONS_KEPT, select: { id: true } });
-      if (oldest.length > 0) await tx.recipeImportRejection.deleteMany({ where: { id: { in: oldest.map((row) => row.id) } } });
+      const oldest = await tx.recipeImportRejection.findMany({
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: REJECTIONS_KEPT,
+        select: { id: true },
+      });
+      if (oldest.length > 0)
+        await tx.recipeImportRejection.deleteMany({
+          where: { id: { in: oldest.map((row) => row.id) } },
+        });
     });
     return { ...result, batchId };
   }
 
   /** The rejections that are kept, the latest first. */
   async rejections(): Promise<StoredImportRejection[]> {
-    const rows = await this.prisma.recipeImportRejection.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: REJECTIONS_KEPT });
-    return rows.map((row) => ({ id: row.id, batchId: row.batchId, title: row.title, sourceUrl: row.sourceUrl, reasons: row.reasons, createdAt: row.createdAt.toISOString() }));
+    const rows = await this.prisma.recipeImportRejection.findMany({
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: REJECTIONS_KEPT,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      batchId: row.batchId,
+      title: row.title,
+      sourceUrl: row.sourceUrl,
+      reasons: row.reasons,
+      createdAt: row.createdAt.toISOString(),
+    }));
   }
 
   /** Forget the rejections that are kept. */
@@ -200,7 +256,9 @@ export class RecipeImportService {
     if (recipe.prepMinutes === null && recipe.cookMinutes === null) reasons.push('no-times');
     const license = recipe.license ?? request.license ?? null;
     if (license === null) reasons.push('no-licence');
-    const mealTypes = [...new Set(recipe.categories.flatMap((category) => MEALS_BY_CATEGORY[category] ?? []))];
+    const mealTypes = [
+      ...new Set(recipe.categories.flatMap((category) => MEALS_BY_CATEGORY[category] ?? [])),
+    ];
     const meals = mealTypes.length > 0 ? mealTypes : (request.mealTypes ?? []);
     if (meals.length === 0) reasons.push('no-meal');
 
@@ -219,7 +277,14 @@ export class RecipeImportService {
 
     let facts: RecipeFacts;
     try {
-      facts = recipeFacts(lines.map((line) => ({ quantity: line.quantity, unit: line.unit, ingredient: bySlug.get(line.slug)! })), recipe.servings);
+      facts = recipeFacts(
+        lines.map((line) => ({
+          quantity: line.quantity,
+          unit: line.unit,
+          ingredient: bySlug.get(line.slug)!,
+        })),
+        recipe.servings,
+      );
     } catch (err) {
       if (!(err instanceof UnitConversionError)) throw err;
       return { reasons: [`unit-not-convertible: ${err.message}`] };
@@ -228,19 +293,43 @@ export class RecipeImportService {
     const prepMinutes = recipe.prepMinutes ?? 0;
     const cookMinutes = recipe.cookMinutes ?? 0;
     const checked = checkRecipe(
-      { titles: { en: recipe.title }, descriptions: { en: recipe.description || recipe.title }, steps: { en: recipe.steps }, servings: recipe.servings, mealTypes: meals, prepMinutes, cookMinutes, difficulty: 'easy', ingredients: lines },
+      {
+        titles: { en: recipe.title },
+        descriptions: { en: recipe.description || recipe.title },
+        steps: { en: recipe.steps },
+        servings: recipe.servings,
+        mealTypes: meals,
+        prepMinutes,
+        cookMinutes,
+        difficulty: 'easy',
+        ingredients: lines,
+      },
       ['en'],
     );
-    if (!checked.ok) return { reasons: [`invalid-draft: ${checked.problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`] };
+    if (!checked.ok)
+      return {
+        reasons: [
+          `invalid-draft: ${checked.problems.map((problem) => `${problem.path}: ${problem.rule}`).join('; ')}`,
+        ],
+      };
     const sound = checked.recipe;
 
     const title = sound.titles.en!;
-    const fingerprint = computeFingerprint({ ingredients: sound.ingredients, mealTypes: sound.mealTypes, servings: sound.servings });
+    const fingerprint = computeFingerprint({
+      ingredients: sound.ingredients,
+      mealTypes: sound.mealTypes,
+      servings: sound.servings,
+    });
     if (held.titles.has(title.toLowerCase())) return { reasons: [`title-taken: ${title}`] };
     const twin = held.makings.get(fingerprint);
     if (twin !== undefined) return { reasons: [`same-making-as: ${twin}`] };
 
-    const complexity = classifyComplexity({ ingredientCount: sound.ingredients.length, stepCount: sound.steps.en!.length, totalMinutes: prepMinutes + cookMinutes }) ?? 'medium';
+    const complexity =
+      classifyComplexity({
+        ingredientCount: sound.ingredients.length,
+        stepCount: sound.steps.en!.length,
+        totalMinutes: prepMinutes + cookMinutes,
+      }) ?? 'medium';
     return {
       title,
       slug: freeSlug(slugify(title) || 'imported-recipe', held.slugs),
@@ -286,10 +375,38 @@ export class RecipeImportService {
   }
 
   /** The slugs, titles and makings that are taken: by the shared recipes and by the drafts that wait. */
-  private async held(): Promise<{ slugs: Set<string>; titles: Set<string>; makings: Map<string, string> }> {
+  private async held(): Promise<{
+    slugs: Set<string>;
+    titles: Set<string>;
+    makings: Map<string, string>;
+  }> {
     const [recipes, drafts] = await Promise.all([
-      this.prisma.recipe.findMany({ where: { OR: [{ slug: { not: null } }, { createdByUserId: null, deletedAt: null, retiredAt: null }] }, select: { slug: true, title: true, fingerprint: true, createdByUserId: true, deletedAt: true, retiredAt: true } }),
-      this.prisma.recipeDraft.findMany({ where: { status: { in: ['PENDING', 'APPROVED'] } }, select: { slug: true, titles: true, ingredientsJson: true, mealTypes: true, servings: true } }),
+      this.prisma.recipe.findMany({
+        where: {
+          OR: [
+            { slug: { not: null } },
+            { createdByUserId: null, deletedAt: null, retiredAt: null },
+          ],
+        },
+        select: {
+          slug: true,
+          title: true,
+          fingerprint: true,
+          createdByUserId: true,
+          deletedAt: true,
+          retiredAt: true,
+        },
+      }),
+      this.prisma.recipeDraft.findMany({
+        where: { status: { in: ['PENDING', 'APPROVED'] } },
+        select: {
+          slug: true,
+          titles: true,
+          ingredientsJson: true,
+          mealTypes: true,
+          servings: true,
+        },
+      }),
     ]);
     const slugs = new Set<string>();
     const titles = new Set<string>();
@@ -297,7 +414,8 @@ export class RecipeImportService {
     for (const recipe of recipes) {
       // A slug is one recipe's among all of them; a title and a making among the shared ones people are given.
       if (recipe.slug) slugs.add(recipe.slug);
-      if (recipe.createdByUserId !== null || recipe.deletedAt !== null || recipe.retiredAt !== null) continue;
+      if (recipe.createdByUserId !== null || recipe.deletedAt !== null || recipe.retiredAt !== null)
+        continue;
       titles.add(recipe.title.toLowerCase());
       if (recipe.fingerprint) makings.set(recipe.fingerprint, recipe.slug ?? recipe.title);
     }
@@ -305,8 +423,22 @@ export class RecipeImportService {
       slugs.add(draft.slug);
       const title = (draft.titles as { en?: unknown } | null)?.en;
       if (typeof title === 'string') titles.add(title.toLowerCase());
-      const lines = Array.isArray(draft.ingredientsJson) ? (draft.ingredientsJson as { slug: string; quantity: number; unit: 'g' | 'ml' | 'piece' }[]) : [];
-      if (lines.length > 0) makings.set(computeFingerprint({ ingredients: lines, mealTypes: draft.mealTypes as MealType[], servings: draft.servings }), draft.slug);
+      const lines = Array.isArray(draft.ingredientsJson)
+        ? (draft.ingredientsJson as {
+            slug: string;
+            quantity: number;
+            unit: 'g' | 'ml' | 'piece';
+          }[])
+        : [];
+      if (lines.length > 0)
+        makings.set(
+          computeFingerprint({
+            ingredients: lines,
+            mealTypes: draft.mealTypes as MealType[],
+            servings: draft.servings,
+          }),
+          draft.slug,
+        );
     }
     return { slugs, titles, makings };
   }
@@ -320,7 +452,8 @@ export class RecipeImportService {
 }
 
 /** An address a recipe gave for itself, when it is one the contract takes: of the web, and of a length. */
-const addressOf = (url: string | null): string | null => (WebAddress.safeParse(url).success ? url : null);
+const addressOf = (url: string | null): string | null =>
+  WebAddress.safeParse(url).success ? url : null;
 
 /** `slug`, or the first of `slug-2`, `slug-3`, … that nothing has. */
 function freeSlug(slug: string, taken: ReadonlySet<string>): string {

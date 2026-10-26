@@ -12,6 +12,10 @@
  *    10 (a 3 g pinch must not become 5 g or nothing).
  *  - An ingredient that is counted (`displayUnit`): in pieces of its own, to
  *    the nearest half. An amount too small to be half a piece stays in grams.
+ *  - An ingredient measured with a teaspoon (`perTeaspoon`): a quarter or a
+ *    half of one, or whole ones to the nearest half, up to four; less than a
+ *    quarter of a dry one in pinches, a sixteenth of a teaspoon each; more
+ *    than four by weight or volume.
  *  - What one buys is rounded up: whole pieces, the next 5 g or 5 ml.
  *  - A quantity that is not zero is never shown as zero.
  */
@@ -22,6 +26,8 @@ import { convertUnit, UnitConversionError, type ConvertibleIngredient } from './
 export type DisplayedIngredient = ConvertibleIngredient & {
   /** What a piece of it is called, when it is counted instead of weighed. */
   displayUnit: string | null;
+  /** How much a level teaspoon holds, in the canonical unit, when it is measured with one. */
+  perTeaspoon?: number | null;
 };
 
 /** Below this share of a piece an amount is shown by weight: "5 g onion", not "half an onion". */
@@ -37,7 +43,33 @@ const down = (value: number, step: number): number => Math.floor((value + EPSILO
 /** The step grams and millilitres are counted in at this size. */
 const massStep = (value: number): number => (value <= 10 ? 1 : 5);
 
-function converted(quantity: number, unit: Unit, target: Unit, ingredient: ConvertibleIngredient): number | null {
+/** A pinch is a sixteenth of a teaspoon: four make the quarter of one. */
+const PINCHES_PER_TEASPOON = 16;
+
+/** Above this many teaspoons an amount is shown by weight or volume: nobody counts out nine of them. */
+const MOST_TEASPOONS = 4;
+
+/**
+ * An amount, in the canonical unit, of what is measured with a teaspoon, as
+ * teaspoons or pinches; null where it is more than a few teaspoons. Pinches are
+ * for what is dry: a liquid that little stays in millilitres.
+ */
+function spoonAmount(value: number, perTeaspoon: number, dry: boolean): DisplayAmount | null {
+  const teaspoons = value / perTeaspoon;
+  const pinches = Math.round(teaspoons * PINCHES_PER_TEASPOON);
+  if (pinches < PINCHES_PER_TEASPOON / 4) {
+    return dry ? { quantity: Math.max(1, pinches), unit: 'pinch' } : null;
+  }
+  const quantity = teaspoons < 0.375 ? 0.25 : nearest(teaspoons, 0.5);
+  return quantity <= MOST_TEASPOONS ? { quantity, unit: 'tsp' } : null;
+}
+
+function converted(
+  quantity: number,
+  unit: Unit,
+  target: Unit,
+  ingredient: ConvertibleIngredient,
+): number | null {
   try {
     return convertUnit(quantity, unit, target, ingredient);
   } catch (err) {
@@ -47,15 +79,25 @@ function converted(quantity: number, unit: Unit, target: Unit, ingredient: Conve
 }
 
 /** Whether the ingredient is one that is counted in pieces of its own. */
-export function isCounted(ingredient: DisplayedIngredient): ingredient is DisplayedIngredient & { displayUnit: NaturalUnit } {
-  return ingredient.displayUnit !== null && converted(1, 'piece', ingredient.canonicalUnit, ingredient) !== null;
+export function isCounted(
+  ingredient: DisplayedIngredient,
+): ingredient is DisplayedIngredient & { displayUnit: NaturalUnit } {
+  return (
+    ingredient.displayUnit !== null &&
+    converted(1, 'piece', ingredient.canonicalUnit, ingredient) !== null
+  );
 }
 
 /** A quantity of at least one step: what is there is never shown as nothing. */
-const shown = (value: number, rounded: number, step: number): number => (value > EPSILON && rounded < step ? step : rounded);
+const shown = (value: number, rounded: number, step: number): number =>
+  value > EPSILON && rounded < step ? step : rounded;
 
 /** An amount to cook with: a line of a recipe, or what a planned meal takes. */
-export function displayAmount(quantity: number, unit: Unit, ingredient: DisplayedIngredient): DisplayAmount {
+export function displayAmount(
+  quantity: number,
+  unit: Unit,
+  ingredient: DisplayedIngredient,
+): DisplayAmount {
   if (isCounted(ingredient)) {
     const pieces = converted(quantity, unit, 'piece', ingredient);
     if (pieces !== null && pieces >= SMALLEST_PIECE) {
@@ -63,15 +105,24 @@ export function displayAmount(quantity: number, unit: Unit, ingredient: Displaye
     }
   }
   const amount = converted(quantity, unit, ingredient.canonicalUnit, ingredient);
+  if (amount !== null && amount > EPSILON && ingredient.perTeaspoon) {
+    const spoons = spoonAmount(amount, ingredient.perTeaspoon, ingredient.canonicalUnit === 'g');
+    if (spoons) return spoons;
+  }
   // What cannot be converted is shown as it was written.
   const [value, inUnit] = amount === null ? [quantity, unit] : [amount, ingredient.canonicalUnit];
-  if (inUnit === 'piece') return { quantity: shown(value, nearest(value, 0.5), 0.5), unit: 'piece' };
+  if (inUnit === 'piece')
+    return { quantity: shown(value, nearest(value, 0.5), 0.5), unit: 'piece' };
   const step = massStep(value);
   return { quantity: shown(value, nearest(value, step), 1), unit: inUnit };
 }
 
 /** What a pantry row holds: in the row's own unit, a piece called what the ingredient calls it. */
-export function displayStock(quantity: number, unit: Unit, ingredient: DisplayedIngredient): DisplayAmount {
+export function displayStock(
+  quantity: number,
+  unit: Unit,
+  ingredient: DisplayedIngredient,
+): DisplayAmount {
   if (unit === 'piece') {
     const name: DisplayUnit = isCounted(ingredient) ? ingredient.displayUnit : 'piece';
     return { quantity: shown(quantity, nearest(quantity, 0.5), 0.5), unit: name };
@@ -80,7 +131,10 @@ export function displayStock(quantity: number, unit: Unit, ingredient: Displayed
 }
 
 /** The unit a shopping row of the ingredient is counted in, and what to call it. */
-export function shoppingUnit(ingredient: DisplayedIngredient): { unit: Unit; displayUnit: DisplayUnit } {
+export function shoppingUnit(ingredient: DisplayedIngredient): {
+  unit: Unit;
+  displayUnit: DisplayUnit;
+} {
   if (isCounted(ingredient)) return { unit: 'piece', displayUnit: ingredient.displayUnit };
   return { unit: ingredient.canonicalUnit, displayUnit: ingredient.canonicalUnit };
 }

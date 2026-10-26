@@ -1,6 +1,15 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { Body, Controller, HttpCode, HttpException, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpException,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
@@ -27,10 +36,23 @@ import { Answers } from '../common/answers.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import type { Env } from '../config/env.js';
 import { SignUps } from '../rate-limit/sign-ups.js';
-import { byAccount, byAccountAndAddress, byRefreshToken, byToken, TriesCredential } from '../rate-limit/trackers.js';
+import {
+  byAccount,
+  byAccountAndAddress,
+  byRefreshToken,
+  byToken,
+  TriesCredential,
+} from '../rate-limit/trackers.js';
 import { AuthService } from './auth.service.js';
 import { BrowserSignIn } from './browser-sign-in.service.js';
-import { asksForCookies, assertFromTheApplication, noSessionCookies, REFRESH_COOKIE, sessionCookies, withoutRefreshToken } from './session-cookies.js';
+import {
+  asksForCookies,
+  assertFromTheApplication,
+  noSessionCookies,
+  REFRESH_COOKIE,
+  sessionCookies,
+  withoutRefreshToken,
+} from './session-cookies.js';
 import { sessionLabel } from './session-label.js';
 import { SessionsService } from './sessions.service.js';
 
@@ -72,7 +94,11 @@ export class AuthController {
   /** The refresh token of a browser's session, from its cookie, for a request that comes from the application's own pages. */
   private cookieOf(req: Request): string {
     const token = readCookie(req.headers.cookie, REFRESH_COOKIE);
-    if (!token) throw new UnauthorizedException({ error: 'INVALID_REFRESH', message: 'Refresh token rejected.' });
+    if (!token)
+      throw new UnauthorizedException({
+        error: 'INVALID_REFRESH',
+        message: 'Refresh token rejected.',
+      });
     assertFromTheApplication(req.headers.origin, this.appUrl);
     return token;
   }
@@ -88,7 +114,11 @@ export class AuthController {
   ) {
     const giveBack = this.signUps.take(req.ip);
     try {
-      return this.begun(req, res, await this.auth.register(dto, locale, sessionLabel(req.headers['user-agent'])));
+      return this.begun(
+        req,
+        res,
+        await this.auth.register(dto, locale, sessionLabel(req.headers['user-agent'])),
+      );
     } catch (err) {
       giveBack();
       throw err;
@@ -104,9 +134,16 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: QUARTER_HOUR } })
-  @TriesCredential({ by: byAccountAndAddress, limit: 10, ttl: QUARTER_HOUR }, { by: byAccount, limit: 50, ttl: QUARTER_HOUR })
+  @TriesCredential(
+    { by: byAccountAndAddress, limit: 10, ttl: QUARTER_HOUR },
+    { by: byAccount, limit: 50, ttl: QUARTER_HOUR },
+  )
   @Answers(LoginResponse)
-  async login(@Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body(new ZodValidationPipe(LoginRequest)) dto: LoginRequest,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const answer = await this.auth.login(dto, sessionLabel(req.headers['user-agent']));
     // An account with a second factor has no session yet: its second step is still to come.
     return 'secondFactor' in answer ? answer : this.begun(req, res, answer);
@@ -125,7 +162,11 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.begun(req, res, await this.auth.finishLogin(dto, sessionLabel(req.headers['user-agent'])));
+    return this.begun(
+      req,
+      res,
+      await this.auth.finishLogin(dto, sessionLabel(req.headers['user-agent'])),
+    );
   }
 
   /** A new access token for a refresh token, which is replaced by a new one. */
@@ -136,7 +177,11 @@ export class AuthController {
   @Throttle({ default: { limit: 30, ttl: MINUTE } })
   @TriesCredential({ by: byRefreshToken, limit: 10, ttl: MINUTE })
   @Answers(AuthResponse)
-  async refresh(@Body(new ZodValidationPipe(RefreshRequest.prefault({}))) dto: RefreshRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async refresh(
+    @Body(new ZodValidationPipe(RefreshRequest.prefault({}))) dto: RefreshRequest,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     // A client that keeps its own tokens sends one, and gets the next in the answer.
     if (dto.refreshToken) return this.sessions.refresh(dto.refreshToken);
 
@@ -147,7 +192,8 @@ export class AuthController {
       return withoutRefreshToken(answer);
     } catch (err) {
       // A session that has ended leaves no cookies behind; one that another tab just refreshed keeps the ones that tab was given.
-      if (err instanceof HttpException && err.getStatus() === 401) res.setHeader('Set-Cookie', noSessionCookies(this.appUrl));
+      if (err instanceof HttpException && err.getStatus() === 401)
+        res.setHeader('Set-Cookie', noSessionCookies(this.appUrl));
       throw err;
     }
   }
@@ -157,7 +203,11 @@ export class AuthController {
   @HttpCode(204)
   @Throttle({ default: { limit: 30, ttl: MINUTE } })
   @TriesCredential({ by: byRefreshToken, limit: 10, ttl: MINUTE })
-  async logout(@Body(new ZodValidationPipe(RefreshRequest.prefault({}))) dto: RefreshRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Body(new ZodValidationPipe(RefreshRequest.prefault({}))) dto: RefreshRequest,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     if (dto.refreshToken) return this.sessions.end(dto.refreshToken);
 
     await this.sessions.end(this.cookieOf(req));
@@ -185,7 +235,10 @@ export class AuthController {
   @HttpCode(200)
   @TriesCredential({ by: byToken('code'), limit: 10, ttl: MINUTE })
   @Answers(BrowserCodeAccount)
-  accountOfABrowserCode(@Body(new ZodValidationPipe(BrowserSignInRequest)) dto: BrowserSignInRequest, @Req() req: Request) {
+  accountOfABrowserCode(
+    @Body(new ZodValidationPipe(BrowserSignInRequest)) dto: BrowserSignInRequest,
+    @Req() req: Request,
+  ) {
     assertFromTheApplication(req.headers.origin, this.appUrl);
     return this.browsers.accountOf(dto.code);
   }
@@ -199,9 +252,17 @@ export class AuthController {
   @HttpCode(200)
   @TriesCredential({ by: byToken('code'), limit: 10, ttl: MINUTE })
   @Answers(AuthResponse)
-  async signInABrowser(@Body(new ZodValidationPipe(BrowserSignInRequest)) dto: BrowserSignInRequest, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async signInABrowser(
+    @Body(new ZodValidationPipe(BrowserSignInRequest)) dto: BrowserSignInRequest,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     assertFromTheApplication(req.headers.origin, this.appUrl);
-    const answer = await this.browsers.signIn(dto.code, readCookie(req.headers.cookie, REFRESH_COOKIE), sessionLabel(req.headers['user-agent']));
+    const answer = await this.browsers.signIn(
+      dto.code,
+      readCookie(req.headers.cookie, REFRESH_COOKIE),
+      sessionLabel(req.headers['user-agent']),
+    );
     res.setHeader('Set-Cookie', sessionCookies(answer.tokens, this.appUrl));
     return withoutRefreshToken(answer);
   }

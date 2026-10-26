@@ -23,9 +23,24 @@ function fakePrisma(rows: Row[]): PrismaService {
 describe('buildCurrentIngredientOverrides', () => {
   it('groups MANUAL translations by slug into name/storageHint locale maps', async () => {
     const prisma = fakePrisma([
-      { locale: 'en', name: 'Beef tenderloin', storageHint: null, ingredient: { slug: 'beef-tenderloin' } },
-      { locale: 'pl', name: 'Polędwica wołowa', storageHint: null, ingredient: { slug: 'beef-tenderloin' } },
-      { locale: 'pl', name: 'Szpinak baby', storageHint: 'Lodówka, 5 dni', ingredient: { slug: 'spinach' } },
+      {
+        locale: 'en',
+        name: 'Beef tenderloin',
+        storageHint: null,
+        ingredient: { slug: 'beef-tenderloin' },
+      },
+      {
+        locale: 'pl',
+        name: 'Polędwica wołowa',
+        storageHint: null,
+        ingredient: { slug: 'beef-tenderloin' },
+      },
+      {
+        locale: 'pl',
+        name: 'Szpinak baby',
+        storageHint: 'Lodówka, 5 dni',
+        ingredient: { slug: 'spinach' },
+      },
     ]);
     const file = await buildCurrentIngredientOverrides(prisma);
     expect(file).toEqual({

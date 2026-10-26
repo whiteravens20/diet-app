@@ -22,16 +22,22 @@ describe('a statement the database is slow over, on an instance told to say so',
     await t.prisma.$queryRaw`SELECT pg_sleep(0.06)::text, ${'what a user typed'}::text`;
     await t.prisma.user.count();
 
-    const lines = warned.mock.calls.map(([line]) => String(line)).filter((line) => line.startsWith('A statement took'));
+    const lines = warned.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.startsWith('A statement took'));
     warned.mockRestore();
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatch(/^A statement took \d+ ms: SELECT pg_sleep\(0\.06\)::text, \$1::text$/);
+    expect(lines[0]).toMatch(
+      /^A statement took \d+ ms: SELECT pg_sleep\(0\.06\)::text, \$1::text$/,
+    );
     expect(Number(/took (\d+) ms/.exec(lines[0]!)![1])).toBeGreaterThanOrEqual(40);
     expect(lines[0]).not.toContain('what a user typed');
   });
 
   it('is written as one line of a length', () => {
-    expect(statementForLog('SELECT "id"\n  FROM "User"\n  WHERE "id" = $1')).toBe('SELECT "id" FROM "User" WHERE "id" = $1');
+    expect(statementForLog('SELECT "id"\n  FROM "User"\n  WHERE "id" = $1')).toBe(
+      'SELECT "id" FROM "User" WHERE "id" = $1',
+    );
     expect(statementForLog(`SELECT ${'"column", '.repeat(200)}1`)).toHaveLength(401);
   });
 });

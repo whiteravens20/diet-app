@@ -5,7 +5,7 @@
  * days keep to their targets, the limits hold across meals, and limits give
  * way in one order and only when they may.
  */
-import type { MealType } from '@diet-app/shared';
+import { ProteinKind, type MealType } from '@diet-app/shared';
 import { describe, expect, it } from 'vitest';
 import { energyShares, splitDistance } from './nutrition.js';
 import {
@@ -20,7 +20,12 @@ import {
   type OptimizerResult,
 } from './optimizer.js';
 
-const dish = (id: string, mealTypes: MealType[], kcal: number, over: Partial<OptimizerRecipe> = {}): OptimizerRecipe => ({
+const dish = (
+  id: string,
+  mealTypes: MealType[],
+  kcal: number,
+  over: Partial<OptimizerRecipe> = {},
+): OptimizerRecipe => ({
   id,
   mealTypes,
   dietTags: [],
@@ -38,7 +43,9 @@ const dish = (id: string, mealTypes: MealType[], kcal: number, over: Partial<Opt
 /** A catalogue as a small instance has one: a handful of dishes for each meal, some for two meals. */
 const CATALOGUE: OptimizerRecipe[] = [
   ...[320, 380, 410, 450, 500, 540].map((kcal, i) => dish(`breakfast-${i}`, ['breakfast'], kcal)),
-  ...[180, 210, 240, 280].map((kcal, i) => dish(`second-${i}`, ['second_breakfast', 'snack'], kcal)),
+  ...[180, 210, 240, 280].map((kcal, i) =>
+    dish(`second-${i}`, ['second_breakfast', 'snack'], kcal),
+  ),
   ...[480, 520, 560, 610, 650, 700].map((kcal, i) => dish(`main-${i}`, ['lunch', 'dinner'], kcal)),
   ...[430, 470, 590].map((kcal, i) => dish(`lunch-${i}`, ['lunch'], kcal)),
   ...[440, 500, 620].map((kcal, i) => dish(`dinner-${i}`, ['dinner'], kcal)),
@@ -64,7 +71,10 @@ const plan = (over: Partial<OptimizerInput> = {}): OptimizerInput => ({
 const kcalOfDay = (result: OptimizerResult, recipes: OptimizerRecipe[], day: number): number =>
   result.assignments
     .filter((a) => a.dayIndex === day)
-    .reduce((sum, a) => sum + recipes.find((r) => r.id === a.recipeId)!.caloriesPerServing * a.servings, 0);
+    .reduce(
+      (sum, a) => sum + recipes.find((r) => r.id === a.recipeId)!.caloriesPerServing * a.servings,
+      0,
+    );
 
 describe('the fit of a meal to its budget', () => {
   it('costs nothing inside a tenth of the budget, either way', () => {
@@ -90,22 +100,39 @@ describe('the days of a plan', () => {
     [4, 2200],
     [5, 1700],
     [5, 2800],
-  ])('are each inside a tenth of their target, with %i meals and %i kcal, whatever the seed', (meals, target) => {
-    for (let seed = 1; seed <= 25; seed += 1) {
-      const input = plan({ days: uniformDays(14, MEALS[meals]!, target), seed, maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3 });
+  ])(
+    'are each inside a tenth of their target, with %i meals and %i kcal, whatever the seed',
+    (meals, target) => {
+      for (let seed = 1; seed <= 25; seed += 1) {
+        const input = plan({
+          days: uniformDays(14, MEALS[meals]!, target),
+          seed,
+          maxConsecutiveDaysSameMeal: 2,
+          maxTimesPerWeekSameMeal: 3,
+        });
 
-      const result = optimisePlan(input);
+        const result = optimisePlan(input);
 
-      for (let day = 0; day < 14; day += 1) {
-        const kcal = kcalOfDay(result, CATALOGUE, day);
-        expect(Math.abs(kcal - target) / target, `seed ${seed}, day ${day}: ${kcal} kcal`).toBeLessThanOrEqual(0.1);
+        for (let day = 0; day < 14; day += 1) {
+          const kcal = kcalOfDay(result, CATALOGUE, day);
+          expect(
+            Math.abs(kcal - target) / target,
+            `seed ${seed}, day ${day}: ${kcal} kcal`,
+          ).toBeLessThanOrEqual(0.1);
+        }
       }
-    }
-  });
+    },
+  );
 
   it('make up at the next meals for a meal that ran far over, and leave the snack what is left', () => {
     // A locked lunch whose smallest serving is 1200 kcal, on a day of 2000 with four meals.
-    const days = [{ mealSlots: MEALS[4]!, dailyCalorieTarget: 2000, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'feast' }] }];
+    const days = [
+      {
+        mealSlots: MEALS[4]!,
+        dailyCalorieTarget: 2000,
+        lockedSlots: [{ slot: 'lunch' as const, recipeId: 'feast' }],
+      },
+    ];
     const recipes = [...CATALOGUE, dish('feast', ['lunch'], 2400)];
     const kcalOf = (result: OptimizerResult, slot: MealType) => {
       const meal = result.assignments.find((a) => a.slot === slot)!;
@@ -116,7 +143,9 @@ describe('the days of a plan', () => {
       const result = optimisePlan(plan({ recipes, days, seed }));
 
       // With a fixed share for every meal the day would have ended near 2500.
-      expect(Math.abs(kcalOfDay(result, recipes, 0) - 2000), `seed ${seed}`).toBeLessThanOrEqual(200);
+      expect(Math.abs(kcalOfDay(result, recipes, 0) - 2000), `seed ${seed}`).toBeLessThanOrEqual(
+        200,
+      );
       expect(kcalOf(result, 'lunch')).toBe(1200);
       // Breakfast and dinner took less than their shares of an empty day, 500 and 600.
       expect(kcalOf(result, 'breakfast')).toBeLessThan(400);
@@ -128,21 +157,40 @@ describe('the days of a plan', () => {
 
   it('make up for a meal that cannot reach its share: light lunches leave more for dinner and the snack', () => {
     // Three servings of the largest lunch are 480 kcal, where the lunch of a day of 2000 would be 700.
-    const recipes = [...CATALOGUE.filter((r) => !r.mealTypes.includes('lunch')), dish('salad', ['lunch'], 140), dish('soup', ['lunch'], 160)];
+    const recipes = [
+      ...CATALOGUE.filter((r) => !r.mealTypes.includes('lunch')),
+      dish('salad', ['lunch'], 140),
+      dish('soup', ['lunch'], 160),
+    ];
 
     for (let seed = 1; seed <= 20; seed += 1) {
-      const result = optimisePlan(plan({ recipes, days: uniformDays(7, MEALS[4]!, 2000), seed, maxConsecutiveDaysSameMeal: 7, maxTimesPerWeekSameMeal: 7 }));
+      const result = optimisePlan(
+        plan({
+          recipes,
+          days: uniformDays(7, MEALS[4]!, 2000),
+          seed,
+          maxConsecutiveDaysSameMeal: 7,
+          maxTimesPerWeekSameMeal: 7,
+        }),
+      );
 
       for (let day = 0; day < 7; day += 1) {
         // With a fixed share for every meal each day would have ended about 220 kcal short, outside the tenth.
-        expect(Math.abs(kcalOfDay(result, recipes, day) - 2000), `seed ${seed}, day ${day}`).toBeLessThanOrEqual(200);
+        expect(
+          Math.abs(kcalOfDay(result, recipes, day) - 2000),
+          `seed ${seed}, day ${day}`,
+        ).toBeLessThanOrEqual(200);
       }
     }
   });
 
   it('do not take a dish that stays far under the budget even at the largest serving', () => {
     // Three servings of the broth are 180 kcal; the lunch of this day wants about 700.
-    const recipes = [dish('broth', ['lunch'], 60), dish('stew', ['lunch'], 650), ...CATALOGUE.filter((r) => !r.mealTypes.includes('lunch'))];
+    const recipes = [
+      dish('broth', ['lunch'], 60),
+      dish('stew', ['lunch'], 650),
+      ...CATALOGUE.filter((r) => !r.mealTypes.includes('lunch')),
+    ];
 
     for (let seed = 1; seed <= 10; seed += 1) {
       const result = optimisePlan(plan({ recipes, days: uniformDays(1, MEALS[3]!, 2000), seed }));
@@ -153,34 +201,61 @@ describe('the days of a plan', () => {
 
 describe('the limits of a plan', () => {
   /** Dishes that go at lunch and at dinner alike: what a limit counted per meal would let through twice as often. */
-  const eitherMeal = Array.from({ length: 6 }, (_, i) => dish(`either-${i}`, ['lunch', 'dinner'], 560 + 20 * i));
+  const eitherMeal = Array.from({ length: 6 }, (_, i) =>
+    dish(`either-${i}`, ['lunch', 'dinner'], 560 + 20 * i),
+  );
   const recipes = [...CATALOGUE.filter((r) => r.mealTypes.includes('breakfast')), ...eitherMeal];
   const strict = (over: Partial<OptimizerInput> = {}) =>
-    plan({ recipes, days: uniformDays(14, MEALS[3]!, 1900), allowRelaxations: new Set(), maxConsecutiveDaysSameMeal: 1, maxTimesPerWeekSameMeal: 3, ...over });
+    plan({
+      recipes,
+      days: uniformDays(14, MEALS[3]!, 1900),
+      allowRelaxations: new Set(),
+      maxConsecutiveDaysSameMeal: 1,
+      maxTimesPerWeekSameMeal: 3,
+      ...over,
+    });
 
   it('count a recipe over all meals: never more than the weekly limit in any seven days, nor two days running', () => {
     for (let seed = 1; seed <= 15; seed += 1) {
       const result = optimisePlan(strict({ seed }));
 
       for (const recipe of eitherMeal) {
-        const days = result.assignments.filter((a) => a.recipeId === recipe.id).map((a) => a.dayIndex);
+        const days = result.assignments
+          .filter((a) => a.recipeId === recipe.id)
+          .map((a) => a.dayIndex);
         for (let start = 0; start <= 7; start += 1) {
-          expect(days.filter((day) => day >= start && day < start + 7).length, `seed ${seed}, ${recipe.id}, from day ${start}`).toBeLessThanOrEqual(3);
+          expect(
+            days.filter((day) => day >= start && day < start + 7).length,
+            `seed ${seed}, ${recipe.id}, from day ${start}`,
+          ).toBeLessThanOrEqual(3);
         }
-        expect(days.some((day, i) => i > 0 && day - days[i - 1]! === 1), `seed ${seed}, ${recipe.id} on two days running`).toBe(false);
+        expect(
+          days.some((day, i) => i > 0 && day - days[i - 1]! === 1),
+          `seed ${seed}, ${recipe.id} on two days running`,
+        ).toBe(false);
       }
     }
   });
 
   it('keep a recipe from being eaten twice on one day, unless the plan is for cooking ahead', () => {
     const twiceADay = (result: OptimizerResult) =>
-      Array.from({ length: 14 }, (_, day) => result.assignments.filter((a) => a.dayIndex === day).map((a) => a.recipeId)).some((ids) => new Set(ids).size < ids.length);
+      Array.from({ length: 14 }, (_, day) =>
+        result.assignments.filter((a) => a.dayIndex === day).map((a) => a.recipeId),
+      ).some((ids) => new Set(ids).size < ids.length);
 
-    for (let seed = 1; seed <= 15; seed += 1) expect(twiceADay(optimisePlan(strict({ seed }))), `seed ${seed}`).toBe(false);
+    for (let seed = 1; seed <= 15; seed += 1)
+      expect(twiceADay(optimisePlan(strict({ seed }))), `seed ${seed}`).toBe(false);
 
     // One dish for both main meals, and cooking ahead: the same dish at lunch and at dinner is the point.
     const one = [...CATALOGUE.filter((r) => r.mealTypes.includes('breakfast')), eitherMeal[0]!];
-    const ahead = optimisePlan(plan({ recipes: one, days: uniformDays(1, MEALS[3]!, 1900), mealPrepFriendly: true, allowRelaxations: new Set() }));
+    const ahead = optimisePlan(
+      plan({
+        recipes: one,
+        days: uniformDays(1, MEALS[3]!, 1900),
+        mealPrepFriendly: true,
+        allowRelaxations: new Set(),
+      }),
+    );
     expect(ahead.assignments.filter((a) => a.recipeId === 'either-0')).toHaveLength(2);
     expect(ahead.report.relaxations).toEqual([]);
   });
@@ -198,8 +273,19 @@ describe('the limits of a plan', () => {
 
   it('refuse the plan when limits would have to give way that may not, and say at which meals and which limits', () => {
     // Two dishes for lunch, and a limit of once in the whole plan: the third day and the fourth have none left.
-    const two = [dish('b', ['breakfast'], 500), dish('l1', ['lunch'], 700), dish('l2', ['lunch'], 720), dish('d', ['dinner'], 600)];
-    const input = plan({ recipes: two, days: uniformDays(4, ['lunch'], 700), maxRepeatsPerRecipe: 1, maxConsecutiveDaysSameMeal: 4, allowRelaxations: new Set() });
+    const two = [
+      dish('b', ['breakfast'], 500),
+      dish('l1', ['lunch'], 700),
+      dish('l2', ['lunch'], 720),
+      dish('d', ['dinner'], 600),
+    ];
+    const input = plan({
+      recipes: two,
+      days: uniformDays(4, ['lunch'], 700),
+      maxRepeatsPerRecipe: 1,
+      maxConsecutiveDaysSameMeal: 4,
+      allowRelaxations: new Set(),
+    });
 
     expect(refusalOf(input)).toEqual({
       needs: ['variety_floor'],
@@ -209,7 +295,9 @@ describe('the limits of a plan', () => {
       ],
     });
     // The same plan is made once that limit may give way.
-    expect(optimisePlan({ ...input, allowRelaxations: new Set(['variety_floor']) }).assignments).toHaveLength(4);
+    expect(
+      optimisePlan({ ...input, allowRelaxations: new Set(['variety_floor']) }).assignments,
+    ).toHaveLength(4);
   });
 
   it('name, of the limits that gave way at a meal, the ones that may not', () => {
@@ -218,7 +306,12 @@ describe('the limits of a plan', () => {
       { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
       { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
     ];
-    const input = plan({ recipes: [dish('slow', ['lunch'], 700, { totalMinutes: 90 })], days, maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set(['cook_time']) });
+    const input = plan({
+      recipes: [dish('slow', ['lunch'], 700, { totalMinutes: 90 })],
+      days,
+      maxConsecutiveDaysSameMeal: 1,
+      allowRelaxations: new Set(['cook_time']),
+    });
 
     expect(refusalOf(input)).toEqual({
       needs: ['consecutive_days'],
@@ -228,7 +321,10 @@ describe('the limits of a plan', () => {
 
   it('let limits give way in one order, the fewest that fill the meal, and say what gave way', () => {
     // One lunch dish is over the cooking time; the other was eaten yesterday and may not be eaten two days running.
-    const lunches = [dish('slow', ['lunch'], 700, { totalMinutes: 90 }), dish('quick', ['lunch'], 700)];
+    const lunches = [
+      dish('slow', ['lunch'], 700, { totalMinutes: 90 }),
+      dish('quick', ['lunch'], 700),
+    ];
     const days = [
       { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
       { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
@@ -238,22 +334,45 @@ describe('the limits of a plan', () => {
 
     // The cooking time gives way before the days in a row do.
     expect(result.assignments.map((a) => a.recipeId)).toEqual(['quick', 'slow']);
-    expect(result.report.relaxations).toEqual([{ dayIndex: 1, slot: 'lunch', gaveWay: ['cook_time'] }]);
-    expect(refusalOf(plan({ recipes: lunches, days, maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set() }))?.needs).toEqual(['cook_time']);
+    expect(result.report.relaxations).toEqual([
+      { dayIndex: 1, slot: 'lunch', gaveWay: ['cook_time'] },
+    ]);
+    expect(
+      refusalOf(
+        plan({
+          recipes: lunches,
+          days,
+          maxConsecutiveDaysSameMeal: 1,
+          allowRelaxations: new Set(),
+        }),
+      )?.needs,
+    ).toEqual(['cook_time']);
   });
 
   it('let a limit that may give way do so before one that may not, whatever their order', () => {
-    const lunches = [dish('slow', ['lunch'], 700, { totalMinutes: 90 }), dish('quick', ['lunch'], 700)];
+    const lunches = [
+      dish('slow', ['lunch'], 700, { totalMinutes: 90 }),
+      dish('quick', ['lunch'], 700),
+    ];
     const days = [
       { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
       { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
     ];
 
     // The cooking time is to hold: the quick dish is eaten two days running instead.
-    const result = optimisePlan(plan({ recipes: lunches, days, maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set(['consecutive_days']) }));
+    const result = optimisePlan(
+      plan({
+        recipes: lunches,
+        days,
+        maxConsecutiveDaysSameMeal: 1,
+        allowRelaxations: new Set(['consecutive_days']),
+      }),
+    );
 
     expect(result.assignments.map((a) => a.recipeId)).toEqual(['quick', 'quick']);
-    expect(result.report.relaxations).toEqual([{ dayIndex: 1, slot: 'lunch', gaveWay: ['consecutive_days'] }]);
+    expect(result.report.relaxations).toEqual([
+      { dayIndex: 1, slot: 'lunch', gaveWay: ['consecutive_days'] },
+    ]);
   });
 
   it('take, of the recipes outside the limits, one that is outside fewer, and say of the meal the limits of its own recipe', () => {
@@ -265,41 +384,83 @@ describe('the limits of a plan', () => {
 
     for (let seed = 1; seed <= 40; seed += 1) {
       const result = optimisePlan(plan({ recipes: dishes, days, seed }));
-      expect(result.assignments.find((a) => a.slot === 'snack')!.recipeId, `seed ${seed}`).toBe('quick');
-      expect(result.report.relaxations.find((entry) => entry.slot === 'snack')!.gaveWay, `seed ${seed}`).toEqual(['same_day']);
+      expect(result.assignments.find((a) => a.slot === 'snack')!.recipeId, `seed ${seed}`).toBe(
+        'quick',
+      );
+      expect(
+        result.report.relaxations.find((entry) => entry.slot === 'snack')!.gaveWay,
+        `seed ${seed}`,
+      ).toEqual(['same_day']);
     }
   });
 
   it('take a recipe outside any number of earlier limits before one outside a later limit', () => {
     // On the second day the slow dish is over the cooking time and at its most for the plan; the quick one would be eaten two days running.
-    const lunches = [dish('slow', ['lunch'], 700, { totalMinutes: 90 }), dish('quick', ['lunch'], 700)];
+    const lunches = [
+      dish('slow', ['lunch'], 700, { totalMinutes: 90 }),
+      dish('quick', ['lunch'], 700),
+    ];
     const days = [
-      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'slow' }] },
-      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'quick' }] },
+      {
+        mealSlots: ['lunch' as const],
+        dailyCalorieTarget: 700,
+        lockedSlots: [{ slot: 'lunch' as const, recipeId: 'slow' }],
+      },
+      {
+        mealSlots: ['lunch' as const],
+        dailyCalorieTarget: 700,
+        lockedSlots: [{ slot: 'lunch' as const, recipeId: 'quick' }],
+      },
       { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 },
     ];
 
-    const result = optimisePlan(plan({ recipes: lunches, days, maxRepeatsPerRecipe: 1, maxConsecutiveDaysSameMeal: 1 }));
+    const result = optimisePlan(
+      plan({ recipes: lunches, days, maxRepeatsPerRecipe: 1, maxConsecutiveDaysSameMeal: 1 }),
+    );
 
     expect(result.assignments[2]!.recipeId).toBe('slow');
-    expect(result.report.relaxations).toEqual([{ dayIndex: 2, slot: 'lunch', gaveWay: ['variety_floor', 'cook_time'] }]);
+    expect(result.report.relaxations).toEqual([
+      { dayIndex: 2, slot: 'lunch', gaveWay: ['variety_floor', 'cook_time'] },
+    ]);
   });
 
   it('prefer the recipe used least so far when a limit gives way', () => {
     // Three lunch dishes, each allowed once; on the fourth day all are at the limit, and one of them was locked in twice already.
-    const lunches = [dish('a', ['lunch'], 700), dish('b', ['lunch'], 700), dish('c', ['lunch'], 700)];
+    const lunches = [
+      dish('a', ['lunch'], 700),
+      dish('b', ['lunch'], 700),
+      dish('c', ['lunch'], 700),
+    ];
     const days = [
-      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'a' }] },
-      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'a' }] },
-      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'b' }] },
-      { mealSlots: ['lunch' as const], dailyCalorieTarget: 700, lockedSlots: [{ slot: 'lunch' as const, recipeId: 'c' }] },
+      {
+        mealSlots: ['lunch' as const],
+        dailyCalorieTarget: 700,
+        lockedSlots: [{ slot: 'lunch' as const, recipeId: 'a' }],
+      },
+      {
+        mealSlots: ['lunch' as const],
+        dailyCalorieTarget: 700,
+        lockedSlots: [{ slot: 'lunch' as const, recipeId: 'a' }],
+      },
+      {
+        mealSlots: ['lunch' as const],
+        dailyCalorieTarget: 700,
+        lockedSlots: [{ slot: 'lunch' as const, recipeId: 'b' }],
+      },
+      {
+        mealSlots: ['lunch' as const],
+        dailyCalorieTarget: 700,
+        lockedSlots: [{ slot: 'lunch' as const, recipeId: 'c' }],
+      },
       { mealSlots: ['lunch' as const], dailyCalorieTarget: 700 },
     ];
 
     for (let seed = 1; seed <= 10; seed += 1) {
       const result = optimisePlan(plan({ recipes: lunches, days, maxRepeatsPerRecipe: 1, seed }));
       expect(['b', 'c']).toContain(result.assignments[4]!.recipeId);
-      expect(result.report.relaxations).toEqual([{ dayIndex: 4, slot: 'lunch', gaveWay: ['variety_floor'] }]);
+      expect(result.report.relaxations).toEqual([
+        { dayIndex: 4, slot: 'lunch', gaveWay: ['variety_floor'] },
+      ]);
     }
   });
 
@@ -307,7 +468,14 @@ describe('the limits of a plan', () => {
     // The small dish stays far under the budget at its largest serving; the big one may be eaten once.
     const lunches = [dish('big', ['lunch'], 700), dish('small', ['lunch'], 150)];
 
-    const result = optimisePlan(plan({ recipes: lunches, days: uniformDays(2, ['lunch'], 700), maxRepeatsPerRecipe: 1, allowRelaxations: new Set() }));
+    const result = optimisePlan(
+      plan({
+        recipes: lunches,
+        days: uniformDays(2, ['lunch'], 700),
+        maxRepeatsPerRecipe: 1,
+        allowRelaxations: new Set(),
+      }),
+    );
 
     expect(result.assignments.map((a) => a.recipeId)).toEqual(['big', 'small']);
     expect(result.report.relaxations).toEqual([]);
@@ -323,13 +491,23 @@ describe('the limits of a plan', () => {
     ];
 
     for (let seed = 1; seed <= 200; seed += 1) {
-      const input = plan({ recipes: small, days: uniformDays(7, MEALS[3]!, 2000), maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, allowRelaxations: new Set(), seed });
+      const input = plan({
+        recipes: small,
+        days: uniformDays(7, MEALS[3]!, 2000),
+        maxConsecutiveDaysSameMeal: 2,
+        maxTimesPerWeekSameMeal: 3,
+        allowRelaxations: new Set(),
+        seed,
+      });
       expect(refusalOf(input), `seed ${seed}`).toBeUndefined();
     }
   });
 
   it('report the meals that had one recipe to choose from', () => {
-    const recipes = [dish('only-breakfast', ['breakfast'], 500), ...CATALOGUE.filter((r) => !r.mealTypes.includes('breakfast'))];
+    const recipes = [
+      dish('only-breakfast', ['breakfast'], 500),
+      ...CATALOGUE.filter((r) => !r.mealTypes.includes('breakfast')),
+    ];
 
     const { report } = optimisePlan(plan({ recipes, days: uniformDays(2, MEALS[3]!, 2000) }));
 
@@ -342,9 +520,12 @@ describe('the limits of a plan', () => {
 
 describe('meals that are in the plan already and stay', () => {
   const lunch = (kept?: string): OptimizerInput['days'][number] =>
-    kept ? { mealSlots: [], dailyCalorieTarget: 700, kept: [{ recipeId: kept, calories: 700 }] } : { mealSlots: ['lunch'], dailyCalorieTarget: 700 };
+    kept
+      ? { mealSlots: [], dailyCalorieTarget: 700, kept: [{ recipeId: kept, calories: 700 }] }
+      : { mealSlots: ['lunch'], dailyCalorieTarget: 700 };
   const lunches = ['a', 'b', 'c'].map((id) => dish(id, ['lunch'], 700));
-  const strict = (over: Partial<OptimizerInput>) => plan({ recipes: lunches, allowRelaxations: new Set(), ...over });
+  const strict = (over: Partial<OptimizerInput>) =>
+    plan({ recipes: lunches, allowRelaxations: new Set(), ...over });
 
   it('are not chosen again: only the meals to fill are in the answer', () => {
     const result = optimisePlan(strict({ days: [lunch('a'), lunch(), lunch('b')] }));
@@ -365,14 +546,26 @@ describe('meals that are in the plan already and stay', () => {
   it('count for the limit of seven days in every seven days that hold the day', () => {
     // The fourth day is open. One dish is eaten the day before and the day after it, another on the sixth
     // day and the ninth: either would be eaten a third time within seven days. The other days hold dishes of their own.
-    const days = ['x0', 'x1', 'a', undefined, 'a', 'c', 'x6', 'x7', 'c', 'x9'].map((kept) => lunch(kept));
+    const days = ['x0', 'x1', 'a', undefined, 'a', 'c', 'x6', 'x7', 'c', 'x9'].map((kept) =>
+      lunch(kept),
+    );
 
     for (let seed = 1; seed <= 30; seed += 1) {
-      const result = optimisePlan(strict({ days, maxTimesPerWeekSameMeal: 2, maxConsecutiveDaysSameMeal: 7, seed }));
-      expect(result.assignments.map((a) => a.recipeId), `seed ${seed}`).toEqual(['b']);
+      const result = optimisePlan(
+        strict({ days, maxTimesPerWeekSameMeal: 2, maxConsecutiveDaysSameMeal: 7, seed }),
+      );
+      expect(
+        result.assignments.map((a) => a.recipeId),
+        `seed ${seed}`,
+      ).toEqual(['b']);
     }
     // Where the only dish is eaten on the two days that follow, the plan is refused for the open day.
-    const onlyOne = strict({ recipes: lunches.slice(0, 1), days: [lunch(), lunch('a'), lunch('a')], maxTimesPerWeekSameMeal: 2, maxConsecutiveDaysSameMeal: 7 });
+    const onlyOne = strict({
+      recipes: lunches.slice(0, 1),
+      days: [lunch(), lunch('a'), lunch('a')],
+      maxTimesPerWeekSameMeal: 2,
+      maxConsecutiveDaysSameMeal: 7,
+    });
     expect(() => optimisePlan(onlyOne)).toThrow(OptimizerError);
   });
 
@@ -382,30 +575,68 @@ describe('meals that are in the plan already and stay', () => {
 
     for (let seed = 1; seed <= 20; seed += 1) {
       // One of the three is on the plate already today: the two meals to fill take the other two.
-      const sameDay = optimisePlan(plan({ recipes: dishes, days: [{ mealSlots: ['lunch', 'dinner'], dailyCalorieTarget: 1800, kept: [{ recipeId: 'a', calories: 600 }] }], allowRelaxations: new Set(), seed }));
+      const sameDay = optimisePlan(
+        plan({
+          recipes: dishes,
+          days: [
+            {
+              mealSlots: ['lunch', 'dinner'],
+              dailyCalorieTarget: 1800,
+              kept: [{ recipeId: 'a', calories: 600 }],
+            },
+          ],
+          allowRelaxations: new Set(),
+          seed,
+        }),
+      );
       expect(sameDay.assignments.map((a) => a.recipeId).sort(), `seed ${seed}`).toEqual(['b', 'c']);
 
       // Each may appear once in the plan, and two already do.
-      const once = optimisePlan(strict({ days: [lunch('a'), lunch(), lunch('b')], maxRepeatsPerRecipe: 1, seed }));
+      const once = optimisePlan(
+        strict({ days: [lunch('a'), lunch(), lunch('b')], maxRepeatsPerRecipe: 1, seed }),
+      );
       expect(once.assignments[0]!.recipeId, `seed ${seed}`).toBe('c');
     }
   });
 
   it('take what they hold from the day before the other meals are budgeted', () => {
     // A breakfast of 1200 kcal was eaten: lunch and dinner share the 800 that are left.
-    const days = [{ mealSlots: ['lunch' as const, 'dinner' as const], dailyCalorieTarget: 2000, kept: [{ recipeId: 'eaten', calories: 1200 }] }];
+    const days = [
+      {
+        mealSlots: ['lunch' as const, 'dinner' as const],
+        dailyCalorieTarget: 2000,
+        kept: [{ recipeId: 'eaten', calories: 1200 }],
+      },
+    ];
 
     for (let seed = 1; seed <= 25; seed += 1) {
       const result = optimisePlan(plan({ days, seed }));
-      const filled = result.assignments.reduce((sum, a) => sum + CATALOGUE.find((r) => r.id === a.recipeId)!.caloriesPerServing * a.servings, 0);
-      expect(Math.abs(1200 + filled - 2000), `seed ${seed}: ${filled} kcal in the two meals`).toBeLessThanOrEqual(200);
+      const filled = result.assignments.reduce(
+        (sum, a) =>
+          sum + CATALOGUE.find((r) => r.id === a.recipeId)!.caloriesPerServing * a.servings,
+        0,
+      );
+      expect(
+        Math.abs(1200 + filled - 2000),
+        `seed ${seed}: ${filled} kcal in the two meals`,
+      ).toBeLessThanOrEqual(200);
     }
   });
 
   it('count in the reuse of ingredients, as recipes of the plan', () => {
-    const shared = [dish('a', ['lunch'], 700, { ingredientIds: ['rice', 'beans'] }), dish('b', ['lunch'], 700, { ingredientIds: ['rice', 'lentils'] })];
+    const shared = [
+      dish('a', ['lunch'], 700, { ingredientIds: ['rice', 'beans'] }),
+      dish('b', ['lunch'], 700, { ingredientIds: ['rice', 'lentils'] }),
+    ];
 
-    const result = optimisePlan(plan({ recipes: shared, days: [lunch('a'), lunch()], maxConsecutiveDaysSameMeal: 1, allowRelaxations: new Set() }));
+    const result = optimisePlan(
+      plan({
+        recipes: shared,
+        days: [lunch('a'), lunch()],
+        maxConsecutiveDaysSameMeal: 1,
+        allowRelaxations: new Set(),
+      }),
+    );
 
     // Rice is in both recipes of the plan, beans and lentils in one each.
     expect(result.assignments[0]!.recipeId).toBe('b');
@@ -413,56 +644,198 @@ describe('meals that are in the plan already and stay', () => {
   });
 });
 
-describe('the most of one ingredient in seven days', () => {
-  const amounts = (lines: Record<string, number>) => ({ amounts: new Map(Object.entries(lines)), ingredientIds: Object.keys(lines) });
-  /** Three dishes with 200 g of eggs in a serving and three without, for every meal of the day. */
+describe('the meals with one kind of protein', () => {
   const meals: MealType[] = ['breakfast', 'lunch', 'dinner'];
+  /** Three egg dishes and three of beans, for every meal of the day. */
   const dishes = [
-    ...[0, 1, 2].map((i) => dish(`eggs-${i}`, meals, 620 + 20 * i, amounts({ eggs: 200, [`bread-${i}`]: 80 }))),
-    ...[0, 1, 2].map((i) => dish(`beans-${i}`, meals, 600 + 20 * i, amounts({ [`beans-${i}`]: 250, [`rice-${i}`]: 70 }))),
+    ...[0, 1, 2].map((i) => dish(`eggs-${i}`, meals, 620 + 20 * i, { proteinKinds: ['eggs'] })),
+    ...[0, 1, 2].map((i) => dish(`beans-${i}`, meals, 600 + 20 * i, { proteinKinds: ['legumes'] })),
   ];
-  /** How much of the ingredient the meals of each seven days of the plan hold, at most. */
-  const mostInSevenDays = (result: OptimizerResult, ingredient: string, days: number): number => {
-    const perDay = Array.from({ length: days }, (_, day) =>
-      result.assignments.filter((a) => a.dayIndex === day).reduce((sum, a) => sum + (dishes.find((d) => d.id === a.recipeId)!.amounts!.get(ingredient) ?? 0) * a.servings, 0),
+  /** How many meals of each day of the plan are of eggs. */
+  const eggMeals = (result: OptimizerResult, days: number): number[] =>
+    Array.from(
+      { length: days },
+      (_, day) =>
+        result.assignments.filter((a) => a.dayIndex === day && a.recipeId.startsWith('eggs'))
+          .length,
     );
-    return Math.max(...perDay.map((_, first) => perDay.slice(first, first + 7).reduce((sum, grams) => sum + grams, 0)));
-  };
+  /** The most of them in any seven days. */
+  const mostInSevenDays = (perDay: number[]): number =>
+    Math.max(
+      ...perDay.map((_, first) =>
+        perDay.slice(first, first + 7).reduce((sum, count) => sum + count, 0),
+      ),
+    );
+  /** Eggs held to these numbers, a number left out being no limit. */
+  const eggsAt = (perDay?: number, perWeek?: number) =>
+    new Map<ProteinKind, { perDay?: number; perWeek?: number }>([['eggs', { perDay, perWeek }]]);
   const limited = (over: Partial<OptimizerInput> = {}) =>
-    plan({ recipes: dishes, days: uniformDays(14, meals, 1900), maxIngredientPerWeek: 1500, maxConsecutiveDaysSameMeal: 7, maxTimesPerWeekSameMeal: 7, allowRelaxations: new Set(), ...over });
+    plan({
+      recipes: dishes,
+      days: uniformDays(14, meals, 1900),
+      maxMealsPerKind: eggsAt(1, 4),
+      maxConsecutiveDaysSameMeal: 7,
+      maxTimesPerWeekSameMeal: 7,
+      allowRelaxations: new Set(),
+      ...over,
+    });
 
-  it('holds over all meals, with the servings they are given', () => {
-    let without = 0;
+  it('hold on every day and in every seven days, over all meals', () => {
+    let withoutTheDay = 0;
+    let withoutTheWeek = 0;
     for (let seed = 1; seed <= 20; seed += 1) {
-      expect(mostInSevenDays(optimisePlan(limited({ seed })), 'eggs', 14), `seed ${seed}`).toBeLessThanOrEqual(1500);
-      without = Math.max(without, mostInSevenDays(optimisePlan(limited({ seed, maxIngredientPerWeek: undefined })), 'eggs', 14));
+      const perDay = eggMeals(optimisePlan(limited({ seed })), 14);
+      expect(Math.max(...perDay), `seed ${seed}`).toBeLessThanOrEqual(1);
+      expect(mostInSevenDays(perDay), `seed ${seed}`).toBeLessThanOrEqual(4);
+      withoutTheDay = Math.max(
+        withoutTheDay,
+        ...eggMeals(optimisePlan(limited({ seed, maxMealsPerKind: undefined })), 14),
+      );
+      withoutTheWeek = Math.max(
+        withoutTheWeek,
+        mostInSevenDays(eggMeals(optimisePlan(limited({ seed, maxMealsPerKind: eggsAt(1) })), 14)),
+      );
     }
-    // Without the limit the same plans hold more than that: the limit is what kept them under.
-    expect(without).toBeGreaterThan(1500);
+    // Without them the same plans have more egg meals on a day and in a week: the limits are what kept them down.
+    expect(withoutTheDay).toBeGreaterThan(1);
+    expect(withoutTheWeek).toBeGreaterThan(4);
   });
 
-  it('counts what stays in the plan, with its servings', () => {
-    // Six days hold an egg dish of one and a half servings: 1800 g. With the smallest serving of another, the week would hold 1900.
-    const stay = { mealSlots: [] as MealType[], dailyCalorieTarget: 1900, kept: [{ recipeId: 'eggs-0', calories: 930, servings: 1.5 }] };
-    const days = [stay, stay, stay, { mealSlots: meals, dailyCalorieTarget: 1900 }, stay, stay, stay];
+  it('count the meals that stay in the plan', () => {
+    // Six days of the week hold an egg meal already: with eggs at six meals a week the seventh gets none.
+    const stay = {
+      mealSlots: [] as MealType[],
+      dailyCalorieTarget: 1900,
+      kept: [{ recipeId: 'eggs-0', calories: 640 }],
+    };
+    const week = [
+      stay,
+      stay,
+      stay,
+      { mealSlots: meals, dailyCalorieTarget: 1900 },
+      stay,
+      stay,
+      stay,
+    ];
+    // A day whose breakfast of eggs stays gets no more of them, with eggs at one meal a day.
+    const morning = {
+      mealSlots: ['lunch', 'dinner'] as MealType[],
+      dailyCalorieTarget: 1900,
+      kept: [{ recipeId: 'eggs-1', calories: 640 }],
+    };
 
     for (let seed = 1; seed <= 20; seed += 1) {
-      const result = optimisePlan(limited({ days, maxIngredientPerWeek: 1850, allowRelaxations: 'all', seed }));
-      expect(result.assignments.map((a) => a.recipeId).filter((id) => id.startsWith('eggs')), `seed ${seed}`).toEqual([]);
-      expect(result.report.relaxations).toEqual([]);
+      for (const result of [
+        optimisePlan(
+          limited({
+            days: week,
+            maxMealsPerKind: eggsAt(undefined, 6),
+            allowRelaxations: 'all',
+            seed,
+          }),
+        ),
+        optimisePlan(
+          limited({
+            days: [morning, morning],
+            maxMealsPerKind: eggsAt(1),
+            allowRelaxations: 'all',
+            seed,
+          }),
+        ),
+      ]) {
+        expect(
+          result.assignments.map((a) => a.recipeId).filter((id) => id.startsWith('eggs')),
+          `seed ${seed}`,
+        ).toEqual([]);
+        expect(result.report.relaxations).toEqual([]);
+      }
     }
   });
 
-  it('gives way last, and only when it may', () => {
-    // Nothing but egg dishes, one of them slow: by the last day every dish would take the week over the limit.
-    const onlyEggs = [dish('eggs-quick', ['lunch'], 700, amounts({ eggs: 200 })), dish('eggs-slow', ['lunch'], 700, { ...amounts({ eggs: 200 }), totalMinutes: 90 })];
-    const days = Array.from({ length: 4 }, () => ({ mealSlots: ['lunch' as const], dailyCalorieTarget: 700, cookTimeBudgetMinutes: 30 }));
-    const input = plan({ recipes: onlyEggs, days, maxIngredientPerWeek: 600, maxConsecutiveDaysSameMeal: 7, maxTimesPerWeekSameMeal: 7 });
+  it('count a recipe of two kinds as a meal of each', () => {
+    const recipes = [
+      dish('yogurt', ['breakfast'], 500, { proteinKinds: ['dairy'] }),
+      dish('chicken-in-cream', ['dinner'], 700, { proteinKinds: ['chicken', 'dairy'] }),
+      dish('chicken-grilled', ['dinner'], 650, { proteinKinds: ['chicken'] }),
+    ];
+    const day = {
+      mealSlots: ['dinner'] as MealType[],
+      dailyCalorieTarget: 1200,
+      kept: [{ recipeId: 'yogurt', calories: 500 }],
+    };
+
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const result = optimisePlan(
+        plan({
+          recipes,
+          days: [day],
+          maxMealsPerKind: new Map([['dairy', { perDay: 1, perWeek: 7 }]]),
+          allowRelaxations: new Set(),
+          seed,
+        }),
+      );
+      expect(
+        result.assignments.map((a) => a.recipeId),
+        `seed ${seed}`,
+      ).toEqual(['chicken-grilled']);
+    }
+  });
+
+  it('let a dish be cooked ahead only where its second day keeps inside them', () => {
+    const recipes = [
+      dish('eggs', ['lunch'], 700, { proteinKinds: ['eggs'] }),
+      dish('beans', ['lunch'], 700, { proteinKinds: ['legumes'] }),
+    ];
+
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const result = optimisePlan(
+        plan({
+          recipes,
+          days: uniformDays(2, ['lunch'], 700),
+          mealPrepFriendly: true,
+          maxMealsPerKind: eggsAt(1, 1),
+          allowRelaxations: new Set(),
+          seed,
+        }),
+      );
+      // Eggs cooked on the first day could not be eaten on the second.
+      expect(
+        result.assignments.map((a) => a.recipeId),
+        `seed ${seed}`,
+      ).toEqual(['beans', 'beans']);
+    }
+  });
+
+  it('give way before every other limit, those of seven days before those of one day, and only when they may', () => {
+    // Nothing but egg dishes, one of them slow: by the last day every dish would be a fourth egg meal in the week.
+    const onlyEggs = [
+      dish('eggs-quick', ['lunch'], 700, { proteinKinds: ['eggs'] }),
+      dish('eggs-slow', ['lunch'], 700, { proteinKinds: ['eggs'], totalMinutes: 90 }),
+    ];
+    const days = Array.from({ length: 4 }, () => ({
+      mealSlots: ['lunch' as const],
+      dailyCalorieTarget: 700,
+      cookTimeBudgetMinutes: 30,
+    }));
+    const input = plan({
+      recipes: onlyEggs,
+      days,
+      maxMealsPerKind: eggsAt(1, 3),
+      maxConsecutiveDaysSameMeal: 7,
+      maxTimesPerWeekSameMeal: 7,
+    });
 
     const result = optimisePlan(input);
     // The cooking time is no way round the limit on the eggs: the quick dish is taken and the limit gives way alone.
-    expect(result.assignments.map((a) => a.recipeId)).toEqual(['eggs-quick', 'eggs-quick', 'eggs-quick', 'eggs-quick']);
-    expect(result.report.relaxations).toEqual([{ dayIndex: 3, slot: 'lunch', gaveWay: ['ingredient_cap'] }]);
+    expect(result.assignments.map((a) => a.recipeId)).toEqual([
+      'eggs-quick',
+      'eggs-quick',
+      'eggs-quick',
+      'eggs-quick',
+    ]);
+    expect(result.report.relaxations).toEqual([
+      { dayIndex: 3, slot: 'lunch', gaveWay: ['ingredient_cap'] },
+    ]);
 
     let refusal: OptimizerError | undefined;
     try {
@@ -471,12 +844,82 @@ describe('the most of one ingredient in seven days', () => {
       refusal = err as OptimizerError;
     }
     expect(refusal?.blocked?.needs).toEqual(['ingredient_cap']);
+
+    // Fish has had its meal of the week and eggs theirs of the day: a dinner of fish is outside the first limit, one of eggs outside the second.
+    const recipes = [
+      dish('fish-breakfast', ['breakfast'], 500, { proteinKinds: ['fish'] }),
+      dish('eggs-breakfast', ['breakfast'], 500, { proteinKinds: ['eggs'] }),
+      dish('fish-dinner', ['dinner'], 700, { proteinKinds: ['fish'] }),
+      dish('eggs-dinner', ['dinner'], 700, { proteinKinds: ['eggs'] }),
+    ];
+    const day = {
+      mealSlots: ['dinner'] as MealType[],
+      dailyCalorieTarget: 1700,
+      kept: [
+        { recipeId: 'fish-breakfast', calories: 500 },
+        { recipeId: 'eggs-breakfast', calories: 500 },
+      ],
+    };
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const either = optimisePlan(
+        plan({
+          recipes,
+          days: [day],
+          maxMealsPerKind: new Map<ProteinKind, { perDay: number; perWeek: number }>([
+            ['fish', { perDay: 5, perWeek: 1 }],
+            ['eggs', { perDay: 1, perWeek: 35 }],
+          ]),
+          seed,
+        }),
+      );
+      expect(
+        either.assignments.map((a) => a.recipeId),
+        `seed ${seed}`,
+      ).toEqual(['fish-dinner']);
+      expect(either.report.relaxations).toEqual([
+        { dayIndex: 0, slot: 'dinner', gaveWay: ['ingredient_cap'] },
+      ]);
+    }
+
+    // A dish without a kind and two of beans, each dish once a week and beans once: the third lunch is the second
+    // dish of beans, not the first dish again.
+    const lunches = [
+      dish('salad', ['lunch'], 700),
+      dish('beans-a', ['lunch'], 700, { proteinKinds: ['legumes'] }),
+      dish('beans-b', ['lunch'], 700, { proteinKinds: ['legumes'] }),
+    ];
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const third = optimisePlan(
+        plan({
+          recipes: lunches,
+          days: uniformDays(3, ['lunch'], 700),
+          maxMealsPerKind: new Map([['legumes', { perWeek: 1 }]]),
+          maxTimesPerWeekSameMeal: 1,
+          seed,
+        }),
+      );
+      expect(new Set(third.assignments.map((a) => a.recipeId)).size, `seed ${seed}`).toBe(3);
+      expect(third.report.relaxations).toEqual([
+        { dayIndex: 2, slot: 'lunch', gaveWay: ['ingredient_cap'] },
+      ]);
+    }
   });
 
-  it('does not see a recipe whose amounts are not known', () => {
+  it('do not see a recipe whose kinds are not known', () => {
     const unknown = [dish('a', ['lunch'], 700), dish('b', ['lunch'], 700)];
 
-    const result = optimisePlan(plan({ recipes: unknown, days: uniformDays(7, ['lunch'], 700), maxIngredientPerWeek: 1, allowRelaxations: new Set(), maxConsecutiveDaysSameMeal: 7, maxTimesPerWeekSameMeal: 7 }));
+    const result = optimisePlan(
+      plan({
+        recipes: unknown,
+        days: uniformDays(7, ['lunch'], 700),
+        maxMealsPerKind: new Map(
+          ProteinKind.options.map((kind) => [kind, { perDay: 1, perWeek: 1 }]),
+        ),
+        allowRelaxations: new Set(),
+        maxConsecutiveDaysSameMeal: 7,
+        maxTimesPerWeekSameMeal: 7,
+      }),
+    );
 
     expect(result.assignments).toHaveLength(7);
   });
@@ -484,8 +927,17 @@ describe('the most of one ingredient in seven days', () => {
 
 describe('the split of a day between protein, fat and carbohydrate', () => {
   /** A dish of `kcal` whose energy is split as `shares` says (protein, fat, carbohydrate). */
-  const split = (id: string, mealTypes: MealType[], kcal: number, [protein, fat, carbs]: [number, number, number]): OptimizerRecipe =>
-    dish(id, mealTypes, kcal, { proteinPerServing: (kcal * protein) / 4, fatPerServing: (kcal * fat) / 9, carbsPerServing: (kcal * carbs) / 4 });
+  const split = (
+    id: string,
+    mealTypes: MealType[],
+    kcal: number,
+    [protein, fat, carbs]: [number, number, number],
+  ): OptimizerRecipe =>
+    dish(id, mealTypes, kcal, {
+      proteinPerServing: (kcal * protein) / 4,
+      fatPerServing: (kcal * fat) / 9,
+      carbsPerServing: (kcal * carbs) / 4,
+    });
   const KINDS: Record<string, [number, number, number]> = {
     lean: [0.45, 0.3, 0.25],
     even: [0.25, 0.3, 0.45],
@@ -494,13 +946,23 @@ describe('the split of a day between protein, fat and carbohydrate', () => {
   };
   /** Enough dishes of each kind for every meal that a week could be made of one kind within the limits, or of any mix. */
   const VARIED: OptimizerRecipe[] = Object.entries(KINDS).flatMap(([kind, shares]) => [
-    ...[380, 420, 460, 500].map((kcal, i) => split(`${kind}-breakfast-${i}`, ['breakfast'], kcal, shares)),
-    ...[190, 220, 250, 280].map((kcal, i) => split(`${kind}-small-${i}`, ['second_breakfast', 'snack'], kcal, shares)),
-    ...[520, 560, 600, 640, 680, 720].map((kcal, i) => split(`${kind}-main-${i}`, ['lunch', 'dinner'], kcal, shares)),
+    ...[380, 420, 460, 500].map((kcal, i) =>
+      split(`${kind}-breakfast-${i}`, ['breakfast'], kcal, shares),
+    ),
+    ...[190, 220, 250, 280].map((kcal, i) =>
+      split(`${kind}-small-${i}`, ['second_breakfast', 'snack'], kcal, shares),
+    ),
+    ...[520, 560, 600, 640, 680, 720].map((kcal, i) =>
+      split(`${kind}-main-${i}`, ['lunch', 'dinner'], kcal, shares),
+    ),
   ]);
   const byId = new Map(VARIED.map((recipe) => [recipe.id, recipe]));
   /** How far each day of the plan is from `target`, as shares of its energy. */
-  const distances = (result: OptimizerResult, days: number, target: { protein: number; fat: number; carbs: number }): number[] =>
+  const distances = (
+    result: OptimizerResult,
+    days: number,
+    target: { protein: number; fat: number; carbs: number },
+  ): number[] =>
     Array.from({ length: days }, (_, day) => {
       const total = { protein: 0, fat: 0, carbs: 0 };
       for (const placed of result.assignments.filter((a) => a.dayIndex === day)) {
@@ -513,36 +975,53 @@ describe('the split of a day between protein, fat and carbohydrate', () => {
     });
   const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
   const week = (over: Partial<OptimizerInput> = {}) =>
-    plan({ recipes: VARIED, days: uniformDays(7, MEALS[4]!, 2000), maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3, allowRelaxations: new Set(), ...over });
+    plan({
+      recipes: VARIED,
+      days: uniformDays(7, MEALS[4]!, 2000),
+      maxConsecutiveDaysSameMeal: 2,
+      maxTimesPerWeekSameMeal: 3,
+      allowRelaxations: new Set(),
+      ...over,
+    });
 
   const TARGETS = {
     'high in protein': { protein: 0.4, fat: 0.3, carbs: 0.3 },
-    'even': { protein: 0.25, fat: 0.3, carbs: 0.45 },
+    even: { protein: 0.25, fat: 0.3, carbs: 0.45 },
     'high in fat': { protein: 0.25, fat: 0.6, carbs: 0.15 },
   };
 
-  it.each(Object.entries(TARGETS))('is brought near a target that is %s, where a plan that is asked for none is far from it', (_name, macroSplit) => {
-    const asked: number[] = [];
-    const left: number[] = [];
-    for (let seed = 1; seed <= 20; seed += 1) {
-      asked.push(...distances(optimisePlan(week({ seed, macroSplit })), 7, macroSplit));
-      left.push(...distances(optimisePlan(week({ seed })), 7, macroSplit));
-    }
+  it.each(Object.entries(TARGETS))(
+    'is brought near a target that is %s, where a plan that is asked for none is far from it',
+    (_name, macroSplit) => {
+      const asked: number[] = [];
+      const left: number[] = [];
+      for (let seed = 1; seed <= 20; seed += 1) {
+        asked.push(...distances(optimisePlan(week({ seed, macroSplit })), 7, macroSplit));
+        left.push(...distances(optimisePlan(week({ seed })), 7, macroSplit));
+      }
 
-    // A tenth of a day's energy on the wrong side at most, on the average day; no day by more than a fifth.
-    expect(mean(asked)).toBeLessThan(0.1);
-    expect(Math.max(...asked)).toBeLessThan(0.2);
-    expect(mean(asked)).toBeLessThan(mean(left) - 0.03);
-  });
+      // A tenth of a day's energy on the wrong side at most, on the average day; no day by more than a fifth.
+      expect(mean(asked)).toBeLessThan(0.1);
+      expect(Math.max(...asked)).toBeLessThan(0.2);
+      expect(mean(asked)).toBeLessThan(mean(left) - 0.03);
+    },
+  );
 
   it('keeps every day inside a tenth of its target all the same', () => {
     for (const macroSplit of Object.values(TARGETS)) {
       for (const meals of [3, 4, 5]) {
         for (let seed = 1; seed <= 15; seed += 1) {
-          const result = optimisePlan(week({ days: uniformDays(7, MEALS[meals]!, 2100), seed, macroSplit }));
+          const result = optimisePlan(
+            week({ days: uniformDays(7, MEALS[meals]!, 2100), seed, macroSplit }),
+          );
           for (let day = 0; day < 7; day += 1) {
-            const kcal = result.assignments.filter((a) => a.dayIndex === day).reduce((sum, a) => sum + byId.get(a.recipeId)!.caloriesPerServing * a.servings, 0);
-            expect(Math.abs(kcal - 2100) / 2100, `${meals} meals, seed ${seed}, day ${day + 1}: ${kcal} kcal`).toBeLessThanOrEqual(0.1);
+            const kcal = result.assignments
+              .filter((a) => a.dayIndex === day)
+              .reduce((sum, a) => sum + byId.get(a.recipeId)!.caloriesPerServing * a.servings, 0);
+            expect(
+              Math.abs(kcal - 2100) / 2100,
+              `${meals} meals, seed ${seed}, day ${day + 1}: ${kcal} kcal`,
+            ).toBeLessThanOrEqual(0.1);
           }
         }
       }
@@ -557,9 +1036,16 @@ describe('the split of a day between protein, fat and carbohydrate', () => {
     const dayFromTarget = (known: boolean): number => {
       const far: number[] = [];
       for (let seed = 1; seed <= 20; seed += 1) {
-        const days = [{ mealSlots: ['lunch' as const, 'dinner' as const], dailyCalorieTarget: 2000, kept: [{ recipeId: 'eaten', calories: 600, ...(known ? { macros: breakfast } : {}) }] }];
+        const days = [
+          {
+            mealSlots: ['lunch' as const, 'dinner' as const],
+            dailyCalorieTarget: 2000,
+            kept: [{ recipeId: 'eaten', calories: 600, ...(known ? { macros: breakfast } : {}) }],
+          },
+        ];
         const total = { ...breakfast };
-        for (const placed of optimisePlan(plan({ recipes: VARIED, days, seed, macroSplit })).assignments) {
+        for (const placed of optimisePlan(plan({ recipes: VARIED, days, seed, macroSplit }))
+          .assignments) {
           const recipe = byId.get(placed.recipeId)!;
           total.protein += recipe.proteinPerServing * placed.servings;
           total.fat += recipe.fatPerServing * placed.servings;
@@ -589,17 +1075,35 @@ describe('the seed of a plan', () => {
     const offsets = (seed: number) => ids.map((id) => seededJitter(id, seed));
     // Not all alike for one seed, and not in the same order for the next.
     expect(new Set(offsets(1).map((o) => o.toFixed(4))).size).toBeGreaterThan(ids.length * 0.8);
-    const order = (seed: number) => [...ids].sort((a, b) => seededJitter(a, seed) - seededJitter(b, seed)).join(',');
+    const order = (seed: number) =>
+      [...ids].sort((a, b) => seededJitter(a, seed) - seededJitter(b, seed)).join(',');
     expect(new Set([1, 2, 3, 4, 5, 6, 7, 8].map(order)).size).toBe(8);
     // Seeds that differ only in their high bits give different offsets: none of the seed is lost.
     expect(seededJitter('main-3', 1)).not.toBe(seededJitter('main-3', 1 + 2 ** 31));
   });
 
   it('makes one plan for one seed, and this is the plan for seed 7', () => {
-    const result = optimisePlan(plan({ days: uniformDays(4, MEALS[4]!, 2100), seed: 7, maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3 }));
+    const result = optimisePlan(
+      plan({
+        days: uniformDays(4, MEALS[4]!, 2100),
+        seed: 7,
+        maxConsecutiveDaysSameMeal: 2,
+        maxTimesPerWeekSameMeal: 3,
+      }),
+    );
 
-    expect(result).toEqual(optimisePlan(plan({ days: uniformDays(4, MEALS[4]!, 2100), seed: 7, maxConsecutiveDaysSameMeal: 2, maxTimesPerWeekSameMeal: 3 })));
-    expect(result.assignments.map((a) => `${a.dayIndex} ${a.slot} ${a.recipeId} ×${a.servings}`)).toMatchInlineSnapshot(`
+    expect(result).toEqual(
+      optimisePlan(
+        plan({
+          days: uniformDays(4, MEALS[4]!, 2100),
+          seed: 7,
+          maxConsecutiveDaysSameMeal: 2,
+          maxTimesPerWeekSameMeal: 3,
+        }),
+      ),
+    );
+    expect(result.assignments.map((a) => `${a.dayIndex} ${a.slot} ${a.recipeId} ×${a.servings}`))
+      .toMatchInlineSnapshot(`
       [
         "0 breakfast breakfast-3 ×1.25",
         "0 lunch main-5 ×1",
@@ -625,7 +1129,12 @@ describe('the seed of a plan', () => {
 describe('the reuse of ingredients in a plan', () => {
   const eggs = dish('eggs', ['breakfast'], 400, { ingredientIds: ['egg', 'butter'] });
   const omelette = dish('omelette', ['lunch'], 600, { ingredientIds: ['egg', 'cheese'] });
-  const at = (dayIndex: number, recipeId: string) => ({ dayIndex, slot: 'breakfast' as const, recipeId, servings: 1 });
+  const at = (dayIndex: number, recipeId: string) => ({
+    dayIndex,
+    slot: 'breakfast' as const,
+    recipeId,
+    servings: 1,
+  });
 
   it('is the share of ingredients that more than one recipe uses', () => {
     expect(reuseScore([at(0, 'eggs'), at(0, 'omelette')], [eggs, omelette])).toBeCloseTo(1 / 3, 6);

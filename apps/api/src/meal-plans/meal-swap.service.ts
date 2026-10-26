@@ -1,6 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { z } from 'zod';
 import {
   PlanOptions,
@@ -17,11 +22,25 @@ import { AiRouterService, withUnusableAnswer } from '../ai/ai-router.service.js'
 import { ModelPickService } from '../ai/model-pick.service.js';
 import { modelText, readModelReply } from '../ai/model-json.js';
 import { MEAL_SWAP } from '../ai/operations.js';
-import { fitServings, recipeCoverage, requirementsPerServing, slotBudgets } from '../engine/index.js';
+import {
+  fitServings,
+  recipeCoverage,
+  requirementsPerServing,
+  slotBudgets,
+} from '../engine/index.js';
 import { stockByIngredient } from '../inventory/pantry-store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toRecipeDto } from '../recipes/recipes.service.js';
-import { assertMayEnter, CANDIDATE, pickIndex, poolWhere, restrictionsFor, welcome, type Candidate, type Waived } from './eligibility.js';
+import {
+  assertMayEnter,
+  CANDIDATE,
+  pickIndex,
+  poolWhere,
+  restrictionsFor,
+  welcome,
+  type Candidate,
+  type Waived,
+} from './eligibility.js';
 import { MealPlansService } from './meal-plans.service.js';
 import { writePlan } from './plan-write.js';
 import { AI_SWAP_POOL, LANGUAGE, MAX_REASON_CHARS, swappableRecipeOf } from './swap-shared.js';
@@ -35,7 +54,10 @@ const SWAP_ENERGY_WINDOW = 0.15;
 
 /** Whether a recipe, at the serving that comes nearest, holds about what a meal holds: what a swap asks of every recipe it offers. */
 export function holdsAbout(caloriesPerServing: number, held: number): boolean {
-  return Math.abs(caloriesPerServing * fitServings(caloriesPerServing, held) - held) <= held * SWAP_ENERGY_WINDOW;
+  return (
+    Math.abs(caloriesPerServing * fitServings(caloriesPerServing, held) - held) <=
+    held * SWAP_ENERGY_WINDOW
+  );
 }
 
 /**
@@ -44,13 +66,16 @@ export function holdsAbout(caloriesPerServing: number, held: number): boolean {
  * Allergens, skipped ingredients and the avoid mark are never waived.
  */
 function waivedBy(req: { strategy: SwapMealRequest['strategy']; allowOffDiet: boolean }): Waived {
-  return req.strategy === 'favorite' ? { diet: req.allowOffDiet, meal: req.allowOffDiet } : { diet: req.allowOffDiet };
+  return req.strategy === 'favorite'
+    ? { diet: req.allowOffDiet, meal: req.allowOffDiet }
+    : { diet: req.allowOffDiet };
 }
 
 const noAlternative = () =>
   new NotFoundException({
     error: 'NO_ALTERNATIVE',
-    message: 'No other recipe the profile may be given for this meal, and that its day does not hold already, holds about as much energy as the meal does.',
+    message:
+      'No other recipe the profile may be given for this meal, and that its day does not hold already, holds about as much energy as the meal does.',
   });
 
 /**
@@ -81,7 +106,11 @@ export class MealSwapService {
    * day already. Where no model answers, or the answer names none of those,
    * the engine picks, and `aiMeta` says which of the two happened and why.
    */
-  async previewWithAi(userId: string, locale: Locale, req: AiSwapMealRequest): Promise<AiMealSwapPreview> {
+  async previewWithAi(
+    userId: string,
+    locale: Locale,
+    req: AiSwapMealRequest,
+  ): Promise<AiMealSwapPreview> {
     const slot = await this.slot(userId, req.planId, req.plannedMealId);
     const { meal, restrictions } = slot;
     const shown = new Set<string>([slot.recipeId, ...slot.history, ...req.skip]);
@@ -97,7 +126,10 @@ export class MealSwapService {
           proteinPerServing: true,
           fatPerServing: true,
           carbsPerServing: true,
-          ingredients: { select: { ingredientId: true, ingredient: { select: { name: true } } } },
+          ingredients: {
+            orderBy: { position: 'asc' },
+            select: { ingredientId: true, ingredient: { select: { name: true } } },
+          },
         },
         orderBy: { id: 'asc' },
       })
@@ -109,9 +141,15 @@ export class MealSwapService {
     const fresh = liked.filter((candidate) => !shown.has(candidate.id));
     let pool = fresh.length > 0 ? fresh : liked;
     // What the pantry covers comes first, for the model and for the engine's own pick alike.
-    const coverage = await this.recipeCoverageMap(meal.day.plan.profileId, pool.map((candidate) => candidate.id), req.respectInventory !== false);
+    const coverage = await this.recipeCoverageMap(
+      meal.day.plan.profileId,
+      pool.map((candidate) => candidate.id),
+      req.respectInventory !== false,
+    );
     if (coverage) {
-      pool = [...pool].sort((a, b) => (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0) || a.id.localeCompare(b.id));
+      pool = [...pool].sort(
+        (a, b) => (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0) || a.id.localeCompare(b.id),
+      );
     }
     // Cut after filtering and ordering, so the cut never hides what was not
     // shown yet. Twenty-five keeps the prompt small enough for cheap models.
@@ -139,14 +177,28 @@ export class MealSwapService {
     // anything else the engine picks, and the response says that it did.
     const offered = text === null ? null : parseAiRecipePick(text);
     const pick = offered && pool.some((candidate) => candidate.id === offered.id) ? offered : null;
-    const replacement = pool.find((candidate) => candidate.id === pick?.id) ?? pool[pickIndex(`${req.plannedMealId}:${shown.size}`, pool.length)]!;
-    const aiMeta = pick ? { ...meta, reason: pick.reason } : text === null ? meta : withUnusableAnswer(meta);
+    const replacement =
+      pool.find((candidate) => candidate.id === pick?.id) ??
+      pool[pickIndex(`${req.plannedMealId}:${shown.size}`, pool.length)]!;
+    const aiMeta = pick
+      ? { ...meta, reason: pick.reason }
+      : text === null
+        ? meta
+        : withUnusableAnswer(meta);
 
     // The gate: the model's pick and the engine's are judged alike.
     assertMayEnter(replacement, restrictions, meal.mealType, 'RECIPE_NOT_ELIGIBLE');
     const preview = await this.previewOf(userId, locale, slot, replacement);
     // What the model picked goes out with a note of it, which the request that takes the offer hands back.
-    const note = pick ? this.picks.sign(userId, { kind: 'meal', meal: req.plannedMealId, recipe: replacement.id, revision: preview.revision, reason: pick.reason }) : null;
+    const note = pick
+      ? this.picks.sign(userId, {
+          kind: 'meal',
+          meal: req.plannedMealId,
+          recipe: replacement.id,
+          revision: preview.revision,
+          reason: pick.reason,
+        })
+      : null;
     return { ...preview, aiMeta, pick: note };
   }
 
@@ -159,10 +211,18 @@ export class MealSwapService {
     const slot = await this.slot(userId, req.planId, req.plannedMealId);
     const { meal, restrictions } = slot;
     // A model's pick is taken with the note that came with it, and with no other.
-    const picked = this.picks.taken(userId, req.pick, { kind: 'meal', meal: req.plannedMealId, recipe: req.recipeId, revision: req.revision });
+    const picked = this.picks.taken(userId, req.pick, {
+      kind: 'meal',
+      meal: req.plannedMealId,
+      recipe: req.recipeId,
+      revision: req.revision,
+    });
     const byHand = req.strategy === 'favorite';
     const refusal = byHand ? 'OFF_DIET_FAVORITE_NOT_ALLOWED' : 'RECIPE_NOT_ELIGIBLE';
-    const replacement = await this.prisma.recipe.findUnique({ where: { id: req.recipeId }, select: { ...CANDIDATE, caloriesPerServing: true } });
+    const replacement = await this.prisma.recipe.findUnique({
+      where: { id: req.recipeId },
+      select: { ...CANDIDATE, caloriesPerServing: true },
+    });
     if (!replacement) {
       throw new BadRequestException({ error: refusal, message: 'That recipe is not available.' });
     }
@@ -172,24 +232,44 @@ export class MealSwapService {
     if (!byHand && !holdsAbout(replacement.caloriesPerServing, slot.held)) {
       throw new BadRequestException({
         error: refusal,
-        message: 'That recipe cannot take the place of this meal: no serving of it holds about as much energy as the meal does.',
+        message:
+          'That recipe cannot take the place of this meal: no serving of it holds about as much energy as the meal does.',
       });
     }
     if (!byHand && slot.onTheDay.includes(replacement.id)) {
-      throw new BadRequestException({ error: refusal, message: 'That recipe cannot take the place of this meal: another meal of the day holds it already.' });
+      throw new BadRequestException({
+        error: refusal,
+        message:
+          'That recipe cannot take the place of this meal: another meal of the day holds it already.',
+      });
     }
 
     const servings = fitServings(replacement.caloriesPerServing, slot.held);
-    const nextHistory = nextSwapHistory(slot.history, slot.recipeId, !slot.history.includes(replacement.id));
+    const nextHistory = nextSwapHistory(
+      slot.history,
+      slot.recipeId,
+      !slot.history.includes(replacement.id),
+    );
     const replacementId = replacement.id;
     const summary = await writePlan(this.prisma, req.planId, req.revision, async (tx) => {
       await tx.plannedMeal.update({
         where: { id: req.plannedMealId },
         // A fresh recipe is a new baseline for the rebalancer, and says who chose it.
-        data: { recipeId: replacementId, servings, swapHistory: nextHistory, quantityScale: 1, modelPicked: picked !== null, modelReason: picked?.reason ?? null },
+        data: {
+          recipeId: replacementId,
+          servings,
+          swapHistory: nextHistory,
+          quantityScale: 1,
+          modelPicked: picked !== null,
+          modelReason: picked?.reason ?? null,
+        },
       });
       // A plan that holds a model's pick says that a model had a part in it.
-      if (picked !== null) await tx.mealPlan.update({ where: { id: req.planId }, data: { generationMode: 'ai_assisted' } });
+      if (picked !== null)
+        await tx.mealPlan.update({
+          where: { id: req.planId },
+          data: { generationMode: 'ai_assisted' },
+        });
       // The swap changed the day total — pull it back toward target.
       return this.plans.rebalanceDayInternal(meal.dayId, tx);
     });
@@ -205,25 +285,50 @@ export class MealSwapService {
     const recipeId = swappableRecipeOf(meal);
     const [restrictions, current, daySlots] = await Promise.all([
       restrictionsFor(this.prisma, meal.day.plan),
-      this.prisma.recipe.findUniqueOrThrow({ where: { id: recipeId }, select: { title: true, caloriesPerServing: true } }),
-      this.prisma.plannedMeal.findMany({ where: { dayId: meal.dayId }, select: { id: true, mealType: true, recipeId: true } }),
+      this.prisma.recipe.findUniqueOrThrow({
+        where: { id: recipeId },
+        select: { title: true, caloriesPerServing: true },
+      }),
+      this.prisma.plannedMeal.findMany({
+        where: { dayId: meal.dayId },
+        select: { id: true, mealType: true, recipeId: true },
+      }),
     ]);
     // A day holds a recipe once, as the planner has it: what another meal of
     // the day holds is not offered for this one, unless the plan is for
     // cooking ahead or was let have a recipe twice a day when it was made.
     const options = PlanOptions.parse(meal.day.plan.options);
     const twiceADay = options.mealPrepFriendly || options.allowRelaxations.includes('same_day');
-    const onTheDay = twiceADay ? [] : daySlots.flatMap((other) => (other.id !== meal.id && other.recipeId ? [other.recipeId] : []));
+    const onTheDay = twiceADay
+      ? []
+      : daySlots.flatMap((other) =>
+          other.id !== meal.id && other.recipeId ? [other.recipeId] : [],
+        );
     // What the meal holds now is what a recipe in its place is sized to and
     // held to: the day keeps its total, whatever share of it this meal had
     // come to carry. A meal that holds nothing is taken at its share of the day.
-    const share = slotBudgets(daySlots.map((other) => other.mealType as MealType), meal.day.calorieTarget).get(meal.mealType as MealType) ?? meal.day.calorieTarget;
+    const share =
+      slotBudgets(
+        daySlots.map((other) => other.mealType as MealType),
+        meal.day.calorieTarget,
+      ).get(meal.mealType as MealType) ?? meal.day.calorieTarget;
     const held = current.caloriesPerServing * meal.servings * meal.quantityScale || share;
-    return { meal, recipeId, restrictions, current, held, onTheDay, history: meal.swapHistory ?? [] };
+    return {
+      meal,
+      recipeId,
+      restrictions,
+      current,
+      held,
+      onTheDay,
+      history: meal.swapHistory ?? [],
+    };
   }
 
   /** The recipe to offer for a meal, by the strategy that was asked for. */
-  private async pick(slot: Awaited<ReturnType<MealSwapService['slot']>>, req: SwapMealRequest): Promise<Candidate & { caloriesPerServing: number }> {
+  private async pick(
+    slot: Awaited<ReturnType<MealSwapService['slot']>>,
+    req: SwapMealRequest,
+  ): Promise<Candidate & { caloriesPerServing: number }> {
     const { meal, restrictions } = slot;
     const waived = waivedBy(req);
     let replacement: Candidate & { caloriesPerServing: number };
@@ -235,7 +340,10 @@ export class MealSwapService {
         select: { ...CANDIDATE, caloriesPerServing: true },
       });
       if (!picked) {
-        throw new BadRequestException({ error: 'OFF_DIET_FAVORITE_NOT_ALLOWED', message: 'That favourite is not available.' });
+        throw new BadRequestException({
+          error: 'OFF_DIET_FAVORITE_NOT_ALLOWED',
+          message: 'That favourite is not available.',
+        });
       }
       replacement = picked;
     } else {
@@ -258,7 +366,8 @@ export class MealSwapService {
             message: 'Add favourite ingredients on the profile before swapping by them.',
           });
         }
-        const hits = (recipe: Candidate): number => recipe.ingredients.filter((i) => favIngs.has(i.ingredientId)).length;
+        const hits = (recipe: Candidate): number =>
+          recipe.ingredients.filter((i) => favIngs.has(i.ingredientId)).length;
         const best = Math.max(0, ...pool.map(hits));
         if (best === 0) {
           throw new NotFoundException({
@@ -282,9 +391,16 @@ export class MealSwapService {
       let candidates = fresh.length > 0 ? fresh : liked;
       if (req.strategy === 'random') {
         // What the pantry covers comes first when the user asked for that; the pick below still rotates.
-        const coverage = await this.recipeCoverageMap(meal.day.plan.profileId, candidates.map((c) => c.id), req.respectInventory !== false);
+        const coverage = await this.recipeCoverageMap(
+          meal.day.plan.profileId,
+          candidates.map((c) => c.id),
+          req.respectInventory !== false,
+        );
         if (coverage) {
-          candidates = [...candidates].sort((a, b) => (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0) || a.id.localeCompare(b.id));
+          candidates = [...candidates].sort(
+            (a, b) =>
+              (coverage.get(b.id) ?? 0) - (coverage.get(a.id) ?? 0) || a.id.localeCompare(b.id),
+          );
         }
       }
       // The number of recipes shown so far advances the key, so offers vary even when the candidates stay the same.
@@ -292,7 +408,13 @@ export class MealSwapService {
     }
 
     // The gate: whatever chose the recipe, it is judged before it is offered, and again before it is written.
-    assertMayEnter(replacement, restrictions, meal.mealType, req.strategy === 'favorite' ? 'OFF_DIET_FAVORITE_NOT_ALLOWED' : 'RECIPE_NOT_ELIGIBLE', waived);
+    assertMayEnter(
+      replacement,
+      restrictions,
+      meal.mealType,
+      req.strategy === 'favorite' ? 'OFF_DIET_FAVORITE_NOT_ALLOWED' : 'RECIPE_NOT_ELIGIBLE',
+      waived,
+    );
     return replacement;
   }
 
@@ -309,7 +431,12 @@ export class MealSwapService {
       this.prisma.recipe.findUniqueOrThrow({
         where: { id: replacement.id },
         include: {
-          ingredients: { include: { ingredient: { include: { translations: { where: { locale: { in: locales } } } } } } },
+          ingredients: {
+            orderBy: { position: 'asc' },
+            include: {
+              ingredient: { include: { translations: { where: { locale: { in: locales } } } } },
+            },
+          },
           translations: { where: { locale: { in: locales } } },
         },
       }),
@@ -321,7 +448,10 @@ export class MealSwapService {
     const day = plan.days.find((candidate) => candidate.id === meal.dayId);
     const planned = day?.meals.find((candidate) => candidate.id === meal.id);
     if (plan.revision !== meal.day.plan.revision || !day || !planned) {
-      throw new ConflictException({ error: 'PLAN_CHANGED', message: 'The plan changed while this request was running. Reload it and try again.' });
+      throw new ConflictException({
+        error: 'PLAN_CHANGED',
+        message: 'The plan changed while this request was running. Reload it and try again.',
+      });
     }
     const before = planned.nutrition;
     const recipe = toRecipeDto(row, locale);
@@ -370,6 +500,7 @@ export class MealSwapService {
       where: { id: { in: recipeIds } },
       include: {
         ingredients: {
+          orderBy: { position: 'asc' },
           include: {
             ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } },
           },
@@ -388,7 +519,11 @@ export class MealSwapService {
  * Once every candidate has been shown the list starts again with it alone, so
  * the next swap sees the earlier ones as fresh.
  */
-function nextSwapHistory(previous: readonly string[], leaving: string, fromFresh: boolean): string[] {
+function nextSwapHistory(
+  previous: readonly string[],
+  leaving: string,
+  fromFresh: boolean,
+): string[] {
   if (!fromFresh) return [leaving];
   return previous.includes(leaving) ? [...previous] : [...previous, leaving];
 }

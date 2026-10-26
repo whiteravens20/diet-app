@@ -84,12 +84,19 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     setLoading(true);
     const code = String(new FormData(event.currentTarget).get('code'));
     try {
-      session.begin(await api.post<AuthResponse>('/auth/login/second-factor', { challenge, code }, COOKIE_SESSION));
+      session.begin(
+        await api.post<AuthResponse>(
+          '/auth/login/second-factor',
+          { challenge, code },
+          COOKIE_SESSION,
+        ),
+      );
       session.load(wanted());
     } catch (err) {
       setError(worded(err));
       // A sign-in that took too long begins again, with the password.
-      if (err instanceof ApiClientError && err.code === 'INVALID_SIGN_IN_CHALLENGE') backToPassword(false);
+      if (err instanceof ApiClientError && err.code === 'INVALID_SIGN_IN_CHALLENGE')
+        backToPassword(false);
     } finally {
       setLoading(false);
     }
@@ -124,7 +131,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             </Button>
           </form>
           <p className="mt-4 text-center text-sm">
-            <button type="button" className="text-muted-foreground hover:underline" onClick={() => backToPassword()}>
+            <button
+              type="button"
+              className="text-muted-foreground hover:underline"
+              onClick={() => backToPassword()}
+            >
               {tSecond('signInBack')}
             </button>
           </p>

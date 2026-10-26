@@ -6,12 +6,7 @@
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import {
-  type Palette,
-  type WeightUnit,
-  type SessionUser,
-  type Theme,
-} from '@diet-app/shared';
+import { type Palette, type WeightUnit, type SessionUser, type Theme } from '@diet-app/shared';
 import { api } from '@/lib/api';
 import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
@@ -54,7 +49,12 @@ export function ThemeCard({ initial }: { initial: Theme }) {
     }
   }
 
-  if (!mounted) return <Card><CardContent className="h-16" /></Card>;
+  if (!mounted)
+    return (
+      <Card>
+        <CardContent className="h-16" />
+      </Card>
+    );
 
   const options: { value: Theme; label: string }[] = [
     { value: 'light', label: t('themeLight') },
@@ -139,7 +139,14 @@ export function WeightUnitCard({ me, onSaved }: { me: SessionUser; onSaved: () =
       <CardContent className="space-y-2">
         <div className="flex flex-wrap gap-2" role="group" aria-label={t('weightUnit')}>
           {options.map((o) => (
-            <Button key={o.value ?? 'region'} type="button" size="sm" variant={value === o.value ? 'primary' : 'outline'} aria-pressed={value === o.value} onClick={() => void pick(o.value)}>
+            <Button
+              key={o.value ?? 'region'}
+              type="button"
+              size="sm"
+              variant={value === o.value ? 'primary' : 'outline'}
+              aria-pressed={value === o.value}
+              onClick={() => void pick(o.value)}
+            >
               {o.label}
             </Button>
           ))}
