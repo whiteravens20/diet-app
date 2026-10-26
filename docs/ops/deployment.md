@@ -269,31 +269,6 @@ their way: look at the proxy first. The route takes sixty reports a minute from 
 sender and at most thirty kinds of violation in ten minutes are told apart, so nobody can
 fill the log through it; what comes beyond is counted or dropped.
 
-### Use without a network
-
-A browser that reaches the instance over https keeps two things, so that a shopping list
-can be read in a shop without a signal:
-
-- **The shell of the pages.** The application's service worker (`/sw.js`) keeps the pages
-  a browser has opened and the files they are built from, and answers with them when the
-  server cannot be reached. A page as the server sends it is the same for everybody, so
-  nothing of an account is in what the worker keeps. This is the one place where a page is
-  stored although it says `no-store`: the browser's own copy holds the page and its policy
-  together, as they were sent.
-- **What the account read last.** The plans, the shopping lists and what their pages read
-  beside them are kept in the browser's storage under the account's id, and shown when a
-  request gets no answer. Nothing can be changed then, except that a row of a shopping
-  list can be ticked: the tick is sent when the server is back. Signing out removes all
-  of it, and so does another account that signs in on the same browser.
-
-Browsers give a page neither of the two over plain http (an address on the machine itself
-is the exception). An instance at an `http://` address in a home network works as it
-always did, and has no use without a network. For that, put it behind https.
-
-What this asks of a reverse proxy or a CDN in front: answer `/sw.js` as the web server
-answers it, from the instance's own address, and do not keep it for long (a browser asks
-for it again to learn of a new version).
-
 ## Two-step sign-in
 
 An account can add a second step to signing in, under **Settings**: a six-digit code
