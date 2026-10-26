@@ -9,6 +9,10 @@
 # backstop for installs made by hand. Cooldown governs version updates only;
 # Dependabot security updates are exempt by design and open the moment an
 # advisory lands.
+#
+# No pull request is rebased by itself (`rebase-strategy: disabled`): a push to
+# `dev` would otherwise rebase every open one and run its checks again. One is
+# rebased when it is next to be merged, with a `@dependabot rebase` comment.
 version: 2
 
 updates:
@@ -17,6 +21,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     target-branch: dev
+    rebase-strategy: disabled
     schedule:
       interval: monthly
       time: '08:00'
@@ -34,6 +39,7 @@ updates:
   - package-ecosystem: npm
     directory: /
     target-branch: dev
+    rebase-strategy: disabled
     schedule:
       interval: weekly
       day: monday
@@ -74,6 +80,7 @@ updates:
   - package-ecosystem: docker
     directory: /infra/docker
     target-branch: dev
+    rebase-strategy: disabled
     schedule:
       interval: weekly
       day: monday
@@ -95,6 +102,7 @@ updates:
   - package-ecosystem: docker-compose
     directory: /infra
     target-branch: dev
+    rebase-strategy: disabled
     schedule:
       interval: weekly
       day: monday
