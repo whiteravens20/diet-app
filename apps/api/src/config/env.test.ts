@@ -2,7 +2,9 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { describe, expect, it } from 'vitest';
+import type { z } from 'zod';
 import { describePosture, envSchema, validateEnv } from './env.js';
 
 /** A complete, valid environment as an operator would have after generating secrets. */
@@ -14,6 +16,26 @@ const valid = (overrides: Record<string, string | undefined> = {}): Record<strin
   DATA_ENCRYPTION_SECRET: 'c94e1b7a26f8d03559ae4c17b2f60d8e3a71c5f924be06d8a3f17c92e5b40d16',
   ...overrides,
 });
+
+/**
+ * The settings the Compose files interpolate, each with the value they fall back to
+ * (`${KEY:-value}`), or undefined where they give none.
+ */
+function composeDefaults(): Record<string, string | undefined> {
+  const found: Record<string, string | undefined> = {};
+  for (const file of ['docker-compose.prod.yml', 'docker-compose.yml']) {
+    const text = readFileSync(resolve(__dirname, '../../../../infra', file), 'utf8');
+    // A comment may show the syntax: only what Compose reads counts.
+    const read = text
+      .split('\n')
+      .filter((line) => !/^\s*#/.test(line))
+      .join('\n');
+    for (const [, key, fallback] of read.matchAll(/\$\{([A-Z][A-Z0-9_]*)(?::-([^}]*))?\}/g)) {
+      found[key!] ??= fallback;
+    }
+  }
+  return found;
+}
 
 /** The keys and values of the shipped template, exactly as a parser of `.env` files reads them. */
 function template(): Record<string, string> {
@@ -199,23 +221,43 @@ describe('the shipped .env.example', () => {
   });
 
   it('names only settings the application or the Compose files read', () => {
-    // Read by Compose or by the web build, not by the API.
-    const elsewhere = new Set([
-      'POSTGRES_USER',
-      'POSTGRES_PASSWORD',
-      'POSTGRES_DB',
-      'WEB_PORT',
-      'IMAGE_TAG',
-    ]);
     const known = new Set(Object.keys(envSchema.shape));
-    expect(Object.keys(template()).filter((key) => !known.has(key) && !elsewhere.has(key))).toEqual(
-      [],
-    );
+    const interpolated = new Set(Object.keys(composeDefaults()));
+    expect(
+      Object.keys(template()).filter((key) => !known.has(key) && !interpolated.has(key)),
+    ).toEqual([]);
   });
 
   it('names every setting the application reads', () => {
     const inTemplate = new Set(Object.keys(template()));
     expect(Object.keys(envSchema.shape).filter((key) => !inTemplate.has(key))).toEqual([]);
+  });
+
+  it('gives each setting the value it has when it is left out, but where it says why not', () => {
+    // The template's own value, and why it is not the one the application takes without it.
+    const onPurpose: Record<string, string> = {
+      DATABASE_URL: 'there is none to take: the address is for runs on the host',
+      ADMIN_PASSWORD: 'a placeholder that keeps the panel closed until the operator sets one',
+      OLLAMA_BASE_URL: "the Compose service's address, where the application's is the host's",
+    };
+    const fields = envSchema.shape as Record<string, z.ZodType>;
+    const compose = composeDefaults();
+    const differ: string[] = [];
+    for (const [key, raw] of Object.entries(template())) {
+      // A blank value is a setting left out, whatever its default.
+      if (raw === '' || key in onPurpose) continue;
+      const field = fields[key];
+      if (field) {
+        const given = field.safeParse(raw);
+        const left = field.safeParse(undefined);
+        if (!given.success || !left.success || !isDeepStrictEqual(given.data, left.data)) {
+          differ.push(key);
+        }
+      } else if (compose[key] !== undefined && compose[key] !== raw) {
+        differ.push(key);
+      }
+    }
+    expect(differ).toEqual([]);
   });
 });
 
@@ -378,12 +420,21 @@ describe('TRUST_PROXY in the environment', () => {
 });
 
 describe('the environment reference', () => {
-  it('documents every setting the application reads', () => {
+  it('describes every setting of the template, and none it does not have', () => {
+    // Read by the web build, not from the environment of the running instance.
+    const builtIn = new Set(['NEXT_PUBLIC_API_URL']);
     const reference = readFileSync(
       resolve(__dirname, '../../../../docs/ops/env-reference.md'),
       'utf8',
     );
-    expect(Object.keys(envSchema.shape).filter((key) => !reference.includes(`\`${key}\``))).toEqual(
+    const described = new Set<string>();
+    for (const line of reference.split('\n')) {
+      const firstCell = /^\| ([^|]+)\|/.exec(line)?.[1] ?? '';
+      for (const [, name] of firstCell.matchAll(/`([A-Z][A-Z0-9_]+)`/g)) described.add(name!);
+    }
+    const inTemplate = Object.keys(template());
+    expect(inTemplate.filter((key) => !described.has(key))).toEqual([]);
+    expect([...described].filter((key) => !inTemplate.includes(key) && !builtIn.has(key))).toEqual(
       [],
     );
   });
