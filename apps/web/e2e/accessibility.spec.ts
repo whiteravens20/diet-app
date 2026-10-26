@@ -10,7 +10,6 @@ test.describe('a page anybody can open has nothing that keeps somebody from usin
     '/forgot-password',
     '/from-the-app',
     '/terms',
-    '/offline',
     '/review',
     '/admin',
   ]) {

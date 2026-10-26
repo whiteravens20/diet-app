@@ -1,14 +1,11 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import type { AuthResponse } from '@diet-app/shared';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { offline } from '@/lib/offline';
 import { session } from '@/lib/session';
-import { aCacheStorage } from '@/testing/cache-storage';
 import messages from '../../messages/en.json';
 import { SessionGate } from './session-gate';
 
@@ -30,19 +27,13 @@ const THE_PAGE = 'The page of the account';
 const thePage = (): HTMLElement | null => screen.queryByText(THE_PAGE);
 
 function shown() {
-  const client = new QueryClient();
-  const read = vi.spyOn(client, 'invalidateQueries');
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <QueryClientProvider client={client}>
-        <SessionGate>
-          <p>{THE_PAGE}</p>
-        </SessionGate>
-      </QueryClientProvider>
+      <SessionGate>
+        <p>{THE_PAGE}</p>
+      </SessionGate>
     </NextIntlClientProvider>,
   );
-  /** Whether the pages were told to read what they show anew. */
-  return { read };
 }
 
 describe('the pages of a signed-in account', () => {
@@ -184,138 +175,5 @@ describe('the pages of a signed-in account', () => {
 
     window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
     expect(reload).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('the pages of an account whose browser kept what it read last', () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
-  const ACCOUNT = anAnswer('x').user.id;
-  const noAnswer = (): Promise<never> => Promise.reject(new TypeError('Failed to fetch'));
-  const patches = (): unknown[][] =>
-    fetchMock.mock.calls.filter(
-      ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
-    );
-
-  beforeEach(async () => {
-    // A sign-out the tests before this one told the other tabs of is let through first: it takes what the browser kept with it.
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    vi.stubGlobal('caches', aCacheStorage());
-    vi.spyOn(session, 'leave').mockImplementation(() => undefined);
-    localStorage.clear();
-    document.cookie = 'diet_session=1; Path=/';
-    await offline.belongsTo(ACCOUNT);
-  });
-
-  afterEach(async () => {
-    session.forget();
-    await offline.forget();
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    localStorage.clear();
-  });
-
-  it('are shown from it while the server cannot be reached, under a line that says so', async () => {
-    fetchMock.mockImplementation(noAnswer);
-
-    shown();
-
-    expect(await screen.findByText(THE_PAGE)).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(messages.offline.notice);
-    // The card that offers nothing but another try is for a browser that kept nothing.
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
-
-  it('say how many ticks wait to be sent', async () => {
-    fetchMock.mockImplementation(noAnswer);
-    offline.wait({ listId: 'list', itemId: 'rice', checked: true });
-    offline.wait({ listId: 'list', itemId: 'oats', checked: true });
-
-    shown();
-
-    expect(await screen.findByText('2 ticks are waiting to be sent.')).toBeInTheDocument();
-  });
-
-  it('send what waited when a new try gets through, say what was sent, and read everything anew', async () => {
-    fetchMock.mockImplementation(noAnswer);
-    offline.wait({ listId: 'list', itemId: 'rice', checked: true });
-    const { read } = shown();
-    await screen.findByText(THE_PAGE);
-
-    fetchMock.mockImplementation((path: string) =>
-      Promise.resolve(
-        path === '/api/auth/refresh'
-          ? answered(200, anAnswer('access-9'))
-          : answered(200, { id: 'list' }),
-      ),
-    );
-    await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
-
-    expect(
-      await screen.findByText('Sent what was ticked while the server was away: 1 row.'),
-    ).toBeInTheDocument();
-    expect(patches().map(([path, init]) => [path, (init as RequestInit).body])).toEqual([
-      ['/api/shopping-lists/list/items/rice', JSON.stringify({ checked: true })],
-    ]);
-    expect(offline.waiting).toEqual([]);
-    expect(read).toHaveBeenCalled();
-    expect(screen.queryByText(messages.offline.notice)).toBeNull();
-    // The line about what was sent goes when it has been read.
-    await userEvent.click(screen.getByRole('button', { name: messages.common.close }));
-    expect(screen.queryByText(/^Sent what was ticked/)).toBeNull();
-  });
-
-  it('say of a tick the server did not take that the list had changed', async () => {
-    fetchMock.mockImplementation(noAnswer);
-    offline.wait({ listId: 'gone', itemId: 'rice', checked: true });
-    shown();
-    await screen.findByText(THE_PAGE);
-
-    fetchMock.mockImplementation((path: string) =>
-      Promise.resolve(
-        path === '/api/auth/refresh'
-          ? answered(200, anAnswer('access-9'))
-          : answered(404, { error: 'LIST_NOT_FOUND' }),
-      ),
-    );
-    await userEvent.click(screen.getByRole('button', { name: messages.common.retry }));
-
-    expect(
-      await screen.findByText('1 tick was not taken: the list had changed in the meantime.'),
-    ).toBeInTheDocument();
-    expect(offline.waiting).toEqual([]);
-  });
-
-  it('ask the server again when the browser says it has a network once more', async () => {
-    fetchMock.mockImplementation(noAnswer);
-    shown();
-    await screen.findByText(THE_PAGE);
-    const before = fetchMock.mock.calls.length;
-
-    fetchMock.mockImplementation(() => Promise.resolve(answered(200, anAnswer('access-9'))));
-    act(() => void window.dispatchEvent(new Event('online')));
-
-    await vi.waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(before));
-    await vi.waitFor(() => expect(screen.queryByText(messages.offline.notice)).toBeNull());
-    expect(screen.getByText(THE_PAGE)).toBeInTheDocument();
-  });
-
-  it('send ticks that were left waiting by an earlier visit as soon as the page is in reach', async () => {
-    offline.wait({ listId: 'list', itemId: 'rice', checked: false });
-    fetchMock.mockImplementation((path: string) =>
-      Promise.resolve(
-        path === '/api/auth/refresh'
-          ? answered(200, anAnswer('access-9'))
-          : answered(200, { id: 'list' }),
-      ),
-    );
-
-    shown();
-
-    await vi.waitFor(() => expect(patches()).toHaveLength(1));
-    expect(
-      await screen.findByText('Sent what was ticked while the server was away: 1 row.'),
-    ).toBeInTheDocument();
   });
 });

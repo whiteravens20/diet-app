@@ -177,7 +177,6 @@ describe('what the proxy runs for', () => {
     '/recipes/0b1f',
     '/admin',
     '/terms',
-    '/offline',
     '/no-such-page',
     '/apiary',
     '/iconography',
@@ -200,9 +199,5 @@ describe('what the proxy runs for', () => {
     '/favicon.ico',
   ])('is not %s, which is no page', (path) => {
     expect(runsFor(path)).toBe(false);
-  });
-
-  it('is the service worker, whose requests are then held to the policy it is answered with', () => {
-    expect(runsFor('/sw.js')).toBe(true);
   });
 });

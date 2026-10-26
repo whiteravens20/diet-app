@@ -8,8 +8,6 @@ import { useId, useRef, useState } from 'react';
 import { ShoppingBasket } from 'lucide-react';
 import type { MealPlanPage, Profile, SessionUser, ShoppingList } from '@diet-app/shared';
 import { api } from '@/lib/api';
-import { ApiClientError } from '@/lib/http';
-import { offline } from '@/lib/offline';
 import { useAmount } from '@/lib/ingredient-format';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,7 +57,6 @@ const withTick = (
 export default function ShoppingListsPage() {
   const t = useTranslations('shoppingLists');
   const tCommon = useTranslations('common');
-  const tOffline = useTranslations('offline');
   const tDiet = useTranslations('enums.dietType');
   const tCategory = useTranslations('enums.category');
   const errorText = useErrorText();
@@ -158,16 +155,6 @@ export default function ShoppingListsPage() {
     },
     onError: (e, { listId, itemId, ...patch }) => {
       const tick = plainTick(patch);
-      if (e instanceof ApiClientError && e.code === 'NETWORK') {
-        // The server cannot be reached. A tick waits for it (`lib/offline.ts`) and stays shown, on this page and
-        // on the one loaded next; what a quantity does to a row is the server's to work out.
-        if (tick === undefined) return setError(tOffline('onlyTicks'));
-        if (offline.wait({ listId, itemId, checked: tick })) {
-          const shown = qc.getQueryData<ShoppingList[]>(['shopping-lists', activePlanId]);
-          if (shown) void offline.remember(`/shopping-lists?planId=${activePlanId}`, shown);
-          return setError(null);
-        }
-      }
       // The tick did not hold: the row is shown as the server has it.
       if (tick !== undefined)
         qc.setQueryData<ShoppingList[]>(['shopping-lists', activePlanId], (shown) =>

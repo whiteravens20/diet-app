@@ -23,7 +23,6 @@ const BUDGETS: Record<string, number> = {
   '/forgot-password': 190,
   '/from-the-app': 190,
   '/terms': 190,
-  '/offline': 190,
   // The pages of an account that load none of the contract's schemas.
   '/dashboard': 205,
   '/shopping-lists': 205,

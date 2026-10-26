@@ -419,15 +419,6 @@
     "OWN_RECIPE_DAILY_LIMIT": "You have saved as many recipes of your own today as you may. Try again tomorrow.",
     "INSTANCE_DATA_NEWER": "These files were written by a newer version of the application. Update the application before restoring them."
   },
-  "offline": {
-    "notice": "The server cannot be reached. You are looking at what was loaded last, and nothing can be changed now, except that a row of a shopping list can be ticked: it is sent when the server is back.",
-    "waiting": "{count, plural, one {# tick is} other {# ticks are}} waiting to be sent.",
-    "sent": "Sent what was ticked while the server was away: {sent, plural, one {# row} other {# rows}}.",
-    "refused": "{refused, plural, one {# tick was} other {# ticks were}} not taken: the list had changed in the meantime.",
-    "onlyTicks": "A quantity can be changed when the server is back. A row can be ticked now.",
-    "pageTitle": "No connection",
-    "pageBody": "This page was not opened on this device before, so there is nothing of it to show without the server. Pages you have opened, like your plans and your shopping lists, can still be read."
-  },
   "notifications": {
     "label": "Notifications",
     "title": "Notifications",
