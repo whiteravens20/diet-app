@@ -523,7 +523,7 @@
     "loadStatsFailed": "Failed to load stats.",
     "lostConnection": "Lost connection to API.",
     "updateFailed": "Update failed.",
-    "updatedSummary": "Updated {when} · removed {recipes, number} recipes and {ingredients, number} ingredients that nothing used · hid {retiredRecipes, number} recipes and {retiredIngredients, number} ingredients that are still in use · now {newIngredients, number} ingredients / {newRecipes, number} recipes.",
+    "updatedSummary": "Updated {when} · removed {recipes, number} recipes and {ingredients, number} ingredients that nothing used · hid {retiredRecipes, number} recipes and {retiredIngredients, number} ingredients that are still in use · replaced {moved, number} imported foods with their curated counterparts · now {newIngredients, number} ingredients / {newRecipes, number} recipes.",
     "stages": {
       "starting": "Starting…",
       "ingredientsStage": "Seeding ingredients",

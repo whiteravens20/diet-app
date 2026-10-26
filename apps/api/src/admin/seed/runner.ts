@@ -38,6 +38,7 @@ export interface RunnerState {
     deletedIngredients: number;
     retiredRecipes: number;
     retiredIngredients: number;
+    movedToSuccessors: number;
     repairedProfiles: number;
     counts: { ingredients: number; recipes: number; substitutions: number };
     hash: string;
@@ -127,6 +128,7 @@ export class SeedRunner {
           deletedIngredients: result.deletedIngredients,
           retiredRecipes: result.retiredRecipes,
           retiredIngredients: result.retiredIngredients,
+          movedToSuccessors: result.movedToSuccessors,
           repairedProfiles: result.repairedProfiles,
           counts: {
             ingredients: result.ingredients,

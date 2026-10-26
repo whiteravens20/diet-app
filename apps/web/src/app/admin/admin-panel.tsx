@@ -89,6 +89,7 @@ export function AdminPanel() {
             ingredients: r.deletedIngredients,
             retiredRecipes: r.retiredRecipes,
             retiredIngredients: r.retiredIngredients,
+            moved: r.movedToSuccessors,
             newIngredients: r.counts.ingredients,
             newRecipes: r.counts.recipes,
           }),

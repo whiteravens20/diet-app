@@ -523,7 +523,7 @@
     "loadStatsFailed": "Nie udało się wczytać statystyk.",
     "lostConnection": "Utracono połączenie z API.",
     "updateFailed": "Aktualizacja nie powiodła się.",
-    "updatedSummary": "Zaktualizowano {when} · usunięto przepisy ({recipes, number}) i składniki ({ingredients, number}), z których nic nie korzystało · ukryto przepisy ({retiredRecipes, number}) i składniki ({retiredIngredients, number}), które są nadal w użyciu · obecnie {newIngredients, number} składników / {newRecipes, number} przepisów.",
+    "updatedSummary": "Zaktualizowano {when} · usunięto przepisy ({recipes, number}) i składniki ({ingredients, number}), z których nic nie korzystało · ukryto przepisy ({retiredRecipes, number}) i składniki ({retiredIngredients, number}), które są nadal w użyciu · produkty z importu zastąpiono ich odpowiednikami z katalogu ({moved, number}) · obecnie {newIngredients, number} składników / {newRecipes, number} przepisów.",
     "stages": {
       "starting": "Uruchamianie…",
       "ingredientsStage": "Wczytywanie składników",

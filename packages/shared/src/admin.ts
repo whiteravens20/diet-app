@@ -124,6 +124,8 @@ export const CatalogueUpdateState = z.object({
       /** Rows the data dropped while user data still refers to them: kept, hidden. */
       retiredRecipes: z.number().int(),
       retiredIngredients: z.number().int(),
+      /** Foods of an import whose uses moved to the curated ingredient that is that food. */
+      movedToSuccessors: z.number().int(),
       /** Profiles whose preferences or favourite sets pointed at rows that are gone. */
       repairedProfiles: z.number().int(),
       counts: z.object({

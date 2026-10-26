@@ -9344,6 +9344,9 @@
                   "retiredIngredients": {
                     "type": "integer"
                   },
+                  "movedToSuccessors": {
+                    "type": "integer"
+                  },
                   "repairedProfiles": {
                     "type": "integer"
                   },
@@ -9379,6 +9382,7 @@
                   "deletedIngredients",
                   "retiredRecipes",
                   "retiredIngredients",
+                  "movedToSuccessors",
                   "repairedProfiles",
                   "counts",
                   "hash",

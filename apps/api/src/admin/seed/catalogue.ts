@@ -133,6 +133,8 @@ export interface Catalogue {
   substitutions: { from: string; to: string; note: string | null }[];
   /** How many foods of an import were left out because a curated ingredient is that food. */
   importedLeftOut: number;
+  /** The curated ingredient that is a food of an import (its `importedAs`), by the food's slug. */
+  successors: ReadonlyMap<string, string>;
   /** Friendly ingredient names by slug, applied on top of the curated names. */
   overrides: IngredientOverrideFile;
   /** Hash and sizes of the bytes this catalogue was read from. */
@@ -488,6 +490,7 @@ export function readCatalogue(dir: string = resolveDataDir()): {
       anchorRecipes: recipeFiles[0]!.seeds.length,
       substitutions,
       importedLeftOut,
+      successors: standsFor,
       overrides,
       state: hashSeedInputs(inputs),
     },

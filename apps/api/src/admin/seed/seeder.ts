@@ -31,6 +31,7 @@ import { UnitConversionError } from '../../engine/units.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
 import { asLocaleMap, en, loadCatalogue, type Catalogue } from './catalogue.js';
 import { resolveDataDir } from './data-hash.js';
+import { MOVABLE, moveUses, UnitsStandInTheWay } from './move-uses.js';
 
 type Db = Prisma.TransactionClient;
 
@@ -61,6 +62,8 @@ export interface UpdateResult extends SeedCounts {
   /** Rows the data dropped while user data still refers to them: kept, hidden. */
   retiredRecipes: number;
   retiredIngredients: number;
+  /** Foods of an import whose uses moved to the curated ingredient that is that food. */
+  movedToSuccessors: number;
   /** Profiles whose preferences or favourite sets pointed at rows that no longer exist. */
   repairedProfiles: number;
   hash: string;
@@ -114,6 +117,7 @@ export async function updateDatabase(
     log(
       `Recipes the data dropped: ${recipes.deleted} deleted, ${recipes.retired} retired (still in use).`,
     );
+    const moved = await moveToSuccessors(tx, catalogue, log);
     const ingredients = await retireIngredients(tx, catalogue);
     log(
       `Ingredients the data dropped: ${ingredients.deleted} deleted, ${ingredients.retired} retired (still in use).`,
@@ -150,6 +154,7 @@ export async function updateDatabase(
       deletedIngredients: ingredients.deleted,
       retiredRecipes: recipes.retired,
       retiredIngredients: ingredients.retired,
+      movedToSuccessors: moved,
       repairedProfiles,
       hash: catalogue.state.hash,
       seededAt,
@@ -494,9 +499,58 @@ async function retireRecipes(
   return { deleted: unused.length, retired: inUse.length };
 }
 
+/** The slugs the drafts not shipped yet name in their ingredient lines. */
+async function slugsOfDrafts(db: Db): Promise<Set<string>> {
+  const drafts = await db.recipeDraft.findMany({
+    where: { status: { not: 'SHIPPED' } },
+    select: { ingredientsJson: true },
+  });
+  return new Set(
+    drafts.flatMap((draft) =>
+      (draft.ingredientsJson as unknown as { slug: string }[]).map((line) => line.slug),
+    ),
+  );
+}
+
+/**
+ * A food of an import that a curated ingredient is (its `importedAs`): what
+ * uses it moves to the curated one, so that the step after deletes it, unused.
+ * One whose amounts the curated ingredient cannot be weighed in stays, retired,
+ * for the administrator to replace. Returns how many foods moved.
+ */
+async function moveToSuccessors(
+  db: Db,
+  catalogue: Catalogue,
+  log: (msg: string) => void,
+): Promise<number> {
+  if (catalogue.successors.size === 0) return 0;
+  const imported = await db.ingredient.findMany({
+    where: { slug: { in: [...catalogue.successors.keys()] } },
+    select: MOVABLE,
+  });
+  let moved = 0;
+  for (const food of imported) {
+    const successor = await db.ingredient.findFirst({
+      where: { slug: catalogue.successors.get(food.slug!)!, retiredAt: null },
+      select: MOVABLE,
+    });
+    if (!successor?.slug) continue;
+    try {
+      await moveUses(db, food, { ...successor, slug: successor.slug });
+      moved += 1;
+    } catch (err) {
+      if (!(err instanceof UnitsStandInTheWay)) throw err;
+      log(`"${food.slug}" stays, retired: "${successor.slug}" ${err.message}.`);
+    }
+  }
+  if (moved > 0) log(`Moved what used ${moved} food(s) of an import to the curated ingredient.`);
+  return moved;
+}
+
 /**
  * Ingredients the data no longer carries. One that a recipe, a pantry row, a
- * preference or a shopping list still uses is retired; the rest are deleted.
+ * preference, a shopping list or a draft still uses is retired; the rest are
+ * deleted.
  */
 async function retireIngredients(
   db: Db,
@@ -526,10 +580,15 @@ async function retireIngredients(
   })) {
     referenced.add(item.ingredientId);
   }
+  // A draft not shipped yet names its ingredients by slug: one it names is kept, for it to be moved to another.
+  const drafted = await slugsOfDrafts(db);
 
   const inUse = dropped.filter(
     (row) =>
-      row._count.recipeIngredients > 0 || row._count.inventoryItems > 0 || referenced.has(row.id),
+      row._count.recipeIngredients > 0 ||
+      row._count.inventoryItems > 0 ||
+      referenced.has(row.id) ||
+      (row.slug !== null && drafted.has(row.slug)),
   );
   const unused = dropped.filter((row) => !inUse.includes(row));
   await db.ingredient.updateMany({

@@ -6,7 +6,15 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { catalogueDirectory, seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase } from '../../testing/database.js';
-import { aPlan, aPrivateRecipe, aProfile, as, asAdmin, aUser } from '../../testing/factories.js';
+import {
+  aPlan,
+  aPrivateRecipe,
+  aProfile,
+  aRecipeDraft,
+  as,
+  asAdmin,
+  aUser,
+} from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
 import { CatalogueError } from './catalogue.js';
@@ -645,6 +653,204 @@ describe('updating the curated database', () => {
     await expect(t.prisma.ingredient.delete({ where: { id: heirloom } })).rejects.toMatchObject({
       code: 'P2003',
     });
+  });
+
+  describe('a food of an import that a curated ingredient is', () => {
+    const IMPORTED = 'fish-salmon-atlantic-farm-raised-raw';
+
+    /** The fixture data with an import that brings `food`, written beside it. */
+    function withAnImport(food: Row) {
+      const data = editableData();
+      writeFileSync(join(data.dir, 'ingredients.generated.json'), JSON.stringify([food]));
+      return data;
+    }
+    const rowOf = (data: { dir: string }, slug: string) =>
+      (JSON.parse(readFileSync(join(data.dir, 'ingredients.json'), 'utf8')) as Row[]).find(
+        (row) => row.slug === slug,
+      )!;
+
+    /** A recipe of `user`'s own with one line. */
+    const anOwnRecipe = (
+      user: { id: string },
+      line: { ingredientId: string; quantity: number; unit: 'g' | 'ml' },
+    ) =>
+      t.prisma.recipe.create({
+        data: {
+          title: 'Salmon of my own',
+          description: 'Mine.',
+          servings: 1,
+          mealTypes: ['dinner'],
+          dietTags: [],
+          steps: ['Bake it.'],
+          prepMinutes: 5,
+          cookMinutes: 15,
+          allergens: [],
+          origin: 'ai',
+          caloriesPerServing: 0,
+          proteinPerServing: 0,
+          fatPerServing: 0,
+          carbsPerServing: 0,
+          createdByUserId: user.id,
+          ingredients: { create: [line] },
+        },
+      });
+
+    it('has what used it moved to the curated ingredient, with its amounts, and goes', async () => {
+      const seed = editableData();
+      const data = withAnImport({
+        ...rowOf(seed, 'salmon'),
+        slug: IMPORTED,
+        name: { en: 'Fish, salmon, Atlantic, farm raised, raw' },
+        caloriesPer100: 180,
+        fatPer100: 10,
+        tags: ['usda-imported'],
+      });
+      await updateDatabase(t.prisma, data.dir, quiet);
+      const food = await idOf(IMPORTED);
+      const salmon = await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'salmon' } });
+      // A user's recipe, a pantry that holds salmon as well, a profile that leaves the food out, a draft and a list.
+      const user = await aUser(t);
+      const profile = await aProfile(t, user, {
+        preferences: {
+          favoriteIngredientIds: [],
+          excludedIngredientIds: [food],
+          allergens: [],
+          dislikedIngredientIds: [],
+          preferredCuisines: [],
+          maxConsecutiveDaysSameMeal: 2,
+          maxTimesPerWeekSameMeal: 3,
+          inventoryBiasResetEvery: 5,
+        },
+      });
+      const own = await anOwnRecipe(user, { ingredientId: food, quantity: 150, unit: 'g' });
+      await t.prisma.inventoryItem.createMany({
+        data: [
+          { profileId: profile.id, ingredientId: food, quantity: 100, unit: 'g' },
+          { profileId: profile.id, ingredientId: salmon.id, quantity: 200, unit: 'g' },
+        ],
+      });
+      const draft = await aRecipeDraft(t, {}, [
+        { slug: IMPORTED, quantity: 150, unit: 'g', note: null },
+      ]);
+      const plan = await aPlan(t, user, profile);
+      const day = new Date(plan.days[0]!.date);
+      const list = await t.prisma.shoppingList.create({
+        data: {
+          planId: plan.id,
+          fromDate: day,
+          toDate: day,
+          items: {
+            create: [
+              {
+                ingredientId: food,
+                name: 'Fish, salmon, Atlantic, farm raised, raw',
+                category: salmon.category,
+                totalQuantity: 150,
+                unit: 'g',
+              },
+            ],
+          },
+        },
+      });
+
+      // The curated salmon now says it is that food.
+      data.edit<Row>('ingredients.json', (rows) =>
+        rows.map((row) => (row.slug === 'salmon' ? { ...row, importedAs: [IMPORTED] } : row)),
+      );
+      const result = await updateDatabase(t.prisma, data.dir, quiet);
+
+      expect(result).toMatchObject({ movedToSuccessors: 1, deletedIngredients: 1 });
+      expect(await t.prisma.ingredient.findUnique({ where: { slug: IMPORTED } })).toBeNull();
+      expect(
+        (await t.prisma.recipeIngredient.findMany({ where: { recipeId: own.id } })).map((line) => [
+          line.ingredientId,
+          line.quantity,
+          line.unit,
+        ]),
+      ).toEqual([[salmon.id, 150, 'g']]);
+      // Worked out again from salmon: 150 g of it, not of the food.
+      expect(
+        (await t.prisma.recipe.findUniqueOrThrow({ where: { id: own.id } })).caloriesPerServing,
+      ).toBeCloseTo((150 * salmon.caloriesPer100) / 100, 0);
+      expect(
+        await t.prisma.inventoryItem.findMany({
+          where: { profileId: profile.id },
+          select: { ingredientId: true, quantity: true, unit: true },
+        }),
+      ).toEqual([{ ingredientId: salmon.id, quantity: 300, unit: 'g' }]);
+      expect(
+        (await t.prisma.profilePreference.findUniqueOrThrow({ where: { profileId: profile.id } }))
+          .excludedIngredientIds,
+      ).toEqual([salmon.id]);
+      expect(
+        (await t.prisma.recipeDraft.findUniqueOrThrow({ where: { id: draft.id } })).ingredientsJson,
+      ).toEqual([{ slug: 'salmon', quantity: 150, unit: 'g', note: null }]);
+      expect(
+        await t.prisma.shoppingListItem.findMany({
+          where: { listId: list.id },
+          select: { ingredientId: true, name: true, totalQuantity: true },
+        }),
+      ).toEqual([{ ingredientId: salmon.id, name: salmon.name, totalQuantity: 150 }]);
+    });
+
+    it('stays, retired, when the curated ingredient cannot be weighed in an amount of it, not even through grams', async () => {
+      const seed = editableData();
+      const DRINK = 'yogurt-greek-plain-drinkable';
+      // Measured in millilitres with no density, where the curated yogurt is weighed in grams and has none either.
+      const data = withAnImport({
+        ...rowOf(seed, 'greek-yogurt'),
+        slug: DRINK,
+        name: { en: 'Yogurt, Greek, plain, drinkable' },
+        canonicalUnit: 'ml',
+        tags: ['usda-imported'],
+      });
+      await updateDatabase(t.prisma, data.dir, quiet);
+      const drink = await idOf(DRINK);
+      const own = await anOwnRecipe(await aUser(t), {
+        ingredientId: drink,
+        quantity: 200,
+        unit: 'ml',
+      });
+
+      data.edit<Row>('ingredients.json', (rows) =>
+        rows.map((row) => (row.slug === 'greek-yogurt' ? { ...row, importedAs: [DRINK] } : row)),
+      );
+      const said: string[] = [];
+      const result = await updateDatabase(t.prisma, data.dir, (msg) => said.push(msg));
+
+      expect(result).toMatchObject({ movedToSuccessors: 0, retiredIngredients: 1 });
+      expect(
+        (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: DRINK } })).retiredAt,
+      ).not.toBeNull();
+      expect(
+        (await t.prisma.recipeIngredient.findFirstOrThrow({ where: { recipeId: own.id } }))
+          .ingredientId,
+      ).toBe(drink);
+      expect(said).toContain(`"${DRINK}" stays, retired: "greek-yogurt" cannot be weighed in ml.`);
+    });
+  });
+
+  it('retires an ingredient the data dropped that only a draft names, rather than deleting it', async () => {
+    const data = editableData();
+    data.edit<Row>('ingredients.json', (rows) => [
+      ...rows,
+      {
+        ...rows.find((r) => r.slug === 'tomato')!,
+        slug: 'heirloom-tomato',
+        name: { en: 'Heirloom tomato' },
+      },
+    ]);
+    await updateDatabase(t.prisma, data.dir, quiet);
+    await aRecipeDraft(t, {}, [{ slug: 'heirloom-tomato', quantity: 120, unit: 'g', note: null }]);
+
+    data.edit<Row>('ingredients.json', (rows) => rows.filter((r) => r.slug !== 'heirloom-tomato'));
+    const result = await updateDatabase(t.prisma, data.dir, quiet);
+
+    expect(result).toMatchObject({ retiredIngredients: 1, deletedIngredients: 0 });
+    expect(
+      (await t.prisma.ingredient.findUniqueOrThrow({ where: { slug: 'heirloom-tomato' } }))
+        .retiredAt,
+    ).not.toBeNull();
   });
 });
 
