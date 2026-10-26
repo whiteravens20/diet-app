@@ -84,6 +84,8 @@ describe('the content security policy of a page', () => {
     expect(policy.get('default-src')).toEqual(["'self'"]);
     // `data:` is no address anything is sent to: the layout library of the printed list reads itself from one.
     expect(policy.get('connect-src')).toEqual(["'self'", 'data:']);
+    // No worker at all, so a script that got into a page cannot register one that outlives it.
+    expect(policy.get('worker-src')).toEqual(["'none'"]);
     expect(policy.get('base-uri')).toEqual(["'self'"]);
     expect(policy.get('form-action')).toEqual(["'self'"]);
     expect(policy.get('object-src')).toEqual(["'none'"]);

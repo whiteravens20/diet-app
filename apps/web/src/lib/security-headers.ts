@@ -97,6 +97,8 @@ export function contentSecurityPolicy({ nonce, https, turnstile }: PolicySetting
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self' data:",
+    // The application starts no worker, a service worker included, and neither may anything else in its pages.
+    "worker-src 'none'",
     `frame-src ${turnstile ? TURNSTILE : "'none'"}`,
     `report-uri ${POLICY_REPORTS}`,
     // A report to a named endpoint, and the upgrade of http requests, are for https only: on an
