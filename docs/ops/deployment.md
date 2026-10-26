@@ -447,6 +447,34 @@ working. An unconfirmed address blocks nothing but the instance's AI provider, w
 Accounts made while mail was not configured were confirmed when they were made, and stay
 so once it is: they are not asked to confirm.
 
+## Terms of service
+
+The page `/terms` shows the operator's terms of service and, under them, what the
+application says of itself: its licence, the attribution the licence keeps, where to report
+a mistake in the software, and `OPERATOR_CONTACT`. That second part is the same on every
+instance, and no file leaves it out.
+
+The terms are Markdown files in a directory `terms` beside the Compose file, which the web
+service mounts read-only at `/terms`:
+
+- `TOS.md`, in the language you write in;
+- beside it, a translation for an interface language, named by its code: `TOS.pl.md`.
+
+A reader is shown the translation in the language of the page, and `TOS.md` where there is
+none. Until there is a `TOS.md`, the page shows the template that comes with the image,
+which says that it is one. Start from it: [`terms/TOS.md`](../../terms/TOS.md) and
+[`terms/TOS.pl.md`](../../terms/TOS.pl.md) put in square brackets what is yours to fill in
+or delete, and have a section on Turnstile to delete when it is off.
+
+Make the directory before the first start: Docker makes a missing one itself, empty and
+owned by root. The files have to be readable by the container's user (UID 1000), as files
+of mode 644 are. The web server reads them the first time the page is opened, so after a
+change start it again: `docker compose restart web`. With `infra/docker-compose.yml` the
+mounted directory is `terms/` of the checkout, and you write your terms there.
+
+Raw HTML in the files is shown as text, and a link or a picture keeps its address only when
+it is a web or mail address or a path of the site.
+
 ## The worker
 
 The worker is the same image started as `node apps/api/dist/worker.js`. It serves no

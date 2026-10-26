@@ -133,10 +133,20 @@ curl -o .env https://raw.githubusercontent.com/whiteravens20/diet-app/main/.env.
 #    Generate each secret with: openssl rand -hex 32
 nano .env
 
-# 3. Pull and start.
+# 3. Your terms of service, shown at /terms: start from the template
+#    (and terms/TOS.pl.md beside it for Polish readers).
+mkdir terms
+curl -o terms/TOS.md https://raw.githubusercontent.com/whiteravens20/diet-app/main/terms/TOS.md
+nano terms/TOS.md
+
+# 4. Pull and start.
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
+
+Until you write your own terms, the page shows the template with a note that it is one.
+Under them the page always shows the software's licence notices and your
+`OPERATOR_CONTACT`; see [Terms of service](docs/ops/deployment.md#terms-of-service).
 
 The web app listens on `127.0.0.1:3000` of the host and passes every `/api`
 request on to the API, which is reached only inside the stack. Put your own
