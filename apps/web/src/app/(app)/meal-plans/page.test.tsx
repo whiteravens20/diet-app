@@ -22,6 +22,7 @@ import * as files from '@/lib/save-file';
 import { aDepth, aPublicConfig } from '@/testing/public-config';
 import messages from '../../../../messages/en.json';
 import MealPlansPage from './page';
+import { dayAnchor } from './plan-card';
 
 /** What the address of the page says after its question mark: empty unless a test is about a link that leads here. */
 const address = vi.hoisted(() => ({ search: '' }));
@@ -1818,5 +1819,70 @@ describe('the plan page, on what the planner proposes for a plan', () => {
         ([path]) => String(path).includes('users') && String(path).includes('meal-plans'),
       ),
     ).toBe(false);
+  });
+});
+
+describe('the plan page, on the day it is today', () => {
+  const scrollIntoView = vi.fn();
+  beforeEach(() => {
+    // The browser of the tests draws nothing, so it has nothing to scroll.
+    Element.prototype.scrollIntoView = scrollIntoView;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    scrollIntoView.mockClear();
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  });
+
+  /** The plan of the fixture over three days from 2026-01-04, its one day on each of them. */
+  const threeDays = (): MealPlan => {
+    const plan = aPlan();
+    const day = plan.days[0]!;
+    const dates = ['2026-01-04', '2026-01-05', '2026-01-06'];
+    return {
+      ...plan,
+      startDate: dates[0]!,
+      durationDays: dates.length,
+      days: dates.map((date, n) => ({
+        ...day,
+        id: `22222222-2222-4222-8222-22222222222${n}`,
+        date,
+        meals: day.meals.map((meal) => ({
+          ...meal,
+          id: `33333333-3333-4333-8333-33333333333${n}`,
+        })),
+      })),
+    };
+  };
+
+  const open = async (plan: MealPlan) => {
+    await renderPage(aDepth(9), [plan]);
+    await userEvent.click(await screen.findByText('3-day plan · Vegan'));
+  };
+
+  it('marks the day that is today, and takes the reader there with one press', async () => {
+    onTheDay('2026-01-05');
+    const plan = threeDays();
+    await open(plan);
+
+    const today = document.getElementById(dayAnchor(plan.id, '2026-01-05'))!;
+    expect(today).toHaveAttribute('aria-current', 'date');
+    expect(within(today).getByText(messages.mealPlans.today)).toBeInTheDocument();
+    expect(screen.getAllByText(messages.mealPlans.today)).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('button', { name: messages.mealPlans.goToToday }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(today);
+    expect(today).toHaveFocus();
+  });
+
+  it('offers no way to today on a plan that does not hold it', async () => {
+    onTheDay('2026-02-01');
+    await open(threeDays());
+
+    expect(screen.queryByRole('button', { name: messages.mealPlans.goToToday })).toBeNull();
+    expect(screen.queryByText(messages.mealPlans.today)).toBeNull();
   });
 });

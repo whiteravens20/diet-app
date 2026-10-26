@@ -287,6 +287,21 @@ export function PlanCard({
       {open && plan && (
         <CardContent className="space-y-4 border-t border-border pt-4">
           <div className="flex flex-wrap items-center gap-2">
+            {/* A long plan is a long way down to the day it is now: one press takes the reader there. */}
+            {plan.days.some((day) => day.date === today) && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const day = document.getElementById(dayAnchor(plan.id, today));
+                  day?.scrollIntoView({ block: 'start' });
+                  day?.focus({ preventScroll: true });
+                }}
+              >
+                {t('goToToday')}
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -374,11 +389,17 @@ export function PlanCard({
               key={day.id}
               id={dayAnchor(plan.id, day.date)}
               tabIndex={-1}
+              aria-current={day.date === today ? 'date' : undefined}
               className="scroll-mt-20 focus:outline-none"
             >
               <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
                   {fmt.day(day.date)}
+                  {day.date === today && (
+                    <span className="whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-2xs font-medium text-primary-foreground">
+                      {t('today')}
+                    </span>
+                  )}
                   {(day.overrides?.dayType === 'training' || day.overrides?.dayType === 'rest') && (
                     <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-normal text-foreground">
                       {t(`dayKindChip.${day.overrides.dayType}`)}

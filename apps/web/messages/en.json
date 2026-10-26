@@ -1348,6 +1348,8 @@
       "errTake": "Could not change the day."
     },
     "daySettingsButton": "Day settings…",
+    "goToToday": "Go to today",
+    "today": "Today",
     "dayKindChip": {
       "training": "Training",
       "rest": "Rest"
