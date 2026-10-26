@@ -191,9 +191,10 @@ export function RecipePanel() {
         >
           <span className="text-muted-foreground">{t('runDiets')}</span>
           {NAMED_DIETS.map((diet) => (
-            <label key={diet} className="flex items-center gap-1">
+            <label key={diet} className="flex min-h-6 items-center gap-1">
               <input
                 type="checkbox"
+                className="h-4 w-4"
                 checked={diets.includes(diet)}
                 disabled={fillCoverage}
                 onChange={(e) =>
@@ -213,9 +214,10 @@ export function RecipePanel() {
         >
           <span className="text-muted-foreground">{t('runMeals')}</span>
           {MEALS.map((meal) => (
-            <label key={meal} className="flex items-center gap-1">
+            <label key={meal} className="flex min-h-6 items-center gap-1">
               <input
                 type="checkbox"
+                className="h-4 w-4"
                 checked={meals.includes(meal)}
                 disabled={fillCoverage}
                 onChange={(e) =>
