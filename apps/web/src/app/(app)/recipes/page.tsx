@@ -485,7 +485,7 @@ export default function RecipesPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((r) => (
               <div key={r.id} className="relative group">
-                <Link href={`/recipes/${r.id}`} className="block">
+                <Link href={`/recipes/${r.id}`} className="block h-full">
                   <Card className="h-full p-4 transition-shadow hover:shadow-md">
                     <p className={`font-medium ${tab === 'mine' ? 'pr-20' : 'pr-7'}`}>{r.title}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
