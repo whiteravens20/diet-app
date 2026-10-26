@@ -24,9 +24,16 @@ import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
 export function ShipBar({
   kind,
   onShipped,
+  listRead,
 }: {
   kind: ShipKind;
   onShipped: () => void | Promise<void>;
+  /**
+   * How many times the drafts beside the bar were read. A decision on one of
+   * them changes how many wait to be shipped, so the bar reads its counts again
+   * each time they are read.
+   */
+  listRead: number;
 }) {
   const t = useTranslations('admin.curation');
   const errorText = useDraftErrorText();
@@ -50,7 +57,7 @@ export function ShipBar({
     void (async () => {
       await refresh();
     })();
-  }, [refresh]);
+  }, [refresh, listRead]);
 
   const approvedCount =
     kind === 'recipe'

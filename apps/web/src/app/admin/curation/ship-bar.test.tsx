@@ -31,13 +31,35 @@ function shown(files: Partial<InstanceDataState> = {}) {
   vi.spyOn(adminApi, 'shipConfig').mockResolvedValue(configWith(files));
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <ShipBar kind="recipe" onShipped={() => {}} />
+      <ShipBar kind="recipe" onShipped={() => {}} listRead={0} />
     </NextIntlClientProvider>,
   );
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('the count of what waits to be shipped', () => {
+  it('is read again whenever the drafts beside the bar are, so a decision on one shows in it', async () => {
+    const config = vi
+      .spyOn(adminApi, 'shipConfig')
+      .mockResolvedValueOnce({ ...configWith(), approvedCounts: { recipe: 0, ingredientName: 0 } })
+      .mockResolvedValueOnce({ ...configWith(), approvedCounts: { recipe: 1, ingredientName: 0 } });
+    const bar = (listRead: number) => (
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ShipBar kind="recipe" onShipped={() => {}} listRead={listRead} />
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(bar(0));
+    expect(await screen.findByText('0 approved')).toBeInTheDocument();
+
+    // A draft was approved, and the panel read its drafts again.
+    rerender(bar(1));
+
+    expect(await screen.findByText('1 approved')).toBeInTheDocument();
+    expect(config).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("the instance's own files, in the panel", () => {

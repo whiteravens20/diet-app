@@ -28,6 +28,8 @@ export function IngredientPanel() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
   const [data, setData] = useState<PagedDrafts<IngredientNameDraft> | null>(null);
+  // How many times the drafts were read: the ship bar reads its counts again with them.
+  const [listRead, setListRead] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -39,6 +41,7 @@ export function IngredientPanel() {
         pageSize: PAGE_SIZE,
       });
       setData(res);
+      setListRead((n) => n + 1);
       setError(null);
     } catch (err) {
       setError(errorText(err, String(err)));
@@ -159,7 +162,7 @@ export function IngredientPanel() {
         </p>
       )}
 
-      <ShipBar kind="ingredient-name" onShipped={loadDrafts} />
+      <ShipBar kind="ingredient-name" onShipped={loadDrafts} listRead={listRead} />
 
       <FilterStrip
         status={statusFilter}

@@ -40,6 +40,8 @@ export function RecipePanel() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('ALL');
   const [rejected, setRejected] = useState<{ rejected: number; skipped: number } | null>(null);
   const [data, setData] = useState<PagedDrafts<RecipeDraft> | null>(null);
+  // How many times the drafts were read: the ship bar reads its counts again with them.
+  const [listRead, setListRead] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [genCount, setGenCount] = useState(5);
   const [scope, setScope] = useState<'curated' | 'all'>('curated');
@@ -55,6 +57,7 @@ export function RecipePanel() {
         pageSize: PAGE_SIZE,
       });
       setData(res);
+      setListRead((n) => n + 1);
       setError(null);
     } catch (err) {
       setError(errorText(err, String(err)));
@@ -272,7 +275,7 @@ export function RecipePanel() {
         </div>
       )}
 
-      <ShipBar kind="recipe" onShipped={loadDrafts} />
+      <ShipBar kind="recipe" onShipped={loadDrafts} listRead={listRead} />
 
       <FilterStrip
         status={statusFilter}
