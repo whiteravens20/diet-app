@@ -3,6 +3,7 @@
 'use client';
 
 /** How the application looks and reads for an account: its language, its theme and palette, and the unit it weighs in. */
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -12,7 +13,7 @@ import { useErrorText } from '@/lib/use-error-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LanguageSwitcher } from '@/components/language-switcher';
-import { DEFAULT_PALETTE, SUPPORTED_PALETTES } from '@/lib/palette';
+import { SUPPORTED_PALETTES } from '@/lib/palette';
 import { usePalette } from '@/app/providers';
 
 export function LanguageCard() {
@@ -30,22 +31,22 @@ export function LanguageCard() {
   );
 }
 
-export function ThemeCard({ initial }: { initial: Theme }) {
+/** The theme the pages have now, which is the account's once its pages took it on (`AccountPreferences`). */
+export function ThemeCard() {
   const t = useTranslations('settings');
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
-  const [value, setValue] = useState<Theme>(initial);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount flag; gates next-themes hydration so first client paint matches SSR
   useEffect(() => setMounted(true), []);
 
   async function pick(next: Theme) {
-    setValue(next);
     setTheme(next);
+    queryClient.setQueryData<SessionUser>(['session'], (me) => me && { ...me, theme: next });
     try {
       await api.patch('/users/me', { theme: next });
     } catch {
-      // Best-effort sync — next-themes already changed the visual; surface
-      // nothing if the persistence call fails (next login resyncs anyway).
+      // The page has changed already. Where the server did not take it, the next page brings the account's saved one back.
     }
   }
 
@@ -74,7 +75,8 @@ export function ThemeCard({ initial }: { initial: Theme }) {
               key={o.value}
               type="button"
               size="sm"
-              variant={value === o.value ? 'primary' : 'outline'}
+              variant={theme === o.value ? 'primary' : 'outline'}
+              aria-pressed={theme === o.value}
               onClick={() => void pick(o.value)}
             >
               {o.label}
@@ -162,22 +164,20 @@ export function WeightUnitCard({ me, onSaved }: { me: SessionUser; onSaved: () =
   );
 }
 
-export function PaletteCard({ initial }: { initial: Palette }) {
+/** The palette the pages have now, which is the account's once its pages took it on (`AccountPreferences`). */
+export function PaletteCard() {
   const t = useTranslations('settings');
   const tPalette = useTranslations('settings.paletteOption');
-  const { palette: live, setPalette } = usePalette();
-  // The provider's `live` value is initialised from the SSR cookie, which may
-  // disagree with the server-stored `initial` on a freshly signed-in device.
-  // Prefer `live` once it diverges from `initial` (the user picked something
-  // here) — otherwise show the server's preference.
-  const value: Palette = live === DEFAULT_PALETTE && initial !== DEFAULT_PALETTE ? initial : live;
+  const { palette: value, setPalette } = usePalette();
+  const queryClient = useQueryClient();
 
   async function pick(next: Palette) {
     setPalette(next); // applies <html data-palette> + cookie immediately
+    queryClient.setQueryData<SessionUser>(['session'], (me) => me && { ...me, palette: next });
     try {
       await api.patch('/users/me', { palette: next });
     } catch {
-      // Best-effort cross-device sync — visual is already applied via cookie.
+      // The page has changed already. Where the server did not take it, the next page brings the account's saved one back.
     }
   }
 
@@ -194,6 +194,7 @@ export function PaletteCard({ initial }: { initial: Palette }) {
               type="button"
               size="sm"
               variant={value === p ? 'primary' : 'outline'}
+              aria-pressed={value === p}
               onClick={() => void pick(p)}
               className="gap-2"
             >

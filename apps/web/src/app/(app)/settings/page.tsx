@@ -39,8 +39,8 @@ export default function SettingsPage() {
 
       <ProfileCard me={me} onSaved={() => qc.invalidateQueries({ queryKey: ['session'] })} />
       <LanguageCard />
-      <ThemeCard initial={me.theme} />
-      <PaletteCard initial={me.palette} />
+      <ThemeCard />
+      <PaletteCard />
       <WeightUnitCard me={me} onSaved={() => qc.invalidateQueries({ queryKey: ['session'] })} />
       <AiAssistantCard me={me} />
       <AiProvidersCard />
