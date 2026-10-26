@@ -20,6 +20,13 @@ const POLISH = {
   description: 'Płatki z bananem.',
   steps: ['Podgrzej napój.', 'Wmieszaj płatki i banana.'],
 };
+/** A draft in Polish alone, as a user who wrote a recipe in Polish sends it. */
+const inPolish = {
+  locales: ['pl'],
+  titles: { pl: POLISH.title },
+  descriptions: { pl: POLISH.description },
+  steps: { pl: POLISH.steps },
+};
 /** A draft in English alone, as an import or a run for English leaves one. */
 const inEnglish = {
   locales: ['en'],
@@ -247,6 +254,39 @@ describe('the run that fills a language recipes lack', () => {
     });
   });
 
+  describe('for a draft that waits without English', () => {
+    it('writes English from the language the draft is in, and the draft waits to be reviewed in it', async () => {
+      const draft = await aRecipeDraft(t, { ...inPolish, status: 'PENDING' });
+      t.model.reply({ text: () => JSON.stringify(ENGLISH) });
+
+      expect(await runner.start({ locale: 'en', limit: 25 })).toBe(true);
+      const state = await finished();
+
+      expect(state).toMatchObject({ status: 'done', written: 1, failed: 0, note: null });
+      const prompt = t.model.requests[0]!.prompt;
+      expect(prompt).toContain('from Polish into English (en)');
+      expect(asked(t.model.requests[0]!)).toEqual(POLISH);
+      const after = await draftOf(draft.id);
+      expect(after.locales).toEqual(['pl', 'en']);
+      expect(after.titles).toEqual({ pl: POLISH.title, en: ENGLISH.title });
+      expect(after.steps).toEqual({ pl: POLISH.steps, en: ENGLISH.steps });
+      expect(after.status).toBe('PENDING');
+    });
+
+    it('leaves alone the drafts that have English and the recipes of the library, which have it too', async () => {
+      await aRecipeDraft(t, inEnglish);
+      // English in the recipe's own row alone, and in none of its translations, is English all the same.
+      const recipe = await anOwnRecipe();
+      await t.prisma.recipeTranslation.deleteMany({ where: { recipeId: recipe.id } });
+
+      expect(await runner.start({ locale: 'en', limit: 25 })).toBe(true);
+      const state = await finished();
+
+      expect(state).toMatchObject({ status: 'done', total: 0, note: 'nothing-to-translate' });
+      expect(t.model.requests).toHaveLength(0);
+    });
+  });
+
   describe("for a recipe of the instance's own library", () => {
     it('makes a draft of the recipe as it is, with the new text beside its English, and writes nothing to the recipe', async () => {
       const recipe = await anOwnRecipe();
@@ -417,8 +457,7 @@ describe('the run that fills a language recipes lack', () => {
       expect(state.written).toBeLessThan(4);
     });
 
-    it("takes no English and no more than two hundred at once, and is the administrator's alone", async () => {
-      await start({ locale: 'en' }).expect(400);
+    it("takes no more than two hundred at once, and is the administrator's alone", async () => {
       await start({ limit: 201 }).expect(400);
       await t.http().get('/api/admin/drafts/translations/generate/status').expect(401);
       await t.http().post('/api/admin/drafts/translations/generate/stop').expect(401);

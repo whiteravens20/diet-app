@@ -12,6 +12,9 @@ import { useDraftErrorText } from '@/lib/use-draft-error';
 
 const POLL_INTERVAL_MS = 1500;
 
+/** Every language can be filled: English last, since it is written only for a draft a user wrote in theirs. */
+const FILLABLE = [...NON_CANONICAL_LOCALES, 'en'];
+
 /**
  * The run that fills a language recipes lack: which language, how many at
  * most, and where the run stands. What it writes goes into the queue shown
@@ -27,7 +30,7 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
   const languageId = useId();
   const limitId = useId();
   const [runner, setRunner] = useState<DraftRunnerState | null>(null);
-  const [locale, setLocale] = useState<string>(NON_CANONICAL_LOCALES[0] ?? '');
+  const [locale, setLocale] = useState<string>(FILLABLE[0]!);
   // As it is typed: a field that is being emptied to type another number is no number for a moment.
   const [limit, setLimit] = useState('25');
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +112,7 @@ export function MissingLanguage({ onWritten }: { onWritten: () => void | Promise
           disabled={running}
           className="rounded-md border border-input bg-background px-2 py-1 text-xs"
         >
-          {NON_CANONICAL_LOCALES.map((language) => (
+          {FILLABLE.map((language) => (
             <option key={language} value={language}>
               {tLanguage(language)}
             </option>

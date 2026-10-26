@@ -5,7 +5,8 @@
  *
  * It asks the instance's model for the text of a recipe in one language, from
  * the English that people approved, and puts what comes back into the
- * curation queue. It writes no live row:
+ * curation queue. English itself is written from the language of a draft
+ * that has none, one a user wrote in theirs. It writes no live row:
  *
  *  - a recipe draft that waits without the language gets its text in it, and
  *    has to be reviewed in it before it ships;
@@ -36,6 +37,7 @@ import { classifyComplexity } from './recipe-generator.complexity.js';
 import {
   TRANSLATION_PROMPT_VERSION,
   buildRecipeTranslationPrompt,
+  languageName,
   type RecipeTextSource,
 } from './translation.prompt.js';
 import { validateRecipeTranslation } from './translation.validate.js';
@@ -58,7 +60,10 @@ export interface TranslationRunnerState {
 }
 
 export interface TranslationStartSpec {
-  /** The language to fill; never English, which everything is written from. */
+  /**
+   * The language to fill: from English, or English from the language of a
+   * draft that has none. The recipes of the library have English already.
+   */
   locale: Locale;
   /** The most the run takes on. */
   limit: number;
@@ -150,15 +155,24 @@ export class TranslationRunner {
     const waiting = await this.prisma.recipeDraft.findMany({
       where: {
         status: { in: [...WAITING] },
-        locales: { has: 'en' },
+        ...(locale === 'en' ? {} : { locales: { has: 'en' } }),
         NOT: { locales: { has: locale } },
       },
       orderBy: { createdAt: 'asc' },
       take: limit,
-      select: { id: true, slug: true, titles: true, descriptions: true, steps: true },
+      select: {
+        id: true,
+        slug: true,
+        titles: true,
+        descriptions: true,
+        steps: true,
+        locales: true,
+      },
     });
     const own =
-      waiting.length < limit ? await this.ownRecipesWithout(locale, limit - waiting.length) : [];
+      locale !== 'en' && waiting.length < limit
+        ? await this.ownRecipesWithout(locale, limit - waiting.length)
+        : [];
     this.state = {
       ...this.state,
       total: waiting.length + own.length,
@@ -167,12 +181,14 @@ export class TranslationRunner {
 
     for (const draft of waiting) {
       if (this.job.stopRequested) return;
+      // English for one that has none is written from the language it was written in.
+      const from = locale === 'en' ? draft.locales[0]! : 'en';
       const source = {
-        title: localeMap(draft.titles).en ?? '',
-        description: localeMap(draft.descriptions).en ?? '',
-        steps: localeStepsMap(draft.steps).en ?? [],
+        title: localeMap(draft.titles)[from] ?? '',
+        description: localeMap(draft.descriptions)[from] ?? '',
+        steps: localeStepsMap(draft.steps)[from] ?? [],
       };
-      const text = await this.translated(locale, source, draft.slug);
+      const text = await this.translated(locale, source, draft.slug, from);
       if (!text) {
         this.count('failed');
         continue;
@@ -302,11 +318,12 @@ export class TranslationRunner {
       }));
   }
 
-  /** The text of one recipe in `locale`, asked for up to twice; null when no answer was of use. */
+  /** The text of one recipe in `locale`, from its text in `from`, asked for up to twice; null when no answer was of use. */
   private async translated(
     locale: Locale,
     source: RecipeTextSource,
     slug: string,
+    from = 'en',
   ): Promise<RecipeTextSource | null> {
     const limits = recipeTranslation(source.steps.length, this.model.tuning.temperature);
     for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
@@ -314,9 +331,9 @@ export class TranslationRunner {
         const reminder =
           attempt === 0
             ? ''
-            : '\nReminder: answer with ONLY the complete JSON object, with exactly as many steps as the English has.';
+            : `\nReminder: answer with ONLY the complete JSON object, with exactly as many steps as the ${languageName(from)} has.`;
         const answer = await this.model.ask(
-          buildRecipeTranslationPrompt(locale, source) + reminder,
+          buildRecipeTranslationPrompt(locale, source, from) + reminder,
           limits,
         );
         if (answer.truncated) {

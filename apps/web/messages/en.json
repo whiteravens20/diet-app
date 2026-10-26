@@ -681,7 +681,7 @@
       },
       "missingLanguage": {
         "title": "Fill a missing language",
-        "hint": "Asks the model for the text of recipes in a language they lack. A draft that waits in the queue gets the language added; a recipe this instance shipped gets a draft of its own. Nothing changes for users until the text is approved and the draft ships. Recipes of the catalogue's own data are left as they are.",
+        "hint": "Asks the model for the text of recipes in a language they lack. A draft that waits in the queue gets the language added; a recipe this instance shipped gets a draft of its own. English is written from the language of a draft that has none, one a user wrote in theirs; every other language from English. Nothing changes for users until the text is approved and the draft ships. Recipes of the catalogue's own data are left as they are.",
         "language": "Language",
         "limit": "At most",
         "start": "Fill the language",

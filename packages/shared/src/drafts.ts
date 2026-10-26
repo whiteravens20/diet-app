@@ -162,12 +162,13 @@ export type IngredientNameGenerateSpec = z.infer<typeof IngredientNameGenerateSp
 
 /**
  * What `POST /api/admin/drafts/translations/generate` is asked for: the
- * language to fill for recipes, and the most the run takes on. English is
- * none of the languages: everything is written from it.
+ * language to fill for recipes, and the most the run takes on. Every
+ * language is written from English, and English from the language of a draft
+ * that has none: a recipe a user wrote in theirs.
  */
 export const TranslationGenerateSpec = z
   .object({
-    locale: TargetLocale,
+    locale: Locale,
     limit: z.number().int().min(1).max(MOST_TRANSLATIONS_PER_RUN).default(25),
   })
   .strict();

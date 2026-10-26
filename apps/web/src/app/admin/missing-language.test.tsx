@@ -47,13 +47,18 @@ describe('the run that fills a language recipes lack, in the panel', () => {
     vi.restoreAllMocks();
   });
 
-  it('offers the languages a recipe can lack, English not among them, and says what the run does and does not touch', async () => {
+  it('offers the languages a recipe can lack, English last, and says what the run does and does not touch', async () => {
     await renderWith();
 
     const languages = screen.getByRole('combobox', { name: text.language });
     expect([...languages.querySelectorAll('option')].map((option) => option.textContent)).toEqual([
       'Polish',
+      'English',
     ]);
+    expect(languages).toHaveValue('pl');
+    expect(screen.getByRole('region', { name: text.title })).toHaveTextContent(
+      'English is written from the language of a draft that has none',
+    );
     expect(screen.getByRole('region', { name: text.title })).toHaveTextContent(
       "Recipes of the catalogue's own data are left as they are.",
     );
@@ -73,6 +78,18 @@ describe('the run that fills a language recipes lack, in the panel', () => {
     expect(start).toHaveBeenCalledExactlyOnceWith({ locale: 'pl', limit: 3 });
     expect(await screen.findByRole('button', { name: 'Writing 0 of 3…' })).toBeDisabled();
     expect(screen.getByRole('button', { name: messages.admin.curation.stop })).toBeEnabled();
+  });
+
+  it('starts the run for English when English is chosen', async () => {
+    const start = vi
+      .spyOn(adminApi, 'startTranslations')
+      .mockResolvedValue({ ...idle, status: 'done', note: 'nothing-to-translate' });
+    await renderWith();
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: text.language }), 'en');
+    await userEvent.click(screen.getByRole('button', { name: text.start }));
+
+    expect(start).toHaveBeenCalledExactlyOnceWith({ locale: 'en', limit: 25 });
   });
 
   it('asks for no more than a run takes on, and for one where nothing sensible was typed', async () => {

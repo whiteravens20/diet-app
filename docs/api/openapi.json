@@ -17138,7 +17138,7 @@
         "type": "object",
         "properties": {
           "locale": {
-            "$ref": "#/components/schemas/TargetLocale"
+            "$ref": "#/components/schemas/Locale"
           },
           "limit": {
             "default": 25,

@@ -118,6 +118,22 @@ describe('the text of a recipe a model translated', () => {
     expect(recipe(answer)).toEqual({ ok: false, reason, where });
   });
 
+  it('is taken in English from a recipe written in Polish, and refused when it is the Polish again', () => {
+    const english = (answer: unknown) =>
+      validateRecipeTranslation({
+        source: polish,
+        locale: 'en',
+        rawOutput: JSON.stringify(answer),
+      });
+
+    expect(english(oats)).toEqual({ ok: true, text: oats });
+    expect(english({ ...oats, steps: [oats.steps[0], polish.steps[1], oats.steps[2]] })).toEqual({
+      ok: false,
+      reason: 'untranslated',
+      where: 'steps[1]',
+    });
+  });
+
   it('may carry a number from one sentence of the recipe to another, and write a decimal point as the language does', () => {
     const moved = { ...polish, description: `${polish.description} Gotowe po 8 godzinach.` };
     expect(recipe(moved).ok).toBe(true);

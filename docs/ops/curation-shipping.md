@@ -98,6 +98,10 @@ and ships like any other.
   names it with the reason.
 - The recipes of the catalogue's own data are left alone. Their text is written
   by hand in the repository's data files.
+- English is filled for a draft that has none: a recipe a user wrote in their
+  own language and sent in. Its English is written from that language and is
+  approved like any English. The recipes of the library have English already
+  and are left as they are.
 - The names of ingredients are not part of this run. An imported ingredient
   gets its name in each language from "Generate names".
 

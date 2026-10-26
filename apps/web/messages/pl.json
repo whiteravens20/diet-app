@@ -681,7 +681,7 @@
       },
       "missingLanguage": {
         "title": "Uzupełnij brakujący język",
-        "hint": "Prosi model o tekst przepisów w języku, którego im brakuje. Szkic czekający w kolejce dostaje ten język jako dodatkowy; przepis wysłany przez tę instancję dostaje własny szkic. Dla użytkowników nic się nie zmienia, dopóki tekst nie zostanie zatwierdzony, a szkic wysłany. Przepisy z danych katalogu zostają bez zmian.",
+        "hint": "Prosi model o tekst przepisów w języku, którego im brakuje. Szkic czekający w kolejce dostaje ten język jako dodatkowy; przepis wysłany przez tę instancję dostaje własny szkic. Angielski powstaje z języka szkicu, który go nie ma, czyli przepisu napisanego przez użytkownika w jego języku; każdy inny język z angielskiego. Dla użytkowników nic się nie zmienia, dopóki tekst nie zostanie zatwierdzony, a szkic wysłany. Przepisy z danych katalogu zostają bez zmian.",
         "language": "Język",
         "limit": "Najwyżej",
         "start": "Uzupełnij język",

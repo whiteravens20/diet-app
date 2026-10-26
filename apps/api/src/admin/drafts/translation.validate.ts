@@ -4,9 +4,9 @@
  * What a model's translation is held to before a person sees it.
  *
  * A translation changes words and nothing else: it has the shape that was
- * asked for, as many steps as the English, no number the English does not
- * have, and it is a translation, not the English again and not a remark
- * about it. What passes is then held to the rules of every recipe
+ * asked for, as many steps as the text it was made from, no number that text
+ * does not have, and it is a translation, not that text again and not a
+ * remark about it. What passes is then held to the rules of every recipe
  * (`recipes/recipe-rules.ts`): plain text of a length.
  *
  * Each failure has a name of its own, for the log and for the tests.
@@ -75,10 +75,10 @@ function readsAsEnglish(text: string): boolean {
   return english >= 3 && english * 3 >= words.length;
 }
 
-/** What is wrong with one translated text against the English it was made from, if anything. */
+/** What is wrong with one translated text against the text it was made from, if anything. */
 function problemOf(
   translated: string,
-  english: string,
+  original: string,
   allowed: ReadonlySet<string>,
   locale: string,
   sentence: boolean,
@@ -86,15 +86,16 @@ function problemOf(
   if (translated.trim() === '') return 'empty-value';
   if (YAP.some((pattern) => pattern.test(translated))) return 'llm-yap';
   if (numbersOf(translated).some((number) => !allowed.has(number))) return 'invented-number';
-  if (english.length >= 12) {
-    const ratio = translated.length / english.length;
+  if (original.length >= 12) {
+    const ratio = translated.length / original.length;
     if (ratio < 0.3 || ratio > 3) return 'length-blowup';
   }
-  if (sentence && locale !== 'en') {
+  if (sentence) {
     const same =
-      translated.trim().toLowerCase() === english.trim().toLowerCase() &&
-      wordsOf(english).length >= 3;
-    if (same || readsAsEnglish(translated)) return 'untranslated';
+      translated.trim().toLowerCase() === original.trim().toLowerCase() &&
+      wordsOf(original).length >= 3;
+    // English is what every other language is written from, and what a model leaves untranslated.
+    if (same || (locale !== 'en' && readsAsEnglish(translated))) return 'untranslated';
   }
   return null;
 }
@@ -126,7 +127,7 @@ export function validateRecipeTranslation(options: {
 
   // A number may move from one sentence of the recipe to another; it may not come from nowhere.
   const allowed = new Set(numbersOf([source.title, source.description, ...source.steps].join(' ')));
-  const fields: [where: string, translated: string, english: string, sentence: boolean][] = [
+  const fields: [where: string, translated: string, original: string, sentence: boolean][] = [
     ['title', title, source.title, false],
     ['description', description, source.description, true],
     ...(steps as string[]).map((step, index): [string, string, string, boolean] => [
@@ -136,8 +137,8 @@ export function validateRecipeTranslation(options: {
       true,
     ]),
   ];
-  for (const [where, translated, english, sentence] of fields) {
-    const reason = problemOf(translated, english, allowed, locale, sentence);
+  for (const [where, translated, original, sentence] of fields) {
+    const reason = problemOf(translated, original, allowed, locale, sentence);
     if (reason) return { ok: false, reason, where };
   }
 
