@@ -259,7 +259,7 @@ services:
   # ── Optional: a copy of the instance's own files in a git repository ───────
   # Enable with `COMPOSE_PROFILES=mirror` in .env. Once an hour it copies the
   # files of the `instance-data` volume into the repository at MIRROR_REPO,
-  # with a commit signed `<MIRROR_NAME>-mirror` when something changed, pushed
+  # with a commit by `<MIRROR_NAME>-mirror` when something changed, pushed
   # with the deploy key in ./mirror/key. It gets the volume read-only and the
   # key, and nothing else: no database, no setting of .env but its two, and a
   # network of its own. See docs/ops/deployment.md, "A copy of the instance's
@@ -340,7 +340,7 @@ configs:
       set -u
 
       : "$${MIRROR_REPO:?set MIRROR_REPO in .env: the SSH address of the repository the copy goes to}"
-      : "$${MIRROR_NAME:?set MIRROR_NAME in .env: the name of this instance, which signs the commits}"
+      : "$${MIRROR_NAME:?set MIRROR_NAME in .env: the name of this instance, which the commits are made by}"
       FILES=$${MIRROR_FILES:-/instance}
       STATE=$${MIRROR_STATE:-/state}
       KEY=$${MIRROR_KEY:-/key}

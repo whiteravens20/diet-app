@@ -461,8 +461,8 @@ from it after every ship, restore and update of the catalogue, in the volume
 `instance-data` (see
 [curation-shipping](curation-shipping.md#backing-up-what-the-instance-added)). The optional
 Compose service `mirror` keeps a copy of those files in a git repository of yours: once an
-hour it copies the volume into the repository, and commits, signed `<MIRROR_NAME>-mirror`,
-only when something changed.
+hour it copies the volume into the repository, and commits as `<MIRROR_NAME>-mirror`, only
+when something changed.
 
 To turn it on:
 

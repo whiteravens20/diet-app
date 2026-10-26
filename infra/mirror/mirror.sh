@@ -15,7 +15,7 @@
 set -u
 
 : "${MIRROR_REPO:?set MIRROR_REPO in .env: the SSH address of the repository the copy goes to}"
-: "${MIRROR_NAME:?set MIRROR_NAME in .env: the name of this instance, which signs the commits}"
+: "${MIRROR_NAME:?set MIRROR_NAME in .env: the name of this instance, which the commits are made by}"
 FILES=${MIRROR_FILES:-/instance}
 STATE=${MIRROR_STATE:-/state}
 KEY=${MIRROR_KEY:-/key}

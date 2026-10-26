@@ -182,7 +182,7 @@ services:
   # ── Optional: a copy of the instance's own files in a git repository ───────
   # Enable with `--profile mirror` (or COMPOSE_PROFILES=mirror in .env). Once
   # an hour it copies the files of the `instance-data` volume into the
-  # repository at MIRROR_REPO, with a commit signed `<MIRROR_NAME>-mirror` when
+  # repository at MIRROR_REPO, with a commit by `<MIRROR_NAME>-mirror` when
   # something changed, pushed with the deploy key in infra/mirror/key (which
   # git ignores). See docs/ops/deployment.md, "A copy of the instance's own
   # files".

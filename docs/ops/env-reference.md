@@ -116,7 +116,7 @@ Read by the Compose service `mirror`, which starts with `COMPOSE_PROFILES=mirror
 | Variable      | Default | Purpose                                                                                                                                                                                                    |
 | ------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `MIRROR_REPO` | —       | The SSH address of an empty private repository the copy goes to, such as `git@github.com:you/your-instance-files.git`. Its deploy key, allowed to write, is the file `mirror/key` beside the Compose file. |
-| `MIRROR_NAME` | —       | The name of the instance. The copy's commits are signed `<name>-mirror`, and its README names the instance.                                                                                                |
+| `MIRROR_NAME` | —       | The name of the instance. The copy's commits are made by `<name>-mirror`, and its README names the instance.                                                                                               |
 
 ## What the instance publishes
 
