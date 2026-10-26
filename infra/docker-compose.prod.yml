@@ -149,16 +149,14 @@ services:
       # propagate); the USDA importer writes `ingredients.generated.json`
       # here at runtime and that file survives container recreates.
       - app-data:/app/data
-      # Curation-queue sidecar files. The local-mode ship runner
-      # writes AI-drafted recipes / ingredient overrides here as
-      # operator-controlled backups. Named volume by default — for
-      # private-repo-backed storage, override the volume in
-      # docker-compose.override.yml with a host bind-mount pointing at
-      # your private repo's working tree, writable by user 1000: the admin
-      # panel warns while the API cannot write there.
-      # Only this service mounts it: Docker fills a new volume from the image
-      # when a container first uses it, and two containers created at the same
-      # moment on one new volume make the first start fail.
+      # The instance's own files: its library of recipes, the names of
+      # ingredients it gave and the version that wrote them, written from the
+      # database after every ship, restore and update of the catalogue, and
+      # read back by a restore. The `mirror` service below copies them into a
+      # git repository of yours. Only this service writes here: Docker fills
+      # a new volume from the image when a container first uses it, and two
+      # containers created at the same moment on one new volume make the
+      # first start fail, so `mirror` starts once this one is healthy.
       - instance-data:/app/instance-data
       # No `ports:` block — the API is reached by `web` over the internal Docker
       # network at `http://api:4000`, never from the public internet. If you
@@ -258,12 +256,51 @@ services:
     # the internal network. Add `ports: ['127.0.0.1:11434:11434']` if you want
     # to hit the Ollama API from the host (e.g. for `ollama pull` from CLI).
 
+  # ── Optional: a copy of the instance's own files in a git repository ───────
+  # Enable with `COMPOSE_PROFILES=mirror` in .env. Once an hour it copies the
+  # files of the `instance-data` volume into the repository at MIRROR_REPO,
+  # with a commit signed `<MIRROR_NAME>-mirror` when something changed, pushed
+  # with the deploy key in ./mirror/key. It gets the volume read-only and the
+  # key, and nothing else: no database, no setting of .env but its two, and a
+  # network of its own. See docs/ops/deployment.md, "A copy of the instance's
+  # own files".
+  mirror:
+    image: alpine/git:2.54.0@sha256:e8ceedc73bd80992ae8d58a7d24c58b8322146c354f1d2e81a97db4452068ec0
+    container_name: diet-app-mirror
+    profiles: ['mirror']
+    restart: unless-stopped
+    networks: [mirror]
+    entrypoint: ['sh', '/usr/local/bin/mirror']
+    environment:
+      MIRROR_REPO: ${MIRROR_REPO:-}
+      MIRROR_NAME: ${MIRROR_NAME:-}
+    configs:
+      - source: mirror-script
+        target: /usr/local/bin/mirror
+    volumes:
+      - instance-data:/instance:ro
+      - ./mirror/key:/key:ro
+      # Its clone of the repository, and the host key of the git server.
+      - mirror-state:/state
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    # Root in the container reads the key, which is the operator's file on the host.
+    cap_add: [DAC_OVERRIDE]
+    security_opt: ['no-new-privileges:true']
+    depends_on:
+      api: { condition: service_healthy }
+
 # Explicit named network so the stack is easy to reason about and external
 # services (e.g. a reverse-proxy compose stack) can attach via
 # `networks: { diet-app: { external: true, name: diet-app } }`.
 networks:
   diet-app:
     name: diet-app
+    driver: bridge
+  # The mirror's own: it reaches the git server, and nothing of the stack.
+  mirror:
+    name: diet-app-mirror
     driver: bridge
 
 volumes:
@@ -274,7 +311,139 @@ volumes:
   # importer. Internal to the Docker engine — no host directory needed.
   # Inspect via `docker run --rm -v diet-app_app-data:/data alpine ls /data`.
   app-data:
-  # Curation-queue sidecar files, written by the local ship mode. Operator
-  # may override with a host bind-mount for git-tracked backups. Inspect via
+  # The instance's own files (see the api service). Inspect via
   # `docker run --rm -v diet-app_instance-data:/data alpine ls /data`.
   instance-data:
+  # The mirror's clone of its repository, and the git server's host key.
+  mirror-state:
+
+configs:
+  # The mirror's script, carried in this file so that it stays the one file to
+  # download. It is infra/mirror/mirror.sh with every `$` doubled, which keeps
+  # Compose from filling it in; a test holds the two to each other.
+  mirror-script:
+    content: |
+      #!/bin/sh
+      # Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
+      #
+      # The `mirror` service of the Compose files: the instance's own files (its
+      # library of recipes, the names of ingredients it gave and the version that
+      # wrote them), copied once an hour into a git repository of the operator's,
+      # with a commit when something changed, pushed with a deploy key. The release's
+      # Compose file carries this script in its `configs`, so that it stays the one
+      # file an operator downloads; a test holds the two to each other.
+      #
+      # It reads the instance's files and the key, and writes only the clone of the
+      # repository and the host key of the git server, taken on the first connection
+      # and held to after it. A repository that holds files of something else is
+      # refused: a wrong address would otherwise have them deleted by the copy.
+      set -u
+
+      : "$${MIRROR_REPO:?set MIRROR_REPO in .env: the SSH address of the repository the copy goes to}"
+      : "$${MIRROR_NAME:?set MIRROR_NAME in .env: the name of this instance, which signs the commits}"
+      FILES=$${MIRROR_FILES:-/instance}
+      STATE=$${MIRROR_STATE:-/state}
+      KEY=$${MIRROR_KEY:-/key}
+      EVERY=$${MIRROR_EVERY:-3600}
+      TREE=$$STATE/tree
+      WHO=$$MIRROR_NAME-mirror
+
+      export HOME="$$STATE"
+      export GIT_SSH_COMMAND="ssh -i $$KEY -o IdentitiesOnly=yes -o BatchMode=yes -o UserKnownHostsFile=$$STATE/known_hosts -o StrictHostKeyChecking=accept-new"
+      export GIT_AUTHOR_NAME="$$WHO" GIT_COMMITTER_NAME="$$WHO"
+      export GIT_AUTHOR_EMAIL="$$WHO@diet-app.invalid" GIT_COMMITTER_EMAIL="$$WHO@diet-app.invalid"
+
+      say() {
+        echo "$$(date -u +%Y-%m-%dT%H:%M:%SZ) $$*"
+      }
+
+      # The clone, made in the first round. An empty repository is taken, and so is
+      # one with nothing but a README, or one this copy has written to before.
+      clone() {
+        [ -d "$$TREE/.git" ] && return 0
+        rm -rf "$$TREE"
+        if ! git -c init.defaultBranch=main clone -q "$$MIRROR_REPO" "$$TREE" 2>"$$STATE/clone.log"; then
+          say "could not clone $$MIRROR_REPO: $$(tail -n 1 "$$STATE/clone.log")"
+          return 1
+        fi
+        others=$$(find "$$TREE" -mindepth 1 -maxdepth 1 ! -name .git ! -name README.md | head -n 1)
+        if [ -n "$$others" ] && ! head -n 1 "$$TREE/README.md" 2>/dev/null | grep -q '^# Diet App instance files'; then
+          say "$$MIRROR_REPO holds files of something else, $$(basename "$$others") among them: give the copy an empty repository of its own"
+          rm -rf "$$TREE"
+          return 1
+        fi
+      }
+
+      # What the repository says of itself, written once: the operator may change it,
+      # and the copy leaves it alone after that.
+      readme() {
+        [ -f "$$TREE/README.md" ] && return 0
+        cat >"$$TREE/README.md" <<EOF
+      # Diet App instance files: $$MIRROR_NAME
+
+      The files the Diet App instance "$$MIRROR_NAME" keeps in its directory of its own
+      files, copied here by its \`mirror\` service so that they outlive the server.
+
+      - \`manifest.json\`: the version of the application that wrote the files, and
+        how many recipes and names they hold.
+      - \`recipes/library.json\`: every recipe of the instance's own library, by
+        slug, with its lines in their order.
+      - \`ingredient-overrides.json\`: the names of ingredients the instance gave,
+        without those the catalogue's own data gives as they are.
+
+      The instance writes these files from its database after every ship into it,
+      every restore and every update of the catalogue. Once an hour the service copies
+      them here, and commits as \`$$WHO\` only when something changed. A file
+      removed from the instance is removed here too. This README is the one file the
+      copy leaves alone.
+
+      ## Restoring
+
+      1. Copy the files into the \`instance-data\` volume of the instance.
+      2. Start the stack and choose **Update database** in the admin panel, which
+         loads the catalogue's own data that the instance's recipes are made of.
+      3. In the curation card, under "This instance's own files", choose **Restore
+         from these files**.
+
+      A restore refuses files that a newer version of the application wrote, as
+      \`manifest.json\` says: update the application first.
+      EOF
+      }
+
+      # The repository as it is now: its history is the repository's, the files are
+      # the instance's. An operator's change of the README is taken in, and a commit
+      # an earlier round could not push is made again from the files.
+      catch_up() {
+        if ! git -C "$$TREE" fetch -q origin 2>"$$STATE/fetch.log"; then
+          say "could not reach $$MIRROR_REPO: $$(tail -n 1 "$$STATE/fetch.log")"
+          return 1
+        fi
+        branch=$$(git -C "$$TREE" symbolic-ref --short HEAD)
+        if git -C "$$TREE" rev-parse -q --verify "origin/$$branch" >/dev/null; then
+          git -C "$$TREE" reset -q --hard "origin/$$branch"
+        fi
+      }
+
+      round() {
+        clone || return 1
+        catch_up || return 1
+        find "$$TREE" -mindepth 1 -maxdepth 1 ! -name .git ! -name README.md -exec rm -rf {} +
+        cp -R "$$FILES/." "$$TREE/"
+        # A file the instance is in the middle of writing is not one of its files yet.
+        find "$$TREE" -name '*.writing' -exec rm -f {} +
+        readme
+        git -C "$$TREE" add -A
+        git -C "$$TREE" diff --cached --quiet && return 0
+        git -C "$$TREE" commit -q -m "Instance files of $$(date -u '+%Y-%m-%d %H:%M') UTC"
+        if git -C "$$TREE" push -q origin HEAD 2>"$$STATE/push.log"; then
+          say "pushed a commit to $$MIRROR_REPO"
+        else
+          say "could not push to $$MIRROR_REPO: $$(tail -n 1 "$$STATE/push.log")"
+        fi
+      }
+
+      while :; do
+        round
+        [ "$${MIRROR_ONCE:-}" = 1 ] && exit 0
+        sleep "$$EVERY"
+      done

@@ -91,7 +91,11 @@ jobs:
           node scripts/check-markers.mjs
       # init-env.sh is the first thing an installation runs.
       - name: ShellCheck
-        run: shellcheck scripts/*.sh .github/scripts/*.sh
+        run: shellcheck scripts/*.sh .github/scripts/*.sh infra/mirror/mirror.sh
+      # The script of the Compose service `mirror`, against repositories of the
+      # runner's own, and the copy of it the release's Compose file carries.
+      - name: Mirror script
+        run: node --test infra/mirror/mirror.test.mjs
 
   docker:
     name: docker

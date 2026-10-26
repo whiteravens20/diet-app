@@ -30,7 +30,10 @@ function composeDefaults(): Record<string, string | undefined> {
       .split('\n')
       .filter((line) => !/^\s*#/.test(line))
       .join('\n');
-    for (const [, key, fallback] of read.matchAll(/\$\{([A-Z][A-Z0-9_]*)(?::-([^}]*))?\}/g)) {
+    // `$${` is a `$` Compose leaves alone, as in the script it carries.
+    for (const [, key, fallback] of read.matchAll(
+      /(?<!\$)\$\{([A-Z][A-Z0-9_]*)(?::-([^}]*))?\}/g,
+    )) {
       found[key!] ??= fallback;
     }
   }

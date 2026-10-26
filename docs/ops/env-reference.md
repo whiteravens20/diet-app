@@ -109,6 +109,15 @@ See [curation-shipping.md](curation-shipping.md) for the two ship modes.
 | ------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `INSTANCE_DATA_DIR` | `instance-data` | Where the instance writes its own files (its library of recipes, the names of ingredients it gave, the version that wrote them) from the database after every ship, restore and update of the catalogue, and what a restore in the admin panel reads back. Keep it on a volume and back it up with the database. |
 
+## A copy of the instance's own files
+
+Read by the Compose service `mirror`, which starts with `COMPOSE_PROFILES=mirror`; see [deployment](deployment.md#a-copy-of-the-instances-own-files).
+
+| Variable      | Default | Purpose                                                                                                                                                                                                    |
+| ------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MIRROR_REPO` | —       | The SSH address of an empty private repository the copy goes to, such as `git@github.com:you/your-instance-files.git`. Its deploy key, allowed to write, is the file `mirror/key` beside the Compose file. |
+| `MIRROR_NAME` | —       | The name of the instance. The copy's commits are signed `<name>-mirror`, and its README names the instance.                                                                                                |
+
 ## What the instance publishes
 
 Served by `GET /api/config` and read by the web app at run time.

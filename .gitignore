@@ -41,6 +41,9 @@ npm-debug.log*
 
 # Docker volumes (local bind mounts, if any)
 infra/.data/
+# The deploy key of the mirror service, when the stack runs from this checkout.
+infra/mirror/key
+infra/mirror/key.pub
 
 # Ingredients data
 /data/ingredients.generated.json
