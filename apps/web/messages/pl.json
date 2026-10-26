@@ -186,6 +186,7 @@
     "forgotIntro": "Podaj swój adres e-mail, a wyślemy link do zresetowania hasła.",
     "resetUnavailable": "Reset hasła nie jest dostępny na tej instancji — operator nie skonfigurował poczty.",
     "backToSignIn": "Powrót do logowania",
+    "backHome": "Wróć do strony głównej",
     "remembered": "Pamiętasz hasło?",
     "newPasswordField": "Nowe hasło",
     "confirmPasswordField": "Potwierdź nowe hasło",
