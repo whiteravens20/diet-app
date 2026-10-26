@@ -52,8 +52,8 @@ import {
 } from './recipe-batches.writer.js';
 
 /** The file of the instance's library, among the recipe files of its directory. */
-export const LIBRARY_FILE = 'library.json';
-export const MANIFEST_FILE = 'manifest.json';
+const LIBRARY_FILE = 'library.json';
+const MANIFEST_FILE = 'manifest.json';
 
 /** What the manifest says: which version wrote the files, and how much they hold. */
 export const InstanceManifest = z.object({
