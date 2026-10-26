@@ -14,10 +14,10 @@ and in the copy its data directory keeps.
 
 ## The two modes
 
-| Mode                  | What happens                                                                                      | Needs    |
-| --------------------- | ------------------------------------------------------------------------------------------------- | -------- |
-| `local` (the default) | The drafts become rows of this instance at once, and are copied to the instance's data directory. | Nothing. |
-| `bundle`              | The panel is given a file to save; you put it into a repository's `data/` by hand.                | Nothing. |
+| Mode                  | What happens                                                                                 | Needs    |
+| --------------------- | -------------------------------------------------------------------------------------------- | -------- |
+| `local` (the default) | The drafts become rows of this instance at once, and the instance's files are written again. | Nothing. |
+| `bundle`              | The panel is given a file to save; you put it into a repository's `data/` by hand.           | Nothing. |
 
 The catalogue's own data (`data/recipes.json`, `data/recipes/*.json`,
 `data/ingredients*.json`, `data/ingredient-overrides.json`) comes from the
@@ -121,10 +121,11 @@ and ships like any other.
 - Promoting a recipe users made is the same thing for one draft.
 - Each draft ships on its own. One that is being edited or reviewed at that
   moment is read as the edit left it, and ships only if it is still approved.
-- What shipped is copied to the instance's data directory (`INSTANCE_DATA_DIR`):
-  recipes as `recipes/ship-<time>.json`, names merged into
-  `ingredient-overrides.json`. The ship does not fail when the copy cannot be
-  written; the panel says so, and warns as long as the API cannot write there.
+- After the ship the instance's files in its data directory
+  (`INSTANCE_DATA_DIR`) are written again from the database; see [Backing up
+  what the instance added](#backing-up-what-the-instance-added). The ship does
+  not fail when they cannot be written; the panel says so, and warns as long as
+  the API cannot write there.
 
 ### `bundle`
 
@@ -140,17 +141,26 @@ and ships like any other.
 
 ## Backing up what the instance added
 
-Two places hold what `local` ships added: the database, and the instance's
-data directory. Back up both.
+Two places hold what the instance added to its catalogue: the database, and
+the instance's data directory. Back up both.
 
+- The directory holds the instance's files, written from the database after
+  every ship into the instance, every restore and every update of the
+  database: `recipes/library.json` (every recipe of the instance's own
+  library, by slug, its lines in their order), `ingredient-overrides.json`
+  (the names of ingredients the instance gave, without those the catalogue's
+  data gives as they are) and `manifest.json` (the version of the application
+  that wrote them, and how many recipes and names they hold).
 - With the Compose files the directory is the named volume `instance-data`.
   Copy it out with
   `docker run --rm -v diet-app_instance-data:/d alpine tar -C /d -cf - . > instance-data.tar`.
 - The names of ingredients can also be saved from the panel at any time
-  ("current overrides"): that file is built from the database, not from the
-  directory.
+  ("current overrides"): that file is built from the database, with every
+  name it holds.
 - The directory is yours. Keeping it in a private git repository of your own
   is a plain `git init` inside it; the application neither knows nor minds.
+  Every file is written whole and in a fixed order, so a commit shows what
+  changed.
 
 ## Moving to a new server
 
@@ -167,11 +177,20 @@ database:
 3. In the curation card, under "This instance's own files", choose **Restore
    from these files**.
 
-The restore reads `recipes/*.json` in the order of their names and
-`ingredient-overrides.json`. A recipe the library does not have is added; one
-it has under the same slug is written over from its file and keeps its id. It
-can be run again at any time, also on the instance that wrote the files, for
-example after correcting a file by hand.
+The restore reads the files of `recipes/` in the order of their names,
+`library.json` among them, and `ingredient-overrides.json`. A recipe the
+library does not have is added; one it has under the same slug is written over
+from its file and keeps its id. It can be run again at any time, also on the
+instance that wrote the files, for example after correcting a file by hand.
+After a restore the files are written again from the database.
+
+A restore refuses files that a newer version of the application wrote, as
+`manifest.json` says: update the application first. Files of the earlier
+layout, one `recipes/<batch>.json` for each ship, are read the same way. Once
+every recipe in one of them is in the library, the next write removes it.
+While one holds a recipe the library does not have, or cannot be read,
+nothing is written to the directory and the panel says so: restore from the
+files, or take away a file that cannot be restored.
 
 A file is trusted no more than a draft. A recipe that breaks a rule, uses an
 ingredient the catalogue does not have, or would take the place of another

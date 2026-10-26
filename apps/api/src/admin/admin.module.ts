@@ -10,6 +10,7 @@ import { AdminController } from './admin.controller.js';
 import { AdminSecondFactorReset } from './admin-second-factor-reset.js';
 import { AdminSessionController } from './admin-session.controller.js';
 import { AdminSessionGuard } from './admin-session.guard.js';
+import { InstanceFilesModule } from './drafts/ship/instance-files.module.js';
 import { OperatorAiApprovals } from './operator-ai-approvals.service.js';
 import { SeedRunner } from './seed/runner.js';
 import { UsdaImportRunner } from './usda/runner.js';
@@ -20,7 +21,7 @@ import { UsdaImportRunner } from './usda/runner.js';
  * cookie (`AdminSessionController`), which `AdminSessionGuard` asks for.
  */
 @Module({
-  imports: [PrismaModule, AuthModule, CatalogueModule, MailModule],
+  imports: [PrismaModule, AuthModule, CatalogueModule, MailModule, InstanceFilesModule],
   controllers: [AdminController, AdminAccountsController, AdminSessionController],
   providers: [
     AdminSecondFactorReset,

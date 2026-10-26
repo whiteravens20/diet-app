@@ -288,8 +288,10 @@ export function ShipBar({
 }
 
 /**
- * The instance's own data directory: what local ships copied there, a warning
- * when the API cannot write to it, and the restore that reads the files back.
+ * The instance's own data directory: what the database wrote there and which
+ * version wrote it, a warning when the API cannot write to it or when files
+ * of the earlier layout wait to be restored, and the restore that reads the
+ * files back.
  */
 function InstanceData({
   state,
@@ -352,6 +354,16 @@ function InstanceData({
         </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t('instanceDataExplain')}</p>
+      {state.version && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t('instanceDataVersion', { version: state.version })}
+        </p>
+      )}
+      {state.notRestored > 0 && (
+        <p className="mt-1 text-xs text-warning">
+          {t('instanceDataNotRestored', { count: state.notRestored })}
+        </p>
+      )}
       {!state.writable && (
         <p className="mt-1 text-xs text-warning">{t('instanceDataNotWritable')}</p>
       )}
@@ -471,12 +483,14 @@ function ShipSuccess({
         </div>
         {result.sidecarPaths.length > 0 && (
           <p className="mt-1 text-muted-foreground">
-            {t('shipSidecarPath', { path: result.sidecarPaths[0] })}
+            {t('shipSidecarPath', { path: result.sidecarPaths.join(', ') })}
           </p>
         )}
         {result.sidecarError && (
           <p className="mt-1 text-warning">
-            {t('shipSidecarWarning', { error: result.sidecarError })}
+            {result.sidecarError === 'files-not-restored'
+              ? t('shipFilesNotRestored')
+              : t('shipSidecarWarning', { error: result.sidecarError })}
           </p>
         )}
         <SkippedDrafts skipped={result.skipped} heading="shipSkipped" />

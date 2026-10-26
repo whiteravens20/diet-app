@@ -441,6 +441,15 @@
       "pl": "Ten składnik nie należy do przepisu."
     }
   },
+  "INSTANCE_DATA_NEWER": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "These files were written by a newer version of the application. Update the application before restoring them.",
+      "pl": "Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz."
+    }
+  },
   "INTERNAL_ERROR": {
     "statuses": [
       500

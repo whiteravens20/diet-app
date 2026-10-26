@@ -1012,8 +1012,8 @@
         "tags": [
           "admin/drafts"
         ],
-        "summary": "Promote a recipe users made to the shared library: the one draft is shipped into this instance, on the terms of every local ship, and written to the instance's data directory.",
-        "description": "Promote a recipe users made to the shared library: the one draft is shipped into this instance, on the terms of every local ship, and written to the instance's data directory. The personal recipes it stands for are left as they are; whoever makes the recipe again is given the shared one.\n\nAsked by the administrator.",
+        "summary": "Promote a recipe users made to the shared library: the one draft is shipped into this instance, on the terms of every local ship, and the instance's files are written again.",
+        "description": "Promote a recipe users made to the shared library: the one draft is shipped into this instance, on the terms of every local ship, and the instance's files are written again. The personal recipes it stands for are left as they are; whoever makes the recipe again is given the shared one.\n\nAsked by the administrator.",
         "security": [
           {
             "administrator": []
@@ -11226,13 +11226,25 @@
           "names": {
             "type": "integer",
             "minimum": 0
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notRestored": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": [
           "writable",
           "recipeFiles",
           "recipes",
-          "names"
+          "names",
+          "version",
+          "notRestored"
         ],
         "additionalProperties": false
       },

@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 148 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 149 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -57,6 +57,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `IMPORT_NOT_JSON` | 400 | This is not a JSON document of recipes. | To nie jest dokument JSON z przepisami. |
 | `INGREDIENT_NOT_FOUND` | 404 | Ingredient not found. | Nie znaleziono składnika. |
 | `INGREDIENT_NOT_IN_RECIPE` | 404 | This ingredient is not part of the recipe. | Ten składnik nie należy do przepisu. |
+| `INSTANCE_DATA_NEWER` | 409 | These files were written by a newer version of the application. Update the application before restoring them. | Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz. |
 | `INTERNAL_ERROR` | 500 | An unexpected server error occurred. | Nieoczekiwany błąd serwera. |
 | `INVALID_ACCESS_TOKEN` | 401 | Your session is invalid. Please sign in again. | Sesja jest nieprawidłowa. Zaloguj się ponownie. |
 | `INVALID_ADMIN_SESSION` | 401 | The admin session has ended. Sign in again. | Sesja administratora wygasła. Zaloguj się ponownie. |

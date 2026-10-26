@@ -419,7 +419,8 @@
     "VERIFICATION_SENT_RECENTLY": "Wiadomość z linkiem potwierdzającym została wysłana przed chwilą. Sprawdź skrzynkę albo poproś ponownie za parę minut.",
     "RECIPE_INVALID": "Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane.",
     "RECIPE_ALREADY_YOURS": "Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki.",
-    "OWN_RECIPE_DAILY_LIMIT": "Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro."
+    "OWN_RECIPE_DAILY_LIMIT": "Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro.",
+    "INSTANCE_DATA_NEWER": "Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz."
   },
   "offline": {
     "notice": "Nie można połączyć się z serwerem. Widzisz to, co zostało wczytane ostatnio i teraz nic nie da się zmienić poza odhaczeniem pozycji listy zakupów: odhaczenie zostanie wysłane, gdy serwer będzie znów dostępny.",
@@ -748,7 +749,9 @@
       "shipPullRefused": "{count, plural, one {Odrzucono # wpis, bo łamie regułę dla nazw:} few {Odrzucono # wpisy, bo łamią regułę dla nazw:} many {Odrzucono # wpisów, bo łamią regułę dla nazw:} other {Odrzucono # wpisu, bo łamie regułę dla nazw:}}",
       "instanceDataHeader": "Własne pliki tej instancji",
       "instanceDataState": "Przepisy: {recipes} (pliki: {files}) · nazwy: {names}",
-      "instanceDataExplain": "Każdy przepis i każda nazwa wysłane do tej instancji są też kopiowane do jej katalogu danych. Aby przenieść się na nowy serwer, skopiuj ten katalog, zaktualizuj tam bazę danych, a potem przywróć: przepisy i nazwy dodane przez tę instancję wracają bez starej bazy.",
+      "instanceDataExplain": "Przepisy i nazwy tej instancji są zapisywane z bazy do jej katalogu danych po każdej wysyłce, każdym przywróceniu i każdej aktualizacji bazy, razem z wersją aplikacji, która je zapisała. Aby przenieść się na nowy serwer, skopiuj ten katalog, zaktualizuj tam bazę danych, a potem przywróć: przepisy i nazwy dodane przez tę instancję wracają bez starej bazy. Plików zapisanych przez nowszą wersję nie da się przywrócić.",
+      "instanceDataVersion": "Zapisane przez wersję aplikacji {version}.",
+      "instanceDataNotRestored": "{count, plural, one {Plik} few {# pliki} many {# plików} other {# pliku}} starszego układu {count, plural, one {zawiera} few {zawierają} many {zawiera} other {zawiera}} przepisy spoza biblioteki albo nie da się {count, plural, one {go} other {ich}} odczytać. Dopóki tak jest, nic nie jest zapisywane do katalogu: przywróć z tych plików albo usuń plik, którego nie da się przywrócić.",
       "instanceDataNotWritable": "API nie może zapisywać w katalogu danych instancji. To, co trafia do tej instancji, nie jest kopiowane do plików, więc nie da się tego przywrócić na innym serwerze.",
       "restoreButton": "Przywróć z tych plików",
       "restoreConfirm": "Wczytać pliki z katalogu danych instancji do bazy? Przepis, który biblioteka ma już pod tym samym slugiem, zostanie nadpisany treścią z pliku.",
@@ -764,8 +767,9 @@
       "shipModeLocal": "Wyślij do tej instancji",
       "shipModeBundle": "Pobierz pakiet",
       "shipSuccessLocal": "{count, plural, one {Wysłano # szkic} few {Wysłano # szkice} many {Wysłano # szkiców} other {Wysłano # szkicu}} do tej instancji.",
-      "shipSidecarPath": "Kopia w katalogu danych instancji: {path}",
+      "shipSidecarPath": "Zapisano w katalogu danych instancji: {path}",
       "shipSidecarWarning": "Wysłano, ale nie udało się zapisać kopii w katalogu danych instancji ({error}). Szkice są już aktywne; nadaj API prawo zapisu do tego katalogu, aby mieć kopię, z której da się je przywrócić.",
+      "shipFilesNotRestored": "Wysłano, ale pliki w katalogu danych instancji nie zostały zapisane: pliki starszego układu zawierają przepisy spoza biblioteki. Najpierw przywróć z nich.",
       "shipSkipped": "{count, plural, one {W kolejce został # zatwierdzony szkic:} few {W kolejce zostały # zatwierdzone szkice:} many {W kolejce zostało # zatwierdzonych szkiców:} other {W kolejce zostało # zatwierdzonego szkicu:}}",
       "shipBundleReady": "Pakiet gotowy: {count, plural, one {# szkic} few {# szkice} many {# szkiców} other {# szkicu}}.",
       "shipBundleHintRecipes": "Zapisz {file}, dodaj go do data/recipes/ w swoim repozytorium, a potem oznacz szkice jako wysłane. Samo zapisanie niczego tu nie zmienia.",

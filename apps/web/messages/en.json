@@ -419,7 +419,8 @@
     "VERIFICATION_SENT_RECENTLY": "A verification mail was sent a moment ago. Look for it, or ask again in a couple of minutes.",
     "RECIPE_INVALID": "The recipe would break the rules for recipe text and quantities. Nothing was saved.",
     "RECIPE_ALREADY_YOURS": "You already have a recipe with these ingredients, in these amounts, for these meals.",
-    "OWN_RECIPE_DAILY_LIMIT": "You have saved as many recipes of your own today as you may. Try again tomorrow."
+    "OWN_RECIPE_DAILY_LIMIT": "You have saved as many recipes of your own today as you may. Try again tomorrow.",
+    "INSTANCE_DATA_NEWER": "These files were written by a newer version of the application. Update the application before restoring them."
   },
   "offline": {
     "notice": "The server cannot be reached. You are looking at what was loaded last, and nothing can be changed now, except that a row of a shopping list can be ticked: it is sent when the server is back.",
@@ -748,7 +749,9 @@
       "shipPullRefused": "{count, plural, one {# entry was refused because it breaks a rule for names:} other {# entries were refused because they break a rule for names:}}",
       "instanceDataHeader": "This instance's own files",
       "instanceDataState": "Recipes: {recipes} (files: {files}) · names: {names}",
-      "instanceDataExplain": "Every recipe and name that ships into this instance is also copied to its data directory. To move to a new server, copy that directory over, update the database there, then restore: the recipes and names this instance added come back without the old database.",
+      "instanceDataExplain": "The recipes and names of this instance are written to its data directory from the database after every ship into it, every restore and every update of the database, with the version of the application that wrote them. To move to a new server, copy that directory over, update the database there, then restore: the recipes and names this instance added come back without the old database. Files a newer version wrote are not restored.",
+      "instanceDataVersion": "Written by version {version} of the application.",
+      "instanceDataNotRestored": "{count, plural, one {A file} other {# files}} of the earlier layout {count, plural, one {holds} other {hold}} recipes the library does not have, or cannot be read. Until that changes, nothing is written to the directory: restore from these files, or take away a file that cannot be restored.",
       "instanceDataNotWritable": "The API cannot write to the instance's data directory. What ships into this instance is not copied to files, so it could not be restored on another server.",
       "restoreButton": "Restore from these files",
       "restoreConfirm": "Read the files of the instance's data directory into the database? A recipe the library already has under the same slug is written over from its file.",
@@ -764,8 +767,9 @@
       "shipModeLocal": "Ship to this instance",
       "shipModeBundle": "Download bundle",
       "shipSuccessLocal": "{count, plural, one {Shipped # draft} other {Shipped # drafts}} to this instance.",
-      "shipSidecarPath": "Copied to the instance's data directory: {path}",
+      "shipSidecarPath": "Written to the instance's data directory: {path}",
       "shipSidecarWarning": "Shipped, but the copy in the instance's data directory could not be written ({error}). The drafts are live; let the API write to that directory to keep a copy you can restore from.",
+      "shipFilesNotRestored": "Shipped, but the files of the instance's data directory were not written: files of the earlier layout hold recipes the library does not have. Restore from them first.",
       "shipSkipped": "{count, plural, one {# approved draft stayed in the queue:} other {# approved drafts stayed in the queue:}}",
       "shipBundleReady": "Bundle ready with {count, plural, one {# draft} other {# drafts}}.",
       "shipBundleHintRecipes": "Save {file}, commit it into data/recipes/ of your repository, then mark the drafts as shipped. Saving alone changes nothing here.",

@@ -3,11 +3,12 @@
 /**
  * Restoring what an instance added to its catalogue, from the files it wrote.
  *
- * Shipping into the instance copies every recipe and every name it ships to
- * the instance's data directory, in the shape of the catalogue's data files
- * (`local-mode.ts`). This reads those files back: on a new server, after the
- * catalogue's own data is in, it brings the instance's recipes and names with
- * it, without the old database.
+ * The instance's files hold every recipe of its own library and every name
+ * it gave, in the shape of the catalogue's data files, written from its
+ * database (`instance-export.ts`). This reads them back: on a new server,
+ * after the catalogue's own data is in, it brings the instance's recipes and
+ * names with it, without the old database. It reads the files of the earlier
+ * layout, one for each ship, the same way.
  *
  * It can be run again at any time. A recipe the library does not have is
  * added; one it has, under the same slug, is written over from the file and
@@ -35,7 +36,7 @@ import { recipeBatchesDir, RECIPE_BATCHES_DIR } from './recipe-batches.writer.js
 import { recipeOfBatchRow } from './shippable.js';
 
 /** What the instance's data directory holds, as far as it can be read. */
-export interface InstanceDataState {
+export interface DirectoryState {
   /** Whether the API can write there: a ship that cannot leaves no copy to restore from. */
   writable: boolean;
   recipeFiles: number;
@@ -114,7 +115,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** What the directory holds now. Nothing is created or changed by asking. */
-export function instanceDataState(instanceDataDir: string): InstanceDataState {
+export function instanceDataState(instanceDataDir: string): DirectoryState {
   const { batches } = readBatches(instanceDataDir);
   // A directory that is not there yet is made by the first ship, if its parent lets it.
   const target = existsSync(instanceDataDir) ? instanceDataDir : dirname(instanceDataDir);

@@ -25,7 +25,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { resolve as resolvePath } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -75,16 +74,15 @@ import { RecipeGeneratorRunner } from './recipe-generator.runner.js';
 import { AdminModelService } from './admin-model.service.js';
 import { RecipeImportService } from './external/recipe-import.service.js';
 import { TranslationRunner } from './translation.runner.js';
+import { InstanceFilesService } from './ship/instance-files.service.js';
 import {
   shipIngredientNamesLocal,
   shipRecipeDraftLocal,
   shipRecipesLocal,
-  writeRecipeSidecar,
 } from './ship/local-mode.js';
 import { buildCurrentIngredientOverrides } from './ship/current-overrides.js';
 import { pullOverrides, PullOverridesError, type PullPolicy } from './ship/pull-overrides.js';
 import { NothingShips } from './ship/shippable.js';
-import { instanceDataState, restoreInstanceData } from './ship/restore.js';
 import {
   markBundleShipped,
   shipIngredientNamesBundle,
@@ -108,6 +106,7 @@ export class DraftsController {
     private readonly adminModel: AdminModelService,
     private readonly imports: RecipeImportService,
     private readonly drafts: DraftService,
+    private readonly files: InstanceFilesService,
   ) {}
 
   // ── Ingredient-name generation ──────────────────────────────────────────────
@@ -407,8 +406,8 @@ export class DraftsController {
 
   /**
    * Promote a recipe users made to the shared library: the one draft is
-   * shipped into this instance, on the terms of every local ship, and written
-   * to the instance's data directory. The personal recipes it stands for are
+   * shipped into this instance, on the terms of every local ship, and the
+   * instance's files are written again. The personal recipes it stands for are
    * left as they are; whoever makes the recipe again is given the shared one.
    */
   @Post('recipes/:id/promote')
@@ -439,11 +438,7 @@ export class DraftsController {
         details: { reason: outcome.reason },
       });
     }
-    const { sidecarError } = writeRecipeSidecar(this.resolveInstanceDataDir(), [outcome.content]);
-    if (sidecarError)
-      this.logger.warn(
-        `Promoted ${outcome.content.slug}, but its copy in the instance's data directory was not written: ${sidecarError}`,
-      );
+    await this.files.write();
     return toRecipeDraftDto(outcome.draft);
   }
 
@@ -469,7 +464,7 @@ export class DraftsController {
         defaultSource: this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }),
         tokenSet: this.pullToken() !== null,
       },
-      instanceData: instanceDataState(this.resolveInstanceDataDir()),
+      instanceData: await this.files.state(),
       approvedCounts: { recipe: recipeCount, ingredientName: ingredientCount },
     };
   }
@@ -481,18 +476,24 @@ export class DraftsController {
     @Body(new ZodValidationPipe(ShipRequest)) { kind, mode, batchIds }: ShipRequest,
   ): Promise<ShipResult> {
     if (mode === 'local') {
-      const instanceDataDir = this.resolveInstanceDataDir();
       const result =
         kind === 'recipe'
-          ? await shipRecipesLocal(this.prisma, { kind, batchIds, instanceDataDir })
-          : await shipIngredientNamesLocal(this.prisma, { kind, batchIds, instanceDataDir });
+          ? await shipRecipesLocal(this.prisma, { kind, batchIds })
+          : await shipIngredientNamesLocal(this.prisma, { kind, batchIds });
       if (result.shippedDraftIds.length === 0 && result.skipped.length === 0) {
         throw new ConflictException({
           error: 'SHIP_NO_APPROVED',
           message: 'No approved drafts to ship.',
         });
       }
-      return { mode: 'local', ...result };
+      // What shipped is in the instance's files from now on.
+      const files = result.shippedDraftIds.length > 0 ? await this.files.write() : { written: [] };
+      return {
+        mode: 'local',
+        ...result,
+        sidecarPaths: files.written,
+        ...(files.error ? { sidecarError: files.error } : {}),
+      };
     }
 
     // bundle: the file itself comes back, to whoever asked with the administrator's credentials
@@ -591,7 +592,7 @@ export class DraftsController {
   @HttpCode(200)
   @Answers(RestoredFromInstanceData)
   restoreFromInstanceData(): Promise<RestoredFromInstanceData> {
-    return restoreInstanceData(this.prisma, this.resolveInstanceDataDir());
+    return this.files.restore();
   }
 
   /** Mark drafts as shipped, once the file a bundle gave is where it belongs. */
@@ -604,11 +605,6 @@ export class DraftsController {
   }
 
   // ── Internals ───────────────────────────────────────────────────────────────
-
-  private resolveInstanceDataDir(): string {
-    const raw = this.config.get('INSTANCE_DATA_DIR', { infer: true }) ?? 'instance-data';
-    return resolvePath(process.cwd(), raw);
-  }
 
   /** The administrator reviews the languages reviewers review: the name of an ingredient has no English. */
   private async reviewIngredientName(

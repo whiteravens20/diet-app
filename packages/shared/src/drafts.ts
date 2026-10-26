@@ -651,6 +651,14 @@ export const InstanceDataState = z.object({
   recipeFiles: z.number().int().min(0),
   recipes: z.number().int().min(0),
   names: z.number().int().min(0),
+  /** The version of the application that wrote the files; null before they are first written. */
+  version: z.string().nullable(),
+  /**
+   * How many files of the earlier layout, one for each ship, hold recipes the
+   * library does not have, or cannot be read. Nothing is written to the
+   * directory while there are any: they are to be restored first.
+   */
+  notRestored: z.number().int().min(0),
 });
 export type InstanceDataState = z.infer<typeof InstanceDataState>;
 

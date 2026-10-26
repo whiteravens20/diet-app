@@ -1,7 +1,6 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { DietType, MealType, type RecipeDraft, type RecipeGenerateSpec } from '@diet-app/shared';
@@ -12,6 +11,7 @@ import { resetDatabase } from '../../testing/database.js';
 import type { ModelRequest } from '../../testing/fake-model.js';
 import { aPrivateRecipe, aRecipeDraft, asAdmin, aUser } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
+import { InstanceFilesService } from './ship/instance-files.service.js';
 import { RecipeGeneratorRunner, type RecipeRunnerState } from './recipe-generator.runner.js';
 import { shipRecipesLocal } from './ship/local-mode.js';
 
@@ -676,9 +676,8 @@ describe('generating recipe drafts', () => {
       await run({ count: 1, targetLocales: ['en'], complexityMix: ALL_SIMPLE });
       const draft = await t.prisma.recipeDraft.findFirstOrThrow();
       await t.prisma.recipeDraft.update({ where: { id: draft.id }, data: { status: 'APPROVED' } });
-      const instanceDataDir = mkdtempSync(join(tmpdir(), 'diet-app-ship-'));
 
-      const result = await shipRecipesLocal(t.prisma, { kind: 'recipe', instanceDataDir });
+      const result = await shipRecipesLocal(t.prisma, { kind: 'recipe' });
 
       expect(result.shippedDraftIds).toEqual([draft.id]);
       const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: draft.slug } });
@@ -686,14 +685,18 @@ describe('generating recipe drafts', () => {
       expect(recipe.dietTags.includes('vegan')).toBe(slugs.every(isVegan));
       expect(recipe.dietTags).not.toContain('balanced');
 
-      const files = readdirSync(join(instanceDataDir, 'recipes'));
-      expect(files).toHaveLength(1);
-      const shipped = JSON.parse(
-        readFileSync(join(instanceDataDir, 'recipes', files[0]!), 'utf8'),
-      ) as Record<string, unknown>[];
-      expect(shipped[0]).toMatchObject({ slug: draft.slug });
-      expect(shipped[0]).not.toHaveProperty('dietTags');
-      expect(shipped[0]).not.toHaveProperty('allergens');
+      // The instance's files hold the recipe as the catalogue's data files do: nothing the engine works out.
+      const files = t.app.get(InstanceFilesService);
+      expect((await files.write()).error).toBeUndefined();
+      const shipped = (
+        JSON.parse(readFileSync(join(files.dir, 'recipes', 'library.json'), 'utf8')) as Record<
+          string,
+          unknown
+        >[]
+      ).find((row) => row.slug === draft.slug);
+      expect(shipped).toMatchObject({ slug: draft.slug });
+      expect(shipped).not.toHaveProperty('dietTags');
+      expect(shipped).not.toHaveProperty('allergens');
     });
 
     it('hold a draft back that was approved with tags the engine does not give it', async () => {
@@ -706,10 +709,7 @@ describe('generating recipe drafts', () => {
         data: { status: 'APPROVED', dietTags: [...draft.dietTags, 'balanced'] },
       });
 
-      const result = await shipRecipesLocal(t.prisma, {
-        kind: 'recipe',
-        instanceDataDir: mkdtempSync(join(tmpdir(), 'diet-app-ship-')),
-      });
+      const result = await shipRecipesLocal(t.prisma, { kind: 'recipe' });
 
       expect(result.shippedDraftIds).toEqual([]);
       expect(result.skipped).toEqual([

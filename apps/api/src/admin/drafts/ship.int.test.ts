@@ -1,6 +1,7 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase, resetUserData } from '../../testing/database.js';
@@ -66,7 +67,7 @@ describe('shipping approved drafts', () => {
       ]);
     });
 
-    it("makes the draft a shared recipe that is recognised by what it is made of, and copies it to the instance's own files", async () => {
+    it("makes the draft a shared recipe that is recognised by what it is made of, and writes it into the instance's own files", async () => {
       const draft = await aRecipeDraft(t, { status: 'APPROVED' });
 
       const res = await ship('recipe', 'local').expect(201);
@@ -86,12 +87,18 @@ describe('shipping approved drafts', () => {
       expect(
         await t.prisma.recipeDraft.findUniqueOrThrow({ where: { id: draft.id } }),
       ).toMatchObject({ status: 'SHIPPED', promotedRecipeId: recipe.id });
-      // The copy has the shape of a batch of the catalogue's data.
-      expect(res.body.sidecarPaths).toHaveLength(1);
-      expect(res.body.sidecarPaths[0]).toContain(process.env.INSTANCE_DATA_DIR);
-      expect(JSON.parse(readFileSync(res.body.sidecarPaths[0], 'utf8'))).toEqual([
-        expect.objectContaining({ slug: draft.slug, title: { en: 'Oat bowl', pl: 'Owsianka' } }),
+      // The instance's files hold it, in the shape of the catalogue's data.
+      expect(res.body.sidecarPaths).toEqual([
+        'recipes/library.json',
+        'ingredient-overrides.json',
+        'manifest.json',
       ]);
+      const library = JSON.parse(
+        readFileSync(join(process.env.INSTANCE_DATA_DIR!, 'recipes', 'library.json'), 'utf8'),
+      ) as { slug: string }[];
+      expect(library.find((row) => row.slug === draft.slug)).toEqual(
+        expect.objectContaining({ slug: draft.slug, title: { en: 'Oat bowl', pl: 'Owsianka' } }),
+      );
     });
 
     describe('a draft that would take the place of another recipe', () => {
