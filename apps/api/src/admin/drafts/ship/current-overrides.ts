@@ -10,9 +10,10 @@
  * operator has shipped locally (plus any curated overrides applied by the
  * seeder), regardless of whether the sidecar file was ever written.
  *
- * Used by the "download current overrides" and "push current overrides to a
- * repo" admin actions, so the operator can lift the accumulated override set
- * into another instance or a repo at any time — not just at ship time.
+ * Used by the "download current overrides" admin action, so the operator can
+ * lift the accumulated override set into another instance or a repo at any
+ * time, and by the instance's own files (`instance-export.ts`), which keep the
+ * names the catalogue's data does not give.
  */
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import type { IngredientOverrideFile } from './ingredient-overrides.writer.js';
