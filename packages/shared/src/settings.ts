@@ -63,6 +63,8 @@ export type WeightUnit = z.infer<typeof WeightUnit>;
  */
 export const SessionUser = AuthUser.extend({
   locale: Locale,
+  /** Whether `locale` is the owner's: the language the account signed up in, or one chosen since. False for an account made before that was kept: a client then keeps the language its reader uses, and saves it as the account's. */
+  localeChosen: z.boolean(),
   theme: Theme,
   palette: Palette,
   aiMode: AiMode,

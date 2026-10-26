@@ -18,6 +18,7 @@ const me = (aiMode: AiMode): SessionUser => ({
   role: 'user',
   emailVerified: true,
   locale: 'en',
+  localeChosen: true,
   theme: 'system',
   palette: 'default',
   aiMode,

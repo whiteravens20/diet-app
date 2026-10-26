@@ -41,6 +41,7 @@ function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
     role: 'user' as const,
     emailVerified: false,
     locale: 'en',
+    localeChosen: true,
     theme: 'system',
     palette: 'default',
     aiMode: 'none',
@@ -142,12 +143,13 @@ describe('UsersService', () => {
       );
     });
 
-    it('updates only the provided fields', async () => {
+    it('updates only the provided fields, a language saved counting as chosen', async () => {
       await service.updateSettings('user-1', { locale: 'pl' });
-      expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
-        data: { locale: 'pl' },
-      });
+      await service.updateSettings('user-1', { theme: 'dark' });
+      expect(prisma.user.update.mock.calls.map(([arg]) => arg)).toEqual([
+        { where: { id: 'user-1' }, data: { locale: 'pl', localeChosen: true } },
+        { where: { id: 'user-1' }, data: { theme: 'dark' } },
+      ]);
     });
 
     it('keeps the unit an account weighs in, takes it back when told to, and says it with the account', async () => {

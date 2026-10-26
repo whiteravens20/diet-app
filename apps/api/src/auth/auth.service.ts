@@ -80,6 +80,10 @@ export class AuthService {
           emailEncrypted: this.emails.seal(email, id),
           passwordHash,
           displayName: dto.displayName,
+          // The language the account signed up in is its own from the start: its mails go out in it, and
+          // the web puts it on every browser the account signs in on.
+          locale,
+          localeChosen: true,
           // With mail configured the address must be confirmed via an emailed
           // link; without it there's nothing to verify against, so the account is
           // trusted-verified immediately ("od ręki").

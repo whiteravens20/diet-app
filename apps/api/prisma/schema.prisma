@@ -34,6 +34,10 @@ model User {
   emailVerified  Boolean  @default(false)
   // ISO 639-1; constrained at the API layer to the Locale enum in packages/shared.
   locale         String   @default("en")
+  // Whether `locale` is the owner's: the language the account signed up in, or one
+  // chosen since. False for an account made before that was kept, whose `locale` is
+  // the default: the web then saves the language its reader uses in its place.
+  localeChosen   Boolean  @default(false)
   // 'light' | 'dark' | 'system' — constrained at the API layer.
   theme          String   @default("system")
   // Colour palette family (default | ocean | forest | sunset | mono | rose) —

@@ -98,7 +98,7 @@ export class UsersService {
       where: { id: userId },
       data: {
         ...(dto.displayName !== undefined ? { displayName: dto.displayName } : {}),
-        ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
+        ...(dto.locale !== undefined ? { locale: dto.locale, localeChosen: true } : {}),
         ...(dto.theme !== undefined ? { theme: dto.theme } : {}),
         ...(dto.palette !== undefined ? { palette: dto.palette } : {}),
         ...(dto.aiMode !== undefined ? { aiMode: dto.aiMode } : {}),
@@ -245,6 +245,7 @@ export class UsersService {
     role: 'user' | 'admin';
     emailVerified: boolean;
     locale: string;
+    localeChosen: boolean;
     theme: string;
     palette: string;
     aiMode: string;
@@ -257,6 +258,7 @@ export class UsersService {
       role: user.role,
       emailVerified: user.emailVerified,
       locale: storedLocale(user.locale),
+      localeChosen: user.localeChosen,
       theme: storedTheme(user.theme),
       palette: storedPalette(user.palette),
       aiMode: storedAiMode(user.aiMode),

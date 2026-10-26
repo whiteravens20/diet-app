@@ -16231,6 +16231,9 @@
           "locale": {
             "$ref": "#/components/schemas/Locale"
           },
+          "localeChosen": {
+            "type": "boolean"
+          },
           "theme": {
             "$ref": "#/components/schemas/Theme"
           },
@@ -16258,6 +16261,7 @@
           "role",
           "emailVerified",
           "locale",
+          "localeChosen",
           "theme",
           "palette",
           "aiMode",
