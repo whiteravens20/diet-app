@@ -239,6 +239,8 @@ describe('the window in which the settings of a day are changed', () => {
           })
         : aPreview({ unchanged: true }),
     );
+    const cookTime = { name: (name: string) => name.startsWith(texts.cookTime) };
+    expect(dialog.getByRole('spinbutton', cookTime)).toBeInTheDocument();
 
     await userEvent.selectOptions(kindField(dialog), texts.kinds.skip);
 
@@ -247,11 +249,7 @@ describe('the window in which the settings of a day are changed', () => {
     );
     expect(await dialog.findByText(texts.skipNote)).toBeInTheDocument();
     expect(dialog.queryByRole('combobox', { name: new RegExp(`^${texts.mealCount}`) })).toBeNull();
-    expect(
-      dialog.queryByRole('spinbutton', {
-        name: new RegExp(`^${texts.cookTime.replace(/[()]/g, '\\$&')}`),
-      }),
-    ).toBeNull();
+    expect(dialog.queryByRole('spinbutton', cookTime)).toBeNull();
     expect(dialog.getAllByRole('combobox')).toHaveLength(1);
     expect(dialog.getAllByRole('listitem').map((line) => line.textContent)).toEqual([
       'breakfast: stays: it was eaten',
