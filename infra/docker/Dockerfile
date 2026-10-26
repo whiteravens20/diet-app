@@ -100,12 +100,12 @@ COPY --from=build /app/apps/api/src ./apps/api/src
 COPY --from=build /app/data ./data
 # What `SWAGGER_ENABLED` shows at /api/docs: the published contract of the API.
 COPY --from=build /app/docs/api ./docs/api
-# Create the gitignored instance-data sidecar dir owned by the runtime user.
-# A Docker named volume inherits ownership from the directory that exists at
-# its mount path in the image; without this the volume (and a bind-mount
-# mountpoint) defaults to root:root and the local-mode ship runner — which runs
-# as `node` — gets EACCES writing its backup files (ingredient-overrides.json,
-# recipes/<batch>.json).
+# The directory of the instance's own files, owned by the runtime user. A
+# Docker named volume inherits ownership from the directory that exists at its
+# mount path in the image; without this the volume (and a bind-mount
+# mountpoint) defaults to root:root, and the API, which runs as `node`, gets
+# EACCES writing the files it exports there (manifest.json,
+# recipes/library.json, ingredient-overrides.json).
 RUN mkdir -p /app/instance-data/recipes && chown -R node:node /app/instance-data
 
 # The web front-end lives under /web: the Next.js standalone bundle (server.js
