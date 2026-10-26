@@ -157,10 +157,10 @@ the instance's data directory. Back up both.
 - The names of ingredients can also be saved from the panel at any time
   ("current overrides"): that file is built from the database, with every
   name it holds.
-- The directory is yours. Keeping it in a private git repository of your own
-  is a plain `git init` inside it; the application neither knows nor minds.
-  Every file is written whole and in a fixed order, so a commit shows what
-  changed.
+- The Compose service `mirror` keeps the directory in a private git repository
+  of yours, with a commit when something changed (see
+  [deployment](deployment.md#a-copy-of-the-instances-own-files)). Every file is
+  written whole and in a fixed order, so a commit shows what changed.
 
 ## Moving to a new server
 

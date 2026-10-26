@@ -479,6 +479,44 @@ mounted directory is `terms/` of the checkout, and you write your terms there.
 Raw HTML in the files is shown as text, and a link or a picture keeps its address only when
 it is a web or mail address or a path of the site.
 
+## A copy of the instance's own files
+
+What the instance added to its catalogue lives in its database, and in the files written
+from it after every ship, restore and update of the catalogue, in the volume
+`instance-data` (see
+[curation-shipping](curation-shipping.md#backing-up-what-the-instance-added)). The optional
+Compose service `mirror` keeps a copy of those files in a git repository of yours: once an
+hour it copies the volume into the repository, and commits, signed `<MIRROR_NAME>-mirror`,
+only when something changed.
+
+To turn it on:
+
+1. Make an empty private repository for it alone. The copy removes from the repository
+   what the instance no longer has, so it refuses one that holds files of something else.
+2. Make its key beside the Compose file, without a passphrase:
+   `mkdir mirror && ssh-keygen -t ed25519 -N '' -f mirror/key -C "<name>-mirror"`. Give
+   `mirror/key.pub` to the repository as a deploy key that may write (on GitHub: Settings,
+   Deploy keys, "Allow write access"). That key reaches the one repository and nothing else
+   of your account.
+3. In `.env`, set `MIRROR_REPO` (the SSH address, `git@github.com:you/your-instance-files.git`),
+   `MIRROR_NAME` and `COMPOSE_PROFILES=mirror`.
+4. `docker compose up -d`. The service starts once the API is healthy, and
+   `docker compose logs mirror` says what each round did.
+
+The first connection takes the git server's host key and keeps it, and a server that
+answers with another key later is refused. To check it against the one the host publishes
+(GitHub lists its own), read it with
+`docker run --rm -v diet-app_mirror-state:/s alpine cat /s/known_hosts`.
+
+The service gets the volume read-only and the key, and nothing else: no database, none of
+the settings of `.env` but its two, and a network of its own, from which the rest of the
+stack cannot be reached. Its root file system is read-only, and it has no capability but
+the one that lets it read the key, which is the operator's file on the host.
+
+The repository gets a README that says what the files are and how to restore from them;
+the copy writes it once and leaves it alone after that. To restore, see
+[Moving to a new server](curation-shipping.md#moving-to-a-new-server).
+
 ## The worker
 
 The worker is the same image started as `node apps/api/dist/worker.js`. It serves no

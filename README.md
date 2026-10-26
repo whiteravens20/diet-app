@@ -148,6 +148,10 @@ Until you write your own terms, the page shows the template with a note that it 
 Under them the page always shows the software's licence notices and your
 `OPERATOR_CONTACT`; see [Terms of service](docs/ops/deployment.md#terms-of-service).
 
+The recipes and names your instance adds can be kept in a private git repository of yours
+by the optional `mirror` service; see
+[A copy of the instance's own files](docs/ops/deployment.md#a-copy-of-the-instances-own-files).
+
 The web app listens on `127.0.0.1:3000` of the host and passes every `/api`
 request on to the API, which is reached only inside the stack. Put your own
 reverse proxy (Traefik / Caddy / nginx) in front of it and terminate TLS there.
