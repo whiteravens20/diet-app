@@ -197,6 +197,27 @@ ingredient the catalogue does not have, or would take the place of another
 recipe is left out, and the panel lists it with its file and the reason. A
 slug that a recipe of the catalogue's own data now uses stays with that recipe.
 
+## Ingredients the data no longer carries
+
+**Update database** deletes an ingredient the data no longer carries when nothing uses
+it. One that something still uses (a recipe, a pantry, the preferences of a profile, a
+shopping list or a draft not shipped yet) is retired instead: it is hidden from search and
+from what a model may choose, and what uses it keeps working with its figures.
+
+- **A food of an import that a curated ingredient is.** A curated ingredient names the
+  foods of an import that it is (`importedAs` in `data/ingredients.json`), and the import
+  then leaves them out. The update moves what uses such a food to the curated ingredient,
+  with every amount kept, works the figures of the recipes out again and deletes the
+  food. An amount in a unit the curated ingredient has no weight for is put in grams;
+  where even that cannot be done, the food stays retired and the update's log says why.
+- **Any other retired ingredient** is listed in the panel under **Retired ingredients
+  still in use**, with what uses it and the titles of the recipes and drafts whose text
+  may name it. **Replace…** moves all of that to an ingredient of the catalogue you
+  choose, in the same way, and the retired one goes. The text of recipes and drafts stays
+  as it was written: where it names the old food, correct it by hand.
+- A draft of a user's recipe that names a retired ingredient cannot go into the library
+  until the ingredient is replaced, and the panel says so beside the draft.
+
 ## Settings
 
 | Variable            | Default         | Purpose                                                                                                                                                                                                                                                                                                          |
