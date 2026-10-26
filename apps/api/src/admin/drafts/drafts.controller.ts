@@ -343,7 +343,32 @@ export class DraftsController {
     @Query(new ZodValidationPipe(RecipeDraftListQuery)) query: RecipeDraftListQuery,
   ): Promise<RecipeDraftPage> {
     const found = await this.drafts.listRecipes(query);
-    return { ...found, items: found.items.map(toRecipeDraftDto) };
+    const items = found.items.map(toRecipeDraftDto);
+    // A user's recipe that waits to be moved into the library says before the press whether it can be.
+    const waiting = items.filter(
+      (draft) => draft.source === 'AI_USER' && draft.status === 'APPROVED',
+    );
+    if (waiting.length > 0) {
+      const named = [
+        ...new Set(waiting.flatMap((draft) => draft.ingredients.map((line) => line.slug))),
+      ];
+      const live = new Set(
+        (
+          await this.prisma.ingredient.findMany({
+            where: { slug: { in: named }, retiredAt: null },
+            select: { slug: true },
+          })
+        ).map((ingredient) => ingredient.slug),
+      );
+      for (const draft of waiting) {
+        const missing = [...new Set(draft.ingredients.map((line) => line.slug))].filter(
+          (slug) => !live.has(slug),
+        );
+        draft.libraryBlock =
+          missing.length > 0 ? `unknown-slug-at-ship: ${missing.join(', ')}` : null;
+      }
+    }
+    return { ...found, items };
   }
 
   /** One recipe draft. */

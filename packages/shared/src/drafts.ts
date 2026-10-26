@@ -363,6 +363,12 @@ export const RecipeDraft = z.object({
   updatedAt: z.string(),
   localeReviews: z.array(LocaleReview),
   pastReviews: z.array(PastReview),
+  /**
+   * Said in a page of drafts of a recipe a user made that was approved: why it
+   * cannot go into the library as it is, in the words a refused shipping uses
+   * (`unknown-slug-at-ship: …`), or null when it can.
+   */
+  libraryBlock: z.string().nullable().optional(),
 });
 export type RecipeDraft = z.infer<typeof RecipeDraft>;
 

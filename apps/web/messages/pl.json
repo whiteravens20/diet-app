@@ -792,7 +792,8 @@
         "draft-gone": "został w międzyczasie usunięty",
         "db-write-failed": "nie udało się zapisać ({detail})"
       },
-      "shipDismiss": "Zamknij"
+      "shipDismiss": "Zamknij",
+      "promoteBlockedHint": "Zastąp składnik w karcie „Wycofane składniki nadal w użyciu” na tej stronie, a przepis będzie mógł trafić do biblioteki."
     },
     "operatorAi": {
       "title": "AI instancji",

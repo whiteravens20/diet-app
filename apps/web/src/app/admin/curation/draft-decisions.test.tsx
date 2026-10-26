@@ -170,3 +170,42 @@ describe('the drafts of names in the administrator’s panel', () => {
     expect(await screen.findByText('2 rejected.')).toBeInTheDocument();
   });
 });
+
+describe('a recipe a user made, approved, in the administrator’s panel', () => {
+  it('says before the press why it cannot go into the library, and offers no press', async () => {
+    const draft = {
+      ...aRecipeDraft(),
+      source: 'AI_USER',
+      status: 'APPROVED',
+      localeReviews: [],
+      libraryBlock: 'unknown-slug-at-ship: nuts-almonds-whole-raw',
+    } as RecipeDraft;
+
+    shown(<RecipeDraftRow draft={draft} onChanged={() => undefined} />);
+    await userEvent.click(screen.getByRole('button', { name: /Greek yogurt with almonds/ }));
+
+    expect(screen.getByRole('button', { name: texts.promoteButton })).toBeDisabled();
+    expect(
+      screen.getByText(
+        `${messages.errors.DRAFT_NOT_SHIPPABLE} uses an ingredient the catalogue no longer has: nuts-almonds-whole-raw`,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(texts.promoteBlockedHint)).toBeInTheDocument();
+  });
+
+  it('goes into the library at a press when nothing stands in the way', async () => {
+    const draft = {
+      ...aRecipeDraft(),
+      source: 'AI_USER',
+      status: 'APPROVED',
+      localeReviews: [],
+      libraryBlock: null,
+    } as RecipeDraft;
+
+    shown(<RecipeDraftRow draft={draft} onChanged={() => undefined} />);
+    await userEvent.click(screen.getByRole('button', { name: /Greek yogurt with almonds/ }));
+
+    expect(screen.getByRole('button', { name: texts.promoteButton })).toBeEnabled();
+    expect(screen.queryByText(texts.promoteBlockedHint)).toBeNull();
+  });
+});

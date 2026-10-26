@@ -15037,6 +15037,12 @@
             "items": {
               "$ref": "#/components/schemas/PastReview"
             }
+          },
+          "libraryBlock": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

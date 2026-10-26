@@ -15,7 +15,7 @@ import {
   type RecipeDraftIngredientLine,
   type RecipeDraftPatch,
 } from '@/lib/admin-api';
-import { useDraftErrorText } from '@/lib/use-draft-error';
+import { useDraftErrorText, useSkipReasonText } from '@/lib/use-draft-error';
 import { useFormat } from '@/lib/use-format';
 import { LocaleReviewMatrix } from './locale-review-matrix';
 
@@ -29,6 +29,8 @@ export function RecipeDraftRow({
   const t = useTranslations('admin.curation');
   const tCuisine = useTranslations('enums.cuisine');
   const errorText = useDraftErrorText();
+  const tErrors = useTranslations('errors');
+  const skipReason = useSkipReasonText();
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [working, setWorking] = useState(false);
@@ -245,6 +247,15 @@ export function RecipeDraftRow({
           {isUserDraft && (
             <p className="text-xs text-muted-foreground italic">{t('userDraftHint')}</p>
           )}
+          {/* Said before the press, which would only be refused. */}
+          {canPromote && draft.libraryBlock && (
+            <div className="space-y-1 rounded-md border border-warning/40 bg-warning/5 px-2 py-1 text-xs">
+              <p>{`${tErrors('DRAFT_NOT_SHIPPABLE')} ${skipReason(draft.libraryBlock)}`}</p>
+              {draft.libraryBlock.startsWith('unknown-slug-at-ship') && (
+                <p className="text-muted-foreground">{t('promoteBlockedHint')}</p>
+              )}
+            </div>
+          )}
 
           {error && (
             <p className="rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1 text-xs">
@@ -300,7 +311,12 @@ export function RecipeDraftRow({
                     </span>
                   ))}
                 {canPromote && (
-                  <Button size="sm" variant="primary" disabled={working} onClick={onPromote}>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={working || Boolean(draft.libraryBlock)}
+                    onClick={onPromote}
+                  >
                     {t('promoteButton')}
                   </Button>
                 )}

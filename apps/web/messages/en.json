@@ -792,7 +792,8 @@
         "draft-gone": "was deleted in the meantime",
         "db-write-failed": "could not be written ({detail})"
       },
-      "shipDismiss": "Dismiss"
+      "shipDismiss": "Dismiss",
+      "promoteBlockedHint": "Replace the ingredient in “Retired ingredients still in use” on this page, and the recipe can go into the library."
     },
     "operatorAi": {
       "title": "AI of the instance",

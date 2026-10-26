@@ -245,4 +245,29 @@ describe('the retired ingredients the instance still uses, in the panel', () => 
       (await ingredient('salmon')).id,
     ]);
   });
+
+  it('keep a recipe a user made from going into the library, and the page of drafts says so', async () => {
+    const food = await aRetiredFood();
+    const draft = await aRecipeDraft(t, { source: 'AI_USER', status: 'APPROVED' }, [
+      { slug: food.slug!, quantity: 150, unit: 'g', note: null },
+      { slug: 'white-rice', quantity: 80, unit: 'g', note: null },
+    ]);
+    const blockOf = async () =>
+      (
+        (await t.http().get('/api/admin/drafts/recipes').set(asAdmin).expect(200)).body as {
+          items: { id: string; libraryBlock?: string | null }[];
+        }
+      ).items.find((item) => item.id === draft.id)?.libraryBlock;
+
+    expect(await blockOf()).toBe('unknown-slug-at-ship: fish-salmon-sockeye-raw');
+
+    await t
+      .http()
+      .post(`/api/admin/ingredients/${food.id}/replace`)
+      .set(asAdmin)
+      .send({ by: (await ingredient('salmon')).id })
+      .expect(200);
+
+    expect(await blockOf()).toBeNull();
+  });
 });
