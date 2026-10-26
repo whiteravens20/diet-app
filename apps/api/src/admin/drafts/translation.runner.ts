@@ -279,6 +279,7 @@ export class TranslationRunner {
       orderBy: { createdAt: 'asc' },
       include: {
         ingredients: {
+          orderBy: { position: 'asc' },
           select: {
             quantity: true,
             unit: true,

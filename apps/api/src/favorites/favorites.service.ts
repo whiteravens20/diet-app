@@ -47,6 +47,7 @@ export class FavoritesService {
         recipe: {
           include: {
             ingredients: {
+              orderBy: { position: 'asc' },
               include: {
                 ingredient: { include: { translations: { where: { locale: { in: trWhere } } } } },
               },

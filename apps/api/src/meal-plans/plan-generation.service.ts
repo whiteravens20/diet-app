@@ -826,6 +826,7 @@ export class PlanGenerationService {
         prepMinutes: true,
         cookMinutes: true,
         ingredients: {
+          orderBy: { position: 'asc' },
           select: {
             ingredientId: true,
             quantity: true,

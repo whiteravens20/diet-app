@@ -188,7 +188,10 @@ export class AccountExportService {
         this.prisma.recipe.findMany({
           where: { createdByUserId: userId, deletedAt: null },
           include: {
-            ingredients: { include: { ingredient: { select: { slug: true, name: true } } } },
+            ingredients: {
+              orderBy: { position: 'asc' },
+              include: { ingredient: { select: { slug: true, name: true } } },
+            },
           },
           ...page,
         }),

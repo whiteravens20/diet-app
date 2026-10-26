@@ -331,7 +331,10 @@ export class IngredientSwapService {
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: swappableRecipeOf(meal) },
       include: {
-        ingredients: { include: { ingredient: { include: { translations: true } } } },
+        ingredients: {
+          orderBy: { position: 'asc' },
+          include: { ingredient: { include: { translations: true } } },
+        },
         translations: true,
       },
     });
@@ -632,7 +635,7 @@ export class IngredientSwapService {
     const mealRecipeId = swappableRecipeOf(meal);
     const recipe = await this.prisma.recipe.findUniqueOrThrow({
       where: { id: mealRecipeId },
-      include: { ingredients: true },
+      include: { ingredients: { orderBy: { position: 'asc' } } },
     });
     const line = recipe.ingredients.find((i) => i.ingredientId === req.fromIngredientId);
     if (!line) {

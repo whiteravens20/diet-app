@@ -66,7 +66,7 @@ export const CANDIDATE = {
   createdByUserId: true,
   deletedAt: true,
   retiredAt: true,
-  ingredients: { select: { ingredientId: true } },
+  ingredients: { orderBy: { position: 'asc' }, select: { ingredientId: true } },
 } satisfies Prisma.RecipeSelect;
 
 /** Every reason `recipe` may not be planned as `meal` under `restrictions`; empty when it may. */

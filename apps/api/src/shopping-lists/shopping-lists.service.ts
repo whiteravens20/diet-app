@@ -432,7 +432,10 @@ async function planLines(
           recipe: {
             select: {
               servings: true,
-              ingredients: { select: { ingredientId: true, quantity: true, unit: true } },
+              ingredients: {
+                orderBy: { position: 'asc' },
+                select: { ingredientId: true, quantity: true, unit: true },
+              },
             },
           },
         },

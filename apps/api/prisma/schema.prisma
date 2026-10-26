@@ -603,6 +603,9 @@ model RecipeIngredient {
   quantity     Float
   unit         Unit
   note         String?
+  // The place of the line in its recipe, from 0: the order the recipe was
+  // written in, which every read of a recipe keeps.
+  position     Int        @default(0)
 
   @@index([recipeId])
   @@index([ingredientId])

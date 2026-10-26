@@ -121,6 +121,31 @@ describe('a recipe written by hand', () => {
     expect(await t.prisma.recipeDraft.count()).toBe(0);
   });
 
+  it('keeps its lines in the order they were written in, whatever the table does with them', async () => {
+    const body = await written();
+    const lines = body.ingredients as { ingredientId: string }[];
+    body.ingredients = [lines[2], lines[0], lines[1]];
+    const recipe = (await write(body).expect(201)).body as Recipe;
+    // The table is put in the order of its keys, which is the reverse of the recipe's.
+    const stored = await t.prisma.recipeIngredient.findMany({
+      where: { recipeId: recipe.id },
+      orderBy: { position: 'asc' },
+    });
+    for (const [index, line] of stored.entries()) {
+      await t.prisma.recipeIngredient.update({
+        where: { id: line.id },
+        data: { id: `00000000-0000-4000-8000-00000000000${stored.length - index}` },
+      });
+    }
+    await t.prisma.$executeRawUnsafe('CLUSTER "RecipeIngredient" USING "RecipeIngredient_pkey"');
+
+    const read = await t.http().get(`/api/recipes/${recipe.id}`).set(as(user)).expect(200);
+
+    expect((read.body as Recipe).ingredients.map((line) => line.ingredientId)).toEqual(
+      [lines[2], lines[0], lines[1]].map((line) => line!.ingredientId),
+    );
+  });
+
   it('is refused with every rule it breaks named by its place', async () => {
     const res = await write(
       await written({ title: 'Kurczak <b>z ryżem</b>', steps: ['   ', 'Usmaż‮kurczaka.'] }),

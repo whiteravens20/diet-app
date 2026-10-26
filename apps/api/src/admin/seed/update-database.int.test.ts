@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { catalogueDirectory, seedCatalogue } from '../../testing/catalogue.js';
 import { resetDatabase } from '../../testing/database.js';
-import { aPlan, aPrivateRecipe, aProfile, asAdmin, aUser } from '../../testing/factories.js';
+import { aPlan, aPrivateRecipe, aProfile, as, asAdmin, aUser } from '../../testing/factories.js';
 import { createTestApp, type TestApp } from '../../testing/test-app.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
 import { CatalogueError } from './catalogue.js';
@@ -132,6 +132,44 @@ describe('updating the curated database', () => {
         where: { ingredientId_locale: { ingredientId: salmon, locale: 'pl' } },
       }),
     ).toMatchObject({ name: 'Łosoś atlantycki', source: 'MANUAL' });
+  });
+
+  it('keeps the lines of a recipe of the data in the order of its file, whatever the table does with them', async () => {
+    const file = JSON.parse(readFileSync(join(catalogueDirectory(), 'recipes.json'), 'utf8')) as {
+      slug: string;
+      ingredients: { slug: string }[];
+    }[];
+    const written = file.find((recipe) => recipe.ingredients.length >= 3)!;
+    const recipe = await t.prisma.recipe.findUniqueOrThrow({ where: { slug: written.slug } });
+    // The table is put in the order of its keys, which is the reverse of the recipe's.
+    const stored = await t.prisma.recipeIngredient.findMany({
+      where: { recipeId: recipe.id },
+      orderBy: { position: 'asc' },
+    });
+    for (const [index, line] of stored.entries()) {
+      await t.prisma.recipeIngredient.update({
+        where: { id: line.id },
+        data: {
+          id: `00000000-0000-4000-8000-0000000000${String(stored.length - index).padStart(2, '0')}`,
+        },
+      });
+    }
+    await t.prisma.$executeRawUnsafe('CLUSTER "RecipeIngredient" USING "RecipeIngredient_pkey"');
+    const user = await aUser(t);
+
+    const read = await t.http().get(`/api/recipes/${recipe.id}`).set(as(user)).expect(200);
+
+    const slugOf = new Map(
+      (await t.prisma.ingredient.findMany({ select: { id: true, slug: true } })).map((row) => [
+        row.id,
+        row.slug,
+      ]),
+    );
+    expect(
+      (read.body as { ingredients: { ingredientId: string }[] }).ingredients.map((line) =>
+        slugOf.get(line.ingredientId),
+      ),
+    ).toEqual(written.ingredients.map((line) => line.slug));
   });
 
   it('retires an ingredient the data dropped while a pantry still holds it, and deletes one nobody uses', async () => {

@@ -143,7 +143,10 @@ export class RecipesService {
     const rows = await this.prisma.recipe.findMany({
       where: { id: { in: shown.map((row) => row.id) } },
       include: {
-        ingredients: { include: { ingredient: { include: translationsFor(locale) } } },
+        ingredients: {
+          orderBy: { position: 'asc' },
+          include: { ingredient: { include: translationsFor(locale) } },
+        },
         ...translationsFor(locale),
       },
     });
@@ -164,7 +167,10 @@ export class RecipesService {
     const row = await this.prisma.recipe.findUnique({
       where: { id },
       include: {
-        ingredients: { include: { ingredient: { include: translationsFor(locale) } } },
+        ingredients: {
+          orderBy: { position: 'asc' },
+          include: { ingredient: { include: translationsFor(locale) } },
+        },
         ...translationsFor(locale),
       },
     });
@@ -206,7 +212,10 @@ export class RecipesService {
       this.prisma.recipe.findMany({
         where,
         include: {
-          ingredients: { include: { ingredient: { include: translationsFor(locale) } } },
+          ingredients: {
+            orderBy: { position: 'asc' },
+            include: { ingredient: { include: translationsFor(locale) } },
+          },
           ...translationsFor(locale),
         },
         orderBy: { createdAt: 'desc' },

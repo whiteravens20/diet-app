@@ -126,7 +126,10 @@ export class MealSwapService {
           proteinPerServing: true,
           fatPerServing: true,
           carbsPerServing: true,
-          ingredients: { select: { ingredientId: true, ingredient: { select: { name: true } } } },
+          ingredients: {
+            orderBy: { position: 'asc' },
+            select: { ingredientId: true, ingredient: { select: { name: true } } },
+          },
         },
         orderBy: { id: 'asc' },
       })
@@ -429,6 +432,7 @@ export class MealSwapService {
         where: { id: replacement.id },
         include: {
           ingredients: {
+            orderBy: { position: 'asc' },
             include: {
               ingredient: { include: { translations: { where: { locale: { in: locales } } } } },
             },
@@ -496,6 +500,7 @@ export class MealSwapService {
       where: { id: { in: recipeIds } },
       include: {
         ingredients: {
+          orderBy: { position: 'asc' },
           include: {
             ingredient: { select: { canonicalUnit: true, gramsPerPiece: true, density: true } },
           },

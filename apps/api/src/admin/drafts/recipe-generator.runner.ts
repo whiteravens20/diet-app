@@ -534,7 +534,10 @@ export class RecipeGeneratorRunner {
         slug: true,
         title: true,
         retiredAt: true,
-        ingredients: { select: { ingredient: { select: { slug: true } } } },
+        ingredients: {
+          orderBy: { position: 'asc' },
+          select: { ingredient: { select: { slug: true } } },
+        },
       },
     });
     const queue = await this.prisma.recipeDraft.findMany({

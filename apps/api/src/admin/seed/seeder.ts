@@ -405,12 +405,23 @@ async function applyRecipes(
     if (id) {
       await db.recipe.update({
         where: { id },
-        data: { ...fields, origin: 'seed', ingredients: { deleteMany: {}, create: lines } },
+        data: {
+          ...fields,
+          origin: 'seed',
+          ingredients: {
+            deleteMany: {},
+            create: lines.map((line, position) => ({ ...line, position })),
+          },
+        },
       });
     } else {
       id = (
         await db.recipe.create({
-          data: { ...fields, origin: 'seed', ingredients: { create: lines } },
+          data: {
+            ...fields,
+            origin: 'seed',
+            ingredients: { create: lines.map((line, position) => ({ ...line, position })) },
+          },
         })
       ).id;
     }
@@ -537,7 +548,7 @@ async function retireIngredients(
 async function recomputeDerivedRecipes(db: Db): Promise<number> {
   const recipes = await db.recipe.findMany({
     where: { origin: { not: 'seed' } },
-    include: { ingredients: { include: { ingredient: true } } },
+    include: { ingredients: { orderBy: { position: 'asc' }, include: { ingredient: true } } },
     // The order decides which of two identical recipes of one owner keeps the
     // fingerprint: one that is not deleted, then the older.
     orderBy: [{ deletedAt: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }, { id: 'asc' }],

@@ -317,6 +317,7 @@ export class AiRecipeDraftService {
       where: { id: recipeId },
       include: {
         ingredients: {
+          orderBy: { position: 'asc' },
           include: { ingredient: { include: this.translationsInclude(locale) } },
         },
         ...this.translationsInclude(locale),

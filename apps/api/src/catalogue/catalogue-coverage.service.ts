@@ -81,6 +81,7 @@ export class CatalogueCoverageService {
         fatPerServing: true,
         carbsPerServing: true,
         ingredients: {
+          orderBy: { position: 'asc' },
           select: {
             ingredientId: true,
             quantity: true,

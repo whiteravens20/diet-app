@@ -236,13 +236,22 @@ export async function writeToLibrary(tx: Db, recipe: LibraryRecipe, own?: string
     ? (
         await tx.recipe.update({
           where: { id: own },
-          data: { ...fields, ingredients: { deleteMany: {}, create: recipe.lines } },
+          data: {
+            ...fields,
+            ingredients: {
+              deleteMany: {},
+              create: recipe.lines.map((line, position) => ({ ...line, position })),
+            },
+          },
           select: { id: true },
         })
       ).id
     : (
         await tx.recipe.create({
-          data: { ...fields, ingredients: { create: recipe.lines } },
+          data: {
+            ...fields,
+            ingredients: { create: recipe.lines.map((line, position) => ({ ...line, position })) },
+          },
           select: { id: true },
         })
       ).id;

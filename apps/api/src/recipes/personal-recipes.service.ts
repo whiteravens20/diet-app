@@ -426,7 +426,9 @@ export class PersonalRecipesService {
         proteinPerServing: recipe.facts.perServing.protein,
         fatPerServing: recipe.facts.perServing.fat,
         carbsPerServing: recipe.facts.perServing.carbs,
-        ingredients: { create: recipe.ingredients },
+        ingredients: {
+          create: recipe.ingredients.map((line, position) => ({ ...line, position })),
+        },
         translations: {
           create: [...recipe.text].map(([locale, text]) => ({
             locale,
@@ -492,7 +494,10 @@ export class PersonalRecipesService {
       where: { id: recipeId },
       include: {
         translations: true,
-        ingredients: { include: { ingredient: { select: { slug: true } } } },
+        ingredients: {
+          orderBy: { position: 'asc' },
+          include: { ingredient: { select: { slug: true } } },
+        },
       },
     });
     // The row's own text is English, but in a recipe written by hand, whose
