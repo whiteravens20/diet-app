@@ -480,8 +480,7 @@ To turn it on:
 
 The first connection takes the git server's host key and keeps it, and a server that
 answers with another key later is refused. To check it against the one the host publishes
-(GitHub lists its own), read it with
-`docker run --rm -v diet-app_mirror-state:/s alpine cat /s/known_hosts`.
+(GitHub lists its own), read it with `docker compose exec mirror cat /state/known_hosts`.
 
 The service gets the volume read-only and the key, and nothing else: no database, none of
 the settings of `.env` but its two, and a network of its own, from which the rest of the
