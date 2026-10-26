@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-167 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+166 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -59,7 +59,6 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/admin/drafts/ship` | the administrator | Ship the approved drafts of a kind: into this instance, or as a file to save. | `ShipRequest` | 201 `ShipResult` |  |
 | `GET /api/admin/drafts/ship/config` | the administrator | The ways drafts can be shipped on this instance, and how many are approved and wait. |  | 200 `ShipConfig` |  |
 | `GET /api/admin/drafts/ship/current-overrides` | the administrator | The names this instance has given its ingredients, as the file `data/` keeps them: to carry them to another instance or repository at any time, whatever has shipped. |  | 200 a file |  |
-| `POST /api/admin/drafts/ship/current-overrides/pull` | the administrator | Take names of ingredients in from a repository the operator names, or from the one the instance is set up with, and give them to the ingredients of this instance. A public repository needs no token; a private one on GitHub is read with the token of the environment. | `PullOverridesRequest` | 201 `OverridesPulled` |  |
 | `POST /api/admin/drafts/ship/mark-shipped` | the administrator | Mark drafts as shipped, once the file a bundle gave is where it belongs. | `MarkShippedRequest` | 201 `Updated` |  |
 | `POST /api/admin/drafts/ship/restore` | the administrator | Read back into the database what local ships copied to the instance's data directory: the way to carry an instance's own recipes and names to a new server. Repeatable; see `ship/restore.ts`. |  | 200 `RestoredFromInstanceData` |  |
 | `POST /api/admin/drafts/translations/generate` | the administrator | Start the run that fills a language recipes lack. What it writes are drafts for the queue; nothing live changes until a person has approved them and they ship. | `TranslationGenerateSpec` | 202 `DraftRunnerState` | 5 in a minute |

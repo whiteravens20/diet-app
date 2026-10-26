@@ -25,7 +25,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
   DraftBulkRejectBody,
@@ -39,8 +38,6 @@ import {
   IngredientNameDraftPatchBody,
   IngredientNameGenerateSpec,
   MarkShippedRequest,
-  OverridesPulled,
-  PullOverridesRequest,
   RecipeDraft,
   RecipeDraftListQuery,
   RecipeDraftPage,
@@ -65,7 +62,6 @@ import {
 import { Answers, AnswersListOf, AnswersWithAFile } from '../../common/answers.decorator.js';
 import { requiredUuid, ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import type { Env } from '../../config/env.js';
 import { AdminSessionGuard } from '../admin-session.guard.js';
 import { DraftService, invalid, type Actor } from './draft.service.js';
 import { toIngredientNameDraftDto, toRecipeDraftDto } from './drafts.mapper.js';
@@ -81,7 +77,6 @@ import {
   shipRecipesLocal,
 } from './ship/local-mode.js';
 import { buildCurrentIngredientOverrides } from './ship/current-overrides.js';
-import { pullOverrides, PullOverridesError, type PullPolicy } from './ship/pull-overrides.js';
 import { NothingShips } from './ship/shippable.js';
 import {
   markBundleShipped,
@@ -99,7 +94,6 @@ export class DraftsController {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService<Env, true>,
     private readonly namer: IngredientNamerRunner,
     private readonly recipeGen: RecipeGeneratorRunner,
     private readonly translations: TranslationRunner,
@@ -459,11 +453,6 @@ export class DraftsController {
         local: { available: true },
         bundle: { available: true },
       },
-      pull: {
-        available: true,
-        defaultSource: this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }),
-        tokenSet: this.pullToken() !== null,
-      },
       instanceData: await this.files.state(),
       approvedCounts: { recipe: recipeCount, ingredientName: ingredientCount },
     };
@@ -535,52 +524,6 @@ export class DraftsController {
       .setHeader('Content-Type', 'application/json; charset=utf-8')
       .setHeader('Content-Disposition', 'attachment; filename="ingredient-overrides.json"')
       .send(JSON.stringify(file, null, 2) + '\n');
-  }
-
-  /**
-   * Take names of ingredients in from a repository the operator names, or
-   * from the one the instance is set up with, and give them to the
-   * ingredients of this instance. A public repository needs no token; a
-   * private one on GitHub is read with the token of the environment.
-   */
-  @Post('ship/current-overrides/pull')
-  @Answers(OverridesPulled)
-  async pullCurrentOverrides(
-    @Body(new ZodValidationPipe(PullOverridesRequest.prefault({}))) body: PullOverridesRequest,
-  ): Promise<OverridesPulled> {
-    const source =
-      body.source ??
-      this.config.get('OVERRIDES_PULL_SOURCE', { infer: true }) ??
-      'whiteravens20/diet-app';
-    try {
-      return await pullOverrides(this.prisma, source, this.pullPolicy());
-    } catch (err) {
-      if (err instanceof PullOverridesError) {
-        throw new ConflictException({ error: err.code, message: err.message });
-      }
-      throw err;
-    }
-  }
-
-  /** The token for pulling from a private repository; null when none is set (public sources only). */
-  private pullToken(): string | null {
-    return this.config.get('OVERRIDES_PULL_TOKEN', { infer: true }) ?? null;
-  }
-
-  /**
-   * The terms of a pull: the token, and the hosts that are fetched from
-   * wherever they are. Those are the hosts the operator listed, and the host
-   * of the default source when the operator set that to an address.
-   */
-  private pullPolicy(): PullPolicy {
-    const listed = (this.config.get('OVERRIDES_PULL_ALLOWED_HOSTS', { infer: true }) ?? '')
-      .split(',')
-      .map((host) => host.trim())
-      .filter((host) => host.length > 0);
-    const preset = this.config.get('OVERRIDES_PULL_SOURCE', { infer: true });
-    const presetHost =
-      /^https?:\/\//i.test(preset) && URL.canParse(preset) ? [new URL(preset).host] : [];
-    return { token: this.pullToken(), allowedHosts: [...listed, ...presetHost] };
   }
 
   /**

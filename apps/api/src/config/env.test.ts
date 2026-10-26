@@ -44,7 +44,7 @@ describe('validateEnv', () => {
     const env = validateEnv(
       valid({
         REVIEWER_SESSION_SECRET: '   ',
-        OVERRIDES_PULL_TOKEN: '',
+        OPENROUTER_API_KEY: '',
         FDC_API_KEY: '',
         OLLAMA_BASE_URL: '',
         SMTP_HOST: '',
@@ -52,7 +52,7 @@ describe('validateEnv', () => {
       }),
     );
     expect(env.REVIEWER_SESSION_SECRET).toBeUndefined();
-    expect(env.OVERRIDES_PULL_TOKEN).toBeUndefined();
+    expect(env.OPENROUTER_API_KEY).toBeUndefined();
     expect(env.SMTP_HOST).toBeUndefined();
     expect(env.FDC_API_KEY).toBe('DEMO_KEY');
     expect(env.OLLAMA_BASE_URL).toBe('http://localhost:11434');

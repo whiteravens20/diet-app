@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 149 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 145 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -66,7 +66,6 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `INVALID_EMAIL_CHANGE_TOKEN` | 400 | This email-change link is invalid or has expired. | Ten link zmiany adresu e-mail jest nieprawidłowy lub wygasł. |
 | `INVALID_LOCKED_SLOT` | 400 | A locked meal doesn't fit the meals chosen for that day. | Przypięty posiłek nie pasuje do posiłków wybranych na ten dzień. |
 | `INVALID_PASSWORD` | 401 | Current password is incorrect. | Aktualne hasło jest nieprawidłowe. |
-| `INVALID_PULL_SOURCE` | 409 | That's not a repo (owner/repo) or a raw URL. | To nie jest ani repozytorium (owner/repo), ani bezpośredni adres pliku. |
 | `INVALID_REFRESH` | 401 | Your session expired. Please sign in again. | Sesja wygasła. Zaloguj się ponownie. |
 | `INVALID_RESET_TOKEN` | 400 | This reset link is invalid or has expired. | Ten link do resetu jest nieprawidłowy lub wygasł. |
 | `INVALID_REVIEWER_PASSWORD` | 401 | Wrong reviewer password. | Nieprawidłowe hasło recenzenta. |
@@ -113,9 +112,6 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `PLAN_NOT_FOUND` | 404 | Meal plan not found. | Nie znaleziono planu posiłków. |
 | `PROFILE_LIMIT_REACHED` | 409 | You've reached the maximum number of profiles. | Osiągnięto maksymalną liczbę profili. |
 | `PROFILE_NOT_FOUND` | 404 | Profile not found. | Nie znaleziono profilu. |
-| `PULL_ADDRESS_NOT_PUBLIC` | 409 | That source is not at a public address. A source inside your own network is fetched only when its host is named in OVERRIDES_PULL_ALLOWED_HOSTS. | To źródło nie jest pod adresem publicznym. Źródło w sieci wewnętrznej jest pobierane tylko wtedy, gdy jego host jest wpisany w OVERRIDES_PULL_ALLOWED_HOSTS. |
-| `PULL_FETCH_FAILED` | 409 | Could not fetch the overrides file. Check the repo, the branch and the access token; a redirect is not followed, and a file over 2 MB is not read. | Nie udało się pobrać pliku nadpisań. Sprawdź repo, gałąź i token dostępu; przekierowania nie są obsługiwane, a plik większy niż 2 MB nie jest czytany. |
-| `PULL_SHAPE_INVALID` | 409 | The fetched file is not a valid ingredient-overrides.json. | Pobrany plik nie jest prawidłowym ingredient-overrides.json. |
 | `QUANTITY_TOO_LARGE` | 400 | That quantity is larger than a kitchen holds. Check the number. | Ta ilość jest większa, niż mieści kuchnia. Sprawdź liczbę. |
 | `RANGE_OUTSIDE_PLAN` | 400 | Those days are not days of this plan, or the first is after the last. | Te dni nie należą do tego planu albo pierwszy jest późniejszy niż ostatni. |
 | `RATE_LIMITED` | 429 | Too many requests. Try again in a moment. | Zbyt wiele żądań. Spróbuj ponownie za chwilę. |

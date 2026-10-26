@@ -15,7 +15,6 @@ const text = messages.admin.curation;
 const configWith = (files: Partial<InstanceDataState> = {}): ShipConfigDto =>
   ({
     modes: { local: { available: true }, bundle: { available: true } },
-    pull: { available: true, defaultSource: '', tokenSet: false },
     instanceData: {
       writable: true,
       recipeFiles: 1,

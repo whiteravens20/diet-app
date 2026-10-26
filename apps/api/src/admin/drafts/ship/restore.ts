@@ -31,9 +31,8 @@ import {
   INGREDIENT_OVERRIDES_FILE,
 } from './ingredient-overrides.writer.js';
 import { assessForLibrary, writeToLibrary } from './library.js';
-import { applyOverridesToDb } from './pull-overrides.js';
 import { recipeBatchesDir, RECIPE_BATCHES_DIR } from './recipe-batches.writer.js';
-import { recipeOfBatchRow } from './shippable.js';
+import { recipeOfBatchRow, shippableIngredientName } from './shippable.js';
 
 /** What the instance's data directory holds, as far as it can be read. */
 export interface DirectoryState {
@@ -169,7 +168,7 @@ export async function restoreInstanceData(
   }
 
   const fromFile = readNames(instanceDataDir);
-  const applied = await applyOverridesToDb(prisma, fromFile.names);
+  const applied = await storeNames(prisma, fromFile.names);
   return {
     recipes,
     names: {
@@ -179,4 +178,58 @@ export async function restoreInstanceData(
     },
     unreadable: [...unreadable, ...fromFile.unreadable],
   };
+}
+
+/**
+ * Store the names of an override file as names approved by people: all of
+ * them, or none when the database refuses one.
+ *
+ * Each entry is held to the rules for names in the languages it carries. One
+ * that breaks a rule is refused, one for an ingredient this instance does not
+ * have is skipped, and both are reported.
+ */
+async function storeNames(
+  prisma: PrismaService,
+  file: IngredientOverrideFile,
+): Promise<{
+  applied: number;
+  skippedSlugs: string[];
+  refused: { slug: string; reason: string }[];
+}> {
+  const skippedSlugs: string[] = [];
+  const refused: { slug: string; reason: string }[] = [];
+  let applied = 0;
+
+  await prisma.$transaction(
+    async (tx) => {
+      for (const [slug, entry] of Object.entries(file)) {
+        const checked = shippableIngredientName({
+          suggestions: entry,
+          locales: Object.keys(entry.name),
+        });
+        if (!checked.ok) {
+          refused.push({ slug, reason: checked.reason });
+          continue;
+        }
+        const target = await tx.ingredient.findFirst({ where: { slug }, select: { id: true } });
+        if (!target) {
+          skippedSlugs.push(slug);
+          continue;
+        }
+        const hints: Record<string, string> = checked.content.storageHint ?? {};
+        for (const [locale, name] of Object.entries(checked.content.name)) {
+          const storageHint = hints[locale] ?? null;
+          await tx.ingredientTranslation.upsert({
+            where: { ingredientId_locale: { ingredientId: target.id, locale } },
+            create: { ingredientId: target.id, locale, name, storageHint, source: 'MANUAL' },
+            update: { name, storageHint, source: 'MANUAL' },
+          });
+        }
+        applied += 1;
+      }
+    },
+    { timeout: 120_000 },
+  );
+
+  return { applied, skippedSlugs, refused };
 }

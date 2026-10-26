@@ -217,12 +217,6 @@ export const MarkShippedRequest = z.object({
 });
 export type MarkShippedRequest = z.infer<typeof MarkShippedRequest>;
 
-/** Where shipped data is pulled from: a repository (`owner/repo[@branch]`) or an address; the instance's own source when it is left out. */
-export const PullOverridesRequest = z.object({
-  source: z.string().trim().min(1).max(500).optional(),
-});
-export type PullOverridesRequest = z.infer<typeof PullOverridesRequest>;
-
 /** `?dryRun=true`: say what an edit would give, and store nothing. */
 export const DryRunQuery = z.object({
   dryRun: z
@@ -668,7 +662,6 @@ export const ShipConfig = z.object({
     local: z.object({ available: z.literal(true) }),
     bundle: z.object({ available: z.literal(true) }),
   }),
-  pull: z.object({ available: z.literal(true), defaultSource: z.string(), tokenSet: z.boolean() }),
   instanceData: InstanceDataState,
   approvedCounts: z.object({
     recipe: z.number().int().min(0),
@@ -702,22 +695,6 @@ export const ShipResult = z.discriminatedUnion('mode', [
   }),
 ]);
 export type ShipResult = z.infer<typeof ShipResult>;
-
-/** What taking names of ingredients in from a file did. */
-export const OverridesPulled = z.object({
-  source: z.string(),
-  resolvedUrl: z.string(),
-  /** Ingredients whose names were written, and the rows written for them. */
-  applied: z.number().int().min(0),
-  rowsWritten: z.number().int().min(0),
-  /** Ingredients of the file that this instance does not have. */
-  skippedSlugs: z.array(z.string()),
-  /** Entries that break a rule for names, each with the reason. Nothing of them was stored. */
-  refused: z.array(z.object({ slug: z.string(), reason: z.string() })),
-  /** How many ingredients the file names. */
-  total: z.number().int().min(0),
-});
-export type OverridesPulled = z.infer<typeof OverridesPulled>;
 
 /** What restoring from the instance's data directory did. */
 export const RestoredFromInstanceData = z.object({

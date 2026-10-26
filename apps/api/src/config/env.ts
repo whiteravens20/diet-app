@@ -170,21 +170,6 @@ export const envSchema = z.object({
   // this instance and copies them to INSTANCE_DATA_DIR, which a restore reads
   // back; `bundle` hands the administrator a file.
   INSTANCE_DATA_DIR: z.string().default('instance-data'),
-
-  // "Pull ingredient overrides from a repo" — the reverse of the local ship.
-  // The admin panel fetches a repo's `data/ingredient-overrides.json` and
-  // applies the rows to the live DB as source=MANUAL. Read-only and
-  // container-friendly (a plain HTTP fetch, no git working tree). The operator
-  // types the repo in the UI; this is only the default prefill. Accepts an
-  // `owner/repo[@branch]` (GitHub) or a full raw URL (e.g. gitea/gitlab).
-  // Public repos need no auth; private GitHub repos use OVERRIDES_PULL_TOKEN.
-  OVERRIDES_PULL_SOURCE: z.string().default('whiteravens20/diet-app'),
-  // PAT for pulling from a PRIVATE repo. Only ever sent to GitHub hosts.
-  OVERRIDES_PULL_TOKEN: z.string().optional(),
-  // Hosts a pull may fetch from even when their address is not public, as
-  // `host` or `host:port`, comma-separated: a Gitea on the operator's own
-  // network. Any other source must be at a public address.
-  OVERRIDES_PULL_ALLOWED_HOSTS: z.string().optional(),
 });
 
 /** Sentinel password meaning "admin panel disabled". */

@@ -105,11 +105,9 @@ Two rules apply to every variable:
 
 See [curation-shipping.md](curation-shipping.md) for the two ship modes.
 
-| Variable                | Default                        | Purpose                                                                                                                                           |
-| ----------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `INSTANCE_DATA_DIR`     | `instance-data`                | Where the local ship mode copies what it shipped, and what a restore in the admin panel reads back. Private to the instance; keep it on a volume. |
-| `OVERRIDES_PULL_SOURCE` | `whiteravens20/diet-app`       | Default repository (`owner/repo[@branch]`) or raw URL the admin panel pulls ingredient name overrides from.                                       |
-| `OVERRIDES_PULL_TOKEN`  | `OVERRIDES_PULL_ALLOWED_HOSTS` | —                                                                                                                                                 | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public, such as a Gitea on your own network. Every other source must be at a public address; a redirect is never followed. |
+| Variable            | Default         | Purpose                                                                                                                                           |
+| ------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INSTANCE_DATA_DIR` | `instance-data` | Where the local ship mode copies what it shipped, and what a restore in the admin panel reads back. Private to the instance; keep it on a volume. |
 
 ## What the instance publishes
 

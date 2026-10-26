@@ -225,13 +225,6 @@ describe('a request that says something wrongly', () => {
         'draftIds.0',
       ],
       [
-        'a source to pull from of a thousand characters',
-        'post',
-        (): string => '/api/admin/drafts/ship/current-overrides/pull',
-        { source: 'x'.repeat(1000) },
-        'source',
-      ],
-      [
         'a run of names for no ingredient',
         'post',
         (): string => '/api/admin/drafts/ingredient-names/generate',

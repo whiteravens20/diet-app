@@ -5,21 +5,12 @@
 /** Shipping what was approved: into this instance or as a file for a repository, with what the instance keeps in its own files. */
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  CloudDownload,
-  Download,
-  LoaderCircle,
-  RotateCcwClock,
-  Send,
-  ServerCog,
-} from 'lucide-react';
+import { Download, LoaderCircle, RotateCcwClock, Send, ServerCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ApiClientError } from '@/lib/http';
 import {
   adminApi,
   saveJsonFile,
-  type CurrentOverridesPullResponse,
   type ShipConfigDto,
   type ShipKind,
   type ShipMode,
@@ -39,21 +30,17 @@ export function ShipBar({
 }) {
   const t = useTranslations('admin.curation');
   const errorText = useDraftErrorText();
-  const skipReasonText = useSkipReasonText();
   const [config, setConfig] = useState<ShipConfigDto | null>(null);
   const [busyMode, setBusyMode] = useState<ShipMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<ShipResponse | null>(null);
   const [heldBack, setHeldBack] = useState<ShipSkipped[]>([]);
-  const [currentBusy, setCurrentBusy] = useState<'download' | 'pull' | null>(null);
-  const [pullResult, setPullResult] = useState<CurrentOverridesPullResponse | null>(null);
-  const [pullSource, setPullSource] = useState('');
+  const [currentBusy, setCurrentBusy] = useState<'download' | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       const c = await adminApi.shipConfig();
       setConfig(c);
-      setPullSource((prev) => prev || c.pull.defaultSource);
     } catch (err) {
       setError(errorText(err, String(err)));
     }
@@ -106,21 +93,6 @@ export function ShipBar({
     setError(null);
     try {
       await adminApi.downloadCurrentOverrides();
-    } catch (err) {
-      setError(errorText(err, String(err)));
-    } finally {
-      setCurrentBusy(null);
-    }
-  };
-
-  const pullCurrent = async () => {
-    setCurrentBusy('pull');
-    setError(null);
-    setPullResult(null);
-    try {
-      const res = await adminApi.pullCurrentOverrides(pullSource.trim() || undefined);
-      setPullResult(res);
-      await onShipped();
     } catch (err) {
       setError(errorText(err, String(err)));
     } finally {
@@ -196,64 +168,6 @@ export function ShipBar({
             </Button>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{t('shipCurrentExplain')}</p>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('shipPullHeader')}
-            </span>
-            <Input
-              value={pullSource}
-              onChange={(e) => setPullSource(e.target.value)}
-              placeholder="owner/repo"
-              className="h-8 max-w-xs flex-1 text-xs"
-              disabled={currentDisabled}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={currentDisabled || pullSource.trim().length === 0}
-              onClick={pullCurrent}
-              className="gap-2"
-            >
-              {currentBusy === 'pull' ? (
-                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <CloudDownload className="h-3.5 w-3.5" />
-              )}
-              {t('shipCurrentPull')}
-            </Button>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {config.pull.tokenSet ? t('shipPullExplainToken') : t('shipPullExplainNoToken')}
-          </p>
-          {pullResult && (
-            <div className="mt-2 rounded border border-success/40 bg-success/5 px-2 py-1 text-xs">
-              <p>
-                {t('shipPullSuccess', { applied: pullResult.applied, total: pullResult.total })}
-              </p>
-              {pullResult.skippedSlugs.length > 0 && (
-                <p className="mt-1 text-warning">
-                  {t('shipPullSkipped', {
-                    count: pullResult.skippedSlugs.length,
-                    slugs: pullResult.skippedSlugs.slice(0, 8).join(', '),
-                  })}
-                </p>
-              )}
-              {pullResult.refused.length > 0 && (
-                <div className="mt-1 text-warning">
-                  <p>{t('shipPullRefused', { count: pullResult.refused.length })}</p>
-                  <ul className="list-disc pl-4">
-                    {pullResult.refused.slice(0, 8).map((entry) => (
-                      <li key={entry.slug}>
-                        <span className="font-mono">{entry.slug}</span> —{' '}
-                        {skipReasonText(entry.reason)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -396,7 +310,7 @@ function InstanceData({
           )}
           {result.names.skippedSlugs.length > 0 && (
             <p className="mt-1 text-warning">
-              {t('shipPullSkipped', {
+              {t('namesSkipped', {
                 count: result.names.skippedSlugs.length,
                 slugs: result.names.skippedSlugs.slice(0, 8).join(', '),
               })}
@@ -404,7 +318,7 @@ function InstanceData({
           )}
           {result.names.refused.length > 0 && (
             <div className="mt-1 text-warning">
-              <p>{t('shipPullRefused', { count: result.names.refused.length })}</p>
+              <p>{t('namesRefused', { count: result.names.refused.length })}</p>
               <ul className="list-disc pl-4">
                 {result.names.refused.slice(0, 8).map((entry) => (
                   <li key={entry.slug}>

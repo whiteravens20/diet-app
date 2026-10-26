@@ -197,27 +197,11 @@ ingredient the catalogue does not have, or would take the place of another
 recipe is left out, and the panel lists it with its file and the reason. A
 slug that a recipe of the catalogue's own data now uses stays with that recipe.
 
-## Pulling the names of ingredients from a repository
-
-The reverse of shipping names: the panel fetches an
-`ingredient-overrides.json` and stores its names as approved by people.
-
-- The source is `owner/repo` or `owner/repo@branch` on GitHub, or the full
-  address of the file on any host.
-- Only public addresses are fetched from. To pull from a server on your own
-  network, name its host in `OVERRIDES_PULL_ALLOWED_HOSTS`. A redirect is not
-  followed, and a file over 2 MB is not read.
-- A name that breaks a rule for names is refused, a name for an ingredient the
-  catalogue does not have is skipped, and the panel lists both.
-- `OVERRIDES_PULL_TOKEN` is sent to GitHub's hosts and to no other.
-
 ## Settings
 
-| Variable                | Default                        | Purpose                                                                                    |
-| ----------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
-| `INSTANCE_DATA_DIR`     | `instance-data`                | Where `local` ships copy what they shipped, and what a restore reads. Keep it on a volume. |
-| `OVERRIDES_PULL_SOURCE` | `whiteravens20/diet-app`       | The source the panel offers for a pull of names.                                           |
-| `OVERRIDES_PULL_TOKEN`  | `OVERRIDES_PULL_ALLOWED_HOSTS` | —                                                                                          | Hosts (`host` or `host:port`, comma-separated) a pull may fetch from although their address is not public. |
+| Variable            | Default         | Purpose                                                                                    |
+| ------------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| `INSTANCE_DATA_DIR` | `instance-data` | Where `local` ships copy what they shipped, and what a restore reads. Keep it on a volume. |
 
 `bundle` reads no setting. `local` reads only `INSTANCE_DATA_DIR`.
 

@@ -522,15 +522,6 @@
       "pl": "Aktualne hasło jest nieprawidłowe."
     }
   },
-  "INVALID_PULL_SOURCE": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "That's not a repo (owner/repo) or a raw URL.",
-      "pl": "To nie jest ani repozytorium (owner/repo), ani bezpośredni adres pliku."
-    }
-  },
   "INVALID_REFRESH": {
     "statuses": [
       401
@@ -943,33 +934,6 @@
     "messages": {
       "en": "Profile not found.",
       "pl": "Nie znaleziono profilu."
-    }
-  },
-  "PULL_ADDRESS_NOT_PUBLIC": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "That source is not at a public address. A source inside your own network is fetched only when its host is named in OVERRIDES_PULL_ALLOWED_HOSTS.",
-      "pl": "To źródło nie jest pod adresem publicznym. Źródło w sieci wewnętrznej jest pobierane tylko wtedy, gdy jego host jest wpisany w OVERRIDES_PULL_ALLOWED_HOSTS."
-    }
-  },
-  "PULL_FETCH_FAILED": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "Could not fetch the overrides file. Check the repo, the branch and the access token; a redirect is not followed, and a file over 2 MB is not read.",
-      "pl": "Nie udało się pobrać pliku nadpisań. Sprawdź repo, gałąź i token dostępu; przekierowania nie są obsługiwane, a plik większy niż 2 MB nie jest czytany."
-    }
-  },
-  "PULL_SHAPE_INVALID": {
-    "statuses": [
-      409
-    ],
-    "messages": {
-      "en": "The fetched file is not a valid ingredient-overrides.json.",
-      "pl": "Pobrany plik nie jest prawidłowym ingredient-overrides.json."
     }
   },
   "QUANTITY_TOO_LARGE": {

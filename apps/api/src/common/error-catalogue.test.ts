@@ -79,12 +79,7 @@ describe('error-code catalogue', () => {
     expect(thrown.size).toBeGreaterThan(140);
     // Written in an exception; passed on from an error that was caught; handed to the function that throws.
     expect([...thrown]).toEqual(
-      expect.arrayContaining([
-        'PLAN_NOT_FOUND',
-        'OLLAMA_HOST_NOT_ALLOWED',
-        'PULL_FETCH_FAILED',
-        'INVALID_SUBSTITUTION',
-      ]),
+      expect.arrayContaining(['PLAN_NOT_FOUND', 'OLLAMA_HOST_NOT_ALLOWED', 'INVALID_SUBSTITUTION']),
     );
   });
 });

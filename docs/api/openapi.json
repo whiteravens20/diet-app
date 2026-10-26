@@ -1453,47 +1453,6 @@
         }
       }
     },
-    "/api/admin/drafts/ship/current-overrides/pull": {
-      "post": {
-        "operationId": "Drafts_pullCurrentOverrides",
-        "tags": [
-          "admin/drafts"
-        ],
-        "summary": "Take names of ingredients in from a repository the operator names, or from the one the instance is set up with, and give them to the ingredients of this instance.",
-        "description": "Take names of ingredients in from a repository the operator names, or from the one the instance is set up with, and give them to the ingredients of this instance. A public repository needs no token; a private one on GitHub is read with the token of the environment.\n\nAsked by the administrator.",
-        "security": [
-          {
-            "administrator": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "default": {},
-                "$ref": "#/components/schemas/PullOverridesRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "What was asked for.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OverridesPulled"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/Refused"
-          }
-        }
-      }
-    },
     "/api/admin/drafts/ship/mark-shipped": {
       "post": {
         "operationId": "Drafts_shipMarkShipped",
@@ -12431,64 +12390,6 @@
         ],
         "additionalProperties": false
       },
-      "OverridesPulled": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string"
-          },
-          "resolvedUrl": {
-            "type": "string"
-          },
-          "applied": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "rowsWritten": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "skippedSlugs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "refused": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "slug": {
-                  "type": "string"
-                },
-                "reason": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "slug",
-                "reason"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        "required": [
-          "source",
-          "resolvedUrl",
-          "applied",
-          "rowsWritten",
-          "skippedSlugs",
-          "refused",
-          "total"
-        ],
-        "additionalProperties": false
-      },
       "OwnRecipeInput": {
         "type": "object",
         "properties": {
@@ -14473,16 +14374,6 @@
         ],
         "additionalProperties": false
       },
-      "PullOverridesRequest": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          }
-        }
-      },
       "QueuedPolicyReports": {
         "maxItems": 100,
         "type": "array",
@@ -16431,27 +16322,6 @@
             ],
             "additionalProperties": false
           },
-          "pull": {
-            "type": "object",
-            "properties": {
-              "available": {
-                "type": "boolean",
-                "const": true
-              },
-              "defaultSource": {
-                "type": "string"
-              },
-              "tokenSet": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "available",
-              "defaultSource",
-              "tokenSet"
-            ],
-            "additionalProperties": false
-          },
           "instanceData": {
             "$ref": "#/components/schemas/InstanceDataState"
           },
@@ -16476,7 +16346,6 @@
         },
         "required": [
           "modes",
-          "pull",
           "instanceData",
           "approvedCounts"
         ],

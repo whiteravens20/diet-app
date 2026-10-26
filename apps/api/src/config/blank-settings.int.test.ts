@@ -30,7 +30,6 @@ const BLANK = [
   'OPENAI_API_KEY',
   'ANTHROPIC_API_KEY',
   'OPENROUTER_API_KEY',
-  'OVERRIDES_PULL_TOKEN',
 ];
 
 describe('settings left blank in the environment', () => {
