@@ -183,4 +183,30 @@ describe("the administrator's requests", () => {
       'POST /api/admin/session/end-all',
     ]);
   });
+
+  it('reject the drafts of names shown at once, with the reason where one is given', async () => {
+    const { adminApi, fetchMock } = await aPage();
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(answered(200, { rejected: [], skipped: [] })),
+    );
+
+    await adminApi.rejectIngredientNameDrafts(['one', 'two'], 'curator', 'Not a word for it');
+    await adminApi.rejectIngredientNameDrafts(['one'], 'curator');
+
+    expect(
+      fetchMock.mock.calls.map(([url, init]) => [
+        `${(init as RequestInit).method} ${url as string}`,
+        JSON.parse((init as RequestInit).body as string),
+      ]),
+    ).toEqual([
+      [
+        'POST /api/admin/drafts/ingredient-names/reject',
+        { ids: ['one', 'two'], reviewedByLabel: 'curator', reason: 'Not a word for it' },
+      ],
+      [
+        'POST /api/admin/drafts/ingredient-names/reject',
+        { ids: ['one'], reviewedByLabel: 'curator' },
+      ],
+    ]);
+  });
 });

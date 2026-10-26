@@ -247,6 +247,15 @@ export const adminApi = {
       `/drafts/ingredient-names/${id}/reject?locale=${encodeURIComponent(locale)}`,
       { method: 'POST', body: JSON.stringify({ reviewedByLabel, reason }) },
     ),
+  /** Reject up to a hundred drafts of names with one reason; answers which were rejected and which were left as they were. */
+  rejectIngredientNameDrafts: (ids: string[], reviewedByLabel: string, reason?: string) =>
+    adminFetch<{ rejected: string[]; skipped: { id: string; error: string }[] }>(
+      '/drafts/ingredient-names/reject',
+      {
+        method: 'POST',
+        body: JSON.stringify({ ids, reviewedByLabel, ...(reason ? { reason } : {}) }),
+      },
+    ),
   deleteIngredientNameDraft: (id: string) =>
     adminFetch<void>(`/drafts/ingredient-names/${id}`, { method: 'DELETE' }),
 

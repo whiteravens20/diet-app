@@ -344,17 +344,48 @@ export class DraftService {
    * shipped or is gone in the meantime is left out and named, and the others
    * are rejected all the same.
    */
-  async rejectRecipes(
+  rejectRecipes(
     ids: readonly string[],
     reason: string | undefined,
     by: Actor,
+  ): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
+    // English is the language every recipe draft has, and the administrator's to review.
+    return this.rejectEach(ids, (id) =>
+      this.reviewRecipe(id, { locale: 'en', action: 'REJECT', reason }, by),
+    );
+  }
+
+  /**
+   * The administrator rejects several drafts of ingredient names at once, with
+   * one reason, each in the first of its languages: one language rejected is
+   * a draft rejected. The next run of the names writes a rejected one again.
+   */
+  rejectIngredientNames(
+    ids: readonly string[],
+    reason: string | undefined,
+    by: Actor,
+  ): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
+    return this.rejectEach(ids, async (id) => {
+      const draft = await this.prisma.ingredientNameDraft.findUnique({
+        where: { id },
+        select: { locales: true },
+      });
+      // A draft that is gone is refused as a rejection of it alone would be.
+      const locale = (draft?.locales[0] ?? 'en') as Locale;
+      return this.reviewIngredientName(id, { locale, action: 'REJECT', reason }, by);
+    });
+  }
+
+  /** Reject each draft of `ids` on its own, leaving out and naming one the rejection was refused for. */
+  private async rejectEach(
+    ids: readonly string[],
+    reject: (id: string) => Promise<unknown>,
   ): Promise<{ rejected: string[]; skipped: { id: string; error: string }[] }> {
     const rejected: string[] = [];
     const skipped: { id: string; error: string }[] = [];
     for (const id of new Set(ids)) {
       try {
-        // English is the language every recipe draft has, and the administrator's to review.
-        await this.reviewRecipe(id, { locale: 'en', action: 'REJECT', reason }, by);
+        await reject(id);
         rejected.push(id);
       } catch (err) {
         if (!(err instanceof HttpException)) throw err;

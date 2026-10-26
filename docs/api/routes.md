@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-166 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+167 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -42,6 +42,7 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `POST /api/admin/drafts/ingredient-names/generate` | the administrator | Start the run that asks a model for names of ingredients. 409 while one is running. | `IngredientNameGenerateSpec` | 202 `DraftRunnerState` | 5 in a minute |
 | `GET /api/admin/drafts/ingredient-names/generate/status` | the administrator | Where the run of names stands. |  | 200 `DraftRunnerState` |  |
 | `POST /api/admin/drafts/ingredient-names/generate/stop` | the administrator | Stop the run of names. What it has written stays. |  | 202 `DraftRunnerState` |  |
+| `POST /api/admin/drafts/ingredient-names/reject` | the administrator | Reject up to a hundred drafts of ingredient names with one reason, each in its first language: what the queue is cleared with before the names are written again. Answers which were rejected and which were left out, each with the refusal a single rejection would have got. | `DraftBulkRejectBody` | 200 `RejectedDrafts` |  |
 | `GET /api/admin/drafts/recipes` | the administrator | The recipe drafts, a page at a time, narrowed as asked. | query `RecipeDraftListQuery` | 200 `RecipeDraftPage` |  |
 | `GET /api/admin/drafts/recipes/:id` | the administrator | One recipe draft. |  | 200 `RecipeDraft` |  |
 | `DELETE /api/admin/drafts/recipes/:id` | the administrator | Remove a recipe draft. |  | 204 |  |

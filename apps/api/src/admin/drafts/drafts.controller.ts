@@ -158,6 +158,22 @@ export class DraftsController {
     return { ...found, items: found.items.map(toIngredientNameDraftDto) };
   }
 
+  /**
+   * Reject up to a hundred drafts of ingredient names with one reason, each in
+   * its first language: what the queue is cleared with before the names are
+   * written again. Answers which were rejected and which were left out, each
+   * with the refusal a single rejection would have got.
+   */
+  @Post('ingredient-names/reject')
+  @HttpCode(200)
+  @Answers(RejectedDrafts)
+  rejectIngredientNameDrafts(
+    @Body(new ZodValidationPipe(DraftBulkRejectBody))
+    { ids, reviewedByLabel, reason }: DraftBulkRejectBody,
+  ): Promise<RejectedDrafts> {
+    return this.drafts.rejectIngredientNames(ids, reason, { ...ADMIN, label: reviewedByLabel });
+  }
+
   /** One draft of a name. */
   @Get('ingredient-names/:id')
   @Answers(IngredientNameDraft)

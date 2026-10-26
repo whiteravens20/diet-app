@@ -30,6 +30,7 @@ export function IngredientPanel() {
   const [data, setData] = useState<PagedDrafts<IngredientNameDraft> | null>(null);
   // How many times the drafts were read: the ship bar reads its counts again with them.
   const [listRead, setListRead] = useState(0);
+  const [rejected, setRejected] = useState<{ rejected: number; skipped: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -90,6 +91,28 @@ export function IngredientPanel() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  /** The drafts on this page that can still be rejected. */
+  const open = (data?.items ?? []).filter(
+    (draft) => draft.status === 'PENDING' || draft.status === 'APPROVED',
+  );
+  // Names nobody will ship, rejected in one go with one reason, so that the next run writes them again.
+  const onRejectShown = async () => {
+    const label = window.prompt(t('reviewLabelPrompt'));
+    if (!label) return;
+    const reason = window.prompt(t('rejectReasonPrompt')) ?? undefined;
+    try {
+      const res = await adminApi.rejectIngredientNameDrafts(
+        open.map((draft) => draft.id),
+        label,
+        reason,
+      );
+      setRejected({ rejected: res.rejected.length, skipped: res.skipped.length });
+      await loadDrafts();
+    } catch (err) {
+      setError(errorText(err, String(err)));
+    }
+  };
 
   const onGenerate = async () => {
     try {
@@ -169,8 +192,21 @@ export function IngredientPanel() {
         onStatusChange={(s) => {
           setStatusFilter(s);
           setPage(1);
+          setRejected(null);
         }}
       />
+      {(open.length > 0 || rejected) && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {open.length > 0 && (
+            <Button size="sm" variant="outline" onClick={onRejectShown}>
+              {t('rejectShown', { count: open.length })}
+            </Button>
+          )}
+          {rejected && (
+            <span className="text-muted-foreground">{t('rejectShownDone', rejected)}</span>
+          )}
+        </div>
+      )}
 
       {data === null ? (
         <p className="text-sm text-muted-foreground">…</p>

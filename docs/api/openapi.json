@@ -723,6 +723,46 @@
         }
       }
     },
+    "/api/admin/drafts/ingredient-names/reject": {
+      "post": {
+        "operationId": "Drafts_rejectIngredientNameDrafts",
+        "tags": [
+          "admin/drafts"
+        ],
+        "summary": "Reject up to a hundred drafts of ingredient names with one reason, each in its first language: what the queue is cleared with before the names are written again.",
+        "description": "Reject up to a hundred drafts of ingredient names with one reason, each in its first language: what the queue is cleared with before the names are written again. Answers which were rejected and which were left out, each with the refusal a single rejection would have got.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftBulkRejectBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RejectedDrafts"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/admin/drafts/recipes": {
       "get": {
         "operationId": "Drafts_listRecipeDrafts",

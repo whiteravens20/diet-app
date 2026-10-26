@@ -132,3 +132,41 @@ describe('the decisions of a draft in the administrator’s panel', () => {
     expect(decision(texts.reject, 'pl')).toBeDisabled();
   });
 });
+
+describe('the drafts of names in the administrator’s panel', () => {
+  it('are rejected all at once, with one name and one reason, so that the next run writes them again', async () => {
+    const shownDrafts = [
+      { ...anIngredientNameDraft(), localeReviews: [] },
+      {
+        ...anIngredientNameDraft(),
+        id: '44444444-4444-4444-8444-444444444444',
+        ingredientSlug: 'fish-salmon-atlantic-farm-raised-raw',
+        localeReviews: [],
+      },
+    ];
+    vi.spyOn(adminApi, 'ingredientNamerStatus').mockResolvedValue(null as never);
+    vi.spyOn(adminApi, 'listIngredientNameDrafts').mockResolvedValue({
+      items: shownDrafts,
+      page: 1,
+      pageSize: 20,
+      total: 2,
+      totalPages: 1,
+    } as never);
+    const reject = vi
+      .spyOn(adminApi, 'rejectIngredientNameDrafts')
+      .mockResolvedValue({ rejected: shownDrafts.map((draft) => draft.id), skipped: [] });
+    vi.spyOn(window, 'prompt')
+      .mockReturnValueOnce('Admin')
+      .mockReturnValueOnce('Write them again.');
+
+    shown(<IngredientPanel />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Reject the 2 shown' }));
+
+    expect(reject).toHaveBeenCalledExactlyOnceWith(
+      shownDrafts.map((draft) => draft.id),
+      'Admin',
+      'Write them again.',
+    );
+    expect(await screen.findByText('2 rejected.')).toBeInTheDocument();
+  });
+});

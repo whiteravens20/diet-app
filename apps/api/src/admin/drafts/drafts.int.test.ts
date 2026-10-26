@@ -717,6 +717,75 @@ describe('the curation queue', () => {
     });
   });
 
+  describe('rejecting several drafts of names at once', () => {
+    const reject = (body: Record<string, unknown>) =>
+      t.http().post('/api/admin/drafts/ingredient-names/reject').set(asAdmin).send(body);
+    const nameRow = (id: string) =>
+      t.prisma.ingredientNameDraft.findUniqueOrThrow({
+        where: { id },
+        include: { localeReviews: true },
+      });
+
+    it('rejects each in its first language, with the one reason, and names what it left out', async () => {
+      const polish = await anIngredientNameDraft(t);
+      const both = await anIngredientNameDraft(t, {
+        ingredientSlug: 'salmon',
+        suggestions: { name: { en: 'Salmon', pl: 'Łosoś' } },
+        locales: ['en', 'pl'],
+        status: 'APPROVED',
+      });
+      const shipped = await anIngredientNameDraft(t, {
+        ingredientSlug: 'firm-tofu',
+        status: 'SHIPPED',
+      });
+      const gone = '00000000-0000-4000-8000-000000000000';
+
+      const res = await reject({
+        ids: [polish.id, both.id, shipped.id, gone],
+        reviewedByLabel: 'Pavlo',
+        reason: 'Write them again.',
+      }).expect(200);
+
+      expect(res.body).toEqual({
+        rejected: [polish.id, both.id],
+        skipped: [
+          { id: shipped.id, error: 'DRAFT_SHIPPED' },
+          { id: gone, error: 'DRAFT_NOT_FOUND' },
+        ],
+      });
+      for (const [draft, locale] of [
+        [polish, 'pl'],
+        [both, 'en'],
+      ] as const) {
+        const row = await nameRow(draft.id);
+        expect(row.status).toBe('REJECTED');
+        expect(row.localeReviews).toEqual([
+          expect.objectContaining({
+            locale,
+            action: 'REJECT',
+            byRole: 'ADMIN',
+            reviewedByLabel: 'Pavlo',
+            reason: 'Write them again.',
+          }),
+        ]);
+      }
+      expect((await nameRow(shipped.id)).status).toBe('SHIPPED');
+    });
+
+    it("is the administrator's: a reviewer has no such route", async () => {
+      const draft = await anIngredientNameDraft(t);
+
+      const res = await t
+        .http()
+        .post('/api/review/drafts/ingredient-names/reject')
+        .set(reviewer)
+        .send({ ids: [draft.id], reviewedByLabel: 'Anna' });
+
+      expect(res.status).toBe(404);
+      expect((await nameRow(draft.id)).status).toBe('PENDING');
+    });
+  });
+
   describe('the lists', () => {
     it('take a status, a batch and a complexity, each checked', async () => {
       await aRecipeDraft(t);
