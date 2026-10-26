@@ -10,7 +10,10 @@ import { useMemo, useState } from 'react';
 import type {
   Allergen,
   MarkedFilter,
+  MyRecipe,
+  MyRecipesPage,
   Profile,
+  Recipe,
   RecipeSearchPage,
   SessionUser,
 } from '@diet-app/shared';
@@ -38,6 +41,10 @@ const selectClass = 'h-10 w-full rounded-md border border-input bg-background px
 const DIET_TYPES = RECIPE_DIET_TAGS;
 const MEAL_TYPES = ['breakfast', 'second_breakfast', 'lunch', 'snack', 'dinner'] as const;
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+
+/** A recipe of one's own the curators have already, which is not offered to them again. */
+const sentToCurators = (recipe: Recipe | MyRecipe): boolean =>
+  'submitted' in recipe && recipe.submitted;
 
 /** Recipe library — search + filter; each card opens the full recipe. */
 export default function RecipesPage() {
@@ -149,7 +156,7 @@ export default function RecipesPage() {
     queryKey: tab === 'mine' ? ['recipes:mine', page] : ['recipes', queryString],
     queryFn: () =>
       tab === 'mine'
-        ? api.get<RecipeSearchPage>(`/recipes/mine?page=${page}&pageSize=${PAGE_SIZE}`)
+        ? api.get<MyRecipesPage>(`/recipes/mine?page=${page}&pageSize=${PAGE_SIZE}`)
         : api.get<RecipeSearchPage>(`/recipes${queryString}`),
   });
 
@@ -165,7 +172,11 @@ export default function RecipesPage() {
   const [submitted, setSubmitted] = useState<{ ok: boolean; text: string } | null>(null);
   const submitRecipe = useMutation({
     mutationFn: (id: string) => api.post<void>(`/recipes/${id}/submit`),
-    onSuccess: () => setSubmitted({ ok: true, text: t('submitDone') }),
+    onSuccess: () => {
+      setSubmitted({ ok: true, text: t('submitDone') });
+      // The list says it was sent, and offers to send it no more.
+      void queryClient.invalidateQueries({ queryKey: ['recipes:mine'] });
+    },
     onError: (e) => setSubmitted({ ok: false, text: errorText(e, t('submitFailed')) }),
   });
 
@@ -513,12 +524,12 @@ export default function RecipesPage() {
                     href={`/recipes/${r.id}/edit`}
                     title={t('edit')}
                     aria-label={t('edit')}
-                    className={`absolute top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100 ${r.origin === 'swap' ? 'right-9' : 'right-16'}`}
+                    className={`absolute top-2 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100 ${r.origin === 'swap' || sentToCurators(r) ? 'right-9' : 'right-16'}`}
                   >
                     <Pencil size={14} aria-hidden />
                   </Link>
                 )}
-                {tab === 'mine' && r.origin !== 'swap' && (
+                {tab === 'mine' && r.origin !== 'swap' && !sentToCurators(r) && (
                   <button
                     type="button"
                     title={t('submit')}

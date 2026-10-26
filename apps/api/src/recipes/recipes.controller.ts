@@ -16,6 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import {
   AiDraftRecipeRequest,
   AiDraftRecipeResponse,
+  MyRecipesPage,
   OwnRecipeInput,
   OwnRecipePreview,
   OwnRecipePreviewRequest,
@@ -47,11 +48,12 @@ export class RecipesController {
 
   /**
    * The recipes of the account's own, a page at a time: those a model wrote
-   * for it, those a substitution left and those written by hand. A deleted
-   * one is not among them.
+   * for it, those a substitution left and those written by hand, each saying
+   * whether it was put before the curators already. A deleted one is not
+   * among them.
    */
   @Get('mine')
-  @Answers(RecipeSearchPage)
+  @Answers(MyRecipesPage)
   listMine(
     @CurrentUser() user: RequestUser,
     @RequestLocale() locale: Locale,

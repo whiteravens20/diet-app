@@ -26,7 +26,8 @@ async function renderPage(profiles = 1, favoured: string[] = [TOFU], mine: unkno
         ? { aiMode: 'none' }
         : path.startsWith('/recipes/mine?')
           ? {
-              items: mine,
+              // A copy, so that a recipe changed in `mine` is a change of the answer.
+              items: [...mine],
               page: 1,
               pageSize: 36,
               total: mine.length,
@@ -208,7 +209,7 @@ describe("the recipes of one's own", () => {
   });
 
   /** A recipe of the account's own, as the API lists it. */
-  const own = (id: string, title: string, origin: 'ai' | 'swap' | 'manual') => ({
+  const own = (id: string, title: string, origin: 'ai' | 'swap' | 'manual', submitted = false) => ({
     id,
     title,
     description: '',
@@ -226,26 +227,53 @@ describe("the recipes of one's own", () => {
     origin,
     byModel: origin === 'ai' ? 'written' : null,
     source: null,
+    submitted,
   });
 
-  it('offer to submit one a model wrote, and not one made by swapping an ingredient', async () => {
+  it('offer to submit one a model wrote, and neither one the curators have already nor one made by swapping an ingredient', async () => {
     await renderPage(
       1,
       [TOFU],
       [
         own('2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f01', 'A dinner a model wrote', 'ai'),
         own('2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f02', 'My bowl with chicken for tofu', 'swap'),
+        // As one the instance's model wrote is, the moment it is written.
+        own('2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f03', 'A lunch the curators have', 'ai', true),
       ],
     );
 
     await userEvent.click(screen.getByRole('button', { name: texts.tabs.mine }));
 
-    const written = (await screen.findByText('A dinner a model wrote')).closest('div.relative')!;
-    const swapped = screen.getByText('My bowl with chicken for tofu').closest('div.relative')!;
+    const card = async (title: string) =>
+      (await screen.findByText(title)).closest('div.relative') as HTMLElement;
     expect(
-      within(written as HTMLElement).getByRole('button', { name: texts.submit }),
+      within(await card('A dinner a model wrote')).getByRole('button', { name: texts.submit }),
     ).toBeInTheDocument();
-    expect(within(swapped as HTMLElement).queryByRole('button', { name: texts.submit })).toBeNull();
+    for (const title of ['My bowl with chicken for tofu', 'A lunch the curators have']) {
+      expect(within(await card(title)).queryByRole('button', { name: texts.submit })).toBeNull();
+    }
+  });
+
+  it('offer it no more once it is sent', async () => {
+    const id = '2c9a1f0e-1b2c-4d3e-8f4a-5b6c7d8e9f01';
+    const mine = [own(id, 'A dinner a model wrote', 'ai')];
+    await renderPage(1, [TOFU], mine);
+    const post = vi.spyOn(api, 'post').mockResolvedValue(undefined as never);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await userEvent.click(screen.getByRole('button', { name: texts.tabs.mine }));
+    const card = (await screen.findByText('A dinner a model wrote')).closest(
+      'div.relative',
+    ) as HTMLElement;
+    // What the list says of it from now on.
+    mine[0] = own(id, 'A dinner a model wrote', 'ai', true);
+
+    await userEvent.click(within(card).getByRole('button', { name: texts.submit }));
+
+    expect(post).toHaveBeenCalledExactlyOnceWith(`/recipes/${id}/submit`);
+    expect(await screen.findByText(texts.submitDone)).toBeInTheDocument();
+    await vi.waitFor(() =>
+      expect(within(card).queryByRole('button', { name: texts.submit })).toBeNull(),
+    );
   });
 
   it('offer to edit each of them, whoever wrote it', async () => {

@@ -4,6 +4,7 @@ import {
   AiDraftRecipeRequest,
   type AiDraftRecipeResponse,
   type Locale,
+  type MyRecipesPage,
   type Profile,
 } from '@diet-app/shared';
 import { HttpException } from '@nestjs/common';
@@ -256,6 +257,40 @@ describe('drafting a recipe with a model', () => {
 
       expect(await stored()).toBe(1);
       expect(await t.prisma.recipeDraft.count()).toBe(0);
+    });
+
+    it("have it, the list of the user's recipes says of one the instance's model wrote, and of one the user's own model wrote once it is sent", async () => {
+      t.model.reply({ text: (request) => JSON.stringify(draft(request)) });
+      const byInstance = await ask();
+      await t
+        .http()
+        .put('/api/ai/providers')
+        .set(as(user))
+        .send({ provider: 'ollama', baseUrl: t.model.url, model: 'test-model' })
+        .expect(200);
+      await t.http().patch('/api/users/me').set(as(user)).send({ aiMode: 'byok' }).expect(200);
+      // Other amounts make another recipe.
+      t.model.reply({ text: (request) => JSON.stringify(withQuantity(request, 150)) });
+      const byOwnModel = await ask();
+      const submitted = async () =>
+        Object.fromEntries(
+          (
+            (await t.http().get('/api/recipes/mine').set(as(user)).expect(200))
+              .body as MyRecipesPage
+          ).items.map((recipe) => [recipe.id, recipe.submitted]),
+        );
+
+      expect(await submitted()).toEqual({
+        [byInstance.recipe.id]: true,
+        [byOwnModel.recipe.id]: false,
+      });
+
+      await t.http().post(`/api/recipes/${byOwnModel.recipe.id}/submit`).set(as(user)).expect(204);
+
+      expect(await submitted()).toEqual({
+        [byInstance.recipe.id]: true,
+        [byOwnModel.recipe.id]: true,
+      });
     });
   });
 

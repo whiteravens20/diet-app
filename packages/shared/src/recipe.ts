@@ -335,3 +335,16 @@ export const RecipeSearchPage = z.object({
   totalPages: z.number().int().min(0),
 });
 export type RecipeSearchPage = z.infer<typeof RecipeSearchPage>;
+
+/**
+ * A recipe of the account's own, as the list of them shows it. `submitted`:
+ * it was put before the curators already, by its owner or, when the
+ * instance's model wrote it, by itself as it was written. Sending it again
+ * changes nothing.
+ */
+export const MyRecipe = Recipe.extend({ submitted: z.boolean() });
+export type MyRecipe = z.infer<typeof MyRecipe>;
+
+/** A page of the account's own recipes. */
+export const MyRecipesPage = RecipeSearchPage.extend({ items: z.array(MyRecipe) });
+export type MyRecipesPage = z.infer<typeof MyRecipesPage>;

@@ -6085,8 +6085,8 @@
         "tags": [
           "recipes"
         ],
-        "summary": "The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand.",
-        "description": "The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand. A deleted one is not among them.\n\nAsked by an account.",
+        "summary": "The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand, each saying whether it was put before the curators already.",
+        "description": "The recipes of the account's own, a page at a time: those a model wrote for it, those a substitution left and those written by hand, each saying whether it was put before the curators already. A deleted one is not among them.\n\nAsked by an account.",
         "security": [
           {
             "account": []
@@ -6131,7 +6131,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RecipeSearchPage"
+                  "$ref": "#/components/schemas/MyRecipesPage"
                 }
               }
             }
@@ -12470,6 +12470,174 @@
           "fat",
           "carbs"
         ]
+      },
+      "MyRecipe": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "servings": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "mealTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealType"
+            }
+          },
+          "dietTags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietType"
+            }
+          },
+          "ingredients": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipeIngredient"
+            }
+          },
+          "steps": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prepMinutes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cookMinutes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/Difficulty"
+          },
+          "cuisine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cuisine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allergens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allergen"
+            }
+          },
+          "nutritionPerServing": {
+            "$ref": "#/components/schemas/Nutrition"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "seed",
+              "ai",
+              "swap",
+              "curated",
+              "manual"
+            ]
+          },
+          "byModel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "written",
+                  "changed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecipeSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submitted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "servings",
+          "mealTypes",
+          "dietTags",
+          "ingredients",
+          "steps",
+          "prepMinutes",
+          "cookMinutes",
+          "difficulty",
+          "cuisine",
+          "allergens",
+          "nutritionPerServing",
+          "origin",
+          "byModel",
+          "source",
+          "submitted"
+        ],
+        "additionalProperties": false
+      },
+      "MyRecipesPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyRecipe"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total",
+          "totalPages"
+        ],
+        "additionalProperties": false
       },
       "NaturalUnit": {
         "type": "string",

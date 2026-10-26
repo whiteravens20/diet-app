@@ -5,6 +5,7 @@ import type { Prisma } from '@prisma/client';
 import {
   Cuisine,
   type Locale,
+  type MyRecipesPage,
   type PlannedIngredient,
   type Recipe,
   type RecipeSearchPage,
@@ -200,7 +201,7 @@ export class RecipesService {
     userId: string,
     locale: Locale,
     paging: { page?: number; pageSize?: number } = {},
-  ): Promise<RecipeSearchPage> {
+  ): Promise<MyRecipesPage> {
     const pageSize = Math.min(Math.max(paging.pageSize ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
     const page = Math.max(paging.page ?? 1, 1);
     const where: Prisma.RecipeWhereInput = {
@@ -223,8 +224,14 @@ export class RecipesService {
         take: pageSize,
       }),
     ]);
+    // A draft of the curation queue names the personal recipes it was made from.
+    const drafts = await this.prisma.recipeDraft.findMany({
+      where: { sourceRecipeIds: { hasSome: rows.map((r) => r.id) } },
+      select: { sourceRecipeIds: true },
+    });
+    const submitted = new Set(drafts.flatMap((draft) => draft.sourceRecipeIds));
     return {
-      items: rows.map((r) => toRecipeDto(r, locale)),
+      items: rows.map((r) => ({ ...toRecipeDto(r, locale), submitted: submitted.has(r.id) })),
       page,
       pageSize,
       total,
