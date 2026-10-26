@@ -25,9 +25,11 @@ test.describe('the calendar of plans', () => {
 
     await expect(grid.getByRole('columnheader')).toHaveCount(7);
     // The account's plan began the day the account was made: the day it is holds a number of kilocalories.
+    // It is drawn in the day's cell over the button, which shows the date alone and says the rest in its name.
     const today = grid.locator('button[aria-current="date"]');
     await expect(today).toHaveCount(1);
-    await expect(today).toContainText(/\d{3}/);
+    await expect(today.locator('xpath=..')).toContainText(/\d{3}/);
+    await expect(today).toHaveAccessibleName(/\d{3}/);
     // Seven days stand side by side on the narrowest screen, with nothing to scroll sideways for.
     expect(
       await page.evaluate(
