@@ -16,6 +16,7 @@ import { ConnectionCard } from './connection-card';
 import { CoverageCard } from './coverage-card';
 import { CurationCard } from './curation-card';
 import { OperatorAiCard } from './operator-ai-card';
+import { RetiredIngredientsCard } from './retired-ingredients-card';
 import { ReviewerConfigCard } from './reviewer-config-card';
 import { UsdaImportCard } from './usda-import-card';
 import { adminApi, type AdminStats, type DbUpdateState } from '@/lib/admin-api';
@@ -411,6 +412,8 @@ export function AdminPanel() {
           </div>
         </CardContent>
       </Card>
+
+      <RetiredIngredientsCard />
 
       <CoverageCard
         coverage={stats.coverage}

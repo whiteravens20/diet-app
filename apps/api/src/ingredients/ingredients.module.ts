@@ -7,5 +7,6 @@ import { IngredientsService } from './ingredients.service.js';
 @Module({
   controllers: [IngredientsController],
   providers: [IngredientsService],
+  exports: [IngredientsService],
 })
 export class IngredientsModule {}

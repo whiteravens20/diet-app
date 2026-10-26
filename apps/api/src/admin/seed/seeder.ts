@@ -31,7 +31,7 @@ import { UnitConversionError } from '../../engine/units.js';
 import { computeFingerprint } from '../drafts/fingerprint.js';
 import { asLocaleMap, en, loadCatalogue, type Catalogue } from './catalogue.js';
 import { resolveDataDir } from './data-hash.js';
-import { MOVABLE, moveUses, UnitsStandInTheWay } from './move-uses.js';
+import { MOVABLE, moveUses, UnitsStandInTheWay, type MovedUses } from './move-uses.js';
 
 type Db = Prisma.TransactionClient;
 
@@ -90,6 +90,69 @@ export async function runSeed(
 ): Promise<SeedCounts> {
   const catalogue = loadCatalogue(dir);
   return prisma.$transaction((tx) => applyCatalogue(tx, catalogue, log, onProgress), TRANSACTION);
+}
+
+/** Why a retired ingredient was not replaced. */
+export class ReplaceRefused extends Error {
+  constructor(
+    readonly code:
+      'INGREDIENT_NOT_RETIRED' | 'REPLACEMENT_NOT_IN_CATALOGUE' | 'UNITS_STAND_IN_THE_WAY',
+    readonly units: string[] = [],
+  ) {
+    super(code);
+  }
+}
+
+/** What replacing a retired ingredient did. */
+export interface Replaced extends MovedUses {
+  /** Whether the retired ingredient was deleted, nothing using it any more. */
+  deleted: boolean;
+  /** Recipes outside the seed whose figures changed with it. */
+  recomputedRecipes: number;
+}
+
+/**
+ * The administrator's replacement of a retired ingredient by one of the
+ * catalogue: what uses it moves over (see `moveUses`), what is worked out from
+ * the ingredients of recipes outside the seed is worked out again, and the
+ * retired ingredient goes once nothing uses it. Throws `ReplaceRefused`, with
+ * nothing written.
+ */
+export async function replaceIngredient(
+  prisma: PrismaClient,
+  retiredId: string,
+  replacementId: string,
+): Promise<Replaced> {
+  return prisma.$transaction(async (tx) => {
+    await holdCatalogue(tx);
+    const retired = await tx.ingredient.findUnique({
+      where: { id: retiredId },
+      select: { ...MOVABLE, retiredAt: true },
+    });
+    if (!retired || retired.retiredAt === null) throw new ReplaceRefused('INGREDIENT_NOT_RETIRED');
+    const replacement = await tx.ingredient.findUnique({
+      where: { id: replacementId },
+      select: { ...MOVABLE, retiredAt: true },
+    });
+    if (!replacement?.slug || replacement.retiredAt !== null || replacement.id === retired.id)
+      throw new ReplaceRefused('REPLACEMENT_NOT_IN_CATALOGUE');
+
+    let moved: MovedUses;
+    try {
+      moved = await moveUses(tx, retired, { ...replacement, slug: replacement.slug });
+    } catch (err) {
+      if (err instanceof UnitsStandInTheWay)
+        throw new ReplaceRefused('UNITS_STAND_IN_THE_WAY', err.units);
+      throw err;
+    }
+    const stillUsed =
+      (await tx.recipeIngredient.count({ where: { ingredientId: retired.id } })) > 0 ||
+      (await tx.inventoryItem.count({ where: { ingredientId: retired.id } })) > 0;
+    if (!stillUsed) await tx.ingredient.delete({ where: { id: retired.id } });
+    const recomputedRecipes = await recomputeDerivedRecipes(tx);
+    await repairDanglingReferences(tx);
+    return { ...moved, deleted: !stillUsed, recomputedRecipes };
+  }, TRANSACTION);
 }
 
 /**

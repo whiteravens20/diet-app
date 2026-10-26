@@ -441,6 +441,15 @@
       "pl": "Ten składnik nie należy do przepisu."
     }
   },
+  "INGREDIENT_NOT_RETIRED": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "Only a retired ingredient can be replaced, and this one is not retired any more.",
+      "pl": "Zastąpić można tylko wycofany składnik, a ten nie jest już wycofany."
+    }
+  },
   "INSTANCE_DATA_NEWER": {
     "statuses": [
       409
@@ -1035,6 +1044,15 @@
       "pl": "Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane."
     }
   },
+  "REPLACEMENT_NOT_IN_CATALOGUE": {
+    "statuses": [
+      422
+    ],
+    "messages": {
+      "en": "Choose another ingredient of the catalogue to replace it with.",
+      "pl": "Wybierz inny składnik z katalogu, którym go zastąpić."
+    }
+  },
   "REVIEWER_DISABLED": {
     "statuses": [
       401,
@@ -1214,6 +1232,15 @@
     "messages": {
       "en": "Sign in to continue.",
       "pl": "Zaloguj się, aby kontynuować."
+    }
+  },
+  "UNITS_STAND_IN_THE_WAY": {
+    "statuses": [
+      409
+    ],
+    "messages": {
+      "en": "That ingredient cannot be measured in a unit an amount of the retired one is given in, not even in grams. Choose another.",
+      "pl": "Tego składnika nie da się odmierzyć w jednostce, w której podano ilość wycofanego, nawet w gramach. Wybierz inny."
     }
   },
   "UNIT_CONVERSION_FAILED": {

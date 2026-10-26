@@ -142,6 +142,47 @@ export const CatalogueUpdateState = z.object({
 });
 export type CatalogueUpdateState = z.infer<typeof CatalogueUpdateState>;
 
+/**
+ * A retired ingredient that something of the instance still uses: the data no
+ * longer carries it, so the administrator can move what uses it to an
+ * ingredient of the catalogue.
+ */
+export const RetiredIngredient = z.object({
+  id: z.string().uuid(),
+  slug: z.string().nullable(),
+  /** In the language of the request, or in English. */
+  name: z.string(),
+  retiredAt: z.string(),
+  /** How many of each use it has. */
+  uses: z.object({
+    libraryRecipes: z.number().int().min(0),
+    ownRecipes: z.number().int().min(0),
+    drafts: z.number().int().min(0),
+    pantryRows: z.number().int().min(0),
+    profiles: z.number().int().min(0),
+    shoppingRows: z.number().int().min(0),
+  }),
+  /** The titles of the recipes of the library and of the drafts that use it: their text may name it. */
+  usedIn: z.array(z.string()),
+});
+export type RetiredIngredient = z.infer<typeof RetiredIngredient>;
+
+/** The ingredient of the catalogue a retired one is replaced by. */
+export const ReplaceIngredientRequest = z.object({ by: z.string().uuid() }).strict();
+export type ReplaceIngredientRequest = z.infer<typeof ReplaceIngredientRequest>;
+
+/** What replacing a retired ingredient moved, and whether the retired one is gone. */
+export const ReplacedIngredient = z.object({
+  recipeLines: z.number().int().min(0),
+  draftLines: z.number().int().min(0),
+  pantryRows: z.number().int().min(0),
+  preferences: z.number().int().min(0),
+  shoppingRows: z.number().int().min(0),
+  deleted: z.boolean(),
+  recomputedRecipes: z.number().int().min(0),
+});
+export type ReplacedIngredient = z.infer<typeof ReplacedIngredient>;
+
 /** Why a food import failed, so that the panel can say what to do about it. */
 export const FoodImportFailure = z.enum([
   'over_limit',

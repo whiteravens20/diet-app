@@ -417,7 +417,10 @@
     "RECIPE_INVALID": "The recipe would break the rules for recipe text and quantities. Nothing was saved.",
     "RECIPE_ALREADY_YOURS": "You already have a recipe with these ingredients, in these amounts, for these meals.",
     "OWN_RECIPE_DAILY_LIMIT": "You have saved as many recipes of your own today as you may. Try again tomorrow.",
-    "INSTANCE_DATA_NEWER": "These files were written by a newer version of the application. Update the application before restoring them."
+    "INSTANCE_DATA_NEWER": "These files were written by a newer version of the application. Update the application before restoring them.",
+    "INGREDIENT_NOT_RETIRED": "Only a retired ingredient can be replaced, and this one is not retired any more.",
+    "REPLACEMENT_NOT_IN_CATALOGUE": "Choose another ingredient of the catalogue to replace it with.",
+    "UNITS_STAND_IN_THE_WAY": "That ingredient cannot be measured in a unit an amount of the retired one is given in, not even in grams. Choose another."
   },
   "notifications": {
     "label": "Notifications",
@@ -551,6 +554,20 @@
       "packsUsed": "Packs used",
       "packsUsedShare": "{percent}%",
       "packsExplain": "Packs used: how much of what those plans buy in packs that do not keep once opened they use. Recipes that share such ingredients raise it."
+    },
+    "retired": {
+      "title": "Retired ingredients still in use",
+      "explain": "The data no longer carries these ingredients. A database update moves what uses one to the curated ingredient that is the same food, where the data names one; for the rest, choose an ingredient of the catalogue here. What uses it moves over with its amounts, and the figures are worked out again.",
+      "retiredOn": "Retired on {when}",
+      "uses": "Used by: library recipes ({libraryRecipes, number}), users’ recipes ({ownRecipes, number}), drafts ({drafts, number}), pantry rows ({pantryRows, number}), profiles ({profiles, number}), shopping-list rows ({shoppingRows, number}).",
+      "usedIn": "Their text may name it: {list}",
+      "replace": "Replace…",
+      "searchLabel": "An ingredient to replace {name} with",
+      "searchPlaceholder": "Name of an ingredient of the catalogue",
+      "confirm": "Replace “{from}” with “{to}” wherever it is used? The text of recipes does not change.",
+      "replaced": "“{from}” replaced with “{to}”: recipe lines ({lines, number}), draft lines ({drafts, number}), pantry rows ({pantry, number}), profiles ({profiles, number}), shopping-list rows ({rows, number}).",
+      "replaceFailed": "The ingredient was not replaced.",
+      "textNote": "The text of recipes and drafts stays as it was written: where it names the old food, correct it by hand."
     },
     "usda": {
       "title": "USDA importer",

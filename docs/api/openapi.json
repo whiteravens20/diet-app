@@ -1667,6 +1667,163 @@
         }
       }
     },
+    "/api/admin/ingredients": {
+      "get": {
+        "operationId": "Admin_searchIngredients",
+        "tags": [
+          "admin"
+        ],
+        "summary": "The ingredients of the catalogue whose name holds `search`: what a retired one can be replaced by.",
+        "description": "The ingredients of the catalogue whose name holds `search`: what a retired one can be replaced by.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 7400
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ingredient"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/admin/ingredients/{id}/replace": {
+      "post": {
+        "operationId": "Admin_replaceIngredient",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Replace a retired ingredient by one of the catalogue: what uses it moves over, with each amount kept, what is worked out from the ingredients of recipes outside the seed is worked out again, the retired ingredient goes, and the instance's files are written again.",
+        "description": "Replace a retired ingredient by one of the catalogue: what uses it moves over, with each amount kept, what is worked out from the ingredients of recipes outside the seed is worked out again, the retired ingredient goes, and the instance's files are written again. The text of a recipe is not changed: one that names the old food is for a person to correct.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceIngredientRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplacedIngredient"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
+    "/api/admin/ingredients/retired": {
+      "get": {
+        "operationId": "Admin_retiredIngredients",
+        "tags": [
+          "admin"
+        ],
+        "summary": "The retired ingredients that something of the instance still uses, with what uses them.",
+        "description": "The retired ingredients that something of the instance still uses, with what uses them.\n\nAsked by the administrator.",
+        "security": [
+          {
+            "administrator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "The language names and texts are answered in. English without it.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RetiredIngredient"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Refused"
+          }
+        }
+      }
+    },
     "/api/admin/instance-settings": {
       "get": {
         "operationId": "InstanceSettings_get",
@@ -15888,6 +16045,61 @@
         ],
         "additionalProperties": false
       },
+      "ReplaceIngredientRequest": {
+        "type": "object",
+        "properties": {
+          "by": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "by"
+        ],
+        "additionalProperties": false
+      },
+      "ReplacedIngredient": {
+        "type": "object",
+        "properties": {
+          "recipeLines": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "draftLines": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pantryRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "preferences": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "shoppingRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "recomputedRecipes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "recipeLines",
+          "draftLines",
+          "pantryRows",
+          "preferences",
+          "shoppingRows",
+          "deleted",
+          "recomputedRecipes"
+        ],
+        "additionalProperties": false
+      },
       "RestoredFromInstanceData": {
         "type": "object",
         "properties": {
@@ -15997,6 +16209,80 @@
           "recipes",
           "names",
           "unreadable"
+        ],
+        "additionalProperties": false
+      },
+      "RetiredIngredient": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "retiredAt": {
+            "type": "string"
+          },
+          "uses": {
+            "type": "object",
+            "properties": {
+              "libraryRecipes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ownRecipes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "drafts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "pantryRows": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "profiles": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "shoppingRows": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "libraryRecipes",
+              "ownRecipes",
+              "drafts",
+              "pantryRows",
+              "profiles",
+              "shoppingRows"
+            ],
+            "additionalProperties": false
+          },
+          "usedIn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "retiredAt",
+          "uses",
+          "usedIn"
         ],
         "additionalProperties": false
       },

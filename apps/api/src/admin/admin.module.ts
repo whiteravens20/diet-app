@@ -3,6 +3,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { CatalogueModule } from '../catalogue/catalogue.module.js';
+import { IngredientsModule } from '../ingredients/ingredients.module.js';
 import { MailModule } from '../mail/mail.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AdminAccountsController } from './admin-accounts.controller.js';
@@ -21,7 +22,14 @@ import { UsdaImportRunner } from './usda/runner.js';
  * cookie (`AdminSessionController`), which `AdminSessionGuard` asks for.
  */
 @Module({
-  imports: [PrismaModule, AuthModule, CatalogueModule, MailModule, InstanceFilesModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    CatalogueModule,
+    MailModule,
+    InstanceFilesModule,
+    IngredientsModule,
+  ],
   controllers: [AdminController, AdminAccountsController, AdminSessionController],
   providers: [
     AdminSecondFactorReset,

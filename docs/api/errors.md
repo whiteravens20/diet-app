@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the source of the API and from the message catalogue (`apps/web/messages/`); a test fails when this file is not what the command writes.
 
-A refusal is an `ApiError`: its `error` is one of the 145 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
+A refusal is an `ApiError`: its `error` is one of the 148 codes below, and its `message` an English sentence for a log. What a person is shown is the sentence of their language: `errors.<code>` in the catalogue of that language, which has one for every code. A text in braces is filled in from the `details` of the answer where the code has any. The status is the one the source gives beside the code; a code that is handed on to whatever throws it is listed without one.
 
 The same list is in `errors.json`, for a client to copy: each code with its statuses and its sentence in each language.
 
@@ -57,6 +57,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `IMPORT_NOT_JSON` | 400 | This is not a JSON document of recipes. | To nie jest dokument JSON z przepisami. |
 | `INGREDIENT_NOT_FOUND` | 404 | Ingredient not found. | Nie znaleziono składnika. |
 | `INGREDIENT_NOT_IN_RECIPE` | 404 | This ingredient is not part of the recipe. | Ten składnik nie należy do przepisu. |
+| `INGREDIENT_NOT_RETIRED` | 409 | Only a retired ingredient can be replaced, and this one is not retired any more. | Zastąpić można tylko wycofany składnik, a ten nie jest już wycofany. |
 | `INSTANCE_DATA_NEWER` | 409 | These files were written by a newer version of the application. Update the application before restoring them. | Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz. |
 | `INTERNAL_ERROR` | 500 | An unexpected server error occurred. | Nieoczekiwany błąd serwera. |
 | `INVALID_ACCESS_TOKEN` | 401 | Your session is invalid. Please sign in again. | Sesja jest nieprawidłowa. Zaloguj się ponownie. |
@@ -123,6 +124,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `RECIPE_NOT_SUBMITTABLE` | 409 | This recipe uses an ingredient outside the catalogue, so it can't be suggested for the library. | Ten przepis zawiera składnik spoza katalogu, więc nie można go zgłosić do biblioteki. |
 | `RECIPE_SWAP_NOT_SUBMITTABLE` | 409 | A recipe made by swapping an ingredient stays yours alone and cannot be submitted to the library. | Przepis z wymiany składnika zostaje tylko Twój i nie można go zgłosić do biblioteki. |
 | `REFERENCE_CONFLICT` | 409 | The request refers to something that does not exist or is still in use. | Żądanie odwołuje się do czegoś, co nie istnieje albo jest nadal używane. |
+| `REPLACEMENT_NOT_IN_CATALOGUE` | 422 | Choose another ingredient of the catalogue to replace it with. | Wybierz inny składnik z katalogu, którym go zastąpić. |
 | `REVIEWER_DISABLED` | 401, 403 | Reviewer interface is disabled. | Panel recenzenta jest wyłączony. |
 | `SAME_INGREDIENT` | 400 | An ingredient cannot take its own place. Choose another one. | Składnik nie może zastąpić samego siebie. Wybierz inny. |
 | `SCALE_OUT_OF_RANGE` | 400 | That would leave a meal with less than half a serving or more than three. | Posiłek miałby wtedy mniej niż pół porcji albo więcej niż trzy. |
@@ -143,6 +145,7 @@ The same list is in `errors.json`, for a client to copy: each code with its stat
 | `TRANSLATIONS_IN_PROGRESS` | 409 | A run that fills a missing language is already in progress. | Uzupełnianie brakującego języka już trwa. |
 | `TURNSTILE_FAILED` | 400 | Anti-abuse check failed. Please try again. | Weryfikacja chroniąca przed nadużyciami nie powiodła się. Spróbuj ponownie. |
 | `UNAUTHORIZED` | 401 | Sign in to continue. | Zaloguj się, aby kontynuować. |
+| `UNITS_STAND_IN_THE_WAY` | 409 | That ingredient cannot be measured in a unit an amount of the retired one is given in, not even in grams. Choose another. | Tego składnika nie da się odmierzyć w jednostce, w której podano ilość wycofanego, nawet w gramach. Wybierz inny. |
 | `UNIT_CONVERSION_FAILED` | 400 | Could not convert the recipe's quantities — missing density or grams-per-piece. | Nie udało się przeliczyć jednostek — brak gęstości lub gramów na sztukę. |
 | `UNIT_NOT_CONVERTIBLE` | 400 | This ingredient can't be kept in that unit. Use the unit it is weighed or measured in. | Tego składnika nie można trzymać w tej jednostce. Użyj jednostki, w której się go waży lub mierzy. |
 | `UNKNOWN_SLUG` | 400 | Ingredient slug not found in the curated catalogue. | Składnik nie istnieje w katalogu — podaj inny slug. |

@@ -209,4 +209,26 @@ describe("the administrator's requests", () => {
       ],
     ]);
   });
+
+  it('ask for the retired ingredients still in use, find one of the catalogue by name, and move what uses one to it', async () => {
+    const { adminApi, fetchMock } = await aPage();
+    fetchMock.mockImplementation(() => Promise.resolve(answered(200, [])));
+    const retired = '11111111-1111-4111-8111-111111111111';
+    const curated = '22222222-2222-4222-8222-222222222222';
+
+    await adminApi.retiredIngredients();
+    await adminApi.searchIngredients('kasza & mleko');
+    await adminApi.replaceIngredient(retired, curated);
+
+    expect(
+      fetchMock.mock.calls.map(([url, init]) => [
+        `${(init as RequestInit).method ?? 'GET'} ${url as string}`,
+        (init as RequestInit).body ?? null,
+      ]),
+    ).toEqual([
+      ['GET /api/admin/ingredients/retired', null],
+      ['GET /api/admin/ingredients?search=kasza%20%26%20mleko', null],
+      [`POST /api/admin/ingredients/${retired}/replace`, JSON.stringify({ by: curated })],
+    ]);
+  });
 });

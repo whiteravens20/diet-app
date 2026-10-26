@@ -417,7 +417,10 @@
     "RECIPE_INVALID": "Przepis złamałby zasady dotyczące tekstu i ilości. Nic nie zostało zapisane.",
     "RECIPE_ALREADY_YOURS": "Masz już przepis z tymi składnikami w tych samych ilościach, na te same posiłki.",
     "OWN_RECIPE_DAILY_LIMIT": "Na dziś wyczerpano limit zapisów własnych przepisów. Spróbuj ponownie jutro.",
-    "INSTANCE_DATA_NEWER": "Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz."
+    "INSTANCE_DATA_NEWER": "Te pliki zapisała nowsza wersja aplikacji. Zaktualizuj aplikację, zanim je przywrócisz.",
+    "INGREDIENT_NOT_RETIRED": "Zastąpić można tylko wycofany składnik, a ten nie jest już wycofany.",
+    "REPLACEMENT_NOT_IN_CATALOGUE": "Wybierz inny składnik z katalogu, którym go zastąpić.",
+    "UNITS_STAND_IN_THE_WAY": "Tego składnika nie da się odmierzyć w jednostce, w której podano ilość wycofanego, nawet w gramach. Wybierz inny."
   },
   "notifications": {
     "label": "Powiadomienia",
@@ -551,6 +554,20 @@
       "packsUsed": "Zużycie opakowań",
       "packsUsedShare": "{percent}%",
       "packsExplain": "Zużycie opakowań: ile z tego, co te plany kupują w opakowaniach nietrwałych po otwarciu, zostaje zużyte. Podnoszą je przepisy, które dzielą takie składniki."
+    },
+    "retired": {
+      "title": "Wycofane składniki nadal w użyciu",
+      "explain": "Dane nie zawierają już tych składników. Aktualizacja bazy przenosi to, co używa takiego składnika, na składnik z katalogu będący tym samym produktem, jeśli dane go wskazują; dla pozostałych wybierz tutaj składnik z katalogu. To, co go używa, przejdzie na niego z tymi samymi ilościami, a wartości zostaną policzone na nowo.",
+      "retiredOn": "Wycofany {when}",
+      "uses": "Używają go: przepisy biblioteki ({libraryRecipes, number}), przepisy użytkowników ({ownRecipes, number}), szkice ({drafts, number}), wiersze spiżarni ({pantryRows, number}), profile ({profiles, number}), wiersze list zakupów ({shoppingRows, number}).",
+      "usedIn": "Ich tekst może o nim mówić: {list}",
+      "replace": "Zastąp…",
+      "searchLabel": "Składnik, którym zastąpić: {name}",
+      "searchPlaceholder": "Nazwa składnika z katalogu",
+      "confirm": "Zastąpić „{from}” składnikiem „{to}” wszędzie, gdzie jest używany? Tekst przepisów się nie zmieni.",
+      "replaced": "Zastąpiono „{from}” składnikiem „{to}”: linie przepisów ({lines, number}), linie szkiców ({drafts, number}), wiersze spiżarni ({pantry, number}), profile ({profiles, number}), wiersze list zakupów ({rows, number}).",
+      "replaceFailed": "Składnik nie został zastąpiony.",
+      "textNote": "Tekst przepisów i szkiców zostaje taki, jak go napisano: tam, gdzie mówi o starym produkcie, popraw go ręcznie."
     },
     "usda": {
       "title": "Importer USDA",

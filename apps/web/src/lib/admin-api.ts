@@ -16,6 +16,7 @@ import type {
   Cuisine,
   DraftRunnerState,
   FoodImportState,
+  Ingredient,
   IngredientNameDraft,
   IngredientNameSuggestion,
   InstanceDataState,
@@ -28,7 +29,9 @@ import type {
   RecipeDraftIngredientLine,
   RecipeImportResult,
   RecipeRunState,
+  ReplacedIngredient,
   RestoredFromInstanceData,
+  RetiredIngredient,
   SecondFactorSetup,
   ShipConfig,
   ShipKind,
@@ -190,6 +193,17 @@ export const adminApi = {
   stats: () => adminFetch<AdminStats>('/stats'),
   startDbUpdate: () => adminFetch<DbUpdateState>('/db/update', { method: 'POST' }),
   dbUpdateStatus: () => adminFetch<DbUpdateState>('/db/update/status'),
+  /** The retired ingredients something of the instance still uses. */
+  retiredIngredients: () => adminFetch<RetiredIngredient[]>('/ingredients/retired'),
+  /** The ingredients of the catalogue whose name holds `search`. */
+  searchIngredients: (search: string) =>
+    adminFetch<Ingredient[]>(`/ingredients?search=${encodeURIComponent(search)}`),
+  /** Move what uses a retired ingredient to one of the catalogue. */
+  replaceIngredient: (id: string, by: string) =>
+    adminFetch<ReplacedIngredient>(`/ingredients/${id}/replace`, {
+      method: 'POST',
+      body: JSON.stringify({ by }),
+    }),
   startUsdaImport: (dataTypes?: string) =>
     adminFetch<UsdaImportRunnerState>(
       `/db/import-usda${dataTypes ? `?dataTypes=${encodeURIComponent(dataTypes)}` : ''}`,

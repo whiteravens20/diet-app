@@ -2,7 +2,7 @@
 
 Written by `npm run contract` from the controllers; a test fails when this file is not what the command writes. The same routes with every schema in full are in [`openapi.json`](openapi.json).
 
-167 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
+170 routes. Every request that is refused is answered with an `ApiError`: a status, a code and a sentence. A route that names no limit of its own is under the general one of the instance (`RATE_LIMIT_MAX` requests in `RATE_LIMIT_WINDOW` seconds for each sender).
 
 ## admin
 
@@ -17,6 +17,9 @@ Written by `npm run contract` from the controllers; a test fails when this file 
 | `GET /api/admin/db/import-usda/status` | the administrator | Where the import of foods stands. |  | 200 `FoodImportState` |  |
 | `POST /api/admin/db/update` | the administrator | Start the catalogue update: the data files are loaded into the database, in the background. 409 while one is running; `db/update/status` says where it stands. |  | 202 `CatalogueUpdateState` |  |
 | `GET /api/admin/db/update/status` | the administrator | Where the catalogue update stands. |  | 200 `CatalogueUpdateState` |  |
+| `GET /api/admin/ingredients` | the administrator | The ingredients of the catalogue whose name holds `search`: what a retired one can be replaced by. | query `IngredientListQuery` | 200 a list of `Ingredient` |  |
+| `POST /api/admin/ingredients/:id/replace` | the administrator | Replace a retired ingredient by one of the catalogue: what uses it moves over, with each amount kept, what is worked out from the ingredients of recipes outside the seed is worked out again, the retired ingredient goes, and the instance's files are written again. The text of a recipe is not changed: one that names the old food is for a person to correct. | `ReplaceIngredientRequest` | 200 `ReplacedIngredient` |  |
+| `GET /api/admin/ingredients/retired` | the administrator | The retired ingredients that something of the instance still uses, with what uses them. |  | 200 a list of `RetiredIngredient` |  |
 | `GET /api/admin/instance-settings` | the administrator | What an administrator sets for the instance in the panel: whether reviewers may sign in, and whether their password is set. |  | 200 `InstanceSettingsDto` |  |
 | `PATCH /api/admin/instance-settings` | the administrator | Change those settings. | `InstanceSettingsPatchBody` | 200 `InstanceSettingsDto` |  |
 | `GET /api/admin/session` | anyone | What the admin pages ask first. Says nothing but whether a panel exists, whether this browser is in, and whether signing in takes a code. |  | 200 `AdminSessionState` |  |
