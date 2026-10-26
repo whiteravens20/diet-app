@@ -2,6 +2,7 @@
 
 import { Info } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { SOURCE_URL } from '@/lib/project-links';
 
 /**
  * Soft, neutral disclaimer box reused across surfaces that touch AI or
@@ -39,7 +40,7 @@ export function DisclaimerNotice({
           {t.rich('bugReport', {
             link: (chunks) => (
               <a
-                href="https://github.com/whiteravens20/diet-app/issues/new"
+                href={`${SOURCE_URL}/issues/new`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-primary underline underline-offset-2"

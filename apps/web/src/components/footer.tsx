@@ -4,9 +4,9 @@
 import { BookOpen, CodeXml, Heart, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { SOURCE_URL } from '@/lib/project-links';
 import { useConfig } from '@/lib/use-config';
 
-const SOURCE_URL = 'https://github.com/whiteravens20/diet-app';
 const DOCS_URL = 'https://wrservices.link';
 const DEFAULT_SUPPORT_URL = 'https://ko-fi.com/whiteravens20';
 const WHITE_RAVENS_HOME = 'https://whiteravens.net';
