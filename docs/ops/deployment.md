@@ -386,8 +386,10 @@ rate limiting protects the auth endpoints regardless. To turn it on, set all thr
 
 ```env
 TURNSTILE_ENABLED=true
-TURNSTILE_SITE_KEY=0x...      # public — served to the browser via GET /api/config
-TURNSTILE_SECRET_KEY=0x...    # secret — stays on the server
+# Public: served to the browser through GET /api/config.
+TURNSTILE_SITE_KEY=0x...
+# Secret: stays on the server.
+TURNSTILE_SECRET_KEY=0x...
 ```
 
 The widget then renders on **Register, Login, and Forgot-password**; the front-end
@@ -406,11 +408,13 @@ Email is **optional**. "Configured" means **`SMTP_HOST` is set**:
 
 ```env
 SMTP_HOST=smtp.example.com
-SMTP_PORT=587                 # 465 = implicit TLS; 587/25 = STARTTLS
+# 465 = implicit TLS; 587 and 25 = STARTTLS.
+SMTP_PORT=587
 SMTP_USER=...
 SMTP_PASSWORD=...
 SMTP_FROM=no-reply@your-domain
-SMTP_REQUIRE_TLS=true         # false only for a relay on a trusted path
+# false only for a relay on a trusted path.
+SMTP_REQUIRE_TLS=true
 ```
 
 The connection to the mail server is encrypted before the password or a mail goes over
