@@ -2,34 +2,25 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
-import { OperatorContact } from '@/components/operator-contact';
+import { useLocale, useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeChoice } from '@/components/theme-choice';
-import { useFormat } from '@/lib/use-format';
-
-const LAST_UPDATED = '2026-10-25';
-
-const SECTION_KEYS = [
-  'section1',
-  'section2',
-  'section3',
-  'section4',
-  'section5',
-  'section6',
-  'section7',
-  'section8',
-  'section9',
-] as const;
-const CONTACT_KEY = 'section10';
+import { termsFor } from '@/lib/terms';
+import { SOFTWARE_NOTICE_ID, SoftwareNotice } from './software-notice';
 
 export const metadata: Metadata = {
   title: 'Terms of Service — Diet App',
 };
 
+/**
+ * The operator's terms of service, in the language of the page where they wrote it in
+ * that language, and under them what the application says of itself, which no operator
+ * can leave out. The terms are HTML the server made from the operator's Markdown
+ * (`lib/terms.ts`), with raw HTML shown as text and unsafe addresses dropped.
+ */
 export default function TermsPage() {
   const t = useTranslations('terms');
-  const fmt = useFormat();
+  const terms = termsFor(useLocale());
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 lg:flex-row">
@@ -48,51 +39,33 @@ export default function TermsPage() {
             {t('toc')}
           </p>
           <ol className="space-y-1.5">
-            {SECTION_KEYS.map((key, idx) => (
-              <li key={key}>
-                <a href={`#${key}`} className="text-muted-foreground hover:text-foreground">
-                  {idx + 1}. {t(`${key}.title`)}
+            {terms.outline.map(({ id, title }) => (
+              <li key={id}>
+                <a href={`#${id}`} className="text-muted-foreground hover:text-foreground">
+                  {title}
                 </a>
               </li>
             ))}
             <li>
-              <a href={`#${CONTACT_KEY}`} className="text-muted-foreground hover:text-foreground">
-                {SECTION_KEYS.length + 1}. {t(`${CONTACT_KEY}.title`)}
+              <a
+                href={`#${SOFTWARE_NOTICE_ID}`}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {t('software.title')}
               </a>
             </li>
           </ol>
         </nav>
       </aside>
 
-      <article className="flex-1 space-y-8">
-        <header className="space-y-2 border-b border-border/60 pb-4">
-          <h1 className="text-3xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t('lastUpdated', { date: fmt.date(LAST_UPDATED) })}
-          </p>
-        </header>
-
-        {SECTION_KEYS.map((key, idx) => (
-          <section key={key} id={key} className="space-y-3 scroll-mt-10">
-            <h2 className="text-xl font-semibold tracking-tight">
-              {idx + 1}. {t(`${key}.title`)}
-            </h2>
-            <p className="whitespace-pre-line leading-relaxed text-muted-foreground">
-              {t(`${key}.body`)}
-            </p>
-          </section>
-        ))}
-
-        <section id={CONTACT_KEY} className="space-y-3 scroll-mt-10">
-          <h2 className="text-xl font-semibold tracking-tight">
-            {SECTION_KEYS.length + 1}. {t(`${CONTACT_KEY}.title`)}
-          </h2>
-          <p className="whitespace-pre-line leading-relaxed text-muted-foreground">
-            {t(`${CONTACT_KEY}.body`)}
-          </p>
-          <OperatorContact notPublished={t(`${CONTACT_KEY}.operatorNotSet`)} />
-        </section>
-      </article>
+      <div className="min-w-0 flex-1 space-y-10">
+        <article
+          className="space-y-4 leading-relaxed text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:rounded-md [&_blockquote]:border [&_blockquote]:border-warning/40 [&_blockquote]:bg-warning/10 [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:text-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_h1]:text-3xl [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1]:text-foreground [&_h2]:scroll-mt-10 [&_h2]:pt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:text-foreground [&_h3]:pt-2 [&_h3]:font-semibold [&_h3]:text-foreground [&_hr]:border-border [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-6 [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6"
+          // Made on the server from the operator's own files: see lib/terms.ts.
+          dangerouslySetInnerHTML={{ __html: terms.html }}
+        />
+        <SoftwareNotice />
+      </div>
     </div>
   );
 }

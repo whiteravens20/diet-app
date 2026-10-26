@@ -219,6 +219,13 @@ services:
       # allow its frame.
       APP_URL: ${APP_URL:-http://localhost:3000}
       TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-false}
+    volumes:
+      # The operator's terms of service: TOS.md, and beside it a translation
+      # for an interface language, named by its code (TOS.pl.md). Make the
+      # directory before the first start, or Docker makes it empty and root's.
+      # Without the files the page shows the template that comes with the
+      # image; after a change, `docker compose restart web`.
+      - ./terms:/terms:ro
     depends_on:
       - api
     healthcheck:

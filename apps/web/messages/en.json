@@ -2166,49 +2166,16 @@
     "copyright": "© White Ravens"
   },
   "terms": {
-    "title": "Terms of Service",
-    "lastUpdated": "Last updated {date}",
     "toc": "On this page",
     "back": "← Back to home",
-    "section1": {
-      "title": "What this is",
-      "body": "Diet App is a self-hosted meal-planning application. The operator of this instance is responsible for its uptime, your data, and any service guarantees they choose to offer.\n\nThe software is Diet App by White Ravens, with its original source code at https://github.com/whiteravens20/diet-app. It is free software under the GNU Affero General Public License, version 3: anyone may share and change it on the terms of that licence, whose text is in the LICENSE file of the source code. It comes with no warranty of any kind. If this instance runs a changed version, the licence requires its operator to offer you the source code of that version."
-    },
-    "section2": {
-      "title": "Accounts",
-      "body": "Creating an account requires an email address and a password you keep secret. You are responsible for keeping your credentials safe. Account deletion is permanent: when you delete your account the operator hard-deletes every row tied to it — profiles, meal plans, favourites, inventory, AI usage logs — with no recovery path."
-    },
-    "section3": {
-      "title": "BYOK keys and admin AI mode",
-      "body": "When you enable BYOK (\"bring your own key\") in Settings you provide an API key for a third-party AI provider. The operator stores that key AES-encrypted at rest but does not insulate you from the provider's terms of service or pricing. When you use admin AI mode the operator is paying for your model calls within their configured monthly quota; abuse of that mode is grounds for the operator to disable your account. The operator decides which accounts may use it, and may take that back."
-    },
-    "section4": {
-      "title": "Nutrition is not medical advice",
-      "body": "Every calorie, macro and micronutrient value rendered by the application is computed by a deterministic engine from a curated ingredient database. Values are best-effort and not validated for any medical, clinical or therapeutic purpose. Consult a qualified professional before making dietary changes that affect a medical condition."
-    },
-    "section5": {
-      "title": "AI-assisted content",
-      "body": "AI-drafted recipes, ingredient substitutions and meal swaps carry an ✨ AI-assisted chip. Review them before relying on them. The deterministic engine recomputes nutrition for every AI artefact and rejects nutrition the model invented, but ingredient choices and preparation steps remain AI-authored — sanity-check them against your own dietary needs and health."
-    },
-    "section6": {
-      "title": "Curated content licence",
-      "body": "Curated recipes under data/recipes/ and curated ingredients under data/ingredients.json ship under the repository's licence, the GNU Affero General Public License, version 3. Recipes promoted from user contributions through the curation queue are contributed under the same licence by the act of submission. A recipe the instance's AI writes for you goes to the curation queue by itself, anonymously, and is contributed under the same licence if the curators accept it."
-    },
-    "section7": {
-      "title": "Data residency",
-      "body": "Your data lives in the database of the instance you are using. The upstream project has no access to it, no backups of it, and no recovery path for it. Ask the operator of this instance about backup policy and data handling before storing anything you cannot afford to lose. You can take a copy of everything your account holds, as one file, from the settings at any time."
-    },
-    "section8": {
-      "title": "Liability and warranty",
-      "body": "TL;DR: this is a free, open-source tool. Use your head.\n\nThe application is provided \"as is\", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and non-infringement. In no event shall the operator of this instance, the upstream project, or any contributor be liable for any claim, damages or other liability — whether in an action of contract, tort or otherwise — arising from, out of or in connection with the application or the use or other dealings in the application."
-    },
-    "section9": {
-      "title": "Changes",
-      "body": "These terms may be updated. Material changes are announced in the project's release notes. Continued use after a published change constitutes acceptance of the updated terms."
-    },
-    "section10": {
-      "title": "Contact",
-      "body": "Project-level questions — bugs, feature requests, security disclosures — belong in the upstream issue tracker. For questions about this specific instance, reach the operator below.",
+    "software": {
+      "title": "About the software",
+      "notice": "This instance runs {attribution}, whose original source code is at <source>{address}</source>. Copyright (C) 2026 White Ravens.",
+      "licence": "It is free software: anyone may share and change it under the GNU Affero General Public License, version 3, together with an additional term that keeps this attribution. The licence is in the LICENSE and NOTICE files of the source code and at <gnu>gnu.org</gnu>. The catalogue of recipes and ingredients that comes with it is under the same licence.",
+      "warranty": "It comes with no warranty of any kind, not even that it is fit for a particular purpose; the licence says so in full.",
+      "changed": "If this instance runs a changed version, the licence requires its operator to offer you the source code of that version.",
+      "problems": "A mistake in the software or an idea for it goes to its <issues>issue tracker</issues>. A security problem is reported privately, as its <security>security policy</security> describes.",
+      "operator": "Anything about this instance goes to its operator:",
       "operatorNotSet": "The operator of this instance has not published a contact address."
     }
   }

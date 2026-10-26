@@ -2166,49 +2166,16 @@
     "copyright": "© White Ravens"
   },
   "terms": {
-    "title": "Regulamin",
-    "lastUpdated": "Ostatnia aktualizacja: {date}",
     "toc": "Na tej stronie",
     "back": "← Wróć do strony głównej",
-    "section1": {
-      "title": "Czym to jest",
-      "body": "Diet App to aplikacja do planowania posiłków przeznaczona do samodzielnego hostowania. Operator tej instancji odpowiada za jej dostępność, Twoje dane oraz wszelkie gwarancje, które zdecyduje się oferować.\n\nOprogramowanie to Diet App by White Ravens, a jego oryginalny kod źródłowy jest pod adresem https://github.com/whiteravens20/diet-app. To wolne oprogramowanie na licencji GNU Affero General Public License w wersji 3: każdy może je rozpowszechniać i zmieniać na warunkach tej licencji, której tekst jest w pliku LICENSE w kodzie źródłowym. Program nie ma żadnej gwarancji. Jeśli ta instancja działa na zmienionej wersji, licencja wymaga od operatora udostępnienia Ci kodu źródłowego tej wersji."
-    },
-    "section2": {
-      "title": "Konta",
-      "body": "Założenie konta wymaga adresu e-mail i hasła, które trzymasz w tajemnicy. Odpowiadasz za zachowanie tych danych w bezpiecznym miejscu. Usunięcie konta jest trwałe: operator usuwa wówczas każdy wiersz powiązany z kontem — profile, plany posiłków, ulubione, spiżarnię, historię użycia AI — bez możliwości odzyskania."
-    },
-    "section3": {
-      "title": "Własne klucze (BYOK) i AI operatora",
-      "body": "Włączając w Ustawieniach BYOK („przynieś własny klucz”), podajesz klucz API zewnętrznego dostawcy AI. Operator przechowuje ten klucz zaszyfrowany algorytmem AES, ale nie zwalnia Cię to z regulaminu ani opłat dostawcy. Korzystając z AI operatora, używasz jego puli w ramach ustawionego miesięcznego limitu; nadużywanie jej może być dla operatora podstawą do wyłączenia konta. Operator decyduje, które konta mogą z niej korzystać. Może też tę zgodę cofnąć."
-    },
-    "section4": {
-      "title": "Wartości odżywcze to nie porada medyczna",
-      "body": "Każda wartość kalorii, makroskładników i mikroskładników w aplikacji jest wyliczana przez wbudowany silnik aplikacji na podstawie starannie prowadzonej bazy składników. Wartości są przybliżone i nie zostały zweryfikowane pod kątem żadnych zastosowań medycznych, klinicznych ani terapeutycznych. Skonsultuj się z wykwalifikowanym specjalistą, zanim zmienisz dietę w sposób, który może wpłynąć na stan zdrowia."
-    },
-    "section5": {
-      "title": "Treści tworzone przy pomocy AI",
-      "body": "Przepisy, zamienniki składników i zamiany posiłków wygenerowane przez AI mają znacznik ✨ Z pomocą AI. Sprawdź je, zanim zaczniesz z nich korzystać. Wbudowany silnik aplikacji ponownie wylicza wartości odżywcze dla każdej treści tworzonej przez AI i odrzuca liczby wymyślone przez model, ale dobór składników i kroki przygotowania pozostają autorstwa AI — zweryfikuj je względem własnych potrzeb żywieniowych i stanu zdrowia."
-    },
-    "section6": {
-      "title": "Licencja treści katalogu",
-      "body": "Przepisy w data/recipes/ i składniki w data/ingredients.json, które tworzą katalog, są udostępniane na licencji projektu, czyli GNU Affero General Public License w wersji 3. Przepisy zgłoszone przez użytkowników i przyjęte do biblioteki przez kolejkę kuratorską są wnoszone na tej samej licencji w chwili zgłoszenia. Przepis, który napisze dla Ciebie AI instancji, trafia do kolejki kuratorskiej sam i anonimowo, a jeśli kuratorzy go przyjmą, jest wnoszony na tej samej licencji."
-    },
-    "section7": {
-      "title": "Lokalizacja danych",
-      "body": "Twoje dane znajdują się w bazie danych tej instancji, której używasz. Projekt źródłowy nie ma do nich dostępu, nie posiada ich kopii zapasowych ani ścieżki ich odzyskiwania. Zapytaj operatora tej instancji o politykę kopii zapasowych i postępowanie z danymi, zanim powierzysz mu coś, czego nie możesz stracić. W każdej chwili możesz pobrać z ustawień kopię wszystkiego, co przechowuje Twoje konto, w jednym pliku."
-    },
-    "section8": {
-      "title": "Odpowiedzialność i gwarancja",
-      "body": "W skrócie: to darmowe, otwarte narzędzie. Używaj go z głową.\n\nAplikacja jest udostępniana „tak jak jest”, bez żadnej wyraźnej ani dorozumianej gwarancji, w tym między innymi gwarancji przydatności handlowej, przydatności do określonego celu oraz nienaruszania praw. W żadnym wypadku operator tej instancji, projekt źródłowy ani żaden współtwórca nie ponosi odpowiedzialności za jakiekolwiek roszczenia, szkody ani inne zobowiązania — wynikające z umowy, deliktu czy innej podstawy — związane z aplikacją lub jej używaniem."
-    },
-    "section9": {
-      "title": "Zmiany",
-      "body": "Niniejszy regulamin może ulegać zmianom. O istotnych zmianach piszemy w opisach wydań projektu. Dalsze korzystanie po opublikowaniu zmiany oznacza jej akceptację."
-    },
-    "section10": {
-      "title": "Kontakt",
-      "body": "Pytania dotyczące projektu — błędy, propozycje funkcji, zgłoszenia bezpieczeństwa — kieruj do systemu zgłoszeń (issues) projektu źródłowego. W sprawach dotyczących tej konkretnej instancji skontaktuj się z operatorem poniżej.",
+    "software": {
+      "title": "O oprogramowaniu",
+      "notice": "Ta instancja działa na oprogramowaniu {attribution}. Jego oryginalny kod źródłowy jest pod adresem <source>{address}</source>. Copyright (C) 2026 White Ravens.",
+      "licence": "To wolne oprogramowanie: każdy może je rozpowszechniać i zmieniać na warunkach licencji GNU Affero General Public License w wersji 3, z dodatkowym warunkiem, który zachowuje tę atrybucję. Licencja jest w plikach LICENSE i NOTICE kodu źródłowego oraz na stronie <gnu>gnu.org</gnu>. Dołączony do niego katalog przepisów i składników jest na tej samej licencji.",
+      "warranty": "Oprogramowanie nie ma żadnej gwarancji, nawet tej, że nada się do określonego celu. Pełną treść tego zastrzeżenia podaje licencja.",
+      "changed": "Jeśli ta instancja działa na zmienionej wersji, licencja zobowiązuje jej operatora do udostępnienia Ci kodu źródłowego tej wersji.",
+      "problems": "Błąd w oprogramowaniu albo pomysł na nie zgłoś w jego <issues>systemie zgłoszeń</issues>. Problem z bezpieczeństwem zgłoś prywatnie, jak opisuje <security>polityka bezpieczeństwa</security>.",
+      "operator": "Sprawy tej instancji kieruj do jej operatora:",
       "operatorNotSet": "Operator tej instancji nie opublikował adresu kontaktowego."
     }
   }

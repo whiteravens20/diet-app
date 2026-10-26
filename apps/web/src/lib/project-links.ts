@@ -6,3 +6,11 @@
  * ask for a report of a mistake.
  */
 export const SOURCE_URL = 'https://github.com/whiteravens20/diet-app';
+
+/**
+ * The attribution the additional term of the licence (NOTICE) keeps in the legal notices
+ * the application shows, with the address of the original source code. Unlike
+ * `SOURCE_URL`, a changed version leaves it as it is.
+ */
+export const ATTRIBUTION = 'Diet App by White Ravens';
+export const ATTRIBUTION_URL = 'https://github.com/whiteravens20/diet-app';
