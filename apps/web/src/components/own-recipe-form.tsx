@@ -455,7 +455,7 @@ export function OwnRecipeForm({
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                aria-controls={`${ids}-found`}
+                aria-controls={search.trim().length >= 2 ? `${ids}-found` : undefined}
               />
             </Field>
             {search.trim().length >= 2 && (
