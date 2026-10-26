@@ -64,6 +64,10 @@ updates:
       # by hand, together with the base image and `node-version` in the workflows.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # typescript-eslint, which lint runs on, supports TypeScript below 6.1
+      # (its 8.72.0 names `>=4.8.4 <6.1.0`). Remove this once it supports more.
+      - dependency-name: 'typescript'
+        versions: ['>=6.1.0']
 
   # Both Dockerfiles pin node by version and digest. A new minor or patch moves
   # the two together; a rebuild of the same version moves the digest alone.
