@@ -34,8 +34,10 @@ The companion Android app lives in a separate repository:
   training or rest day, skipped, another number of meals, a target of its own), with what
   that does to its meals said before it is saved.
 - **Recipes from a curated DB** — deterministic nutrition; AI may draft recipes only from
-  approved ingredients, then a validation layer recomputes every number. An operator can
-  also take recipes in from a schema.org document they have: each line has to be an amount
+  approved ingredients, then a validation layer recomputes every number. A user can also
+  write recipes of their own by hand from the catalogue's ingredients, and the engine works
+  out what a serving holds. An operator can also take recipes in from a schema.org document
+  they have: each line has to be an amount
   of an ingredient the catalogue knows, a person approves every draft, and the recipe says
   where it is from and under which licence.
 - **Shopping lists and a pantry** — merged and category-grouped, counted the way one
@@ -186,6 +188,20 @@ without any guessing. User accounts and plans are preserved across updates.
 
 The CLI alternative is `npm run db:seed`. See
 [docs/ops/deployment.md](docs/ops/deployment.md) for production and GPU/Ollama setups.
+
+## Where the recipes come from
+
+The repository holds a fixed base of 131 reviewed recipes, in `data/recipes.json` and
+`data/recipes/` (see [data/README.md](data/README.md)). Every instance starts from it, and
+it changes only in this repository.
+
+Beyond that base an instance grows a library of its own, in its database. Its administrator
+has the instance's model write recipes or takes them in from a document; its users write
+recipes by hand or have a model write them, and send them in; a recipe the instance's model
+writes for a user goes in by itself. Each becomes a recipe of the instance's library only
+once people have approved it in the curation queue, and none of them comes back to this
+repository. [docs/ops/curation-shipping.md](docs/ops/curation-shipping.md) says how approved
+recipes ship and how to keep a copy of what an instance added.
 
 ## Documentation
 

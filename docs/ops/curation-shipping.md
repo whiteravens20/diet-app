@@ -5,6 +5,13 @@ where they end up. A mode is picked per ship; an instance may use one today and
 another next month. What is written has the same shape in every mode: the shape
 of the catalogue's data files.
 
+The repository's `data/` is the same for every instance: a fixed base of reviewed
+recipes and the curated ingredients, read by every **Update Database** and changed
+only in the repository. What this queue ships is the instance's own: recipes its
+administrator generated or took in, recipes its users sent in, and recipes the
+instance's model wrote for its users. They stay in the instance, in its database
+and in the copy its data directory keeps.
+
 ## The two modes
 
 | Mode                  | What happens                                                                                      | Needs    |
