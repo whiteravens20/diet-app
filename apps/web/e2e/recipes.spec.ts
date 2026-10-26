@@ -26,7 +26,8 @@ test.describe('the recipe library', () => {
   }) => {
     const page = session.page;
     const recipes = messages.recipes as Texts;
-    const cards = page.getByRole('main').locator('a[href^="/recipes/"]');
+    // The cards of the recipes: the way to write one of one's own is a link of the page as well.
+    const cards = page.getByRole('main').locator('a[href^="/recipes/"]:not([href="/recipes/new"])');
     // A label that holds a list of choices reads with them: the list is found by its role and its name.
     const meal = page.getByRole('combobox', { name: recipes.mealType!, exact: true });
 

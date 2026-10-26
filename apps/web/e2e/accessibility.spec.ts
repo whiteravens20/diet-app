@@ -29,6 +29,7 @@ test.describe('a page of a signed-in account has nothing that keeps somebody fro
     '/profile',
     '/calculator',
     '/recipes',
+    '/recipes/new',
     '/favorites',
     '/meal-plans',
     '/shopping-lists',

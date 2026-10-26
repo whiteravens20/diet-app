@@ -17,6 +17,7 @@ const ACCOUNT_PAGES = [
   '/profile',
   '/calculator',
   '/recipes',
+  '/recipes/new',
   '/favorites',
   '/meal-plans',
   '/shopping-lists',
