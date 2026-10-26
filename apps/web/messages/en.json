@@ -91,7 +91,7 @@
   },
   "disclaimers": {
     "aiPlans": "AI helps draft plans and pick swaps — and it can get things wrong. Review every plan, recipe and swap against your own dietary needs and health before you rely on it.",
-    "enginePlans": "Plan generation and swaps run on a deterministic engine — fast and reproducible, but still review every result against your own dietary needs and health. After an ingredient swap the recipe text is adjusted by plain replacement: it may read awkwardly, and a step that names the old ingredient by another word still names it. The ingredient list is the one to follow.",
+    "enginePlans": "Plans and swaps are put together by the app's built-in engine — quickly and the same way every time, but still review every result against your own dietary needs and health. After an ingredient swap the recipe text is adjusted by plain replacement: it may read awkwardly, and a step that names the old ingredient by another word still names it. The ingredient list is the one to follow.",
     "aiRecipeDraft": "AI-drafted recipes can contain mistakes. Double-check the ingredients, quantities and steps before relying on the result.",
     "aiActivated": "AI helps draft recipes and pick swaps, but it can make mistakes. Always review AI-generated content against your own dietary needs and health.",
     "bugReport": "Spotted a bug? <link>Open an issue</link> on the source repository."
@@ -137,7 +137,7 @@
       "body": "This is pre-release software under active development. Things may break, data may be wiped between updates, and it might just blow up in your face. Don't rely on it for anything important yet."
     },
     "headline": "Meal planning that actually adds up.",
-    "subhead": "Calorie-targeted plans, deterministic nutrition and shopping lists that write themselves. AI optional — never required.",
+    "subhead": "Calorie-targeted plans, accurate nutrition and shopping lists that write themselves. AI optional — never required.",
     "getStarted": "Get started",
     "signIn": "Sign in",
     "features": {
@@ -149,8 +149,8 @@
       "swapsBody": "Swap a meal for another, or an ingredient for one with the same calories, and see what it does to the macros. Make a day, a few days or the whole plan again and keep what you have already eaten.",
       "listsTitle": "Consolidated lists",
       "listsBody": "A shopping list made from your plan, merged, grouped by aisle and counted the way you shop: eggs in pieces, with the packs each row takes. What your pantry holds is taken off.",
-      "nutritionTitle": "Deterministic nutrition",
-      "nutritionBody": "Every calorie and macro comes from a curated ingredient database and is worked out by a deterministic engine: the same inputs always give the same numbers, never invented ones.",
+      "nutritionTitle": "Worked out, not made up",
+      "nutritionBody": "Every calorie and macro comes from a curated ingredient database and is worked out by the app itself: the same inputs always give the same numbers, never invented ones.",
       "aiTitle": "AI only if you want it",
       "aiBody": "The model your server offers, where its administrator has set one up, or your own OpenAI, Anthropic, OpenRouter or Ollama key. A model may draft a recipe from known ingredients and order the planner's proposals, but never writes a number. Everything works without it."
     }
@@ -1047,7 +1047,7 @@
   },
   "mealPlans": {
     "title": "Meal plans",
-    "subhead": "Deterministic, calorie-targeted plans — generated per profile.",
+    "subhead": "Plans that hit your calorie target — made for each profile on its own.",
     "noProfile": "No profile yet",
     "noProfileBody": "Create a profile first — a meal plan is generated against its calorie target.",
     "noProfileCta": "Create profile",
@@ -1474,10 +1474,10 @@
       "rose": "Rose"
     },
     "aiAssistant": "AI assistant",
-    "aiAssistantSubhead": "Pick how AI features behave for you. Calorie and macro values are always recomputed by the deterministic engine — AI never invents nutrition.",
+    "aiAssistantSubhead": "Pick how AI features behave for you. Calorie and macro values are always recomputed by the app's built-in engine — AI never invents nutrition.",
     "aiMode": "Mode",
     "aiModeNone": "Off",
-    "aiModeNoneHint": "Every AI feature falls back to the deterministic engine. No request leaves the instance.",
+    "aiModeNoneHint": "Every AI feature uses the built-in engine instead. No request leaves the instance.",
     "aiModeAdmin": "Use the instance default",
     "aiModeAdminHint": "Borrow the operator's provider, capped at {limit, number} requests per month.",
     "aiModeAdminUnavailable": "The operator hasn't configured a default provider.",
@@ -1505,7 +1505,7 @@
     "aiPickModel": "Choose a model",
     "aiProviders": "AI providers",
     "aiSubhead": "Bring-your-own keys for OpenAI, Anthropic, OpenRouter or Ollama. Keys are encrypted at rest and never returned to the client.",
-    "aiNoProviders": "No providers configured. The deterministic engine handles every feature without one.",
+    "aiNoProviders": "No providers configured. The built-in engine handles every feature without one.",
     "aiHasKey": "Key set",
     "aiNoKey": "No key (Ollama)",
     "aiKeyUnreadable": "Key can no longer be read — enter it again",
@@ -1517,7 +1517,7 @@
     "aiOllamaUrlInvalid": "Enter a valid URL, e.g. http://localhost:11434",
     "aiApiKeyRequired": "API key is required for this provider.",
     "aiModelWarningTitle": "You choose the model — and the quality.",
-    "aiModelWarning": "Weak or undersized models can hallucinate ingredients, invent quantities, or produce poor translations. Pick a model you trust; the deterministic engine still owns every nutrition number, but AI-touched text (recipe drafts, swap rewrites, translations) is only as good as the model you choose.",
+    "aiModelWarning": "Weak or undersized models can hallucinate ingredients, invent quantities, or produce poor translations. Pick a model you trust; the app's built-in engine still works out every nutrition number, but AI-touched text (recipe drafts, swap rewrites, translations) is only as good as the model you choose.",
     "aiPriority": "Priority",
     "aiPriorityHint": "Lower runs first in the failover chain.",
     "aiSaving": "Saving…",
@@ -1794,7 +1794,7 @@
   },
   "profile": {
     "title": "Profiles",
-    "subhead": "A profile drives the deterministic calorie engine. An account on this instance can have {max, plural, one {one profile} other {up to # profiles: one for each member of a household, or to compare diet scenarios}}. Editing a profile recalculates its targets; deleting one also removes its meal plans and shopping lists.",
+    "subhead": "A profile holds the figures your calorie target is worked out from. An account on this instance can have {max, plural, one {one profile} other {up to # profiles: one for each member of a household, or to compare diet scenarios}}. Editing a profile recalculates its targets; deleting one also removes its meal plans and shopping lists.",
     "atLimit": "You have reached the limit of {max, plural, one {one profile} other {# profiles}} that this instance allows an account. Edit one above, or delete a profile to create a new one.",
     "newProfile": "New profile",
     "addProfile": "Add profile",

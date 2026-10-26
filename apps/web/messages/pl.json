@@ -150,7 +150,7 @@
       "listsTitle": "Gotowe listy zakupów",
       "listsBody": "Lista zakupów z planu, scalona, pogrupowana według działów sklepu i policzona tak, jak się kupuje: jajka w sztukach, przy każdej pozycji liczba opakowań. To, co jest w spiżarni, jest odliczane.",
       "nutritionTitle": "Liczone, nie zmyślane",
-      "nutritionBody": "Każda kaloria i każdy makroskładnik pochodzą ze starannie prowadzonej bazy składników i są liczone przez deterministyczny silnik: te same dane zawsze dają te same liczby, nigdy zmyślone.",
+      "nutritionBody": "Każda kaloria i każdy makroskładnik pochodzą ze starannie prowadzonej bazy składników i liczy je sama aplikacja: z tych samych danych zawsze wychodzą te same liczby, nigdy zmyślone.",
       "aiTitle": "AI tylko, jeśli chcesz",
       "aiBody": "Model udostępniony na serwerze, jeśli administrator go włączył, albo własny klucz OpenAI, Anthropic, OpenRouter lub Ollama. Model może ułożyć przepis ze znanych składników i uszeregować propozycje planera, ale żadnej liczby nie wymyśla. Bez AI wszystko działa."
     }
