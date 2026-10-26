@@ -381,6 +381,7 @@ export class RecipeGeneratorRunner {
         dietTags: spec.dietTags,
         mealTypes: spec.mealTypes,
         cuisine: spec.cuisine,
+        cookingMethod: spec.cookingMethod,
         kcalRange: spec.kcalRange,
         avoidSlugs: spec.avoidSlugs,
         preferSlugs: spec.preferSlugs,

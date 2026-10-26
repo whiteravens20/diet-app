@@ -15,7 +15,15 @@
 import * as z from './zod.js';
 import { MOST_TRANSLATIONS_PER_RUN } from './constants.js';
 import { Locale } from './settings.js';
-import { Complexity, Cuisine, Difficulty, Unit, MealType, DietType } from './enums.js';
+import {
+  Complexity,
+  CookingMethod,
+  Cuisine,
+  Difficulty,
+  Unit,
+  MealType,
+  DietType,
+} from './enums.js';
 export { Complexity };
 
 export const DraftStatus = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'SHIPPED']);
@@ -418,6 +426,8 @@ export const RecipeGenerateSpec = z
      * application knows (`Cuisine`), the drafts of the run are tagged with it.
      */
     cuisine: z.string().min(1).max(80).optional(),
+    /** How the recipes are to be cooked: a hint to the model, as a user's draft takes one. */
+    cookingMethod: CookingMethod.optional(),
     kcalRange: z
       .object({
         min: z.number().int().min(0).max(5000),

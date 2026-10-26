@@ -15283,6 +15283,9 @@
             "minLength": 1,
             "maxLength": 80
           },
+          "cookingMethod": {
+            "$ref": "#/components/schemas/CookingMethod"
+          },
           "kcalRange": {
             "type": "object",
             "properties": {

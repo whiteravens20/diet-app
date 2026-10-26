@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { DietType, MealType, type RecipeDraft, type RecipeGenerateSpec } from '@diet-app/shared';
+import { DietType, MealType, type RecipeDraft, RecipeGenerateSpec } from '@diet-app/shared';
 import { COVERAGE_TARGET, recipesPerDietAndMeal } from '../../engine/coverage.js';
 import { recipeBatch, recipesPerCall } from '../../ai/operations.js';
 import { INGREDIENTS, RECIPES, seedCatalogue } from '../../testing/catalogue.js';
@@ -206,6 +206,27 @@ describe('generating recipe drafts', () => {
     // A direction in other words is still a direction for the model, and names no cuisine.
     expect(await generate('something light for summer')).toEqual([null]);
     expect(await generate()).toEqual([null]);
+  });
+
+  it('tells the model the way of cooking the run was asked for, and the diet and meal it is for', async () => {
+    t.model.reply({ text: author().answer(), times: 10 });
+
+    // Read as the route reads it, which drops a field the request may not hold.
+    await run(
+      RecipeGenerateSpec.parse({
+        count: 1,
+        targetLocales: ['en'],
+        complexityMix: ALL_SIMPLE,
+        dietTags: ['keto'],
+        mealTypes: ['breakfast'],
+        cookingMethod: 'pan_fried',
+      }),
+    );
+
+    const prompt = t.model.requests[0]!.prompt;
+    expect(prompt).toContain('- Cooking method: pan fried.');
+    expect(prompt).toContain('keto');
+    expect(prompt).toContain('breakfast');
   });
 
   describe('what the model is told about the recipes that exist', () => {

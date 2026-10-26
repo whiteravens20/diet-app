@@ -1,7 +1,14 @@
 // Copyright (C) 2026 White Ravens. AGPL-3.0-only with an additional term; see LICENSE and NOTICE.
 
 import * as z from './zod.js';
-import { ALLERGENS, CUISINES, DIET_TYPES, MEAL_TYPES, RECIPE_DIET_TAGS } from './constants.js';
+import {
+  ALLERGENS,
+  COOKING_METHODS,
+  CUISINES,
+  DIET_TYPES,
+  MEAL_TYPES,
+  RECIPE_DIET_TAGS,
+} from './constants.js';
 import { UNITS } from './units.js';
 
 /** Biological sex — used only for the BMR formula; optional on profiles. */
@@ -197,17 +204,8 @@ export type AiProvider = z.infer<typeof AiProvider>;
 export const Cuisine = z.enum(CUISINES);
 export type Cuisine = z.infer<typeof Cuisine>;
 
-/** Cooking-method hint for the AI recipe drafter. Soft preference. */
-export const CookingMethod = z.enum([
-  'baked',
-  'grilled',
-  'pan_fried',
-  'boiled',
-  'steamed',
-  'stewed',
-  'raw',
-  'no_cook',
-]);
+/** How a recipe a model is asked for is cooked: a hint to the model, which it may not take. */
+export const CookingMethod = z.enum(COOKING_METHODS);
 export type CookingMethod = z.infer<typeof CookingMethod>;
 
 /**

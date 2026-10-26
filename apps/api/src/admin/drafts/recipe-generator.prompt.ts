@@ -19,7 +19,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Locale, MealType, DietType, Complexity } from '@diet-app/shared';
+import type { Locale, MealType, DietType, Complexity, CookingMethod } from '@diet-app/shared';
 import { macroSplitOf } from '../../engine/nutrition.js';
 import { slugify } from '../seed/catalogue.js';
 import { COMPLEXITY_BANDS } from './recipe-generator.complexity.js';
@@ -62,6 +62,7 @@ export interface RecipeGeneratorPromptInput {
   dietTags?: DietType[];
   mealTypes?: MealType[];
   cuisine?: string;
+  cookingMethod?: CookingMethod;
   kcalRange?: { min: number; max: number };
   avoidSlugs?: string[];
   preferSlugs?: string[];
@@ -254,6 +255,9 @@ export function buildRecipeGeneratorPrompt(input: RecipeGeneratorPromptInput): s
   }
   if (input.cuisine) {
     constraints.push(`- Cuisine direction: ${input.cuisine}.`);
+  }
+  if (input.cookingMethod) {
+    constraints.push(`- Cooking method: ${input.cookingMethod.replace(/_/g, ' ')}.`);
   }
   if (input.kcalRange) {
     constraints.push(

@@ -72,6 +72,18 @@ export const CUISINES = [
   'indian',
 ] as const;
 
+/** How the recipe a model is asked for is cooked (`CookingMethod`). */
+export const COOKING_METHODS = [
+  'baked',
+  'grilled',
+  'pan_fried',
+  'boiled',
+  'steamed',
+  'stewed',
+  'raw',
+  'no_cook',
+] as const;
+
 /** How a profile feels about a recipe it marked (`FavoriteSentiment`). */
 export const FAVORITE_SENTIMENTS = ['favorite', 'often', 'avoid'] as const;
 

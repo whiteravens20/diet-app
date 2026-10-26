@@ -165,3 +165,22 @@ describe('a prompt for a diet', () => {
     expect(asked()).toContain('A dish is EITHER a main\n    dish OR a small one, never both');
   });
 });
+
+describe('a prompt for a way of cooking', () => {
+  const asked = (cookingMethod?: 'pan_fried' | 'no_cook'): string =>
+    buildRecipeGeneratorPrompt({
+      targetLocales: ['en'],
+      targets: { simple: 1, medium: 1, complex: 1 },
+      catalogue,
+      cookingMethod,
+    });
+
+  it('says how the recipes are to be cooked, in words, when the run names a way', () => {
+    expect(asked('pan_fried')).toContain('- Cooking method: pan fried.');
+    expect(asked('no_cook')).toContain('- Cooking method: no cook.');
+  });
+
+  it('says nothing of it when the run names none', () => {
+    expect(asked()).not.toContain('Cooking method');
+  });
+});
