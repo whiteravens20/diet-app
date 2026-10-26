@@ -129,7 +129,7 @@ curl -O https://raw.githubusercontent.com/whiteravens20/diet-app/main/infra/dock
 curl -o .env https://raw.githubusercontent.com/whiteravens20/diet-app/main/.env.example
 
 # 2. Fill in secrets (POSTGRES_PASSWORD, JWT_*, *_ENCRYPTION_SECRET,
-#    ADMIN_PASSWORD, APP_URL/API_URL pointing at your public origin).
+#    ADMIN_PASSWORD, APP_URL pointing at your public origin).
 #    Generate each secret with: openssl rand -hex 32
 nano .env
 

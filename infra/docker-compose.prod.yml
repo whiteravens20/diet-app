@@ -34,7 +34,7 @@
 #   AI_KEY_ENCRYPTION_SECRET   openssl rand -hex 32
 #   DATA_ENCRYPTION_SECRET     openssl rand -hex 32  (NEVER change after first boot — existing accounts become unreadable)
 #   ADMIN_PASSWORD             strong random value (admin panel auth)
-#   APP_URL / API_URL          public origins your reverse proxy serves
+#   APP_URL                    the public origin your reverse proxy serves
 # `sh scripts/init-env.sh` in a checkout of the repository writes a `.env` with
 # the three secrets generated.
 # ──────────────────────────────────────────────────────────────────────────────

@@ -201,7 +201,6 @@ describe('the shipped .env.example', () => {
   it('names only settings the application or the Compose files read', () => {
     // Read by Compose or by the web build, not by the API.
     const elsewhere = new Set([
-      'API_URL',
       'POSTGRES_USER',
       'POSTGRES_PASSWORD',
       'POSTGRES_DB',
