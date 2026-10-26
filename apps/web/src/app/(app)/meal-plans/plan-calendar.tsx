@@ -182,7 +182,7 @@ export function PlanCalendar({
                 {week.map((date, weekday) => {
                   const day = held.get(date);
                   return (
-                    <td key={date} className="p-0">
+                    <td key={date} className="relative p-0">
                       <button
                         type="button"
                         ref={(cell) => {
@@ -215,32 +215,47 @@ export function PlanCalendar({
                         >
                           {Number(date.slice(8))}
                         </span>
-                        {day?.skipped && (
-                          <span className="text-muted-foreground">{t('skipped')}</span>
-                        )}
-                        {day && !day.skipped && (
-                          <span
-                            className={cn(
-                              'flex items-center gap-0.5 tabular-nums',
-                              day.offTarget && 'font-medium text-warning',
-                            )}
-                          >
-                            {day.offTarget && <TriangleAlert size={10} aria-hidden />}
-                            {fmt.number(day.calories)}
-                          </span>
-                        )}
-                        {day && (day.eaten.meals > 0 || day.plans > 1) && (
-                          <span className="flex items-center gap-1 text-muted-foreground tabular-nums">
-                            {day.eaten.meals > 0 && (
-                              <span className="flex items-center gap-0.5">
-                                <Check size={10} aria-hidden />
-                                {day.eaten.meals}/{day.eaten.of}
-                              </span>
-                            )}
-                            {day.plans > 1 && <span>+{day.plans - 1}</span>}
-                          </span>
-                        )}
                       </button>
+                      {day && (
+                        // What the day holds, drawn over its button below the date. The button shows the
+                        // date alone, which its name holds, so what can be read on it is in its name; the
+                        // name says all of this too. The same frame and padding as the button's, so the
+                        // lines fall where they would inside it.
+                        <span
+                          aria-hidden
+                          className={cn(
+                            'pointer-events-none absolute inset-0 flex flex-col items-start gap-0.5 border border-transparent p-1.5 text-xs',
+                            monthOf(date) !== month && 'text-muted-foreground',
+                          )}
+                        >
+                          <span className="h-5 shrink-0" />
+                          {day.skipped && (
+                            <span className="text-muted-foreground">{t('skipped')}</span>
+                          )}
+                          {!day.skipped && (
+                            <span
+                              className={cn(
+                                'flex items-center gap-0.5 tabular-nums',
+                                day.offTarget && 'font-medium text-warning',
+                              )}
+                            >
+                              {day.offTarget && <TriangleAlert size={10} />}
+                              {fmt.number(day.calories)}
+                            </span>
+                          )}
+                          {(day.eaten.meals > 0 || day.plans > 1) && (
+                            <span className="flex items-center gap-1 text-muted-foreground tabular-nums">
+                              {day.eaten.meals > 0 && (
+                                <span className="flex items-center gap-0.5">
+                                  <Check size={10} />
+                                  {day.eaten.meals}/{day.eaten.of}
+                                </span>
+                              )}
+                              {day.plans > 1 && <span>+{day.plans - 1}</span>}
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </td>
                   );
                 })}
