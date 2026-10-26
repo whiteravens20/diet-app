@@ -1499,8 +1499,8 @@
         "tags": [
           "admin/drafts"
         ],
-        "summary": "Read back into the database what local ships copied to the instance's data directory: the way to carry an instance's own recipes and names to a new server.",
-        "description": "Read back into the database what local ships copied to the instance's data directory: the way to carry an instance's own recipes and names to a new server. Repeatable; see `ship/restore.ts`.\n\nAsked by the administrator.",
+        "summary": "Read the instance's own files back into the database: the way to carry the recipes and names it added to a new server.",
+        "description": "Read the instance's own files back into the database: the way to carry the recipes and names it added to a new server. Repeatable; see `ship/restore.ts`.\n\nAsked by the administrator.",
         "security": [
           {
             "administrator": []

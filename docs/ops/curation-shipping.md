@@ -199,9 +199,9 @@ slug that a recipe of the catalogue's own data now uses stays with that recipe.
 
 ## Settings
 
-| Variable            | Default         | Purpose                                                                                    |
-| ------------------- | --------------- | ------------------------------------------------------------------------------------------ |
-| `INSTANCE_DATA_DIR` | `instance-data` | Where `local` ships copy what they shipped, and what a restore reads. Keep it on a volume. |
+| Variable            | Default         | Purpose                                                                                                                                                                                                                                                                                                          |
+| ------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INSTANCE_DATA_DIR` | `instance-data` | Where the instance writes its own files (its library of recipes, the names of ingredients it gave, the version that wrote them) from the database after every ship, restore and update of the catalogue, and what a restore in the admin panel reads back. Keep it on a volume and back it up with the database. |
 
 `bundle` reads no setting. `local` reads only `INSTANCE_DATA_DIR`.
 

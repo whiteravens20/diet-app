@@ -104,9 +104,9 @@ Two rules apply to every variable:
 
 See [curation-shipping.md](curation-shipping.md) for the two ship modes.
 
-| Variable            | Default         | Purpose                                                                                                                                           |
-| ------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `INSTANCE_DATA_DIR` | `instance-data` | Where the local ship mode copies what it shipped, and what a restore in the admin panel reads back. Private to the instance; keep it on a volume. |
+| Variable            | Default         | Purpose                                                                                                                                                                                                                                                                                                          |
+| ------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INSTANCE_DATA_DIR` | `instance-data` | Where the instance writes its own files (its library of recipes, the names of ingredients it gave, the version that wrote them) from the database after every ship, restore and update of the catalogue, and what a restore in the admin panel reads back. Keep it on a volume and back it up with the database. |
 
 ## What the instance publishes
 

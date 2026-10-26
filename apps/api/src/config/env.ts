@@ -166,9 +166,9 @@ export const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
-  // How approved drafts leave the curation queue. `local` makes them rows of
-  // this instance and copies them to INSTANCE_DATA_DIR, which a restore reads
-  // back; `bundle` hands the administrator a file.
+  // Where the instance writes its own files (its library of recipes and the
+  // names of ingredients it gave) from the database after every ship, restore
+  // and update of the catalogue, and what a restore reads back.
   INSTANCE_DATA_DIR: z.string().default('instance-data'),
 });
 

@@ -527,9 +527,9 @@ export class DraftsController {
   }
 
   /**
-   * Read back into the database what local ships copied to the instance's
-   * data directory: the way to carry an instance's own recipes and names to a
-   * new server. Repeatable; see `ship/restore.ts`.
+   * Read the instance's own files back into the database: the way to carry
+   * the recipes and names it added to a new server. Repeatable; see
+   * `ship/restore.ts`.
    */
   @Post('ship/restore')
   @HttpCode(200)
