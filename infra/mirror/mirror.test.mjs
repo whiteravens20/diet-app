@@ -179,15 +179,27 @@ test('takes up a repository it wrote to before, after its own clone was lost', (
 
 test("is the script the release's Compose file carries", () => {
   const compose = readFileSync(join(HERE, '..', 'docker-compose.prod.yml'), 'utf8').split('\n');
-  const start = compose.indexOf('  mirror-script:');
-  assert.notEqual(start, -1, 'the release compose names no mirror-script config');
-  assert.equal(compose[start + 1], '    content: |');
+  const service = compose.indexOf('  mirror:');
+  assert.notEqual(service, -1, 'the release compose has no mirror service');
+  const start = compose.indexOf('    entrypoint:', service);
+  assert.notEqual(start, -1, 'the mirror service has no entrypoint');
+  assert.deepEqual(compose.slice(start + 1, start + 4), ['      - sh', '      - -c', '      - |']);
   const carried = [];
-  for (const line of compose.slice(start + 2)) {
-    if (line !== '' && !line.startsWith('      ')) break;
-    carried.push(line.slice(6));
+  for (const line of compose.slice(start + 4)) {
+    if (line !== '' && !line.startsWith('        ')) break;
+    carried.push(line.slice(8));
   }
   // Compose reads `$$` as a `$` it does not fill in.
   const script = carried.join('\n').replaceAll('$$', '$').trimEnd() + '\n';
   assert.equal(script, readFileSync(SCRIPT, 'utf8'));
+});
+
+test("is in no config of the release's Compose file, which a read-only service cannot take", () => {
+  // Compose copies a config given as `content` into the container, and refuses that for a
+  // service whose root file system is read-only, as the mirror's is.
+  const compose = readFileSync(join(HERE, '..', 'docker-compose.prod.yml'), 'utf8').split('\n');
+  assert.deepEqual(
+    compose.filter((line) => /^\s*content:/.test(line)),
+    [],
+  );
 });

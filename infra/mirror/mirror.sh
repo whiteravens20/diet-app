@@ -5,8 +5,9 @@
 # library of recipes, the names of ingredients it gave and the version that
 # wrote them), copied once an hour into a git repository of the operator's,
 # with a commit when something changed, pushed with a deploy key. The release's
-# Compose file carries this script in its `configs`, so that it stays the one
-# file an operator downloads; a test holds the two to each other.
+# Compose file carries this script in the `entrypoint` of its `mirror` service,
+# so that it stays the one file an operator downloads; a test holds the two to
+# each other.
 #
 # It reads the instance's files and the key, and writes only the clone of the
 # repository and the host key of the git server, taken on the first connection
