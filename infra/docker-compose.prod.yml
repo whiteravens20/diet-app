@@ -14,8 +14,10 @@
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Updating:
+# Updating: this file changes with the application, so take its new version
+# before the images, and add to .env the settings the new .env.example adds:
 #
+#   curl -O https://raw.githubusercontent.com/whiteravens20/diet-app/main/infra/docker-compose.prod.yml
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
 #
